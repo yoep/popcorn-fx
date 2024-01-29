@@ -370,6 +370,10 @@ public class VideoPlayerYoutube extends AbstractVideoPlayer implements VideoPlay
             log.trace("[WebView] " + message);
         }
 
+        public void logWarn(String message) {
+            log.warn("[WebView] " + message);
+        }
+
         public void logError(String message) {
             log.error("[WebView] " + message);
         }

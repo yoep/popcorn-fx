@@ -24,7 +24,7 @@ use popcorn_fx_core::core::cache::CacheManager;
 use popcorn_fx_core::core::config::{ApplicationConfig, PopcornProperties};
 use popcorn_fx_core::core::events::EventPublisher;
 use popcorn_fx_core::core::images::{DefaultImageLoader, ImageLoader};
-use popcorn_fx_core::core::loader::{DefaultMediaLoader, LoadingStrategy, MediaLoader, PlayerLoadingStrategy, SubtitleLoadingStrategy, TorrentInfoLoadingStrategy, TorrentLoadingStrategy, TorrentStreamLoadingStrategy};
+use popcorn_fx_core::core::loader::{DefaultMediaLoader, LoadingStrategy, MediaLoader, MediaTorrentUrlLoadingStrategy, PlayerLoadingStrategy, SubtitlesLoadingStrategy, TorrentInfoLoadingStrategy, TorrentLoadingStrategy, TorrentStreamLoadingStrategy};
 use popcorn_fx_core::core::media::favorites::{DefaultFavoriteService, FavoriteCacheUpdater, FavoriteService};
 use popcorn_fx_core::core::media::providers::{FavoritesProvider, MovieProvider, ProviderManager, ShowProvider};
 use popcorn_fx_core::core::media::providers::enhancers::ThumbEnhancer;
@@ -206,7 +206,7 @@ impl PopcornFX {
         let favorites_service = Arc::new(Box::new(DefaultFavoriteService::new(app_directory_path)) as Box<dyn FavoriteService>);
         let watched_service = Arc::new(Box::new(DefaultWatchedService::new(app_directory_path, event_publisher.clone())) as Box<dyn WatchedService>);
         let providers = Arc::new(Self::default_providers(&settings, &args, &cache_manager, &favorites_service, &watched_service));
-        let torrent_manager = Arc::new(Box::new(DefaultTorrentManager::new(settings.clone(), event_publisher.clone(), runtime.clone())) as Box<dyn TorrentManager>);
+        let torrent_manager = Arc::new(Box::new(DefaultTorrentManager::new(settings.clone(), event_publisher.clone())) as Box<dyn TorrentManager>);
         let torrent_stream_server = Arc::new(Box::new(DefaultTorrentStreamServer::default()) as Box<dyn TorrentStreamServer>);
         let torrent_collection = Arc::new(TorrentCollection::new(app_directory_path));
         let auto_resume_service = Arc::new(Box::new(DefaultAutoResumeService::builder()
@@ -232,7 +232,8 @@ impl PopcornFX {
         let image_loader = Arc::new(Box::new(DefaultImageLoader::new(cache_manager.clone())) as Box<dyn ImageLoader>);
         let player_manager = Arc::new(Box::new(DefaultPlayerManager::new(event_publisher.clone())) as Box<dyn PlayerManager>);
         let loading_chain: Vec<Box<dyn LoadingStrategy>> = vec![
-            Box::new(SubtitleLoadingStrategy::new(subtitle_provider.clone(), subtitle_manager.clone())),
+            Box::new(SubtitlesLoadingStrategy::new(subtitle_provider.clone(), subtitle_manager.clone())),
+            Box::new(MediaTorrentUrlLoadingStrategy::new()),
             Box::new(TorrentInfoLoadingStrategy::new(torrent_manager.clone())),
             Box::new(TorrentLoadingStrategy::new(torrent_manager.clone(), settings.clone())),
             Box::new(TorrentStreamLoadingStrategy::new(torrent_stream_server.clone())),

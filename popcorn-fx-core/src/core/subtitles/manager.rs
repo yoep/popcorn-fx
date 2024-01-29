@@ -67,7 +67,7 @@ impl SubtitleManager {
     ///
     /// The preferred [SubtitleInfo] if present.
     pub fn preferred_subtitle(&self) -> Option<SubtitleInfo> {
-        let mutex = futures::executor::block_on(self.subtitle_info.lock());
+        let mutex = block_in_place(self.subtitle_info.lock());
 
         if mutex.is_some() {
             mutex.clone()
@@ -226,13 +226,13 @@ impl SubtitleManager {
     }
 
     fn update_subtitle_info(&self, subtitle: SubtitleInfo) {
-        let mut mutex = self.subtitle_info.blocking_lock();
+        let mut mutex = block_in_place(self.subtitle_info.lock());
         let _ = mutex.insert(subtitle);
         self.callbacks.invoke(SubtitleEvent::SubtitleInfoChanged(mutex.clone()));
     }
 
     fn update_disabled_state(&self, new_state: bool) {
-        let mut mutex = self.disabled_by_user.blocking_lock();
+        let mut mutex = block_in_place(self.disabled_by_user.lock());
         let value = mutex.deref_mut();
         *value = new_state;
     }

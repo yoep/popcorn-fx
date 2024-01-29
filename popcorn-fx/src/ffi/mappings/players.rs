@@ -17,6 +17,37 @@ pub type PlayerManagerEventCallback = extern "C" fn(PlayerManagerEventC);
 
 pub type PlayerPlayCallback = extern "C" fn(PlayRequestC);
 
+#[repr(C)]
+#[derive(Debug)]
+pub enum PlayerEventC {
+    DurationChanged(u64),
+    TimeChanged(u64),
+    StateChanged(PlayerState),
+    VolumeChanged(u32),
+}
+
+impl From<PlayerEventC> for PlayerEvent {
+    fn from(value: PlayerEventC) -> Self {
+        match value {
+            PlayerEventC::DurationChanged(e) => PlayerEvent::DurationChanged(e),
+            PlayerEventC::TimeChanged(e) => PlayerEvent::TimeChanged(e),
+            PlayerEventC::StateChanged(e) => PlayerEvent::StateChanged(e),
+            PlayerEventC::VolumeChanged(e) => PlayerEvent::VolumeChanged(e),
+        }
+    }
+}
+
+impl From<PlayerEvent> for PlayerEventC {
+    fn from(value: PlayerEvent) -> Self {
+        match value {
+            PlayerEvent::DurationChanged(e) => PlayerEventC::DurationChanged(e),
+            PlayerEvent::TimeChanged(e) => PlayerEventC::TimeChanged(e),
+            PlayerEvent::StateChanged(e) => PlayerEventC::StateChanged(e),
+            PlayerEvent::VolumeChanged(e) => PlayerEventC::VolumeChanged(e),
+        }
+    }
+}
+
 /// A C-compatible struct representing a player.
 #[repr(C)]
 #[derive(Debug, Clone)]
@@ -137,7 +168,7 @@ impl Player for PlayerWrapper {
     }
 
     fn play(&self, request: Box<dyn PlayRequest>) {
-        trace!("Invoking play callback on C for {:?}", self);
+        trace!("Invoking play callback on C player for {:?} with {:?}", self, request);
         let callback = block_in_place(self.play_callback.lock());
         callback(PlayRequestC::from(request));
     }
@@ -254,6 +285,8 @@ pub struct PlayRequestC {
     pub url: *const c_char,
     pub title: *const c_char,
     pub thumb: *const c_char,
+    pub auto_resume_timestamp: *mut u64,
+    pub subtitles_enabled: bool,
 }
 
 impl From<&PlayUrlRequest> for PlayRequestC {
@@ -263,11 +296,18 @@ impl From<&PlayUrlRequest> for PlayRequestC {
         } else {
             ptr::null()
         };
+        let auto_resume_timestamp = if let Some(e) = value.auto_resume_timestamp() {
+            into_c_owned(e)
+        } else {
+            ptr::null_mut()
+        };
 
         Self {
             url: into_c_string(value.url.clone()),
             title: into_c_string(value.title.clone()),
             thumb,
+            auto_resume_timestamp,
+            subtitles_enabled: value.subtitles_enabled,
         }
     }
 }
@@ -279,11 +319,18 @@ impl From<&PlayMediaRequest> for PlayRequestC {
         } else {
             ptr::null()
         };
+        let auto_resume_timestamp = if let Some(e) = value.auto_resume_timestamp() {
+            into_c_owned(e)
+        } else {
+            ptr::null_mut()
+        };
 
         Self {
             url: into_c_string(value.base.url.clone()),
             title: into_c_string(value.base.title.clone()),
             thumb,
+            auto_resume_timestamp,
+            subtitles_enabled: value.subtitles_enabled(),
         }
     }
 }

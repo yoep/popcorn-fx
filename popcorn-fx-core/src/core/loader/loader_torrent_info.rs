@@ -7,13 +7,11 @@ use log::{debug, error, trace, warn};
 use tokio::sync::Mutex;
 
 use crate::core::block_in_place;
-use crate::core::loader::{LoadingError, LoadingResult, LoadingState, LoadingStrategy, UpdateState};
-use crate::core::media::{Episode, MediaIdentifier, MediaType, MovieDetails};
-use crate::core::playlists::PlaylistItem;
+use crate::core::loader::{LoadingData, LoadingError, LoadingResult, LoadingState, LoadingStrategy, UpdateState};
+use crate::core::media::{DEFAULT_AUDIO_LANGUAGE, Episode, MediaIdentifier, MediaType, MovieDetails};
 use crate::core::torrents::{TorrentFileInfo, TorrentInfo, TorrentManager};
 
 const MAGNET_PREFIX: &str = "magnet:?";
-const DEFAULT_AUDIO_LANGUAGE: &str = "en";
 
 #[derive(Display)]
 #[display(fmt = "Torrent info loading strategy")]
@@ -94,22 +92,22 @@ impl LoadingStrategy for TorrentInfoLoadingStrategy {
         *state = state_update;
     }
 
-    async fn process(&self, mut item: PlaylistItem) -> LoadingResult {
-        if item.torrent_info.is_none() {
-            trace!("Processing {:?} url for torrent loading strategy", item.url);
-            if let Some(url) = item.url.as_ref()
+    async fn process(&self, mut data: LoadingData) -> LoadingResult {
+        if data.item.torrent_info.is_none() {
+            trace!("Processing {:?} url for torrent loading strategy", data.item.url);
+            if let Some(url) = data.item.url.as_ref()
                 .filter(|url| url.starts_with(MAGNET_PREFIX)) {
-                debug!("Loading torrent data for playlist item {}", item);
+                debug!("Loading torrent data for playlist item {}", data.item);
                 let torrent_info = self.resolve_torrent_info(url.as_str()).await;
 
                 match torrent_info {
                     Ok(e) => {
-                        if let Some(media) = item.media.as_ref() {
-                            if let Some(quality) = item.quality.as_ref() {
+                        if let Some(media) = data.item.media.as_ref() {
+                            if let Some(quality) = data.item.quality.as_ref() {
                                 match self.resolve_torrent_file_from_media(&e, media, quality.as_str()).await {
                                     Ok(torrent_file) => {
-                                        item.torrent_info = Some(e);
-                                        item.torrent_file_info = Some(torrent_file);
+                                        data.item.torrent_info = Some(e);
+                                        data.item.torrent_file_info = Some(torrent_file);
                                     }
                                     Err(e) => return LoadingResult::Err(e),
                                 }
@@ -125,7 +123,7 @@ impl LoadingStrategy for TorrentInfoLoadingStrategy {
             }
         }
 
-        LoadingResult::Ok(item)
+        LoadingResult::Ok(data)
     }
 }
 
@@ -134,6 +132,7 @@ mod tests {
     use std::sync::mpsc::channel;
     use std::time::Duration;
 
+    use crate::core::playlists::PlaylistItem;
     use crate::core::torrents::{MockTorrentManager, TorrentInfo};
     use crate::testing::init_logger;
 
@@ -151,8 +150,6 @@ mod tests {
             media: None,
             torrent_info: None,
             torrent_file_info: None,
-            torrent: None,
-            torrent_stream: None,
             quality: None,
             auto_resume_timestamp: None,
             subtitles_enabled: false,
@@ -163,6 +160,7 @@ mod tests {
             total_files: 0,
             files: vec![],
         };
+        let data = LoadingData::from(item);
         let (tx, rx) = channel();
         let mut torrent_manager = MockTorrentManager::new();
         torrent_manager.expect_info()
@@ -172,10 +170,10 @@ mod tests {
             });
         let strategy = TorrentInfoLoadingStrategy::new(Arc::new(Box::new(torrent_manager)));
 
-        let result = strategy.process(item.clone()).await;
+        let result = strategy.process(data.clone()).await;
         let resolve_url = rx.recv_timeout(Duration::from_millis(200)).unwrap();
 
         assert_eq!(magnet_url.to_string(), resolve_url);
-        assert_eq!(LoadingResult::Ok(item), result);
+        assert_eq!(LoadingResult::Ok(data), result);
     }
 }

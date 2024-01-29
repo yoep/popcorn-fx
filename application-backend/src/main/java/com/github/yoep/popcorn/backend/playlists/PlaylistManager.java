@@ -4,13 +4,20 @@ import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.media.MediaItem;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
+import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 
+@Slf4j
+@ToString
+@EqualsAndHashCode(callSuper = false)
 public class PlaylistManager extends AbstractListenerService<PlaylistManagerListener> {
     private final FxLib fxLib;
     private final PopcornFx instance;
@@ -23,7 +30,17 @@ public class PlaylistManager extends AbstractListenerService<PlaylistManagerList
     }
 
     public void play(Playlist playlist) {
-        new Thread(() -> fxLib.play_playlist(instance, playlist), "PlaylistManager.play").start();
+        try (playlist) {
+            fxLib.play_playlist(instance, playlist);
+        } catch (Exception ex) {
+            log.error("Failed to start playlist, {}", ex.getMessage(), ex);
+        }
+    }
+
+    public void play(MovieDetails movie, String quality) {
+        var items = new ArrayList<PlaylistItem>();
+        items.add(itemFrom(movie, quality));
+        play(new Playlist(items));
     }
 
     public void play(ShowDetails show, Episode episode, String quality) {
@@ -45,18 +62,24 @@ public class PlaylistManager extends AbstractListenerService<PlaylistManagerList
         play(new Playlist(items));
     }
 
-    public void play(PlaylistItem item) {
-        fxLib.play_playlist_item(instance, item);
+    private static PlaylistItem itemFrom(MovieDetails movie, String quality) {
+        var item = new PlaylistItem();
+        item.title = movie.getTitle();
+        item.thumb = movie.getImages().getPoster();
+        item.media = MediaItem.from(movie).toReference();
+        item.quality = quality;
+        item.setSubtitlesEnabled(true);
+        return item;
     }
 
     private static PlaylistItem itemFrom(ShowOverview show, Episode episode, String quality) {
         var item = new PlaylistItem();
-        item.url = episode.getTorrents().get(quality).url;
         item.title = episode.getTitle();
         item.thumb = show.getImages().getPoster();
         item.parentMedia = MediaItem.from(show).toReference();
         item.media = MediaItem.from(episode).toReference();
         item.quality = quality;
+        item.setSubtitlesEnabled(true);
         return item;
     }
 

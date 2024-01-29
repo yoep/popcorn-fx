@@ -174,17 +174,6 @@ enum class TorrentState : int32_t {
   Error = -1,
 };
 
-/// The state of the [TorrentStream].
-enum class TorrentStreamState : int32_t {
-  /// The initial state of the torrent stream.
-  /// This state indicates that the stream is preparing the initial pieces.
-  Preparing = 0,
-  /// The torrent can be streamed over HTTP.
-  Streaming = 1,
-  /// The torrent has been stopped and can not longer be streamed.
-  Stopped = 2,
-};
-
 /// The C compatible update state
 enum class UpdateStateC : int32_t {
   CheckingForNewVersion = 0,
@@ -197,9 +186,6 @@ enum class UpdateStateC : int32_t {
   InstallationFinished = 6,
   Error = 7,
 };
-
-template<typename T = void>
-struct Arc;
 
 template<typename T = void>
 struct Box;
@@ -218,12 +204,6 @@ struct PlayerWrapperC;
 /// let instance = PopcornFX::default();
 /// ```
 struct PopcornFX;
-
-/// The C compatible struct for [TorrentStream].
-struct TorrentStreamC;
-
-/// The wrapper containing the callbacks to retrieve the actual torrent information from C.
-struct TorrentWrapper;
 
 /// A C-compatible byte array that can be used to return byte array data from Rust functions.
 ///
@@ -294,7 +274,7 @@ struct TorrentFileInfoC {
 /// This struct is used to represent a set of items that can be passed between Rust and C code.
 /// It includes a pointer to the items and their length.
 template<typename T>
-struct CSet {
+struct CArray {
   /// A pointer to the array of items.
   T *items;
   /// The length of the array.
@@ -334,7 +314,7 @@ struct TorrentInfoC {
   /// The total number of files in the torrent.
   int32_t total_files;
   /// A set of `TorrentFileInfoC` structs representing individual files within the torrent.
-  CSet<TorrentFileInfoC> files;
+  CArray<TorrentFileInfoC> files;
 };
 
 struct TorrentQualityC {
@@ -548,6 +528,7 @@ struct PlaylistItemC {
   MediaItemC *parent_media;
   MediaItemC *media;
   uint64_t *auto_resume_timestamp;
+  bool subtitles_enabled;
 };
 
 struct StyledTextC {
@@ -610,46 +591,37 @@ struct SubtitleMatcherC {
   const char *quality;
 };
 
-/// An enumeration representing events related to a player.
-union PlayerEvent {
-  enum class Tag : int32_t {
-    /// The duration of the media content has changed.
+struct PlayerEventC {
+  enum class Tag {
     DurationChanged,
-    /// The playback time position has changed.
     TimeChanged,
-    /// The player's state has changed.
     StateChanged,
-    /// The volume of the player has changed.
     VolumeChanged,
   };
 
   struct DurationChanged_Body {
-    Tag tag;
     uint64_t _0;
   };
 
   struct TimeChanged_Body {
-    Tag tag;
     uint64_t _0;
   };
 
   struct StateChanged_Body {
-    Tag tag;
     PlayerState _0;
   };
 
   struct VolumeChanged_Body {
-    Tag tag;
     uint32_t _0;
   };
 
-  struct {
-    Tag tag;
+  Tag tag;
+  union {
+    DurationChanged_Body duration_changed;
+    TimeChanged_Body time_changed;
+    StateChanged_Body state_changed;
+    VolumeChanged_Body volume_changed;
   };
-  DurationChanged_Body duration_changed;
-  TimeChanged_Body time_changed;
-  StateChanged_Body state_changed;
-  VolumeChanged_Body volume_changed;
 };
 
 struct PlayerSet {
@@ -689,6 +661,11 @@ struct PlayerStoppedEventC {
   MediaItemC *media;
 };
 
+struct LoadingStartedEventC {
+  const char *url;
+  const char *title;
+};
+
 /// The C compatible [Event] representation.
 struct EventC {
   enum class Tag {
@@ -703,6 +680,7 @@ struct EventC {
     /// Invoked when the watch state of an item is changed
     WatchStateChanged,
     LoadingStarted,
+    LoadingCompleted,
   };
 
   struct PlayerChanged_Body {
@@ -726,6 +704,10 @@ struct EventC {
     bool _1;
   };
 
+  struct LoadingStarted_Body {
+    LoadingStartedEventC _0;
+  };
+
   Tag tag;
   union {
     PlayerChanged_Body player_changed;
@@ -733,6 +715,7 @@ struct EventC {
     PlayerStopped_Body player_stopped;
     PlaybackStateChanged_Body playback_state_changed;
     WatchStateChanged_Body watch_state_changed;
+    LoadingStarted_Body loading_started;
   };
 };
 
@@ -769,6 +752,8 @@ struct PlayRequestC {
   const char *url;
   const char *title;
   const char *thumb;
+  uint64_t *auto_resume_timestamp;
+  bool subtitles_enabled;
 };
 
 using PlayerPlayCallback = void(*)(PlayRequestC);
@@ -901,22 +886,6 @@ struct SubtitleEventC {
 
 /// The C callback for the subtitle events.
 using SubtitleCallbackC = void(*)(SubtitleEventC);
-
-/// The C abi compatible torrent stream event.
-struct TorrentStreamEventC {
-  enum class Tag {
-    StateChanged,
-  };
-
-  struct StateChanged_Body {
-    TorrentStreamState _0;
-  };
-
-  Tag tag;
-  union {
-    StateChanged_Body state_changed;
-  };
-};
 
 /// The C compatible representation of the application runtime information.
 struct PatchInfoC {
@@ -1094,12 +1063,6 @@ struct MediaResult {
   };
 };
 
-/// The wrapper communication between rust and C.
-/// This is a temp wrapper which will be replaced in the future.
-struct TorrentWrapperC {
-  Arc<TorrentWrapper> wrapper;
-};
-
 /// The callback to verify if the given byte is available.
 using HasByteCallbackC = bool(*)(int32_t, uint64_t*);
 
@@ -1124,6 +1087,7 @@ using TorrentStateCallbackC = TorrentState(*)();
 /// The C compatible abi struct for a [Torrent].
 /// This currently uses callbacks as it's a wrapper around a torrent implementation provided through C.
 struct TorrentC {
+  const char *handle;
   /// The filepath to the torrent file
   const char *filepath;
   HasByteCallbackC has_byte_callback;
@@ -1253,22 +1217,25 @@ void dispose_media_items(Box<MediaSetC> media);
 /// * `item` - A boxed `PlaylistItemC` representing the item to be disposed of.
 void dispose_playlist_item(Box<PlaylistItemC> item);
 
-void dispose_playlist_set(Box<CSet<PlaylistItemC>> set);
+/// Dispose of a C-style array of playlist items.
+///
+/// This function takes ownership of a C-style array of `PlaylistItemC` and drops it to free the associated memory.
+///
+/// # Arguments
+///
+/// * `set` - A boxed C-style array of `PlaylistItemC` to be disposed of.
+void dispose_playlist_set(Box<CArray<PlaylistItemC>> set);
 
 /// Delete the PopcornFX instance, given as a [ptr], in a safe way.
 /// All data within the instance will be deleted from memory making the instance unusable.
 /// This means that the original pointer will become invalid.
-void dispose_popcorn_fx(Box<PopcornFX>);
+void dispose_popcorn_fx(Box<PopcornFX> instance);
 
 /// Dispose the given subtitle.
 void dispose_subtitle(Box<SubtitleC> subtitle);
 
 /// Dispose the [TorrentCollectionSet] from memory.
 void dispose_torrent_collection(Box<TorrentCollectionSet> collection_set);
-
-/// Dispose the torrent stream.
-/// Make sure [stop_stream] has been called before dropping the instance.
-void dispose_torrent_stream(Box<TorrentStreamC> stream);
 
 /// Download the given [SubtitleInfo] based on the best match according to the [SubtitleMatcher].
 ///
@@ -1331,7 +1298,7 @@ void install_update(PopcornFX *popcorn_fx);
 ///
 /// This function checks if the `player` instance exists and is of the expected type (`PlayerWrapper`).
 /// If the conditions are met, it invokes the specified player event on the wrapped player.
-void invoke_player_event(PlayerWrapperC *player, PlayerEvent event);
+void invoke_player_event(PlayerWrapperC *player, PlayerEventC event);
 
 /// Verify if the FX embedded video player has been disabled.
 bool is_fx_video_player_disabled(PopcornFX *popcorn_fx);
@@ -1452,20 +1419,16 @@ SubtitleInfoSet *movie_subtitles(PopcornFX *popcorn_fx, const MovieDetailsC *mov
 /// The instance can be safely deleted by using [dispose_popcorn_fx].
 PopcornFX *new_popcorn_fx(const char **args, int32_t len);
 
-void play_playlist(PopcornFX *popcorn_fx, CSet<PlaylistItemC> playlist);
-
-/// Play a playlist item using PopcornFX.
+/// Play a playlist from C by converting it to the Rust data structure and starting playback asynchronously.
 ///
-/// # Safety
-///
-/// This function is marked as `unsafe` because it interacts with external code (C/C++), and
-/// the caller is responsible for ensuring the safety of the provided `popcorn_fx` and `item` pointers.
+/// This function takes a mutable reference to a `PopcornFX` instance and a C-compatible array of `PlaylistItemC` items.
+/// It converts the C array into a Rust `Playlist` and starts playback asynchronously using the playlist manager.
 ///
 /// # Arguments
 ///
-/// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
-/// * `item` - A reference to a `PlaylistItemC` representing the item to be played.
-void play_playlist_item(PopcornFX *popcorn_fx, const PlaylistItemC *item);
+/// * `popcorn_fx` - A mutable reference to the PopcornFX instance.
+/// * `playlist` - A C-compatible array of `PlaylistItemC` items representing the playlist to play.
+void play_playlist(PopcornFX *popcorn_fx, CArray<PlaylistItemC> playlist);
 
 /// Retrieve a pointer to a `PlayerC` instance by its unique identifier (ID) from the PopcornFX player manager.
 ///
@@ -1602,9 +1565,6 @@ void register_settings_callback(PopcornFX *popcorn_fx, ApplicationConfigCallback
 /// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
 /// * `callback` - A function pointer to the C callback function.
 void register_subtitle_callback(PopcornFX *popcorn_fx, SubtitleCallbackC callback);
-
-/// Register a new callback for the torrent stream.
-void register_torrent_stream_callback(TorrentStreamC *stream, void (*callback)(TorrentStreamEventC));
 
 /// Register a new callback for update events.
 ///
@@ -1748,12 +1708,6 @@ const char *serve_subtitle(PopcornFX *popcorn_fx, SubtitleC subtitle, size_t out
 /// * `player_id` - A pointer to a null-terminated C string representing the player's unique identifier (ID).
 void set_active_player(PopcornFX *popcorn_fx, const char *player_id);
 
-/// Start a torrent stream for the given torrent.
-TorrentStreamC *start_stream(PopcornFX *popcorn_fx, const TorrentWrapperC *torrent);
-
-/// Stop the given torrent stream.
-void stop_stream(PopcornFX *popcorn_fx, TorrentStreamC *stream);
-
 /// Retrieve a special [SubtitleInfo::custom] instance of the application.
 ///
 /// # Safety
@@ -1793,8 +1747,7 @@ void torrent_collection_remove(PopcornFX *popcorn_fx, const char *magnet_uri);
 /// The url can be a magnet, http or file url to the torrent file.
 void torrent_info(PopcornFX *popcorn_fx, const char *url);
 
-/// Inform the FX core that a piece for the torrent has finished downloading.
-void torrent_piece_finished(const TorrentWrapperC *torrent, uint32_t piece);
+void torrent_piece_finished(PopcornFX *popcorn_fx, const char *handle, uint32_t piece);
 
 /// A callback function for resolving torrents.
 ///
@@ -1845,45 +1798,7 @@ void torrent_resolve_callback(PopcornFX *popcorn_fx, ResolveTorrentCallback call
 /// This function performs unsafe operations, as it deals with raw C-compatible function pointers.
 void torrent_resolve_info_callback(PopcornFX *popcorn_fx, ResolveTorrentInfoCallback callback);
 
-/// Inform that the state of the torrent has changed.
-///
-/// # Safety
-///
-/// This function should only be called from C code.
-/// The `torrent` pointer must be a valid `TorrentWrapperC` instance.
-///
-/// # Arguments
-///
-/// * `torrent` - A pointer to a `TorrentWrapperC` instance.
-/// * `state` - The new state of the torrent.
-void torrent_state_changed(const TorrentWrapperC *torrent, TorrentState state);
-
-/// Retrieve the current state of the stream.
-/// Use [register_torrent_stream_callback] instead if the latest up-to-date information is required.
-///
-/// It returns the known [TorrentStreamState] at the time of invocation.
-TorrentStreamState torrent_stream_state(TorrentStreamC *stream);
-
-/// The torrent wrapper for moving data between Rust and FrostWire.
-///
-/// This is a temporary wrapper until the torrent component is replaced.
-///
-/// # Safety
-///
-/// This function should only be called from C code.
-/// The `popcorn_fx` pointer must be valid and properly initialized.
-/// The `torrent` pointer must be a valid `TorrentC` instance.
-/// The returned pointer to `TorrentWrapperC` should be used carefully to avoid memory leaks.
-///
-/// # Arguments
-///
-/// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
-/// * `torrent` - A pointer to a `TorrentC` instance.
-///
-/// # Returns
-///
-/// A pointer to a `TorrentWrapperC` instance.
-TorrentWrapperC *torrent_wrapper(PopcornFX *popcorn_fx, TorrentC torrent);
+void torrent_state_changed(PopcornFX *popcorn_fx, const char *handle, TorrentState state);
 
 /// Update the playback settings with the new value.
 void update_playback_settings(PopcornFX *popcorn_fx, PlaybackSettingsC settings);

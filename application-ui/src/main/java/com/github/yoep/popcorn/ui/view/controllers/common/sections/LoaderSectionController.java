@@ -2,7 +2,7 @@ package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.ui.events.LoadTorrentEvent;
+import com.github.yoep.popcorn.backend.events.LoadingStartedEvent;
 import com.github.yoep.popcorn.ui.events.LoadUrlEvent;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -34,7 +34,7 @@ public class LoaderSectionController implements Initializable {
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         initializePanes();
-        eventPublisher.register(LoadTorrentEvent.class, event -> {
+        eventPublisher.register(LoadingStartedEvent.class, event -> {
             switchPane(Type.TORRENT_LOADER);
             return event;
         });

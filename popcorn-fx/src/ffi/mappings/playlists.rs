@@ -19,6 +19,7 @@ pub struct PlaylistItemC {
     pub parent_media: *mut MediaItemC,
     pub media: *mut MediaItemC,
     pub auto_resume_timestamp: *mut u64,
+    pub subtitles_enabled: bool,
 }
 
 impl PlaylistItemC {
@@ -45,6 +46,7 @@ impl PlaylistItemC {
 
 impl From<PlaylistItemC> for PlaylistItem {
     fn from(value: PlaylistItemC) -> Self {
+        trace!("Mapping PlaylistItemC to PlaylistItem for {:?}", value);
         let url = if !value.url.is_null() {
             Some(from_c_string(value.url))
         } else {
@@ -63,7 +65,7 @@ impl From<PlaylistItemC> for PlaylistItem {
             None
         };
         let auto_resume_timestamp = if !value.auto_resume_timestamp.is_null() {
-            Some(from_c_owned(value.auto_resume_timestamp) as u64)
+            Some(from_c_owned(value.auto_resume_timestamp))
         } else {
             None
         };
@@ -76,11 +78,9 @@ impl From<PlaylistItemC> for PlaylistItem {
             media,
             torrent_info: None,
             torrent_file_info: None,
-            torrent: None,
-            torrent_stream: None,
             quality,
             auto_resume_timestamp,
-            subtitles_enabled: false,
+            subtitles_enabled: value.subtitles_enabled,
         }
     }
 }
@@ -116,6 +116,7 @@ impl From<PlaylistItem> for PlaylistItemC {
             parent_media: PlaylistItemC::media_ptr(value.parent_media),
             media: PlaylistItemC::media_ptr(value.media),
             auto_resume_timestamp,
+            subtitles_enabled: value.subtitles_enabled,
         }
     }
 }
@@ -151,6 +152,7 @@ mod test {
             media: into_c_owned(MediaItemC::from(media.clone())),
             quality: into_c_string(quality.to_string()),
             auto_resume_timestamp: into_c_owned(8000u64),
+            subtitles_enabled: true,
         };
         let expected_result = PlaylistItem {
             url: Some(url.to_string()),
@@ -160,11 +162,9 @@ mod test {
             media: Some(Box::new(media)),
             torrent_info: None,
             torrent_file_info: None,
-            torrent: None,
-            torrent_stream: None,
             quality: Some(quality.to_string()),
             auto_resume_timestamp: None,
-            subtitles_enabled: false,
+            subtitles_enabled: true,
         };
 
         let result = PlaylistItem::from(item);
@@ -194,8 +194,6 @@ mod test {
             media: Some(Box::new(media.clone())),
             torrent_info: None,
             torrent_file_info: None,
-            torrent: None,
-            torrent_stream: None,
             quality: Some(quality.to_string()),
             auto_resume_timestamp: None,
             subtitles_enabled: false,

@@ -6,7 +6,7 @@ use log::{debug, error, info, trace, warn};
 use popcorn_fx_core::{from_c_string, into_c_owned};
 use popcorn_fx_core::core::players::{Player, PlayerEvent};
 
-use crate::ffi::{PlayerC, PlayerManagerEventC, PlayerManagerEventCallback, PlayerRegistrationC, PlayerSet, PlayerWrapper, PlayerWrapperC};
+use crate::ffi::{PlayerC, PlayerEventC, PlayerManagerEventC, PlayerManagerEventCallback, PlayerRegistrationC, PlayerSet, PlayerWrapper, PlayerWrapperC};
 use crate::PopcornFX;
 
 /// Retrieve a pointer to the active player as a `PlayerC` instance from the PopcornFX player manager.
@@ -204,11 +204,13 @@ pub extern "C" fn remove_player(popcorn_fx: &mut PopcornFX, player_id: *const c_
 /// This function checks if the `player` instance exists and is of the expected type (`PlayerWrapper`).
 /// If the conditions are met, it invokes the specified player event on the wrapped player.
 #[no_mangle]
-pub extern "C" fn invoke_player_event(player: &mut PlayerWrapperC, event: PlayerEvent) {
+pub extern "C" fn invoke_player_event(player: &mut PlayerWrapperC, event: PlayerEventC) {
+    trace!("Received player event C {:?}", event);
     match player.instance() {
         Some(player) => {
             player.downcast_ref::<PlayerWrapper>().map(|wrapper| {
-                trace!("Invoking player C event {}", event);
+                let event = PlayerEvent::from(event);
+                trace!("Invoking player event from C {}", event);
                 wrapper.invoke(event);
             }).unwrap_or_else(|| {
                 error!("Unable to process C player event, player instance is not of type PlayerWrapper");
@@ -391,10 +393,11 @@ mod tests {
         player.add(Box::new(move |e| {
             tx.send(e).unwrap();
         }));
+        let event_c = PlayerEventC::DurationChanged(expected_result.clone());
         let player = Arc::new(Box::new(player) as Box<dyn Player>);
         let mut wrapper = PlayerWrapperC::from(Arc::downgrade(&player));
 
-        invoke_player_event(&mut wrapper, PlayerEvent::DurationChanged(expected_result.clone()));
+        invoke_player_event(&mut wrapper, event_c);
         let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
 
         if let PlayerEvent::DurationChanged(e) = result {

@@ -14,8 +14,6 @@ logging:
     com.github.yoep.popcorn.view: INFO
     com.github.yoep.popcorn: INFO
     com.github.yoep.torrent.frostwire: INFO
-    com.github.yoep.torrent.stream.services: TRACE
-    com.github.yoep.torrent.stream: INFO
     com.github.yoep.video.vlc: INFO
     com.github.yoep.video.youtube: INFO
     com.github.yoep.video: INFO
@@ -35,6 +33,8 @@ popcorn:
       level: info
     popcorn_fx_core::core::events:
       level: info
+    popcorn_fx_core::core::loader:
+      level: trace
     popcorn_fx_core::core::media:
       level: info
     popcorn_fx_core::core::media::favorites:
@@ -58,6 +58,6 @@ popcorn:
     popcorn_fx_platform:
       level: info
     popcorn_fx_torrent:
-      level: info
+      level: debug
     popcorn_fx_torrent_stream:
       level: trace

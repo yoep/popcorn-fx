@@ -12,11 +12,13 @@ import java.util.Optional;
 
 @Getter
 @ToString
-@Structure.FieldOrder({"url", "title", "thumb"})
+@Structure.FieldOrder({"url", "title", "thumb", "autoResumeTimestamp", "subtitlesEnabled"})
 public class PlayRequestWrapper extends Structure implements Closeable {
     public String url;
     public String title;
     public Pointer thumb;
+    public Pointer autoResumeTimestamp;
+    public byte subtitlesEnabled;
 
     private String cachedThumb;
 
@@ -25,7 +27,18 @@ public class PlayRequestWrapper extends Structure implements Closeable {
                 .url(url)
                 .title(title)
                 .thumb(cachedThumb)
+                .autoResumeTimestamp(getAutoResumeTimestamp().orElse(0L))
+                .subtitlesEnabled(isSubtitlesEnabled())
                 .build();
+    }
+
+    public Optional<Long> getAutoResumeTimestamp() {
+        return Optional.ofNullable(autoResumeTimestamp)
+                .map(e -> e.getLong(0));
+    }
+
+    public boolean isSubtitlesEnabled() {
+        return subtitlesEnabled == 1;
     }
 
     @Override

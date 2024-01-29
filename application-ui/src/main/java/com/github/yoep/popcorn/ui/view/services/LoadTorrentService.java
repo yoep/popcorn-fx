@@ -3,7 +3,6 @@ package com.github.yoep.popcorn.ui.view.services;
 import com.github.yoep.popcorn.backend.adapters.torrent.FailedToPrepareTorrentStreamException;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentException;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
-import com.github.yoep.popcorn.backend.adapters.torrent.TorrentStreamService;
 import com.github.yoep.popcorn.backend.adapters.torrent.listeners.AbstractTorrentListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.listeners.AbstractTorrentStreamListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.listeners.TorrentListener;
@@ -55,7 +54,6 @@ public class LoadTorrentService extends AbstractListenerService<LoadTorrentListe
     private static final int DOWNLOAD_SUBTITLE_TIMEOUT = 30;
 
     private final TorrentService torrentService;
-    private final TorrentStreamService torrentStreamService;
     private final EventPublisher eventPublisher;
     private final ApplicationConfig settingsService;
     private final SubtitleService subtitleService;
@@ -234,8 +232,6 @@ public class LoadTorrentService extends AbstractListenerService<LoadTorrentListe
         this.torrent.addListener(torrentListener);
 
         // create a stream for this torrent
-        this.torrentStream = torrentStreamService.startStream(torrent);
-        this.torrentStream.addListener(torrentStreamListener);
         return CompletableFuture.completedFuture(torrent);
     }
 
@@ -369,7 +365,6 @@ public class LoadTorrentService extends AbstractListenerService<LoadTorrentListe
         // stop the torrent stream if it was already created
         if (torrentStream != null) {
             torrentStream.removeListener(torrentStreamListener);
-            torrentStreamService.stopStream(torrentStream);
         }
     }
 

@@ -257,6 +257,9 @@ impl From<&MovieDetailsC> for MovieDetails {
             trace!("MovieDetails genres is empty, using empty array");
             vec![]
         };
+        let torrents = from_c_vec(value.torrents, value.torrents_len).iter()
+            .map(|e| e.torrents())
+            .collect();
 
         if !value.rating.is_null() {
             trace!("Converting MovieDetails rating");
@@ -265,17 +268,18 @@ impl From<&MovieDetailsC> for MovieDetails {
             mem::forget(owned);
         }
 
-        MovieDetails::new_detailed(
-            from_c_string(value.title.clone()),
-            from_c_string(value.imdb_id.clone()),
-            from_c_string(value.year.clone()),
-            value.runtime.to_string(),
+        MovieDetails {
+            title: from_c_string(value.title.clone()),
+            imdb_id: from_c_string(value.imdb_id.clone()),
+            year: from_c_string(value.year.clone()),
+            runtime: value.runtime.to_string(),
             genres,
-            from_c_string(value.synopsis.clone()),
+            synopsis: from_c_string(value.synopsis.clone()),
             rating,
-            value.images.to_struct(),
-            from_c_string(value.trailer.clone()),
-        )
+            images: value.images.to_struct(),
+            trailer: from_c_string(value.trailer.clone()),
+            torrents,
+        }
     }
 }
 
@@ -812,6 +816,15 @@ impl TorrentEntryC {
             len,
         }
     }
+
+    pub fn torrents(&self) -> (String, HashMap<String, TorrentInfo>) {
+        let language = from_c_string(self.language);
+        let qualities = from_c_vec(self.qualities, self.len).into_iter()
+            .map(|e| (from_c_string(e.quality), TorrentInfo::from(e.torrent)))
+            .collect();
+
+        (language, qualities)
+    }
 }
 
 #[repr(C)]
@@ -859,7 +872,7 @@ pub struct TorrentInfoC {
 impl From<&TorrentInfo> for TorrentInfoC {
     fn from(value: &TorrentInfo) -> Self {
         Self {
-            url: into_c_string(value.url().clone()),
+            url: into_c_string(value.url().to_string()),
             provider: into_c_string(value.provider().clone()),
             source: into_c_string(value.source().clone()),
             title: into_c_string(value.title().clone()),

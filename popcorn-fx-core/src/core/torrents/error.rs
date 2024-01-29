@@ -19,6 +19,8 @@ pub enum TorrentError {
     InvalidStreamState(TorrentStreamState),
     #[error("Torrent manager has invalid state {0}")]
     InvalidManagerState(TorrentManagerState),
+    #[error("Torrent handle {0} is not valid")]
+    InvalidHandle(String),
     #[error("The torrent info couldn't be resolved, {0}")]
     TorrentResolvingFailed(String),
     #[error("Failed to load the torrent collection, {0}")]

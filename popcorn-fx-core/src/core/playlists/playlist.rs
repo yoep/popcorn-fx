@@ -1,12 +1,11 @@
 use std::collections::vec_deque::Iter;
 use std::collections::VecDeque;
-use std::sync::Weak;
 
 use derive_more::Display;
 use log::{debug, info};
 
 use crate::core::media::MediaIdentifier;
-use crate::core::torrents::{Torrent, TorrentFileInfo, TorrentInfo, TorrentStream};
+use crate::core::torrents::{TorrentFileInfo, TorrentInfo};
 
 /// A struct representing a playlist of media items.
 #[derive(Debug, Default)]
@@ -97,7 +96,7 @@ impl FromIterator<PlaylistItem> for Playlist {
 }
 
 #[derive(Debug, Display)]
-#[display(fmt = "url: {:?}, title: {}, thumb: {:?}, media: {:?}, quality: {:?}", url, title, thumb, media, quality)]
+#[display(fmt = "url: {:?}, title: {}, thumb: {:?}, media: {:?}, quality: {:?}, subtitles_enabled: {}", url, title, thumb, media, quality, subtitles_enabled)]
 pub struct PlaylistItem {
     pub url: Option<String>,
     pub title: String,
@@ -106,8 +105,6 @@ pub struct PlaylistItem {
     pub media: Option<Box<dyn MediaIdentifier>>,
     pub torrent_info: Option<TorrentInfo>,
     pub torrent_file_info: Option<TorrentFileInfo>,
-    pub torrent: Option<Box<dyn Torrent>>,
-    pub torrent_stream: Option<Weak<dyn TorrentStream>>,
     pub quality: Option<String>,
     pub auto_resume_timestamp: Option<u64>,
     pub subtitles_enabled: bool,
@@ -136,8 +133,6 @@ impl Clone for PlaylistItem {
             media: cloned_media,
             torrent_info: self.torrent_info.clone(),
             torrent_file_info: self.torrent_file_info.clone(),
-            torrent: None,
-            torrent_stream: None,
             quality: self.quality.clone(),
             auto_resume_timestamp: self.auto_resume_timestamp,
             subtitles_enabled: self.subtitles_enabled,
@@ -197,8 +192,6 @@ mod test {
             media: Some(media.clone()),
             torrent_info: None,
             torrent_file_info: None,
-            torrent: None,
-            torrent_stream: None,
             quality: None,
             auto_resume_timestamp: None,
             subtitles_enabled: false,
@@ -222,8 +215,6 @@ mod test {
                 "2015".to_string()))),
             torrent_info: None,
             torrent_file_info: None,
-            torrent: None,
-            torrent_stream: None,
             quality: None,
             auto_resume_timestamp: None,
             subtitles_enabled: false,
@@ -252,8 +243,6 @@ mod test {
             media: Some(media.clone()),
             torrent_info: None,
             torrent_file_info: None,
-            torrent: None,
-            torrent_stream: None,
             quality: None,
             auto_resume_timestamp: None,
             subtitles_enabled: false,
@@ -282,8 +271,6 @@ mod test {
             media: Some(media.clone()),
             torrent_info: None,
             torrent_file_info: None,
-            torrent: None,
-            torrent_stream: None,
             quality: None,
             auto_resume_timestamp: None,
             subtitles_enabled: false,
@@ -311,8 +298,6 @@ mod test {
             media: Some(media.clone()),
             torrent_info: None,
             torrent_file_info: None,
-            torrent: None,
-            torrent_stream: None,
             quality: None,
             auto_resume_timestamp: None,
             subtitles_enabled: false,
@@ -333,8 +318,6 @@ mod test {
             media: None,
             torrent_info: None,
             torrent_file_info: None,
-            torrent: None,
-            torrent_stream: None,
             quality: None,
             auto_resume_timestamp: None,
             subtitles_enabled: false,
@@ -356,8 +339,6 @@ mod test {
             media: None,
             torrent_info: None,
             torrent_file_info: None,
-            torrent: None,
-            torrent_stream: None,
             quality: None,
             auto_resume_timestamp: None,
             subtitles_enabled: false,
@@ -383,8 +364,6 @@ mod test {
             media: None,
             torrent_info: None,
             torrent_file_info: None,
-            torrent: None,
-            torrent_stream: None,
             quality: None,
             auto_resume_timestamp: None,
             subtitles_enabled: false,

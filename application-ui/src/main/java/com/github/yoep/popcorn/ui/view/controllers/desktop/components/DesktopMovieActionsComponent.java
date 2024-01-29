@@ -6,12 +6,12 @@ import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.messages.SubtitleMessage;
+import com.github.yoep.popcorn.backend.playlists.Playlist;
 import com.github.yoep.popcorn.backend.playlists.PlaylistItem;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.listeners.LanguageSelectionListener;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
-import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
 import com.github.yoep.popcorn.ui.utils.WatchNowUtils;
 import com.github.yoep.popcorn.ui.view.ViewHelper;
 import com.github.yoep.popcorn.ui.view.controls.LanguageFlagCell;
@@ -34,6 +34,7 @@ import org.apache.commons.lang3.StringUtils;
 
 import java.io.IOException;
 import java.net.URL;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.ResourceBundle;
@@ -165,18 +166,12 @@ public class DesktopMovieActionsComponent implements Initializable {
     }
 
     private void onWatchNow() {
-        var mediaTorrentInfo = media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(desktopMovieQualityComponent.getSelectedQuality());
-        try (var item = PlaylistItem.fromMedia(media, desktopMovieQualityComponent.getSelectedQuality())) {
-            playlistManager.play(item);
-        }
-
-        eventPublisher.publishEvent(new LoadMediaTorrentEvent(this, mediaTorrentInfo, media, null, desktopMovieQualityComponent.getSelectedQuality(),
-                languageSelection.getSelectedItem()));
+        playlistManager.play(media, desktopMovieQualityComponent.getSelectedQuality());
     }
 
     private void playTrailer() {
         try (var item = PlaylistItem.fromMediaTrailer(media)) {
-            playlistManager.play(item);
+            playlistManager.play(new Playlist(Collections.singletonList(item)));
         }
     }
 

@@ -47,6 +47,7 @@ mod test {
     use tempfile::tempdir;
 
     use popcorn_fx_core::{into_c_owned, into_c_string};
+    use popcorn_fx_core::core::events::HIGHEST_ORDER;
     use popcorn_fx_core::core::media::{Images, MovieOverview};
     use popcorn_fx_core::testing::init_logger;
 
@@ -84,7 +85,7 @@ mod test {
         instance.event_publisher().register(Box::new(move |e| {
             tx.send(e).unwrap();
             None
-        }), LOWEST_ORDER);
+        }), HIGHEST_ORDER);
         publish_event(&mut instance, event);
         let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
 

@@ -83,19 +83,23 @@ public class PlayerManagerServiceImpl extends AbstractListenerService<PlayerMana
             wrapper.setListener(new PlayerListener() {
                 @Override
                 public void onDurationChanged(long newDuration) {
-                    var event = PlayerEventC.ByValue.durationChanged(newDuration);
-                    fxLib.invoke_player_event(wrapper.playerC, event);
+                    try (var event = PlayerEventC.ByValue.durationChanged(newDuration)) {
+                        fxLib.invoke_player_event(wrapper.playerC, event);
+                    }
                 }
 
                 @Override
                 public void onTimeChanged(long newTime) {
-                    var event = PlayerEventC.ByValue.timeChanged(newTime);
-                    fxLib.invoke_player_event(wrapper.playerC, event);
+                    try (var event = PlayerEventC.ByValue.timeChanged(newTime)) {
+                        fxLib.invoke_player_event(wrapper.playerC, event);
+                    }
                 }
 
                 @Override
                 public void onStateChanged(PlayerState newState) {
-
+                    try (var event = PlayerEventC.ByValue.stateChanged(newState)) {
+                        fxLib.invoke_player_event(wrapper.playerC, event);
+                    }
                 }
 
                 @Override

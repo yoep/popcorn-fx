@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.backend.player;
 
+import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.sun.jna.FromNativeContext;
 import com.sun.jna.NativeMapped;
 import com.sun.jna.Structure;
@@ -37,6 +38,15 @@ public class PlayerEventC extends Structure implements Closeable {
             instance.updateUnionType();
             return instance;
         }
+
+        public static PlayerEventC.ByValue stateChanged(PlayerState state) {
+            var instance = new PlayerEventC.ByValue();
+            instance.tag = Tag.StateChanged;
+            instance.union = new PlayerEventCUnion.ByValue();
+            instance.union.stateChanged_body = new StateChanged_Body(state);
+            instance.updateUnionType();
+            return instance;
+        }
     }
 
     public PlayerEventC.Tag tag;
@@ -50,6 +60,12 @@ public class PlayerEventC extends Structure implements Closeable {
     }
 
     @Override
+    public void write() {
+        updateUnionType();
+        super.write();
+    }
+
+    @Override
     public void close() {
         setAutoSynch(false);
         getUnion().close();
@@ -59,8 +75,7 @@ public class PlayerEventC extends Structure implements Closeable {
         switch (tag) {
             case DurationChanged -> union.setType(DurationChanged_Body.class);
             case TimeChanged -> union.setType(TimeChanged_Body.class);
-            case StateChanged -> {
-            }
+            case StateChanged -> union.setType(StateChanged_Body.class);
             case VolumeChanged -> {
             }
         }
@@ -106,6 +121,25 @@ public class PlayerEventC extends Structure implements Closeable {
 
     @Getter
     @ToString
+    @FieldOrder({"state"})
+    public static class StateChanged_Body extends Structure implements Closeable {
+        public PlayerState state;
+
+        public StateChanged_Body() {
+        }
+
+        public StateChanged_Body(PlayerState state) {
+            this.state = state;
+        }
+
+        @Override
+        public void close() {
+            setAutoSynch(false);
+        }
+    }
+
+    @Getter
+    @ToString
     @EqualsAndHashCode(callSuper = false)
     public static class PlayerEventCUnion extends Union implements Closeable {
         public static class ByValue extends PlayerEventCUnion implements Union.ByValue {
@@ -113,6 +147,7 @@ public class PlayerEventC extends Structure implements Closeable {
 
         public DurationChanged_Body durationChanged_body;
         public TimeChanged_Body timeChanged_body;
+        public StateChanged_Body stateChanged_body;
 
         @Override
         public void close() {
@@ -121,6 +156,8 @@ public class PlayerEventC extends Structure implements Closeable {
                     .ifPresent(DurationChanged_Body::close);
             Optional.ofNullable(timeChanged_body)
                     .ifPresent(TimeChanged_Body::close);
+            Optional.ofNullable(stateChanged_body)
+                    .ifPresent(StateChanged_Body::close);
         }
     }
 

@@ -4,7 +4,7 @@ use std::os::raw::c_char;
 use log::trace;
 
 use popcorn_fx_core::{from_c_into_boxed, from_c_owned, from_c_string, into_c_owned, into_c_string};
-use popcorn_fx_core::core::events::{Event, PlayerChangedEvent, PlayerStartedEvent, PlayerStoppedEvent};
+use popcorn_fx_core::core::events::{Event, LoadingStartedEvent, PlayerChangedEvent, PlayerStartedEvent, PlayerStoppedEvent};
 use popcorn_fx_core::core::playback::PlaybackState;
 use popcorn_fx_core::core::players::PlayerChange;
 
@@ -30,7 +30,8 @@ pub enum EventC {
     PlaybackStateChanged(PlaybackState),
     /// Invoked when the watch state of an item is changed
     WatchStateChanged(*const c_char, bool),
-    LoadingStarted,
+    LoadingStarted(LoadingStartedEventC),
+    LoadingCompleted,
 }
 
 impl From<Event> for EventC {
@@ -42,7 +43,8 @@ impl From<Event> for EventC {
             Event::PlayerStopped(e) => EventC::PlayerStopped(PlayerStoppedEventC::from(e)),
             Event::PlaybackStateChanged(e) => EventC::PlaybackStateChanged(e),
             Event::WatchStateChanged(id, state) => EventC::WatchStateChanged(into_c_string(id), state),
-            Event::LoadingStarted => EventC::LoadingStarted,
+            Event::LoadingStarted(e) => EventC::LoadingStarted(LoadingStartedEventC::from(e)),
+            Event::LoadingCompleted => EventC::LoadingCompleted,
         }
     }
 }
@@ -56,7 +58,8 @@ impl From<EventC> for Event {
             EventC::PlayerStopped(event_c) => Event::PlayerStopped(PlayerStoppedEvent::from(event_c)),
             EventC::PlaybackStateChanged(new_state) => Event::PlaybackStateChanged(new_state),
             EventC::WatchStateChanged(id, state) => Event::WatchStateChanged(from_c_string(id), state),
-            EventC::LoadingStarted => Event::LoadingStarted,
+            EventC::LoadingStarted(e) => Event::LoadingStarted(LoadingStartedEvent::from(e)),
+            EventC::LoadingCompleted => Event::LoadingCompleted,
         }
     }
 }
@@ -117,13 +120,13 @@ impl From<PlayerStoppedEventC> for PlayerStoppedEvent {
         };
         let time = if !value.time.is_null() {
             trace!("Converting PlayerStoppedEventC.time from C for {:?}", value.time);
-            Some(unsafe { value.time.read() as u64 })
+            Some(value.time as u64)
         } else {
             None
         };
         let duration = if !value.duration.is_null() {
             trace!("Converting PlayerStoppedEventC.duration from C for {:?}", value.duration);
-            Some(unsafe { value.duration.read() as u64 })
+            Some(value.duration as u64)
         } else {
             None
         };
@@ -266,6 +269,31 @@ impl From<PlayerStartedEventC> for PlayerStartedEvent {
     }
 }
 
+#[repr(C)]
+#[derive(Debug)]
+pub struct LoadingStartedEventC {
+    pub url: *const c_char,
+    pub title: *const c_char,
+}
+
+impl From<LoadingStartedEvent> for LoadingStartedEventC {
+    fn from(value: LoadingStartedEvent) -> Self {
+        Self {
+            url: into_c_string(value.url),
+            title: into_c_string(value.title),
+        }
+    }
+}
+
+impl From<LoadingStartedEventC> for LoadingStartedEvent {
+    fn from(value: LoadingStartedEventC) -> Self {
+        Self {
+            url: from_c_string(value.url),
+            title: from_c_string(value.title),
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std::ptr;
@@ -290,8 +318,8 @@ mod test {
         let event = PlayerStoppedEventC {
             url: into_c_string(url.to_string()),
             media: into_c_owned(MediaItemC::from(movie.clone())),
-            time: into_c_owned(20000),
-            duration: into_c_owned(1800000),
+            time: 20000 as *const i64,
+            duration: 1800000 as *const i64,
         };
 
         let result = PlayerStoppedEvent::from(event);
@@ -307,8 +335,8 @@ mod test {
     fn test_from_event_c_to_event_player_stopped() {
         // Create a PlayerStoppedEventC instance for testing
         let url = into_c_string("http://example.com/video.mp4".to_string());
-        let time = Box::new(1000);
-        let duration = Box::new(5000);
+        let time = 1000;
+        let duration = 5000;
         let media_item_c = Box::new(MediaItemC {
             movie_overview: ptr::null_mut(),
             movie_details: ptr::null_mut(),
@@ -318,8 +346,8 @@ mod test {
         });
         let player_stopped_event_c = PlayerStoppedEventC {
             url,
-            time: Box::into_raw(time),
-            duration: Box::into_raw(duration),
+            time: time as *const i64,
+            duration: duration as *const i64,
             media: Box::into_raw(media_item_c),
         };
 
@@ -330,8 +358,8 @@ mod test {
         // Verify that the conversion was successful
         match event {
             Event::PlayerStopped(player_stopped_event) => {
-                assert_eq!(player_stopped_event.time, Some(1000 as u64));
-                assert_eq!(player_stopped_event.duration, Some(5000 as u64));
+                assert_eq!(player_stopped_event.time, Some(1000u64));
+                assert_eq!(player_stopped_event.duration, Some(5000u64));
                 assert!(player_stopped_event.media.is_none(), "expected no media item");
             }
             _ => panic!("Expected PlayerStopped event"),

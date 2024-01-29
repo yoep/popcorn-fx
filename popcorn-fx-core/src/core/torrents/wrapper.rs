@@ -33,6 +33,7 @@ pub type TorrentStateCallback = Box<dyn Fn() -> TorrentState + Send>;
 #[derive(Display)]
 #[display(fmt = "filepath: {:?}", filepath)]
 pub struct TorrentWrapper {
+    pub handle: String,
     pub filepath: PathBuf,
     pub has_bytes: Mutex<HasBytesCallback>,
     pub has_piece: Mutex<HasPieceCallback>,
@@ -61,11 +62,12 @@ impl TorrentWrapper {
     /// # Returns
     ///
     /// A new `TorrentWrapper` instance.
-    pub fn new(filepath: String, has_byte: HasBytesCallback, has_piece: HasPieceCallback,
+    pub fn new(handle: String, filepath: String, has_byte: HasBytesCallback, has_piece: HasPieceCallback,
                total_pieces: TotalPiecesCallback, prioritize_bytes: PrioritizeBytesCallback,
                prioritize_pieces: PrioritizePiecesCallback, sequential_mode: SequentialModeCallback,
                torrent_state: TorrentStateCallback) -> Self {
         Self {
+            handle,
             filepath: PathBuf::from(filepath),
             has_bytes: Mutex::new(has_byte),
             has_piece: Mutex::new(has_piece),
@@ -107,6 +109,10 @@ impl Debug for TorrentWrapper {
 }
 
 impl Torrent for TorrentWrapper {
+    fn handle(&self) -> &str {
+        self.handle.as_str()
+    }
+
     fn file(&self) -> PathBuf {
         self.filepath.clone()
     }
@@ -159,8 +165,8 @@ impl Torrent for TorrentWrapper {
         })
     }
 
-    fn register(&self, callback: TorrentCallback) {
-        self.callbacks.add(callback);
+    fn subscribe(&self, callback: TorrentCallback) -> i64 {
+        self.callbacks.add(callback)
     }
 }
 
@@ -185,6 +191,7 @@ mod test {
         let sequential_mode = Box::new(|| {});
         let torrent_state = Box::new(|| TorrentState::Completed);
         let wrapper = TorrentWrapper::new(
+            "MyHandle".to_string(),
             "lorem.txt".to_string(),
             has_bytes,
             has_piece,
@@ -212,6 +219,7 @@ mod test {
         let sequential_mode = Box::new(|| {});
         let torrent_state = Box::new(|| TorrentState::Completed);
         let wrapper = TorrentWrapper::new(
+            "MyHandle".to_string(),
             "lorem.txt".to_string(),
             has_bytes,
             has_piece,

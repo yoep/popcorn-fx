@@ -1,5 +1,5 @@
 use std::fmt::{Debug, Display, Formatter};
-use std::sync::Arc;
+use std::sync::Weak;
 
 use async_trait::async_trait;
 use derive_more::Display;
@@ -8,7 +8,7 @@ use downcast_rs::{DowncastSync, impl_downcast};
 use mockall::automock;
 
 use crate::core::{CoreCallback, torrents};
-use crate::core::torrents::{Torrent, TorrentFileInfo, TorrentInfo, TorrentWrapper};
+use crate::core::torrents::{Torrent, TorrentFileInfo, TorrentInfo};
 
 /// The callback type for the torrent manager events.
 pub type TorrentManagerCallback = CoreCallback<TorrentManagerEvent>;
@@ -75,14 +75,11 @@ pub trait TorrentManager: Debug + DowncastSync {
     /// The torrent meta information on success, or a [torrent::TorrentError] if there was an error.
     async fn info<'a>(&'a self, url: &'a str) -> torrents::Result<TorrentInfo>;
 
-    async fn create(&self, file_info: &TorrentFileInfo, torrent_directory: &str, auto_download: bool) -> torrents::Result<Box<dyn Torrent>>;
+    async fn create(&self, file_info: &TorrentFileInfo, torrent_directory: &str, auto_download: bool) -> torrents::Result<Weak<Box<dyn Torrent>>>;
 
-    /// Add a new torrent wrapper to the manager.
-    ///
-    /// # Arguments
-    ///
-    /// * `torrent` - The torrent wrapper to add to the manager.
-    fn add(&self, torrent: Arc<TorrentWrapper>);
+    fn by_handle(&self, handle: &str) -> Option<Weak<Box<dyn Torrent>>>;
+    
+    fn remove(&self, handle: &str);
 
     /// Cleanup the torrents directory.
     ///

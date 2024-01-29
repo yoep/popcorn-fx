@@ -8,8 +8,7 @@ use log::{debug, trace, warn};
 use tokio::sync::Mutex;
 
 use crate::core::block_in_place;
-use crate::core::loader::{LoadingError, LoadingResult, LoadingStrategy, UpdateState};
-use crate::core::playlists::PlaylistItem;
+use crate::core::loader::{LoadingData, LoadingError, LoadingResult, LoadingStrategy, UpdateState};
 use crate::core::torrents::{TorrentError, TorrentStreamEvent, TorrentStreamServer, TorrentStreamState};
 
 #[derive(Display)]
@@ -43,17 +42,17 @@ impl LoadingStrategy for TorrentStreamLoadingStrategy {
         *state = state_update;
     }
 
-    async fn process(&self, mut item: PlaylistItem) -> LoadingResult {
-        if let Some(torrent) = item.torrent.take() {
+    async fn process(&self, mut data: LoadingData) -> LoadingResult {
+        if let Some(torrent) = data.torrent.take() {
             trace!("Processing torrent stream for {:?}", torrent);
             match self.torrent_stream_server.start_stream(torrent) {
                 Ok(stream) => {
                     if let Some(stream) = stream.upgrade() {
                         let (tx, rx) = channel();
                         trace!("Updating playlist item url to stream {}", stream.url());
-                        item.url = Some(stream.url().to_string());
+                        data.item.url = Some(stream.url().to_string());
 
-                        stream.subscribe(Box::new(move |event| {
+                        stream.subscribe_stream(Box::new(move |event| {
                             if let TorrentStreamEvent::StateChanged(state) = event {
                                 match state {
                                     TorrentStreamState::Preparing => debug!("Waiting for the torrent stream to be ready"),
@@ -73,12 +72,12 @@ impl LoadingStrategy for TorrentStreamLoadingStrategy {
                         warn!("Unable to update playlist item url, stream has already been dropped");
                     }
 
-                    item.torrent_stream = Some(stream);
+                    data.torrent_stream = Some(stream);
                 }
                 Err(e) => return LoadingResult::Err(LoadingError::TorrentError(e)),
             }
         }
 
-        LoadingResult::Ok(item)
+        LoadingResult::Ok(data)
     }
 }

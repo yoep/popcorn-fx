@@ -5,6 +5,7 @@ use downcast_rs::{DowncastSync, impl_downcast};
 #[cfg(any(test, feature = "testing"))]
 use mockall::automock;
 
+use crate::core::loader::LoadingData;
 use crate::core::media::MediaIdentifier;
 use crate::core::playlists::PlaylistItem;
 use crate::core::torrents::TorrentStream;
@@ -190,7 +191,7 @@ impl PlayMediaRequest {
         media: Box<dyn MediaIdentifier>,
         parent_media: Option<Box<dyn MediaIdentifier>>,
         quality: String,
-        torrent_stream: Weak<dyn TorrentStream>
+        torrent_stream: Weak<dyn TorrentStream>,
     ) -> Self {
         let base = PlayUrlRequest {
             url,
@@ -246,25 +247,28 @@ impl PlayRequest for PlayMediaRequest {
     }
 }
 
-impl From<PlaylistItem> for PlayMediaRequest {
-    fn from(value: PlaylistItem) -> Self {
+impl From<LoadingData> for PlayMediaRequest {
+    fn from(value: LoadingData) -> Self {
         let mut builder = PlayMediaRequestBuilder::builder()
-            .url(value.url.expect("expected a url to have been present").as_str())
-            .title(value.title.as_str())
-            .media(value.media.expect("expected a media item to have been present"))
-            .subtitles_enabled(value.subtitles_enabled);
+            .url(value.item.url.expect("expected a url to have been present").as_str())
+            .title(value.item.title.as_str())
+            .media(value.item.media.expect("expected a media item to have been present"))
+            .subtitles_enabled(value.item.subtitles_enabled);
 
-        if let Some(e) = value.thumb {
+        if let Some(e) = value.item.thumb {
             builder = builder.thumb(e.as_str());
         }
-        if let Some(e) = value.auto_resume_timestamp {
+        if let Some(e) = value.item.auto_resume_timestamp {
             builder = builder.auto_resume_timestamp(e);
         }
-        if let Some(e) = value.parent_media {
+        if let Some(e) = value.item.parent_media {
             builder = builder.parent_media(e);
         }
-        if let Some(e) = value.quality {
+        if let Some(e) = value.item.quality {
             builder = builder.quality(e.as_str());
+        }
+        if let Some(e) = value.torrent_stream {
+            builder = builder.torrent_stream(e);
         }
 
         builder.build()
@@ -368,95 +372,19 @@ impl PlayMediaRequestBuilder {
             parent_media: self.parent_media,
             media: self.media.expect("media has not been set"),
             quality: self.quality.unwrap_or_else(|| "".to_string()),
-            torrent_stream: self.torrent_stream.expect("torrent_stream has not been set")
+            torrent_stream: self.torrent_stream.expect("torrent_stream has not been set"),
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
     use std::sync::Arc;
 
-    use derive_more::Display;
-    use url::Url;
-
     use crate::core::media::{Episode, ShowOverview};
-    use crate::core::torrents::{Torrent, TorrentCallback, TorrentState, TorrentStreamCallback, TorrentStreamingResourceWrapper, TorrentStreamState};
+    use crate::core::torrents::MockTorrentStream;
 
     use super::*;
-
-    #[derive(Debug, Display)]
-    #[display(fmt = "DummyStream")]
-    pub struct DummyStream {}
-
-    impl Torrent for DummyStream {
-        fn file(&self) -> PathBuf {
-            todo!()
-        }
-
-        fn has_bytes(&self, bytes: &[u64]) -> bool {
-            todo!()
-        }
-
-        fn has_piece(&self, piece: u32) -> bool {
-            todo!()
-        }
-
-        fn prioritize_bytes(&self, bytes: &[u64]) {
-            todo!()
-        }
-
-        fn prioritize_pieces(&self, pieces: &[u32]) {
-            todo!()
-        }
-
-        fn total_pieces(&self) -> i32 {
-            todo!()
-        }
-
-        fn sequential_mode(&self) {
-            todo!()
-        }
-
-        fn state(&self) -> TorrentState {
-            todo!()
-        }
-
-        fn register(&self, callback: TorrentCallback) {
-            todo!()
-        }
-    }
-
-    impl TorrentStream for DummyStream {
-        fn url(&self) -> Url {
-            todo!()
-        }
-
-        fn stream(&self) -> crate::core::torrents::Result<TorrentStreamingResourceWrapper> {
-            todo!()
-        }
-
-        fn stream_offset(&self, offset: u64, len: Option<u64>) -> crate::core::torrents::Result<TorrentStreamingResourceWrapper> {
-            todo!()
-        }
-
-        fn stream_state(&self) -> TorrentStreamState {
-            todo!()
-        }
-
-        fn subscribe(&self, callback: TorrentStreamCallback) -> i64 {
-            todo!()
-        }
-
-        fn unsubscribe(&self, callback_id: i64) {
-            todo!()
-        }
-
-        fn stop_stream(&self) {
-            todo!()
-        }
-    }
 
     #[test]
     fn test_play_url_request_builder() {
@@ -496,8 +424,6 @@ mod tests {
             media: None,
             torrent_info: None,
             torrent_file_info: None,
-            torrent: None,
-            torrent_stream: None,
             quality: None,
             auto_resume_timestamp: Some(auto_resume),
             subtitles_enabled: false,
@@ -541,7 +467,7 @@ mod tests {
             thumb: None,
             torrents: Default::default(),
         };
-        let stream = Arc::new(DummyStream{}) as Arc<dyn TorrentStream>;
+        let stream = Arc::new(MockTorrentStream::new()) as Arc<dyn TorrentStream>;
         let expected_result = PlayMediaRequest {
             base: PlayUrlRequest {
                 url: url.to_string(),
@@ -565,6 +491,55 @@ mod tests {
             .media(Box::new(episode))
             .torrent_stream(Arc::downgrade(&stream))
             .build();
+
+        assert_eq!(expected_result, result)
+    }
+
+    #[test]
+    fn test_player_media_request_from() {
+        let url = "https://exmaple.com";
+        let title = "FooBar";
+        let subtitles_enabled = true;
+        let quality = "1080p";
+        let media = ShowOverview {
+            imdb_id: "tt123456".to_string(),
+            tvdb_id: "tt200020".to_string(),
+            title: "MyTitle".to_string(),
+            year: "2016".to_string(),
+            num_seasons: 5,
+            images: Default::default(),
+            rating: None,
+        };
+        let item = PlaylistItem {
+            url: Some(url.to_string()),
+            title: title.to_string(),
+            thumb: None,
+            parent_media: None,
+            media: Some(Box::new(media.clone())),
+            torrent_info: None,
+            torrent_file_info: None,
+            quality: Some(quality.to_string()),
+            auto_resume_timestamp: None,
+            subtitles_enabled,
+        };
+        let stream: Arc<dyn TorrentStream> = Arc::new(MockTorrentStream::new());
+        let mut data = LoadingData::from(item);
+        data.torrent_stream = Some(Arc::downgrade(&stream));
+        let expected_result = PlayMediaRequest {
+            base: PlayUrlRequest {
+                url: url.to_string(),
+                title: title.to_string(),
+                thumb: None,
+                auto_resume_timestamp: None,
+                subtitles_enabled,
+            },
+            parent_media: None,
+            media: Box::new(media),
+            quality: quality.to_string(),
+            torrent_stream: Arc::downgrade(&stream),
+        };
+
+        let result = PlayMediaRequest::from(data);
 
         assert_eq!(expected_result, result)
     }

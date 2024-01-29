@@ -2,7 +2,6 @@ extern crate core;
 
 use std::{mem, ptr, slice};
 use std::os::raw::c_char;
-use std::sync::Arc;
 
 use log::{debug, error, info, trace, warn};
 
@@ -14,8 +13,6 @@ use popcorn_fx_core::core::media::favorites::FavoriteCallback;
 use popcorn_fx_core::core::media::watched::WatchedCallback;
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
 use popcorn_fx_core::core::subtitles::model::{Subtitle, SubtitleInfo, SubtitleType};
-use popcorn_fx_core::core::torrents::{Torrent, TorrentStreamState};
-use popcorn_fx_torrent_stream::{TorrentStreamC, TorrentStreamEventC, TorrentWrapperC};
 
 #[cfg(feature = "ffi")]
 use crate::ffi::*;
@@ -493,79 +490,6 @@ pub extern "C" fn register_watched_event_callback<'a>(popcorn_fx: &mut PopcornFX
     popcorn_fx.watched_service().register(wrapper)
 }
 
-/// Inform the FX core that a piece for the torrent has finished downloading.
-#[no_mangle]
-pub extern "C" fn torrent_piece_finished(torrent: &TorrentWrapperC, piece: u32) {
-    torrent.piece_finished(piece)
-}
-
-/// Start a torrent stream for the given torrent.
-#[no_mangle]
-pub extern "C" fn start_stream(popcorn_fx: &mut PopcornFX, torrent: &'static TorrentWrapperC) -> *mut TorrentStreamC {
-    trace!("Starting a new stream from C for {:?}", torrent);
-    match popcorn_fx.torrent_stream_server().start_stream(Box::new(torrent) as Box<dyn Torrent>) {
-        Ok(e) => {
-            if let Some(stream) = e.upgrade() {
-                info!("Started new stream {}", stream);
-                into_c_owned(TorrentStreamC::from(stream))
-            } else {
-                ptr::null_mut()
-            }
-        }
-        Err(e) => {
-            error!("Failed to start stream, {}", e);
-            ptr::null_mut()
-        }
-    }
-}
-
-/// Stop the given torrent stream.
-#[no_mangle]
-pub extern "C" fn stop_stream(popcorn_fx: &mut PopcornFX, stream: &mut TorrentStreamC) {
-    trace!("Stopping torrent stream of {:?}", stream);
-    let stream = stream.stream();
-    match stream {
-        None => error!("Unable to stop stream, pointer is invalid"),
-        Some(stream) => {
-            trace!("Stream {:?} has been read, trying to stop server", stream);
-            popcorn_fx.torrent_stream_server().stop_stream(Arc::downgrade(&stream));
-        }
-    }
-}
-
-/// Register a new callback for the torrent stream.
-#[no_mangle]
-pub extern "C" fn register_torrent_stream_callback(stream: &mut TorrentStreamC, callback: extern "C" fn(TorrentStreamEventC)) {
-    trace!("Wrapping TorrentStreamEventC callback");
-    let stream = stream.stream();
-    match stream {
-        None => error!("Unable to register callback, pointer is invalid"),
-        Some(stream) => {
-            stream.subscribe(Box::new(move |e| {
-                callback(TorrentStreamEventC::from(e))
-            }));
-        }
-    }
-}
-
-/// Retrieve the current state of the stream.
-/// Use [register_torrent_stream_callback] instead if the latest up-to-date information is required.
-///
-/// It returns the known [TorrentStreamState] at the time of invocation.
-#[no_mangle]
-pub extern "C" fn torrent_stream_state(stream: &mut TorrentStreamC) -> TorrentStreamState {
-    let stream = stream.stream();
-    match stream {
-        None => {
-            error!("Unable to get stream state, pointer is invalid");
-            TorrentStreamState::Stopped
-        }
-        Some(stream) => {
-            stream.stream_state()
-        }
-    }
-}
-
 /// Retrieve the auto-resume timestamp for the given media id and/or filename.
 #[no_mangle]
 pub extern "C" fn auto_resume_timestamp(popcorn_fx: &mut PopcornFX, id: *const c_char, filename: *const c_char) -> *mut u64 {
@@ -747,13 +671,6 @@ pub extern "C" fn dispose_media_items(media: Box<MediaSetC>) {
     trace!("Disposing media items of {:?}", media);
     let _ = media.movies();
     let _ = media.shows();
-}
-
-/// Dispose the torrent stream.
-/// Make sure [stop_stream] has been called before dropping the instance.
-#[no_mangle]
-pub extern "C" fn dispose_torrent_stream(stream: Box<TorrentStreamC>) {
-    trace!("Disposing stream {:?}", stream)
 }
 
 /// Dispose the given subtitle.

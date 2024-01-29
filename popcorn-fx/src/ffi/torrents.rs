@@ -1,55 +1,40 @@
-use log::trace;
+use std::os::raw::c_char;
 
-use popcorn_fx_core::{into_c_owned, into_c_string};
+use log::{trace, warn};
+
+use popcorn_fx_core::{from_c_string, into_c_string};
 use popcorn_fx_core::core::torrents::{TorrentInfo, TorrentState, TorrentWrapper};
 use popcorn_fx_torrent::torrent::DefaultTorrentManager;
-use popcorn_fx_torrent_stream::{TorrentC, TorrentWrapperC};
 
 use crate::ffi::{ResolveTorrentCallback, ResolveTorrentInfoCallback, TorrentFileInfoC};
 use crate::PopcornFX;
 
-/// The torrent wrapper for moving data between Rust and FrostWire.
-///
-/// This is a temporary wrapper until the torrent component is replaced.
-///
-/// # Safety
-///
-/// This function should only be called from C code.
-/// The `popcorn_fx` pointer must be valid and properly initialized.
-/// The `torrent` pointer must be a valid `TorrentC` instance.
-/// The returned pointer to `TorrentWrapperC` should be used carefully to avoid memory leaks.
-///
-/// # Arguments
-///
-/// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
-/// * `torrent` - A pointer to a `TorrentC` instance.
-///
-/// # Returns
-///
-/// A pointer to a `TorrentWrapperC` instance.
 #[no_mangle]
-pub extern "C" fn torrent_wrapper(popcorn_fx: &mut PopcornFX, torrent: TorrentC) -> *mut TorrentWrapperC {
-    trace!("Wrapping TorrentC into TorrentWrapperC for {:?}", torrent);
-    let wrapper_c = TorrentWrapperC::from(torrent);
-    trace!("Registering wrapper in torrent manager");
-    popcorn_fx.torrent_manager().add(wrapper_c.wrapper().clone());
-    into_c_owned(wrapper_c)
+pub extern "C" fn torrent_state_changed(popcorn_fx: &mut PopcornFX, handle: *const c_char, state: TorrentState) {
+    let handle = from_c_string(handle);
+    if let Some(torrent) = popcorn_fx.torrent_manager().by_handle(handle.as_str())
+        .and_then(|e| e.upgrade()) {
+        if let Some(wrapper) = torrent.downcast_ref::<TorrentWrapper>() {
+            trace!("Processing C torrent state changed");
+            wrapper.state_changed(state);
+        }
+    } else {
+        warn!("Unable to process torrent state changed, handle {} not found", handle);
+    }
 }
 
-/// Inform that the state of the torrent has changed.
-///
-/// # Safety
-///
-/// This function should only be called from C code.
-/// The `torrent` pointer must be a valid `TorrentWrapperC` instance.
-///
-/// # Arguments
-///
-/// * `torrent` - A pointer to a `TorrentWrapperC` instance.
-/// * `state` - The new state of the torrent.
 #[no_mangle]
-pub extern "C" fn torrent_state_changed(torrent: &TorrentWrapperC, state: TorrentState) {
-    torrent.state_changed(state)
+pub extern "C" fn torrent_piece_finished(popcorn_fx: &mut PopcornFX, handle: *const c_char, piece: u32) {
+    let handle = from_c_string(handle);
+    if let Some(torrent) = popcorn_fx.torrent_manager().by_handle(handle.as_str())
+        .and_then(|e| e.upgrade()) {
+        if let Some(wrapper) = torrent.downcast_ref::<TorrentWrapper>() {
+            trace!("Processing C torrent piece finished");
+            wrapper.piece_finished(piece);
+        }
+    } else {
+        warn!("Unable to process torrent piece finished, handle {} not found", handle);
+    }
 }
 
 /// Registers a new C-compatible resolve torrent callback function with PopcornFX.
@@ -140,11 +125,14 @@ mod test {
     use std::time::Duration;
 
     use tempfile::tempdir;
+    use tokio::sync::Mutex;
 
-    use popcorn_fx_core::{from_c_owned, into_c_string};
-    use popcorn_fx_core::core::torrents::{Torrent, TorrentEvent};
+    use popcorn_fx_core::core::block_in_place;
+    use popcorn_fx_core::core::torrents::{Torrent, TorrentEvent, TorrentFileInfo, TorrentManager};
+    use popcorn_fx_core::into_c_string;
     use popcorn_fx_core::testing::{copy_test_file, init_logger};
 
+    use crate::ffi::TorrentC;
     use crate::test::{default_args, new_instance};
 
     use super::*;
@@ -184,7 +172,9 @@ mod test {
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(default_args(temp_path));
+        let handle = "MyHandle";
         let torrent = TorrentC {
+            handle: into_c_string(handle.to_string()),
             filepath: into_c_string("lorem.txt".to_string()),
             has_byte_callback: has_bytes_callback,
             has_piece_callback: has_piece_callback,
@@ -194,19 +184,49 @@ mod test {
             sequential_mode: sequential_mode_callback,
             torrent_state: torrent_state_callback,
         };
-        let (tx, rx) = channel();
+        let torrent_file_info = TorrentFileInfo {
+            filename: "".to_string(),
+            file_path: temp_path.to_string(),
+            file_size: 18000,
+            file_index: 0,
+        };
 
-        let wrapper = from_c_owned(torrent_wrapper(&mut instance, torrent));
-        wrapper.wrapper().register(Box::new(move |e| {
-            tx.send(e).unwrap()
+        let (tx, rx) = channel();
+        let manager = instance.torrent_manager().clone();
+        let torrent_manager = manager.downcast_ref::<DefaultTorrentManager>().unwrap();
+
+        torrent_manager.register_resolve_callback(Box::new(move |_, _, _| {
+            let wrapper = TorrentWrapper {
+                handle: handle.to_string(),
+                filepath: Default::default(),
+                has_bytes: Mutex::new(Box::new(|_| true)),
+                has_piece: Mutex::new(Box::new(|_| true)),
+                total_pieces: Mutex::new(Box::new(|| 10)),
+                prioritize_bytes: Mutex::new(Box::new(|_| {})),
+                prioritize_pieces: Mutex::new(Box::new(|_| {})),
+                sequential_mode: Mutex::new(Box::new(|| {})),
+                torrent_state: Mutex::new(Box::new(|| TorrentState::Downloading)),
+                callbacks: Default::default(),
+            };
+            let tx_wrapper = tx.clone();
+            wrapper.subscribe(Box::new(move |event| {
+                tx_wrapper.send(event).unwrap();
+            }));
+            wrapper
         }));
-        torrent_state_changed(&wrapper, TorrentState::Starting);
+        match block_in_place(torrent_manager.create(&torrent_file_info, temp_path, true)) {
+            Ok(result) => assert_eq!(handle, result.upgrade().unwrap().handle()),
+            Err(e) => assert!(false, "expected torrent to have been created, got {}", e),
+        }
+
+        torrent_manager.by_handle(handle).expect("expected the torrent handle to have been found");
+        torrent_state_changed(&mut instance, into_c_string(handle.to_string()), TorrentState::Starting);
 
         let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
 
         match result {
             TorrentEvent::StateChanged(state) => assert_eq!(TorrentState::Starting, state),
-            _ => {}
+            _ => assert!(false, "expected TorrentEvent::StateChanged, but got {} instead", result),
         }
     }
 

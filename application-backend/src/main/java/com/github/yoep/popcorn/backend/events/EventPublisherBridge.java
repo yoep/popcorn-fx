@@ -55,9 +55,10 @@ public class EventPublisherBridge implements EventBridgeCallback {
     public void callback(EventC.ByValue event) {
         switch (event.getTag()) {
             case PlayerChanged,
-                    LoadingStarted,
                     PlayerStarted,
-                    PlayerStopped -> eventPublisher.publish(event.toEvent());
+                    PlayerStopped,
+                    LoadingStarted,
+                    LoadingCompleted -> eventPublisher.publish(event.toEvent());
             default -> log.warn("EventC callback of {} is currently not yet supported", event.getTag());
         }
     }

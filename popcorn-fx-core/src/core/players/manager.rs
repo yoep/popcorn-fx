@@ -310,6 +310,7 @@ impl PlayerManager for DefaultPlayerManager {
     }
 
     fn play(&self, request: Box<dyn PlayRequest>) {
+        trace!("Processing play request {:?}", request);
         if let Some(player) = self.active_player()
             .and_then(|e| e.upgrade()) {
             debug!("Starting playback of {} in {}", request.url(), player);
@@ -389,7 +390,7 @@ mod tests {
             &PlayerState::Unknown
         }
 
-        fn play(&self, request: Box<dyn PlayRequest>) {
+        fn play(&self, _: Box<dyn PlayRequest>) {
             todo!()
         }
     }

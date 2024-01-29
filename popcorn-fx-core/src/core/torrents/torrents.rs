@@ -1,7 +1,10 @@
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{Debug, Display};
+#[cfg(any(test, feature = "testing"))]
+use std::fmt::Formatter;
 use std::path::PathBuf;
 
 use derive_more::Display;
+use downcast_rs::{DowncastSync, impl_downcast};
 use log::{debug, trace};
 #[cfg(any(test, feature = "testing"))]
 use mockall::automock;
@@ -71,7 +74,10 @@ impl From<i32> for TorrentState {
 /// The torrent describes the meta-info of a shared file that can be queried over the network.
 /// It allows for action such as downloading the shared file to the local system.
 #[cfg_attr(any(test, feature = "testing"), automock)]
-pub trait Torrent: Display + Debug + Send + Sync {
+pub trait Torrent: Display + Debug + DowncastSync {
+    /// The unique handle of this [Torrent].
+    fn handle(&self) -> &str;
+
     /// The absolute path to this torrent file.
     fn file(&self) -> PathBuf;
 
@@ -103,8 +109,9 @@ pub trait Torrent: Display + Debug + Send + Sync {
 
     /// Register a new callback for the [TorrentEvent]'s.
     /// The callback will be triggered when a new event occurs within the torrent.
-    fn register(&self, callback: TorrentCallback);
+    fn subscribe(&self, callback: TorrentCallback) -> i64;
 }
+impl_downcast!(sync Torrent);
 
 #[cfg(any(test, feature = "testing"))]
 impl Display for MockTorrent {

@@ -74,7 +74,7 @@ public class EventC extends Structure implements Closeable {
             case PlayerStopped -> {
                 var event = union.playerStopped_body.stoppedEvent;
 
-                return  PlayerStoppedEvent.builder()
+                return PlayerStoppedEvent.builder()
                         .source(this)
                         .url(event.url)
                         .time(event.getTime())
@@ -83,7 +83,10 @@ public class EventC extends Structure implements Closeable {
                         .build();
             }
             case LoadingStarted -> {
-                return  new LoadingStartedEvent(this);
+                return new LoadingStartedEvent(this);
+            }
+            case LoadingCompleted -> {
+                return new LoadingCompletedEvent(this);
             }
             default -> {
                 log.error("Failed to create ApplicationEvent from {}", this);
@@ -99,6 +102,7 @@ public class EventC extends Structure implements Closeable {
             case PlayerStopped -> union.setType(PlayerStopped_Body.class);
             case PlaybackStateChanged -> union.setType(PlaybackState_Body.class);
             case WatchStateChanged -> union.setType(WatchStateChanged_Body.class);
+            case LoadingStarted -> union.setType(LoadingStarted_Body.class);
         }
     }
 
@@ -171,6 +175,19 @@ public class EventC extends Structure implements Closeable {
 
     @Getter
     @ToString
+    @FieldOrder({"url", "title"})
+    public static class LoadingStarted_Body extends Structure implements Closeable {
+        public String url;
+        public String title;
+
+        @Override
+        public void close() {
+            setAutoSynch(false);
+        }
+    }
+
+    @Getter
+    @ToString
     @EqualsAndHashCode(callSuper = false)
     public static class EventCUnion extends Union implements Closeable {
         public static class ByValue extends EventCUnion implements Union.ByValue {
@@ -181,6 +198,7 @@ public class EventC extends Structure implements Closeable {
         public PlayerStopped_Body playerStopped_body;
         public PlaybackState_Body playbackState_body;
         public WatchStateChanged_Body watchStateChanged_body;
+        public LoadingStarted_Body loadingStarted_body;
 
         @Override
         public void close() {
@@ -195,6 +213,8 @@ public class EventC extends Structure implements Closeable {
                     .ifPresent(PlaybackState_Body::close);
             Optional.ofNullable(watchStateChanged_body)
                     .ifPresent(WatchStateChanged_Body::close);
+            Optional.ofNullable(loadingStarted_body)
+                    .ifPresent(LoadingStarted_Body::close);
         }
     }
 
@@ -204,7 +224,8 @@ public class EventC extends Structure implements Closeable {
         PlayerStopped,
         PlaybackStateChanged,
         WatchStateChanged,
-        LoadingStarted;
+        LoadingStarted,
+        LoadingCompleted;
 
         @Override
         public Object fromNative(Object nativeValue, FromNativeContext context) {

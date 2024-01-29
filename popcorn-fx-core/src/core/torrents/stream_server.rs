@@ -30,7 +30,7 @@ pub trait TorrentStreamServer: Debug + Send + Sync {
     /// # Returns
     ///
     /// A result containing a weak reference to the started torrent stream, or an error if the stream could not be started.
-    fn start_stream(&self, torrent: Box<dyn Torrent>) -> torrents::Result<Weak<dyn TorrentStream>>;
+    fn start_stream(&self, torrent: Weak<Box<dyn Torrent>>) -> torrents::Result<Weak<dyn TorrentStream>>;
 
     /// Stop a torrent stream.
     ///

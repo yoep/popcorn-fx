@@ -2,7 +2,6 @@ package com.github.yoep.popcorn.ui.player;
 
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
-import com.github.yoep.popcorn.backend.adapters.torrent.TorrentStreamService;
 import com.github.yoep.popcorn.backend.events.*;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.player.PlayerEventService;
@@ -24,7 +23,6 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class PlayerStopService {
     private final PlayerEventService playerEventService;
-    private final TorrentStreamService torrentStreamService;
     private final PlayNextService playNextService;
     private final SubtitleService subtitleService;
     private final EventPublisher eventPublisher;
@@ -110,9 +108,6 @@ public class PlayerStopService {
     }
 
     private void onPlayerStopped() {
-        // always stop all streams
-        torrentStreamService.stopAllStreams();
-
         if (!isAllowedToClose())
             return;
 

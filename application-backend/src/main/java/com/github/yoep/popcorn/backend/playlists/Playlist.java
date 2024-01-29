@@ -6,7 +6,6 @@ import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -43,6 +42,7 @@ public class Playlist extends Structure implements Closeable {
             array[i].quality = item.quality;
             array[i].media = item.media;
             array[i].autoResumeTimestamp = item.autoResumeTimestamp;
+            array[i].subtitlesEnabled = item.subtitlesEnabled;
         }
     }
 
@@ -62,7 +62,7 @@ public class Playlist extends Structure implements Closeable {
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
         setAutoSynch(false);
     }
 }

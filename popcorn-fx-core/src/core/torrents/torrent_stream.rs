@@ -1,13 +1,15 @@
 use std::fmt::{Display, Formatter};
+use std::path::PathBuf;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use derive_more::Display;
 use futures::Stream;
+use mockall::mock;
 use url::Url;
 
 use crate::core::{CoreCallback, torrents};
-use crate::core::torrents::Torrent;
+use crate::core::torrents::{Torrent, TorrentCallback, TorrentState};
 
 /// The stream bytes that are available to be used for the [TorrentStream].
 pub type StreamBytes = Vec<u8>;
@@ -83,18 +85,67 @@ pub trait TorrentStream: Torrent {
     /// # Arguments
     ///
     /// * `callback` - A callback function to handle stream events.
-    fn subscribe(&self, callback: TorrentStreamCallback) -> i64;
+    fn subscribe_stream(&self, callback: TorrentStreamCallback) -> i64;
 
     /// Unsubscribe from stream events with the provided callback ID.
     ///
     /// # Arguments
     ///
     /// * `callback_id` - The unique identifier of the callback to unsubscribe.
-    fn unsubscribe(&self, callback_id: i64);
+    fn unsubscribe_stream(&self, callback_id: i64);
 
     /// Stop the stream, preventing new streaming resources from being created,
     /// and stopping the underlying [Torrent] process.
     fn stop_stream(&self);
+}
+
+mock! {
+    #[derive(Debug)]
+    pub TorrentStream {}
+
+    impl Torrent for TorrentStream {
+        fn handle(&self) -> &str;
+
+        fn file(&self) -> PathBuf;
+
+        fn has_bytes(&self, bytes: &[u64]) -> bool;
+
+        fn has_piece(&self, piece: u32) -> bool;
+
+        fn prioritize_bytes(&self, bytes: &[u64]);
+
+        fn prioritize_pieces(&self, pieces: &[u32]);
+
+        fn total_pieces(&self) -> i32;
+
+        fn sequential_mode(&self);
+
+        fn state(&self) -> TorrentState;
+
+        fn subscribe(&self, callback: TorrentCallback) -> i64;
+    }
+
+    impl TorrentStream for TorrentStream {
+        fn url(&self) -> Url;
+
+        fn stream(&self) -> torrents::Result<TorrentStreamingResourceWrapper>;
+
+        fn stream_offset(&self, offset: u64, len: Option<u64>) -> torrents::Result<TorrentStreamingResourceWrapper>;
+
+        fn stream_state(&self) -> TorrentStreamState;
+
+        fn subscribe_stream(&self, callback: TorrentStreamCallback) -> i64;
+
+        fn unsubscribe_stream(&self, callback_id: i64);
+
+        fn stop_stream(&self);
+    }
+}
+
+impl Display for MockTorrentStream {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "MockTorrentStream")
+    }
 }
 
 /// The streaming resource of a [TorrentStream].

@@ -15,6 +15,7 @@ use reqwest::header::HeaderMap;
 use tokio::fs::OpenOptions;
 use tokio::sync::Mutex;
 
+use popcorn_fx_core::core::block_in_place;
 use popcorn_fx_core::core::config::ApplicationConfig;
 use popcorn_fx_core::core::media::*;
 use popcorn_fx_core::core::subtitles::{Result, SubtitleError, SubtitleFile, SubtitleProvider};
@@ -345,7 +346,7 @@ impl OpensubtitlesProvider {
     /// Find the subtitle for the default configured subtitle language.
     /// This uses the [SubtitleSettings::default_subtitle] setting.
     fn find_for_default_subtitle_language(&self, subtitles: &[SubtitleInfo]) -> Option<SubtitleInfo> {
-        let mutex = self.settings.blocking_lock();
+        let mutex = block_in_place(self.settings.lock());
         let subtitle_language = mutex.user_settings().subtitle().default_subtitle();
 
         subtitles.iter()
@@ -356,7 +357,7 @@ impl OpensubtitlesProvider {
     /// Find the subtitle for the interface language.
     /// This uses the [UiSettings::default_language] setting.
     fn find_for_interface_language(&self, subtitles: &[SubtitleInfo]) -> Option<SubtitleInfo> {
-        let mutex = self.settings.blocking_lock();
+        let mutex = block_in_place(self.settings.lock());
         let language = mutex.user_settings().ui().default_language();
 
         subtitles.iter()
@@ -1101,7 +1102,11 @@ mod test {
     #[test]
     fn test_subtitle_file_name_missing_extension_in_release() {
         init_logger();
-        let file = OpenSubtitlesFile::new(687);
+        let file = OpenSubtitlesFile {
+            file_id: 687,
+            cd_number: None,
+            file_name: None,
+        };
         let attributes = OpenSubtitlesAttributes::new("123".to_string(), "lorem".to_string());
         let expected_result = "lorem.srt".to_string();
 

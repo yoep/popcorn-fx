@@ -60,8 +60,8 @@ impl TorrentInfo {
     }
 
     /// Gets the URL of the torrent.
-    pub fn url(&self) -> &String {
-        &self.url
+    pub fn url(&self) -> &str {
+        self.url.as_str()
     }
 
     /// Gets the provider of the torrent.

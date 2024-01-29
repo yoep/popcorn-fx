@@ -8,8 +8,7 @@ use tokio::sync::Mutex;
 
 use crate::core::{block_in_place, loader};
 use crate::core::config::ApplicationConfig;
-use crate::core::loader::{LoadingError, LoadingState, LoadingStrategy, UpdateState};
-use crate::core::playlists::PlaylistItem;
+use crate::core::loader::{LoadingData, LoadingError, LoadingState, LoadingStrategy, UpdateState};
 use crate::core::torrents::TorrentManager;
 
 #[derive(Display)]
@@ -46,28 +45,34 @@ impl LoadingStrategy for TorrentLoadingStrategy {
         *state = state_update;
     }
 
-    async fn process(&self, mut item: PlaylistItem) -> loader::LoadingResult {
-        if let Some(torrent_file_info) = item.torrent_file_info.as_ref() {
+    async fn process(&self, mut data: LoadingData) -> loader::LoadingResult {
+        if let Some(torrent_file_info) = data.item.torrent_file_info.as_ref() {
             {
                 let state_update = self.state_update.lock().await;
                 state_update(LoadingState::Connecting);
             }
 
             trace!("Processing torrent info of {:?}", torrent_file_info);
-            let settings = self.application_settings.lock().await;
-            let torrent_directory = settings.user_settings().torrent().directory().to_str()
-                .expect("expected a valid torrent directory");
+            let torrent_directory: String;
 
-            match self.torrent_manager.create(torrent_file_info, torrent_directory, true).await {
+            {
+                let settings = self.application_settings.lock().await;
+                torrent_directory = settings.user_settings().torrent().directory()
+                    .to_str()
+                    .map(|e| e.to_string())
+                    .expect("expected a valid torrent directory from the user settings");
+            }
+
+            match self.torrent_manager.create(torrent_file_info, torrent_directory.as_str(), true).await {
                 Ok(torrent) => {
                     debug!("Enhancing playlist item with torrent {:?}", torrent);
-                    item.torrent = Some(torrent);
+                    data.torrent = Some(torrent);
                 }
                 Err(e) => return loader::LoadingResult::Err(LoadingError::TorrentError(e)),
             }
         }
 
-        loader::LoadingResult::Ok(item)
+        loader::LoadingResult::Ok(data)
     }
 }
 
@@ -75,6 +80,7 @@ impl LoadingStrategy for TorrentLoadingStrategy {
 mod tests {
     use crate::core::block_in_place;
     use crate::core::loader::LoadingResult;
+    use crate::core::playlists::PlaylistItem;
     use crate::core::torrents::{MockTorrentManager, TorrentInfo};
     use crate::testing::init_logger;
 
@@ -97,12 +103,11 @@ mod tests {
             media: None,
             torrent_info: Some(torrent_info.clone()),
             torrent_file_info: None,
-            torrent: None,
-            torrent_stream: None,
             quality: None,
             auto_resume_timestamp: None,
             subtitles_enabled: false,
         };
+        let data = LoadingData::from(item);
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let settings = Arc::new(Mutex::new(ApplicationConfig::builder()
@@ -111,8 +116,8 @@ mod tests {
         let torrent_manager = MockTorrentManager::new();
         let strategy = TorrentLoadingStrategy::new(Arc::new(Box::new(torrent_manager)), settings);
 
-        let result = block_in_place(strategy.process(item.clone()));
+        let result = block_in_place(strategy.process(data.clone()));
 
-        assert_eq!(LoadingResult::Ok(item), result);
+        assert_eq!(LoadingResult::Ok(data), result);
     }
 }

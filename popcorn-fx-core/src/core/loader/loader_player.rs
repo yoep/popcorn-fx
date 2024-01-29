@@ -3,14 +3,15 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use derive_more::Display;
-use log::{trace, warn};
+use log::{debug, trace, warn};
 use tokio::sync::Mutex;
 
 use crate::core::{block_in_place, loader};
-use crate::core::loader::{LoadingState, LoadingStrategy, UpdateState};
+use crate::core::loader::{LoadingData, LoadingState, LoadingStrategy, UpdateState};
 use crate::core::players::{PlayerManager, PlayMediaRequest, PlayRequest, PlayUrlRequest};
-use crate::core::playlists::PlaylistItem;
 
+/// A loading strategy specifically designed for player loading.
+/// This strategy will translate the [PlaylistItem] into a [PlayRequest] which is invoked on the [PlayerManager].
 #[derive(Display)]
 #[display(fmt = "Player loading strategy")]
 pub struct PlayerLoadingStrategy {
@@ -19,6 +20,11 @@ pub struct PlayerLoadingStrategy {
 }
 
 impl PlayerLoadingStrategy {
+    /// Create a new instance of `PlayerLoadingStrategy`.
+    ///
+    /// # Arguments
+    ///
+    /// * `player_manager` - An Arc reference to a PlayerManager.
     pub fn new(player_manager: Arc<Box<dyn PlayerManager>>) -> Self {
         Self {
             state_update: Mutex::new(Box::new(|_| warn!("state_update has not been configured"))),
@@ -26,12 +32,12 @@ impl PlayerLoadingStrategy {
         }
     }
 
-    fn convert(&self, item: PlaylistItem) -> Box<dyn PlayRequest> {
-        if item.media.is_some() {
-            return Box::new(PlayMediaRequest::from(item));
+    fn convert(&self, data: LoadingData) -> Box<dyn PlayRequest> {
+        if data.item.media.is_some() {
+            return Box::new(PlayMediaRequest::from(data));
         }
 
-        Box::new(PlayUrlRequest::from(item))
+        Box::new(PlayUrlRequest::from(data.item))
     }
 }
 
@@ -45,20 +51,35 @@ impl Debug for PlayerLoadingStrategy {
 
 #[async_trait]
 impl LoadingStrategy for PlayerLoadingStrategy {
+    /// Handle a state update.
+    ///
+    /// # Arguments
+    ///
+    /// * `state_update` - The update state function.
     fn on_state_update(&self, state_update: UpdateState) {
         let mut state = block_in_place(self.state_update.lock());
         *state = state_update;
     }
 
-    async fn process(&self, item: PlaylistItem) -> loader::LoadingResult {
-        trace!("Starting playback of item {}", item);
-        {
-            let state_update = self.state_update.lock().await;
-            state_update(LoadingState::Playing);
+    /// Process the given playlist item.
+    ///
+    /// # Arguments
+    ///
+    /// * `item` - The playlist item to process.
+    async fn process(&self, data: LoadingData) -> loader::LoadingResult {
+        if let Some(url) = data.item.url.as_ref() {
+            trace!("Starting playlist item playback for {}", url);
+            {
+                let state_update = self.state_update.lock().await;
+                state_update(LoadingState::Playing);
+            }
+
+            self.player_manager.play(self.convert(data));
+            return loader::LoadingResult::Completed;
         }
 
-        self.player_manager.play(self.convert(item));
-        loader::LoadingResult::Completed
+        debug!("No playlist item url is present, playback won't be started");
+        loader::LoadingResult::Ok(data)
     }
 }
 
@@ -68,8 +89,11 @@ mod tests {
     use std::time::Duration;
 
     use crate::core::block_in_place;
+    use crate::core::loader::LoadingData;
     use crate::core::media::MovieDetails;
     use crate::core::players::MockPlayerManager;
+    use crate::core::playlists::PlaylistItem;
+    use crate::core::torrents::{MockTorrentStream, TorrentStream};
     use crate::testing::init_logger;
 
     use super::*;
@@ -87,12 +111,11 @@ mod tests {
             media: None,
             torrent_info: None,
             torrent_file_info: None,
-            torrent: None,
-            torrent_stream: None,
             quality: None,
             auto_resume_timestamp: None,
             subtitles_enabled: false,
         };
+        let data = LoadingData::from(item);
         let (tx, rx) = channel();
         let mut manager = MockPlayerManager::new();
         manager.expect_play()
@@ -102,7 +125,7 @@ mod tests {
             });
         let strategy = PlayerLoadingStrategy::new(Arc::new(Box::new(manager)));
 
-        block_in_place(strategy.process(item));
+        block_in_place(strategy.process(data));
         let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
 
         assert_eq!(url, result.url());
@@ -127,6 +150,7 @@ mod tests {
             trailer: "".to_string(),
             torrents: Default::default(),
         };
+        let stream: Arc<dyn TorrentStream> = Arc::new(MockTorrentStream::new());
         let item = PlaylistItem {
             url: Some(url.to_string()),
             title: "RRoll".to_string(),
@@ -135,12 +159,12 @@ mod tests {
             media: Some(Box::new(movie.clone())),
             torrent_info: None,
             torrent_file_info: None,
-            torrent: None,
-            torrent_stream: None,
             quality: Some(quality.to_string()),
             auto_resume_timestamp: None,
             subtitles_enabled: false,
         };
+        let mut data = LoadingData::from(item);
+        data.torrent_stream = Some(Arc::downgrade(&stream));
         let (tx, rx) = channel();
         let mut manager = MockPlayerManager::new();
         manager.expect_play()
@@ -150,7 +174,7 @@ mod tests {
             });
         let strategy = PlayerLoadingStrategy::new(Arc::new(Box::new(manager)));
 
-        block_in_place(strategy.process(item));
+        block_in_place(strategy.process(data));
         let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
 
         if let Some(result) = result.downcast_ref::<PlayMediaRequest>() {

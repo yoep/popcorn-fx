@@ -1,7 +1,10 @@
 package com.github.yoep.popcorn.backend.playlists;
 
 import com.github.yoep.popcorn.backend.media.MediaItem;
-import com.github.yoep.popcorn.backend.media.providers.models.*;
+import com.github.yoep.popcorn.backend.media.providers.models.Media;
+import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
+import com.sun.jna.Memory;
+import com.sun.jna.Pointer;
 import com.sun.jna.Structure;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -15,7 +18,7 @@ import java.util.Optional;
 @ToString
 @EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor
-@Structure.FieldOrder({"url", "title", "thumb", "quality", "parentMedia", "media", "autoResumeTimestamp"})
+@Structure.FieldOrder({"url", "title", "thumb", "quality", "parentMedia", "media", "autoResumeTimestamp", "subtitlesEnabled"})
 public class PlaylistItem extends Structure implements Closeable {
     public static class ByReference extends PlaylistItem implements Structure.ByReference {
     }
@@ -26,7 +29,8 @@ public class PlaylistItem extends Structure implements Closeable {
     public String quality;
     public MediaItem.ByReference parentMedia;
     public MediaItem.ByReference media;
-    public Long autoResumeTimestamp;
+    public Pointer autoResumeTimestamp;
+    public byte subtitlesEnabled;
 
     public PlaylistItem(String url, String title, String thumb, MediaItem.ByReference media) {
         this.url = url;
@@ -43,7 +47,7 @@ public class PlaylistItem extends Structure implements Closeable {
         return Optional.ofNullable(parentMedia)
                 .map(MediaItem::getMedia);
     }
-    
+
     public Optional<Media> getMedia() {
         return Optional.ofNullable(media)
                 .map(MediaItem::getMedia);
@@ -53,30 +57,27 @@ public class PlaylistItem extends Structure implements Closeable {
         return Optional.ofNullable(quality);
     }
 
+    public Optional<Long> getAutoResumeTimestamp() {
+        return Optional.ofNullable(autoResumeTimestamp)
+                .map(e -> e.getLong(0));
+    }
+
+    public void setAutoResumeTimestamp(long autoResumeTimestamp) {
+        this.autoResumeTimestamp = new Memory(1);
+        this.autoResumeTimestamp.setLong(0, autoResumeTimestamp);
+    }
+
+    public void setSubtitlesEnabled(boolean subtitlesEnabled) {
+        this.subtitlesEnabled = (byte) (subtitlesEnabled ? 1 : 0);
+    }
+
+    public boolean isSubtitlesEnabled() {
+        return subtitlesEnabled == 1;
+    }
+
     @Override
     public void close() {
         setAutoSynch(false);
-    }
-
-    public static PlaylistItem fromMedia(Media media, String quality) {
-        var item = new PlaylistItem();
-        item.title = media.getTitle();
-        item.media = MediaItem.from(media).toReference();
-        item.quality = quality;
-
-        if (media instanceof ShowOverview show) {
-            item.thumb = show.getImages().getPoster();
-        } else if (media instanceof MovieOverview movie) {
-            item.thumb = movie.getImages().getPoster();
-        } else if (media instanceof Episode episode) {
-            item.thumb = episode.getThumb().orElse(null);
-        }
-
-        return item;
-    }
-
-    public static PlaylistItem fromMedia(Media media) {
-        return fromMedia(media, null);
     }
 
     public static PlaylistItem fromMediaTrailer(MovieDetails media) {
@@ -84,7 +85,7 @@ public class PlaylistItem extends Structure implements Closeable {
         item.url = media.getTrailer();
         item.title = media.getTitle();
         item.thumb = media.getImages().getPoster();
-        item.autoResumeTimestamp = 0L;
+        item.setSubtitlesEnabled(false);
         return item;
     }
 }

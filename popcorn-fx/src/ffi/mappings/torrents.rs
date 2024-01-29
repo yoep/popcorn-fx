@@ -2,17 +2,82 @@ use std::os::raw::c_char;
 
 use log::trace;
 
-use popcorn_fx_core::{from_c_string, into_c_string};
-use popcorn_fx_core::core::torrents::{TorrentFileInfo, TorrentInfo};
-use popcorn_fx_torrent_stream::TorrentC;
+use popcorn_fx_core::{from_c_string, into_c_string, to_c_vec};
+use popcorn_fx_core::core::torrents::{TorrentFileInfo, TorrentInfo, TorrentState, TorrentWrapper};
 
-use crate::ffi::CSet;
+use crate::ffi::CArray;
+
+/// The callback to verify if the given byte is available.
+pub type HasByteCallbackC = extern "C" fn(i32, *mut u64) -> bool;
+
+/// The callback to verify if the given piece is available.
+pub type HasPieceCallbackC = extern "C" fn(u32) -> bool;
+
+/// The callback to retrieve the total pieces of the torrent.
+pub type TotalPiecesCallbackC = extern "C" fn() -> i32;
+
+/// The callback for prioritizing bytes.
+pub type PrioritizeBytesCallbackC = extern "C" fn(i32, *mut u64);
+
+/// The callback for prioritizing pieces.
+pub type PrioritizePiecesCallbackC = extern "C" fn(i32, *mut u32);
+
+/// The callback for update the torrent mode to sequential.
+pub type SequentialModeCallbackC = extern "C" fn();
+
+/// The callback for retrieving the torrent state.
+pub type TorrentStateCallbackC = extern "C" fn() -> TorrentState;
 
 /// Type definition for a callback that resolves torrent information.
 pub type ResolveTorrentInfoCallback = extern "C" fn(url: *const c_char) -> TorrentInfoC;
 
 /// Type definition for a callback that resolves torrent information and starts a download.
 pub type ResolveTorrentCallback = extern "C" fn(file_info: TorrentFileInfoC, torrent_directory: *const c_char, auto_start_download: bool) -> TorrentC;
+
+/// The C compatible abi struct for a [Torrent].
+/// This currently uses callbacks as it's a wrapper around a torrent implementation provided through C.
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct TorrentC {
+    pub handle: *const c_char,
+    /// The filepath to the torrent file
+    pub filepath: *const c_char,
+    pub has_byte_callback: HasByteCallbackC,
+    pub has_piece_callback: HasPieceCallbackC,
+    pub total_pieces: TotalPiecesCallbackC,
+    pub prioritize_bytes: PrioritizeBytesCallbackC,
+    pub prioritize_pieces: PrioritizePiecesCallbackC,
+    pub sequential_mode: SequentialModeCallbackC,
+    pub torrent_state: TorrentStateCallbackC,
+}
+
+impl From<TorrentC> for TorrentWrapper {
+    fn from(value: TorrentC) -> Self {
+        trace!("Converting TorrentWrapper from TorrentC {:?}", value);
+        Self::new(
+            from_c_string(value.handle),
+            from_c_string(value.filepath),
+            Box::new(move |bytes| -> bool {
+                let (bytes, len) = to_c_vec(bytes.to_vec());
+                (value.has_byte_callback)(len, bytes)
+            }),
+            Box::new(move |piece| {
+                (value.has_piece_callback)(piece)
+            }),
+            Box::new(move || (value.total_pieces)()),
+            Box::new(move |bytes| {
+                let (bytes, len) = to_c_vec(bytes.to_vec());
+                (value.prioritize_bytes)(len, bytes)
+            }),
+            Box::new(move |pieces| {
+                let (pieces, len) = to_c_vec(pieces.to_vec());
+                (value.prioritize_pieces)(len, pieces)
+            }),
+            Box::new(move || (value.sequential_mode)()),
+            Box::new(move || (value.torrent_state)()),
+        )
+    }
+}
 
 /// A C-compatible struct representing torrent information.
 #[repr(C)]
@@ -25,7 +90,7 @@ pub struct TorrentInfoC {
     /// The total number of files in the torrent.
     pub total_files: i32,
     /// A set of `TorrentFileInfoC` structs representing individual files within the torrent.
-    pub files: CSet<TorrentFileInfoC>,
+    pub files: CArray<TorrentFileInfoC>,
 }
 
 impl From<TorrentInfoC> for TorrentInfo {
@@ -103,7 +168,7 @@ mod tests {
             name: into_c_string(name.to_string()),
             directory_name: ptr::null(),
             total_files,
-            files: CSet::from(Vec::<TorrentFileInfoC>::new()),
+            files: CArray::from(Vec::<TorrentFileInfoC>::new()),
         };
         let expected_result = TorrentInfo {
             name: name.to_string(),

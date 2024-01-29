@@ -34,6 +34,7 @@
             playerVars: {
                 'autoplay': 1,
                 'controls': 0,
+                'enablejsapi': 1,
                 'modestbranding': 1
             },
             events: {
@@ -46,13 +47,16 @@
 
     function onPlayerStateChange(event) {
         let state = event.data;
-        console.log("Youtube Player state changed to " + state);
+        console.log(`Youtube Player state changed to ${state}`);
 
         if (typeof VPY === 'undefined') {
             console.warn("Unable to call bridge, bridge variable is unavailable");
+            return;
         }
 
-        if (state === YT.PlayerState.PLAYING) {
+        if (state === -1) {
+            console.log("Youtube player is preparing playback");
+        } else if (state === YT.PlayerState.PLAYING) {
             VPY.state("playing");
             startListener();
         } else if (state === YT.PlayerState.PAUSED) {
@@ -62,6 +66,8 @@
         } else if (state === YT.PlayerState.ENDED) {
             VPY.state("ended");
             stopListener();
+        } else {
+            console.warn(`Unable to process event ${event.data}`);
         }
     }
 
@@ -77,8 +83,8 @@
         if (typeof VPY !== 'undefined') {
             VPY.ready();
         } else {
-            // try a few time to see if we're able to call the bridge
-            executeOnBridge(function(){
+            // try a few times to see if we're able to call the bridge
+            executeOnBridge(function () {
                 VPY.ready();
             });
         }
@@ -155,6 +161,10 @@
         executeOnBridge(function () {
             console.log = function (message) {
                 VPY.log(message);
+            };
+
+            console.warn = function (message) {
+                VPY.logWarn(message);
             };
 
             console.error = function (message) {

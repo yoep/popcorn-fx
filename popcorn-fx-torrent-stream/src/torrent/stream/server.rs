@@ -47,7 +47,7 @@ impl TorrentStreamServer for DefaultTorrentStreamServer {
         self.inner.state()
     }
 
-    fn start_stream(&self, torrent: Box<dyn Torrent>) -> torrents::Result<Weak<dyn TorrentStream>> {
+    fn start_stream(&self, torrent: Weak<Box<dyn Torrent>>) -> torrents::Result<Weak<dyn TorrentStream>> {
         self.inner.start_stream(torrent)
     }
 
@@ -318,36 +318,42 @@ impl TorrentStreamServer for TorrentStreamServerInner {
         mutex.clone()
     }
 
-    fn start_stream(&self, torrent: Box<dyn Torrent>) -> torrents::Result<Weak<dyn TorrentStream>> {
+    fn start_stream(&self, torrent: Weak<Box<dyn Torrent>>) -> torrents::Result<Weak<dyn TorrentStream>> {
         let mut mutex = block_in_place(self.streams.lock());
-        let filepath = torrent.file();
-        let filename = filepath.file_name()
-            .expect("expected a valid filename")
-            .to_str()
-            .unwrap();
 
-        if mutex.contains_key(filename) {
-            debug!("Torrent stream already exists for {}, ignoring stream creation", filename);
-            return Ok(mutex.get(filename)
-                .map(|e| Arc::downgrade(e))
-                .unwrap());
-        }
+        if let Some(torrent) = torrent.upgrade() {
+            let filepath = torrent.file();
+            let filename = filepath.file_name()
+                .expect("expected a valid filename")
+                .to_str()
+                .unwrap();
 
-        trace!("Creating new torrent stream for {:?}", torrent);
-        match self.build_url(filename) {
-            Ok(url) => {
-                debug!("Starting url stream for {}", &url);
-                let stream = Arc::new(DefaultTorrentStream::new(url, torrent));
-                let stream_ref = Arc::downgrade(&stream);
-
-                mutex.insert(filename.to_string(), stream);
-
-                Ok(stream_ref)
+            if mutex.contains_key(filename) {
+                debug!("Torrent stream already exists for {}, ignoring stream creation", filename);
+                return Ok(mutex.get(filename)
+                    .map(|e| Arc::downgrade(e))
+                    .unwrap());
             }
-            Err(e) => {
-                warn!("Torrent stream url creation failed, {}", e);
-                Err(TorrentError::InvalidUrl(filepath.to_str().unwrap().to_string()))
+
+            trace!("Creating new torrent stream for {:?}", torrent);
+            match self.build_url(filename) {
+                Ok(url) => {
+                    debug!("Starting url stream for {}", &url);
+                    let stream = Arc::new(DefaultTorrentStream::new(url, torrent));
+                    let stream_ref = Arc::downgrade(&stream);
+
+                    mutex.insert(filename.to_string(), stream);
+
+                    Ok(stream_ref)
+                }
+                Err(e) => {
+                    warn!("Torrent stream url creation failed, {}", e);
+                    Err(TorrentError::InvalidUrl(filepath.to_str().unwrap().to_string()))
+                }
             }
+        } else {
+            warn!("Unable to start torrent stream, torrent reference has already been dropped");
+            Err(TorrentError::InvalidHandle("unknown".to_string()))
         }
     }
 
@@ -430,16 +436,18 @@ mod test {
             .returning(|| {});
         torrent.expect_state()
             .return_const(TorrentState::Downloading);
-        torrent.expect_register()
+        torrent.expect_subscribe()
             .returning(|callback: TorrentCallback| {
                 for i in 0..10 {
                     callback(TorrentEvent::PieceFinished(i));
                 }
+                20i64
             });
+        let torrent = Arc::new(Box::new(torrent) as Box<dyn Torrent>);
         copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
 
         assert_timeout_eq!(Duration::from_millis(500), TorrentStreamServerState::Running, server.state());
-        let stream = server.start_stream(Box::new(torrent) as Box<dyn Torrent>)
+        let stream = server.start_stream(Arc::downgrade(&torrent))
             .expect("expected the torrent stream to have started");
 
         let stream = stream.upgrade().unwrap();
@@ -503,20 +511,22 @@ mod test {
             .returning(|_: &[u32]| {});
         torrent.expect_sequential_mode()
             .returning(|| {});
-        torrent.expect_register()
+        torrent.expect_subscribe()
             .returning(|callback: TorrentCallback| {
                 for i in 0..10 {
                     callback(TorrentEvent::PieceFinished(i));
                 }
+                20i64
             });
         torrent.expect_state()
             .return_const(TorrentState::Downloading);
+        let torrent = Arc::new(Box::new(torrent) as Box<dyn Torrent>);
         copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
         let expected_result = read_test_file_to_string(filename)
             .replace("\r\n", "\n");
 
         assert_timeout_eq!(Duration::from_millis(500), TorrentStreamServerState::Running, server.state());
-        let stream = server.start_stream(Box::new(torrent) as Box<dyn Torrent>)
+        let stream = server.start_stream(Arc::downgrade(&torrent))
             .expect("expected the torrent stream to have started");
         let result = runtime.block_on(async {
             let response = client.get(stream.upgrade().unwrap().url())
@@ -553,14 +563,17 @@ mod test {
             .returning(|| 10);
         torrent.expect_prioritize_pieces()
             .returning(|_: &[u32]| {});
-        torrent.expect_register()
-            .returning(|_: TorrentCallback| {});
+        torrent.expect_subscribe()
+            .returning(|_: TorrentCallback| {
+                20i64
+            });
         torrent.expect_state()
             .return_const(TorrentState::Downloading);
+        let torrent = Arc::new(Box::new(torrent) as Box<dyn Torrent>);
         copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
 
         assert_timeout_eq!(Duration::from_millis(500), TorrentStreamServerState::Running, server.state());
-        let stream = server.start_stream(Box::new(torrent) as Box<dyn Torrent>)
+        let stream = server.start_stream(Arc::downgrade(&torrent))
             .expect("expected the torrent stream to have started");
         let stream_url = stream.upgrade().unwrap().url();
         server.stop_stream(stream.clone());

@@ -24,15 +24,18 @@ const TORRENT_STATES: [TorrentState; 7] = [
 /// The callback type for all torrent events.
 pub type TorrentCallback = CoreCallback<TorrentEvent>;
 
-/// The torrent event which occurred for the torrent.
+/// Represents events that can occur for a torrent.
 #[derive(Debug, Clone, Display)]
 pub enum TorrentEvent {
-    /// The new state of the torrent
+    /// Indicates a change in the state of the torrent.
     #[display(fmt = "Torrent state changed to {}", _0)]
     StateChanged(TorrentState),
-    /// The piece that has finished downloading
+    /// Indicates that a piece of the torrent has finished downloading.
     #[display(fmt = "Torrent piece {} finished downloading", _0)]
     PieceFinished(u32),
+    /// Indicates a change in the download status of the torrent.
+    #[display(fmt = "Torrent download status changed, {}", _0)]
+    DownloadStatus(DownloadStatus),
 }
 
 /// The state of a [Torrent] which is represented as a [i32].
@@ -69,6 +72,26 @@ impl From<i32> for TorrentState {
 
         panic!("Ordinal {} is out of range for TorrentState", value)
     }
+}
+
+/// Represents the download status of a torrent.
+#[derive(Debug, Display, Clone, PartialOrd, PartialEq)]
+#[display(fmt = "progress: {}, seeds: {}, peers: {}, download_speed: {}", progress, seeds, peers, download_speed)]
+pub struct DownloadStatus {
+    /// Progress indication between 0 and 1 that represents the progress of the download.
+    pub progress: f32,
+    /// The number of seeds available for the torrent.
+    pub seeds: u32,
+    /// The number of peers connected to the torrent.
+    pub peers: u32,
+    /// The total download transfer rate in bytes of payload only, not counting protocol chatter.
+    pub download_speed: u32,
+    /// The total upload transfer rate in bytes of payload only, not counting protocol chatter.
+    pub upload_speed: u32,
+    /// The total amount of data downloaded in bytes.
+    pub downloaded: u64,
+    /// The total size of the torrent in bytes.
+    pub total_size: u64,
 }
 
 /// The torrent describes the meta-info of a shared file that can be queried over the network.

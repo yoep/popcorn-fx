@@ -41,6 +41,7 @@ enum class LoadingState : int32_t {
   Connecting,
   Downloading,
   DownloadFinished,
+  Ready,
   Playing,
 };
 
@@ -678,6 +679,7 @@ struct LoadingStartedEventC {
   const char *url;
   const char *title;
   const char *thumbnail;
+  const char *background;
   const char *quality;
 };
 
@@ -763,7 +765,12 @@ struct FavoriteEventC {
 /// A C-compatible enum representing loader events.
 struct LoaderEventC {
   enum class Tag {
+    LoadingStarted,
     StateChanged,
+  };
+
+  struct LoadingStarted_Body {
+    LoadingStartedEventC _0;
   };
 
   struct StateChanged_Body {
@@ -772,6 +779,7 @@ struct LoaderEventC {
 
   Tag tag;
   union {
+    LoadingStarted_Body loading_started;
     StateChanged_Body state_changed;
   };
 };

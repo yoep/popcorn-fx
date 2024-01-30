@@ -3,12 +3,19 @@ use std::os::raw::c_char;
 use log::{trace, warn};
 
 use popcorn_fx_core::{from_c_string, into_c_string};
-use popcorn_fx_core::core::torrents::{TorrentInfo, TorrentState, TorrentWrapper};
+use popcorn_fx_core::core::torrents::{DownloadStatus, TorrentInfo, TorrentState, TorrentWrapper};
 use popcorn_fx_torrent::torrent::DefaultTorrentManager;
 
-use crate::ffi::{ResolveTorrentCallback, ResolveTorrentInfoCallback, TorrentFileInfoC};
+use crate::ffi::{DownloadStatusC, ResolveTorrentCallback, ResolveTorrentInfoCallback, TorrentFileInfoC};
 use crate::PopcornFX;
 
+/// Callback function for handling changes in the state of a torrent.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to the PopcornFX instance.
+/// * `handle` - The handle to the torrent.
+/// * `state` - The new state of the torrent.
 #[no_mangle]
 pub extern "C" fn torrent_state_changed(popcorn_fx: &mut PopcornFX, handle: *const c_char, state: TorrentState) {
     let handle = from_c_string(handle);
@@ -23,6 +30,13 @@ pub extern "C" fn torrent_state_changed(popcorn_fx: &mut PopcornFX, handle: *con
     }
 }
 
+/// Callback function for handling the completion of downloading a piece in a torrent.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to the PopcornFX instance.
+/// * `handle` - The handle to the torrent.
+/// * `piece` - The index of the finished piece.
 #[no_mangle]
 pub extern "C" fn torrent_piece_finished(popcorn_fx: &mut PopcornFX, handle: *const c_char, piece: u32) {
     let handle = from_c_string(handle);
@@ -34,6 +48,27 @@ pub extern "C" fn torrent_piece_finished(popcorn_fx: &mut PopcornFX, handle: *co
         }
     } else {
         warn!("Unable to process torrent piece finished, handle {} not found", handle);
+    }
+}
+
+/// Callback function for handling changes in the download status of a torrent.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to the PopcornFX instance.
+/// * `handle` - The handle to the torrent.
+/// * `download_status` - The new download status of the torrent.
+#[no_mangle]
+pub extern "C" fn torrent_download_status(popcorn_fx: &mut PopcornFX, handle: *const c_char, download_status: DownloadStatusC) {
+    let handle = from_c_string(handle);
+    if let Some(torrent) = popcorn_fx.torrent_manager().by_handle(handle.as_str())
+        .and_then(|e| e.upgrade()) {
+        if let Some(wrapper) = torrent.downcast_ref::<TorrentWrapper>() {
+            trace!("Processing C torrent download status {:?}", download_status);
+            wrapper.download_status(DownloadStatus::from(download_status));
+        }
+    } else {
+        warn!("Unable to process torrent download status, handle {} not found", handle);
     }
 }
 

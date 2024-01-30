@@ -7,7 +7,7 @@ use log::{debug, trace, warn};
 use tokio::sync::Mutex;
 
 use crate::core::{block_in_place, loader};
-use crate::core::loader::{LoadingData, LoadingState, LoadingStrategy, UpdateState};
+use crate::core::loader::{LoadingData, LoadingState, LoadingStrategy, UpdateProgress, UpdateState};
 use crate::core::players::{PlayerManager, PlayMediaRequest, PlayRequest, PlayUrlRequest};
 
 /// A loading strategy specifically designed for player loading.
@@ -56,9 +56,13 @@ impl LoadingStrategy for PlayerLoadingStrategy {
     /// # Arguments
     ///
     /// * `state_update` - The update state function.
-    fn on_state_update(&self, state_update: UpdateState) {
+    fn state_updater(&self, state_update: UpdateState) {
         let mut state = block_in_place(self.state_update.lock());
         *state = state_update;
+    }
+
+    fn progress_updater(&self, _: UpdateProgress) {
+        // no-op
     }
 
     /// Process the given playlist item.

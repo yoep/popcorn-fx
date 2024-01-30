@@ -4,7 +4,7 @@ use std::os::raw::c_char;
 use log::trace;
 
 use popcorn_fx_core::{from_c_into_boxed, from_c_owned, from_c_string, into_c_owned, into_c_string};
-use popcorn_fx_core::core::events::{Event, LoadingStartedEvent, PlayerChangedEvent, PlayerStartedEvent, PlayerStoppedEvent};
+use popcorn_fx_core::core::events::{Event, PlayerChangedEvent, PlayerStartedEvent, PlayerStoppedEvent};
 use popcorn_fx_core::core::playback::PlaybackState;
 use popcorn_fx_core::core::players::PlayerChange;
 
@@ -30,7 +30,7 @@ pub enum EventC {
     PlaybackStateChanged(PlaybackState),
     /// Invoked when the watch state of an item is changed
     WatchStateChanged(*const c_char, bool),
-    LoadingStarted(LoadingStartedEventC),
+    LoadingStarted,
     LoadingCompleted,
 }
 
@@ -43,7 +43,7 @@ impl From<Event> for EventC {
             Event::PlayerStopped(e) => EventC::PlayerStopped(PlayerStoppedEventC::from(e)),
             Event::PlaybackStateChanged(e) => EventC::PlaybackStateChanged(e),
             Event::WatchStateChanged(id, state) => EventC::WatchStateChanged(into_c_string(id), state),
-            Event::LoadingStarted(e) => EventC::LoadingStarted(LoadingStartedEventC::from(e)),
+            Event::LoadingStarted => EventC::LoadingStarted,
             Event::LoadingCompleted => EventC::LoadingCompleted,
         }
     }
@@ -58,7 +58,7 @@ impl From<EventC> for Event {
             EventC::PlayerStopped(event_c) => Event::PlayerStopped(PlayerStoppedEvent::from(event_c)),
             EventC::PlaybackStateChanged(new_state) => Event::PlaybackStateChanged(new_state),
             EventC::WatchStateChanged(id, state) => Event::WatchStateChanged(from_c_string(id), state),
-            EventC::LoadingStarted(e) => Event::LoadingStarted(LoadingStartedEvent::from(e)),
+            EventC::LoadingStarted => Event::LoadingStarted,
             EventC::LoadingCompleted => Event::LoadingCompleted,
         }
     }
@@ -269,58 +269,6 @@ impl From<PlayerStartedEventC> for PlayerStartedEvent {
     }
 }
 
-#[repr(C)]
-#[derive(Debug)]
-pub struct LoadingStartedEventC {
-    pub url: *const c_char,
-    pub title: *const c_char,
-    pub thumbnail: *const c_char,
-    pub quality: *const c_char,
-}
-
-impl From<LoadingStartedEvent> for LoadingStartedEventC {
-    fn from(value: LoadingStartedEvent) -> Self {
-        let thumbnail = if let Some(e) = value.thumbnail {
-            into_c_string(e)
-        } else {
-            ptr::null()
-        };
-        let quality = if let Some(e) = value.quality {
-            into_c_string(e)
-        } else {
-            ptr::null()
-        };
-
-        Self {
-            url: into_c_string(value.url),
-            title: into_c_string(value.title),
-            thumbnail,
-            quality,
-        }
-    }
-}
-
-impl From<LoadingStartedEventC> for LoadingStartedEvent {
-    fn from(value: LoadingStartedEventC) -> Self {
-        let thumbnail = if !value.thumbnail.is_null() {
-            Some(from_c_string(value.thumbnail))
-        } else {
-            None
-        };
-        let quality = if !value.quality.is_null() {
-            Some(from_c_string(value.quality))
-        } else {
-            None
-        };
-
-        Self {
-            url: from_c_string(value.url),
-            title: from_c_string(value.title),
-            thumbnail,
-            quality,
-        }
-    }
-}
 
 #[cfg(test)]
 mod test {
@@ -461,24 +409,5 @@ mod test {
         assert_eq!(title.to_string(), from_c_string(result.title));
         assert_eq!(thumb.to_string(), from_c_string(result.thumbnail));
         assert_eq!(true, result.subtitles_enabled, "expected the subtitles to have been enabled");
-    }
-
-    #[test]
-    fn test_loading_started_event_from() {
-        let url = "MyUrl";
-        let title = "MyTitle";
-        let thumb = "MyThumb";
-        let event = LoadingStartedEvent {
-            url: url.to_string(),
-            title: title.to_string(),
-            thumbnail: Some(thumb.to_string()),
-            quality: None,
-        };
-
-        let result = LoadingStartedEventC::from(event);
-
-        assert_eq!(url.to_string(), from_c_string(result.url));
-        assert_eq!(title.to_string(), from_c_string(result.title));
-        assert_eq!(thumbnail.to_string(), from_c_string(result.thumbnail));
     }
 }

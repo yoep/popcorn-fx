@@ -364,9 +364,10 @@ public class FrostTorrent implements Torrent, AlertListener {
         var state = status.state();
         var downloadStatus = FrostDownloadStatus.builder()
                 .progress(status.progress())
-                .downloadSpeed(status.downloadRate())
-                .uploadSpeed(status.uploadRate())
+                .downloadSpeed(status.downloadPayloadRate())
+                .uploadSpeed(status.uploadPayloadRate())
                 .seeds(status.numSeeds())
+                .peers(status.numPeers())
                 .downloaded(status.totalWantedDone())
                 .totalSize(status.totalWanted())
                 .build();

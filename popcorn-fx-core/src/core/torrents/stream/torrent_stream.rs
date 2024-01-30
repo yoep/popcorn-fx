@@ -18,7 +18,7 @@ use tokio::sync::Mutex;
 use url::Url;
 
 use crate::core::{block_in_place, Callbacks, CoreCallbacks, torrents};
-use crate::core::torrents::{StreamBytesResult, Torrent, TorrentCallback, TorrentError, TorrentEvent, TorrentState, TorrentStream, TorrentStreamCallback, TorrentStreamEvent, TorrentStreamingResource, TorrentStreamingResourceWrapper, TorrentStreamState};
+use crate::core::torrents::{DownloadStatus, StreamBytesResult, Torrent, TorrentCallback, TorrentError, TorrentEvent, TorrentState, TorrentStream, TorrentStreamCallback, TorrentStreamEvent, TorrentStreamingResource, TorrentStreamingResourceWrapper, TorrentStreamState};
 
 /// The default buffer size used while streaming in bytes
 const BUFFER_SIZE: usize = 10000;
@@ -177,6 +177,7 @@ impl TorrentStreamWrapper {
                     }
                 }
                 TorrentEvent::PieceFinished(piece) => instance.on_piece_finished(piece),
+                TorrentEvent::DownloadStatus(status) => instance.on_download_status(status),
             }
         }));
     }
@@ -218,6 +219,10 @@ impl TorrentStreamWrapper {
 
         drop(pieces);
         self.verify_ready_to_stream();
+    }
+
+    fn on_download_status(&self, download_status: DownloadStatus) {
+        self.callbacks.invoke(TorrentStreamEvent::DownloadStatus(download_status))
     }
 
     fn verify_ready_to_stream(&self) {

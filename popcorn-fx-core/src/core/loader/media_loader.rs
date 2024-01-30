@@ -10,12 +10,12 @@ use thiserror::Error;
 use tokio::sync::Mutex;
 
 use crate::core::{block_in_place, Callbacks, CoreCallback, CoreCallbacks};
-use crate::core::events::{Event, EventPublisher, LoadingStartedEvent};
+use crate::core::events::{Event, EventPublisher};
 use crate::core::loader::loading_chain::{LoadingChain, Order};
 use crate::core::loader::LoadingStrategy;
-use crate::core::media::{Episode, MediaIdentifier, MediaOverview, MovieDetails, TorrentInfo};
+use crate::core::media::{Episode, Images, MediaIdentifier, MediaOverview, MovieDetails, ShowDetails, TorrentInfo};
 use crate::core::playlists::PlaylistItem;
-use crate::core::torrents::{Torrent, TorrentError, TorrentStream};
+use crate::core::torrents::{DownloadStatus, Torrent, TorrentError, TorrentStream};
 
 pub type LoaderResult<T> = Result<T, LoadingError>;
 
@@ -23,8 +23,14 @@ pub type LoaderCallback = CoreCallback<LoaderEvent>;
 
 #[derive(Debug, Display, Clone)]
 pub enum LoaderEvent {
+    #[display(fmt = "Loading started for {}", _0)]
+    LoadingStarted(LoadingStartedEvent),
     #[display(fmt = "Loading state changed to {}", _0)]
     StateChanged(LoadingState),
+    #[display(fmt = "Loading progress changed to {}", _0)]
+    ProgressChanged(LoadingProgress),
+    #[display(fmt = "Loading encountered an error, {}", _0)]
+    LoaderError(LoadingError),
 }
 
 /// Represents the result of a loading strategy's processing.
@@ -61,6 +67,49 @@ pub enum LoadingState {
     Ready,
     #[display(fmt = "Loader is playing media")]
     Playing,
+}
+
+#[derive(Debug, Display, Clone, PartialEq)]
+#[display(fmt = "url: {}, title: {}, thumbnail: {:?}", url, title, thumbnail)]
+pub struct LoadingStartedEvent {
+    pub url: String,
+    pub title: String,
+    pub thumbnail: Option<String>,
+    pub background: Option<String>,
+    pub quality: Option<String>,
+}
+
+#[derive(Debug, Clone, Display, PartialEq)]
+#[display(fmt = "progress: {}, seeds: {}, peers: {}, download_speed: {}", progress, seeds, peers, download_speed)]
+pub struct LoadingProgress {
+    /// Progress indication between 0 and 1 that represents the progress of the download.
+    pub progress: f32,
+    /// The number of seeds available for the torrent.
+    pub seeds: u32,
+    /// The number of peers connected to the torrent.
+    pub peers: u32,
+    /// The total download transfer rate in bytes of payload only, not counting protocol chatter.
+    pub download_speed: u32,
+    /// The total upload transfer rate in bytes of payload only, not counting protocol chatter.
+    pub upload_speed: u32,
+    /// The total amount of data downloaded in bytes.
+    pub downloaded: u64,
+    /// The total size of the torrent in bytes.
+    pub total_size: u64,
+}
+
+impl From<DownloadStatus> for LoadingProgress {
+    fn from(value: DownloadStatus) -> Self {
+        Self {
+            progress: value.progress,
+            seeds: value.seeds,
+            peers: value.peers,
+            download_speed: value.download_speed,
+            upload_speed: value.upload_speed,
+            downloaded: value.downloaded,
+            total_size: value.total_size,
+        }
+    }
 }
 
 /// Represents an error that may occur during media item loading.
@@ -152,26 +201,46 @@ impl DefaultMediaLoader {
         let instance = Self {
             inner: Arc::new(InnerMediaLoader::new(loading_chain, event_publisher)),
         };
-        instance.register_state_updates();
+        instance.register_state_updater();
+        instance.register_progress_updater();
 
         instance
     }
 
-    fn register_state_updates(&self) {
+    fn register_state_updater(&self) {
         for strategy in self.inner.loading_chain.strategies().iter() {
             if let Some(strategy) = strategy.upgrade() {
                 let inner_ref = Arc::downgrade(&self.inner);
-                Self::register_strategy_state_update(&strategy, inner_ref)
+                Self::register_strategy_state_updater(&strategy, inner_ref)
             }
         }
     }
 
-    fn register_strategy_state_update(strategy: &Arc<Box<dyn LoadingStrategy>>, loader: Weak<InnerMediaLoader>) {
-        strategy.on_state_update(Box::new(move |state| {
+    fn register_progress_updater(&self) {
+        for strategy in self.inner.loading_chain.strategies().iter() {
+            if let Some(strategy) = strategy.upgrade() {
+                let inner_ref = Arc::downgrade(&self.inner);
+                Self::register_strategy_progress_updater(&strategy, inner_ref)
+            }
+        }
+    }
+
+    fn register_strategy_state_updater(strategy: &Arc<Box<dyn LoadingStrategy>>, loader: Weak<InnerMediaLoader>) {
+        strategy.state_updater(Box::new(move |state| {
             if let Some(loader) = loader.upgrade() {
                 loader.update_state(state);
             } else {
-                warn!("Unable to invoke state update, media loader is disposed");
+                warn!("Unable to invoke state updater, media loader is disposed");
+            }
+        }))
+    }
+
+    fn register_strategy_progress_updater(strategy: &Arc<Box<dyn LoadingStrategy>>, loader: Weak<InnerMediaLoader>) {
+        strategy.progress_updater(Box::new(move |progress| {
+            if let Some(loader) = loader.upgrade() {
+                loader.update_progress(progress);
+            } else {
+                warn!("Unable to invoke progress updater, media loader is disposed");
             }
         }))
     }
@@ -185,7 +254,8 @@ impl MediaLoader for DefaultMediaLoader {
 
     fn add(&self, strategy: Box<dyn LoadingStrategy>, order: Order) {
         self.inner.add(strategy, order);
-        self.register_state_updates();
+        self.register_state_updater();
+        self.register_progress_updater();
     }
 
     fn subscribe(&self, callback: LoaderCallback) -> i64 {
@@ -226,6 +296,10 @@ impl InnerMediaLoader {
         self.callbacks.invoke(LoaderEvent::StateChanged(event_state))
     }
 
+    fn update_progress(&self, new_progress: LoadingProgress) {
+        self.callbacks.invoke(LoaderEvent::ProgressChanged(new_progress))
+    }
+
     fn thumbnail(media: &Box<dyn MediaIdentifier>) -> Option<String> {
         if let Some(e) = media.downcast_ref::<Episode>() {
             e.thumb().cloned()
@@ -233,6 +307,26 @@ impl InnerMediaLoader {
             Some(e.images().poster().to_string())
         } else {
             None
+        }
+    }
+
+    fn background(parent: Option<&Box<dyn MediaIdentifier>>, media: &Box<dyn MediaIdentifier>) -> Option<String> {
+        if let Some(parent) = parent {
+            let images: &Images;
+
+            if let Some(e) = parent.downcast_ref::<ShowDetails>() {
+                images = e.images();
+            } else {
+                return None;
+            }
+
+            return Some(images.fanart().to_string());
+        } else {
+            if let Some(e) = media.downcast_ref::<MovieDetails>() {
+                Some(e.images().fanart().to_string())
+            } else {
+                None
+            }
         }
     }
 }
@@ -255,13 +349,15 @@ impl MediaLoader for InnerMediaLoader {
     async fn load_playlist_item(&self, item: PlaylistItem) -> LoaderResult<()> {
         trace!("Starting loading procedure for {}", item);
         self.update_state(LoadingState::Initializing);
-        self.event_publisher.publish(Event::LoadingStarted(LoadingStartedEvent {
+        self.callbacks.invoke(LoaderEvent::LoadingStarted(LoadingStartedEvent {
             url: item.url.clone()
                 .or(Some(String::new()))
                 .unwrap(),
             title: item.title.clone(),
             thumbnail: item.media.as_ref()
                 .and_then(Self::thumbnail),
+            background: item.media.as_ref()
+                .and_then(|e| Self::background(item.parent_media.as_ref(), e)),
             quality: item.quality.clone(),
         }));
         let strategies = self.loading_chain.strategies();
@@ -280,6 +376,7 @@ impl MediaLoader for InnerMediaLoader {
                     }
                     LoadingResult::Err(err) => {
                         error!("An unexpected error occurred while loading playlist item, {}", err);
+                        self.callbacks.invoke(LoaderEvent::LoaderError(err.clone()));
                         return Err(err);
                     }
                 }
@@ -299,9 +396,49 @@ mod tests {
     use std::sync::mpsc::channel;
     use std::time::Duration;
 
+    use crate::core::loader::loading_chain::DEFAULT_ORDER;
     use crate::core::loader::MockLoadingStrategy;
+    use crate::testing::init_logger;
 
     use super::*;
+
+    #[test]
+    fn test_add() {
+        init_logger();
+        let (tx, rx) = channel();
+        let (tx_event, rx_event) = channel();
+        let expected_result = LoadingProgress {
+            progress: 0.125,
+            seeds: 10,
+            peers: 2,
+            download_speed: 0,
+            upload_speed: 0,
+            downloaded: 0,
+            total_size: 0,
+        };
+        let mut strategy = MockLoadingStrategy::new();
+        strategy.expect_state_updater()
+            .times(1)
+            .return_const(());
+        strategy.expect_progress_updater()
+            .times(1)
+            .returning(Box::new(move |e| {
+                tx.send(e).unwrap();
+            }));
+        let loader = DefaultMediaLoader::new(vec![], Arc::new(EventPublisher::default()));
+
+        loader.subscribe(Box::new(move |e| {
+            if let LoaderEvent::ProgressChanged(e) = e {
+                tx_event.send(e).unwrap();
+            }
+        }));
+        loader.add(Box::new(strategy), DEFAULT_ORDER);
+        let callback = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+
+        callback(expected_result.clone());
+        let result = rx_event.recv_timeout(Duration::from_millis(200)).unwrap();
+        assert_eq!(expected_result, result);
+    }
 
     #[test]
     fn test_load_playlist_item() {
@@ -320,7 +457,7 @@ mod tests {
         let (tx, rx) = channel();
         let expected_result = LoadingData::from(item.clone());
         let mut strategy = MockLoadingStrategy::new();
-        strategy.expect_on_state_update()
+        strategy.expect_state_updater()
             .return_const(());
         strategy.expect_process()
             .returning(move |e| {

@@ -192,6 +192,19 @@ public class TorrentWrapper extends Structure implements Torrent, Closeable {
 
             @Override
             public void onDownloadStatus(DownloadStatus status) {
+                try(var downloadStatusC = DownloadStatusC.ByValue.builder()
+                        .progress(status.progress())
+                        .seeds(status.seeds())
+                        .peers(status.peers())
+                        .downloadSpeed(status.downloadSpeed())
+                        .uploadSpeed(status.uploadSpeed())
+                        .downloaded(status.downloaded())
+                        .total_size(status.totalSize())
+                        .build()) {
+                    FxLibInstance.INSTANCE.get().torrent_download_status(instance, handle,downloadStatusC );
+                } catch (Exception ex) {
+                    log.error("Failed to update C torrent download status, {}", ex.getMessage(), ex);
+                }
             }
 
             @Override

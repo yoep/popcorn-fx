@@ -7,7 +7,7 @@ use log::{debug, error, trace, warn};
 use tokio::sync::Mutex;
 
 use crate::core::block_in_place;
-use crate::core::loader::{LoadingData, LoadingError, LoadingResult, LoadingState, LoadingStrategy, UpdateState};
+use crate::core::loader::{LoadingData, LoadingError, LoadingResult, LoadingState, LoadingStrategy, UpdateProgress, UpdateState};
 use crate::core::media::{DEFAULT_AUDIO_LANGUAGE, Episode, MediaIdentifier, MediaType, MovieDetails};
 use crate::core::torrents::{TorrentFileInfo, TorrentInfo, TorrentManager};
 
@@ -87,9 +87,13 @@ impl Debug for TorrentInfoLoadingStrategy {
 
 #[async_trait]
 impl LoadingStrategy for TorrentInfoLoadingStrategy {
-    fn on_state_update(&self, state_update: UpdateState) {
+    fn state_updater(&self, state_update: UpdateState) {
         let mut state = block_in_place(self.state_update.lock());
         *state = state_update;
+    }
+
+    fn progress_updater(&self, _: UpdateProgress) {
+        // no-op
     }
 
     async fn process(&self, mut data: LoadingData) -> LoadingResult {

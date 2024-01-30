@@ -3,7 +3,7 @@ use std::os::raw::c_char;
 use log::trace;
 
 use popcorn_fx_core::{from_c_string, into_c_string, to_c_vec};
-use popcorn_fx_core::core::torrents::{TorrentFileInfo, TorrentInfo, TorrentState, TorrentWrapper};
+use popcorn_fx_core::core::torrents::{DownloadStatus, TorrentFileInfo, TorrentInfo, TorrentState, TorrentWrapper};
 
 use crate::ffi::CArray;
 
@@ -148,6 +148,39 @@ impl From<TorrentFileInfo> for TorrentFileInfoC {
             file_path: into_c_string(value.file_path),
             file_size: value.file_size,
             file_index: value.file_index,
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct DownloadStatusC {
+    /// Progress indication between 0 and 1 that represents the progress of the download.
+    pub progress: f32,
+    /// The number of seeds available for the torrent.
+    pub seeds: u32,
+    /// The number of peers connected to the torrent.
+    pub peers: u32,
+    /// The total download transfer rate in bytes of payload only, not counting protocol chatter.
+    pub download_speed: u32,
+    /// The total upload transfer rate in bytes of payload only, not counting protocol chatter.
+    pub upload_speed: u32,
+    /// The total amount of data downloaded in bytes.
+    pub downloaded: u64,
+    /// The total size of the torrent in bytes.
+    pub total_size: u64,
+}
+
+impl From<DownloadStatusC> for DownloadStatus {
+    fn from(value: DownloadStatusC) -> Self {
+        Self {
+            progress: value.progress,
+            seeds: value.seeds,
+            peers: value.peers,
+            download_speed: value.download_speed,
+            upload_speed: value.upload_speed,
+            downloaded: value.downloaded,
+            total_size: value.total_size,
         }
     }
 }

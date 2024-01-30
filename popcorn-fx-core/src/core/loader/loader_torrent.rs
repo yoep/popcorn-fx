@@ -8,7 +8,7 @@ use tokio::sync::Mutex;
 
 use crate::core::{block_in_place, loader};
 use crate::core::config::ApplicationConfig;
-use crate::core::loader::{LoadingData, LoadingError, LoadingState, LoadingStrategy, UpdateState};
+use crate::core::loader::{LoadingData, LoadingError, LoadingState, LoadingStrategy, UpdateProgress, UpdateState};
 use crate::core::torrents::TorrentManager;
 
 #[derive(Display)]
@@ -40,9 +40,13 @@ impl Debug for TorrentLoadingStrategy {
 
 #[async_trait]
 impl LoadingStrategy for TorrentLoadingStrategy {
-    fn on_state_update(&self, state_update: UpdateState) {
+    fn state_updater(&self, state_update: UpdateState) {
         let mut state = block_in_place(self.state_update.lock());
         *state = state_update;
+    }
+
+    fn progress_updater(&self, _: UpdateProgress) {
+        // no-op
     }
 
     async fn process(&self, mut data: LoadingData) -> loader::LoadingResult {

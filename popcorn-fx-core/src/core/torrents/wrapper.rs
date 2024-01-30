@@ -6,7 +6,7 @@ use log::trace;
 use tokio::sync::Mutex;
 
 use crate::core::{Callbacks, CoreCallbacks};
-use crate::core::torrents::{Torrent, TorrentCallback, TorrentEvent, TorrentState};
+use crate::core::torrents::{DownloadStatus, Torrent, TorrentCallback, TorrentEvent, TorrentState};
 
 /// The has byte callback.
 pub type HasBytesCallback = Box<dyn Fn(&[u64]) -> bool + Send>;
@@ -33,15 +33,25 @@ pub type TorrentStateCallback = Box<dyn Fn() -> TorrentState + Send>;
 #[derive(Display)]
 #[display(fmt = "filepath: {:?}", filepath)]
 pub struct TorrentWrapper {
+    /// The handle for identifying the torrent.
     pub handle: String,
+    /// The filepath of the torrent.
     pub filepath: PathBuf,
+    /// Mutex for the callback to check if a byte exists in the torrent.
     pub has_bytes: Mutex<HasBytesCallback>,
+    /// Mutex for the callback to check if a piece exists in the torrent.
     pub has_piece: Mutex<HasPieceCallback>,
+    /// Mutex for the callback to retrieve the total number of pieces in the torrent.
     pub total_pieces: Mutex<TotalPiecesCallback>,
+    /// Mutex for the callback to prioritize bytes in the torrent.
     pub prioritize_bytes: Mutex<PrioritizeBytesCallback>,
+    /// Mutex for the callback to prioritize pieces in the torrent.
     pub prioritize_pieces: Mutex<PrioritizePiecesCallback>,
+    /// Mutex for the callback to set sequential mode in the torrent.
     pub sequential_mode: Mutex<SequentialModeCallback>,
+    /// Mutex for the callback to handle torrent state changes.
     pub torrent_state: Mutex<TorrentStateCallback>,
+    /// Callbacks for handling torrent events.
     pub callbacks: CoreCallbacks<TorrentEvent>,
 }
 
@@ -50,6 +60,7 @@ impl TorrentWrapper {
     ///
     /// # Arguments
     ///
+    /// * `handle` - The handle for identifying the torrent.
     /// * `filepath` - The filepath of the torrent.
     /// * `has_byte` - The callback for checking if a byte exists in the torrent.
     /// * `has_piece` - The callback for checking if a piece exists in the torrent.
@@ -96,6 +107,15 @@ impl TorrentWrapper {
     /// * `piece` - The index of the finished piece.
     pub fn piece_finished(&self, piece: u32) {
         self.callbacks.invoke(TorrentEvent::PieceFinished(piece))
+    }
+
+    /// Notifies the wrapper of the torrent's download status.
+    ///
+    /// # Arguments
+    ///
+    /// * `download_status` - The download status of the torrent.
+    pub fn download_status(&self, download_status: DownloadStatus) {
+        self.callbacks.invoke(TorrentEvent::DownloadStatus(download_status))
     }
 }
 

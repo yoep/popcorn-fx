@@ -102,7 +102,6 @@ public class EventC extends Structure implements Closeable {
             case PlayerStopped -> union.setType(PlayerStopped_Body.class);
             case PlaybackStateChanged -> union.setType(PlaybackState_Body.class);
             case WatchStateChanged -> union.setType(WatchStateChanged_Body.class);
-            case LoadingStarted -> union.setType(LoadingStarted_Body.class);
         }
     }
 
@@ -175,19 +174,6 @@ public class EventC extends Structure implements Closeable {
 
     @Getter
     @ToString
-    @FieldOrder({"url", "title"})
-    public static class LoadingStarted_Body extends Structure implements Closeable {
-        public String url;
-        public String title;
-
-        @Override
-        public void close() {
-            setAutoSynch(false);
-        }
-    }
-
-    @Getter
-    @ToString
     @EqualsAndHashCode(callSuper = false)
     public static class EventCUnion extends Union implements Closeable {
         public static class ByValue extends EventCUnion implements Union.ByValue {
@@ -198,7 +184,6 @@ public class EventC extends Structure implements Closeable {
         public PlayerStopped_Body playerStopped_body;
         public PlaybackState_Body playbackState_body;
         public WatchStateChanged_Body watchStateChanged_body;
-        public LoadingStarted_Body loadingStarted_body;
 
         @Override
         public void close() {
@@ -213,8 +198,6 @@ public class EventC extends Structure implements Closeable {
                     .ifPresent(PlaybackState_Body::close);
             Optional.ofNullable(watchStateChanged_body)
                     .ifPresent(WatchStateChanged_Body::close);
-            Optional.ofNullable(loadingStarted_body)
-                    .ifPresent(LoadingStarted_Body::close);
         }
     }
 

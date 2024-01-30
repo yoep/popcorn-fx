@@ -7,7 +7,7 @@ use log::{debug, trace, warn};
 use tokio::sync::Mutex;
 
 use crate::core::{block_in_place, loader, subtitles};
-use crate::core::loader::{LoadingData, LoadingState, LoadingStrategy, UpdateState};
+use crate::core::loader::{LoadingData, LoadingState, LoadingStrategy, UpdateProgress, UpdateState};
 use crate::core::media::{Episode, MediaIdentifier, MovieDetails, ShowDetails};
 use crate::core::playlists::PlaylistItem;
 use crate::core::subtitles::{SubtitleError, SubtitleManager, SubtitleProvider};
@@ -90,9 +90,13 @@ impl Debug for SubtitlesLoadingStrategy {
 
 #[async_trait]
 impl LoadingStrategy for SubtitlesLoadingStrategy {
-    fn on_state_update(&self, state_update: UpdateState) {
+    fn state_updater(&self, state_update: UpdateState) {
         let mut state = block_in_place(self.state_update.lock());
         *state = state_update;
+    }
+
+    fn progress_updater(&self, _: UpdateProgress) {
+        // no-op
     }
 
     async fn process(&self, data: LoadingData) -> loader::LoadingResult {

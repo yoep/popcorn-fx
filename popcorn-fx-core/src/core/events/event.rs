@@ -37,8 +37,8 @@ pub enum Event {
     /// Invoked when the watched state of a media items is changed
     #[display(fmt = "Watched state of {} changed to {}", _0, _1)]
     WatchStateChanged(String, bool),
-    #[display(fmt = "Loading of a media item has started for {}", _0)]
-    LoadingStarted(LoadingStartedEvent),
+    #[display(fmt = "Loading of a media item has started")]
+    LoadingStarted,
     #[display(fmt = "Loading of a media item has completed")]
     LoadingCompleted,
 }
@@ -52,13 +52,4 @@ pub struct PlayerChangedEvent {
     pub new_player_id: String,
     /// The name of the new active player.
     pub new_player_name: String,
-}
-
-#[derive(Debug, Display, Clone, PartialEq)]
-#[display(fmt = "url: {}, title: {}, thumbnail: {:?}", url, title, thumbnail)]
-pub struct LoadingStartedEvent {
-    pub url: String,
-    pub title: String,
-    pub thumbnail: Option<String>,
-    pub quality: Option<String>,
 }

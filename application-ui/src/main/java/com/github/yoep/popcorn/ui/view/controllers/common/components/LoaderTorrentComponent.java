@@ -2,11 +2,9 @@ package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.backend.loader.LoaderListener;
-import com.github.yoep.popcorn.backend.loader.LoaderService;
-import com.github.yoep.popcorn.backend.loader.LoaderState;
-import com.github.yoep.popcorn.backend.media.providers.models.Media;
+import com.github.yoep.popcorn.backend.loader.*;
 import com.github.yoep.popcorn.ui.messages.TorrentMessage;
+import com.github.yoep.popcorn.ui.utils.ProgressUtils;
 import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import com.github.yoep.popcorn.ui.view.services.LoadTorrentService;
@@ -25,7 +23,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import javax.annotation.PostConstruct;
 import java.net.URL;
-import java.util.Optional;
 import java.util.ResourceBundle;
 
 @Slf4j
@@ -85,33 +82,34 @@ public class LoaderTorrentComponent implements Initializable {
     void init() {
         loaderService.addListener(new LoaderListener() {
             @Override
-            public void onStateChanged(LoaderState newState) {
+            public void onLoadingStarted(LoadingStartedEventC loadingStartedEvent) {
                 Platform.runLater(() -> {
-                    switch (newState) {
-                        case IDLE, INITIALIZING -> {
-                            reset();
-                            progressStatus.setVisible(false);
-                            statusText.setText(localeText.get(TorrentMessage.INITIALIZING));
-                        }
-                        case STARTING -> {
-                            reset();
-                            progressStatus.setVisible(false);
-                            statusText.setText(localeText.get(TorrentMessage.STARTING));
-                        }
-                        case RETRIEVING_SUBTITLES -> statusText.setText(localeText.get(TorrentMessage.RETRIEVING_SUBTITLES));
-                        case DOWNLOADING_SUBTITLE -> statusText.setText(localeText.get(TorrentMessage.DOWNLOADING_SUBTITLE));
-                        case CONNECTING -> statusText.setText(localeText.get(TorrentMessage.CONNECTING));
-                        case DOWNLOADING -> {
-                            progressStatus.setVisible(true);
-                            statusText.setText(localeText.get(TorrentMessage.DOWNLOADING));
-                        }
-                        case DOWNLOAD_FINISHED, READY -> {
-                            statusText.setText(localeText.get(TorrentMessage.READY));
-                            progressBar.setProgress(1);
-                            progressBar.setVisible(true);
-                        }
-                    }
+                    backgroundImage.reset();
+                    loadingStartedEvent.getBackground()
+                            .map(imageService::load)
+                            .ifPresent(e -> e.whenComplete((bytes, throwable) -> {
+                                if (throwable == null) {
+                                    Platform.runLater(() -> backgroundImage.setBackgroundImage(bytes));
+                                } else {
+                                    log.error(throwable.getMessage(), throwable);
+                                }
+                            }));
                 });
+            }
+
+            @Override
+            public void onStateChanged(LoaderState newState) {
+                Platform.runLater(() -> handleLoaderStateChanged(newState));
+            }
+
+            @Override
+            public void onProgressChanged(LoadingProgress progress) {
+                onLoadingProgressChanged(progress);
+            }
+
+            @Override
+            public void onError(LoadingErrorC error) {
+                onLoadTorrentError();
             }
         });
     }
@@ -119,6 +117,46 @@ public class LoaderTorrentComponent implements Initializable {
     //endregion
 
     //region Functions
+
+    private void handleLoaderStateChanged(LoaderState newState) {
+        switch (newState) {
+            case IDLE, INITIALIZING -> {
+                reset();
+                progressStatus.setVisible(false);
+                statusText.setText(localeText.get(TorrentMessage.INITIALIZING));
+            }
+            case STARTING -> {
+                reset();
+                progressStatus.setVisible(false);
+                statusText.setText(localeText.get(TorrentMessage.STARTING));
+            }
+            case RETRIEVING_SUBTITLES -> statusText.setText(localeText.get(TorrentMessage.RETRIEVING_SUBTITLES));
+            case DOWNLOADING_SUBTITLE -> statusText.setText(localeText.get(TorrentMessage.DOWNLOADING_SUBTITLE));
+            case CONNECTING -> statusText.setText(localeText.get(TorrentMessage.CONNECTING));
+            case DOWNLOADING -> {
+                progressStatus.setVisible(true);
+                statusText.setText(localeText.get(TorrentMessage.DOWNLOADING));
+            }
+            case DOWNLOAD_FINISHED, READY -> {
+                statusText.setText(localeText.get(TorrentMessage.READY));
+                progressBar.setProgress(1);
+                progressBar.setVisible(true);
+            }
+        }
+    }
+
+    private void onLoadingProgressChanged(LoadingProgress progress) {
+        Platform.runLater(() -> {
+            progressStatus.setVisible(true);
+            progressBar.setProgress(progress.getProgress());
+            progressBar.setVisible(true);
+            statusText.setText(localeText.get(TorrentMessage.DOWNLOADING));
+            progressPercentage.setText(ProgressUtils.progressToPercentage(progress));
+            downloadText.setText(ProgressUtils.progressToDownload(progress));
+            uploadText.setText(ProgressUtils.progressToUpload(progress));
+            activePeersText.setText(String.valueOf(progress.getSeeds()));
+        });
+    }
 
     private void onLoadTorrentError() {
         Platform.runLater(() -> {
@@ -152,20 +190,6 @@ public class LoaderTorrentComponent implements Initializable {
 
     private void removeRetryButton() {
         Platform.runLater(() -> loaderActions.getChildren().removeIf(e -> e == loadRetryButton));
-    }
-
-    private void loadBackgroundImage(Media media) {
-        Platform.runLater(() -> backgroundImage.reset());
-        Optional.ofNullable(media)
-                .map(imageService::loadFanart)
-                .ifPresent(e -> e.whenComplete((bytes, throwable) -> {
-                    if (throwable == null) {
-                        bytes.ifPresent(image ->
-                                Platform.runLater(() -> backgroundImage.setBackgroundImage(image)));
-                    } else {
-                        log.error(throwable.getMessage(), throwable);
-                    }
-                }));
     }
 
     private void close() {

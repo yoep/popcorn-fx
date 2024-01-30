@@ -209,12 +209,12 @@ public class StreamInfo extends Icon {
         }
 
         void updateInfo(DownloadStatus DownloadStatus) {
-            int progress = (int) (DownloadStatus.getProgress() * 100);
-            String downloaded = MessageFormat.format("{0} ({1}%)", SizeUtils.toDisplaySize(DownloadStatus.getDownloaded()), progress);
+            int progress = (int) (DownloadStatus.progress() * 100);
+            String downloaded = MessageFormat.format("{0} ({1}%)", SizeUtils.toDisplaySize(DownloadStatus.downloaded()), progress);
 
-            downloadValue.setText(SizeUtils.toDisplaySize(DownloadStatus.getDownloadSpeed()) + "/s");
-            uploadValue.setText(SizeUtils.toDisplaySize(DownloadStatus.getUploadSpeed()) + "/s");
-            activePeersValue.setText(String.valueOf(DownloadStatus.getSeeds()));
+            downloadValue.setText(SizeUtils.toDisplaySize(DownloadStatus.downloadSpeed()) + "/s");
+            uploadValue.setText(SizeUtils.toDisplaySize(DownloadStatus.uploadSpeed()) + "/s");
+            activePeersValue.setText(String.valueOf(DownloadStatus.seeds()));
             downloadedValue.setText(downloaded);
         }
 

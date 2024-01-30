@@ -9,7 +9,7 @@ use mockall::mock;
 use url::Url;
 
 use crate::core::{CoreCallback, torrents};
-use crate::core::torrents::{Torrent, TorrentCallback, TorrentState};
+use crate::core::torrents::{DownloadStatus, Torrent, TorrentCallback, TorrentState};
 
 /// The stream bytes that are available to be used for the [TorrentStream].
 pub type StreamBytes = Vec<u8>;
@@ -34,18 +34,22 @@ pub enum TorrentStreamState {
 }
 
 /// The torrent stream event which occurred for the [TorrentStream].
-#[derive(Debug, Clone)]
+#[derive(Debug, Display, Clone, PartialEq)]
 pub enum TorrentStreamEvent {
-    /// The new state of the torrent stream
-    StateChanged(TorrentStreamState)
-}
-
-impl Display for TorrentStreamEvent {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            TorrentStreamEvent::StateChanged(state) => write!(f, "Torrent stream state changed to {}", state),
-        }
-    }
+    /// The new state of the torrent stream.
+    ///
+    /// # Arguments
+    ///
+    /// * `StateChanged` - The new state of the torrent stream.
+    #[display(fmt = "Torrent stream state changed to {}", _0)]
+    StateChanged(TorrentStreamState),
+    /// Download status update for the torrent stream.
+    ///
+    /// # Arguments
+    ///
+    /// * `DownloadStatus` - The download status of the torrent stream.
+    #[display(fmt = "Torrent stream download status changed to {}", _0)]
+    DownloadStatus(DownloadStatus),
 }
 
 /// A trait for a torrent stream that provides access to torrent streaming information.

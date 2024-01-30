@@ -37,7 +37,24 @@ public class LoaderEventC extends Structure implements Closeable {
 
     private void updateUnionType() {
         switch (tag) {
-            case StateChanged -> union.setType(StateChanged_Body.class);
+            case LOADING_STARTED -> union.setType(LoadingStarted_Body.class);
+            case STATE_CHANGED -> union.setType(StateChanged_Body.class);
+            case PROGRESS_CHANGED -> union.setType(ProgressChanged_Body.class);
+            case LOADING_ERROR -> union.setType(LoadingError_Body.class);
+        }
+    }
+
+    @Getter
+    @ToString
+    @FieldOrder({"startedEvent"})
+    public static class LoadingStarted_Body extends Structure implements Closeable {
+        public LoadingStartedEventC.ByValue startedEvent;
+
+        @Override
+        public void close() {
+            setAutoSynch(false);
+            Optional.ofNullable(startedEvent)
+                    .ifPresent(LoadingStartedEventC::close);
         }
     }
 
@@ -55,23 +72,61 @@ public class LoaderEventC extends Structure implements Closeable {
 
     @Getter
     @ToString
+    @FieldOrder({"loadingProgress"})
+    public static class ProgressChanged_Body extends Structure implements Closeable {
+        public LoadingProgress.ByValue loadingProgress;
+
+        @Override
+        public void close() {
+            setAutoSynch(false);
+            Optional.ofNullable(loadingProgress)
+                    .ifPresent(LoadingProgress::close);
+        }
+    }
+
+    @Getter
+    @ToString
+    @FieldOrder({"error"})
+    public static class LoadingError_Body extends Structure implements Closeable {
+        public LoadingErrorC error;
+
+        @Override
+        public void close() {
+            setAutoSynch(false);
+        }
+    }
+
+    @Getter
+    @ToString
     @EqualsAndHashCode(callSuper = false)
     public static class LoaderEventCUnion extends Union implements Closeable {
         public static class ByValue extends LoaderEventCUnion implements Union.ByValue {
         }
 
+        public LoadingStarted_Body loadingStarted_body;
         public StateChanged_Body stateChanged_body;
+        public ProgressChanged_Body progressChanged_body;
+        public LoadingError_Body loadingError_body;
 
         @Override
         public void close() {
             setAutoSynch(false);
+            Optional.ofNullable(loadingStarted_body)
+                    .ifPresent(LoadingStarted_Body::close);
             Optional.ofNullable(stateChanged_body)
                     .ifPresent(StateChanged_Body::close);
+            Optional.ofNullable(progressChanged_body)
+                    .ifPresent(ProgressChanged_Body::close);
+            Optional.ofNullable(loadingError_body)
+                    .ifPresent(LoadingError_Body::close);
         }
     }
 
     public enum Tag implements NativeMapped {
-        StateChanged;
+        LOADING_STARTED,
+        STATE_CHANGED,
+        PROGRESS_CHANGED,
+        LOADING_ERROR;
 
         @Override
         public Object fromNative(Object nativeValue, FromNativeContext context) {

@@ -488,6 +488,8 @@ mod tests {
             .return_const(player_id.to_string());
         player.expect_name()
             .return_const("Foo".to_string());
+        player.expect_add()
+            .return_const(1245i64);
         let player = Box::new(player) as Box<dyn Player>;
         let torrent_stream_server = MockTorrentStreamServer::new();
         let manager = DefaultPlayerManager::new(Arc::new(EventPublisher::default()), Arc::new(Box::new(torrent_stream_server)));
@@ -509,6 +511,8 @@ mod tests {
             .return_const(player_id.to_string());
         player.expect_name()
             .return_const("FooBar player".to_string());
+        player.expect_add()
+            .return_const(1245i64);
         let player = Box::new(player) as Box<dyn Player>;
         let (tx, rx) = channel();
         let event_publisher = Arc::new(EventPublisher::default());

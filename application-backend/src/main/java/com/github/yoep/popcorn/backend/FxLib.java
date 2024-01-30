@@ -7,6 +7,7 @@ import com.github.yoep.popcorn.backend.events.EventC;
 import com.github.yoep.popcorn.backend.lib.ByteArray;
 import com.github.yoep.popcorn.backend.lib.FxLibInstance;
 import com.github.yoep.popcorn.backend.lib.StringArray;
+import com.github.yoep.popcorn.backend.loader.LoaderEventCallback;
 import com.github.yoep.popcorn.backend.logging.LogLevel;
 import com.github.yoep.popcorn.backend.media.*;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteEventCallback;
@@ -231,6 +232,8 @@ public interface FxLib extends Library {
     void invoke_player_event(PlayerWrapperPointer wrapper, PlayerEventC.ByValue event);
 
     void remove_player(PopcornFx instance, String playerId);
+
+    void register_loader_callback(PopcornFx instance, LoaderEventCallback callback);
 
     void log(String target, String message, LogLevel level);
 

@@ -1,7 +1,6 @@
-package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
+package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.view.controllers.common.components.LoaderTorrentComponent;
 import com.github.yoep.popcorn.ui.view.listeners.LoadTorrentListener;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import com.github.yoep.popcorn.ui.view.services.LoadTorrentService;

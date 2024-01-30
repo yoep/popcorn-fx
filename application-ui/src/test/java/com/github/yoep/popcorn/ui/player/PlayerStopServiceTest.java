@@ -2,7 +2,6 @@ package com.github.yoep.popcorn.ui.player;
 
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
-import com.github.yoep.popcorn.backend.adapters.torrent.TorrentStreamService;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
 import com.github.yoep.popcorn.backend.events.*;
@@ -31,8 +30,6 @@ import static org.mockito.Mockito.*;
 class PlayerStopServiceTest {
     @Mock
     private PlayerEventService playerEventService;
-    @Mock
-    private TorrentStreamService torrentStreamService;
     @Mock
     private PlayNextService playNextService;
     @Mock
@@ -77,7 +74,6 @@ class PlayerStopServiceTest {
         playerListener.onTimeChanged(videoLength);
         playerListener.onStateChanged(PlayerState.STOPPED);
 
-        verify(torrentStreamService).stopAllStreams();
         verify(subtitleService).updateSubtitle(subtitleNone);
         verify(eventPublisher).publishEvent(new com.github.yoep.popcorn.backend.events.ClosePlayerEvent(service,
                 com.github.yoep.popcorn.backend.events.ClosePlayerEvent.Reason.END_OF_VIDEO));
@@ -109,7 +105,6 @@ class PlayerStopServiceTest {
         playerListener.onTimeChanged(videoLength);
         playerListener.onStateChanged(PlayerState.STOPPED);
 
-        verify(torrentStreamService).stopAllStreams();
         verify(eventPublisher, times(0)).publishEvent(new com.github.yoep.popcorn.backend.events.ClosePlayerEvent(service,
                 com.github.yoep.popcorn.backend.events.ClosePlayerEvent.Reason.END_OF_VIDEO));
     }

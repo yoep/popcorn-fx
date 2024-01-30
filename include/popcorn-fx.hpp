@@ -32,6 +32,18 @@ enum class DecorationType : int32_t {
   SeeThroughBackground = 3,
 };
 
+enum class LoadingState : int32_t {
+  Idle,
+  Initializing,
+  Starting,
+  RetrievingSubtitles,
+  DownloadingSubtitle,
+  Connecting,
+  Downloading,
+  DownloadFinished,
+  Playing,
+};
+
 /// The C-compatible logging level for log messages sent over FFI.
 ///
 /// This enum represents the different logging levels that can be used to send log messages from Rust to C code.
@@ -591,6 +603,7 @@ struct SubtitleMatcherC {
   const char *quality;
 };
 
+/// A C-compatible enum representing player events.
 struct PlayerEventC {
   enum class Tag {
     DurationChanged,
@@ -664,6 +677,8 @@ struct PlayerStoppedEventC {
 struct LoadingStartedEventC {
   const char *url;
   const char *title;
+  const char *thumbnail;
+  const char *quality;
 };
 
 /// The C compatible [Event] representation.
@@ -745,6 +760,25 @@ struct FavoriteEventC {
   };
 };
 
+/// A C-compatible enum representing loader events.
+struct LoaderEventC {
+  enum class Tag {
+    StateChanged,
+  };
+
+  struct StateChanged_Body {
+    LoadingState _0;
+  };
+
+  Tag tag;
+  union {
+    StateChanged_Body state_changed;
+  };
+};
+
+/// A C-compatible callback function type for loader events.
+using LoaderEventCallback = void(*)(LoaderEventC);
+
 /// The C compatible callback for playback control events.
 using PlaybackControlsCallbackC = void(*)(PlaybackControlEvent);
 
@@ -756,8 +790,13 @@ struct PlayRequestC {
   bool subtitles_enabled;
 };
 
+/// A C-compatible callback function type for player play events.
 using PlayerPlayCallback = void(*)(PlayRequestC);
 
+/// A C-compatible callback function type for player stop events.
+using PlayerStopCallback = void(*)();
+
+/// A C-compatible struct representing player registration information.
 struct PlayerRegistrationC {
   /// A pointer to a null-terminated C string representing the player's unique identifier (ID).
   const char *id;
@@ -773,7 +812,10 @@ struct PlayerRegistrationC {
   PlayerState state;
   /// Indicates whether embedded playback is supported by the player.
   bool embedded_playback_supported;
+  /// A callback function pointer for the "play" action.
   PlayerPlayCallback play_callback;
+  /// A callback function pointer for the "stop" action.
+  PlayerStopCallback stop_callback;
 };
 
 struct PlayerManagerEventC {
@@ -810,6 +852,7 @@ struct PlayerManagerEventC {
   };
 };
 
+/// A C-compatible callback function type for player manager events.
 using PlayerManagerEventCallback = void(*)(PlayerManagerEventC);
 
 /// The C compatible application events.
@@ -1502,6 +1545,17 @@ void register_event_callback(PopcornFX *popcorn_fx, EventCCallback callback);
 
 /// Register a new callback listener for favorite events.
 void register_favorites_event_callback(PopcornFX *popcorn_fx, void (*callback)(FavoriteEventC));
+
+/// Register a loader event callback to receive loader state change events.
+///
+/// This function registers a callback function to receive loader state change events from the
+/// PopcornFX instance. When a loader state change event occurs, the provided callback will be invoked.
+///
+/// # Arguments
+///
+/// * `instance` - A mutable reference to the PopcornFX instance to register the callback with.
+/// * `callback` - A C-compatible callback function that will be invoked when loader state change events occur.
+void register_loader_callback(PopcornFX *instance, LoaderEventCallback callback);
 
 /// Register a new callback listener for the system playback controls.
 ///

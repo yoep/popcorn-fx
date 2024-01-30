@@ -8,7 +8,7 @@ use log::{debug, trace, warn};
 use tokio::sync::Mutex;
 
 use crate::core::block_in_place;
-use crate::core::loader::{LoadingData, LoadingError, LoadingResult, LoadingStrategy, UpdateState};
+use crate::core::loader::{LoadingData, LoadingError, LoadingResult, LoadingState, LoadingStrategy, UpdateState};
 use crate::core::torrents::{TorrentError, TorrentStreamEvent, TorrentStreamServer, TorrentStreamState};
 
 #[derive(Display)]
@@ -45,6 +45,10 @@ impl LoadingStrategy for TorrentStreamLoadingStrategy {
     async fn process(&self, mut data: LoadingData) -> LoadingResult {
         if let Some(torrent) = data.torrent.take() {
             trace!("Processing torrent stream for {:?}", torrent);
+            {
+                let state_update = block_in_place(self.state_update.lock());
+                state_update(LoadingState::Starting);
+            }
             match self.torrent_stream_server.start_stream(torrent) {
                 Ok(stream) => {
                     if let Some(stream) = stream.upgrade() {
@@ -52,7 +56,11 @@ impl LoadingStrategy for TorrentStreamLoadingStrategy {
                         trace!("Updating playlist item url to stream {}", stream.url());
                         data.item.url = Some(stream.url().to_string());
 
-                        stream.subscribe_stream(Box::new(move |event| {
+                        {
+                            let state_update = block_in_place(self.state_update.lock());
+                            state_update(LoadingState::Downloading);
+                        }
+                        let callback_id = stream.subscribe_stream(Box::new(move |event| {
                             if let TorrentStreamEvent::StateChanged(state) = event {
                                 match state {
                                     TorrentStreamState::Preparing => debug!("Waiting for the torrent stream to be ready"),
@@ -65,7 +73,14 @@ impl LoadingStrategy for TorrentStreamLoadingStrategy {
                             }
                         }));
                         match rx.recv() {
-                            Ok(_) => trace!("Received stream ready signal"),
+                            Ok(_) => {
+                                {
+                                    let state_update = block_in_place(self.state_update.lock());
+                                    state_update(LoadingState::DownloadFinished);
+                                }
+                                stream.unsubscribe_stream(callback_id);
+                                trace!("Received stream ready signal");
+                            }
                             Err(e) => return LoadingResult::Err(LoadingError::TimeoutError(e.to_string())),
                         }
                     } else {

@@ -30,6 +30,7 @@ public class Playlist extends Structure implements Closeable {
     }
 
     public Playlist(List<PlaylistItem> items) {
+        this.cachedItems = items;
         this.items = new PlaylistItem.ByReference();
         this.len = items.size();
         var array = (PlaylistItem.ByReference[]) this.items.toArray(this.len);

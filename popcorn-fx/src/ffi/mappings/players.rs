@@ -13,10 +13,16 @@ use popcorn_fx_core::core::players::{Player, PlayerEvent, PlayerManagerEvent, Pl
 
 use crate::ffi::{ByteArray, PlayerChangedEventC};
 
+/// A C-compatible callback function type for player manager events.
 pub type PlayerManagerEventCallback = extern "C" fn(PlayerManagerEventC);
 
+/// A C-compatible callback function type for player play events.
 pub type PlayerPlayCallback = extern "C" fn(PlayRequestC);
 
+/// A C-compatible callback function type for player stop events.
+pub type PlayerStopCallback = extern "C" fn();
+
+/// A C-compatible enum representing player events.
 #[repr(C)]
 #[derive(Debug)]
 pub enum PlayerEventC {
@@ -96,6 +102,7 @@ impl From<Arc<Box<dyn Player>>> for PlayerC {
     }
 }
 
+/// A C-compatible struct representing player registration information.
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct PlayerRegistrationC {
@@ -113,7 +120,10 @@ pub struct PlayerRegistrationC {
     pub state: PlayerState,
     /// Indicates whether embedded playback is supported by the player.
     pub embedded_playback_supported: bool,
+    /// A callback function pointer for the "play" action.
     pub play_callback: PlayerPlayCallback,
+    /// A callback function pointer for the "stop" action.
+    pub stop_callback: PlayerStopCallback,
 }
 
 #[repr(C)]
@@ -127,6 +137,8 @@ pub struct PlayerWrapper {
     state: PlayerState,
     embedded_playback_supported: bool,
     play_callback: Mutex<Box<dyn Fn(PlayRequestC) + Send + Sync>>,
+    stop_callback: Mutex<Box<dyn Fn() + Send + Sync>>,
+    play_request: Mutex<Option<Arc<Box<dyn PlayRequest>>>>,
     callbacks: CoreCallbacks<PlayerEvent>,
 }
 
@@ -167,10 +179,29 @@ impl Player for PlayerWrapper {
         &self.state
     }
 
+    fn request(&self) -> Option<Weak<Box<dyn PlayRequest>>> {
+        let mutex = block_in_place(self.play_request.lock());
+        mutex.as_ref()
+            .map(|e| Arc::downgrade(e))
+    }
+
     fn play(&self, request: Box<dyn PlayRequest>) {
         trace!("Invoking play callback on C player for {:?} with {:?}", self, request);
-        let callback = block_in_place(self.play_callback.lock());
-        callback(PlayRequestC::from(request));
+        {
+            let callback = block_in_place(self.play_callback.lock());
+            callback(PlayRequestC::from(&request));
+        }
+        {
+            let mut play_request = block_in_place(self.play_request.lock());
+            *play_request = Some(Arc::new(request));
+        }
+    }
+
+    fn stop(&self) {
+        {
+            let callback = block_in_place(self.stop_callback.lock());
+            callback();
+        }
     }
 }
 
@@ -204,6 +235,8 @@ impl From<PlayerRegistrationC> for PlayerWrapper {
         };
         let play_callback = value.play_callback;
         let play_callback: Box<dyn Fn(PlayRequestC) + Send + Sync> = Box::new(move |e| play_callback(e));
+        let stop_callback = value.stop_callback;
+        let stop_callback: Box<dyn Fn() + Send + Sync> = Box::new(move || stop_callback());
 
         Self {
             id,
@@ -213,6 +246,8 @@ impl From<PlayerRegistrationC> for PlayerWrapper {
             state: value.state.clone(),
             embedded_playback_supported: value.embedded_playback_supported.clone(),
             play_callback: Mutex::new(play_callback),
+            stop_callback: Mutex::new(stop_callback),
+            play_request: Default::default(),
             callbacks: Default::default(),
         }
     }
@@ -337,6 +372,12 @@ impl From<&PlayMediaRequest> for PlayRequestC {
 
 impl From<Box<dyn PlayRequest>> for PlayRequestC {
     fn from(value: Box<dyn PlayRequest>) -> Self {
+        Self::from(&value)
+    }
+}
+
+impl From<&Box<dyn PlayRequest>> for PlayRequestC {
+    fn from(value: &Box<dyn PlayRequest>) -> Self {
         if let Some(value) = value.downcast_ref::<PlayMediaRequest>() {
             return PlayRequestC::from(value);
         } else if let Some(value) = value.downcast_ref::<PlayUrlRequest>() {
@@ -351,6 +392,8 @@ impl From<Box<dyn PlayRequest>> for PlayRequestC {
 mod tests {
     use std::ptr;
 
+    use log::info;
+
     use popcorn_fx_core::{from_c_owned, from_c_vec};
     use popcorn_fx_core::core::players::{MockPlayer, PlayerChange};
     use popcorn_fx_core::testing::init_logger;
@@ -359,7 +402,12 @@ mod tests {
 
     #[no_mangle]
     extern "C" fn play_callback(_: PlayRequestC) {
-        // no-op
+        info!("Player play C callback invoked");
+    }
+
+    #[no_mangle]
+    extern "C" fn stop_callback() {
+        info!("Player stop C callback invoked");
     }
 
     #[test]
@@ -404,6 +452,8 @@ mod tests {
             state: state.clone(),
             embedded_playback_supported: true,
             play_callback: Mutex::new(Box::new(|_| {})),
+            stop_callback: Mutex::new(Box::new(|| {})),
+            play_request: Default::default(),
             callbacks: Default::default(),
         }) as Box<dyn Player>);
 
@@ -450,6 +500,7 @@ mod tests {
             state: PlayerState::Paused,
             embedded_playback_supported: false,
             play_callback,
+            stop_callback,
         };
 
         let wrapper = PlayerWrapper::from(player);

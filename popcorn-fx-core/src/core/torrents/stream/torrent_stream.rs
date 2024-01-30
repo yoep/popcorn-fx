@@ -7,17 +7,18 @@ use std::path::PathBuf;
 use std::pin::Pin;
 use std::sync::{Arc, Once};
 use std::task::{Context, Poll};
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use derive_more::Display;
 use futures::Stream;
 use itertools::Itertools;
 use log::{debug, error, info, trace, warn};
+use rand::Rng;
 use tokio::sync::Mutex;
 use url::Url;
 
-use popcorn_fx_core::core::{block_in_place, Callbacks, CoreCallbacks, torrents};
-use popcorn_fx_core::core::torrents::{StreamBytesResult, Torrent, TorrentCallback, TorrentError, TorrentEvent, TorrentState, TorrentStream, TorrentStreamCallback, TorrentStreamEvent, TorrentStreamingResource, TorrentStreamingResourceWrapper, TorrentStreamState};
+use crate::core::{block_in_place, Callbacks, CoreCallbacks, torrents};
+use crate::core::torrents::{StreamBytesResult, Torrent, TorrentCallback, TorrentError, TorrentEvent, TorrentState, TorrentStream, TorrentStreamCallback, TorrentStreamEvent, TorrentStreamingResource, TorrentStreamingResourceWrapper, TorrentStreamState};
 
 /// The default buffer size used while streaming in bytes
 const BUFFER_SIZE: usize = 10000;
@@ -93,6 +94,10 @@ impl Torrent for DefaultTorrentStream {
 }
 
 impl TorrentStream for DefaultTorrentStream {
+    fn stream_handle(&self) -> i64 {
+        self.internal.stream_handle()
+    }
+
     fn url(&self) -> Url {
         self.internal.url()
     }
@@ -131,6 +136,7 @@ impl Display for DefaultTorrentStream {
 #[derive(Debug, Display)]
 #[display(fmt = "url: {}, total_pieces: {}, preparing_pieces: {}", url, "self.total_pieces()", "self.preparing_pieces().len()")]
 struct TorrentStreamWrapper {
+    handle: i64,
     /// The backing torrent of this stream
     torrent: Arc<Box<dyn Torrent>>,
     /// The url on which this stream is being hosted
@@ -148,6 +154,7 @@ impl TorrentStreamWrapper {
         let prepare_pieces = Self::preparation_pieces(&torrent);
 
         Self {
+            handle: Self::generate_handle(),
             torrent,
             url,
             preparing_pieces: Arc::new(Mutex::new(prepare_pieces)),
@@ -267,6 +274,18 @@ impl TorrentStreamWrapper {
             .unique()
             .collect()
     }
+
+    fn generate_handle() -> i64 {
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("Time went backwards")
+            .as_secs() as i64;
+
+        let mut rng = rand::thread_rng();
+        let random_number: i64 = rng.gen();
+
+        (timestamp << 32) | (random_number & 0xFFFF_FFFF)
+    }
 }
 
 impl Torrent for TorrentStreamWrapper {
@@ -312,6 +331,10 @@ impl Torrent for TorrentStreamWrapper {
 }
 
 impl TorrentStream for TorrentStreamWrapper {
+    fn stream_handle(&self) -> i64 {
+        self.handle.clone()
+    }
+
     fn url(&self) -> Url {
         self.url.clone()
     }
@@ -613,8 +636,8 @@ mod test {
     use futures::TryStreamExt;
     use tokio::runtime;
 
-    use popcorn_fx_core::core::torrents::{MockTorrent, StreamBytes};
-    use popcorn_fx_core::testing::{copy_test_file, init_logger, read_test_file_to_string};
+    use crate::core::torrents::{MockTorrent, StreamBytes};
+    use crate::testing::{copy_test_file, init_logger, read_test_file_to_string};
 
     use super::*;
 

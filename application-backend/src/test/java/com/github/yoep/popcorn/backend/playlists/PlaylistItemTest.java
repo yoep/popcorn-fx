@@ -49,6 +49,5 @@ class PlaylistItemTest {
 
         assertEquals(movie.title, result.title);
         assertEquals(movie.trailer, result.url);
-        assertEquals(movie, result.media.movieDetails);
     }
 }

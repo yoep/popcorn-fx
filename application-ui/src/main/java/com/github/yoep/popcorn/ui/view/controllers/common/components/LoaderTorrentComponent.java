@@ -2,12 +2,12 @@ package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
+import com.github.yoep.popcorn.backend.loader.LoaderListener;
+import com.github.yoep.popcorn.backend.loader.LoaderService;
+import com.github.yoep.popcorn.backend.loader.LoaderState;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.ui.messages.TorrentMessage;
-import com.github.yoep.popcorn.ui.utils.ProgressUtils;
 import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
-import com.github.yoep.popcorn.ui.view.listeners.LoadTorrentListener;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import com.github.yoep.popcorn.ui.view.services.LoadTorrentService;
 import javafx.application.Platform;
@@ -37,6 +37,7 @@ public class LoaderTorrentComponent implements Initializable {
     private final LoadTorrentService service;
     private final LocaleText localeText;
     private final ImageService imageService;
+    private final LoaderService loaderService;
 
     @FXML
     Pane loaderActions;
@@ -82,20 +83,35 @@ public class LoaderTorrentComponent implements Initializable {
 
     @PostConstruct
     void init() {
-        service.addListener(new LoadTorrentListener() {
+        loaderService.addListener(new LoaderListener() {
             @Override
-            public void onStateChanged(State newState) {
-                LoaderTorrentComponent.this.onStateChanged(newState);
-            }
-
-            @Override
-            public void onMediaChanged(Media media) {
-                LoaderTorrentComponent.this.onMediaChanged(media);
-            }
-
-            @Override
-            public void onDownloadStatusChanged(DownloadStatus status) {
-                LoaderTorrentComponent.this.onDownloadStatusChanged(status);
+            public void onStateChanged(LoaderState newState) {
+                Platform.runLater(() -> {
+                    switch (newState) {
+                        case IDLE, INITIALIZING -> {
+                            reset();
+                            progressStatus.setVisible(false);
+                            statusText.setText(localeText.get(TorrentMessage.INITIALIZING));
+                        }
+                        case STARTING -> {
+                            reset();
+                            progressStatus.setVisible(false);
+                            statusText.setText(localeText.get(TorrentMessage.STARTING));
+                        }
+                        case RETRIEVING_SUBTITLES -> statusText.setText(localeText.get(TorrentMessage.RETRIEVING_SUBTITLES));
+                        case DOWNLOADING_SUBTITLE -> statusText.setText(localeText.get(TorrentMessage.DOWNLOADING_SUBTITLE));
+                        case CONNECTING -> statusText.setText(localeText.get(TorrentMessage.CONNECTING));
+                        case DOWNLOADING -> {
+                            progressStatus.setVisible(true);
+                            statusText.setText(localeText.get(TorrentMessage.DOWNLOADING));
+                        }
+                        case DOWNLOAD_FINISHED, READY -> {
+                            statusText.setText(localeText.get(TorrentMessage.READY));
+                            progressBar.setProgress(1);
+                            progressBar.setVisible(true);
+                        }
+                    }
+                });
             }
         });
     }
@@ -103,76 +119,6 @@ public class LoaderTorrentComponent implements Initializable {
     //endregion
 
     //region Functions
-
-    private void onStateChanged(LoadTorrentListener.State newState) {
-        removeRetryButton();
-
-        switch (newState) {
-            case INITIALIZING -> onLoadTorrentInitializing();
-            case STARTING -> onLoadTorrentStarting();
-            case RETRIEVING_SUBTITLES -> onLoadTorrentRetrievingSubtitles();
-            case DOWNLOADING_SUBTITLE -> onLoadTorrentDownloadingSubtitle();
-            case CONNECTING -> onLoadTorrentConnecting();
-            case DOWNLOADING -> onLoadTorrentDownloading();
-            case READY -> onLoadTorrentReady();
-            case ERROR -> onLoadTorrentError();
-        }
-    }
-
-    private void onMediaChanged(Media media) {
-        loadBackgroundImage(media);
-    }
-
-    private void onDownloadStatusChanged(DownloadStatus status) {
-        Platform.runLater(() -> {
-            progressStatus.setVisible(true);
-            progressBar.setProgress(status.getProgress());
-            progressBar.setVisible(true);
-            statusText.setText(localeText.get(TorrentMessage.DOWNLOADING));
-            progressPercentage.setText(ProgressUtils.progressToPercentage(status));
-            downloadText.setText(ProgressUtils.progressToDownload(status));
-            uploadText.setText(ProgressUtils.progressToUpload(status));
-            activePeersText.setText(String.valueOf(status.getSeeds()));
-        });
-    }
-
-    private void onLoadTorrentStarting() {
-        // reset the progress bar to "infinite" animation
-        reset();
-
-        Platform.runLater(() -> {
-            progressStatus.setVisible(false);
-            statusText.setText(localeText.get(TorrentMessage.STARTING));
-        });
-    }
-
-    private void onLoadTorrentInitializing() {
-        Platform.runLater(() -> statusText.setText(localeText.get(TorrentMessage.INITIALIZING)));
-    }
-
-    private void onLoadTorrentRetrievingSubtitles() {
-        Platform.runLater(() -> statusText.setText(localeText.get(TorrentMessage.RETRIEVING_SUBTITLES)));
-    }
-
-    private void onLoadTorrentDownloadingSubtitle() {
-        Platform.runLater(() -> statusText.setText(localeText.get(TorrentMessage.DOWNLOADING_SUBTITLE)));
-    }
-
-    private void onLoadTorrentConnecting() {
-        Platform.runLater(() -> statusText.setText(localeText.get(TorrentMessage.CONNECTING)));
-    }
-
-    private void onLoadTorrentDownloading() {
-        Platform.runLater(() -> statusText.setText(localeText.get(TorrentMessage.DOWNLOADING)));
-    }
-
-    private void onLoadTorrentReady() {
-        Platform.runLater(() -> {
-            statusText.setText(localeText.get(TorrentMessage.READY));
-            progressBar.setProgress(1);
-            progressBar.setVisible(true);
-        });
-    }
 
     private void onLoadTorrentError() {
         Platform.runLater(() -> {

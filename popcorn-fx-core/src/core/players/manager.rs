@@ -11,7 +11,8 @@ use tokio::sync::Mutex;
 
 use crate::core::{block_in_place, Callbacks, CoreCallback, CoreCallbacks};
 use crate::core::events::{Event, EventPublisher, PlayerChangedEvent, PlayerStartedEvent};
-use crate::core::players::{Player, PlayerEvent, PlayerState, PlayRequest};
+use crate::core::players::{Player, PlayerEvent, PlayerState, PlayMediaRequest, PlayRequest};
+use crate::core::torrents::TorrentStreamServer;
 
 /// An event representing changes to the player manager.
 #[derive(Debug, Clone, Display)]
@@ -125,36 +126,26 @@ impl From<PlayerEvent> for PlayerEventWrapper {
     }
 }
 
-/// A default implementation of the `PlayerManager` trait.
 #[derive(Debug)]
 pub struct DefaultPlayerManager {
-    active_player: Mutex<Option<String>>,
-    players: RwLock<Vec<Arc<Box<dyn Player>>>>,
-    listener_id: Mutex<i64>,
-    listener_sender: Sender<PlayerEventWrapper>,
-    callbacks: CoreCallbacks<PlayerManagerEvent>,
-    event_publisher: Arc<EventPublisher>,
+    inner: Arc<InnerPlayerManager>,
     _runtime: Runtime,
 }
 
 impl DefaultPlayerManager {
-    pub fn new(event_publisher: Arc<EventPublisher>) -> Self {
+    pub fn new(event_publisher: Arc<EventPublisher>, torrent_stream_server: Arc<Box<dyn TorrentStreamServer>>) -> Self {
         let runtime = Runtime::new().unwrap();
         let (listener_sender, listener_receiver) = channel::<PlayerEventWrapper>();
-        let callbacks = CoreCallbacks::<PlayerManagerEvent>::default();
+        let inner = Arc::new(InnerPlayerManager::new(listener_sender, event_publisher, torrent_stream_server));
 
-        let receiver_callbacks = callbacks.clone();
+        let receiver_manager = inner.clone();
         runtime.spawn(async move {
             for received in listener_receiver {
                 if let Some(event) = received.event {
-                    match event {
-                        PlayerEvent::DurationChanged(e) => receiver_callbacks.invoke(PlayerManagerEvent::PlayerDurationChanged(e)),
-                        PlayerEvent::TimeChanged(e) => receiver_callbacks.invoke(PlayerManagerEvent::PlayerTimeChanged(e)),
-                        PlayerEvent::StateChanged(e) => receiver_callbacks.invoke(PlayerManagerEvent::PlayerStateChanged(e)),
-                        PlayerEvent::VolumeChanged(_) => {}
-                    }
+                    receiver_manager.handle_player_event(event);
                 }
                 if received.is_shutdown {
+                    trace!("Received shutdown signal for the player event receiver");
                     break;
                 }
             }
@@ -162,14 +153,78 @@ impl DefaultPlayerManager {
             debug!("Player manager event loop has been closed");
         });
 
+        Self {
+            inner,
+            _runtime: runtime,
+        }
+    }
+}
+
+impl PlayerManager for DefaultPlayerManager {
+    fn active_player(&self) -> Option<Weak<Box<dyn Player>>> {
+        self.inner.active_player()
+    }
+
+    fn set_active_player(&self, player_id: &str) {
+        self.inner.set_active_player(player_id)
+    }
+
+    fn players(&self) -> Vec<Weak<Box<dyn Player>>> {
+        self.inner.players()
+    }
+
+    fn by_id(&self, id: &str) -> Option<Weak<Box<dyn Player>>> {
+        self.inner.by_id(id)
+    }
+
+    fn add_player(&self, player: Box<dyn Player>) -> bool {
+        self.inner.add_player(player)
+    }
+
+    fn remove_player(&self, player_id: &str) {
+        self.inner.remove_player(player_id)
+    }
+
+    fn subscribe(&self, callback: PlayerManagerCallback) {
+        self.inner.subscribe(callback)
+    }
+
+    fn play(&self, request: Box<dyn PlayRequest>) {
+        self.inner.play(request)
+    }
+}
+
+impl Drop for DefaultPlayerManager {
+    fn drop(&mut self) {
+        self.inner.listener_sender.send(PlayerEventWrapper {
+            event: None,
+            is_shutdown: true,
+        }).expect("expected the sender to send a shutdown signal");
+    }
+}
+
+/// A default implementation of the `PlayerManager` trait.
+#[derive(Debug)]
+struct InnerPlayerManager {
+    active_player: Mutex<Option<String>>,
+    players: RwLock<Vec<Arc<Box<dyn Player>>>>,
+    listener_id: Mutex<i64>,
+    listener_sender: Sender<PlayerEventWrapper>,
+    torrent_stream_server: Arc<Box<dyn TorrentStreamServer>>,
+    callbacks: CoreCallbacks<PlayerManagerEvent>,
+    event_publisher: Arc<EventPublisher>,
+}
+
+impl InnerPlayerManager {
+    fn new(listener_sender: Sender<PlayerEventWrapper>, event_publisher: Arc<EventPublisher>, torrent_stream_server: Arc<Box<dyn TorrentStreamServer>>) -> Self {
         let instance = Self {
             active_player: Mutex::default(),
             players: RwLock::default(),
             listener_id: Default::default(),
             listener_sender,
-            callbacks,
+            torrent_stream_server,
+            callbacks: CoreCallbacks::default(),
             event_publisher,
-            _runtime: runtime,
         };
 
         instance
@@ -208,9 +263,37 @@ impl DefaultPlayerManager {
             *listener_id = callback_id;
         }
     }
+
+    fn handle_player_event(&self, event: PlayerEvent) {
+        match event {
+            PlayerEvent::DurationChanged(e) => self.callbacks.invoke(PlayerManagerEvent::PlayerDurationChanged(e)),
+            PlayerEvent::TimeChanged(e) => self.callbacks.invoke(PlayerManagerEvent::PlayerTimeChanged(e)),
+            PlayerEvent::StateChanged(e) => self.handle_player_state_changed(e),
+            PlayerEvent::VolumeChanged(_) => {}
+        }
+    }
+
+    fn handle_player_state_changed(&self, new_state: PlayerState) {
+        debug!("Player state changed to {}", new_state);
+        if let PlayerState::Stopped = &new_state {
+            if let Some(player) = self.active_player()
+                .and_then(|e| e.upgrade()) {
+                if let Some(request) = player.request()
+                    .and_then(|e| e.upgrade()) {
+                    if let Some(stream) = request.downcast_ref::<PlayMediaRequest>()
+                        .and_then(|e| e.torrent_stream.upgrade()) {
+                        debug!("Stopping player stream of {}", stream);
+                        self.torrent_stream_server.stop_stream(stream.stream_handle());
+                    }
+                }
+            }
+        }
+
+        self.callbacks.invoke(PlayerManagerEvent::PlayerStateChanged(new_state))
+    }
 }
 
-impl PlayerManager for DefaultPlayerManager {
+impl PlayerManager for InnerPlayerManager {
     fn active_player(&self) -> Option<Weak<Box<dyn Player>>> {
         block_in_place(self.active_player.lock())
             .as_ref()
@@ -323,23 +406,16 @@ impl PlayerManager for DefaultPlayerManager {
     }
 }
 
-impl Drop for DefaultPlayerManager {
-    fn drop(&mut self) {
-        self.listener_sender.send(PlayerEventWrapper {
-            event: None,
-            is_shutdown: true,
-        }).expect("expected the sender to send a shutdown signal");
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::sync::mpsc::channel;
     use std::time::Duration;
 
     use crate::core::events::DEFAULT_ORDER;
-    use crate::core::players::MockPlayer;
-    use crate::testing::init_logger;
+    use crate::core::media::MockMediaIdentifier;
+    use crate::core::players::PlayUrlRequest;
+    use crate::core::torrents::{MockTorrentStream, MockTorrentStreamServer, TorrentStream};
+    use crate::testing::{init_logger, MockPlayer};
 
     use super::*;
 
@@ -390,7 +466,15 @@ mod tests {
             &PlayerState::Unknown
         }
 
+        fn request(&self) -> Option<Weak<Box<dyn PlayRequest>>> {
+            todo!()
+        }
+
         fn play(&self, _: Box<dyn PlayRequest>) {
+            todo!()
+        }
+
+        fn stop(&self) {
             todo!()
         }
     }
@@ -405,7 +489,8 @@ mod tests {
         player.expect_name()
             .return_const("Foo".to_string());
         let player = Box::new(player) as Box<dyn Player>;
-        let manager = DefaultPlayerManager::new(Arc::new(EventPublisher::default()));
+        let torrent_stream_server = MockTorrentStreamServer::new();
+        let manager = DefaultPlayerManager::new(Arc::new(EventPublisher::default()), Arc::new(Box::new(torrent_stream_server)));
 
         manager.add_player(player);
         let player = manager.by_id(player_id).expect("expected the player to have been found");
@@ -427,7 +512,8 @@ mod tests {
         let player = Box::new(player) as Box<dyn Player>;
         let (tx, rx) = channel();
         let event_publisher = Arc::new(EventPublisher::default());
-        let manager = DefaultPlayerManager::new(event_publisher.clone());
+        let torrent_stream_server = MockTorrentStreamServer::new();
+        let manager = DefaultPlayerManager::new(event_publisher.clone(), Arc::new(Box::new(torrent_stream_server)));
 
         event_publisher.register(Box::new(move |e| {
             match &e {
@@ -453,7 +539,8 @@ mod tests {
         let player2 = Box::new(DummyPlayer::new(player2_id));
         let (tx, rx) = channel();
         let event_publisher = Arc::new(EventPublisher::default());
-        let manager = DefaultPlayerManager::new(event_publisher.clone());
+        let torrent_stream_server = MockTorrentStreamServer::new();
+        let manager = DefaultPlayerManager::new(event_publisher.clone(), Arc::new(Box::new(torrent_stream_server)));
 
         manager.subscribe(Box::new(move |e| {
             if let PlayerManagerEvent::PlayerDurationChanged(_) = &e {
@@ -486,7 +573,8 @@ mod tests {
         player.expect_id()
             .return_const(player_id.to_string());
         let player = Box::new(player) as Box<dyn Player>;
-        let manager = DefaultPlayerManager::new(Arc::new(EventPublisher::default()));
+        let torrent_stream_server = MockTorrentStreamServer::new();
+        let manager = DefaultPlayerManager::new(Arc::new(EventPublisher::default()), Arc::new(Box::new(torrent_stream_server)));
 
         manager.add_player(player);
         let result = manager.by_id(player_id);
@@ -506,15 +594,69 @@ mod tests {
         player2.expect_id()
             .return_const(player_id.to_string());
         let player2 = Box::new(player2) as Box<dyn Player>;
-        let manager = DefaultPlayerManager::new(Arc::new(EventPublisher::default()));
+        let torrent_stream_server = MockTorrentStreamServer::new();
+        let manager = DefaultPlayerManager::new(Arc::new(EventPublisher::default()), Arc::new(Box::new(torrent_stream_server)));
 
         manager.add_player(player);
         let result = manager.by_id(player_id);
         assert!(result.is_some(), "expected the player to have been registered");
 
         manager.add_player(player2);
-        let players = manager.players.read().unwrap();
+        let players = manager.inner.players.read().unwrap();
         assert_eq!(1, players.len(), "expected the duplicate id player to not have been registered")
+    }
+
+    #[test]
+    fn test_player_stopped_event() {
+        init_logger();
+        let player_id = "SomeId123";
+        let stream_handle = 42i64;
+        let (tx, rx) = channel();
+        let mut stream = MockTorrentStream::new();
+        stream.expect_stream_handle()
+            .return_const(stream_handle);
+        let stream: Arc<dyn TorrentStream> = Arc::new(stream);
+        let request: Arc<Box<dyn PlayRequest>> = Arc::new(Box::new(PlayMediaRequest {
+            base: PlayUrlRequest {
+                url: "".to_string(),
+                title: "".to_string(),
+                thumb: None,
+                auto_resume_timestamp: None,
+                subtitles_enabled: false,
+            },
+            parent_media: None,
+            media: Box::new(MockMediaIdentifier::new()),
+            quality: "".to_string(),
+            torrent_stream: Arc::downgrade(&stream),
+        }));
+        let mut player = MockPlayer::new();
+        player.expect_id()
+            .return_const(player_id.to_string());
+        player.expect_name()
+            .return_const("MyPlayer".to_string());
+        player.expect_add()
+            .returning(move |e| {
+                tx.send(e).unwrap();
+                200i64
+            });
+        player.expect_request()
+            .times(1)
+            .returning(Box::new(move || {
+                Some(Arc::downgrade(&request))
+            }));
+        let mut torrent_stream_server = MockTorrentStreamServer::new();
+        torrent_stream_server.expect_stop_stream()
+            .times(1)
+            .withf(move |handle| handle.clone() == stream_handle)
+            .return_const(());
+        let manager = DefaultPlayerManager::new(Arc::new(EventPublisher::default()), Arc::new(Box::new(torrent_stream_server)));
+
+        let result = manager.add_player(Box::new(player));
+        assert!(result, "expected the player to have been added");
+        manager.set_active_player(player_id);
+
+        let callback = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        callback(PlayerEvent::StateChanged(PlayerState::Stopped));
     }
 
     #[test]
@@ -525,7 +667,8 @@ mod tests {
         player1.expect_id()
             .return_const(player_id.to_string());
         let player = Box::new(player1) as Box<dyn Player>;
-        let manager = DefaultPlayerManager::new(Arc::new(EventPublisher::default()));
+        let torrent_stream_server = MockTorrentStreamServer::new();
+        let manager = DefaultPlayerManager::new(Arc::new(EventPublisher::default()), Arc::new(Box::new(torrent_stream_server)));
 
         manager.add_player(player);
         assert!(manager.by_id(player_id).is_some(), "expected the player to have been registered");

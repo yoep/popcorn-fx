@@ -6,16 +6,18 @@ import lombok.Getter;
 import lombok.ToString;
 
 @Getter
-@ToString (callSuper = true)
-@Structure.FieldOrder({"playCallback"})
+@ToString(callSuper = true)
+@Structure.FieldOrder({"playerPlayCallback", "playerStopCallback"})
 public class PlayerWrapperRegistration extends PlayerWrapper {
-    public PlayCallback playCallback;
+    public PlayerPlayCallback playerPlayCallback;
+    public PlayerStopCallback playerStopCallback;
 
     public PlayerWrapperRegistration() {
     }
 
     public PlayerWrapperRegistration(Player player) {
         super(player);
-        this.playCallback = request -> player.play(request.toPlayRequest());
+        this.playerPlayCallback = request -> player.play(request.toPlayRequest());
+        this.playerStopCallback = player::stop;
     }
 }

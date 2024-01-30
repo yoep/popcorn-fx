@@ -125,12 +125,11 @@ public class ViewConfig {
 
     @Bean
     @ConditionalOnDesktopMode
-    public DesktopSerieActionsComponent desktopSerieActionsComponent(EventPublisher eventPublisher,
-                                                                     PlayerManagerService playerManagerService,
+    public DesktopSerieActionsComponent desktopSerieActionsComponent(PlayerManagerService playerManagerService,
                                                                      SubtitleService subtitleService,
                                                                      DesktopSerieQualityComponent desktopSerieQualityComponent,
                                                                      PlaylistManager playlistManager) {
-        return new DesktopSerieActionsComponent(eventPublisher, playerManagerService, subtitleService, desktopSerieQualityComponent, playlistManager);
+        return new DesktopSerieActionsComponent(playerManagerService, subtitleService, desktopSerieQualityComponent, playlistManager);
     }
 
     @Bean

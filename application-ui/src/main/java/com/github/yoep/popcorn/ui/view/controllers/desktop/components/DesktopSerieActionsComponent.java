@@ -1,7 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
-import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
@@ -32,7 +31,6 @@ import java.util.concurrent.CompletableFuture;
 @Slf4j
 @RequiredArgsConstructor
 public class DesktopSerieActionsComponent implements Initializable, SerieActionsComponent {
-    private final EventPublisher eventPublisher;
     private final PlayerManagerService playerManagerService;
     private final SubtitleService subtitleService;
     private final DesktopSerieQualityComponent desktopSerieQualityComponent;

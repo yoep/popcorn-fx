@@ -53,6 +53,11 @@ impl Display for TorrentStreamEvent {
 /// This trait defines methods for retrieving stream details, streaming torrent content,
 /// and managing the stream state.
 pub trait TorrentStream: Torrent {
+    /// Get the stream handle of this stream.
+    ///
+    /// Returns the stream handle of this stream.
+    fn stream_handle(&self) -> i64;
+
     /// Get the endpoint URL where the stream is available.
     ///
     /// Returns an owned instance of the URL.
@@ -126,6 +131,8 @@ mock! {
     }
 
     impl TorrentStream for TorrentStream {
+        fn stream_handle(&self) -> i64;
+
         fn url(&self) -> Url;
 
         fn stream(&self) -> torrents::Result<TorrentStreamingResourceWrapper>;

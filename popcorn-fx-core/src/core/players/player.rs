@@ -1,41 +1,70 @@
 use std::fmt::{Debug, Display};
-#[cfg(any(test, feature = "testing"))]
-use std::fmt::Formatter;
+use std::sync::Weak;
 
 use derive_more::Display;
 use downcast_rs::{DowncastSync, impl_downcast};
-#[cfg(any(test, feature = "testing"))]
-use mockall::automock;
 
 use crate::core::Callbacks;
-#[cfg(any(test, feature = "testing"))]
-use crate::core::CoreCallback;
 use crate::core::players::PlayRequest;
 
 /// A trait representing a player for media playback.
 ///
 /// This trait extends `PlayerIdentifier` and includes additional methods related to the player's
 /// description, graphic resource, and current state.
-#[cfg_attr(any(test, feature = "testing"), automock)]
 pub trait Player: Debug + Display + DowncastSync + Callbacks<PlayerEvent> {
     /// Get the unique identifier of the player.
+    ///
+    /// # Returns
+    ///
+    /// The unique identifier of the player as a string.
     fn id(&self) -> &str;
 
     /// Get the name of the player.
+    ///
+    /// # Returns
+    ///
+    /// The name of the player as a string.
     fn name(&self) -> &str;
 
     /// Get the description of the player.
+    ///
+    /// # Returns
+    ///
+    /// The description of the player as a string.
     fn description(&self) -> &str;
 
     /// Get the graphic resource associated with the player.
     ///
     /// This can be used to retrieve graphical assets related to the player.
+    ///
+    /// # Returns
+    ///
+    /// The graphic resource as a vector of bytes.
     fn graphic_resource(&self) -> Vec<u8>;
 
     /// Get the current state of the player.
+    ///
+    /// # Returns
+    ///
+    /// The current state of the player.
     fn state(&self) -> &PlayerState;
-    
+
+    /// Get the current playback request, if any.
+    ///
+    /// # Returns
+    ///
+    /// An optional weak reference to the current playback request.
+    fn request(&self) -> Option<Weak<Box<dyn PlayRequest>>>;
+
+    /// Start playback with the given request.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - The playback request to start.
     fn play(&self, request: Box<dyn PlayRequest>);
+
+    /// Stop playback.
+    fn stop(&self);
 }
 impl_downcast!(sync Player);
 
@@ -83,26 +112,10 @@ pub enum PlayerEvent {
     VolumeChanged(u32),
 }
 
-#[cfg(any(test, feature = "testing"))]
-impl Display for MockPlayer {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "MockPlayer")
-    }
-}
-
-#[cfg(any(test, feature = "testing"))]
-impl Callbacks<PlayerEvent> for MockPlayer {
-    fn add(&self, _callback: CoreCallback<PlayerEvent>) -> i64 {
-        1000
-    }
-
-    fn remove(&self, _callback_id: i64) {
-        // no-op
-    }
-}
-
 #[cfg(test)]
 mod tests {
+    use crate::testing::MockPlayer;
+
     use super::*;
 
     #[test]

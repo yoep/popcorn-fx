@@ -13,7 +13,7 @@ use crate::core::{block_in_place, Callbacks, CoreCallback, CoreCallbacks};
 use crate::core::events::{Event, EventPublisher, LoadingStartedEvent};
 use crate::core::loader::loading_chain::{LoadingChain, Order};
 use crate::core::loader::LoadingStrategy;
-use crate::core::media::TorrentInfo;
+use crate::core::media::{Episode, MediaIdentifier, MediaOverview, MovieDetails, TorrentInfo};
 use crate::core::playlists::PlaylistItem;
 use crate::core::torrents::{Torrent, TorrentError, TorrentStream};
 
@@ -39,10 +39,12 @@ pub enum LoadingResult {
 }
 
 #[repr(i32)]
-#[derive(Debug, Clone, Display)]
+#[derive(Debug, Clone, Display, PartialOrd, PartialEq)]
 pub enum LoadingState {
     #[display(fmt = "Loader is currently idle")]
     Idle,
+    #[display(fmt = "Loader is initializing")]
+    Initializing,
     #[display(fmt = "Loader is starting")]
     Starting,
     #[display(fmt = "Loader is retrieving subtitles")]
@@ -55,6 +57,8 @@ pub enum LoadingState {
     Downloading,
     #[display(fmt = "Loader has finished downloading the media")]
     DownloadFinished,
+    #[display(fmt = "Loader is ready to start the playback")]
+    Ready,
     #[display(fmt = "Loader is playing media")]
     Playing,
 }
@@ -221,6 +225,16 @@ impl InnerMediaLoader {
 
         self.callbacks.invoke(LoaderEvent::StateChanged(event_state))
     }
+
+    fn thumbnail(media: &Box<dyn MediaIdentifier>) -> Option<String> {
+        if let Some(e) = media.downcast_ref::<Episode>() {
+            e.thumb().cloned()
+        } else if let Some(e) = media.downcast_ref::<MovieDetails>() {
+            Some(e.images().poster().to_string())
+        } else {
+            None
+        }
+    }
 }
 
 #[async_trait]
@@ -240,11 +254,15 @@ impl MediaLoader for InnerMediaLoader {
 
     async fn load_playlist_item(&self, item: PlaylistItem) -> LoaderResult<()> {
         trace!("Starting loading procedure for {}", item);
+        self.update_state(LoadingState::Initializing);
         self.event_publisher.publish(Event::LoadingStarted(LoadingStartedEvent {
             url: item.url.clone()
                 .or(Some(String::new()))
                 .unwrap(),
             title: item.title.clone(),
+            thumbnail: item.media.as_ref()
+                .and_then(Self::thumbnail),
+            quality: item.quality.clone(),
         }));
         let strategies = self.loading_chain.strategies();
         let mut data = LoadingData::from(item);

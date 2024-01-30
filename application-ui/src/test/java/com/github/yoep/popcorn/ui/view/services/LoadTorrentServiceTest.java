@@ -1,7 +1,6 @@
 package com.github.yoep.popcorn.ui.view.services;
 
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
-import com.github.yoep.popcorn.backend.adapters.torrent.TorrentStreamService;
 import com.github.yoep.popcorn.backend.adapters.torrent.listeners.TorrentStreamListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentFileInfo;
@@ -43,8 +42,6 @@ import static org.mockito.Mockito.*;
 class LoadTorrentServiceTest {
     @Mock
     private TorrentService torrentService;
-    @Mock
-    private TorrentStreamService torrentStreamService;
     @Spy
     private EventPublisher eventPublisher = new EventPublisher(false);
     @Mock
@@ -153,7 +150,6 @@ class LoadTorrentServiceTest {
         when(torrentService.getSessionState()).thenReturn(SessionState.RUNNING);
         when(torrentService.getTorrentInfo(torrentMagnet)).thenReturn(CompletableFuture.completedFuture(torrentInfo));
         when(torrentService.create(torrentFileInfo, workingDir, true)).thenReturn(CompletableFuture.completedFuture(torrent));
-        when(torrentStreamService.startStream(isA(Torrent.class))).thenReturn(mock(TorrentStream.class));
         when(subtitleService.download(subtitleInfo, subtitleMatcher)).thenReturn(CompletableFuture.completedFuture(""));
         when(subtitleService.preferredSubtitleLanguage()).thenReturn(SubtitleLanguage.ENGLISH);
         when(subtitleService.preferredSubtitle()).thenReturn(Optional.of(subtitleInfo));
@@ -202,7 +198,6 @@ class LoadTorrentServiceTest {
         when(torrentService.getSessionState()).thenReturn(SessionState.RUNNING);
         when(torrentService.getTorrentInfo(torrentMagnet)).thenReturn(CompletableFuture.completedFuture(torrentInfo));
         when(torrentService.create(torrentFileInfo, workingDir, true)).thenReturn(CompletableFuture.completedFuture(torrent));
-        when(torrentStreamService.startStream(torrent)).thenReturn(torrentStream);
         doAnswer(invocation -> {
             listenerHolder.set(invocation.getArgument(0, TorrentStreamListener.class));
             return null;
@@ -261,7 +256,6 @@ class LoadTorrentServiceTest {
                 .build();
         when(torrentService.getSessionState()).thenReturn(SessionState.RUNNING);
         when(torrentService.create(torrentFileInfo, workingDir, true)).thenReturn(CompletableFuture.completedFuture(torrent));
-        when(torrentStreamService.startStream(torrent)).thenReturn(torrentStream);
         when(subtitleService.preferredSubtitleLanguage()).thenReturn(SubtitleLanguage.ENGLISH);
         when(subtitleService.preferredSubtitle()).thenReturn(Optional.of(subtitleInfo));
         when(subtitleService.download(isA(SubtitleInfo.class), isA(SubtitleMatcher.class))).thenReturn(CompletableFuture.completedFuture(""));

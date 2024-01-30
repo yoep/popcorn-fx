@@ -104,7 +104,7 @@ impl From<PlaylistItem> for PlayUrlRequest {
 }
 
 /// A builder for constructing a `PlayUrlRequest` with optional parameters.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct PlayUrlRequestBuilder {
     url: Option<String>,
     title: Option<String>,

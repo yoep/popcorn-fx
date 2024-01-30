@@ -1,6 +1,7 @@
 pub use controls::*;
 pub use events::*;
 pub use images::*;
+pub use loader::*;
 pub use log_bridge::*;
 pub use main::*;
 pub use mappings::*;
@@ -16,6 +17,7 @@ pub use update::*;
 mod controls;
 mod events;
 mod images;
+mod loader;
 mod log_bridge;
 mod main;
 mod mappings;

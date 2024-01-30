@@ -8,10 +8,10 @@ use warp::http::HeaderValue;
 
 /// The default known mime types supported by HTTPD.
 /// More info: https://svn.apache.org/viewvc/httpd/httpd/trunk/docs/conf/mime.types
-const MIME_TYPES: &str = include_str!("../../../resources/mime.types");
+const MIME_TYPES: &str = include_str!("../../../../resources/mime.types");
 
 /// The media type result.
-pub type MediaTypeResult<T> = std::result::Result<T, MediaTypeError>;
+pub type MediaTypeResult<T> = Result<T, MediaTypeError>;
 
 /// The media type specific errors that can occur.
 #[derive(Debug, Clone, Error)]
@@ -38,7 +38,7 @@ impl MediaType {
     ///
     /// Example:
     /// ```rust
-    /// use popcorn_fx_torrent_stream::popcorn::fx::torrent::stream::MediaType;
+    /// use popcorn_fx_core::core::torrents::stream::MediaType;
     ///
     /// let value = "application/ecmascript";
     /// let media_type = MediaType::parse(value).unwrap();
@@ -142,7 +142,7 @@ impl Default for MediaTypeFactory {
 
 #[cfg(test)]
 mod test {
-    use popcorn_fx_core::testing::init_logger;
+    use crate::testing::init_logger;
 
     use super::*;
 

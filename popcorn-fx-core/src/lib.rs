@@ -136,17 +136,22 @@ pub fn from_c_vec<T: Clone>(ptr: *mut T, len: i32) -> Vec<T> {
 #[cfg(feature = "testing")]
 pub mod testing {
     use std::{env, fs};
+    use std::fmt::{Display, Formatter};
     use std::fs::OpenOptions;
     use std::io::Read;
     use std::path::PathBuf;
-    use std::sync::Once;
+    use std::sync::{Once, Weak};
 
     use log::{debug, LevelFilter, trace};
     use log4rs::append::console::ConsoleAppender;
     use log4rs::Config;
     use log4rs::config::{Appender, Logger, Root};
     use log4rs::encode::pattern::PatternEncoder;
+    use mockall::mock;
     use tempfile::TempDir;
+
+    use crate::core::{Callbacks, CoreCallback};
+    use crate::core::players::{Player, PlayerEvent, PlayerState, PlayRequest};
 
     static INIT: Once = Once::new();
 
@@ -266,6 +271,33 @@ pub mod testing {
             }
         } else {
             panic!("Temp filepath {:?} does not exist", path)
+        }
+    }
+
+    mock! {
+        #[derive(Debug)]
+        pub Player {}
+
+        impl Player for Player {
+            fn id(&self) -> &str;
+            fn name(&self) -> &str;
+            fn description(&self) -> &str;
+            fn graphic_resource(&self) -> Vec<u8>;
+            fn state(&self) -> &PlayerState;
+            fn request(&self) -> Option<Weak<Box<dyn PlayRequest>>>;
+            fn play(&self, request: Box<dyn PlayRequest>);
+            fn stop(&self);
+        }
+
+        impl Callbacks<PlayerEvent> for Player {
+            fn add(&self, callback: CoreCallback<PlayerEvent>) -> i64;
+            fn remove(&self, callback_id: i64);
+        }
+    }
+
+    impl Display for MockPlayer {
+        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+            write!(f, "MockPlayer")
         }
     }
 

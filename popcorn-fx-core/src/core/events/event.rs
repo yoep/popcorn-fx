@@ -55,8 +55,10 @@ pub struct PlayerChangedEvent {
 }
 
 #[derive(Debug, Display, Clone, PartialEq)]
-#[display(fmt = "url: {}, title: {}", url, title)]
+#[display(fmt = "url: {}, title: {}, thumbnail: {:?}", url, title, thumbnail)]
 pub struct LoadingStartedEvent {
     pub url: String,
     pub title: String,
+    pub thumbnail: Option<String>,
+    pub quality: Option<String>,
 }

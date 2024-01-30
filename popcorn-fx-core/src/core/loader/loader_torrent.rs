@@ -65,7 +65,7 @@ impl LoadingStrategy for TorrentLoadingStrategy {
 
             match self.torrent_manager.create(torrent_file_info, torrent_directory.as_str(), true).await {
                 Ok(torrent) => {
-                    debug!("Enhancing playlist item with torrent {:?}", torrent);
+                    debug!("Enhancing playlist item with torrent");
                     data.torrent = Some(torrent);
                 }
                 Err(e) => return loader::LoadingResult::Err(LoadingError::TorrentError(e)),

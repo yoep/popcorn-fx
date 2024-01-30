@@ -39,11 +39,11 @@ use popcorn_fx_core::core::subtitles::model::SubtitleType;
 use popcorn_fx_core::core::subtitles::parsers::{SrtParser, VttParser};
 use popcorn_fx_core::core::torrents::{TorrentManager, TorrentStreamServer};
 use popcorn_fx_core::core::torrents::collection::TorrentCollection;
+use popcorn_fx_core::core::torrents::stream::DefaultTorrentStreamServer;
 use popcorn_fx_core::core::updater::Updater;
 use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
 use popcorn_fx_platform::platform::DefaultPlatform;
 use popcorn_fx_torrent::torrent::DefaultTorrentManager;
-use popcorn_fx_torrent_stream::torrent::stream::DefaultTorrentStreamServer;
 
 static INIT: Once = Once::new();
 
@@ -230,7 +230,7 @@ impl PopcornFX {
             .event_publisher(event_publisher.clone())
             .build());
         let image_loader = Arc::new(Box::new(DefaultImageLoader::new(cache_manager.clone())) as Box<dyn ImageLoader>);
-        let player_manager = Arc::new(Box::new(DefaultPlayerManager::new(event_publisher.clone())) as Box<dyn PlayerManager>);
+        let player_manager = Arc::new(Box::new(DefaultPlayerManager::new(event_publisher.clone(), torrent_stream_server.clone())) as Box<dyn PlayerManager>);
         let loading_chain: Vec<Box<dyn LoadingStrategy>> = vec![
             Box::new(SubtitlesLoadingStrategy::new(subtitle_provider.clone(), subtitle_manager.clone())),
             Box::new(MediaTorrentUrlLoadingStrategy::new()),

@@ -274,22 +274,50 @@ impl From<PlayerStartedEventC> for PlayerStartedEvent {
 pub struct LoadingStartedEventC {
     pub url: *const c_char,
     pub title: *const c_char,
+    pub thumbnail: *const c_char,
+    pub quality: *const c_char,
 }
 
 impl From<LoadingStartedEvent> for LoadingStartedEventC {
     fn from(value: LoadingStartedEvent) -> Self {
+        let thumbnail = if let Some(e) = value.thumbnail {
+            into_c_string(e)
+        } else {
+            ptr::null()
+        };
+        let quality = if let Some(e) = value.quality {
+            into_c_string(e)
+        } else {
+            ptr::null()
+        };
+
         Self {
             url: into_c_string(value.url),
             title: into_c_string(value.title),
+            thumbnail,
+            quality,
         }
     }
 }
 
 impl From<LoadingStartedEventC> for LoadingStartedEvent {
     fn from(value: LoadingStartedEventC) -> Self {
+        let thumbnail = if !value.thumbnail.is_null() {
+            Some(from_c_string(value.thumbnail))
+        } else {
+            None
+        };
+        let quality = if !value.quality.is_null() {
+            Some(from_c_string(value.quality))
+        } else {
+            None
+        };
+
         Self {
             url: from_c_string(value.url),
             title: from_c_string(value.title),
+            thumbnail,
+            quality,
         }
     }
 }
@@ -433,5 +461,24 @@ mod test {
         assert_eq!(title.to_string(), from_c_string(result.title));
         assert_eq!(thumb.to_string(), from_c_string(result.thumbnail));
         assert_eq!(true, result.subtitles_enabled, "expected the subtitles to have been enabled");
+    }
+
+    #[test]
+    fn test_loading_started_event_from() {
+        let url = "MyUrl";
+        let title = "MyTitle";
+        let thumb = "MyThumb";
+        let event = LoadingStartedEvent {
+            url: url.to_string(),
+            title: title.to_string(),
+            thumbnail: Some(thumb.to_string()),
+            quality: None,
+        };
+
+        let result = LoadingStartedEventC::from(event);
+
+        assert_eq!(url.to_string(), from_c_string(result.url));
+        assert_eq!(title.to_string(), from_c_string(result.title));
+        assert_eq!(thumbnail.to_string(), from_c_string(result.thumbnail));
     }
 }

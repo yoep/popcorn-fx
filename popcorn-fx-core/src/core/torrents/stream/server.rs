@@ -13,10 +13,10 @@ use warp::http::{HeaderValue, Response, StatusCode};
 use warp::http::header::{ACCEPT_RANGES, CONNECTION, CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE, RANGE, USER_AGENT};
 use warp::hyper::HeaderMap;
 
-use popcorn_fx_core::core::{block_in_place, torrents};
-use popcorn_fx_core::core::torrents::{Torrent, TorrentError, TorrentStream, TorrentStreamServer, TorrentStreamServerState};
-
-use crate::torrent::stream::{DefaultTorrentStream, MediaType, MediaTypeFactory, Range};
+use crate::core::{block_in_place, torrents};
+use crate::core::torrents::{Torrent, TorrentError, TorrentStream, TorrentStreamServer, TorrentStreamServerState};
+use crate::core::torrents::stream::{MediaType, MediaTypeFactory, Range};
+use crate::core::torrents::stream::torrent_stream::DefaultTorrentStream;
 
 const SERVER_PROTOCOL: &str = "http";
 const SERVER_VIDEO_PATH: &str = "video";
@@ -51,8 +51,8 @@ impl TorrentStreamServer for DefaultTorrentStreamServer {
         self.inner.start_stream(torrent)
     }
 
-    fn stop_stream(&self, stream: Weak<dyn TorrentStream>) {
-        self.inner.stop_stream(stream)
+    fn stop_stream(&self, handle: i64) {
+        self.inner.stop_stream(handle)
     }
 }
 
@@ -357,19 +357,16 @@ impl TorrentStreamServer for TorrentStreamServerInner {
         }
     }
 
-    fn stop_stream(&self, stream: Weak<dyn TorrentStream>) {
-        if let Some(stream) = stream.upgrade() {
-            trace!("Stopping torrent stream {}", stream);
-            let streams = self.streams.clone();
-            let mut mutex = streams.blocking_lock();
-            let filepath = stream.file();
-            let filename = filepath.file_name()
-                .expect("expected a valid filename")
-                .to_str()
-                .unwrap();
+    fn stop_stream(&self, handle: i64) {
+        trace!("Stopping torrent stream handle {}", handle);
+        let streams = self.streams.clone();
+        let mut mutex = block_in_place(streams.lock());
 
+        if let Some(filename) = mutex.iter()
+            .find(|(_, e)| e.stream_handle() == handle)
+            .map(|(filename, _)| filename.clone()) {
             debug!("Trying to stop stream of {}", filename);
-            match mutex.remove(filename) {
+            match mutex.remove(filename.as_str()) {
                 None => warn!("Unable to stop stream of {}, stream not found", filename),
                 Some(stream) => {
                     stream.stop_stream();
@@ -406,9 +403,9 @@ impl Default for TorrentStreamServerInner {
 mod test {
     use reqwest::Client;
 
-    use popcorn_fx_core::assert_timeout_eq;
-    use popcorn_fx_core::core::torrents::{MockTorrent, TorrentCallback, TorrentEvent, TorrentState};
-    use popcorn_fx_core::testing::{copy_test_file, init_logger, read_test_file_to_string};
+    use crate::assert_timeout_eq;
+    use crate::core::torrents::{MockTorrent, TorrentCallback, TorrentEvent, TorrentState};
+    use crate::testing::{copy_test_file, init_logger, read_test_file_to_string};
 
     use super::*;
 
@@ -576,7 +573,8 @@ mod test {
         let stream = server.start_stream(Arc::downgrade(&torrent))
             .expect("expected the torrent stream to have started");
         let stream_url = stream.upgrade().unwrap().url();
-        server.stop_stream(stream.clone());
+
+        server.stop_stream(stream.upgrade().unwrap().stream_handle());
         let result = runtime.block_on(async {
             let response = client.get(stream_url)
                 .header(RANGE, "bytes=0-50000")

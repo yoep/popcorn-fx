@@ -2078,7 +2078,6 @@ dependencies = [
  "popcorn-fx-opensubtitles",
  "popcorn-fx-platform",
  "popcorn-fx-torrent",
- "popcorn-fx-torrent-stream",
  "tempfile",
  "thiserror",
  "tokio",
@@ -2205,28 +2204,6 @@ dependencies = [
  "tempfile",
  "tokio",
  "utime",
-]
-
-[[package]]
-name = "popcorn-fx-torrent-stream"
-version = "0.7.5"
-dependencies = [
- "bytes",
- "derive_more",
- "futures",
- "hyper",
- "itertools 0.10.5",
- "local-ip-address",
- "log",
- "popcorn-fx-core",
- "reqwest",
- "tempfile",
- "thiserror",
- "tokio",
- "tokio-stream",
- "tokio-util",
- "url",
- "warp",
 ]
 
 [[package]]

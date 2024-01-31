@@ -27,6 +27,7 @@ import com.github.yoep.popcorn.backend.subtitles.SubtitleEventCallback;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfoSet;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
+import com.github.yoep.popcorn.backend.torrent.CancelTorrentCallback;
 import com.github.yoep.popcorn.backend.torrent.DownloadStatusC;
 import com.github.yoep.popcorn.backend.torrent.ResolveTorrentCallback;
 import com.github.yoep.popcorn.backend.torrent.ResolveTorrentInfoCallback;
@@ -136,6 +137,8 @@ public interface FxLib extends Library {
 
     void torrent_resolve_callback(PopcornFx instance, ResolveTorrentCallback callback);
 
+    void torrent_cancel_callback(PopcornFx instance, CancelTorrentCallback callback);
+
     void torrent_state_changed(PopcornFx instance, String handle, TorrentState state);
 
     void torrent_piece_finished(PopcornFx instance, String handle, int piece);
@@ -218,7 +221,7 @@ public interface FxLib extends Library {
 
     ByteArray load_image(PopcornFx instance, String url);
 
-    void play_playlist(PopcornFx instance, Playlist set);
+    Long play_playlist(PopcornFx instance, Playlist set);
 
     PlayerWrapper active_player(PopcornFx instance);
 
@@ -237,6 +240,8 @@ public interface FxLib extends Library {
     void remove_player(PopcornFx instance, String playerId);
 
     void register_loader_callback(PopcornFx instance, LoaderEventCallback callback);
+
+    void loader_cancel(PopcornFx instance, Long handle);
 
     void log(String target, String message, LogLevel level);
 

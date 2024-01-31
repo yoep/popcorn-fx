@@ -6,7 +6,7 @@ use popcorn_fx_core::{from_c_string, into_c_string};
 use popcorn_fx_core::core::torrents::{DownloadStatus, TorrentInfo, TorrentState, TorrentWrapper};
 use popcorn_fx_torrent::torrent::DefaultTorrentManager;
 
-use crate::ffi::{DownloadStatusC, ResolveTorrentCallback, ResolveTorrentInfoCallback, TorrentFileInfoC};
+use crate::ffi::{CancelTorrentCallback, DownloadStatusC, ResolveTorrentCallback, ResolveTorrentInfoCallback, TorrentFileInfoC};
 use crate::PopcornFX;
 
 /// Callback function for handling changes in the state of a torrent.
@@ -141,6 +141,32 @@ pub extern "C" fn torrent_resolve_callback(popcorn_fx: &mut PopcornFX, callback:
             let torrent = callback(torrent_file_info, torrent_directory, auto_start);
             trace!("Received {:?} as resolve torrent callback result", torrent);
             TorrentWrapper::from(torrent)
+        }));
+    }
+}
+
+/// Register a new C-compatible cancel torrent callback with a Rust PopcornFX instance.
+///
+/// This function registers a callback that handles the cancellation of torrent-related operations.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it interacts with C-compatible code and dereferences raw pointers.
+/// Users of this function should ensure that they provide a valid `PopcornFX` instance and a valid `CancelTorrentCallback`.
+///
+/// When the registered callback function is invoked by the manager, it converts the arguments and the result between Rust and C types.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to the PopcornFX instance.
+/// * `callback` - A `CancelTorrentCallback` function that will be registered to handle cancel torrent events.
+#[no_mangle]
+pub extern "C" fn torrent_cancel_callback(popcorn_fx: &mut PopcornFX, callback: CancelTorrentCallback) {
+    trace!("Registering new C cancel torrent callback");
+    if let Some(manager) = popcorn_fx.torrent_manager().downcast_ref::<DefaultTorrentManager>() {
+        manager.register_cancel_callback(Box::new(move |handle| {
+            trace!("Executing cancel torrent callback for {:?}", handle);
+            callback(into_c_string(handle));
         }));
     }
 }

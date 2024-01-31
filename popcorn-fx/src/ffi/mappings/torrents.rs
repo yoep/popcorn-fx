@@ -34,6 +34,8 @@ pub type ResolveTorrentInfoCallback = extern "C" fn(url: *const c_char) -> Torre
 /// Type definition for a callback that resolves torrent information and starts a download.
 pub type ResolveTorrentCallback = extern "C" fn(file_info: TorrentFileInfoC, torrent_directory: *const c_char, auto_start_download: bool) -> TorrentC;
 
+pub type CancelTorrentCallback = extern "C" fn(*const c_char);
+
 /// The C compatible abi struct for a [Torrent].
 /// This currently uses callbacks as it's a wrapper around a torrent implementation provided through C.
 #[repr(C)]

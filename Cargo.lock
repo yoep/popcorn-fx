@@ -2149,6 +2149,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-stream",
+ "tokio-util",
  "url",
  "warp",
 ]

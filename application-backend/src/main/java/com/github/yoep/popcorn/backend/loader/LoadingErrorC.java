@@ -34,11 +34,11 @@ public class LoadingErrorC extends Structure implements Closeable {
 
     private void updateUnionType() {
         switch (tag) {
-            case ParseError -> union.setType(ParseError_Body.class);
-            case TorrentError -> {
+            case PARSE_ERROR -> union.setType(ParseError_Body.class);
+            case TORRENT_ERROR -> {
             }
-            case MediaError -> union.setType(MediaError_Body.class);
-            case TimeoutError -> union.setType(TimeoutError_Body.class);
+            case MEDIA_ERROR -> union.setType(MediaError_Body.class);
+            case TIMEOUT_ERROR -> union.setType(TimeoutError_Body.class);
         }
     }
 
@@ -117,10 +117,11 @@ public class LoadingErrorC extends Structure implements Closeable {
     }
 
     public enum Tag implements NativeMapped {
-        ParseError,
-        TorrentError,
-        MediaError,
-        TimeoutError;
+        PARSE_ERROR,
+        TORRENT_ERROR,
+        MEDIA_ERROR,
+        TIMEOUT_ERROR,
+        CANCELLED;
 
         @Override
         public Object fromNative(Object nativeValue, FromNativeContext context) {

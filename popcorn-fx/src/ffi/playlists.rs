@@ -1,3 +1,5 @@
+use std::ptr;
+
 use log::trace;
 
 use popcorn_fx_core::core::playlists::{Playlist, PlaylistItem};
@@ -15,18 +17,22 @@ use crate::PopcornFX;
 ///
 /// * `popcorn_fx` - A mutable reference to the PopcornFX instance.
 /// * `playlist` - A C-compatible array of `PlaylistItemC` items representing the playlist to play.
+///
+/// # Returns
+///
+/// If the playlist playback is successfully started, a pointer to the internal playlist handle is returned.
+/// Otherwise, if an error occurs or the playlist is empty, a null pointer is returned.
 #[no_mangle]
-pub extern "C" fn play_playlist(popcorn_fx: &mut PopcornFX, playlist: CArray<PlaylistItemC>) {
+pub extern "C" fn play_playlist(popcorn_fx: &mut PopcornFX, playlist: CArray<PlaylistItemC>) -> *const i64 {
     trace!("Converting playlist from C for {:?}", playlist);
     let playlist: Playlist = Vec::<PlaylistItemC>::from(playlist).into_iter()
         .map(|e| PlaylistItem::from(e))
         .collect();
 
-    let playlist_manager = popcorn_fx.playlist_manager().clone();
-    popcorn_fx.runtime().spawn(async move {
-        trace!("Starting playlist from C for {:?}", playlist);
-        playlist_manager.play(playlist);
-    });
+    trace!("Starting playlist from C for {:?}", playlist);
+    popcorn_fx.playlist_manager().play(playlist)
+        .map(|e| e.value() as *const i64)
+        .unwrap_or(ptr::null())
 }
 
 /// Dispose of a playlist item.

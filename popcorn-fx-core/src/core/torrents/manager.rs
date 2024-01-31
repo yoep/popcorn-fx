@@ -75,10 +75,36 @@ pub trait TorrentManager: Debug + DowncastSync {
     /// The torrent meta information on success, or a [torrent::TorrentError] if there was an error.
     async fn info<'a>(&'a self, url: &'a str) -> torrents::Result<TorrentInfo>;
 
+    /// Create a new torrent session based on the provided file information.
+    ///
+    /// # Arguments
+    ///
+    /// * `file_info` - The file information for the torrent.
+    /// * `torrent_directory` - The directory where the torrent files will be stored.
+    /// * `auto_download` - A flag indicating whether the torrent should start downloading automatically.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing a weak reference to the created torrent session on success,
+    /// or a [torrent::TorrentError] on failure.
     async fn create(&self, file_info: &TorrentFileInfo, torrent_directory: &str, auto_download: bool) -> torrents::Result<Weak<Box<dyn Torrent>>>;
 
+    /// Retrieve a torrent session by its unique handle.
+    ///
+    /// # Arguments
+    ///
+    /// * `handle` - The unique handle of the torrent session to retrieve.
+    ///
+    /// # Returns
+    ///
+    /// An `Option` containing a weak reference to the torrent session if found, or `None` if not found.
     fn by_handle(&self, handle: &str) -> Option<Weak<Box<dyn Torrent>>>;
-    
+
+    /// Remove a torrent session by its unique handle.
+    ///
+    /// # Arguments
+    ///
+    /// * `handle` - The unique handle of the torrent session to remove.
     fn remove(&self, handle: &str);
 
     /// Cleanup the torrents directory.

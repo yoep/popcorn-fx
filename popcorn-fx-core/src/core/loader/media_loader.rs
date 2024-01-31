@@ -3,34 +3,54 @@ use std::sync::{Arc, Weak};
 
 use async_trait::async_trait;
 use derive_more::Display;
-use log::{debug, error, trace, warn};
+use log::{debug, error, info, trace};
 #[cfg(any(test, feature = "testing"))]
 use mockall::automock;
 use thiserror::Error;
+use tokio::runtime::Runtime;
 use tokio::sync::Mutex;
 
-use crate::core::{block_in_place, Callbacks, CoreCallback, CoreCallbacks};
-use crate::core::events::{Event, EventPublisher};
+use crate::core::{block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks, Handle};
+use crate::core::loader::{LoadingEvent, LoadingStrategy};
 use crate::core::loader::loading_chain::{LoadingChain, Order};
-use crate::core::loader::LoadingStrategy;
+use crate::core::loader::task::LoadingTask;
 use crate::core::media::{Episode, Images, MediaIdentifier, MediaOverview, MovieDetails, ShowDetails, TorrentInfo};
 use crate::core::playlists::PlaylistItem;
 use crate::core::torrents::{DownloadStatus, Torrent, TorrentError, TorrentStream};
 
+/// Represents the result of a loading operation.
+///
+/// It is a specialized `Result` type where the success variant contains a value of type `T`, and the error variant
+/// contains a `LoadingError` indicating the reason for the loading failure.
 pub type LoaderResult<T> = Result<T, LoadingError>;
 
+/// A type alias for a callback function that handles loader events.
+///
+/// `LoaderCallback` functions can be registered with the media loader to receive notifications about loader events,
+/// such as loading state changes, progress updates, and errors.
 pub type LoaderCallback = CoreCallback<LoaderEvent>;
 
-#[derive(Debug, Display, Clone)]
+/// A type alias for a callback function that handles loading events.
+///
+/// `LoadingCallback` functions can be registered with the loading task to receive notifications about loading events,
+/// such as loading state changes, progress updates, and errors.
+pub type LoadingCallback = CoreCallback<LoadingEvent>;
+
+/// An enum representing events related to media loading.
+#[derive(Debug, Display, Clone, PartialEq)]
 pub enum LoaderEvent {
-    #[display(fmt = "Loading started for {}", _0)]
-    LoadingStarted(LoadingStartedEvent),
-    #[display(fmt = "Loading state changed to {}", _0)]
-    StateChanged(LoadingState),
-    #[display(fmt = "Loading progress changed to {}", _0)]
-    ProgressChanged(LoadingProgress),
-    #[display(fmt = "Loading encountered an error, {}", _0)]
-    LoaderError(LoadingError),
+    /// Indicates that loading has started for a media item with the associated event details.
+    #[display(fmt = "Loading started for {}", _1)]
+    LoadingStarted(LoadingHandle, LoadingStartedEvent),
+    /// Indicates a change in the loading state with the associated event details.
+    #[display(fmt = "Loading state changed to {}", _1)]
+    StateChanged(LoadingHandle, LoadingState),
+    /// Indicates a change in loading progress with the associated event details.
+    #[display(fmt = "Loading progress changed to {}", _1)]
+    ProgressChanged(LoadingHandle, LoadingProgress),
+    /// Indicates that an error has occurred during loading with the associated error details.
+    #[display(fmt = "Loading {} encountered an error, {}", _0, _1)]
+    LoadingError(LoadingHandle, LoadingError),
 }
 
 /// Represents the result of a loading strategy's processing.
@@ -44,11 +64,12 @@ pub enum LoadingResult {
     Err(LoadingError),
 }
 
+/// An enum representing the result of a cancellation operation on loading data.
+pub type CancellationResult = Result<LoadingData, LoadingError>;
+
 #[repr(i32)]
 #[derive(Debug, Clone, Display, PartialOrd, PartialEq)]
 pub enum LoadingState {
-    #[display(fmt = "Loader is currently idle")]
-    Idle,
     #[display(fmt = "Loader is initializing")]
     Initializing,
     #[display(fmt = "Loader is starting")]
@@ -123,15 +144,20 @@ pub enum LoadingError {
     MediaError(String),
     #[error("Loading timed-out, {0}")]
     TimeoutError(String),
+    #[error("Loading task has been cancelled")]
+    Cancelled,
 }
 
-#[cfg_attr(any(test, feature = "testing"), automock)]
-#[async_trait]
-/// A trait for managing media loading.
-pub trait MediaLoader: Debug + Send + Sync {
-    /// Get the current loading state.
-    fn state(&self) -> LoadingState;
+/// A handle representing a loading process for media items in a playlist.
+///
+/// This handle is used to identify and manage individual loading processes.
+pub type LoadingHandle = Handle;
 
+#[cfg_attr(any(test, feature = "testing"), automock)]
+/// A trait for managing media loading in a playlist.
+///
+/// Media loaders are responsible for coordinating the loading of media items in a playlist, utilizing loading strategies to process and prepare these items before playback.
+pub trait MediaLoader: Debug + Send + Sync {
     /// Add a new loading strategy to the loading chain at the specified order.
     ///
     /// # Arguments
@@ -140,23 +166,57 @@ pub trait MediaLoader: Debug + Send + Sync {
     /// * `order` - The order at which the strategy should be added.
     fn add(&self, strategy: Box<dyn LoadingStrategy>, order: Order);
 
-    /// Subscribe to loader events.
+    /// Subscribe to loader events and receive notifications when loading events occur.
     ///
     /// # Arguments
     ///
     /// * `callback` - A callback function to receive loader events.
     ///
-    /// Returns an ID representing the subscription.
-    fn subscribe(&self, callback: LoaderCallback) -> i64;
+    /// Returns a `CallbackHandle` representing the subscription to loader events.
+    fn subscribe(&self, callback: LoaderCallback) -> CallbackHandle;
 
-    /// Load a playlist item.
+    /// Load a media item in the playlist using the media loader.
     ///
     /// # Arguments
     ///
     /// * `item` - The playlist item to be loaded.
     ///
-    /// Returns a result indicating the success or failure of loading.
-    async fn load_playlist_item(&self, item: PlaylistItem) -> LoaderResult<()>;
+    /// Returns a `LoadingHandle` representing the loading process associated with the loaded item.
+    fn load_playlist_item(&self, item: PlaylistItem) -> LoadingHandle;
+
+    /// Get the current loading state for a specific loading process represented by the provided `LoadingHandle`.
+    ///
+    /// # Arguments
+    ///
+    /// * `handle` - The `LoadingHandle` associated with the loading process.
+    ///
+    /// Returns an `Option` containing the loading state if the handle is valid; otherwise, `None`.
+    fn state(&self, handle: LoadingHandle) -> Option<LoadingState>;
+
+    /// Subscribe to loading events for a specific loading process represented by the provided `LoadingHandle`.
+    ///
+    /// # Arguments
+    ///
+    /// * `handle` - The `LoadingHandle` associated with the loading process.
+    /// * `callback` - A callback function to receive loading events for the specified process.
+    ///
+    /// Returns an `Option` containing a `CallbackHandle` representing the subscription if the handle is valid; otherwise, `None`.
+    fn subscribe_loading(&self, handle: LoadingHandle, callback: LoadingCallback) -> Option<CallbackHandle>;
+
+    /// Unsubscribe from loading events for a specific loading process represented by the provided `LoadingHandle`.
+    ///
+    /// # Arguments
+    ///
+    /// * `handle` - The `LoadingHandle` associated with the loading process.
+    /// * `callback_handle` - The `CallbackHandle` representing the subscription to be canceled.
+    fn unsubscribe_loading(&self, handle: LoadingHandle, callback_handle: CallbackHandle);
+
+    /// Cancel the loading process associated with the provided `LoadingHandle`.
+    ///
+    /// # Arguments
+    ///
+    /// * `handle` - The `LoadingHandle` representing the loading process to be canceled.
+    fn cancel(&self, handle: LoadingHandle);
 }
 
 /// A structure representing loading data for a media item.
@@ -165,7 +225,7 @@ pub struct LoadingData {
     pub item: PlaylistItem,
     pub media_torrent_info: Option<TorrentInfo>,
     pub torrent: Option<Weak<Box<dyn Torrent>>>,
-    pub torrent_stream: Option<Weak<dyn TorrentStream>>,
+    pub torrent_stream: Option<Weak<Box<dyn TorrentStream>>>,
 }
 
 impl PartialEq for LoadingData {
@@ -197,107 +257,71 @@ pub struct DefaultMediaLoader {
 }
 
 impl DefaultMediaLoader {
-    pub fn new(loading_chain: Vec<Box<dyn LoadingStrategy>>, event_publisher: Arc<EventPublisher>) -> Self {
-        let instance = Self {
-            inner: Arc::new(InnerMediaLoader::new(loading_chain, event_publisher)),
-        };
-        instance.register_state_updater();
-        instance.register_progress_updater();
-
-        instance
-    }
-
-    fn register_state_updater(&self) {
-        for strategy in self.inner.loading_chain.strategies().iter() {
-            if let Some(strategy) = strategy.upgrade() {
-                let inner_ref = Arc::downgrade(&self.inner);
-                Self::register_strategy_state_updater(&strategy, inner_ref)
-            }
+    pub fn new(loading_chain: Vec<Box<dyn LoadingStrategy>>) -> Self {
+        Self {
+            inner: Arc::new(InnerMediaLoader::new(loading_chain)),
         }
-    }
-
-    fn register_progress_updater(&self) {
-        for strategy in self.inner.loading_chain.strategies().iter() {
-            if let Some(strategy) = strategy.upgrade() {
-                let inner_ref = Arc::downgrade(&self.inner);
-                Self::register_strategy_progress_updater(&strategy, inner_ref)
-            }
-        }
-    }
-
-    fn register_strategy_state_updater(strategy: &Arc<Box<dyn LoadingStrategy>>, loader: Weak<InnerMediaLoader>) {
-        strategy.state_updater(Box::new(move |state| {
-            if let Some(loader) = loader.upgrade() {
-                loader.update_state(state);
-            } else {
-                warn!("Unable to invoke state updater, media loader is disposed");
-            }
-        }))
-    }
-
-    fn register_strategy_progress_updater(strategy: &Arc<Box<dyn LoadingStrategy>>, loader: Weak<InnerMediaLoader>) {
-        strategy.progress_updater(Box::new(move |progress| {
-            if let Some(loader) = loader.upgrade() {
-                loader.update_progress(progress);
-            } else {
-                warn!("Unable to invoke progress updater, media loader is disposed");
-            }
-        }))
     }
 }
 
 #[async_trait]
 impl MediaLoader for DefaultMediaLoader {
-    fn state(&self) -> LoadingState {
-        self.inner.state()
-    }
-
     fn add(&self, strategy: Box<dyn LoadingStrategy>, order: Order) {
         self.inner.add(strategy, order);
-        self.register_state_updater();
-        self.register_progress_updater();
     }
 
-    fn subscribe(&self, callback: LoaderCallback) -> i64 {
+    fn subscribe(&self, callback: LoaderCallback) -> CallbackHandle {
         self.inner.subscribe(callback)
     }
 
-    async fn load_playlist_item(&self, item: PlaylistItem) -> LoaderResult<()> {
-        self.inner.load_playlist_item(item).await
+    fn load_playlist_item(&self, item: PlaylistItem) -> LoadingHandle {
+        self.inner.load_playlist_item(item)
+    }
+
+    fn state(&self, handle: LoadingHandle) -> Option<LoadingState> {
+        self.inner.state(handle)
+    }
+
+    fn subscribe_loading(&self, handle: LoadingHandle, callback: LoadingCallback) -> Option<CallbackHandle> {
+        self.inner.subscribe_loading(handle, callback)
+    }
+
+    fn unsubscribe_loading(&self, handle: LoadingHandle, callback_handle: CallbackHandle) {
+        self.inner.unsubscribe_loading(handle, callback_handle)
+    }
+
+    fn cancel(&self, handle: LoadingHandle) {
+        self.inner.cancel(handle)
     }
 }
 
 #[derive(Debug)]
 struct InnerMediaLoader {
-    state: Arc<Mutex<LoadingState>>,
-    loading_chain: LoadingChain,
+    loading_chain: Arc<LoadingChain>,
+    tasks: Arc<Mutex<Vec<Arc<LoadingTask>>>>,
     callbacks: CoreCallbacks<LoaderEvent>,
-    event_publisher: Arc<EventPublisher>,
+    runtime: Runtime,
 }
 
 impl InnerMediaLoader {
-    fn new(loading_chain: Vec<Box<dyn LoadingStrategy>>, event_publisher: Arc<EventPublisher>) -> Self {
+    fn new(loading_chain: Vec<Box<dyn LoadingStrategy>>) -> Self {
         Self {
-            state: Arc::new(Mutex::new(LoadingState::Idle)),
-            loading_chain: LoadingChain::from(loading_chain),
+            loading_chain: Arc::new(LoadingChain::from(loading_chain)),
+            tasks: Arc::new(Mutex::new(Vec::default())),
             callbacks: Default::default(),
-            event_publisher,
+            runtime: Runtime::new().unwrap(),
         }
     }
 
-    fn update_state(&self, new_state: LoadingState) {
-        let event_state = new_state.clone();
+    fn remove_task(handle: LoadingHandle, tasks: Arc<Mutex<Vec<Arc<LoadingTask>>>>) {
+        let mut tasks = block_in_place(tasks.lock());
+        let position = tasks.iter()
+            .position(|e| e.handle() == handle);
 
-        {
-            let mut state = block_in_place(self.state.lock());
-            *state = new_state;
+        if let Some(position) = position {
+            let task = tasks.remove(position);
+            debug!("Loading task {} has been removed", task.handle());
         }
-
-        self.callbacks.invoke(LoaderEvent::StateChanged(event_state))
-    }
-
-    fn update_progress(&self, new_progress: LoadingProgress) {
-        self.callbacks.invoke(LoaderEvent::ProgressChanged(new_progress))
     }
 
     fn thumbnail(media: &Box<dyn MediaIdentifier>) -> Option<String> {
@@ -333,61 +357,97 @@ impl InnerMediaLoader {
 
 #[async_trait]
 impl MediaLoader for InnerMediaLoader {
-    fn state(&self) -> LoadingState {
-        let state = block_in_place(self.state.lock());
-        state.clone()
-    }
-
     fn add(&self, strategy: Box<dyn LoadingStrategy>, order: Order) {
         self.loading_chain.add(strategy, order)
     }
 
-    fn subscribe(&self, callback: LoaderCallback) -> i64 {
+    fn subscribe(&self, callback: LoaderCallback) -> CallbackHandle {
         self.callbacks.add(callback)
     }
 
-    async fn load_playlist_item(&self, item: PlaylistItem) -> LoaderResult<()> {
+    fn load_playlist_item(&self, item: PlaylistItem) -> LoadingHandle {
         trace!("Starting loading procedure for {}", item);
-        self.update_state(LoadingState::Initializing);
-        self.callbacks.invoke(LoaderEvent::LoadingStarted(LoadingStartedEvent {
-            url: item.url.clone()
+        let data = LoadingData::from(item);
+        let task = Arc::new(LoadingTask::new(self.loading_chain.clone()));
+        let loading_handle = task.handle();
+        let started_event = LoadingStartedEvent {
+            url: data.item.url.clone()
                 .or(Some(String::new()))
                 .unwrap(),
-            title: item.title.clone(),
-            thumbnail: item.media.as_ref()
+            title: data.item.title.clone(),
+            thumbnail: data.item.media.as_ref()
                 .and_then(Self::thumbnail),
-            background: item.media.as_ref()
-                .and_then(|e| Self::background(item.parent_media.as_ref(), e)),
-            quality: item.quality.clone(),
-        }));
-        let strategies = self.loading_chain.strategies();
-        let mut data = LoadingData::from(item);
+            background: data.item.media.as_ref()
+                .and_then(|e| Self::background(data.item.parent_media.as_ref(), e)),
+            quality: data.item.quality.clone(),
+        };
 
-        trace!("Processing a total of {} loading strategies", strategies.len());
-        for strategy in strategies.iter() {
-            if let Some(strategy) = strategy.upgrade() {
-                trace!("Executing {}", strategy);
-
-                match strategy.process(data).await {
-                    LoadingResult::Ok(updated_data) => data = updated_data,
-                    LoadingResult::Completed => {
-                        debug!("{} has ended the loading chain", strategy);
-                        break;
-                    }
-                    LoadingResult::Err(err) => {
-                        error!("An unexpected error occurred while loading playlist item, {}", err);
-                        self.callbacks.invoke(LoaderEvent::LoaderError(err.clone()));
-                        return Err(err);
-                    }
-                }
-            } else {
-                warn!("Loading strategy is no longer in scope");
-            }
+        let task_to_store = task.clone();
+        {
+            let mut mutex = block_in_place(self.tasks.lock());
+            mutex.push(task_to_store);
         }
 
-        self.event_publisher.publish(Event::LoadingCompleted);
-        debug!("Loading strategies have been completed");
-        Ok(())
+        let task_callback_handle = loading_handle.clone();
+        let task_callbacks = self.callbacks.clone();
+        task.subscribe(Box::new(move |event| {
+            let loader_event: LoaderEvent;
+
+            match event {
+                LoadingEvent::StateChanged(e) => loader_event = LoaderEvent::StateChanged(task_callback_handle, e),
+                LoadingEvent::ProgressChanged(e) => loader_event = LoaderEvent::ProgressChanged(task_callback_handle, e),
+                LoadingEvent::LoadingError(e) => loader_event = LoaderEvent::LoadingError(task_callback_handle, e),
+            }
+
+            task_callbacks.invoke(loader_event);
+        }));
+
+        let tasks = self.tasks.clone();
+        let callbacks = self.callbacks.clone();
+        self.runtime.spawn(async move {
+            let task_handle = task.handle();
+            match task.load(data).await {
+                Ok(_) => {
+                    info!("Loading task {} has completed", task_handle);
+                    Self::remove_task(task_handle, tasks);
+                }
+                Err(e) => {
+                    error!("Loading task {} failed, {}", task_handle, e);
+                    callbacks.invoke(LoaderEvent::LoadingError(task_handle, e));
+                }
+            }
+        });
+
+        self.callbacks.invoke(LoaderEvent::LoadingStarted(loading_handle.clone(), started_event));
+        loading_handle
+    }
+
+    fn state(&self, handle: LoadingHandle) -> Option<LoadingState> {
+        block_in_place(self.tasks.lock()).iter()
+            .find(|e| e.handle() == handle)
+            .map(|e| e.state())
+    }
+
+    fn subscribe_loading(&self, handle: LoadingHandle, callback: LoadingCallback) -> Option<CallbackHandle> {
+        let tasks = block_in_place(self.tasks.lock());
+        tasks.iter()
+            .find(|e| e.handle() == handle)
+            .map(|task| task.subscribe(callback))
+    }
+
+    fn unsubscribe_loading(&self, handle: LoadingHandle, callback_handle: CallbackHandle) {
+        if let Some(task) = block_in_place(self.tasks.lock()).iter()
+            .find(|e| e.handle() == handle) {
+            task.unsubscribe(callback_handle)
+        }
+    }
+
+    fn cancel(&self, handle: LoadingHandle) {
+        if let Some(task) = block_in_place(self.tasks.lock()).iter()
+            .find(|e| e.handle() == handle) {
+            info!("Cancelling loading task {}", handle);
+            task.cancel()
+        }
     }
 }
 
@@ -403,45 +463,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_add() {
-        init_logger();
-        let (tx, rx) = channel();
-        let (tx_event, rx_event) = channel();
-        let expected_result = LoadingProgress {
-            progress: 0.125,
-            seeds: 10,
-            peers: 2,
-            download_speed: 0,
-            upload_speed: 0,
-            downloaded: 0,
-            total_size: 0,
-        };
-        let mut strategy = MockLoadingStrategy::new();
-        strategy.expect_state_updater()
-            .times(1)
-            .return_const(());
-        strategy.expect_progress_updater()
-            .times(1)
-            .returning(Box::new(move |e| {
-                tx.send(e).unwrap();
-            }));
-        let loader = DefaultMediaLoader::new(vec![], Arc::new(EventPublisher::default()));
-
-        loader.subscribe(Box::new(move |e| {
-            if let LoaderEvent::ProgressChanged(e) = e {
-                tx_event.send(e).unwrap();
-            }
-        }));
-        loader.add(Box::new(strategy), DEFAULT_ORDER);
-        let callback = rx.recv_timeout(Duration::from_millis(200)).unwrap();
-
-        callback(expected_result.clone());
-        let result = rx_event.recv_timeout(Duration::from_millis(200)).unwrap();
-        assert_eq!(expected_result, result);
-    }
-
-    #[test]
     fn test_load_playlist_item() {
+        init_logger();
         let item = PlaylistItem {
             url: None,
             title: "LoremIpsum".to_string(),
@@ -457,20 +480,67 @@ mod tests {
         let (tx, rx) = channel();
         let expected_result = LoadingData::from(item.clone());
         let mut strategy = MockLoadingStrategy::new();
-        strategy.expect_state_updater()
-            .return_const(());
         strategy.expect_process()
-            .returning(move |e| {
+            .returning(move |e, _, _| {
                 tx.send(e).unwrap();
                 LoadingResult::Completed
             });
         let chain: Vec<Box<dyn LoadingStrategy>> = vec![Box::new(strategy)];
-        let loader = DefaultMediaLoader::new(chain, Arc::new(EventPublisher::default()));
+        let loader = DefaultMediaLoader::new(chain);
 
-        let result = block_in_place(loader.load_playlist_item(item));
-        assert_eq!(Ok(()), result);
+        let handle = loader.load_playlist_item(item);
+        assert_eq!(Some(LoadingState::Initializing), loader.state(handle.clone()));
 
         let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        assert_eq!(expected_result, result);
+    }
+
+    #[test]
+    fn test_load_playlist_item_bind_task_events() {
+        init_logger();
+        let (tx, rx) = channel();
+        let (tx_event, rx_event) = channel();
+        let item = PlaylistItem {
+            url: None,
+            title: "".to_string(),
+            thumb: None,
+            parent_media: None,
+            media: None,
+            torrent_info: None,
+            torrent_file_info: None,
+            quality: None,
+            auto_resume_timestamp: None,
+            subtitles_enabled: false,
+        };
+        let expected_result = LoadingProgress {
+            progress: 0.125,
+            seeds: 10,
+            peers: 2,
+            download_speed: 0,
+            upload_speed: 0,
+            downloaded: 0,
+            total_size: 0,
+        };
+        let mut strategy = MockLoadingStrategy::new();
+        strategy.expect_process()
+            .times(1)
+            .returning(Box::new(move |_, event_channel, _| {
+                tx.send(event_channel).unwrap();
+                LoadingResult::Completed
+            }));
+        let loader = DefaultMediaLoader::new(vec![]);
+
+        loader.subscribe(Box::new(move |e| {
+            if let LoaderEvent::ProgressChanged(_, e) = e {
+                tx_event.send(e).unwrap();
+            }
+        }));
+        loader.add(Box::new(strategy), DEFAULT_ORDER);
+        let _ = loader.load_playlist_item(item);
+        let callback = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+
+        callback.send(LoadingEvent::ProgressChanged(expected_result.clone())).unwrap();
+        let result = rx_event.recv_timeout(Duration::from_millis(200)).unwrap();
         assert_eq!(expected_result, result);
     }
 }

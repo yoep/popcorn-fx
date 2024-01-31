@@ -244,6 +244,10 @@ mod tests {
     extern "C" fn play_registration_callback(_: PlayRequestC) {
         // no-op
     }
+    #[no_mangle]
+    extern "C" fn stop_registration_callback() {
+        // no-op
+    }
 
     #[test]
     fn test_active_player() {
@@ -260,6 +264,7 @@ mod tests {
             state: PlayerState::Playing,
             embedded_playback_supported: false,
             play_callback: play_registration_callback,
+            stop_callback: stop_registration_callback,
         });
 
         instance.player_manager().add_player(Box::new(player));
@@ -285,6 +290,7 @@ mod tests {
             state: PlayerState::Paused,
             embedded_playback_supported: false,
             play_callback: play_registration_callback,
+            stop_callback: stop_registration_callback,
         };
 
         register_player(&mut instance, player);
@@ -315,6 +321,7 @@ mod tests {
             state: PlayerState::Paused,
             embedded_playback_supported: false,
             play_callback: play_registration_callback,
+            stop_callback: stop_registration_callback,
         };
 
         register_player(&mut instance, player);
@@ -341,6 +348,7 @@ mod tests {
             state: PlayerState::Error,
             embedded_playback_supported: false,
             play_callback: play_registration_callback,
+            stop_callback: stop_registration_callback,
         };
 
         register_player(&mut instance, player);
@@ -368,6 +376,7 @@ mod tests {
             state: PlayerState::Buffering,
             embedded_playback_supported: false,
             play_callback: play_registration_callback,
+            stop_callback: stop_registration_callback,
         };
 
         register_player(&mut instance, player);
@@ -388,6 +397,7 @@ mod tests {
             state: Default::default(),
             embedded_playback_supported: false,
             play_callback: play_registration_callback,
+            stop_callback: stop_registration_callback,
         });
         let (tx, rx) = channel();
         player.add(Box::new(move |e| {

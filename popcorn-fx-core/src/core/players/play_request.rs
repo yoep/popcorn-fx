@@ -177,7 +177,7 @@ pub struct PlayMediaRequest {
     /// The quality information for the media.
     pub quality: String,
     /// The torrent stream that is being used to stream the media item
-    pub torrent_stream: Weak<dyn TorrentStream>,
+    pub torrent_stream: Weak<Box<dyn TorrentStream>>,
 }
 
 impl PlayMediaRequest {
@@ -191,7 +191,7 @@ impl PlayMediaRequest {
         media: Box<dyn MediaIdentifier>,
         parent_media: Option<Box<dyn MediaIdentifier>>,
         quality: String,
-        torrent_stream: Weak<dyn TorrentStream>,
+        torrent_stream: Weak<Box<dyn TorrentStream>>,
     ) -> Self {
         let base = PlayUrlRequest {
             url,
@@ -286,7 +286,7 @@ pub struct PlayMediaRequestBuilder {
     media: Option<Box<dyn MediaIdentifier>>,
     parent_media: Option<Box<dyn MediaIdentifier>>,
     quality: Option<String>,
-    torrent_stream: Option<Weak<dyn TorrentStream>>,
+    torrent_stream: Option<Weak<Box<dyn TorrentStream>>>,
 }
 
 impl PlayMediaRequestBuilder {
@@ -344,7 +344,7 @@ impl PlayMediaRequestBuilder {
     }
 
     /// Sets the torrent stream of the media.
-    pub fn torrent_stream(mut self, torrent_stream: Weak<dyn TorrentStream>) -> Self {
+    pub fn torrent_stream(mut self, torrent_stream: Weak<Box<dyn TorrentStream>>) -> Self {
         self.torrent_stream = Some(torrent_stream);
         self
     }
@@ -467,7 +467,7 @@ mod tests {
             thumb: None,
             torrents: Default::default(),
         };
-        let stream = Arc::new(MockTorrentStream::new()) as Arc<dyn TorrentStream>;
+        let stream = Arc::new(Box::new(MockTorrentStream::new()) as Box<dyn TorrentStream>);
         let expected_result = PlayMediaRequest {
             base: PlayUrlRequest {
                 url: url.to_string(),
@@ -522,7 +522,7 @@ mod tests {
             auto_resume_timestamp: None,
             subtitles_enabled,
         };
-        let stream: Arc<dyn TorrentStream> = Arc::new(MockTorrentStream::new());
+        let stream = Arc::new(Box::new(MockTorrentStream::new()) as Box<dyn TorrentStream>);
         let mut data = LoadingData::from(item);
         data.torrent_stream = Some(Arc::downgrade(&stream));
         let expected_result = PlayMediaRequest {

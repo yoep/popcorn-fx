@@ -8,7 +8,7 @@ use log::trace;
 use tokio::sync::Mutex;
 
 use popcorn_fx_core::{from_c_string, into_c_owned, into_c_string, to_c_vec};
-use popcorn_fx_core::core::{block_in_place, Callbacks, CoreCallback, CoreCallbacks};
+use popcorn_fx_core::core::{block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks};
 use popcorn_fx_core::core::players::{Player, PlayerEvent, PlayerManagerEvent, PlayerState, PlayMediaRequest, PlayRequest, PlayUrlRequest};
 
 use crate::ffi::{ByteArray, PlayerChangedEventC};
@@ -149,11 +149,11 @@ impl PlayerWrapper {
 }
 
 impl Callbacks<PlayerEvent> for PlayerWrapper {
-    fn add(&self, callback: CoreCallback<PlayerEvent>) -> i64 {
+    fn add(&self, callback: CoreCallback<PlayerEvent>) -> CallbackHandle {
         self.callbacks.add(callback)
     }
 
-    fn remove(&self, callback_id: i64) {
+    fn remove(&self, callback_id: CallbackHandle) {
         self.callbacks.remove(callback_id)
     }
 }
@@ -395,8 +395,8 @@ mod tests {
     use log::info;
 
     use popcorn_fx_core::{from_c_owned, from_c_vec};
-    use popcorn_fx_core::core::players::{MockPlayer, PlayerChange};
-    use popcorn_fx_core::testing::init_logger;
+    use popcorn_fx_core::core::players::PlayerChange;
+    use popcorn_fx_core::testing::{init_logger, MockPlayer};
 
     use super::*;
 

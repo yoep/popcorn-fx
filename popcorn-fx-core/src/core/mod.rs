@@ -1,4 +1,5 @@
 pub use callback::*;
+pub use handle::*;
 pub use runtime::*;
 
 pub mod cache;
@@ -18,3 +19,4 @@ pub mod updater;
 
 mod callback;
 mod runtime;
+mod handle;

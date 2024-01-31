@@ -1,12 +1,12 @@
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use log::{debug, info, trace, warn};
-use rand::Rng;
 use tokio::sync::Mutex;
 
-use crate::core::block_in_place;
+use crate::core::{block_in_place, Handle};
+
+pub type CallbackHandle = Handle;
 
 pub trait Callbacks<E>
     where E: Display + Clone {
@@ -31,14 +31,14 @@ pub trait Callbacks<E>
     /// });
     /// ```
     ///
-    /// The `callback_id` can be used to later remove the callback if needed.
-    fn add(&self, callback: CoreCallback<E>) -> i64;
+    /// The `callback_handle` can be used to later remove the callback if needed.
+    fn add(&self, callback: CoreCallback<E>) -> CallbackHandle;
 
     /// Removes a callback from the event handler using its associated identifier.
     ///
     /// # Arguments
     ///
-    /// * `callback_id` - The `i64` identifier of the callback to be removed.
+    /// * `callback_handle` - The `i64` identifier of the callback to be removed.
     ///
     /// # Example
     ///
@@ -46,17 +46,17 @@ pub trait Callbacks<E>
     /// use popcorn_fx_core::core::CoreCallbacks;
     ///
     /// let event_handler = CoreCallbacks::new();
-    /// let callback_id = event_handler.add(|event| {
+    /// let callback_handle = event_handler.add(|event| {
     ///     // Your callback logic here
     /// });
     ///
     /// // Later, if needed, you can remove the callback using its identifier.
-    /// event_handler.remove(callback_id);
+    /// event_handler.remove(callback_handle);
     /// ```
     ///
-    /// If the provided `callback_id` does not correspond to any registered callback, this
+    /// If the provided `callback_handle` does not correspond to any registered callback, this
     /// function should have no effect.
-    fn remove(&self, callback_id: i64);
+    fn remove(&self, handle: CallbackHandle);
 }
 
 /// The callback type which handles callbacks for changes within the Popcorn FX.
@@ -105,47 +105,35 @@ impl<E: Display + Clone> CoreCallbacks<E> {
 
         block_in_place(execute)
     }
-
-    fn generate_id(&self) -> i64 {
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("Time went backwards")
-            .as_secs() as i64;
-
-        let mut rng = rand::thread_rng();
-        let random_number: i64 = rng.gen();
-
-        (timestamp << 32) | (random_number & 0xFFFF_FFFF)
-    }
 }
 
 impl<E: Display + Clone> Callbacks<E> for CoreCallbacks<E> {
-    fn add(&self, callback: CoreCallback<E>) -> i64 {
+    fn add(&self, callback: CoreCallback<E>) -> CallbackHandle {
         trace!("Registering new callback to CoreCallbacks");
-        let id = self.generate_id();
+        let handle = Handle::new();
         let callbacks = self.callbacks.clone();
         let mut mutex = block_in_place(callbacks.lock());
 
         mutex.push(InternalCallbackHolder {
-            id: id.clone(),
+            handle: handle.clone(),
             callback,
         });
         debug!("Added new callback for events, new total callbacks {}", mutex.len());
-        id
+        handle
     }
 
-    fn remove(&self, callback_id: i64) {
+    fn remove(&self, handle: CallbackHandle) {
         trace!("Removing callback from CoreCallbacks");
         let callbacks = self.callbacks.clone();
         let mut mutex = block_in_place(callbacks.lock());
         let position = mutex.iter()
-            .position(|e| e.id == callback_id);
+            .position(|e| e.handle == handle);
 
         if let Some(position) = position {
             mutex.remove(position);
-            info!("Removed callback {} from CoreCallbacks", callback_id);
+            info!("Removed callback {} from CoreCallbacks", handle);
         } else {
-            warn!("Unable to remove callback {}, callback not found", callback_id);
+            warn!("Unable to remove callback {}, callback not found", handle);
         }
     }
 }
@@ -167,7 +155,7 @@ impl<E: Display + Clone> Default for CoreCallbacks<E> {
 
 struct InternalCallbackHolder<E>
     where E: Display + Clone {
-    id: i64,
+    handle: CallbackHandle,
     callback: CoreCallback<E>,
 }
 
@@ -223,7 +211,7 @@ mod test {
         init_logger();
         let callbacks = CoreCallbacks::<Event>::default();
 
-        callbacks.remove(54875542);
+        callbacks.remove(Handle::new());
         let e = block_in_place(callbacks.callbacks.lock());
         assert_eq!(0, e.len());
     }

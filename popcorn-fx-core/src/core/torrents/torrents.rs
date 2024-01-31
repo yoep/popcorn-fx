@@ -9,7 +9,7 @@ use log::{debug, trace};
 #[cfg(any(test, feature = "testing"))]
 use mockall::automock;
 
-use crate::core::CoreCallback;
+use crate::core::{CallbackHandle, CoreCallback};
 
 const TORRENT_STATES: [TorrentState; 7] = [
     TorrentState::Creating,
@@ -132,7 +132,7 @@ pub trait Torrent: Display + Debug + DowncastSync {
 
     /// Register a new callback for the [TorrentEvent]'s.
     /// The callback will be triggered when a new event occurs within the torrent.
-    fn subscribe(&self, callback: TorrentCallback) -> i64;
+    fn subscribe(&self, callback: TorrentCallback) -> CallbackHandle;
 }
 impl_downcast!(sync Torrent);
 

@@ -5,7 +5,7 @@ use derive_more::Display;
 use log::trace;
 use tokio::sync::Mutex;
 
-use crate::core::{Callbacks, CoreCallbacks};
+use crate::core::{CallbackHandle, Callbacks, CoreCallbacks};
 use crate::core::torrents::{DownloadStatus, Torrent, TorrentCallback, TorrentEvent, TorrentState};
 
 /// The has byte callback.
@@ -28,6 +28,9 @@ pub type SequentialModeCallback = Box<dyn Fn() + Send>;
 
 /// The callback for retrieving the torrent state.
 pub type TorrentStateCallback = Box<dyn Fn() -> TorrentState + Send>;
+
+/// The callback for cancelling the torrent.
+pub type CancelTorrentCallback = Box<dyn Fn() + Send>;
 
 /// The wrapper containing the callbacks to retrieve the actual torrent information from C.
 #[derive(Display)]
@@ -185,7 +188,7 @@ impl Torrent for TorrentWrapper {
         })
     }
 
-    fn subscribe(&self, callback: TorrentCallback) -> i64 {
+    fn subscribe(&self, callback: TorrentCallback) -> CallbackHandle {
         self.callbacks.add(callback)
     }
 }
@@ -247,7 +250,7 @@ mod test {
             prioritize_bytes,
             prioritize_pieces,
             sequential_mode,
-            torrent_state,
+            torrent_state
         );
 
         let result = wrapper.state();

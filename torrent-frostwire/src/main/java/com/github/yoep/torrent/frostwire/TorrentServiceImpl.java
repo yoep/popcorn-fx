@@ -12,6 +12,7 @@ import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentHealth;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
 import com.github.yoep.popcorn.backend.adapters.torrent.state.SessionState;
 import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentHealthState;
+import com.github.yoep.popcorn.backend.torrent.CancelTorrentCallback;
 import com.github.yoep.popcorn.backend.torrent.ResolveTorrentCallback;
 import com.github.yoep.popcorn.backend.torrent.ResolveTorrentInfoCallback;
 import com.github.yoep.popcorn.backend.torrent.TorrentWrapper;
@@ -28,10 +29,7 @@ import org.springframework.util.Assert;
 import javax.annotation.PostConstruct;
 import java.io.File;
 import java.text.MessageFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -44,6 +42,7 @@ public class TorrentServiceImpl implements TorrentService {
     private final PopcornFx instance;
     private final ResolveTorrentInfoCallback resolveTorrentInfoCallback = createResolveTorrentInfoCallback();
     private final ResolveTorrentCallback resolveTorrentCallback = createResolveTorrentCallback();
+    private final CancelTorrentCallback cancelTorrentCallback = createCancelTorrentCallback();
 
     private final List<com.github.yoep.popcorn.backend.adapters.torrent.TorrentInfoWrapper> torrentInfos = new ArrayList<>();
     private final List<TorrentWrapper> torrentWrappers = new ArrayList<>();
@@ -192,6 +191,7 @@ public class TorrentServiceImpl implements TorrentService {
     void init() {
         fxLib.torrent_resolve_info_callback(instance, resolveTorrentInfoCallback);
         fxLib.torrent_resolve_callback(instance, resolveTorrentCallback);
+        fxLib.torrent_cancel_callback(instance, cancelTorrentCallback);
     }
 
     private TorrentHandle internalCreateTorrentHandle(TorrentFileInfo torrentFile, File torrentDirectory) {
@@ -298,6 +298,14 @@ public class TorrentServiceImpl implements TorrentService {
                 throw new TorrentException(ex.getMessage(), ex);
             }
         };
+    }
+
+    private CancelTorrentCallback createCancelTorrentCallback() {
+        return handle -> torrentWrappers.stream()
+                .filter(e -> Objects.equals(e.getHandle(), handle))
+                .findFirst()
+                .map(TorrentWrapper::getTorrent)
+                .ifPresent(this::remove);
     }
 
     //endregion

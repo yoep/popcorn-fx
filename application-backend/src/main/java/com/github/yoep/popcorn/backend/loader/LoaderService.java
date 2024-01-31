@@ -16,6 +16,7 @@ public class LoaderService extends AbstractListenerService<LoaderListener> imple
     private final FxLib fxLib;
     private final PopcornFx instance;
     private final EventPublisher eventPublisher;
+    private Long lastLoaderHandle;
 
     public LoaderService(FxLib fxLib, PopcornFx instance, EventPublisher eventPublisher) {
         this.fxLib = fxLib;
@@ -24,11 +25,16 @@ public class LoaderService extends AbstractListenerService<LoaderListener> imple
         init();
     }
 
+    public void cancel() {
+        fxLib.loader_cancel(instance, lastLoaderHandle);
+    }
+
     @Override
     public void callback(LoaderEventC.ByValue event) {
         switch (event.getTag()) {
             case LOADING_STARTED -> {
                 var loadingStartedBody = event.getUnion().getLoadingStarted_body();
+                lastLoaderHandle = loadingStartedBody.getHandle();
                 eventPublisher.publish(new LoadingStartedEvent(this));
                 invokeListeners(e -> e.onLoadingStarted(loadingStartedBody.getStartedEvent()));
             }

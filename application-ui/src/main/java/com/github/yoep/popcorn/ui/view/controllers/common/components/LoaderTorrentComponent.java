@@ -2,12 +2,13 @@ package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.text.LocaleText;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.loader.*;
+import com.github.yoep.popcorn.ui.events.CloseLoadEvent;
 import com.github.yoep.popcorn.ui.messages.TorrentMessage;
 import com.github.yoep.popcorn.ui.utils.ProgressUtils;
 import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
-import com.github.yoep.popcorn.ui.view.services.LoadTorrentService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -31,10 +32,10 @@ import java.util.ResourceBundle;
 public class LoaderTorrentComponent implements Initializable {
     static final String PROGRESS_ERROR_STYLE_CLASS = "error";
 
-    private final LoadTorrentService service;
     private final LocaleText localeText;
     private final ImageService imageService;
     private final LoaderService loaderService;
+    private final EventPublisher eventPublisher;
 
     @FXML
     Pane loaderActions;
@@ -194,8 +195,9 @@ public class LoaderTorrentComponent implements Initializable {
 
     private void close() {
         log.debug("Cancelling torrent loader");
-        service.cancel();
+        loaderService.cancel();
         reset();
+        eventPublisher.publishEvent(new CloseLoadEvent(this));
     }
 
     @FXML
@@ -207,7 +209,7 @@ public class LoaderTorrentComponent implements Initializable {
     @FXML
     void onRetryClicked(MouseEvent event) {
         event.consume();
-        service.retryLoadingTorrent();
+        // TODO
     }
 
     @FXML

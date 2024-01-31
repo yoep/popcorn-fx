@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
 use derive_more::Display;
-use log::{debug, error, info, trace};
+use log::{debug, trace};
 use tokio::sync::Mutex;
 
-use crate::core::{block_in_place, Callbacks, CoreCallback, CoreCallbacks};
+use crate::core::{block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks, Handle};
 use crate::core::events::{DEFAULT_ORDER, Event, EventPublisher};
-use crate::core::loader::MediaLoader;
+use crate::core::loader::{LoadingHandle, MediaLoader};
 use crate::core::players::{PlayerManager, PlayerManagerEvent};
 use crate::core::playlists::{Playlist, PlaylistItem};
 
@@ -100,7 +100,7 @@ impl PlaylistManager {
     /// # Arguments
     ///
     /// * `playlist` - The playlist to start playing.
-    pub fn play(&self, playlist: Playlist) {
+    pub fn play(&self, playlist: Playlist) -> Option<Handle> {
         self.inner.play(playlist)
     }
 
@@ -131,7 +131,7 @@ impl PlaylistManager {
     /// # Returns
     ///
     /// An identifier for the subscription, which can be used to unsubscribe later.
-    pub fn subscribe(&self, callback: CoreCallback<PlaylistManagerEvent>) -> i64 {
+    pub fn subscribe(&self, callback: CoreCallback<PlaylistManagerEvent>) -> CallbackHandle {
         self.inner.callbacks.add(callback)
     }
 
@@ -140,8 +140,8 @@ impl PlaylistManager {
     /// # Arguments
     ///
     /// * `callback_id` - The identifier of the subscription to be removed.
-    pub fn unsubscribe(&self, callback_id: i64) {
-        self.inner.callbacks.remove(callback_id)
+    pub fn unsubscribe(&self, handle: CallbackHandle) {
+        self.inner.callbacks.remove(handle)
     }
 }
 
@@ -151,6 +151,7 @@ struct InnerPlaylistManager {
     player_manager: Arc<Box<dyn PlayerManager>>,
     player_duration: Mutex<u64>,
     loader: Arc<Box<dyn MediaLoader>>,
+    loading_handle: Arc<Mutex<Option<LoadingHandle>>>,
     state: Arc<Mutex<PlaylistState>>,
     callbacks: CoreCallbacks<PlaylistManagerEvent>,
     event_publisher: Arc<EventPublisher>,
@@ -163,6 +164,7 @@ impl InnerPlaylistManager {
             player_manager,
             player_duration: Default::default(),
             loader,
+            loading_handle: Arc::new(Mutex::new(None)),
             state: Arc::new(Mutex::new(PlaylistState::Idle)),
             callbacks: Default::default(),
             event_publisher,
@@ -171,7 +173,7 @@ impl InnerPlaylistManager {
         instance
     }
 
-    fn play(&self, playlist: Playlist) {
+    fn play(&self, playlist: Playlist) -> Option<Handle> {
         trace!("Starting new playlist with {:?}", playlist);
         {
             let mut mutex = block_in_place(self.playlist.lock());
@@ -184,27 +186,32 @@ impl InnerPlaylistManager {
         self.play_next()
     }
 
-    fn play_next(&self) {
+    fn play_next(&self) -> Option<Handle> {
         let mut mutex = block_in_place(self.playlist.lock());
 
         if let Some(item) = mutex.next() {
             drop(mutex);
 
             trace!("Processing next item in playlist {}", item);
-            self.play_item(item);
+            Some(self.play_item(item))
         } else {
             self.update_state(PlaylistState::Completed);
-            debug!("End of playlist has been reached")
+            debug!("End of playlist has been reached");
+            None
         }
     }
 
-    fn play_item(&self, item: PlaylistItem) {
+    fn play_item(&self, item: PlaylistItem) -> Handle {
         debug!("Starting playback of next playlist item {}", item);
         self.update_state(PlaylistState::Playing);
-        match block_in_place(self.loader.load_playlist_item(item)) {
-            Ok(_) => info!("Playlist item has been loaded with success"),
-            Err(e) => error!("Failed to load playlist item, {}", e),
-        }
+        let handle = self.loader.load_playlist_item(item);
+
+        trace!("Updating current playlist item loading handle to {}", handle);
+        let store_handle = handle.clone();
+        let mut mutex = block_in_place(self.loading_handle.lock());
+        *mutex = Some(store_handle);
+
+        handle
     }
 
     fn has_next(&self) -> bool {
@@ -276,6 +283,7 @@ mod test {
     use std::time::Duration;
 
     use crate::core::events::PlayerStoppedEvent;
+    use crate::core::Handle;
     use crate::core::loader::MockMediaLoader;
     use crate::core::players::MockPlayerManager;
     use crate::testing::init_logger;
@@ -310,7 +318,7 @@ mod test {
             .times(1)
             .returning(move |e| {
                 tx.send(e).unwrap();
-                Ok(())
+                Handle::new()
             });
         let manager = PlaylistManager::new(player_manager.clone(), event_publisher.clone(), Arc::new(Box::new(loader)));
 
@@ -342,7 +350,7 @@ mod test {
         let mut loader = MockMediaLoader::new();
         loader.expect_load_playlist_item()
             .returning(move |_| {
-                Ok(())
+                Handle::new()
             });
         let manager = PlaylistManager::new(player_manager.clone(), event_publisher.clone(), Arc::new(Box::new(loader)));
 
@@ -394,7 +402,7 @@ mod test {
             .times(2)
             .returning(move |e| {
                 tx.send(e).unwrap();
-                Ok(())
+                Handle::new()
             });
         let manager = PlaylistManager::new(player_manager.clone(), event_publisher.clone(), Arc::new(Box::new(loader)));
 
@@ -479,7 +487,7 @@ mod test {
         let mut loader = MockMediaLoader::new();
         loader.expect_load_playlist_item()
             .returning(move |_| {
-                Ok(())
+                Handle::new()
             });
         let manager = PlaylistManager::new(player_manager.clone(), event_publisher.clone(), Arc::new(Box::new(loader)));
 

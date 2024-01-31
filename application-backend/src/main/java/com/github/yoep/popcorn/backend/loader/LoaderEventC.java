@@ -46,8 +46,9 @@ public class LoaderEventC extends Structure implements Closeable {
 
     @Getter
     @ToString
-    @FieldOrder({"startedEvent"})
+    @FieldOrder({"handle", "startedEvent"})
     public static class LoadingStarted_Body extends Structure implements Closeable {
+        public Long handle;
         public LoadingStartedEventC.ByValue startedEvent;
 
         @Override
@@ -60,8 +61,9 @@ public class LoaderEventC extends Structure implements Closeable {
 
     @Getter
     @ToString
-    @FieldOrder({"state"})
+    @FieldOrder({"handle", "state"})
     public static class StateChanged_Body extends Structure implements Closeable {
+        public Long handle;
         public LoaderState state;
 
         @Override
@@ -72,8 +74,9 @@ public class LoaderEventC extends Structure implements Closeable {
 
     @Getter
     @ToString
-    @FieldOrder({"loadingProgress"})
+    @FieldOrder({"handle", "loadingProgress"})
     public static class ProgressChanged_Body extends Structure implements Closeable {
+        public Long handle;
         public LoadingProgress.ByValue loadingProgress;
 
         @Override
@@ -86,8 +89,9 @@ public class LoaderEventC extends Structure implements Closeable {
 
     @Getter
     @ToString
-    @FieldOrder({"error"})
+    @FieldOrder({"handle", "error"})
     public static class LoadingError_Body extends Structure implements Closeable {
+        public Long handle;
         public LoadingErrorC error;
 
         @Override

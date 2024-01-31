@@ -13,7 +13,7 @@ use warp::http::{HeaderValue, Response, StatusCode};
 use warp::http::header::{ACCEPT_RANGES, CONNECTION, CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE, RANGE, USER_AGENT};
 use warp::hyper::HeaderMap;
 
-use crate::core::{block_in_place, torrents};
+use crate::core::{block_in_place, Handle, torrents};
 use crate::core::torrents::{Torrent, TorrentError, TorrentStream, TorrentStreamServer, TorrentStreamServerState};
 use crate::core::torrents::stream::{MediaType, MediaTypeFactory, Range};
 use crate::core::torrents::stream::torrent_stream::DefaultTorrentStream;
@@ -28,7 +28,7 @@ const DLNA_TRANSFER_MODE_TYPE: &str = "Streaming";
 const PLAIN_TEXT_TYPE: &str = "text/plain";
 
 /// The stream mutex type used within the server.
-type StreamMutex = HashMap<String, Arc<DefaultTorrentStream>>;
+type StreamMutex = HashMap<String, Arc<Box<dyn TorrentStream>>>;
 
 /// The default server implementation for streaming torrents over HTTP.
 #[derive(Debug)]
@@ -47,11 +47,11 @@ impl TorrentStreamServer for DefaultTorrentStreamServer {
         self.inner.state()
     }
 
-    fn start_stream(&self, torrent: Weak<Box<dyn Torrent>>) -> torrents::Result<Weak<dyn TorrentStream>> {
+    fn start_stream(&self, torrent: Weak<Box<dyn Torrent>>) -> torrents::Result<Weak<Box<dyn TorrentStream>>> {
         self.inner.start_stream(torrent)
     }
 
-    fn stop_stream(&self, handle: i64) {
+    fn stop_stream(&self, handle: Handle) {
         self.inner.stop_stream(handle)
     }
 }
@@ -318,7 +318,7 @@ impl TorrentStreamServer for TorrentStreamServerInner {
         mutex.clone()
     }
 
-    fn start_stream(&self, torrent: Weak<Box<dyn Torrent>>) -> torrents::Result<Weak<dyn TorrentStream>> {
+    fn start_stream(&self, torrent: Weak<Box<dyn Torrent>>) -> torrents::Result<Weak<Box<dyn TorrentStream>>> {
         let mut mutex = block_in_place(self.streams.lock());
 
         if let Some(torrent) = torrent.upgrade() {
@@ -339,7 +339,7 @@ impl TorrentStreamServer for TorrentStreamServerInner {
             match self.build_url(filename) {
                 Ok(url) => {
                     debug!("Starting url stream for {}", &url);
-                    let stream = Arc::new(DefaultTorrentStream::new(url, torrent));
+                    let stream = Arc::new(Box::new(DefaultTorrentStream::new(url, torrent)) as Box<dyn TorrentStream>);
                     let stream_ref = Arc::downgrade(&stream);
 
                     mutex.insert(filename.to_string(), stream);
@@ -357,7 +357,7 @@ impl TorrentStreamServer for TorrentStreamServerInner {
         }
     }
 
-    fn stop_stream(&self, handle: i64) {
+    fn stop_stream(&self, handle: Handle) {
         trace!("Stopping torrent stream handle {}", handle);
         let streams = self.streams.clone();
         let mut mutex = block_in_place(streams.lock());
@@ -438,7 +438,7 @@ mod test {
                 for i in 0..10 {
                     callback(TorrentEvent::PieceFinished(i));
                 }
-                20i64
+                Handle::new()
             });
         let torrent = Arc::new(Box::new(torrent) as Box<dyn Torrent>);
         copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
@@ -513,7 +513,7 @@ mod test {
                 for i in 0..10 {
                     callback(TorrentEvent::PieceFinished(i));
                 }
-                20i64
+                Handle::new()
             });
         torrent.expect_state()
             .return_const(TorrentState::Downloading);
@@ -562,7 +562,7 @@ mod test {
             .returning(|_: &[u32]| {});
         torrent.expect_subscribe()
             .returning(|_: TorrentCallback| {
-                20i64
+                Handle::new()
             });
         torrent.expect_state()
             .return_const(TorrentState::Downloading);

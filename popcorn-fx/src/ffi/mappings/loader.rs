@@ -11,19 +11,19 @@ pub type LoaderEventCallback = extern "C" fn(LoaderEventC);
 #[repr(C)]
 #[derive(Debug)]
 pub enum LoaderEventC {
-    LoadingStarted(LoadingStartedEventC),
-    StateChanged(LoadingState),
-    ProgressChanged(LoadingProgressC),
-    LoaderError(LoadingErrorC),
+    LoadingStarted(i64, LoadingStartedEventC),
+    StateChanged(i64, LoadingState),
+    ProgressChanged(i64, LoadingProgressC),
+    LoaderError(i64, LoadingErrorC),
 }
 
 impl From<LoaderEvent> for LoaderEventC {
     fn from(value: LoaderEvent) -> Self {
         match value {
-            LoaderEvent::StateChanged(e) => LoaderEventC::StateChanged(e),
-            LoaderEvent::LoadingStarted(e) => LoaderEventC::LoadingStarted(LoadingStartedEventC::from(e)),
-            LoaderEvent::LoaderError(e) => LoaderEventC::LoaderError(LoadingErrorC::from(e)),
-            LoaderEvent::ProgressChanged(e) => LoaderEventC::ProgressChanged(LoadingProgressC::from(e)),
+            LoaderEvent::LoadingStarted(handle, e) => LoaderEventC::LoadingStarted(handle.value(), LoadingStartedEventC::from(e)),
+            LoaderEvent::StateChanged(handle, e) => LoaderEventC::StateChanged(handle.value(), e),
+            LoaderEvent::LoadingError(handle, e) => LoaderEventC::LoaderError(handle.value(), LoadingErrorC::from(e)),
+            LoaderEvent::ProgressChanged(handle, e) => LoaderEventC::ProgressChanged(handle.value(), LoadingProgressC::from(e)),
         }
     }
 }
@@ -115,6 +115,7 @@ pub enum LoadingErrorC {
     MediaError(*const c_char),
     /// Error indicating a timeout with an associated error message.
     TimeoutError(*const c_char),
+    Cancelled,
 }
 
 /// Convert a `LoadingError` into a C-compatible `LoadingErrorC`.
@@ -125,6 +126,7 @@ impl From<LoadingError> for LoadingErrorC {
             LoadingError::TorrentError(e) => LoadingErrorC::TorrentError(into_c_string(e.to_string())),
             LoadingError::MediaError(e) => LoadingErrorC::MediaError(into_c_string(e)),
             LoadingError::TimeoutError(e) => LoadingErrorC::TimeoutError(into_c_string(e)),
+            LoadingError::Cancelled => LoadingErrorC::Cancelled,
         }
     }
 }
@@ -164,16 +166,18 @@ impl From<LoadingProgress> for LoadingProgressC {
 
 #[cfg(test)]
 mod tests {
+    use popcorn_fx_core::core::Handle;
+
     use super::*;
 
     #[test]
     fn test_loader_event_c_from() {
         let state = LoadingState::Downloading;
-        let event = LoaderEvent::StateChanged(state.clone());
+        let event = LoaderEvent::StateChanged(Handle::new(), state.clone());
 
         let result = LoaderEventC::from(event);
 
-        if let LoaderEventC::StateChanged(result) = result {
+        if let LoaderEventC::StateChanged(_, result) = result {
             assert_eq!(state, result);
         } else {
             assert!(false, "expected LoaderEventC::StateChanged, but got {:?} instead", result)
@@ -197,7 +201,7 @@ mod tests {
 
         assert_eq!(url.to_string(), from_c_string(result.url));
         assert_eq!(title.to_string(), from_c_string(result.title));
-        assert_eq!(thumbnail.to_string(), from_c_string(result.thumbnail));
+        assert_eq!(thumb.to_string(), from_c_string(result.thumbnail));
     }
 
     #[test]

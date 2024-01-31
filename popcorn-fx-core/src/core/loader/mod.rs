@@ -16,3 +16,4 @@ mod loader_torrent_stream;
 mod loading_chain;
 mod loading_strategy;
 mod media_loader;
+mod task;

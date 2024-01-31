@@ -33,7 +33,6 @@ enum class DecorationType : int32_t {
 };
 
 enum class LoadingState : int32_t {
-  Idle,
   Initializing,
   Starting,
   RetrievingSubtitles,
@@ -675,14 +674,6 @@ struct PlayerStoppedEventC {
   MediaItemC *media;
 };
 
-struct LoadingStartedEventC {
-  const char *url;
-  const char *title;
-  const char *thumbnail;
-  const char *background;
-  const char *quality;
-};
-
 /// The C compatible [Event] representation.
 struct EventC {
   enum class Tag {
@@ -721,10 +712,6 @@ struct EventC {
     bool _1;
   };
 
-  struct LoadingStarted_Body {
-    LoadingStartedEventC _0;
-  };
-
   Tag tag;
   union {
     PlayerChanged_Body player_changed;
@@ -732,7 +719,6 @@ struct EventC {
     PlayerStopped_Body player_stopped;
     PlaybackStateChanged_Body playback_state_changed;
     WatchStateChanged_Body watch_state_changed;
-    LoadingStarted_Body loading_started;
   };
 };
 
@@ -762,25 +748,112 @@ struct FavoriteEventC {
   };
 };
 
+/// A C-compatible struct representing the event when loading starts.
+/// A C-compatible struct representing the event when loading starts.
+struct LoadingStartedEventC {
+  /// The URL of the media being loaded.
+  const char *url;
+  /// The title or name of the media being loaded.
+  const char *title;
+  /// The URL of a thumbnail image associated with the media, or `ptr::null()` if not available.
+  const char *thumbnail;
+  /// The URL of a background image associated with the media, or `ptr::null()` if not available.
+  const char *background;
+  /// The quality or resolution information of the media, or `ptr::null()` if not available.
+  const char *quality;
+};
+
+struct LoadingProgressC {
+  /// Progress indication between 0 and 1 that represents the progress of the download.
+  float progress;
+  /// The number of seeds available for the torrent.
+  uint32_t seeds;
+  /// The number of peers connected to the torrent.
+  uint32_t peers;
+  /// The total download transfer rate in bytes of payload only, not counting protocol chatter.
+  uint32_t download_speed;
+  /// The total upload transfer rate in bytes of payload only, not counting protocol chatter.
+  uint32_t upload_speed;
+  /// The total amount of data downloaded in bytes.
+  uint64_t downloaded;
+  /// The total size of the torrent in bytes.
+  uint64_t total_size;
+};
+
+/// A C-compatible enum representing loading errors.
+struct LoadingErrorC {
+  enum class Tag {
+    /// Error indicating a parsing failure with an associated error message.
+    ParseError,
+    /// Error indicating a torrent-related failure with an associated error message.
+    TorrentError,
+    /// Error indicating a media-related failure with an associated error message.
+    MediaError,
+    /// Error indicating a timeout with an associated error message.
+    TimeoutError,
+    Cancelled,
+  };
+
+  struct ParseError_Body {
+    const char *_0;
+  };
+
+  struct TorrentError_Body {
+    const char *_0;
+  };
+
+  struct MediaError_Body {
+    const char *_0;
+  };
+
+  struct TimeoutError_Body {
+    const char *_0;
+  };
+
+  Tag tag;
+  union {
+    ParseError_Body parse_error;
+    TorrentError_Body torrent_error;
+    MediaError_Body media_error;
+    TimeoutError_Body timeout_error;
+  };
+};
+
 /// A C-compatible enum representing loader events.
 struct LoaderEventC {
   enum class Tag {
     LoadingStarted,
     StateChanged,
+    ProgressChanged,
+    LoaderError,
   };
 
   struct LoadingStarted_Body {
-    LoadingStartedEventC _0;
+    int64_t _0;
+    LoadingStartedEventC _1;
   };
 
   struct StateChanged_Body {
-    LoadingState _0;
+    int64_t _0;
+    LoadingState _1;
+  };
+
+  struct ProgressChanged_Body {
+    int64_t _0;
+    LoadingProgressC _1;
+  };
+
+  struct LoaderError_Body {
+    int64_t _0;
+    LoadingErrorC _1;
   };
 
   Tag tag;
   union {
     LoadingStarted_Body loading_started;
     StateChanged_Body state_changed;
+    ProgressChanged_Body progress_changed;
+    LoaderError_Body loader_error;
   };
 };
 
@@ -1114,6 +1187,23 @@ struct MediaResult {
   };
 };
 
+struct DownloadStatusC {
+  /// Progress indication between 0 and 1 that represents the progress of the download.
+  float progress;
+  /// The number of seeds available for the torrent.
+  uint32_t seeds;
+  /// The number of peers connected to the torrent.
+  uint32_t peers;
+  /// The total download transfer rate in bytes of payload only, not counting protocol chatter.
+  uint32_t download_speed;
+  /// The total upload transfer rate in bytes of payload only, not counting protocol chatter.
+  uint32_t upload_speed;
+  /// The total amount of data downloaded in bytes.
+  uint64_t downloaded;
+  /// The total size of the torrent in bytes.
+  uint64_t total_size;
+};
+
 /// The callback to verify if the given byte is available.
 using HasByteCallbackC = bool(*)(int32_t, uint64_t*);
 
@@ -1440,6 +1530,13 @@ ByteArray *load_image(PopcornFX *popcorn_fx, const char *url);
 /// This function should only be called from C code, and the returned byte array should be disposed of using the `dispose_byte_array` function.
 ByteArray *load_poster(PopcornFX *popcorn_fx, const MediaItemC *media);
 
+/// Cancels the current media loading process initiated by the `MediaLoader`.
+///
+/// # Arguments
+///
+/// * `instance` - A mutable reference to the `PopcornFX` instance.
+void loader_cancel(PopcornFX *instance, const int64_t *handle);
+
 /// Logs a message sent over FFI using the Rust logger.
 ///
 /// # Arguments
@@ -1479,7 +1576,12 @@ PopcornFX *new_popcorn_fx(const char **args, int32_t len);
 ///
 /// * `popcorn_fx` - A mutable reference to the PopcornFX instance.
 /// * `playlist` - A C-compatible array of `PlaylistItemC` items representing the playlist to play.
-void play_playlist(PopcornFX *popcorn_fx, CArray<PlaylistItemC> playlist);
+///
+/// # Returns
+///
+/// If the playlist playback is successfully started, a pointer to the internal playlist handle is returned.
+/// Otherwise, if an error occurs or the playlist is empty, a null pointer is returned.
+const int64_t *play_playlist(PopcornFX *popcorn_fx, CArray<PlaylistItemC> playlist);
 
 /// Retrieve a pointer to a `PlayerC` instance by its unique identifier (ID) from the PopcornFX player manager.
 ///
@@ -1805,10 +1907,26 @@ bool torrent_collection_is_stored(PopcornFX *popcorn_fx, const char *magnet_uri)
 /// Remove the given magnet uri from the torrent collection.
 void torrent_collection_remove(PopcornFX *popcorn_fx, const char *magnet_uri);
 
+/// Callback function for handling changes in the download status of a torrent.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to the PopcornFX instance.
+/// * `handle` - The handle to the torrent.
+/// * `download_status` - The new download status of the torrent.
+void torrent_download_status(PopcornFX *popcorn_fx, const char *handle, DownloadStatusC download_status);
+
 /// Resolve the given torrent url into meta information of the torrent.
 /// The url can be a magnet, http or file url to the torrent file.
 void torrent_info(PopcornFX *popcorn_fx, const char *url);
 
+/// Callback function for handling the completion of downloading a piece in a torrent.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to the PopcornFX instance.
+/// * `handle` - The handle to the torrent.
+/// * `piece` - The index of the finished piece.
 void torrent_piece_finished(PopcornFX *popcorn_fx, const char *handle, uint32_t piece);
 
 /// A callback function for resolving torrents.
@@ -1860,6 +1978,13 @@ void torrent_resolve_callback(PopcornFX *popcorn_fx, ResolveTorrentCallback call
 /// This function performs unsafe operations, as it deals with raw C-compatible function pointers.
 void torrent_resolve_info_callback(PopcornFX *popcorn_fx, ResolveTorrentInfoCallback callback);
 
+/// Callback function for handling changes in the state of a torrent.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to the PopcornFX instance.
+/// * `handle` - The handle to the torrent.
+/// * `state` - The new state of the torrent.
 void torrent_state_changed(PopcornFX *popcorn_fx, const char *handle, TorrentState state);
 
 /// Update the playback settings with the new value.

@@ -4,11 +4,12 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use derive_more::Display;
+use downcast_rs::impl_downcast;
 use futures::Stream;
 use mockall::mock;
 use url::Url;
 
-use crate::core::{CoreCallback, torrents};
+use crate::core::{CallbackHandle, CoreCallback, Handle, torrents};
 use crate::core::torrents::{DownloadStatus, Torrent, TorrentCallback, TorrentState};
 
 /// The stream bytes that are available to be used for the [TorrentStream].
@@ -60,7 +61,7 @@ pub trait TorrentStream: Torrent {
     /// Get the stream handle of this stream.
     ///
     /// Returns the stream handle of this stream.
-    fn stream_handle(&self) -> i64;
+    fn stream_handle(&self) -> Handle;
 
     /// Get the endpoint URL where the stream is available.
     ///
@@ -94,19 +95,20 @@ pub trait TorrentStream: Torrent {
     /// # Arguments
     ///
     /// * `callback` - A callback function to handle stream events.
-    fn subscribe_stream(&self, callback: TorrentStreamCallback) -> i64;
+    fn subscribe_stream(&self, callback: TorrentStreamCallback) -> CallbackHandle;
 
     /// Unsubscribe from stream events with the provided callback ID.
     ///
     /// # Arguments
     ///
-    /// * `callback_id` - The unique identifier of the callback to unsubscribe.
-    fn unsubscribe_stream(&self, callback_id: i64);
+    /// * `handle` - The handle of the callback to unsubscribe.
+    fn unsubscribe_stream(&self, handle: CallbackHandle);
 
     /// Stop the stream, preventing new streaming resources from being created,
     /// and stopping the underlying [Torrent] process.
     fn stop_stream(&self);
 }
+impl_downcast!(sync TorrentStream);
 
 mock! {
     #[derive(Debug)]
@@ -131,11 +133,11 @@ mock! {
 
         fn state(&self) -> TorrentState;
 
-        fn subscribe(&self, callback: TorrentCallback) -> i64;
+        fn subscribe(&self, callback: TorrentCallback) -> CallbackHandle;
     }
 
     impl TorrentStream for TorrentStream {
-        fn stream_handle(&self) -> i64;
+        fn stream_handle(&self) -> Handle;
 
         fn url(&self) -> Url;
 
@@ -145,9 +147,9 @@ mock! {
 
         fn stream_state(&self) -> TorrentStreamState;
 
-        fn subscribe_stream(&self, callback: TorrentStreamCallback) -> i64;
+        fn subscribe_stream(&self, callback: TorrentStreamCallback) -> CallbackHandle;
 
-        fn unsubscribe_stream(&self, callback_id: i64);
+        fn unsubscribe_stream(&self, handle: CallbackHandle);
 
         fn stop_stream(&self);
     }

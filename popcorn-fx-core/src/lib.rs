@@ -150,7 +150,7 @@ pub mod testing {
     use mockall::mock;
     use tempfile::TempDir;
 
-    use crate::core::{Callbacks, CoreCallback};
+    use crate::core::{CallbackHandle, Callbacks, CoreCallback};
     use crate::core::players::{Player, PlayerEvent, PlayerState, PlayRequest};
 
     static INIT: Once = Once::new();
@@ -290,8 +290,8 @@ pub mod testing {
         }
 
         impl Callbacks<PlayerEvent> for Player {
-            fn add(&self, callback: CoreCallback<PlayerEvent>) -> i64;
-            fn remove(&self, callback_id: i64);
+            fn add(&self, callback: CoreCallback<PlayerEvent>) -> CallbackHandle;
+            fn remove(&self, handle: CallbackHandle);
         }
     }
 

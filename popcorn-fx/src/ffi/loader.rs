@@ -1,4 +1,6 @@
-use log::trace;
+use log::{trace, warn};
+
+use popcorn_fx_core::core::Handle;
 
 use crate::ffi::{LoaderEventC, LoaderEventCallback};
 use crate::PopcornFX;
@@ -21,12 +23,27 @@ pub extern "C" fn register_loader_callback(instance: &mut PopcornFX, callback: L
     }));
 }
 
+/// Cancels the current media loading process initiated by the `MediaLoader`.
+///
+/// # Arguments
+///
+/// * `instance` - A mutable reference to the `PopcornFX` instance.
+#[no_mangle]
+pub extern "C" fn loader_cancel(instance: &mut PopcornFX, handle: *const i64) {
+    if !handle.is_null() {
+        trace!("Cancelling the loader");
+        let handle = Handle::from(handle as i64);
+        instance.media_loader().cancel(handle);
+    } else {
+        warn!("Unable to cancel the loader, no handle specified");
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use log::info;
     use tempfile::tempdir;
 
-    use popcorn_fx_core::core::block_in_place;
     use popcorn_fx_core::core::media::MovieDetails;
     use popcorn_fx_core::core::playlists::PlaylistItem;
     use popcorn_fx_core::testing::init_logger;
@@ -71,8 +88,18 @@ mod tests {
         let mut instance = PopcornFX::new(default_args(temp_path));
 
         register_loader_callback(&mut instance, loader_callback);
-        let result = block_in_place(instance.media_loader().load_playlist_item(item));
+        let result = instance.media_loader().load_playlist_item(item);
 
-        assert_eq!(Ok(()), result);
+        assert_ne!(result.value(), 0);
+    }
+
+    #[test]
+    fn test_loader_cancel() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut instance = PopcornFX::new(default_args(temp_path));
+
+        loader_cancel(&mut instance, 874458i64 as *const i64);
     }
 }

@@ -167,9 +167,9 @@ impl SubtitleManager {
 
     /// Resets the subtitle for the next [Media] item playback.
     pub fn reset(&self) {
-        let mut mutex_language = self.preferred_language.blocking_lock();
-        let mut mutex_file = self.custom_subtitle_file.blocking_lock();
-        let mut mutex_subtitle = self.subtitle_info.blocking_lock();
+        let mut mutex_language = block_in_place(self.preferred_language.lock());
+        let mut mutex_file = block_in_place(self.custom_subtitle_file.lock());
+        let mut mutex_subtitle = block_in_place(self.subtitle_info.lock());
         let language_value = mutex_language.deref_mut();
 
         *language_value = SubtitleLanguage::None;

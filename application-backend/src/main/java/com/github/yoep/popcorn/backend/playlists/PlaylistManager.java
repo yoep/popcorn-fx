@@ -22,6 +22,7 @@ public class PlaylistManager extends AbstractListenerService<PlaylistManagerList
     private final FxLib fxLib;
     private final PopcornFx instance;
     private final ApplicationConfig applicationConfig;
+    private Long playlistLoaderHandle;
 
     public PlaylistManager(FxLib fxLib, PopcornFx instance, ApplicationConfig applicationConfig) {
         this.fxLib = fxLib;
@@ -31,7 +32,7 @@ public class PlaylistManager extends AbstractListenerService<PlaylistManagerList
 
     public void play(Playlist playlist) {
         try (playlist) {
-            fxLib.play_playlist(instance, playlist);
+            playlistLoaderHandle = fxLib.play_playlist(instance, playlist);
         } catch (Exception ex) {
             log.error("Failed to start playlist, {}", ex.getMessage(), ex);
         }

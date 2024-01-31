@@ -24,7 +24,8 @@ pub extern "C" fn new_popcorn_fx(args: *mut *const c_char, len: i32) -> *mut Pop
     let args = PopcornFxArgs::from_arg_matches(&matches).expect("expected valid args");
     let instance = PopcornFX::new(args);
 
-    info!("Created new Popcorn FX instance in {} millis", start.elapsed().as_millis());
+    let time_taken = start.elapsed();
+    info!("Created new Popcorn FX instance in {}.{:03} seconds", time_taken.as_secs(), time_taken.subsec_millis());
     into_c_owned(instance)
 }
 
@@ -36,7 +37,7 @@ pub extern "C" fn dispose_popcorn_fx(instance: Box<PopcornFX>) {
     debug!("Disposing Popcorn FX instance");
     let start_time = Instant::now();
     drop(instance);
-    let time_taken = Instant::now().duration_since(start_time);
+    let time_taken = start_time.elapsed();
     info!("Disposed Popcorn FX instance in {}.{:03} seconds", time_taken.as_secs(), time_taken.subsec_millis());
 }
 

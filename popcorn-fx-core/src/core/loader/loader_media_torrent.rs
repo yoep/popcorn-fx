@@ -1,25 +1,21 @@
 use std::fmt::{Debug, Formatter};
+use std::sync::mpsc::Sender;
 
 use async_trait::async_trait;
 use derive_more::Display;
-use log::{debug, trace, warn};
-use tokio::sync::Mutex;
+use log::{debug, trace};
+use tokio_util::sync::CancellationToken;
 
-use crate::core::block_in_place;
-use crate::core::loader::{LoadingData, LoadingError, LoadingResult, LoadingStrategy, UpdateProgress, UpdateState};
+use crate::core::loader::{CancellationResult, LoadingData, LoadingError, LoadingEvent, LoadingResult, LoadingStrategy};
 use crate::core::media::{DEFAULT_AUDIO_LANGUAGE, Episode, MediaType, MovieDetails, TorrentInfo};
 
 #[derive(Display)]
 #[display(fmt = "Media torrent utl loading strategy")]
-pub struct MediaTorrentUrlLoadingStrategy {
-    state_update: Mutex<UpdateState>,
-}
+pub struct MediaTorrentUrlLoadingStrategy {}
 
 impl MediaTorrentUrlLoadingStrategy {
     pub fn new() -> Self {
-        Self {
-            state_update: Mutex::new(Box::new(|_| warn!("state_update has not been configured"))),
-        }
+        Self {}
     }
 }
 
@@ -32,16 +28,7 @@ impl Debug for MediaTorrentUrlLoadingStrategy {
 
 #[async_trait]
 impl LoadingStrategy for MediaTorrentUrlLoadingStrategy {
-    fn state_updater(&self, state_update: UpdateState) {
-        let mut state = block_in_place(self.state_update.lock());
-        *state = state_update;
-    }
-
-    fn progress_updater(&self, _: UpdateProgress) {
-        // no-op
-    }
-
-    async fn process(&self, mut data: LoadingData) -> LoadingResult {
+    async fn process(&self, mut data: LoadingData, _: Sender<LoadingEvent>, _: CancellationToken) -> LoadingResult {
         if let Some(media) = data.item.media.as_ref() {
             if let Some(quality) = data.item.quality.as_ref() {
                 debug!("Processing media torrent url for {} and quality {}", media, quality);
@@ -83,12 +70,18 @@ impl LoadingStrategy for MediaTorrentUrlLoadingStrategy {
 
         LoadingResult::Ok(data)
     }
+
+    async fn cancel(&self, data: LoadingData) -> CancellationResult {
+        Ok(data)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
+    use std::sync::mpsc::channel;
 
+    use crate::core::block_in_place;
     use crate::core::playlists::PlaylistItem;
     use crate::testing::init_logger;
 
@@ -139,9 +132,10 @@ mod tests {
             subtitles_enabled: false,
         };
         let data = LoadingData::from(item);
+        let (tx, _) = channel();
         let strategy = MediaTorrentUrlLoadingStrategy::new();
 
-        let result = block_in_place(strategy.process(data));
+        let result = block_in_place(strategy.process(data, tx, CancellationToken::new()));
 
         if let LoadingResult::Ok(result) = result {
             assert_eq!(Some(torrent_url.to_string()), result.item.url);

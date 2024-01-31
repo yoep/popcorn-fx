@@ -29,6 +29,15 @@ pub type ResolveTorrentInfoCallback = Box<dyn Fn(String) -> TorrentInfo + Send +
 /// It must be `Send` and `Sync` to support concurrent execution.
 pub type ResolveTorrentCallback = Box<dyn Fn(&TorrentFileInfo, &str, bool) -> TorrentWrapper + Send + Sync>;
 
+/// A callback function signature for canceling a torrent operation.
+///
+/// This type represents a callback function signature that takes a `String` argument. It can be used to define
+/// functions that cancel torrent-related operations, where the `String` argument may contain additional information
+/// or identifiers related to the operation to be canceled.
+///
+/// The callback function can be used to invoke cancellation logic, typically to stop and clean up torrent-related tasks or processes.
+pub type CancelTorrentCallback = Box<dyn Fn(String) + Send + Sync>;
+
 /// The default torrent manager of the application.
 /// It currently only cleans the torrent directory if needed.
 /// No actual torrent implementation is available.
@@ -45,6 +54,7 @@ impl DefaultTorrentManager {
                 torrents: Default::default(),
                 resolve_torrent_info_callback: Mutex::new(Box::new(|_| { panic!("No torrent info resolver configured") })),
                 resolve_torrent_callback: Mutex::new(Box::new(|_, _, _| { panic!("No torrent resolver configured") })),
+                cancel_torrent_callback: Mutex::new(Box::new(|_| { panic!("No cancel torrent callback configured") })),
             }),
         };
 
@@ -72,6 +82,13 @@ impl DefaultTorrentManager {
         let mut guard = block_in_place(self.inner.resolve_torrent_callback.lock());
         *guard = callback;
         info!("Updated torrent resolve callback");
+    }
+
+    pub fn register_cancel_callback(&self, callback: CancelTorrentCallback) {
+        trace!("Updating torrent cancel callback");
+        let mut guard = block_in_place(self.inner.cancel_torrent_callback.lock());
+        *guard = callback;
+        info!("Updated torrent cancel callback");
     }
 }
 
@@ -112,6 +129,7 @@ struct InnerTorrentManager {
     torrents: Mutex<Vec<Arc<Box<dyn Torrent>>>>,
     resolve_torrent_info_callback: Mutex<ResolveTorrentInfoCallback>,
     resolve_torrent_callback: Mutex<ResolveTorrentCallback>,
+    cancel_torrent_callback: Mutex<CancelTorrentCallback>,
 }
 
 impl InnerTorrentManager {
@@ -286,7 +304,11 @@ impl TorrentManager for InnerTorrentManager {
 
         if let Some(position) = position {
             debug!("Removing torrent with handle {}", handle);
-            mutex.remove(position);
+            let torrent = mutex.remove(position);
+            drop(mutex);
+
+            let mutex = block_in_place(self.cancel_torrent_callback.lock());
+            mutex(torrent.handle().to_string());
         }
     }
 

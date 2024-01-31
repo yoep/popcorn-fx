@@ -5,7 +5,7 @@ use derive_more::Display;
 #[cfg(any(test, feature = "testing"))]
 use mockall::automock;
 
-use crate::core::torrents;
+use crate::core::{Handle, torrents};
 use crate::core::torrents::{Torrent, TorrentStream};
 
 /// The state of the torrent stream server.
@@ -37,12 +37,12 @@ pub trait TorrentStreamServer: Debug + Send + Sync {
     /// # Returns
     ///
     /// A result containing a weak reference to the started torrent stream, or an error if the stream could not be started.
-    fn start_stream(&self, torrent: Weak<Box<dyn Torrent>>) -> torrents::Result<Weak<dyn TorrentStream>>;
+    fn start_stream(&self, torrent: Weak<Box<dyn Torrent>>) -> torrents::Result<Weak<Box<dyn TorrentStream>>>;
 
     /// Stop a torrent stream.
     ///
     /// # Arguments
     ///
     /// * `handle` - An identifier for the torrent stream to stop.
-    fn stop_stream(&self, handle: i64);
+    fn stop_stream(&self, handle: Handle);
 }

@@ -1,13 +1,14 @@
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
+use std::sync::mpsc::Sender;
 
 use async_trait::async_trait;
 use derive_more::Display;
 use log::{debug, trace, warn};
-use tokio::sync::Mutex;
+use tokio_util::sync::CancellationToken;
 
-use crate::core::{block_in_place, loader, subtitles};
-use crate::core::loader::{LoadingData, LoadingState, LoadingStrategy, UpdateProgress, UpdateState};
+use crate::core::{loader, subtitles};
+use crate::core::loader::{CancellationResult, LoadingData, LoadingEvent, LoadingState, LoadingStrategy};
 use crate::core::media::{Episode, MediaIdentifier, MovieDetails, ShowDetails};
 use crate::core::playlists::PlaylistItem;
 use crate::core::subtitles::{SubtitleError, SubtitleManager, SubtitleProvider};
@@ -17,7 +18,6 @@ use crate::core::subtitles::model::SubtitleInfo;
 #[derive(Display)]
 #[display(fmt = "Subtitles loading strategy")]
 pub struct SubtitlesLoadingStrategy {
-    state_update: Mutex<UpdateState>,
     subtitle_provider: Arc<Box<dyn SubtitleProvider>>,
     subtitle_manager: Arc<SubtitleManager>,
 }
@@ -25,7 +25,6 @@ pub struct SubtitlesLoadingStrategy {
 impl SubtitlesLoadingStrategy {
     pub fn new(subtitle_provider: Arc<Box<dyn SubtitleProvider>>, subtitle_manager: Arc<SubtitleManager>) -> Self {
         Self {
-            state_update: Mutex::new(Box::new(|_| warn!("state_update has not been configured"))),
             subtitle_provider,
             subtitle_manager,
         }
@@ -90,34 +89,29 @@ impl Debug for SubtitlesLoadingStrategy {
 
 #[async_trait]
 impl LoadingStrategy for SubtitlesLoadingStrategy {
-    fn state_updater(&self, state_update: UpdateState) {
-        let mut state = block_in_place(self.state_update.lock());
-        *state = state_update;
-    }
-
-    fn progress_updater(&self, _: UpdateProgress) {
-        // no-op
-    }
-
-    async fn process(&self, data: LoadingData) -> loader::LoadingResult {
+    async fn process(&self, data: LoadingData, event_channel: Sender<LoadingEvent>, _: CancellationToken) -> loader::LoadingResult {
         if !self.subtitle_manager.is_disabled_async().await {
             if self.subtitle_manager.preferred_language() == SubtitleLanguage::None {
                 trace!("Processing subtitle for {:?}", data);
-                {
-                    let state_update = self.state_update.lock().await;
-                    state_update(LoadingState::RetrievingSubtitles)
-                }
-
+                event_channel.send(LoadingEvent::StateChanged(LoadingState::RetrievingSubtitles)).unwrap();
                 self.update_to_default_subtitle(&data.item).await;
             }
         }
 
         loader::LoadingResult::Ok(data)
     }
+
+    async fn cancel(&self, data: LoadingData) -> CancellationResult {
+        debug!("Cancelling the subtitle load");
+        self.subtitle_manager.reset();
+        Ok(data)
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::sync::mpsc::channel;
+
     use tempfile::tempdir;
     use tokio::sync::Mutex;
 
@@ -166,6 +160,7 @@ mod tests {
             subtitles_enabled: true,
         };
         let data = LoadingData::from(playlist_item);
+        let (tx_event, _) = channel();
         let mut provider = MockSubtitleProvider::new();
         provider.expect_movie_subtitles()
             .returning(|_| {
@@ -175,8 +170,43 @@ mod tests {
         let loader = SubtitlesLoadingStrategy::new(Arc::new(Box::new(provider)), manager.clone());
 
         manager.disable_subtitle();
-        let result = block_in_place(loader.process(data.clone()));
+        let result = block_in_place(loader.process(data.clone(), tx_event, CancellationToken::new()));
 
         assert_eq!(LoadingResult::Ok(data), result);
+    }
+
+    #[test]
+    fn test_cancel() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let settings = Arc::new(Mutex::new(ApplicationConfig {
+            storage: Storage::from(temp_path),
+            properties: Default::default(),
+            settings: Default::default(),
+            callbacks: Default::default(),
+        }));
+        let data = LoadingData::from(PlaylistItem {
+            url: None,
+            title: "CancelledItem".to_string(),
+            thumb: None,
+            parent_media: None,
+            media: None,
+            torrent_info: None,
+            torrent_file_info: None,
+            quality: None,
+            auto_resume_timestamp: None,
+            subtitles_enabled: true,
+        });
+        let mut provider = MockSubtitleProvider::new();
+        provider.expect_movie_subtitles()
+            .returning(|_| {
+                panic!("movie_subtitles should not have been invoked")
+            });
+        let manager = Arc::new(SubtitleManager::new(settings));
+        let loader = SubtitlesLoadingStrategy::new(Arc::new(Box::new(provider)), manager.clone());
+
+        let result = block_in_place(loader.cancel(data.clone()));
+        assert_eq!(CancellationResult::Ok(data), result);
     }
 }

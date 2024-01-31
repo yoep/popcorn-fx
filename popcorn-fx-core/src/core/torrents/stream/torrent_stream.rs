@@ -7,17 +7,16 @@ use std::path::PathBuf;
 use std::pin::Pin;
 use std::sync::{Arc, Once};
 use std::task::{Context, Poll};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
 use derive_more::Display;
 use futures::Stream;
 use itertools::Itertools;
 use log::{debug, error, info, trace, warn};
-use rand::Rng;
 use tokio::sync::Mutex;
 use url::Url;
 
-use crate::core::{block_in_place, Callbacks, CoreCallbacks, torrents};
+use crate::core::{block_in_place, CallbackHandle, Callbacks, CoreCallbacks, Handle, torrents};
 use crate::core::torrents::{DownloadStatus, StreamBytesResult, Torrent, TorrentCallback, TorrentError, TorrentEvent, TorrentState, TorrentStream, TorrentStreamCallback, TorrentStreamEvent, TorrentStreamingResource, TorrentStreamingResourceWrapper, TorrentStreamState};
 
 /// The default buffer size used while streaming in bytes
@@ -44,6 +43,10 @@ impl DefaultTorrentStream {
         TorrentStreamWrapper::start_torrent_listener(instance.instance());
         instance.instance().start_preparing_pieces();
         instance
+    }
+
+    pub fn torrent(&self) -> Arc<Box<dyn Torrent>> {
+        self.internal.torrent()
     }
 
     fn instance(&self) -> Arc<TorrentStreamWrapper> {
@@ -88,13 +91,13 @@ impl Torrent for DefaultTorrentStream {
         self.internal.state()
     }
 
-    fn subscribe(&self, callback: TorrentCallback) -> i64 {
+    fn subscribe(&self, callback: TorrentCallback) -> CallbackHandle {
         self.internal.subscribe(callback)
     }
 }
 
 impl TorrentStream for DefaultTorrentStream {
-    fn stream_handle(&self) -> i64 {
+    fn stream_handle(&self) -> Handle {
         self.internal.stream_handle()
     }
 
@@ -114,12 +117,12 @@ impl TorrentStream for DefaultTorrentStream {
         self.internal.stream_state()
     }
 
-    fn subscribe_stream(&self, callback: TorrentStreamCallback) -> i64 {
+    fn subscribe_stream(&self, callback: TorrentStreamCallback) -> CallbackHandle {
         self.internal.subscribe_stream(callback)
     }
 
-    fn unsubscribe_stream(&self, callback_id: i64) {
-        self.internal.unsubscribe_stream(callback_id)
+    fn unsubscribe_stream(&self, handle: CallbackHandle) {
+        self.internal.unsubscribe_stream(handle)
     }
 
     fn stop_stream(&self) {
@@ -136,7 +139,7 @@ impl Display for DefaultTorrentStream {
 #[derive(Debug, Display)]
 #[display(fmt = "url: {}, total_pieces: {}, preparing_pieces: {}", url, "self.total_pieces()", "self.preparing_pieces().len()")]
 struct TorrentStreamWrapper {
-    handle: i64,
+    handle: Handle,
     /// The backing torrent of this stream
     torrent: Arc<Box<dyn Torrent>>,
     /// The url on which this stream is being hosted
@@ -154,7 +157,7 @@ impl TorrentStreamWrapper {
         let prepare_pieces = Self::preparation_pieces(&torrent);
 
         Self {
-            handle: Self::generate_handle(),
+            handle: Handle::new(),
             torrent,
             url,
             preparing_pieces: Arc::new(Mutex::new(prepare_pieces)),
@@ -247,6 +250,10 @@ impl TorrentStreamWrapper {
         self.callbacks.invoke(TorrentStreamEvent::StateChanged(new_state));
     }
 
+    fn torrent(&self) -> Arc<Box<dyn Torrent>> {
+        self.torrent.clone()
+    }
+
     fn preparing_pieces(&self) -> Vec<u32> {
         block_in_place(self.preparing_pieces.lock()).clone()
     }
@@ -278,18 +285,6 @@ impl TorrentStreamWrapper {
             .map(|e| e as u32)
             .unique()
             .collect()
-    }
-
-    fn generate_handle() -> i64 {
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("Time went backwards")
-            .as_secs() as i64;
-
-        let mut rng = rand::thread_rng();
-        let random_number: i64 = rng.gen();
-
-        (timestamp << 32) | (random_number & 0xFFFF_FFFF)
     }
 }
 
@@ -330,13 +325,13 @@ impl Torrent for TorrentStreamWrapper {
         self.torrent.state()
     }
 
-    fn subscribe(&self, callback: TorrentCallback) -> i64 {
+    fn subscribe(&self, callback: TorrentCallback) -> CallbackHandle {
         self.torrent.subscribe(callback)
     }
 }
 
 impl TorrentStream for TorrentStreamWrapper {
-    fn stream_handle(&self) -> i64 {
+    fn stream_handle(&self) -> Handle {
         self.handle.clone()
     }
 
@@ -372,14 +367,14 @@ impl TorrentStream for TorrentStreamWrapper {
         block_in_place(self.state.lock()).clone()
     }
 
-    fn subscribe_stream(&self, callback: TorrentStreamCallback) -> i64 {
+    fn subscribe_stream(&self, callback: TorrentStreamCallback) -> CallbackHandle {
         debug!("Adding a new callback to stream {}", self);
         self.callbacks.add(callback)
     }
 
-    fn unsubscribe_stream(&self, callback_id: i64) {
-        debug!("Removing callback {} from stream {}", callback_id, self);
-        self.callbacks.remove(callback_id)
+    fn unsubscribe_stream(&self, handle: CallbackHandle) {
+        debug!("Removing callback {} from stream {}", handle, self);
+        self.callbacks.remove(handle)
     }
 
     fn stop_stream(&self) {
@@ -671,7 +666,7 @@ mod test {
             .times(1)
             .returning(move |callback: TorrentCallback| {
                 tx.send(callback).unwrap();
-                20i64
+                Handle::new()
             });
         mock.expect_state()
             .return_const(TorrentState::Downloading);
@@ -822,7 +817,7 @@ mod test {
         mock.expect_subscribe()
             .returning(move |callback: TorrentCallback| {
                 tx_c.send(callback).unwrap();
-                20i64
+                Handle::new()
             });
         mock.expect_sequential_mode()
             .times(1)
@@ -863,7 +858,7 @@ mod test {
             .returning(|_: &[u32]| {});
         mock.expect_subscribe()
             .returning(|_: TorrentCallback| {
-                20i64
+                Handle::new()
             });
         mock.expect_state()
             .return_const(TorrentState::Completed);
@@ -894,7 +889,7 @@ mod test {
         mock.expect_subscribe()
             .times(1)
             .returning(|_| {
-                20i64
+                Handle::new()
             });
         mock.expect_state()
             .return_const(TorrentState::Downloading);

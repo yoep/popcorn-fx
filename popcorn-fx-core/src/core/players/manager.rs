@@ -9,7 +9,7 @@ use mockall::automock;
 use tokio::runtime::Runtime;
 use tokio::sync::Mutex;
 
-use crate::core::{block_in_place, Callbacks, CoreCallback, CoreCallbacks};
+use crate::core::{block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks};
 use crate::core::events::{Event, EventPublisher, PlayerChangedEvent, PlayerStartedEvent};
 use crate::core::players::{Player, PlayerEvent, PlayerState, PlayMediaRequest, PlayRequest};
 use crate::core::torrents::TorrentStreamServer;
@@ -208,7 +208,7 @@ impl Drop for DefaultPlayerManager {
 struct InnerPlayerManager {
     active_player: Mutex<Option<String>>,
     players: RwLock<Vec<Arc<Box<dyn Player>>>>,
-    listener_id: Mutex<i64>,
+    listener_id: Mutex<Option<CallbackHandle>>,
     listener_sender: Sender<PlayerEventWrapper>,
     torrent_stream_server: Arc<Box<dyn TorrentStreamServer>>,
     callbacks: CoreCallbacks<PlayerManagerEvent>,
@@ -240,9 +240,10 @@ impl InnerPlayerManager {
         if let Some(old_player) = old_player_id
             .and_then(|player_id| self.by_id(player_id.as_str()))
             .and_then(|player_ref| player_ref.upgrade()) {
-            let listener_id = self.listener_id.blocking_lock();
-            trace!("Removing internal player callback listener {}", listener_id);
-            old_player.remove(listener_id.clone());
+            if let Some(callback_handle) = block_in_place(self.listener_id.lock()).as_ref() {
+                trace!("Removing internal player callback handle {}", callback_handle);
+                old_player.remove(callback_handle.clone());
+            }
         }
 
         if let Some(new_player) = self.active_player.blocking_lock()
@@ -251,16 +252,16 @@ impl InnerPlayerManager {
             .and_then(|e| e.upgrade()) {
             trace!("Registering new internal player callback listener to {}", new_player);
             let sender = self.listener_sender.clone();
-            let callback_id = new_player.add(Box::new(move |e| {
+            let callback_handle = new_player.add(Box::new(move |e| {
                 let wrapper = PlayerEventWrapper::from(e);
                 if let Err(e) = sender.send(wrapper) {
                     error!("Failed to send player event, {}", e);
                 }
             }));
 
-            let mut listener_id = self.listener_id.blocking_lock();
-            trace!("Updating listener callback id to {}", callback_id);
-            *listener_id = callback_id;
+            let mut listener_id = block_in_place(self.listener_id.lock());
+            trace!("Updating listener callback id to {}", callback_handle);
+            *listener_id = Some(callback_handle);
         }
     }
 
@@ -411,6 +412,7 @@ mod tests {
     use std::sync::mpsc::channel;
     use std::time::Duration;
 
+    use crate::core::{CallbackHandle, Handle};
     use crate::core::events::DEFAULT_ORDER;
     use crate::core::media::MockMediaIdentifier;
     use crate::core::players::PlayUrlRequest;
@@ -436,12 +438,12 @@ mod tests {
     }
 
     impl Callbacks<PlayerEvent> for DummyPlayer {
-        fn add(&self, callback: CoreCallback<PlayerEvent>) -> i64 {
+        fn add(&self, callback: CoreCallback<PlayerEvent>) -> CallbackHandle {
             self.callbacks.add(callback)
         }
 
-        fn remove(&self, callback_id: i64) {
-            self.callbacks.remove(callback_id)
+        fn remove(&self, handle: CallbackHandle) {
+            self.callbacks.remove(handle)
         }
     }
 
@@ -614,12 +616,12 @@ mod tests {
     fn test_player_stopped_event() {
         init_logger();
         let player_id = "SomeId123";
-        let stream_handle = 42i64;
+        let stream_handle = Handle::new();
         let (tx, rx) = channel();
         let mut stream = MockTorrentStream::new();
         stream.expect_stream_handle()
             .return_const(stream_handle);
-        let stream: Arc<dyn TorrentStream> = Arc::new(stream);
+        let stream = Arc::new(Box::new(stream) as Box<dyn TorrentStream>);
         let request: Arc<Box<dyn PlayRequest>> = Arc::new(Box::new(PlayMediaRequest {
             base: PlayUrlRequest {
                 url: "".to_string(),
@@ -641,7 +643,7 @@ mod tests {
         player.expect_add()
             .returning(move |e| {
                 tx.send(e).unwrap();
-                200i64
+                Handle::new()
             });
         player.expect_request()
             .times(1)

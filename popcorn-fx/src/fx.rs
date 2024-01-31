@@ -239,7 +239,7 @@ impl PopcornFX {
             Box::new(TorrentStreamLoadingStrategy::new(torrent_stream_server.clone())),
             Box::new(PlayerLoadingStrategy::new(player_manager.clone())),
         ];
-        let media_loader = Arc::new(Box::new(DefaultMediaLoader::new(loading_chain, event_publisher.clone())) as Box<dyn MediaLoader>);
+        let media_loader = Arc::new(Box::new(DefaultMediaLoader::new(loading_chain)) as Box<dyn MediaLoader>);
         let playlist_manager = Arc::new(PlaylistManager::new(player_manager.clone(), event_publisher.clone(), media_loader.clone()));
 
         // disable the screensaver

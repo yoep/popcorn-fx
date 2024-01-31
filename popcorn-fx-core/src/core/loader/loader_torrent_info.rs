@@ -1,13 +1,13 @@
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
+use std::sync::mpsc::Sender;
 
 use async_trait::async_trait;
 use derive_more::Display;
-use log::{debug, error, trace, warn};
-use tokio::sync::Mutex;
+use log::{debug, error, trace};
+use tokio_util::sync::CancellationToken;
 
-use crate::core::block_in_place;
-use crate::core::loader::{LoadingData, LoadingError, LoadingResult, LoadingState, LoadingStrategy, UpdateProgress, UpdateState};
+use crate::core::loader::{CancellationResult, LoadingData, LoadingError, LoadingEvent, LoadingResult, LoadingState, LoadingStrategy};
 use crate::core::media::{DEFAULT_AUDIO_LANGUAGE, Episode, MediaIdentifier, MediaType, MovieDetails};
 use crate::core::torrents::{TorrentFileInfo, TorrentInfo, TorrentManager};
 
@@ -16,24 +16,18 @@ const MAGNET_PREFIX: &str = "magnet:?";
 #[derive(Display)]
 #[display(fmt = "Torrent info loading strategy")]
 pub struct TorrentInfoLoadingStrategy {
-    state_update: Mutex<UpdateState>,
     torrent_manager: Arc<Box<dyn TorrentManager>>,
 }
 
 impl TorrentInfoLoadingStrategy {
     pub fn new(torrent_manager: Arc<Box<dyn TorrentManager>>) -> Self {
         Self {
-            state_update: Mutex::new(Box::new(|_| warn!("state_update has not been configured"))),
             torrent_manager,
         }
     }
 
-    async fn resolve_torrent_info(&self, url: &str) -> Result<TorrentInfo, LoadingError> {
-        {
-            let state_update = self.state_update.lock().await;
-            state_update(LoadingState::Starting);
-        }
-
+    async fn resolve_torrent_info(&self, url: &str, event_channel: Sender<LoadingEvent>) -> Result<TorrentInfo, LoadingError> {
+        event_channel.send(LoadingEvent::StateChanged(LoadingState::Starting)).unwrap();
         match self.torrent_manager.info(url).await {
             Ok(info) => {
                 debug!("Resolved magnet url to {:?}", info);
@@ -87,22 +81,13 @@ impl Debug for TorrentInfoLoadingStrategy {
 
 #[async_trait]
 impl LoadingStrategy for TorrentInfoLoadingStrategy {
-    fn state_updater(&self, state_update: UpdateState) {
-        let mut state = block_in_place(self.state_update.lock());
-        *state = state_update;
-    }
-
-    fn progress_updater(&self, _: UpdateProgress) {
-        // no-op
-    }
-
-    async fn process(&self, mut data: LoadingData) -> LoadingResult {
+    async fn process(&self, mut data: LoadingData, event_channel: Sender<LoadingEvent>, _: CancellationToken) -> LoadingResult {
         if data.item.torrent_info.is_none() {
             trace!("Processing {:?} url for torrent loading strategy", data.item.url);
             if let Some(url) = data.item.url.as_ref()
                 .filter(|url| url.starts_with(MAGNET_PREFIX)) {
                 debug!("Loading torrent data for playlist item {}", data.item);
-                let torrent_info = self.resolve_torrent_info(url.as_str()).await;
+                let torrent_info = self.resolve_torrent_info(url.as_str(), event_channel.clone()).await;
 
                 match torrent_info {
                     Ok(e) => {
@@ -129,12 +114,18 @@ impl LoadingStrategy for TorrentInfoLoadingStrategy {
 
         LoadingResult::Ok(data)
     }
+
+    async fn cancel(&self, data: LoadingData) -> CancellationResult {
+        Ok(data)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use std::sync::mpsc::channel;
     use std::time::Duration;
+
+    use tokio_util::sync::CancellationToken;
 
     use crate::core::playlists::PlaylistItem;
     use crate::core::torrents::{MockTorrentManager, TorrentInfo};
@@ -166,6 +157,7 @@ mod tests {
         };
         let data = LoadingData::from(item);
         let (tx, rx) = channel();
+        let (tx_event, _rx_event) = channel();
         let mut torrent_manager = MockTorrentManager::new();
         torrent_manager.expect_info()
             .returning(move |e| {
@@ -174,7 +166,7 @@ mod tests {
             });
         let strategy = TorrentInfoLoadingStrategy::new(Arc::new(Box::new(torrent_manager)));
 
-        let result = strategy.process(data.clone()).await;
+        let result = strategy.process(data.clone(), tx_event, CancellationToken::new()).await;
         let resolve_url = rx.recv_timeout(Duration::from_millis(200)).unwrap();
 
         assert_eq!(magnet_url.to_string(), resolve_url);

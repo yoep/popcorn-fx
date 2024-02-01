@@ -3,13 +3,10 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
+import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.ui.playnext.PlayNextService;
 import com.github.yoep.popcorn.ui.view.controls.SizedImageView;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
-import javafx.beans.property.LongProperty;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleLongProperty;
-import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.control.Label;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -34,26 +31,20 @@ import java.util.concurrent.TimeoutException;
 import static org.mockito.Mockito.*;
 
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
-class PlayerPlayNextComponentTest {
+class PlayingNextInComponentTest {
     @Mock
     private ImageService imageService;
     @Mock
-    private PlayNextService playNextService;
+    private PlaylistManager playlistManager;
     @Mock
     private URL url;
     @Mock
     private ResourceBundle resourceBundle;
     @InjectMocks
-    private PlayerPlayNextComponent component;
-
-    private final ObjectProperty<PlayNextService.NextEpisode> nextEpisodeProperty = new SimpleObjectProperty<>();
-    private final LongProperty playingInProperty = new SimpleLongProperty();
+    private PlayingNextInComponent component;
 
     @BeforeEach
     void setUp() {
-        lenient().when(playNextService.nextEpisodeProperty()).thenReturn(nextEpisodeProperty);
-        lenient().when(playNextService.playingInProperty()).thenReturn(playingInProperty);
-
         component.playNextPane = new Pane();
         component.playNextPoster = new SizedImageView();
         component.showName = new Label();
@@ -69,7 +60,7 @@ class PlayerPlayNextComponentTest {
         var episode = new Episode();
         episode.title = "lorem ipsum dolor";
         episode.episode = 12;
-        var nextEpisode = new PlayNextService.NextEpisode(show, episode);
+        var nextEpisode = Pla;
         when(show.getTitle()).thenReturn(showTitle);
         when(imageService.loadPoster(isA(Media.class))).thenReturn(new CompletableFuture<>());
         component.initialize(url, resourceBundle);

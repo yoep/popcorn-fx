@@ -3,8 +3,6 @@ package com.github.yoep.popcorn.backend.playlists;
 import com.github.yoep.popcorn.backend.media.MediaItem;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
-import com.sun.jna.Memory;
-import com.sun.jna.Pointer;
 import com.sun.jna.Structure;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -16,20 +14,21 @@ import java.util.Optional;
 
 @Data
 @ToString
-@EqualsAndHashCode(callSuper = false)
+@EqualsAndHashCode(exclude = {"parentMedia", "media"}, callSuper = false)
 @NoArgsConstructor
-@Structure.FieldOrder({"url", "title", "thumb", "quality", "parentMedia", "media", "autoResumeTimestamp", "subtitlesEnabled"})
+@Structure.FieldOrder({"url", "title", "caption", "thumb", "quality", "parentMedia", "media", "autoResumeTimestamp", "subtitlesEnabled"})
 public class PlaylistItem extends Structure implements Closeable {
     public static class ByReference extends PlaylistItem implements Structure.ByReference {
     }
 
     public String url;
     public String title;
+    public String caption;
     public String thumb;
     public String quality;
     public MediaItem.ByReference parentMedia;
     public MediaItem.ByReference media;
-    public Pointer autoResumeTimestamp;
+    public Long autoResumeTimestamp;
     public byte subtitlesEnabled;
 
     public PlaylistItem(String url, String title, String thumb, MediaItem.ByReference media) {
@@ -41,6 +40,14 @@ public class PlaylistItem extends Structure implements Closeable {
 
     public Optional<String> getUrl() {
         return Optional.ofNullable(url);
+    }
+
+    public Optional<String> getCaption() {
+        return Optional.ofNullable(caption);
+    }
+
+    public Optional<String> getThumb() {
+        return Optional.ofNullable(thumb);
     }
 
     public Optional<Media> getParentMedia() {
@@ -58,13 +65,7 @@ public class PlaylistItem extends Structure implements Closeable {
     }
 
     public Optional<Long> getAutoResumeTimestamp() {
-        return Optional.ofNullable(autoResumeTimestamp)
-                .map(e -> e.getLong(0));
-    }
-
-    public void setAutoResumeTimestamp(long autoResumeTimestamp) {
-        this.autoResumeTimestamp = new Memory(1);
-        this.autoResumeTimestamp.setLong(0, autoResumeTimestamp);
+        return Optional.ofNullable(autoResumeTimestamp);
     }
 
     public void setSubtitlesEnabled(boolean subtitlesEnabled) {

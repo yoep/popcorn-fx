@@ -140,6 +140,7 @@ mod tests {
         let item = PlaylistItem {
             url: Some(magnet_url.to_string()),
             title: "Lorem ipsum".to_string(),
+            caption: None,
             thumb: None,
             parent_media: None,
             media: None,

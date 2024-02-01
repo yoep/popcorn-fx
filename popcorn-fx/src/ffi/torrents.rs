@@ -43,7 +43,6 @@ pub extern "C" fn torrent_piece_finished(popcorn_fx: &mut PopcornFX, handle: *co
     if let Some(torrent) = popcorn_fx.torrent_manager().by_handle(handle.as_str())
         .and_then(|e| e.upgrade()) {
         if let Some(wrapper) = torrent.downcast_ref::<TorrentWrapper>() {
-            trace!("Processing C torrent piece finished");
             wrapper.piece_finished(piece);
         }
     } else {

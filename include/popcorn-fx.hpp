@@ -202,6 +202,9 @@ enum class UpdateStateC : int32_t {
 template<typename T = void>
 struct Box;
 
+/// The callback for cancelling the torrent.
+struct CancelTorrentCallback;
+
 struct PlayerWrapperC;
 
 /// The [PopcornFX] application instance.
@@ -1893,6 +1896,23 @@ SubtitleInfoC *subtitle_custom();
 ///
 /// A pointer to a `SubtitleInfoC` instance representing "none".
 SubtitleInfoC *subtitle_none();
+
+/// Register a new C-compatible cancel torrent callback with a Rust PopcornFX instance.
+///
+/// This function registers a callback that handles the cancellation of torrent-related operations.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it interacts with C-compatible code and dereferences raw pointers.
+/// Users of this function should ensure that they provide a valid `PopcornFX` instance and a valid `CancelTorrentCallback`.
+///
+/// When the registered callback function is invoked by the manager, it converts the arguments and the result between Rust and C types.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to the PopcornFX instance.
+/// * `callback` - A `CancelTorrentCallback` function that will be registered to handle cancel torrent events.
+void torrent_cancel_callback(PopcornFX *popcorn_fx, CancelTorrentCallback callback);
 
 /// Add the given magnet info to the torrent collection.
 void torrent_collection_add(PopcornFX *popcorn_fx, const char *name, const char *magnet_uri);

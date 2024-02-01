@@ -20,7 +20,7 @@ use crate::core::playback::PlaybackState;
 ///     new_player_name: "NewPlayerName".to_string(),
 /// });
 /// ```
-#[derive(Debug, Clone, Display)]
+#[derive(Debug, Clone, Display, PartialEq)]
 pub enum Event {
     /// Invoked when the active player is changed
     #[display(fmt = "Active player changed to {} ({})", "_0.new_player_id.as_str()", "_0.new_player_name.as_str()")]
@@ -32,15 +32,20 @@ pub enum Event {
     #[display(fmt = "Player has been stopped with last known timestamp {:?}", "_0.time()")]
     PlayerStopped(PlayerStoppedEvent),
     /// Invoked when the player/playback state is changed
-    #[display(fmt = "Playback state has changed to {}", _0)]
+    #[display(fmt = "Playback state has changed to {}", "_0")]
     PlaybackStateChanged(PlaybackState),
     /// Invoked when the watched state of a media items is changed
-    #[display(fmt = "Watched state of {} changed to {}", _0, _1)]
+    #[display(fmt = "Watched state of {} changed to {}", "_0", "_1")]
     WatchStateChanged(String, bool),
+    /// Invoked when the loading of a media item has started
     #[display(fmt = "Loading of a media item has started")]
     LoadingStarted,
+    /// Invoked when the loading of a media item has completed
     #[display(fmt = "Loading of a media item has completed")]
     LoadingCompleted,
+    /// Invoked when the player should be closed
+    #[display(fmt = "Closing player")]
+    ClosePlayer,
 }
 
 /// Represents an event indicating a change in the active player within a multimedia application.

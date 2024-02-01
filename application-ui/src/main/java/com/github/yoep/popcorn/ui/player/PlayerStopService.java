@@ -2,11 +2,13 @@ package com.github.yoep.popcorn.ui.player;
 
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
-import com.github.yoep.popcorn.backend.events.*;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
+import com.github.yoep.popcorn.backend.events.PlayTorrentEvent;
+import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.player.PlayerEventService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
-import com.github.yoep.popcorn.ui.playnext.PlayNextService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,7 +25,6 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class PlayerStopService {
     private final PlayerEventService playerEventService;
-    private final PlayNextService playNextService;
     private final SubtitleService subtitleService;
     private final EventPublisher eventPublisher;
 
@@ -125,12 +126,6 @@ public class PlayerStopService {
                 .duration(Optional.ofNullable(duration)
                         .orElse(PlayerStoppedEvent.UNKNOWN))
                 .build());
-
-        // verify if the player needs to be closed automatically
-        if (time != null &&
-                (time / (double) duration) > 0.99 && playNextService.getNextEpisode().isEmpty()) {
-            eventPublisher.publishEvent(new ClosePlayerEvent(this, ClosePlayerEvent.Reason.END_OF_VIDEO));
-        }
 
         // reset the current known media information
         reset();

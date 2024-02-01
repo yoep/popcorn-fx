@@ -85,6 +85,7 @@ public class LoaderTorrentComponent implements Initializable {
             @Override
             public void onLoadingStarted(LoadingStartedEventC loadingStartedEvent) {
                 Platform.runLater(() -> {
+                    onLoadingInitializing();
                     backgroundImage.reset();
                     loadingStartedEvent.getBackground()
                             .map(imageService::load)
@@ -105,12 +106,12 @@ public class LoaderTorrentComponent implements Initializable {
 
             @Override
             public void onProgressChanged(LoadingProgress progress) {
-                onLoadingProgressChanged(progress);
+                Platform.runLater(() -> onLoadingProgressChanged(progress));
             }
 
             @Override
             public void onError(LoadingErrorC error) {
-                onLoadTorrentError();
+                Platform.runLater(() -> onLoadTorrentError());
             }
         });
     }
@@ -121,11 +122,7 @@ public class LoaderTorrentComponent implements Initializable {
 
     private void handleLoaderStateChanged(LoaderState newState) {
         switch (newState) {
-            case IDLE, INITIALIZING -> {
-                reset();
-                progressStatus.setVisible(false);
-                statusText.setText(localeText.get(TorrentMessage.INITIALIZING));
-            }
+            case IDLE, INITIALIZING -> onLoadingInitializing();
             case STARTING -> {
                 reset();
                 progressStatus.setVisible(false);
@@ -146,34 +143,35 @@ public class LoaderTorrentComponent implements Initializable {
         }
     }
 
+    private void onLoadingInitializing() {
+        reset();
+        progressStatus.setVisible(false);
+    }
+
     private void onLoadingProgressChanged(LoadingProgress progress) {
-        Platform.runLater(() -> {
-            progressStatus.setVisible(true);
-            progressBar.setProgress(progress.getProgress());
-            progressBar.setVisible(true);
-            statusText.setText(localeText.get(TorrentMessage.DOWNLOADING));
-            progressPercentage.setText(ProgressUtils.progressToPercentage(progress));
-            downloadText.setText(ProgressUtils.progressToDownload(progress));
-            uploadText.setText(ProgressUtils.progressToUpload(progress));
-            activePeersText.setText(String.valueOf(progress.getSeeds()));
-        });
+        progressStatus.setVisible(true);
+        progressBar.setProgress(progress.getProgress());
+        progressBar.setVisible(true);
+        statusText.setText(localeText.get(TorrentMessage.DOWNLOADING));
+        progressPercentage.setText(ProgressUtils.progressToPercentage(progress));
+        downloadText.setText(ProgressUtils.progressToDownload(progress));
+        uploadText.setText(ProgressUtils.progressToUpload(progress));
+        activePeersText.setText(String.valueOf(progress.getSeeds()));
     }
 
     private void onLoadTorrentError() {
-        Platform.runLater(() -> {
-            // update the actions with the retry button
-            loaderActions.getChildren().add(0, loadRetryButton);
+        // update the actions with the retry button
+        loaderActions.getChildren().add(0, loadRetryButton);
 
-            statusText.setText(localeText.get(TorrentMessage.FAILED));
-            progressBar.setProgress(1);
-            progressBar.setVisible(true);
-            progressBar.getStyleClass().add(PROGRESS_ERROR_STYLE_CLASS);
-        });
+        statusText.setText(localeText.get(TorrentMessage.FAILED));
+        progressBar.setProgress(1);
+        progressBar.setVisible(true);
+        progressBar.getStyleClass().add(PROGRESS_ERROR_STYLE_CLASS);
     }
 
     private void reset() {
         Platform.runLater(() -> {
-            statusText.setText(null);
+            statusText.setText(localeText.get(TorrentMessage.INITIALIZING));
             progressBar.getStyleClass().removeIf(e -> e.equals(PROGRESS_ERROR_STYLE_CLASS));
         });
 

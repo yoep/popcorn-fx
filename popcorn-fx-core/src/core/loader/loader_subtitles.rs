@@ -40,8 +40,11 @@ impl SubtitlesLoadingStrategy {
             } else {
                 subtitles = self.handle_movie_subtitles(media).await
             }
+        } else if let Some(file_info) = item.torrent_file_info.as_ref() {
+            subtitles = self.subtitle_provider.file_subtitles(file_info.filename.as_str()).await
         } else {
-            todo!()
+            warn!("Unable to retrieve subtitles, no information known about the played item");
+            return;
         }
 
         if let Ok(subtitles) = subtitles {
@@ -90,12 +93,16 @@ impl Debug for SubtitlesLoadingStrategy {
 #[async_trait]
 impl LoadingStrategy for SubtitlesLoadingStrategy {
     async fn process(&self, data: LoadingData, event_channel: Sender<LoadingEvent>, _: CancellationToken) -> loader::LoadingResult {
-        if !self.subtitle_manager.is_disabled_async().await {
+        if data.item.subtitles_enabled && !self.subtitle_manager.is_disabled_async().await {
             if self.subtitle_manager.preferred_language() == SubtitleLanguage::None {
                 trace!("Processing subtitle for {:?}", data);
                 event_channel.send(LoadingEvent::StateChanged(LoadingState::RetrievingSubtitles)).unwrap();
                 self.update_to_default_subtitle(&data.item).await;
+            } else {
+                debug!("Subtitle has already been selected for {}", data.item);
             }
+        } else {
+            debug!("Subtitles have been disabled for {}", data.item);
         }
 
         loader::LoadingResult::Ok(data)
@@ -111,6 +118,7 @@ impl LoadingStrategy for SubtitlesLoadingStrategy {
 #[cfg(test)]
 mod tests {
     use std::sync::mpsc::channel;
+    use std::time::Duration;
 
     use tempfile::tempdir;
     use tokio::sync::Mutex;
@@ -120,21 +128,136 @@ mod tests {
     use crate::core::loader::LoadingResult;
     use crate::core::storage::Storage;
     use crate::core::subtitles::MockSubtitleProvider;
+    use crate::core::torrents::TorrentFileInfo;
     use crate::testing::init_logger;
 
     use super::*;
 
     #[test]
-    fn test_process_subtitle_disabled() {
+    fn test_process_movie_subtitles() {
         init_logger();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(Mutex::new(ApplicationConfig {
-            storage: Storage::from(temp_path),
-            properties: Default::default(),
-            settings: Default::default(),
-            callbacks: Default::default(),
-        }));
+        let settings = Arc::new(Mutex::new(ApplicationConfig::builder()
+            .storage(temp_path)
+            .build()));
+        let movie_details = MovieDetails {
+            title: "MyMovieTitle".to_string(),
+            imdb_id: "tt112233".to_string(),
+            year: "2013".to_string(),
+            runtime: "80".to_string(),
+            genres: vec![],
+            synopsis: "Lorem ipsum dolor".to_string(),
+            rating: None,
+            images: Default::default(),
+            trailer: "".to_string(),
+            torrents: Default::default(),
+        };
+        let playlist_item = PlaylistItem {
+            url: None,
+            title: "".to_string(),
+            caption: None,
+            thumb: None,
+            parent_media: None,
+            media: Some(Box::new(movie_details.clone())),
+            torrent_info: None,
+            torrent_file_info: None,
+            quality: None,
+            auto_resume_timestamp: None,
+            subtitles_enabled: true,
+        };
+        let data = LoadingData::from(playlist_item);
+        let (tx, rx) = channel();
+        let (tx_event, _rx_event) = channel();
+        let mut provider = MockSubtitleProvider::new();
+        provider.expect_movie_subtitles()
+            .times(1)
+            .returning(move |e| {
+                tx.send(e.clone()).unwrap();
+                Ok(Vec::new())
+            });
+        provider.expect_file_subtitles()
+            .times(0)
+            .return_const(Ok(Vec::new()));
+        provider.expect_select_or_default()
+            .times(1)
+            .returning(|_| {
+                SubtitleInfo::none()
+            });
+        let manager = Arc::new(SubtitleManager::new(settings));
+        let loader = SubtitlesLoadingStrategy::new(Arc::new(Box::new(provider)), manager.clone());
+
+        let result = block_in_place(loader.process(data.clone(), tx_event, CancellationToken::new()));
+        assert_eq!(LoadingResult::Ok(data), result);
+
+        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        assert_eq!(movie_details, result);
+    }
+
+    #[test]
+    fn test_process_filename_subtitles() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let settings = Arc::new(Mutex::new(ApplicationConfig::builder()
+            .storage(temp_path)
+            .build()));
+        let filename = "MyTIFile";
+        let torrent_file_info = TorrentFileInfo {
+            filename: filename.to_string(),
+            file_path: "/tmp/some/random/path".to_string(),
+            file_size: 845000,
+            file_index: 12,
+        };
+        let playlist_item = PlaylistItem {
+            url: None,
+            title: "".to_string(),
+            caption: None,
+            thumb: None,
+            parent_media: None,
+            media: None,
+            torrent_info: None,
+            torrent_file_info: Some(torrent_file_info.clone()),
+            quality: None,
+            auto_resume_timestamp: None,
+            subtitles_enabled: true,
+        };
+        let data = LoadingData::from(playlist_item);
+        let (tx, rx) = channel();
+        let (tx_event, _rx_event) = channel();
+        let mut provider = MockSubtitleProvider::new();
+        provider.expect_movie_subtitles()
+            .times(0)
+            .return_const(Ok(Vec::new()));
+        provider.expect_file_subtitles()
+            .times(1)
+            .returning(move |e| {
+                tx.send(e.to_string()).unwrap();
+                Ok(Vec::new())
+            });
+        provider.expect_select_or_default()
+            .times(1)
+            .returning(|_| {
+                SubtitleInfo::none()
+            });
+        let manager = Arc::new(SubtitleManager::new(settings));
+        let loader = SubtitlesLoadingStrategy::new(Arc::new(Box::new(provider)), manager.clone());
+
+        let result = block_in_place(loader.process(data.clone(), tx_event, CancellationToken::new()));
+        assert_eq!(LoadingResult::Ok(data), result);
+
+        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        assert_eq!(filename.to_string(), result);
+    }
+
+    #[test]
+    fn test_process_subtitle_manager_disabled() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let settings = Arc::new(Mutex::new(ApplicationConfig::builder()
+            .storage(temp_path)
+            .build()));
         let movie = Box::new(MovieDetails {
             title: "".to_string(),
             imdb_id: "tt112233".to_string(),
@@ -150,6 +273,7 @@ mod tests {
         let playlist_item = PlaylistItem {
             url: None,
             title: "".to_string(),
+            caption: None,
             thumb: None,
             parent_media: None,
             media: Some(movie),
@@ -176,6 +300,48 @@ mod tests {
     }
 
     #[test]
+    fn test_process_playlist_subtitles_disabled() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let settings = Arc::new(Mutex::new(ApplicationConfig::builder()
+            .storage(temp_path)
+            .build()));
+        let playlist_item = PlaylistItem {
+            url: None,
+            title: "".to_string(),
+            caption: None,
+            thumb: None,
+            parent_media: None,
+            media: None,
+            torrent_info: None,
+            torrent_file_info: None,
+            quality: None,
+            auto_resume_timestamp: None,
+            subtitles_enabled: false,
+        };
+        let data = LoadingData::from(playlist_item);
+        let (tx_event, _) = channel();
+        let mut provider = MockSubtitleProvider::new();
+        provider.expect_movie_subtitles()
+            .times(0)
+            .return_const(subtitles::Result::Ok(Vec::new()));
+        provider.expect_episode_subtitles()
+            .times(0)
+            .return_const(subtitles::Result::Ok(Vec::new()));
+        provider.expect_file_subtitles()
+            .times(0)
+            .return_const(subtitles::Result::Ok(Vec::new()));
+        let manager = Arc::new(SubtitleManager::new(settings));
+        let loader = SubtitlesLoadingStrategy::new(Arc::new(Box::new(provider)), manager.clone());
+
+        let result = block_in_place(loader.process(data.clone(), tx_event, CancellationToken::new()));
+        assert_eq!(LoadingResult::Ok(data), result);
+
+        assert!(loader.subtitle_manager.preferred_subtitle().is_none(), "expected no subtitle to have been set");
+    }
+
+    #[test]
     fn test_cancel() {
         init_logger();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
@@ -189,6 +355,7 @@ mod tests {
         let data = LoadingData::from(PlaylistItem {
             url: None,
             title: "CancelledItem".to_string(),
+            caption: None,
             thumb: None,
             parent_media: None,
             media: None,
@@ -207,6 +374,6 @@ mod tests {
         let loader = SubtitlesLoadingStrategy::new(Arc::new(Box::new(provider)), manager.clone());
 
         let result = block_in_place(loader.cancel(data.clone()));
-        assert_eq!(CancellationResult::Ok(data), result);
+        assert_eq!(Ok(data), result);
     }
 }

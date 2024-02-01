@@ -96,10 +96,11 @@ impl FromIterator<PlaylistItem> for Playlist {
 }
 
 #[derive(Debug, Display)]
-#[display(fmt = "url: {:?}, title: {}, thumb: {:?}, media: {:?}, quality: {:?}, subtitles_enabled: {}", url, title, thumb, media, quality, subtitles_enabled)]
+#[display(fmt = "url: {:?}, title: {}, caption: {:?}, thumb: {:?}, media: {:?}, quality: {:?}, subtitles_enabled: {}", url, title, caption, thumb, media, quality, subtitles_enabled)]
 pub struct PlaylistItem {
     pub url: Option<String>,
     pub title: String,
+    pub caption: Option<String>,
     pub thumb: Option<String>,
     pub parent_media: Option<Box<dyn MediaIdentifier>>,
     pub media: Option<Box<dyn MediaIdentifier>>,
@@ -128,6 +129,7 @@ impl Clone for PlaylistItem {
         Self {
             url: self.url.clone(),
             title: self.title.clone(),
+            caption: self.caption.clone(),
             thumb: self.thumb.clone(),
             parent_media: cloned_parent_media,
             media: cloned_media,
@@ -187,6 +189,7 @@ mod test {
         playlist.add(PlaylistItem {
             url: None,
             title: "".to_string(),
+            caption: None,
             thumb: None,
             parent_media: None,
             media: Some(media.clone()),
@@ -207,6 +210,7 @@ mod test {
         let playlist_item = PlaylistItem {
             url: None,
             title: "".to_string(),
+            caption: None,
             thumb: None,
             parent_media: None,
             media: Some(Box::new(MovieOverview::new(
@@ -238,6 +242,7 @@ mod test {
         playlist.add(PlaylistItem {
             url: None,
             title: "".to_string(),
+            caption: None,
             thumb: None,
             parent_media: None,
             media: Some(media.clone()),
@@ -266,6 +271,7 @@ mod test {
         playlist.add(PlaylistItem {
             url: None,
             title: "".to_string(),
+            caption: None,
             thumb: None,
             parent_media: None,
             media: Some(media.clone()),
@@ -293,6 +299,7 @@ mod test {
         playlist.add(PlaylistItem {
             url: None,
             title: "".to_string(),
+            caption: None,
             thumb: None,
             parent_media: None,
             media: Some(media.clone()),
@@ -313,6 +320,7 @@ mod test {
         let item = PlaylistItem {
             url: None,
             title: "FooBar".to_string(),
+            caption: None,
             thumb: None,
             parent_media: None,
             media: None,
@@ -334,6 +342,7 @@ mod test {
         let playlist = Playlist::from(PlaylistItem {
             url: None,
             title: title.to_string(),
+            caption: None,
             thumb: None,
             parent_media: None,
             media: None,
@@ -359,6 +368,7 @@ mod test {
         let result: Playlist = vec![PlaylistItem {
             url: None,
             title: title.to_string(),
+            caption: None,
             thumb: None,
             parent_media: None,
             media: None,

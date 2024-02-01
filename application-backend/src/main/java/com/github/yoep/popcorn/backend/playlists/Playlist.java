@@ -39,8 +39,10 @@ public class Playlist extends Structure implements Closeable {
             var item = items.get(i);
             array[i].url = item.url;
             array[i].title = item.title;
+            array[i].caption = item.caption;
             array[i].thumb = item.thumb;
             array[i].quality = item.quality;
+            array[i].parentMedia = item.parentMedia;
             array[i].media = item.media;
             array[i].autoResumeTimestamp = item.autoResumeTimestamp;
             array[i].subtitlesEnabled = item.subtitlesEnabled;

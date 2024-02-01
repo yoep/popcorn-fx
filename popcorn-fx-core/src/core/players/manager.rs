@@ -101,7 +101,7 @@ pub trait PlayerManager: Debug + Send + Sync {
     fn remove_player(&self, player_id: &str);
 
     /// Subscribe to receive player manager events through a callback.
-    fn subscribe(&self, callback: PlayerManagerCallback);
+    fn subscribe(&self, callback: PlayerManagerCallback) -> CallbackHandle;
 
     /// Play media content by submitting a play request to the player manager.
     ///
@@ -185,7 +185,7 @@ impl PlayerManager for DefaultPlayerManager {
         self.inner.remove_player(player_id)
     }
 
-    fn subscribe(&self, callback: PlayerManagerCallback) {
+    fn subscribe(&self, callback: PlayerManagerCallback) -> CallbackHandle {
         self.inner.subscribe(callback)
     }
 
@@ -207,6 +207,7 @@ impl Drop for DefaultPlayerManager {
 #[derive(Debug)]
 struct InnerPlayerManager {
     active_player: Mutex<Option<String>>,
+    player_duration: Arc<Mutex<u64>>,
     players: RwLock<Vec<Arc<Box<dyn Player>>>>,
     listener_id: Mutex<Option<CallbackHandle>>,
     listener_sender: Sender<PlayerEventWrapper>,
@@ -219,6 +220,7 @@ impl InnerPlayerManager {
     fn new(listener_sender: Sender<PlayerEventWrapper>, event_publisher: Arc<EventPublisher>, torrent_stream_server: Arc<Box<dyn TorrentStreamServer>>) -> Self {
         let instance = Self {
             active_player: Mutex::default(),
+            player_duration: Arc::new(Default::default()),
             players: RwLock::default(),
             listener_id: Default::default(),
             listener_sender,
@@ -267,11 +269,20 @@ impl InnerPlayerManager {
 
     fn handle_player_event(&self, event: PlayerEvent) {
         match event {
-            PlayerEvent::DurationChanged(e) => self.callbacks.invoke(PlayerManagerEvent::PlayerDurationChanged(e)),
+            PlayerEvent::DurationChanged(e) => self.handle_player_duration_event(e),
             PlayerEvent::TimeChanged(e) => self.callbacks.invoke(PlayerManagerEvent::PlayerTimeChanged(e)),
             PlayerEvent::StateChanged(e) => self.handle_player_state_changed(e),
             PlayerEvent::VolumeChanged(_) => {}
         }
+    }
+
+    fn handle_player_duration_event(&self, new_duration: u64) {
+        {
+            let mut mutex = block_in_place(self.player_duration.lock());
+            *mutex = new_duration.clone();
+        }
+
+        self.callbacks.invoke(PlayerManagerEvent::PlayerDurationChanged(new_duration));
     }
 
     fn handle_player_state_changed(&self, new_state: PlayerState) {
@@ -279,13 +290,28 @@ impl InnerPlayerManager {
         if let PlayerState::Stopped = &new_state {
             if let Some(player) = self.active_player()
                 .and_then(|e| e.upgrade()) {
-                if let Some(request) = player.request()
-                    .and_then(|e| e.upgrade()) {
-                    if let Some(stream) = request.downcast_ref::<PlayMediaRequest>()
-                        .and_then(|e| e.torrent_stream.upgrade()) {
-                        debug!("Stopping player stream of {}", stream);
-                        self.torrent_stream_server.stop_stream(stream.stream_handle());
+                let duration: u64;
+
+                {
+                    let mut mutex = block_in_place(self.player_duration.lock());
+                    duration = *mutex;
+                    *mutex = 0;
+                }
+
+                if duration > 0 {
+                    if let Some(request) = player.request()
+                        .and_then(|e| e.upgrade()) {
+                        if let Some(stream) = request.downcast_ref::<PlayMediaRequest>()
+                            .and_then(|e| e.torrent_stream.upgrade()) {
+                            debug!("Stopping player stream of {}", stream);
+                            self.torrent_stream_server.stop_stream(stream.stream_handle());
+                        }
                     }
+
+                    trace!("Player stopped event resulted in Event::ClosePlayer");
+                    self.event_publisher.publish(Event::ClosePlayer);
+                } else {
+                    trace!("Skipping player stopped event, last known duration is {}", duration);
                 }
             }
         }
@@ -389,8 +415,8 @@ impl PlayerManager for InnerPlayerManager {
         }
     }
 
-    fn subscribe(&self, callback: PlayerManagerCallback) {
-        self.callbacks.add(callback);
+    fn subscribe(&self, callback: PlayerManagerCallback) -> CallbackHandle {
+        self.callbacks.add(callback)
     }
 
     fn play(&self, request: Box<dyn PlayRequest>) {

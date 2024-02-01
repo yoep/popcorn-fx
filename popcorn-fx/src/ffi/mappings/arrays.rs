@@ -201,6 +201,7 @@ mod test {
         let item = PlaylistItemC {
             url: into_c_string(url.to_string()),
             title: ptr::null(),
+            caption: ptr::null(),
             thumb: ptr::null(),
             quality: ptr::null(),
             parent_media: ptr::null_mut(),
@@ -226,6 +227,7 @@ mod test {
         let item = PlaylistItemC {
             url: into_c_string(url.to_string()),
             title: into_c_string("MyTitle".to_string()),
+            caption: ptr::null(),
             thumb: ptr::null(),
             quality: ptr::null(),
             parent_media: ptr::null_mut(),

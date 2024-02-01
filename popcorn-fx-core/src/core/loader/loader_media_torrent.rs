@@ -107,6 +107,7 @@ mod tests {
         let item = PlaylistItem {
             url: None,
             title: "LoremIpsum".to_string(),
+            caption: None,
             thumb: None,
             parent_media: None,
             media: Some(Box::new(MovieDetails {

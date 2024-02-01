@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.backend.media;
 
+import com.github.yoep.popcorn.backend.media.providers.MediaException;
 import com.github.yoep.popcorn.backend.media.providers.models.*;
 import com.sun.jna.Structure;
 import lombok.EqualsAndHashCode;
@@ -79,8 +80,12 @@ public class MediaItem extends Structure implements Closeable {
             mediaItem.fromShowDetails(show);
         } else if (media instanceof ShowOverview.ByReference show) {
             mediaItem.showOverview = show;
+        } else if (media instanceof Episode.ByReference episode) {
+            mediaItem.episode = episode;
+        } else if (media instanceof Episode episode) {
+            mediaItem.fromEpisode(episode);
         } else {
-            mediaItem.episode = (Episode.ByReference) media;
+            throw new MediaException(media, "Unsupported media type");
         }
 
         return mediaItem;
@@ -131,5 +136,16 @@ public class MediaItem extends Structure implements Closeable {
         this.movieOverview.year = movie.year;
         this.movieOverview.rating = movie.rating;
         this.movieOverview.images = movie.images;
+    }
+
+    private void fromEpisode(Episode episode) {
+        this.episode = new Episode.ByReference();
+        this.episode.season = episode.getSeason();
+        this.episode.episode = episode.getEpisode();
+        this.episode.firstAired = episode.getFirstAired();
+        this.episode.title = episode.getTitle();
+        this.episode.synopsis = episode.getSynopsis();
+        this.episode.tvdbId = episode.getTvdbId();
+        this.episode.thumb = episode.getThumb().orElse(null);
     }
 }

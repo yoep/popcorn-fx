@@ -105,6 +105,7 @@ mod tests {
         let item = PlaylistItem {
             url: Some("".to_string()),
             title: "Lorem ipsum".to_string(),
+            caption: None,
             thumb: None,
             parent_media: None,
             media: None,
@@ -136,6 +137,7 @@ mod tests {
         let mut data = LoadingData::from(PlaylistItem {
             url: Some("".to_string()),
             title: "MyTorrent".to_string(),
+            caption: None,
             thumb: None,
             parent_media: None,
             media: None,

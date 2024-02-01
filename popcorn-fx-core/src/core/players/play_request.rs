@@ -419,6 +419,7 @@ mod tests {
         let item = PlaylistItem {
             url: Some(url.to_string()),
             title: title.to_string(),
+            caption: None,
             thumb: None,
             parent_media: None,
             media: None,
@@ -513,6 +514,7 @@ mod tests {
         let item = PlaylistItem {
             url: Some(url.to_string()),
             title: title.to_string(),
+            caption: None,
             thumb: None,
             parent_media: None,
             media: Some(Box::new(media.clone())),

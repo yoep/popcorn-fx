@@ -21,17 +21,23 @@ pub type EventCCallback = extern "C" fn(EventC);
 #[derive(Debug)]
 pub enum EventC {
     /// Invoked when the player is changed
-    /// 1ste argument is the new player id, 2nd argument is the new player name
+    /// 1st argument is the new player id, 2nd argument is the new player name
     PlayerChanged(PlayerChangedEventC),
+    /// Invoked when the player playback has started for a new media item
     PlayerStarted(PlayerStartedEventC),
     /// Invoked when the player is being stopped
     PlayerStopped(PlayerStoppedEventC),
     /// Invoked when the playback state is changed
     PlaybackStateChanged(PlaybackState),
     /// Invoked when the watch state of an item is changed
+    /// 1st argument is a pointer to the imdb id (C string), 2nd argument is a boolean indicating the new watch state
     WatchStateChanged(*const c_char, bool),
+    /// Invoked when the loading of a media item has started
     LoadingStarted,
+    /// Invoked when the loading of a media item has completed
     LoadingCompleted,
+    /// Invoked when the player should be closed
+    ClosePlayer,
 }
 
 impl From<Event> for EventC {
@@ -45,6 +51,7 @@ impl From<Event> for EventC {
             Event::WatchStateChanged(id, state) => EventC::WatchStateChanged(into_c_string(id), state),
             Event::LoadingStarted => EventC::LoadingStarted,
             Event::LoadingCompleted => EventC::LoadingCompleted,
+            Event::ClosePlayer => EventC::ClosePlayer,
         }
     }
 }
@@ -60,6 +67,7 @@ impl From<EventC> for Event {
             EventC::WatchStateChanged(id, state) => Event::WatchStateChanged(from_c_string(id), state),
             EventC::LoadingStarted => Event::LoadingStarted,
             EventC::LoadingCompleted => Event::LoadingCompleted,
+            EventC::ClosePlayer => Event::ClosePlayer,
         }
     }
 }

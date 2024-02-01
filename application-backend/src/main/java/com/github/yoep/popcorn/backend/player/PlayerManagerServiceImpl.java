@@ -124,15 +124,18 @@ public class PlayerManagerServiceImpl extends AbstractListenerService<PlayerMana
     @Override
     public void callback(PlayerManagerEvent event) {
         log.debug("Received player manager event {}", event);
-        invokeListeners(listener -> {
-            switch (event.getTag()) {
-                case ActivePlayerChanged -> {
-                    var change = event.getUnion().getPlayerChanged_body().playerChangedEvent;
-                    listener.activePlayerChanged(new PlayerChanged(change.getOldPlayerId().orElse(null), change.getNewPlayerId(), change.getNewPlayerName()));
+        try (event) {
+            invokeListeners(listener -> {
+                switch (event.getTag()) {
+                    case ActivePlayerChanged -> {
+                        var change = event.getUnion().getPlayerChanged_body().playerChangedEvent;
+                        listener.activePlayerChanged(new PlayerChanged(change.getOldPlayerId().orElse(null), change.getNewPlayerId(),
+                                change.getNewPlayerName()));
+                    }
+                    case PlayersChanged -> listener.playersChanged();
                 }
-                case PlayersChanged -> listener.playersChanged();
-            }
-        });
+            });
+        }
     }
 
     //endregion

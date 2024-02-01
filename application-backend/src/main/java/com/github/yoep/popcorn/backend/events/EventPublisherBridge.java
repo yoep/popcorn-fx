@@ -24,7 +24,7 @@ public class EventPublisherBridge implements EventBridgeCallback {
     private void init() {
         eventPublisher.register(PlayerStoppedEvent.class, event -> {
             var event_c = new EventC.ByValue();
-            event_c.tag = EventC.Tag.PlayerStopped;
+            event_c.tag = EventC.Tag.PLAYER_STOPPED;
             event_c.union = new EventC.EventCUnion.ByValue();
             event_c.union.playerStopped_body = new EventC.PlayerStopped_Body();
             event_c.union.playerStopped_body.stoppedEvent = PlayerStoppedEventC.from(event);
@@ -36,7 +36,7 @@ public class EventPublisherBridge implements EventBridgeCallback {
         }, EventPublisher.HIGHEST_ORDER);
         eventPublisher.register(PlayerStateEvent.class, event -> {
             var event_c = new EventC.ByValue();
-            event_c.tag = EventC.Tag.PlaybackStateChanged;
+            event_c.tag = EventC.Tag.PLAYBACK_STATE_CHANGED;
             event_c.union = new EventC.EventCUnion.ByValue();
             event_c.union.playbackState_body = new EventC.PlaybackState_Body();
             event_c.union.playbackState_body.newState = event.getNewState();
@@ -54,11 +54,12 @@ public class EventPublisherBridge implements EventBridgeCallback {
     @Override
     public void callback(EventC.ByValue event) {
         switch (event.getTag()) {
-            case PlayerChanged,
-                    PlayerStarted,
-                    PlayerStopped,
-                    LoadingStarted,
-                    LoadingCompleted -> eventPublisher.publish(event.toEvent());
+            case PLAYER_CHANGED,
+                    PLAYER_STARTED,
+                    PLAYER_STOPPED,
+                    LOADING_STARTED,
+                    LOADING_COMPLETED,
+                    CLOSE_PLAYER-> eventPublisher.publish(event.toEvent());
             default -> log.warn("EventC callback of {} is currently not yet supported", event.getTag());
         }
     }

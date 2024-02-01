@@ -125,6 +125,7 @@ mod tests {
         let mut data = LoadingData::from(PlaylistItem {
             url: None,
             title: "MyStream".to_string(),
+            caption: None,
             thumb: None,
             parent_media: None,
             media: None,

@@ -48,7 +48,7 @@ public class EventC extends Structure implements Closeable {
 
     public ApplicationEvent toEvent() {
         switch (tag) {
-            case PlayerChanged -> {
+            case PLAYER_CHANGED -> {
                 var event = union.playerChanged_body.playerChangedEvent;
 
                 return PlayerChangedEvent.builder()
@@ -58,7 +58,7 @@ public class EventC extends Structure implements Closeable {
                         .newPlayerName(event.getNewPlayerName())
                         .build();
             }
-            case PlayerStarted -> {
+            case PLAYER_STARTED -> {
                 var event = union.playerStarted_body.startedEvent;
 
                 return PlayerStartedEvent.builder()
@@ -71,7 +71,7 @@ public class EventC extends Structure implements Closeable {
                         .subtitleEnabled(event.isSubtitlesEnabled())
                         .build();
             }
-            case PlayerStopped -> {
+            case PLAYER_STOPPED -> {
                 var event = union.playerStopped_body.stoppedEvent;
 
                 return PlayerStoppedEvent.builder()
@@ -82,11 +82,14 @@ public class EventC extends Structure implements Closeable {
                         .media(event.media.getMedia())
                         .build();
             }
-            case LoadingStarted -> {
+            case LOADING_STARTED -> {
                 return new LoadingStartedEvent(this);
             }
-            case LoadingCompleted -> {
+            case LOADING_COMPLETED -> {
                 return new LoadingCompletedEvent(this);
+            }
+            case CLOSE_PLAYER -> {
+                return new ClosePlayerEvent(this, ClosePlayerEvent.Reason.END_OF_VIDEO);
             }
             default -> {
                 log.error("Failed to create ApplicationEvent from {}", this);
@@ -97,11 +100,11 @@ public class EventC extends Structure implements Closeable {
 
     private void updateUnionType() {
         switch (tag) {
-            case PlayerChanged -> union.setType(PlayerChanged_Body.class);
-            case PlayerStarted -> union.setType(PlayerStarted_Body.class);
-            case PlayerStopped -> union.setType(PlayerStopped_Body.class);
-            case PlaybackStateChanged -> union.setType(PlaybackState_Body.class);
-            case WatchStateChanged -> union.setType(WatchStateChanged_Body.class);
+            case PLAYER_CHANGED -> union.setType(PlayerChanged_Body.class);
+            case PLAYER_STARTED -> union.setType(PlayerStarted_Body.class);
+            case PLAYER_STOPPED -> union.setType(PlayerStopped_Body.class);
+            case PLAYBACK_STATE_CHANGED -> union.setType(PlaybackState_Body.class);
+            case WATCH_STATE_CHANGED -> union.setType(WatchStateChanged_Body.class);
         }
     }
 
@@ -202,13 +205,14 @@ public class EventC extends Structure implements Closeable {
     }
 
     public enum Tag implements NativeMapped {
-        PlayerChanged,
-        PlayerStarted,
-        PlayerStopped,
-        PlaybackStateChanged,
-        WatchStateChanged,
-        LoadingStarted,
-        LoadingCompleted;
+        PLAYER_CHANGED,
+        PLAYER_STARTED,
+        PLAYER_STOPPED,
+        PLAYBACK_STATE_CHANGED,
+        WATCH_STATE_CHANGED,
+        LOADING_STARTED,
+        LOADING_COMPLETED,
+        CLOSE_PLAYER;
 
         @Override
         public Object fromNative(Object nativeValue, FromNativeContext context) {

@@ -45,7 +45,7 @@ class EventPublisherBridgeTest {
 
         verify(fxLib).publish_event(eq(instance), isA(EventC.ByValue.class));
         var result = holder.get();
-        assertEquals(EventC.Tag.PlayerStopped, result.tag);
+        assertEquals(EventC.Tag.PLAYER_STOPPED, result.tag);
         assertEquals(url, result.union.playerStopped_body.stoppedEvent.url);
         assertEquals(time, result.union.playerStopped_body.stoppedEvent.time.getValue());
         assertEquals(duration, result.union.playerStopped_body.stoppedEvent.duration.getValue());

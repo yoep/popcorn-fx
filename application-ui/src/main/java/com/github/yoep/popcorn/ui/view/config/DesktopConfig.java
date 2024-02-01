@@ -9,8 +9,8 @@ import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieOverview;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
+import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
-import com.github.yoep.popcorn.ui.playnext.PlayNextService;
 import com.github.yoep.popcorn.ui.torrent.TorrentCollectionService;
 import com.github.yoep.popcorn.ui.trakt.TraktService;
 import com.github.yoep.popcorn.ui.view.controllers.common.sections.ListSectionController;
@@ -117,9 +117,9 @@ public class DesktopConfig {
     }
 
     @Bean
-    public PlayerPlayNextComponent playerPlaylistComponent(ImageService imageService,
-                                                           PlayNextService playNextService) {
-        return new PlayerPlayNextComponent(imageService, playNextService);
+    public PlayingNextInComponent playerPlaylistComponent(ImageService imageService,
+                                                          PlaylistManager playlistManager) {
+        return new PlayingNextInComponent(imageService, playlistManager);
     }
 
     //endregion

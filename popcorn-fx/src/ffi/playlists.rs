@@ -5,7 +5,7 @@ use log::trace;
 use popcorn_fx_core::core::playlists::{Playlist, PlaylistItem};
 use popcorn_fx_core::from_c_vec;
 
-use crate::ffi::{CArray, PlaylistItemC};
+use crate::ffi::{CArray, PlaylistItemC, PlaylistManagerCallbackC, PlaylistManagerEventC};
 use crate::PopcornFX;
 
 /// Play a playlist from C by converting it to the Rust data structure and starting playback asynchronously.
@@ -33,6 +33,68 @@ pub extern "C" fn play_playlist(popcorn_fx: &mut PopcornFX, playlist: CArray<Pla
     popcorn_fx.playlist_manager().play(playlist)
         .map(|e| e.value() as *const i64)
         .unwrap_or(ptr::null())
+}
+
+/// Play the next item in the playlist from C.
+///
+/// This function is exposed as a C-compatible function and is intended to be called from C or other languages.
+/// It takes a mutable reference to a `PopcornFX` instance and attempts to start playback of the next item in the playlist managed by the `PlaylistManager`.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to the PopcornFX instance.
+///
+/// # Returns
+///
+/// A raw pointer to an `i64` representing the handle of the playlist item if playback was successfully started;
+/// otherwise, a null pointer if there are no more items to play or if an error occurred during playback initiation.
+#[no_mangle]
+pub extern "C" fn play_next_playlist_item(popcorn_fx: &mut PopcornFX) -> *const i64 {
+    trace!("Playing next item in playlist from C");
+    popcorn_fx.playlist_manager().play_next()
+        .map(|e| e.value() as *const i64)
+        .unwrap_or(ptr::null())
+}
+
+/// Stop the playback of the current playlist from C.
+///
+/// This function is exposed as a C-compatible function and is intended to be called from C or other languages.
+/// It takes a mutable reference to a `PopcornFX` instance and stops the playback of the currently playing item in the playlist.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to the `PopcornFX` instance.
+#[no_mangle]
+pub extern "C" fn stop_playlist(popcorn_fx: &mut PopcornFX) {
+    trace!("Stopping current playlist from C");
+    popcorn_fx.playlist_manager().stop();
+}
+
+/// Registers a C-compatible callback function to receive playlist manager events.
+///
+/// This function is exposed as a C-compatible function and is intended to be called from C or other languages.
+/// It takes a mutable reference to a `PopcornFX` instance and a C-compatible callback function as arguments.
+///
+/// The function registers the provided callback function with the `PlaylistManager` from the `PopcornFX` instance.
+/// When a playlist manager event occurs, the callback function is invoked with the corresponding C-compatible event data.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it interacts with C-compatible code and dereferences raw pointers.
+/// Users of this function should ensure that they provide a valid `PopcornFX` instance and a valid `PlaylistManagerCallbackC`.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to the `PopcornFX` instance.
+/// * `callback` - The C-compatible callback function to be registered.
+#[no_mangle]
+pub extern "C" fn register_playlist_manager_callback(popcorn_fx: &mut PopcornFX, callback: PlaylistManagerCallbackC) {
+    trace!("Registering new C callback for playlist manager events");
+    popcorn_fx.playlist_manager().subscribe(Box::new(move |event| {
+        trace!("Invoking playlist manager C event for {:?}", event);
+        let event = PlaylistManagerEventC::from(event);
+        callback(event);
+    }));
 }
 
 /// Dispose of a playlist item.
@@ -82,6 +144,7 @@ mod test {
         let item = PlaylistItemC::from(PlaylistItem {
             url: None,
             title: "".to_string(),
+            caption: None,
             thumb: None,
             parent_media: None,
             media: None,
@@ -113,11 +176,59 @@ mod test {
     }
 
     #[test]
+    fn test_play_next_playlist_item() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let playlist = CArray::from(vec![PlaylistItemC::from(PlaylistItem {
+            url: None,
+            title: "Item1".to_string(),
+            caption: None,
+            thumb: None,
+            parent_media: None,
+            media: None,
+            torrent_info: None,
+            torrent_file_info: None,
+            quality: None,
+            auto_resume_timestamp: None,
+            subtitles_enabled: false,
+        }), PlaylistItemC::from(PlaylistItem {
+            url: None,
+            title: "Item2".to_string(),
+            caption: None,
+            thumb: None,
+            parent_media: None,
+            media: None,
+            torrent_info: None,
+            torrent_file_info: None,
+            quality: None,
+            auto_resume_timestamp: None,
+            subtitles_enabled: false,
+        })]);
+        let mut instance = PopcornFX::new(default_args(temp_path));
+
+        play_playlist(&mut instance, playlist);
+        let handle = play_next_playlist_item(&mut instance);
+        assert!(!handle.is_null(), "expected a valid loader handle to have been returned");
+    }
+
+    #[test]
+    fn test_stop_playlist() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut instance = PopcornFX::new(default_args(temp_path));
+
+        stop_playlist(&mut instance);
+    }
+
+    #[test]
     fn test_dispose_playlist_item() {
         init_logger();
         let item = Box::new(PlaylistItemC {
             url: into_c_string("http://my_url".to_string()),
             title: into_c_string("Foo Bar".to_string()),
+            caption: ptr::null(),
             thumb: into_c_string("MyThumb".to_string()),
             parent_media: ptr::null_mut(),
             media: ptr::null_mut(),
@@ -135,6 +246,7 @@ mod test {
         let item = PlaylistItemC {
             url: into_c_string("http://my_url".to_string()),
             title: into_c_string("Foo Bar".to_string()),
+            caption: ptr::null(),
             thumb: into_c_string("MyThumb".to_string()),
             parent_media: ptr::null_mut(),
             media: ptr::null_mut(),

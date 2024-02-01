@@ -331,6 +331,7 @@ mod tests {
         let data = LoadingData::from(PlaylistItem {
             url: None,
             title: "MyStateTest".to_string(),
+            caption: None,
             thumb: None,
             parent_media: None,
             media: None,
@@ -375,6 +376,7 @@ mod tests {
         let data = LoadingData::from(PlaylistItem {
             url: None,
             title: "MyLoadTest".to_string(),
+            caption: None,
             thumb: None,
             parent_media: None,
             media: None,
@@ -415,6 +417,7 @@ mod tests {
         let data = LoadingData::from(PlaylistItem {
             url: None,
             title: "".to_string(),
+            caption: None,
             thumb: None,
             parent_media: None,
             media: None,
@@ -453,6 +456,7 @@ mod tests {
         let data = LoadingData::from(PlaylistItem {
             url: None,
             title: "".to_string(),
+            caption: None,
             thumb: None,
             parent_media: None,
             media: None,
@@ -488,6 +492,7 @@ mod tests {
         let data = LoadingData::from(PlaylistItem {
             url: None,
             title: "".to_string(),
+            caption: None,
             thumb: None,
             parent_media: None,
             media: None,

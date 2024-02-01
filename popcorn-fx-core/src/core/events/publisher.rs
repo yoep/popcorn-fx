@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 use std::fmt;
-use std::fmt::Debug;
+use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 
 use log::{debug, info, trace};
@@ -136,7 +136,8 @@ impl EventPublisher {
             info!("Publishing event {}", event);
             let mut arg = event;
 
-            trace!("Invoking a total of {} callbacks for the event publisher", invocations.len());
+            debug!("Invoking a total of {} callbacks for the event publisher", invocations.len());
+            trace!("Invoking callbacks {:?}", invocations);
             for invocation in invocations.iter() {
                 if let Some(event) = (invocation.callback)(arg) {
                     arg = event;
@@ -196,6 +197,14 @@ impl PartialOrd for EventCallbackHolder {
 impl Ord for EventCallbackHolder {
     fn cmp(&self, other: &Self) -> Ordering {
         self.partial_cmp(other).expect("expected an Ordering to be returned")
+    }
+}
+
+impl Debug for EventCallbackHolder {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("EventCallbackHolder")
+            .field("order", &self.order)
+            .finish()
     }
 }
 
@@ -328,7 +337,7 @@ mod test {
 
         // Check if the event consumers are invoked in the correct order
         let callback2_result = rx_callback2.recv_timeout(Duration::from_millis(100)).unwrap();
-        let callback1_result = rx_callback1.recv_timeout(Duration::from_millis(50));
+        let callback1_result = rx_callback1.recv_timeout(Duration::from_millis(100));
         assert_eq!(event, callback2_result);
         assert!(callback1_result.is_err(), "expected the rx_callback1 to not have been invoked");
     }

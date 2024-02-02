@@ -10,7 +10,6 @@ use tokio_util::sync::CancellationToken;
 use crate::core::{loader, subtitles};
 use crate::core::loader::{CancellationResult, LoadingData, LoadingEvent, LoadingState, LoadingStrategy};
 use crate::core::media::{Episode, MediaIdentifier, MovieDetails, ShowDetails};
-use crate::core::playlists::PlaylistItem;
 use crate::core::subtitles::{SubtitleError, SubtitleManager, SubtitleProvider};
 use crate::core::subtitles::language::SubtitleLanguage;
 use crate::core::subtitles::model::SubtitleInfo;
@@ -30,17 +29,17 @@ impl SubtitlesLoadingStrategy {
         }
     }
 
-    async fn update_to_default_subtitle(&self, item: &PlaylistItem) {
-        debug!("Loading subtitles for playlist item {}", item);
+    async fn update_to_default_subtitle(&self, data: &LoadingData) {
+        debug!("Loading subtitles for {:?}", data);
         let subtitles: subtitles::Result<Vec<SubtitleInfo>>;
 
-        if let Some(media) = item.media.as_ref() {
-            if let Some(parent_media) = item.parent_media.as_ref() {
+        if let Some(media) = data.media.as_ref() {
+            if let Some(parent_media) = data.parent_media.as_ref() {
                 subtitles = self.handle_episode_subtitle(parent_media, media).await
             } else {
                 subtitles = self.handle_movie_subtitles(media).await
             }
-        } else if let Some(file_info) = item.torrent_file_info.as_ref() {
+        } else if let Some(file_info) = data.torrent_file_info.as_ref() {
             subtitles = self.subtitle_provider.file_subtitles(file_info.filename.as_str()).await
         } else {
             warn!("Unable to retrieve subtitles, no information known about the played item");
@@ -50,7 +49,7 @@ impl SubtitlesLoadingStrategy {
         if let Ok(subtitles) = subtitles {
             let subtitle = self.subtitle_provider.select_or_default(subtitles.as_slice());
 
-            debug!("Updating subtitle to {} for playlist item {}", subtitle, item);
+            debug!("Updating subtitle to {} for {:?}", subtitle, data);
             self.subtitle_manager.update_subtitle(subtitle);
         }
     }
@@ -93,16 +92,16 @@ impl Debug for SubtitlesLoadingStrategy {
 #[async_trait]
 impl LoadingStrategy for SubtitlesLoadingStrategy {
     async fn process(&self, data: LoadingData, event_channel: Sender<LoadingEvent>, _: CancellationToken) -> loader::LoadingResult {
-        if data.item.subtitles_enabled && !self.subtitle_manager.is_disabled_async().await {
+        if data.subtitles_enabled.unwrap_or(false) && !self.subtitle_manager.is_disabled_async().await {
             if self.subtitle_manager.preferred_language() == SubtitleLanguage::None {
                 trace!("Processing subtitle for {:?}", data);
                 event_channel.send(LoadingEvent::StateChanged(LoadingState::RetrievingSubtitles)).unwrap();
-                self.update_to_default_subtitle(&data.item).await;
+                self.update_to_default_subtitle(&data).await;
             } else {
-                debug!("Subtitle has already been selected for {}", data.item);
+                debug!("Subtitle has already been selected for {:?}", data);
             }
         } else {
-            debug!("Subtitles have been disabled for {}", data.item);
+            debug!("Subtitles have been disabled for {:?}", data);
         }
 
         loader::LoadingResult::Ok(data)
@@ -126,6 +125,7 @@ mod tests {
     use crate::core::block_in_place;
     use crate::core::config::ApplicationConfig;
     use crate::core::loader::LoadingResult;
+    use crate::core::playlists::PlaylistItem;
     use crate::core::storage::Storage;
     use crate::core::subtitles::MockSubtitleProvider;
     use crate::core::torrents::TorrentFileInfo;

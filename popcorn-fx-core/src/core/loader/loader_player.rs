@@ -32,11 +32,11 @@ impl PlayerLoadingStrategy {
     }
 
     fn convert(&self, data: LoadingData) -> Box<dyn PlayRequest> {
-        if data.item.media.is_some() {
+        if data.media.is_some() {
             return Box::new(PlayMediaRequest::from(data));
         }
 
-        Box::new(PlayUrlRequest::from(data.item))
+        return Box::new(PlayUrlRequest::from(data));
     }
 }
 
@@ -56,7 +56,7 @@ impl LoadingStrategy for PlayerLoadingStrategy {
     ///
     /// * `item` - The playlist item to process.
     async fn process(&self, data: LoadingData, event_channel: Sender<LoadingEvent>, _: CancellationToken) -> loader::LoadingResult {
-        if let Some(url) = data.item.url.as_ref() {
+        if let Some(url) = data.url.as_ref() {
             trace!("Starting playlist item playback for {}", url);
             event_channel.send(LoadingEvent::StateChanged(LoadingState::Playing)).unwrap();
             self.player_manager.play(self.convert(data));

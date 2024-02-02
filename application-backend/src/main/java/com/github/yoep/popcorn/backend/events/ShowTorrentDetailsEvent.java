@@ -1,7 +1,6 @@
-package com.github.yoep.popcorn.ui.events;
+package com.github.yoep.popcorn.backend.events;
 
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
-import com.github.yoep.popcorn.backend.events.ShowDetailsEvent;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import org.springframework.util.Assert;

@@ -16,6 +16,7 @@ import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
+import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.GridPane;
@@ -31,6 +32,8 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
     private static final String DEFAULT_TORRENT_AUDIO = "en";
 
     private final ViewLoader viewLoader;
+
+    String quality;
 
     @FXML
     GridPane detailsContent;
@@ -96,6 +99,7 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
                     switchHealth(movie.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(event.getQuality()));
                 }
             });
+            this.quality = event.getQuality();
             return event;
         });
     }
@@ -148,13 +152,13 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
     @FXML
     void onMagnetClicked(MouseEvent event) {
         event.consume();
-        //        var torrentInfo = media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(quality);
-        //
-        //        if (event.getButton() == MouseButton.SECONDARY) {
-        //            copyMagnetLink(torrentInfo);
-        //        } else {
-        //            openMagnetLink(torrentInfo);
-        //        }
+        var torrentInfo = media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(quality);
+
+        if (event.getButton() == MouseButton.SECONDARY) {
+            copyMagnetLink(torrentInfo);
+        } else {
+            openMagnetLink(torrentInfo);
+        }
     }
 
     //endregion

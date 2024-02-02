@@ -1,10 +1,8 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
-import com.github.yoep.popcorn.backend.media.providers.models.Episode;
-import com.github.yoep.popcorn.backend.media.providers.models.Media;
-import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
+import com.github.yoep.popcorn.backend.playlists.PlaylistItem;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
-import com.github.yoep.popcorn.ui.playnext.PlayNextService;
+import com.github.yoep.popcorn.backend.playlists.PlaylistManagerListener;
 import com.github.yoep.popcorn.ui.view.controls.SizedImageView;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.scene.control.Label;
@@ -23,10 +21,12 @@ import org.testfx.util.WaitForAsyncUtils;
 
 import java.net.URL;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.*;
 
@@ -55,22 +55,27 @@ class PlayingNextInComponentTest {
 
     @Test
     void testOnNextEpisodeChanged() throws TimeoutException {
-        var showTitle = "Estla";
-        var show = mock(ShowDetails.class);
-        var episode = new Episode();
-        episode.title = "lorem ipsum dolor";
-        episode.episode = 12;
-        var nextEpisode = Pla;
-        when(show.getTitle()).thenReturn(showTitle);
-        when(imageService.loadPoster(isA(Media.class))).thenReturn(new CompletableFuture<>());
+        var title = "MyTitle";
+        var caption = "MyCaption";
+        var thumb = "MyThumbUrl";
+        var listenerHolder = new AtomicReference<PlaylistManagerListener>();
+        var item = mock(PlaylistItem.class);
+        when(item.getTitle()).thenReturn(title);
+        when(item.getCaption()).thenReturn(Optional.of(caption));
+        when(item.getThumb()).thenReturn(Optional.of(thumb));
+        when(imageService.load(isA(String.class))).thenReturn(new CompletableFuture<>());
+        doAnswer(invocation -> {
+            listenerHolder.set(invocation.getArgument(0, PlaylistManagerListener.class));
+            return null;
+        }).when(playlistManager).addListener(isA(PlaylistManagerListener.class));
         component.initialize(url, resourceBundle);
 
-        nextEpisodeProperty.set(nextEpisode);
+        var listener = listenerHolder.get();
+        listener.onPlayingIn(null, item);
 
-        WaitForAsyncUtils.waitFor(100, TimeUnit.MILLISECONDS, () -> Objects.equals(component.showName.getText(), showTitle));
-        WaitForAsyncUtils.waitFor(100, TimeUnit.MILLISECONDS, () -> component.episodeTitle.getText().equals(episode.title));
-        WaitForAsyncUtils.waitFor(100, TimeUnit.MILLISECONDS, () -> component.episodeNumber.getText().equals(String.valueOf(episode.episode)));
-        verify(imageService).loadPoster(show);
+        WaitForAsyncUtils.waitFor(100, TimeUnit.MILLISECONDS, () -> Objects.equals(component.showName.getText(), title));
+        WaitForAsyncUtils.waitFor(100, TimeUnit.MILLISECONDS, () -> component.episodeTitle.getText().equals(caption));
+        verify(imageService).load(thumb);
     }
 
     @Test
@@ -80,7 +85,7 @@ class PlayingNextInComponentTest {
 
         component.onPlayNextClicked(event);
 
-        verify(playNextService).playNextEpisodeNow();
+        verify(playlistManager).playNext();
     }
 
     @Test
@@ -91,6 +96,16 @@ class PlayingNextInComponentTest {
 
         component.onPlayNextPressed(event);
 
-        verify(playNextService).playNextEpisodeNow();
+        verify(playlistManager).playNext();
+    }
+
+    @Test
+    void testOnStopClicked() {
+        var event = mock(MouseEvent.class);
+        component.initialize(url, resourceBundle);
+
+        component.onPlayNextStopClicked(event);
+
+        verify(playlistManager).stop();
     }
 }

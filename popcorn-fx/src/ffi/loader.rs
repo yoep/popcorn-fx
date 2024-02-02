@@ -1,8 +1,11 @@
+use std::os::raw::c_char;
+
 use log::{trace, warn};
 
 use popcorn_fx_core::core::Handle;
+use popcorn_fx_core::from_c_string;
 
-use crate::ffi::{LoaderEventC, LoaderEventCallback};
+use crate::ffi::{LoaderEventC, LoaderEventCallback, LoadingHandleC};
 use crate::PopcornFX;
 
 /// Register a loader event callback to receive loader state change events.
@@ -23,13 +26,36 @@ pub extern "C" fn register_loader_callback(instance: &mut PopcornFX, callback: L
     }));
 }
 
+/// Load a media item using the media loader from a C-compatible URL.
+///
+/// This function takes a mutable reference to a `PopcornFX` instance and a C-compatible string (`*const c_char`) representing the URL of the media item to load.
+/// It uses the media loader to load the media item asynchronously and returns a handle (represented as a `LoadingHandleC`) for the loading process.
+///
+/// # Arguments
+///
+/// * `instance` - A mutable reference to the `PopcornFX` instance.
+/// * `url` - A C-compatible string representing the URL of the media item to load.
+///
+/// # Returns
+///
+/// A `LoadingHandleC` representing the loading process associated with the loaded item.
+#[no_mangle]
+pub extern "C" fn loader_load(instance: &mut PopcornFX, url: *const c_char) -> LoadingHandleC {
+    let url = from_c_string(url);
+    trace!("Loading new loader url {} from C", url);
+    let handle = instance.media_loader().load_url(url.as_str());
+
+    trace!("Loader load returned handle {}", handle);
+    handle.value() as *const i64
+}
+
 /// Cancels the current media loading process initiated by the `MediaLoader`.
 ///
 /// # Arguments
 ///
 /// * `instance` - A mutable reference to the `PopcornFX` instance.
 #[no_mangle]
-pub extern "C" fn loader_cancel(instance: &mut PopcornFX, handle: *const i64) {
+pub extern "C" fn loader_cancel(instance: &mut PopcornFX, handle: LoadingHandleC) {
     if !handle.is_null() {
         trace!("Cancelling the loader");
         let handle = Handle::from(handle as i64);
@@ -46,6 +72,7 @@ mod tests {
 
     use popcorn_fx_core::core::media::MovieDetails;
     use popcorn_fx_core::core::playlists::PlaylistItem;
+    use popcorn_fx_core::into_c_string;
     use popcorn_fx_core::testing::init_logger;
 
     use crate::test::default_args;
@@ -92,6 +119,19 @@ mod tests {
         let result = instance.media_loader().load_playlist_item(item);
 
         assert_ne!(result.value(), 0);
+    }
+
+    #[test]
+    fn test_loader_load() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let url = "magnet:?xt=urn:btih:9a5c24e8164dfe5a98d2437b7f4d6ec9a7e2e045&dn=Another%20Example%20File&tr=http%3A%2F%2Ftracker.anotherexample.com%3A56789%2Fannounce&xl=987654321&sf=Another%20Folder";
+        let mut instance = PopcornFX::new(default_args(temp_path));
+
+        let result = loader_load(&mut instance, into_c_string(url.to_string()));
+
+        assert_ne!(0i64, result as i64);
     }
 
     #[test]

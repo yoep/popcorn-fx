@@ -1,5 +1,5 @@
 use std::fmt::Debug;
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use derive_more::Display;
@@ -11,12 +11,12 @@ use tokio::runtime::Runtime;
 use tokio::sync::Mutex;
 
 use crate::core::{block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks, Handle};
-use crate::core::loader::{LoadingEvent, LoadingStrategy};
+use crate::core::loader::{LoadingData, LoadingEvent, LoadingStrategy};
 use crate::core::loader::loading_chain::{LoadingChain, Order};
 use crate::core::loader::task::LoadingTask;
-use crate::core::media::{Episode, Images, MediaIdentifier, MediaOverview, MovieDetails, ShowDetails, TorrentInfo};
+use crate::core::media::{Episode, Images, MediaIdentifier, MediaOverview, MovieDetails, ShowDetails};
 use crate::core::playlists::PlaylistItem;
-use crate::core::torrents::{DownloadStatus, Torrent, TorrentError, TorrentStream};
+use crate::core::torrents::{DownloadStatus, Magnet, TorrentError};
 
 /// Represents the result of a loading operation.
 ///
@@ -100,6 +100,66 @@ pub struct LoadingStartedEvent {
     pub quality: Option<String>,
 }
 
+impl LoadingStartedEvent {
+    fn background(parent: Option<&Box<dyn MediaIdentifier>>, media: &Box<dyn MediaIdentifier>) -> Option<String> {
+        if let Some(parent) = parent {
+            let images: &Images;
+
+            if let Some(e) = parent.downcast_ref::<ShowDetails>() {
+                images = e.images();
+            } else {
+                return None;
+            }
+
+            return Some(images.fanart().to_string());
+        } else {
+            if let Some(e) = media.downcast_ref::<MovieDetails>() {
+                Some(e.images().fanart().to_string())
+            } else {
+                None
+            }
+        }
+    }
+
+    fn thumbnail(media: &Box<dyn MediaIdentifier>) -> Option<String> {
+        if let Some(e) = media.downcast_ref::<Episode>() {
+            e.thumb().cloned()
+        } else if let Some(e) = media.downcast_ref::<MovieDetails>() {
+            Some(e.images().poster().to_string())
+        } else {
+            None
+        }
+    }
+}
+
+impl From<&LoadingData> for LoadingStartedEvent {
+    fn from(value: &LoadingData) -> Self {
+        let url = value.url.clone();
+        let title = value.title.clone()
+            .unwrap_or_else(move || {
+                url
+                    .and_then(|e| Magnet::from_str(e.as_str())
+                        .map(|e| Some(e))
+                        .unwrap_or(None))
+                    .and_then(|e| e.dn()
+                        .map(|e| e.to_string()))
+                    .unwrap_or(String::new())
+            });
+
+        Self {
+            url: value.url.as_ref()
+                .map(|e| e.clone())
+                .unwrap_or(String::new()),
+            title,
+            thumbnail: value.media.as_ref()
+                .and_then(Self::thumbnail),
+            background: value.media.as_ref()
+                .and_then(|e| Self::background(value.parent_media.as_ref(), e)),
+            quality: value.quality.clone(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Display, PartialEq)]
 #[display(fmt = "progress: {}, seeds: {}, peers: {}, download_speed: {}", progress, seeds, peers, download_speed)]
 pub struct LoadingProgress {
@@ -144,6 +204,8 @@ pub enum LoadingError {
     MediaError(String),
     #[error("Loading timed-out, {0}")]
     TimeoutError(String),
+    #[error("Loading data is invalid, {0}")]
+    InvalidData(String),
     #[error("Loading task has been cancelled")]
     Cancelled,
 }
@@ -174,6 +236,8 @@ pub trait MediaLoader: Debug + Send + Sync {
     ///
     /// Returns a `CallbackHandle` representing the subscription to loader events.
     fn subscribe(&self, callback: LoaderCallback) -> CallbackHandle;
+
+    fn load_url(&self, url: &str) -> LoadingHandle;
 
     /// Load a media item in the playlist using the media loader.
     ///
@@ -219,37 +283,6 @@ pub trait MediaLoader: Debug + Send + Sync {
     fn cancel(&self, handle: LoadingHandle);
 }
 
-/// A structure representing loading data for a media item.
-#[derive(Debug, Clone)]
-pub struct LoadingData {
-    pub item: PlaylistItem,
-    pub media_torrent_info: Option<TorrentInfo>,
-    pub torrent: Option<Weak<Box<dyn Torrent>>>,
-    pub torrent_stream: Option<Weak<Box<dyn TorrentStream>>>,
-}
-
-impl PartialEq for LoadingData {
-    fn eq(&self, other: &Self) -> bool {
-        self.item == other.item &&
-            self.torrent.is_some() == other.torrent.is_some() &&
-            self.torrent_stream.is_some() == other.torrent_stream.is_some()
-    }
-
-    fn ne(&self, other: &Self) -> bool {
-        !self.eq(other)
-    }
-}
-
-impl From<PlaylistItem> for LoadingData {
-    fn from(value: PlaylistItem) -> Self {
-        Self {
-            item: value,
-            media_torrent_info: None,
-            torrent: None,
-            torrent_stream: None,
-        }
-    }
-}
 
 #[derive(Debug)]
 pub struct DefaultMediaLoader {
@@ -272,6 +305,10 @@ impl MediaLoader for DefaultMediaLoader {
 
     fn subscribe(&self, callback: LoaderCallback) -> CallbackHandle {
         self.inner.subscribe(callback)
+    }
+
+    fn load_url(&self, url: &str) -> LoadingHandle {
+        self.inner.load_url(url)
     }
 
     fn load_playlist_item(&self, item: PlaylistItem) -> LoadingHandle {
@@ -313,74 +350,10 @@ impl InnerMediaLoader {
         }
     }
 
-    fn remove_task(handle: LoadingHandle, tasks: Arc<Mutex<Vec<Arc<LoadingTask>>>>) {
-        let mut tasks = block_in_place(tasks.lock());
-        let position = tasks.iter()
-            .position(|e| e.handle() == handle);
-
-        if let Some(position) = position {
-            let task = tasks.remove(position);
-            debug!("Loading task {} has been removed", task.handle());
-        }
-    }
-
-    fn thumbnail(media: &Box<dyn MediaIdentifier>) -> Option<String> {
-        if let Some(e) = media.downcast_ref::<Episode>() {
-            e.thumb().cloned()
-        } else if let Some(e) = media.downcast_ref::<MovieDetails>() {
-            Some(e.images().poster().to_string())
-        } else {
-            None
-        }
-    }
-
-    fn background(parent: Option<&Box<dyn MediaIdentifier>>, media: &Box<dyn MediaIdentifier>) -> Option<String> {
-        if let Some(parent) = parent {
-            let images: &Images;
-
-            if let Some(e) = parent.downcast_ref::<ShowDetails>() {
-                images = e.images();
-            } else {
-                return None;
-            }
-
-            return Some(images.fanart().to_string());
-        } else {
-            if let Some(e) = media.downcast_ref::<MovieDetails>() {
-                Some(e.images().fanart().to_string())
-            } else {
-                None
-            }
-        }
-    }
-}
-
-#[async_trait]
-impl MediaLoader for InnerMediaLoader {
-    fn add(&self, strategy: Box<dyn LoadingStrategy>, order: Order) {
-        self.loading_chain.add(strategy, order)
-    }
-
-    fn subscribe(&self, callback: LoaderCallback) -> CallbackHandle {
-        self.callbacks.add(callback)
-    }
-
-    fn load_playlist_item(&self, item: PlaylistItem) -> LoadingHandle {
-        trace!("Starting loading procedure for {}", item);
-        let data = LoadingData::from(item);
+    fn do_internal_load(&self, data: LoadingData) -> LoadingHandle {
         let task = Arc::new(LoadingTask::new(self.loading_chain.clone()));
         let loading_handle = task.handle();
-        let started_event = LoadingStartedEvent {
-            url: data.item.url.clone()
-                .or(Some(String::new()))
-                .unwrap(),
-            title: data.item.title.clone(),
-            thumbnail: data.item.media.as_ref()
-                .and_then(Self::thumbnail),
-            background: data.item.media.as_ref()
-                .and_then(|e| Self::background(data.item.parent_media.as_ref(), e)),
-            quality: data.item.quality.clone(),
-        };
+        let started_event = LoadingStartedEvent::from(&data);
 
         let task_to_store = task.clone();
         {
@@ -422,6 +395,38 @@ impl MediaLoader for InnerMediaLoader {
         loading_handle
     }
 
+    fn remove_task(handle: LoadingHandle, tasks: Arc<Mutex<Vec<Arc<LoadingTask>>>>) {
+        let mut tasks = block_in_place(tasks.lock());
+        let position = tasks.iter()
+            .position(|e| e.handle() == handle);
+
+        if let Some(position) = position {
+            let task = tasks.remove(position);
+            debug!("Loading task {} has been removed", task.handle());
+        }
+    }
+}
+
+#[async_trait]
+impl MediaLoader for InnerMediaLoader {
+    fn add(&self, strategy: Box<dyn LoadingStrategy>, order: Order) {
+        self.loading_chain.add(strategy, order)
+    }
+
+    fn subscribe(&self, callback: LoaderCallback) -> CallbackHandle {
+        self.callbacks.add(callback)
+    }
+
+    fn load_url(&self, url: &str) -> LoadingHandle {
+        trace!("Starting loading procedure for {}", url);
+        self.do_internal_load(LoadingData::from(url))
+    }
+
+    fn load_playlist_item(&self, item: PlaylistItem) -> LoadingHandle {
+        trace!("Starting loading procedure for {}", item);
+        self.do_internal_load(LoadingData::from(item))
+    }
+
     fn state(&self, handle: LoadingHandle) -> Option<LoadingState> {
         block_in_place(self.tasks.lock()).iter()
             .find(|e| e.handle() == handle)
@@ -461,6 +466,70 @@ mod tests {
     use crate::testing::init_logger;
 
     use super::*;
+
+    #[test]
+    fn test_load_data_from_str() {
+        init_logger();
+        let url = "magnet:?MyTestingUrl";
+        let expected_result = LoadingData {
+            url: Some(url.to_string()),
+            title: None,
+            caption: None,
+            thumb: None,
+            parent_media: None,
+            media: None,
+            torrent_info: None,
+            torrent_file_info: None,
+            quality: None,
+            auto_resume_timestamp: None,
+            media_torrent_info: None,
+            torrent: None,
+            torrent_stream: None,
+            subtitles_enabled: None,
+        };
+
+        let result = LoadingData::from(url);
+
+        assert_eq!(expected_result, result);
+    }
+
+    #[test]
+    fn test_loading_data_from_playlist_item() {
+        init_logger();
+        let item = PlaylistItem {
+            url: None,
+            title: "MyItemTitle".to_string(),
+            caption: None,
+            thumb: None,
+            parent_media: None,
+            media: None,
+            torrent_info: None,
+            torrent_file_info: None,
+            quality: None,
+            auto_resume_timestamp: None,
+            subtitles_enabled: false,
+        };
+        let expected_result = LoadingData {
+            url: None,
+            title: Some("MyItemTitle".to_string()),
+            caption: None,
+            thumb: None,
+            parent_media: None,
+            media: None,
+            torrent_info: None,
+            torrent_file_info: None,
+            quality: None,
+            auto_resume_timestamp: None,
+            subtitles_enabled: Some(false),
+            media_torrent_info: None,
+            torrent: None,
+            torrent_stream: None,
+        };
+
+        let result = LoadingData::from(item);
+
+        assert_eq!(expected_result, result);
+    }
 
     #[test]
     fn test_load_playlist_item() {

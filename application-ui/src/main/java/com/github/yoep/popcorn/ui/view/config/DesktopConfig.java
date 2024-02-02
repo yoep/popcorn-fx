@@ -3,6 +3,7 @@ package com.github.yoep.popcorn.ui.view.config;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.loader.LoaderService;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.backend.media.providers.ProviderService;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
@@ -58,8 +59,8 @@ public class DesktopConfig {
     @Bean
     public TorrentCollectionSectionController torrentCollectionSectionController(EventPublisher eventPublisher,
                                                                                  TorrentCollectionService torrentCollectionService,
-                                                                                 LocaleText localeText) {
-        return new TorrentCollectionSectionController(eventPublisher, torrentCollectionService, localeText);
+                                                                                 LocaleText localeText, LoaderService loaderService) {
+        return new TorrentCollectionSectionController(eventPublisher, torrentCollectionService, localeText, loaderService);
     }
 
     @Bean

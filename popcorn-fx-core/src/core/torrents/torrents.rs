@@ -144,7 +144,8 @@ impl Display for MockTorrent {
 }
 
 /// The torrent information
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Display, Clone, PartialEq)]
+#[display(fmt = "name: {}, directory_name: {:?}, total_files: {}", name, directory_name, total_files)]
 pub struct TorrentInfo {
     /// The name of the torrent
     pub name: String,
@@ -209,11 +210,16 @@ impl TorrentInfo {
     }
 }
 
+/// Represents information about a file within a torrent.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TorrentFileInfo {
+    /// The name of the file.
     pub filename: String,
+    /// The full path to the file within the torrent.
     pub file_path: String,
+    /// The size of the file in bytes.
     pub file_size: i64,
+    /// The index of the file within the torrent.
     pub file_index: i32,
 }
 

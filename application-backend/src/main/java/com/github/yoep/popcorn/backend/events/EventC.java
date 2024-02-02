@@ -1,6 +1,7 @@
 package com.github.yoep.popcorn.backend.events;
 
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentInfoWrapper;
 import com.sun.jna.FromNativeContext;
 import com.sun.jna.NativeMapped;
 import com.sun.jna.Structure;
@@ -49,7 +50,7 @@ public class EventC extends Structure implements Closeable {
     public ApplicationEvent toEvent() {
         switch (tag) {
             case PLAYER_CHANGED -> {
-                var event = union.playerChanged_body.playerChangedEvent;
+                var event = union.getPlayerChanged_body().playerChangedEvent;
 
                 return PlayerChangedEvent.builder()
                         .source(this)
@@ -59,7 +60,7 @@ public class EventC extends Structure implements Closeable {
                         .build();
             }
             case PLAYER_STARTED -> {
-                var event = union.playerStarted_body.startedEvent;
+                var event = union.getPlayerStarted_body().startedEvent;
 
                 return PlayerStartedEvent.builder()
                         .source(this)
@@ -72,7 +73,7 @@ public class EventC extends Structure implements Closeable {
                         .build();
             }
             case PLAYER_STOPPED -> {
-                var event = union.playerStopped_body.stoppedEvent;
+                var event = union.getPlayerStopped_body().stoppedEvent;
 
                 return PlayerStoppedEvent.builder()
                         .source(this)
@@ -87,6 +88,10 @@ public class EventC extends Structure implements Closeable {
             }
             case LOADING_COMPLETED -> {
                 return new LoadingCompletedEvent(this);
+            }
+            case TORRENT_DETAILS_LOADED -> {
+                var body = union.getTorrentDetailsLoaded_body();
+                return new ShowTorrentDetailsEvent(this, "", body.getTorrentInfo());
             }
             case CLOSE_PLAYER -> {
                 return new ClosePlayerEvent(this, ClosePlayerEvent.Reason.END_OF_VIDEO);
@@ -105,6 +110,7 @@ public class EventC extends Structure implements Closeable {
             case PLAYER_STOPPED -> union.setType(PlayerStopped_Body.class);
             case PLAYBACK_STATE_CHANGED -> union.setType(PlaybackState_Body.class);
             case WATCH_STATE_CHANGED -> union.setType(WatchStateChanged_Body.class);
+            case TORRENT_DETAILS_LOADED -> union.setType(TorrentDetailsLoaded_Body.class);
         }
     }
 
@@ -177,6 +183,20 @@ public class EventC extends Structure implements Closeable {
 
     @Getter
     @ToString
+    @FieldOrder({"torrentInfo"})
+    public static class TorrentDetailsLoaded_Body extends Structure implements Closeable {
+        public TorrentInfoWrapper.ByValue torrentInfo;
+
+        @Override
+        public void close() {
+            setAutoSynch(false);
+            Optional.ofNullable(torrentInfo)
+                    .ifPresent(TorrentInfoWrapper::close);
+        }
+    }
+
+    @Getter
+    @ToString
     @EqualsAndHashCode(callSuper = false)
     public static class EventCUnion extends Union implements Closeable {
         public static class ByValue extends EventCUnion implements Union.ByValue {
@@ -187,6 +207,7 @@ public class EventC extends Structure implements Closeable {
         public PlayerStopped_Body playerStopped_body;
         public PlaybackState_Body playbackState_body;
         public WatchStateChanged_Body watchStateChanged_body;
+        public TorrentDetailsLoaded_Body torrentDetailsLoaded_body;
 
         @Override
         public void close() {
@@ -201,6 +222,8 @@ public class EventC extends Structure implements Closeable {
                     .ifPresent(PlaybackState_Body::close);
             Optional.ofNullable(watchStateChanged_body)
                     .ifPresent(WatchStateChanged_Body::close);
+            Optional.ofNullable(torrentDetailsLoaded_body)
+                    .ifPresent(TorrentDetailsLoaded_Body::close);
         }
     }
 
@@ -212,6 +235,7 @@ public class EventC extends Structure implements Closeable {
         WATCH_STATE_CHANGED,
         LOADING_STARTED,
         LOADING_COMPLETED,
+        TORRENT_DETAILS_LOADED,
         CLOSE_PLAYER;
 
         @Override

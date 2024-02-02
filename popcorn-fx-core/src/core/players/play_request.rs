@@ -7,7 +7,6 @@ use mockall::automock;
 
 use crate::core::loader::LoadingData;
 use crate::core::media::MediaIdentifier;
-use crate::core::playlists::PlaylistItem;
 use crate::core::torrents::TorrentStream;
 
 /// A trait representing a play request for media playback.
@@ -85,21 +84,14 @@ impl PlayRequest for PlayUrlRequest {
     }
 }
 
-impl From<PlaylistItem> for PlayUrlRequest {
-    fn from(value: PlaylistItem) -> Self {
-        let mut builder = PlayUrlRequestBuilder::builder()
-            .url(value.url.expect("expected an url to have been present").as_str())
-            .title(value.title.as_str())
-            .subtitles_enabled(value.subtitles_enabled);
-
-        if let Some(e) = value.thumb {
-            builder = builder.thumb(e.as_str());
-        }
-        if let Some(e) = value.auto_resume_timestamp {
-            builder = builder.auto_resume_timestamp(e);
-        }
-
-        builder.build()
+impl<S> From<S> for PlayUrlRequest
+    where
+        S: Into<String> {
+    fn from(value: S) -> Self {
+        PlayUrlRequestBuilder::builder()
+            .url(value.into().as_str())
+            .title("")
+            .build()
     }
 }
 
@@ -250,21 +242,21 @@ impl PlayRequest for PlayMediaRequest {
 impl From<LoadingData> for PlayMediaRequest {
     fn from(value: LoadingData) -> Self {
         let mut builder = PlayMediaRequestBuilder::builder()
-            .url(value.item.url.expect("expected a url to have been present").as_str())
-            .title(value.item.title.as_str())
-            .media(value.item.media.expect("expected a media item to have been present"))
-            .subtitles_enabled(value.item.subtitles_enabled);
+            .url(value.url.expect("expected a url to have been present").as_str())
+            .title(value.title.expect("expected a title to have been present").as_str())
+            .media(value.media.expect("expected a media item to have been present"))
+            .subtitles_enabled(value.subtitles_enabled.unwrap_or(false));
 
-        if let Some(e) = value.item.thumb {
+        if let Some(e) = value.thumb {
             builder = builder.thumb(e.as_str());
         }
-        if let Some(e) = value.item.auto_resume_timestamp {
+        if let Some(e) = value.auto_resume_timestamp {
             builder = builder.auto_resume_timestamp(e);
         }
-        if let Some(e) = value.item.parent_media {
+        if let Some(e) = value.parent_media {
             builder = builder.parent_media(e);
         }
-        if let Some(e) = value.item.quality {
+        if let Some(e) = value.quality {
             builder = builder.quality(e.as_str());
         }
         if let Some(e) = value.torrent_stream {
@@ -382,6 +374,7 @@ mod tests {
     use std::sync::Arc;
 
     use crate::core::media::{Episode, ShowOverview};
+    use crate::core::playlists::PlaylistItem;
     use crate::core::torrents::MockTorrentStream;
 
     use super::*;
@@ -416,9 +409,9 @@ mod tests {
         let url = "http://localhost:8090/my-video.mkv";
         let title = "MyVideoItem";
         let auto_resume = 50000u64;
-        let item = PlaylistItem {
+        let data = LoadingData {
             url: Some(url.to_string()),
-            title: title.to_string(),
+            title: Some(title.to_string()),
             caption: None,
             thumb: None,
             parent_media: None,
@@ -426,8 +419,11 @@ mod tests {
             torrent_info: None,
             torrent_file_info: None,
             quality: None,
-            auto_resume_timestamp: Some(auto_resume),
-            subtitles_enabled: false,
+            auto_resume_timestamp: Some(auto_resume.clone()),
+            subtitles_enabled: None,
+            media_torrent_info: None,
+            torrent: None,
+            torrent_stream: None,
         };
         let expected_result = PlayUrlRequest {
             url: url.to_string(),
@@ -437,7 +433,7 @@ mod tests {
             subtitles_enabled: false,
         };
 
-        let result = PlayUrlRequest::from(item);
+        let result = PlayUrlRequest::from(data);
 
         assert_eq!(expected_result, result);
     }

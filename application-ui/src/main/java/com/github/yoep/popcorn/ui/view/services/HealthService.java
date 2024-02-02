@@ -3,10 +3,10 @@ package com.github.yoep.popcorn.ui.view.services;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentHealth;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.events.LoadingStartedEvent;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.TorrentSettings;
 import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
-import com.github.yoep.popcorn.ui.events.LoadEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -52,7 +52,7 @@ public class HealthService {
 
     @PostConstruct
     void init() {
-        eventPublisher.register(LoadEvent.class, event -> {
+        eventPublisher.register(LoadingStartedEvent.class, event -> {
             cancelPreviousFutureIfNeeded();
             return event;
         });

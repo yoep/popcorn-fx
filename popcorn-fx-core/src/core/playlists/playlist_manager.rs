@@ -541,23 +541,20 @@ mod test {
     fn test_close_player_event_next_item() {
         init_logger();
         let url = "https://www.youtube.com";
-        let item1 = "MyFirstItem";
         let mut playlist = Playlist::default();
         let (tx_manager, rx_manager) = channel();
-        let (tx_player_manager, rx_player_manager) = channel();
         let (tx_event, rx_event) = channel();
         let event_publisher = Arc::new(EventPublisher::default());
         let mut player_manager = Box::new(MockPlayerManager::new());
         player_manager.expect_subscribe()
             .times(1)
-            .returning(move |e| {
-                tx_player_manager.send(e).unwrap();
+            .returning(move |_| {
                 Handle::new()
             });
         let player_manager = Arc::new(player_manager as Box<dyn PlayerManager>);
         let mut loader = MockMediaLoader::new();
         loader.expect_load_playlist_item()
-            .returning(move |e| {
+            .returning(move |_| {
                 Handle::new()
             });
         let manager = PlaylistManager::new(player_manager.clone(), event_publisher.clone(), Arc::new(Box::new(loader)));

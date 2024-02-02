@@ -29,8 +29,8 @@ impl Debug for MediaTorrentUrlLoadingStrategy {
 #[async_trait]
 impl LoadingStrategy for MediaTorrentUrlLoadingStrategy {
     async fn process(&self, mut data: LoadingData, _: Sender<LoadingEvent>, _: CancellationToken) -> LoadingResult {
-        if let Some(media) = data.item.media.as_ref() {
-            if let Some(quality) = data.item.quality.as_ref() {
+        if let Some(media) = data.media.as_ref() {
+            if let Some(quality) = data.quality.as_ref() {
                 debug!("Processing media torrent url for {} and quality {}", media, quality);
                 let media_torrent_info: Option<TorrentInfo>;
 
@@ -60,7 +60,7 @@ impl LoadingStrategy for MediaTorrentUrlLoadingStrategy {
                 if let Some(torrent_info) = media_torrent_info {
                     let url = torrent_info.url().to_string();
                     debug!("Updating playlist item url to {} for media {}", url, media);
-                    data.item.url = Some(url);
+                    data.url = Some(url);
                     data.media_torrent_info = Some(torrent_info);
                 } else {
                     return LoadingResult::Err(LoadingError::MediaError(format!("failed to resolve media torrent url for {}", media)));
@@ -139,7 +139,7 @@ mod tests {
         let result = block_in_place(strategy.process(data, tx, CancellationToken::new()));
 
         if let LoadingResult::Ok(result) = result {
-            assert_eq!(Some(torrent_url.to_string()), result.item.url);
+            assert_eq!(Some(torrent_url.to_string()), result.url);
             assert_eq!(Some(torrent_info), result.media_torrent_info);
         } else {
             assert!(false, "expected LoadingResult::Ok, but got {:?} instead", result);

@@ -41,7 +41,7 @@ impl Debug for TorrentLoadingStrategy {
 #[async_trait]
 impl LoadingStrategy for TorrentLoadingStrategy {
     async fn process(&self, mut data: LoadingData, event_channel: Sender<LoadingEvent>, _: CancellationToken) -> loader::LoadingResult {
-        if let Some(torrent_file_info) = data.item.torrent_file_info.as_ref() {
+        if let Some(torrent_file_info) = data.torrent_file_info.as_ref() {
             trace!("Processing torrent info of {:?}", torrent_file_info);
             event_channel.send(LoadingEvent::StateChanged(LoadingState::Connecting)).unwrap();
             let torrent_directory: String;

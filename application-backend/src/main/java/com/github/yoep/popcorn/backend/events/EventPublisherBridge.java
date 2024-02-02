@@ -59,6 +59,7 @@ public class EventPublisherBridge implements EventBridgeCallback {
                     PLAYER_STOPPED,
                     LOADING_STARTED,
                     LOADING_COMPLETED,
+                    TORRENT_DETAILS_LOADED,
                     CLOSE_PLAYER-> eventPublisher.publish(event.toEvent());
             default -> log.warn("EventC callback of {} is currently not yet supported", event.getTag());
         }

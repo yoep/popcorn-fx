@@ -1,4 +1,5 @@
 use std::os::raw::c_char;
+use std::ptr;
 
 use log::trace;
 
@@ -93,6 +94,26 @@ pub struct TorrentInfoC {
     pub total_files: i32,
     /// A set of `TorrentFileInfoC` structs representing individual files within the torrent.
     pub files: CArray<TorrentFileInfoC>,
+}
+
+impl From<TorrentInfo> for TorrentInfoC {
+    fn from(value: TorrentInfo) -> Self {
+        let directory_name = if let Some(e) = value.directory_name {
+            into_c_string(e)
+        } else {
+            ptr::null()
+        };
+        let torrent_info_files: Vec<TorrentFileInfoC> = value.files.into_iter()
+            .map(|e| TorrentFileInfoC::from(e))
+            .collect();
+
+        Self {
+            name: into_c_string(value.name),
+            directory_name,
+            total_files: value.total_files,
+            files: CArray::from(torrent_info_files),
+        }
+    }
 }
 
 impl From<TorrentInfoC> for TorrentInfo {

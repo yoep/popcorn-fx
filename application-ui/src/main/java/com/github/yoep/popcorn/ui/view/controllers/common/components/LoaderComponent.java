@@ -29,7 +29,7 @@ import java.util.ResourceBundle;
 @Slf4j
 @ViewController
 @RequiredArgsConstructor
-public class LoaderTorrentComponent implements Initializable {
+public class LoaderComponent implements Initializable {
     static final String PROGRESS_ERROR_STYLE_CLASS = "error";
 
     private final LocaleText localeText;

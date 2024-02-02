@@ -2,8 +2,8 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.sections;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.loader.LoaderService;
 import com.github.yoep.popcorn.backend.torrent.collection.StoredTorrent;
-import com.github.yoep.popcorn.ui.events.LoadUrlEvent;
 import com.github.yoep.popcorn.ui.events.ShowTorrentCollectionEvent;
 import com.github.yoep.popcorn.ui.events.SuccessNotificationEvent;
 import com.github.yoep.popcorn.ui.messages.TorrentMessage;
@@ -30,6 +30,7 @@ public class TorrentCollectionSectionController implements Initializable {
     private final EventPublisher eventPublisher;
     private final TorrentCollectionService torrentCollectionService;
     private final LocaleText localeText;
+    private final LoaderService loaderService;
 
     @FXML
     Pane fileShadow;
@@ -84,7 +85,7 @@ public class TorrentCollectionSectionController implements Initializable {
     }
 
     private void onTorrentClicked(StoredTorrent torrent) {
-        eventPublisher.publishEvent(new LoadUrlEvent(this, torrent.getMagnetUri()));
+        loaderService.load(torrent.getMagnetUri());
     }
 
     private void onDeleteClicked(StoredTorrent item) {

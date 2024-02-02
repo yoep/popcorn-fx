@@ -1,9 +1,9 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.ui.view.listeners.LoadTorrentListener;
+import com.github.yoep.popcorn.backend.loader.LoaderListener;
+import com.github.yoep.popcorn.backend.loader.LoaderService;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
-import com.github.yoep.popcorn.ui.view.services.LoadTorrentService;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.input.KeyCode;
@@ -26,9 +26,9 @@ import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.*;
 
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
-class LoaderTorrentComponentTest {
+class LoaderComponentTest {
     @Mock
-    private LoadTorrentService service;
+    private LoaderService service;
     @Mock
     private LocaleText localeText;
     @Mock
@@ -38,16 +38,16 @@ class LoaderTorrentComponentTest {
     @Mock
     private ResourceBundle resourceBundle;
     @InjectMocks
-    private LoaderTorrentComponent component;
+    private LoaderComponent component;
 
-    private AtomicReference<LoadTorrentListener> listenerHolder = new AtomicReference<>();
+    private AtomicReference<LoaderListener> listenerHolder = new AtomicReference<>();
 
     @BeforeEach
     void setUp() {
         lenient().doAnswer(invocation -> {
             listenerHolder.set(invocation.getArgument(0));
             return null;
-        }).when(service).addListener(isA(LoadTorrentListener.class));
+        }).when(service).addListener(isA(LoaderListener.class));
 
         component.loaderActions = new Pane();
         component.progressBar = new ProgressBar();

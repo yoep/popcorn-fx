@@ -92,6 +92,18 @@ public class LoadingErrorC extends Structure implements Closeable {
 
     @Getter
     @ToString
+    @FieldOrder({"message"})
+    public static class InvalidData_Body extends Structure implements Closeable {
+        public String message;
+
+        @Override
+        public void close() {
+            setAutoSynch(false);
+        }
+    }
+
+    @Getter
+    @ToString
     @EqualsAndHashCode(callSuper = false)
     public static class LoadingErrorCUnion extends Union implements Closeable {
         public static class ByValue extends LoadingErrorCUnion implements Structure.ByValue {
@@ -101,6 +113,7 @@ public class LoadingErrorC extends Structure implements Closeable {
         public MediaError_Body mediaError_body;
         public TorrentError_Body torrentError_body;
         public TimeoutError_Body timeoutError_body;
+        public InvalidData_Body invalidData_body;
 
         @Override
         public void close() {
@@ -113,6 +126,8 @@ public class LoadingErrorC extends Structure implements Closeable {
                     .ifPresent(TorrentError_Body::close);
             Optional.ofNullable(timeoutError_body)
                     .ifPresent(TimeoutError_Body::close);
+            Optional.ofNullable(invalidData_body)
+                    .ifPresent(InvalidData_Body::close);
         }
     }
 
@@ -121,6 +136,7 @@ public class LoadingErrorC extends Structure implements Closeable {
         TORRENT_ERROR,
         MEDIA_ERROR,
         TIMEOUT_ERROR,
+        INVALID_DATA,
         CANCELLED;
 
         @Override

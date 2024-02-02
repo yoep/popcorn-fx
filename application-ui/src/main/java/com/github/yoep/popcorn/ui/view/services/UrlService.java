@@ -5,7 +5,7 @@ import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.InfoNotificationEvent;
 import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
-import com.github.yoep.popcorn.ui.events.LoadUrlEvent;
+import com.github.yoep.popcorn.backend.loader.LoaderService;
 import com.github.yoep.popcorn.ui.events.OpenMagnetLinkEvent;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
 import com.github.yoep.popcorn.ui.messages.MediaMessage;
@@ -32,6 +32,7 @@ public class UrlService {
     private final EventPublisher eventPublisher;
     private final Application application;
     private final LocaleText localeText;
+    private final LoaderService loaderService;
 
     //region Methods
 
@@ -78,7 +79,7 @@ public class UrlService {
                 return true;
             } else if (isMagnetLink(type)) {
                 log.debug("Opening magnet link: {}", url);
-                eventPublisher.publishEvent(new LoadUrlEvent(this, url));
+                loaderService.load(url);
 
                 return true;
             } else {

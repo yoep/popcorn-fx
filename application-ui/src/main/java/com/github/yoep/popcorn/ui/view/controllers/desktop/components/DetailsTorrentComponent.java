@@ -7,12 +7,12 @@ import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentFileInfo;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.events.ShowTorrentDetailsEvent;
+import com.github.yoep.popcorn.backend.loader.LoaderService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.ui.events.CloseTorrentDetailsEvent;
-import com.github.yoep.popcorn.ui.events.LoadUrlTorrentEvent;
-import com.github.yoep.popcorn.ui.events.ShowTorrentDetailsEvent;
 import com.github.yoep.popcorn.ui.messages.TorrentMessage;
 import com.github.yoep.popcorn.ui.torrent.TorrentCollectionService;
 import com.github.yoep.popcorn.ui.utils.WatchNowUtils;
@@ -54,11 +54,11 @@ public class DetailsTorrentComponent implements Initializable {
     private final PlayerManagerService playerManagerService;
     private final SubtitlePickerService subtitlePickerService;
     private final SubtitleService subtitleService;
+    private final LoaderService loaderService;
     private final FxLib fxLib;
 
     private String magnetUri;
     private TorrentInfo torrentInfo;
-    private SubtitleInfo activeSubtitleInfo;
 
     @FXML
     ListView<TorrentFileInfo> torrentList;
@@ -151,7 +151,7 @@ public class DetailsTorrentComponent implements Initializable {
         if (subtitleInfo.isCustom()) {
             subtitlePickerService.pickCustomSubtitle().ifPresent(subtitleService::updateCustomSubtitle);
         } else {
-            activeSubtitleInfo = subtitleInfo;
+            subtitleService.updateSubtitle(subtitleInfo);
         }
     }
 
@@ -176,11 +176,12 @@ public class DetailsTorrentComponent implements Initializable {
 
     private void close() {
         reset();
+        subtitleService.reset();
         eventPublisher.publishEvent(new CloseTorrentDetailsEvent(this));
     }
 
     void onFileInfoClicked(TorrentFileInfo fileInfo) {
-        eventPublisher.publishEvent(new LoadUrlTorrentEvent(this, torrentInfo, fileInfo, activeSubtitleInfo));
+        loaderService.load(torrentInfo, fileInfo);
     }
 
     @FXML

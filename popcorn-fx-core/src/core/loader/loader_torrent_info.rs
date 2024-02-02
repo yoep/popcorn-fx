@@ -82,33 +82,42 @@ impl Debug for TorrentInfoLoadingStrategy {
 #[async_trait]
 impl LoadingStrategy for TorrentInfoLoadingStrategy {
     async fn process(&self, mut data: LoadingData, event_channel: Sender<LoadingEvent>, _: CancellationToken) -> LoadingResult {
-        if data.item.torrent_info.is_none() {
-            trace!("Processing {:?} url for torrent loading strategy", data.item.url);
-            if let Some(url) = data.item.url.as_ref()
-                .filter(|url| url.starts_with(MAGNET_PREFIX)) {
-                debug!("Loading torrent data for playlist item {}", data.item);
-                let torrent_info = self.resolve_torrent_info(url.as_str(), event_channel.clone()).await;
+        let mut url: Option<String> = None;
 
-                match torrent_info {
-                    Ok(e) => {
-                        if let Some(media) = data.item.media.as_ref() {
-                            if let Some(quality) = data.item.quality.as_ref() {
-                                match self.resolve_torrent_file_from_media(&e, media, quality.as_str()).await {
-                                    Ok(torrent_file) => {
-                                        data.item.torrent_info = Some(e);
-                                        data.item.torrent_file_info = Some(torrent_file);
-                                    }
-                                    Err(e) => return LoadingResult::Err(e),
+        if data.torrent_info.is_none() {
+            trace!("Processing item url {:?} for torrent loading strategy", data.url);
+            if let Some(item_url) = data.url.as_ref()
+                .filter(|url| url.starts_with(MAGNET_PREFIX))
+                .cloned() {
+                url = Some(item_url);
+            } else {
+                debug!("Playlist item url is not a magnet, torrent loading is skipped");
+            }
+        }
+
+        if let Some(url) = url {
+            debug!("Loading torrent information of {}", url);
+            let torrent_info = self.resolve_torrent_info(url.as_str(), event_channel.clone()).await;
+
+            match torrent_info {
+                Ok(info) => {
+                    if let Some(media) = data.media.as_ref() {
+                        if let Some(quality) = data.quality.as_ref() {
+                            trace!("Updating torrent file info for media {}", media);
+                            match self.resolve_torrent_file_from_media(&info, media, quality.as_str()).await {
+                                Ok(torrent_file) => {
+                                    data.torrent_file_info = Some(torrent_file);
                                 }
-                            } else {
-                                return LoadingResult::Err(LoadingError::MediaError("Quality information is required".to_string()));
+                                Err(e) => return LoadingResult::Err(e),
                             }
                         }
                     }
-                    Err(e) => return LoadingResult::Err(e),
+
+                    trace!("Updating loading data torrent info to {:?}", info);
+                    data.url = None; // remove the original url as the item has been enhanced with the data of it
+                    data.torrent_info = Some(info);
                 }
-            } else {
-                debug!("Playlist item url is not a magnet, torrent loading is skipped");
+                Err(e) => return LoadingResult::Err(e),
             }
         }
 
@@ -127,14 +136,15 @@ mod tests {
 
     use tokio_util::sync::CancellationToken;
 
+    use crate::core::block_in_place;
     use crate::core::playlists::PlaylistItem;
     use crate::core::torrents::{MockTorrentManager, TorrentInfo};
     use crate::testing::init_logger;
 
     use super::*;
 
-    #[tokio::test]
-    async fn test_process() {
+    #[test]
+    fn test_process_url() {
         init_logger();
         let magnet_url = "magnet:?MyTorrent";
         let item = PlaylistItem {
@@ -156,21 +166,61 @@ mod tests {
             total_files: 0,
             files: vec![],
         };
-        let data = LoadingData::from(item);
+        let mut data = LoadingData::from(item);
         let (tx, rx) = channel();
         let (tx_event, _rx_event) = channel();
+        let manager_info = info.clone();
         let mut torrent_manager = MockTorrentManager::new();
         torrent_manager.expect_info()
             .returning(move |e| {
                 tx.send(e.to_string()).unwrap();
-                Ok(info.clone())
+                Ok(manager_info.clone())
             });
         let strategy = TorrentInfoLoadingStrategy::new(Arc::new(Box::new(torrent_manager)));
 
-        let result = strategy.process(data.clone(), tx_event, CancellationToken::new()).await;
+        let result = block_in_place(strategy.process(data.clone(), tx_event, CancellationToken::new()));
         let resolve_url = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        data.torrent_info = Some(info);
 
         assert_eq!(magnet_url.to_string(), resolve_url);
+        assert_eq!(LoadingResult::Ok(data), result);
+    }
+
+    #[test]
+    fn test_process_non_magnet_url() {
+        init_logger();
+        let magnet_url = "https://www.youtube.com/v/qwe5485";
+        let item = PlaylistItem {
+            url: Some(magnet_url.to_string()),
+            title: "Lorem ipsum".to_string(),
+            caption: None,
+            thumb: None,
+            parent_media: None,
+            media: None,
+            torrent_info: None,
+            torrent_file_info: None,
+            quality: None,
+            auto_resume_timestamp: None,
+            subtitles_enabled: false,
+        };
+        let info = TorrentInfo {
+            name: "MyTorrentInfo".to_string(),
+            directory_name: None,
+            total_files: 0,
+            files: vec![],
+        };
+        let data = LoadingData::from(item);
+        let (tx_event, _rx_event) = channel();
+        let manager_info = info.clone();
+        let mut torrent_manager = MockTorrentManager::new();
+        torrent_manager.expect_info()
+            .times(0)
+            .returning(move |_| {
+                Ok(manager_info.clone())
+            });
+        let strategy = TorrentInfoLoadingStrategy::new(Arc::new(Box::new(torrent_manager)));
+
+        let result = block_in_place(strategy.process(data.clone(), tx_event, CancellationToken::new()));
         assert_eq!(LoadingResult::Ok(data), result);
     }
 }

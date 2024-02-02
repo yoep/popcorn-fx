@@ -831,14 +831,14 @@ impl TorrentEntryC {
 #[derive(Debug, Clone)]
 pub struct TorrentQualityC {
     quality: *const c_char,
-    torrent: TorrentInfoC,
+    torrent: TorrentMediaInfoC,
 }
 
 impl TorrentQualityC {
     fn from(quality: &String, info: &TorrentInfo) -> Self {
         Self {
             quality: into_c_string(quality.clone()),
-            torrent: TorrentInfoC::from(info),
+            torrent: TorrentMediaInfoC::from(info),
         }
     }
 }
@@ -846,7 +846,7 @@ impl TorrentQualityC {
 /// A C-compatible struct representing torrent information.
 #[repr(C)]
 #[derive(Debug, Clone)]
-pub struct TorrentInfoC {
+pub struct TorrentMediaInfoC {
     /// A pointer to a null-terminated C string representing the torrent URL.
     pub url: *const c_char,
     /// A pointer to a null-terminated C string representing the torrent provider.
@@ -869,7 +869,7 @@ pub struct TorrentInfoC {
     pub file: *const c_char,
 }
 
-impl From<&TorrentInfo> for TorrentInfoC {
+impl From<&TorrentInfo> for TorrentMediaInfoC {
     fn from(value: &TorrentInfo) -> Self {
         Self {
             url: into_c_string(value.url().to_string()),
@@ -895,8 +895,8 @@ impl From<&TorrentInfo> for TorrentInfoC {
     }
 }
 
-impl From<TorrentInfoC> for TorrentInfo {
-    fn from(value: TorrentInfoC) -> Self {
+impl From<TorrentMediaInfoC> for TorrentInfo {
+    fn from(value: TorrentMediaInfoC) -> Self {
         let size = if !value.size.is_null() {
             Some(from_c_string(value.size))
         } else {
@@ -1244,7 +1244,7 @@ mod test {
             Some("example_file.mkv".to_string()),
         );
 
-        let result: TorrentInfoC = (&torrent_info).into();
+        let result: TorrentMediaInfoC = (&torrent_info).into();
 
         assert_eq!(url.to_string(), from_c_string(result.url));
         assert_eq!(provider.to_string(), from_c_string(result.provider));
@@ -1263,7 +1263,7 @@ mod test {
         let filesize = into_c_string("12.34 GB".to_string());
         let file = into_c_string("example_file.mkv".to_string());
 
-        let torrent_info_c = TorrentInfoC {
+        let torrent_info_c = TorrentMediaInfoC {
             url,
             provider,
             source,

@@ -7,6 +7,12 @@ use popcorn_fx_core::core::loader::{LoaderEvent, LoadingError, LoadingProgress, 
 /// A C-compatible callback function type for loader events.
 pub type LoaderEventCallback = extern "C" fn(LoaderEventC);
 
+/// A C-compatible handle representing a loading process.
+///
+/// This type is used to represent a loading process and is exposed as a C-compatible handle.
+/// It points to the memory location where loading process information is stored in a C context.
+pub type LoadingHandleC = *const i64;
+
 /// A C-compatible enum representing loader events.
 #[repr(C)]
 #[derive(Debug)]
@@ -115,6 +121,7 @@ pub enum LoadingErrorC {
     MediaError(*const c_char),
     /// Error indicating a timeout with an associated error message.
     TimeoutError(*const c_char),
+    InvalidData(*const c_char),
     Cancelled,
 }
 
@@ -126,6 +133,7 @@ impl From<LoadingError> for LoadingErrorC {
             LoadingError::TorrentError(e) => LoadingErrorC::TorrentError(into_c_string(e.to_string())),
             LoadingError::MediaError(e) => LoadingErrorC::MediaError(into_c_string(e)),
             LoadingError::TimeoutError(e) => LoadingErrorC::TimeoutError(into_c_string(e)),
+            LoadingError::InvalidData(e) => LoadingErrorC::InvalidData(into_c_string(e)),
             LoadingError::Cancelled => LoadingErrorC::Cancelled,
         }
     }

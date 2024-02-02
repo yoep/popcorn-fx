@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.backend.adapters.torrent;
 
+import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentFileInfo;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
 import com.sun.jna.Structure;
 import lombok.Getter;
@@ -15,7 +16,7 @@ import java.util.stream.Collectors;
 @Getter
 @ToString
 @Structure.FieldOrder({"name", "directoryName", "totalFiles", "files"})
-public class TorrentInfoWrapper extends Structure implements Closeable {
+public class TorrentInfoWrapper extends Structure implements TorrentInfo, Closeable {
     public static class ByValue extends TorrentInfoWrapper implements Structure.ByValue {
         public ByValue() {
         }
@@ -55,10 +56,26 @@ public class TorrentInfoWrapper extends Structure implements Closeable {
         write();
     }
 
-    public List<TorrentFileInfoWrapper> getFiles() {
+    @Override
+    public List<TorrentFileInfo> getFiles() {
         return Optional.ofNullable(this.files)
                 .map(TorrentFileInfoSet::getFiles)
+                .map(e -> e.stream()
+                        .map(file -> (TorrentFileInfo) file)
+                        .collect(Collectors.toList()))
                 .orElse(Collections.emptyList());
+    }
+
+    @Override
+    public TorrentFileInfo getLargestFile() {
+        return null;
+    }
+
+    @Override
+    public Optional<TorrentFileInfo> getByFilename(String filename) {
+        return getFiles().stream()
+                .filter(e -> Objects.equals(e.getFilename(), filename))
+                .findFirst();
     }
 
     @Override

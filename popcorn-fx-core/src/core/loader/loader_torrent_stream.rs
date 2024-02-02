@@ -43,7 +43,7 @@ impl LoadingStrategy for TorrentStreamLoadingStrategy {
                     if let Some(stream) = stream.upgrade() {
                         let (tx, rx) = channel();
                         trace!("Updating playlist item url to stream {}", stream.url());
-                        data.item.url = Some(stream.url().to_string());
+                        data.url = Some(stream.url().to_string());
                         event_channel.send(LoadingEvent::StateChanged(LoadingState::Downloading)).unwrap();
 
                         let event_channel_stream = event_channel.clone();

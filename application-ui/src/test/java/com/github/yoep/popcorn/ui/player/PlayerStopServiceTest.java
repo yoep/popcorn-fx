@@ -11,7 +11,6 @@ import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.player.PlayerEventService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
-import com.github.yoep.popcorn.ui.playnext.PlayNextService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -19,7 +18,6 @@ import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -30,8 +28,6 @@ import static org.mockito.Mockito.*;
 class PlayerStopServiceTest {
     @Mock
     private PlayerEventService playerEventService;
-    @Mock
-    private PlayNextService playNextService;
     @Mock
     private SubtitleService subtitleService;
     @Spy
@@ -55,7 +51,6 @@ class PlayerStopServiceTest {
             listenerHolder.set(invocation.getArgument(0, PlayerListener.class));
             return null;
         }).when(playerEventService).addListener(isA(PlayerListener.class));
-        when(playNextService.getNextEpisode()).thenReturn(Optional.empty());
         when(subtitleService.none()).thenReturn(subtitleNone);
         service.init();
         eventPublisher.publishEvent(PlayMediaEvent.mediaBuilder()
@@ -87,7 +82,6 @@ class PlayerStopServiceTest {
             listenerHolder.set(invocation.getArgument(0, PlayerListener.class));
             return null;
         }).when(playerEventService).addListener(isA(PlayerListener.class));
-        when(playNextService.getNextEpisode()).thenReturn(Optional.of(mock(PlayNextService.NextEpisode.class)));
         service.init();
         eventPublisher.publishEvent(PlayMediaEvent.mediaBuilder()
                 .source(this)

@@ -2,12 +2,16 @@ package com.github.yoep.popcorn.backend.loader;
 
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentFileInfo;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.LoadingStartedEvent;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
+
+import java.util.Objects;
 
 @Slf4j
 @ToString
@@ -16,13 +20,23 @@ public class LoaderService extends AbstractListenerService<LoaderListener> imple
     private final FxLib fxLib;
     private final PopcornFx instance;
     private final EventPublisher eventPublisher;
-    private Long lastLoaderHandle;
+
+    Long lastLoaderHandle;
 
     public LoaderService(FxLib fxLib, PopcornFx instance, EventPublisher eventPublisher) {
         this.fxLib = fxLib;
         this.instance = instance;
         this.eventPublisher = eventPublisher;
         init();
+    }
+
+    public void load(String url) {
+        Objects.requireNonNull(url, "url cannot be null");
+        lastLoaderHandle = fxLib.loader_load(instance, url);
+    }
+
+    public void load(TorrentInfo torrentInfo, TorrentFileInfo torrentFileInfo) {
+        // TODO
     }
 
     public void cancel() {

@@ -2,6 +2,7 @@ use derive_more::Display;
 
 use crate::core::events::{PlayerStartedEvent, PlayerStoppedEvent};
 use crate::core::playback::PlaybackState;
+use crate::core::torrents::TorrentInfo;
 
 /// Handles all events within the Popcorn FX library.
 ///
@@ -43,6 +44,9 @@ pub enum Event {
     /// Invoked when the loading of a media item has completed
     #[display(fmt = "Loading of a media item has completed")]
     LoadingCompleted,
+    /// Invoked when the torrent details have been loaded of a magnet uri
+    #[display(fmt = "Torrent details have been loaded of {}", _0)]
+    TorrentDetailsLoaded(TorrentInfo),
     /// Invoked when the player should be closed
     #[display(fmt = "Closing player")]
     ClosePlayer,

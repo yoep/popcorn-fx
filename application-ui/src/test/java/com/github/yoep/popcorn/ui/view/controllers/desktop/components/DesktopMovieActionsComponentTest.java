@@ -3,15 +3,16 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.Images;
 import com.github.yoep.popcorn.backend.media.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
+import com.github.yoep.popcorn.backend.player.PlayerManagerListener;
+import com.github.yoep.popcorn.backend.playlists.Playlist;
+import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
-import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
 import com.github.yoep.popcorn.ui.view.controls.LanguageFlagSelection;
 import com.github.yoep.popcorn.ui.view.controls.PlayerDropDownButton;
 import com.github.yoep.popcorn.ui.view.services.DetailsComponentService;
@@ -41,7 +42,9 @@ import static org.mockito.Mockito.*;
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
 class DesktopMovieActionsComponentTest {
     @Mock
-    private PlayerManagerService playerService;
+    private PlaylistManager playlistManager;
+    @Mock
+    private PlayerManagerService playerManager;
     @Spy
     private EventPublisher eventPublisher = new EventPublisher(false);
     @Mock
@@ -78,8 +81,8 @@ class DesktopMovieActionsComponentTest {
     void testWatchNowClicked() {
         var event = mock(MouseEvent.class);
         var media = mock(MovieDetails.class);
-        when(media.getTorrents()).thenReturn(getTorrents());
-        when(desktopMovieQualityComponent.getSelectedQuality()).thenReturn("720p");
+        var quality = "720p";
+        when(desktopMovieQualityComponent.getSelectedQuality()).thenReturn(quality);
         component.initialize(url, resourceBundle);
         eventPublisher.publish(new ShowMovieDetailsEvent(this, media));
         WaitForAsyncUtils.waitForFxEvents();
@@ -87,16 +90,17 @@ class DesktopMovieActionsComponentTest {
         component.onWatchNowClicked(event);
 
         verify(event).consume();
-        verify(eventPublisher).publish(isA(LoadMediaTorrentEvent.class));
+        verify(playlistManager).play(media, quality);
+        verify(playerManager).addListener(isA(PlayerManagerListener.class));
     }
 
     @Test
     void testWatchNowPressed() {
         var event = mock(KeyEvent.class);
         var media = mock(MovieDetails.class);
-        when(media.getTorrents()).thenReturn(getTorrents());
+        var quality = "720p";
         when(event.getCode()).thenReturn(KeyCode.ENTER);
-        when(desktopMovieQualityComponent.getSelectedQuality()).thenReturn("720p");
+        when(desktopMovieQualityComponent.getSelectedQuality()).thenReturn(quality);
         component.initialize(url, resourceBundle);
         eventPublisher.publish(new ShowMovieDetailsEvent(this, media));
         WaitForAsyncUtils.waitForFxEvents();
@@ -104,7 +108,8 @@ class DesktopMovieActionsComponentTest {
         component.onWatchNowPressed(event);
 
         verify(event).consume();
-        verify(eventPublisher).publish(isA(LoadMediaTorrentEvent.class));
+        verify(playlistManager).play(media, quality);
+        verify(playerManager).addListener(isA(PlayerManagerListener.class));
     }
 
     @Test
@@ -112,22 +117,19 @@ class DesktopMovieActionsComponentTest {
         var trailer = "my-movie-trailer";
         var title = "lorem ipsum";
         var event = mock(MouseEvent.class);
-        var media = mock(MovieDetails.class);
-        when(media.getTrailer()).thenReturn(trailer);
-        when(media.getTitle()).thenReturn(title);
-        when(media.getImages()).thenReturn(mock(Images.class));
+        var media = MovieDetails.builder()
+                .title(title)
+                .trailer(trailer)
+                .images(Images.builder().build())
+                .build();
         component.initialize(url, resourceBundle);
         eventPublisher.publish(new ShowMovieDetailsEvent(this, media));
 
         component.onTrailerClicked(event);
 
         verify(event).consume();
-        verify(eventPublisher).publish(PlayVideoEvent.builder()
-                .source(component)
-                .url(trailer)
-                .title(title)
-                .subtitlesEnabled(false)
-                .build());
+        verify(playlistManager).play(isA(Playlist.class));
+        verify(playerManager).addListener(isA(PlayerManagerListener.class));
     }
 
     private Map<String, Map<String, MediaTorrentInfo>> getTorrents() {

@@ -7,8 +7,9 @@ use popcorn_fx_core::{from_c_into_boxed, from_c_owned, from_c_string, into_c_own
 use popcorn_fx_core::core::events::{Event, PlayerChangedEvent, PlayerStartedEvent, PlayerStoppedEvent};
 use popcorn_fx_core::core::playback::PlaybackState;
 use popcorn_fx_core::core::players::PlayerChange;
+use popcorn_fx_core::core::torrents::TorrentInfo;
 
-use crate::ffi::MediaItemC;
+use crate::ffi::{MediaItemC, TorrentInfoC};
 
 /// A type alias for a C-compatible callback function that takes an `EventC` parameter.
 ///
@@ -36,6 +37,8 @@ pub enum EventC {
     LoadingStarted,
     /// Invoked when the loading of a media item has completed
     LoadingCompleted,
+    /// Invoked when the torrent details have been loaded
+    TorrentDetailsLoaded(TorrentInfoC),
     /// Invoked when the player should be closed
     ClosePlayer,
 }
@@ -51,6 +54,7 @@ impl From<Event> for EventC {
             Event::WatchStateChanged(id, state) => EventC::WatchStateChanged(into_c_string(id), state),
             Event::LoadingStarted => EventC::LoadingStarted,
             Event::LoadingCompleted => EventC::LoadingCompleted,
+            Event::TorrentDetailsLoaded(e) => EventC::TorrentDetailsLoaded(TorrentInfoC::from(e)),
             Event::ClosePlayer => EventC::ClosePlayer,
         }
     }
@@ -67,6 +71,7 @@ impl From<EventC> for Event {
             EventC::WatchStateChanged(id, state) => Event::WatchStateChanged(from_c_string(id), state),
             EventC::LoadingStarted => Event::LoadingStarted,
             EventC::LoadingCompleted => Event::LoadingCompleted,
+            EventC::TorrentDetailsLoaded(e) => Event::TorrentDetailsLoaded(TorrentInfo::from(e)),
             EventC::ClosePlayer => Event::ClosePlayer,
         }
     }

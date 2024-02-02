@@ -248,6 +248,8 @@ public interface FxLib extends Library {
 
     void register_loader_callback(PopcornFx instance, LoaderEventCallback callback);
 
+    Long loader_load(PopcornFx instance, String url);
+
     void loader_cancel(PopcornFx instance, Long handle);
 
     void log(String target, String message, LogLevel level);

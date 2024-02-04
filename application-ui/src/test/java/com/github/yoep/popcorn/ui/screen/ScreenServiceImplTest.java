@@ -1,6 +1,9 @@
 package com.github.yoep.popcorn.ui.screen;
 
 import com.github.spring.boot.javafx.view.ViewManager;
+import com.github.yoep.popcorn.backend.FxLib;
+import com.github.yoep.popcorn.backend.PopcornFx;
+import com.github.yoep.popcorn.backend.adapters.screen.FullscreenCallback;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.ui.view.services.MaximizeService;
@@ -35,6 +38,10 @@ class ScreenServiceImplTest {
     private ApplicationConfig applicationConfig;
     @Mock
     private MaximizeService maximizeService;
+    @Mock
+    private FxLib fxLib;
+    @Mock
+    private PopcornFx instance;
     @Spy
     private EventPublisher eventPublisher = new EventPublisher(false);
     @Mock
@@ -52,6 +59,13 @@ class ScreenServiceImplTest {
             return null;
         }).when(primaryStageProperty).addListener(isA(ChangeListener.class));
         when(viewManager.primaryStageProperty()).thenReturn(primaryStageProperty);
+    }
+
+    @Test
+    void testInit() {
+        screenService.init();
+
+        verify(fxLib).register_fullscreen_callback(eq(instance), isA(FullscreenCallback.class));
     }
 
     @Test

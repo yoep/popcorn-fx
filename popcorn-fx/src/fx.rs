@@ -34,6 +34,7 @@ use popcorn_fx_core::core::platform::PlatformData;
 use popcorn_fx_core::core::playback::PlaybackControls;
 use popcorn_fx_core::core::players::{DefaultPlayerManager, PlayerManager};
 use popcorn_fx_core::core::playlists::PlaylistManager;
+use popcorn_fx_core::core::screen::{DefaultScreenService, ScreenService};
 use popcorn_fx_core::core::subtitles::{SubtitleManager, SubtitleProvider, SubtitleServer};
 use popcorn_fx_core::core::subtitles::model::SubtitleType;
 use popcorn_fx_core::core::subtitles::parsers::{SrtParser, VttParser};
@@ -165,6 +166,7 @@ pub struct PopcornFX {
     playlist_manager: Arc<PlaylistManager>,
     player_manager: Arc<Box<dyn PlayerManager>>,
     media_loader: Arc<Box<dyn MediaLoader>>,
+    screen_service: Arc<Box<dyn ScreenService>>,
     /// The runtime pool to use for async tasks
     runtime: Arc<Runtime>,
     /// The options that were used to create this instance
@@ -230,7 +232,8 @@ impl PopcornFX {
             .event_publisher(event_publisher.clone())
             .build());
         let image_loader = Arc::new(Box::new(DefaultImageLoader::new(cache_manager.clone())) as Box<dyn ImageLoader>);
-        let player_manager = Arc::new(Box::new(DefaultPlayerManager::new(event_publisher.clone(), torrent_stream_server.clone())) as Box<dyn PlayerManager>);
+        let screen_service = Arc::new(Box::new(DefaultScreenService::new()) as Box<dyn ScreenService>);
+        let player_manager = Arc::new(Box::new(DefaultPlayerManager::new(settings.clone(), event_publisher.clone(), torrent_stream_server.clone(), screen_service.clone())) as Box<dyn PlayerManager>);
         let loading_chain: Vec<Box<dyn LoadingStrategy>> = vec![
             Box::new(MediaTorrentUrlLoadingStrategy::new()),
             Box::new(TorrentInfoLoadingStrategy::new(torrent_manager.clone())),
@@ -268,6 +271,7 @@ impl PopcornFX {
             player_manager,
             playlist_manager,
             media_loader,
+            screen_service,
             runtime,
             opts: args,
         }
@@ -372,9 +376,14 @@ impl PopcornFX {
         &self.playlist_manager
     }
 
-    /// Retrieve the media loader pf the FX instance.
+    /// Retrieve the media loader of the FX instance.
     pub fn media_loader(&self) -> &Arc<Box<dyn MediaLoader>> {
         &self.media_loader
+    }
+    
+    /// Retrieve the screen service of the FX instance.
+    pub fn screen_service(&self) -> &Arc<Box<dyn ScreenService>> {
+        &self.screen_service
     }
 
     /// Retrieve the given runtime pool from this Popcorn FX instance.

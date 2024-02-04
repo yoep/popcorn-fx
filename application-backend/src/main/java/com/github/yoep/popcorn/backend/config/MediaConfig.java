@@ -3,7 +3,6 @@ package com.github.yoep.popcorn.backend.config;
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
-import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;
 import com.github.yoep.popcorn.backend.controls.PlaybackControlsService;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.player.PlayerEventService;
@@ -42,7 +41,7 @@ public class MediaConfig {
     }
 
     @Bean
-    public PlayerManagerService playerService(FxLib fxLib, PopcornFx instance, ApplicationConfig applicationConfig, ScreenService screenService) {
-        return new PlayerManagerServiceImpl(fxLib, instance, applicationConfig, screenService);
+    public PlayerManagerService playerService(FxLib fxLib, PopcornFx instance) {
+        return new PlayerManagerServiceImpl(fxLib, instance);
     }
 }

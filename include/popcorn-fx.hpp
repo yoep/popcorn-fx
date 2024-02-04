@@ -216,6 +216,9 @@ struct Box;
 /// The callback for cancelling the torrent.
 struct CancelTorrentCallback;
 
+/// A type representing a callback function to set the fullscreen state of the application.
+struct FullscreenCallback;
+
 struct PlayerWrapperC;
 
 /// The [PopcornFX] application instance.
@@ -990,6 +993,12 @@ struct FavoriteEventC {
     LikedStateChanged_Body liked_state_changed;
   };
 };
+
+/// Type definition for a callback function that checks if the application is in fullscreen mode.
+///
+/// The `IsFullscreenCallback` type represents an external callback function that returns a boolean value to indicate
+/// whether the application is in fullscreen mode.
+using IsFullscreenCallback = bool(*)();
 
 /// A C-compatible callback function type for loader events.
 using LoaderEventCallback = void(*)(LoaderEventC);
@@ -1852,6 +1861,26 @@ void register_event_callback(PopcornFX *popcorn_fx, EventCCallback callback);
 
 /// Register a new callback listener for favorite events.
 void register_favorites_event_callback(PopcornFX *popcorn_fx, void (*callback)(FavoriteEventC));
+
+/// Register a fullscreen callback function.
+///
+/// This function registers a new fullscreen callback function to handle fullscreen events within the PopcornFX instance.
+///
+/// # Arguments
+///
+/// * `instance` - A mutable reference to the `PopcornFX` instance.
+/// * `callback` - The fullscreen callback function to be registered.
+void register_fullscreen_callback(PopcornFX *instance, FullscreenCallback callback);
+
+/// Register a callback function to check if the application is in fullscreen mode.
+///
+/// This function registers a new callback function to check the fullscreen state within the PopcornFX instance.
+///
+/// # Arguments
+///
+/// * `instance` - A mutable reference to the `PopcornFX` instance.
+/// * `callback` - The callback function to be registered for checking the fullscreen state.
+void register_is_fullscreen_callback(PopcornFX *instance, IsFullscreenCallback callback);
 
 /// Register a loader event callback to receive loader state change events.
 ///

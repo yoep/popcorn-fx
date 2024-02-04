@@ -1,5 +1,7 @@
 package com.github.yoep.popcorn.backend;
 
+import com.github.yoep.popcorn.backend.adapters.screen.FullscreenCallback;
+import com.github.yoep.popcorn.backend.adapters.screen.IsFullscreenCallback;
 import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentState;
 import com.github.yoep.popcorn.backend.controls.PlaybackControlCallback;
 import com.github.yoep.popcorn.backend.events.EventBridgeCallback;
@@ -255,6 +257,10 @@ public interface FxLib extends Library {
     Long loader_load(PopcornFx instance, String url);
 
     void loader_cancel(PopcornFx instance, Long handle);
+
+    void register_is_fullscreen_callback(PopcornFx instance, IsFullscreenCallback callback);
+
+    void register_fullscreen_callback(PopcornFx instance, FullscreenCallback callback);
 
     void log(String target, String message, LogLevel level);
 

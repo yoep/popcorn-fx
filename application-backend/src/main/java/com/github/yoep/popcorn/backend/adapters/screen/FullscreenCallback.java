@@ -1,0 +1,7 @@
+package com.github.yoep.popcorn.backend.adapters.screen;
+
+import com.sun.jna.Callback;
+
+public interface FullscreenCallback extends Callback {
+    void callback(byte activateFullscreen);
+}

@@ -10,6 +10,7 @@ import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
+import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.ui.view.PopcornViewLoader;
@@ -39,8 +40,9 @@ public class ViewConfig {
                                          ApplicationArguments arguments,
                                          UrlService urlService,
                                          ApplicationConfig settingsService,
-                                         PlatformProvider platformProvider) {
-        return new MainController(eventPublisher, viewLoader, arguments, urlService, settingsService, platformProvider);
+                                         PlatformProvider platformProvider,
+                                         PlaylistManager playlistManager) {
+        return new MainController(eventPublisher, viewLoader, arguments, urlService, settingsService, platformProvider, playlistManager);
     }
 
     @Bean
@@ -99,12 +101,13 @@ public class ViewConfig {
     @Bean
     @ConditionalOnDesktopMode
     public DesktopMovieActionsComponent desktopMovieActionsComponent(PlayerManagerService playerService,
+                                                                     PlaylistManager playlistManager,
                                                                      EventPublisher eventPublisher,
                                                                      LocaleText localeText,
                                                                      SubtitleService subtitleService,
                                                                      DetailsComponentService detailsComponentService,
                                                                      DesktopMovieQualityComponent desktopMovieQualityComponent) {
-        return new DesktopMovieActionsComponent(playerService, eventPublisher, localeText, subtitleService, detailsComponentService,
+        return new DesktopMovieActionsComponent(playerService, playlistManager, eventPublisher, localeText, subtitleService, detailsComponentService,
                 desktopMovieQualityComponent);
     }
 
@@ -123,11 +126,11 @@ public class ViewConfig {
 
     @Bean
     @ConditionalOnDesktopMode
-    public DesktopSerieActionsComponent desktopSerieActionsComponent(EventPublisher eventPublisher,
-                                                                     PlayerManagerService playerManagerService,
+    public DesktopSerieActionsComponent desktopSerieActionsComponent(PlayerManagerService playerManagerService,
                                                                      SubtitleService subtitleService,
-                                                                     DesktopSerieQualityComponent desktopSerieQualityComponent) {
-        return new DesktopSerieActionsComponent(eventPublisher, playerManagerService, subtitleService, desktopSerieQualityComponent);
+                                                                     DesktopSerieQualityComponent desktopSerieQualityComponent,
+                                                                     PlaylistManager playlistManager) {
+        return new DesktopSerieActionsComponent(playerManagerService, subtitleService, desktopSerieQualityComponent, playlistManager);
     }
 
     @Bean

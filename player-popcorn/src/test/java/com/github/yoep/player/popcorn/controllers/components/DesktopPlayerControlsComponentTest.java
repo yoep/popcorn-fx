@@ -74,7 +74,7 @@ class DesktopPlayerControlsComponentTest {
     void testPlayerControlsListener_whenDownloadStatusChanged_shouldUpdateThePlayProgressLoadStatus() {
         var progress = 0.6f;
         var downloadStatus = mock(DownloadStatus.class);
-        when(downloadStatus.getProgress()).thenReturn(progress);
+        when(downloadStatus.progress()).thenReturn(progress);
         component.initialize(location, resources);
 
         listenerHolder.get().onDownloadStatusChanged(downloadStatus);

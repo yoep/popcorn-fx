@@ -7,7 +7,7 @@ import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.adapters.player.embaddable.EmbeddablePlayer;
 import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
+import com.github.yoep.popcorn.backend.events.PlayerStartedEvent;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -45,7 +45,7 @@ public class PlayerSectionController implements Initializable {
     public void initialize(URL url, ResourceBundle resourceBundle) {
         loadExternalPlayerPane();
         initializePlayNext();
-        eventPublisher.register(PlayVideoEvent.class, event -> {
+        eventPublisher.register(PlayerStartedEvent.class, event -> {
             playerManagerService.getActivePlayer().ifPresentOrElse(
                     this::onPlayVideo,
                     () -> log.error("Unable to update player section, no player is active"));

@@ -3,15 +3,9 @@ package com.github.yoep.player.popcorn.services;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.player.popcorn.listeners.SubtitleListener;
 import com.github.yoep.player.popcorn.messages.VideoMessage;
-import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
-import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
 import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
 import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
-import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
-import com.github.yoep.popcorn.backend.media.providers.models.Images;
-import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.models.SubtitleSettings;
@@ -166,28 +160,10 @@ class SubtitleManagerServiceTest {
         event.union = new SubtitleEvent.SubtitleEventCUnion.ByValue();
         event.union.subtitle_info_changed = new SubtitleEvent.SubtitleInfoChanged_Body();
         event.union.subtitle_info_changed.subtitleInfo = custom;
-        var videoEvent = PlayVideoEvent.builder()
-                .source(this)
-                .url(url)
-                .title(title)
-                .build();
-        var mediaUrl = PlayMediaEvent.mediaBuilder()
-                .source(this)
-                .title(title)
-                .url(url)
-                .quality(quality)
-                .media(MovieDetails.builder()
-                        .images(Images.builder().build())
-                        .build())
-                .torrent(mock(Torrent.class))
-                .torrentStream(mock(TorrentStream.class))
-                .build();
         var expected_filepath = "/lorem/ipsum.srt";
         when(custom.isCustom()).thenReturn(true);
         when(subtitlePickerService.pickCustomSubtitle()).thenReturn(Optional.of(expected_filepath));
         service.init();
-        eventPublisher.publish(videoEvent);
-        eventPublisher.publish(mediaUrl);
 
         var listener = listenerHolder.get();
         listener.callback(event);

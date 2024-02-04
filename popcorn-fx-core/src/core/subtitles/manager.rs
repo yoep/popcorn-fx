@@ -5,7 +5,7 @@ use derive_more::Display;
 use log::{debug, error, info, trace};
 use tokio::sync::Mutex;
 
-use crate::core::{CoreCallback, CoreCallbacks};
+use crate::core::{block_in_place, Callbacks, CoreCallback, CoreCallbacks};
 use crate::core::config::ApplicationConfig;
 use crate::core::storage::Storage;
 use crate::core::subtitles::language::SubtitleLanguage;
@@ -67,7 +67,7 @@ impl SubtitleManager {
     ///
     /// The preferred [SubtitleInfo] if present.
     pub fn preferred_subtitle(&self) -> Option<SubtitleInfo> {
-        let mutex = futures::executor::block_on(self.subtitle_info.lock());
+        let mutex = block_in_place(self.subtitle_info.lock());
 
         if mutex.is_some() {
             mutex.clone()
@@ -105,11 +105,26 @@ impl SubtitleManager {
 
     /// Checks if the subtitle has been disabled by the user.
     ///
+    /// This function checks whether the subtitle is disabled by the user and returns `true` if it is disabled,
+    /// or `false` otherwise.
+    ///
     /// # Returns
     ///
     /// `true` if the subtitle is disabled, `false` otherwise.
     pub fn is_disabled(&self) -> bool {
-        *self.disabled_by_user.blocking_lock()
+        block_in_place(self.is_disabled_async())
+    }
+
+    /// Asynchronously checks if the subtitle has been disabled by the user.
+    ///
+    /// This asynchronous function checks whether the subtitle is disabled by the user and returns `true` if it is disabled,
+    /// or `false` otherwise.
+    ///
+    /// # Returns
+    ///
+    /// `true` if the subtitle is disabled, `false` otherwise.
+    pub async fn is_disabled_async(&self) -> bool {
+        *self.disabled_by_user.lock().await
     }
 
     /// Updates the [SubtitleInfo] for the next [Media] item playback.
@@ -152,9 +167,9 @@ impl SubtitleManager {
 
     /// Resets the subtitle for the next [Media] item playback.
     pub fn reset(&self) {
-        let mut mutex_language = self.preferred_language.blocking_lock();
-        let mut mutex_file = self.custom_subtitle_file.blocking_lock();
-        let mut mutex_subtitle = self.subtitle_info.blocking_lock();
+        let mut mutex_language = block_in_place(self.preferred_language.lock());
+        let mut mutex_file = block_in_place(self.custom_subtitle_file.lock());
+        let mut mutex_subtitle = block_in_place(self.subtitle_info.lock());
         let language_value = mutex_language.deref_mut();
 
         *language_value = SubtitleLanguage::None;
@@ -176,7 +191,7 @@ impl SubtitleManager {
     ///
     /// * `callback` - The callback function to register.
     pub fn register(&self, callback: SubtitleCallback) {
-        self.callbacks.add(callback)
+        self.callbacks.add(callback);
     }
 
     /// Cleans the subtitle directory.
@@ -211,13 +226,13 @@ impl SubtitleManager {
     }
 
     fn update_subtitle_info(&self, subtitle: SubtitleInfo) {
-        let mut mutex = self.subtitle_info.blocking_lock();
+        let mut mutex = block_in_place(self.subtitle_info.lock());
         let _ = mutex.insert(subtitle);
         self.callbacks.invoke(SubtitleEvent::SubtitleInfoChanged(mutex.clone()));
     }
 
     fn update_disabled_state(&self, new_state: bool) {
-        let mut mutex = self.disabled_by_user.blocking_lock();
+        let mut mutex = block_in_place(self.disabled_by_user.lock());
         let value = mutex.deref_mut();
         *value = new_state;
     }

@@ -2,24 +2,19 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentFileInfo;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.events.ShowTorrentDetailsEvent;
+import com.github.yoep.popcorn.backend.loader.LoaderService;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
-import com.github.yoep.popcorn.ui.events.LoadUrlTorrentEvent;
-import com.github.yoep.popcorn.ui.events.ShowTorrentDetailsEvent;
 import com.github.yoep.popcorn.ui.torrent.TorrentCollectionService;
 import com.github.yoep.popcorn.ui.view.controls.PlayerDropDownButton;
 import com.github.yoep.popcorn.ui.view.controls.SubtitleDropDownButton;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleMapProperty;
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.collections.ObservableMap;
 import javafx.scene.control.Button;
 import javafx.scene.control.ListView;
 import javafx.scene.layout.Pane;
@@ -30,6 +25,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.ClassPathResource;
 import org.testfx.framework.junit5.ApplicationExtension;
 import org.testfx.util.WaitForAsyncUtils;
@@ -40,6 +36,7 @@ import java.util.ResourceBundle;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
 
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
@@ -57,6 +54,8 @@ class DetailsTorrentComponentTest {
     @Mock
     private SubtitleService subtitleService;
     @Mock
+    private LoaderService loaderService;
+    @Mock
     private FxLib fxLib;
     @Mock
     private URL url;
@@ -65,9 +64,6 @@ class DetailsTorrentComponentTest {
     @InjectMocks
     private DetailsTorrentComponent component;
 
-    private final ObservableMap<String, Player> playersProperty = new SimpleMapProperty<>();
-    private final ObjectProperty<Player> activePlayerProperty = new SimpleObjectProperty<>();
-
     @BeforeEach
     void setUp() {
         component.fileShadow = new Pane();
@@ -75,19 +71,39 @@ class DetailsTorrentComponentTest {
         component.subtitleButton = new SubtitleDropDownButton();
         component.playerButton = new PlayerDropDownButton();
         component.storeTorrentButton = new Button();
+    }
 
-        when(playerManagerService.playersProperty()).thenReturn(playersProperty);
-        when(playerManagerService.activePlayerProperty()).thenReturn(activePlayerProperty);
+    @Test
+    void testInitialize() {
+        var subtitleNone = mock(SubtitleInfo.class);
+        var subtitleCustom = mock(SubtitleInfo.class);
+        when(subtitleNone.getLanguage()).thenReturn(SubtitleLanguage.NONE);
+        when(subtitleNone.getFlagResource()).thenReturn(new ByteArrayResource(new byte[0]));
+        when(subtitleCustom.getLanguage()).thenReturn(SubtitleLanguage.CUSTOM);
+        when(subtitleCustom.getFlagResource()).thenReturn(new ByteArrayResource(new byte[0]));
+        when(subtitleService.none()).thenReturn(subtitleNone);
+        when(subtitleService.custom()).thenReturn(subtitleCustom);
+
+        component.initialize(url, resourceBundle);
+        WaitForAsyncUtils.waitForFxEvents();
+
+        verify(subtitleService, atLeastOnce()).none();
+        assertEquals(subtitleNone, component.subtitleButton.getSelectedItem().get());
     }
 
     @Test
     void testOnShowTorrentDetailsEvent() throws TimeoutException {
         var filename = " lorem ipsum dolor.mp4";
-        var subtitleInfo = createSubtitle();
         var torrent = mock(TorrentInfo.class);
         var fileInfo = mock(TorrentFileInfo.class);
-        when(fxLib.subtitle_none()).thenReturn(subtitleInfo);
-        when(fxLib.subtitle_custom()).thenReturn(subtitleInfo);
+        var subtitleNone = mock(SubtitleInfo.class);
+        var subtitleCustom = mock(SubtitleInfo.class);
+        when(subtitleNone.getLanguage()).thenReturn(SubtitleLanguage.NONE);
+        when(subtitleNone.getFlagResource()).thenReturn(new ByteArrayResource(new byte[0]));
+        when(subtitleCustom.getLanguage()).thenReturn(SubtitleLanguage.CUSTOM);
+        when(subtitleCustom.getFlagResource()).thenReturn(new ByteArrayResource(new byte[0]));
+        when(subtitleService.none()).thenReturn(subtitleNone);
+        when(subtitleService.custom()).thenReturn(subtitleCustom);
         when(torrent.getFiles()).thenReturn(Collections.singletonList(fileInfo));
         when(fileInfo.getFilename()).thenReturn(filename);
         component.initialize(url, resourceBundle);
@@ -102,15 +118,20 @@ class DetailsTorrentComponentTest {
     void testOnFileInfoClicked() {
         var torrent = mock(TorrentInfo.class);
         var fileInfo = mock(TorrentFileInfo.class);
-        var subtitleInfo = createSubtitle();
-        when(fxLib.subtitle_none()).thenReturn(subtitleInfo);
-        when(fxLib.subtitle_custom()).thenReturn(subtitleInfo);
+        var subtitleNone = mock(SubtitleInfo.class);
+        var subtitleCustom = mock(SubtitleInfo.class);
+        when(subtitleNone.getLanguage()).thenReturn(SubtitleLanguage.NONE);
+        when(subtitleNone.getFlagResource()).thenReturn(new ByteArrayResource(new byte[0]));
+        when(subtitleCustom.getLanguage()).thenReturn(SubtitleLanguage.CUSTOM);
+        when(subtitleCustom.getFlagResource()).thenReturn(new ByteArrayResource(new byte[0]));
+        when(subtitleService.none()).thenReturn(subtitleNone);
+        when(subtitleService.custom()).thenReturn(subtitleCustom);
         component.initialize(url, resourceBundle);
 
         eventPublisher.publish(new ShowTorrentDetailsEvent(this, "", torrent));
         component.onFileInfoClicked(fileInfo);
 
-        verify(eventPublisher).publish(new LoadUrlTorrentEvent(component, torrent, fileInfo, null));
+        verify(loaderService).load(torrent, fileInfo);
     }
 
     private SubtitleInfo createSubtitle() {

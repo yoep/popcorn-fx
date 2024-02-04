@@ -2,7 +2,6 @@ package com.github.yoep.popcorn.backend.media.providers.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.sun.jna.Pointer;
 import com.sun.jna.Structure;
 import lombok.Builder;
 import lombok.Data;
@@ -31,15 +30,13 @@ public class Episode extends Structure implements Comparable<Episode>, Closeable
     public String title;
     public String synopsis;
     public String tvdbId;
-    public Pointer thumb;
+    public String thumb;
     public TorrentQuality.ByReference torrentRef;
     public int len;
 
     private Map<String, MediaTorrentInfo> torrents;
 
     private Images images;
-    // TODO: remove this should not exist for a property
-    private List<String> genres;
 
     public Episode() {
     }
@@ -120,8 +117,7 @@ public class Episode extends Structure implements Comparable<Episode>, Closeable
     }
 
     public Optional<String> getThumb() {
-        return Optional.ofNullable(thumb)
-                .map(e -> e.getString(0));
+        return Optional.ofNullable(thumb);
     }
 
     //endregion

@@ -188,7 +188,7 @@ public class PlayerExternalComponent implements Initializable {
             progressPercentage.setText(ProgressUtils.progressToPercentage(status));
             downloadText.setText(ProgressUtils.progressToDownload(status));
             uploadText.setText(ProgressUtils.progressToUpload(status));
-            activePeersText.setText(String.valueOf(status.getSeeds()));
+            activePeersText.setText(String.valueOf(status.seeds()));
         });
     }
 

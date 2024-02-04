@@ -2,10 +2,11 @@ package com.github.yoep.popcorn.ui.utils;
 
 import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
+import com.github.yoep.popcorn.backend.player.PlayerChanged;
+import com.github.yoep.popcorn.backend.player.PlayerManagerListener;
 import com.github.yoep.popcorn.ui.view.controls.DropDownButton;
 import com.github.yoep.popcorn.ui.view.controls.PlayerDropDownButton;
 import javafx.application.Platform;
-import javafx.beans.InvalidationListener;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
@@ -19,9 +20,18 @@ public class WatchNowUtils {
         Objects.requireNonNull(watchNowButton, "watchNowButton cannot be null");
 
         // listen for changes in the players
-        playerManagerService.playersProperty().addListener((InvalidationListener) change ->
-                updateExternalPlayers(playerManagerService, watchNowButton));
-        playerManagerService.activePlayerProperty().addListener((observable, oldValue, newValue) -> watchNowButton.select(newValue));
+        playerManagerService.addListener(new PlayerManagerListener() {
+            @Override
+            public void activePlayerChanged(PlayerChanged playerChange) {
+                playerManagerService.getById(playerChange.newPlayerId())
+                        .ifPresent(watchNowButton::select);
+            }
+
+            @Override
+            public void playersChanged() {
+                updateExternalPlayers(playerManagerService, watchNowButton);
+            }
+        });
 
         // create initial list for the current known external players
         updateExternalPlayers(playerManagerService, watchNowButton);

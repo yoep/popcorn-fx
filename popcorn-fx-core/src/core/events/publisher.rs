@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 use std::fmt;
-use std::fmt::Debug;
+use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 
 use log::{debug, info, trace};
@@ -60,10 +60,15 @@ pub type Order = i32;
 /// ## Publish a new event
 ///
 /// ```no_run
-/// use popcorn_fx_core::core::events::{Event, EventPublisher};
+/// use popcorn_fx_core::core::events::{Event, EventPublisher, PlayerStoppedEvent};
 /// let publisher = EventPublisher::default();
 ///
-/// publisher.publish(Event::PlayerStopped(x));
+/// publisher.publish(Event::PlayerStopped(PlayerStoppedEvent {
+///     url: "".to_string(),
+///     media: None,
+///     time: None,
+///     duration: None,
+/// }));
 /// ```
 ///
 /// ## Register consumer/listener
@@ -131,7 +136,8 @@ impl EventPublisher {
             info!("Publishing event {}", event);
             let mut arg = event;
 
-            trace!("Invoking a total of {} callbacks for the event publisher", invocations.len());
+            debug!("Invoking a total of {} callbacks for the event publisher", invocations.len());
+            trace!("Invoking callbacks {:?}", invocations);
             for invocation in invocations.iter() {
                 if let Some(event) = (invocation.callback)(arg) {
                     arg = event;
@@ -194,12 +200,20 @@ impl Ord for EventCallbackHolder {
     }
 }
 
+impl Debug for EventCallbackHolder {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("EventCallbackHolder")
+            .field("order", &self.order)
+            .finish()
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std::sync::mpsc::channel;
     use std::time::Duration;
 
-    use crate::core::events::{PlayerStoppedEvent, PlayVideoEvent};
+    use crate::core::events::PlayerStoppedEvent;
     use crate::testing::init_logger;
 
     use super::*;
@@ -297,14 +311,14 @@ mod test {
         // Register two event consumers that handle PlayerStarted and PlayerStopped events, respectively
         let callback1: EventCallback = Box::new(move |event| {
             match &event {
-                Event::PlayVideo(event) => tx_callback1.send(event.clone()).unwrap(),
+                Event::PlayerStopped(event) => tx_callback1.send(event.clone()).unwrap(),
                 _ => {}
             }
             Some(event)
         });
         let callback2: EventCallback = Box::new(move |event| {
             match &event {
-                Event::PlayVideo(event) => tx_callback2.send(event.clone()).unwrap(),
+                Event::PlayerStopped(event) => tx_callback2.send(event.clone()).unwrap(),
                 _ => {}
             }
             None
@@ -313,17 +327,17 @@ mod test {
         publisher.register(callback2, HIGHEST_ORDER);
 
         // Publish a new PlayerStopped event
-        let event = PlayVideoEvent {
-            url: "http://localhost/video.mkv".to_string(),
-            title: "Lorem ipsum".to_string(),
-            subtitle: None,
-            thumb: None,
+        let event = PlayerStoppedEvent {
+            url: "https::/localhost:8457/my_video.mkv".to_string(),
+            media: None,
+            time: None,
+            duration: None,
         };
-        publisher.publish(Event::PlayVideo(event.clone()));
+        publisher.publish(Event::PlayerStopped(event.clone()));
 
         // Check if the event consumers are invoked in the correct order
         let callback2_result = rx_callback2.recv_timeout(Duration::from_millis(100)).unwrap();
-        let callback1_result = rx_callback1.recv_timeout(Duration::from_millis(50));
+        let callback1_result = rx_callback1.recv_timeout(Duration::from_millis(100));
         assert_eq!(event, callback2_result);
         assert!(callback1_result.is_err(), "expected the rx_callback1 to not have been invoked");
     }

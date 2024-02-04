@@ -5,7 +5,7 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 <HBox xmlns="http://javafx.com/javafx/10.0.2-internal" xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.components.PlayerPlayNextComponent"
+      fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.components.PlayingNextInComponent"
       fx:id="playNextPane" styleClass="playing-next" focusTraversable="true" onMouseClicked="#onPlayNextClicked" onKeyPressed="#onPlayNextPressed">
     <!-- Image poster -->
     <BorderPane styleClass="poster">

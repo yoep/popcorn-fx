@@ -6,7 +6,6 @@ import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
-import com.github.yoep.popcorn.ui.events.LoadMediaTorrentEvent;
 import com.github.yoep.popcorn.ui.view.controls.AxisItemSelection;
 import com.github.yoep.popcorn.ui.view.controls.Overlay;
 import com.github.yoep.popcorn.ui.view.services.VideoQualityService;
@@ -57,10 +56,7 @@ public abstract class AbstractActionsComponent implements Initializable {
         });
         subtitles.setOnItemActivated(subtitle -> {
             subtitleOverlay.hide();
-
-            var quality = qualities.getSelectedItem();
-            var mediaTorrentInfo = getTorrents().get(quality);
-            eventPublisher.publishEvent(new LoadMediaTorrentEvent(this, mediaTorrentInfo, getMedia(), getSubItem(), quality, subtitle));
+            subtitleService.updateSubtitle(subtitle);
         });
         subtitles.setItemFactory(item -> new Button(item.getLanguage().getNativeName()));
     }

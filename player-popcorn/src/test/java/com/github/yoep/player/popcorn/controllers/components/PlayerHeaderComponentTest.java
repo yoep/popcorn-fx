@@ -2,7 +2,7 @@ package com.github.yoep.player.popcorn.controllers.components;
 
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
+import com.github.yoep.popcorn.backend.events.PlayerStartedEvent;
 import javafx.scene.control.Label;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
@@ -63,12 +63,18 @@ class PlayerHeaderComponentTest {
         when(viewLoader.load(PlayerHeaderComponent.VIEW_HEADER_ACTIONS)).thenReturn(new Pane());
         component.initialize(url, resourceBundle);
 
-        eventPublisher.publish(new PlayVideoEvent(this, "http://localhost", title, false));
+        eventPublisher.publish(PlayerStartedEvent.builder()
+                .source(this)
+                .url("http://localhost")
+                .title(title)
+                .subtitleEnabled(false)
+                .build());
 
         try {
             WaitForAsyncUtils.waitFor(250, TimeUnit.MILLISECONDS, () -> StringUtils.isNotEmpty(component.title.getText()));
         } catch (TimeoutException ignored) {
         }
+
         assertEquals(title, component.title.getText());
     }
 }

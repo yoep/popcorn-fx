@@ -2,7 +2,7 @@ use std::os::raw::c_char;
 
 use log::{debug, error, info, trace};
 
-use popcorn_fx_core::from_c_string;
+use popcorn_fx_core::{from_c_string, from_c_vec};
 use popcorn_fx_core::core::media::{Category, MediaType, MovieDetails, MovieOverview, ShowDetails, ShowOverview};
 
 use crate::ffi::{GenreC, MediaErrorC, MediaItemC, MediaResult, MediaSetC, MediaSetResult, SortByC};
@@ -122,6 +122,26 @@ pub extern "C" fn retrieve_media_details(popcorn_fx: &mut PopcornFX, media: &Med
 pub extern "C" fn reset_movie_apis(popcorn_fx: &mut PopcornFX) {
     trace!("Resetting the movie api providers from C");
     popcorn_fx.providers().reset_api(&Category::Movies)
+}
+
+/// Dispose of a C-compatible media set.
+///
+/// This function is responsible for cleaning up resources associated with a C-compatible media set.
+///
+/// # Arguments
+///
+/// * `media` - A C-compatible media set to be disposed of.
+#[no_mangle]
+pub extern "C" fn dispose_media_items(media: MediaSetC) {
+    trace!("Disposing media items of {:?}", media);
+    if !media.movies.is_null() {
+        trace!("Disposing a total of {} media item movies", media.movies_len);
+        drop(from_c_vec(media.movies, media.movies_len));
+    }
+    if !media.shows.is_null() {
+        trace!("Disposing a total of {} media item shows", media.shows_len);
+        drop(from_c_vec(media.shows, media.shows_len));
+    }
 }
 
 #[cfg(test)]
@@ -292,6 +312,24 @@ mod test {
             assert_eq!(MediaErrorC::NoAvailableProviders, e)
         } else {
             assert!(false, "expected MediaResult::Err, but got {:?} instead", media_result)
+        }
+    }
+
+    #[test]
+    fn test_dispose_media_items() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut instance = PopcornFX::new(default_args(temp_path));
+        let genre = GenreC::from(Genre::all());
+        let sort_by = SortByC::from(SortBy::new("trending".to_string(), String::new()));
+        let keywords = into_c_string(String::new());
+
+        let result = retrieve_available_shows(&mut instance, &genre, &sort_by, keywords, 1);
+
+        match result {
+            MediaSetResult::Ok(items) => dispose_media_items(items),
+            _ => panic!("Expected MediaSetResult::Ok")
         }
     }
 }

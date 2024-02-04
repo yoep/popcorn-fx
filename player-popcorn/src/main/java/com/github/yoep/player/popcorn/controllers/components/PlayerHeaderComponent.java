@@ -3,7 +3,7 @@ package com.github.yoep.player.popcorn.controllers.components;
 import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
+import com.github.yoep.popcorn.backend.events.PlayerStartedEvent;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -43,7 +43,7 @@ public class PlayerHeaderComponent implements Initializable {
     }
 
     private void initializeListeners() {
-        eventPublisher.register(PlayVideoEvent.class, event -> {
+        eventPublisher.register(PlayerStartedEvent.class, event -> {
             Platform.runLater(() -> title.setText(event.getTitle()));
             return event;
         });

@@ -4,6 +4,7 @@ import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.ui.view.conditions.ConditionalOnTvMode;
@@ -50,8 +51,9 @@ public class TvConfig {
                                                            SubtitleService subtitleService,
                                                            VideoQualityService videoQualityService,
                                                            LocaleText localeText,
-                                                           DetailsComponentService detailsComponentService) {
-        return new TvMovieActionsComponent(eventPublisher, subtitleService, videoQualityService, localeText, detailsComponentService);
+                                                           DetailsComponentService detailsComponentService,
+                                                           PlaylistManager playlistManager) {
+        return new TvMovieActionsComponent(eventPublisher, subtitleService, videoQualityService, localeText, detailsComponentService, playlistManager);
     }
 
     @Bean

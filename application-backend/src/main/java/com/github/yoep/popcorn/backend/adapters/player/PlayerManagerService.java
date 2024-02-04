@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.backend.adapters.player;
 
-import javafx.beans.property.ObjectProperty;
-import javafx.collections.ObservableMap;
+import com.github.yoep.popcorn.backend.player.PlayerManagerListener;
+import com.github.yoep.popcorn.backend.services.ListenerService;
 
 import java.util.Collection;
 import java.util.Optional;
@@ -9,7 +9,7 @@ import java.util.Optional;
 /**
  * The player manager service is responsible for managing the available players which can be used by the application.
  */
-public interface PlayerManagerService {
+public interface PlayerManagerService extends ListenerService<PlayerManagerListener> {
     /**
      * Get the player by the given ID.
      *
@@ -26,26 +26,11 @@ public interface PlayerManagerService {
     Collection<Player> getPlayers();
 
     /**
-     * Get the players property.
-     * This property manages the available players and notifies when the list is changed.
-     *
-     * @return Returns the player property.
-     */
-    ObservableMap<String, Player> playersProperty();
-
-    /**
      * Get the current active player which is being used for playback.
      *
      * @return Returns the active playback player, or else {@link Optional#empty()}.
      */
     Optional<Player> getActivePlayer();
-
-    /**
-     * Get the active player property.
-     *
-     * @return Returns the active player property.
-     */
-    ObjectProperty<Player> activePlayerProperty();
 
     /**
      * Set the player which should be used for video playback.

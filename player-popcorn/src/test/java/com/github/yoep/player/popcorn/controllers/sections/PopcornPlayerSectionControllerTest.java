@@ -9,7 +9,7 @@ import com.github.yoep.player.popcorn.services.SubtitleManagerService;
 import com.github.yoep.player.popcorn.subtitles.controls.SubtitleTrack;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
+import com.github.yoep.popcorn.backend.events.PlayerStartedEvent;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.ui.events.SubtitleOffsetEvent;
 import javafx.animation.Animation;
@@ -127,7 +127,12 @@ class PopcornPlayerSectionControllerTest {
         controller.initialize(url, resourceBundle);
 
         controller.errorText.setText("Lorem");
-        eventPublisher.publish(new PlayVideoEvent(this, "http://localhost/video.mp4", "Lorem ipsum", false));
+        eventPublisher.publish(PlayerStartedEvent.builder()
+                .source(this)
+                .url("http://localhost/video.mp4")
+                .title("Lorem ipsum")
+                .subtitleEnabled(false)
+                .build());
         WaitForAsyncUtils.waitForFxEvents();
 
         WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> StringUtils.isEmpty(controller.errorText.getText()));

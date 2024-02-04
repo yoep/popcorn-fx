@@ -63,7 +63,7 @@ class TorrentPieces {
         for (int i = 0; i < priorities.length; i++) {
             var priority = priorities[i];
 
-            if (priority == Priority.NORMAL)
+            if (priority != Priority.IGNORE)
                 return i;
         }
 
@@ -74,7 +74,7 @@ class TorrentPieces {
         for (int i = priorities.length - 1; i >= 0; i--) {
             var priority = priorities[i];
 
-            if (priority == Priority.NORMAL)
+            if (priority != Priority.IGNORE)
                 return i;
         }
 

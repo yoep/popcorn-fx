@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use derive_more::Display;
 use futures::StreamExt;
 use itertools::Itertools;
 use log::{debug, error, info, trace, warn};
@@ -14,9 +15,9 @@ use reqwest::header::HeaderMap;
 use tokio::fs::OpenOptions;
 use tokio::sync::Mutex;
 
+use popcorn_fx_core::core::block_in_place;
 use popcorn_fx_core::core::config::ApplicationConfig;
 use popcorn_fx_core::core::media::*;
-use popcorn_fx_core::core::storage::Storage;
 use popcorn_fx_core::core::subtitles::{Result, SubtitleError, SubtitleFile, SubtitleProvider};
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
 use popcorn_fx_core::core::subtitles::matcher::SubtitleMatcher;
@@ -34,6 +35,8 @@ const FILENAME_PARAM_KEY: &str = "query";
 const PAGE_PARAM_KEY: &str = "page";
 const DEFAULT_FILENAME_EXTENSION: &str = ".srt";
 
+#[derive(Debug, Display)]
+#[display(fmt = "Opensubtitles subtitle provider")]
 pub struct OpensubtitlesProvider {
     settings: Arc<Mutex<ApplicationConfig>>,
     client: Client,
@@ -343,7 +346,7 @@ impl OpensubtitlesProvider {
     /// Find the subtitle for the default configured subtitle language.
     /// This uses the [SubtitleSettings::default_subtitle] setting.
     fn find_for_default_subtitle_language(&self, subtitles: &[SubtitleInfo]) -> Option<SubtitleInfo> {
-        let mutex = self.settings.blocking_lock();
+        let mutex = block_in_place(self.settings.lock());
         let subtitle_language = mutex.user_settings().subtitle().default_subtitle();
 
         subtitles.iter()
@@ -354,7 +357,7 @@ impl OpensubtitlesProvider {
     /// Find the subtitle for the interface language.
     /// This uses the [UiSettings::default_language] setting.
     fn find_for_interface_language(&self, subtitles: &[SubtitleInfo]) -> Option<SubtitleInfo> {
-        let mutex = self.settings.blocking_lock();
+        let mutex = block_in_place(self.settings.lock());
         let language = mutex.user_settings().ui().default_language();
 
         subtitles.iter()
@@ -413,7 +416,7 @@ impl OpensubtitlesProvider {
 
 #[async_trait]
 impl SubtitleProvider for OpensubtitlesProvider {
-    async fn movie_subtitles(&self, media: MovieDetails) -> Result<Vec<SubtitleInfo>> {
+    async fn movie_subtitles(&self, media: &MovieDetails) -> Result<Vec<SubtitleInfo>> {
         let imdb_id = media.imdb_id();
 
         debug!("Searching movie subtitles for IMDB ID {}", &imdb_id);
@@ -421,7 +424,7 @@ impl SubtitleProvider for OpensubtitlesProvider {
             .await
     }
 
-    async fn episode_subtitles(&self, media: ShowDetails, episode: Episode) -> Result<Vec<SubtitleInfo>> {
+    async fn episode_subtitles(&self, media: &ShowDetails, episode: &Episode) -> Result<Vec<SubtitleInfo>> {
         let imdb_id = media.imdb_id();
 
         debug!("Searching episode subtitles for IMDB ID {}", &imdb_id);
@@ -693,7 +696,7 @@ mod test {
             .build();
         let runtime = runtime::Runtime::new().unwrap();
 
-        let result = runtime.block_on(service.movie_subtitles(movie));
+        let result = runtime.block_on(service.movie_subtitles(&movie));
 
         match result {
             Ok(subtitles) => {
@@ -739,10 +742,10 @@ mod test {
         let runtime = runtime::Runtime::new().unwrap();
 
         let result = runtime.block_on(async {
-            service.movie_subtitles(movie1)
+            service.movie_subtitles(&movie1)
                 .await
                 .expect("Expected the first search to succeed");
-            service.movie_subtitles(movie2)
+            service.movie_subtitles(&movie2)
                 .await
         });
 
@@ -792,7 +795,7 @@ mod test {
         );
         let runtime = runtime::Runtime::new().unwrap();
 
-        let result = runtime.block_on(service.episode_subtitles(show, episode));
+        let result = runtime.block_on(service.episode_subtitles(&show, &episode));
 
         match result {
             Ok(subtitles) => {
@@ -1099,7 +1102,11 @@ mod test {
     #[test]
     fn test_subtitle_file_name_missing_extension_in_release() {
         init_logger();
-        let file = OpenSubtitlesFile::new(687);
+        let file = OpenSubtitlesFile {
+            file_id: 687,
+            cd_number: None,
+            file_name: None,
+        };
         let attributes = OpenSubtitlesAttributes::new("123".to_string(), "lorem".to_string());
         let expected_result = "lorem.srt".to_string();
 

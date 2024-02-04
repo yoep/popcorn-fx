@@ -3,11 +3,13 @@ package com.github.yoep.popcorn.ui.view.controllers.tv.components;
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
+import com.github.yoep.popcorn.backend.playlists.Playlist;
+import com.github.yoep.popcorn.backend.playlists.PlaylistItem;
+import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
@@ -24,6 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 
 import java.net.URL;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.ResourceBundle;
@@ -35,6 +38,7 @@ public class TvMovieActionsComponent extends AbstractActionsComponent {
 
     private final LocaleText localeText;
     private final DetailsComponentService detailsComponentService;
+    private final PlaylistManager playlistManager;
 
     private MovieDetails media;
 
@@ -48,10 +52,11 @@ public class TvMovieActionsComponent extends AbstractActionsComponent {
     Icon favoriteIcon;
 
     public TvMovieActionsComponent(EventPublisher eventPublisher, SubtitleService subtitleService, VideoQualityService videoQualityService,
-                                   LocaleText localeText, DetailsComponentService detailsComponentService) {
+                                   LocaleText localeText, DetailsComponentService detailsComponentService, PlaylistManager playlistManager) {
         super(eventPublisher, subtitleService, videoQualityService);
         this.localeText = localeText;
         this.detailsComponentService = detailsComponentService;
+        this.playlistManager = playlistManager;
     }
 
     @Override
@@ -120,7 +125,9 @@ public class TvMovieActionsComponent extends AbstractActionsComponent {
     }
 
     private void playTrailer() {
-        eventPublisher.publish(new PlayVideoEvent(this, media.getTrailer(), media.getTitle(), false, media.getImages().getFanart()));
+        try (var item = PlaylistItem.fromMediaTrailer(media)) {
+            playlistManager.play(new Playlist(Collections.singletonList(item)));
+        }
     }
 
     private void toggleFavoriteState() {

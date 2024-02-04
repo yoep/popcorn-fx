@@ -3,14 +3,15 @@ package com.github.yoep.popcorn.ui.view.config;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.loader.LoaderService;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.backend.media.providers.ProviderService;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieOverview;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
+import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
-import com.github.yoep.popcorn.ui.playnext.PlayNextService;
 import com.github.yoep.popcorn.ui.torrent.TorrentCollectionService;
 import com.github.yoep.popcorn.ui.trakt.TraktService;
 import com.github.yoep.popcorn.ui.view.controllers.common.sections.ListSectionController;
@@ -58,8 +59,8 @@ public class DesktopConfig {
     @Bean
     public TorrentCollectionSectionController torrentCollectionSectionController(EventPublisher eventPublisher,
                                                                                  TorrentCollectionService torrentCollectionService,
-                                                                                 LocaleText localeText) {
-        return new TorrentCollectionSectionController(eventPublisher, torrentCollectionService, localeText);
+                                                                                 LocaleText localeText, LoaderService loaderService) {
+        return new TorrentCollectionSectionController(eventPublisher, torrentCollectionService, localeText, loaderService);
     }
 
     @Bean
@@ -117,9 +118,9 @@ public class DesktopConfig {
     }
 
     @Bean
-    public PlayerPlayNextComponent playerPlaylistComponent(ImageService imageService,
-                                                           PlayNextService playNextService) {
-        return new PlayerPlayNextComponent(imageService, playNextService);
+    public PlayingNextInComponent playerPlaylistComponent(ImageService imageService,
+                                                          PlaylistManager playlistManager) {
+        return new PlayingNextInComponent(imageService, playlistManager);
     }
 
     //endregion

@@ -136,14 +136,6 @@ pub struct OpenSubtitlesFile {
 }
 
 impl OpenSubtitlesFile {
-    pub fn new(file_id: i32) -> Self {
-        Self {
-            file_id,
-            cd_number: None,
-            file_name: None,
-        }
-    }
-
     pub fn new_with_filename(file_id: i32, file_name: String) -> Self {
         Self {
             file_id,
@@ -168,7 +160,7 @@ impl OpenSubtitlesFile {
 pub struct OpenSubtitlesFeatureDetails {
     feature_id: i32,
     feature_type: String,
-    year: i32,
+    year: Option<i32>,
     title: String,
     imdb_id: i32,
 }
@@ -178,7 +170,7 @@ impl OpenSubtitlesFeatureDetails {
         Self {
             feature_id,
             feature_type,
-            year,
+            year: Some(year),
             title,
             imdb_id,
         }

@@ -6,15 +6,13 @@ use std::os::raw::c_char;
 use log::{debug, error, info, trace, warn};
 
 pub use fx::*;
-use popcorn_fx_core::{from_c_into_boxed, from_c_owned, from_c_string, into_c_owned, into_c_string, TorrentCollectionSet};
+use popcorn_fx_core::{from_c_into_boxed, from_c_owned, from_c_string, from_c_vec, into_c_owned, into_c_string, TorrentCollectionSet};
 use popcorn_fx_core::core::config::{PlaybackSettings, ServerSettings, SubtitleSettings, TorrentSettings, UiSettings};
 use popcorn_fx_core::core::media::*;
 use popcorn_fx_core::core::media::favorites::FavoriteCallback;
 use popcorn_fx_core::core::media::watched::WatchedCallback;
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
 use popcorn_fx_core::core::subtitles::model::{Subtitle, SubtitleInfo, SubtitleType};
-use popcorn_fx_core::core::torrent::{Torrent, TorrentState, TorrentStreamState};
-use popcorn_fx_torrent_stream::{TorrentC, TorrentStreamC, TorrentStreamEventC, TorrentWrapperC};
 
 #[cfg(feature = "ffi")]
 use crate::ffi::*;
@@ -25,13 +23,24 @@ pub mod ffi;
 
 /// Retrieve the available subtitles for the given [MovieDetailsC].
 ///
-/// It returns a reference to [SubtitleInfoSet], else a [ptr::null_mut] on failure.
+/// This function takes a reference to the `PopcornFX` instance and a reference to a `MovieDetailsC`.
+/// It returns a reference to `SubtitleInfoSet` containing the available subtitles for the movie,
+/// or a null pointer (`ptr::null_mut()`) on failure.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to the `PopcornFX` instance.
+/// * `movie` - A reference to the `MovieDetailsC` for which subtitles are to be retrieved.
+///
+/// # Returns
+///
+/// A pointer to the `SubtitleInfoSet` containing the available subtitles, or a null pointer on failure.
 /// <i>The returned reference should be managed by the caller.</i>
 #[no_mangle]
 pub extern "C" fn movie_subtitles(popcorn_fx: &mut PopcornFX, movie: &MovieDetailsC) -> *mut SubtitleInfoSet {
     let movie_instance = MovieDetails::from(movie);
 
-    match popcorn_fx.runtime().block_on(popcorn_fx.subtitle_provider().movie_subtitles(movie_instance)) {
+    match popcorn_fx.runtime().block_on(popcorn_fx.subtitle_provider().movie_subtitles(&movie_instance)) {
         Ok(e) => {
             debug!("Found movie subtitles {:?}", e);
             let result: Vec<SubtitleInfoC> = e.into_iter()
@@ -47,13 +56,28 @@ pub extern "C" fn movie_subtitles(popcorn_fx: &mut PopcornFX, movie: &MovieDetai
     }
 }
 
-/// Retrieve the given subtitles for the given episode
+/// Retrieve the given subtitles for the given episode.
+///
+/// This function takes a reference to the `PopcornFX` instance, a reference to a `ShowDetailsC`, and a reference
+/// to an `EpisodeC` for which subtitles are to be retrieved.
+/// It returns a reference to `SubtitleInfoSet` containing the available subtitles for the episode.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to the `PopcornFX` instance.
+/// * `show` - A reference to the `ShowDetailsC` containing information about the show.
+/// * `episode` - A reference to the `EpisodeC` for which subtitles are to be retrieved.
+///
+/// # Returns
+///
+/// A pointer to the `SubtitleInfoSet` containing the available subtitles for the episode.
+/// <i>The returned reference should be managed by the caller.</i>
 #[no_mangle]
 pub extern "C" fn episode_subtitles(popcorn_fx: &mut PopcornFX, show: &ShowDetailsC, episode: &EpisodeC) -> *mut SubtitleInfoSet {
     let show_instance = show.to_struct();
     let episode_instance = Episode::from(episode);
 
-    match popcorn_fx.runtime().block_on(popcorn_fx.subtitle_provider().episode_subtitles(show_instance, episode_instance)) {
+    match popcorn_fx.runtime().block_on(popcorn_fx.subtitle_provider().episode_subtitles(&show_instance, &episode_instance)) {
         Ok(e) => {
             debug!("Found episode subtitles {:?}", e);
             let result: Vec<SubtitleInfoC> = e.into_iter()
@@ -243,7 +267,7 @@ pub extern "C" fn retrieve_available_favorites(popcorn_fx: &mut PopcornFX, genre
 ///
 /// It will return false if all fields in the [MediaItemC] are [ptr::null_mut].
 #[no_mangle]
-pub extern "C" fn is_media_liked(popcorn_fx: &mut PopcornFX, favorite: &MediaItemC) -> bool {
+pub extern "C" fn is_media_liked(popcorn_fx: &mut PopcornFX, favorite: &mut MediaItemC) -> bool {
     trace!("Verifying if media is liked for {:?}", favorite);
     match favorite.as_identifier() {
         None => {
@@ -466,75 +490,6 @@ pub extern "C" fn register_watched_event_callback<'a>(popcorn_fx: &mut PopcornFX
     popcorn_fx.watched_service().register(wrapper)
 }
 
-/// Inform the FX core that a piece for the torrent has finished downloading.
-#[no_mangle]
-pub extern "C" fn torrent_piece_finished(torrent: &TorrentWrapperC, piece: u32) {
-    torrent.piece_finished(piece)
-}
-
-/// Start a torrent stream for the given torrent.
-#[no_mangle]
-pub extern "C" fn start_stream(popcorn_fx: &mut PopcornFX, torrent: &'static TorrentWrapperC) -> *mut TorrentStreamC {
-    trace!("Starting a new stream from C for {:?}", torrent);
-    match popcorn_fx.torrent_stream_server().start_stream(Box::new(torrent) as Box<dyn Torrent>) {
-        Ok(e) => {
-            info!("Started new stream {}", e);
-            into_c_owned(TorrentStreamC::from(e))
-        }
-        Err(e) => {
-            error!("Failed to start stream, {}", e);
-            ptr::null_mut()
-        }
-    }
-}
-
-/// Stop the given torrent stream.
-#[no_mangle]
-pub extern "C" fn stop_stream(popcorn_fx: &mut PopcornFX, stream: &mut TorrentStreamC) {
-    trace!("Stopping torrent stream of {:?}", stream);
-    let stream = stream.stream();
-    match stream {
-        None => error!("Unable to stop stream, pointer is invalid"),
-        Some(stream) => {
-            trace!("Stream {:?} has been read, trying to stop server", stream);
-            popcorn_fx.torrent_stream_server().stop_stream(&stream);
-        }
-    }
-}
-
-/// Register a new callback for the torrent stream.
-#[no_mangle]
-pub extern "C" fn register_torrent_stream_callback(stream: &mut TorrentStreamC, callback: extern "C" fn(TorrentStreamEventC)) {
-    trace!("Wrapping TorrentStreamEventC callback");
-    let stream = stream.stream();
-    match stream {
-        None => error!("Unable to register callback, pointer is invalid"),
-        Some(stream) => {
-            stream.register_stream(Box::new(move |e| {
-                callback(TorrentStreamEventC::from(e))
-            }));
-        }
-    }
-}
-
-/// Retrieve the current state of the stream.
-/// Use [register_torrent_stream_callback] instead if the latest up-to-date information is required.
-///
-/// It returns the known [TorrentStreamState] at the time of invocation.
-#[no_mangle]
-pub extern "C" fn torrent_stream_state(stream: &mut TorrentStreamC) -> TorrentStreamState {
-    let stream = stream.stream();
-    match stream {
-        None => {
-            error!("Unable to get stream state, pointer is invalid");
-            TorrentStreamState::Stopped
-        }
-        Some(stream) => {
-            stream.stream_state()
-        }
-    }
-}
-
 /// Retrieve the auto-resume timestamp for the given media id and/or filename.
 #[no_mangle]
 pub extern "C" fn auto_resume_timestamp(popcorn_fx: &mut PopcornFX, id: *const c_char, filename: *const c_char) -> *mut u64 {
@@ -563,24 +518,6 @@ pub extern "C" fn auto_resume_timestamp(popcorn_fx: &mut PopcornFX, id: *const c
             into_c_owned(e)
         }
     }
-}
-
-/// Resolve the given torrent url into meta information of the torrent.
-/// The url can be a magnet, http or file url to the torrent file.
-#[no_mangle]
-pub extern "C" fn torrent_info(popcorn_fx: &mut PopcornFX, url: *const c_char) {
-    let url = from_c_string(url);
-    trace!("Retrieving torrent information for {}", url);
-    let runtime = tokio::runtime::Runtime::new().expect("Runtime should have been created");
-
-    runtime.block_on(async {
-        match popcorn_fx.torrent_manager().info(url.as_str()).await {
-            Ok(_) => {}
-            Err(e) => {
-                error!("Failed to resolve torrent information, {}", e)
-            }
-        };
-    })
 }
 
 /// Verify if the given magnet uri has already been stored.
@@ -696,9 +633,30 @@ pub extern "C" fn update_playback_settings(popcorn_fx: &mut PopcornFX, settings:
     popcorn_fx.settings().update_playback(settings);
 }
 
-/// Dispose the given media item from memory.
+/// Dispose of a C-compatible MediaItemC value wrapped in a Box.
+///
+/// This function is responsible for cleaning up resources associated with a C-compatible MediaItemC value
+/// wrapped in a Box.
+///
+/// # Arguments
+///
+/// * `media` - A Box containing a C-compatible MediaItemC value to be disposed of.
 #[no_mangle]
 pub extern "C" fn dispose_media_item(media: Box<MediaItemC>) {
+    trace!("Disposing MediaItemC reference {:?}", media);
+    dispose_media_item_value(*media)
+}
+
+/// Dispose of a C-compatible MediaItemC value.
+///
+/// This function is responsible for cleaning up resources associated with a C-compatible MediaItemC value.
+///
+/// # Arguments
+///
+/// * `media` - A C-compatible MediaItemC value to be disposed of.
+#[no_mangle]
+pub extern "C" fn dispose_media_item_value(media: MediaItemC) {
+    trace!("Disposing MediaItemC {:?}", media);
     if !media.show_overview.is_null() {
         let _ = from_c_owned(media.show_overview);
     } else if !media.show_details.is_null() {
@@ -710,26 +668,16 @@ pub extern "C" fn dispose_media_item(media: Box<MediaItemC>) {
     }
 }
 
-/// Dispose all given media items from memory.
-#[no_mangle]
-pub extern "C" fn dispose_media_items(media: Box<MediaSetC>) {
-    trace!("Disposing media items of {:?}", media);
-    let _ = media.movies();
-    let _ = media.shows();
-}
-
-/// Dispose the torrent stream.
-/// Make sure [stop_stream] has been called before dropping the instance.
-#[no_mangle]
-pub extern "C" fn dispose_torrent_stream(stream: Box<TorrentStreamC>) {
-    trace!("Disposing stream {:?}", stream)
-}
-
 /// Dispose the given subtitle.
 #[no_mangle]
 pub extern "C" fn dispose_subtitle(subtitle: Box<SubtitleC>) {
     trace!("Disposing subtitle {:?}", subtitle);
-    let _ = Subtitle::from(*subtitle);
+    if !subtitle.info.is_null() {
+        let info = from_c_owned(subtitle.info);
+        drop(from_c_vec(info.files, info.len));
+    }
+
+    drop(from_c_vec(subtitle.cues, subtitle.len))
 }
 
 /// Dispose the [TorrentCollectionSet] from memory.
@@ -738,18 +686,29 @@ pub extern "C" fn dispose_torrent_collection(collection_set: Box<TorrentCollecti
     trace!("Disposing collection set {:?}", collection_set)
 }
 
+/// Dispose of a C-compatible favorites collection.
+///
+/// This function is responsible for cleaning up resources associated with a C-compatible favorites collection.
+///
+/// # Arguments
+///
+/// * `favorites` - A C-compatible favorites collection to be disposed of.
+#[no_mangle]
+pub extern "C" fn dispose_favorites(favorites: Box<VecFavoritesC>) {
+    trace!("Disposing favorite C set {:?}", favorites);
+    drop(from_c_vec(favorites.movies, favorites.movies_len));
+    drop(from_c_vec(favorites.shows, favorites.shows_len));
+}
+
 #[cfg(test)]
 mod test {
     use std::path::PathBuf;
-    use std::sync::mpsc::channel;
-    use std::time::Duration;
 
     use tempfile::tempdir;
 
     use popcorn_fx_core::core::config::{DecorationType, SubtitleFamily};
     use popcorn_fx_core::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
-    use popcorn_fx_core::core::torrent::{TorrentEvent, TorrentState};
     use popcorn_fx_core::from_c_owned;
     use popcorn_fx_core::testing::{copy_test_file, init_logger};
 
@@ -778,7 +737,7 @@ mod test {
     }
 
     pub fn new_instance(temp_path: &str) -> PopcornFX {
-        let mut instance = PopcornFX::new(default_args(temp_path));
+        let instance = PopcornFX::new(default_args(temp_path));
         let mut mutex = instance.settings();
         mutex.settings.subtitle_settings.directory = PathBuf::from(temp_path).join("subtitles").to_str().unwrap().to_string();
         mutex.settings.torrent_settings.directory = PathBuf::from(temp_path).join("torrents");
@@ -809,9 +768,9 @@ mod test {
             "tt0000000122".to_string(),
             "2020".to_string(),
         );
-        let media = MediaItemC::from(movie);
+        let mut media = MediaItemC::from(movie);
 
-        let result = is_media_liked(&mut instance, &media);
+        let result = is_media_liked(&mut instance, &mut media);
 
         assert_eq!(false, result)
     }
@@ -826,9 +785,9 @@ mod test {
             "tt0000000111".to_string(),
             "2020".to_string(),
         );
-        let media = MediaItemC::from(movie);
+        let mut media = MediaItemC::from(movie);
 
-        let result = is_media_liked(&mut instance, &media);
+        let result = is_media_liked(&mut instance, &mut media);
 
         assert_eq!(false, result)
     }
@@ -976,24 +935,6 @@ mod test {
         let media = MediaItemC::from(movie);
 
         dispose_media_item(Box::new(media));
-    }
-
-    #[test]
-    fn test_dispose_media_items() {
-        init_logger();
-        let temp_dir = tempdir().expect("expected a tempt dir to be created");
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let mut instance = PopcornFX::new(default_args(temp_path));
-        let genre = GenreC::from(Genre::all());
-        let sort_by = SortByC::from(SortBy::new("trending".to_string(), String::new()));
-        let keywords = into_c_string(String::new());
-
-        let result = retrieve_available_shows(&mut instance, &genre, &sort_by, keywords, 1);
-
-        match result {
-            MediaSetResult::Ok(items) => dispose_media_items(Box::new(items)),
-            _ => panic!("Expected MediaSetResult::Ok")
-        }
     }
 
     #[test]

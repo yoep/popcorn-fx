@@ -4,7 +4,7 @@ import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
+import com.github.yoep.popcorn.backend.events.PlayerStartedEvent;
 import com.github.yoep.popcorn.backend.events.ShowDetailsEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
@@ -85,8 +85,8 @@ class MainControllerTest {
         targetNode.requestFocus();
         controller.root.fireEvent(event);
         // TODO: fix this test, it doesn't work within github actions
-//        var eventResult = eventFuture.get(200, TimeUnit.MILLISECONDS);
-//        assertEquals(KeyCode.ENTER, eventResult.getCode());
+        //        var eventResult = eventFuture.get(200, TimeUnit.MILLISECONDS);
+        //        assertEquals(KeyCode.ENTER, eventResult.getCode());
     }
 
     @Test
@@ -123,7 +123,11 @@ class MainControllerTest {
         controller.initialize(url, resourceBundle);
 
         WaitForAsyncUtils.waitFor(100, TimeUnit.MILLISECONDS, () -> controller.playerPane != null);
-        eventPublisher.publish(new PlayVideoEvent(this, "http://localhost", "lorem", false));
+        eventPublisher.publish(PlayerStartedEvent.builder()
+                .source(this)
+                .title("MyVideoTitle")
+                .subtitleEnabled(true)
+                .build());
 
         WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> controller.root.getChildren().contains(controller.playerPane));
     }

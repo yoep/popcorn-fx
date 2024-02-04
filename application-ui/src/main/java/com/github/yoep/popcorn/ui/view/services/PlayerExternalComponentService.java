@@ -4,12 +4,9 @@ import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
-import com.github.yoep.popcorn.backend.adapters.torrent.listeners.AbstractTorrentListener;
-import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
-import com.github.yoep.popcorn.backend.events.PlayTorrentEvent;
+import com.github.yoep.popcorn.backend.loader.*;
 import com.github.yoep.popcorn.backend.player.PlayerEventService;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import com.github.yoep.popcorn.ui.view.listeners.PlayerExternalListener;
@@ -28,6 +25,7 @@ public class PlayerExternalComponentService extends AbstractListenerService<Play
     private final PlayerManagerService playerManagerService;
     private final PlayerEventService playerEventService;
     private final EventPublisher eventPublisher;
+    private final LoaderService loaderService;
 
     private final PlayerListener playerListener = createListener();
     private long time;
@@ -56,22 +54,26 @@ public class PlayerExternalComponentService extends AbstractListenerService<Play
     @PostConstruct
     void init() {
         playerEventService.addListener(playerListener);
-        eventPublisher.register(PlayTorrentEvent.class, event -> {
-            invokeListeners(e -> e.onTitleChanged(event.getTitle()));
-
-            if (event instanceof PlayMediaEvent mediaEvent) {
-                invokeListeners(e -> e.onMediaChanged(mediaEvent.getMedia()));
-            } else {
-                invokeListeners(e -> e.onMediaChanged(null));
+        loaderService.addListener(new LoaderListener() {
+            @Override
+            public void onLoadingStarted(LoadingStartedEventC loadingStartedEvent) {
+                invokeListeners(e -> e.onTitleChanged(loadingStartedEvent.getTitle()));
             }
 
-            event.getTorrent().addListener(new AbstractTorrentListener() {
-                @Override
-                public void onDownloadStatus(DownloadStatus status) {
-                    invokeListeners(e -> e.onDownloadStatus(status));
-                }
-            });
-            return event;
+            @Override
+            public void onStateChanged(LoaderState newState) {
+                // no-op
+            }
+
+            @Override
+            public void onProgressChanged(LoadingProgress progress) {
+                invokeListeners(e -> e.onDownloadStatus(progress));
+            }
+
+            @Override
+            public void onError(LoadingErrorC error) {
+                // no-op
+            }
         });
     }
 

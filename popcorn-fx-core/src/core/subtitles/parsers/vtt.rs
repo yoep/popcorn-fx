@@ -13,6 +13,7 @@ const HEADER: &str = "WEBVTT";
 const TIME_INDICATOR: &str = "-->";
 const TIME_FORMAT: &str = "%H:%M:%S.%3f";
 
+#[derive(Debug)]
 pub struct VttParser {
     _time_regex: Regex,
     style_parser: StyleParser,

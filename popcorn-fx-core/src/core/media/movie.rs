@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::core::media::{Images, MediaDetails, MediaIdentifier, MediaOverview, MediaType, Rating, TorrentInfo};
 
+pub const DEFAULT_AUDIO_LANGUAGE: &str = "en";
+
 /// The simple version of a media item representing a movie.
 /// It contains only the basic information needed for search results.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Display)]
@@ -77,7 +79,7 @@ impl MediaOverview for MovieOverview {
 /// The detailed version of a media item representing a movie.
 /// It contains all information need for a movie description.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Display)]
-#[display(fmt = "MovieDetails: {{imdb_id: {}, title: {}, year: {}, runtime: {}}}", imdb_id, title, year, runtime)]
+#[display(fmt = "MovieDetails: {{imdb_id: {}, title: {}, year: {}, runtime: {}, torrents: {}}}", imdb_id, title, year, runtime, "torrents.len()")]
 pub struct MovieDetails {
     pub title: String,
     pub imdb_id: String,

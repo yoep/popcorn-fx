@@ -46,8 +46,6 @@ PYTHON := python3
 endif
 
 prerequisites: ## Install the requirements for the application
-	@echo Updating rust
-	@rustup update
 	@echo Installing Cargo plugins
 	@cargo install cbindgen
 	@cargo install cargo-nextest

@@ -1,12 +1,16 @@
 package com.github.yoep.popcorn.backend;
 
+import com.github.yoep.popcorn.backend.adapters.screen.FullscreenCallback;
+import com.github.yoep.popcorn.backend.adapters.screen.IsFullscreenCallback;
 import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentState;
-import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentStreamState;
 import com.github.yoep.popcorn.backend.controls.PlaybackControlCallback;
+import com.github.yoep.popcorn.backend.events.EventBridgeCallback;
 import com.github.yoep.popcorn.backend.events.EventC;
 import com.github.yoep.popcorn.backend.lib.ByteArray;
 import com.github.yoep.popcorn.backend.lib.FxLibInstance;
 import com.github.yoep.popcorn.backend.lib.StringArray;
+import com.github.yoep.popcorn.backend.loader.LoaderEventC;
+import com.github.yoep.popcorn.backend.loader.LoaderEventCallback;
 import com.github.yoep.popcorn.backend.logging.LogLevel;
 import com.github.yoep.popcorn.backend.media.*;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteEventCallback;
@@ -16,6 +20,10 @@ import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.media.watched.WatchedEventCallback;
+import com.github.yoep.popcorn.backend.player.*;
+import com.github.yoep.popcorn.backend.playlists.Playlist;
+import com.github.yoep.popcorn.backend.playlists.PlaylistManagerCallback;
+import com.github.yoep.popcorn.backend.playlists.PlaylistManagerEvent;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfigEventCallback;
 import com.github.yoep.popcorn.backend.settings.models.*;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
@@ -24,16 +32,18 @@ import com.github.yoep.popcorn.backend.subtitles.SubtitleEventCallback;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfoSet;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
-import com.github.yoep.popcorn.backend.torrent.TorrentStreamEventCallback;
-import com.github.yoep.popcorn.backend.torrent.TorrentStreamWrapper;
-import com.github.yoep.popcorn.backend.torrent.TorrentWrapper;
-import com.github.yoep.popcorn.backend.torrent.TorrentWrapperPointer;
+import com.github.yoep.popcorn.backend.torrent.CancelTorrentCallback;
+import com.github.yoep.popcorn.backend.torrent.DownloadStatusC;
+import com.github.yoep.popcorn.backend.torrent.ResolveTorrentCallback;
+import com.github.yoep.popcorn.backend.torrent.ResolveTorrentInfoCallback;
 import com.github.yoep.popcorn.backend.torrent.collection.StoredTorrentSet;
 import com.github.yoep.popcorn.backend.updater.UpdateCallback;
 import com.github.yoep.popcorn.backend.updater.UpdateState;
 import com.github.yoep.popcorn.backend.updater.VersionInfo;
 import com.sun.jna.Library;
 import com.sun.jna.Pointer;
+
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * The interface for interacting with the Popcorn FX native library.
@@ -56,6 +66,8 @@ import com.sun.jna.Pointer;
  * and the underlying Popcorn FX library.
  */
 public interface FxLib extends Library {
+    AtomicReference<FxLib> INSTANCE = new AtomicReference<>();
+
     PopcornFx new_popcorn_fx(String[] args, int len);
 
     SubtitleInfoSet default_subtitle_options(PopcornFx instance);
@@ -106,7 +118,7 @@ public interface FxLib extends Library {
 
     MediaResult.ByValue retrieve_media_details(PopcornFx instance, MediaItem media);
 
-    byte is_media_liked(PopcornFx instance, MediaItem media);
+    byte is_media_liked(PopcornFx instance, MediaItem.ByReference media);
 
     FavoritesSet retrieve_all_favorites(PopcornFx instance);
 
@@ -130,25 +142,23 @@ public interface FxLib extends Library {
 
     void register_watched_event_callback(PopcornFx instance, WatchedEventCallback callback);
 
-    TorrentWrapperPointer torrent_wrapper(PopcornFx instance, TorrentWrapper.ByValue torrent);
+    void torrent_resolve_info_callback(PopcornFx instance, ResolveTorrentInfoCallback callback);
 
-    void torrent_state_changed(TorrentWrapperPointer torrent, TorrentState state);
+    void torrent_resolve_callback(PopcornFx instance, ResolveTorrentCallback callback);
 
-    void torrent_piece_finished(TorrentWrapperPointer torrent, int piece);
+    void torrent_cancel_callback(PopcornFx instance, CancelTorrentCallback callback);
 
-    TorrentStreamWrapper start_stream(PopcornFx instance, TorrentWrapperPointer torrent);
+    void torrent_state_changed(PopcornFx instance, String handle, TorrentState state);
 
-    void stop_stream(PopcornFx instance, TorrentStreamWrapper stream);
+    void torrent_piece_finished(PopcornFx instance, String handle, int piece);
 
-    void register_torrent_stream_callback(TorrentStreamWrapper stream, TorrentStreamEventCallback callback);
-
-    TorrentStreamState torrent_stream_state(TorrentStreamWrapper stream);
+    void torrent_download_status(PopcornFx instance, String handle, DownloadStatusC.ByValue downloadStatus);
 
     Pointer auto_resume_timestamp(PopcornFx instance, String id, String filename);
 
     void publish_event(PopcornFx instance, EventC.ByValue event);
 
-    void torrent_info(PopcornFx instance, String url);
+    void register_event_callback(PopcornFx instance, EventBridgeCallback callback);
 
     byte torrent_collection_is_stored(PopcornFx instance, String magnetUrl);
 
@@ -218,19 +228,65 @@ public interface FxLib extends Library {
 
     ByteArray load_image(PopcornFx instance, String url);
 
+    Long play_playlist(PopcornFx instance, Playlist set);
+
+    void register_playlist_manager_callback(PopcornFx instance, PlaylistManagerCallback callback);
+
+    Long play_next_playlist_item(PopcornFx instance);
+
+    void stop_playlist(PopcornFx instance);
+
+    PlayerWrapper active_player(PopcornFx instance);
+
+    void set_active_player(PopcornFx instance, String playerId);
+
+    PlayerSet players(PopcornFx instance);
+
+    PlayerWrapper player_by_id(PopcornFx instance, String playerId);
+
+    void register_player_callback(PopcornFx instance, PlayerManagerCallback callback);
+
+    PlayerWrapperPointer register_player(PopcornFx instance, PlayerWrapperRegistration player);
+
+    void invoke_player_event(PlayerWrapperPointer wrapper, PlayerEventC.ByValue event);
+
+    void remove_player(PopcornFx instance, String playerId);
+
+    void register_loader_callback(PopcornFx instance, LoaderEventCallback callback);
+
+    Long loader_load(PopcornFx instance, String url);
+
+    void loader_cancel(PopcornFx instance, Long handle);
+
+    void register_is_fullscreen_callback(PopcornFx instance, IsFullscreenCallback callback);
+
+    void register_fullscreen_callback(PopcornFx instance, FullscreenCallback callback);
+
     void log(String target, String message, LogLevel level);
 
-    void dispose_media_item(MediaItem media);
+    void dispose_media_item(MediaItem.ByReference media);
 
-    void dispose_media_items(MediaSet media);
+    void dispose_media_item_value(MediaItem.ByValue media);
 
-    void dispose_torrent_stream(TorrentStreamWrapper wrapper);
+    void dispose_media_items(MediaSet.ByValue media);
 
     void dispose_subtitle(Subtitle subtitle);
 
     void dispose_torrent_collection(StoredTorrentSet set);
 
     void dispose_byte_array(ByteArray byteArray);
+
+    void dispose_string_array(StringArray array);
+
+    void dispose_event_value(EventC.ByValue event);
+
+    void dispose_favorites(FavoritesSet favorites);
+
+    void dispose_player_manager_event(PlayerManagerEvent.ByValue event);
+
+    void dispose_loader_event_value(LoaderEventC.ByValue event);
+
+    void dispose_playlist_manager_event_value(PlaylistManagerEvent.ByValue event);
 
     void dispose_popcorn_fx(PopcornFx instance);
 

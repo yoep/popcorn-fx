@@ -24,6 +24,7 @@ use popcorn_fx_core::core::cache::CacheManager;
 use popcorn_fx_core::core::config::{ApplicationConfig, PopcornProperties};
 use popcorn_fx_core::core::events::EventPublisher;
 use popcorn_fx_core::core::images::{DefaultImageLoader, ImageLoader};
+use popcorn_fx_core::core::loader::{DefaultMediaLoader, LoadingStrategy, MediaLoader, MediaTorrentUrlLoadingStrategy, PlayerLoadingStrategy, SubtitlesLoadingStrategy, TorrentDetailsLoadingStrategy, TorrentInfoLoadingStrategy, TorrentLoadingStrategy, TorrentStreamLoadingStrategy};
 use popcorn_fx_core::core::media::favorites::{DefaultFavoriteService, FavoriteCacheUpdater, FavoriteService};
 use popcorn_fx_core::core::media::providers::{FavoritesProvider, MovieProvider, ProviderManager, ShowProvider};
 use popcorn_fx_core::core::media::providers::enhancers::ThumbEnhancer;
@@ -31,16 +32,19 @@ use popcorn_fx_core::core::media::resume::{AutoResumeService, DefaultAutoResumeS
 use popcorn_fx_core::core::media::watched::{DefaultWatchedService, WatchedService};
 use popcorn_fx_core::core::platform::PlatformData;
 use popcorn_fx_core::core::playback::PlaybackControls;
+use popcorn_fx_core::core::players::{DefaultPlayerManager, PlayerManager};
+use popcorn_fx_core::core::playlists::PlaylistManager;
+use popcorn_fx_core::core::screen::{DefaultScreenService, ScreenService};
 use popcorn_fx_core::core::subtitles::{SubtitleManager, SubtitleProvider, SubtitleServer};
 use popcorn_fx_core::core::subtitles::model::SubtitleType;
 use popcorn_fx_core::core::subtitles::parsers::{SrtParser, VttParser};
-use popcorn_fx_core::core::torrent::{TorrentManager, TorrentStreamServer};
-use popcorn_fx_core::core::torrent::collection::TorrentCollection;
+use popcorn_fx_core::core::torrents::{TorrentManager, TorrentStreamServer};
+use popcorn_fx_core::core::torrents::collection::TorrentCollection;
+use popcorn_fx_core::core::torrents::stream::DefaultTorrentStreamServer;
 use popcorn_fx_core::core::updater::Updater;
 use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
 use popcorn_fx_platform::platform::DefaultPlatform;
 use popcorn_fx_torrent::torrent::DefaultTorrentManager;
-use popcorn_fx_torrent_stream::torrent::stream::DefaultTorrentStreamServer;
 
 static INIT: Once = Once::new();
 
@@ -159,6 +163,10 @@ pub struct PopcornFX {
     playback_controls: Arc<PlaybackControls>,
     image_loader: Arc<Box<dyn ImageLoader>>,
     cache_manager: Arc<CacheManager>,
+    playlist_manager: Arc<PlaylistManager>,
+    player_manager: Arc<Box<dyn PlayerManager>>,
+    media_loader: Arc<Box<dyn MediaLoader>>,
+    screen_service: Arc<Box<dyn ScreenService>>,
     /// The runtime pool to use for async tasks
     runtime: Arc<Runtime>,
     /// The options that were used to create this instance
@@ -200,7 +208,7 @@ impl PopcornFX {
         let favorites_service = Arc::new(Box::new(DefaultFavoriteService::new(app_directory_path)) as Box<dyn FavoriteService>);
         let watched_service = Arc::new(Box::new(DefaultWatchedService::new(app_directory_path, event_publisher.clone())) as Box<dyn WatchedService>);
         let providers = Arc::new(Self::default_providers(&settings, &args, &cache_manager, &favorites_service, &watched_service));
-        let torrent_manager = Arc::new(Box::new(DefaultTorrentManager::new(settings.clone(), event_publisher.clone(), runtime.clone())) as Box<dyn TorrentManager>);
+        let torrent_manager = Arc::new(Box::new(DefaultTorrentManager::new(settings.clone(), event_publisher.clone())) as Box<dyn TorrentManager>);
         let torrent_stream_server = Arc::new(Box::new(DefaultTorrentStreamServer::default()) as Box<dyn TorrentStreamServer>);
         let torrent_collection = Arc::new(TorrentCollection::new(app_directory_path));
         let auto_resume_service = Arc::new(Box::new(DefaultAutoResumeService::builder()
@@ -224,6 +232,19 @@ impl PopcornFX {
             .event_publisher(event_publisher.clone())
             .build());
         let image_loader = Arc::new(Box::new(DefaultImageLoader::new(cache_manager.clone())) as Box<dyn ImageLoader>);
+        let screen_service = Arc::new(Box::new(DefaultScreenService::new()) as Box<dyn ScreenService>);
+        let player_manager = Arc::new(Box::new(DefaultPlayerManager::new(settings.clone(), event_publisher.clone(), torrent_stream_server.clone(), screen_service.clone())) as Box<dyn PlayerManager>);
+        let loading_chain: Vec<Box<dyn LoadingStrategy>> = vec![
+            Box::new(MediaTorrentUrlLoadingStrategy::new()),
+            Box::new(TorrentInfoLoadingStrategy::new(torrent_manager.clone())),
+            Box::new(SubtitlesLoadingStrategy::new(subtitle_provider.clone(), subtitle_manager.clone())),
+            Box::new(TorrentLoadingStrategy::new(torrent_manager.clone(), settings.clone())),
+            Box::new(TorrentStreamLoadingStrategy::new(torrent_stream_server.clone())),
+            Box::new(PlayerLoadingStrategy::new(player_manager.clone())),
+            Box::new(TorrentDetailsLoadingStrategy::new(event_publisher.clone())),
+        ];
+        let media_loader = Arc::new(Box::new(DefaultMediaLoader::new(loading_chain)) as Box<dyn MediaLoader>);
+        let playlist_manager = Arc::new(PlaylistManager::new(player_manager.clone(), event_publisher.clone(), media_loader.clone()));
 
         // disable the screensaver
         platform.disable_screensaver();
@@ -247,6 +268,10 @@ impl PopcornFX {
             playback_controls,
             image_loader,
             cache_manager,
+            player_manager,
+            playlist_manager,
+            media_loader,
+            screen_service,
             runtime,
             opts: args,
         }
@@ -339,6 +364,26 @@ impl PopcornFX {
     /// Retrieve the event publisher of the FX instance.
     pub fn event_publisher(&self) -> &Arc<EventPublisher> {
         &self.event_publisher
+    }
+
+    /// Retrieve the player manager of the FX instance.
+    pub fn player_manager(&self) -> &Arc<Box<dyn PlayerManager>> {
+        &self.player_manager
+    }
+
+    /// Retrieve the playlist manager of the FX instance.
+    pub fn playlist_manager(&self) -> &Arc<PlaylistManager> {
+        &self.playlist_manager
+    }
+
+    /// Retrieve the media loader of the FX instance.
+    pub fn media_loader(&self) -> &Arc<Box<dyn MediaLoader>> {
+        &self.media_loader
+    }
+    
+    /// Retrieve the screen service of the FX instance.
+    pub fn screen_service(&self) -> &Arc<Box<dyn ScreenService>> {
+        &self.screen_service
     }
 
     /// Retrieve the given runtime pool from this Popcorn FX instance.

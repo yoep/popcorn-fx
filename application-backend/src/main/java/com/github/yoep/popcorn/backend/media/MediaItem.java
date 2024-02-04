@@ -1,6 +1,7 @@
 package com.github.yoep.popcorn.backend.media;
 
 import com.github.yoep.popcorn.backend.FxLib;
+import com.github.yoep.popcorn.backend.media.providers.MediaException;
 import com.github.yoep.popcorn.backend.media.providers.models.*;
 import com.sun.jna.Structure;
 import lombok.EqualsAndHashCode;
@@ -8,7 +9,6 @@ import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.Closeable;
-import java.util.Objects;
 import java.util.Optional;
 
 @Slf4j
@@ -17,8 +17,20 @@ import java.util.Optional;
 @Structure.FieldOrder({"movieOverview", "movieDetails", "showOverview", "showDetails", "episode"})
 public class MediaItem extends Structure implements Closeable {
     public static class ByValue extends MediaItem implements Structure.ByValue {
+        @Override
+        public void close() {
+            super.close();
+            FxLib.INSTANCE.get().dispose_media_item_value(this);
+        }
     }
+
     public static class ByReference extends MediaItem implements Structure.ByReference {
+        @Override
+        public void close() {
+            super.close();
+            // TODO: fix crash on cleanup
+            //  FxLib.INSTANCE.get().dispose_media_item(this);
+        }
     }
 
     public MovieOverview.ByReference movieOverview;
@@ -26,8 +38,6 @@ public class MediaItem extends Structure implements Closeable {
     public ShowOverview.ByReference showOverview;
     public ShowDetails.ByReference showDetails;
     public Episode.ByReference episode;
-
-    private FxLib fxLib;
 
     public Media getMedia() {
         if (movieOverview != null) {
@@ -46,12 +56,6 @@ public class MediaItem extends Structure implements Closeable {
         return episode;
     }
 
-    public MediaItem withLib(FxLib fxLib) {
-        Objects.requireNonNull(fxLib, "fxLib cannot be null");
-        this.fxLib = fxLib;
-        return this;
-    }
-
     @Override
     public void close() {
         setAutoSynch(false);
@@ -59,14 +63,20 @@ public class MediaItem extends Structure implements Closeable {
         Optional.ofNullable(movieDetails).ifPresent(MovieDetails::close);
         Optional.ofNullable(showOverview).ifPresent(ShowOverview::close);
         Optional.ofNullable(showDetails).ifPresent(ShowDetails::close);
-        Optional.ofNullable(this.fxLib).ifPresent(e -> {
-            log.trace("Disposing MediaItem {}", this);
-            e.dispose_media_item(this);
-        });
     }
 
-    public static MediaItem from(Media media) {
-        var mediaItem = new MediaItem();
+    public MediaItem.ByReference toReference() {
+        var media = new MediaItem.ByReference();
+        media.showOverview = showOverview;
+        media.showDetails = showDetails;
+        media.episode = episode;
+        media.movieOverview = movieOverview;
+        media.movieDetails = movieDetails;
+        return media;
+    }
+
+    public static MediaItem.ByReference from(Media media) {
+        var mediaItem = new MediaItem.ByReference();
 
         if (media instanceof MovieDetails.ByReference movie) {
             mediaItem.fromMovieDetails(movie);
@@ -82,14 +92,18 @@ public class MediaItem extends Structure implements Closeable {
             mediaItem.fromShowDetails(show);
         } else if (media instanceof ShowOverview.ByReference show) {
             mediaItem.showOverview = show;
+        } else if (media instanceof Episode.ByReference episode) {
+            mediaItem.episode = episode;
+        } else if (media instanceof Episode episode) {
+            mediaItem.fromEpisode(episode);
         } else {
-            mediaItem.episode = (Episode.ByReference) media;
+            throw new MediaException(media, "Unsupported media type");
         }
 
         return mediaItem;
     }
 
-    private void fromShowDetails(ShowDetails show) {
+    void fromShowDetails(ShowDetails show) {
         this.showDetails = new ShowDetails.ByReference();
         this.showDetails.imdbId = show.imdbId;
         this.showDetails.tvdbId = show.tvdbId;
@@ -109,7 +123,7 @@ public class MediaItem extends Structure implements Closeable {
         this.showDetails.episodesCap = show.episodesCap;
     }
 
-    private void fromMovieDetails(MovieDetails movie) {
+    void fromMovieDetails(MovieDetails movie) {
         this.movieDetails = new MovieDetails.ByReference();
         this.movieDetails.title = movie.title;
         this.movieDetails.imdbId = movie.imdbId;
@@ -127,12 +141,23 @@ public class MediaItem extends Structure implements Closeable {
         this.movieDetails.torrentCap = movie.torrentCap;
     }
 
-    private void fromMovieOverview(MovieOverview movie) {
+    void fromMovieOverview(MovieOverview movie) {
         this.movieOverview = new MovieOverview.ByReference();
         this.movieOverview.title = movie.title;
         this.movieOverview.imdbId = movie.imdbId;
         this.movieOverview.year = movie.year;
         this.movieOverview.rating = movie.rating;
         this.movieOverview.images = movie.images;
+    }
+
+    void fromEpisode(Episode episode) {
+        this.episode = new Episode.ByReference();
+        this.episode.season = episode.getSeason();
+        this.episode.episode = episode.getEpisode();
+        this.episode.firstAired = episode.getFirstAired();
+        this.episode.title = episode.getTitle();
+        this.episode.synopsis = episode.getSynopsis();
+        this.episode.tvdbId = episode.getTvdbId();
+        this.episode.thumb = episode.getThumb().orElse(null);
     }
 }

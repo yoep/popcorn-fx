@@ -8,8 +8,7 @@ members = [
     "popcorn-fx-core",
     "popcorn-fx-opensubtitles",
     "popcorn-fx-platform",
-    "popcorn-fx-torrent",
-    "popcorn-fx-torrent-stream"
+    "popcorn-fx-torrent"
 ]
 
 [workspace.dependencies]
@@ -19,6 +18,8 @@ serde = "1"
 serde_json = "1"
 serde_yaml = "0.9"
 tokio = "1"
+tokio-util = "0.7"
+tokio-stream = "0.1"
 
 [profile.release]
 opt-level = 3

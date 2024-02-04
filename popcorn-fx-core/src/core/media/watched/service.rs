@@ -7,7 +7,7 @@ use mockall::automock;
 use tokio::runtime::Handle;
 use tokio::sync::Mutex;
 
-use crate::core::{block_in_place, CoreCallbacks, events, media};
+use crate::core::{block_in_place, Callbacks, CoreCallbacks, events, media};
 use crate::core::events::{Event, EventPublisher, PlayerStoppedEvent};
 use crate::core::media::{MediaError, MediaIdentifier, MediaType};
 use crate::core::media::watched::Watched;
@@ -349,7 +349,7 @@ impl WatchedService for InnerWatchedService {
     }
 
     fn register(&self, callback: WatchedCallback) {
-        self.callbacks.add(callback)
+        self.callbacks.add(callback);
     }
 }
 

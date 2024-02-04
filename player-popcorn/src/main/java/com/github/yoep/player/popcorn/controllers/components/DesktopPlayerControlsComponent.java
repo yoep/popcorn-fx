@@ -167,7 +167,7 @@ public class DesktopPlayerControlsComponent implements Initializable {
     }
 
     private void onDownloadStatusChanged(DownloadStatus progress) {
-        playProgress.setLoadProgress(progress.getProgress());
+        playProgress.setLoadProgress(progress.progress());
     }
 
     private void onVolumeChanged(int volume) {

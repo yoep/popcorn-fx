@@ -13,24 +13,16 @@ import java.util.function.Consumer;
 @Slf4j
 @ToString
 @EqualsAndHashCode
-public abstract class AbstractListenerService<T> {
+public abstract class AbstractListenerService<T> implements ListenerService<T> {
     protected final Queue<T> listeners = new ConcurrentLinkedQueue<>();
 
-    /**
-     * Register the listener within the service.
-     *
-     * @param listener The listener to add.
-     */
+    @Override
     public void addListener(@NotNull T listener) {
         Objects.requireNonNull(listener, "listener cannot be null");
         listeners.add(listener);
     }
 
-    /**
-     * Remove the listener from the service.
-     *
-     * @param listener The listener to remove.
-     */
+    @Override
     public void removeListener(T listener) {
         listeners.remove(listener);
     }

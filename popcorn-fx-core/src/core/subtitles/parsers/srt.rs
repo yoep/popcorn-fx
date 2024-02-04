@@ -15,6 +15,7 @@ const TIME_SEPARATOR: &str = "-->";
 const TIME_PATTERN: &str = "(\\d{1,2}:\\d{2}:\\d{2},\\d{3}) --> (\\d{1,2}:\\d{2}:\\d{2},\\d{3})";
 const TIME_FORMAT: &str = "%H:%M:%S.%3f";
 
+#[derive(Debug)]
 pub struct SrtParser {
     time_regex: Regex,
     style_parser: StyleParser,

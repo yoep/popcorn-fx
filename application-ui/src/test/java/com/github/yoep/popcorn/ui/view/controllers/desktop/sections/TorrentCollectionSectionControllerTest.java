@@ -2,8 +2,8 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.sections;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.loader.LoaderService;
 import com.github.yoep.popcorn.backend.torrent.collection.StoredTorrent;
-import com.github.yoep.popcorn.ui.events.LoadUrlEvent;
 import com.github.yoep.popcorn.ui.events.ShowTorrentCollectionEvent;
 import com.github.yoep.popcorn.ui.torrent.TorrentCollectionService;
 import com.github.yoep.popcorn.ui.torrent.controls.TorrentCollection;
@@ -33,6 +33,8 @@ class TorrentCollectionSectionControllerTest {
     @Mock
     private LocaleText localeText;
     @Mock
+    private LoaderService loaderService;
+    @Mock
     private URL url;
     @Mock
     private ResourceBundle resourceBundle;
@@ -57,6 +59,6 @@ class TorrentCollectionSectionControllerTest {
         WaitForAsyncUtils.waitForFxEvents();
         controller.collection.getTorrentClickedConsumer().accept(torrent);
 
-        verify(eventPublisher).publish(new LoadUrlEvent(controller, uri));
+        verify(loaderService).load(uri);
     }
 }

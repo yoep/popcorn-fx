@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::path::Path;
 
 use async_trait::async_trait;
@@ -12,17 +13,17 @@ use crate::core::subtitles::model::{Subtitle, SubtitleInfo, SubtitleType};
 /// for [Media] items.
 #[automock]
 #[async_trait]
-pub trait SubtitleProvider {
+pub trait SubtitleProvider: Debug + Send + Sync {
     /// The available default subtitle options.
     fn default_subtitle_options(&self) -> Vec<SubtitleInfo> {
         vec![SubtitleInfo::none(), SubtitleInfo::custom()]
     }
 
     /// Retrieve the available subtitles for the given movie.
-    async fn movie_subtitles(&self, media: MovieDetails) -> subtitles::Result<Vec<SubtitleInfo>>;
+    async fn movie_subtitles(&self, media: &MovieDetails) -> subtitles::Result<Vec<SubtitleInfo>>;
 
     /// Retrieve the available subtitles for the given episode.
-    async fn episode_subtitles(&self, media: ShowDetails, episode: Episode) -> subtitles::Result<Vec<SubtitleInfo>>;
+    async fn episode_subtitles(&self, media: &ShowDetails, episode: &Episode) -> subtitles::Result<Vec<SubtitleInfo>>;
 
     /// Retrieve the available subtitles for the given filename.
     async fn file_subtitles(&self, filename: &str) -> subtitles::Result<Vec<SubtitleInfo>>;

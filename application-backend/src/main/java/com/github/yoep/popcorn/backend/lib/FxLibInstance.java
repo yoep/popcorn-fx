@@ -21,4 +21,8 @@ public class FxLibInstance {
     public FxLib get() {
         return NATIVE_INSTANCE;
     }
+
+    static {
+        FxLib.INSTANCE.set(INSTANCE.get());
+    }
 }

@@ -18,22 +18,26 @@ import java.io.Closeable;
 import java.io.File;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 
 @Slf4j
 @Getter
 @ToString
 @EqualsAndHashCode(callSuper = false)
-@Structure.FieldOrder({"filepath", "hasByteCallback", "hasPieceCallback", "torrentTotalPiecesCallback",
+@Structure.FieldOrder({"handle", "filepath", "hasByteCallback", "hasPieceCallback", "torrentTotalPiecesCallback",
         "prioritizeBytesCallback", "prioritizePiecesCallback", "sequentialModeCallback", "torrentStateCallback"})
 public class TorrentWrapper extends Structure implements Torrent, Closeable {
     public static class ByValue extends TorrentWrapper implements Structure.ByValue {
         public ByValue(PopcornFx instance, Torrent torrent) {
-            super(torrent);
-            this.wrapperPointer = FxLibInstance.INSTANCE.get().torrent_wrapper(instance, this);
-            log.trace("Created torrent wrapper pointer {}", this.wrapperPointer);
+            super(instance, torrent);
+        }
+
+        public ByValue() {
+            super();
         }
     }
 
+    public String handle;
     public String filepath;
     public TorrentHasByteCallback hasByteCallback;
     public TorrentHasPieceCallback hasPieceCallback;
@@ -43,11 +47,17 @@ public class TorrentWrapper extends Structure implements Torrent, Closeable {
     public SequentialModeCallback sequentialModeCallback;
     public TorrentStateCallback torrentStateCallback;
 
-    private final Torrent torrent;
-    TorrentWrapperPointer wrapperPointer;
+    PopcornFx instance;
+    Torrent torrent;
 
-    private TorrentWrapper(Torrent torrent) {
+    public TorrentWrapper() {
+    }
+
+    public TorrentWrapper(PopcornFx instance, Torrent torrent) {
+        Objects.requireNonNull(torrent, "torrent cannot be null");
+        this.instance = instance;
         this.torrent = torrent;
+        this.handle = UUID.randomUUID().toString();
         this.filepath = torrent.getFile().getAbsolutePath();
         this.hasByteCallback = createHasByteCallback();
         this.hasPieceCallback = (int index) -> (byte) (this.torrent.hasPiece(index) ? 1 : 0);
@@ -57,6 +67,7 @@ public class TorrentWrapper extends Structure implements Torrent, Closeable {
         this.sequentialModeCallback = this.torrent::sequentialMode;
         this.torrentStateCallback = this.torrent::getState;
         initialize();
+        write();
     }
 
     //region Torrent
@@ -167,7 +178,11 @@ public class TorrentWrapper extends Structure implements Torrent, Closeable {
         this.torrent.addListener(new TorrentListener() {
             @Override
             public void onStateChanged(TorrentState oldState, TorrentState newState) {
-                FxLibInstance.INSTANCE.get().torrent_state_changed(wrapperPointer, newState);
+                try {
+                    FxLibInstance.INSTANCE.get().torrent_state_changed(instance, handle, newState);
+                } catch (Exception ex) {
+                    log.error("Failed to update C torrent state, {}", ex.getMessage(), ex);
+                }
             }
 
             @Override
@@ -177,12 +192,28 @@ public class TorrentWrapper extends Structure implements Torrent, Closeable {
 
             @Override
             public void onDownloadStatus(DownloadStatus status) {
-
+                try(var downloadStatusC = DownloadStatusC.ByValue.builder()
+                        .progress(status.progress())
+                        .seeds(status.seeds())
+                        .peers(status.peers())
+                        .downloadSpeed(status.downloadSpeed())
+                        .uploadSpeed(status.uploadSpeed())
+                        .downloaded(status.downloaded())
+                        .total_size(status.totalSize())
+                        .build()) {
+                    FxLibInstance.INSTANCE.get().torrent_download_status(instance, handle,downloadStatusC );
+                } catch (Exception ex) {
+                    log.error("Failed to update C torrent download status, {}", ex.getMessage(), ex);
+                }
             }
 
             @Override
             public void onPieceFinished(int pieceIndex) {
-                FxLibInstance.INSTANCE.get().torrent_piece_finished(wrapperPointer, pieceIndex);
+                try {
+                    FxLibInstance.INSTANCE.get().torrent_piece_finished(instance, handle, pieceIndex);
+                } catch (Exception ex) {
+                    log.error("Failed to invoked C torrent on piece finished, {}", ex.getMessage(), ex);
+                }
             }
         });
     }

@@ -32,13 +32,12 @@ class FavoriteServiceTest {
     void testIsLiked() {
         var service = new FavoriteService(fxLib, instance);
         var overview = new ShowOverview.ByReference();
-        when(fxLib.is_media_liked(eq(instance), isA(MediaItem.class))).thenReturn((byte) 1);
+        when(fxLib.is_media_liked(eq(instance), isA(MediaItem.ByReference.class))).thenReturn((byte) 1);
 
         var result = service.isLiked(overview);
 
         assertTrue(result);
-        // TODO: enable again in the future when it doesn't break
-//        verify(fxLib).dispose_media_item(isA(MediaItem.class));
+//        verify(fxLib).dispose_media_item(isA(MediaItem.ByReference.class));
     }
 
     @Test

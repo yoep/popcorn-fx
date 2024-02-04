@@ -1,5 +1,7 @@
 package com.github.yoep.popcorn.backend.lib;
 
+import com.github.yoep.popcorn.backend.FxLib;
+import com.sun.jna.Memory;
 import com.sun.jna.Pointer;
 import com.sun.jna.Structure;
 import lombok.EqualsAndHashCode;
@@ -12,6 +14,15 @@ import java.util.Optional;
 @EqualsAndHashCode(callSuper = false)
 @Structure.FieldOrder({"values", "len"})
 public class ByteArray extends Structure implements Closeable {
+    public static class ByReference extends ByteArray implements Structure.ByReference {
+        public ByReference() {
+        }
+
+        public ByReference(byte[] bytes) {
+            super(bytes);
+        }
+    }
+
     public Pointer values;
     public int len;
 
@@ -19,6 +30,16 @@ public class ByteArray extends Structure implements Closeable {
 
     public byte[] getBytes() {
         return cache;
+    }
+
+    public ByteArray() {
+    }
+
+    public ByteArray(byte[] bytes) {
+        this.values = new Memory(bytes.length);
+        this.values.write(0, bytes, 0, bytes.length);
+        this.len = bytes.length;
+        setAutoRead(false);
     }
 
     @Override
@@ -32,6 +53,6 @@ public class ByteArray extends Structure implements Closeable {
     @Override
     public void close() {
         setAutoSynch(false);
-        FxLibInstance.INSTANCE.get().dispose_byte_array(this);
+        FxLib.INSTANCE.get().dispose_byte_array(this);
     }
 }

@@ -117,7 +117,7 @@ public class VideoService extends AbstractListenerService<PlaybackListener> {
 
     public int getVolume() {
         return Optional.ofNullable(videoPlayer.get())
-                .map(e -> e.getVolume())
+                .map(VideoPlayback::getVolume)
                 .orElse(100);
     }
 

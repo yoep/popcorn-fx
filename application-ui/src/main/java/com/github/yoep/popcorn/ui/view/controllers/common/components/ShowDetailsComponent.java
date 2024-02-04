@@ -33,6 +33,7 @@ import org.apache.commons.lang3.StringUtils;
 
 import java.net.URL;
 import java.util.List;
+import java.util.Optional;
 import java.util.ResourceBundle;
 
 import static java.util.Arrays.asList;
@@ -50,6 +51,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
     private final VideoQualityService videoQualityService;
 
     Episode episode;
+    String quality;
 
     @FXML
     GridPane showDetails;
@@ -164,6 +166,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
                     switchHealth(episode.getTorrents().get(event.getQuality()));
                 }
             });
+            this.quality = event.getQuality();
             return event;
         });
     }
@@ -336,7 +339,8 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
     @FXML
     void onMagnetClicked(MouseEvent event) {
         var qualities = videoQualityService.getVideoResolutions(episode.getTorrents());
-        var quality = videoQualityService.getDefaultVideoResolution(asList(qualities));
+        var quality = Optional.ofNullable(this.quality)
+                .orElseGet(() -> videoQualityService.getDefaultVideoResolution(asList(qualities)));
         var torrentInfo = episode.getTorrents().get(quality);
 
         if (event.getButton() == MouseButton.SECONDARY) {

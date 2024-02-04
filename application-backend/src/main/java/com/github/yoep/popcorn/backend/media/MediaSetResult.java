@@ -48,6 +48,7 @@ public class MediaSetResult extends Structure implements Closeable {
         @Override
         public void close() {
             setAutoSynch(false);
+            mediaSet.close();
         }
     }
 

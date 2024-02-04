@@ -116,7 +116,7 @@ public class TvPlayerControlsComponent implements Initializable {
 
             @Override
             public void onDownloadStatusChanged(DownloadStatus progress) {
-                Platform.runLater(() -> timeline.setLoadProgress(progress.getProgress()));
+                Platform.runLater(() -> timeline.setLoadProgress(progress.progress()));
             }
 
             @Override

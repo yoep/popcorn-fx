@@ -6,8 +6,7 @@ import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleObjectProperty;
+import com.github.yoep.popcorn.backend.events.PlayerChangedEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,36 +30,48 @@ class PlayerEventServiceTest {
     @InjectMocks
     private PlayerEventService service;
 
-    private final ObjectProperty<Player> playerProperty = new SimpleObjectProperty<>();
-
     @BeforeEach
     void setUp() {
-        when(playerService.activePlayerProperty()).thenReturn(playerProperty);
     }
 
     @Test
     void testInit_whenInvoked_shouldListenOnPlayerChanges() {
-        var player = mock(Player.class);
+        var oldPlayerId = "MyOldPlayer";
+        var newPlayerId = "MyNewPlayer";
+        var oldPlayer = mock(Player.class);
+        var newPlayer = mock(Player.class);
+        when(playerService.getById(oldPlayerId)).thenReturn(Optional.of(oldPlayer));
+        when(playerService.getById(newPlayerId)).thenReturn(Optional.of(newPlayer));
 
         service.init();
-        playerProperty.set(player);
+        eventPublisher.publish(PlayerChangedEvent.builder()
+                .source(this)
+                .oldPlayerId(oldPlayerId)
+                .newPlayerId(newPlayerId)
+                .build());
 
-        verify(player).addListener(isA(PlayerListener.class));
+        verify(oldPlayer).removeListener(isA(PlayerListener.class));
+        verify(newPlayer).addListener(isA(PlayerListener.class));
     }
 
     @Test
     void testAddListener_whenPlayerStateIsChanged_shouldInvokeStateChangedOnTheSubscribedPlayerListener() {
         var listenerHolder = new AtomicReference<PlayerListener>();
         var listener = mock(PlayerListener.class);
+        var playerId = "newPlayerId";
         var player = mock(Player.class);
         var expectedState = PlayerState.PLAYING;
         doAnswer(invocation -> {
             listenerHolder.set(invocation.getArgument(0, PlayerListener.class));
             return null;
         }).when(player).addListener(isA(PlayerListener.class));
+        when(playerService.getById(playerId)).thenReturn(Optional.of(player));
 
         service.init();
-        playerProperty.set(player);
+        eventPublisher.publish(PlayerChangedEvent.builder()
+                .source(this)
+                .newPlayerId(playerId)
+                .build());
         service.addListener(listener);
         listenerHolder.get().onStateChanged(expectedState);
 
@@ -71,15 +82,20 @@ class PlayerEventServiceTest {
     void testAddListener_whenPlayerDurationIsChanged_shouldInvokeDurationChangedOnTheSubscribedPlayerListener() {
         var listenerHolder = new AtomicReference<PlayerListener>();
         var listener = mock(PlayerListener.class);
+        var playerId = "newPlayerId";
         var player = mock(Player.class);
         var expectedDuration = 200L;
         doAnswer(invocation -> {
             listenerHolder.set(invocation.getArgument(0, PlayerListener.class));
             return null;
         }).when(player).addListener(isA(PlayerListener.class));
+        when(playerService.getById(playerId)).thenReturn(Optional.of(player));
 
         service.init();
-        playerProperty.set(player);
+        eventPublisher.publish(PlayerChangedEvent.builder()
+                .source(this)
+                .newPlayerId(playerId)
+                .build());
         service.addListener(listener);
         listenerHolder.get().onDurationChanged(expectedDuration);
 
@@ -90,15 +106,20 @@ class PlayerEventServiceTest {
     void testAddListener_whenPlayerTimeIsChanged_shouldInvokeTimeChangedOnTheSubscribedPlayerListener() {
         var listenerHolder = new AtomicReference<PlayerListener>();
         var listener = mock(PlayerListener.class);
+        var playerId = "newPlayerId";
         var player = mock(Player.class);
         var expectedTime = 150L;
         doAnswer(invocation -> {
             listenerHolder.set(invocation.getArgument(0, PlayerListener.class));
             return null;
         }).when(player).addListener(isA(PlayerListener.class));
+        when(playerService.getById(playerId)).thenReturn(Optional.of(player));
 
         service.init();
-        playerProperty.set(player);
+        eventPublisher.publish(PlayerChangedEvent.builder()
+                .source(this)
+                .newPlayerId(playerId)
+                .build());
         service.addListener(listener);
         listenerHolder.get().onTimeChanged(expectedTime);
 
@@ -109,14 +130,19 @@ class PlayerEventServiceTest {
     void testRemoveListener_whenPlayerStateIsChanged_shouldNotInvokedPlayerStateChangedOnTheListener() {
         var listenerHolder = new AtomicReference<PlayerListener>();
         var listener = mock(PlayerListener.class);
+        var playerId = "newPlayerId";
         var player = mock(Player.class);
         doAnswer(invocation -> {
             listenerHolder.set(invocation.getArgument(0, PlayerListener.class));
             return null;
         }).when(player).addListener(isA(PlayerListener.class));
+        when(playerService.getById(playerId)).thenReturn(Optional.of(player));
 
         service.init();
-        playerProperty.set(player);
+        eventPublisher.publish(PlayerChangedEvent.builder()
+                .source(this)
+                .newPlayerId(playerId)
+                .build());
         service.addListener(listener);
         service.removeListener(listener);
         listenerHolder.get().onStateChanged(PlayerState.BUFFERING);

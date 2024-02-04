@@ -13,10 +13,10 @@ import javax.annotation.PreDestroy;
 @Configuration
 @Import({
         FxConfig.class,
+        LoaderConfig.class,
         MediaConfig.class,
         SettingsConfig.class,
         ThreadConfig.class,
-        TorrentStreamConfig.class,
         UtilsConfig.class,
 })
 @EnableConfigurationProperties({

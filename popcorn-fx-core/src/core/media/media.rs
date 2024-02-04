@@ -5,10 +5,11 @@ use std::fmt::Formatter;
 
 use derive_more::Display;
 use downcast_rs::{Downcast, DowncastSync, impl_downcast};
+use log::error;
 #[cfg(test)]
 use mockall::automock;
 
-use crate::core::media::{Category, Images, Rating};
+use crate::core::media::{Category, Episode, Images, MovieDetails, MovieOverview, Rating, ShowDetails, ShowOverview};
 
 /// The media type identifier.
 #[derive(Debug, Copy, Clone, Eq, Display, PartialEq)]
@@ -60,6 +61,29 @@ pub trait MediaIdentifier: Debug + DowncastSync + Display {
     /// The title of the media item.
     /// The title should always be html decoded.
     fn title(&self) -> String;
+
+    /// Clone the `MediaIdentifier` trait object.
+    ///
+    /// This function attempts to clone the `MediaIdentifier` trait object into a new `Box<dyn MediaIdentifier>`.
+    /// If the type can be downcast to a known concrete type (e.g., `Episode`, `ShowOverview`, `MovieOverview`, etc.),
+    /// it will create a cloned instance of that type and return it as `Some(Box<dyn MediaIdentifier>)`. If the type
+    /// cannot be downcast or is unknown, it will log an error and return `None`.
+    fn clone_identifier(&self) -> Option<Box<dyn MediaIdentifier>> {
+        if let Some(e) = self.as_any().downcast_ref::<Episode>() {
+            Some(Box::new(e.clone()) as Box<dyn MediaIdentifier>)
+        } else if let Some(e) = self.as_any().downcast_ref::<ShowOverview>() {
+            Some(Box::new(e.clone()) as Box<dyn MediaIdentifier>)
+        } else if let Some(e) = self.as_any().downcast_ref::<MovieOverview>() {
+            Some(Box::new(e.clone()) as Box<dyn MediaIdentifier>)
+        } else if let Some(e) = self.as_any().downcast_ref::<MovieDetails>() {
+            Some(Box::new(e.clone()) as Box<dyn MediaIdentifier>)
+        } else if let Some(e) = self.as_any().downcast_ref::<ShowDetails>() {
+            Some(Box::new(e.clone()) as Box<dyn MediaIdentifier>)
+        } else {
+            error!("Unable to clone MediaIdentifier, unknown type {:?}", self.type_id());
+            None
+        }
+    }
 }
 impl_downcast!(sync MediaIdentifier);
 
@@ -116,6 +140,23 @@ mod test {
         assert_eq!(Category::Movies, Category::from(MediaType::Movie));
         assert_eq!(Category::Series, Category::from(MediaType::Show));
         assert_eq!(Category::Series, Category::from(MediaType::Episode));
+    }
+
+    #[test]
+    fn test_clone_identifier() {
+        let imdb_id = "tt123456";
+        let media = MovieOverview{
+            title: "Foo bar".to_string(),
+            imdb_id: imdb_id.to_string(),
+            year: "2012".to_string(),
+            rating: None,
+            images: Default::default(),
+        };
+
+        let result = media.clone_identifier();
+
+        assert!(result.is_some(), "expected the media identifier to have been cloned");
+        assert_eq!(imdb_id, result.unwrap().imdb_id());
     }
 }
 

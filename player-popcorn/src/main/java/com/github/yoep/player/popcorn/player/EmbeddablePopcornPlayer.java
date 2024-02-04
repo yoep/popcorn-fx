@@ -9,7 +9,6 @@ import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import javafx.scene.Node;
 import lombok.EqualsAndHashCode;
-import lombok.RequiredArgsConstructor;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
@@ -20,17 +19,22 @@ import java.util.Optional;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
-@EqualsAndHashCode(exclude = "embeddablePlayer")
+@EqualsAndHashCode(exclude = "embeddablePlayer", callSuper = false)
 @ToString(exclude = "embeddablePlayer")
 public class EmbeddablePopcornPlayer implements EmbeddablePlayer {
     static final String PLAYER_SECTION_VIEW = "common/sections/popcorn-player.section.fxml";
 
-    private final PopcornPlayer popcornPlayer;
     private final PlayerManagerService playerService;
     private final ViewLoader viewLoader;
+    private final PopcornPlayer popcornPlayer;
 
     private Node embeddablePlayer;
+
+    public EmbeddablePopcornPlayer(PlayerManagerService playerService, ViewLoader viewLoader, PopcornPlayer popcornPlayer) {
+        this.playerService = playerService;
+        this.viewLoader = viewLoader;
+        this.popcornPlayer = popcornPlayer;
+    }
 
     //region EmbeddablePlayer
 

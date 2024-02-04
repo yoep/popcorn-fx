@@ -8,7 +8,6 @@ import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
 import com.github.yoep.popcorn.backend.adapters.video.listeners.VideoListener;
 import com.github.yoep.popcorn.backend.adapters.video.state.VideoState;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
@@ -22,7 +21,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class PopcornPlayer implements Player {
     public static final String PLAYER_ID = "internalPlayer";
     public static final String PLAYER_NAME = "Popcorn Time";
@@ -36,7 +34,11 @@ public class PopcornPlayer implements Player {
     private PlayerState playerState = PlayerState.UNKNOWN;
     private Long time;
 
-    //region EmbeddablePlayer
+    public PopcornPlayer(VideoService videoService) {
+        this.videoService = videoService;
+    }
+
+    //region Player
 
     @Override
     public String getId() {

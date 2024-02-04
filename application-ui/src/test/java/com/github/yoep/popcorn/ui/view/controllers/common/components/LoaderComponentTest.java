@@ -1,8 +1,10 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.loader.LoaderListener;
 import com.github.yoep.popcorn.backend.loader.LoaderService;
+import com.github.yoep.popcorn.ui.events.CloseLoadEvent;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
@@ -15,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.testfx.framework.junit5.ApplicationExtension;
 
@@ -27,6 +30,8 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
 class LoaderComponentTest {
+    @Spy
+    private EventPublisher eventPublisher = new EventPublisher(false);
     @Mock
     private LoaderService service;
     @Mock
@@ -40,7 +45,7 @@ class LoaderComponentTest {
     @InjectMocks
     private LoaderComponent component;
 
-    private AtomicReference<LoaderListener> listenerHolder = new AtomicReference<>();
+    private final AtomicReference<LoaderListener> listenerHolder = new AtomicReference<>();
 
     @BeforeEach
     void setUp() {
@@ -63,6 +68,7 @@ class LoaderComponentTest {
 
         verify(event).consume();
         verify(service).cancel();
+        verify(eventPublisher).publish(new CloseLoadEvent(component));
     }
 
     @Test
@@ -75,6 +81,7 @@ class LoaderComponentTest {
 
         verify(event).consume();
         verify(service).cancel();
+        verify(eventPublisher).publish(new CloseLoadEvent(component));
     }
 
     @Test

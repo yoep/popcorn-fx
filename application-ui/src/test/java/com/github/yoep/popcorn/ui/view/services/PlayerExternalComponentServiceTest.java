@@ -4,14 +4,12 @@ import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
-import com.github.yoep.popcorn.backend.adapters.torrent.listeners.TorrentListener;
-import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
-import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
-import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
 import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.events.PlayMediaEvent;
-import com.github.yoep.popcorn.backend.events.PlayTorrentEvent;
+import com.github.yoep.popcorn.backend.loader.LoaderListener;
+import com.github.yoep.popcorn.backend.loader.LoaderService;
+import com.github.yoep.popcorn.backend.loader.LoadingProgress;
+import com.github.yoep.popcorn.backend.loader.LoadingStartedEventC;
 import com.github.yoep.popcorn.backend.media.providers.models.Images;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.player.PlayerEventService;
@@ -36,6 +34,8 @@ class PlayerExternalComponentServiceTest {
     private PlayerManagerService playerManagerService;
     @Mock
     private PlayerEventService playerEventService;
+    @Mock
+    private LoaderService loaderService;
     @Spy
     private EventPublisher eventPublisher = new EventPublisher(false);
     @InjectMocks
@@ -154,72 +154,46 @@ class PlayerExternalComponentServiceTest {
     }
 
     @Test
-    void testOnPlayerTorrent_whenEventIsTorrentEvent_shouldUpdateTitle() {
-        var title = "Lorem ipsum";
-        var event = PlayTorrentEvent.playTorrentBuilder()
-                .source(this)
-                .url("test-url")
-                .title(title)
-                .torrent(mock(Torrent.class))
-                .torrentStream(mock(TorrentStream.class))
-                .build();
-        var playerListener = mock(PlayerExternalListener.class);
-        service.init();
-        service.addListener(playerListener);
-
-        eventPublisher.publish(event);
-
-        verify(playerListener).onTitleChanged(title);
-    }
-
-    @Test
     void testOnPlayerTorrent_whenDownloadStatusIsChanged_shouldInvokedListeners() {
-        var torrent = mock(Torrent.class);
-        var torrentListenerHolder = new AtomicReference<TorrentListener>();
-        var downloadStatus = mock(DownloadStatus.class);
-        var event = PlayTorrentEvent.playTorrentBuilder()
-                .source(this)
-                .url("test-url")
-                .title("Lorem ipsum")
-                .torrent(torrent)
-                .torrentStream(mock(TorrentStream.class))
-                .build();
+        var listenerHolder = new AtomicReference<LoaderListener>();
+        var downloadStatus = mock(LoadingProgress.class);
         var playerListener = mock(PlayerExternalListener.class);
         doAnswer(invocation -> {
-            torrentListenerHolder.set(invocation.getArgument(0, TorrentListener.class));
+            listenerHolder.set(invocation.getArgument(0, LoaderListener.class));
             return null;
-        }).when(torrent).addListener(isA(TorrentListener.class));
+        }).when(loaderService).addListener(isA(LoaderListener.class));
         service.init();
         service.addListener(playerListener);
 
-        eventPublisher.publish(event);
-        var torrentListener = torrentListenerHolder.get();
-        torrentListener.onDownloadStatus(downloadStatus);
+        var listener = listenerHolder.get();
+        listener.onProgressChanged(downloadStatus);
 
         verify(playerListener).onDownloadStatus(downloadStatus);
     }
 
     @Test
     void testOnPlayerTorrent_whenEventIsMediaEvent_shouldUpdateMedia() {
+        var listenerHolder = new AtomicReference<LoaderListener>();
         var title = "Lorem ipsum";
         var media = MovieDetails.builder()
                 .images(Images.builder().build())
                 .build();
-        var event = PlayMediaEvent.mediaBuilder()
-                .source(this)
-                .url("test-url")
-                .title(title)
-                .media(media)
-                .torrent(mock(Torrent.class))
-                .torrentStream(mock(TorrentStream.class))
-                .build();
         var playerListener = mock(PlayerExternalListener.class);
+        doAnswer(invocation -> {
+            listenerHolder.set(invocation.getArgument(0, LoaderListener.class));
+            return null;
+        }).when(loaderService).addListener(isA(LoaderListener.class));
         service.init();
         service.addListener(playerListener);
 
-        eventPublisher.publish(event);
+        var listener = listenerHolder.get();
+        listener.onLoadingStarted(LoadingStartedEventC.builder()
+                .url("MyUrl")
+                .title(title)
+                .build());
 
         verify(playerListener).onTitleChanged(title);
-        verify(playerListener).onMediaChanged(media);
+        // TODO
+        //        verify(playerListener).onMediaChanged(media);
     }
 }

@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.backend.loader;
 
+import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import com.sun.jna.Structure;
 import lombok.Builder;
 import lombok.Getter;
@@ -10,7 +11,7 @@ import java.io.Closeable;
 @Getter
 @ToString
 @Structure.FieldOrder({"progress", "seeds", "peers", "downloadSpeed", "uploadSpeed", "downloaded", "total_size"})
-public class LoadingProgress extends Structure implements Closeable {
+public class LoadingProgress extends Structure implements Closeable, DownloadStatus {
     public static class ByValue extends LoadingProgress implements Structure.ByValue {
         public ByValue() {
             super();
@@ -41,6 +42,41 @@ public class LoadingProgress extends Structure implements Closeable {
         this.uploadSpeed = uploadSpeed;
         this.downloaded = downloaded;
         this.total_size = total_size;
+    }
+
+    @Override
+    public float progress() {
+        return progress;
+    }
+
+    @Override
+    public int seeds() {
+        return seeds;
+    }
+
+    @Override
+    public int peers() {
+        return peers;
+    }
+
+    @Override
+    public int downloadSpeed() {
+        return downloadSpeed;
+    }
+
+    @Override
+    public int uploadSpeed() {
+        return uploadSpeed;
+    }
+
+    @Override
+    public long downloaded() {
+        return downloaded;
+    }
+
+    @Override
+    public long totalSize() {
+        return total_size;
     }
 
     @Override

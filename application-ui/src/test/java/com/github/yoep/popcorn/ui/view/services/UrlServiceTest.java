@@ -2,8 +2,7 @@ package com.github.yoep.popcorn.ui.view.services;
 
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
-import com.github.yoep.popcorn.ui.events.LoadUrlEvent;
+import com.github.yoep.popcorn.backend.loader.LoaderService;
 import javafx.application.Application;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,6 +22,8 @@ class UrlServiceTest {
     private Application application;
     @Mock
     private LocaleText localeText;
+    @Mock
+    private LoaderService loaderService;
     @InjectMocks
     private UrlService urlService;
 
@@ -52,7 +53,7 @@ class UrlServiceTest {
         var result = urlService.process(url);
 
         assertTrue(result);
-        verify(eventPublisher).publishEvent(new PlayVideoEvent(urlService, url, "", false));
+        verify(loaderService).load(url);
     }
 
     @Test
@@ -62,6 +63,6 @@ class UrlServiceTest {
         var result = urlService.process(url);
 
         assertTrue(result);
-        verify(eventPublisher).publishEvent(new LoadUrlEvent(urlService, url));
+        verify(loaderService).load(url);
     }
 }

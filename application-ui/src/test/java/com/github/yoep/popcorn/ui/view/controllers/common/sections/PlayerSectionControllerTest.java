@@ -6,7 +6,7 @@ import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.adapters.player.embaddable.EmbeddablePlayer;
 import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
+import com.github.yoep.popcorn.backend.events.PlayerStartedEvent;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -69,7 +69,7 @@ class PlayerSectionControllerTest {
     void testPlayVideo_whenPlayerDoesNotSupportEmbedding_shouldUseExternalPlayerView() {
         var player = mock(Player.class);
         var externalPlayerPane = new Pane();
-        var event = mock(PlayVideoEvent.class);
+        var event = mock(PlayerStartedEvent.class);
         when(viewLoader.load(PlayerSectionController.EXTERNAL_PLAYER_VIEW)).thenReturn(externalPlayerPane);
         when(playerManagerService.getActivePlayer()).thenReturn(Optional.of(player));
         when(player.isEmbeddedPlaybackSupported()).thenReturn(false);
@@ -87,7 +87,7 @@ class PlayerSectionControllerTest {
         var player = mock(EmbeddablePlayer.class);
         var playerViewNode = new Pane();
         var externalPlayerPane = new Pane();
-        var event = mock(PlayVideoEvent.class);
+        var event = mock(PlayerStartedEvent.class);
         when(viewLoader.load(PlayerSectionController.EXTERNAL_PLAYER_VIEW)).thenReturn(externalPlayerPane);
         when(playerManagerService.getActivePlayer()).thenReturn(Optional.of(player));
         when(player.isEmbeddedPlaybackSupported()).thenReturn(true);
@@ -108,7 +108,7 @@ class PlayerSectionControllerTest {
         var player1ViewNode = new Pane();
         var player2ViewNode = new Pane();
         var externalPlayerPane = new Pane();
-        var event = mock(PlayVideoEvent.class);
+        var event = mock(PlayerStartedEvent.class);
         when(viewLoader.load(PlayerSectionController.EXTERNAL_PLAYER_VIEW)).thenReturn(externalPlayerPane);
         when(playerManagerService.getActivePlayer()).thenReturn(Optional.of(player1), Optional.of(player2));
         when(player1.isEmbeddedPlaybackSupported()).thenReturn(true);

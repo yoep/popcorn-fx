@@ -2,7 +2,6 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentFileInfo;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
@@ -55,7 +54,6 @@ public class DetailsTorrentComponent implements Initializable {
     private final SubtitlePickerService subtitlePickerService;
     private final SubtitleService subtitleService;
     private final LoaderService loaderService;
-    private final FxLib fxLib;
 
     private String magnetUri;
     private TorrentInfo torrentInfo;
@@ -106,8 +104,8 @@ public class DetailsTorrentComponent implements Initializable {
     }
 
     private void initializeSubtitleDropDown() {
-        subtitleButton.addDropDownItems(fxLib.subtitle_none(), fxLib.subtitle_custom());
-        subtitleButton.select(fxLib.subtitle_none());
+        subtitleButton.addDropDownItems(subtitleService.none(), subtitleService.custom());
+        subtitleButton.select(subtitleService.none());
         subtitleButton.selectedItemProperty().addListener((observable, oldValue, newValue) -> onSubtitleChanged(newValue));
     }
 

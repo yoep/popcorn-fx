@@ -57,7 +57,7 @@ public class PlayerExternalComponentService extends AbstractListenerService<Play
         loaderService.addListener(new LoaderListener() {
             @Override
             public void onLoadingStarted(LoadingStartedEventC loadingStartedEvent) {
-                // no-op
+                invokeListeners(e -> e.onTitleChanged(loadingStartedEvent.getTitle()));
             }
 
             @Override
@@ -67,8 +67,7 @@ public class PlayerExternalComponentService extends AbstractListenerService<Play
 
             @Override
             public void onProgressChanged(LoadingProgress progress) {
-                // TODO
-                //                invokeListeners(e -> e.onDownloadStatus(status));
+                invokeListeners(e -> e.onDownloadStatus(progress));
             }
 
             @Override

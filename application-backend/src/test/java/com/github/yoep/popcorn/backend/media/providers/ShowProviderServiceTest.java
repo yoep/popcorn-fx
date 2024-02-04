@@ -8,6 +8,7 @@ import com.github.yoep.popcorn.backend.media.MediaSetResult;
 import com.github.yoep.popcorn.backend.media.filters.model.Genre;
 import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -30,6 +31,11 @@ class ShowProviderServiceTest {
     private PopcornFx instance;
     @InjectMocks
     private ShowProviderService provider;
+
+    @BeforeEach
+    void setUp() {
+        FxLib.INSTANCE.set(fxLib);
+    }
 
     @Test
     void testGetPage() throws ExecutionException, InterruptedException {

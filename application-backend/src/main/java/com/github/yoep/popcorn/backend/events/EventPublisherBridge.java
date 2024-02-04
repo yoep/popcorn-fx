@@ -53,15 +53,19 @@ public class EventPublisherBridge implements EventBridgeCallback {
 
     @Override
     public void callback(EventC.ByValue event) {
-        switch (event.getTag()) {
-            case PLAYER_CHANGED,
-                    PLAYER_STARTED,
-                    PLAYER_STOPPED,
-                    LOADING_STARTED,
-                    LOADING_COMPLETED,
-                    TORRENT_DETAILS_LOADED,
-                    CLOSE_PLAYER-> eventPublisher.publish(event.toEvent());
-            default -> log.warn("EventC callback of {} is currently not yet supported", event.getTag());
+        try (event) {
+            switch (event.getTag()) {
+                case PLAYER_CHANGED,
+                        PLAYER_STARTED,
+                        PLAYER_STOPPED,
+                        LOADING_STARTED,
+                        LOADING_COMPLETED,
+                        TORRENT_DETAILS_LOADED,
+                        CLOSE_PLAYER -> eventPublisher.publish(event.toEvent());
+                default -> log.warn("EventC callback of {} is currently not yet supported", event.getTag());
+            }
+        } catch (Exception ex) {
+            log.error("An unexpected error occurred while processing the EventC, {}", ex.getMessage(), ex);
         }
     }
 

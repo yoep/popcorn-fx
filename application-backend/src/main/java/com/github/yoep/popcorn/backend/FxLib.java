@@ -7,6 +7,7 @@ import com.github.yoep.popcorn.backend.events.EventC;
 import com.github.yoep.popcorn.backend.lib.ByteArray;
 import com.github.yoep.popcorn.backend.lib.FxLibInstance;
 import com.github.yoep.popcorn.backend.lib.StringArray;
+import com.github.yoep.popcorn.backend.loader.LoaderEventC;
 import com.github.yoep.popcorn.backend.loader.LoaderEventCallback;
 import com.github.yoep.popcorn.backend.logging.LogLevel;
 import com.github.yoep.popcorn.backend.media.*;
@@ -20,6 +21,7 @@ import com.github.yoep.popcorn.backend.media.watched.WatchedEventCallback;
 import com.github.yoep.popcorn.backend.player.*;
 import com.github.yoep.popcorn.backend.playlists.Playlist;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManagerCallback;
+import com.github.yoep.popcorn.backend.playlists.PlaylistManagerEvent;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfigEventCallback;
 import com.github.yoep.popcorn.backend.settings.models.*;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
@@ -38,6 +40,8 @@ import com.github.yoep.popcorn.backend.updater.UpdateState;
 import com.github.yoep.popcorn.backend.updater.VersionInfo;
 import com.sun.jna.Library;
 import com.sun.jna.Pointer;
+
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * The interface for interacting with the Popcorn FX native library.
@@ -60,6 +64,8 @@ import com.sun.jna.Pointer;
  * and the underlying Popcorn FX library.
  */
 public interface FxLib extends Library {
+    AtomicReference<FxLib> INSTANCE = new AtomicReference<>();
+
     PopcornFx new_popcorn_fx(String[] args, int len);
 
     SubtitleInfoSet default_subtitle_options(PopcornFx instance);
@@ -110,7 +116,7 @@ public interface FxLib extends Library {
 
     MediaResult.ByValue retrieve_media_details(PopcornFx instance, MediaItem media);
 
-    byte is_media_liked(PopcornFx instance, MediaItem media);
+    byte is_media_liked(PopcornFx instance, MediaItem.ByReference media);
 
     FavoritesSet retrieve_all_favorites(PopcornFx instance);
 
@@ -151,8 +157,6 @@ public interface FxLib extends Library {
     void publish_event(PopcornFx instance, EventC.ByValue event);
 
     void register_event_callback(PopcornFx instance, EventBridgeCallback callback);
-
-    void torrent_info(PopcornFx instance, String url);
 
     byte torrent_collection_is_stored(PopcornFx instance, String magnetUrl);
 
@@ -254,15 +258,29 @@ public interface FxLib extends Library {
 
     void log(String target, String message, LogLevel level);
 
-    void dispose_media_item(MediaItem media);
+    void dispose_media_item(MediaItem.ByReference media);
 
-    void dispose_media_items(MediaSet media);
+    void dispose_media_item_value(MediaItem.ByValue media);
+
+    void dispose_media_items(MediaSet.ByValue media);
 
     void dispose_subtitle(Subtitle subtitle);
 
     void dispose_torrent_collection(StoredTorrentSet set);
 
     void dispose_byte_array(ByteArray byteArray);
+
+    void dispose_string_array(StringArray array);
+
+    void dispose_event_value(EventC.ByValue event);
+
+    void dispose_favorites(FavoritesSet favorites);
+
+    void dispose_player_manager_event(PlayerManagerEvent.ByValue event);
+
+    void dispose_loader_event_value(LoaderEventC.ByValue event);
+
+    void dispose_playlist_manager_event_value(PlaylistManagerEvent.ByValue event);
 
     void dispose_popcorn_fx(PopcornFx instance);
 

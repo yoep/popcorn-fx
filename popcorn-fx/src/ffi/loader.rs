@@ -65,11 +65,25 @@ pub extern "C" fn loader_cancel(instance: &mut PopcornFX, handle: LoadingHandleC
     }
 }
 
+/// Dispose of a C-compatible LoaderEventC value.
+///
+/// This function is responsible for cleaning up resources associated with a C-compatible LoaderEventC value.
+///
+/// # Arguments
+///
+/// * `event` - A C-compatible LoaderEventC value to be disposed of.
+#[no_mangle]
+pub extern "C" fn dispose_loader_event_value(event: LoaderEventC) {
+    trace!("Disposing LoaderEventC {:?}", event);
+    drop(event);
+}
+
 #[cfg(test)]
 mod tests {
     use log::info;
     use tempfile::tempdir;
 
+    use popcorn_fx_core::core::loader::LoadingState;
     use popcorn_fx_core::core::media::MovieDetails;
     use popcorn_fx_core::core::playlists::PlaylistItem;
     use popcorn_fx_core::into_c_string;
@@ -142,5 +156,13 @@ mod tests {
         let mut instance = PopcornFX::new(default_args(temp_path));
 
         loader_cancel(&mut instance, 874458i64 as *const i64);
+    }
+
+    #[test]
+    fn test_dispose_loader_event_value() {
+        init_logger();
+        let event = LoaderEventC::StateChanged(84555i64, LoadingState::Downloading);
+
+        dispose_loader_event_value(event);
     }
 }

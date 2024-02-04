@@ -4,6 +4,9 @@ import com.github.spring.boot.javafx.ui.scale.ScaleAwareImpl;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.events.*;
+import com.github.yoep.popcorn.backend.playlists.Playlist;
+import com.github.yoep.popcorn.backend.playlists.PlaylistItem;
+import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.ui.events.CloseLoadEvent;
 import com.github.yoep.popcorn.ui.stage.BorderlessStageHolder;
@@ -27,6 +30,7 @@ import org.springframework.boot.ApplicationArguments;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.ResourceBundle;
@@ -53,6 +57,7 @@ public class MainController extends ScaleAwareImpl implements Initializable {
     private final UrlService urlService;
     private final ApplicationConfig applicationConfig;
     private final PlatformProvider platformProvider;
+    private final PlaylistManager playlistManager;
 
     @FXML
     AnchorPane root;
@@ -213,7 +218,9 @@ public class MainController extends ScaleAwareImpl implements Initializable {
         var file = files.get(0);
         var title = FilenameUtils.getBaseName(file.getName());
 
-        eventPublisher.publishEvent(new PlayVideoEvent(this, file.getAbsolutePath(), title, false));
+        try (var playlist = new Playlist(Collections.singletonList(new PlaylistItem(file.getAbsolutePath(), title)))) {
+            playlistManager.play(playlist);
+        }
     }
 
     /**

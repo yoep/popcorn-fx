@@ -6,7 +6,7 @@ use std::os::raw::c_char;
 use log::{debug, error, info, trace, warn};
 
 pub use fx::*;
-use popcorn_fx_core::{from_c_into_boxed, from_c_owned, from_c_string, into_c_owned, into_c_string, TorrentCollectionSet};
+use popcorn_fx_core::{from_c_into_boxed, from_c_owned, from_c_string, from_c_vec, into_c_owned, into_c_string, TorrentCollectionSet};
 use popcorn_fx_core::core::config::{PlaybackSettings, ServerSettings, SubtitleSettings, TorrentSettings, UiSettings};
 use popcorn_fx_core::core::media::*;
 use popcorn_fx_core::core::media::favorites::FavoriteCallback;
@@ -267,7 +267,7 @@ pub extern "C" fn retrieve_available_favorites(popcorn_fx: &mut PopcornFX, genre
 ///
 /// It will return false if all fields in the [MediaItemC] are [ptr::null_mut].
 #[no_mangle]
-pub extern "C" fn is_media_liked(popcorn_fx: &mut PopcornFX, favorite: &MediaItemC) -> bool {
+pub extern "C" fn is_media_liked(popcorn_fx: &mut PopcornFX, favorite: &mut MediaItemC) -> bool {
     trace!("Verifying if media is liked for {:?}", favorite);
     match favorite.as_identifier() {
         None => {
@@ -520,24 +520,6 @@ pub extern "C" fn auto_resume_timestamp(popcorn_fx: &mut PopcornFX, id: *const c
     }
 }
 
-/// Resolve the given torrent url into meta information of the torrent.
-/// The url can be a magnet, http or file url to the torrent file.
-#[no_mangle]
-pub extern "C" fn torrent_info(popcorn_fx: &mut PopcornFX, url: *const c_char) {
-    let url = from_c_string(url);
-    trace!("Retrieving torrent information for {}", url);
-    let runtime = tokio::runtime::Runtime::new().expect("Runtime should have been created");
-
-    runtime.block_on(async {
-        match popcorn_fx.torrent_manager().info(url.as_str()).await {
-            Ok(_) => {}
-            Err(e) => {
-                error!("Failed to resolve torrent information, {}", e)
-            }
-        };
-    })
-}
-
 /// Verify if the given magnet uri has already been stored.
 #[no_mangle]
 pub extern "C" fn torrent_collection_is_stored(popcorn_fx: &mut PopcornFX, magnet_uri: *const c_char) -> bool {
@@ -651,9 +633,30 @@ pub extern "C" fn update_playback_settings(popcorn_fx: &mut PopcornFX, settings:
     popcorn_fx.settings().update_playback(settings);
 }
 
-/// Dispose the given media item from memory.
+/// Dispose of a C-compatible MediaItemC value wrapped in a Box.
+///
+/// This function is responsible for cleaning up resources associated with a C-compatible MediaItemC value
+/// wrapped in a Box.
+///
+/// # Arguments
+///
+/// * `media` - A Box containing a C-compatible MediaItemC value to be disposed of.
 #[no_mangle]
 pub extern "C" fn dispose_media_item(media: Box<MediaItemC>) {
+    trace!("Disposing MediaItemC reference {:?}", media);
+    dispose_media_item_value(*media)
+}
+
+/// Dispose of a C-compatible MediaItemC value.
+///
+/// This function is responsible for cleaning up resources associated with a C-compatible MediaItemC value.
+///
+/// # Arguments
+///
+/// * `media` - A C-compatible MediaItemC value to be disposed of.
+#[no_mangle]
+pub extern "C" fn dispose_media_item_value(media: MediaItemC) {
+    trace!("Disposing MediaItemC {:?}", media);
     if !media.show_overview.is_null() {
         let _ = from_c_owned(media.show_overview);
     } else if !media.show_details.is_null() {
@@ -665,25 +668,36 @@ pub extern "C" fn dispose_media_item(media: Box<MediaItemC>) {
     }
 }
 
-/// Dispose all given media items from memory.
-#[no_mangle]
-pub extern "C" fn dispose_media_items(media: Box<MediaSetC>) {
-    trace!("Disposing media items of {:?}", media);
-    let _ = media.movies();
-    let _ = media.shows();
-}
-
 /// Dispose the given subtitle.
 #[no_mangle]
 pub extern "C" fn dispose_subtitle(subtitle: Box<SubtitleC>) {
     trace!("Disposing subtitle {:?}", subtitle);
-    let _ = Subtitle::from(*subtitle);
+    if !subtitle.info.is_null() {
+        let info = from_c_owned(subtitle.info);
+        drop(from_c_vec(info.files, info.len));
+    }
+
+    drop(from_c_vec(subtitle.cues, subtitle.len))
 }
 
 /// Dispose the [TorrentCollectionSet] from memory.
 #[no_mangle]
 pub extern "C" fn dispose_torrent_collection(collection_set: Box<TorrentCollectionSet>) {
     trace!("Disposing collection set {:?}", collection_set)
+}
+
+/// Dispose of a C-compatible favorites collection.
+///
+/// This function is responsible for cleaning up resources associated with a C-compatible favorites collection.
+///
+/// # Arguments
+///
+/// * `favorites` - A C-compatible favorites collection to be disposed of.
+#[no_mangle]
+pub extern "C" fn dispose_favorites(favorites: Box<VecFavoritesC>) {
+    trace!("Disposing favorite C set {:?}", favorites);
+    drop(from_c_vec(favorites.movies, favorites.movies_len));
+    drop(from_c_vec(favorites.shows, favorites.shows_len));
 }
 
 #[cfg(test)]
@@ -754,9 +768,9 @@ mod test {
             "tt0000000122".to_string(),
             "2020".to_string(),
         );
-        let media = MediaItemC::from(movie);
+        let mut media = MediaItemC::from(movie);
 
-        let result = is_media_liked(&mut instance, &media);
+        let result = is_media_liked(&mut instance, &mut media);
 
         assert_eq!(false, result)
     }
@@ -771,9 +785,9 @@ mod test {
             "tt0000000111".to_string(),
             "2020".to_string(),
         );
-        let media = MediaItemC::from(movie);
+        let mut media = MediaItemC::from(movie);
 
-        let result = is_media_liked(&mut instance, &media);
+        let result = is_media_liked(&mut instance, &mut media);
 
         assert_eq!(false, result)
     }
@@ -921,24 +935,6 @@ mod test {
         let media = MediaItemC::from(movie);
 
         dispose_media_item(Box::new(media));
-    }
-
-    #[test]
-    fn test_dispose_media_items() {
-        init_logger();
-        let temp_dir = tempdir().expect("expected a tempt dir to be created");
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let mut instance = PopcornFX::new(default_args(temp_path));
-        let genre = GenreC::from(Genre::all());
-        let sort_by = SortByC::from(SortBy::new("trending".to_string(), String::new()));
-        let keywords = into_c_string(String::new());
-
-        let result = retrieve_available_shows(&mut instance, &genre, &sort_by, keywords, 1);
-
-        match result {
-            MediaSetResult::Ok(items) => dispose_media_items(Box::new(items)),
-            _ => panic!("Expected MediaSetResult::Ok")
-        }
     }
 
     #[test]

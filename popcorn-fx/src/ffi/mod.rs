@@ -1,3 +1,4 @@
+pub use arrays::*;
 pub use controls::*;
 pub use events::*;
 pub use images::*;
@@ -14,6 +15,7 @@ pub use subtitles::*;
 pub use torrents::*;
 pub use update::*;
 
+mod arrays;
 mod controls;
 mod events;
 mod images;

@@ -120,6 +120,19 @@ pub extern "C" fn dispose_playlist_set(set: Box<CArray<PlaylistItemC>>) {
     drop(from_c_vec(set.items, set.len));
 }
 
+/// Dispose of a C-compatible PlaylistManagerEventC value.
+///
+/// This function is responsible for cleaning up resources associated with a C-compatible PlaylistManagerEventC value.
+///
+/// # Arguments
+///
+/// * `event` - A C-compatible PlaylistManagerEventC value to be disposed of.
+#[no_mangle]
+pub extern "C" fn dispose_playlist_manager_event_value(event: PlaylistManagerEventC) {
+    trace!("Disposing PlaylistManagerEventC {:?}", event);
+    drop(event);
+}
+
 #[cfg(test)]
 mod test {
     use std::ptr;

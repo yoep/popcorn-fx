@@ -8,6 +8,7 @@ use popcorn_fx_core::{from_c_vec, into_c_string, to_c_vec};
 /// The C compatible string array.
 /// It's mainly used for returning string arrays as result of C function calls.
 #[repr(C)]
+#[derive(Debug)]
 pub struct StringArray {
     /// The string array
     pub values: *mut *const c_char,

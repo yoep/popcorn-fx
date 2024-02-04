@@ -67,8 +67,6 @@ class DetailsTorrentComponentTest {
         component.subtitleButton = new SubtitleDropDownButton();
         component.playerButton = new PlayerDropDownButton();
         component.storeTorrentButton = new Button();
-
-
     }
 
     @Test

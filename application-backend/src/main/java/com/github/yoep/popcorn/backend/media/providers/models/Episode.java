@@ -37,8 +37,6 @@ public class Episode extends Structure implements Comparable<Episode>, Closeable
     private Map<String, MediaTorrentInfo> torrents;
 
     private Images images;
-    // TODO: remove this should not exist for a property
-    private List<String> genres;
 
     public Episode() {
     }

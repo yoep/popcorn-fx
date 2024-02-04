@@ -52,9 +52,11 @@ public class FavoriteService {
      */
     public List<Media> getAll() {
         synchronized (lock) {
-            return Optional.ofNullable(fxLib.retrieve_all_favorites(instance))
-                    .map(FavoritesSet::<Media>getAll)
-                    .orElse(Collections.emptyList());
+            try (var favorites = fxLib.retrieve_all_favorites(instance)) {
+                return Optional.ofNullable(favorites)
+                        .map(FavoritesSet::<Media>getAll)
+                        .orElse(Collections.emptyList());
+            }
         }
     }
 

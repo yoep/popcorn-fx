@@ -167,16 +167,16 @@ pub struct PlayerChangedEventC {
 
 impl From<PlayerChangedEvent> for PlayerChangedEventC {
     fn from(value: PlayerChangedEvent) -> Self {
-        let old_player_id = if let Some(id) = &value.old_player_id {
-            into_c_string(id.clone())
+        let old_player_id = if let Some(id) = value.old_player_id {
+            into_c_string(id)
         } else {
             ptr::null()
         };
 
         Self {
             old_player_id,
-            new_player_id: into_c_string(value.new_player_id.clone()),
-            new_player_name: into_c_string(value.new_player_name.clone()),
+            new_player_id: into_c_string(value.new_player_id),
+            new_player_name: into_c_string(value.new_player_name),
         }
     }
 }

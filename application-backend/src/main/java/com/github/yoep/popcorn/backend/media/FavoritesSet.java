@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.backend.media;
 
+import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieOverview;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
@@ -22,7 +23,7 @@ public class FavoritesSet extends Structure implements Closeable {
     public ShowOverview.ByReference shows;
     public int showsLen;
 
-    public <T> List<T> getAll() {
+    public <T extends Media> List<T> getAll() {
         return Stream.concat(getMovies().stream(), getShows().stream())
                 .map(e -> (T) e)
                 .collect(Collectors.toList());
@@ -47,5 +48,16 @@ public class FavoritesSet extends Structure implements Closeable {
     @Override
     public void close() {
         setAutoSynch(false);
+        Optional.ofNullable(movies)
+                .map(e -> (MovieOverview[]) e.toArray(moviesLen))
+                .stream()
+                .flatMap(Arrays::stream)
+                .forEach(MovieOverview::close);
+        Optional.ofNullable(shows)
+                .map(e -> (ShowOverview[]) e.toArray(showsLen))
+                .stream()
+                .flatMap(Arrays::stream)
+                .forEach(ShowOverview::close);
+        FxLib.INSTANCE.get().dispose_favorites(this);
     }
 }

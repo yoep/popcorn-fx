@@ -40,8 +40,9 @@ public class ViewConfig {
                                          ApplicationArguments arguments,
                                          UrlService urlService,
                                          ApplicationConfig settingsService,
-                                         PlatformProvider platformProvider) {
-        return new MainController(eventPublisher, viewLoader, arguments, urlService, settingsService, platformProvider);
+                                         PlatformProvider platformProvider,
+                                         PlaylistManager playlistManager) {
+        return new MainController(eventPublisher, viewLoader, arguments, urlService, settingsService, platformProvider, playlistManager);
     }
 
     @Bean

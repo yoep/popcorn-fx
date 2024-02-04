@@ -222,6 +222,18 @@ pub extern "C" fn invoke_player_event(player: &mut PlayerWrapperC, event: Player
     }
 }
 
+/// Dispose of a C-compatible player manager event.
+///
+/// This function is responsible for cleaning up resources associated with a C-compatible player manager event.
+///
+/// # Arguments
+///
+/// * `event` - A C-compatible player manager event to be disposed of.
+#[no_mangle]
+pub extern "C" fn dispose_player_manager_event(event: PlayerManagerEventC) {
+    trace!("Disposing C player manager event {:?}", event);
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;

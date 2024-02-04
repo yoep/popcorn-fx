@@ -4,7 +4,6 @@ import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.InfoNotificationEvent;
-import com.github.yoep.popcorn.backend.events.PlayVideoEvent;
 import com.github.yoep.popcorn.backend.loader.LoaderService;
 import com.github.yoep.popcorn.ui.events.OpenMagnetLinkEvent;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
@@ -12,7 +11,6 @@ import com.github.yoep.popcorn.ui.messages.MediaMessage;
 import javafx.application.Application;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
@@ -74,8 +72,7 @@ public class UrlService {
 
             if (isWebUrl(type)) {
                 log.debug("Opening web url: {}", url);
-                eventPublisher.publishEvent(new PlayVideoEvent(this, url, "", false));
-
+                loaderService.load(url);
                 return true;
             } else if (isMagnetLink(type)) {
                 log.debug("Opening magnet link: {}", url);
@@ -90,8 +87,7 @@ public class UrlService {
                     try {
                         if (isVideoFile(file)) {
                             log.debug("Opening video file: {}", url);
-                            eventPublisher.publishEvent(new PlayVideoEvent(this, url, FilenameUtils.getBaseName(url), false));
-
+                            loaderService.load(url);
                             return true;
                         }
                     } catch (IOException ex) {

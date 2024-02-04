@@ -66,8 +66,10 @@ public class FavoriteProviderService implements ProviderService<Media> {
     }
 
     private List<Media> doInternalPageRetrieval(Genre genre, SortBy sortBy, String keywords, int page) {
-        return Optional.ofNullable(fxLib.retrieve_available_favorites(instance, genre, sortBy, keywords, page))
-                .map(FavoritesSet::<Media>getAll)
-                .orElse(Collections.emptyList());
+        try (var favorites = fxLib.retrieve_available_favorites(instance, genre, sortBy, keywords, page)) {
+            return Optional.ofNullable(favorites)
+                    .map(FavoritesSet::<Media>getAll)
+                    .orElse(Collections.emptyList());
+        }
     }
 }

@@ -116,7 +116,8 @@ public class PlayerWrapper extends Structure implements Player, Closeable {
 
     @Override
     public void play(PlayRequest request) {
-
+        Optional.ofNullable(player)
+                .ifPresent(e -> player.play(request));
     }
 
     @Override

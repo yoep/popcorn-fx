@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.backend.player;
 
+import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.events.PlayerChangedEventC;
 import com.sun.jna.FromNativeContext;
 import com.sun.jna.NativeMapped;
@@ -21,6 +22,11 @@ import java.util.Optional;
 @Structure.FieldOrder({"tag", "union"})
 public class PlayerManagerEvent extends Structure implements Closeable {
     public static class ByValue extends PlayerManagerEvent implements Structure.ByValue {
+        @Override
+        public void close() {
+            super.close();
+            FxLib.INSTANCE.get().dispose_player_manager_event(this);
+        }
     }
 
     public PlayerManagerEvent.Tag tag;
@@ -109,7 +115,8 @@ public class PlayerManagerEvent extends Structure implements Closeable {
             case ActivePlayerChanged -> union.setType(PlayerManagerEvent.PlayerChanged_Body.class);
             case PlayerDurationChanged -> union.setType(PlayerDurationChanged_Body.class);
             case PlayerTimeChanged -> union.setType(PlayerTimeChanged_Body.class);
-            default -> {}
+            default -> {
+            }
         }
     }
 

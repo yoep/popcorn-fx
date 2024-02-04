@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.backend.loader;
 
+import com.github.yoep.popcorn.backend.FxLib;
 import com.sun.jna.FromNativeContext;
 import com.sun.jna.NativeMapped;
 import com.sun.jna.Structure;
@@ -17,6 +18,11 @@ import java.util.Optional;
 @Structure.FieldOrder({"tag", "union"})
 public class LoaderEventC extends Structure implements Closeable {
     public static class ByValue extends LoaderEventC implements Structure.ByValue {
+        @Override
+        public void close() {
+            super.close();
+            FxLib.INSTANCE.get().dispose_loader_event_value(this);
+        }
     }
 
     public Tag tag;

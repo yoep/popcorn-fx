@@ -180,6 +180,7 @@ mod tests {
 
         let result = block_in_place(strategy.process(data.clone(), tx_event, CancellationToken::new()));
         let resolve_url = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        data.url = None;
         data.torrent_info = Some(info);
 
         assert_eq!(magnet_url.to_string(), resolve_url);

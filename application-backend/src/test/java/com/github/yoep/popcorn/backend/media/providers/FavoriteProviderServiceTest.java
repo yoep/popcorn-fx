@@ -46,7 +46,7 @@ class FavoriteProviderServiceTest {
         mediaResult.union.ok = new MediaResult.OkBody();
         mediaResult.union.ok.mediaItem = mediaItem;
         doAnswer(invocation -> {
-            fxLib.dispose_media_item(mediaItem);
+            fxLib.dispose_media_item_value(mediaItem);
             return null;
         }).when(mediaItem).close();
         when(mediaItem.getMedia()).thenReturn(details);
@@ -55,6 +55,6 @@ class FavoriteProviderServiceTest {
         var result = service.retrieveDetails(overview);
 
         assertEquals(details, result.get());
-        verify(fxLib).dispose_media_item(mediaItem);
+        verify(fxLib).dispose_media_item_value(mediaItem);
     }
 }

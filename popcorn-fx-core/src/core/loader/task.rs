@@ -17,7 +17,6 @@ use crate::core::loader::loading_chain::LoadingChain;
 #[derive(Debug)]
 pub struct LoadingTask {
     inner: Arc<Mutex<Option<Arc<InnerLoadingTask>>>>,
-    _runtime: Runtime,
 }
 
 impl LoadingTask {
@@ -28,12 +27,12 @@ impl LoadingTask {
     /// # Arguments
     ///
     /// * `chain` - An `Arc` to the loading chain containing loading strategies.
+    /// * `runtime` - The [Runtime] instance to use for executing the loading task in the background.
     ///
     /// # Returns
     ///
     /// A new `LoadingTask` instance.
-    pub fn new(chain: Arc<LoadingChain>) -> Self {
-        let runtime = Runtime::new().unwrap();
+    pub fn new(chain: Arc<LoadingChain>, runtime: Arc<Runtime>) -> Self {
         let (tx, rx) = channel();
         let inner = Arc::new(Mutex::new(Some(Arc::new(InnerLoadingTask::new(chain, tx)))));
         let handle = block_in_place(inner.lock()).as_ref()
@@ -62,7 +61,6 @@ impl LoadingTask {
         debug!("Creating new loading task {}", handle);
         Self {
             inner,
-            _runtime: runtime,
         }
     }
 
@@ -320,7 +318,8 @@ mod tests {
     #[test]
     fn test_handle() {
         init_logger();
-        let task = LoadingTask::new(Arc::new(LoadingChain::from(vec![])));
+        let runtime = Arc::new(Runtime::new().unwrap());
+        let task = LoadingTask::new(Arc::new(LoadingChain::from(vec![])), runtime.clone());
 
         assert_ne!(task.handle().value(), 0i64);
     }
@@ -349,7 +348,8 @@ mod tests {
                 callback.send(LoadingEvent::StateChanged(LoadingState::Downloading)).unwrap();
                 LoadingResult::Completed
             });
-        let task = Arc::new(LoadingTask::new(Arc::new(LoadingChain::from(vec![Box::new(strategy) as Box<dyn LoadingStrategy>]))));
+        let runtime = Arc::new(Runtime::new().unwrap());
+        let task = Arc::new(LoadingTask::new(Arc::new(LoadingChain::from(vec![Box::new(strategy) as Box<dyn LoadingStrategy>])), runtime.clone()));
         let runtime = Runtime::new().unwrap();
 
         task.subscribe(Box::new(move |event| {
@@ -395,7 +395,8 @@ mod tests {
                 tx_data.send(data).unwrap();
                 LoadingResult::Completed
             });
-        let task = LoadingTask::new(Arc::new(LoadingChain::from(vec![Box::new(strategy) as Box<dyn LoadingStrategy>])));
+        let runtime = Arc::new(Runtime::new().unwrap());
+        let task = LoadingTask::new(Arc::new(LoadingChain::from(vec![Box::new(strategy) as Box<dyn LoadingStrategy>])), runtime.clone());
 
         task.subscribe(Box::new(move |e| {
             tx_event.send(e).unwrap();
@@ -436,7 +437,8 @@ mod tests {
             });
         strategy.expect_cancel()
             .returning(|data| CancellationResult::Ok(data));
-        let task = Arc::new(LoadingTask::new(Arc::new(LoadingChain::from(vec![Box::new(strategy) as Box<dyn LoadingStrategy>]))));
+        let runtime = Arc::new(Runtime::new().unwrap());
+        let task = Arc::new(LoadingTask::new(Arc::new(LoadingChain::from(vec![Box::new(strategy) as Box<dyn LoadingStrategy>])), runtime.clone()));
         let runtime = Runtime::new().unwrap();
 
         let del_task = task.clone();
@@ -472,7 +474,8 @@ mod tests {
             initiated: tx,
             cancelled: tx_cancelled,
         };
-        let task = Arc::new(LoadingTask::new(Arc::new(LoadingChain::from(vec![Box::new(strategy) as Box<dyn LoadingStrategy>]))));
+        let runtime = Arc::new(Runtime::new().unwrap());
+        let task = Arc::new(LoadingTask::new(Arc::new(LoadingChain::from(vec![Box::new(strategy) as Box<dyn LoadingStrategy>])), runtime.clone()));
         let runtime = Runtime::new().unwrap();
 
         let del_task = task.clone();
@@ -528,10 +531,11 @@ mod tests {
             .returning(|e| {
                 CancellationResult::Ok(e)
             });
+        let runtime = Arc::new(Runtime::new().unwrap());
         let task = Arc::new(LoadingTask::new(Arc::new(LoadingChain::from(vec![
             Box::new(strat1) as Box<dyn LoadingStrategy>,
             Box::new(strat2) as Box<dyn LoadingStrategy>,
-        ]))));
+        ])), runtime.clone()));
         let runtime = Runtime::new().unwrap();
 
         let del_task = task.clone();

@@ -283,7 +283,6 @@ pub trait MediaLoader: Debug + Send + Sync {
     fn cancel(&self, handle: LoadingHandle);
 }
 
-
 #[derive(Debug)]
 pub struct DefaultMediaLoader {
     inner: Arc<InnerMediaLoader>,
@@ -337,7 +336,7 @@ struct InnerMediaLoader {
     loading_chain: Arc<LoadingChain>,
     tasks: Arc<Mutex<Vec<Arc<LoadingTask>>>>,
     callbacks: CoreCallbacks<LoaderEvent>,
-    runtime: Runtime,
+    runtime: Arc<Runtime>,
 }
 
 impl InnerMediaLoader {
@@ -346,12 +345,17 @@ impl InnerMediaLoader {
             loading_chain: Arc::new(LoadingChain::from(loading_chain)),
             tasks: Arc::new(Mutex::new(Vec::default())),
             callbacks: Default::default(),
-            runtime: Runtime::new().unwrap(),
+            runtime: Arc::new(tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .worker_threads(4)
+                .thread_name("media_loader")
+                .build()
+                .expect("expected a new runtime")),
         }
     }
 
     fn do_internal_load(&self, data: LoadingData) -> LoadingHandle {
-        let task = Arc::new(LoadingTask::new(self.loading_chain.clone()));
+        let task = Arc::new(LoadingTask::new(self.loading_chain.clone(), self.runtime.clone()));
         let loading_handle = task.handle();
         let started_event = LoadingStartedEvent::from(&data);
 
@@ -382,13 +386,15 @@ impl InnerMediaLoader {
             match task.load(data).await {
                 Ok(_) => {
                     info!("Loading task {} has completed", task_handle);
-                    Self::remove_task(task_handle, tasks);
                 }
                 Err(e) => {
                     error!("Loading task {} failed, {}", task_handle, e);
                     callbacks.invoke(LoaderEvent::LoadingError(task_handle, e));
                 }
             }
+
+            trace!("Removing task handle of {}", task_handle);
+            Self::remove_task(task_handle, tasks);
         });
 
         self.callbacks.invoke(LoaderEvent::LoadingStarted(loading_handle.clone(), started_event));

@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.backend.events;
 
+import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentInfoWrapper;
 import com.sun.jna.FromNativeContext;
@@ -23,6 +24,11 @@ import java.util.Optional;
 @Structure.FieldOrder({"tag", "union"})
 public class EventC extends Structure implements Closeable {
     public static class ByValue extends EventC implements Structure.ByValue {
+        @Override
+        public void close() {
+            super.close();
+            FxLib.INSTANCE.get().dispose_event_value(this);
+        }
     }
 
     public EventC.Tag tag;
@@ -123,6 +129,7 @@ public class EventC extends Structure implements Closeable {
         @Override
         public void close() {
             setAutoSynch(false);
+            playerChangedEvent.close();
         }
     }
 

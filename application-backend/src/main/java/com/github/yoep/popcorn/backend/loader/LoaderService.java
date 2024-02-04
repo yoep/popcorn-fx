@@ -36,7 +36,7 @@ public class LoaderService extends AbstractListenerService<LoaderListener> imple
     }
 
     public void load(TorrentInfo torrentInfo, TorrentFileInfo torrentFileInfo) {
-        // TODO
+        // TODO: implement
     }
 
     public void cancel() {
@@ -45,25 +45,29 @@ public class LoaderService extends AbstractListenerService<LoaderListener> imple
 
     @Override
     public void callback(LoaderEventC.ByValue event) {
-        switch (event.getTag()) {
-            case LOADING_STARTED -> {
-                var loadingStartedBody = event.getUnion().getLoadingStarted_body();
-                lastLoaderHandle = loadingStartedBody.getHandle();
-                eventPublisher.publish(new LoadingStartedEvent(this));
-                invokeListeners(e -> e.onLoadingStarted(loadingStartedBody.getStartedEvent()));
+        try (event) {
+            switch (event.getTag()) {
+                case LOADING_STARTED -> {
+                    var loadingStartedBody = event.getUnion().getLoadingStarted_body();
+                    lastLoaderHandle = loadingStartedBody.getHandle();
+                    eventPublisher.publish(new LoadingStartedEvent(this));
+                    invokeListeners(e -> e.onLoadingStarted(loadingStartedBody.getStartedEvent()));
+                }
+                case STATE_CHANGED -> {
+                    var stateChangedBody = event.getUnion().getStateChanged_body();
+                    invokeListeners(e -> e.onStateChanged(stateChangedBody.getState()));
+                }
+                case LOADING_ERROR -> {
+                    var loadingErrorBody = event.getUnion().getLoadingError_body();
+                    invokeListeners(e -> e.onError(loadingErrorBody.getError()));
+                }
+                case PROGRESS_CHANGED -> {
+                    var progressChangedBody = event.getUnion().getProgressChanged_body();
+                    invokeListeners(e -> e.onProgressChanged(progressChangedBody.getLoadingProgress()));
+                }
             }
-            case STATE_CHANGED -> {
-                var stateChangedBody = event.getUnion().getStateChanged_body();
-                invokeListeners(e -> e.onStateChanged(stateChangedBody.getState()));
-            }
-            case LOADING_ERROR -> {
-                var loadingErrorBody = event.getUnion().getLoadingError_body();
-                invokeListeners(e -> e.onError(loadingErrorBody.getError()));
-            }
-            case PROGRESS_CHANGED -> {
-                var progressChangedBody = event.getUnion().getProgressChanged_body();
-                invokeListeners(e -> e.onProgressChanged(progressChangedBody.getLoadingProgress()));
-            }
+        } catch (Exception ex) {
+            log.error("An unexpected error occurred while handling the loader event C, {}", ex.getMessage(), ex);
         }
     }
 

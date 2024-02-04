@@ -31,6 +31,11 @@ public class PlaylistItem extends Structure implements Closeable {
     public Long autoResumeTimestamp;
     public byte subtitlesEnabled;
 
+    public PlaylistItem(String url, String title) {
+        this.url = url;
+        this.title = title;
+    }
+
     public PlaylistItem(String url, String title, String thumb, MediaItem.ByReference media) {
         this.url = url;
         this.title = title;

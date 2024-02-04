@@ -39,6 +39,19 @@ pub extern "C" fn register_event_callback(popcorn_fx: &mut PopcornFX, callback: 
     }), LOWEST_ORDER);
 }
 
+/// Dispose of the given event from the event bridge.
+///
+/// This function takes ownership of a boxed `EventC` object, releasing its resources.
+///
+/// # Arguments
+///
+/// * `event` - A boxed `EventC` object to be disposed of.
+#[no_mangle]
+pub extern "C" fn dispose_event_value(event: EventC) {
+    trace!("Disposing EventC {:?}", event);
+    drop(event)
+}
+
 #[cfg(test)]
 mod test {
     use std::sync::mpsc::channel;
@@ -51,7 +64,7 @@ mod test {
     use popcorn_fx_core::core::media::{Images, MovieOverview};
     use popcorn_fx_core::testing::init_logger;
 
-    use crate::ffi::{MediaItemC, PlayerStoppedEventC};
+    use crate::ffi::{CArray, MediaItemC, PlayerStoppedEventC, TorrentInfoC};
     use crate::test::default_args;
 
     use super::*;
@@ -96,5 +109,15 @@ mod test {
         } else {
             assert!(false, "expected Event::PlayerStopped, but got {} instead", result);
         }
+    }
+
+    #[test]
+    fn test_dispose_event_value() {
+        dispose_event_value(EventC::TorrentDetailsLoaded(TorrentInfoC {
+            name: into_c_string("Foo".to_string()),
+            directory_name: into_c_string("Bar".to_string()),
+            total_files: 20,
+            files: CArray::from(vec![]),
+        }))
     }
 }

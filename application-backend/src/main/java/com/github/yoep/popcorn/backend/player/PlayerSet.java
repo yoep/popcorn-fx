@@ -6,10 +6,7 @@ import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
 import java.io.Closeable;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 import static java.util.Arrays.asList;
 
@@ -37,5 +34,10 @@ public class PlayerSet extends Structure implements Closeable {
     @Override
     public void close() {
         setAutoSynch(false);
+        Optional.ofNullable(players)
+                .map(e -> (PlayerWrapper[]) e.toArray(len))
+                .stream()
+                .flatMap(Arrays::stream)
+                .forEach(PlayerWrapper::close);
     }
 }

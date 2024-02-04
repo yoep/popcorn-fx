@@ -21,11 +21,11 @@ class EventPublisherTest {
 
     @Test
     void testPublishNoThreading() throws ExecutionException, InterruptedException {
-        var event = mock(PlayMediaEvent.class);
+        var event = mock(PlayerStoppedEvent.class);
         var future = new CompletableFuture<Boolean>();
         var eventPublisher = new EventPublisher(false);
 
-        eventPublisher.register(PlayMediaEvent.class, e -> {
+        eventPublisher.register(PlayerStoppedEvent.class, e -> {
             future.complete(true);
             return e;
         });
@@ -36,40 +36,40 @@ class EventPublisherTest {
 
     @Test
     void testPublishEvent() throws ExecutionException, InterruptedException, TimeoutException {
-        var event = mock(PlayMediaEvent.class);
-        var mediaInvocation = new CompletableFuture<Void>();
-        var torrentInvocation = new CompletableFuture<Void>();
-        var stoppedInvocation = new AtomicBoolean();
-        publisher.register(PlayMediaEvent.class, e -> {
-            mediaInvocation.complete(null);
+        var event = mock(ShowMovieDetailsEvent.class);
+        var detailsInvocation = new CompletableFuture<Void>();
+        var movieDetailsInvocation = new CompletableFuture<Void>();
+        var serieDetailsInvocation = new AtomicBoolean();
+        publisher.register(ShowDetailsEvent.class, e -> {
+            detailsInvocation.complete(null);
             return e;
         });
-        publisher.register(PlayTorrentEvent.class, e -> {
-            torrentInvocation.complete(null);
+        publisher.register(ShowMovieDetailsEvent.class, e -> {
+            movieDetailsInvocation.complete(null);
             return e;
         });
-        publisher.register(PlayerStoppedEvent.class, e -> {
-            stoppedInvocation.set(true);
+        publisher.register(ShowSerieDetailsEvent.class, e -> {
+            serieDetailsInvocation.set(true);
             return e;
         }, EventPublisher.HIGHEST_ORDER);
 
         publisher.publish(event);
 
-        mediaInvocation.get(200, TimeUnit.MILLISECONDS);
-        torrentInvocation.get(200, TimeUnit.MILLISECONDS);
-        assertFalse(stoppedInvocation.get());
+        detailsInvocation.get(200, TimeUnit.MILLISECONDS);
+        movieDetailsInvocation.get(200, TimeUnit.MILLISECONDS);
+        assertFalse(serieDetailsInvocation.get());
     }
 
     @Test
     void testPublishEvent_whenListenerReturnsNull_shouldStopTheEventChain() throws ExecutionException, InterruptedException, TimeoutException {
-        var event = mock(PlayMediaEvent.class);
+        var event = mock(PlayerStoppedEvent.class);
         var trigger = new CompletableFuture<Void>();
         var result = new AtomicBoolean();
-        publisher.register(PlayMediaEvent.class, e -> {
+        publisher.register(PlayerStoppedEvent.class, e -> {
             trigger.complete(null);
             return null;
         }, EventPublisher.HIGHEST_ORDER);
-        publisher.register(PlayMediaEvent.class, e -> {
+        publisher.register(PlayerStoppedEvent.class, e -> {
             result.set(true);
             fail("This listener should not have been invoked");
             return e;

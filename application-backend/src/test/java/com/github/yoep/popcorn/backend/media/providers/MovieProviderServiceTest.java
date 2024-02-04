@@ -9,6 +9,7 @@ import com.github.yoep.popcorn.backend.media.filters.model.Genre;
 import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieOverview;
 import lombok.extern.slf4j.Slf4j;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -32,6 +33,11 @@ class MovieProviderServiceTest {
     private PopcornFx instance;
     @InjectMocks
     private MovieProviderService provider;
+
+    @BeforeEach
+    void setUp() {
+        FxLib.INSTANCE.set(fxLib);
+    }
 
     @Test
     void testGetPage() throws ExecutionException, InterruptedException {

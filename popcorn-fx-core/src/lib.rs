@@ -355,9 +355,11 @@ pub mod testing {
 
         let start_time = Instant::now();
         let timeout: Duration = $timeout;
+        let mut actual_value;
 
         let result = loop {
-            if $left == $right {
+            actual_value = $right;
+            if $left == actual_value {
                 break true;
             }
             if start_time.elapsed() >= timeout {
@@ -367,10 +369,10 @@ pub mod testing {
         };
 
         if !result {
-            assert!(false, "Assertion timed out after {:?}, expected {} but got {} instead", $timeout, $left, $right);
+            assert!(false, "Assertion timed out after {:?}, expected {} but got {} instead", $timeout, $left, actual_value);
         }
     }};
-        }
+    }
 }
 
 #[cfg(test)]

@@ -589,7 +589,6 @@ mod test {
         mutex.register(Box::new(move |event| {
             tx.send(event).unwrap()
         }));
-        drop(mutex);
 
         popcorn_fx.reload_settings();
         let result = rx.recv_timeout(Duration::from_millis(100)).unwrap();

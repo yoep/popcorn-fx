@@ -187,7 +187,7 @@ mod test {
     use tempfile::tempdir;
     use tokio::sync::Mutex;
 
-    use popcorn_fx_core::{assert_timeout, into_c_string};
+    use popcorn_fx_core::{assert_timeout_eq, into_c_string};
     use popcorn_fx_core::core::block_in_place;
     use popcorn_fx_core::core::torrents::{Torrent, TorrentEvent, TorrentFileInfo, TorrentManager};
     use popcorn_fx_core::testing::{copy_test_file, init_logger};
@@ -296,11 +296,14 @@ mod test {
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = new_instance(temp_path);
+        let mut torrent_settings = instance.settings().user_settings().torrent_settings;
+        torrent_settings.directory = PathBuf::from(temp_path);
+        instance.settings().update_torrent(torrent_settings);
         let filepath = copy_test_file(temp_path, "example.mp4", Some("torrents/subdir/example.mp4"));
 
         cleanup_torrents_directory(&mut instance);
 
-        assert_timeout!(Duration::from_millis(200), PathBuf::from(filepath.clone()).exists());
+        assert_timeout_eq!(Duration::from_millis(200), false, PathBuf::from(filepath.clone()).exists());
         assert_eq!(true, instance.settings().user_settings().torrent_settings.directory.exists(), "expected the torrent directory to still exist");
     }
 }

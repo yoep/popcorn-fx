@@ -432,6 +432,20 @@ mod test {
     }
 
     #[test]
+    fn test_cleanup() {
+        init_logger();
+        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let settings = default_config(temp_path, CleaningMode::Off);
+        let filepath = copy_test_file(temp_path, "debian.torrent", Some("torrents/debian.torrent"));
+        let manager = DefaultTorrentManager::new(settings, Arc::new(EventPublisher::default()));
+
+        manager.cleanup();
+
+        assert_eq!(false, PathBuf::from(filepath).exists(), "expected the file to have been removed");
+    }
+
+    #[test]
     fn test_drop_cleaning_disabled() {
         init_logger();
         let temp_dir = tempfile::tempdir().unwrap();
@@ -465,7 +479,7 @@ mod test {
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let settings = default_config(temp_path, CleaningMode::Watched);
-        let filepath = copy_test_file(temp_path, "debian.torrent", Some("torrents/my-torrent/debian.torrent"));
+        let _ = copy_test_file(temp_path, "debian.torrent", Some("torrents/my-torrent/debian.torrent"));
         let manager = DefaultTorrentManager::new(settings.clone(), Arc::new(EventPublisher::default()));
         let modified = Local::now() - Duration::days(10);
 

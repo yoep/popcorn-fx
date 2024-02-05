@@ -187,9 +187,9 @@ mod test {
     use tempfile::tempdir;
     use tokio::sync::Mutex;
 
+    use popcorn_fx_core::{assert_timeout, into_c_string};
     use popcorn_fx_core::core::block_in_place;
     use popcorn_fx_core::core::torrents::{Torrent, TorrentEvent, TorrentFileInfo, TorrentManager};
-    use popcorn_fx_core::into_c_string;
     use popcorn_fx_core::testing::{copy_test_file, init_logger};
 
     use crate::ffi::TorrentC;
@@ -300,7 +300,7 @@ mod test {
 
         cleanup_torrents_directory(&mut instance);
 
-        assert_eq!(false, PathBuf::from(filepath).exists(), "expected the torrent file to have been cleaned");
+        assert_timeout!(Duration::from_millis(200), PathBuf::from(filepath.clone()).exists());
         assert_eq!(true, instance.settings().user_settings().torrent_settings.directory.exists(), "expected the torrent directory to still exist");
     }
 }

@@ -5,7 +5,6 @@ use std::sync::mpsc::Sender;
 use async_trait::async_trait;
 use derive_more::Display;
 use log::{debug, trace};
-use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 
 use crate::core::config::ApplicationConfig;
@@ -17,11 +16,11 @@ use crate::core::torrents::TorrentManager;
 #[display(fmt = "Torrent loading strategy")]
 pub struct TorrentLoadingStrategy {
     torrent_manager: Arc<Box<dyn TorrentManager>>,
-    application_settings: Arc<Mutex<ApplicationConfig>>,
+    application_settings: Arc<ApplicationConfig>,
 }
 
 impl TorrentLoadingStrategy {
-    pub fn new(torrent_manager: Arc<Box<dyn TorrentManager>>, application_settings: Arc<Mutex<ApplicationConfig>>) -> Self {
+    pub fn new(torrent_manager: Arc<Box<dyn TorrentManager>>, application_settings: Arc<ApplicationConfig>) -> Self {
         Self {
             torrent_manager,
             application_settings,
@@ -47,8 +46,8 @@ impl LoadingStrategy for TorrentLoadingStrategy {
             let torrent_directory: String;
 
             {
-                let settings = self.application_settings.lock().await;
-                torrent_directory = settings.user_settings().torrent().directory()
+                let settings = self.application_settings.user_settings();
+                torrent_directory = settings.torrent().directory()
                     .to_str()
                     .map(|e| e.to_string())
                     .expect("expected a valid torrent directory from the user settings");
@@ -119,9 +118,9 @@ mod tests {
         let (tx_event, _) = channel();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(Mutex::new(ApplicationConfig::builder()
+        let settings = Arc::new(ApplicationConfig::builder()
             .storage(temp_path)
-            .build()));
+            .build());
         let torrent_manager = MockTorrentManager::new();
         let strategy = TorrentLoadingStrategy::new(Arc::new(Box::new(torrent_manager)), settings);
 
@@ -154,9 +153,9 @@ mod tests {
         data.torrent = Some(Arc::downgrade(&torrent));
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(Mutex::new(ApplicationConfig::builder()
+        let settings = Arc::new(ApplicationConfig::builder()
             .storage(temp_path)
-            .build()));
+            .build());
         let (tx, rx) = channel();
         let mut torrent_manager = MockTorrentManager::new();
         torrent_manager.expect_remove()

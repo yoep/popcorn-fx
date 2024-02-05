@@ -164,7 +164,6 @@ mod test {
     use std::sync::Arc;
 
     use tokio::runtime::Runtime;
-    use tokio::sync::Mutex;
 
     use crate::core::cache::CacheManagerBuilder;
     use crate::core::config::ApplicationConfig;
@@ -197,9 +196,9 @@ mod test {
         init_logger();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(Mutex::new(ApplicationConfig::builder()
+        let settings = Arc::new(ApplicationConfig::builder()
             .storage(temp_path)
-            .build()));
+            .build());
         let cache_manager = Arc::new(CacheManagerBuilder::default()
             .storage_path(temp_path)
             .build());

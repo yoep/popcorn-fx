@@ -41,7 +41,7 @@ pub struct SubtitleManager {
     /// Indicates if the subtitle has been disabled by the user
     disabled_by_user: Mutex<bool>,
     callbacks: CoreCallbacks<SubtitleEvent>,
-    settings: Arc<Mutex<ApplicationConfig>>,
+    settings: Arc<ApplicationConfig>,
 }
 
 impl SubtitleManager {
@@ -50,7 +50,7 @@ impl SubtitleManager {
     /// # Arguments
     ///
     /// * `settings` - The application settings for configuring the manager.
-    pub fn new(settings: Arc<Mutex<ApplicationConfig>>) -> Self {
+    pub fn new(settings: Arc<ApplicationConfig>) -> Self {
         Self {
             subtitle_info: Arc::new(Mutex::new(None)),
             preferred_language: Arc::new(Mutex::new(SubtitleLanguage::None)),
@@ -202,8 +202,8 @@ impl SubtitleManager {
     ///
     /// This method performs file system operations and may have side effects. Use with caution.
     pub fn cleanup(&self) {
-        let mutex = self.settings.blocking_lock();
-        let path = mutex.settings.subtitle_settings.directory();
+        let settings = self.settings.user_settings();
+        let path = settings.subtitle_settings.directory();
         let absolute_path = path.to_str().unwrap();
 
         debug!("Cleaning subtitle directory {}", absolute_path);
@@ -240,11 +240,10 @@ impl SubtitleManager {
 
 impl Drop for SubtitleManager {
     fn drop(&mut self) {
-        let mutex = self.settings.blocking_lock();
-        let settings = mutex.user_settings().subtitle();
+        let settings = self.settings.user_settings();
+        let subtitle_settings = settings.subtitle();
 
-        if *settings.auto_cleaning_enabled() {
-            drop(mutex);
+        if *subtitle_settings.auto_cleaning_enabled() {
             self.cleanup()
         } else {
             trace!("Skipping subtitle directory cleaning")
@@ -384,17 +383,11 @@ mod test {
         assert_eq!(true, PathBuf::from(temp_path).exists(), "expected the subtitle directory to not have been removed");
     }
 
-    fn default_settings(temp_path: &str, auto_cleaning_enabled: bool) -> Arc<Mutex<ApplicationConfig>> {
-        Arc::new(Mutex::new(ApplicationConfig {
-            storage: Storage::from(temp_path),
-            properties: PopcornProperties {
-                loggers: Default::default(),
-                update_channel: String::new(),
-                providers: Default::default(),
-                enhancers: Default::default(),
-                subtitle: Default::default(),
-            },
-            settings: PopcornSettings {
+    fn default_settings(temp_path: &str, auto_cleaning_enabled: bool) -> Arc<ApplicationConfig> {
+        Arc::new(ApplicationConfig::builder()
+            .storage(temp_path)
+            .properties(PopcornProperties::default())
+            .settings(PopcornSettings {
                 subtitle_settings: SubtitleSettings {
                     directory: temp_path.to_string(),
                     auto_cleaning_enabled,
@@ -408,8 +401,7 @@ mod test {
                 server_settings: Default::default(),
                 torrent_settings: Default::default(),
                 playback_settings: Default::default(),
-            },
-            callbacks: Default::default(),
-        }))
+            })
+            .build())
     }
 }

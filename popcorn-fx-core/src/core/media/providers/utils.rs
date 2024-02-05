@@ -3,8 +3,9 @@ use log::error;
 use crate::core::config::ApplicationConfig;
 
 /// Retrieve the available uri's from the settings for the given provider name.
-pub fn available_uris(settings: &ApplicationConfig, provider_name: &str) -> Vec<String> {
-    let api_server = settings.user_settings().server().api_server();
+pub fn available_uris(config: &ApplicationConfig, provider_name: &str) -> Vec<String> {
+    let settings = config.user_settings();
+    let api_server = settings.server().api_server();
     let mut uris: Vec<String> = vec![];
 
     match api_server {
@@ -12,7 +13,8 @@ pub fn available_uris(settings: &ApplicationConfig, provider_name: &str) -> Vec<
         Some(e) => uris.push(e.clone())
     }
 
-    match settings.properties().provider(provider_name) {
+    let properties = config.properties();
+    match properties.provider(provider_name) {
         Ok(e) => {
             for uri in e.uris() {
                 uris.push(uri.clone());
@@ -29,7 +31,6 @@ mod test {
     use std::collections::HashMap;
 
     use crate::core::config::{PopcornProperties, PopcornSettings, ProviderProperties, ServerSettings};
-    use crate::core::storage::Storage;
     use crate::testing::init_logger;
 
     use super::*;
@@ -42,9 +43,9 @@ mod test {
         let provider_name = "my-provider".to_string();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = ApplicationConfig {
-            storage: Storage::from(temp_path),
-            properties: PopcornProperties {
+        let settings = ApplicationConfig::builder()
+            .storage(temp_path)
+            .properties(PopcornProperties {
                 loggers: Default::default(),
                 update_channel: String::new(),
                 providers: HashMap::from([
@@ -57,8 +58,8 @@ mod test {
                 ]),
                 enhancers: Default::default(),
                 subtitle: Default::default(),
-            },
-            settings: PopcornSettings {
+            })
+            .settings(PopcornSettings {
                 subtitle_settings: Default::default(),
                 ui_settings: Default::default(),
                 server_settings: ServerSettings {
@@ -66,9 +67,8 @@ mod test {
                 },
                 torrent_settings: Default::default(),
                 playback_settings: Default::default(),
-            },
-            callbacks: Default::default(),
-        };
+            })
+            .build();
         let expected_result = vec![
             api_server,
             provider,
@@ -85,16 +85,16 @@ mod test {
         let api_server = "https://www.google.com".to_string();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = ApplicationConfig {
-            storage: Storage::from(temp_path),
-            properties: PopcornProperties {
+        let settings = ApplicationConfig::builder()
+            .storage(temp_path)
+            .properties(PopcornProperties {
                 loggers: Default::default(),
                 update_channel: String::new(),
                 providers: HashMap::new(),
                 enhancers: Default::default(),
                 subtitle: Default::default(),
-            },
-            settings: PopcornSettings {
+            })
+            .settings(PopcornSettings {
                 subtitle_settings: Default::default(),
                 ui_settings: Default::default(),
                 server_settings: ServerSettings {
@@ -102,9 +102,8 @@ mod test {
                 },
                 torrent_settings: Default::default(),
                 playback_settings: Default::default(),
-            },
-            callbacks: Default::default(),
-        };
+            })
+            .build();
         let expected_result = vec![
             api_server,
         ];

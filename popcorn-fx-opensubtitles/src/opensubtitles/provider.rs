@@ -13,9 +13,7 @@ use log::{debug, error, info, trace, warn};
 use reqwest::{Client, ClientBuilder, Response, StatusCode, Url};
 use reqwest::header::HeaderMap;
 use tokio::fs::OpenOptions;
-use tokio::sync::Mutex;
 
-use popcorn_fx_core::core::block_in_place;
 use popcorn_fx_core::core::config::ApplicationConfig;
 use popcorn_fx_core::core::media::*;
 use popcorn_fx_core::core::subtitles::{Result, SubtitleError, SubtitleFile, SubtitleProvider};
@@ -38,7 +36,7 @@ const DEFAULT_FILENAME_EXTENSION: &str = ".srt";
 #[derive(Debug, Display)]
 #[display(fmt = "Opensubtitles subtitle provider")]
 pub struct OpensubtitlesProvider {
-    settings: Arc<Mutex<ApplicationConfig>>,
+    settings: Arc<ApplicationConfig>,
     client: Client,
     parsers: HashMap<SubtitleType, Box<dyn Parser>>,
 }
@@ -54,9 +52,9 @@ impl OpensubtitlesProvider {
     /// use popcorn_fx_core::core::config::ApplicationConfig;
     /// use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
     ///
-    /// let settings = Arc::new(Mutex::new(ApplicationConfig::builder()
+    /// let settings = Arc::new(ApplicationConfig::builder()
     ///     .storage("storage/path")
-    ///     .build()));
+    ///     .build());
     /// let provider = OpensubtitlesProvider::builder()
     ///     .settings(settings)
     ///     .build();
@@ -71,8 +69,8 @@ impl OpensubtitlesProvider {
         let season: String;
         let episode_number: String;
         let page_query_value = page.to_string();
-        let mutex = self.settings.lock().await;
-        let url = format!("{}/subtitles", mutex.properties().subtitle().url());
+        let properties = self.settings.properties();
+        let url = format!("{}/subtitles", properties.subtitle().url());
 
         // only set the page if it's not the first one
         // this is because the first one (with query param) isn't cached on cloudfront
@@ -110,8 +108,8 @@ impl OpensubtitlesProvider {
     }
 
     async fn create_download_url(&self) -> Result<Url> {
-        let mutex = self.settings.lock().await;
-        let url = format!("{}/download", mutex.properties().subtitle().url());
+        let properties = self.settings.properties();
+        let url = format!("{}/download", properties.subtitle().url());
 
         match Url::parse(url.as_str()) {
             Ok(e) => Ok(e),
@@ -316,8 +314,8 @@ impl OpensubtitlesProvider {
     /// Retrieve the storage [Path] for the given subtitle file.
     async fn storage_file(&self, file: &SubtitleFile) -> PathBuf {
         let file_name = file.name();
-        let mutex = self.settings.lock().await;
-        let settings = mutex.user_settings().subtitle().clone();
+        let settings = self.settings.user_settings();
+        let settings = settings.subtitle().clone();
 
         settings.directory().join(file_name)
     }
@@ -346,8 +344,8 @@ impl OpensubtitlesProvider {
     /// Find the subtitle for the default configured subtitle language.
     /// This uses the [SubtitleSettings::default_subtitle] setting.
     fn find_for_default_subtitle_language(&self, subtitles: &[SubtitleInfo]) -> Option<SubtitleInfo> {
-        let mutex = block_in_place(self.settings.lock());
-        let subtitle_language = mutex.user_settings().subtitle().default_subtitle();
+        let settings = self.settings.user_settings();
+        let subtitle_language = settings.subtitle().default_subtitle();
 
         subtitles.iter()
             .find(|e| e.language() == subtitle_language)
@@ -357,8 +355,8 @@ impl OpensubtitlesProvider {
     /// Find the subtitle for the interface language.
     /// This uses the [UiSettings::default_language] setting.
     fn find_for_interface_language(&self, subtitles: &[SubtitleInfo]) -> Option<SubtitleInfo> {
-        let mutex = block_in_place(self.settings.lock());
-        let language = mutex.user_settings().ui().default_language();
+        let settings = self.settings.user_settings();
+        let language = settings.ui().default_language();
 
         subtitles.iter()
             .find(|e| &e.language().code() == language)
@@ -510,7 +508,7 @@ impl SubtitleProvider for OpensubtitlesProvider {
 
 #[derive(Default)]
 pub struct OpensubtitlesProviderBuilder {
-    settings: Option<Arc<Mutex<ApplicationConfig>>>,
+    settings: Option<Arc<ApplicationConfig>>,
     parsers: HashMap<SubtitleType, Box<dyn Parser>>,
     insecure: bool,
 }
@@ -526,14 +524,14 @@ impl OpensubtitlesProviderBuilder {
     /// use popcorn_fx_core::core::config::ApplicationConfig;
     /// use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
     ///
-    /// let settings = Arc::new(Mutex::new(ApplicationConfig::builder()
+    /// let settings = Arc::new(ApplicationConfig::builder()
     ///     .storage("storage/path")
-    ///     .build()));
+    ///     .build());
     /// let provider = OpensubtitlesProvider::builder()
     ///     .settings(settings)
     ///     .build();
     /// ```
-    pub fn settings(mut self, settings: Arc<Mutex<ApplicationConfig>>) -> Self {
+    pub fn settings(mut self, settings: Arc<ApplicationConfig>) -> Self {
         self.settings = Some(settings);
         self
     }
@@ -590,9 +588,9 @@ impl OpensubtitlesProviderBuilder {
     /// use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
     ///
     /// let srt_parser: Box<dyn Parser> = Box::new(SrtParser::new());
-    /// let settings = Arc::new(Mutex::new(ApplicationConfig::builder()
+    /// let settings = Arc::new(ApplicationConfig::builder()
     ///     .storage("storage/path")
-    ///     .build()));
+    ///     .build());
     /// let provider = OpensubtitlesProvider::builder()
     ///     .settings(settings)
     ///     .with_parser(SubtitleType::Srt, srt_parser)
@@ -601,15 +599,15 @@ impl OpensubtitlesProviderBuilder {
     pub fn build(self) -> OpensubtitlesProvider {
         let settings = self.settings.expect("Settings have not been set for OpensubtitlesProvider");
         let mut default_headers = HeaderMap::new();
-        let mutex = settings.blocking_lock();
-        let api_token = mutex.properties().subtitle().api_token().to_string();
-        let user_agent = mutex.properties().subtitle().user_agent().to_string();
+        let properties = settings.properties();
+        let api_token = properties.subtitle().api_token().to_string();
+        let user_agent = properties.subtitle().user_agent().to_string();
 
         default_headers.insert(USER_AGENT_HEADER_KEY, user_agent.parse().unwrap());
         default_headers.insert(API_HEADER_KEY, api_token.parse().unwrap());
 
         OpensubtitlesProvider {
-            settings: settings.clone(),
+            settings,
             client: ClientBuilder::new()
                 .default_headers(default_headers)
                 .danger_accept_invalid_certs(self.insecure)
@@ -627,7 +625,6 @@ mod test {
     use tokio::runtime;
 
     use popcorn_fx_core::core::config::*;
-    use popcorn_fx_core::core::storage::Storage;
     use popcorn_fx_core::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage::{English, French};
     use popcorn_fx_core::core::subtitles::parsers::{SrtParser, VttParser};
@@ -635,17 +632,17 @@ mod test {
 
     use super::*;
 
-    fn start_mock_server() -> (MockServer, Arc<Mutex<ApplicationConfig>>) {
+    fn start_mock_server() -> (MockServer, Arc<ApplicationConfig>) {
         start_mock_server_with_subtitle_dir(None)
     }
 
-    fn start_mock_server_with_subtitle_dir(subdirectory: Option<&str>) -> (MockServer, Arc<Mutex<ApplicationConfig>>) {
+    fn start_mock_server_with_subtitle_dir(subdirectory: Option<&str>) -> (MockServer, Arc<ApplicationConfig>) {
         let server = MockServer::start();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(Mutex::new(ApplicationConfig {
-            storage: Storage::from(temp_path),
-            properties: PopcornProperties {
+        let settings = Arc::new(ApplicationConfig::builder()
+            .storage(temp_path)
+            .properties(PopcornProperties {
                 loggers: Default::default(),
                 update_channel: String::new(),
                 providers: Default::default(),
@@ -655,8 +652,8 @@ mod test {
                     user_agent: String::new(),
                     api_token: String::new(),
                 },
-            },
-            settings: PopcornSettings {
+            })
+            .settings(PopcornSettings {
                 subtitle_settings: SubtitleSettings {
                     directory: PathBuf::from(temp_path).join(subdirectory.or_else(|| Some("")).unwrap()).to_str().unwrap().to_string(),
                     auto_cleaning_enabled: false,
@@ -670,9 +667,8 @@ mod test {
                 server_settings: Default::default(),
                 torrent_settings: Default::default(),
                 playback_settings: Default::default(),
-            },
-            callbacks: Default::default(),
-        }));
+            })
+            .build());
 
         (server, settings)
     }
@@ -682,9 +678,9 @@ mod test {
         init_logger();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(Mutex::new(ApplicationConfig::builder()
+        let settings = Arc::new(ApplicationConfig::builder()
             .storage(temp_path)
-            .build()));
+            .build());
         let imdb_id = "tt1156398".to_string();
         let movie = MovieDetails::new(
             "lorem".to_string(),
@@ -840,7 +836,7 @@ mod test {
     fn test_download_should_return_the_expected_subtitle() {
         init_logger();
         let (server, settings) = start_mock_server();
-        let temp_dir = settings.blocking_lock().user_settings().subtitle().directory().to_str().unwrap().to_string();
+        let temp_dir = settings.user_settings().subtitle().directory().to_str().unwrap().to_string();
         let service = OpensubtitlesProvider::builder()
             .settings(settings)
             .with_parser(SubtitleType::Srt, Box::new(SrtParser::new()))
@@ -884,7 +880,7 @@ mod test {
         init_logger();
         let subdirectory = "subtitles";
         let (server, settings) = start_mock_server_with_subtitle_dir(Some(subdirectory));
-        let temp_dir = settings.blocking_lock().user_settings().subtitle().directory().to_str().unwrap().to_string();
+        let temp_dir = settings.user_settings().subtitle().directory().to_str().unwrap().to_string();
         let service = OpensubtitlesProvider::builder()
             .settings(settings)
             .with_parser(SubtitleType::Srt, Box::new(SrtParser::new()))
@@ -949,12 +945,10 @@ mod test {
             torrent_settings: TorrentSettings::default(),
             playback_settings: Default::default(),
         };
-        let settings = Arc::new(Mutex::new(ApplicationConfig {
-            storage: Storage::from(temp_path),
-            properties: PopcornProperties::default(),
-            settings: popcorn_settings,
-            callbacks: Default::default(),
-        }));
+        let settings = Arc::new(ApplicationConfig::builder()
+            .storage(temp_path)
+            .settings(popcorn_settings)
+            .build());
         let destination = copy_test_file(temp_path, test_file, None);
         let service = OpensubtitlesProvider::builder()
             .settings(settings)
@@ -984,9 +978,9 @@ mod test {
         let test_file = "subtitle_example.srt";
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(Mutex::new(ApplicationConfig::builder()
+        let settings = Arc::new(ApplicationConfig::builder()
             .storage(temp_path)
-            .build()));
+            .build());
         let service = OpensubtitlesProvider::builder()
             .settings(settings)
             .with_parser(SubtitleType::Srt, Box::new(SrtParser::new()))
@@ -1026,12 +1020,10 @@ mod test {
             torrent_settings: TorrentSettings::default(),
             playback_settings: Default::default(),
         };
-        let settings = Arc::new(Mutex::new(ApplicationConfig {
-            storage: Storage::from(temp_path),
-            properties: PopcornProperties::default(),
-            settings: popcorn_settings,
-            callbacks: Default::default(),
-        }));
+        let settings = Arc::new(ApplicationConfig::builder()
+            .storage(temp_path)
+            .settings(popcorn_settings)
+            .build());
         let service = OpensubtitlesProvider::builder()
             .settings(settings)
             .build();
@@ -1070,12 +1062,10 @@ mod test {
             torrent_settings: Default::default(),
             playback_settings: Default::default(),
         };
-        let settings = Arc::new(Mutex::new(ApplicationConfig {
-            storage: Storage::from(temp_path),
-            properties: PopcornProperties::default(),
-            settings: popcorn_settings,
-            callbacks: Default::default(),
-        }));
+        let settings = Arc::new(ApplicationConfig::builder()
+            .storage(temp_path)
+            .settings(popcorn_settings)
+            .build());
         let service = OpensubtitlesProvider::builder()
             .settings(settings)
             .build();
@@ -1155,9 +1145,9 @@ mod test {
         );
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(Mutex::new(ApplicationConfig::builder()
+        let settings = Arc::new(ApplicationConfig::builder()
             .storage(temp_path)
-            .build()));
+            .build());
         let service = OpensubtitlesProvider::builder()
             .settings(settings)
             .with_parser(SubtitleType::Vtt, Box::new(VttParser::default()))

@@ -175,7 +175,7 @@ mod test {
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = new_instance(temp_path);
-        let filepath = copy_test_file(instance.settings().settings.subtitle_settings.directory.as_str(), "example.srt", None);
+        let filepath = copy_test_file(instance.settings().user_settings().subtitle_settings.directory.as_str(), "example.srt", None);
 
         cleanup_subtitles_directory(&mut instance);
 

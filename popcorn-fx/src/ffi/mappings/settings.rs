@@ -59,8 +59,8 @@ pub struct PopcornSettingsC {
     pub playback_settings: PlaybackSettingsC,
 }
 
-impl From<&PopcornSettings> for PopcornSettingsC {
-    fn from(value: &PopcornSettings) -> Self {
+impl From<PopcornSettings> for PopcornSettingsC {
+    fn from(value: PopcornSettings) -> Self {
         trace!("Converting PopcornSettings to C for {:?}", value);
         Self {
             subtitle_settings: SubtitleSettingsC::from(value.subtitle()),

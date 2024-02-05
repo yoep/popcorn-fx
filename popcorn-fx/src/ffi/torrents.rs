@@ -301,6 +301,6 @@ mod test {
         cleanup_torrents_directory(&mut instance);
 
         assert_eq!(false, PathBuf::from(filepath).exists(), "expected the torrent file to have been cleaned");
-        assert_eq!(true, instance.settings().settings.torrent_settings.directory.exists(), "expected the torrent directory to still exist");
+        assert_eq!(true, instance.settings().user_settings().torrent_settings.directory.exists(), "expected the torrent directory to still exist");
     }
 }

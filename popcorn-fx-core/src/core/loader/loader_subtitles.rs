@@ -120,13 +120,11 @@ mod tests {
     use std::time::Duration;
 
     use tempfile::tempdir;
-    use tokio::sync::Mutex;
 
     use crate::core::block_in_place;
     use crate::core::config::ApplicationConfig;
     use crate::core::loader::LoadingResult;
     use crate::core::playlists::PlaylistItem;
-    use crate::core::storage::Storage;
     use crate::core::subtitles::MockSubtitleProvider;
     use crate::core::torrents::TorrentFileInfo;
     use crate::testing::init_logger;
@@ -138,9 +136,9 @@ mod tests {
         init_logger();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(Mutex::new(ApplicationConfig::builder()
+        let settings = Arc::new(ApplicationConfig::builder()
             .storage(temp_path)
-            .build()));
+            .build());
         let movie_details = MovieDetails {
             title: "MyMovieTitle".to_string(),
             imdb_id: "tt112233".to_string(),
@@ -199,9 +197,9 @@ mod tests {
         init_logger();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(Mutex::new(ApplicationConfig::builder()
+        let settings = Arc::new(ApplicationConfig::builder()
             .storage(temp_path)
-            .build()));
+            .build());
         let filename = "MyTIFile";
         let torrent_file_info = TorrentFileInfo {
             filename: filename.to_string(),
@@ -255,9 +253,9 @@ mod tests {
         init_logger();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(Mutex::new(ApplicationConfig::builder()
+        let settings = Arc::new(ApplicationConfig::builder()
             .storage(temp_path)
-            .build()));
+            .build());
         let movie = Box::new(MovieDetails {
             title: "".to_string(),
             imdb_id: "tt112233".to_string(),
@@ -304,9 +302,9 @@ mod tests {
         init_logger();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(Mutex::new(ApplicationConfig::builder()
+        let settings = Arc::new(ApplicationConfig::builder()
             .storage(temp_path)
-            .build()));
+            .build());
         let playlist_item = PlaylistItem {
             url: None,
             title: "".to_string(),
@@ -346,12 +344,9 @@ mod tests {
         init_logger();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(Mutex::new(ApplicationConfig {
-            storage: Storage::from(temp_path),
-            properties: Default::default(),
-            settings: Default::default(),
-            callbacks: Default::default(),
-        }));
+        let settings = Arc::new(ApplicationConfig::builder()
+            .storage(temp_path)
+            .build());
         let data = LoadingData::from(PlaylistItem {
             url: None,
             title: "CancelledItem".to_string(),

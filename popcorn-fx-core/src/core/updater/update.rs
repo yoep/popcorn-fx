@@ -220,7 +220,7 @@ impl Updater {
 /// It then uses the builder to construct an `Updater` instance, which is returned and can be used to check for and install updates.
 #[derive(Default)]
 pub struct UpdaterBuilder {
-    settings: Option<Arc<Mutex<ApplicationConfig>>>,
+    settings: Option<Arc<ApplicationConfig>>,
     insecure: bool,
     platform: Option<Arc<Box<dyn PlatformData>>>,
     data_path: Option<String>,
@@ -230,7 +230,7 @@ pub struct UpdaterBuilder {
 
 impl UpdaterBuilder {
     /// Sets the application settings for the updater.
-    pub fn settings(mut self, settings: Arc<Mutex<ApplicationConfig>>) -> Self {
+    pub fn settings(mut self, settings: Arc<ApplicationConfig>) -> Self {
         self.settings = Some(settings);
         self
     }
@@ -310,7 +310,7 @@ impl Debug for UpdaterBuilder {
 
 #[derive(Debug)]
 struct InnerUpdater {
-    settings: Arc<Mutex<ApplicationConfig>>,
+    settings: Arc<ApplicationConfig>,
     platform: Arc<Box<dyn PlatformData>>,
     /// The client used for polling the information
     client: Client,
@@ -328,7 +328,7 @@ struct InnerUpdater {
 }
 
 impl InnerUpdater {
-    fn new(settings: Arc<Mutex<ApplicationConfig>>, insecure: bool, platform: Arc<Box<dyn PlatformData>>, data_path: &str, callbacks: Vec<UpdateCallback>, runtime: Arc<Runtime>) -> Self {
+    fn new(settings: Arc<ApplicationConfig>, insecure: bool, platform: Arc<Box<dyn PlatformData>>, data_path: &str, callbacks: Vec<UpdateCallback>, runtime: Arc<Runtime>) -> Self {
         let core_callbacks: CoreCallbacks<UpdateEvent> = Default::default();
 
         // add the given callbacks to the initial list
@@ -374,8 +374,8 @@ impl InnerUpdater {
     /// Poll the update channel for a new version.
     async fn poll(&self) -> updater::Result<VersionInfo> {
         trace!("Polling for application information on the update channel");
-        let settings_mutex = self.settings.lock().await;
-        let update_channel = settings_mutex.properties().update_channel();
+        let properties = self.settings.properties();
+        let update_channel = properties.update_channel();
 
         self.update_state_async(UpdateState::CheckingForNewVersion).await;
         trace!("Parsing update channel url {}", update_channel);
@@ -700,7 +700,7 @@ impl InnerUpdater {
                         warn!("Application download link is unavailable, {}", e);
                         false
                     }
-                }
+                };
             }
             warn!("New version {} available, but no installer found for {}", channel_version, platform_identifier.as_str());
         }
@@ -734,7 +734,7 @@ impl InnerUpdater {
                         warn!("Runtime download link is unavailable, {}", e);
                         false
                     }
-                }
+                };
             }
             warn!("New runtime version {} available, but no runtime update found for {}", runtime_version, platform_identifier.as_str());
         }
@@ -808,7 +808,6 @@ mod test {
     use crate::{assert_timeout, assert_timeout_eq};
     use crate::core::config::PopcornProperties;
     use crate::core::platform::{MockDummyPlatformData, PlatformInfo, PlatformType};
-    use crate::core::storage::Storage;
     use crate::core::updater::PatchInfo;
     use crate::testing::{copy_test_file, init_logger, read_temp_dir_file_as_bytes, read_temp_dir_file_as_string, read_test_file_to_bytes, read_test_file_to_string, test_resource_filepath};
 
@@ -1333,18 +1332,16 @@ mod test {
         let filename = "popcorn-time_99.0.0.deb";
         let platform_mock = MockDummyPlatformData::new();
         let platform = Arc::new(Box::new(platform_mock) as Box<dyn PlatformData>);
-        let settings = Arc::new(Mutex::new(ApplicationConfig {
-            storage: Storage::from(temp_path),
-            properties: PopcornProperties {
+        let settings = Arc::new(ApplicationConfig::builder()
+            .storage(temp_path)
+            .properties(PopcornProperties {
                 loggers: Default::default(),
                 update_channel: String::new(),
                 providers: Default::default(),
                 enhancers: Default::default(),
                 subtitle: Default::default(),
-            },
-            settings: Default::default(),
-            callbacks: Default::default(),
-        }));
+            })
+            .build());
         let updater = Updater::builder()
             .settings(settings)
             .platform(platform)
@@ -1591,36 +1588,32 @@ mod test {
         });
     }
 
-    fn create_simple_settings(temp_path: &str) -> Arc<Mutex<ApplicationConfig>> {
-        Arc::new(Mutex::new(ApplicationConfig {
-            storage: Storage::from(temp_path),
-            properties: PopcornProperties {
+    fn create_simple_settings(temp_path: &str) -> Arc<ApplicationConfig> {
+        Arc::new(ApplicationConfig::builder()
+            .storage(temp_path)
+            .properties(PopcornProperties {
                 loggers: Default::default(),
                 update_channel: "http://localhost:8080/update.json".to_string(),
                 providers: Default::default(),
                 enhancers: Default::default(),
                 subtitle: Default::default(),
-            },
-            settings: Default::default(),
-            callbacks: Default::default(),
-        }))
+            })
+            .build())
     }
 
-    fn create_server_and_settings(temp_path: &str) -> (MockServer, Arc<Mutex<ApplicationConfig>>) {
+    fn create_server_and_settings(temp_path: &str) -> (MockServer, Arc<ApplicationConfig>) {
         let server = MockServer::start();
         let update_channel = server.url("");
 
-        (server, Arc::new(Mutex::new(ApplicationConfig {
-            storage: Storage::from(temp_path),
-            properties: PopcornProperties {
+        (server, Arc::new(ApplicationConfig::builder()
+            .storage(temp_path)
+            .properties(PopcornProperties {
                 loggers: Default::default(),
                 update_channel,
                 providers: Default::default(),
                 enhancers: Default::default(),
                 subtitle: Default::default(),
-            },
-            settings: Default::default(),
-            callbacks: Default::default(),
-        })))
+            })
+            .build()))
     }
 }

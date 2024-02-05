@@ -47,7 +47,7 @@ pub struct DefaultTorrentManager {
 }
 
 impl DefaultTorrentManager {
-    pub fn new(settings: Arc<Mutex<ApplicationConfig>>, event_publisher: Arc<EventPublisher>) -> Self {
+    pub fn new(settings: Arc<ApplicationConfig>, event_publisher: Arc<EventPublisher>) -> Self {
         let instance = Self {
             inner: Arc::new(InnerTorrentManager {
                 settings,
@@ -125,7 +125,7 @@ impl TorrentManager for DefaultTorrentManager {
 
 struct InnerTorrentManager {
     /// The settings of the application
-    settings: Arc<Mutex<ApplicationConfig>>,
+    settings: Arc<ApplicationConfig>,
     torrents: Mutex<Vec<Arc<Box<dyn Torrent>>>>,
     resolve_torrent_info_callback: Mutex<ResolveTorrentInfoCallback>,
     resolve_torrent_callback: Mutex<ResolveTorrentCallback>,
@@ -135,8 +135,8 @@ struct InnerTorrentManager {
 impl InnerTorrentManager {
     fn on_player_stopped(&self, event: PlayerStoppedEvent) {
         trace!("Received player stopped event for {:?}", event);
-        let config = block_in_place(self.settings.lock());
-        let torrent_settings = &config.settings.torrent_settings;
+        let settings = self.settings.user_settings();
+        let torrent_settings = &settings.torrent_settings;
 
         if torrent_settings.cleaning_mode == CleaningMode::Watched {
             debug!("Handling player stopped event for {:?}", event);
@@ -313,16 +313,16 @@ impl TorrentManager for InnerTorrentManager {
     }
 
     fn cleanup(&self) {
-        let mutex = block_in_place(self.settings.lock());
-        let settings = mutex.settings.torrent();
+        let settings = self.settings.user_settings();
+        let settings = settings.torrent();
         Self::clean_directory(settings);
     }
 }
 
 impl Drop for InnerTorrentManager {
     fn drop(&mut self) {
-        let mutex = block_in_place(self.settings.lock());
-        let settings = mutex.settings.torrent();
+        let settings = self.settings.user_settings();
+        let settings = settings.torrent();
 
         match settings.cleaning_mode {
             CleaningMode::OnShutdown => Self::clean_directory(settings),
@@ -340,7 +340,6 @@ mod test {
     use utime::set_file_times;
 
     use popcorn_fx_core::core::config::{PopcornSettings, TorrentSettings};
-    use popcorn_fx_core::core::storage::Storage;
     use popcorn_fx_core::core::torrents::TorrentState;
     use popcorn_fx_core::testing::{copy_test_file, init_logger};
 
@@ -457,8 +456,7 @@ mod test {
 
         drop(manager);
 
-        let config = settings.blocking_lock();
-        assert_eq!(true, config.settings.torrent_settings.directory.read_dir().unwrap().next().is_none())
+        assert_eq!(true, settings.user_settings().torrent_settings.directory.read_dir().unwrap().next().is_none())
     }
 
     #[test]
@@ -474,15 +472,13 @@ mod test {
         set_file_times(PathBuf::from(temp_path).join("torrents").join("my-torrent"), modified.timestamp(), modified.timestamp()).unwrap();
         drop(manager);
 
-        let config = settings.blocking_lock();
-        assert_eq!(true, config.settings.torrent_settings.directory.read_dir().unwrap().next().is_none())
+        assert_eq!(true, settings.user_settings().torrent_settings.directory.read_dir().unwrap().next().is_none())
     }
 
-    fn default_config(temp_path: &str, cleaning_mode: CleaningMode) -> Arc<Mutex<ApplicationConfig>> {
-        Arc::new(Mutex::new(ApplicationConfig {
-            storage: Storage::from(temp_path),
-            properties: Default::default(),
-            settings: PopcornSettings {
+    fn default_config(temp_path: &str, cleaning_mode: CleaningMode) -> Arc<ApplicationConfig> {
+        Arc::new(ApplicationConfig::builder()
+            .storage(temp_path)
+            .settings(PopcornSettings {
                 subtitle_settings: Default::default(),
                 ui_settings: Default::default(),
                 server_settings: Default::default(),
@@ -494,8 +490,7 @@ mod test {
                     upload_rate_limit: 0,
                 },
                 playback_settings: Default::default(),
-            },
-            callbacks: Default::default(),
-        }))
+            })
+            .build())
     }
 }

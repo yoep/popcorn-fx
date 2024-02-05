@@ -45,9 +45,8 @@ impl ShowProvider {
     /// # Returns
     ///
     /// A new `ShowProvider` instance.
-    pub fn new(settings: Arc<Mutex<ApplicationConfig>>, cache_manager: Arc<CacheManager>, insecure: bool) -> Self {
-        let mutex = settings.blocking_lock();
-        let uris = available_uris(&mutex, PROVIDER_NAME);
+    pub fn new(settings: Arc<ApplicationConfig>, cache_manager: Arc<CacheManager>, insecure: bool) -> Self {
+        let uris = available_uris(&settings, PROVIDER_NAME);
 
         Self {
             base: Arc::new(Mutex::new(BaseProvider::new(uris, insecure))),

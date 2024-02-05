@@ -355,9 +355,11 @@ pub mod testing {
 
         let start_time = Instant::now();
         let timeout: Duration = $timeout;
+        let mut actual_value;
 
         let result = loop {
-            if $left == $right {
+            actual_value = $right;
+            if $left == actual_value {
                 break true;
             }
             if start_time.elapsed() >= timeout {
@@ -367,10 +369,10 @@ pub mod testing {
         };
 
         if !result {
-            assert!(false, "Assertion timed out after {:?}, expected {} but got {} instead", $timeout, $left, $right);
+            assert!(false, "Assertion timed out after {:?}, expected {} but got {} instead", $timeout, $left, actual_value);
         }
     }};
-        }
+    }
 }
 
 #[cfg(test)]
@@ -380,28 +382,24 @@ mod test {
 
     use httpmock::MockServer;
     use tempfile::TempDir;
-    use tokio::sync::Mutex;
 
     use crate::core::config::{ApplicationConfig, PopcornProperties, ProviderProperties};
-    use crate::core::storage::Storage;
 
     use super::*;
 
-    pub fn start_mock_server(temp_dir: &TempDir) -> (MockServer, Arc<Mutex<ApplicationConfig>>) {
+    pub fn start_mock_server(temp_dir: &TempDir) -> (MockServer, Arc<ApplicationConfig>) {
         let server = MockServer::start();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(Mutex::new(ApplicationConfig {
-            storage: Storage::from(temp_path),
-            properties: PopcornProperties {
+        let settings = Arc::new(ApplicationConfig::builder()
+            .storage(temp_path)
+            .properties(PopcornProperties {
                 loggers: Default::default(),
                 update_channel: String::new(),
                 providers: create_providers(&server),
                 enhancers: Default::default(),
                 subtitle: Default::default(),
-            },
-            settings: Default::default(),
-            callbacks: Default::default(),
-        }));
+            })
+            .build());
 
         (server, settings)
     }

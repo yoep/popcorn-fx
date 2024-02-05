@@ -155,7 +155,7 @@ impl DefaultPlayerManager {
     /// # Returns
     ///
     /// A new `DefaultPlayerManager` instance.
-    pub fn new(application_config: Arc<Mutex<ApplicationConfig>>,
+    pub fn new(application_config: Arc<ApplicationConfig>,
                event_publisher: Arc<EventPublisher>,
                torrent_stream_server: Arc<Box<dyn TorrentStreamServer>>,
                screen_service: Arc<Box<dyn ScreenService>>) -> Self {
@@ -231,7 +231,7 @@ impl Drop for DefaultPlayerManager {
 /// A default implementation of the `PlayerManager` trait.
 #[derive(Debug)]
 struct InnerPlayerManager {
-    application_config: Arc<Mutex<ApplicationConfig>>,
+    application_config: Arc<ApplicationConfig>,
     active_player: Mutex<Option<String>>,
     player_duration: Arc<Mutex<u64>>,
     players: RwLock<Vec<Arc<Box<dyn Player>>>>,
@@ -244,7 +244,7 @@ struct InnerPlayerManager {
 }
 
 impl InnerPlayerManager {
-    fn new(application_config: Arc<Mutex<ApplicationConfig>>,
+    fn new(application_config: Arc<ApplicationConfig>,
            listener_sender: Sender<PlayerEventWrapper>,
            event_publisher: Arc<EventPublisher>,
            torrent_stream_server: Arc<Box<dyn TorrentStreamServer>>,
@@ -355,8 +355,8 @@ impl InnerPlayerManager {
     fn handle_fullscreen_mode(&self) {
         let is_fullscreen_enabled: bool;
         {
-            let settings = block_in_place(self.application_config.lock());
-            is_fullscreen_enabled = settings.user_settings().playback_settings.fullscreen.clone();
+            let settings = self.application_config.user_settings();
+            is_fullscreen_enabled = settings.playback_settings.fullscreen.clone();
         }
 
         debug!("Playback fullscreen mode is {}", is_fullscreen_enabled);
@@ -576,9 +576,9 @@ mod tests {
         let player = Box::new(player) as Box<dyn Player>;
         let torrent_stream_server = MockTorrentStreamServer::new();
         let screen_service = Arc::new(Box::new(MockScreenService::new()) as Box<dyn ScreenService>);
-        let settings = Arc::new(Mutex::new(ApplicationConfig::builder()
+        let settings = Arc::new(ApplicationConfig::builder()
             .storage(temp_path)
-            .build()));
+            .build());
         let manager = DefaultPlayerManager::new(settings, Arc::new(EventPublisher::default()), Arc::new(Box::new(torrent_stream_server)), screen_service);
 
         manager.add_player(player);
@@ -607,9 +607,9 @@ mod tests {
         let event_publisher = Arc::new(EventPublisher::default());
         let torrent_stream_server = MockTorrentStreamServer::new();
         let screen_service = Arc::new(Box::new(MockScreenService::new()) as Box<dyn ScreenService>);
-        let settings = Arc::new(Mutex::new(ApplicationConfig::builder()
+        let settings = Arc::new(ApplicationConfig::builder()
             .storage(temp_path)
-            .build()));
+            .build());
         let manager = DefaultPlayerManager::new(settings, event_publisher.clone(), Arc::new(Box::new(torrent_stream_server)), screen_service);
 
         event_publisher.register(Box::new(move |e| {
@@ -640,9 +640,9 @@ mod tests {
         let event_publisher = Arc::new(EventPublisher::default());
         let torrent_stream_server = MockTorrentStreamServer::new();
         let screen_service = Arc::new(Box::new(MockScreenService::new()) as Box<dyn ScreenService>);
-        let settings = Arc::new(Mutex::new(ApplicationConfig::builder()
+        let settings = Arc::new(ApplicationConfig::builder()
             .storage(temp_path)
-            .build()));
+            .build());
         let manager = DefaultPlayerManager::new(settings, event_publisher.clone(), Arc::new(Box::new(torrent_stream_server)), screen_service);
 
         manager.subscribe(Box::new(move |e| {
@@ -680,9 +680,9 @@ mod tests {
         let player = Box::new(player) as Box<dyn Player>;
         let torrent_stream_server = MockTorrentStreamServer::new();
         let screen_service = Arc::new(Box::new(MockScreenService::new()) as Box<dyn ScreenService>);
-        let settings = Arc::new(Mutex::new(ApplicationConfig::builder()
+        let settings = Arc::new(ApplicationConfig::builder()
             .storage(temp_path)
-            .build()));
+            .build());
         let manager = DefaultPlayerManager::new(settings, Arc::new(EventPublisher::default()), Arc::new(Box::new(torrent_stream_server)), screen_service);
 
         manager.add_player(player);
@@ -707,9 +707,9 @@ mod tests {
         let player2 = Box::new(player2) as Box<dyn Player>;
         let torrent_stream_server = MockTorrentStreamServer::new();
         let screen_service = Arc::new(Box::new(MockScreenService::new()) as Box<dyn ScreenService>);
-        let settings = Arc::new(Mutex::new(ApplicationConfig::builder()
+        let settings = Arc::new(ApplicationConfig::builder()
             .storage(temp_path)
-            .build()));
+            .build());
         let manager = DefaultPlayerManager::new(settings, Arc::new(EventPublisher::default()), Arc::new(Box::new(torrent_stream_server)), screen_service);
 
         manager.add_player(player);
@@ -767,9 +767,9 @@ mod tests {
             .withf(move |handle| handle.clone() == stream_handle)
             .return_const(());
         let screen_service = Arc::new(Box::new(MockScreenService::new()) as Box<dyn ScreenService>);
-        let settings = Arc::new(Mutex::new(ApplicationConfig::builder()
+        let settings = Arc::new(ApplicationConfig::builder()
             .storage(temp_path)
-            .build()));
+            .build());
         let manager = DefaultPlayerManager::new(settings, Arc::new(EventPublisher::default()), Arc::new(Box::new(torrent_stream_server)), screen_service);
 
         let result = manager.add_player(Box::new(player));
@@ -816,7 +816,7 @@ mod tests {
             .returning(move |fullscreen| {
                 tx_screen.send(fullscreen).unwrap();
             });
-        let settings = Arc::new(Mutex::new(ApplicationConfig::builder()
+        let settings = Arc::new(ApplicationConfig::builder()
             .storage(temp_path)
             .settings(PopcornSettings {
                 subtitle_settings: Default::default(),
@@ -829,7 +829,7 @@ mod tests {
                     auto_play_next_episode_enabled: false,
                 },
             })
-            .build()));
+            .build());
         let manager = DefaultPlayerManager::new(settings, Arc::new(EventPublisher::default()), Arc::new(Box::new(torrent_stream_server)), Arc::new(Box::new(screen_service) as Box<dyn ScreenService>));
 
         manager.add_player(Box::new(player));
@@ -857,9 +857,9 @@ mod tests {
         let player = Box::new(player1) as Box<dyn Player>;
         let torrent_stream_server = MockTorrentStreamServer::new();
         let screen_service = Arc::new(Box::new(MockScreenService::new()) as Box<dyn ScreenService>);
-        let settings = Arc::new(Mutex::new(ApplicationConfig::builder()
+        let settings = Arc::new(ApplicationConfig::builder()
             .storage(temp_path)
-            .build()));
+            .build());
         let manager = DefaultPlayerManager::new(settings, Arc::new(EventPublisher::default()), Arc::new(Box::new(torrent_stream_server)), screen_service);
 
         manager.add_player(player);

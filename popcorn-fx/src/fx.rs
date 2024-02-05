@@ -17,7 +17,6 @@ use log4rs::Config;
 use log4rs::config::{Appender, Logger, Root};
 use log4rs::encode::pattern::PatternEncoder;
 use tokio::runtime::Runtime;
-use tokio::sync::{Mutex, MutexGuard};
 
 use popcorn_fx_core::core::block_in_place;
 use popcorn_fx_core::core::cache::CacheManager;
@@ -145,7 +144,7 @@ impl Default for PopcornFxArgs {
 /// ```
 #[repr(C)]
 pub struct PopcornFX {
-    settings: Arc<Mutex<ApplicationConfig>>,
+    settings: Arc<ApplicationConfig>,
     subtitle_provider: Arc<Box<dyn SubtitleProvider>>,
     subtitle_server: Arc<SubtitleServer>,
     subtitle_manager: Arc<SubtitleManager>,
@@ -188,10 +187,10 @@ impl PopcornFX {
         let app_directory_path = args.app_directory.as_str();
         let runtime = Arc::new(Self::new_runtime());
         let event_publisher = Arc::new(EventPublisher::default());
-        let settings = Arc::new(Mutex::new(ApplicationConfig::builder()
+        let settings = Arc::new(ApplicationConfig::builder()
             .storage(app_directory_path)
             .properties(args.properties.clone())
-            .build()));
+            .build());
         let cache_manager = Arc::new(CacheManager::builder()
             .runtime(runtime.clone())
             .storage_path(app_directory_path)
@@ -278,8 +277,8 @@ impl PopcornFX {
     }
 
     /// Retrieve the locked settings of the popcorn FX instance.
-    pub fn settings(&self) -> MutexGuard<ApplicationConfig> {
-        self.settings.blocking_lock()
+    pub fn settings(&self) -> &Arc<ApplicationConfig> {
+        &self.settings
     }
 
     /// The platform service of the popcorn FX instance.
@@ -356,8 +355,7 @@ impl PopcornFX {
     /// This will read the settings from the storage and notify all subscribers of new changes.
     pub fn reload_settings(&mut self) {
         block_in_place(async {
-            let mut mutex = self.settings.lock().await;
-            mutex.reload()
+            self.settings.reload()
         })
     }
 
@@ -380,7 +378,7 @@ impl PopcornFX {
     pub fn media_loader(&self) -> &Arc<Box<dyn MediaLoader>> {
         &self.media_loader
     }
-    
+
     /// Retrieve the screen service of the FX instance.
     pub fn screen_service(&self) -> &Arc<Box<dyn ScreenService>> {
         &self.screen_service
@@ -478,12 +476,12 @@ impl PopcornFX {
             .expect("expected a new runtime")
     }
 
-    fn default_providers(settings: &Arc<Mutex<ApplicationConfig>>, args: &PopcornFxArgs, cache_manager: &Arc<CacheManager>, favorites: &Arc<Box<dyn FavoriteService>>, watched: &Arc<Box<dyn WatchedService>>) -> ProviderManager {
+    fn default_providers(settings: &Arc<ApplicationConfig>, args: &PopcornFxArgs, cache_manager: &Arc<CacheManager>, favorites: &Arc<Box<dyn FavoriteService>>, watched: &Arc<Box<dyn WatchedService>>) -> ProviderManager {
         let movie_provider = Box::new(MovieProvider::new(settings.clone(), cache_manager.clone(), args.insecure));
         let show_provider = Box::new(ShowProvider::new(settings.clone(), cache_manager.clone(), args.insecure));
         let favorites_provider = Box::new(FavoritesProvider::new(favorites.clone(), watched.clone()));
         let thumb_enhancer = Box::new(ThumbEnhancer::new(
-            settings.blocking_lock()
+            settings
                 .properties()
                 .enhancers
                 .get("tvdb")
@@ -591,7 +589,6 @@ mod test {
         mutex.register(Box::new(move |event| {
             tx.send(event).unwrap()
         }));
-        drop(mutex);
 
         popcorn_fx.reload_settings();
         let result = rx.recv_timeout(Duration::from_millis(100)).unwrap();

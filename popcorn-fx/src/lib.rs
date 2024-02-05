@@ -738,10 +738,9 @@ mod test {
 
     pub fn new_instance(temp_path: &str) -> PopcornFX {
         let instance = PopcornFX::new(default_args(temp_path));
-        let mut mutex = instance.settings();
-        mutex.settings.subtitle_settings.directory = PathBuf::from(temp_path).join("subtitles").to_str().unwrap().to_string();
-        mutex.settings.torrent_settings.directory = PathBuf::from(temp_path).join("torrents");
-        drop(mutex);
+        let config = instance.settings();
+        config.user_settings().subtitle_settings.directory = PathBuf::from(temp_path).join("subtitles").to_str().unwrap().to_string();
+        config.user_settings().torrent_settings.directory = PathBuf::from(temp_path).join("torrents");
         instance
     }
 
@@ -919,8 +918,8 @@ mod test {
         };
 
         update_subtitle_settings(&mut instance, SubtitleSettingsC::from(&settings));
-        let mutex = instance.settings();
-        let result = mutex.user_settings().subtitle();
+        let config = instance.settings().user_settings();
+        let result = config.subtitle();
 
         assert_eq!(&settings, result)
     }

@@ -60,8 +60,9 @@ public class TvConfig {
     @ConditionalOnTvMode
     public TvSerieEpisodeActionsComponent tvSerieEpisodeActionsComponent(EventPublisher eventPublisher,
                                                                          SubtitleService subtitleService,
-                                                                         VideoQualityService videoQualityService) {
-        return new TvSerieEpisodeActionsComponent(eventPublisher, subtitleService, videoQualityService);
+                                                                         VideoQualityService videoQualityService,
+                                                                         PlaylistManager playlistManager) {
+        return new TvSerieEpisodeActionsComponent(eventPublisher, subtitleService, videoQualityService, playlistManager);
     }
 
     @Bean

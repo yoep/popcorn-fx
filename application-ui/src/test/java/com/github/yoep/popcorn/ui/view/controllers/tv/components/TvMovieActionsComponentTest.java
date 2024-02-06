@@ -4,7 +4,9 @@ import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
+import com.github.yoep.popcorn.backend.media.providers.models.Images;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
+import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
@@ -51,6 +53,8 @@ class TvMovieActionsComponentTest {
     private DetailsComponentService detailsComponentService;
     @Mock
     private VideoQualityService videoQualityService;
+    @Mock
+    private PlaylistManager playlistManager;
     @Mock
     private URL location;
     @Mock
@@ -149,6 +153,49 @@ class TvMovieActionsComponentTest {
 
         verify(event).consume();
         verify(detailsComponentService).toggleLikedState(media);
+    }
+
+    @Test
+    void testOnSubtitleItemActivated() {
+        var qualityNode = new Button();
+        var subtitleNode = new Button();
+        var subtitle_info = mock(SubtitleInfo.class);
+        var movie = MovieDetails.builder()
+                .images(Images.builder().build())
+                .build();
+        var quality = "720p";
+        var qualityEvent = mock(MouseEvent.class);
+        var subtitleEvent = mock(MouseEvent.class);
+        when(qualityEvent.getSource()).thenReturn(qualityNode);
+        when(subtitleEvent.getSource()).thenReturn(subtitleNode);
+        when(subtitleService.retrieveSubtitles(isA(MovieDetails.class))).thenReturn(new CompletableFuture<>());
+        component.initialize(location, resources);
+
+        eventPublisher.publish(new ShowMovieDetailsEvent(this, movie));
+        WaitForAsyncUtils.waitForFxEvents();
+
+        component.qualities.setItemFactory(e -> {
+            qualityNode.setText(e);
+            return qualityNode;
+        });
+        component.qualities.add(quality);
+        qualityNode.getOnMouseClicked().handle(qualityEvent);
+        WaitForAsyncUtils.waitForFxEvents();
+
+        component.subtitles.setItemFactory(info -> {
+            subtitleNode.setText("Lorem");
+            if (info == subtitle_info) {
+                return subtitleNode;
+            } else {
+                return new Button("Foo");
+            }
+        });
+        component.subtitles.add(subtitle_info);
+        subtitleNode.getOnMouseClicked().handle(subtitleEvent);
+        WaitForAsyncUtils.waitForFxEvents();
+
+        verify(playlistManager).play(movie, quality);
+        verify(subtitleService).retrieveSubtitles(movie);
     }
 
     private void mockSubtitles(MovieDetails media) {

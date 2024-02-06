@@ -38,7 +38,6 @@ public class TvMovieActionsComponent extends AbstractActionsComponent {
 
     private final LocaleText localeText;
     private final DetailsComponentService detailsComponentService;
-    private final PlaylistManager playlistManager;
 
     private MovieDetails media;
 
@@ -53,10 +52,9 @@ public class TvMovieActionsComponent extends AbstractActionsComponent {
 
     public TvMovieActionsComponent(EventPublisher eventPublisher, SubtitleService subtitleService, VideoQualityService videoQualityService,
                                    LocaleText localeText, DetailsComponentService detailsComponentService, PlaylistManager playlistManager) {
-        super(eventPublisher, subtitleService, videoQualityService);
+        super(eventPublisher, subtitleService, videoQualityService, playlistManager);
         this.localeText = localeText;
         this.detailsComponentService = detailsComponentService;
-        this.playlistManager = playlistManager;
     }
 
     @Override

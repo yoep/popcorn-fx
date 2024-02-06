@@ -11,6 +11,7 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
+import lombok.Setter;
 
 import java.util.List;
 import java.util.Map;
@@ -41,6 +42,7 @@ public class AxisItemSelection<T> extends ManageableScrollPane {
     /**
      * Invoked each time an item is activated through user interaction.
      */
+    @Setter
     private Consumer<T> onItemActivated;
 
     private Pane content;
@@ -87,14 +89,6 @@ public class AxisItemSelection<T> extends ManageableScrollPane {
 
     public void setItemFactory(ItemFactory<T> itemFactory) {
         this.itemFactory.set(itemFactory);
-    }
-
-    public Consumer<T> getOnItemActivated() {
-        return onItemActivated;
-    }
-
-    public void setOnItemActivated(Consumer<T> onItemActivated) {
-        this.onItemActivated = onItemActivated;
     }
 
     public double getSpacing() {

@@ -5,6 +5,7 @@ import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
+import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.SerieActionsComponent;
@@ -30,8 +31,8 @@ public class TvSerieEpisodeActionsComponent extends AbstractActionsComponent imp
     @FXML
     Button watchNowButton;
 
-    public TvSerieEpisodeActionsComponent(EventPublisher eventPublisher, SubtitleService subtitleService, VideoQualityService videoQualityService) {
-        super(eventPublisher, subtitleService, videoQualityService);
+    public TvSerieEpisodeActionsComponent(EventPublisher eventPublisher, SubtitleService subtitleService, VideoQualityService videoQualityService, PlaylistManager playlistManager) {
+        super(eventPublisher, subtitleService, videoQualityService, playlistManager);
     }
 
     @Override

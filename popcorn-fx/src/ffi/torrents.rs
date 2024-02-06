@@ -192,7 +192,6 @@ mod test {
     use popcorn_fx_core::core::torrents::{Torrent, TorrentEvent, TorrentFileInfo, TorrentManager};
     use popcorn_fx_core::testing::{copy_test_file, init_logger};
 
-    use crate::ffi::TorrentC;
     use crate::test::{default_args, new_instance};
 
     use super::*;
@@ -233,17 +232,6 @@ mod test {
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(default_args(temp_path));
         let handle = "MyHandle";
-        let torrent = TorrentC {
-            handle: into_c_string(handle.to_string()),
-            filepath: into_c_string("lorem.txt".to_string()),
-            has_byte_callback: has_bytes_callback,
-            has_piece_callback: has_piece_callback,
-            total_pieces: total_pieces_callback,
-            prioritize_bytes: prioritize_bytes_callback,
-            prioritize_pieces: prioritize_pieces_callback,
-            sequential_mode: sequential_mode_callback,
-            torrent_state: torrent_state_callback,
-        };
         let torrent_file_info = TorrentFileInfo {
             filename: "".to_string(),
             file_path: temp_path.to_string(),

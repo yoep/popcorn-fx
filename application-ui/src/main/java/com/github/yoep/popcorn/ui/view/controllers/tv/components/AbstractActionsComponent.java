@@ -2,8 +2,8 @@ package com.github.yoep.popcorn.ui.view.controllers.tv.components;
 
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowDetailsEvent;
-import com.github.yoep.popcorn.backend.media.providers.models.Media;
-import com.github.yoep.popcorn.backend.media.providers.models.MediaTorrentInfo;
+import com.github.yoep.popcorn.backend.media.providers.models.*;
+import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.ui.view.controls.AxisItemSelection;
@@ -28,6 +28,7 @@ public abstract class AbstractActionsComponent implements Initializable {
     protected final EventPublisher eventPublisher;
     protected final SubtitleService subtitleService;
     protected final VideoQualityService videoQualityService;
+    protected final PlaylistManager playlistManager;
 
     private CompletableFuture<List<SubtitleInfo>> subtitleFuture;
 
@@ -57,6 +58,7 @@ public abstract class AbstractActionsComponent implements Initializable {
         subtitles.setOnItemActivated(subtitle -> {
             subtitleOverlay.hide();
             subtitleService.updateSubtitle(subtitle);
+            play();
         });
         subtitles.setItemFactory(item -> new Button(item.getLanguage().getNativeName()));
     }
@@ -84,6 +86,17 @@ public abstract class AbstractActionsComponent implements Initializable {
     protected void updateQualities() {
         qualities.setItems(videoQualityService.getVideoResolutions(getTorrents()));
         updateSubtitles();
+    }
+
+    private void play() {
+        if (getMedia() instanceof MovieDetails movie) {
+            playlistManager.play(movie, qualities.getSelectedItem());
+        } else if (getMedia() instanceof ShowDetails show) {
+            var episode = (Episode) getSubItem();
+            playlistManager.play(show, episode, qualities.getSelectedItem());
+        } else {
+            log.warn("Unable to start playback, unsupported media type {}", getMedia().getClass().getSimpleName());
+        }
     }
 
     private void updateSubtitles() {

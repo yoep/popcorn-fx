@@ -696,8 +696,12 @@ pub extern "C" fn dispose_torrent_collection(collection_set: Box<TorrentCollecti
 #[no_mangle]
 pub extern "C" fn dispose_favorites(favorites: Box<VecFavoritesC>) {
     trace!("Disposing favorite C set {:?}", favorites);
-    drop(from_c_vec(favorites.movies, favorites.movies_len));
-    drop(from_c_vec(favorites.shows, favorites.shows_len));
+    if !favorites.movies.is_null() {
+        drop(from_c_vec(favorites.movies, favorites.movies_len));
+    }
+    if !favorites.shows.is_null() {
+        drop(from_c_vec(favorites.shows, favorites.shows_len));
+    }
 }
 
 #[cfg(test)]
@@ -958,5 +962,33 @@ mod test {
         let subtitle_c = SubtitleC::from(subtitle);
 
         dispose_subtitle(Box::new(subtitle_c))
+    }
+
+    #[test]
+    fn test_dispose_favorites() {
+        init_logger();
+        let movies = vec![MovieOverviewC::from(MovieOverview {
+            title: "Foo".to_string(),
+            imdb_id: "tt112233".to_string(),
+            year: "2013".to_string(),
+            rating: None,
+            images: Default::default(),
+        })];
+        let favorites_set = VecFavoritesC::from(movies, Vec::new());
+
+        dispose_favorites(Box::new(favorites_set));
+
+        let shows = vec![ShowOverviewC::from(ShowOverview {
+            title: "Bar".to_string(),
+            imdb_id: "tt112233".to_string(),
+            tvdb_id: "tt001122".to_string(),
+            year: "2010".to_string(),
+            num_seasons: 3,
+            images: Default::default(),
+            rating: None,
+        })];
+        let favorites_set = VecFavoritesC::from(Vec::new(), shows);
+
+        dispose_favorites(Box::new(favorites_set));
     }
 }

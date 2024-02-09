@@ -52,11 +52,11 @@ impl FavoritesProvider {
     }
 
     fn filter_movies(media: &Box<dyn MediaOverview>, genre: &Genre) -> bool {
-        genre.key().as_str() != FILTER_MOVIES_KEY || media.media_type() == MediaType::Movie
+        genre.key() != FILTER_MOVIES_KEY || media.media_type() == MediaType::Movie
     }
 
     fn filter_shows(media: &Box<dyn MediaOverview>, genre: &Genre) -> bool {
-        genre.key().as_str() != FILTER_SHOWS_KEY || media.media_type() == MediaType::Show
+        genre.key() != FILTER_SHOWS_KEY || media.media_type() == MediaType::Show
     }
 
     fn filter_keywords(media: &Box<dyn MediaOverview>, keywords: &String) -> bool {
@@ -75,7 +75,7 @@ impl FavoritesProvider {
         if initial_ord != Ordering::Equal {
             initial_ord
         } else {
-            return match sort_by.key().as_str() {
+            return match sort_by.key() {
                 SORT_YEAR_KEY => Self::sort_by_year(a, b),
                 SORT_RATING_KEY => Self::sort_by_rating(a, b),
                 SORT_TITLE_KEY => Self::sort_by_title(a, b),

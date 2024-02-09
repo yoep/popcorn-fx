@@ -233,8 +233,8 @@ impl BaseProvider {
         let mut query_params: Vec<(&str, &str)> = vec![];
 
         query_params.push((ORDER_QUERY, ORDER_QUERY_VALUE));
-        query_params.push((GENRE_QUERY, genre.key().as_str()));
-        query_params.push((SORT_QUERY, sort.key().as_str()));
+        query_params.push((GENRE_QUERY, genre.key()));
+        query_params.push((SORT_QUERY, sort.key()));
         query_params.push((KEYWORDS_QUERY, keywords));
 
         match Url::parse_with_params(host.as_str(), &query_params) {

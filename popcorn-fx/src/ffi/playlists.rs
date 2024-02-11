@@ -97,6 +97,24 @@ pub extern "C" fn register_playlist_manager_callback(popcorn_fx: &mut PopcornFX,
     }));
 }
 
+/// Retrieves the playlist from PopcornFX.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to the PopcornFX instance.
+///
+/// # Returns
+///
+/// A CArray of PlaylistItemC representing the playlist.
+#[no_mangle]
+pub extern "C" fn playlist(popcorn_fx: &mut PopcornFX) -> CArray<PlaylistItemC> {
+    trace!("Retrieving playlist from C");
+    let vec: Vec<PlaylistItemC> = popcorn_fx.playlist_manager().playlist().items.into_iter()
+        .map(|e| PlaylistItemC::from(e))
+        .collect();
+    CArray::from(vec)
+}
+
 /// Dispose of a playlist item.
 ///
 /// # Arguments

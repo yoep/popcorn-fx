@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import com.github.spring.boot.javafx.font.controls.Icon?>
+<?import com.github.yoep.popcorn.ui.view.controls.PlaylistControl?>
+<?import javafx.scene.control.Tooltip?>
+<?import javafx.scene.layout.HBox?>
+<HBox xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.github.yoep.player.popcorn.controllers.components.PlayerPlaylistComponent">
+    <PlaylistControl fx:id="playlistControl" styleClass="player-button, playlist">
+        <tooltip>
+            <Tooltip text="%playlist" showDelay="0s"/>
+        </tooltip>
+        <Icon fx:constant="LIST_UL_UNICODE" />
+    </PlaylistControl>
+</HBox>

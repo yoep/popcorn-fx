@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.backend.media;
 
-import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.media.providers.MediaException;
 import com.github.yoep.popcorn.backend.media.providers.models.*;
 import com.sun.jna.Structure;
@@ -20,7 +19,8 @@ public class MediaItem extends Structure implements Closeable {
         @Override
         public void close() {
             super.close();
-            FxLib.INSTANCE.get().dispose_media_item_value(this);
+            // TODO: this is cleaned to early, causing the subtitle fetch to fail
+//            FxLib.INSTANCE.get().dispose_media_item_value(this);
         }
     }
 

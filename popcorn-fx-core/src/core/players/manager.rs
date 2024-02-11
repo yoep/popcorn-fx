@@ -281,7 +281,7 @@ impl InnerPlayerManager {
             }
         }
 
-        if let Some(new_player) = self.active_player.blocking_lock()
+        if let Some(new_player) = block_in_place(self.active_player.lock())
             .as_ref()
             .and_then(|e| self.by_id(e.as_str()))
             .and_then(|e| e.upgrade()) {
@@ -376,12 +376,22 @@ impl PlayerManager for InnerPlayerManager {
 
     fn set_active_player(&self, player_id: &str) {
         if let Some(player) = self.by_id(player_id).and_then(|player| player.upgrade()) {
+            trace!("Setting active player to {}", player_id);
             let old_player_id: Option<String>;
             let player_name = player.name().to_string();
 
             // reduce the lock time as much as possible
             {
-                let mut active_player = self.active_player.blocking_lock();
+                let mut active_player = block_in_place(self.active_player.lock());
+
+                // check the current player id
+                if let Some(active_player) = active_player.as_ref() {
+                    if active_player.as_str() == player_id {
+                        debug!("Active player is already {}", player_id);
+                        return;
+                    }
+                }
+
                 old_player_id = active_player.clone();
                 debug!("Updating active player to {}", player_id);
                 *active_player = Some(player_id.to_string());
@@ -401,6 +411,8 @@ impl PlayerManager for InnerPlayerManager {
                 new_player_id: player_id.to_string(),
                 new_player_name: player_name,
             }));
+
+            info!("Active player has changed to {}", player_id);
         } else {
             warn!("Unable to set {} as active player, player not found", player_id);
         }
@@ -484,7 +496,7 @@ impl PlayerManager for InnerPlayerManager {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::mpsc::channel;
+    use std::sync::mpsc::{channel, RecvTimeoutError};
     use std::time::Duration;
 
     use tempfile::tempdir;
@@ -629,6 +641,48 @@ mod tests {
     }
 
     #[test]
+    fn test_set_active_player_twice() {
+        init_logger();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let player_id = "FooBar654";
+        let mut player = MockPlayer::default();
+        player.expect_id()
+            .return_const(player_id.to_string());
+        player.expect_name()
+            .return_const("FooBar player".to_string());
+        player.expect_add()
+            .return_const(1245i64);
+        let player = Box::new(player) as Box<dyn Player>;
+        let (tx, rx) = channel();
+        let event_publisher = Arc::new(EventPublisher::default());
+        let torrent_stream_server = MockTorrentStreamServer::new();
+        let screen_service = Arc::new(Box::new(MockScreenService::new()) as Box<dyn ScreenService>);
+        let settings = Arc::new(ApplicationConfig::builder()
+            .storage(temp_path)
+            .build());
+        let manager = DefaultPlayerManager::new(settings, event_publisher.clone(), Arc::new(Box::new(torrent_stream_server)), screen_service);
+
+        event_publisher.register(Box::new(move |e| {
+            match &e {
+                Event::PlayerChanged(id) => tx.send(id.clone()).unwrap(),
+                _ => {}
+            }
+
+            Some(e)
+        }), DEFAULT_ORDER);
+        manager.add_player(player);
+        let player = manager.by_id(player_id).expect("expected the player to have been found");
+
+        manager.set_active_player(player.upgrade().unwrap().id());
+        rx.recv_timeout(Duration::from_millis(100)).expect("expected the PlayerChanged event to have been published");
+
+        manager.set_active_player(player.upgrade().unwrap().id());
+        let result = rx.recv_timeout(Duration::from_millis(100));
+        assert_eq!(Err(RecvTimeoutError::Timeout), result, "expected the PlayerChanged to only have been published once");
+    }
+
+    #[test]
     fn test_set_active_player_switch_listener() {
         init_logger();
         let temp_dir = tempdir().unwrap();
@@ -738,6 +792,7 @@ mod tests {
                 url: "".to_string(),
                 title: "".to_string(),
                 thumb: None,
+                background: None,
                 auto_resume_timestamp: None,
                 subtitles_enabled: false,
             },

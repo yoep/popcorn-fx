@@ -13,7 +13,7 @@ import java.io.Closeable;
 import java.util.Optional;
 
 @Data
-@ToString
+@ToString(of = "title")
 @EqualsAndHashCode(exclude = {"parentMedia", "media"}, callSuper = false)
 @NoArgsConstructor
 @Structure.FieldOrder({"url", "title", "caption", "thumb", "quality", "parentMedia", "media", "autoResumeTimestamp", "subtitlesEnabled"})

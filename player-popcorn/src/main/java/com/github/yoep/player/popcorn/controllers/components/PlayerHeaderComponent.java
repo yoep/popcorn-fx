@@ -1,6 +1,5 @@
 package com.github.yoep.player.popcorn.controllers.components;
 
-import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayerStartedEvent;
@@ -11,11 +10,12 @@ import javafx.geometry.HPos;
 import javafx.scene.control.Label;
 import javafx.scene.layout.GridPane;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
 import java.util.ResourceBundle;
 
-@ViewController
+@Slf4j
 @RequiredArgsConstructor
 public class PlayerHeaderComponent implements Initializable {
     static final String VIEW_HEADER_ACTIONS = "components/header-actions.component.fxml";

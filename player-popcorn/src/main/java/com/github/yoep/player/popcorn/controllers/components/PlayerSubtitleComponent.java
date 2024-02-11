@@ -1,6 +1,5 @@
 package com.github.yoep.player.popcorn.controllers.components;
 
-import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.player.popcorn.listeners.PlayerSubtitleListener;
 import com.github.yoep.player.popcorn.messages.MediaMessage;
@@ -19,7 +18,6 @@ import java.util.List;
 import java.util.ResourceBundle;
 
 @Slf4j
-@ViewController
 @RequiredArgsConstructor
 public class PlayerSubtitleComponent implements Initializable {
     private final PlayerSubtitleService subtitleService;

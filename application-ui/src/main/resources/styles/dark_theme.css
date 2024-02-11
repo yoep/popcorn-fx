@@ -1593,3 +1593,25 @@
 }
 
 /* endregion */
+
+/* region Playlist */
+
+.root .playlist-popup,
+.root .playlist-popup .viewport,
+.root .playlist-popup .list-view {
+    -fx-background-color: #17181b;
+}
+
+.root .playlist .playlist-item .title {
+    -fx-font-family: "Open Sans Semibold";
+    -fx-font-size: 1.5em;
+    -fx-text-fill: #fafafa;
+}
+
+.root .playlist .playlist-item .caption {
+    -fx-font-family: "Open Sans Semibold", "Open Sans", sans-serif;
+    -fx-text-fill: #2d75df;
+    -fx-font-size: 1em;
+}
+
+/* endregion */

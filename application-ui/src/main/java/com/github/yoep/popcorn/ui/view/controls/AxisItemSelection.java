@@ -109,6 +109,10 @@ public class AxisItemSelection<T> extends ManageableScrollPane {
         return items.keySet().stream().toList();
     }
 
+    public ObservableMap<T, Node> getObservableItems() {
+        return items;
+    }
+
     public void add(T item) {
         items.put(item, createNewItem(item));
     }

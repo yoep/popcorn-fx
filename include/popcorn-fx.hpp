@@ -1822,6 +1822,17 @@ PlayerC *player_by_id(PopcornFX *popcorn_fx, const char *player_id);
 /// Returns a pointer to a `PlayerSet` containing information about all players managed by PopcornFX.
 PlayerSet *players(PopcornFX *popcorn_fx);
 
+/// Retrieves the playlist from PopcornFX.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to the PopcornFX instance.
+///
+/// # Returns
+///
+/// A CArray of PlaylistItemC representing the playlist.
+CArray<PlaylistItemC> playlist(PopcornFX *popcorn_fx);
+
 /// Retrieve the default poster (placeholder) image data as a C compatible byte array.
 ///
 /// This function returns a pointer to a `ByteArray` struct that contains the data for the default poster placeholder image.

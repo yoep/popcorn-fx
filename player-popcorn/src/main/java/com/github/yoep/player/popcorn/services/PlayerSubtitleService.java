@@ -5,11 +5,6 @@ import com.github.yoep.player.popcorn.listeners.PlaybackListener;
 import com.github.yoep.player.popcorn.listeners.PlayerSubtitleListener;
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
-import com.github.yoep.popcorn.backend.media.providers.MediaException;
-import com.github.yoep.popcorn.backend.media.providers.models.Episode;
-import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
-import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
-import com.github.yoep.popcorn.backend.player.model.MediaPlayRequest;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
@@ -79,26 +74,6 @@ public class PlayerSubtitleService extends AbstractListenerService<PlayerSubtitl
         }
     }
 
-    private void onMediaPlayRequest(MediaPlayRequest request) {
-        var media = request.getMedia();
-
-        if (media instanceof MovieDetails) {
-            var movie = (MovieDetails) request.getMedia();
-            log.trace("Retrieving movie subtitles for {}", movie);
-            subtitleService.retrieveSubtitles(movie).whenComplete(this::handleSubtitlesResponse);
-        } else if (media instanceof ShowDetails) {
-            var show = (ShowDetails) request.getMedia();
-            var episode = request.getSubMediaItem()
-                    .map(e -> (Episode) e)
-                    .orElseThrow(() -> new MediaException("Unable to play request, episode item is unknown"));
-
-            log.trace("Retrieving episode subtitles for {}", episode);
-            subtitleService.retrieveSubtitles(show, episode).whenComplete(this::handleSubtitlesResponse);
-        } else {
-            log.error("Failed to retrieve subtitles, invalid media type {}", media.getClass().getSimpleName());
-        }
-    }
-
     private void handleSubtitlesResponse(final List<SubtitleInfo> subtitles, Throwable throwable) {
         if (throwable == null) {
             log.trace("Available subtitles have been retrieved");
@@ -118,11 +93,7 @@ public class PlayerSubtitleService extends AbstractListenerService<PlayerSubtitl
         return new AbstractPlaybackListener() {
             @Override
             public void onPlay(PlayRequest request) {
-                if (request instanceof MediaPlayRequest mediaRequest) {
-                    onMediaPlayRequest(mediaRequest);
-                } else {
-                    onPlayRequest(request);
-                }
+                onPlayRequest(request);
             }
 
             @Override

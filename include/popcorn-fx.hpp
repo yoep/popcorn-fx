@@ -1010,6 +1010,8 @@ struct PlayRequestC {
   const char *url;
   const char *title;
   const char *thumb;
+  const char *background;
+  const char *quality;
   uint64_t *auto_resume_timestamp;
   bool subtitles_enabled;
 };

@@ -320,6 +320,8 @@ pub struct PlayRequestC {
     pub url: *const c_char,
     pub title: *const c_char,
     pub thumb: *const c_char,
+    pub background: *const c_char,
+    pub quality: *const c_char,
     pub auto_resume_timestamp: *mut u64,
     pub subtitles_enabled: bool,
 }
@@ -328,6 +330,16 @@ impl From<&PlayUrlRequest> for PlayRequestC {
     fn from(value: &PlayUrlRequest) -> Self {
         let thumb = if let Some(thumb) = value.thumbnail() {
             into_c_string(thumb)
+        } else {
+            ptr::null()
+        };
+        let background = if let Some(background) = value.background() {
+            into_c_string(background)
+        } else {
+            ptr::null()
+        };
+        let quality = if let Some(quality) = value.quality() {
+            into_c_string(quality)
         } else {
             ptr::null()
         };
@@ -341,6 +353,8 @@ impl From<&PlayUrlRequest> for PlayRequestC {
             url: into_c_string(value.url.clone()),
             title: into_c_string(value.title.clone()),
             thumb,
+            background,
+            quality,
             auto_resume_timestamp,
             subtitles_enabled: value.subtitles_enabled,
         }
@@ -349,6 +363,21 @@ impl From<&PlayUrlRequest> for PlayRequestC {
 
 impl From<&PlayMediaRequest> for PlayRequestC {
     fn from(value: &PlayMediaRequest) -> Self {
+        let thumb = if let Some(thumb) = value.thumbnail() {
+            into_c_string(thumb)
+        } else {
+            ptr::null()
+        };
+        let background = if let Some(background) = value.background() {
+            into_c_string(background)
+        } else {
+            ptr::null()
+        };
+        let quality = if let Some(quality) = value.quality() {
+            into_c_string(quality)
+        } else {
+            ptr::null()
+        };
         let thumb = if let Some(thumb) = value.thumbnail() {
             into_c_string(thumb)
         } else {
@@ -364,6 +393,8 @@ impl From<&PlayMediaRequest> for PlayRequestC {
             url: into_c_string(value.base.url.clone()),
             title: into_c_string(value.base.title.clone()),
             thumb,
+            background,
+            quality,
             auto_resume_timestamp,
             subtitles_enabled: value.subtitles_enabled(),
         }

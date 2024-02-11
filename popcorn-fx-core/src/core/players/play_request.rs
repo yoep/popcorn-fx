@@ -7,6 +7,7 @@ use mockall::automock;
 
 use crate::core::loader::LoadingData;
 use crate::core::media::MediaIdentifier;
+use crate::core::subtitles::model::SubtitleInfo;
 use crate::core::torrents::TorrentStream;
 
 /// A trait representing a play request for media playback.
@@ -115,6 +116,7 @@ pub struct PlayUrlRequestBuilder {
     thumb: Option<String>,
     background: Option<String>,
     auto_resume_timestamp: Option<u64>,
+    subtitle: Option<SubtitleInfo>,
     subtitles_enabled: bool,
 }
 
@@ -193,35 +195,8 @@ pub struct PlayMediaRequest {
 }
 
 impl PlayMediaRequest {
-    /// Create a new `PlayMediaRequest` with the specified parameters.
-    pub fn new(
-        url: String,
-        title: String,
-        thumb: Option<String>,
-        background: Option<String>,
-        auto_resume_timestamp: Option<u64>,
-        subtitles_enabled: bool,
-        media: Box<dyn MediaIdentifier>,
-        parent_media: Option<Box<dyn MediaIdentifier>>,
-        quality: String,
-        torrent_stream: Weak<Box<dyn TorrentStream>>,
-    ) -> Self {
-        let base = PlayUrlRequest {
-            url,
-            title,
-            thumb,
-            background,
-            auto_resume_timestamp,
-            subtitles_enabled,
-        };
-
-        Self {
-            base,
-            parent_media,
-            media,
-            quality,
-            torrent_stream,
-        }
+    pub fn builder() -> PlayMediaRequestBuilder {
+        PlayMediaRequestBuilder::default()
     }
 }
 
@@ -415,6 +390,7 @@ mod tests {
 
     use crate::core::media::{Episode, Images, ShowOverview};
     use crate::core::playlists::PlaylistItem;
+    use crate::core::subtitles::language::SubtitleLanguage;
     use crate::core::torrents::MockTorrentStream;
 
     use super::*;
@@ -426,6 +402,10 @@ mod tests {
         let thumb = "https://imgur.com/something.jpg";
         let background = "https://imgur.com/background.jpg";
         let auto_resume = 84000u64;
+        let subtitle = SubtitleInfo::new(
+            "tt11224455".to_string(),
+            SubtitleLanguage::English,
+        );
         let expected_result = PlayUrlRequest {
             url: url.to_string(),
             title: title.to_string(),

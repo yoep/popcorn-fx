@@ -124,7 +124,7 @@ impl SubtitleManager {
     ///
     /// `true` if the subtitle is disabled, `false` otherwise.
     pub async fn is_disabled_async(&self) -> bool {
-        *self.disabled_by_user.lock().await
+        self.disabled_by_user.lock().await.clone()
     }
 
     /// Updates the [SubtitleInfo] for the next [Media] item playback.

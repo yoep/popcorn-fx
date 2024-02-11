@@ -10,7 +10,7 @@ use crate::core::loader::{CancellationResult, LoadingData, LoadingError, Loading
 use crate::core::media::{DEFAULT_AUDIO_LANGUAGE, Episode, MediaType, MovieDetails, TorrentInfo};
 
 #[derive(Display)]
-#[display(fmt = "Media torrent utl loading strategy")]
+#[display(fmt = "Media torrent url loading strategy")]
 pub struct MediaTorrentUrlLoadingStrategy {}
 
 impl MediaTorrentUrlLoadingStrategy {

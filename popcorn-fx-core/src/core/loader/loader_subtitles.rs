@@ -14,6 +14,7 @@ use crate::core::subtitles::{SubtitleError, SubtitleManager, SubtitleProvider};
 use crate::core::subtitles::language::SubtitleLanguage;
 use crate::core::subtitles::model::SubtitleInfo;
 
+/// Represents a strategy for loading subtitles.
 #[derive(Display)]
 #[display(fmt = "Subtitles loading strategy")]
 pub struct SubtitlesLoadingStrategy {
@@ -22,6 +23,16 @@ pub struct SubtitlesLoadingStrategy {
 }
 
 impl SubtitlesLoadingStrategy {
+    /// Creates a new `SubtitlesLoadingStrategy` instance.
+    ///
+    /// # Arguments
+    ///
+    /// * `subtitle_provider` - An `Arc` pointer to a `SubtitleProvider` trait object.
+    /// * `subtitle_manager` - An `Arc` pointer to a `SubtitleManager` instance.
+    ///
+    /// # Returns
+    ///
+    /// A new `SubtitlesLoadingStrategy` instance.
     pub fn new(subtitle_provider: Arc<Box<dyn SubtitleProvider>>, subtitle_manager: Arc<SubtitleManager>) -> Self {
         Self {
             subtitle_provider,
@@ -29,6 +40,11 @@ impl SubtitlesLoadingStrategy {
         }
     }
 
+    /// Updates to the default subtitle based on the loading data.
+    ///
+    /// # Arguments
+    ///
+    /// * `data` - The loading data.
     async fn update_to_default_subtitle(&self, data: &LoadingData) {
         debug!("Loading subtitles for {:?}", data);
         let subtitles: subtitles::Result<Vec<SubtitleInfo>>;
@@ -54,6 +70,15 @@ impl SubtitlesLoadingStrategy {
         }
     }
 
+    /// Handles loading subtitles for a movie.
+    ///
+    /// # Arguments
+    ///
+    /// * `movie` - The movie media identifier.
+    ///
+    /// # Returns
+    ///
+    /// A result containing a vector of `SubtitleInfo` if successful, or a `SubtitleError` if an error occurs.
     async fn handle_movie_subtitles(&self, movie: &Box<dyn MediaIdentifier>) -> subtitles::Result<Vec<SubtitleInfo>> {
         trace!("Loading movie subtitles for playlist item");
         return if let Some(movie) = movie.downcast_ref::<MovieDetails>() {
@@ -64,6 +89,16 @@ impl SubtitlesLoadingStrategy {
         };
     }
 
+    /// Handles loading subtitles for an episode.
+    ///
+    /// # Arguments
+    ///
+    /// * `show` - The show media identifier.
+    /// * `episode` - The episode media identifier.
+    ///
+    /// # Returns
+    ///
+    /// A result containing a vector of `SubtitleInfo` if successful, or a `SubtitleError` if an error occurs.
     async fn handle_episode_subtitle(&self, show: &Box<dyn MediaIdentifier>, episode: &Box<dyn MediaIdentifier>) -> subtitles::Result<Vec<SubtitleInfo>> {
         trace!("Loading episode subtitles for playlist item");
         return if let Some(show) = show.downcast_ref::<ShowDetails>() {
@@ -80,6 +115,7 @@ impl SubtitlesLoadingStrategy {
     }
 }
 
+
 impl Debug for SubtitlesLoadingStrategy {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("SubtitleLoadingStrategy")
@@ -92,13 +128,18 @@ impl Debug for SubtitlesLoadingStrategy {
 #[async_trait]
 impl LoadingStrategy for SubtitlesLoadingStrategy {
     async fn process(&self, data: LoadingData, event_channel: Sender<LoadingEvent>, _: CancellationToken) -> loader::LoadingResult {
-        if data.subtitles_enabled.unwrap_or(false) && !self.subtitle_manager.is_disabled_async().await {
-            if self.subtitle_manager.preferred_language() == SubtitleLanguage::None {
-                trace!("Processing subtitle for {:?}", data);
-                event_channel.send(LoadingEvent::StateChanged(LoadingState::RetrievingSubtitles)).unwrap();
-                self.update_to_default_subtitle(&data).await;
+        if data.subtitles_enabled.unwrap_or(false) {
+            trace!("Subtitle manager state {:?}", self.subtitle_manager);
+            if !self.subtitle_manager.is_disabled_async().await {
+                if self.subtitle_manager.preferred_language() == SubtitleLanguage::None {
+                    trace!("Processing subtitle for {:?}", data);
+                    event_channel.send(LoadingEvent::StateChanged(LoadingState::RetrievingSubtitles)).unwrap();
+                    self.update_to_default_subtitle(&data).await;
+                } else {
+                    debug!("Subtitle has already been selected for {:?}", data);
+                }
             } else {
-                debug!("Subtitle has already been selected for {:?}", data);
+                debug!("Subtitle has been disabled by the user for {:?}", data);
             }
         } else {
             debug!("Subtitles have been disabled for {:?}", data);

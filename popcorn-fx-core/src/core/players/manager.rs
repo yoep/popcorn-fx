@@ -794,6 +794,7 @@ mod tests {
                 thumb: None,
                 background: None,
                 auto_resume_timestamp: None,
+                subtitle: None,
                 subtitles_enabled: false,
             },
             parent_media: None,

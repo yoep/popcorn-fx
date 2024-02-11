@@ -83,7 +83,9 @@ public class PlayerSubtitleComponent implements Initializable {
     }
 
     private void onSubtitleChanged(SubtitleInfo subtitleInfo) {
-        subtitleService.updateActiveSubtitle(subtitleInfo);
+        if (languageSelection.getItems().size() > 1) {
+            subtitleService.updateActiveSubtitle(subtitleInfo);
+        }
     }
 
     private void onSubtitleSizeChanged(int pixelChange) {

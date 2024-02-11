@@ -203,12 +203,18 @@ public class SubtitleServiceImpl implements SubtitleService {
 
     @Override
     public void disableSubtitle() {
-        fxLib.disable_subtitle(instance);
+        synchronized (mutex) {
+            log.trace("Disabling subtitle");
+            fxLib.disable_subtitle(instance);
+        }
     }
 
     @Override
     public void reset() {
-        fxLib.reset_subtitle(instance);
+        synchronized (mutex) {
+            log.trace("Resetting the subtitle selection");
+            fxLib.reset_subtitle(instance);
+        }
     }
 
     @Override

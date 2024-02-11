@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 
+import static java.util.Arrays.asList;
 import static org.mockito.Mockito.*;
 
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
@@ -110,6 +111,33 @@ class DesktopMovieActionsComponentTest {
         verify(event).consume();
         verify(playlistManager).play(media, quality);
         verify(playerManager).addListener(isA(PlayerManagerListener.class));
+    }
+
+    @Test
+    void testLanguageSelectionChanged() {
+        var none = SubtitleInfo.builder()
+                .imdbId(null)
+                .language(SubtitleLanguage.NONE)
+                .build();
+        var english = SubtitleInfo.builder()
+                .imdbId("tt1122")
+                .language(SubtitleLanguage.ENGLISH)
+                .build();
+        var german = SubtitleInfo.builder()
+                .imdbId("tt1122")
+                .language(SubtitleLanguage.GERMAN)
+                .build();
+        var media = mock(MovieDetails.class);
+        var languages = asList(none, english, german);
+        when(subtitleService.retrieveSubtitles(isA(MovieDetails.class))).thenReturn(CompletableFuture.completedFuture(languages));
+        when(subtitleService.getDefaultOrInterfaceLanguage(languages)).thenReturn(german);
+        component.initialize(url, resourceBundle);
+        eventPublisher.publish(new ShowMovieDetailsEvent(this, media));
+        WaitForAsyncUtils.waitForFxEvents();
+
+        component.languageSelection.select(english);
+
+        verify(subtitleService).updateSubtitle(english);
     }
 
     @Test

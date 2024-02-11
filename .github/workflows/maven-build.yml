@@ -70,17 +70,19 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: jacoco
+          path: ./application/target/site/jacoco-aggregate/
           merge-multiple: true
       - name: Download Cargo coverage
         uses: actions/download-artifact@v4
         with:
           name: lcov
+          path: ./target/
           merge-multiple: true
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: jacoco.xml,lcov.info
+          files: ./application/target/site/jacoco-aggregate/jacoco.xml,./target/lcov.info
           flags: unittests
           name: codecov-umbrella
           verbose: true
@@ -104,6 +106,7 @@ jobs:
         cache: 'maven'
     - uses: Swatinem/rust-cache@v2
       with:
+        shared-key: "main"
         cache-on-failure: "true"
     - name: Build
       run: |

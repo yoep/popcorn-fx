@@ -15,6 +15,7 @@
         <ColumnConstraints hgrow="ALWAYS"/>
         <ColumnConstraints minWidth="55" halignment="LEFT"/>
         <ColumnConstraints/>
+        <ColumnConstraints/>
         <ColumnConstraints minWidth="42"/>
         <ColumnConstraints minWidth="42"/>
     </columnConstraints>
@@ -44,9 +45,13 @@
     <fx:include fx:id="subtitleSection" source="../../common/components/player-subtitle.component.fxml"
                 GridPane.columnIndex="4" GridPane.rowIndex="0"/>
 
+    <!-- Playlist -->
+    <fx:include fx:id="playlistSection" source="../../common/components/player-playlist.component.fxml"
+                GridPane.columnIndex="5" GridPane.rowIndex="0"/>
+
     <!-- Volume -->
     <Volume fx:id="volumeIcon" styleClass="player-button" cache="true"
-            GridPane.columnIndex="5" GridPane.rowIndex="0">
+            GridPane.columnIndex="6" GridPane.rowIndex="0">
         <tooltip>
             <Tooltip text="%volume" showDelay="0s" />
         </tooltip>
@@ -54,7 +59,7 @@
 
     <!-- Fullscreen -->
     <Icon fx:id="fullscreenIcon" styleClass="player-button" onMouseClicked="#onFullscreenClicked" cache="true"
-          GridPane.columnIndex="6" GridPane.rowIndex="0">
+          GridPane.columnIndex="7" GridPane.rowIndex="0">
         <tooltip>
             <Tooltip text="%toggle_fullscreen" showDelay="0s" />
         </tooltip>

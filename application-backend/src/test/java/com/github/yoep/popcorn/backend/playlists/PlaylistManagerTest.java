@@ -107,4 +107,15 @@ class PlaylistManagerTest {
         assertEquals(thumbnail, playlistItems.get(0).thumb);
         assertEquals(quality, playlistItems.get(0).quality);
     }
+
+    @Test
+    void testPlaylist() {
+        var playlist = mock(Playlist.ByValue.class);
+        when(fxLib.playlist(isA(PopcornFx.class))).thenReturn(playlist);
+
+        var result = playlistManager.playlist();
+
+        assertEquals(playlist, result);
+        verify(fxLib).playlist(instance);
+    }
 }

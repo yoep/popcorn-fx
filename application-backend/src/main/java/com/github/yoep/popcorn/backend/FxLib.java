@@ -236,6 +236,8 @@ public interface FxLib extends Library {
 
     void stop_playlist(PopcornFx instance);
 
+    Playlist.ByValue playlist(PopcornFx instance);
+
     PlayerWrapper active_player(PopcornFx instance);
 
     void set_active_player(PopcornFx instance, String playerId);

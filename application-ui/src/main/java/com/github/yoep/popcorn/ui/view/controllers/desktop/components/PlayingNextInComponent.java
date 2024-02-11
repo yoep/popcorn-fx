@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
+import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.yoep.popcorn.backend.playlists.PlaylistItem;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManagerListener;
@@ -23,6 +24,7 @@ import java.util.Optional;
 import java.util.ResourceBundle;
 
 @Slf4j
+@ViewController
 @RequiredArgsConstructor
 public class PlayingNextInComponent implements Initializable {
     private final ImageService imageService;

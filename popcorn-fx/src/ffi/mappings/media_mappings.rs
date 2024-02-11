@@ -695,8 +695,8 @@ pub struct GenreC {
 impl GenreC {
     pub fn from(genre: Genre) -> Self {
         Self {
-            key: into_c_string(genre.key().clone()),
-            text: into_c_string(genre.text().clone()),
+            key: into_c_string(genre.key().to_string()),
+            text: into_c_string(genre.text().to_string()),
         }
     }
 
@@ -719,8 +719,8 @@ pub struct SortByC {
 impl SortByC {
     pub fn from(sort_by: SortBy) -> Self {
         Self {
-            key: into_c_string(sort_by.key().clone()),
-            text: into_c_string(sort_by.text().clone()),
+            key: into_c_string(sort_by.key().to_string()),
+            text: into_c_string(sort_by.text().to_string()),
         }
     }
 

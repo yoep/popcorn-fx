@@ -65,6 +65,10 @@ public class ImageCover extends AnchorPane {
 
     //region Methods
 
+    public Image getImage() {
+        return imageView.getImage();
+    }
+
     /**
      * Set the image which needs to cover the pane.
      *

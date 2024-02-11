@@ -43,7 +43,7 @@
         </Icon>
         <Icon fx:id="subtitleOptionsButton" focusTraversable="true"
               GridPane.columnIndex="5" GridPane.rowIndex="0">
-            <Icon fx:constant="TH_LIST_UNICODE"/>
+            <Icon fx:constant="ELLIPSIS_H_UNICODE"/>
         </Icon>
 
         <Label fx:id="time" styleClass="time" textAlignment="RIGHT" alignment="CENTER_RIGHT"

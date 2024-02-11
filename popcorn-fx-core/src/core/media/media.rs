@@ -5,7 +5,7 @@ use std::fmt::Formatter;
 
 use derive_more::Display;
 use downcast_rs::{Downcast, DowncastSync, impl_downcast};
-use log::error;
+use log::{error, warn};
 #[cfg(test)]
 use mockall::automock;
 
@@ -81,6 +81,27 @@ pub trait MediaIdentifier: Debug + DowncastSync + Display {
             Some(Box::new(e.clone()) as Box<dyn MediaIdentifier>)
         } else {
             error!("Unable to clone MediaIdentifier, unknown type {:?}", self.type_id());
+            None
+        }
+    }
+
+    /// Converts the `MediaIdentifier` trait object to a `MediaOverview` trait object.
+    ///
+    /// This function attempts to downcast the `MediaIdentifier` trait object into a `MediaOverview` trait object.
+    /// If the type can be downcast to a known concrete type (e.g., `ShowOverview`, `MovieOverview`, etc.),
+    /// it will create a cloned instance of that type and return it as `Some(Box<dyn MediaOverview>)`. If the type
+    /// cannot be downcast or is unknown, it will log a warning and return `None`.
+    fn into_overview(&self) -> Option<Box<dyn MediaOverview>> {
+        if let Some(e) = self.as_any().downcast_ref::<ShowOverview>() {
+            Some(Box::new(e.clone()) as Box<dyn MediaOverview>)
+        } else if let Some(e) = self.as_any().downcast_ref::<MovieOverview>() {
+            Some(Box::new(e.clone()) as Box<dyn MediaOverview>)
+        } else if let Some(e) = self.as_any().downcast_ref::<MovieDetails>() {
+            Some(Box::new(e.clone()) as Box<dyn MediaOverview>)
+        } else if let Some(e) = self.as_any().downcast_ref::<ShowDetails>() {
+            Some(Box::new(e.clone()) as Box<dyn MediaOverview>)
+        } else {
+            warn!("Unable to downcast MediaIdentifier to MediaOverview, unsupported type {:?}", self.type_id());
             None
         }
     }

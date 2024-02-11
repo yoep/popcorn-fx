@@ -1,31 +1,57 @@
-#[derive(Debug, Clone)]
+use derive_more::Display;
+
+/// Represents a genre with a key and text.
+#[derive(Debug, Display, Clone, PartialEq)]
+#[display(fmt = "genre {}", key)]
 pub struct Genre {
+    /// The key of the genre.
     key: String,
-    text: String
+    /// The text description of the genre.
+    text: String,
 }
 
 impl Genre {
-    /// Create a new genre.
+    /// Creates a new `Genre` instance.
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - A String representing the key of the genre.
+    /// * `text` - A String representing the text description of the genre.
+    ///
+    /// # Returns
+    ///
+    /// A new `Genre` instance.
     pub fn new(key: String, text: String) -> Self {
-        Self {
-            key,
-            text
-        }
+        Self { key, text }
     }
 
-    /// Create the "all" genre.
+    /// Creates a `Genre` instance representing "all" genres.
+    ///
+    /// # Returns
+    ///
+    /// A `Genre` instance representing "all" genres.
     pub fn all() -> Self {
         Self {
             key: "all".to_string(),
-            text: "All".to_string()
+            text: "All".to_string(),
         }
     }
 
-    pub fn key(&self) -> &String {
+    /// Retrieves the key of the genre.
+    ///
+    /// # Returns
+    ///
+    /// A reference to the key of the genre.
+    pub fn key(&self) -> &str {
         &self.key
     }
 
-    pub fn text(&self) -> &String {
+    /// Retrieves the text description of the genre.
+    ///
+    /// # Returns
+    ///
+    /// A reference to the text description of the genre.
+    pub fn text(&self) -> &str {
         &self.text
     }
 }

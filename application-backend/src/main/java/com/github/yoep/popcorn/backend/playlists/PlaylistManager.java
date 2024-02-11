@@ -72,6 +72,10 @@ public class PlaylistManager extends AbstractListenerService<PlaylistManagerList
         fxLib.stop_playlist(instance);
     }
 
+    public Playlist playlist() {
+        return fxLib.playlist(instance);
+    }
+
     @Override
     public void callback(PlaylistManagerEvent.ByValue event) {
         try (event) {

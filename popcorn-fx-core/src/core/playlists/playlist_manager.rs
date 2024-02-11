@@ -94,7 +94,7 @@ impl PlaylistManager {
     ///
     /// The current playlist.
     pub fn playlist(&self) -> Playlist {
-        let playlist = self.inner.playlist.blocking_lock();
+        let playlist = block_in_place(self.inner.playlist.lock());
         playlist.iter()
             .cloned()
             .collect()

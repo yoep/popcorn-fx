@@ -6,7 +6,7 @@ use thiserror::Error;
 pub type Result<T> = std::result::Result<T, CacheError>;
 
 /// An error that occurred during the execution of a cache operation.
-#[derive(Debug, Clone, Error)]
+#[derive(Debug, Clone, PartialEq, Error)]
 pub enum CacheExecutionError<T>
     where T: Error {
     /// An error occurred while executing the operation.
@@ -23,8 +23,10 @@ pub enum CacheExecutionError<T>
 /// An error related to cache handling.
 #[derive(Debug, Clone, PartialEq, Error)]
 pub enum CacheError {
+    /// The specified cache data location was not found.
     #[error("cache data location {0} not found")]
     NotFound(String),
+    /// Failed to parse cache data.
     #[error("failed to parse cache data, {0}")]
     Parsing(String),
     /// An IO error occurred while handling cache data.
@@ -32,12 +34,14 @@ pub enum CacheError {
     Io(String),
 }
 
-#[derive(Debug, Clone, Error)]
+/// An error related to cache data parsing.
+#[derive(Debug, Clone, PartialEq, Error)]
 pub enum CacheParserError<T>
     where T: Error {
+    /// An error occurred while executing the operation.
     #[error("an error occurred while executing the operation: {0}")]
     Operation(T),
+    /// An error occurred while parsing the cache data.
     #[error("an error occurred while parsing the cache data, {0}")]
     Parsing(String),
 }
-

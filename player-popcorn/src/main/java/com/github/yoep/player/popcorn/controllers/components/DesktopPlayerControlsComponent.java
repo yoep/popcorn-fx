@@ -42,6 +42,8 @@ public class DesktopPlayerControlsComponent implements Initializable {
     Icon fullscreenIcon;
     @FXML
     Pane subtitleSection;
+    @FXML
+    Pane playlistSection;
 
     //region Methods
 

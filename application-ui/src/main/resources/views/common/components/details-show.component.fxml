@@ -23,7 +23,7 @@
             <RowConstraints valignment="TOP"/>
             <RowConstraints valignment="TOP"/>
             <RowConstraints valignment="TOP"/>
-            <RowConstraints />
+            <RowConstraints/>
             <RowConstraints minHeight="10"/>
             <RowConstraints valignment="TOP" vgrow="ALWAYS"/>
             <RowConstraints valignment="TOP" vgrow="ALWAYS"/>
@@ -76,7 +76,7 @@
         <!-- Actions -->
         <GridPane fx:id="episodeDetails">
             <columnConstraints>
-                <ColumnConstraints/>
+                <ColumnConstraints minWidth="250" hgrow="ALWAYS"/>
                 <ColumnConstraints/>
             </columnConstraints>
             <rowConstraints>
@@ -89,7 +89,7 @@
             <hgap>3</hgap>
 
             <Label fx:id="episodeTitle" styleClass="title"
-                   GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.columnSpan="2"/>
+                   GridPane.columnIndex="0" GridPane.rowIndex="0"/>
             <Label fx:id="episodeSeason" styleClass="metadata"
                    GridPane.columnIndex="0" GridPane.rowIndex="1" GridPane.columnSpan="2"/>
             <Label fx:id="airDate" styleClass="metadata"

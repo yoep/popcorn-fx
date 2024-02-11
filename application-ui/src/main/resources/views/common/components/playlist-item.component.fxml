@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import com.github.yoep.popcorn.ui.view.controls.ImageCover?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.*?>
+<GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+          fx:id="itemPane" styleClass="playlist-item">
+    <columnConstraints>
+        <ColumnConstraints minWidth="50"/>
+        <ColumnConstraints minWidth="100"/>
+    </columnConstraints>
+    <rowConstraints>
+        <RowConstraints/>
+        <RowConstraints/>
+    </rowConstraints>
+    <padding>
+        <Insets topRightBottomLeft="4" />
+    </padding>
+
+    <ImageCover fx:id="thumbnail" coverType="HEIGHT"
+                GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.rowSpan="2"/>
+
+    <Label fx:id="title" styleClass="title"
+           GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+    <Label fx:id="caption" styleClass="caption"
+           GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+</GridPane>

@@ -85,23 +85,36 @@ impl MediaProvider for MovieProvider {
     async fn retrieve(&self, genre: &Genre, sort_by: &SortBy, keywords: &String, page: u32) -> crate::core::media::Result<Vec<Box<dyn MediaOverview>>> {
         let base_arc = &self.base.clone();
         let mut base = base_arc.lock().await;
+        let cache_key = format!("{}-{}-{}-{}", genre, sort_by, keywords, page);
 
-        match base.borrow_mut().retrieve_provider_page::<MovieOverview>(SEARCH_RESOURCE_NAME, genre, sort_by, &keywords, page).await {
-            Ok(e) => {
-                info!("Retrieved a total of {} movies, [{{{}}}]", e.len(), e.iter()
-                .map(|e| e.to_string())
-                .join("}, {"));
-                let movies: Vec<Box<dyn MediaOverview>> = e.into_iter()
-                    .map(|e| Box::new(e) as Box<dyn MediaOverview>)
-                    .collect();
-
-                Ok(movies)
-            }
-            Err(e) => {
-                warn!("Failed to retrieve movie items, {}", e);
-                Err(e)
-            }
-        }
+        self.cache_manager.operation()
+            .name(CACHE_NAME)
+            .key(cache_key)
+            .options(BaseProvider::default_cache_options())
+            .serializer()
+            .execute(async move {
+                match base.borrow_mut().retrieve_provider_page::<MovieOverview>(SEARCH_RESOURCE_NAME, genre, sort_by, &keywords, page).await {
+                    Ok(e) => {
+                        info!("Retrieved a total of {} movies, [{{{}}}]", e.len(), e.iter()
+                            .map(|e| e.to_string())
+                            .join("}, {"));
+                        Ok(e)
+                    }
+                    Err(e) => {
+                        warn!("Failed to retrieve movie items, {}", e);
+                        Err(e)
+                    }
+                }
+            })
+            .await
+            .map(|e| e.into_iter()
+                .map(|e| Box::new(e) as Box<dyn MediaOverview>)
+                .collect())
+            .map_err(|e| match e {
+                CacheExecutionError::Operation(e) => e,
+                CacheExecutionError::Mapping(e) => e,
+                CacheExecutionError::Cache(e) => MediaError::ProviderParsingFailed(e.to_string()),
+            })
     }
 }
 

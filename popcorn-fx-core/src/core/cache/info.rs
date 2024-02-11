@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use chrono::{DateTime, Duration, Local, NaiveDateTime, TimeZone};
+use derive_more::Display;
 use log::{debug, error, trace};
 use serde::{Deserialize, Serialize};
 
@@ -28,7 +29,8 @@ impl CacheInfo {
         let key = Self::normalize(key);
 
         if let Some(entries) = self.entries(name) {
-            trace!("Retrieving cache info of key {}", key);
+            trace!("Cache {} contains the following entries {:?}", name, entries);
+            debug!("Retrieving cache entry key {} from {}", key, name);
             entries.iter()
                 .find(|e| e.key == key)
                 .cloned()
@@ -142,12 +144,13 @@ impl CacheInfo {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExpiredCacheEntry {
-   pub name: String,
-   pub entry: CacheEntry,
+    pub name: String,
+    pub entry: CacheEntry,
 }
 
 /// Cache entry containing information about a cache item.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Display, Clone, PartialEq, Serialize, Deserialize)]
+#[display(fmt = "key: {}, path: {}", key, path)]
 pub struct CacheEntry {
     pub key: String,
     pub path: String,
@@ -369,7 +372,7 @@ mod test {
                         path: "".to_string(),
                         expires_after: 5,
                         created_on: CacheEntry::now_as_string(),
-                    }
+                    },
                 ]),
                 ("ipsum".to_string(), vec![
                     CacheEntry {

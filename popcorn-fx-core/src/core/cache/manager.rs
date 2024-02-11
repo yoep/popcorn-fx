@@ -202,7 +202,7 @@ impl CacheManager {
     /// }
     /// ```
     pub async fn execute_with_mapper<T, E, M, O>(&self, name: &str, key: &str, options: CacheOptions, mapper: M, operation: O) -> Result<T, CacheExecutionError<E>>
-        where T: AsRef<[u8]>,
+        where T: AsRef<[u8]> + From<Vec<u8>>,
               E: Error,
               M: FnOnce(Vec<u8>) -> Result<T, E>,
               O: Future<Output=Result<T, E>> {
@@ -350,16 +350,39 @@ impl InnerCacheManager {
                 .map_err(|e| CacheParserError::Parsing(e.to_string()))
         };
 
-        match self.internal_execute(name, key, options, operation).await {
+        match self.internal_execute(name, key, options.clone(), operation).await {
             Ok(e) => {
                 debug!("Invoking cache mapper for cache {} entry {}", name, key);
                 output_mapping(e).map_err(|e| Self::map_cache_parser_error(e))
             }
-            Err(error) => match error {
-                CacheExecutionError::Operation(e) => Err(Self::map_cache_parser_error(e)),
-                CacheExecutionError::Mapping(e) => Err(Self::map_cache_parser_error(e)),
-                CacheExecutionError::Cache(inner) => Err(CacheExecutionError::Cache(inner)),
-            },
+            Err(error) => {
+                return if let CacheExecutionError::Operation(_) = &error {
+                    warn!("Operation of {} failed, trying to load cached data", name);
+                    let mut options = options;
+                    options.expires_after = Duration::days(90);
+                    self.read(name, key, &options)
+                        .await
+                        .map_err(|e| {
+                            return if let CacheError::NotFound(_) = e {
+                                match error {
+                                    CacheExecutionError::Operation(e) => Self::map_cache_parser_error(e),
+                                    CacheExecutionError::Mapping(e) => Self::map_cache_parser_error(e),
+                                    CacheExecutionError::Cache(inner) => CacheExecutionError::Cache(inner),
+                                }
+                            } else {
+                                CacheExecutionError::Cache(e)
+                            }
+                        })
+                        .and_then(|e| output_mapping(e)
+                            .map_err(|err| CacheExecutionError::Cache(CacheError::Parsing(err.to_string()))))
+                } else {
+                    match error {
+                        CacheExecutionError::Operation(e) => Err(Self::map_cache_parser_error(e)),
+                        CacheExecutionError::Mapping(e) => Err(Self::map_cache_parser_error(e)),
+                        CacheExecutionError::Cache(inner) => Err(CacheExecutionError::Cache(inner)),
+                    }
+                };
+            }
         }
     }
 
@@ -384,39 +407,22 @@ impl InnerCacheManager {
               E: Error,
               O: Future<Output=Result<T, E>> {
         trace!("Executing cache operation for {} with key {}", name, key);
-        let cache = self.cache_info.lock().await;
-        let cache_entry = cache.info(name, key)
-            .filter(|e| !e.is_expired(&options.expires_after));
-        drop(cache);
+        let cache_entry = self.cache_entry(name, key, &options).await;
 
         if let Some(cache_entry) = cache_entry {
-            let cache_data = async {
-                trace!("Retrieving cache entry data of {:?}", cache_entry);
-                match self.storage.options()
-                    .binary(cache_entry.filename())
-                    .read() {
-                    Ok(e) => {
-                        debug!("Cache {} entry {} data has loaded {} cache bytes", name, key, e.len());
-                        Ok(e)
-                    }
-                    Err(e) => {
-                        match e {
-                            StorageError::NotFound(e) => Err(CacheError::NotFound(e)),
-                            _ => Err(CacheError::Io(e.to_string())),
-                        }
-                    }
-                }
-            };
+            debug!("Cache entry found for {}", cache_entry);
             let operation = async {
-                self.execute_operation(name, key, &options, operation).await
+                self.execute_operation(name, key, &options, operation)
+                    .await
                     .map(|e| e.as_ref().to_vec())
             };
 
             match options.cache_type {
-                CacheType::CacheFirst => CacheFirstStrategy::execute(cache_data, operation).await,
-                CacheType::CacheLast => CacheLastStrategy::execute(cache_data, operation).await,
+                CacheType::CacheFirst => CacheFirstStrategy::execute(self.read_entry(cache_entry), operation).await,
+                CacheType::CacheLast => CacheLastStrategy::execute(self.read_entry(cache_entry), operation).await,
             }
         } else {
+            debug!("Cache entry not found for {} {}", name, key);
             self.execute_operation(name, key, &options, operation).await
                 .map(|e| e.as_ref().to_vec())
         }
@@ -437,6 +443,47 @@ impl InnerCacheManager {
             }
             Err(e) => Err(CacheExecutionError::Operation(e))
         }
+    }
+
+    async fn cache_entry(&self, name: &str, key: &str, options: &CacheOptions) -> Option<CacheEntry> {
+        let cache = self.cache_info.lock().await;
+        let cache_entry = cache.info(name, key)
+            .filter(|entry| {
+                trace!("Filtering cache entry {:?} against options {:?}", entry, options);
+                !entry.is_expired(&options.expires_after)
+            });
+
+        cache_entry
+    }
+
+    async fn read(&self, name: &str, key: &str, options: &CacheOptions) -> Result<Vec<u8>, CacheError> {
+        let cache_entry = self.cache_entry(name, key, options).await;
+
+        if let Some(cache_entry) = cache_entry {
+            self.read_entry(cache_entry).await
+        } else {
+            debug!("Unable to read cache entry {} with key {}, cache not found", name, key);
+            Err(CacheError::NotFound(format!("Cache {} not found", name)))
+        }
+    }
+
+    async fn read_entry(&self, cache: CacheEntry) -> Result<Vec<u8>, CacheError> {
+        trace!("Trying to load cached entry {}", cache);
+        self.storage.options()
+            .make_dirs(false)
+            .binary(cache.filename())
+            .read()
+            .map(|data| {
+                debug!("Binary cached data of {} has been loaded", cache);
+                data
+            })
+            .map_err(|e| {
+                debug!("Failed to load cached entry {}, {}", cache, e);
+                match e {
+                    StorageError::NotFound(e) => CacheError::NotFound(e),
+                    _ => CacheError::Io(e.to_string()),
+                }
+            })
     }
 
     async fn store(&self, name: &str, key: &str, expiration: &Duration, data: &[u8]) -> cache::Result<()> {

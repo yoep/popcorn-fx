@@ -91,7 +91,7 @@ impl LoadingStrategy for TorrentInfoLoadingStrategy {
                 .cloned() {
                 url = Some(item_url);
             } else {
-                debug!("Playlist item url is not a magnet, torrent loading is skipped");
+                debug!("Playlist item url {:?} is not a magnet, torrent loading is skipped", data.url);
             }
         }
 

@@ -25,6 +25,12 @@ pub trait PlayRequest: Debug + DowncastSync {
     /// Returns an optional `String` containing the thumbnail URL, or `None` if not available.
     fn thumbnail(&self) -> Option<String>;
 
+    /// Get the URL of the background image associated with the media (if available).
+    /// This image can be shown during the loading of the media stream.
+    ///
+    /// Returns an optional `String` containing the background URL, or `None` if not available.
+    fn background(&self) -> Option<String>;
+
     /// Get the quality information of the media (if available).
     ///
     /// Returns an optional `String` containing quality information, or `None` if not available.
@@ -51,6 +57,8 @@ pub struct PlayUrlRequest {
     pub title: String,
     /// The URL of the thumbnail associated with the media (if available).
     pub thumb: Option<String>,
+    /// The URL of the background image associated with the media (if available).
+    pub background: Option<String>,
     /// The auto-resume timestamp for media playback (if available).
     pub auto_resume_timestamp: Option<u64>,
     /// Indicates whether subtitles are enabled for the media playback.
@@ -69,6 +77,10 @@ impl PlayRequest for PlayUrlRequest {
 
     fn thumbnail(&self) -> Option<String> {
         self.thumb.clone()
+    }
+
+    fn background(&self) -> Option<String> {
+        self.background.clone()
     }
 
     fn quality(&self) -> Option<String> {
@@ -101,6 +113,7 @@ pub struct PlayUrlRequestBuilder {
     url: Option<String>,
     title: Option<String>,
     thumb: Option<String>,
+    background: Option<String>,
     auto_resume_timestamp: Option<u64>,
     subtitles_enabled: bool,
 }
@@ -129,6 +142,12 @@ impl PlayUrlRequestBuilder {
         self
     }
 
+    /// Sets the URL of the background associated with the media.
+    pub fn background(mut self, background: &str) -> Self {
+        self.background = Some(background.to_string());
+        self
+    }
+
     /// Sets the auto-resume timestamp for media playback.
     pub fn auto_resume_timestamp(mut self, auto_resume_timestamp: u64) -> Self {
         self.auto_resume_timestamp = Some(auto_resume_timestamp);
@@ -145,12 +164,13 @@ impl PlayUrlRequestBuilder {
     ///
     /// # Panics
     ///
-    /// Panics if the required field (`url`) is not provided.
+    /// Panics if the required fields (`url`, `title`) is not provided.
     pub fn build(self) -> PlayUrlRequest {
         PlayUrlRequest {
             url: self.url.expect("url has not been set"),
             title: self.title.expect("title has not been set"),
             thumb: self.thumb,
+            background: self.background,
             auto_resume_timestamp: self.auto_resume_timestamp,
             subtitles_enabled: self.subtitles_enabled,
         }
@@ -178,6 +198,7 @@ impl PlayMediaRequest {
         url: String,
         title: String,
         thumb: Option<String>,
+        background: Option<String>,
         auto_resume_timestamp: Option<u64>,
         subtitles_enabled: bool,
         media: Box<dyn MediaIdentifier>,
@@ -189,6 +210,7 @@ impl PlayMediaRequest {
             url,
             title,
             thumb,
+            background,
             auto_resume_timestamp,
             subtitles_enabled,
         };
@@ -226,6 +248,10 @@ impl PlayRequest for PlayMediaRequest {
         self.base.thumbnail()
     }
 
+    fn background(&self) -> Option<String> {
+        self.base.background()
+    }
+
     fn quality(&self) -> Option<String> {
         Some(self.quality.clone())
     }
@@ -244,11 +270,15 @@ impl From<LoadingData> for PlayMediaRequest {
         let mut builder = PlayMediaRequestBuilder::builder()
             .url(value.url.expect("expected a url to have been present").as_str())
             .title(value.title.expect("expected a title to have been present").as_str())
-            .media(value.media.expect("expected a media item to have been present"))
             .subtitles_enabled(value.subtitles_enabled.unwrap_or(false));
 
         if let Some(e) = value.thumb {
             builder = builder.thumb(e.as_str());
+        }
+        if let Some(media_identifier) = value.media.as_ref() {
+            if let Some(media) = media_identifier.into_overview() {
+                builder = builder.background(media.images().fanart());
+            }
         }
         if let Some(e) = value.auto_resume_timestamp {
             builder = builder.auto_resume_timestamp(e);
@@ -263,7 +293,9 @@ impl From<LoadingData> for PlayMediaRequest {
             builder = builder.torrent_stream(e);
         }
 
-        builder.build()
+        builder
+            .media(value.media.expect("expected a media item to have been present"))
+            .build()
     }
 }
 
@@ -273,6 +305,7 @@ pub struct PlayMediaRequestBuilder {
     url: Option<String>,
     title: Option<String>,
     thumb: Option<String>,
+    background: Option<String>,
     auto_resume_timestamp: Option<u64>,
     subtitles_enabled: bool,
     media: Option<Box<dyn MediaIdentifier>>,
@@ -302,6 +335,12 @@ impl PlayMediaRequestBuilder {
     /// Sets the URL of the thumbnail associated with the media.
     pub fn thumb(mut self, thumb: &str) -> Self {
         self.thumb = Some(thumb.to_string());
+        self
+    }
+
+    /// Sets the URL of the background associated with the media.
+    pub fn background(mut self, background: &str) -> Self {
+        self.background = Some(background.to_string());
         self
     }
 
@@ -355,6 +394,7 @@ impl PlayMediaRequestBuilder {
             url: self.url.unwrap(),
             title: self.title.unwrap(),
             thumb: self.thumb,
+            background: self.background,
             auto_resume_timestamp: self.auto_resume_timestamp,
             subtitles_enabled: self.subtitles_enabled,
         };
@@ -373,7 +413,7 @@ impl PlayMediaRequestBuilder {
 mod tests {
     use std::sync::Arc;
 
-    use crate::core::media::{Episode, ShowOverview};
+    use crate::core::media::{Episode, Images, ShowOverview};
     use crate::core::playlists::PlaylistItem;
     use crate::core::torrents::MockTorrentStream;
 
@@ -384,11 +424,13 @@ mod tests {
         let url = "https://localhost:8054/my-video.mp4";
         let title = "DolorEsta";
         let thumb = "https://imgur.com/something.jpg";
+        let background = "https://imgur.com/background.jpg";
         let auto_resume = 84000u64;
         let expected_result = PlayUrlRequest {
             url: url.to_string(),
             title: title.to_string(),
             thumb: Some(thumb.to_string()),
+            background: Some(background.to_string()),
             auto_resume_timestamp: Some(auto_resume),
             subtitles_enabled: true,
         };
@@ -397,6 +439,7 @@ mod tests {
             .url(url)
             .title(title)
             .thumb(thumb)
+            .background(background)
             .auto_resume_timestamp(auto_resume)
             .subtitles_enabled(true)
             .build();
@@ -429,6 +472,7 @@ mod tests {
             url: url.to_string(),
             title: title.to_string(),
             thumb: None,
+            background: None,
             auto_resume_timestamp: Some(auto_resume),
             subtitles_enabled: false,
         };
@@ -470,6 +514,7 @@ mod tests {
                 url: url.to_string(),
                 title: title.to_string(),
                 thumb: Some(thumb.to_string()),
+                background: None,
                 auto_resume_timestamp: None,
                 subtitles_enabled: false,
             },
@@ -498,13 +543,16 @@ mod tests {
         let title = "FooBar";
         let subtitles_enabled = true;
         let quality = "1080p";
+        let background = "MyBackgroundUri";
         let media = ShowOverview {
             imdb_id: "tt123456".to_string(),
             tvdb_id: "tt200020".to_string(),
             title: "MyTitle".to_string(),
             year: "2016".to_string(),
             num_seasons: 5,
-            images: Default::default(),
+            images: Images::builder()
+                .fanart(background)
+                .build(),
             rating: None,
         };
         let item = PlaylistItem {
@@ -528,6 +576,7 @@ mod tests {
                 url: url.to_string(),
                 title: title.to_string(),
                 thumb: None,
+                background: Some(background.to_string()),
                 auto_resume_timestamp: None,
                 subtitles_enabled,
             },

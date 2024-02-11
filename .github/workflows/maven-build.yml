@@ -34,7 +34,7 @@ jobs:
           path: ./application/target/site/jacoco-aggregate/jacoco.xml
           retention-days: 2
 
-  test-rust:
+  test-cargo:
     runs-on: ubuntu-latest
 
     steps:

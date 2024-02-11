@@ -25,7 +25,6 @@ jobs:
           cache: 'maven'
       - name: Test
         run: |
-          sudo apt install libdbus-1-dev pkg-config
           xvfb-run -a make test-java
       - name: 'Upload Coverage'
         uses: actions/upload-artifact@v4
@@ -47,7 +46,8 @@ jobs:
           cache-on-failure: "true"
       - name: Test
         run: |
-         make test-cargo
+          sudo apt install libdbus-1-dev pkg-config
+          make test-cargo
       - name: 'Upload Coverage'
         uses: actions/upload-artifact@v4
         with:
@@ -83,6 +83,8 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    needs:
+      - test-coverage
 
     steps:
     - uses: actions/checkout@v2
@@ -100,4 +102,5 @@ jobs:
         cache-on-failure: "true"
     - name: Build
       run: |
+        sudo apt install libdbus-1-dev pkg-config
         make build

@@ -640,7 +640,7 @@ mod tests {
         let mut torrent_stream = MockTorrentStream::new();
         torrent_stream.expect_stream_handle()
             .times(1)
-            .return_const(handle);
+            .return_const(handle.clone());
         let torrent_stream = Arc::new(Box::new(torrent_stream) as Box<dyn TorrentStream>);
         let movie = MovieOverview {
             title: "".to_string(),
@@ -664,6 +664,6 @@ mod tests {
         assert_eq!(title.to_string(), from_c_string(result.title));
         assert_eq!(thumb.to_string(), from_c_string(result.thumb));
         assert_eq!(background.to_string(), from_c_string(result.background));
-        assert_eq!(handle.value(), result.stream_handle as i64);
+        assert_eq!(handle.value(), from_c_owned(result.stream_handle));
     }
 }

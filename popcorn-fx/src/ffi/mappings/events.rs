@@ -1,15 +1,15 @@
-use std::{mem, ptr};
 use std::os::raw::c_char;
+use std::ptr;
 
 use log::trace;
 
-use popcorn_fx_core::{from_c_into_boxed, from_c_owned, from_c_string, into_c_owned, into_c_string};
-use popcorn_fx_core::core::events::{Event, PlayerChangedEvent, PlayerStartedEvent, PlayerStoppedEvent};
+use popcorn_fx_core::{from_c_owned, from_c_string, into_c_owned, into_c_string};
+use popcorn_fx_core::core::events::{Event, PlayerChangedEvent, PlayerStartedEvent};
 use popcorn_fx_core::core::playback::PlaybackState;
 use popcorn_fx_core::core::players::PlayerChange;
 use popcorn_fx_core::core::torrents::TorrentInfo;
 
-use crate::ffi::{MediaItemC, TorrentInfoC};
+use crate::ffi::TorrentInfoC;
 
 /// A type alias for a C-compatible callback function that takes an `EventC` parameter.
 ///
@@ -27,7 +27,7 @@ pub enum EventC {
     /// Invoked when the player playback has started for a new media item
     PlayerStarted(PlayerStartedEventC),
     /// Invoked when the player is being stopped
-    PlayerStopped(PlayerStoppedEventC),
+    PlayerStopped,
     /// Invoked when the playback state is changed
     PlaybackStateChanged(PlaybackState),
     /// Invoked when the watch state of an item is changed
@@ -43,112 +43,36 @@ pub enum EventC {
     ClosePlayer,
 }
 
+impl EventC {
+    pub fn into_event(self) -> Option<Event> {
+        trace!("Converting from C event {:?}", self);
+        match self {
+            EventC::PlayerChanged(e) => Some(Event::PlayerChanged(PlayerChangedEvent::from(e))),
+            EventC::PlayerStarted(e) => Some(Event::PlayerStarted(PlayerStartedEvent::from(e))),
+            EventC::PlaybackStateChanged(new_state) => Some(Event::PlaybackStateChanged(new_state)),
+            EventC::WatchStateChanged(id, state) => Some(Event::WatchStateChanged(from_c_string(id), state)),
+            EventC::LoadingStarted => Some(Event::LoadingStarted),
+            EventC::LoadingCompleted => Some(Event::LoadingCompleted),
+            EventC::TorrentDetailsLoaded(e) => Some(Event::TorrentDetailsLoaded(TorrentInfo::from(e))),
+            EventC::ClosePlayer => Some(Event::ClosePlayer),
+            _ => None,
+        }
+    }
+}
+
 impl From<Event> for EventC {
     fn from(value: Event) -> Self {
         trace!("Converting Event to C event for {:?}", value);
         match value {
             Event::PlayerChanged(e) => EventC::PlayerChanged(PlayerChangedEventC::from(e)),
             Event::PlayerStarted(e) => EventC::PlayerStarted(PlayerStartedEventC::from(e)),
-            Event::PlayerStopped(e) => EventC::PlayerStopped(PlayerStoppedEventC::from(e)),
+            Event::PlayerStopped(_) => EventC::PlayerStopped,
             Event::PlaybackStateChanged(e) => EventC::PlaybackStateChanged(e),
             Event::WatchStateChanged(id, state) => EventC::WatchStateChanged(into_c_string(id), state),
             Event::LoadingStarted => EventC::LoadingStarted,
             Event::LoadingCompleted => EventC::LoadingCompleted,
             Event::TorrentDetailsLoaded(e) => EventC::TorrentDetailsLoaded(TorrentInfoC::from(e)),
             Event::ClosePlayer => EventC::ClosePlayer,
-        }
-    }
-}
-
-impl From<EventC> for Event {
-    fn from(value: EventC) -> Self {
-        trace!("Converting from C event {:?}", value);
-        match value {
-            EventC::PlayerChanged(e) => Event::PlayerChanged(PlayerChangedEvent::from(e)),
-            EventC::PlayerStarted(e) => Event::PlayerStarted(PlayerStartedEvent::from(e)),
-            EventC::PlayerStopped(event_c) => Event::PlayerStopped(PlayerStoppedEvent::from(event_c)),
-            EventC::PlaybackStateChanged(new_state) => Event::PlaybackStateChanged(new_state),
-            EventC::WatchStateChanged(id, state) => Event::WatchStateChanged(from_c_string(id), state),
-            EventC::LoadingStarted => Event::LoadingStarted,
-            EventC::LoadingCompleted => Event::LoadingCompleted,
-            EventC::TorrentDetailsLoaded(e) => Event::TorrentDetailsLoaded(TorrentInfo::from(e)),
-            EventC::ClosePlayer => Event::ClosePlayer,
-        }
-    }
-}
-
-/// The player stopped event which indicates a video playback has been stopped.
-/// It contains the last known information of the video playback right before it was stopped.
-#[repr(C)]
-#[derive(Debug, Clone)]
-pub struct PlayerStoppedEventC {
-    /// The playback url that was being played
-    pub url: *const c_char,
-    /// The last known video time of the player in millis
-    pub time: *mut u64,
-    /// The duration of the video playback in millis
-    pub duration: *mut u64,
-    /// The optional media item that was being played
-    pub media: *mut MediaItemC,
-}
-
-impl From<PlayerStoppedEvent> for PlayerStoppedEventC {
-    fn from(value: PlayerStoppedEvent) -> Self {
-        let time = if let Some(e) = value.time {
-            into_c_owned(e)
-        } else {
-            ptr::null_mut()
-        };
-        let duration = if let Some(e) = value.duration {
-            into_c_owned(e)
-        } else {
-            ptr::null_mut()
-        };
-        let media = if let Some(media) = value.media {
-            into_c_owned(MediaItemC::from(media))
-        } else {
-            ptr::null_mut()
-        };
-
-        Self {
-            url: into_c_string(value.url),
-            time,
-            duration,
-            media,
-        }
-    }
-}
-
-impl From<PlayerStoppedEventC> for PlayerStoppedEvent {
-    fn from(value: PlayerStoppedEventC) -> Self {
-        trace!("Converting PlayerStoppedEvent from C for {:?}", value);
-        let media = if !value.media.is_null() {
-            trace!("Converting MediaItem from C for {:?}", value.media);
-            let media_item = from_c_into_boxed(value.media);
-            let identifier = media_item.as_identifier();
-            mem::forget(media_item);
-            identifier
-        } else {
-            None
-        };
-        let time = if !value.time.is_null() {
-            trace!("Converting PlayerStoppedEventC.time from C for {:?}", value.time);
-            Some(value.time as u64)
-        } else {
-            None
-        };
-        let duration = if !value.duration.is_null() {
-            trace!("Converting PlayerStoppedEventC.duration from C for {:?}", value.duration);
-            Some(value.duration as u64)
-        } else {
-            None
-        };
-
-        PlayerStoppedEvent {
-            url: from_c_string(value.url),
-            media,
-            time,
-            duration,
         }
     }
 }
@@ -287,43 +211,17 @@ impl From<PlayerStartedEventC> for PlayerStartedEvent {
 mod test {
     use std::ptr;
 
-    use popcorn_fx_core::{into_c_owned, into_c_string};
-    use popcorn_fx_core::core::media::MovieOverview;
+    use popcorn_fx_core::into_c_string;
     use popcorn_fx_core::testing::init_logger;
+
+    use crate::ffi::MediaItemC;
 
     use super::*;
 
     #[test]
-    fn test_from_player_stopped_event() {
-        let id = "tt11224455";
-        let url = "http://localhost/my-video.mkv";
-        let movie = MovieOverview::new(
-            "Lorem ipsum".to_string(),
-            id.to_string(),
-            "2022".to_string(),
-        );
-        let time = 20000;
-        let duration = 1800000;
-        let event = PlayerStoppedEventC {
-            url: into_c_string(url.to_string()),
-            media: into_c_owned(MediaItemC::from(movie.clone())),
-            time: 20000 as *const i64,
-            duration: 1800000 as *const i64,
-        };
-
-        let result = PlayerStoppedEvent::from(event);
-
-        assert_eq!(url, result.url());
-        // TODO: enable once memory issues are fixed
-        // assert_eq!(id, result.media().expect("expected a media item").imdb_id());
-        assert_eq!(Some(&time), result.time());
-        assert_eq!(Some(&duration), result.duration());
-    }
-
-    #[test]
-    fn test_from_event_c_to_event_player_stopped() {
+    fn test_from_event_c_to_event() {
         // Create a PlayerStoppedEventC instance for testing
-        let url = into_c_string("http://example.com/video.mp4".to_string());
+        let url = into_c_string("https://example.com/video.mp4".to_string());
         let time = 1000;
         let duration = 5000;
         let media_item_c = Box::new(MediaItemC {
@@ -333,33 +231,19 @@ mod test {
             show_details: ptr::null_mut(),
             episode: ptr::null_mut(),
         });
-        let player_stopped_event_c = PlayerStoppedEventC {
-            url,
-            time: time as *const i64,
-            duration: duration as *const i64,
-            media: Box::into_raw(media_item_c),
-        };
 
         // Convert the PlayerStoppedEventC instance to an Event instance
-        let event_c = EventC::PlayerStopped(player_stopped_event_c);
-        let event = Event::from(event_c);
+        let event = EventC::ClosePlayer.into_event().unwrap();
 
         // Verify that the conversion was successful
-        match event {
-            Event::PlayerStopped(player_stopped_event) => {
-                assert_eq!(player_stopped_event.time, Some(1000u64));
-                assert_eq!(player_stopped_event.duration, Some(5000u64));
-                assert!(player_stopped_event.media.is_none(), "expected no media item");
-            }
-            _ => panic!("Expected PlayerStopped event"),
-        }
+        assert_eq!(Event::ClosePlayer, event);
     }
 
     #[test]
     fn test_from_playback_state_changed() {
         init_logger();
 
-        if let Event::PlaybackStateChanged(state) = Event::from(EventC::PlaybackStateChanged(PlaybackState::BUFFERING)) {
+        if let Event::PlaybackStateChanged(state) = EventC::PlaybackStateChanged(PlaybackState::BUFFERING).into_event().unwrap() {
             assert_eq!(PlaybackState::BUFFERING, state)
         } else {
             assert!(false, "expected Event::PlaybackStateChanged")

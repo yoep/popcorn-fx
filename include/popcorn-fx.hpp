@@ -532,19 +532,6 @@ struct PlayerStartedEventC {
   bool subtitles_enabled;
 };
 
-/// The player stopped event which indicates a video playback has been stopped.
-/// It contains the last known information of the video playback right before it was stopped.
-struct PlayerStoppedEventC {
-  /// The playback url that was being played
-  const char *url;
-  /// The last known video time of the player in millis
-  const int64_t *time;
-  /// The duration of the video playback in millis
-  const int64_t *duration;
-  /// The optional media item that was being played
-  MediaItemC *media;
-};
-
 /// A C-compatible struct representing torrent file information.
 struct TorrentFileInfoC {
   /// A pointer to a null-terminated C string representing the filename.
@@ -614,10 +601,6 @@ struct EventC {
     PlayerStartedEventC _0;
   };
 
-  struct PlayerStopped_Body {
-    PlayerStoppedEventC _0;
-  };
-
   struct PlaybackStateChanged_Body {
     PlaybackState _0;
   };
@@ -635,7 +618,6 @@ struct EventC {
   union {
     PlayerChanged_Body player_changed;
     PlayerStarted_Body player_started;
-    PlayerStopped_Body player_stopped;
     PlaybackStateChanged_Body playback_state_changed;
     WatchStateChanged_Body watch_state_changed;
     TorrentDetailsLoaded_Body torrent_details_loaded;
@@ -1042,7 +1024,7 @@ struct PlayRequestC {
   uint64_t *auto_resume_timestamp;
   /// The stream handle pointer of the play request.
   /// This handle can be used to retrieve more information about the underlying stream.
-  const int64_t *stream_handle;
+  int64_t *stream_handle;
   /// Indicates whether subtitles are enabled for the media.
   bool subtitles_enabled;
 };

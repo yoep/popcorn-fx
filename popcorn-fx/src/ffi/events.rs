@@ -1,6 +1,6 @@
 use log::trace;
 
-use popcorn_fx_core::core::events::{Event, LOWEST_ORDER};
+use popcorn_fx_core::core::events::LOWEST_ORDER;
 
 use crate::ffi::{EventC, EventCCallback};
 use crate::PopcornFX;
@@ -12,11 +12,12 @@ use crate::PopcornFX;
 #[no_mangle]
 pub extern "C" fn publish_event(popcorn_fx: &mut PopcornFX, event: EventC) {
     trace!("Handling EventPublisher bridge event of C for {:?}", event);
-    let event = Event::from(event);
-    let event_publisher = popcorn_fx.event_publisher().clone();
-    popcorn_fx.runtime().spawn(async move {
-        event_publisher.publish(event);
-    });
+    if let Some(event) = event.into_event() {
+        let event_publisher = popcorn_fx.event_publisher().clone();
+        popcorn_fx.runtime().spawn(async move {
+            event_publisher.publish(event);
+        });
+    }
 }
 
 /// Register an event callback with the PopcornFX event publisher.
@@ -57,58 +58,50 @@ mod test {
     use std::sync::mpsc::channel;
     use std::time::Duration;
 
+    use log::info;
     use tempfile::tempdir;
 
-    use popcorn_fx_core::{into_c_owned, into_c_string};
-    use popcorn_fx_core::core::events::HIGHEST_ORDER;
-    use popcorn_fx_core::core::media::{Images, MovieOverview};
+    use popcorn_fx_core::core::events::DEFAULT_ORDER;
+    use popcorn_fx_core::into_c_string;
     use popcorn_fx_core::testing::init_logger;
 
-    use crate::ffi::{CArray, MediaItemC, PlayerStoppedEventC, TorrentInfoC};
+    use crate::ffi::{CArray, TorrentInfoC};
     use crate::test::default_args;
 
     use super::*;
 
+    extern "C" fn event_callback(event: EventC) {
+        info!("Event callback received {:?}", event);
+    }
+
     #[test]
-    fn test_handle_player_stopped_event() {
+    fn test_publish() {
         init_logger();
-        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let (tx, rx) = channel();
-        let url = "https://localhost:8090/dummy.mp4";
-        let movie = MovieOverview {
-            title: "MyMovie".to_string(),
-            imdb_id: "tt00011123".to_string(),
-            year: "2015".to_string(),
-            rating: None,
-            images: Images {
-                poster: "https://image".to_string(),
-                fanart: "https://image".to_string(),
-                banner: "https://image".to_string(),
-            },
-        };
         let mut instance = PopcornFX::new(default_args(temp_path));
-        let event = EventC::PlayerStopped(PlayerStoppedEventC {
-            url: into_c_string(url.to_string()),
-            time: 20000 as *const i64,
-            duration: 25000 as *const i64,
-            media: into_c_owned(MediaItemC::from(movie)),
-        });
 
         instance.event_publisher().register(Box::new(move |e| {
             tx.send(e).unwrap();
             None
-        }), HIGHEST_ORDER);
-        publish_event(&mut instance, event);
+        }), DEFAULT_ORDER);
+        publish_event(&mut instance, EventC::ClosePlayer);
+
         let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
 
-        if let Event::PlayerStopped(result) = result {
-            assert_eq!(url, result.url());
-            assert_eq!(Some(&20000u64), result.time());
-            assert_eq!(Some(&25000u64), result.duration());
-        } else {
-            assert!(false, "expected Event::PlayerStopped, but got {} instead", result);
-        }
+        assert_eq!(Event::ClosePlayer, result);
+    }
+
+    #[test]
+    fn test_register_event_callback() {
+        init_logger();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut instance = PopcornFX::new(default_args(temp_path));
+
+        register_event_callback(&mut instance, event_callback);
+        instance.event_publisher().publish(Event::ClosePlayer);
     }
 
     #[test]

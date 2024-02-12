@@ -7,7 +7,6 @@ use mockall::automock;
 
 use crate::core::loader::LoadingData;
 use crate::core::media::MediaIdentifier;
-use crate::core::subtitles::model::SubtitleInfo;
 use crate::core::torrents::TorrentStream;
 
 /// A trait representing a play request for media playback.
@@ -116,7 +115,6 @@ pub struct PlayUrlRequestBuilder {
     thumb: Option<String>,
     background: Option<String>,
     auto_resume_timestamp: Option<u64>,
-    subtitle: Option<SubtitleInfo>,
     subtitles_enabled: bool,
 }
 
@@ -390,7 +388,6 @@ mod tests {
 
     use crate::core::media::{Episode, Images, ShowOverview};
     use crate::core::playlists::PlaylistItem;
-    use crate::core::subtitles::language::SubtitleLanguage;
     use crate::core::torrents::MockTorrentStream;
 
     use super::*;
@@ -402,10 +399,6 @@ mod tests {
         let thumb = "https://imgur.com/something.jpg";
         let background = "https://imgur.com/background.jpg";
         let auto_resume = 84000u64;
-        let subtitle = SubtitleInfo::new(
-            "tt11224455".to_string(),
-            SubtitleLanguage::English,
-        );
         let expected_result = PlayUrlRequest {
             url: url.to_string(),
             title: title.to_string(),

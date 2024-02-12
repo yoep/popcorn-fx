@@ -1,4 +1,5 @@
 pub use data::*;
+pub use loader_auto_resume::*;
 pub use loader_media_torrent::*;
 pub use loader_player::*;
 pub use loader_subtitles::*;
@@ -10,6 +11,7 @@ pub use loading_strategy::*;
 pub use media_loader::*;
 
 mod data;
+mod loader_auto_resume;
 mod loader_media_torrent;
 mod loader_player;
 mod loader_subtitles;

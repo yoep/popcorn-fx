@@ -7,9 +7,9 @@ use derive_more::Display;
 use log::{debug, trace, warn};
 use tokio_util::sync::CancellationToken;
 
-use crate::core::{loader, subtitles};
-use crate::core::loader::{CancellationResult, LoadingData, LoadingEvent, LoadingState, LoadingStrategy};
+use crate::core::loader::{CancellationResult, LoadingData, LoadingError, LoadingEvent, LoadingResult, LoadingState, LoadingStrategy};
 use crate::core::media::{Episode, MediaIdentifier, MovieDetails, ShowDetails};
+use crate::core::subtitles;
 use crate::core::subtitles::{SubtitleError, SubtitleManager, SubtitleProvider};
 use crate::core::subtitles::language::SubtitleLanguage;
 use crate::core::subtitles::model::SubtitleInfo;
@@ -127,9 +127,13 @@ impl Debug for SubtitlesLoadingStrategy {
 
 #[async_trait]
 impl LoadingStrategy for SubtitlesLoadingStrategy {
-    async fn process(&self, data: LoadingData, event_channel: Sender<LoadingEvent>, _: CancellationToken) -> loader::LoadingResult {
+    async fn process(&self, data: LoadingData, event_channel: Sender<LoadingEvent>, cancel: CancellationToken) -> LoadingResult {
         if data.subtitles_enabled.unwrap_or(false) {
             trace!("Subtitle manager state {:?}", self.subtitle_manager);
+
+            if cancel.is_cancelled() {
+                return LoadingResult::Err(LoadingError::Cancelled);
+            }
             if !self.subtitle_manager.is_disabled_async().await {
                 if self.subtitle_manager.preferred_language() == SubtitleLanguage::None {
                     trace!("Processing subtitle for {:?}", data);
@@ -145,7 +149,10 @@ impl LoadingStrategy for SubtitlesLoadingStrategy {
             debug!("Subtitles have been disabled for {:?}", data);
         }
 
-        loader::LoadingResult::Ok(data)
+        if cancel.is_cancelled() {
+            return LoadingResult::Err(LoadingError::Cancelled);
+        }
+        LoadingResult::Ok(data)
     }
 
     async fn cancel(&self, data: LoadingData) -> CancellationResult {

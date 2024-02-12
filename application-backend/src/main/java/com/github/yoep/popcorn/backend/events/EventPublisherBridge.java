@@ -22,18 +22,6 @@ public class EventPublisherBridge implements EventBridgeCallback {
     }
 
     private void init() {
-        eventPublisher.register(PlayerStoppedEvent.class, event -> {
-            var event_c = new EventC.ByValue();
-            event_c.tag = EventC.Tag.PLAYER_STOPPED;
-            event_c.union = new EventC.EventCUnion.ByValue();
-            event_c.union.playerStopped_body = new EventC.PlayerStopped_Body();
-            event_c.union.playerStopped_body.stoppedEvent = PlayerStoppedEventC.from(event);
-
-            if (isBridgePublishAllowed(event))
-                publishEvent(event_c);
-
-            return event;
-        }, EventPublisher.HIGHEST_ORDER);
         eventPublisher.register(PlayerStateEvent.class, event -> {
             var event_c = new EventC.ByValue();
             event_c.tag = EventC.Tag.PLAYBACK_STATE_CHANGED;

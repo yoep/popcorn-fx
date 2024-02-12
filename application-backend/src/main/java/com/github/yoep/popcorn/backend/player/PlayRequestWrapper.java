@@ -11,20 +11,25 @@ import java.util.Optional;
 
 @Getter
 @ToString
-@Structure.FieldOrder({"url", "title", "thumb", "background", "quality", "autoResumeTimestamp", "subtitlesEnabled"})
+@Structure.FieldOrder({"url", "title", "thumb", "background", "quality", "autoResumeTimestamp", "streamHandle", "subtitlesEnabled"})
 public class PlayRequestWrapper extends Structure implements Closeable, PlayRequest {
+    public static class ByValue extends PlayRequestWrapper implements Structure.ByValue {
+    }
+
     public String url;
     public String title;
     public Pointer thumb;
     public Pointer background;
     public Pointer quality;
     public Pointer autoResumeTimestamp;
+    public Pointer streamHandle;
     public byte subtitlesEnabled;
 
     private String cachedThumb;
     private String cachedBackground;
     private String cachedQuality;
     private Long cachedAutoResumeTimestamp;
+    private Long cachedStreamHandle;
 
     public boolean isSubtitlesEnabled() {
         return subtitlesEnabled == 1;
@@ -51,6 +56,11 @@ public class PlayRequestWrapper extends Structure implements Closeable, PlayRequ
     }
 
     @Override
+    public Optional<Long> getStreamHandle() {
+        return Optional.ofNullable(cachedStreamHandle);
+    }
+
+    @Override
     public void read() {
         super.read();
         this.cachedThumb = Optional.ofNullable(thumb)
@@ -63,6 +73,9 @@ public class PlayRequestWrapper extends Structure implements Closeable, PlayRequ
                 .map(e -> e.getString(0))
                 .orElse(null);
         this.cachedAutoResumeTimestamp = Optional.ofNullable(autoResumeTimestamp)
+                .map(e -> e.getLong(0))
+                .orElse(null);
+        this.cachedStreamHandle = Optional.ofNullable(streamHandle)
                 .map(e -> e.getLong(0))
                 .orElse(null);
     }

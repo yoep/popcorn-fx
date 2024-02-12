@@ -85,24 +85,24 @@ pub struct PlayerStoppedEventC {
     /// The playback url that was being played
     pub url: *const c_char,
     /// The last known video time of the player in millis
-    pub time: *const i64,
+    pub time: *mut u64,
     /// The duration of the video playback in millis
-    pub duration: *const i64,
+    pub duration: *mut u64,
     /// The optional media item that was being played
     pub media: *mut MediaItemC,
 }
 
 impl From<PlayerStoppedEvent> for PlayerStoppedEventC {
     fn from(value: PlayerStoppedEvent) -> Self {
-        let time = if let Some(time) = value.time {
-            time as *const i64
+        let time = if let Some(e) = value.time {
+            into_c_owned(e)
         } else {
-            ptr::null()
+            ptr::null_mut()
         };
-        let duration = if let Some(duration) = value.duration {
-            duration as *const i64
+        let duration = if let Some(e) = value.duration {
+            into_c_owned(e)
         } else {
-            ptr::null()
+            ptr::null_mut()
         };
         let media = if let Some(media) = value.media {
             into_c_owned(MediaItemC::from(media))

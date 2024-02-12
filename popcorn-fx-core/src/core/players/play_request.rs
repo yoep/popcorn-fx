@@ -65,6 +65,12 @@ pub struct PlayUrlRequest {
     pub subtitles_enabled: bool,
 }
 
+impl PlayUrlRequest {
+    pub fn builder() -> PlayUrlRequestBuilder {
+        PlayUrlRequestBuilder::builder()
+    }
+}
+
 /// Implementing the `PlayRequest` trait for `PlayUrlRequest`.
 impl PlayRequest for PlayUrlRequest {
     fn url(&self) -> &str {

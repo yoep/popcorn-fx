@@ -47,4 +47,6 @@ public interface PlayRequest {
      * @return Returns true if subtitles should be enabled for the request, else false.
      */
     boolean isSubtitlesEnabled();
+
+    Optional<Long> getStreamHandle();
 }

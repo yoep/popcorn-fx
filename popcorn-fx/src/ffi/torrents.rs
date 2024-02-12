@@ -1,12 +1,14 @@
 use std::os::raw::c_char;
+use std::ptr;
 
 use log::{trace, warn};
 
 use popcorn_fx_core::{from_c_string, into_c_string};
+use popcorn_fx_core::core::Handle;
 use popcorn_fx_core::core::torrents::{DownloadStatus, TorrentInfo, TorrentState, TorrentWrapper};
 use popcorn_fx_torrent::torrent::DefaultTorrentManager;
 
-use crate::ffi::{CancelTorrentCallback, DownloadStatusC, ResolveTorrentCallback, ResolveTorrentInfoCallback, TorrentFileInfoC};
+use crate::ffi::{CancelTorrentCallback, DownloadStatusC, ResolveTorrentCallback, ResolveTorrentInfoCallback, TorrentFileInfoC, TorrentStreamEventC, TorrentStreamEventCallback};
 use crate::PopcornFX;
 
 /// Callback function for handling changes in the state of a torrent.
@@ -168,6 +170,31 @@ pub extern "C" fn torrent_cancel_callback(popcorn_fx: &mut PopcornFX, callback: 
             callback(into_c_string(handle));
         }));
     }
+}
+
+/// Registers a new torrent stream event callback.
+///
+/// This function registers a callback function to receive torrent stream events.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to the PopcornFX instance.
+/// * `stream_handle` - The handle of the torrent stream.
+/// * `callback` - The callback function to be invoked when torrent stream events occur.
+///
+/// # Returns
+///
+/// A pointer to an integer value representing the handle of the registered callback, or a null pointer if registration fails.
+#[no_mangle]
+pub extern "C" fn torrent_stream_event_callback(popcorn_fx: &mut PopcornFX, stream_handle: i64, callback: TorrentStreamEventCallback) -> *const i64 {
+    trace!("Registering a new torrent stream event callback for handle {}", stream_handle);
+    let handle = Handle::from(stream_handle);
+    popcorn_fx.torrent_stream_server().subscribe(handle, Box::new(move |event| {
+        trace!("Invoking torrent stream event C callback for {:?}", event);
+        callback(TorrentStreamEventC::from(event))
+    }))
+        .map(|handle| handle.value() as *const i64)
+        .unwrap_or(ptr::null())
 }
 
 /// Clean the torrents directory.

@@ -197,6 +197,17 @@ enum class TorrentState : int32_t {
   Error = -1,
 };
 
+/// The state of the [TorrentStream].
+enum class TorrentStreamState : int32_t {
+  /// The initial state of the torrent stream.
+  /// This state indicates that the stream is preparing the initial pieces.
+  Preparing = 0,
+  /// The torrent can be streamed over HTTP.
+  Streaming = 1,
+  /// The torrent has been stopped and can not longer be streamed.
+  Stopped = 2,
+};
+
 /// The C compatible update state
 enum class UpdateStateC : int32_t {
   CheckingForNewVersion = 0,
@@ -764,12 +775,18 @@ struct MediaSetC {
   int32_t shows_len;
 };
 
+/// Represents events related to player management in C-compatible form.
 struct PlayerManagerEventC {
   enum class Tag {
+    /// Indicates a change in the active player.
     ActivePlayerChanged,
+    /// Indicates a change in the players set.
     PlayersChanged,
+    /// Indicates a change in the duration of a player.
     PlayerDurationChanged,
+    /// Indicates a change in the playback time of a player.
     PlayerTimeChanged,
+    /// Indicates a change in the state of a player.
     PlayerStateChanged,
   };
 
@@ -963,8 +980,11 @@ struct PlayerEventC {
 /// It points to the memory location where loading process information is stored in a C context.
 using LoadingHandleC = const int64_t*;
 
+/// Represents a set of players in C-compatible form.
 struct PlayerSet {
+  /// Pointer to an array of player instances.
   PlayerC *players;
+  /// Length of the player array.
   int32_t len;
 };
 
@@ -1006,13 +1026,24 @@ using LoaderEventCallback = void(*)(LoaderEventC);
 /// The C compatible callback for playback control events.
 using PlaybackControlsCallbackC = void(*)(PlaybackControlEvent);
 
+/// Represents a play request in C-compatible form.
 struct PlayRequestC {
+  /// The URL of the media to be played.
   const char *url;
+  /// The title of the media.
   const char *title;
+  /// The URL of the thumbnail image for the media.
   const char *thumb;
+  /// The URL of the background image for the media.
   const char *background;
+  /// The quality of the media.
   const char *quality;
+  /// Pointer to a mutable u64 value representing the auto-resume timestamp.
   uint64_t *auto_resume_timestamp;
+  /// The stream handle pointer of the play request.
+  /// This handle can be used to retrieve more information about the underlying stream.
+  const int64_t *stream_handle;
+  /// Indicates whether subtitles are enabled for the media.
   bool subtitles_enabled;
 };
 
@@ -1305,25 +1336,25 @@ struct DownloadStatusC {
   uint64_t total_size;
 };
 
-/// The callback to verify if the given byte is available.
+/// Type alias for a callback that verifies if the given byte is available.
 using HasByteCallbackC = bool(*)(int32_t, uint64_t*);
 
-/// The callback to verify if the given piece is available.
+/// Type alias for a callback that verifies if the given piece is available.
 using HasPieceCallbackC = bool(*)(uint32_t);
 
-/// The callback to retrieve the total pieces of the torrent.
+/// Type alias for a callback that retrieves the total pieces of the torrent.
 using TotalPiecesCallbackC = int32_t(*)();
 
-/// The callback for prioritizing bytes.
+/// Type alias for a callback that prioritizes bytes.
 using PrioritizeBytesCallbackC = void(*)(int32_t, uint64_t*);
 
-/// The callback for prioritizing pieces.
+/// Type alias for a callback that prioritizes pieces.
 using PrioritizePiecesCallbackC = void(*)(int32_t, uint32_t*);
 
-/// The callback for update the torrent mode to sequential.
+/// Type alias for a callback that updates the torrent mode to sequential.
 using SequentialModeCallbackC = void(*)();
 
-/// The callback for retrieving the torrent state.
+/// Type alias for a callback that retrieves the torrent state.
 using TorrentStateCallbackC = TorrentState(*)();
 
 /// The C compatible abi struct for a [Torrent].
@@ -1341,11 +1372,38 @@ struct TorrentC {
   TorrentStateCallbackC torrent_state;
 };
 
-/// Type definition for a callback that resolves torrent information and starts a download.
+/// Type alias for a callback that resolves torrent information and starts a download.
 using ResolveTorrentCallback = TorrentC(*)(TorrentFileInfoC file_info, const char *torrent_directory, bool auto_start_download);
 
-/// Type definition for a callback that resolves torrent information.
+/// Type alias for a callback that resolves torrent information.
 using ResolveTorrentInfoCallback = TorrentInfoC(*)(const char *url);
+
+/// Represents a torrent stream event in C-compatible form.
+struct TorrentStreamEventC {
+  enum class Tag {
+    /// Indicates a change in the state of the torrent stream.
+    StateChanged,
+    /// Indicates a change in the download status of the torrent stream.
+    DownloadStatus,
+  };
+
+  struct StateChanged_Body {
+    TorrentStreamState _0;
+  };
+
+  struct DownloadStatus_Body {
+    DownloadStatusC _0;
+  };
+
+  Tag tag;
+  union {
+    StateChanged_Body state_changed;
+    DownloadStatus_Body download_status;
+  };
+};
+
+/// Type alias for a callback that handles torrent stream events.
+using TorrentStreamEventCallback = void(*)(TorrentStreamEventC);
 
 
 extern "C" {
@@ -2267,6 +2325,21 @@ void torrent_resolve_info_callback(PopcornFX *popcorn_fx, ResolveTorrentInfoCall
 /// * `handle` - The handle to the torrent.
 /// * `state` - The new state of the torrent.
 void torrent_state_changed(PopcornFX *popcorn_fx, const char *handle, TorrentState state);
+
+/// Registers a new torrent stream event callback.
+///
+/// This function registers a callback function to receive torrent stream events.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to the PopcornFX instance.
+/// * `stream_handle` - The handle of the torrent stream.
+/// * `callback` - The callback function to be invoked when torrent stream events occur.
+///
+/// # Returns
+///
+/// A pointer to an integer value representing the handle of the registered callback, or a null pointer if registration fails.
+const int64_t *torrent_stream_event_callback(PopcornFX *popcorn_fx, int64_t stream_handle, TorrentStreamEventCallback callback);
 
 /// Update the playback settings with the new value.
 void update_playback_settings(PopcornFX *popcorn_fx, PlaybackSettingsC settings);

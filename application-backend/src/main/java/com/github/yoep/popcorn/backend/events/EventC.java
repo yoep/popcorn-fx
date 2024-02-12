@@ -161,6 +161,7 @@ public class EventC extends Structure implements Closeable {
 
     @Getter
     @ToString
+    @EqualsAndHashCode(callSuper = false)
     @FieldOrder({"newState"})
     public static class PlaybackState_Body extends Structure implements Closeable {
         public PlayerState newState;

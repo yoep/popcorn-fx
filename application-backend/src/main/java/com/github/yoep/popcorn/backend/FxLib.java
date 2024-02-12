@@ -32,10 +32,7 @@ import com.github.yoep.popcorn.backend.subtitles.SubtitleEventCallback;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfoSet;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
-import com.github.yoep.popcorn.backend.torrent.CancelTorrentCallback;
-import com.github.yoep.popcorn.backend.torrent.DownloadStatusC;
-import com.github.yoep.popcorn.backend.torrent.ResolveTorrentCallback;
-import com.github.yoep.popcorn.backend.torrent.ResolveTorrentInfoCallback;
+import com.github.yoep.popcorn.backend.torrent.*;
 import com.github.yoep.popcorn.backend.torrent.collection.StoredTorrentSet;
 import com.github.yoep.popcorn.backend.updater.UpdateCallback;
 import com.github.yoep.popcorn.backend.updater.UpdateState;
@@ -147,6 +144,8 @@ public interface FxLib extends Library {
     void torrent_resolve_callback(PopcornFx instance, ResolveTorrentCallback callback);
 
     void torrent_cancel_callback(PopcornFx instance, CancelTorrentCallback callback);
+
+    Pointer torrent_stream_event_callback(PopcornFx instance, Long streamHandle, TorrentStreamEventCallback callback);
 
     void torrent_state_changed(PopcornFx instance, String handle, TorrentState state);
 

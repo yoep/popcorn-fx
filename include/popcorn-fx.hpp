@@ -1592,6 +1592,8 @@ void dispose_string_array(Box<StringArray> array);
 /// Dispose the given subtitle.
 void dispose_subtitle(Box<SubtitleC> subtitle);
 
+void dispose_subtitle_info_set(Box<SubtitleInfoSet> set);
+
 /// Dispose the [TorrentCollectionSet] from memory.
 void dispose_torrent_collection(Box<TorrentCollectionSet> collection_set);
 

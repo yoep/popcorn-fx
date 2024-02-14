@@ -3,7 +3,7 @@ use std::fmt::Debug;
 
 use log::trace;
 
-use popcorn_fx_core::{from_c_vec, into_c_string, to_c_vec};
+use popcorn_fx_core::{from_c_string, from_c_vec, from_c_vec_owned, into_c_string, into_c_vec};
 
 /// The C compatible string array.
 /// It's mainly used for returning string arrays as result of C function calls.
@@ -18,7 +18,7 @@ pub struct StringArray {
 
 impl From<Vec<String>> for StringArray {
     fn from(value: Vec<String>) -> Self {
-        let (values, len) = to_c_vec(value.into_iter()
+        let (values, len) = into_c_vec(value.into_iter()
             .map(|e| into_c_string(e))
             .collect());
 
@@ -31,7 +31,7 @@ impl From<Vec<String>> for StringArray {
 
 impl From<&[String]> for StringArray {
     fn from(value: &[String]) -> Self {
-        let (values, len) = to_c_vec(value.into_iter()
+        let (values, len) = into_c_vec(value.into_iter()
             .map(|e| into_c_string(e.clone()))
             .collect());
 
@@ -39,6 +39,14 @@ impl From<&[String]> for StringArray {
             values,
             len,
         }
+    }
+}
+
+impl Drop for StringArray {
+    fn drop(&mut self) {
+        let _ = from_c_vec_owned(self.values, self.len).into_iter()
+            .map(|e| from_c_string(e))
+            .collect::<Vec<String>>();
     }
 }
 
@@ -58,7 +66,7 @@ pub struct ByteArray {
 impl From<Vec<u8>> for ByteArray {
     fn from(value: Vec<u8>) -> Self {
         trace!("Converting Vec<u8> to ByteArray");
-        let (values, len) = to_c_vec(value);
+        let (values, len) = into_c_vec(value);
 
         Self {
             values,
@@ -76,6 +84,12 @@ impl From<&ByteArray> for Vec<u8> {
         } else {
             Vec::new()
         }
+    }
+}
+
+impl Drop for ByteArray {
+    fn drop(&mut self) {
+        from_c_vec_owned(self.values, self.len);
     }
 }
 
@@ -112,7 +126,7 @@ impl<T: Debug + Clone> From<Vec<T>> for CArray<T> {
     /// ```
     fn from(value: Vec<T>) -> Self {
         trace!("Converting vector into C set");
-        let (items, len) = to_c_vec(value);
+        let (items, len) = into_c_vec(value);
 
         Self {
             items,
@@ -141,6 +155,12 @@ impl<T: Debug + Clone> From<CArray<T>> for Vec<T> {
     fn from(value: CArray<T>) -> Self {
         trace!("Converting C set {:?} into vector", value);
         from_c_vec(value.items, value.len)
+    }
+}
+
+impl<T: Debug + Clone> Drop for CArray<T> {
+    fn drop(&mut self) {
+        from_c_vec_owned(self.items, self.len);
     }
 }
 
@@ -210,7 +230,7 @@ mod test {
             auto_resume_timestamp: ptr::null_mut(),
             subtitles_enabled: false,
         };
-        let (items, len) = to_c_vec(vec![item]);
+        let (items, len) = into_c_vec(vec![item]);
         let set = CArray::<PlaylistItemC> {
             items,
             len,

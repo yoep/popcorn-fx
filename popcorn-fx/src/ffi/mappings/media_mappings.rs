@@ -4,7 +4,7 @@ use std::os::raw::c_char;
 
 use log::{error, trace};
 
-use popcorn_fx_core::{from_c_into_boxed, from_c_string, from_c_vec, into_c_owned, into_c_string, to_c_vec};
+use popcorn_fx_core::{from_c_into_boxed, from_c_string, from_c_vec, into_c_owned, into_c_string, into_c_vec};
 use popcorn_fx_core::core::media::{Episode, Genre, Images, MediaDetails, MediaError, MediaIdentifier, MediaOverview, MediaType, MovieDetails, MovieOverview, Rating, ShowDetails, ShowOverview, SortBy, TorrentInfo};
 use popcorn_fx_core::core::media::favorites::FavoriteEvent;
 use popcorn_fx_core::core::media::watched::WatchedEvent;
@@ -77,7 +77,7 @@ pub struct MediaSetC {
 
 impl MediaSetC {
     pub fn from_movies(movies: Vec<MovieOverview>) -> Self {
-        let (movies, movies_len) = to_c_vec(movies.into_iter()
+        let (movies, movies_len) = into_c_vec(movies.into_iter()
             .map(|e| MovieOverviewC::from(e))
             .collect());
 
@@ -90,7 +90,7 @@ impl MediaSetC {
     }
 
     pub fn from_shows(shows: Vec<ShowOverview>) -> Self {
-        let (shows, shows_len) = to_c_vec(shows.into_iter()
+        let (shows, shows_len) = into_c_vec(shows.into_iter()
             .map(|e| ShowOverviewC::from(e))
             .collect());
 
@@ -138,8 +138,8 @@ pub struct VecFavoritesC {
 
 impl VecFavoritesC {
     pub fn from(movies: Vec<MovieOverviewC>, shows: Vec<ShowOverviewC>) -> Self {
-        let (movies, movies_len) = to_c_vec(movies);
-        let (shows, shows_len) = to_c_vec(shows);
+        let (movies, movies_len) = into_c_vec(movies);
+        let (shows, shows_len) = into_c_vec(shows);
 
         Self {
             movies,
@@ -217,10 +217,10 @@ pub struct MovieDetailsC {
 impl MovieDetailsC {
     pub fn from(movie: MovieDetails) -> Self {
         trace!("Converting MovieDetails to C for {{{}}}", movie);
-        let (genres, genres_len) = to_c_vec(movie.genres().iter()
+        let (genres, genres_len) = into_c_vec(movie.genres().iter()
             .map(|e| into_c_string(e.clone()))
             .collect());
-        let (torrents, torrents_len) = to_c_vec(movie.torrents().iter()
+        let (torrents, torrents_len) = into_c_vec(movie.torrents().iter()
             .map(|(k, v)| TorrentEntryC::from(k, v))
             .collect());
 
@@ -356,13 +356,13 @@ pub struct ShowDetailsC {
 impl ShowDetailsC {
     pub fn from(show: ShowDetails) -> Self {
         trace!("Converting ShowDetails to C {}", show);
-        let (genres, genres_len) = to_c_vec(show.genres().iter()
+        let (genres, genres_len) = into_c_vec(show.genres().iter()
             .map(|e| into_c_string(e.clone()))
             .collect());
         let episodes = show.episodes().iter()
             .map(|e| EpisodeC::from(e.clone()))
             .collect();
-        let (episodes, episodes_len) = to_c_vec(episodes);
+        let (episodes, episodes_len) = into_c_vec(episodes);
 
         Self {
             imdb_id: into_c_string(show.imdb_id().to_string()),
@@ -428,7 +428,7 @@ impl From<Episode> for EpisodeC {
         let torrents = value.torrents().iter()
             .map(|(k, v)| TorrentQualityC::from(k, v))
             .collect();
-        let (torrents, len) = to_c_vec(torrents);
+        let (torrents, len) = into_c_vec(torrents);
 
         Self {
             season: value.season().clone() as i32,
@@ -806,7 +806,7 @@ pub struct TorrentEntryC {
 
 impl TorrentEntryC {
     fn from(language: &String, qualities: &HashMap<String, TorrentInfo>) -> Self {
-        let (qualities, len) = to_c_vec(qualities.iter()
+        let (qualities, len) = into_c_vec(qualities.iter()
             .map(|(k, v)| TorrentQualityC::from(k, v))
             .collect());
 

@@ -104,6 +104,18 @@ pub extern "C" fn cleanup_subtitles_directory(popcorn_fx: &mut PopcornFX) {
     popcorn_fx.subtitle_manager().cleanup()
 }
 
+#[no_mangle]
+pub extern "C" fn dispose_subtitle_info_set(set: Box<SubtitleInfoSet>) {
+    trace!("Disposing subtitle info set C for {:?}", set);
+    drop(set);
+}
+
+#[no_mangle]
+pub extern "C" fn dispose_subtitle_info(info: Box<SubtitleInfoC>) {
+    trace!("Disposing subtitle info C {:?}", info);
+    drop(info);
+}
+
 #[cfg(test)]
 mod test {
     use std::path::PathBuf;
@@ -180,5 +192,13 @@ mod test {
         cleanup_subtitles_directory(&mut instance);
 
         assert_eq!(false, PathBuf::from(filepath).exists(), "expected the subtitle file to have been cleaned");
+    }
+
+    #[test]
+    fn test_dispose_subtitle_info() {
+        init_logger();
+        let info = from_c_owned(subtitle_none());
+
+        dispose_subtitle_info(Box::new(info));
     }
 }

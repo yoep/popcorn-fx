@@ -65,19 +65,19 @@ import java.util.concurrent.atomic.AtomicReference;
 public interface FxLib extends Library {
     AtomicReference<FxLib> INSTANCE = new AtomicReference<>();
 
-    PopcornFx new_popcorn_fx(String[] args, int len);
+    PopcornFx new_popcorn_fx(Pointer array, int len);
 
-    SubtitleInfoSet default_subtitle_options(PopcornFx instance);
+    SubtitleInfoSet.ByReference default_subtitle_options(PopcornFx instance);
 
     SubtitleInfo subtitle_none();
 
     SubtitleInfo subtitle_custom();
 
-    SubtitleInfoSet movie_subtitles(PopcornFx instance, MovieDetails movie);
+    SubtitleInfoSet.ByReference movie_subtitles(PopcornFx instance, MovieDetails movie);
 
-    SubtitleInfoSet episode_subtitles(PopcornFx instance, ShowDetails show, Episode episode);
+    SubtitleInfoSet.ByReference episode_subtitles(PopcornFx instance, ShowDetails show, Episode episode);
 
-    SubtitleInfoSet filename_subtitles(PopcornFx instance, String filename);
+    SubtitleInfoSet.ByReference filename_subtitles(PopcornFx instance, String filename);
 
     SubtitleInfo select_or_default_subtitle(PopcornFx instance, SubtitleInfo[] subtitles, int len);
 
@@ -264,6 +264,10 @@ public interface FxLib extends Library {
     void register_fullscreen_callback(PopcornFx instance, FullscreenCallback callback);
 
     void log(String target, String message, LogLevel level);
+
+    void dispose_subtitle_info_set(SubtitleInfoSet.ByReference set);
+
+    void dispose_subtitle_info(SubtitleInfo.ByReference info);
 
     void dispose_media_item(MediaItem.ByReference media);
 

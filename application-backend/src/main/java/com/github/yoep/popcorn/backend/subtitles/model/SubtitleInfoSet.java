@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.backend.subtitles.model;
 
+import com.github.yoep.popcorn.backend.FxLib;
 import com.sun.jna.Structure;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
@@ -13,6 +14,14 @@ import static java.util.Arrays.asList;
 @EqualsAndHashCode(callSuper = false)
 @Structure.FieldOrder({"subtitles", "len"})
 public class SubtitleInfoSet extends Structure implements Closeable {
+    public static class ByReference extends  SubtitleInfoSet implements Structure.ByReference {
+        @Override
+        public void close() {
+            super.close();
+            FxLib.INSTANCE.get().dispose_subtitle_info_set(this);
+        }
+    }
+
     public SubtitleInfo.ByReference subtitles;
     public int len;
 

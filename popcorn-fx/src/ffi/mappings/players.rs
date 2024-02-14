@@ -7,7 +7,7 @@ use derive_more::Display;
 use log::trace;
 use tokio::sync::Mutex;
 
-use popcorn_fx_core::{from_c_string, into_c_owned, into_c_string, to_c_vec};
+use popcorn_fx_core::{from_c_string, into_c_owned, into_c_string, into_c_vec};
 use popcorn_fx_core::core::{block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks};
 use popcorn_fx_core::core::players::{Player, PlayerEvent, PlayerManagerEvent, PlayerState, PlayMediaRequest, PlayRequest, PlayUrlRequest};
 
@@ -295,7 +295,7 @@ impl From<Vec<PlayerC>> for PlayerSet {
     /// A `PlayerSet` containing the converted players.
     fn from(value: Vec<PlayerC>) -> Self {
         trace!("Converting C players to PlayerSet");
-        let (players, len) = to_c_vec(value);
+        let (players, len) = into_c_vec(value);
 
         Self {
             players,
@@ -470,7 +470,7 @@ mod tests {
     use popcorn_fx_core::{from_c_owned, from_c_vec};
     use popcorn_fx_core::core::Handle;
     use popcorn_fx_core::core::media::MovieOverview;
-    use popcorn_fx_core::core::players::{PlayerChange, PlayMediaRequestBuilder};
+    use popcorn_fx_core::core::players::PlayerChange;
     use popcorn_fx_core::core::torrents::{MockTorrentStream, TorrentStream};
     use popcorn_fx_core::testing::{init_logger, MockPlayer};
 

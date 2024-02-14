@@ -61,7 +61,7 @@ mod test {
     use log::info;
     use tempfile::tempdir;
 
-    use popcorn_fx_core::core::events::DEFAULT_ORDER;
+    use popcorn_fx_core::core::events::{DEFAULT_ORDER, Event};
     use popcorn_fx_core::into_c_string;
     use popcorn_fx_core::testing::init_logger;
 

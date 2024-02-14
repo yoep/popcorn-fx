@@ -6,7 +6,6 @@ import com.github.yoep.player.chromecast.services.ChromecastService;
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
-import com.github.yoep.popcorn.backend.player.model.SimplePlayRequest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -19,7 +18,6 @@ import su.litvak.chromecast.api.v2.TestMediaStatus;
 
 import java.io.IOException;
 import java.util.Collections;
-import java.util.concurrent.TimeoutException;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -118,10 +116,7 @@ class ChromecastPlayerTest {
 
     @Test
     void testPlay_whenRequestIsGiven_shouldStartPlayback() throws IOException {
-        var request = SimplePlayRequest.builder()
-                .url("http://localhost/my-video.mp4")
-                .title("lorem ipsum")
-                .build();
+        var request = mock(PlayRequest.class);
         var sessionId = "mySessionId";
         var application = new Application("1", "", "", sessionId, "", false, false, "", Collections.emptyList());
         var loadRequest = Load.builder()
@@ -130,6 +125,7 @@ class ChromecastPlayerTest {
                         .duration(15000.00)
                         .build())
                 .build();
+        when(request.getUrl()).thenReturn("http://localhost/my-video.mp4");
         when(chromeCast.launchApp(ChromecastPlayer.MEDIA_RECEIVER_APP_ID)).thenReturn(application);
         when(service.toLoadRequest(sessionId, request)).thenReturn(loadRequest);
 
@@ -140,11 +136,8 @@ class ChromecastPlayerTest {
 
 
     @Test
-    void testPlay_whenSendResultsInAnException_shouldUpdateStateToError() throws IOException, TimeoutException {
-        var request = SimplePlayRequest.builder()
-                .url("http://localhost/my-video.mp4")
-                .title("lorem ipsum")
-                .build();
+    void testPlay_whenSendResultsInAnException_shouldUpdateStateToError() throws IOException {
+        var request = mock(PlayRequest.class);
         var sessionId = "mySessionId";
         var application = new Application("1", "", "", sessionId, "", false, false, "", Collections.emptyList());
         var loadRequest = Load.builder()
@@ -170,10 +163,7 @@ class ChromecastPlayerTest {
     void testMediaStatusChanged_whenDurationIsMaxValueDueToLiveStream_shouldUseOriginalVideoLengthAsDuration() throws IOException {
         var url = "http://localhost/my-video.mp4";
         var originalVideoDuration = Double.valueOf(35000.00);
-        var request = SimplePlayRequest.builder()
-                .url(url)
-                .title("lorem ipsum")
-                .build();
+        var request = mock(PlayRequest.class);
         var sessionId = "mySessionId";
         var application = new Application("1", "", "", sessionId, "", false, false, "", Collections.emptyList());
         var loadRequest = Load.builder()
@@ -189,6 +179,7 @@ class ChromecastPlayerTest {
                 .build();
         var listener = mock(PlayerListener.class);
         var expectedResult = 35000000L;
+        when(request.getUrl()).thenReturn(url);
         when(chromeCast.launchApp(ChromecastPlayer.MEDIA_RECEIVER_APP_ID)).thenReturn(application);
         when(chromeCast.getMediaStatus()).thenReturn(mediaStatus);
         when(service.toLoadRequest(sessionId, request)).thenReturn(loadRequest);
@@ -203,10 +194,7 @@ class ChromecastPlayerTest {
 
     @Test
     void testDispose_whenInvoked_shouldStopAppAndCloseConnection() throws IOException {
-        var request = SimplePlayRequest.builder()
-                .url("http://localhost/my-video.mp4")
-                .title("lorem ipsum")
-                .build();
+        var request = mock(PlayRequest.class);
         var application = mock(Application.class);
         var loadRequest = Load.builder()
                 .sessionId("qwerty123")

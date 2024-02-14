@@ -1,7 +1,5 @@
 use log::trace;
 
-use popcorn_fx_core::from_c_vec;
-
 use crate::ffi::{ByteArray, StringArray};
 
 /// Frees the memory allocated for the given C-compatible byte array.
@@ -14,7 +12,7 @@ use crate::ffi::{ByteArray, StringArray};
 #[no_mangle]
 pub extern "C" fn dispose_byte_array(array: Box<ByteArray>) {
     trace!("Disposing C byte array {:?}", array);
-    drop(from_c_vec(array.values, array.len));
+    drop(array);
 }
 
 /// Dispose of a C-compatible string array.
@@ -27,7 +25,7 @@ pub extern "C" fn dispose_byte_array(array: Box<ByteArray>) {
 #[no_mangle]
 pub extern "C" fn dispose_string_array(array: Box<StringArray>) {
     trace!("Disposing C string array {:?}", array);
-    drop(from_c_vec(array.values, array.len));
+    drop(array);
 }
 
 #[cfg(test)]

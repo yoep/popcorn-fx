@@ -2,9 +2,9 @@ use std::os::raw::c_char;
 use std::time::Instant;
 
 use clap::{CommandFactory, FromArgMatches};
-use log::{debug, info};
+use log::{debug, info, trace};
 
-use popcorn_fx_core::{from_c_string, from_c_vec, into_c_owned, into_c_string, VERSION};
+use popcorn_fx_core::{from_c_string, from_c_vec, from_c_vec_owned, into_c_owned, into_c_string, VERSION};
 
 use crate::{PopcornFX, PopcornFxArgs};
 
@@ -13,8 +13,9 @@ use crate::{PopcornFX, PopcornFxArgs};
 /// The instance can be safely deleted by using [dispose_popcorn_fx].
 #[no_mangle]
 pub extern "C" fn new_popcorn_fx(args: *mut *const c_char, len: i32) -> *mut PopcornFX {
+    trace!("Creating new popcorn FX instance from C for ptr: {:?}, len: {}", args, len);
     let start = Instant::now();
-    let args = from_c_vec(args, len).into_iter()
+    let args = from_c_vec_owned(args, len).into_iter()
         .map(|e| from_c_string(e))
         .collect::<Vec<String>>();
     let matches = PopcornFxArgs::command()
@@ -51,7 +52,7 @@ pub extern "C" fn version() -> *const c_char {
 mod test {
     use tempfile::tempdir;
 
-    use popcorn_fx_core::{into_c_string, to_c_vec};
+    use popcorn_fx_core::{into_c_string, into_c_vec};
     use popcorn_fx_core::testing::init_logger;
 
     use crate::test::default_args;
@@ -62,7 +63,7 @@ mod test {
     fn test_new_popcorn_fx() {
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let (args, len) = to_c_vec(vec![
+        let (args, len) = into_c_vec(vec![
             "popcorn-fx".to_string(),
             format!("--app-directory={}", temp_path),
             "--disable-logger".to_string(),

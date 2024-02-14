@@ -1,6 +1,7 @@
 package com.github.yoep.popcorn.backend.subtitles.model;
 
 import com.github.spring.boot.javafx.view.ViewLoader;
+import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.sun.jna.Structure;
 import lombok.Builder;
@@ -28,6 +29,11 @@ import java.util.Optional;
 @Structure.FieldOrder({"imdbId", "language", "files", "len"})
 public class SubtitleInfo extends Structure implements Closeable {
     public static class ByReference extends SubtitleInfo implements Structure.ByReference {
+        @Override
+        public void close() {
+            super.close();
+            FxLib.INSTANCE.get().dispose_subtitle_info(this);
+        }
     }
 
     public String imdbId;

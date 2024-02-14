@@ -3,7 +3,7 @@ use std::ptr;
 
 use log::trace;
 
-use popcorn_fx_core::{from_c_string, into_c_string, to_c_vec};
+use popcorn_fx_core::{from_c_string, into_c_string, into_c_vec};
 use popcorn_fx_core::core::torrents::{DownloadStatus, TorrentFileInfo, TorrentInfo, TorrentState, TorrentStreamEvent, TorrentStreamState, TorrentWrapper};
 
 use crate::ffi::CArray;
@@ -65,7 +65,7 @@ impl From<TorrentC> for TorrentWrapper {
             from_c_string(value.handle),
             from_c_string(value.filepath),
             Box::new(move |bytes| -> bool {
-                let (bytes, len) = to_c_vec(bytes.to_vec());
+                let (bytes, len) = into_c_vec(bytes.to_vec());
                 (value.has_byte_callback)(len, bytes)
             }),
             Box::new(move |piece| {
@@ -73,11 +73,11 @@ impl From<TorrentC> for TorrentWrapper {
             }),
             Box::new(move || (value.total_pieces)()),
             Box::new(move |bytes| {
-                let (bytes, len) = to_c_vec(bytes.to_vec());
+                let (bytes, len) = into_c_vec(bytes.to_vec());
                 (value.prioritize_bytes)(len, bytes)
             }),
             Box::new(move |pieces| {
-                let (pieces, len) = to_c_vec(pieces.to_vec());
+                let (pieces, len) = into_c_vec(pieces.to_vec());
                 (value.prioritize_pieces)(len, pieces)
             }),
             Box::new(move || (value.sequential_mode)()),

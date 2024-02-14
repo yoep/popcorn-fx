@@ -146,6 +146,7 @@ class PlayerControlsServiceTest {
     @Test
     void testPlaybackListener_whenRequestIsMediaPlayback_shouldEnableSubtitles() {
         var request = mock(PlayRequest.class);
+        when(request.isSubtitlesEnabled()).thenReturn(true);
         service.init();
 
         playbackListenerHolder.get().onPlay(request);

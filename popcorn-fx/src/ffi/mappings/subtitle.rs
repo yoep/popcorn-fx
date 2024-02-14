@@ -3,7 +3,7 @@ use std::ptr;
 
 use log::trace;
 
-use popcorn_fx_core::{from_c_owned, from_c_string, from_c_vec, into_c_owned, into_c_string, to_c_vec};
+use popcorn_fx_core::{from_c_owned, from_c_string, from_c_vec, from_c_vec_owned, into_c_owned, into_c_string, into_c_vec};
 use popcorn_fx_core::core::subtitles::{SubtitleEvent, SubtitleFile};
 use popcorn_fx_core::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
@@ -37,7 +37,7 @@ impl From<SubtitleInfo> for SubtitleInfoC {
         trace!("Converting subtitle info to C for {}", &value);
         let (files, len) = match value.files() {
             None => (ptr::null_mut(), 0),
-            Some(files) => to_c_vec(files.into_iter()
+            Some(files) => into_c_vec(files.into_iter()
                 .map(|e| SubtitleFileC::from(e.clone()))
                 .collect())
         };
@@ -99,6 +99,13 @@ impl From<SubtitleInfoC> for SubtitleInfo {
             value.language.clone(),
             files,
         )
+    }
+}
+
+impl Drop for SubtitleInfoC {
+    fn drop(&mut self) {
+        let _ = from_c_string(self.imdb_id);
+        from_c_vec_owned(self.files, self.len);
     }
 }
 
@@ -186,12 +193,18 @@ pub struct SubtitleInfoSet {
 
 impl From<Vec<SubtitleInfoC>> for SubtitleInfoSet {
     fn from(value: Vec<SubtitleInfoC>) -> Self {
-        let (subtitles, len) = to_c_vec(value);
+        let (subtitles, len) = into_c_vec(value);
 
         Self {
             subtitles,
             len,
         }
+    }
+}
+
+impl Drop for SubtitleInfoSet {
+    fn drop(&mut self) {
+        from_c_vec_owned(self.subtitles, self.len);
     }
 }
 
@@ -256,7 +269,7 @@ pub struct SubtitleC {
 impl From<Subtitle> for SubtitleC {
     fn from(value: Subtitle) -> Self {
         trace!("Converting subtitle to C for {}", value);
-        let (cues_ptr, number_of_cues) = to_c_vec(value.cues().iter()
+        let (cues_ptr, number_of_cues) = into_c_vec(value.cues().iter()
             .map(SubtitleCueC::from)
             .collect());
         let info = match value.info() {
@@ -305,7 +318,7 @@ pub struct SubtitleCueC {
 impl SubtitleCueC {
     pub fn from(cue: &SubtitleCue) -> Self {
         trace!("Converting cue to C for {}", cue);
-        let (lines, number_of_lines) = to_c_vec(cue.lines().iter()
+        let (lines, number_of_lines) = into_c_vec(cue.lines().iter()
             .map(|e| SubtitleLineC::from(e))
             .collect());
 
@@ -344,7 +357,7 @@ pub struct SubtitleLineC {
 impl SubtitleLineC {
     pub fn from(line: &SubtitleLine) -> Self {
         trace!("Converting subtitle line to C for {}", line);
-        let (texts, number_of_texts) = to_c_vec(line.texts().iter()
+        let (texts, number_of_texts) = into_c_vec(line.texts().iter()
             .map(|e| StyledTextC::from(e))
             .collect());
 

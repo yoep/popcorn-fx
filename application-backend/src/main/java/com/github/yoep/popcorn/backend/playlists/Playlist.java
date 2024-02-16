@@ -27,6 +27,7 @@ public class Playlist extends Structure implements Closeable {
     private List<PlaylistItem> cachedItems;
 
     public Playlist() {
+
     }
 
     public Playlist(List<PlaylistItem> items) {
@@ -47,6 +48,9 @@ public class Playlist extends Structure implements Closeable {
             array[i].autoResumeTimestamp = item.autoResumeTimestamp;
             array[i].subtitlesEnabled = item.subtitlesEnabled;
         }
+
+        write();
+        close();
     }
 
     public List<PlaylistItem> getItems() {

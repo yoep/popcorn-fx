@@ -89,6 +89,7 @@ impl From<&ByteArray> for Vec<u8> {
 
 impl Drop for ByteArray {
     fn drop(&mut self) {
+        trace!("Dropping ByteArray {:?}", self);
         from_c_vec_owned(self.values, self.len);
     }
 }
@@ -160,7 +161,9 @@ impl<T: Debug + Clone> From<CArray<T>> for Vec<T> {
 
 impl<T: Debug + Clone> Drop for CArray<T> {
     fn drop(&mut self) {
-        from_c_vec_owned(self.items, self.len);
+        trace!("Dropping {:?}", self);
+        // TODO: Fix crash on cleanup
+        // from_c_vec_owned(self.items, self.len);
     }
 }
 

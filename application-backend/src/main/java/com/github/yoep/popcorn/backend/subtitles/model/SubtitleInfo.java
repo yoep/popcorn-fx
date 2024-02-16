@@ -121,7 +121,13 @@ public class SubtitleInfo extends Structure implements Closeable {
     @Override
     public void close() {
         setAutoSynch(false);
-        cache.forEach(SubtitleFile::close);
+        Optional.ofNullable(cache)
+                .ifPresent(e -> e.forEach(SubtitleFile::close));
+        Optional.ofNullable(files)
+                .map(e -> (SubtitleFile.ByReference[]) e.toArray(this.len))
+                .stream()
+                .flatMap(Arrays::stream)
+                .forEach(SubtitleFile::close);
     }
 
     //endregion

@@ -1,6 +1,6 @@
 extern crate core;
 
-use std::{mem, ptr, slice};
+use std::{mem, ptr};
 use std::os::raw::c_char;
 
 use log::{debug, error, info, trace, warn};
@@ -112,23 +112,6 @@ pub extern "C" fn filename_subtitles(popcorn_fx: &mut PopcornFX, filename: *mut 
             into_c_owned(SubtitleInfoSet::from(vec![]))
         }
     }
-}
-
-/// Select a default subtitle language based on the settings or user interface language.
-#[no_mangle]
-pub extern "C" fn select_or_default_subtitle(popcorn_fx: &mut PopcornFX, subtitles_ptr: *const SubtitleInfoC, len: usize) -> *mut SubtitleInfoC {
-    let c_vec = unsafe { slice::from_raw_parts(subtitles_ptr, len).to_vec() };
-    let subtitles: Vec<SubtitleInfo> = c_vec.iter()
-        .map(|e| SubtitleInfo::from(e))
-        .collect();
-
-    let subtitle = into_c_owned(SubtitleInfoC::from(popcorn_fx.subtitle_provider().select_or_default(&subtitles[..])));
-
-    mem::forget(c_vec);
-    mem::forget(subtitles);
-    mem::forget(subtitles_ptr);
-
-    subtitle
 }
 
 /// Retrieve the preferred subtitle instance for the next [Media] item playback.

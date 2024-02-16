@@ -90,6 +90,7 @@ impl From<TorrentC> for TorrentWrapper {
 #[repr(C)]
 #[derive(Debug)]
 pub struct TorrentInfoC {
+    pub uri: *const c_char,
     /// A pointer to a null-terminated C string representing the name of the torrent.
     pub name: *const c_char,
     /// A pointer to a null-terminated C string representing the directory name of the torrent.
@@ -102,6 +103,7 @@ pub struct TorrentInfoC {
 
 impl From<TorrentInfo> for TorrentInfoC {
     fn from(value: TorrentInfo) -> Self {
+        trace!("Converting TorrentInfo to TorrentInfoC for {:?}", value);
         let directory_name = if let Some(e) = value.directory_name {
             into_c_string(e)
         } else {
@@ -112,6 +114,7 @@ impl From<TorrentInfo> for TorrentInfoC {
             .collect();
 
         Self {
+            uri: into_c_string(value.uri),
             name: into_c_string(value.name),
             directory_name,
             total_files: value.total_files,
@@ -122,7 +125,7 @@ impl From<TorrentInfo> for TorrentInfoC {
 
 impl From<TorrentInfoC> for TorrentInfo {
     fn from(value: TorrentInfoC) -> Self {
-        trace!("Converting TorrentInfoC to TorrentInfo");
+        trace!("Converting TorrentInfoC to TorrentInfo for {:?}", value);
         let files = Vec::<TorrentFileInfoC>::from(value.files).into_iter()
             .map(|e| TorrentFileInfo::from(e))
             .collect();
@@ -133,6 +136,7 @@ impl From<TorrentInfoC> for TorrentInfo {
         };
 
         Self {
+            uri: from_c_string(value.uri),
             name: from_c_string(value.name),
             directory_name,
             total_files: value.total_files,
@@ -255,15 +259,18 @@ mod tests {
 
     #[test]
     fn test_from_torrent_info_c() {
+        let uri = "magnet:?FooBarUri";
         let name = "FooBar54";
         let total_files = 15;
         let info = TorrentInfoC {
+            uri: into_c_string(uri.to_string()),
             name: into_c_string(name.to_string()),
             directory_name: ptr::null(),
             total_files,
             files: CArray::from(Vec::<TorrentFileInfoC>::new()),
         };
         let expected_result = TorrentInfo {
+            uri: uri.to_string(),
             name: name.to_string(),
             directory_name: None,
             total_files,

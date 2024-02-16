@@ -51,6 +51,11 @@ public class TorrentInfoWrapper implements TorrentInfo {
     }
 
     @Override
+    public String getMagnetUri() {
+        return nativeInfo.makeMagnetUri();
+    }
+
+    @Override
     public String getName() {
         return nativeInfo.name();
     }

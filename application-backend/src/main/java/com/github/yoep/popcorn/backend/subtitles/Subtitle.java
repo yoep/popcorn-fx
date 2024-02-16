@@ -26,6 +26,14 @@ import java.util.Optional;
 @EqualsAndHashCode(exclude = {"cached"}, callSuper = false)
 @Structure.FieldOrder({"filepath", "subtitleInfo", "cueRef", "len"})
 public class Subtitle extends Structure implements Serializable, Closeable {
+    public static class ByReference extends Subtitle implements Structure.ByReference {
+        @Override
+        public void close() {
+            super.close();
+            FxLibInstance.INSTANCE.get().dispose_subtitle(this);
+        }
+    }
+
     public String filepath;
     public SubtitleInfo.ByReference subtitleInfo;
     public SubtitleCue.ByReference cueRef;
@@ -81,7 +89,6 @@ public class Subtitle extends Structure implements Serializable, Closeable {
     @Override
     public void close() {
         setAutoSynch(false);
-        FxLibInstance.INSTANCE.get().dispose_subtitle(this);
     }
 
     private void cacheCues() {

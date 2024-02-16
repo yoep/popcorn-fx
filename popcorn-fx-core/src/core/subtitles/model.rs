@@ -100,9 +100,11 @@ impl SubtitleInfo {
     }
 
     /// Create a new subtitle info without any files.
-    pub fn new(imdb_id: String, language: SubtitleLanguage) -> Self {
+    pub fn new<S>(imdb_id: S, language: SubtitleLanguage) -> Self
+        where
+            S: Into<String> {
         Self {
-            imdb_id: Some(imdb_id),
+            imdb_id: Some(imdb_id.into()),
             language,
             files: None,
             normalize_regex: Regex::new(NORMALIZATION_PATTERN).unwrap(),
@@ -110,9 +112,11 @@ impl SubtitleInfo {
     }
 
     /// Create a new subtitle info with subtitle files.
-    pub fn new_with_files(imdb_id: Option<String>, language: SubtitleLanguage, files: Vec<SubtitleFile>) -> Self {
+    pub fn new_with_files<S>(imdb_id: Option<S>, language: SubtitleLanguage, files: Vec<SubtitleFile>) -> Self
+        where
+            S: Into<String> {
         Self {
-            imdb_id,
+            imdb_id: imdb_id.map(|e| e.into()),
             language,
             files: Some(files),
             normalize_regex: Regex::new(NORMALIZATION_PATTERN).unwrap(),
@@ -432,7 +436,13 @@ mod test {
         let name = "Frozen.2.2019.1080p.WEBRip.x264.AAC-[YTS.MX]".to_string();
         let expected_result = 1080;
 
-        let result = SubtitleFile::new(file_id, name, String::new(), 8.0, 19546);
+        let result = SubtitleFile::builder()
+            .file_id(file_id)
+            .name(name)
+            .url("")
+            .score(8.0)
+            .downloads(19546)
+            .build();
 
         assert!(result.quality().is_some(), "Expected a quality to have been found");
         assert_eq!(&expected_result, result.quality().unwrap())
@@ -444,16 +454,40 @@ mod test {
         let file_id = 49060;
         let name = "Frozen.II.2019.DVDScr.XVID.AC3.HQ.Hive-CM8".to_string();
 
-        let result = SubtitleFile::new(file_id, name, String::new(), 8.0, 19546);
+        let result = SubtitleFile::builder()
+            .file_id(file_id)
+            .name(name)
+            .url("")
+            .score(8.0)
+            .downloads(19546)
+            .build();
 
         assert!(result.quality().is_none(), "Expected no quality to have been found");
     }
 
     #[test]
     fn test_subtitle_file_order_should_return_item_with_highest_score_first() {
-        let item1 = SubtitleFile::new(1, String::new(), String::new(), 7.0, 0);
-        let item2 = SubtitleFile::new(2, String::new(), String::new(), 6.0, 0);
-        let item3 = SubtitleFile::new(3, String::new(), String::new(), 8.0, 0);
+        let item1 = SubtitleFile::builder()
+            .file_id(1)
+            .name("")
+            .url("")
+            .score(7.0)
+            .downloads(0)
+            .build();
+        let item2 = SubtitleFile::builder()
+            .file_id(2)
+            .name("")
+            .url("")
+            .score(6.0)
+            .downloads(0)
+            .build();
+        let item3 = SubtitleFile::builder()
+            .file_id(3)
+            .name("")
+            .url("")
+            .score(8.0)
+            .downloads(0)
+            .build();
         let mut items = vec![&item1, &item2, &item3];
 
         items.sort_by(|a, b| a.cmp(b));
@@ -477,43 +511,41 @@ mod test {
         init_logger();
         let filename = "Lorem.S02E11.720p.AMZN.WEBRip.x264-GalaxyTV.mkv";
         let quality = Some(720);
-        let expected_file = SubtitleFile::new_with_quality(
-            102,
-            "Lorem.S02E11.Ipsum.to.Dolor.DVDRip.Xvid-FoV.en.srt".to_string(),
-            String::new(),
-            9.0,
-            44134,
-            None,
-        );
+        let expected_file = SubtitleFile::builder()
+            .file_id(102)
+            .name("Lorem.S02E11.Ipsum.to.Dolor.DVDRip.Xvid-FoV.en.srt")
+            .url("")
+            .score(9.0)
+            .downloads(44134)
+            .build();
         let subtitle_info = SubtitleInfo::new_with_files(
             Some("tt100001010".to_string()),
             SubtitleLanguage::English,
             vec![
-                SubtitleFile::new_with_quality(
-                    100,
-                    "Lorem S02 E11 Ipsum to Dolor 720p x264.srt".to_string(),
-                    String::new(),
-                    0.0,
-                    6755,
-                    Some(720),
-                ),
-                SubtitleFile::new_with_quality(
-                    101,
-                    "Lorem.M.D.S02E11.720p.WEB.DL.nHD.x264-NhaNc3-eng.srt".to_string(),
-                    String::new(),
-                    0.0,
-                    4879,
-                    Some(720),
-                ),
+                SubtitleFile::builder()
+                    .file_id(100)
+                    .name("Lorem S02 E11 Ipsum to Dolor 720p x264.srt")
+                    .url("")
+                    .score(0.0)
+                    .downloads(6755)
+                    .quality(720)
+                    .build(),
+                SubtitleFile::builder()
+                    .file_id(101)
+                    .name("Lorem.M.D.S02E11.720p.WEB.DL.nHD.x264-NhaNc3-eng.srt")
+                    .url("")
+                    .score(0.0)
+                    .downloads(4879)
+                    .quality(720)
+                    .build(),
                 expected_file.clone(),
-                SubtitleFile::new_with_quality(
-                    103,
-                    "Lorem MD Season 2 Episode 11 - Ipsum To Dolor-eng.srt".to_string(),
-                    String::new(),
-                    0.0,
-                    5735,
-                    None,
-                ),
+                SubtitleFile::builder()
+                    .file_id(103)
+                    .name("Lorem MD Season 2 Episode 11 - Ipsum To Dolor-eng.srt")
+                    .url("")
+                    .score(0.0)
+                    .downloads(5735)
+                    .build()
             ],
         );
 

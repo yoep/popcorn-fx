@@ -19,7 +19,6 @@ const DEFAULT_PROVIDERS: fn() -> HashMap<String, ProviderProperties> = || {
         ("movies".to_string(), ProviderProperties {
             uris: vec![
                 "https://shows.cf/".to_string(),
-                "https://popcorntimeapp.netlify.app/".to_string(),
                 "https://fusme.link".to_string(),
                 "https://jfper.link".to_string(),
                 "https://uxert.link".to_string(),
@@ -60,7 +59,6 @@ const DEFAULT_PROVIDERS: fn() -> HashMap<String, ProviderProperties> = || {
         ("series".to_string(), ProviderProperties {
             uris: vec![
                 "https://shows.cf/".to_string(),
-                "https://popcorntimeapp.netlify.app/".to_string(),
                 "https://fusme.link".to_string(),
                 "https://jfper.link".to_string(),
                 "https://uxert.link".to_string(),

@@ -104,8 +104,9 @@ impl From<SubtitleInfoC> for SubtitleInfo {
 
 impl Drop for SubtitleInfoC {
     fn drop(&mut self) {
+        trace!("Dropping {:?}", self);
         let _ = from_c_string(self.imdb_id);
-        from_c_vec_owned(self.files, self.len);
+        // from_c_vec_owned(self.files, self.len);
     }
 }
 
@@ -162,22 +163,21 @@ impl From<SubtitleFile> for SubtitleFileC {
 impl From<&SubtitleFileC> for SubtitleFile {
     fn from(value: &SubtitleFileC) -> Self {
         trace!("Converting SubtitleFile from C for {:?}", &value);
-        let quality = if value.quality.is_null() {
-            None
-        } else {
-            Some(unsafe { value.quality.read() })
-        };
         let name = from_c_string(value.name);
         let url = from_c_string(value.url);
 
-        SubtitleFile::new_with_quality(
-            value.file_id,
-            name,
-            url,
-            value.score,
-            value.downloads,
-            quality,
-        )
+        let mut builder = Self::builder()
+            .file_id(value.file_id)
+            .name(name)
+            .url(url)
+            .score(value.score)
+            .downloads(value.downloads);
+
+        if !value.quality.is_null() {
+            builder = builder.quality(unsafe { value.quality.read() });
+        }
+
+        builder.build()
     }
 }
 
@@ -204,7 +204,8 @@ impl From<Vec<SubtitleInfoC>> for SubtitleInfoSet {
 
 impl Drop for SubtitleInfoSet {
     fn drop(&mut self) {
-        from_c_vec_owned(self.subtitles, self.len);
+        trace!("Dropping {:?}", self);
+        // from_c_vec_owned(self.subtitles, self.len);
     }
 }
 
@@ -458,13 +459,15 @@ mod test {
         let subtitle = SubtitleInfo::new_with_files(
             Some("tt22222233".to_string()),
             SubtitleLanguage::Italian,
-            vec![SubtitleFile::new(
-                1,
-                "lorem".to_string(),
-                String::new(),
-                8.0,
-                1544,
-            )],
+            vec![
+                SubtitleFile::builder()
+                    .file_id(1)
+                    .name("lorem")
+                    .url("")
+                    .score(8.0)
+                    .downloads(1544)
+                    .build()
+            ],
         );
 
         let info_c = SubtitleInfoC::from(subtitle.clone());
@@ -530,7 +533,7 @@ mod test {
 
                 assert_eq!(imdb_id.to_string(), from_c_string(subtitle_info_c.imdb_id));
                 assert_eq!(SubtitleLanguage::Finnish, subtitle_info_c.language);
-            },
+            }
             _ => assert!(false, "expected SubtitleEventC::SubtitleInfoChanged"),
         }
     }

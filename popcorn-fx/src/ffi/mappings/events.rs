@@ -209,34 +209,29 @@ impl From<PlayerStartedEventC> for PlayerStartedEvent {
 
 #[cfg(test)]
 mod test {
-    use std::ptr;
-
-    use popcorn_fx_core::into_c_string;
     use popcorn_fx_core::testing::init_logger;
-
-    use crate::ffi::MediaItemC;
 
     use super::*;
 
     #[test]
     fn test_from_event_c_to_event() {
-        // Create a PlayerStoppedEventC instance for testing
-        let url = into_c_string("https://example.com/video.mp4".to_string());
-        let time = 1000;
-        let duration = 5000;
-        let media_item_c = Box::new(MediaItemC {
-            movie_overview: ptr::null_mut(),
-            movie_details: ptr::null_mut(),
-            show_overview: ptr::null_mut(),
-            show_details: ptr::null_mut(),
-            episode: ptr::null_mut(),
-        });
+        let event = EventC::PlaybackStateChanged(PlaybackState::PAUSED).into_event().unwrap();
+        assert_eq!(Event::PlaybackStateChanged(PlaybackState::PAUSED), event);
 
-        // Convert the PlayerStoppedEventC instance to an Event instance
         let event = EventC::ClosePlayer.into_event().unwrap();
-
-        // Verify that the conversion was successful
         assert_eq!(Event::ClosePlayer, event);
+
+        let event = EventC::LoadingStarted.into_event().unwrap();
+        assert_eq!(Event::LoadingStarted, event);
+
+        let event = EventC::LoadingCompleted.into_event().unwrap();
+        assert_eq!(Event::LoadingCompleted, event);
+    }
+
+    #[test]
+    fn test_from_event_c_player_stopped_to_event() {
+        let event = EventC::PlayerStopped.into_event();
+        assert_eq!(None, event);
     }
 
     #[test]

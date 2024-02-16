@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 
 @Getter
 @ToString
-@Structure.FieldOrder({"name", "directoryName", "totalFiles", "files"})
+@Structure.FieldOrder({"magnetUri", "name", "directoryName", "totalFiles", "files"})
 public class TorrentInfoWrapper extends Structure implements TorrentInfo, Closeable {
     public static class ByValue extends TorrentInfoWrapper implements Structure.ByValue {
         public ByValue() {
@@ -35,6 +35,7 @@ public class TorrentInfoWrapper extends Structure implements TorrentInfo, Closea
         }
     }
 
+    public String magnetUri;
     public String name;
     public String directoryName;
     public int totalFiles;
@@ -47,6 +48,7 @@ public class TorrentInfoWrapper extends Structure implements TorrentInfo, Closea
 
     public TorrentInfoWrapper(TorrentInfo info) {
         Objects.requireNonNull(info, "info cannot be null");
+        this.magnetUri = info.getMagnetUri();
         this.name = info.getName();
         this.totalFiles = info.getTotalFiles();
         this.files = new TorrentFileInfoSet.ByValue(info.getFiles().stream()

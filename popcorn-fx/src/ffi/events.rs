@@ -107,6 +107,7 @@ mod test {
     #[test]
     fn test_dispose_event_value() {
         dispose_event_value(EventC::TorrentDetailsLoaded(TorrentInfoC {
+            uri: into_c_string("magnet:?Lorem".to_string()),
             name: into_c_string("Foo".to_string()),
             directory_name: into_c_string("Bar".to_string()),
             total_files: 20,

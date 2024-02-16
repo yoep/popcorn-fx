@@ -22,6 +22,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
+import java.util.Objects;
 import java.util.ResourceBundle;
 
 @Slf4j
@@ -85,6 +86,7 @@ public class TorrentCollectionSectionController implements Initializable {
     }
 
     private void onTorrentClicked(StoredTorrent torrent) {
+        Objects.requireNonNull(torrent, "torrent cannot be null");
         loaderService.load(torrent.getMagnetUri());
     }
 

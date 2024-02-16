@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Optional;
 
 public interface TorrentInfo extends Serializable {
+    String getMagnetUri();
+
     /**
      * Get the name of the torrent info.
      *

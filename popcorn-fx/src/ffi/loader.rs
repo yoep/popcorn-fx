@@ -3,9 +3,11 @@ use std::os::raw::c_char;
 use log::{trace, warn};
 
 use popcorn_fx_core::core::Handle;
+use popcorn_fx_core::core::playlists::PlaylistItem;
+use popcorn_fx_core::core::torrents::{TorrentFileInfo, TorrentInfo};
 use popcorn_fx_core::from_c_string;
 
-use crate::ffi::{LoaderEventC, LoaderEventCallback, LoadingHandleC};
+use crate::ffi::{LoaderEventC, LoaderEventCallback, LoadingHandleC, TorrentFileInfoC, TorrentInfoC};
 use crate::PopcornFX;
 
 /// Register a loader event callback to receive loader state change events.
@@ -46,6 +48,22 @@ pub extern "C" fn loader_load(instance: &mut PopcornFX, url: *const c_char) -> L
     let handle = instance.media_loader().load_url(url.as_str());
 
     trace!("Loader load returned handle {}", handle);
+    handle.value() as *const i64
+}
+
+#[no_mangle]
+pub extern "C" fn loader_load_torrent_file(instance: &mut PopcornFX, torrent_info: TorrentInfoC, torrent_file: TorrentFileInfoC) -> LoadingHandleC {
+    trace!("Loading torrent file from C for info: {:?}, file: {:?}", torrent_info, torrent_file);
+    let torrent_info = TorrentInfo::from(torrent_info);
+    let torrent_file = TorrentFileInfo::from(torrent_file);
+    let item = PlaylistItem::builder()
+        .title(torrent_file.filename())
+        .torrent_info(torrent_info)
+        .torrent_file_info(torrent_file)
+        .build();
+
+    let handle = instance.media_loader().load_playlist_item(item);
+
     handle.value() as *const i64
 }
 

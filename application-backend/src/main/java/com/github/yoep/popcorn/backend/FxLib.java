@@ -2,6 +2,8 @@ package com.github.yoep.popcorn.backend;
 
 import com.github.yoep.popcorn.backend.adapters.screen.FullscreenCallback;
 import com.github.yoep.popcorn.backend.adapters.screen.IsFullscreenCallback;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentFileInfoWrapper;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentInfoWrapper;
 import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentState;
 import com.github.yoep.popcorn.backend.controls.PlaybackControlCallback;
 import com.github.yoep.popcorn.backend.events.EventBridgeCallback;
@@ -79,7 +81,7 @@ public interface FxLib extends Library {
 
     SubtitleInfoSet.ByReference filename_subtitles(PopcornFx instance, String filename);
 
-    SubtitleInfo select_or_default_subtitle(PopcornFx instance, SubtitleInfo[] subtitles, int len);
+    SubtitleInfo.ByReference select_or_default_subtitle(PopcornFx instance, SubtitleInfoSet.ByReference subtitleSet);
 
     SubtitleInfo retrieve_preferred_subtitle(PopcornFx instance);
 
@@ -145,7 +147,9 @@ public interface FxLib extends Library {
 
     void torrent_cancel_callback(PopcornFx instance, CancelTorrentCallback callback);
 
-    Pointer torrent_stream_event_callback(PopcornFx instance, Long streamHandle, TorrentStreamEventCallback callback);
+    Long register_torrent_stream_event_callback(PopcornFx instance, Long streamHandle, TorrentStreamEventCallback callback);
+
+    void remove_torrent_stream_event_callback(PopcornFx instance, Long streamHandle, Long callbackHandle);
 
     void torrent_state_changed(PopcornFx instance, String handle, TorrentState state);
 
@@ -257,6 +261,8 @@ public interface FxLib extends Library {
 
     Long loader_load(PopcornFx instance, String url);
 
+    Long loader_load_torrent_file(PopcornFx instance, TorrentInfoWrapper.ByValue torrentInfo, TorrentFileInfoWrapper.ByValue torrentFile);
+
     void loader_cancel(PopcornFx instance, Long handle);
 
     void register_is_fullscreen_callback(PopcornFx instance, IsFullscreenCallback callback);
@@ -275,7 +281,7 @@ public interface FxLib extends Library {
 
     void dispose_media_items(MediaSet.ByValue media);
 
-    void dispose_subtitle(Subtitle subtitle);
+    void dispose_subtitle(Subtitle.ByReference subtitle);
 
     void dispose_torrent_collection(StoredTorrentSet set);
 

@@ -57,6 +57,33 @@ pub fn from_c_owned<T>(ptr: *mut T) -> T {
     *value
 }
 
+/// Converts a raw C pointer into a mutable reference to the underlying value.
+///
+/// # Safety
+///
+/// This function is marked as unsafe because it dereferences a raw C pointer, which can lead to
+/// undefined behavior if not handled carefully. It is the caller's responsibility to ensure that
+/// the pointer is valid and properly aligned.
+///
+/// # Panics
+///
+/// This function will panic if the input pointer is null.
+///
+/// # Arguments
+///
+/// * `ptr` - A raw C pointer to be converted.
+///
+/// # Returns
+///
+/// A mutable reference to the underlying value.
+pub fn from_c_as_ref<T>(ptr: *mut T) -> &'static mut T {
+    if !ptr.is_null() {
+        return unsafe { &mut *ptr };
+    }
+
+    panic!("Unable to read C pointer, pointer is null")
+}
+
 /// Retrieve a C value as a [Box] value.
 ///
 /// This function is preferred over `into_c_owned` when you want to obtain a Rust [Box] without
@@ -165,9 +192,14 @@ pub fn from_c_vec<T: Clone>(ptr: *mut T, len: i32) -> Vec<T> {
 pub fn from_c_vec_owned<T: Clone>(ptr: *mut T, len: i32) -> Vec<T> {
     trace!("Converting C ptr: {:?}, len: {} into a owned Vec", ptr, len);
     if !ptr.is_null() {
-        let len = len as usize;
-        let slice = unsafe { Vec::from_raw_parts(ptr, len, len) };
-        slice.into()
+        if len > 0 {
+            let len = len as usize;
+            let slice = unsafe { Vec::from_raw_parts(ptr, len, len) };
+            slice.into()
+        } else {
+            trace!("C array is empty, returning empty Vector");
+            vec![]
+        }
     } else {
         error!("Unable to read C array, array pointer is null");
         vec![]

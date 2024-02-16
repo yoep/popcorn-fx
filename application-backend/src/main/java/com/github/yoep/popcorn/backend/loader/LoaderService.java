@@ -2,6 +2,8 @@ package com.github.yoep.popcorn.backend.loader;
 
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentFileInfoWrapper;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentInfoWrapper;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentFileInfo;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
@@ -36,7 +38,12 @@ public class LoaderService extends AbstractListenerService<LoaderListener> imple
     }
 
     public void load(TorrentInfo torrentInfo, TorrentFileInfo torrentFileInfo) {
-        // TODO: implement
+        Objects.requireNonNull(torrentInfo, "torrentInfo cannot be null");
+        try (var infoWrapper = new TorrentInfoWrapper.ByValue(torrentInfo)) {
+            try (var fileWrapper = new TorrentFileInfoWrapper.ByValue(torrentInfo, torrentFileInfo)) {
+                lastLoaderHandle = fxLib.loader_load_torrent_file(instance, infoWrapper, fileWrapper);
+            }
+        }
     }
 
     public void cancel() {

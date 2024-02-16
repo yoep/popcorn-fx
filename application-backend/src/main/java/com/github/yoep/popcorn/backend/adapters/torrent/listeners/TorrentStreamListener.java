@@ -6,6 +6,7 @@ import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentStreamState
 /**
  * A torrent listener which listens on events of a {@link TorrentStream}.
  */
+@Deprecated
 public interface TorrentStreamListener {
     /**
      * Invoked when the torrent stream state is changed.

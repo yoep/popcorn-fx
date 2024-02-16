@@ -45,8 +45,6 @@ popcorn:
       level: info
     popcorn_fx_core::core::media::watched:
       level: info
-    popcorn_fx_core::core::subtitles:
-      level: info
     popcorn_fx_core::core::subtitles::parsers:
       level: info
     popcorn_fx_core::core::players:
@@ -55,6 +53,8 @@ popcorn:
       level: info
     popcorn_fx_core::core::screen:
       level: info
+    popcorn_fx_core::core::subtitles:
+      level: debug
     popcorn_fx_core::core::updater:
       level: info
     popcorn_fx_opensubtitles:

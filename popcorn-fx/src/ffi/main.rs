@@ -4,7 +4,7 @@ use std::time::Instant;
 use clap::{CommandFactory, FromArgMatches};
 use log::{debug, info, trace};
 
-use popcorn_fx_core::{from_c_string, from_c_vec, from_c_vec_owned, into_c_owned, into_c_string, VERSION};
+use popcorn_fx_core::{from_c_string, from_c_vec_owned, into_c_owned, into_c_string, VERSION};
 
 use crate::{PopcornFX, PopcornFxArgs};
 

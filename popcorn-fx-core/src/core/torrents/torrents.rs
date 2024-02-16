@@ -269,6 +269,7 @@ mod test {
             file_index: 0,
         };
         let info = TorrentInfo {
+            uri: String::new(),
             name: "".to_string(),
             directory_name: Some("torrentDirectory".to_string()),
             total_files: 0,
@@ -299,6 +300,7 @@ mod test {
             file_index: 0,
         };
         let info = TorrentInfo {
+            uri: String::new(),
             name: "".to_string(),
             directory_name: Some("torrentDirectory".to_string()),
             total_files: 0,
@@ -327,6 +329,7 @@ mod test {
             file_index: 0,
         };
         let info = TorrentInfo {
+            uri: String::new(),
             name: "".to_string(),
             directory_name: None,
             total_files: 0,

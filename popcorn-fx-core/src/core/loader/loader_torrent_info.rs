@@ -161,6 +161,7 @@ mod tests {
             subtitles_enabled: false,
         };
         let info = TorrentInfo {
+            uri: String::new(),
             name: "MyTorrentInfo".to_string(),
             directory_name: None,
             total_files: 0,
@@ -205,6 +206,7 @@ mod tests {
             subtitles_enabled: false,
         };
         let info = TorrentInfo {
+            uri: String::new(),
             name: "MyTorrentInfo".to_string(),
             directory_name: None,
             total_files: 0,

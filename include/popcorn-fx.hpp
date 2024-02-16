@@ -197,6 +197,17 @@ enum class TorrentState : int32_t {
   Error = -1,
 };
 
+/// The state of the [TorrentStream].
+enum class TorrentStreamState : int32_t {
+  /// The initial state of the torrent stream.
+  /// This state indicates that the stream is preparing the initial pieces.
+  Preparing = 0,
+  /// The torrent can be streamed over HTTP.
+  Streaming = 1,
+  /// The torrent has been stopped and can not longer be streamed.
+  Stopped = 2,
+};
+
 /// The C compatible update state
 enum class UpdateStateC : int32_t {
   CheckingForNewVersion = 0,
@@ -233,6 +244,19 @@ struct PlayerWrapperC;
 /// let instance = PopcornFX::default();
 /// ```
 struct PopcornFX;
+
+/// A callback function type for resolving torrents.
+///
+/// The function takes a `TorrentFileInfo` struct, a `String` representing the torrent directory,
+/// and a `bool` indicating whether auto-start download is enabled. It returns a `TorrentWrapper`.
+/// It must be `Send` and `Sync` to support concurrent execution.
+struct ResolveTorrentCallback;
+
+/// A callback function type for resolving torrent information.
+///
+/// The function takes a `String` argument representing the URL of the torrent and returns
+/// a `TorrentInfo` struct. It must be `Send` and `Sync` to support concurrent execution.
+struct ResolveTorrentInfoCallback;
 
 /// A C-compatible byte array that can be used to return byte array data from Rust functions.
 ///
@@ -521,19 +545,6 @@ struct PlayerStartedEventC {
   bool subtitles_enabled;
 };
 
-/// The player stopped event which indicates a video playback has been stopped.
-/// It contains the last known information of the video playback right before it was stopped.
-struct PlayerStoppedEventC {
-  /// The playback url that was being played
-  const char *url;
-  /// The last known video time of the player in millis
-  const int64_t *time;
-  /// The duration of the video playback in millis
-  const int64_t *duration;
-  /// The optional media item that was being played
-  MediaItemC *media;
-};
-
 /// A C-compatible struct representing torrent file information.
 struct TorrentFileInfoC {
   /// A pointer to a null-terminated C string representing the filename.
@@ -560,6 +571,7 @@ struct CArray {
 
 /// A C-compatible struct representing torrent information.
 struct TorrentInfoC {
+  const char *uri;
   /// A pointer to a null-terminated C string representing the name of the torrent.
   const char *name;
   /// A pointer to a null-terminated C string representing the directory name of the torrent.
@@ -603,10 +615,6 @@ struct EventC {
     PlayerStartedEventC _0;
   };
 
-  struct PlayerStopped_Body {
-    PlayerStoppedEventC _0;
-  };
-
   struct PlaybackStateChanged_Body {
     PlaybackState _0;
   };
@@ -624,7 +632,6 @@ struct EventC {
   union {
     PlayerChanged_Body player_changed;
     PlayerStarted_Body player_started;
-    PlayerStopped_Body player_stopped;
     PlaybackStateChanged_Body playback_state_changed;
     WatchStateChanged_Body watch_state_changed;
     TorrentDetailsLoaded_Body torrent_details_loaded;
@@ -764,12 +771,18 @@ struct MediaSetC {
   int32_t shows_len;
 };
 
+/// Represents events related to player management in C-compatible form.
 struct PlayerManagerEventC {
   enum class Tag {
+    /// Indicates a change in the active player.
     ActivePlayerChanged,
+    /// Indicates a change in the players set.
     PlayersChanged,
+    /// Indicates a change in the duration of a player.
     PlayerDurationChanged,
+    /// Indicates a change in the playback time of a player.
     PlayerTimeChanged,
+    /// Indicates a change in the state of a player.
     PlayerStateChanged,
   };
 
@@ -963,8 +976,11 @@ struct PlayerEventC {
 /// It points to the memory location where loading process information is stored in a C context.
 using LoadingHandleC = const int64_t*;
 
+/// Represents a set of players in C-compatible form.
 struct PlayerSet {
+  /// Pointer to an array of player instances.
   PlayerC *players;
+  /// Length of the player array.
   int32_t len;
 };
 
@@ -1006,11 +1022,24 @@ using LoaderEventCallback = void(*)(LoaderEventC);
 /// The C compatible callback for playback control events.
 using PlaybackControlsCallbackC = void(*)(PlaybackControlEvent);
 
+/// Represents a play request in C-compatible form.
 struct PlayRequestC {
+  /// The URL of the media to be played.
   const char *url;
+  /// The title of the media.
   const char *title;
+  /// The URL of the thumbnail image for the media.
   const char *thumb;
+  /// The URL of the background image for the media.
+  const char *background;
+  /// The quality of the media.
+  const char *quality;
+  /// Pointer to a mutable u64 value representing the auto-resume timestamp.
   uint64_t *auto_resume_timestamp;
+  /// The stream handle pointer of the play request.
+  /// This handle can be used to retrieve more information about the underlying stream.
+  int64_t *stream_handle;
+  /// Indicates whether subtitles are enabled for the media.
   bool subtitles_enabled;
 };
 
@@ -1125,6 +1154,50 @@ struct SubtitleEventC {
 
 /// The C callback for the subtitle events.
 using SubtitleCallbackC = void(*)(SubtitleEventC);
+
+struct DownloadStatusC {
+  /// Progress indication between 0 and 1 that represents the progress of the download.
+  float progress;
+  /// The number of seeds available for the torrent.
+  uint32_t seeds;
+  /// The number of peers connected to the torrent.
+  uint32_t peers;
+  /// The total download transfer rate in bytes of payload only, not counting protocol chatter.
+  uint32_t download_speed;
+  /// The total upload transfer rate in bytes of payload only, not counting protocol chatter.
+  uint32_t upload_speed;
+  /// The total amount of data downloaded in bytes.
+  uint64_t downloaded;
+  /// The total size of the torrent in bytes.
+  uint64_t total_size;
+};
+
+/// Represents a torrent stream event in C-compatible form.
+struct TorrentStreamEventC {
+  enum class Tag {
+    /// Indicates a change in the state of the torrent stream.
+    StateChanged,
+    /// Indicates a change in the download status of the torrent stream.
+    DownloadStatus,
+  };
+
+  struct StateChanged_Body {
+    TorrentStreamState _0;
+  };
+
+  struct DownloadStatus_Body {
+    DownloadStatusC _0;
+  };
+
+  Tag tag;
+  union {
+    StateChanged_Body state_changed;
+    DownloadStatus_Body download_status;
+  };
+};
+
+/// Type alias for a callback that handles torrent stream events.
+using TorrentStreamEventCallback = void(*)(TorrentStreamEventC);
 
 /// The C compatible representation of the application runtime information.
 struct PatchInfoC {
@@ -1285,65 +1358,6 @@ struct MediaResult {
     Err_Body err;
   };
 };
-
-struct DownloadStatusC {
-  /// Progress indication between 0 and 1 that represents the progress of the download.
-  float progress;
-  /// The number of seeds available for the torrent.
-  uint32_t seeds;
-  /// The number of peers connected to the torrent.
-  uint32_t peers;
-  /// The total download transfer rate in bytes of payload only, not counting protocol chatter.
-  uint32_t download_speed;
-  /// The total upload transfer rate in bytes of payload only, not counting protocol chatter.
-  uint32_t upload_speed;
-  /// The total amount of data downloaded in bytes.
-  uint64_t downloaded;
-  /// The total size of the torrent in bytes.
-  uint64_t total_size;
-};
-
-/// The callback to verify if the given byte is available.
-using HasByteCallbackC = bool(*)(int32_t, uint64_t*);
-
-/// The callback to verify if the given piece is available.
-using HasPieceCallbackC = bool(*)(uint32_t);
-
-/// The callback to retrieve the total pieces of the torrent.
-using TotalPiecesCallbackC = int32_t(*)();
-
-/// The callback for prioritizing bytes.
-using PrioritizeBytesCallbackC = void(*)(int32_t, uint64_t*);
-
-/// The callback for prioritizing pieces.
-using PrioritizePiecesCallbackC = void(*)(int32_t, uint32_t*);
-
-/// The callback for update the torrent mode to sequential.
-using SequentialModeCallbackC = void(*)();
-
-/// The callback for retrieving the torrent state.
-using TorrentStateCallbackC = TorrentState(*)();
-
-/// The C compatible abi struct for a [Torrent].
-/// This currently uses callbacks as it's a wrapper around a torrent implementation provided through C.
-struct TorrentC {
-  const char *handle;
-  /// The filepath to the torrent file
-  const char *filepath;
-  HasByteCallbackC has_byte_callback;
-  HasPieceCallbackC has_piece_callback;
-  TotalPiecesCallbackC total_pieces;
-  PrioritizeBytesCallbackC prioritize_bytes;
-  PrioritizePiecesCallbackC prioritize_pieces;
-  SequentialModeCallbackC sequential_mode;
-  TorrentStateCallbackC torrent_state;
-};
-
-/// Type definition for a callback that resolves torrent information and starts a download.
-using ResolveTorrentCallback = TorrentC(*)(TorrentFileInfoC file_info, const char *torrent_directory, bool auto_start_download);
-
-/// Type definition for a callback that resolves torrent information.
-using ResolveTorrentInfoCallback = TorrentInfoC(*)(const char *url);
 
 
 extern "C" {
@@ -1550,6 +1564,24 @@ void dispose_string_array(Box<StringArray> array);
 /// Dispose the given subtitle.
 void dispose_subtitle(Box<SubtitleC> subtitle);
 
+/// Frees the memory allocated for the `SubtitleInfoC` structure.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it's assumed that the `SubtitleInfoC` structure was allocated using `Box`,
+/// and dropping a `Box` pointing to valid memory is safe. However, if the `SubtitleInfoC` was allocated in a different way
+/// or if the memory was already deallocated, calling this function could lead to undefined behavior.
+void dispose_subtitle_info(Box<SubtitleInfoC> info);
+
+/// Frees the memory allocated for the `SubtitleInfoSet` structure.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it's assumed that the `SubtitleInfoSet` structure was allocated using `Box`,
+/// and dropping a `Box` pointing to valid memory is safe. However, if the `SubtitleInfoSet` was allocated in a different way
+/// or if the memory was already deallocated, calling this function could lead to undefined behavior.
+void dispose_subtitle_info_set(Box<SubtitleInfoSet> set);
+
 /// Dispose the [TorrentCollectionSet] from memory.
 void dispose_torrent_collection(Box<TorrentCollectionSet> collection_set);
 
@@ -1727,6 +1759,8 @@ void loader_cancel(PopcornFX *instance, LoadingHandleC handle);
 /// A `LoadingHandleC` representing the loading process associated with the loaded item.
 LoadingHandleC loader_load(PopcornFX *instance,
                            const char *url);
+
+LoadingHandleC loader_load_torrent_file(PopcornFX *instance, TorrentInfoC torrent_info, TorrentFileInfoC torrent_file);
 
 /// Logs a message sent over FFI using the Rust logger.
 ///
@@ -1986,6 +2020,21 @@ void register_settings_callback(PopcornFX *popcorn_fx, ApplicationConfigCallback
 /// * `callback` - A function pointer to the C callback function.
 void register_subtitle_callback(PopcornFX *popcorn_fx, SubtitleCallbackC callback);
 
+/// Registers a new torrent stream event callback.
+///
+/// This function registers a callback function to receive torrent stream events.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to the PopcornFX instance.
+/// * `stream_handle` - The handle of the torrent stream.
+/// * `callback` - The callback function to be invoked when torrent stream events occur.
+///
+/// # Returns
+///
+/// A pointer to an integer value representing the handle of the registered callback, or a null pointer if registration fails.
+const int64_t *register_torrent_stream_event_callback(PopcornFX *popcorn_fx, int64_t stream_handle, TorrentStreamEventCallback callback);
+
 /// Register a new callback for update events.
 ///
 /// This function registers a new callback listener for update events in the PopcornFX application.
@@ -2033,6 +2082,8 @@ void remove_from_watched(PopcornFX *popcorn_fx, const MediaItemC *watchable);
 /// This function removes a player with the specified ID from the PopcornFX player manager.
 /// It converts the `player_id` C string to a Rust String and logs a trace message to indicate the removal.
 void remove_player(PopcornFX *popcorn_fx, const char *player_id);
+
+void remove_torrent_stream_event_callback(PopcornFX *popcorn_fx, const int64_t *stream_handle, const int64_t *callback_handle);
 
 /// Reset all available api stats for the movie api.
 /// This will make all disabled api's available again.
@@ -2107,8 +2158,21 @@ StringArray retrieve_watched_movies(PopcornFX *popcorn_fx);
 /// It returns  an array of watched show id's.
 StringArray retrieve_watched_shows(PopcornFX *popcorn_fx);
 
-/// Select a default subtitle language based on the settings or user interface language.
-SubtitleInfoC *select_or_default_subtitle(PopcornFX *popcorn_fx, const SubtitleInfoC *subtitles_ptr, size_t len);
+/// Selects the default subtitle from the given list of subtitles provided in C-compatible form.
+///
+/// This function retrieves the default subtitle selection from the provided list of subtitles,
+/// converts the selected subtitle back into a C-compatible format, and returns a pointer to it.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to the PopcornFX instance.
+/// * `subtitles_ptr` - Pointer to the array of subtitles in C-compatible form.
+/// * `len` - The length of the subtitles array.
+///
+/// # Returns
+///
+/// A pointer to the selected default subtitle in C-compatible form.
+SubtitleInfoC *select_or_default_subtitle(PopcornFX *popcorn_fx, SubtitleInfoSet *set);
 
 /// Serve the given subtitle as [SubtitleType] format.
 ///

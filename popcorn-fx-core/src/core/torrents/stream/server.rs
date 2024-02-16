@@ -13,8 +13,8 @@ use warp::http::{HeaderValue, Response, StatusCode};
 use warp::http::header::{ACCEPT_RANGES, CONNECTION, CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE, RANGE, USER_AGENT};
 use warp::hyper::HeaderMap;
 
-use crate::core::{block_in_place, Handle, torrents};
-use crate::core::torrents::{Torrent, TorrentError, TorrentStream, TorrentStreamServer, TorrentStreamServerState};
+use crate::core::{block_in_place, CallbackHandle, Handle, torrents};
+use crate::core::torrents::{Torrent, TorrentError, TorrentStream, TorrentStreamCallback, TorrentStreamServer, TorrentStreamServerState};
 use crate::core::torrents::stream::{MediaType, MediaTypeFactory, Range};
 use crate::core::torrents::stream::torrent_stream::DefaultTorrentStream;
 
@@ -53,6 +53,14 @@ impl TorrentStreamServer for DefaultTorrentStreamServer {
 
     fn stop_stream(&self, handle: Handle) {
         self.inner.stop_stream(handle)
+    }
+
+    fn subscribe(&self, handle: Handle, callback: TorrentStreamCallback) -> Option<CallbackHandle> {
+        self.inner.subscribe(handle, callback)
+    }
+
+    fn unsubscribe(&self, handle: Handle, callback_handle: CallbackHandle) {
+        self.inner.unsubscribe(handle, callback_handle)
     }
 }
 
@@ -359,8 +367,7 @@ impl TorrentStreamServer for TorrentStreamServerInner {
 
     fn stop_stream(&self, handle: Handle) {
         trace!("Stopping torrent stream handle {}", handle);
-        let streams = self.streams.clone();
-        let mut mutex = block_in_place(streams.lock());
+        let mut mutex = block_in_place(self.streams.lock());
 
         if let Some(filename) = mutex.iter()
             .find(|(_, e)| e.stream_handle() == handle)
@@ -373,6 +380,31 @@ impl TorrentStreamServer for TorrentStreamServerInner {
                     info!("Stream {} has been stopped", stream.url())
                 }
             }
+        }
+    }
+
+    fn subscribe(&self, handle: Handle, callback: TorrentStreamCallback) -> Option<CallbackHandle> {
+        let mutex = block_in_place(self.streams.lock());
+        let position = mutex.iter()
+            .position(|(_, e)| e.stream_handle() == handle);
+
+        if let Some((_, stream)) = position.and_then(|e| mutex.iter().nth(e)) {
+            debug!("Subscribing callback to stream handle {}", handle);
+            return Some(stream.subscribe_stream(callback));
+        }
+
+        warn!("Unable to subscribe to {}, stream handle not found", handle);
+        None
+    }
+
+    fn unsubscribe(&self, handle: Handle, callback_handle: CallbackHandle) {
+        let mutex = block_in_place(self.streams.lock());
+        let position = mutex.iter()
+            .position(|(_, e)| e.stream_handle() == handle);
+
+        if let Some((_, stream)) = position.and_then(|e| mutex.iter().nth(e)) {
+            debug!("Unsubscribing callback from stream handle {}", handle);
+            stream.unsubscribe_stream(callback_handle);
         }
     }
 }

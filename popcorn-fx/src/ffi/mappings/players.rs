@@ -7,7 +7,7 @@ use derive_more::Display;
 use log::trace;
 use tokio::sync::Mutex;
 
-use popcorn_fx_core::{from_c_string, into_c_owned, into_c_string, to_c_vec};
+use popcorn_fx_core::{from_c_string, into_c_owned, into_c_string, into_c_vec};
 use popcorn_fx_core::core::{block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks};
 use popcorn_fx_core::core::players::{Player, PlayerEvent, PlayerManagerEvent, PlayerState, PlayMediaRequest, PlayRequest, PlayUrlRequest};
 
@@ -273,17 +273,29 @@ impl From<Weak<Box<dyn Player>>> for PlayerWrapperC {
     }
 }
 
+/// Represents a set of players in C-compatible form.
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct PlayerSet {
+    /// Pointer to an array of player instances.
     pub players: *mut PlayerC,
+    /// Length of the player array.
     pub len: i32,
 }
 
 impl From<Vec<PlayerC>> for PlayerSet {
+    /// Converts a vector of C players into a `PlayerSet`.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - The vector of C players to convert.
+    ///
+    /// # Returns
+    ///
+    /// A `PlayerSet` containing the converted players.
     fn from(value: Vec<PlayerC>) -> Self {
         trace!("Converting C players to PlayerSet");
-        let (players, len) = to_c_vec(value);
+        let (players, len) = into_c_vec(value);
 
         Self {
             players,
@@ -292,17 +304,32 @@ impl From<Vec<PlayerC>> for PlayerSet {
     }
 }
 
+/// Represents events related to player management in C-compatible form.
 #[repr(C)]
 #[derive(Debug)]
 pub enum PlayerManagerEventC {
+    /// Indicates a change in the active player.
     ActivePlayerChanged(PlayerChangedEventC),
+    /// Indicates a change in the players set.
     PlayersChanged,
+    /// Indicates a change in the duration of a player.
     PlayerDurationChanged(u64),
+    /// Indicates a change in the playback time of a player.
     PlayerTimeChanged(u64),
+    /// Indicates a change in the state of a player.
     PlayerStateChanged(PlayerState),
 }
 
 impl From<PlayerManagerEvent> for PlayerManagerEventC {
+    /// Converts a Rust `PlayerManagerEvent` into its C-compatible form.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - The `PlayerManagerEvent` to convert.
+    ///
+    /// # Returns
+    ///
+    /// The equivalent `PlayerManagerEventC` enum.
     fn from(value: PlayerManagerEvent) -> Self {
         match value {
             PlayerManagerEvent::ActivePlayerChanged(e) => PlayerManagerEventC::ActivePlayerChanged(PlayerChangedEventC::from(e)),
@@ -314,20 +341,44 @@ impl From<PlayerManagerEvent> for PlayerManagerEventC {
     }
 }
 
+/// Represents a play request in C-compatible form.
 #[repr(C)]
 #[derive(Debug)]
 pub struct PlayRequestC {
+    /// The URL of the media to be played.
     pub url: *const c_char,
+    /// The title of the media.
     pub title: *const c_char,
+    /// The URL of the thumbnail image for the media.
     pub thumb: *const c_char,
+    /// The URL of the background image for the media.
+    pub background: *const c_char,
+    /// The quality of the media.
+    pub quality: *const c_char,
+    /// Pointer to a mutable u64 value representing the auto-resume timestamp.
     pub auto_resume_timestamp: *mut u64,
+    /// The stream handle pointer of the play request.
+    /// This handle can be used to retrieve more information about the underlying stream.
+    pub stream_handle: *mut i64,
+    /// Indicates whether subtitles are enabled for the media.
     pub subtitles_enabled: bool,
 }
 
 impl From<&PlayUrlRequest> for PlayRequestC {
     fn from(value: &PlayUrlRequest) -> Self {
+        trace!("Converting PlayUrlRequest to PlayRequestC for {:?}", value);
         let thumb = if let Some(thumb) = value.thumbnail() {
             into_c_string(thumb)
+        } else {
+            ptr::null()
+        };
+        let background = if let Some(background) = value.background() {
+            into_c_string(background)
+        } else {
+            ptr::null()
+        };
+        let quality = if let Some(quality) = value.quality() {
+            into_c_string(quality)
         } else {
             ptr::null()
         };
@@ -341,16 +392,30 @@ impl From<&PlayUrlRequest> for PlayRequestC {
             url: into_c_string(value.url.clone()),
             title: into_c_string(value.title.clone()),
             thumb,
+            background,
+            quality,
             auto_resume_timestamp,
             subtitles_enabled: value.subtitles_enabled,
+            stream_handle: ptr::null_mut(),
         }
     }
 }
 
 impl From<&PlayMediaRequest> for PlayRequestC {
     fn from(value: &PlayMediaRequest) -> Self {
+        trace!("Converting PlayMediaRequest to PlayRequestC for {:?}", value);
         let thumb = if let Some(thumb) = value.thumbnail() {
             into_c_string(thumb)
+        } else {
+            ptr::null()
+        };
+        let background = if let Some(background) = value.background() {
+            into_c_string(background)
+        } else {
+            ptr::null()
+        };
+        let quality = if let Some(quality) = value.quality() {
+            into_c_string(quality)
         } else {
             ptr::null()
         };
@@ -359,13 +424,21 @@ impl From<&PlayMediaRequest> for PlayRequestC {
         } else {
             ptr::null_mut()
         };
+        let stream_handle = if let Some(e) = value.torrent_stream.upgrade() {
+            into_c_owned(e.stream_handle().value())
+        } else {
+            ptr::null_mut()
+        };
 
         Self {
             url: into_c_string(value.base.url.clone()),
             title: into_c_string(value.base.title.clone()),
             thumb,
+            background,
+            quality,
             auto_resume_timestamp,
             subtitles_enabled: value.subtitles_enabled(),
+            stream_handle,
         }
     }
 }
@@ -395,7 +468,10 @@ mod tests {
     use log::info;
 
     use popcorn_fx_core::{from_c_owned, from_c_vec};
+    use popcorn_fx_core::core::Handle;
+    use popcorn_fx_core::core::media::MovieOverview;
     use popcorn_fx_core::core::players::PlayerChange;
+    use popcorn_fx_core::core::torrents::{MockTorrentStream, TorrentStream};
     use popcorn_fx_core::testing::{init_logger, MockPlayer};
 
     use super::*;
@@ -531,5 +607,63 @@ mod tests {
         if let PlayerManagerEventC::PlayersChanged = result {} else {
             assert!(false, "expected PlayerManagerEventC::PlayersChanged, got {:?} instead", result);
         }
+    }
+
+    #[test]
+    fn test_play_request_c_from_play_url_request() {
+        let url = "https://localhost:8090/foo.mp4";
+        let title = "FooBar";
+        let thumb = "MyThumb.png";
+        let background = "MyBackground.png";
+        let request = PlayUrlRequest::builder()
+            .url(url)
+            .title(title)
+            .thumb(thumb)
+            .background(background)
+            .build();
+
+        let result = PlayRequestC::from(&request);
+
+        assert_eq!(url.to_string(), from_c_string(result.url));
+        assert_eq!(title.to_string(), from_c_string(result.title));
+        assert_eq!(thumb.to_string(), from_c_string(result.thumb));
+        assert_eq!(background.to_string(), from_c_string(result.background));
+    }
+
+    #[test]
+    fn test_play_request_c_from_play_media_request() {
+        let url = "https://localhost:8090/foo.mp4";
+        let title = "FooBar";
+        let thumb = "MyThumb.png";
+        let background = "MyBackground.png";
+        let handle = Handle::new();
+        let mut torrent_stream = MockTorrentStream::new();
+        torrent_stream.expect_stream_handle()
+            .times(1)
+            .return_const(handle.clone());
+        let torrent_stream = Arc::new(Box::new(torrent_stream) as Box<dyn TorrentStream>);
+        let movie = MovieOverview {
+            title: "".to_string(),
+            imdb_id: "".to_string(),
+            year: "".to_string(),
+            rating: None,
+            images: Default::default(),
+        };
+        let request = PlayMediaRequest::builder()
+            .url(url)
+            .title(title)
+            .thumb(thumb)
+            .background(background)
+            .media(Box::new(movie))
+            .torrent_stream(Arc::downgrade(&torrent_stream))
+            .build();
+
+        let result = PlayRequestC::from(&request);
+
+        assert_eq!(url.to_string(), from_c_string(result.url));
+        assert_eq!(title.to_string(), from_c_string(result.title));
+        assert_eq!(thumb.to_string(), from_c_string(result.thumb));
+        assert_eq!(background.to_string(), from_c_string(result.background));
+        assert_eq!(handle.value(), from_c_owned(result.stream_handle));
     }
 }

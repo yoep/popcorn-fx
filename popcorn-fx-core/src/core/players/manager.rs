@@ -11,7 +11,8 @@ use tokio::sync::Mutex;
 
 use crate::core::{block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks};
 use crate::core::config::ApplicationConfig;
-use crate::core::events::{Event, EventPublisher, PlayerChangedEvent, PlayerStartedEvent};
+use crate::core::events::{Event, EventPublisher, PlayerChangedEvent, PlayerStartedEvent, PlayerStoppedEvent};
+use crate::core::media::MediaIdentifier;
 use crate::core::players::{Player, PlayerEvent, PlayerState, PlayMediaRequest, PlayRequest};
 use crate::core::screen::ScreenService;
 use crate::core::torrents::TorrentStreamServer;
@@ -233,7 +234,7 @@ impl Drop for DefaultPlayerManager {
 struct InnerPlayerManager {
     application_config: Arc<ApplicationConfig>,
     active_player: Mutex<Option<String>>,
-    player_duration: Arc<Mutex<u64>>,
+    last_known_player_info: Arc<Mutex<PlayerData>>,
     players: RwLock<Vec<Arc<Box<dyn Player>>>>,
     listener_id: Mutex<Option<CallbackHandle>>,
     listener_sender: Sender<PlayerEventWrapper>,
@@ -252,7 +253,7 @@ impl InnerPlayerManager {
         let instance = Self {
             application_config,
             active_player: Mutex::default(),
-            player_duration: Arc::new(Default::default()),
+            last_known_player_info: Arc::new(Default::default()),
             players: RwLock::default(),
             listener_id: Default::default(),
             listener_sender,
@@ -303,34 +304,56 @@ impl InnerPlayerManager {
     fn handle_player_event(&self, event: PlayerEvent) {
         match event {
             PlayerEvent::DurationChanged(e) => self.handle_player_duration_event(e),
-            PlayerEvent::TimeChanged(e) => self.callbacks.invoke(PlayerManagerEvent::PlayerTimeChanged(e)),
+            PlayerEvent::TimeChanged(e) => self.handle_player_time_event(e),
             PlayerEvent::StateChanged(e) => self.handle_player_state_changed(e),
             PlayerEvent::VolumeChanged(_) => {}
         }
     }
 
     fn handle_player_duration_event(&self, new_duration: u64) {
-        {
-            let mut mutex = block_in_place(self.player_duration.lock());
-            *mutex = new_duration.clone();
+        if new_duration > 0 {
+            let mut mutex = block_in_place(self.last_known_player_info.lock());
+            trace!("Updating last known player duration to {}", new_duration);
+            mutex.duration = Some(new_duration.clone());
         }
 
         self.callbacks.invoke(PlayerManagerEvent::PlayerDurationChanged(new_duration));
     }
 
+    fn handle_player_time_event(&self, new_time: u64) {
+        if new_time > 0 {
+            let mut mutex = block_in_place(self.last_known_player_info.lock());
+            trace!("Updating last known player time to {}", new_time);
+            mutex.time = Some(new_time.clone());
+        }
+
+        self.callbacks.invoke(PlayerManagerEvent::PlayerTimeChanged(new_time));
+    }
+
     fn handle_player_state_changed(&self, new_state: PlayerState) {
         debug!("Player state changed to {}", new_state);
+
         if let PlayerState::Stopped = &new_state {
+            let duration: u64;
+
+            {
+                let mut mutex = block_in_place(self.last_known_player_info.lock());
+                trace!("Last known player info {:?}", mutex);
+                duration = mutex.duration.take().unwrap_or(0);
+                let event = Event::PlayerStopped(PlayerStoppedEvent {
+                    url: mutex.url.take().unwrap_or(String::new()),
+                    media: mutex.media.take(),
+                    time: mutex.time.take(),
+                    duration: Some(duration),
+                });
+
+                debug!("Publishing player stopped event {:?}", event);
+                self.event_publisher.publish(event);
+            }
+
             if let Some(player) = self.active_player()
                 .and_then(|e| e.upgrade()) {
-                let duration: u64;
-
-                {
-                    let mut mutex = block_in_place(self.player_duration.lock());
-                    duration = *mutex;
-                    *mutex = 0;
-                }
-
+                trace!("Last known player duration was {}", duration);
                 if duration > 0 {
                     if let Some(request) = player.request()
                         .and_then(|e| e.upgrade()) {
@@ -479,6 +502,15 @@ impl PlayerManager for InnerPlayerManager {
 
     fn play(&self, request: Box<dyn PlayRequest>) {
         trace!("Processing play request {:?}", request);
+        {
+            let mut mutex = block_in_place(self.last_known_player_info.lock());
+            mutex.url = Some(request.url().to_string());
+
+            if let Some(e) = request.downcast_ref::<PlayMediaRequest>() {
+                mutex.media = e.media.clone_identifier();
+            }
+        }
+
         if let Some(player) = self.active_player()
             .and_then(|e| e.upgrade()) {
             debug!("Starting playback of {} in {}", request.url(), player);
@@ -492,6 +524,14 @@ impl PlayerManager for InnerPlayerManager {
         // verify if we need to active the fullscreen mode
         self.handle_fullscreen_mode()
     }
+}
+
+#[derive(Debug, Default)]
+struct PlayerData {
+    url: Option<String>,
+    media: Option<Box<dyn MediaIdentifier>>,
+    duration: Option<u64>,
+    time: Option<u64>,
 }
 
 #[cfg(test)]

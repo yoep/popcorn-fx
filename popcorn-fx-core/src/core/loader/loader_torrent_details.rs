@@ -4,7 +4,7 @@ use std::sync::mpsc::Sender;
 
 use async_trait::async_trait;
 use derive_more::Display;
-use log::debug;
+use log::{debug, trace};
 use tokio_util::sync::CancellationToken;
 
 use crate::core::events::{Event, EventPublisher};
@@ -43,17 +43,23 @@ impl Debug for TorrentDetailsLoadingStrategy {
 #[async_trait]
 impl LoadingStrategy for TorrentDetailsLoadingStrategy {
     async fn process(&self, data: LoadingData, _: Sender<LoadingEvent>, _: CancellationToken) -> LoadingResult {
-        if let Some(torrent_info) = data.torrent_info {
-            self.event_publisher.publish(Event::TorrentDetailsLoaded(torrent_info));
-            return LoadingResult::Completed;
+        trace!("Processing torrent details strategy for {:?}", data);
+        if let Some(torrent_info) = data.torrent_info.as_ref() {
+            if let None = data.torrent_file_info.as_ref() {
+                self.event_publisher.publish(Event::TorrentDetailsLoaded(torrent_info.clone()));
+                return LoadingResult::Completed;
+            } else {
+                debug!("Torrent file info present, torrent details won't be shown");
+            }
+        } else {
+            debug!("No torrent information present, torrent details won't be loaded");
         }
 
-        debug!("No torrent information present, torrent details won't be loaded");
         LoadingResult::Ok(data)
     }
 
     async fn cancel(&self, data: LoadingData) -> CancellationResult {
-        CancellationResult::Ok(data)
+        Ok(data)
     }
 }
 
@@ -73,6 +79,7 @@ mod tests {
     fn test_process() {
         init_logger();
         let torrent_info = TorrentInfo {
+            uri: String::new(),
             name: "MyTorrentName".to_string(),
             directory_name: None,
             total_files: 5,

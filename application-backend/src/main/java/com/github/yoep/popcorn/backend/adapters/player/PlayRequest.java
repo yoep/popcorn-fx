@@ -1,5 +1,7 @@
 package com.github.yoep.popcorn.backend.adapters.player;
 
+import com.github.yoep.popcorn.backend.lib.Handle;
+
 import javax.validation.constraints.NotNull;
 import java.util.Optional;
 
@@ -15,12 +17,7 @@ public interface PlayRequest {
     @NotNull
     String getUrl();
 
-    /**
-     * The title of the video playback.
-     *
-     * @return Returns the title of the playback if known, else {@link Optional#empty()}.
-     */
-    Optional<String> getTitle();
+    String getTitle();
 
     /**
      * Get the thumbnail url if one is present for the video.
@@ -28,6 +25,8 @@ public interface PlayRequest {
      * @return Returns the thumb of the video if available, else {@link Optional#empty()}.
      */
     Optional<String> getThumbnail();
+
+    Optional<String> getBackground();
 
     /**
      * The quality of the video playback.
@@ -50,4 +49,6 @@ public interface PlayRequest {
      * @return Returns true if subtitles should be enabled for the request, else false.
      */
     boolean isSubtitlesEnabled();
+
+    Optional<Handle> getStreamHandle();
 }

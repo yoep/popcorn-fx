@@ -65,6 +65,12 @@ pub struct PlayUrlRequest {
     pub subtitles_enabled: bool,
 }
 
+impl PlayUrlRequest {
+    pub fn builder() -> PlayUrlRequestBuilder {
+        PlayUrlRequestBuilder::builder()
+    }
+}
+
 /// Implementing the `PlayRequest` trait for `PlayUrlRequest`.
 impl PlayRequest for PlayUrlRequest {
     fn url(&self) -> &str {
@@ -193,35 +199,8 @@ pub struct PlayMediaRequest {
 }
 
 impl PlayMediaRequest {
-    /// Create a new `PlayMediaRequest` with the specified parameters.
-    pub fn new(
-        url: String,
-        title: String,
-        thumb: Option<String>,
-        background: Option<String>,
-        auto_resume_timestamp: Option<u64>,
-        subtitles_enabled: bool,
-        media: Box<dyn MediaIdentifier>,
-        parent_media: Option<Box<dyn MediaIdentifier>>,
-        quality: String,
-        torrent_stream: Weak<Box<dyn TorrentStream>>,
-    ) -> Self {
-        let base = PlayUrlRequest {
-            url,
-            title,
-            thumb,
-            background,
-            auto_resume_timestamp,
-            subtitles_enabled,
-        };
-
-        Self {
-            base,
-            parent_media,
-            media,
-            quality,
-            torrent_stream,
-        }
+    pub fn builder() -> PlayMediaRequestBuilder {
+        PlayMediaRequestBuilder::default()
     }
 }
 

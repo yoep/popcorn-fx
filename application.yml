@@ -34,24 +34,26 @@ popcorn:
     popcorn_fx_core::core::events:
       level: info
     popcorn_fx_core::core::loader:
-      level: debug
+      level: trace
     popcorn_fx_core::core::media:
       level: info
     popcorn_fx_core::core::media::favorites:
       level: info
     popcorn_fx_core::core::media::providers:
       level: info
-    popcorn_fx_core::core::media::watched:
+    popcorn_fx_core::core::media::resume:
       level: info
-    popcorn_fx_core::core::subtitles:
+    popcorn_fx_core::core::media::watched:
       level: info
     popcorn_fx_core::core::subtitles::parsers:
       level: info
     popcorn_fx_core::core::players:
-      level: debug
+      level: info
     popcorn_fx_core::core::playlists:
       level: info
     popcorn_fx_core::core::screen:
+      level: info
+    popcorn_fx_core::core::subtitles:
       level: info
     popcorn_fx_core::core::updater:
       level: info

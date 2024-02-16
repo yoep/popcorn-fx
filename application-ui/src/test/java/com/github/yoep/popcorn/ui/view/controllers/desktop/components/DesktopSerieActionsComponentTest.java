@@ -4,7 +4,9 @@ import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
+import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.ui.view.controls.LanguageFlagSelection;
 import com.github.yoep.popcorn.ui.view.controls.PlayerDropDownButton;
 import javafx.scene.input.KeyCode;
@@ -17,11 +19,15 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.testfx.framework.junit5.ApplicationExtension;
+import org.testfx.util.WaitForAsyncUtils;
 
 import java.net.URL;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
+import static java.util.Arrays.asList;
 import static org.mockito.Mockito.*;
 
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
@@ -43,7 +49,6 @@ class DesktopSerieActionsComponentTest {
 
     @BeforeEach
     void setUp() {
-
         component.watchNowButton = new PlayerDropDownButton();
         component.languageSelection = new LanguageFlagSelection();
     }
@@ -87,5 +92,30 @@ class DesktopSerieActionsComponentTest {
 
         verify(event).consume();
         verify(playlistManager).play(show, episode, quality);
+    }
+
+    @Test
+    void testOnLanguageChanged() throws TimeoutException {
+        var show = mock(ShowDetails.class);
+        var episode = mock(Episode.class);
+        var none = SubtitleInfo.builder()
+                .language(SubtitleLanguage.NONE)
+                .build();
+        var english = SubtitleInfo.builder()
+                .language(SubtitleLanguage.ENGLISH)
+                .build();
+        var french = SubtitleInfo.builder()
+                .language(SubtitleLanguage.FRENCH)
+                .build();
+        when(subtitleService.retrieveSubtitles(isA(ShowDetails.class), isA(Episode.class))).thenReturn(CompletableFuture.completedFuture(asList(none, english, french)));
+        component.initialize(location, resources);
+
+        component.episodeChanged(show, episode);
+        WaitForAsyncUtils.waitForFxEvents();
+        component.languageSelection.select(french);
+
+        WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> component.languageSelection.getSelectedItem() == french);
+        verify(subtitleService).retrieveSubtitles(show, episode);
+        verify(subtitleService).updateSubtitle(french);
     }
 }

@@ -2,7 +2,7 @@ use std::{mem, ptr};
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
-use log::error;
+use log::{error, trace};
 
 pub use popcorn_fx_common::VERSION;
 
@@ -57,6 +57,33 @@ pub fn from_c_owned<T>(ptr: *mut T) -> T {
     *value
 }
 
+/// Converts a raw C pointer into a mutable reference to the underlying value.
+///
+/// # Safety
+///
+/// This function is marked as unsafe because it dereferences a raw C pointer, which can lead to
+/// undefined behavior if not handled carefully. It is the caller's responsibility to ensure that
+/// the pointer is valid and properly aligned.
+///
+/// # Panics
+///
+/// This function will panic if the input pointer is null.
+///
+/// # Arguments
+///
+/// * `ptr` - A raw C pointer to be converted.
+///
+/// # Returns
+///
+/// A mutable reference to the underlying value.
+pub fn from_c_as_ref<T>(ptr: *mut T) -> &'static mut T {
+    if !ptr.is_null() {
+        return unsafe { &mut *ptr };
+    }
+
+    panic!("Unable to read C pointer, pointer is null")
+}
+
 /// Retrieve a C value as a [Box] value.
 ///
 /// This function is preferred over `into_c_owned` when you want to obtain a Rust [Box] without
@@ -104,10 +131,11 @@ pub fn from_c_into_boxed<T>(ptr: *mut T) -> Box<T> {
 
 /// Convert the given [Vec] into a C array tuple which is owned by the caller.
 /// The return tuple is as follows: `(pointer, length)`
-pub fn to_c_vec<T>(vec: Vec<T>) -> (*mut T, i32) {
+pub fn into_c_vec<T>(mut vec: Vec<T>) -> (*mut T, i32) {
     // check if the vec contains items
     // if not, we return a ptr::null as ABI can't handle empty arrays
     if !vec.is_empty() {
+        vec.shrink_to_fit();
         let mut boxed = vec.into_boxed_slice();
         let ptr = boxed.as_mut_ptr();
         let len = boxed.len() as i32;
@@ -119,14 +147,59 @@ pub fn to_c_vec<T>(vec: Vec<T>) -> (*mut T, i32) {
     }
 }
 
-/// Convert the given C array into an owned [Vec].
-/// For more info, see [Vec::from_raw_parts].
+/// Converts the given C array into a **copied** `Vec`.
 ///
-/// It returns the [Vec] on success, else an empty vec if the `ptr` is `null`.
+/// This function **does not** take ownership of the C array pointer and reads it as a new Rust `Vec`.
+/// If you want to clean the C memory after reading the array, use [from_c_vec_owned] instead.
+/// If the `ptr` is null, it returns an empty `Vec`.
+///
+/// For more information, see [`std::slice::from_raw_parts_mut`].
+///
+/// # Arguments
+///
+/// * `ptr` - The pointer to the C array.
+/// * `len` - The length of the C array.
+///
+/// # Returns
+///
+/// The resulting `Vec` on success, or an empty `Vec` if the `ptr` is null.
 pub fn from_c_vec<T: Clone>(ptr: *mut T, len: i32) -> Vec<T> {
+    trace!("Converting C ptr: {:?}, len: {} into a Vec", ptr, len);
     if !ptr.is_null() {
         let slice = unsafe { std::slice::from_raw_parts_mut(ptr, len as usize) };
         slice.into()
+    } else {
+        error!("Unable to read C array, array pointer is null");
+        vec![]
+    }
+}
+
+/// Converts the given C array into an owned `Vec`.
+///
+/// This function takes ownership of the C array pointer and transfers it into a Rust `Vec`.
+/// If the `ptr` is null, it returns an empty `Vec`.
+///
+/// For more information, see [`Vec::from_raw_parts`].
+///
+/// # Arguments
+///
+/// * `ptr` - The pointer to the C array.
+/// * `len` - The length of the C array.
+///
+/// # Returns
+///
+/// The resulting `Vec` on success, or an empty `Vec` if the `ptr` is null.
+pub fn from_c_vec_owned<T: Clone>(ptr: *mut T, len: i32) -> Vec<T> {
+    trace!("Converting C ptr: {:?}, len: {} into a owned Vec", ptr, len);
+    if !ptr.is_null() {
+        if len > 0 {
+            let len = len as usize;
+            let slice = unsafe { Vec::from_raw_parts(ptr, len, len) };
+            slice.into()
+        } else {
+            trace!("C array is empty, returning empty Vector");
+            vec![]
+        }
     } else {
         error!("Unable to read C array, array pointer is null");
         vec![]
@@ -384,6 +457,7 @@ mod test {
     use tempfile::TempDir;
 
     use crate::core::config::{ApplicationConfig, PopcornProperties, ProviderProperties};
+    use crate::testing::init_logger;
 
     use super::*;
 
@@ -423,9 +497,10 @@ mod test {
         map
     }
 
+    #[repr(C)]
     #[derive(Debug, Clone, PartialEq)]
     struct Example {
-        a: i32,
+        pub a: i32,
     }
 
     #[test]
@@ -466,9 +541,37 @@ mod test {
     fn test_c_array() {
         let example = vec![0, 13, 5];
 
-        let (ptr, len) = to_c_vec(example.clone());
+        let (ptr, len) = into_c_vec(example.clone());
         let result = from_c_vec(ptr, len);
 
         assert_eq!(example, result)
+    }
+
+    #[test]
+    fn test_from_c_vec() {
+        init_logger();
+        let value = Example {
+            a: 25,
+        };
+        let array = vec![value.clone()];
+
+        let (ptr, len) = into_c_vec(array);
+        let result = from_c_vec(ptr, len);
+
+        assert_eq!(&value, result.get(0).expect("expected the value item to have been present"));
+    }
+
+    #[test]
+    fn test_from_c_vec_owned() {
+        init_logger();
+        let value = Example {
+            a: 25,
+        };
+        let array = vec![value.clone()];
+
+        let (ptr, len) = into_c_vec(array);
+        let result = from_c_vec_owned(ptr, len);
+
+        assert_eq!(&value, result.get(0).expect("expected the value item to have been present"));
     }
 }

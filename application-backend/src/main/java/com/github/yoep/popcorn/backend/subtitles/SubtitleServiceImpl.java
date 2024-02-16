@@ -135,19 +135,10 @@ public class SubtitleServiceImpl implements SubtitleService {
             return none();
         }
 
-        var count = subtitles.size();
-        var array = (SubtitleInfo[]) new SubtitleInfo().toArray(count);
-
-        for (int i = 0; i < count; i++) {
-            var subtitle = subtitles.get(i);
-            array[i].imdbId = subtitle.imdbId;
-            array[i].language = subtitle.language;
-            array[i].files = subtitle.files;
-            array[i].len = subtitle.len;
-        }
-
-        synchronized (mutex) {
-            return fxLib.select_or_default_subtitle(instance, array, count);
+        try (var set = new SubtitleInfoSet.ByReference(subtitles)) {
+            synchronized (mutex) {
+                return fxLib.select_or_default_subtitle(instance, set);
+            }
         }
     }
 
@@ -203,12 +194,18 @@ public class SubtitleServiceImpl implements SubtitleService {
 
     @Override
     public void disableSubtitle() {
-        fxLib.disable_subtitle(instance);
+        synchronized (mutex) {
+            log.trace("Disabling subtitle");
+            fxLib.disable_subtitle(instance);
+        }
     }
 
     @Override
     public void reset() {
-        fxLib.reset_subtitle(instance);
+        synchronized (mutex) {
+            log.trace("Resetting the subtitle selection");
+            fxLib.reset_subtitle(instance);
+        }
     }
 
     @Override

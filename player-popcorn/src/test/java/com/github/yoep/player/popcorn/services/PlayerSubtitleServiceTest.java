@@ -4,13 +4,6 @@ import com.github.yoep.player.popcorn.listeners.PlaybackListener;
 import com.github.yoep.player.popcorn.listeners.PlayerSubtitleListener;
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
-import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
-import com.github.yoep.popcorn.backend.media.providers.models.Episode;
-import com.github.yoep.popcorn.backend.media.providers.models.Images;
-import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
-import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
-import com.github.yoep.popcorn.backend.player.model.MediaPlayRequest;
-import com.github.yoep.popcorn.backend.player.model.SimplePlayRequest;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import org.junit.jupiter.api.BeforeEach;
@@ -93,55 +86,25 @@ class PlayerSubtitleServiceTest {
     }
 
     @Test
-    void testPlaybackListener_whenRequestIsMoviePlayRequest_shouldInvokeListenersWithAvailableSubtitles() {
-        var movie = MovieDetails.builder()
-                .images(new Images())
-                .build();
-        var activeSubtitle = mock(SubtitleInfo.class);
-        var torrentStream = mock(TorrentStream.class);
-        var request = MediaPlayRequest.mediaBuilder()
-                .media(movie)
-                .torrentStream(torrentStream)
-                .build();
-        var availableSubtitles = asList(mock(SubtitleInfo.class), mock(SubtitleInfo.class));
-        when(subtitleService.retrieveSubtitles(movie)).thenReturn(CompletableFuture.completedFuture(availableSubtitles));
-        when(subtitleService.preferredSubtitle()).thenReturn(Optional.of(activeSubtitle));
-        service.init();
-
-        listenerHolder.get().onPlay(request);
-
-        verify(listener).onAvailableSubtitlesChanged(availableSubtitles, activeSubtitle);
-    }
-
-    @Test
     void testPlaybackListener_whenRequestIsShowPlayRequest_shouldInvokeListenersWithAvailableEpisodeSubtitles() {
-        var episode = Episode.builder()
-                .episode(2)
-                .build();
-        var show = mock(ShowDetails.class);
         var activeSubtitle = mock(SubtitleInfo.class);
-        var torrentStream = mock(TorrentStream.class);
-        var request = MediaPlayRequest.mediaBuilder()
-                .media(show)
-                .subMediaItem(episode)
-                .torrentStream(torrentStream)
-                .build();
+        var request = mock(PlayRequest.class);
         var availableSubtitles = asList(mock(SubtitleInfo.class), mock(SubtitleInfo.class));
-        when(subtitleService.retrieveSubtitles(show, episode)).thenReturn(CompletableFuture.completedFuture(availableSubtitles));
+        when(request.getUrl()).thenReturn("http://localhost:8080/MyFilename.mp4");
+        when(request.isSubtitlesEnabled()).thenReturn(true);
+        when(subtitleService.retrieveSubtitles(isA(String.class))).thenReturn(CompletableFuture.completedFuture(availableSubtitles));
         when(subtitleService.preferredSubtitle()).thenReturn(Optional.of(activeSubtitle));
         service.init();
 
         listenerHolder.get().onPlay(request);
 
         verify(listener).onAvailableSubtitlesChanged(availableSubtitles, activeSubtitle);
+        verify(subtitleService).retrieveSubtitles("MyFilename.mp4");
     }
 
     @Test
     void testPlaybackListener_whenRequestIsSimplePlayRequestAndSubtitlesIsDisabled_shouldNotRetrieveSubtitles() {
-        var request = SimplePlayRequest.builder()
-                .title("lorem")
-                .url("filename.mp4")
-                .build();
+        var request = mock(PlayRequest.class);
         service.init();
 
         listenerHolder.get().onPlay(request);

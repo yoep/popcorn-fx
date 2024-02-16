@@ -182,6 +182,8 @@ public class DesktopMovieActionsComponent implements Initializable {
                         languageSelection.select(subtitleService.none()));
             } else if (newValue.isNone()) {
                 subtitleService.disableSubtitle();
+            } else {
+                subtitleService.updateSubtitle(newValue);
             }
         };
     }

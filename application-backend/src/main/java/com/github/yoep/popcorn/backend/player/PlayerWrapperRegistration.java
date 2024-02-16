@@ -18,7 +18,15 @@ public class PlayerWrapperRegistration extends PlayerWrapper {
 
     public PlayerWrapperRegistration(Player player) {
         super(player);
-        this.playerPlayCallback = request -> Platform.runLater(() -> player.play(request.toPlayRequest()));
-        this.playerStopCallback = () -> Platform.runLater(player::stop);
+        this.playerPlayCallback = onPlay(player);
+        this.playerStopCallback = onStop(player);
+    }
+
+    private PlayerPlayCallback onPlay(Player player) {
+        return request -> Platform.runLater(() -> player.play(request));
+    }
+
+    private PlayerStopCallback onStop(Player player) {
+        return () -> Platform.runLater(player::stop);
     }
 }

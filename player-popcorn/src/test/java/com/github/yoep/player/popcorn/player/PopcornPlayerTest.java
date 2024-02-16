@@ -1,9 +1,9 @@
 package com.github.yoep.player.popcorn.player;
 
 import com.github.yoep.player.popcorn.services.VideoService;
+import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
 import com.github.yoep.popcorn.backend.adapters.video.listeners.VideoListener;
-import com.github.yoep.popcorn.backend.player.model.SimplePlayRequest;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import org.junit.jupiter.api.BeforeEach;
@@ -69,7 +69,7 @@ class PopcornPlayerTest {
 
     @Test
     void testPlay_whenInvoked_shouldInvokePlayOnVideoService() {
-        var request = SimplePlayRequest.builder().build();
+        var request = mock(PlayRequest.class);
 
         popcornPlayer.play(request);
 

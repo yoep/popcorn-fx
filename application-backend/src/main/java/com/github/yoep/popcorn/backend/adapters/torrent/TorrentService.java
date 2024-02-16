@@ -5,6 +5,7 @@ import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentFileInfo;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentHealth;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
 import com.github.yoep.popcorn.backend.adapters.torrent.state.SessionState;
+import com.github.yoep.popcorn.backend.lib.Handle;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import org.springframework.scheduling.annotation.Async;
 
@@ -106,6 +107,10 @@ public interface TorrentService {
      * @return Returns the health of the torrent.
      */
     TorrentHealth calculateHealth(int seeds, int peers);
+
+    Handle addListener(Handle handle, TorrentStreamListener listener);
+    
+    void removeListener(Handle callbackHandle);
 
     /**
      * Clean the torrents directory.

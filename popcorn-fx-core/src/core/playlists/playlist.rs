@@ -95,20 +95,39 @@ impl FromIterator<PlaylistItem> for Playlist {
     }
 }
 
+/// Represents an item in a playlist, which can be a media file, a stream URL, or other media content.
 #[derive(Debug, Display)]
 #[display(fmt = "url: {:?}, title: {}, caption: {:?}, thumb: {:?}, media: {:?}, quality: {:?}, subtitles_enabled: {}", url, title, caption, thumb, media, quality, subtitles_enabled)]
 pub struct PlaylistItem {
+    /// The URL of the playlist item, if available.
     pub url: Option<String>,
+    /// The title of the playlist item.
     pub title: String,
+    /// A caption or description for the playlist item, if available.
     pub caption: Option<String>,
+    /// The thumbnail URL of the playlist item, if available.
     pub thumb: Option<String>,
+    /// The parent media identifier associated with the playlist item, if available.
     pub parent_media: Option<Box<dyn MediaIdentifier>>,
+    /// The media identifier associated with the playlist item, if available.
     pub media: Option<Box<dyn MediaIdentifier>>,
+    /// Information about the torrent associated with the playlist item, if available.
     pub torrent_info: Option<TorrentInfo>,
+    /// Information about the torrent file associated with the playlist item, if available.
     pub torrent_file_info: Option<TorrentFileInfo>,
+    /// The quality of the playlist item, if available.
     pub quality: Option<String>,
+    /// The timestamp for auto-resume functionality, if available.
     pub auto_resume_timestamp: Option<u64>,
+    /// Indicates whether subtitles are enabled for the playlist item.
     pub subtitles_enabled: bool,
+}
+
+impl PlaylistItem {
+    /// Creates a new builder for constructing a `PlaylistItem`.
+    pub fn builder() -> PlaylistItemBuilder {
+        PlaylistItemBuilder::builder()
+    }
 }
 
 impl Clone for PlaylistItem {
@@ -167,6 +186,118 @@ impl PartialEq for PlaylistItem {
             thumb_equal &&
             media_equal &&
             self.quality == other.quality
+    }
+}
+
+/// A builder for constructing a `PlaylistItem`.
+///
+/// By default, `subtitles_enabled` is set to `false` if not provided before calling the `build` function.
+#[derive(Debug, Default)]
+pub struct PlaylistItemBuilder {
+    url: Option<String>,
+    title: Option<String>,
+    caption: Option<String>,
+    thumb: Option<String>,
+    parent_media: Option<Box<dyn MediaIdentifier>>,
+    media: Option<Box<dyn MediaIdentifier>>,
+    torrent_info: Option<TorrentInfo>,
+    torrent_file_info: Option<TorrentFileInfo>,
+    quality: Option<String>,
+    auto_resume_timestamp: Option<u64>,
+    subtitles_enabled: Option<bool>,
+}
+
+impl PlaylistItemBuilder {
+    /// Creates a new instance of `PlaylistItemBuilder`.
+    pub fn builder() -> Self {
+        Self::default()
+    }
+
+    /// Sets the URL of the playlist item.
+    pub fn url<T: ToString>(mut self, url: T) -> Self {
+        self.url = Some(url.to_string());
+        self
+    }
+
+    /// Sets the title of the playlist item.
+    pub fn title<T: ToString>(mut self, title: T) -> Self {
+        self.title = Some(title.to_string());
+        self
+    }
+
+    /// Sets the caption of the playlist item.
+    pub fn caption<T: ToString>(mut self, caption: T) -> Self {
+        self.caption = Some(caption.to_string());
+        self
+    }
+
+    /// Sets the thumbnail URL of the playlist item.
+    pub fn thumb<T: ToString>(mut self, thumb: T) -> Self {
+        self.thumb = Some(thumb.to_string());
+        self
+    }
+
+    /// Sets the parent media identifier associated with the playlist item.
+    pub fn parent_media(mut self, parent_media: Box<dyn MediaIdentifier>) -> Self {
+        self.parent_media = Some(parent_media);
+        self
+    }
+
+    /// Sets the media identifier associated with the playlist item.
+    pub fn media(mut self, media: Box<dyn MediaIdentifier>) -> Self {
+        self.media = Some(media);
+        self
+    }
+
+    /// Sets the torrent information associated with the playlist item.
+    pub fn torrent_info(mut self, torrent_info: TorrentInfo) -> Self {
+        self.torrent_info = Some(torrent_info);
+        self
+    }
+
+    /// Sets the torrent file information associated with the playlist item.
+    pub fn torrent_file_info(mut self, torrent_file_info: TorrentFileInfo) -> Self {
+        self.torrent_file_info = Some(torrent_file_info);
+        self
+    }
+
+    /// Sets the quality of the playlist item.
+    pub fn quality<T: ToString>(mut self, quality: T) -> Self {
+        self.quality = Some(quality.to_string());
+        self
+    }
+
+    /// Sets the auto-resume timestamp of the playlist item.
+    pub fn auto_resume_timestamp(mut self, auto_resume_timestamp: u64) -> Self {
+        self.auto_resume_timestamp = Some(auto_resume_timestamp);
+        self
+    }
+
+    /// Sets whether subtitles are enabled for the playlist item.
+    pub fn subtitles_enabled(mut self, subtitles_enabled: bool) -> Self {
+        self.subtitles_enabled = Some(subtitles_enabled);
+        self
+    }
+
+    /// Builds the `PlaylistItem` from the builder.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `title` are not set.
+    pub fn build(self) -> PlaylistItem {
+        PlaylistItem {
+            url: self.url,
+            title: self.title.expect("title is not set"),
+            caption: self.caption,
+            thumb: self.thumb,
+            parent_media: self.parent_media,
+            media: self.media,
+            torrent_info: self.torrent_info,
+            torrent_file_info: self.torrent_file_info,
+            quality: self.quality,
+            auto_resume_timestamp: self.auto_resume_timestamp,
+            subtitles_enabled: self.subtitles_enabled.unwrap_or_else(|| false),
+        }
     }
 }
 

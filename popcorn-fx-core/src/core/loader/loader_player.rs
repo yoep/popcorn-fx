@@ -19,17 +19,30 @@ pub struct PlayerLoadingStrategy {
 }
 
 impl PlayerLoadingStrategy {
-    /// Create a new instance of `PlayerLoadingStrategy`.
+    /// Creates a new instance of `PlayerLoadingStrategy`.
     ///
     /// # Arguments
     ///
     /// * `player_manager` - An Arc reference to a PlayerManager.
+    ///
+    /// # Returns
+    ///
+    /// A new `PlayerLoadingStrategy` instance.
     pub fn new(player_manager: Arc<Box<dyn PlayerManager>>) -> Self {
         Self {
             player_manager,
         }
     }
 
+    /// Converts the loading data into a play request.
+    ///
+    /// # Arguments
+    ///
+    /// * `data` - The loading data.
+    ///
+    /// # Returns
+    ///
+    /// A result containing a boxed `PlayRequest` if successful, or a `LoadingError` if an error occurs.
     fn convert(&self, data: LoadingData) -> Result<Box<dyn PlayRequest>, LoadingError> {
         if data.media.is_some() {
             trace!("Trying to start media playback for {:?}", data);
@@ -40,11 +53,20 @@ impl PlayerLoadingStrategy {
             };
         }
 
-        return Ok(Box::new(PlayUrlRequest::from(data)));
+        Ok(Box::new(PlayUrlRequest::from(data)))
     }
 }
 
 impl Debug for PlayerLoadingStrategy {
+    /// Formats the `PlayerLoadingStrategy` for debugging purposes.
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - The formatter.
+    ///
+    /// # Returns
+    ///
+    /// A result containing the formatted output.
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("PlayerLoadingStrategy")
             .field("player_manager", &self.player_manager)
@@ -62,13 +84,13 @@ impl LoadingStrategy for PlayerLoadingStrategy {
     async fn process(&self, data: LoadingData, event_channel: Sender<LoadingEvent>, _: CancellationToken) -> LoadingResult {
         if let Some(url) = data.url.as_ref() {
             debug!("Starting playlist item playback for {}", url);
-            match self.convert(data) {
+            return match self.convert(data) {
                 Ok(request) => {
                     event_channel.send(LoadingEvent::StateChanged(LoadingState::Playing)).unwrap();
                     self.player_manager.play(request);
-                    return LoadingResult::Completed;
+                    LoadingResult::Completed
                 }
-                Err(err) => return LoadingResult::Err(err),
+                Err(err) => LoadingResult::Err(err),
             }
         }
 

@@ -1,6 +1,6 @@
 use std::os::raw::c_char;
 
-use crate::{into_c_string, to_c_vec};
+use crate::{into_c_string, into_c_vec};
 use crate::core::torrents::collection::MagnetInfo;
 
 /// The collection of stored magnets.
@@ -16,7 +16,7 @@ pub struct TorrentCollectionSet {
 
 impl From<Vec<MagnetInfo>> for TorrentCollectionSet {
     fn from(value: Vec<MagnetInfo>) -> Self {
-        let (magnets, len) = to_c_vec(value.into_iter()
+        let (magnets, len) = into_c_vec(value.into_iter()
             .map(MagnetInfoC::from)
             .collect());
 

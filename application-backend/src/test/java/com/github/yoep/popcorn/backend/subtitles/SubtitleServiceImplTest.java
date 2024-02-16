@@ -3,7 +3,9 @@ package com.github.yoep.popcorn.backend.subtitles;
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleFile;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfoSet;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -60,19 +62,21 @@ class SubtitleServiceImplTest {
         var result = service.getDefaultOrInterfaceLanguage(new ArrayList<>());
 
         assertEquals(none, result);
-        verify(fxLib, times(0)).select_or_default_subtitle(eq(instance), isA(SubtitleInfo[].class), isA(Integer.class));
+        verify(fxLib, times(0)).select_or_default_subtitle(eq(instance), isA(SubtitleInfoSet.ByReference.class));
     }
 
     @Test
     void testGetDefaultOrInterfaceLanguage() {
-        var subtitle = new SubtitleInfo();
-        subtitle.imdbId = "tt111111";
-        subtitle.language = SubtitleLanguage.ENGLISH;
-        var expectedResult = new SubtitleInfo[]{subtitle};
+        var subtitleFile = mock(SubtitleFile.class);
+        var subtitle = mock(SubtitleInfo.class);
+        when(subtitle.getImdbId()).thenReturn("tt111111");
+        when(subtitle.getLanguage()).thenReturn(SubtitleLanguage.ENGLISH);
+        when(subtitle.getFiles()).thenReturn(Collections.singletonList(subtitleFile));
+        when(subtitle.getLen()).thenReturn(1);
 
         service.getDefaultOrInterfaceLanguage(Collections.singletonList(subtitle));
 
-        verify(fxLib).select_or_default_subtitle(instance, expectedResult, 1);
+        verify(fxLib).select_or_default_subtitle(eq(instance), isA(SubtitleInfoSet.ByReference.class));
     }
 
     @Test

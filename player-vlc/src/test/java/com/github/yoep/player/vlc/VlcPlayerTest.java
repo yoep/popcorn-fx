@@ -2,9 +2,9 @@ package com.github.yoep.player.vlc;
 
 import com.github.yoep.player.vlc.model.VlcState;
 import com.github.yoep.player.vlc.services.VlcPlayerService;
+import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
-import com.github.yoep.popcorn.backend.player.model.SimplePlayRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -84,9 +84,7 @@ class VlcPlayerTest {
 
     @Test
     void testPlay_whenProcessFailedToLaunch_shouldUpdateStateToError() {
-        var request = SimplePlayRequest.builder()
-                .url("my-video-url")
-                .build();
+        var request = mock(PlayRequest.class);
         when(service.play(request)).thenReturn(false);
 
         player.play(request);

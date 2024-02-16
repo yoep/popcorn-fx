@@ -11,6 +11,7 @@ import com.github.yoep.popcorn.ui.view.controllers.common.components.SerieAction
 import com.github.yoep.popcorn.ui.view.controls.LanguageFlagCell;
 import com.github.yoep.popcorn.ui.view.controls.LanguageFlagSelection;
 import com.github.yoep.popcorn.ui.view.controls.PlayerDropDownButton;
+import com.github.yoep.popcorn.ui.view.services.DetailsComponentService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -35,6 +36,7 @@ public class DesktopSerieActionsComponent implements Initializable, SerieActions
     private final SubtitleService subtitleService;
     private final DesktopSerieQualityComponent desktopSerieQualityComponent;
     private final PlaylistManager playlistManager;
+    private final DetailsComponentService detailsComponentService;
 
     private ShowDetails media;
     private Episode episode;
@@ -67,8 +69,13 @@ public class DesktopSerieActionsComponent implements Initializable, SerieActions
 
     private void initializeLanguage() {
         languageSelection.selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-            if (newValue != null && newValue.isNone()) {
+            if (newValue.isCustom()) {
+                detailsComponentService.onCustomSubtitleSelected(() ->
+                        languageSelection.select(subtitleService.none()));
+            } else if (newValue.isNone()) {
                 subtitleService.disableSubtitle();
+            } else {
+                subtitleService.updateSubtitle(newValue);
             }
         });
         languageSelection.setFactory(new LanguageFlagCell() {
@@ -117,10 +124,6 @@ public class DesktopSerieActionsComponent implements Initializable, SerieActions
     }
 
     private void startSeriePlayback() {
-        //        var mediaTorrentInfo = episode.getTorrents().get(desktopSerieQualityComponent.getSelectedQuality());
-        //        eventPublisher.publishEvent(new LoadMediaTorrentEvent(this, mediaTorrentInfo, media, episode, desktopSerieQualityComponent
-        //        .getSelectedQuality(),
-        //                languageSelection.getSelectedItem()));
         playlistManager.play(media, episode, desktopSerieQualityComponent.getSelectedQuality());
     }
 

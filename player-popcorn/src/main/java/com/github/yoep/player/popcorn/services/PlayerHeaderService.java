@@ -4,11 +4,11 @@ import com.github.yoep.player.popcorn.listeners.AbstractPlaybackListener;
 import com.github.yoep.player.popcorn.listeners.PlaybackListener;
 import com.github.yoep.player.popcorn.listeners.PlayerHeaderListener;
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
-import com.github.yoep.popcorn.backend.adapters.player.PlayStreamRequest;
-import com.github.yoep.popcorn.backend.adapters.torrent.listeners.AbstractTorrentListener;
-import com.github.yoep.popcorn.backend.adapters.torrent.listeners.TorrentListener;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentStreamListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
-import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
+import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentStreamState;
+import com.github.yoep.popcorn.backend.lib.Handle;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,11 +22,12 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class PlayerHeaderService extends AbstractListenerService<PlayerHeaderListener> {
     private final VideoService videoService;
+    private final TorrentService torrentService;
 
     private final PlaybackListener listener = createListener();
-    private final TorrentListener torrentListener = createTorrentListener();
+    private final TorrentStreamListener torrentListener = createTorrentStreamListener();
 
-    private TorrentStream lastKnownTorrent;
+    private Handle lastKnownCallbackHandle;
 
     @PostConstruct
     void init() {
@@ -34,23 +35,16 @@ public class PlayerHeaderService extends AbstractListenerService<PlayerHeaderLis
     }
 
     private void onPlayRequest(PlayRequest request) {
-        invokeListeners(e -> e.onTitleChanged(request.getTitle().orElse("Unknown")));
+        invokeListeners(e -> e.onTitleChanged(request.getTitle()));
         invokeListeners(e -> e.onQualityChanged(request.getQuality().orElse(null)));
-        invokeListeners(e -> e.onStreamStateChanged(request instanceof PlayStreamRequest));
+        invokeListeners(e -> e.onStreamStateChanged(request.getStreamHandle().isPresent()));
 
-        Optional.ofNullable(lastKnownTorrent)
-                .ifPresent(e -> e.removeListener(torrentListener));
+        Optional.ofNullable(lastKnownCallbackHandle)
+                .ifPresent(torrentService::removeListener);
 
-        if (request instanceof PlayStreamRequest) {
-            onStreamRequest((PlayStreamRequest) request);
-        }
-    }
-
-    private void onStreamRequest(PlayStreamRequest request) {
-        var torrent = request.getTorrentStream();
-
-        torrent.addListener(torrentListener);
-        this.lastKnownTorrent = torrent;
+        lastKnownCallbackHandle = request.getStreamHandle()
+                .map(e -> torrentService.addListener(e, torrentListener))
+                .orElse(null);
     }
 
     private void onStreamProgressChanged(DownloadStatus status) {
@@ -66,11 +60,16 @@ public class PlayerHeaderService extends AbstractListenerService<PlayerHeaderLis
         };
     }
 
-    private TorrentListener createTorrentListener() {
-        return new AbstractTorrentListener() {
+    private TorrentStreamListener createTorrentStreamListener() {
+        return new TorrentStreamListener() {
             @Override
-            public void onDownloadStatus(DownloadStatus status) {
-                onStreamProgressChanged(status);
+            public void onStateChanged(TorrentStreamState newState) {
+                // no-op
+            }
+
+            @Override
+            public void onDownloadStatus(DownloadStatus downloadStatus) {
+                onStreamProgressChanged(downloadStatus);
             }
         };
     }

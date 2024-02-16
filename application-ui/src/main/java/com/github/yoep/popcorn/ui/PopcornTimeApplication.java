@@ -10,6 +10,7 @@ import com.github.yoep.popcorn.backend.BackendConstants;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.lib.FxLibInstance;
 import com.github.yoep.popcorn.backend.lib.PopcornFxInstance;
+import com.github.yoep.popcorn.backend.lib.WriteOnlyStringArray;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.ui.stage.BorderlessStageHolder;
 import com.github.yoep.popcorn.ui.view.services.MaximizeService;
@@ -37,8 +38,12 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
     public static void main(String[] args) {
         System.setProperty("log.dir", getLogDirectory());
         System.setProperty("jna.encoding", StandardCharsets.UTF_8.name());
-        var libArgs = createLibraryArguments(args);
-        PopcornFxInstance.INSTANCE.set(FxLibInstance.INSTANCE.get().new_popcorn_fx(libArgs, libArgs.length));
+
+        try (var libArgs = createLibraryArguments(args)) {
+            libArgs.close();
+            PopcornFxInstance.INSTANCE.set(FxLibInstance.INSTANCE.get().new_popcorn_fx(libArgs, args.length + 1));
+        }
+
         launch(PopcornTimeApplication.class, PopcornTimePreloader.class, args);
     }
 
@@ -127,10 +132,10 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
         return loggingDirectory.getAbsolutePath();
     }
 
-    private static String[] createLibraryArguments(String[] args) {
+    private static WriteOnlyStringArray createLibraryArguments(String[] args) {
         var libArgs = new String[args.length + 1];
         libArgs[0] = "popcorn-fx";
         System.arraycopy(args, 0, libArgs, 1, args.length);
-        return libArgs;
+        return new WriteOnlyStringArray(libArgs);
     }
 }

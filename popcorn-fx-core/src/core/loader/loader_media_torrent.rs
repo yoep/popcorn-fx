@@ -9,17 +9,32 @@ use tokio_util::sync::CancellationToken;
 use crate::core::loader::{CancellationResult, LoadingData, LoadingError, LoadingEvent, LoadingResult, LoadingStrategy};
 use crate::core::media::{DEFAULT_AUDIO_LANGUAGE, Episode, MediaType, MovieDetails, TorrentInfo};
 
+/// Represents a strategy for loading media torrent URLs.
 #[derive(Display)]
-#[display(fmt = "Media torrent utl loading strategy")]
+#[display(fmt = "Media torrent URL loading strategy")]
 pub struct MediaTorrentUrlLoadingStrategy {}
 
 impl MediaTorrentUrlLoadingStrategy {
+    /// Creates a new `MediaTorrentUrlLoadingStrategy` instance.
+    ///
+    /// # Returns
+    ///
+    /// A new `MediaTorrentUrlLoadingStrategy` instance.
     pub fn new() -> Self {
         Self {}
     }
 }
 
 impl Debug for MediaTorrentUrlLoadingStrategy {
+    /// Formats the `MediaTorrentUrlLoadingStrategy` for debugging purposes.
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - The formatter.
+    ///
+    /// # Returns
+    ///
+    /// A result containing the formatted output.
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("MediaTorrentUrlLoadingStrategy")
             .finish()
@@ -28,12 +43,15 @@ impl Debug for MediaTorrentUrlLoadingStrategy {
 
 #[async_trait]
 impl LoadingStrategy for MediaTorrentUrlLoadingStrategy {
-    async fn process(&self, mut data: LoadingData, _: Sender<LoadingEvent>, _: CancellationToken) -> LoadingResult {
+    async fn process(&self, mut data: LoadingData, _: Sender<LoadingEvent>, cancel: CancellationToken) -> LoadingResult {
         if let Some(media) = data.media.as_ref() {
             if let Some(quality) = data.quality.as_ref() {
                 debug!("Processing media torrent url for {} and quality {}", media, quality);
                 let media_torrent_info: Option<TorrentInfo>;
 
+                if cancel.is_cancelled() {
+                    return LoadingResult::Err(LoadingError::Cancelled);
+                }
                 match media.media_type() {
                     MediaType::Movie => {
                         trace!("Processing movie details for torrent information of {:?}", media);
@@ -57,6 +75,9 @@ impl LoadingStrategy for MediaTorrentUrlLoadingStrategy {
                     }
                 }
 
+                if cancel.is_cancelled() {
+                    return LoadingResult::Err(LoadingError::Cancelled);
+                }
                 if let Some(torrent_info) = media_torrent_info {
                     let url = torrent_info.url().to_string();
                     debug!("Updating playlist item url to {} for media {}", url, media);
@@ -144,5 +165,30 @@ mod tests {
         } else {
             assert!(false, "expected LoadingResult::Ok, but got {:?} instead", result);
         }
+    }
+
+    #[test]
+    fn test_cancel() {
+        let url = "http://localhost:9090/DolorEsta.mp4";
+        let title = "FooBar";
+        let item = PlaylistItem {
+            url: Some(url.to_string()),
+            title: title.to_string(),
+            caption: None,
+            thumb: None,
+            parent_media: None,
+            media: None,
+            torrent_info: None,
+            torrent_file_info: None,
+            quality: Some("720p".to_string()),
+            auto_resume_timestamp: Some(50000),
+            subtitles_enabled: false,
+        };
+        let data = LoadingData::from(item);
+        let strategy = MediaTorrentUrlLoadingStrategy::new();
+
+        let result = block_in_place(strategy.cancel(data.clone()));
+
+        assert_eq!(Ok(data), result);
     }
 }

@@ -1,12 +1,14 @@
 use std::os::raw::c_char;
+use std::ptr;
 
 use log::{trace, warn};
 
 use popcorn_fx_core::{from_c_string, into_c_string};
+use popcorn_fx_core::core::Handle;
 use popcorn_fx_core::core::torrents::{DownloadStatus, TorrentInfo, TorrentState, TorrentWrapper};
 use popcorn_fx_torrent::torrent::DefaultTorrentManager;
 
-use crate::ffi::{CancelTorrentCallback, DownloadStatusC, ResolveTorrentCallback, ResolveTorrentInfoCallback, TorrentFileInfoC};
+use crate::ffi::{CancelTorrentCallback, DownloadStatusC, ResolveTorrentCallback, ResolveTorrentInfoCallback, TorrentFileInfoC, TorrentStreamEventC, TorrentStreamEventCallback};
 use crate::PopcornFX;
 
 /// Callback function for handling changes in the state of a torrent.
@@ -170,6 +172,39 @@ pub extern "C" fn torrent_cancel_callback(popcorn_fx: &mut PopcornFX, callback: 
     }
 }
 
+/// Registers a new torrent stream event callback.
+///
+/// This function registers a callback function to receive torrent stream events.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to the PopcornFX instance.
+/// * `stream_handle` - The handle of the torrent stream.
+/// * `callback` - The callback function to be invoked when torrent stream events occur.
+///
+/// # Returns
+///
+/// A pointer to an integer value representing the handle of the registered callback, or a null pointer if registration fails.
+#[no_mangle]
+pub extern "C" fn register_torrent_stream_event_callback(popcorn_fx: &mut PopcornFX, stream_handle: i64, callback: TorrentStreamEventCallback) -> *const i64 {
+    trace!("Registering a new torrent stream event callback for handle {}", stream_handle);
+    let handle = Handle::from(stream_handle);
+    popcorn_fx.torrent_stream_server().subscribe(handle, Box::new(move |event| {
+        trace!("Invoking torrent stream event C callback for {:?}", event);
+        callback(TorrentStreamEventC::from(event))
+    }))
+        .map(|handle| handle.value() as *const i64)
+        .unwrap_or(ptr::null())
+}
+
+#[no_mangle]
+pub extern "C" fn remove_torrent_stream_event_callback(popcorn_fx: &mut PopcornFX, stream_handle: *const i64, callback_handle: *const i64) {
+    trace!("Removing torrent event stream callback handle {:?} of {:?}", callback_handle, stream_handle);
+    let callback_handle = Handle::from(callback_handle as i64);
+    let handle = Handle::from(stream_handle as i64);
+    popcorn_fx.torrent_stream_server().unsubscribe(handle, callback_handle);
+}
+
 /// Clean the torrents directory.
 /// This will remove all existing torrents from the system.
 #[no_mangle]
@@ -181,15 +216,17 @@ pub extern "C" fn cleanup_torrents_directory(popcorn_fx: &mut PopcornFX) {
 #[cfg(test)]
 mod test {
     use std::path::PathBuf;
+    use std::sync::Arc;
     use std::sync::mpsc::channel;
     use std::time::Duration;
 
+    use log::info;
     use tempfile::tempdir;
     use tokio::sync::Mutex;
 
     use popcorn_fx_core::{assert_timeout_eq, into_c_string};
     use popcorn_fx_core::core::block_in_place;
-    use popcorn_fx_core::core::torrents::{Torrent, TorrentEvent, TorrentFileInfo, TorrentManager};
+    use popcorn_fx_core::core::torrents::{MockTorrent, Torrent, TorrentEvent, TorrentFileInfo, TorrentManager};
     use popcorn_fx_core::testing::{copy_test_file, init_logger};
 
     use crate::test::{default_args, new_instance};
@@ -197,32 +234,37 @@ mod test {
     use super::*;
 
     #[no_mangle]
-    pub extern "C" fn has_bytes_callback(_: i32, _: *mut u64) -> bool {
+    extern "C" fn has_bytes_callback(_: i32, _: *mut u64) -> bool {
         true
     }
 
     #[no_mangle]
-    pub extern "C" fn has_piece_callback(_: u32) -> bool {
+    extern "C" fn has_piece_callback(_: u32) -> bool {
         true
     }
 
     #[no_mangle]
-    pub extern "C" fn total_pieces_callback() -> i32 {
+    extern "C" fn total_pieces_callback() -> i32 {
         10
     }
 
     #[no_mangle]
-    pub extern "C" fn prioritize_bytes_callback(_: i32, _: *mut u64) {}
+    extern "C" fn prioritize_bytes_callback(_: i32, _: *mut u64) {}
 
     #[no_mangle]
-    pub extern "C" fn prioritize_pieces_callback(_: i32, _: *mut u32) {}
+    extern "C" fn prioritize_pieces_callback(_: i32, _: *mut u32) {}
 
     #[no_mangle]
-    pub extern "C" fn sequential_mode_callback() {}
+    extern "C" fn sequential_mode_callback() {}
 
     #[no_mangle]
-    pub extern "C" fn torrent_state_callback() -> TorrentState {
+    extern "C" fn torrent_state_callback() -> TorrentState {
         TorrentState::Downloading
+    }
+
+    #[no_mangle]
+    extern "C" fn torrent_stream_event_callback(event: TorrentStreamEventC) {
+        info!("Received torrent stream event {:?}", event);
     }
 
     #[test]
@@ -293,5 +335,34 @@ mod test {
 
         assert_timeout_eq!(Duration::from_millis(200), false, PathBuf::from(filepath.clone()).exists());
         assert_eq!(true, instance.settings().user_settings().torrent_settings.directory.exists(), "expected the torrent directory to still exist");
+    }
+
+    #[test]
+    fn test_remove_torrent_stream_event_callback() {
+        init_logger();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut torrent = MockTorrent::new();
+        torrent.expect_file()
+            .return_const(PathBuf::from(temp_path));
+        torrent.expect_total_pieces()
+            .return_const(10);
+        torrent.expect_subscribe()
+            .return_const(Handle::new());
+        torrent.expect_state()
+            .return_const(TorrentState::Downloading);
+        torrent.expect_prioritize_pieces()
+            .return_const(());
+        let torrent = Arc::new(Box::new(torrent) as Box<dyn Torrent>);
+        let mut instance = new_instance(temp_path);
+
+        let stream = instance.torrent_stream_server().start_stream(Arc::downgrade(&torrent))
+            .expect("expected a stream to have been returned")
+            .upgrade()
+            .expect("expected the stream instance to still be valid");
+
+        let stream_handle_value = stream.stream_handle().value();
+        let callback = register_torrent_stream_event_callback(&mut instance, stream_handle_value, torrent_stream_event_callback) as i64;
+        remove_torrent_stream_event_callback(&mut instance, stream_handle_value as *const i64, callback as *const i64);
     }
 }

@@ -145,8 +145,10 @@ impl Display for MockTorrent {
 
 /// The torrent information
 #[derive(Debug, Display, Clone, PartialEq)]
-#[display(fmt = "name: {}, directory_name: {:?}, total_files: {}", name, directory_name, total_files)]
+#[display(fmt = "uri: {}, name: {}, directory_name: {:?}, total_files: {}", uri, name, directory_name, total_files)]
 pub struct TorrentInfo {
+    /// The magnet uri of the torrent
+    pub uri: String,
     /// The name of the torrent
     pub name: String,
     /// The torrent directory name in which the media files might reside.
@@ -223,6 +225,16 @@ pub struct TorrentFileInfo {
     pub file_index: i32,
 }
 
+impl TorrentFileInfo {
+    pub fn filename(&self) -> &str {
+        self.filename.as_str()
+    }
+
+    pub fn file_path(&self) -> &str {
+        self.file_path.as_str()
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::testing::init_logger;
@@ -257,6 +269,7 @@ mod test {
             file_index: 0,
         };
         let info = TorrentInfo {
+            uri: String::new(),
             name: "".to_string(),
             directory_name: Some("torrentDirectory".to_string()),
             total_files: 0,
@@ -287,6 +300,7 @@ mod test {
             file_index: 0,
         };
         let info = TorrentInfo {
+            uri: String::new(),
             name: "".to_string(),
             directory_name: Some("torrentDirectory".to_string()),
             total_files: 0,
@@ -315,6 +329,7 @@ mod test {
             file_index: 0,
         };
         let info = TorrentInfo {
+            uri: String::new(),
             name: "".to_string(),
             directory_name: None,
             total_files: 0,

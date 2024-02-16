@@ -1,8 +1,8 @@
 package com.github.yoep.popcorn.ui.torrent;
 
+import com.github.yoep.popcorn.backend.FxLib;
+import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
-import com.github.yoep.popcorn.backend.lib.FxLibInstance;
-import com.github.yoep.popcorn.backend.lib.PopcornFxInstance;
 import com.github.yoep.popcorn.backend.torrent.collection.StoredTorrent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,6 +15,9 @@ import java.util.Objects;
 @Service
 @RequiredArgsConstructor
 public class TorrentCollectionService {
+    private final FxLib fxLib;
+    private final PopcornFx instance;
+
     /**
      * Check if the given magnet uri has already been added to the torrent collection.
      *
@@ -23,7 +26,7 @@ public class TorrentCollectionService {
      */
     public boolean isStored(String magnetUri) {
         Objects.requireNonNull(magnetUri, "magnetUri cannot be empty");
-        return FxLibInstance.INSTANCE.get().torrent_collection_is_stored(PopcornFxInstance.INSTANCE.get(), magnetUri) == 1;
+        return fxLib.torrent_collection_is_stored(instance, magnetUri) == 1;
     }
 
     /**
@@ -32,7 +35,7 @@ public class TorrentCollectionService {
      * @return Returns the stored torrents.
      */
     public List<StoredTorrent> getStoredTorrents() {
-        try (var set = FxLibInstance.INSTANCE.get().torrent_collection_all(PopcornFxInstance.INSTANCE.get())) {
+        try (var set = fxLib.torrent_collection_all(instance)) {
             return set.getMagnets();
         }
     }
@@ -40,12 +43,11 @@ public class TorrentCollectionService {
     /**
      * Add the given torrent to the torrent collection.
      *
-     * @param magnetUri The magnet uri of the torrent.
      * @param torrent   The torrent info to add.
      */
-    public void addTorrent(String magnetUri, TorrentInfo torrent) {
+    public void addTorrent(TorrentInfo torrent) {
         Objects.requireNonNull(torrent, "torrent cannot be null");
-        FxLibInstance.INSTANCE.get().torrent_collection_add(PopcornFxInstance.INSTANCE.get(), torrent.getName(), magnetUri);
+        fxLib.torrent_collection_add(instance, torrent.getName(), torrent.getMagnetUri());
     }
 
     /**
@@ -55,6 +57,6 @@ public class TorrentCollectionService {
      */
     public void removeTorrent(String magnetUri) {
         Objects.requireNonNull(magnetUri, "magnetUri cannot be null");
-        FxLibInstance.INSTANCE.get().torrent_collection_remove(PopcornFxInstance.INSTANCE.get(), magnetUri);
+        fxLib.torrent_collection_remove(instance, magnetUri);
     }
 }

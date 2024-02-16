@@ -23,7 +23,7 @@ use popcorn_fx_core::core::cache::CacheManager;
 use popcorn_fx_core::core::config::{ApplicationConfig, PopcornProperties};
 use popcorn_fx_core::core::events::EventPublisher;
 use popcorn_fx_core::core::images::{DefaultImageLoader, ImageLoader};
-use popcorn_fx_core::core::loader::{DefaultMediaLoader, LoadingStrategy, MediaLoader, MediaTorrentUrlLoadingStrategy, PlayerLoadingStrategy, SubtitlesLoadingStrategy, TorrentDetailsLoadingStrategy, TorrentInfoLoadingStrategy, TorrentLoadingStrategy, TorrentStreamLoadingStrategy};
+use popcorn_fx_core::core::loader::{AutoResumeLoadingStrategy, DefaultMediaLoader, LoadingStrategy, MediaLoader, MediaTorrentUrlLoadingStrategy, PlayerLoadingStrategy, SubtitlesLoadingStrategy, TorrentDetailsLoadingStrategy, TorrentInfoLoadingStrategy, TorrentLoadingStrategy, TorrentStreamLoadingStrategy};
 use popcorn_fx_core::core::media::favorites::{DefaultFavoriteService, FavoriteCacheUpdater, FavoriteService};
 use popcorn_fx_core::core::media::providers::{FavoritesProvider, MovieProvider, ProviderManager, ShowProvider};
 use popcorn_fx_core::core::media::providers::enhancers::ThumbEnhancer;
@@ -236,11 +236,12 @@ impl PopcornFX {
         let loading_chain: Vec<Box<dyn LoadingStrategy>> = vec![
             Box::new(MediaTorrentUrlLoadingStrategy::new()),
             Box::new(TorrentInfoLoadingStrategy::new(torrent_manager.clone())),
+            Box::new(AutoResumeLoadingStrategy::new(auto_resume_service.clone())),
             Box::new(SubtitlesLoadingStrategy::new(subtitle_provider.clone(), subtitle_manager.clone())),
             Box::new(TorrentLoadingStrategy::new(torrent_manager.clone(), settings.clone())),
             Box::new(TorrentStreamLoadingStrategy::new(torrent_stream_server.clone())),
-            Box::new(PlayerLoadingStrategy::new(player_manager.clone())),
             Box::new(TorrentDetailsLoadingStrategy::new(event_publisher.clone())),
+            Box::new(PlayerLoadingStrategy::new(player_manager.clone())),
         ];
         let media_loader = Arc::new(Box::new(DefaultMediaLoader::new(loading_chain)) as Box<dyn MediaLoader>);
         let playlist_manager = Arc::new(PlaylistManager::new(player_manager.clone(), event_publisher.clone(), media_loader.clone()));

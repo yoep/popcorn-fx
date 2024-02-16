@@ -145,12 +145,13 @@ impl OpensubtitlesProvider {
                     .unwrap();
 
                 for file in attributes.files() {
-                    language_files.push(SubtitleFile::new(
-                        file.file_id().clone(),
-                        Self::subtitle_file_name(file, attributes),
-                        attributes.url().clone(),
-                        attributes.ratings().clone(),
-                        attributes.download_count().clone()));
+                    language_files.push(SubtitleFile::builder()
+                        .file_id(file.file_id().clone())
+                        .name(Self::subtitle_file_name(file, attributes))
+                        .url(attributes.url().clone())
+                        .score(attributes.ratings().clone())
+                        .downloads(attributes.download_count().clone())
+                        .build());
                 }
 
                 if id.is_empty() {
@@ -843,7 +844,13 @@ mod test {
             .build();
         let filename = "test-subtitle-file.srt".to_string();
         let subtitle_info = SubtitleInfo::new_with_files(Some("tt7405458".to_string()), SubtitleLanguage::German, vec![
-            SubtitleFile::new(91135, filename.clone(), String::new(), 0.0, 0)
+            SubtitleFile::builder()
+                .file_id(91135)
+                .name(filename.clone())
+                .url("")
+                .score(0.0)
+                .downloads(0)
+                .build(),
         ]);
         let matcher = SubtitleMatcher::from_string(Some(String::new()), Some(String::from("720")));
         let response_body = read_test_file_to_string("download_response.json");
@@ -887,7 +894,13 @@ mod test {
             .build();
         let filename = "test-subtitle-file.srt".to_string();
         let subtitle_info = SubtitleInfo::new_with_files(Some("tt7405458".to_string()), SubtitleLanguage::German, vec![
-            SubtitleFile::new(91135, filename.clone(), String::new(), 0.0, 0)
+            SubtitleFile::builder()
+                .file_id(91135)
+                .name(filename.clone())
+                .url("")
+                .score(0.0)
+                .downloads(0)
+                .build(),
         ]);
         let matcher = SubtitleMatcher::from_string(Some(String::new()), Some(String::from("720")));
         let response_body = read_test_file_to_string("download_response.json");
@@ -955,7 +968,13 @@ mod test {
             .with_parser(SubtitleType::Srt, Box::new(SrtParser::new()))
             .build();
         let subtitle_info = SubtitleInfo::new_with_files(Some("tt00001".to_string()), SubtitleLanguage::German, vec![
-            SubtitleFile::new(10001111, "subtitle_existing.srt".to_string(), String::new(), 0.0, 0)
+            SubtitleFile::builder()
+                .file_id(10001111)
+                .name("subtitle_existing.srt")
+                .url("")
+                .score(0.0)
+                .downloads(0)
+                .build(),
         ]);
         let matcher = SubtitleMatcher::from_string(Some(String::new()), Some(String::from("720")));
         let expected_cues: Vec<SubtitleCue> = vec![

@@ -16,7 +16,12 @@ import java.util.Objects;
 @Structure.FieldOrder({"filename", "filePath", "fileSize", "fileIndex"})
 public class TorrentFileInfoWrapper extends Structure implements Closeable, TorrentFileInfo {
     public static class ByValue extends TorrentFileInfoWrapper implements Structure.ByValue {
+        public ByValue() {
+        }
 
+        public ByValue(TorrentInfo torrentInfo, TorrentFileInfo fileInfo) {
+            super(torrentInfo, fileInfo);
+        }
     }
 
     public static class ByReference extends TorrentFileInfoWrapper implements Structure.ByReference {

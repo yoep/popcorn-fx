@@ -6,16 +6,15 @@ import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentException;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentStreamListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentFileInfo;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentHealth;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
 import com.github.yoep.popcorn.backend.adapters.torrent.state.SessionState;
 import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentHealthState;
-import com.github.yoep.popcorn.backend.torrent.CancelTorrentCallback;
-import com.github.yoep.popcorn.backend.torrent.ResolveTorrentCallback;
-import com.github.yoep.popcorn.backend.torrent.ResolveTorrentInfoCallback;
-import com.github.yoep.popcorn.backend.torrent.TorrentWrapper;
+import com.github.yoep.popcorn.backend.lib.Handle;
+import com.github.yoep.popcorn.backend.torrent.*;
 import com.github.yoep.torrent.frostwire.listeners.TorrentCreationListener;
 import com.github.yoep.torrent.frostwire.model.FrostTorrent;
 import com.github.yoep.torrent.frostwire.model.FrostTorrentHealth;
@@ -46,6 +45,7 @@ public class TorrentServiceImpl implements TorrentService {
 
     private final List<com.github.yoep.popcorn.backend.adapters.torrent.TorrentInfoWrapper> torrentInfos = new ArrayList<>();
     private final List<TorrentWrapper> torrentWrappers = new ArrayList<>();
+    private final Map<Handle, StreamListenerHolder> torrentStreamCallbacks = new HashMap<>();
 
     //region Getters
 
@@ -179,6 +179,39 @@ public class TorrentServiceImpl implements TorrentService {
     }
 
     @Override
+    public Handle addListener(Handle handle, TorrentStreamListener listener) {
+        var callback = new TorrentStreamEventCallback() {
+            @Override
+            public void callback(TorrentStreamEventC.ByValue event) {
+                try (event) {
+                    switch (event.getTag()) {
+                        case STATE_CHANGED -> listener.onStateChanged(event.getUnion().getStateChanged_body().getState());
+                        case DOWNLOAD_STATUS -> listener.onDownloadStatus(event.getUnion().getDownloadStatus_body().getStatus());
+                    }
+                } catch (Exception ex) {
+                    log.error("Failed to invoked torrent stream callback listener, {}", ex.getMessage(), ex);
+                }
+            }
+        };
+        var callbackHandle = fxLib.register_torrent_stream_event_callback(instance, handle.nativeHandle(), callback);
+
+        Optional.ofNullable(callbackHandle)
+                .map(Handle::new)
+                .ifPresent(e -> torrentStreamCallbacks.put(e, new StreamListenerHolder(handle, listener, callback)));
+
+        return new Handle(callbackHandle);
+    }
+
+    @Override
+    public void removeListener(Handle callbackHandle) {
+        Optional.ofNullable(torrentStreamCallbacks.get(callbackHandle))
+                .ifPresent(e -> {
+                    fxLib.remove_torrent_stream_event_callback(instance, e.streamHandle().nativeHandle(), callbackHandle.nativeHandle());
+                    torrentStreamCallbacks.remove(callbackHandle);
+                });
+    }
+
+    @Override
     public void cleanup() {
         fxLib.cleanup_torrents_directory(instance);
     }
@@ -309,4 +342,7 @@ public class TorrentServiceImpl implements TorrentService {
     }
 
     //endregion
+
+    private record StreamListenerHolder(Handle streamHandle, TorrentStreamListener listener, TorrentStreamEventCallback callback) {
+    }
 }

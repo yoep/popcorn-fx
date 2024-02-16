@@ -2,6 +2,8 @@ package com.github.yoep.popcorn.backend;
 
 import com.github.yoep.popcorn.backend.adapters.screen.FullscreenCallback;
 import com.github.yoep.popcorn.backend.adapters.screen.IsFullscreenCallback;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentFileInfoWrapper;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentInfoWrapper;
 import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentState;
 import com.github.yoep.popcorn.backend.controls.PlaybackControlCallback;
 import com.github.yoep.popcorn.backend.events.EventBridgeCallback;
@@ -32,10 +34,7 @@ import com.github.yoep.popcorn.backend.subtitles.SubtitleEventCallback;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfoSet;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
-import com.github.yoep.popcorn.backend.torrent.CancelTorrentCallback;
-import com.github.yoep.popcorn.backend.torrent.DownloadStatusC;
-import com.github.yoep.popcorn.backend.torrent.ResolveTorrentCallback;
-import com.github.yoep.popcorn.backend.torrent.ResolveTorrentInfoCallback;
+import com.github.yoep.popcorn.backend.torrent.*;
 import com.github.yoep.popcorn.backend.torrent.collection.StoredTorrentSet;
 import com.github.yoep.popcorn.backend.updater.UpdateCallback;
 import com.github.yoep.popcorn.backend.updater.UpdateState;
@@ -68,21 +67,21 @@ import java.util.concurrent.atomic.AtomicReference;
 public interface FxLib extends Library {
     AtomicReference<FxLib> INSTANCE = new AtomicReference<>();
 
-    PopcornFx new_popcorn_fx(String[] args, int len);
+    PopcornFx new_popcorn_fx(Pointer array, int len);
 
-    SubtitleInfoSet default_subtitle_options(PopcornFx instance);
+    SubtitleInfoSet.ByReference default_subtitle_options(PopcornFx instance);
 
     SubtitleInfo subtitle_none();
 
     SubtitleInfo subtitle_custom();
 
-    SubtitleInfoSet movie_subtitles(PopcornFx instance, MovieDetails movie);
+    SubtitleInfoSet.ByReference movie_subtitles(PopcornFx instance, MovieDetails movie);
 
-    SubtitleInfoSet episode_subtitles(PopcornFx instance, ShowDetails show, Episode episode);
+    SubtitleInfoSet.ByReference episode_subtitles(PopcornFx instance, ShowDetails show, Episode episode);
 
-    SubtitleInfoSet filename_subtitles(PopcornFx instance, String filename);
+    SubtitleInfoSet.ByReference filename_subtitles(PopcornFx instance, String filename);
 
-    SubtitleInfo select_or_default_subtitle(PopcornFx instance, SubtitleInfo[] subtitles, int len);
+    SubtitleInfo.ByReference select_or_default_subtitle(PopcornFx instance, SubtitleInfoSet.ByReference subtitleSet);
 
     SubtitleInfo retrieve_preferred_subtitle(PopcornFx instance);
 
@@ -147,6 +146,10 @@ public interface FxLib extends Library {
     void torrent_resolve_callback(PopcornFx instance, ResolveTorrentCallback callback);
 
     void torrent_cancel_callback(PopcornFx instance, CancelTorrentCallback callback);
+
+    Long register_torrent_stream_event_callback(PopcornFx instance, Long streamHandle, TorrentStreamEventCallback callback);
+
+    void remove_torrent_stream_event_callback(PopcornFx instance, Long streamHandle, Long callbackHandle);
 
     void torrent_state_changed(PopcornFx instance, String handle, TorrentState state);
 
@@ -258,6 +261,8 @@ public interface FxLib extends Library {
 
     Long loader_load(PopcornFx instance, String url);
 
+    Long loader_load_torrent_file(PopcornFx instance, TorrentInfoWrapper.ByValue torrentInfo, TorrentFileInfoWrapper.ByValue torrentFile);
+
     void loader_cancel(PopcornFx instance, Long handle);
 
     void register_is_fullscreen_callback(PopcornFx instance, IsFullscreenCallback callback);
@@ -266,13 +271,17 @@ public interface FxLib extends Library {
 
     void log(String target, String message, LogLevel level);
 
+    void dispose_subtitle_info_set(SubtitleInfoSet.ByReference set);
+
+    void dispose_subtitle_info(SubtitleInfo.ByReference info);
+
     void dispose_media_item(MediaItem.ByReference media);
 
     void dispose_media_item_value(MediaItem.ByValue media);
 
     void dispose_media_items(MediaSet.ByValue media);
 
-    void dispose_subtitle(Subtitle subtitle);
+    void dispose_subtitle(Subtitle.ByReference subtitle);
 
     void dispose_torrent_collection(StoredTorrentSet set);
 

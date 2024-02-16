@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.backend.player;
 
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
-import com.github.yoep.popcorn.backend.player.model.SimplePlayRequest;
+import com.github.yoep.popcorn.backend.lib.Handle;
 import com.sun.jna.Pointer;
 import com.sun.jna.Structure;
 import lombok.Getter;
@@ -12,33 +12,53 @@ import java.util.Optional;
 
 @Getter
 @ToString
-@Structure.FieldOrder({"url", "title", "thumb", "autoResumeTimestamp", "subtitlesEnabled"})
-public class PlayRequestWrapper extends Structure implements Closeable {
+@Structure.FieldOrder({"url", "title", "thumb", "background", "quality", "autoResumeTimestamp", "streamHandle", "subtitlesEnabled"})
+public class PlayRequestWrapper extends Structure implements Closeable, PlayRequest {
+    public static class ByValue extends PlayRequestWrapper implements Structure.ByValue {
+    }
+
     public String url;
     public String title;
     public Pointer thumb;
+    public Pointer background;
+    public Pointer quality;
     public Pointer autoResumeTimestamp;
+    public Pointer streamHandle;
     public byte subtitlesEnabled;
 
     private String cachedThumb;
-
-    public PlayRequest toPlayRequest() {
-        return SimplePlayRequest.builder()
-                .url(url)
-                .title(title)
-                .thumb(cachedThumb)
-                .autoResumeTimestamp(getAutoResumeTimestamp().orElse(0L))
-                .subtitlesEnabled(isSubtitlesEnabled())
-                .build();
-    }
-
-    public Optional<Long> getAutoResumeTimestamp() {
-        return Optional.ofNullable(autoResumeTimestamp)
-                .map(e -> e.getLong(0));
-    }
+    private String cachedBackground;
+    private String cachedQuality;
+    private Long cachedAutoResumeTimestamp;
+    private Handle cachedStreamHandle;
 
     public boolean isSubtitlesEnabled() {
         return subtitlesEnabled == 1;
+    }
+
+    @Override
+    public Optional<String> getThumbnail() {
+        return Optional.ofNullable(cachedThumb);
+    }
+
+    @Override
+    public Optional<String> getBackground() {
+        return Optional.ofNullable(cachedBackground);
+    }
+
+    @Override
+    public Optional<String> getQuality() {
+        return Optional.ofNullable(cachedQuality);
+    }
+
+    @Override
+    public Optional<Long> getAutoResumeTimestamp() {
+        return Optional.ofNullable(cachedAutoResumeTimestamp);
+    }
+
+    @Override
+    public Optional<Handle> getStreamHandle() {
+        return Optional.ofNullable(cachedStreamHandle);
     }
 
     @Override
@@ -46,6 +66,19 @@ public class PlayRequestWrapper extends Structure implements Closeable {
         super.read();
         this.cachedThumb = Optional.ofNullable(thumb)
                 .map(e -> e.getString(0))
+                .orElse(null);
+        this.cachedBackground = Optional.ofNullable(background)
+                .map(e -> e.getString(0))
+                .orElse(null);
+        this.cachedQuality = Optional.ofNullable(quality)
+                .map(e -> e.getString(0))
+                .orElse(null);
+        this.cachedAutoResumeTimestamp = Optional.ofNullable(autoResumeTimestamp)
+                .map(e -> e.getLong(0))
+                .orElse(null);
+        this.cachedStreamHandle = Optional.ofNullable(streamHandle)
+                .map(e -> e.getLong(0))
+                .map(Handle::new)
                 .orElse(null);
     }
 

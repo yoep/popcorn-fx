@@ -11,7 +11,6 @@ import com.github.yoep.player.chromecast.api.v2.TextTrackType;
 import com.github.yoep.player.chromecast.api.v2.Track;
 import com.github.yoep.player.chromecast.model.VideoMetadata;
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
-import com.github.yoep.popcorn.backend.player.model.SimplePlayRequest;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
@@ -79,12 +78,7 @@ class ChromecastServiceTest {
         var duration = 20000L;
         var subtitleInfo = mock(SubtitleInfo.class);
         var subtitle = mock(Subtitle.class);
-        var request = SimplePlayRequest.builder()
-                .url(url)
-                .title("My movie title")
-                .autoResumeTimestamp(20000L)
-                .thumb("https://thumbs.com/my-thumb.jpg")
-                .build();
+        var request = mock(PlayRequest.class);
         var metadata = createMetadata(request);
         var tracks = Collections.singletonList(Track.builder()
                 .trackId(0)
@@ -110,6 +104,8 @@ class ChromecastServiceTest {
                         .build())
                 .activeTrackIds(Collections.singletonList(0))
                 .build();
+        when(request.getUrl()).thenReturn(url);
+        when(request.getAutoResumeTimestamp()).thenReturn(Optional.of(20000L));
         when(subtitleService.preferredSubtitle()).thenReturn(Optional.of(subtitleInfo));
         when(subtitleService.downloadAndParse(eq(subtitleInfo), isA(SubtitleMatcher.class))).thenReturn(CompletableFuture.completedFuture(subtitle));
         when(subtitleService.serve(subtitle, SubtitleType.VTT)).thenReturn(subtitleUri);
@@ -133,12 +129,8 @@ class ChromecastServiceTest {
         var contentType = "video/mp4";
         var duration = 20000L;
         var subtitleInfo = mock(SubtitleInfo.class);
-        var request = SimplePlayRequest.builder()
-                .url(url)
-                .title("My movie title")
-                .autoResumeTimestamp(20000L)
-                .thumb("https://thumbs.com/my-thumb.jpg")
-                .build();
+        var request = mock(PlayRequest.class);
+        when(request.getUrl()).thenReturn(url);
         when(subtitleInfo.isNone()).thenReturn(true);
         when(subtitleService.preferredSubtitle()).thenReturn(Optional.of(subtitleInfo));
         when(contentTypeService.resolveMetadata(URI.create(url))).thenReturn(VideoMetadata.builder()
@@ -161,12 +153,7 @@ class ChromecastServiceTest {
         var transcodedUrl = "http://localhost:9976/my-video-url.mp4";
         var contentType = "video/mp4";
         var duration = 20000L;
-        var request = SimplePlayRequest.builder()
-                .url(url)
-                .title("My movie title")
-                .autoResumeTimestamp(60500L)
-                .thumb("https://thumbs.com/my-thumb.jpg")
-                .build();
+        var request = mock(PlayRequest.class);
         var metadata = createMetadata(request);
         var expectedResult = Load.builder()
                 .sessionId(sessionId)
@@ -183,6 +170,8 @@ class ChromecastServiceTest {
                         .build())
                 .activeTrackIds(Collections.emptyList())
                 .build();
+        when(request.getUrl()).thenReturn(url);
+        when(request.getAutoResumeTimestamp()).thenReturn(Optional.of(60500L));
         when(contentTypeService.resolveMetadata(URI.create(url))).thenReturn(VideoMetadata.builder()
                 .contentType(contentType)
                 .duration(duration)
@@ -210,7 +199,7 @@ class ChromecastServiceTest {
     private static Map<String, Object> createMetadata(PlayRequest request) {
         return new HashMap<>() {{
             put(Media.METADATA_TYPE, Media.MetadataType.MOVIE);
-            put(Media.METADATA_TITLE, request.getTitle().orElse(null));
+            put(Media.METADATA_TITLE, request.getTitle());
             put(Media.METADATA_SUBTITLE, request.getQuality().orElse(null));
             put(ChromeCastMetadata.METADATA_THUMBNAIL, request.getThumbnail().orElse(null));
             put(ChromeCastMetadata.METADATA_THUMBNAIL_URL, request.getThumbnail().orElse(null));

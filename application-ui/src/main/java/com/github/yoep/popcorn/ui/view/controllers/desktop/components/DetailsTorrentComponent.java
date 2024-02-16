@@ -55,7 +55,6 @@ public class DetailsTorrentComponent implements Initializable {
     private final SubtitleService subtitleService;
     private final LoaderService loaderService;
 
-    private String magnetUri;
     private TorrentInfo torrentInfo;
 
     @FXML
@@ -127,7 +126,6 @@ public class DetailsTorrentComponent implements Initializable {
 
     private void onShowTorrentDetails(ShowTorrentDetailsEvent event) {
         log.debug("Processing details of torrent info {}", event.getTorrentInfo().getName());
-        this.magnetUri = event.getMagnetUri();
         this.torrentInfo = event.getTorrentInfo();
         var validFiles = torrentInfo.getFiles().stream()
                 .filter(e -> {
@@ -142,7 +140,7 @@ public class DetailsTorrentComponent implements Initializable {
             torrentList.getItems().addAll(validFiles);
         });
 
-        updateStoreTorrent(torrentCollectionService.isStored(magnetUri));
+        updateStoreTorrent(torrentCollectionService.isStored(torrentInfo.getMagnetUri()));
     }
 
     private void onSubtitleChanged(SubtitleInfo subtitleInfo) {
@@ -166,7 +164,6 @@ public class DetailsTorrentComponent implements Initializable {
     }
 
     private void reset() {
-        this.magnetUri = null;
         this.torrentInfo = null;
 
         Platform.runLater(() -> torrentList.getItems().clear());
@@ -185,11 +182,11 @@ public class DetailsTorrentComponent implements Initializable {
     @FXML
     void onStoreOrRemoveTorrentClicked(MouseEvent event) {
         event.consume();
-        if (torrentCollectionService.isStored(magnetUri)) {
-            torrentCollectionService.removeTorrent(magnetUri);
+        if (torrentCollectionService.isStored(torrentInfo.getMagnetUri())) {
+            torrentCollectionService.removeTorrent(torrentInfo.getMagnetUri());
             updateStoreTorrent(false);
         } else {
-            torrentCollectionService.addTorrent(magnetUri, torrentInfo);
+            torrentCollectionService.addTorrent(torrentInfo);
             updateStoreTorrent(true);
         }
     }

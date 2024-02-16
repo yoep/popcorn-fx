@@ -63,8 +63,6 @@ impl AutoResumeService for DefaultAutoResumeService {
 ///
 /// ```no_run
 /// use std::sync::Arc;
-/// use my_crate::event_publisher::EventPublisher;
-/// use my_crate::DefaultAutoResumeService;
 /// use popcorn_fx_core::core::events::EventPublisher;
 /// use popcorn_fx_core::core::media::resume::DefaultAutoResumeService;
 ///
@@ -96,8 +94,6 @@ impl DefaultAutoResumeServiceBuilder {
     ///
     /// ```no_run
     /// use std::sync::Arc;
-    /// use my_crate::event_publisher::EventPublisher;
-    /// use my_crate::DefaultAutoResumeService;
     /// use popcorn_fx_core::core::events::EventPublisher;
     /// use popcorn_fx_core::core::media::resume::DefaultAutoResumeService;
     ///
@@ -217,6 +213,7 @@ impl AutoResumeService for InnerAutoResumeService {
                     // always search first on the filename as it might be more correct
                     // than the id which might have been watched on a different quality
                     if let Some(filename) = filename {
+                        trace!("Searching for auto resume timestamp with filename {}", filename);
                         match cache.find_filename(filename) {
                             None => {}
                             Some(e) => {
@@ -227,6 +224,7 @@ impl AutoResumeService for InnerAutoResumeService {
                     }
 
                     if let Some(id) = id {
+                        trace!("Searching for auto resume timestamp with id {}", id);
                         match cache.find_id(id) {
                             None => {}
                             Some(e) => {
@@ -268,11 +266,14 @@ impl AutoResumeService for InnerAutoResumeService {
 
                     trace!("Video playback {} has been played for {}%", event.url(), percentage_watched);
                     if percentage_watched < RESUME_PERCENTAGE_THRESHOLD {
-                        cache.insert(event.media().map(|e| e.imdb_id()), filename, time.clone());
+                        let id = event.media().map(|e| e.imdb_id());
+                        debug!("Adding auto resume timestamp {} for id: {:?}, filename: {}", time, id, filename);
+                        cache.insert(id, filename, time.clone());
                     } else {
                         let id = event.media()
                             .map(|e| e.imdb_id());
 
+                        debug!("Removing auto resume timestamp for id: {:?}, filename: {}", id, filename);
                         cache.remove(id, filename);
                     }
 

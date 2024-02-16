@@ -210,7 +210,7 @@ public class ChromecastService {
     private static Map<String, Object> getMediaMetaData(PlayRequest request) {
         return new HashMap<>() {{
             put(Media.METADATA_TYPE, Media.MetadataType.MOVIE);
-            put(Media.METADATA_TITLE, request.getTitle().orElse(null));
+            put(Media.METADATA_TITLE, request.getTitle());
             put(Media.METADATA_SUBTITLE, request.getQuality().orElse(null));
             put(ChromeCastMetadata.METADATA_THUMBNAIL, request.getThumbnail().orElse(null));
             put(ChromeCastMetadata.METADATA_THUMBNAIL_URL, request.getThumbnail().orElse(null));

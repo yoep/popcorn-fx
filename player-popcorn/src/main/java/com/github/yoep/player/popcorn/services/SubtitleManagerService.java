@@ -1,12 +1,13 @@
 package com.github.yoep.player.popcorn.services;
 
 import com.github.spring.boot.javafx.text.LocaleText;
+import com.github.yoep.player.popcorn.listeners.AbstractPlaybackListener;
 import com.github.yoep.player.popcorn.listeners.SubtitleListener;
 import com.github.yoep.player.popcorn.messages.VideoMessage;
+import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
 import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.events.PlayerStartedEvent;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfigEvent;
@@ -126,9 +127,11 @@ public class SubtitleManagerService {
         log.trace("Initializing video player subtitle service");
         initializeSubtitleSize();
         initializeSubtitleListener();
-        eventPublisher.register(PlayerStartedEvent.class, event -> {
-            this.url = event.getUrl();
-            return event;
+        videoService.addListener(new AbstractPlaybackListener() {
+            @Override
+            public void onPlay(PlayRequest request) {
+                SubtitleManagerService.this.onPlay(request);
+            }
         });
         eventPublisher.register(PlayerStoppedEvent.class, event -> {
             this.url = null;
@@ -164,6 +167,16 @@ public class SubtitleManagerService {
 
     //region Functions
 
+    private void onPlay(PlayRequest request) {
+        if (request.isSubtitlesEnabled()) {
+            subtitleService.preferredSubtitle()
+                    .filter(e -> !e.isNone())
+                    .ifPresent(this::onSubtitleChanged);
+        } else {
+            invokeListeners(SubtitleListener::onSubtitleDisabled);
+        }
+    }
+
     private void onVideoPlayerChanged(VideoPlayback newPlayer) {
         if (newPlayer == null)
             return;
@@ -175,6 +188,7 @@ public class SubtitleManagerService {
     }
 
     private void onSubtitleDownloaded(Subtitle subtitle) {
+        Objects.requireNonNull(subtitle, "subtitle cannot be null");
         var videoPlayerOptional = videoService.getVideoPlayer();
 
         if (videoPlayerOptional.isEmpty())

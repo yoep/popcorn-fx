@@ -70,8 +70,8 @@ public class TorrentCollection extends TableView<StoredTorrent> {
     }
 
     private void initializeMagnetColumn() {
-        magnetColumn.setMaxWidth(40);
-        magnetColumn.setMinWidth(40);
+        magnetColumn.setMaxWidth(50);
+        magnetColumn.setMinWidth(50);
         magnetColumn.setCellFactory(param -> {
             var cell = new TableCell<StoredTorrent, StoredTorrent>() {
                 @Override
@@ -118,8 +118,8 @@ public class TorrentCollection extends TableView<StoredTorrent> {
     }
 
     private void initializeDeleteColumn() {
-        deleteColumn.setMaxWidth(40);
-        deleteColumn.setMinWidth(40);
+        deleteColumn.setMaxWidth(50);
+        deleteColumn.setMinWidth(50);
         deleteColumn.setCellFactory(item -> {
             var cell = new TableCell<StoredTorrent, StoredTorrent>() {
                 @Override

@@ -197,7 +197,7 @@ public class TorrentServiceImpl implements TorrentService {
 
         Optional.ofNullable(callbackHandle)
                 .map(Handle::new)
-                .ifPresent(e -> torrentStreamCallbacks.put(e, new StreamListenerHolder(handle, listener)));
+                .ifPresent(e -> torrentStreamCallbacks.put(e, new StreamListenerHolder(handle, listener, callback)));
 
         return new Handle(callbackHandle);
     }
@@ -343,6 +343,6 @@ public class TorrentServiceImpl implements TorrentService {
 
     //endregion
 
-    private record StreamListenerHolder(Handle streamHandle, TorrentStreamListener listener) {
+    private record StreamListenerHolder(Handle streamHandle, TorrentStreamListener listener, TorrentStreamEventCallback callback) {
     }
 }

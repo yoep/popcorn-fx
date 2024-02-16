@@ -7,9 +7,10 @@ import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;
-import com.github.yoep.popcorn.backend.adapters.torrent.listeners.TorrentListener;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentStreamListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
-import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentStream;
+import com.github.yoep.popcorn.backend.lib.Handle;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,6 +20,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.*;
@@ -33,6 +35,8 @@ class PlayerControlsServiceTest {
     private VideoService videoService;
     @Mock
     private PlayerControlsListener listener;
+    @Mock
+    private TorrentService torrentService;
     @InjectMocks
     private PlayerControlsService service;
 
@@ -166,15 +170,17 @@ class PlayerControlsServiceTest {
 
     @Test
     void testPlaybackListener_whenRequestIsStreamRequest_shouldInvokeDownloadStatusChanged() {
-        var torrentStream = mock(TorrentStream.class);
         var downloadStatus = mock(DownloadStatus.class);
-        var listenerHolder = new AtomicReference<TorrentListener>();
+        var listenerHolder = new AtomicReference<TorrentStreamListener>();
         var request = mock(PlayRequest.class);
+        when(request.getStreamHandle()).thenReturn(Optional.of(new Handle(222L)));
+        when(torrentService.addListener(isA(Handle.class), isA(TorrentStreamListener.class))).thenAnswer(invocation -> {
+            listenerHolder.set(invocation.getArgument(1, TorrentStreamListener.class));
+            return new Handle(123L);
+        });
         service.init();
-        doAnswer(invocationOnMock -> {
-            listenerHolder.set(invocationOnMock.getArgument(0, TorrentListener.class));
-            return null;
-        }).when(torrentStream).addListener(isA(TorrentListener.class));
+
+        when(request.getStreamHandle()).thenReturn(Optional.of(new Handle(24L)));
 
         playbackListenerHolder.get().onPlay(request);
         listenerHolder.get().onDownloadStatus(downloadStatus);

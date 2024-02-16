@@ -48,13 +48,13 @@ popcorn:
     popcorn_fx_core::core::subtitles::parsers:
       level: info
     popcorn_fx_core::core::players:
-      level: trace
+      level: info
     popcorn_fx_core::core::playlists:
       level: info
     popcorn_fx_core::core::screen:
       level: info
     popcorn_fx_core::core::subtitles:
-      level: debug
+      level: info
     popcorn_fx_core::core::updater:
       level: info
     popcorn_fx_opensubtitles:

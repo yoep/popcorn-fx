@@ -4,7 +4,7 @@ import com.github.yoep.player.vlc.VlcListener;
 import com.github.yoep.player.vlc.VlcPlayerConstants;
 import com.github.yoep.player.vlc.model.VlcState;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
-import com.github.yoep.popcorn.backend.player.model.SimplePlayRequest;
+import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
@@ -76,9 +76,8 @@ class VlcPlayerServiceTest {
     @Test
     void testPlay_whenProcessLaunched_shouldReturnTrue() {
         var url = "my-video-url.mp4";
-        var request = SimplePlayRequest.builder()
-                .url(url)
-                .build();
+        var request = mock(PlayRequest.class);
+        when(request.getUrl()).thenReturn(url);
         var expectedCommand = "vlc my-video-url.mp4 " + VlcPlayerService.OPTIONS;
         when(platformProvider.launch(expectedCommand)).thenReturn(true);
         MOCK_SERVER.setDispatcher(new Dispatcher() {
@@ -98,9 +97,8 @@ class VlcPlayerServiceTest {
     @Test
     void testPlay_whenProcessFailedToLaunch_shouldReturnFalse() {
         var url = "my-video-url.mp4";
-        var request = SimplePlayRequest.builder()
-                .url(url)
-                .build();
+        var request = mock(PlayRequest.class);
+        when(request.getUrl()).thenReturn(url);
         var expectedCommand = "vlc my-video-url.mp4 " + VlcPlayerService.OPTIONS;
         when(platformProvider.launch(expectedCommand)).thenReturn(false);
         MOCK_SERVER.setDispatcher(new Dispatcher() {
@@ -120,9 +118,8 @@ class VlcPlayerServiceTest {
     @Test
     void testPlay_whenSubtitleIsActive_shouldAddSubtitlePathToLaunchOption() {
         var url = "my-video-url.mp4";
-        var request = SimplePlayRequest.builder()
-                .url(url)
-                .build();
+        var request = mock(PlayRequest.class);
+        when(request.getUrl()).thenReturn(url);
         var expectedSubtitleFile = "/tmp/lorem.srt";
         var subtitleInfo = mock(SubtitleInfo.class);
         var expectedCommand = "vlc my-video-url.mp4 " + VlcPlayerService.OPTIONS + " " + VlcPlayerService.SUBTITLE_OPTION + expectedSubtitleFile;
@@ -229,7 +226,7 @@ class VlcPlayerServiceTest {
         });
         service.addListener(listener);
 
-        service.play(SimplePlayRequest.builder().build());
+        service.play(mock(PlayRequest.class));
 
         verify(listener, timeout(1200)).onTimeChanged(200L);
         verify(listener, timeout(200)).onDurationChanged(56000L);

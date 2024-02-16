@@ -3,6 +3,7 @@ package com.github.yoep.popcorn.backend.torrent;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import com.sun.jna.Structure;
 import lombok.Builder;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 
@@ -10,6 +11,7 @@ import java.io.Closeable;
 
 @Getter
 @ToString
+@EqualsAndHashCode(callSuper = false)
 @Structure.FieldOrder({"progress", "seeds", "peers", "downloadSpeed", "uploadSpeed", "downloaded", "total_size"})
 public class DownloadStatusC extends Structure implements Closeable, DownloadStatus {
     public static class ByValue extends DownloadStatusC implements Structure.ByValue {
@@ -71,7 +73,7 @@ public class DownloadStatusC extends Structure implements Closeable, DownloadSta
 
     @Override
     public long downloaded() {
-        return downloadSpeed;
+        return downloaded;
     }
 
     @Override

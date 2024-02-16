@@ -10,8 +10,6 @@ import com.github.yoep.popcorn.backend.loader.LoaderListener;
 import com.github.yoep.popcorn.backend.loader.LoaderService;
 import com.github.yoep.popcorn.backend.loader.LoadingProgress;
 import com.github.yoep.popcorn.backend.loader.LoadingStartedEventC;
-import com.github.yoep.popcorn.backend.media.providers.models.Images;
-import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.player.PlayerEventService;
 import com.github.yoep.popcorn.ui.view.listeners.PlayerExternalListener;
 import org.junit.jupiter.api.BeforeEach;
@@ -175,10 +173,9 @@ class PlayerExternalComponentServiceTest {
     void testOnPlayerTorrent_whenEventIsMediaEvent_shouldUpdateMedia() {
         var listenerHolder = new AtomicReference<LoaderListener>();
         var title = "Lorem ipsum";
-        var media = MovieDetails.builder()
-                .images(Images.builder().build())
-                .build();
         var playerListener = mock(PlayerExternalListener.class);
+        var startedEvent = mock(LoadingStartedEventC.class);
+        when(startedEvent.getTitle()).thenReturn(title);
         doAnswer(invocation -> {
             listenerHolder.set(invocation.getArgument(0, LoaderListener.class));
             return null;
@@ -187,13 +184,8 @@ class PlayerExternalComponentServiceTest {
         service.addListener(playerListener);
 
         var listener = listenerHolder.get();
-        listener.onLoadingStarted(LoadingStartedEventC.builder()
-                .url("MyUrl")
-                .title(title)
-                .build());
+        listener.onLoadingStarted(startedEvent);
 
         verify(playerListener).onTitleChanged(title);
-        // TODO
-        //        verify(playerListener).onMediaChanged(media);
     }
 }

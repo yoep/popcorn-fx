@@ -365,6 +365,7 @@ mod test {
         let filename = "torrents/lorem ipsum=[dolor].mp4";
         let filepath = PathBuf::from(temp_path).join(filename);
         let torrent_info = TorrentInfo {
+            uri: String::new(),
             name: filename.to_string(),
             directory_name: None,
             total_files: 1,

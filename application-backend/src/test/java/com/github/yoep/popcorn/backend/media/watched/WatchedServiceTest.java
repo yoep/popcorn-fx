@@ -41,7 +41,7 @@ class WatchedServiceTest {
 
     @Test
     void testGetWatchedMovies() {
-        var movies = mock(StringArray.class);
+        var movies = mock(StringArray.ByReference.class);
         var expectedResult = asList("tt1111", "tt2222");
         when(movies.values()).thenReturn(expectedResult);
         when(fxLib.retrieve_watched_movies(instance)).thenReturn(movies);
@@ -53,7 +53,7 @@ class WatchedServiceTest {
 
     @Test
     void testGetWatchedShows() {
-        var shows = mock(StringArray.class);
+        var shows = mock(StringArray.ByReference.class);
         var expectedResult = asList("tt7410", "tt8520");
         when(shows.values()).thenReturn(expectedResult);
         when(fxLib.retrieve_watched_shows(instance)).thenReturn(shows);

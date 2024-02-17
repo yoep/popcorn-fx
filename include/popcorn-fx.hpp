@@ -2151,12 +2151,12 @@ StringArray *retrieve_provider_sort_by(PopcornFX *popcorn_fx, const char *name);
 /// Retrieve all watched movie id's.
 ///
 /// It returns an array of watched movie id's.
-StringArray retrieve_watched_movies(PopcornFX *popcorn_fx);
+StringArray *retrieve_watched_movies(PopcornFX *popcorn_fx);
 
 /// Retrieve all watched show media id's.
 ///
 /// It returns  an array of watched show id's.
-StringArray retrieve_watched_shows(PopcornFX *popcorn_fx);
+StringArray *retrieve_watched_shows(PopcornFX *popcorn_fx);
 
 /// Selects the default subtitle from the given list of subtitles provided in C-compatible form.
 ///

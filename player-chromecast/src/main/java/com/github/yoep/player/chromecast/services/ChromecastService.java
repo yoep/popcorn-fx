@@ -102,7 +102,7 @@ public class ChromecastService {
                         .textTrackStyle(getTrackStyle())
                         .tracks(tracks)
                         .build())
-                .activeTrackIds(tracks.size() > 0 ? Collections.singletonList(0) : Collections.emptyList())
+                .activeTrackIds(!tracks.isEmpty() ? Collections.singletonList(0) : Collections.emptyList())
                 .build();
     }
 
@@ -208,13 +208,15 @@ public class ChromecastService {
     }
 
     private static Map<String, Object> getMediaMetaData(PlayRequest request) {
+        var thumbnailImage = request.getBackground()
+                .orElse(request.getThumbnail().orElse(null));
         return new HashMap<>() {{
             put(Media.METADATA_TYPE, Media.MetadataType.MOVIE);
             put(Media.METADATA_TITLE, request.getTitle());
             put(Media.METADATA_SUBTITLE, request.getQuality().orElse(null));
-            put(ChromeCastMetadata.METADATA_THUMBNAIL, request.getThumbnail().orElse(null));
-            put(ChromeCastMetadata.METADATA_THUMBNAIL_URL, request.getThumbnail().orElse(null));
-            put(ChromeCastMetadata.METADATA_POSTER_URL, request.getThumbnail().orElse(null));
+            put(ChromeCastMetadata.METADATA_THUMBNAIL, thumbnailImage);
+            put(ChromeCastMetadata.METADATA_THUMBNAIL_URL, thumbnailImage);
+            put(ChromeCastMetadata.METADATA_POSTER_URL, thumbnailImage);
         }};
     }
 

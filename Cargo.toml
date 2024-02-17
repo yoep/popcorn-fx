@@ -8,7 +8,7 @@ members = [
     "popcorn-fx-core",
     "popcorn-fx-opensubtitles",
     "popcorn-fx-platform",
-    "popcorn-fx-torrent"
+    "popcorn-fx-torrent",
 ]
 
 [workspace.dependencies]

@@ -1580,7 +1580,7 @@ void dispose_subtitle_info(Box<SubtitleInfoC> info);
 /// This function is marked as `unsafe` because it's assumed that the `SubtitleInfoSet` structure was allocated using `Box`,
 /// and dropping a `Box` pointing to valid memory is safe. However, if the `SubtitleInfoSet` was allocated in a different way
 /// or if the memory was already deallocated, calling this function could lead to undefined behavior.
-void dispose_subtitle_info_set(Box<SubtitleInfoSet> set);
+void dispose_subtitle_info_set(SubtitleInfoSet *set);
 
 /// Dispose the [TorrentCollectionSet] from memory.
 void dispose_torrent_collection(Box<TorrentCollectionSet> collection_set);

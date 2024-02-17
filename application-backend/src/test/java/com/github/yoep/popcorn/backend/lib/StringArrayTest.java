@@ -21,7 +21,7 @@ class StringArrayTest {
 
     @Test
     void testClose() {
-        var array = new StringArray();
+        var array = new StringArray.ByReference();
 
         array.close();
 

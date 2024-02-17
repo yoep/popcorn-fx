@@ -16,6 +16,20 @@ import java.util.Optional;
 @EqualsAndHashCode(callSuper = false)
 @Structure.FieldOrder({"values", "len"})
 public class StringArray extends Structure implements Closeable {
+    public static class ByValue extends StringArray implements Structure.ByValue {
+    }
+
+    public static class ByReference extends StringArray implements Structure.ByReference {
+        public ByReference() {
+        }
+
+        @Override
+        public void close() {
+            super.close();
+            FxLib.INSTANCE.get().dispose_string_array(this);
+        }
+    }
+
     public Pointer values;
     public int len;
 
@@ -23,6 +37,9 @@ public class StringArray extends Structure implements Closeable {
 
     public List<String> values() {
         return cache;
+    }
+
+    public StringArray() {
     }
 
     @Override
@@ -37,6 +54,5 @@ public class StringArray extends Structure implements Closeable {
     @Override
     public void close() {
         setAutoSynch(false);
-        FxLib.INSTANCE.get().dispose_string_array(this);
     }
 }

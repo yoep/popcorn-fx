@@ -44,6 +44,7 @@ impl From<&[String]> for StringArray {
 
 impl Drop for StringArray {
     fn drop(&mut self) {
+        trace!("Dropping {:?}", self);
         let _ = from_c_vec_owned(self.values, self.len).into_iter()
             .map(|e| from_c_string(e))
             .collect::<Vec<String>>();

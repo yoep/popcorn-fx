@@ -404,15 +404,15 @@ pub extern "C" fn retrieve_all_watched(popcorn_fx: &mut PopcornFX) -> StringArra
 ///
 /// It returns an array of watched movie id's.
 #[no_mangle]
-pub extern "C" fn retrieve_watched_movies(popcorn_fx: &mut PopcornFX) -> StringArray {
+pub extern "C" fn retrieve_watched_movies(popcorn_fx: &mut PopcornFX) -> *mut StringArray {
     match popcorn_fx.watched_service().watched_movies() {
         Ok(e) => {
             debug!("Retrieved watched items {:?}", &e);
-            StringArray::from(e)
+            into_c_owned(StringArray::from(e))
         }
         Err(e) => {
             error!("Failed to retrieve watched items, {}", e);
-            StringArray::from(vec![])
+            into_c_owned(StringArray::from(vec![]))
         }
     }
 }
@@ -421,15 +421,15 @@ pub extern "C" fn retrieve_watched_movies(popcorn_fx: &mut PopcornFX) -> StringA
 ///
 /// It returns  an array of watched show id's.
 #[no_mangle]
-pub extern "C" fn retrieve_watched_shows(popcorn_fx: &mut PopcornFX) -> StringArray {
+pub extern "C" fn retrieve_watched_shows(popcorn_fx: &mut PopcornFX) -> *mut StringArray {
     match popcorn_fx.watched_service().watched_shows() {
         Ok(e) => {
             debug!("Retrieved watched items {:?}", &e);
-            StringArray::from(e)
+            into_c_owned(StringArray::from(e))
         }
         Err(e) => {
             error!("Failed to retrieve watched items, {}", e);
-            StringArray::from(vec![])
+            into_c_owned(StringArray::from(vec![]))
         }
     }
 }

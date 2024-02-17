@@ -67,7 +67,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public interface FxLib extends Library {
     AtomicReference<FxLib> INSTANCE = new AtomicReference<>();
 
-    PopcornFx new_popcorn_fx(Pointer array, int len);
+    PopcornFx new_popcorn_fx(String[] args, int len);
 
     SubtitleInfoSet.ByReference default_subtitle_options(PopcornFx instance);
 
@@ -131,9 +131,9 @@ public interface FxLib extends Library {
 
     byte is_media_watched(PopcornFx instance, MediaItem media);
 
-    StringArray retrieve_watched_movies(PopcornFx instance);
+    StringArray.ByReference retrieve_watched_movies(PopcornFx instance);
 
-    StringArray retrieve_watched_shows(PopcornFx instance);
+    StringArray.ByReference retrieve_watched_shows(PopcornFx instance);
 
     void add_to_watched(PopcornFx instance, MediaItem media);
 

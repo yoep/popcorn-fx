@@ -41,8 +41,8 @@ tar = "0.4"
 tempfile = { version = "3", optional = true }
 thiserror = "1"
 tokio = { workspace = true, features = ["rt-multi-thread", "fs", "macros"] }
-tokio-util = { workspace = true }
 tokio-stream = { workspace = true }
+tokio-util = { workspace = true }
 url = "2"
 warp = "0"
 

@@ -47,7 +47,7 @@ pub trait Player: Debug + Display + DowncastSync + Callbacks<PlayerEvent> {
     /// # Returns
     ///
     /// The current state of the player.
-    fn state(&self) -> &PlayerState;
+    fn state(&self) -> PlayerState;
 
     /// Get the current playback request, if any.
     ///

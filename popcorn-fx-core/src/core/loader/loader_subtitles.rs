@@ -19,7 +19,7 @@ use crate::core::subtitles::model::SubtitleInfo;
 #[display(fmt = "Subtitles loading strategy")]
 pub struct SubtitlesLoadingStrategy {
     subtitle_provider: Arc<Box<dyn SubtitleProvider>>,
-    subtitle_manager: Arc<SubtitleManager>,
+    subtitle_manager: Arc<Box<dyn SubtitleManager>>,
 }
 
 impl SubtitlesLoadingStrategy {
@@ -33,7 +33,7 @@ impl SubtitlesLoadingStrategy {
     /// # Returns
     ///
     /// A new `SubtitlesLoadingStrategy` instance.
-    pub fn new(subtitle_provider: Arc<Box<dyn SubtitleProvider>>, subtitle_manager: Arc<SubtitleManager>) -> Self {
+    pub fn new(subtitle_provider: Arc<Box<dyn SubtitleProvider>>, subtitle_manager: Arc<Box<dyn SubtitleManager>>) -> Self {
         Self {
             subtitle_provider,
             subtitle_manager,
@@ -167,26 +167,18 @@ mod tests {
     use std::sync::mpsc::channel;
     use std::time::Duration;
 
-    use tempfile::tempdir;
-
     use crate::core::block_in_place;
-    use crate::core::config::ApplicationConfig;
     use crate::core::loader::LoadingResult;
     use crate::core::playlists::PlaylistItem;
     use crate::core::subtitles::MockSubtitleProvider;
     use crate::core::torrents::TorrentFileInfo;
-    use crate::testing::init_logger;
+    use crate::testing::{init_logger, MockSubtitleManager};
 
     use super::*;
 
     #[test]
     fn test_process_movie_subtitles() {
         init_logger();
-        let temp_dir = tempdir().expect("expected a tempt dir to be created");
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(ApplicationConfig::builder()
-            .storage(temp_path)
-            .build());
         let movie_details = MovieDetails {
             title: "MyMovieTitle".to_string(),
             imdb_id: "tt112233".to_string(),
@@ -230,8 +222,17 @@ mod tests {
             .returning(|_| {
                 SubtitleInfo::none()
             });
-        let manager = Arc::new(SubtitleManager::new(settings));
-        let loader = SubtitlesLoadingStrategy::new(Arc::new(Box::new(provider)), manager.clone());
+        let mut manager = MockSubtitleManager::new();
+        manager.expect_is_disabled_async()
+            .times(1)
+            .return_const(false);
+        manager.expect_preferred_language()
+            .times(1)
+            .return_const(SubtitleLanguage::None);
+        manager.expect_update_subtitle()
+            .times(1)
+            .return_const(());
+        let loader = SubtitlesLoadingStrategy::new(Arc::new(Box::new(provider)), Arc::new(Box::new(manager)));
 
         let result = block_in_place(loader.process(data.clone(), tx_event, CancellationToken::new()));
         assert_eq!(LoadingResult::Ok(data), result);
@@ -243,11 +244,6 @@ mod tests {
     #[test]
     fn test_process_filename_subtitles() {
         init_logger();
-        let temp_dir = tempdir().expect("expected a tempt dir to be created");
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(ApplicationConfig::builder()
-            .storage(temp_path)
-            .build());
         let filename = "MyTIFile";
         let torrent_file_info = TorrentFileInfo {
             filename: filename.to_string(),
@@ -286,8 +282,17 @@ mod tests {
             .returning(|_| {
                 SubtitleInfo::none()
             });
-        let manager = Arc::new(SubtitleManager::new(settings));
-        let loader = SubtitlesLoadingStrategy::new(Arc::new(Box::new(provider)), manager.clone());
+        let mut manager = MockSubtitleManager::new();
+        manager.expect_is_disabled_async()
+            .times(1)
+            .return_const(false);
+        manager.expect_preferred_language()
+            .times(1)
+            .return_const(SubtitleLanguage::None);
+        manager.expect_update_subtitle()
+            .times(1)
+            .return_const(());
+        let loader = SubtitlesLoadingStrategy::new(Arc::new(Box::new(provider)), Arc::new(Box::new(manager)));
 
         let result = block_in_place(loader.process(data.clone(), tx_event, CancellationToken::new()));
         assert_eq!(LoadingResult::Ok(data), result);
@@ -299,11 +304,6 @@ mod tests {
     #[test]
     fn test_process_subtitle_manager_disabled() {
         init_logger();
-        let temp_dir = tempdir().expect("expected a tempt dir to be created");
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(ApplicationConfig::builder()
-            .storage(temp_path)
-            .build());
         let movie = Box::new(MovieDetails {
             title: "".to_string(),
             imdb_id: "tt112233".to_string(),
@@ -336,10 +336,12 @@ mod tests {
             .returning(|_| {
                 panic!("movie_subtitles should not have been invoked")
             });
-        let manager = Arc::new(SubtitleManager::new(settings));
-        let loader = SubtitlesLoadingStrategy::new(Arc::new(Box::new(provider)), manager.clone());
+        let mut manager = MockSubtitleManager::new();
+        manager.expect_is_disabled_async()
+            .return_const(true);
+        let manager = Arc::new(Box::new(manager) as Box<dyn SubtitleManager>);
+        let loader = SubtitlesLoadingStrategy::new(Arc::new(Box::new(provider)), manager);
 
-        manager.disable_subtitle();
         let result = block_in_place(loader.process(data.clone(), tx_event, CancellationToken::new()));
 
         assert_eq!(LoadingResult::Ok(data), result);
@@ -348,11 +350,6 @@ mod tests {
     #[test]
     fn test_process_playlist_subtitles_disabled() {
         init_logger();
-        let temp_dir = tempdir().expect("expected a tempt dir to be created");
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(ApplicationConfig::builder()
-            .storage(temp_path)
-            .build());
         let playlist_item = PlaylistItem {
             url: None,
             title: "".to_string(),
@@ -378,23 +375,22 @@ mod tests {
         provider.expect_file_subtitles()
             .times(0)
             .return_const(subtitles::Result::Ok(Vec::new()));
-        let manager = Arc::new(SubtitleManager::new(settings));
-        let loader = SubtitlesLoadingStrategy::new(Arc::new(Box::new(provider)), manager.clone());
+        let mut manager = MockSubtitleManager::new();
+        manager.expect_is_disabled_async()
+            .times(0)
+            .return_const(true);
+        manager.expect_preferred_subtitle()
+            .times(0)
+            .return_const(Some(SubtitleInfo::custom()));
+        let loader = SubtitlesLoadingStrategy::new(Arc::new(Box::new(provider)), Arc::new(Box::new(manager)));
 
         let result = block_in_place(loader.process(data.clone(), tx_event, CancellationToken::new()));
         assert_eq!(LoadingResult::Ok(data), result);
-
-        assert!(loader.subtitle_manager.preferred_subtitle().is_none(), "expected no subtitle to have been set");
     }
 
     #[test]
     fn test_cancel() {
         init_logger();
-        let temp_dir = tempdir().expect("expected a tempt dir to be created");
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(ApplicationConfig::builder()
-            .storage(temp_path)
-            .build());
         let data = LoadingData::from(PlaylistItem {
             url: None,
             title: "CancelledItem".to_string(),
@@ -413,8 +409,12 @@ mod tests {
             .returning(|_| {
                 panic!("movie_subtitles should not have been invoked")
             });
-        let manager = Arc::new(SubtitleManager::new(settings));
-        let loader = SubtitlesLoadingStrategy::new(Arc::new(Box::new(provider)), manager.clone());
+        let mut manager = MockSubtitleManager::new();
+        manager.expect_reset()
+            .times(1)
+            .return_const(());
+        let manager = Arc::new(Box::new(manager) as Box<dyn SubtitleManager>);
+        let loader = SubtitlesLoadingStrategy::new(Arc::new(Box::new(provider)), manager);
 
         let result = block_in_place(loader.cancel(data.clone()));
         assert_eq!(Ok(data), result);

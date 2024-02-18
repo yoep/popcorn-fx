@@ -39,7 +39,7 @@ serde_json.workspace = true
 serde_yaml.workspace = true
 tar = "0.4"
 tempfile = { version = "3", optional = true }
-thiserror = "1"
+thiserror.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread", "fs", "macros"] }
 tokio-stream = { workspace = true }
 tokio-util = { workspace = true }

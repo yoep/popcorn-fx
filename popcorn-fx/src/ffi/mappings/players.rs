@@ -175,8 +175,8 @@ impl Player for PlayerWrapper {
         self.graphic_resource.clone()
     }
 
-    fn state(&self) -> &PlayerState {
-        &self.state
+    fn state(&self) -> PlayerState {
+        self.state.clone()
     }
 
     fn request(&self) -> Option<Weak<Box<dyn PlayRequest>>> {

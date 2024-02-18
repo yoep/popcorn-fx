@@ -22,7 +22,7 @@ mockall = "0"
 serde = "1"
 serde_yaml.workspace = true
 signal-hook = { version = "0.3" }
-thiserror = "1.0"
+thiserror.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread"] }
 
 [dev-dependencies]

@@ -112,7 +112,7 @@ pub extern "C" fn register_subtitle_callback(popcorn_fx: &mut PopcornFX, callbac
         callback(event_c)
     });
 
-    popcorn_fx.subtitle_manager().register(wrapper);
+    popcorn_fx.subtitle_manager().add(wrapper);
 }
 
 /// Clean the subtitles directory.
@@ -165,7 +165,7 @@ mod test {
     use log::info;
     use tempfile::tempdir;
 
-    use popcorn_fx_core::{from_c_owned, from_c_vec, into_c_vec};
+    use popcorn_fx_core::{from_c_owned, from_c_vec};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::core::subtitles::SubtitleFile;
     use popcorn_fx_core::testing::{copy_test_file, init_logger};
@@ -243,17 +243,17 @@ mod test {
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = new_instance(temp_path);
-        let info = SubtitleInfo::new_with_files(
-            Some("tt200002"),
-            SubtitleLanguage::English,
-            vec![SubtitleFile::builder()
+        let info = SubtitleInfo::builder()
+            .imdb_id("tt200002")
+            .language(SubtitleLanguage::English)
+            .files(vec![SubtitleFile::builder()
                 .file_id(1)
                 .url("SomeUrl")
                 .name("MyFilename")
                 .score(0.1)
                 .downloads(20)
-                .build()],
-        );
+                .build()])
+            .build();
         let set = SubtitleInfoSet::from(vec![SubtitleInfoC::from(info.clone())]);
 
         let result = from_c_owned(select_or_default_subtitle(&mut instance, into_c_owned(set)));

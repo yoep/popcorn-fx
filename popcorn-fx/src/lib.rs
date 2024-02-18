@@ -794,16 +794,16 @@ mod test {
     #[test]
     fn test_update_subtitle() {
         let language1 = SubtitleLanguage::Finnish;
-        let subtitle1 = SubtitleInfo::new(
-            "tt212121".to_string(),
-            language1.clone(),
-        );
+        let subtitle1 = SubtitleInfo::builder()
+            .imdb_id("tt212121")
+            .language(language1.clone())
+            .build();
         let info_c1 = SubtitleInfoC::from(subtitle1.clone());
         let language2 = SubtitleLanguage::English;
-        let subtitle2 = SubtitleInfo::new(
-            "tt212333".to_string(),
-            language2.clone(),
-        );
+        let subtitle2 = SubtitleInfo::builder()
+            .imdb_id("tt212333")
+            .language(language2.clone())
+            .build();
         let info_c2 = SubtitleInfoC::from(subtitle2.clone());
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -939,7 +939,10 @@ mod test {
                     )]
                 )],
             )],
-            Some(SubtitleInfo::new("tt00001".to_string(), SubtitleLanguage::English)),
+            Some(SubtitleInfo::builder()
+                .imdb_id("tt00001")
+                .language(SubtitleLanguage::English)
+                .build()),
             "lorem.srt".to_string(),
         );
         let subtitle_c = SubtitleC::from(subtitle);

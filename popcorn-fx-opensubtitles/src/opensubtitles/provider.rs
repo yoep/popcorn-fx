@@ -168,10 +168,11 @@ impl OpensubtitlesProvider {
                 let language = key.0;
                 let files = key.1;
 
-                SubtitleInfo::new_with_files(
-                    Some(imdb_id.clone()),
-                    language.clone(),
-                    files.clone())
+                SubtitleInfo::builder()
+                    .imdb_id(imdb_id.clone())
+                    .language(language.clone())
+                    .files(files.clone())
+                    .build()
             })
             .sorted()
             .collect()
@@ -627,7 +628,7 @@ mod test {
 
     use popcorn_fx_core::core::config::*;
     use popcorn_fx_core::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
-    use popcorn_fx_core::core::subtitles::language::SubtitleLanguage::{English, French};
+    use popcorn_fx_core::core::subtitles::language::SubtitleLanguage::English;
     use popcorn_fx_core::core::subtitles::parsers::{SrtParser, VttParser};
     use popcorn_fx_core::testing::{copy_test_file, init_logger, read_test_file_to_string};
 
@@ -786,10 +787,10 @@ mod test {
                 .header("content-type", "application/json")
                 .body(read_test_file_to_string("search_result_episode.json"));
         });
-        let expected_result = SubtitleInfo::new(
-            "tt2861424".to_string(),
-            English,
-        );
+        let expected_result = SubtitleInfo::builder()
+            .imdb_id("tt2861424")
+            .language(English)
+            .build();
         let runtime = runtime::Runtime::new().unwrap();
 
         let result = runtime.block_on(service.episode_subtitles(&show, &episode));
@@ -843,15 +844,19 @@ mod test {
             .with_parser(SubtitleType::Srt, Box::new(SrtParser::new()))
             .build();
         let filename = "test-subtitle-file.srt".to_string();
-        let subtitle_info = SubtitleInfo::new_with_files(Some("tt7405458".to_string()), SubtitleLanguage::German, vec![
-            SubtitleFile::builder()
-                .file_id(91135)
-                .name(filename.clone())
-                .url("")
-                .score(0.0)
-                .downloads(0)
-                .build(),
-        ]);
+        let subtitle_info = SubtitleInfo::builder()
+            .imdb_id("tt7405458")
+            .language(SubtitleLanguage::German)
+            .files(vec![
+                SubtitleFile::builder()
+                    .file_id(91135)
+                    .name(filename.clone())
+                    .url("")
+                    .score(0.0)
+                    .downloads(0)
+                    .build(),
+            ])
+            .build();
         let matcher = SubtitleMatcher::from_string(Some(String::new()), Some(String::from("720")));
         let response_body = read_test_file_to_string("download_response.json");
         server.mock(|when, then| {
@@ -893,15 +898,19 @@ mod test {
             .with_parser(SubtitleType::Srt, Box::new(SrtParser::new()))
             .build();
         let filename = "test-subtitle-file.srt".to_string();
-        let subtitle_info = SubtitleInfo::new_with_files(Some("tt7405458".to_string()), SubtitleLanguage::German, vec![
-            SubtitleFile::builder()
-                .file_id(91135)
-                .name(filename.clone())
-                .url("")
-                .score(0.0)
-                .downloads(0)
-                .build(),
-        ]);
+        let subtitle_info = SubtitleInfo::builder()
+            .imdb_id("tt7405458")
+            .language(SubtitleLanguage::German)
+            .files(vec![
+                SubtitleFile::builder()
+                    .file_id(91135)
+                    .name(filename.clone())
+                    .url("")
+                    .score(0.0)
+                    .downloads(0)
+                    .build(),
+            ])
+            .build();
         let matcher = SubtitleMatcher::from_string(Some(String::new()), Some(String::from("720")));
         let response_body = read_test_file_to_string("download_response.json");
         server.mock(|when, then| {
@@ -967,15 +976,19 @@ mod test {
             .settings(settings)
             .with_parser(SubtitleType::Srt, Box::new(SrtParser::new()))
             .build();
-        let subtitle_info = SubtitleInfo::new_with_files(Some("tt00001".to_string()), SubtitleLanguage::German, vec![
-            SubtitleFile::builder()
-                .file_id(10001111)
-                .name("subtitle_existing.srt")
-                .url("")
-                .score(0.0)
-                .downloads(0)
-                .build(),
-        ]);
+        let subtitle_info = SubtitleInfo::builder()
+            .imdb_id("tt00001")
+            .language(SubtitleLanguage::German)
+            .files(vec![
+                SubtitleFile::builder()
+                    .file_id(10001111)
+                    .name("subtitle_existing.srt")
+                    .url("")
+                    .score(0.0)
+                    .downloads(0)
+                    .build(),
+            ])
+            .build();
         let matcher = SubtitleMatcher::from_string(Some(String::new()), Some(String::from("720")));
         let expected_cues: Vec<SubtitleCue> = vec![
             SubtitleCue::new("1".to_string(), 8224, 10124, vec![
@@ -1046,7 +1059,10 @@ mod test {
         let service = OpensubtitlesProvider::builder()
             .settings(settings)
             .build();
-        let subtitle_info = SubtitleInfo::new("lorem".to_string(), English);
+        let subtitle_info = SubtitleInfo::builder()
+            .imdb_id("lorem")
+            .language(SubtitleLanguage::English)
+            .build();
         let subtitles: Vec<SubtitleInfo> = vec![subtitle_info.clone()];
 
         let result = service.select_or_default(&subtitles);
@@ -1088,7 +1104,10 @@ mod test {
         let service = OpensubtitlesProvider::builder()
             .settings(settings)
             .build();
-        let subtitle_info = SubtitleInfo::new("ipsum".to_string(), French);
+        let subtitle_info = SubtitleInfo::builder()
+            .imdb_id("ipsum")
+            .language(SubtitleLanguage::French)
+            .build();
         let subtitles: Vec<SubtitleInfo> = vec![subtitle_info.clone()];
 
         let result = service.select_or_default(&subtitles);

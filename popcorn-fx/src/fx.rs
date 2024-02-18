@@ -34,7 +34,7 @@ use popcorn_fx_core::core::playback::PlaybackControls;
 use popcorn_fx_core::core::players::{DefaultPlayerManager, PlayerManager};
 use popcorn_fx_core::core::playlists::PlaylistManager;
 use popcorn_fx_core::core::screen::{DefaultScreenService, ScreenService};
-use popcorn_fx_core::core::subtitles::{SubtitleManager, SubtitleProvider, SubtitleServer};
+use popcorn_fx_core::core::subtitles::{DefaultSubtitleManager, SubtitleManager, SubtitleProvider, SubtitleServer};
 use popcorn_fx_core::core::subtitles::model::SubtitleType;
 use popcorn_fx_core::core::subtitles::parsers::{SrtParser, VttParser};
 use popcorn_fx_core::core::torrents::{TorrentManager, TorrentStreamServer};
@@ -147,7 +147,7 @@ pub struct PopcornFX {
     settings: Arc<ApplicationConfig>,
     subtitle_provider: Arc<Box<dyn SubtitleProvider>>,
     subtitle_server: Arc<SubtitleServer>,
-    subtitle_manager: Arc<SubtitleManager>,
+    subtitle_manager: Arc<Box<dyn SubtitleManager>>,
     platform: Arc<Box<dyn PlatformData>>,
     favorites_service: Arc<Box<dyn FavoriteService>>,
     watched_service: Arc<Box<dyn WatchedService>>,
@@ -202,7 +202,7 @@ impl PopcornFX {
             .insecure(args.insecure)
             .build()));
         let subtitle_server = Arc::new(SubtitleServer::new(&subtitle_provider));
-        let subtitle_manager = Arc::new(SubtitleManager::new(settings.clone()));
+        let subtitle_manager = Arc::new(Box::new(DefaultSubtitleManager::new(settings.clone())) as Box<dyn SubtitleManager>);
         let platform = Arc::new(Box::new(DefaultPlatform::default()) as Box<dyn PlatformData>);
         let favorites_service = Arc::new(Box::new(DefaultFavoriteService::new(app_directory_path)) as Box<dyn FavoriteService>);
         let watched_service = Arc::new(Box::new(DefaultWatchedService::new(app_directory_path, event_publisher.clone())) as Box<dyn WatchedService>);
@@ -293,7 +293,7 @@ impl PopcornFX {
     }
 
     /// Retrieve the subtitle manager instance.
-    pub fn subtitle_manager(&mut self) -> &mut Arc<SubtitleManager> {
+    pub fn subtitle_manager(&mut self) -> &mut Arc<Box<dyn SubtitleManager>> {
         &mut self.subtitle_manager
     }
 

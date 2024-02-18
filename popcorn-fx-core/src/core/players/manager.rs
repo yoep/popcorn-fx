@@ -595,8 +595,8 @@ mod tests {
             Vec::new()
         }
 
-        fn state(&self) -> &PlayerState {
-            &PlayerState::Unknown
+        fn state(&self) -> PlayerState {
+            PlayerState::Unknown
         }
 
         fn request(&self) -> Option<Weak<Box<dyn PlayRequest>>> {

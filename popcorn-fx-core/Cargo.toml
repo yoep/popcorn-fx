@@ -23,7 +23,7 @@ downcast-rs = "1"
 flate2 = "1"
 futures = "0.3"
 html-escape = "0"
-itertools = "0"
+itertools.workspace = true
 local-ip-address = "0"
 log.workspace = true
 log4rs = { version = "1", features = ["console_writer"], optional = true }
@@ -31,7 +31,7 @@ mockall = "0"
 percent-encoding = "2"
 rand = "0.8"
 regex = "1"
-reqwest = { version = "0", features = ["serde_json", "json", "stream"] }
+reqwest = { workspace = true, features = ["serde_json", "json", "stream"] }
 ring = "0.17"
 semver = "1.0"
 serde.workspace = true
@@ -43,7 +43,7 @@ thiserror.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread", "fs", "macros"] }
 tokio-stream = { workspace = true }
 tokio-util = { workspace = true }
-url = "2"
+url.workspace = true
 warp = "0"
 
 [dev-dependencies]

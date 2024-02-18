@@ -1,6 +1,6 @@
 use log::trace;
 
-use popcorn_fx_core::{from_c_as_ref, from_c_owned, from_c_vec, into_c_owned};
+use popcorn_fx_core::{from_c_owned, from_c_vec, into_c_owned};
 use popcorn_fx_core::core::subtitles::model::SubtitleInfo;
 use popcorn_fx_core::core::subtitles::SubtitleCallback;
 
@@ -78,10 +78,9 @@ pub extern "C" fn subtitle_custom() -> *mut SubtitleInfoC {
 ///
 /// A pointer to the selected default subtitle in C-compatible form.
 #[no_mangle]
-pub extern "C" fn select_or_default_subtitle(popcorn_fx: &mut PopcornFX, set: *mut SubtitleInfoSet) -> *mut SubtitleInfoC {
-    let subtitle_set = from_c_as_ref(set);
-    trace!("Retrieving default subtitle selection from C for {:?}", subtitle_set);
-    let subtitles: Vec<SubtitleInfo> = from_c_vec(subtitle_set.subtitles, subtitle_set.len).into_iter()
+pub extern "C" fn select_or_default_subtitle(popcorn_fx: &mut PopcornFX, set: &mut SubtitleInfoSet) -> *mut SubtitleInfoC {
+    trace!("Retrieving default subtitle selection from C for {:?}", set);
+    let subtitles: Vec<SubtitleInfo> = from_c_vec(set.subtitles, set.len).into_iter()
         .map(|e| SubtitleInfo::from(e))
         .collect();
 

@@ -44,6 +44,7 @@ use popcorn_fx_core::core::updater::Updater;
 use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
 use popcorn_fx_platform::platform::DefaultPlatform;
 use popcorn_fx_torrent::torrent::DefaultTorrentManager;
+use popcorn_fx_vlc::vlc::VlcDiscovery;
 
 static INIT: Once = Once::new();
 
@@ -248,6 +249,9 @@ impl PopcornFX {
 
         // disable the screensaver
         platform.disable_screensaver();
+
+        // start discovery services
+        Self::initialize_discovery_services(&runtime, &subtitle_manager, &subtitle_provider, &player_manager);
 
         Self {
             settings,
@@ -467,7 +471,7 @@ impl PopcornFX {
     fn new_runtime() -> Runtime {
         tokio::runtime::Builder::new_multi_thread()
             .enable_all()
-            .worker_threads(3)
+            .worker_threads(4)
             .thread_name_fn(|| {
                 static ATOMIC_ID: AtomicUsize = AtomicUsize::new(0);
                 let id = ATOMIC_ID.fetch_add(1, Ordering::SeqCst);
@@ -497,6 +501,19 @@ impl PopcornFX {
             .with_details_provider(show_provider)
             .with_enhancer(thumb_enhancer)
             .build()
+    }
+
+    fn initialize_discovery_services(runtime: &Arc<Runtime>, 
+                                     subtitle_manager: &Arc<Box<dyn SubtitleManager>>, 
+                                     subtitle_provider: &Arc<Box<dyn SubtitleProvider>>, 
+                                     player_manager: &Arc<Box<dyn PlayerManager>>) {
+        let subtitle_manager = subtitle_manager.clone();
+        let subtitle_provider = subtitle_provider.clone();
+        let player_manager = player_manager.clone();
+        runtime.spawn(async move {
+            let vlc_discovery = VlcDiscovery::new(subtitle_manager.clone(), subtitle_provider.clone(), player_manager.clone());
+            vlc_discovery.start().await;
+        });
     }
 }
 

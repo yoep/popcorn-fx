@@ -249,13 +249,23 @@ public interface FxLib extends Library {
 
     PlayerWrapper player_by_id(PopcornFx instance, String playerId);
 
+    PlayerWrapperPointer player_pointer_by_id(PopcornFx instance, String playerId);
+
     void register_player_callback(PopcornFx instance, PlayerManagerCallback callback);
 
-    PlayerWrapperPointer register_player(PopcornFx instance, PlayerWrapperRegistration player);
+    void register_player(PopcornFx instance, PlayerWrapperRegistration player);
 
     void invoke_player_event(PlayerWrapperPointer wrapper, PlayerEventC.ByValue event);
 
     void remove_player(PopcornFx instance, String playerId);
+
+    void player_pause(PlayerWrapperPointer ptr);
+
+    void player_resume(PlayerWrapperPointer ptr);
+
+    void player_seek(PlayerWrapperPointer ptr, long time);
+
+    void player_stop(PlayerWrapperPointer ptr);
 
     void register_loader_callback(PopcornFx instance, LoaderEventCallback callback);
 
@@ -294,6 +304,10 @@ public interface FxLib extends Library {
     void dispose_favorites(FavoritesSet favorites);
 
     void dispose_player_manager_event(PlayerManagerEvent.ByValue event);
+
+    void dispose_player_pointer(PlayerWrapperPointer ptr);
+
+    void dispose_player_event_value(PlayerEventC.ByValue event);
 
     void dispose_loader_event_value(LoaderEventC.ByValue event);
 

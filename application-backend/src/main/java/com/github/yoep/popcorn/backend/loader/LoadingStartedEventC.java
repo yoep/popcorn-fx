@@ -21,22 +21,34 @@ public class LoadingStartedEventC extends Structure implements Closeable {
     public Pointer background;
     public Pointer quality;
 
+    private String cachedThumbnail;
+    private String cachedBackground;
+
     public LoadingStartedEventC() {
     }
 
     public Optional<String> getThumbnail() {
-        return Optional.ofNullable(thumbnail)
-                .map(e -> e.getString(0));
+        return Optional.ofNullable(cachedThumbnail);
     }
 
     public Optional<String> getBackground() {
-        return Optional.ofNullable(background)
-                .map(e -> e.getString(0));
+        return Optional.ofNullable(cachedBackground);
     }
 
     public Optional<String> getQuality() {
         return Optional.ofNullable(quality)
                 .map(e -> e.getString(0));
+    }
+
+    @Override
+    public void read() {
+        super.read();
+        cachedThumbnail = Optional.ofNullable(thumbnail)
+                .map(e -> e.getString(0))
+                .orElse(null);
+        cachedBackground = Optional.ofNullable(background)
+                .map(e -> e.getString(0))
+                .orElse(null);
     }
 
     @Override

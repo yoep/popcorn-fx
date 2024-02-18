@@ -87,7 +87,7 @@ impl LoadingStrategy for PlayerLoadingStrategy {
             return match self.convert(data) {
                 Ok(request) => {
                     event_channel.send(LoadingEvent::StateChanged(LoadingState::Playing)).unwrap();
-                    self.player_manager.play(request);
+                    self.player_manager.play(request).await;
                     LoadingResult::Completed
                 }
                 Err(err) => LoadingResult::Err(err),

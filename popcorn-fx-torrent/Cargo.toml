@@ -16,7 +16,7 @@ popcorn-fx-core = { path = "../popcorn-fx-core" }
 
 async-trait = "0.1"
 chrono = "0"
-itertools = "0"
+itertools.workspace = true
 log.workspace = true
 serde.workspace = true
 serde_json.workspace = true

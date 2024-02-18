@@ -1,9 +1,9 @@
+use std::{mem, ptr};
 use std::os::raw::c_char;
-use std::ptr;
 
 use log::{debug, error, info, trace, warn};
 
-use popcorn_fx_core::{from_c_string, into_c_owned};
+use popcorn_fx_core::{from_c_owned, from_c_string, into_c_owned};
 use popcorn_fx_core::core::players::{Player, PlayerEvent};
 
 use crate::ffi::{PlayerC, PlayerEventC, PlayerManagerEventC, PlayerManagerEventCallback, PlayerRegistrationC, PlayerSet, PlayerWrapper, PlayerWrapperC};
@@ -110,6 +110,31 @@ pub extern "C" fn player_by_id(popcorn_fx: &mut PopcornFX, player_id: *const c_c
         .unwrap_or(ptr::null_mut())
 }
 
+/// Retrieves a pointer to a `PlayerWrapperC` instance by its unique identifier (ID) from the PopcornFX player manager.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it interacts with external code (C/C++), and
+/// the caller is responsible for ensuring the safety of the provided `popcorn_fx` and `player_id` pointers.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
+/// * `player_id` - A pointer to a null-terminated C string representing the player's unique identifier (ID).
+///
+/// # Returns
+///
+/// Returns a pointer to a `PlayerWrapperC` instance representing the player if found, or a null pointer if no player with the given ID exists.
+#[no_mangle]
+pub extern "C" fn player_pointer_by_id(popcorn_fx: &mut PopcornFX, player_id: *const c_char) -> *mut PlayerWrapperC {
+    let player_id = from_c_string(player_id);
+    trace!("Retrieving C player wrapper for {}", player_id);
+    popcorn_fx.player_manager().by_id(player_id.as_str())
+        .map(|e| PlayerWrapperC::from(e))
+        .map(|e| into_c_owned(e))
+        .unwrap_or(ptr::null_mut())
+}
+
 /// Register a callback function to be notified of player manager events.
 ///
 /// # Safety
@@ -146,20 +171,15 @@ pub extern "C" fn register_player_callback(popcorn_fx: &mut PopcornFX, callback:
 /// This function registers a player with the PopcornFX player manager using the provided `PlayerC` instance.
 /// It logs an info message if the registration is successful and a warning message if registration fails.
 #[no_mangle]
-pub extern "C" fn register_player(popcorn_fx: &mut PopcornFX, player: PlayerRegistrationC) -> *mut PlayerWrapperC {
+pub extern "C" fn register_player(popcorn_fx: &mut PopcornFX, player: PlayerRegistrationC) {
     trace!("Registering new C player");
     let player = PlayerWrapper::from(player);
     let id = player.id().to_string();
 
     if popcorn_fx.player_manager().add_player(Box::new(player)) {
         info!("Registered new C player {}", id);
-        popcorn_fx.player_manager().by_id(id.as_str())
-            .map(|e| PlayerWrapperC::from(e))
-            .map(|e| into_c_owned(e))
-            .unwrap_or(ptr::null_mut())
     } else {
         warn!("Failed to register C player {}", id);
-        ptr::null_mut()
     }
 }
 
@@ -205,7 +225,8 @@ pub extern "C" fn remove_player(popcorn_fx: &mut PopcornFX, player_id: *const c_
 /// If the conditions are met, it invokes the specified player event on the wrapped player.
 #[no_mangle]
 pub extern "C" fn invoke_player_event(player: &mut PlayerWrapperC, event: PlayerEventC) {
-    trace!("Received player event C {:?}", event);
+    trace!("Received player event from C {:?} for pointer {:?}", event, player);
+    let player = from_c_owned(player);
     match player.instance() {
         Some(player) => {
             player.downcast_ref::<PlayerWrapper>().map(|wrapper| {
@@ -220,6 +241,92 @@ pub extern "C" fn invoke_player_event(player: &mut PlayerWrapperC, event: Player
             warn!("Unable to process C player event, player instance has been disposed");
         }
     }
+    mem::forget(player);
+}
+
+/// Pauses the player associated with the given `PlayerWrapperC` instance.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it interacts with external code (C/C++),
+/// and the caller is responsible for ensuring the safety of the provided `player` pointer.
+///
+/// # Arguments
+///
+/// * `player` - A mutable reference to a `PlayerWrapperC` instance.
+#[no_mangle]
+pub extern "C" fn player_pause(player: &mut PlayerWrapperC) {
+    trace!("Pausing player from C {:?}", player);
+    if let Some(player) = player.instance() {
+        trace!("Pausing player {}", player);
+        player.pause();
+    } else {
+        warn!("Unable to pause player from C, player instance has been disposed");
+    }
+}
+
+/// Resumes the player associated with the given `PlayerWrapperC` instance.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it interacts with external code (C/C++),
+/// and the caller is responsible for ensuring the safety of the provided `player` pointer.
+///
+/// # Arguments
+///
+/// * `player` - A mutable reference to a `PlayerWrapperC` instance.
+#[no_mangle]
+pub extern "C" fn player_resume(player: &mut PlayerWrapperC) {
+    trace!("Resuming player from C {:?}", player);
+    if let Some(player) = player.instance() {
+        trace!("Resuming player {}", player);
+        player.resume();
+    } else {
+        warn!("Unable to resume player from C, player instance has been disposed");
+    }
+}
+
+/// Seeks the player associated with the given `PlayerWrapperC` instance to the specified time position.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it interacts with external code (C/C++),
+/// and the caller is responsible for ensuring the safety of the provided `player` pointer.
+///
+/// # Arguments
+///
+/// * `player` - A mutable reference to a `PlayerWrapperC` instance.
+/// * `time` - The time position to seek to, in milliseconds.
+#[no_mangle]
+pub extern "C" fn player_seek(player: &mut PlayerWrapperC, time: u64) {
+    trace!("Seeking player time from C {:?}", player);
+    if let Some(player) = player.instance() {
+        trace!("Seeking player time for {} with {}", player, time);
+        player.seek(time);
+    } else {
+        warn!("Unable to seek player from C, player instance has been disposed");
+    }
+}
+
+/// Stops the player associated with the given `PlayerWrapperC` instance.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it interacts with external code (C/C++),
+/// and the caller is responsible for ensuring the safety of the provided `player` pointer.
+///
+/// # Arguments
+///
+/// * `player` - A mutable reference to a `PlayerWrapperC` instance.
+#[no_mangle]
+pub extern "C" fn player_stop(player: &mut PlayerWrapperC) {
+    trace!("Stopping player from C {:?}", player);
+    if let Some(player) = player.instance() {
+        trace!("Stopping player {}", player);
+        player.stop();
+    } else {
+        warn!("Unable to stop player from C, player instance has been disposed");
+    }
 }
 
 /// Dispose of a C-compatible player manager event.
@@ -232,6 +339,39 @@ pub extern "C" fn invoke_player_event(player: &mut PlayerWrapperC, event: Player
 #[no_mangle]
 pub extern "C" fn dispose_player_manager_event(event: PlayerManagerEventC) {
     trace!("Disposing C player manager event {:?}", event);
+    drop(event);
+}
+
+/// Disposes of the `PlayerEventC` instance and deallocates its memory.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it interacts with external code (C/C++),
+/// and the caller is responsible for ensuring the safety of the provided `event` pointer.
+///
+/// # Arguments
+///
+/// * `event` - A box containing the `PlayerEventC` instance to be disposed of.
+#[no_mangle]
+pub extern "C" fn dispose_player_event_value(event: PlayerEventC) {
+    trace!("Disposing player event value from C for {:?}", event);
+    drop(event);
+}
+
+/// Disposes of the `PlayerWrapperC` instance and deallocates its memory.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it interacts with external code (C/C++),
+/// and the caller is responsible for ensuring the safety of the provided `ptr` pointer.
+///
+/// # Arguments
+///
+/// * `ptr` - A box containing the `PlayerWrapperC` instance to be disposed of.
+#[no_mangle]
+pub extern "C" fn dispose_player_pointer(ptr: Box<PlayerWrapperC>) {
+    trace!("Disposing player pointer {:?}", ptr);
+    drop(ptr);
 }
 
 #[cfg(test)]
@@ -244,8 +384,8 @@ mod tests {
 
     use popcorn_fx_core::{from_c_owned, from_c_vec, into_c_string};
     use popcorn_fx_core::core::Callbacks;
-    use popcorn_fx_core::core::players::PlayerState;
-    use popcorn_fx_core::testing::init_logger;
+    use popcorn_fx_core::core::players::{PlayerManagerEvent, PlayerState};
+    use popcorn_fx_core::testing::{init_logger, MockPlayer};
 
     use crate::ffi::{ByteArray, PlayRequestC};
     use crate::test::default_args;
@@ -256,6 +396,22 @@ mod tests {
     extern "C" fn play_registration_callback(_: PlayRequestC) {
         // no-op
     }
+
+    #[no_mangle]
+    extern "C" fn pause_registration_callback() {
+        // no-op
+    }
+
+    #[no_mangle]
+    extern "C" fn resume_registration_callback() {
+        // no-op
+    }
+
+    #[no_mangle]
+    extern "C" fn seek_registration_callback(_: u64) {
+        // no-op
+    }
+
     #[no_mangle]
     extern "C" fn stop_registration_callback() {
         // no-op
@@ -276,6 +432,9 @@ mod tests {
             state: PlayerState::Playing,
             embedded_playback_supported: false,
             play_callback: play_registration_callback,
+            pause_callback: pause_registration_callback,
+            resume_callback: resume_registration_callback,
+            seek_callback: seek_registration_callback,
             stop_callback: stop_registration_callback,
         });
 
@@ -302,6 +461,9 @@ mod tests {
             state: PlayerState::Paused,
             embedded_playback_supported: false,
             play_callback: play_registration_callback,
+            pause_callback: pause_registration_callback,
+            resume_callback: resume_registration_callback,
+            seek_callback: seek_registration_callback,
             stop_callback: stop_registration_callback,
         };
 
@@ -333,6 +495,9 @@ mod tests {
             state: PlayerState::Paused,
             embedded_playback_supported: false,
             play_callback: play_registration_callback,
+            pause_callback: pause_registration_callback,
+            resume_callback: resume_registration_callback,
+            seek_callback: seek_registration_callback,
             stop_callback: stop_registration_callback,
         };
 
@@ -360,6 +525,9 @@ mod tests {
             state: PlayerState::Error,
             embedded_playback_supported: false,
             play_callback: play_registration_callback,
+            pause_callback: pause_registration_callback,
+            resume_callback: resume_registration_callback,
+            seek_callback: seek_registration_callback,
             stop_callback: stop_registration_callback,
         };
 
@@ -388,6 +556,9 @@ mod tests {
             state: PlayerState::Buffering,
             embedded_playback_supported: false,
             play_callback: play_registration_callback,
+            pause_callback: pause_registration_callback,
+            resume_callback: resume_registration_callback,
+            seek_callback: seek_registration_callback,
             stop_callback: stop_registration_callback,
         };
 
@@ -409,6 +580,9 @@ mod tests {
             state: Default::default(),
             embedded_playback_supported: false,
             play_callback: play_registration_callback,
+            pause_callback: pause_registration_callback,
+            resume_callback: resume_registration_callback,
+            seek_callback: seek_registration_callback,
             stop_callback: stop_registration_callback,
         });
         let (tx, rx) = channel();
@@ -427,5 +601,121 @@ mod tests {
         } else {
             assert!(false, "expected PlayerEvent::DurationChanged, but got {} instead", result);
         }
+    }
+
+    #[test]
+    fn test_player_pause() {
+        init_logger();
+        let player_id = "TestPlayer";
+        let temp_dir = tempdir().expect("expected a temp dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut player = MockPlayer::new();
+        player.expect_id()
+            .return_const(player_id.to_string());
+        player.expect_pause()
+            .times(1)
+            .return_const(());
+        let mut instance = PopcornFX::new(default_args(temp_path));
+
+        instance.player_manager().add_player(Box::new(player));
+        let mut ptr = from_c_owned(player_pointer_by_id(&mut instance, into_c_string(player_id.to_string())));
+
+        player_pause(&mut ptr);
+    }
+
+    #[test]
+    fn test_player_resume() {
+        init_logger();
+        let player_id = "TestPlayer";
+        let temp_dir = tempdir().expect("expected a temp dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut player = MockPlayer::new();
+        player.expect_id()
+            .return_const(player_id.to_string());
+        player.expect_resume()
+            .times(1)
+            .return_const(());
+        let mut instance = PopcornFX::new(default_args(temp_path));
+
+        instance.player_manager().add_player(Box::new(player));
+        let mut ptr = from_c_owned(player_pointer_by_id(&mut instance, into_c_string(player_id.to_string())));
+
+        player_resume(&mut ptr);
+    }
+
+    #[test]
+    fn test_player_seek() {
+        init_logger();
+        let player_id = "TestPlayer";
+        let temp_dir = tempdir().expect("expected a temp dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut player = MockPlayer::new();
+        player.expect_id()
+            .return_const(player_id.to_string());
+        player.expect_seek()
+            .times(1)
+            .return_const(());
+        let mut instance = PopcornFX::new(default_args(temp_path));
+
+        instance.player_manager().add_player(Box::new(player));
+        let mut ptr = from_c_owned(player_pointer_by_id(&mut instance, into_c_string(player_id.to_string())));
+
+        player_seek(&mut ptr, 28000);
+    }
+
+    #[test]
+    fn test_player_stop() {
+        init_logger();
+        let player_id = "TestPlayer";
+        let temp_dir = tempdir().expect("expected a temp dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut player = MockPlayer::new();
+        player.expect_id()
+            .return_const(player_id.to_string());
+        player.expect_stop()
+            .times(1)
+            .return_const(());
+        let mut instance = PopcornFX::new(default_args(temp_path));
+
+        instance.player_manager().add_player(Box::new(player));
+        let mut ptr = from_c_owned(player_pointer_by_id(&mut instance, into_c_string(player_id.to_string())));
+
+        player_stop(&mut ptr);
+    }
+
+    #[test]
+    fn test_dispose_player_manager_event() {
+        init_logger();
+        let event = PlayerManagerEventC::from(PlayerManagerEvent::PlayerTimeChanged(20000));
+
+        dispose_player_manager_event(event);
+    }
+
+    #[test]
+    fn test_dispose_player_event_value() {
+        init_logger();
+        let event = PlayerEventC::DurationChanged(20000);
+
+        dispose_player_event_value(event);
+    }
+
+    #[test]
+    fn test_dispose_player_pointer() {
+        init_logger();
+        let player_id = "TestPlayer";
+        let temp_dir = tempdir().expect("expected a temp dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut player = MockPlayer::new();
+        player.expect_id()
+            .return_const(player_id.to_string());
+        player.expect_resume()
+            .times(1)
+            .return_const(());
+        let mut instance = PopcornFX::new(default_args(temp_path));
+
+        instance.player_manager().add_player(Box::new(player));
+        let ptr = from_c_owned(player_pointer_by_id(&mut instance, into_c_string(player_id.to_string())));
+
+        dispose_player_pointer(Box::new(ptr));
     }
 }

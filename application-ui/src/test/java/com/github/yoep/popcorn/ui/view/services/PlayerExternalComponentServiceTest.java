@@ -2,15 +2,16 @@ package com.github.yoep.popcorn.ui.view.services;
 
 import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
-import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
 import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.loader.LoaderListener;
 import com.github.yoep.popcorn.backend.loader.LoaderService;
 import com.github.yoep.popcorn.backend.loader.LoadingProgress;
 import com.github.yoep.popcorn.backend.loader.LoadingStartedEventC;
-import com.github.yoep.popcorn.backend.player.PlayerEventService;
+import com.github.yoep.popcorn.backend.player.PlayerManagerEvent;
+import com.github.yoep.popcorn.backend.player.PlayerManagerListener;
 import com.github.yoep.popcorn.ui.view.listeners.PlayerExternalListener;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,22 +32,22 @@ class PlayerExternalComponentServiceTest {
     @Mock
     private PlayerManagerService playerManagerService;
     @Mock
-    private PlayerEventService playerEventService;
-    @Mock
     private LoaderService loaderService;
+    @Mock
+    private TorrentService torrentService;
     @Spy
     private EventPublisher eventPublisher = new EventPublisher(false);
     @InjectMocks
     private PlayerExternalComponentService service;
 
-    private final AtomicReference<PlayerListener> playerListenerHolder = new AtomicReference<>();
+    private final AtomicReference<PlayerManagerListener> playerListenerHolder = new AtomicReference<>();
 
     @BeforeEach
     void setUp() {
         lenient().doAnswer(invocation -> {
-            playerListenerHolder.set(invocation.getArgument(0, PlayerListener.class));
+            playerListenerHolder.set(invocation.getArgument(0, PlayerManagerListener.class));
             return null;
-        }).when(playerEventService).addListener(isA(PlayerListener.class));
+        }).when(playerManagerService).addListener(isA(PlayerManagerListener.class));
     }
 
     @Test
@@ -171,7 +172,7 @@ class PlayerExternalComponentServiceTest {
 
     @Test
     void testOnPlayerTorrent_whenEventIsMediaEvent_shouldUpdateMedia() {
-        var listenerHolder = new AtomicReference<LoaderListener>();
+        var listenerHolder = new AtomicReference<PlayerManagerEvent>();
         var title = "Lorem ipsum";
         var playerListener = mock(PlayerExternalListener.class);
         var startedEvent = mock(LoadingStartedEventC.class);
@@ -186,6 +187,6 @@ class PlayerExternalComponentServiceTest {
         var listener = listenerHolder.get();
         listener.onLoadingStarted(startedEvent);
 
-        verify(playerListener).onTitleChanged(title);
+        verify(playerListener).onRequestChanged(title);
     }
 }

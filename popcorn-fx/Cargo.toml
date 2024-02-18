@@ -22,7 +22,7 @@ clap = { version = "4", features = ["derive"] }
 directories.workspace = true
 derive_more = "0"
 futures = "0"
-itertools = "0"
+itertools.workspace = true
 log.workspace = true
 log4rs = { version = "1", features = ["console_writer", "rolling_file_appender", "compound_policy"] }
 thiserror.workspace = true

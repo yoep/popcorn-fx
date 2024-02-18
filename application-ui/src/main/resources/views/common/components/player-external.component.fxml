@@ -2,6 +2,7 @@
 
 <?import com.github.spring.boot.javafx.font.controls.*?>
 <?import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover?>
+<?import com.github.yoep.popcorn.ui.view.controls.ProgressControl?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
@@ -9,9 +10,9 @@
           fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.components.PlayerExternalComponent"
           fx:id="playerExternalPane" styleClass="player-external">
     <columnConstraints>
-        <ColumnConstraints minWidth="20" percentWidth="20"/>
+        <ColumnConstraints minWidth="45" percentWidth="20" hgrow="SOMETIMES"/>
         <ColumnConstraints minWidth="400" percentWidth="60" hgrow="ALWAYS"/>
-        <ColumnConstraints minWidth="20" percentWidth="20"/>
+        <ColumnConstraints minWidth="45" percentWidth="20" hgrow="SOMETIMES"/>
     </columnConstraints>
     <rowConstraints>
         <RowConstraints minHeight="20" percentHeight="20"/>
@@ -42,24 +43,24 @@
         <!-- Playback info -->
         <Label fx:id="timeText" styleClass="time" text="00:00"
                GridPane.columnIndex="0" GridPane.rowIndex="1"/>
-        <ProgressBar fx:id="playbackProgress" cache="true" cacheHint="SPEED" maxWidth="Infinity"
-                     GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+        <ProgressControl fx:id="playbackProgress" cache="true" cacheHint="SPEED" maxWidth="Infinity"
+                         GridPane.columnIndex="1" GridPane.rowIndex="1"/>
         <Label fx:id="durationText" styleClass="time" text="00:00"
                GridPane.columnIndex="2" GridPane.rowIndex="1"/>
 
         <!-- Playback control -->
         <HBox GridPane.columnIndex="1" GridPane.rowIndex="2" alignment="CENTER" spacing="20">
             <Icon styleClass="player-control-item" onMouseClicked="#onGoBackClicked">
-                <Icon fx:constant="BACKWARD_UNICODE" />
+                <Icon fx:constant="BACKWARD_UNICODE"/>
             </Icon>
             <Icon fx:id="playPauseIcon" styleClass="player-control-item" onMouseClicked="#onPlayPauseClicked">
-                <Icon fx:constant="PLAY_UNICODE" />
+                <Icon fx:constant="PLAY_UNICODE"/>
             </Icon>
             <Icon styleClass="player-control-item" onMouseClicked="#onStopClicked">
                 <Icon fx:constant="STOP_UNICODE"/>
             </Icon>
             <Icon styleClass="player-control-item" onMouseClicked="#onGoForwardClicked">
-                <Icon fx:constant="FORWARD_UNICODE" />
+                <Icon fx:constant="FORWARD_UNICODE"/>
             </Icon>
         </HBox>
 
@@ -71,6 +72,7 @@
                 <ColumnConstraints percentWidth="50"/>
             </columnConstraints>
             <rowConstraints>
+                <RowConstraints/>
                 <RowConstraints/>
                 <RowConstraints/>
                 <RowConstraints/>
@@ -92,6 +94,8 @@
                    GridPane.columnIndex="0" GridPane.rowIndex="2"/>
             <Label text="%torrent_active_peers"
                    GridPane.columnIndex="0" GridPane.rowIndex="3"/>
+            <Label text="%torrent_downloaded"
+                   GridPane.columnIndex="0" GridPane.rowIndex="4"/>
 
             <Label fx:id="downloadText"
                    GridPane.columnIndex="1" GridPane.rowIndex="1"/>
@@ -99,6 +103,8 @@
                    GridPane.columnIndex="1" GridPane.rowIndex="2"/>
             <Label fx:id="activePeersText"
                    GridPane.columnIndex="1" GridPane.rowIndex="3"/>
+            <Label fx:id="downloadedText"
+                   GridPane.columnIndex="1" GridPane.rowIndex="4"/>
         </GridPane>
     </GridPane>
 </GridPane>

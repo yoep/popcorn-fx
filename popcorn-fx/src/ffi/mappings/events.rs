@@ -143,6 +143,7 @@ pub struct PlayerStartedEventC {
     pub url: *const c_char,
     pub title: *const c_char,
     pub thumbnail: *const c_char,
+    pub background: *const c_char,
     pub quality: *const c_char,
     pub auto_resume_timestamp: *mut u64,
     pub subtitles_enabled: bool,
@@ -151,6 +152,11 @@ pub struct PlayerStartedEventC {
 impl From<PlayerStartedEvent> for PlayerStartedEventC {
     fn from(value: PlayerStartedEvent) -> Self {
         let thumbnail = if let Some(e) = value.thumbnail {
+            into_c_string(e)
+        } else {
+            ptr::null()
+        };
+        let background = if let Some(e) = value.background {
             into_c_string(e)
         } else {
             ptr::null()
@@ -170,6 +176,7 @@ impl From<PlayerStartedEvent> for PlayerStartedEventC {
             url: into_c_string(value.url),
             title: into_c_string(value.title),
             thumbnail,
+            background,
             quality,
             auto_resume_timestamp,
             subtitles_enabled: value.subtitles_enabled,
@@ -181,6 +188,11 @@ impl From<PlayerStartedEventC> for PlayerStartedEvent {
     fn from(value: PlayerStartedEventC) -> Self {
         let thumbnail = if !value.thumbnail.is_null() {
             Some(from_c_string(value.thumbnail))
+        } else {
+            None
+        };
+        let background = if !value.background.is_null() {
+            Some(from_c_string(value.background))
         } else {
             None
         };
@@ -199,6 +211,7 @@ impl From<PlayerStartedEventC> for PlayerStartedEvent {
             url: from_c_string(value.url),
             title: from_c_string(value.title),
             thumbnail,
+            background,
             quality,
             auto_resume_timestamp,
             subtitles_enabled: value.subtitles_enabled,
@@ -290,6 +303,7 @@ mod test {
             url: url.to_string(),
             title: title.to_string(),
             thumbnail: Some(thumb.to_string()),
+            background: None,
             quality: None,
             auto_resume_timestamp: None,
             subtitles_enabled: true,

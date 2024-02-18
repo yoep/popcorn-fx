@@ -14,6 +14,8 @@ pub struct PlayerStartedEvent {
     pub title: String,
     /// An optional URL for the media thumbnail or cover art.
     pub thumbnail: Option<String>,
+    /// An optional URL for the media background or cover art.
+    pub background: Option<String>,
     /// An optional string indicating the quality of the media (e.g., "HD" or "4K").
     pub quality: Option<String>,
     /// An optional timestamp indicating where to auto-resume playback, if supported.
@@ -28,6 +30,7 @@ impl From<&Box<dyn PlayRequest>> for PlayerStartedEvent {
             url: value.url().to_string(),
             title: value.title().to_string(),
             thumbnail: value.thumbnail().clone(),
+            background: value.background().clone(),
             quality: value.quality().clone(),
             auto_resume_timestamp: value.auto_resume_timestamp().clone(),
             subtitles_enabled: value.subtitles_enabled(),
@@ -156,10 +159,12 @@ mod test {
         let title = "MyTitle";
         let thumb = "MyThumb";
         let auto_resume = 50000;
+        let background = "MyBackground.jpg";
         let request = PlayUrlRequestBuilder::builder()
             .url(url)
             .title(title)
             .thumb(thumb)
+            .background(background)
             .auto_resume_timestamp(auto_resume)
             .subtitles_enabled(true)
             .build();
@@ -167,6 +172,7 @@ mod test {
             url: url.to_string(),
             title: title.to_string(),
             thumbnail: Some(thumb.to_string()),
+            background: Some(background.to_string()),
             quality: None,
             auto_resume_timestamp: Some(auto_resume),
             subtitles_enabled: true,

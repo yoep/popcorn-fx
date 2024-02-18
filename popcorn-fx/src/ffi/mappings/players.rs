@@ -3,6 +3,7 @@ use std::fmt::{Debug, Formatter};
 use std::os::raw::c_char;
 use std::sync::{Arc, Weak};
 
+use async_trait::async_trait;
 use derive_more::Display;
 use log::trace;
 use tokio::sync::Mutex;
@@ -19,6 +20,15 @@ pub type PlayerManagerEventCallback = extern "C" fn(PlayerManagerEventC);
 /// A C-compatible callback function type for player play events.
 pub type PlayerPlayCallback = extern "C" fn(PlayRequestC);
 
+/// A C-compatible callback function type for player pause events.
+pub type PlayerPauseCallback = extern "C" fn();
+
+/// A C-compatible callback function type for player resume events.
+pub type PlayerResumeCallback = extern "C" fn();
+
+/// A C-compatible callback function type for player seek events.
+pub type PlayerSeekCallback = extern "C" fn(u64);
+
 /// A C-compatible callback function type for player stop events.
 pub type PlayerStopCallback = extern "C" fn();
 
@@ -34,11 +44,12 @@ pub enum PlayerEventC {
 
 impl From<PlayerEventC> for PlayerEvent {
     fn from(value: PlayerEventC) -> Self {
+        trace!("Converting PlayerEventC into PlayerEvent for {:?}", value);
         match value {
-            PlayerEventC::DurationChanged(e) => PlayerEvent::DurationChanged(e),
-            PlayerEventC::TimeChanged(e) => PlayerEvent::TimeChanged(e),
-            PlayerEventC::StateChanged(e) => PlayerEvent::StateChanged(e),
-            PlayerEventC::VolumeChanged(e) => PlayerEvent::VolumeChanged(e),
+            PlayerEventC::DurationChanged(e) => PlayerEvent::DurationChanged(e.clone()),
+            PlayerEventC::TimeChanged(e) => PlayerEvent::TimeChanged(e.clone()),
+            PlayerEventC::StateChanged(e) => PlayerEvent::StateChanged(e.clone()),
+            PlayerEventC::VolumeChanged(e) => PlayerEvent::VolumeChanged(e.clone()),
         }
     }
 }
@@ -122,6 +133,12 @@ pub struct PlayerRegistrationC {
     pub embedded_playback_supported: bool,
     /// A callback function pointer for the "play" action.
     pub play_callback: PlayerPlayCallback,
+    /// A callback function pointer for the "pause" action.
+    pub pause_callback: PlayerPauseCallback,
+    /// A callback function pointer for the "resume" action.
+    pub resume_callback: PlayerResumeCallback,
+    /// A callback function pointer for the "seek" action.
+    pub seek_callback: PlayerSeekCallback,
     /// A callback function pointer for the "stop" action.
     pub stop_callback: PlayerStopCallback,
 }
@@ -137,6 +154,9 @@ pub struct PlayerWrapper {
     state: PlayerState,
     embedded_playback_supported: bool,
     play_callback: Mutex<Box<dyn Fn(PlayRequestC) + Send + Sync>>,
+    pause_callback: Mutex<Box<dyn Fn() + Send + Sync>>,
+    resume_callback: Mutex<Box<dyn Fn() + Send + Sync>>,
+    seek_callback: Mutex<Box<dyn Fn(u64) + Send + Sync>>,
     stop_callback: Mutex<Box<dyn Fn() + Send + Sync>>,
     play_request: Mutex<Option<Arc<Box<dyn PlayRequest>>>>,
     callbacks: CoreCallbacks<PlayerEvent>,
@@ -158,6 +178,7 @@ impl Callbacks<PlayerEvent> for PlayerWrapper {
     }
 }
 
+#[async_trait]
 impl Player for PlayerWrapper {
     fn id(&self) -> &str {
         self.id.as_str()
@@ -185,17 +206,39 @@ impl Player for PlayerWrapper {
             .map(|e| Arc::downgrade(e))
     }
 
-    fn play(&self, request: Box<dyn PlayRequest>) {
+    async fn play(&self, request: Box<dyn PlayRequest>) {
         trace!("Invoking play callback on C player for {:?} with {:?}", self, request);
         {
-            let callback = block_in_place(self.play_callback.lock());
+            let callback = self.play_callback.lock().await;
             callback(PlayRequestC::from(&request));
         }
         {
-            let mut play_request = block_in_place(self.play_request.lock());
+            let mut play_request = self.play_request.lock().await;
             *play_request = Some(Arc::new(request));
         }
     }
+
+    fn pause(&self) {
+        {
+            let callback = block_in_place(self.pause_callback.lock());
+            callback();
+        }
+    }
+
+    fn resume(&self) {
+        {
+            let callback = block_in_place(self.resume_callback.lock());
+            callback();
+        }
+    }
+
+    fn seek(&self, time: u64) {
+        {
+            let callback = block_in_place(self.seek_callback.lock());
+            callback(time);
+        }
+    }
+
 
     fn stop(&self) {
         {
@@ -235,7 +278,13 @@ impl From<PlayerRegistrationC> for PlayerWrapper {
         };
         let play_callback = value.play_callback;
         let play_callback: Box<dyn Fn(PlayRequestC) + Send + Sync> = Box::new(move |e| play_callback(e));
+        let pause_callback = value.pause_callback;
+        let resume_callback = value.resume_callback;
+        let seek_callback = value.seek_callback;
         let stop_callback = value.stop_callback;
+        let pause_callback: Box<dyn Fn() + Send + Sync> = Box::new(move || pause_callback());
+        let resume_callback: Box<dyn Fn() + Send + Sync> = Box::new(move || resume_callback());
+        let seek_callback: Box<dyn Fn(u64) + Send + Sync> = Box::new(move |time| seek_callback(time));
         let stop_callback: Box<dyn Fn() + Send + Sync> = Box::new(move || stop_callback());
 
         Self {
@@ -246,6 +295,9 @@ impl From<PlayerRegistrationC> for PlayerWrapper {
             state: value.state.clone(),
             embedded_playback_supported: value.embedded_playback_supported.clone(),
             play_callback: Mutex::new(play_callback),
+            pause_callback: Mutex::new(pause_callback),
+            resume_callback: Mutex::new(resume_callback),
+            seek_callback: Mutex::new(seek_callback),
             stop_callback: Mutex::new(stop_callback),
             play_request: Default::default(),
             callbacks: Default::default(),
@@ -312,6 +364,8 @@ pub enum PlayerManagerEventC {
     ActivePlayerChanged(PlayerChangedEventC),
     /// Indicates a change in the players set.
     PlayersChanged,
+    /// Indicates that the active player's playback has been changed
+    PlayerPlaybackChanged(PlayRequestC),
     /// Indicates a change in the duration of a player.
     PlayerDurationChanged(u64),
     /// Indicates a change in the playback time of a player.
@@ -337,6 +391,9 @@ impl From<PlayerManagerEvent> for PlayerManagerEventC {
             PlayerManagerEvent::PlayerDurationChanged(e) => PlayerManagerEventC::PlayerDurationChanged(e),
             PlayerManagerEvent::PlayerTimeChanged(e) => PlayerManagerEventC::PlayerTimeChanged(e),
             PlayerManagerEvent::PlayerStateChanged(e) => PlayerManagerEventC::PlayerStateChanged(e),
+            PlayerManagerEvent::PlayerPlaybackChanged(e) => PlayerManagerEventC::PlayerPlaybackChanged(e.upgrade()
+                .map(|e| PlayRequestC::from(e))
+                .expect("expected the play request to still be in scope")),
         }
     }
 }
@@ -461,6 +518,18 @@ impl From<&Box<dyn PlayRequest>> for PlayRequestC {
     }
 }
 
+impl From<Arc<Box<dyn PlayRequest>>> for PlayRequestC {
+    fn from(value: Arc<Box<dyn PlayRequest>>) -> Self {
+        if let Some(value) = value.downcast_ref::<PlayMediaRequest>() {
+            return PlayRequestC::from(value);
+        } else if let Some(value) = value.downcast_ref::<PlayUrlRequest>() {
+            return PlayRequestC::from(value);
+        }
+
+        panic!("Unexpected play request {:?}", value)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::ptr;
@@ -479,6 +548,21 @@ mod tests {
     #[no_mangle]
     extern "C" fn play_callback(_: PlayRequestC) {
         info!("Player play C callback invoked");
+    }
+
+    #[no_mangle]
+    extern "C" fn pause_callback() {
+        info!("Player pause C callback invoked");
+    }
+
+    #[no_mangle]
+    extern "C" fn resume_callback() {
+        info!("Player resume C callback invoked");
+    }
+
+    #[no_mangle]
+    extern "C" fn seek_callback(time: u64) {
+        info!("Player seek C callback invoked with {}", time);
     }
 
     #[no_mangle]
@@ -528,6 +612,9 @@ mod tests {
             state: state.clone(),
             embedded_playback_supported: true,
             play_callback: Mutex::new(Box::new(|_| {})),
+            pause_callback: Mutex::new(Box::new(|| {})),
+            resume_callback: Mutex::new(Box::new(|| {})),
+            seek_callback: Mutex::new(Box::new(|_| {})),
             stop_callback: Mutex::new(Box::new(|| {})),
             play_request: Default::default(),
             callbacks: Default::default(),
@@ -576,6 +663,9 @@ mod tests {
             state: PlayerState::Paused,
             embedded_playback_supported: false,
             play_callback,
+            pause_callback,
+            resume_callback,
+            seek_callback,
             stop_callback,
         };
 

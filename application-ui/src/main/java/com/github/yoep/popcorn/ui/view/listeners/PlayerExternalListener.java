@@ -1,36 +1,32 @@
 package com.github.yoep.popcorn.ui.view.listeners;
 
+import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
-import com.github.yoep.popcorn.backend.media.providers.models.Media;
-import org.springframework.lang.Nullable;
 
+/**
+ * The {@link PlayerExternalListener} interface defines callbacks for events related to external interactions with the {@link Player}.
+ * Implementations of this interface can listen for changes in playback requests, playback time, duration, player state, and download status.
+ */
 public interface PlayerExternalListener {
     /**
-     * Invoked when the playback title is changed.
+     * Invoked when the current playback request is changed.
      *
-     * @param title The new playback title.
+     * @param request The new playback request.
      */
-    void onTitleChanged(String title);
-
-    /**
-     * Invoked when the media playback is changed.
-     *
-     * @param media The new media item.
-     */
-    void onMediaChanged(@Nullable Media media);
+    void onRequestChanged(PlayRequest request);
 
     /**
      * Invoked when the current playback time is changed.
      *
-     * @param time The new playback time.
+     * @param time The new playback time in milliseconds.
      */
     void onTimeChanged(long time);
 
     /**
      * Invoked when the duration of the playback is changed.
      *
-     * @param duration The new playback duration.
+     * @param duration The new playback duration in milliseconds.
      */
     void onDurationChanged(long duration);
 
@@ -48,3 +44,4 @@ public interface PlayerExternalListener {
      */
     void onDownloadStatus(DownloadStatus status);
 }
+

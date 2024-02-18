@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.ui.info;
 
+import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.AbstractPlayerListener;
@@ -34,6 +35,26 @@ public class PlayerInfoService extends AbstractInfoService {
             @Override
             public void playersChanged() {
                 onPlayersChanged(playerManagerService.getPlayers().stream().toList());
+            }
+
+            @Override
+            public void onPlayerPlaybackChanged(PlayRequest request) {
+                // no-op
+            }
+
+            @Override
+            public void onPlayerTimeChanged(Long newTime) {
+                // no-op
+            }
+
+            @Override
+            public void onPlayerDurationChanged(Long newDuration) {
+                // no-op
+            }
+
+            @Override
+            public void onPlayerStateChanged(PlayerState newState) {
+                // no-op
             }
         });
     }

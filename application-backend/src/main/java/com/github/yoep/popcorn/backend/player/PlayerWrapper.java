@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.backend.player;
 
+import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
@@ -75,6 +76,8 @@ public class PlayerWrapper extends Structure implements Player, Closeable {
         setAutoSynch(false);
         Optional.ofNullable(graphicResource)
                 .ifPresent(ByteArray::close);
+        Optional.ofNullable(playerC)
+                .ifPresent(e -> FxLib.INSTANCE.get().dispose_player_pointer(e));
     }
 
     //region Player
@@ -122,22 +125,26 @@ public class PlayerWrapper extends Structure implements Player, Closeable {
 
     @Override
     public void resume() {
-
+        Optional.ofNullable(playerC)
+                .ifPresent(e -> FxLib.INSTANCE.get().player_resume(e));
     }
 
     @Override
     public void pause() {
-
+        Optional.ofNullable(playerC)
+                .ifPresent(e -> FxLib.INSTANCE.get().player_pause(e));
     }
 
     @Override
     public void stop() {
-
+        Optional.ofNullable(playerC)
+                .ifPresent(e -> FxLib.INSTANCE.get().player_stop(e));
     }
 
     @Override
     public void seek(long time) {
-
+        Optional.ofNullable(playerC)
+                .ifPresent(e -> FxLib.INSTANCE.get().player_seek(e, time));
     }
 
     @Override

@@ -1,6 +1,7 @@
 use std::fmt::{Debug, Display};
 use std::sync::Weak;
 
+use async_trait::async_trait;
 use derive_more::Display;
 use downcast_rs::{DowncastSync, impl_downcast};
 
@@ -11,6 +12,7 @@ use crate::core::players::PlayRequest;
 ///
 /// This trait extends `PlayerIdentifier` and includes additional methods related to the player's
 /// description, graphic resource, and current state.
+#[async_trait]
 pub trait Player: Debug + Display + DowncastSync + Callbacks<PlayerEvent> {
     /// Get the unique identifier of the player.
     ///
@@ -61,7 +63,21 @@ pub trait Player: Debug + Display + DowncastSync + Callbacks<PlayerEvent> {
     /// # Arguments
     ///
     /// * `request` - The playback request to start.
-    fn play(&self, request: Box<dyn PlayRequest>);
+    async fn play(&self, request: Box<dyn PlayRequest>);
+
+    /// Pause the current playback of the player.
+    fn pause(&self);
+
+    /// Resume the current playback of the player.
+    /// If no playback is active, this invocation won't have any effect on the player.
+    fn resume(&self);
+
+    /// Seeks to the specified time position in the media.
+    ///
+    /// # Arguments
+    ///
+    /// * `time` - The time position to seek to, in milliseconds.
+    fn seek(&self, time: u64);
 
     /// Stop playback.
     fn stop(&self);

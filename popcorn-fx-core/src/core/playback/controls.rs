@@ -274,6 +274,7 @@ mod test {
             url: "https://my-url".to_string(),
             title: "Lorem ipsum".to_string(),
             thumbnail: Some("MyThumb".to_string()),
+            background: None,
             quality: Some("My showname".to_string()),
             auto_resume_timestamp: None,
             subtitles_enabled: false,

@@ -1,35 +1,34 @@
 [package]
-name = "popcorn-fx-bootstrap"
+name = "popcorn-fx-vlc"
 version = "0.7.5"
 edition = "2021"
 rust-version = "1.62"
 publish = false
 license-file = "../LICENSE"
 
-[[bin]]
-name = "popcorn-time"
-path = "src/main.rs"
+[lib]
+crate-type = ["rlib"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-popcorn-fx-common = { path = "../popcorn-fx-common" }
+popcorn-fx-core = { path = "../popcorn-fx-core" }
 
-directories.workspace = true
+async-trait = "0.1"
+chbs = "0.1.1"
+derive_more = "0"
+itertools.workspace = true
 log.workspace = true
-log4rs = { version = "1", features = ["console_writer"] }
-mockall = "0"
-serde.workspace = true
-serde_yaml.workspace = true
-signal-hook = { version = "0.3" }
+reqwest = { workspace = true, features = ["stream"] }
+serde = { workspace = true, features = ["derive"] }
+serde-xml-rs.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread"] }
+tokio-util = { workspace = true }
+url.workspace = true
 
 [dev-dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }
 
 tempfile = "3"
-tokio = { workspace = true, features = ["test-util", "macros"] }
-
-[build-dependencies]
-winres = "0.1"
+httpmock = "0"

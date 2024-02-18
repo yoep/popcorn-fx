@@ -1046,6 +1046,12 @@ struct PlayRequestC {
 /// A C-compatible callback function type for player play events.
 using PlayerPlayCallback = void(*)(PlayRequestC);
 
+/// A C-compatible callback function type for player pause events.
+using PlayerPauseCallback = void(*)();
+
+/// A C-compatible callback function type for player resume events.
+using PlayerResumeCallback = void(*)();
+
 /// A C-compatible callback function type for player stop events.
 using PlayerStopCallback = void(*)();
 
@@ -1067,6 +1073,8 @@ struct PlayerRegistrationC {
   bool embedded_playback_supported;
   /// A callback function pointer for the "play" action.
   PlayerPlayCallback play_callback;
+  PlayerPauseCallback pause_callback;
+  PlayerResumeCallback resume_callback;
   /// A callback function pointer for the "stop" action.
   PlayerStopCallback stop_callback;
 };
@@ -1522,6 +1530,18 @@ void dispose_media_items(MediaSetC media);
 /// * `event` - A C-compatible player manager event to be disposed of.
 void dispose_player_manager_event(PlayerManagerEventC event);
 
+/// Disposes of the `PlayerWrapperC` instance and deallocates its memory.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it interacts with external code (C/C++),
+/// and the caller is responsible for ensuring the safety of the provided `ptr` pointer.
+///
+/// # Arguments
+///
+/// * `ptr` - A box containing the `PlayerWrapperC` instance to be disposed of.
+void dispose_player_pointer(Box<PlayerWrapperC> ptr);
+
 /// Dispose of a playlist item.
 ///
 /// # Arguments
@@ -1840,6 +1860,59 @@ const int64_t *play_playlist(PopcornFX *popcorn_fx, CArray<PlaylistItemC> playli
 /// Returns a pointer to a `PlayerC` instance representing the player if found, or a null pointer if no player with the given ID exists.
 PlayerC *player_by_id(PopcornFX *popcorn_fx, const char *player_id);
 
+/// Pauses the player associated with the given `PlayerWrapperC` instance.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it interacts with external code (C/C++),
+/// and the caller is responsible for ensuring the safety of the provided `player` pointer.
+///
+/// # Arguments
+///
+/// * `player` - A mutable reference to a `PlayerWrapperC` instance.
+void player_pause(PlayerWrapperC *player);
+
+/// Retrieves a pointer to a `PlayerWrapperC` instance by its unique identifier (ID) from the PopcornFX player manager.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it interacts with external code (C/C++), and
+/// the caller is responsible for ensuring the safety of the provided `popcorn_fx` and `player_id` pointers.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
+/// * `player_id` - A pointer to a null-terminated C string representing the player's unique identifier (ID).
+///
+/// # Returns
+///
+/// Returns a pointer to a `PlayerWrapperC` instance representing the player if found, or a null pointer if no player with the given ID exists.
+PlayerWrapperC *player_pointer_by_id(PopcornFX *popcorn_fx, const char *player_id);
+
+/// Resumes the player associated with the given `PlayerWrapperC` instance.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it interacts with external code (C/C++),
+/// and the caller is responsible for ensuring the safety of the provided `player` pointer.
+///
+/// # Arguments
+///
+/// * `player` - A mutable reference to a `PlayerWrapperC` instance.
+void player_resume(PlayerWrapperC *player);
+
+/// Stops the player associated with the given `PlayerWrapperC` instance.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it interacts with external code (C/C++),
+/// and the caller is responsible for ensuring the safety of the provided `player` pointer.
+///
+/// # Arguments
+///
+/// * `player` - A mutable reference to a `PlayerWrapperC` instance.
+void player_stop(PlayerWrapperC *player);
+
 /// Retrieve a pointer to a `PlayerSet` containing information about all players managed by PopcornFX.
 ///
 /// # Safety
@@ -1968,7 +2041,7 @@ void register_playback_controls(PopcornFX *popcorn_fx, PlaybackControlsCallbackC
 ///
 /// This function registers a player with the PopcornFX player manager using the provided `PlayerC` instance.
 /// It logs an info message if the registration is successful and a warning message if registration fails.
-PlayerWrapperC *register_player(PopcornFX *popcorn_fx, PlayerRegistrationC player);
+void register_player(PopcornFX *popcorn_fx, PlayerRegistrationC player);
 
 /// Register a callback function to be notified of player manager events.
 ///

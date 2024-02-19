@@ -21,7 +21,6 @@
         <module>application</module>
         <module>player-chromecast</module>
         <module>player-popcorn</module>
-        <module>player-vlc</module>
         <module>shared-vlc</module>
         <module>torrent-frostwire</module>
         <module>video-javafx</module>

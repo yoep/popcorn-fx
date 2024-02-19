@@ -1,13 +1,18 @@
 package com.github.yoep.popcorn.ui.view.services;
 
+import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
-import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentStreamListener;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
+import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentStreamState;
 import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.loader.*;
-import com.github.yoep.popcorn.backend.player.PlayerEventService;
+import com.github.yoep.popcorn.backend.lib.Handle;
+import com.github.yoep.popcorn.backend.player.PlayerChanged;
+import com.github.yoep.popcorn.backend.player.PlayerManagerListener;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import com.github.yoep.popcorn.ui.view.listeners.PlayerExternalListener;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -23,12 +29,12 @@ public class PlayerExternalComponentService extends AbstractListenerService<Play
     static final int TIME_STEP_OFFSET = 10000;
 
     private final PlayerManagerService playerManagerService;
-    private final PlayerEventService playerEventService;
     private final EventPublisher eventPublisher;
-    private final LoaderService loaderService;
+    private final TorrentService torrentService;
+    private final TorrentStreamListener streamListener = createStreamListener();
 
-    private final PlayerListener playerListener = createListener();
     private long time;
+    Handle lastKnownStreamCallback;
 
     public void togglePlaybackState() {
         playerManagerService.getActivePlayer()
@@ -53,26 +59,35 @@ public class PlayerExternalComponentService extends AbstractListenerService<Play
 
     @PostConstruct
     void init() {
-        playerEventService.addListener(playerListener);
-        loaderService.addListener(new LoaderListener() {
+        playerManagerService.addListener(new PlayerManagerListener() {
             @Override
-            public void onLoadingStarted(LoadingStartedEventC loadingStartedEvent) {
-                invokeListeners(e -> e.onTitleChanged(loadingStartedEvent.getTitle()));
-            }
-
-            @Override
-            public void onStateChanged(LoaderState newState) {
+            public void activePlayerChanged(PlayerChanged playerChange) {
                 // no-op
             }
 
             @Override
-            public void onProgressChanged(LoadingProgress progress) {
-                invokeListeners(e -> e.onDownloadStatus(progress));
+            public void playersChanged() {
+                // no-op
             }
 
             @Override
-            public void onError(LoadingErrorC error) {
-                // no-op
+            public void onPlayerPlaybackChanged(PlayRequest request) {
+                onPlaybackChanged(request);
+            }
+
+            @Override
+            public void onPlayerTimeChanged(Long newTime) {
+                onTimeChanged(newTime);
+            }
+
+            @Override
+            public void onPlayerDurationChanged(Long newDuration) {
+                onDurationChanged(newDuration);
+            }
+
+            @Override
+            public void onPlayerStateChanged(PlayerState newState) {
+                onStateChanged(newState);
             }
         });
     }
@@ -83,6 +98,16 @@ public class PlayerExternalComponentService extends AbstractListenerService<Play
         } else {
             e.pause();
         }
+    }
+
+    private void onPlaybackChanged(PlayRequest request) {
+        invokeListeners(e -> e.onRequestChanged(request));
+
+        Optional.ofNullable(lastKnownStreamCallback)
+                .ifPresent(torrentService::removeListener);
+        lastKnownStreamCallback = request.getStreamHandle()
+                .map(e -> torrentService.addListener(e, streamListener))
+                .orElse(null);
     }
 
     private void onDurationChanged(long duration) {
@@ -98,26 +123,20 @@ public class PlayerExternalComponentService extends AbstractListenerService<Play
         invokeListeners(e -> e.onStateChanged(state));
     }
 
-    private PlayerListener createListener() {
-        return new PlayerListener() {
-            @Override
-            public void onDurationChanged(long newDuration) {
-                PlayerExternalComponentService.this.onDurationChanged(newDuration);
-            }
+    private void onDownloadStatus(DownloadStatus status) {
+        invokeListeners(e -> e.onDownloadStatus(status));
+    }
 
+    private TorrentStreamListener createStreamListener() {
+        return new TorrentStreamListener() {
             @Override
-            public void onTimeChanged(long newTime) {
-                PlayerExternalComponentService.this.onTimeChanged(newTime);
-            }
-
-            @Override
-            public void onStateChanged(PlayerState newState) {
-                PlayerExternalComponentService.this.onStateChanged(newState);
-            }
-
-            @Override
-            public void onVolumeChanged(int volume) {
+            public void onStateChanged(TorrentStreamState newState) {
                 // no-op
+            }
+
+            @Override
+            public void onDownloadStatus(DownloadStatus downloadStatus) {
+                PlayerExternalComponentService.this.onDownloadStatus(downloadStatus);
             }
         };
     }

@@ -113,18 +113,18 @@ class SubtitleManagerServiceTest {
         var subtitleInfo = mock(SubtitleInfo.class);
         var subtitle = mock(Subtitle.class);
         when(subtitleInfo.getLanguage()).thenReturn(SubtitleLanguage.DUTCH);
-        when(subtitleService.downloadAndParse(isA(SubtitleInfo.class), isA(SubtitleMatcher.class))).thenReturn(CompletableFuture.completedFuture(subtitle));
+        when(subtitleService.downloadAndParse(isA(SubtitleInfo.class), isA(SubtitleMatcher.ByValue.class))).thenReturn(CompletableFuture.completedFuture(subtitle));
 
         service.updateSubtitle(subtitleInfo);
 
-        verify(subtitleService).downloadAndParse(eq(subtitleInfo), isA(SubtitleMatcher.class));
+        verify(subtitleService).downloadAndParse(eq(subtitleInfo), isA(SubtitleMatcher.ByValue.class));
     }
 
     @Test
     void testUpdateSubtitle_whenSubtitleDownloadFails_shouldPublishErrorNotification() {
         var expectedErrorText = "my error text";
         var subtitleInfo = mock(SubtitleInfo.class);
-        when(subtitleService.downloadAndParse(eq(subtitleInfo), isA(SubtitleMatcher.class)))
+        when(subtitleService.downloadAndParse(eq(subtitleInfo), isA(SubtitleMatcher.ByValue.class)))
                 .thenReturn(CompletableFuture.failedFuture(new RuntimeException("my subtitle exception")));
         when(localeText.get(VideoMessage.SUBTITLE_DOWNLOAD_FILED)).thenReturn(expectedErrorText);
 
@@ -139,7 +139,7 @@ class SubtitleManagerServiceTest {
         var subtitle = mock(Subtitle.class);
         var videoPlayer = mock(VideoPlayback.class);
         var subtitleFile = new File(".");
-        when(subtitleService.downloadAndParse(eq(subtitleInfo), isA(SubtitleMatcher.class))).thenReturn(CompletableFuture.completedFuture(subtitle));
+        when(subtitleService.downloadAndParse(eq(subtitleInfo), isA(SubtitleMatcher.ByValue.class))).thenReturn(CompletableFuture.completedFuture(subtitle));
         when(videoService.getVideoPlayer()).thenReturn(Optional.of(videoPlayer));
         when(videoPlayer.supportsNativeSubtitleFile()).thenReturn(true);
         when(subtitle.getFile()).thenReturn(subtitleFile);
@@ -210,7 +210,7 @@ class SubtitleManagerServiceTest {
         var videoPlayback = mock(VideoPlayback.class);
         var subtitleFuture = new CompletableFuture<Subtitle>();
         when(subtitleService.preferredSubtitle()).thenReturn(Optional.of(subtitleInfo));
-        when(subtitleService.downloadAndParse(eq(subtitleInfo), isA(SubtitleMatcher.class))).thenReturn(CompletableFuture.completedFuture(subtitle));
+        when(subtitleService.downloadAndParse(eq(subtitleInfo), isA(SubtitleMatcher.ByValue.class))).thenReturn(CompletableFuture.completedFuture(subtitle));
         when(videoService.getVideoPlayer()).thenReturn(Optional.of(videoPlayback));
         when(videoPlayback.supportsNativeSubtitleFile()).thenReturn(false);
         service.registerListener(new SubtitleListener() {

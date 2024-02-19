@@ -57,33 +57,6 @@ pub fn from_c_owned<T>(ptr: *mut T) -> T {
     *value
 }
 
-/// Converts a raw C pointer into a mutable reference to the underlying value.
-///
-/// # Safety
-///
-/// This function is marked as unsafe because it dereferences a raw C pointer, which can lead to
-/// undefined behavior if not handled carefully. It is the caller's responsibility to ensure that
-/// the pointer is valid and properly aligned.
-///
-/// # Panics
-///
-/// This function will panic if the input pointer is null.
-///
-/// # Arguments
-///
-/// * `ptr` - A raw C pointer to be converted.
-///
-/// # Returns
-///
-/// A mutable reference to the underlying value.
-pub fn from_c_as_ref<T>(ptr: *mut T) -> &'static mut T {
-    if !ptr.is_null() {
-        return unsafe { &mut *ptr };
-    }
-
-    panic!("Unable to read C pointer, pointer is null")
-}
-
 /// Retrieve a C value as a [Box] value.
 ///
 /// This function is preferred over `into_c_owned` when you want to obtain a Rust [Box] without
@@ -215,6 +188,7 @@ pub mod testing {
     use std::path::PathBuf;
     use std::sync::{Once, Weak};
 
+    use async_trait::async_trait;
     use log::{debug, LevelFilter, trace};
     use log4rs::append::console::ConsoleAppender;
     use log4rs::Config;
@@ -225,6 +199,9 @@ pub mod testing {
 
     use crate::core::{CallbackHandle, Callbacks, CoreCallback};
     use crate::core::players::{Player, PlayerEvent, PlayerState, PlayRequest};
+    use crate::core::subtitles::{SubtitleEvent, SubtitleManager};
+    use crate::core::subtitles::language::SubtitleLanguage;
+    use crate::core::subtitles::model::SubtitleInfo;
 
     static INIT: Once = Once::new();
 
@@ -351,14 +328,18 @@ pub mod testing {
         #[derive(Debug)]
         pub Player {}
 
+        #[async_trait]
         impl Player for Player {
             fn id(&self) -> &str;
             fn name(&self) -> &str;
             fn description(&self) -> &str;
             fn graphic_resource(&self) -> Vec<u8>;
-            fn state(&self) -> &PlayerState;
+            fn state(&self) -> PlayerState;
             fn request(&self) -> Option<Weak<Box<dyn PlayRequest>>>;
-            fn play(&self, request: Box<dyn PlayRequest>);
+            async fn play(&self, request: Box<dyn PlayRequest>);
+            fn pause(&self);
+            fn resume(&self);
+            fn seek(&self, time: u64);
             fn stop(&self);
         }
 
@@ -371,6 +352,29 @@ pub mod testing {
     impl Display for MockPlayer {
         fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
             write!(f, "MockPlayer")
+        }
+    }
+
+    mock! {
+        #[derive(Debug)]
+        pub SubtitleManager {}
+
+        #[async_trait]
+        impl SubtitleManager for SubtitleManager {
+            fn preferred_subtitle(&self) -> Option<SubtitleInfo>;
+            fn preferred_language(&self) -> SubtitleLanguage;
+            fn is_disabled(&self) -> bool;
+            async fn is_disabled_async(&self) -> bool;
+            fn update_subtitle(&self, subtitle: SubtitleInfo);
+            fn update_custom_subtitle(&self, subtitle_file: &str);
+            fn disable_subtitle(&self);
+            fn reset(&self);
+            fn cleanup(&self);
+        }
+
+         impl Callbacks<SubtitleEvent> for SubtitleManager {
+            fn add(&self, callback: CoreCallback<SubtitleEvent>) -> CallbackHandle;
+            fn remove(&self, handle: CallbackHandle);
         }
     }
 

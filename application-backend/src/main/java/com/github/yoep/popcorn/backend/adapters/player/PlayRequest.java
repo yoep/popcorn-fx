@@ -6,49 +6,66 @@ import javax.validation.constraints.NotNull;
 import java.util.Optional;
 
 /**
- * The {@link PlayRequest} contains the information to start a new media playback item in the {@link Player}.
+ * The {@link PlayRequest} interface represents a request to start playback of a media item in the {@link Player}.
+ * It contains essential information such as the playback URL, title, optional thumbnail and background URLs,
+ * playback quality, auto-resume timestamp, subtitles status, and optional stream handle.
  */
 public interface PlayRequest {
     /**
-     * Get the playback url.
+     * Get the playback URL.
      *
-     * @return Returns the playback url.
+     * @return The playback URL.
      */
     @NotNull
     String getUrl();
 
+    /**
+     * Get the title of the media item.
+     *
+     * @return The title of the media item.
+     */
     String getTitle();
 
     /**
-     * Get the thumbnail url if one is present for the video.
+     * Get the thumbnail URL for the media item if available.
      *
-     * @return Returns the thumb of the video if available, else {@link Optional#empty()}.
+     * @return An {@link Optional} containing the thumbnail URL if available, otherwise {@link Optional#empty()}.
      */
     Optional<String> getThumbnail();
 
+    /**
+     * Get the background URL for the media item if available.
+     *
+     * @return An {@link Optional} containing the background URL if available, otherwise {@link Optional#empty()}.
+     */
     Optional<String> getBackground();
 
     /**
-     * The quality of the video playback.
+     * Get the playback quality of the media item if known.
      *
-     * @return Returns the video playback quality if known, else {@link Optional#empty()}.
+     * @return An {@link Optional} containing the playback quality if known, otherwise {@link Optional#empty()}.
      */
     Optional<String> getQuality();
 
     /**
-     * The auto resume timestamp of known for the video playback.
+     * Get the auto-resume timestamp for the media item if known.
      * This timestamp is based on the last time the playback occurred.
      *
-     * @return Returns the video playback last timestamp if known, else {@link Optional#empty()}.
+     * @return An {@link Optional} containing the auto-resume timestamp if known, otherwise {@link Optional#empty()}.
      */
     Optional<Long> getAutoResumeTimestamp();
 
     /**
-     * Check if the subtitles are enabled for this {@link PlayRequest}.
+     * Check if subtitles are enabled for this media item.
      *
-     * @return Returns true if subtitles should be enabled for the request, else false.
+     * @return {@code true} if subtitles should be enabled for the request, otherwise {@code false}.
      */
     boolean isSubtitlesEnabled();
 
+    /**
+     * Get the handle for the media stream if available.
+     *
+     * @return An {@link Optional} containing the handle for the media stream if available, otherwise {@link Optional#empty()}.
+     */
     Optional<Handle> getStreamHandle();
 }

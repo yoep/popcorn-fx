@@ -2,6 +2,7 @@ use std::fmt::Debug;
 use std::sync::{Arc, RwLock, Weak};
 use std::sync::mpsc::{channel, Sender};
 
+use async_trait::async_trait;
 use derive_more::Display;
 use log::{debug, error, info, trace, warn};
 #[cfg(any(test, feature = "testing"))]
@@ -26,6 +27,9 @@ pub enum PlayerManagerEvent {
     /// Indicates that the list of players has changed.
     #[display(fmt = "Available players have been changed")]
     PlayersChanged,
+    /// Indicates that the active player playback has been changed with a new [PlayRequest].
+    #[display(fmt = "Player playback changed to {:?}", _0)]
+    PlayerPlaybackChanged(Weak<Box<dyn PlayRequest>>),
     /// Indicates that the duration of the active player has changed.
     ///
     /// This event acts as a convenient wrapper around the [Player]'s [PlayerEvent] callbacks,
@@ -60,6 +64,7 @@ pub struct PlayerChange {
 
 /// A trait for managing multiple players within a multimedia application.
 #[cfg_attr(any(test, feature = "testing"), automock)]
+#[async_trait]
 pub trait PlayerManager: Debug + Send + Sync {
     /// Get the active player, if any.
     ///
@@ -111,7 +116,7 @@ pub trait PlayerManager: Debug + Send + Sync {
     /// # Arguments
     ///
     /// * `request` - A boxed trait object representing the play request.
-    fn play(&self, request: Box<dyn PlayRequest>);
+    async fn play(&self, request: Box<dyn PlayRequest>);
 }
 
 /// A wrapper for PlayerEvent with an optional event and shutdown flag.
@@ -186,6 +191,7 @@ impl DefaultPlayerManager {
     }
 }
 
+#[async_trait]
 impl PlayerManager for DefaultPlayerManager {
     fn active_player(&self) -> Option<Weak<Box<dyn Player>>> {
         self.inner.active_player()
@@ -215,8 +221,8 @@ impl PlayerManager for DefaultPlayerManager {
         self.inner.subscribe(callback)
     }
 
-    fn play(&self, request: Box<dyn PlayRequest>) {
-        self.inner.play(request)
+    async fn play(&self, request: Box<dyn PlayRequest>) {
+        self.inner.play(request).await
     }
 }
 
@@ -389,6 +395,7 @@ impl InnerPlayerManager {
     }
 }
 
+#[async_trait]
 impl PlayerManager for InnerPlayerManager {
     fn active_player(&self) -> Option<Weak<Box<dyn Player>>> {
         block_in_place(self.active_player.lock())
@@ -500,10 +507,10 @@ impl PlayerManager for InnerPlayerManager {
         self.callbacks.add(callback)
     }
 
-    fn play(&self, request: Box<dyn PlayRequest>) {
+    async fn play(&self, request: Box<dyn PlayRequest>) {
         trace!("Processing play request {:?}", request);
         {
-            let mut mutex = block_in_place(self.last_known_player_info.lock());
+            let mut mutex = self.last_known_player_info.lock().await;
             mutex.url = Some(request.url().to_string());
 
             if let Some(e) = request.downcast_ref::<PlayMediaRequest>() {
@@ -515,14 +522,20 @@ impl PlayerManager for InnerPlayerManager {
             .and_then(|e| e.upgrade()) {
             debug!("Starting playback of {} in {}", request.url(), player);
             let player_started_event = PlayerStartedEvent::from(&request);
-            player.play(request);
+
+            player.play(request).await;
+
             self.event_publisher.publish(Event::PlayerStarted(player_started_event));
+            if let Some(request) = player.request() {
+                // invoke the playback changed event
+                self.callbacks.invoke(PlayerManagerEvent::PlayerPlaybackChanged(request));
+            }
         } else {
             error!("Unable to start playback, no active player found");
         }
 
         // verify if we need to active the fullscreen mode
-        self.handle_fullscreen_mode()
+        self.handle_fullscreen_mode();
     }
 }
 
@@ -539,6 +552,7 @@ mod tests {
     use std::sync::mpsc::{channel, RecvTimeoutError};
     use std::time::Duration;
 
+    use async_trait::async_trait;
     use tempfile::tempdir;
 
     use crate::core::{CallbackHandle, Handle};
@@ -578,6 +592,7 @@ mod tests {
         }
     }
 
+    #[async_trait]
     impl Player for DummyPlayer {
         fn id(&self) -> &str {
             self.id.as_str()
@@ -595,15 +610,27 @@ mod tests {
             Vec::new()
         }
 
-        fn state(&self) -> &PlayerState {
-            &PlayerState::Unknown
+        fn state(&self) -> PlayerState {
+            PlayerState::Unknown
         }
 
         fn request(&self) -> Option<Weak<Box<dyn PlayRequest>>> {
             todo!()
         }
 
-        fn play(&self, _: Box<dyn PlayRequest>) {
+        async fn play(&self, _: Box<dyn PlayRequest>) {
+            todo!()
+        }
+
+        fn pause(&self) {
+            todo!()
+        }
+
+        fn resume(&self) {
+            todo!()
+        }
+
+        fn seek(&self, _: u64) {
             todo!()
         }
 
@@ -881,11 +908,12 @@ mod tests {
         let url = "MyUrl";
         let title = "FooBar";
         let player_id = "LoremIpsumPlayer";
-        let request = Box::new(PlayUrlRequestBuilder::builder()
+        let request = PlayUrlRequestBuilder::builder()
             .url(url)
             .title(title)
             .subtitles_enabled(false)
-            .build()) as Box<dyn PlayRequest>;
+            .build();
+        let request_ref = Arc::new(Box::new(request.clone()) as Box<dyn PlayRequest>);
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let (tx, rx) = channel();
@@ -903,6 +931,8 @@ mod tests {
             .returning(move |e| {
                 tx.send(e).unwrap();
             });
+        player.expect_request()
+            .return_const(Arc::downgrade(&request_ref));
         let torrent_stream_server = MockTorrentStreamServer::new();
         let (tx_screen, rx_screen) = channel();
         let mut screen_service = MockScreenService::new();
@@ -930,7 +960,7 @@ mod tests {
         manager.add_player(Box::new(player));
         manager.set_active_player(player_id);
 
-        manager.play(request);
+        block_in_place(manager.play(Box::new(request) as Box<dyn PlayRequest>));
         let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
 
         assert_eq!(url, result.url());

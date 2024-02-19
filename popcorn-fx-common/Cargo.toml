@@ -16,7 +16,7 @@ crate-type = ["rlib"]
 log.workspace = true
 serde.workspace = true
 serde_yaml.workspace = true
-thiserror = "1.0"
+thiserror.workspace = true
 
 [dev-dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }

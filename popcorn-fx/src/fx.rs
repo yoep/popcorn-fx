@@ -34,7 +34,7 @@ use popcorn_fx_core::core::playback::PlaybackControls;
 use popcorn_fx_core::core::players::{DefaultPlayerManager, PlayerManager};
 use popcorn_fx_core::core::playlists::PlaylistManager;
 use popcorn_fx_core::core::screen::{DefaultScreenService, ScreenService};
-use popcorn_fx_core::core::subtitles::{SubtitleManager, SubtitleProvider, SubtitleServer};
+use popcorn_fx_core::core::subtitles::{DefaultSubtitleManager, SubtitleManager, SubtitleProvider, SubtitleServer};
 use popcorn_fx_core::core::subtitles::model::SubtitleType;
 use popcorn_fx_core::core::subtitles::parsers::{SrtParser, VttParser};
 use popcorn_fx_core::core::torrents::{TorrentManager, TorrentStreamServer};
@@ -44,6 +44,7 @@ use popcorn_fx_core::core::updater::Updater;
 use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
 use popcorn_fx_platform::platform::DefaultPlatform;
 use popcorn_fx_torrent::torrent::DefaultTorrentManager;
+use popcorn_fx_vlc::vlc::VlcDiscovery;
 
 static INIT: Once = Once::new();
 
@@ -147,7 +148,7 @@ pub struct PopcornFX {
     settings: Arc<ApplicationConfig>,
     subtitle_provider: Arc<Box<dyn SubtitleProvider>>,
     subtitle_server: Arc<SubtitleServer>,
-    subtitle_manager: Arc<SubtitleManager>,
+    subtitle_manager: Arc<Box<dyn SubtitleManager>>,
     platform: Arc<Box<dyn PlatformData>>,
     favorites_service: Arc<Box<dyn FavoriteService>>,
     watched_service: Arc<Box<dyn WatchedService>>,
@@ -202,7 +203,7 @@ impl PopcornFX {
             .insecure(args.insecure)
             .build()));
         let subtitle_server = Arc::new(SubtitleServer::new(&subtitle_provider));
-        let subtitle_manager = Arc::new(SubtitleManager::new(settings.clone()));
+        let subtitle_manager = Arc::new(Box::new(DefaultSubtitleManager::new(settings.clone())) as Box<dyn SubtitleManager>);
         let platform = Arc::new(Box::new(DefaultPlatform::default()) as Box<dyn PlatformData>);
         let favorites_service = Arc::new(Box::new(DefaultFavoriteService::new(app_directory_path)) as Box<dyn FavoriteService>);
         let watched_service = Arc::new(Box::new(DefaultWatchedService::new(app_directory_path, event_publisher.clone())) as Box<dyn WatchedService>);
@@ -249,6 +250,9 @@ impl PopcornFX {
         // disable the screensaver
         platform.disable_screensaver();
 
+        // start discovery services
+        Self::initialize_discovery_services(&runtime, &subtitle_manager, &subtitle_provider, &player_manager);
+
         Self {
             settings,
             subtitle_provider,
@@ -293,7 +297,7 @@ impl PopcornFX {
     }
 
     /// Retrieve the subtitle manager instance.
-    pub fn subtitle_manager(&mut self) -> &mut Arc<SubtitleManager> {
+    pub fn subtitle_manager(&mut self) -> &mut Arc<Box<dyn SubtitleManager>> {
         &mut self.subtitle_manager
     }
 
@@ -467,7 +471,7 @@ impl PopcornFX {
     fn new_runtime() -> Runtime {
         tokio::runtime::Builder::new_multi_thread()
             .enable_all()
-            .worker_threads(3)
+            .worker_threads(4)
             .thread_name_fn(|| {
                 static ATOMIC_ID: AtomicUsize = AtomicUsize::new(0);
                 let id = ATOMIC_ID.fetch_add(1, Ordering::SeqCst);
@@ -497,6 +501,19 @@ impl PopcornFX {
             .with_details_provider(show_provider)
             .with_enhancer(thumb_enhancer)
             .build()
+    }
+
+    fn initialize_discovery_services(runtime: &Arc<Runtime>, 
+                                     subtitle_manager: &Arc<Box<dyn SubtitleManager>>, 
+                                     subtitle_provider: &Arc<Box<dyn SubtitleProvider>>, 
+                                     player_manager: &Arc<Box<dyn PlayerManager>>) {
+        let subtitle_manager = subtitle_manager.clone();
+        let subtitle_provider = subtitle_provider.clone();
+        let player_manager = player_manager.clone();
+        runtime.spawn(async move {
+            let vlc_discovery = VlcDiscovery::new(subtitle_manager.clone(), subtitle_provider.clone(), player_manager.clone());
+            vlc_discovery.start().await;
+        });
     }
 }
 

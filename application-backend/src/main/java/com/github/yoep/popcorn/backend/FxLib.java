@@ -99,9 +99,9 @@ public interface FxLib extends Library {
 
     void cleanup_subtitles_directory(PopcornFx instance);
 
-    String download(PopcornFx instance, SubtitleInfo subtitle, SubtitleMatcher matcher);
+    String download(PopcornFx instance, SubtitleInfo subtitle, SubtitleMatcher.ByValue matcher);
 
-    Subtitle download_and_parse_subtitle(PopcornFx instance, SubtitleInfo subtitle, SubtitleMatcher matcher);
+    Subtitle download_and_parse_subtitle(PopcornFx instance, SubtitleInfo subtitle, SubtitleMatcher.ByValue matcher);
 
     void register_subtitle_callback(PopcornFx instance, SubtitleEventCallback callback);
 
@@ -249,13 +249,23 @@ public interface FxLib extends Library {
 
     PlayerWrapper player_by_id(PopcornFx instance, String playerId);
 
+    PlayerWrapperPointer player_pointer_by_id(PopcornFx instance, String playerId);
+
     void register_player_callback(PopcornFx instance, PlayerManagerCallback callback);
 
-    PlayerWrapperPointer register_player(PopcornFx instance, PlayerWrapperRegistration player);
+    void register_player(PopcornFx instance, PlayerWrapperRegistration player);
 
     void invoke_player_event(PlayerWrapperPointer wrapper, PlayerEventC.ByValue event);
 
     void remove_player(PopcornFx instance, String playerId);
+
+    void player_pause(PlayerWrapperPointer ptr);
+
+    void player_resume(PlayerWrapperPointer ptr);
+
+    void player_seek(PlayerWrapperPointer ptr, long time);
+
+    void player_stop(PlayerWrapperPointer ptr);
 
     void register_loader_callback(PopcornFx instance, LoaderEventCallback callback);
 
@@ -295,9 +305,17 @@ public interface FxLib extends Library {
 
     void dispose_player_manager_event(PlayerManagerEvent.ByValue event);
 
+    void dispose_player_pointer(PlayerWrapperPointer ptr);
+
+    void dispose_player_event_value(PlayerEventC.ByValue event);
+
+    void dispose_player(PlayerWrapper.ByReference wrapper);
+
     void dispose_loader_event_value(LoaderEventC.ByValue event);
 
     void dispose_playlist_manager_event_value(PlaylistManagerEvent.ByValue event);
+
+    void dispose_torrent_stream_event_value(TorrentStreamEventC.ByValue event);
 
     void dispose_popcorn_fx(PopcornFx instance);
 

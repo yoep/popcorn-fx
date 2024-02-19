@@ -1,7 +1,9 @@
 package com.github.yoep.popcorn.ui.utils;
 
+import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
+import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.player.PlayerChanged;
 import com.github.yoep.popcorn.backend.player.PlayerManagerListener;
 import com.github.yoep.popcorn.ui.view.controls.DropDownButton;
@@ -30,6 +32,26 @@ public class WatchNowUtils {
             @Override
             public void playersChanged() {
                 updateExternalPlayers(playerManagerService, watchNowButton);
+            }
+
+            @Override
+            public void onPlayerPlaybackChanged(PlayRequest request) {
+                // no-op
+            }
+
+            @Override
+            public void onPlayerTimeChanged(Long newTime) {
+                // no-op
+            }
+
+            @Override
+            public void onPlayerDurationChanged(Long newDuration) {
+                // no-op
+            }
+
+            @Override
+            public void onPlayerStateChanged(PlayerState newState) {
+                // no-op
             }
         });
 

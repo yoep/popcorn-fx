@@ -10,7 +10,7 @@ import java.util.Optional;
 
 @Getter
 @ToString
-@Structure.FieldOrder({"url", "title", "thumbnail", "quality", "autoResumeTimestamp", "subtitleEnabled"})
+@Structure.FieldOrder({"url", "title", "thumbnail", "background", "quality", "autoResumeTimestamp", "subtitleEnabled"})
 public class PlayerStartedEventC extends Structure implements Closeable {
     public static class ByValue extends PlayerStartedEventC implements Structure.ByValue {
     }
@@ -18,12 +18,18 @@ public class PlayerStartedEventC extends Structure implements Closeable {
     public String url;
     public String title;
     public Pointer thumbnail;
+    public Pointer background;
     public Pointer quality;
     public Long autoResumeTimestamp;
     public byte subtitleEnabled;
 
     public Optional<String> getThumbnail() {
         return Optional.ofNullable(thumbnail)
+                .map(e -> e.getString(0));
+    }
+
+    public Optional<String> getBackground() {
+        return Optional.ofNullable(background)
                 .map(e -> e.getString(0));
     }
 

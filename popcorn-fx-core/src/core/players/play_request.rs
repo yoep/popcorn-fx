@@ -1,6 +1,7 @@
-use std::fmt::Debug;
+use std::fmt::{Debug, Display, Formatter};
 use std::sync::Weak;
 
+use derive_more::Display;
 use downcast_rs::{DowncastSync, impl_downcast};
 #[cfg(any(test, feature = "testing"))]
 use mockall::automock;
@@ -11,7 +12,7 @@ use crate::core::torrents::TorrentStream;
 
 /// A trait representing a play request for media playback.
 #[cfg_attr(any(test, feature = "testing"), automock)]
-pub trait PlayRequest: Debug + DowncastSync {
+pub trait PlayRequest: Debug + Display + DowncastSync {
     /// Get the URL of the media to be played.
     fn url(&self) -> &str;
 
@@ -48,8 +49,16 @@ pub trait PlayRequest: Debug + DowncastSync {
 }
 impl_downcast!(sync PlayRequest);
 
+#[cfg(any(test, feature = "testing"))]
+impl Display for MockPlayRequest {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "MockPlayRequest")
+    }
+}
+
 /// A struct representing a play request for a URL-based media.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Display, Clone, PartialEq)]
+#[display(fmt = "{}", title)]
 pub struct PlayUrlRequest {
     /// The URL of the media to be played.
     pub url: String,
@@ -184,7 +193,8 @@ impl PlayUrlRequestBuilder {
 }
 
 /// A struct representing a play request for media with additional metadata.
-#[derive(Debug)]
+#[derive(Debug, Display)]
+#[display(fmt = "{}", base)]
 pub struct PlayMediaRequest {
     /// The base play request for URL-based media.
     pub base: PlayUrlRequest,
@@ -241,6 +251,19 @@ impl PlayRequest for PlayMediaRequest {
 
     fn subtitles_enabled(&self) -> bool {
         self.base.subtitles_enabled()
+    }
+}
+
+impl Clone for PlayMediaRequest {
+    fn clone(&self) -> Self {
+        Self {
+            base: self.base.clone(),
+            parent_media: self.parent_media.as_ref()
+                .and_then(|e| e.clone_identifier()),
+            media: self.media.clone_identifier().expect("expected the media identifier to have been cloned"),
+            quality: self.quality.clone(),
+            torrent_stream: self.torrent_stream.clone(),
+        }
     }
 }
 

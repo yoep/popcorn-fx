@@ -15,16 +15,17 @@ popcorn-fx-core = { path = "../popcorn-fx-core" }
 popcorn-fx-platform = { path = "../popcorn-fx-platform" }
 popcorn-fx-opensubtitles = { path = "../popcorn-fx-opensubtitles" }
 popcorn-fx-torrent = { path = "../popcorn-fx-torrent" }
+popcorn-fx-vlc = { path = "../popcorn-fx-vlc" }
 
 async-trait = "0"
 clap = { version = "4", features = ["derive"] }
 directories.workspace = true
 derive_more = "0"
 futures = "0"
-itertools = "0"
+itertools.workspace = true
 log.workspace = true
 log4rs = { version = "1", features = ["console_writer", "rolling_file_appender", "compound_policy"] }
-thiserror = "1.0"
+thiserror.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread"] }
 
 [dev-dependencies]

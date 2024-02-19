@@ -272,9 +272,10 @@ impl InnerPlaylistManager {
             }
             PlayerManagerEvent::PlayerTimeChanged(time) => {
                 let duration = block_in_place(self.player_duration.lock()).clone();
-                let remaining_time = (duration - time) / 1000;
 
-                if duration > 0 {
+                if duration > 0 && time <= duration {
+                    let remaining_time = (duration - time) / 1000;
+
                     trace!("Player has {} seconds remaining within the playback", remaining_time);
                     if let Some(next_item) = self.next_cloned() {
                         let playing_in: Option<u64>;

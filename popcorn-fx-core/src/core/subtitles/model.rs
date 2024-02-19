@@ -24,16 +24,26 @@ const SUBTITLE_TYPES: [SubtitleType; 2] = [
     SubtitleType::Vtt
 ];
 
+/// The type of a subtitle, indicating its format.
 #[repr(i32)]
 #[derive(Debug, Display, PartialEq, Eq, Clone, Hash)]
 pub enum SubtitleType {
+    /// SubRip subtitle format.
     Srt = 0,
+    /// WebVTT subtitle format.
     Vtt = 1,
 }
 
 impl SubtitleType {
-    /// Retrieve the subtitle type based on the given extension.
-    /// It can return an error when no type could be found.
+    /// Retrieve the subtitle type based on the given file extension.
+    ///
+    /// # Arguments
+    ///
+    /// * `extension` - The file extension.
+    ///
+    /// # Returns
+    ///
+    /// The corresponding `SubtitleType` if found, or an error if the extension is not supported.
     pub fn from_extension(extension: &String) -> Result<SubtitleType, SubtitleParseError> {
         for subtitle in SUBTITLE_TYPES {
             if extension == &subtitle.extension() {
@@ -44,11 +54,24 @@ impl SubtitleType {
         Err(SubtitleParseError::ExtensionNotSupported(extension.clone()))
     }
 
+    /// Retrieve the subtitle type from its ordinal value.
+    ///
+    /// # Arguments
+    ///
+    /// * `ordinal` - The ordinal value.
+    ///
+    /// # Returns
+    ///
+    /// The corresponding `SubtitleType`.
     pub fn from_ordinal(ordinal: usize) -> Self {
         SUBTITLE_TYPES[ordinal].clone()
     }
 
-    /// The file extension for this subtitle type.
+    /// Get the file extension for this subtitle type.
+    ///
+    /// # Returns
+    ///
+    /// The file extension as a string.
     pub fn extension(&self) -> String {
         match self {
             SubtitleType::Srt => SRT_EXTENSION.to_string(),
@@ -57,7 +80,10 @@ impl SubtitleType {
     }
 
     /// Retrieve the content type of the subtitle type.
-    /// This represents a valid HTTP content type.
+    ///
+    /// # Returns
+    ///
+    /// The content type as a string, representing a valid HTTP content type.
     pub fn content_type(&self) -> &str {
         match self {
             SubtitleType::Srt => "text/srt",
@@ -68,59 +94,60 @@ impl SubtitleType {
 
 /// The subtitle info contains information about available subtitles for a certain [Media].
 /// This info includes a specific language for the media ID as well as multiple available files which can be used for smart subtitle detection.
+///
+/// # Examples
+///
+/// ```rust
+/// use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
+/// use popcorn_fx_core::core::subtitles::model::SubtitleInfo;
+/// use popcorn_fx_core::core::subtitles::SubtitleFile;
+///
+/// // Create a new subtitle info instance using the builder pattern
+/// let subtitle_info = SubtitleInfo::builder()
+///     .imdb_id("tt1234567")
+///     .language(SubtitleLanguage::English)
+///     .files(vec![
+///         SubtitleFile::builder()
+///             .file_id(1)
+///             .name("example_subtitle.srt")
+///             .url("https://example.com/subtitle.srt")
+///             .score(0.9)
+///             .downloads(1000)
+///             .build()
+///     ])
+///     .build();
+/// ```
 #[derive(Debug, Clone, Display)]
 #[display(fmt = "imdb_id: {:?}, language: {}", imdb_id, language)]
 pub struct SubtitleInfo {
     /// The IMDB ID of the subtitle title.
     imdb_id: Option<String>,
+    /// The language of the subtitle.
     language: SubtitleLanguage,
+    /// The list of available subtitle files.
     files: Option<Vec<SubtitleFile>>,
+    /// Regex for normalization.
     normalize_regex: Regex,
 }
 
 impl SubtitleInfo {
+    /// Creates a new instance of `SubtitleInfoBuilder`.
+    pub fn builder() -> SubtitleInfoBuilder {
+        SubtitleInfoBuilder::builder()
+    }
+
     /// The special _none_ subtitle instance.
     pub fn none() -> Self {
-        Self {
-            imdb_id: None,
-            language: SubtitleLanguage::None,
-            files: None,
-            normalize_regex: Regex::new(NORMALIZATION_PATTERN).unwrap(),
-        }
+        Self::builder()
+            .language(SubtitleLanguage::None)
+            .build()
     }
 
     /// The special _custom_ subtitle instance.
     pub fn custom() -> Self {
-        Self {
-            imdb_id: None,
-            language: SubtitleLanguage::Custom,
-            files: None,
-            normalize_regex: Regex::new(NORMALIZATION_PATTERN).unwrap(),
-        }
-    }
-
-    /// Create a new subtitle info without any files.
-    pub fn new<S>(imdb_id: S, language: SubtitleLanguage) -> Self
-        where
-            S: Into<String> {
-        Self {
-            imdb_id: Some(imdb_id.into()),
-            language,
-            files: None,
-            normalize_regex: Regex::new(NORMALIZATION_PATTERN).unwrap(),
-        }
-    }
-
-    /// Create a new subtitle info with subtitle files.
-    pub fn new_with_files<S>(imdb_id: Option<S>, language: SubtitleLanguage, files: Vec<SubtitleFile>) -> Self
-        where
-            S: Into<String> {
-        Self {
-            imdb_id: imdb_id.map(|e| e.into()),
-            language,
-            files: Some(files),
-            normalize_regex: Regex::new(NORMALIZATION_PATTERN).unwrap(),
-        }
+        Self::builder()
+            .language(SubtitleLanguage::Custom)
+            .build()
     }
 
     /// Verify if the subtitle info is a special type
@@ -129,6 +156,7 @@ impl SubtitleInfo {
         self.is_none() || self.is_custom()
     }
 
+    /// Retrieves the IMDb ID of the subtitle.
     pub fn imdb_id(&self) -> Option<&String> {
         match &self.imdb_id {
             None => None,
@@ -136,10 +164,12 @@ impl SubtitleInfo {
         }
     }
 
+    /// Retrieves the language of the subtitle.
     pub fn language(&self) -> &SubtitleLanguage {
         &self.language
     }
 
+    /// Retrieves the files associated with the subtitle.
     pub fn files(&self) -> Option<&Vec<SubtitleFile>> {
         match &self.files {
             None => None,
@@ -274,6 +304,53 @@ impl Ord for SubtitleInfo {
     }
 }
 
+/// A builder for constructing a `SubtitleInfo` instance.
+#[derive(Debug, Default)]
+pub struct SubtitleInfoBuilder {
+    imdb_id: Option<String>,
+    language: Option<SubtitleLanguage>,
+    files: Option<Vec<SubtitleFile>>,
+}
+
+impl SubtitleInfoBuilder {
+    /// Creates a new instance of `SubtitleInfoBuilder`.
+    pub fn builder() -> Self {
+        Self::default()
+    }
+
+    /// Sets the IMDb ID for the subtitle info.
+    pub fn imdb_id<T: ToString>(mut self, imdb_id: T) -> Self {
+        self.imdb_id = Some(imdb_id.to_string());
+        self
+    }
+
+    /// Sets the language for the subtitle info.
+    pub fn language(mut self, language: SubtitleLanguage) -> Self {
+        self.language = Some(language);
+        self
+    }
+
+    /// Sets the files for the subtitle info.
+    pub fn files(mut self, files: Vec<SubtitleFile>) -> Self {
+        self.files = Some(files);
+        self
+    }
+
+    /// Builds the `SubtitleInfo` instance.
+    ///
+    /// # Panics
+    ///
+    /// This method will panic if the language is not set.
+    pub fn build(self) -> SubtitleInfo {
+        SubtitleInfo {
+            imdb_id: self.imdb_id,
+            language: self.language.expect("language is not set"),
+            files: self.files,
+            normalize_regex: Regex::new(NORMALIZATION_PATTERN).unwrap(),
+        }
+    }
+}
+
 /// The parsed [SubtitleInfo] which has downloaded and parsed the .srt file.
 #[derive(Debug, Clone, Display)]
 #[display(fmt = "file: {:?}, info: {:?}, total cues: {}", file, info, "cues.len()")]
@@ -325,8 +402,14 @@ mod test {
 
     #[test]
     fn test_subtitle_info_partial_eq_when_subtitle_is_same_should_return_true() {
-        let info1 = SubtitleInfo::new("12".to_string(), SubtitleLanguage::German);
-        let info2 = SubtitleInfo::new("12".to_string(), SubtitleLanguage::German);
+        let info1 = SubtitleInfo::builder()
+            .imdb_id("12")
+            .language(SubtitleLanguage::German)
+            .build();
+        let info2 = SubtitleInfo::builder()
+            .imdb_id("12")
+            .language(SubtitleLanguage::German)
+            .build();
 
         let result = info1 == info2;
 
@@ -335,8 +418,14 @@ mod test {
 
     #[test]
     fn test_subtitle_info_partial_eq_when_id_is_different_should_return_false() {
-        let info1 = SubtitleInfo::new("12".to_string(), SubtitleLanguage::German);
-        let info2 = SubtitleInfo::new("13".to_string(), SubtitleLanguage::German);
+        let info1 = SubtitleInfo::builder()
+            .imdb_id("12")
+            .language(SubtitleLanguage::German)
+            .build();
+        let info2 = SubtitleInfo::builder()
+            .imdb_id("13")
+            .language(SubtitleLanguage::German)
+            .build();
 
         let result = info1 == info2;
 
@@ -345,8 +434,14 @@ mod test {
 
     #[test]
     fn test_subtitle_info_partial_eq_when_language_is_different_should_return_false() {
-        let info1 = SubtitleInfo::new("12".to_string(), SubtitleLanguage::German);
-        let info2 = SubtitleInfo::new("12".to_string(), SubtitleLanguage::Danish);
+        let info1 = SubtitleInfo::builder()
+            .imdb_id("12")
+            .language(SubtitleLanguage::German)
+            .build();
+        let info2 = SubtitleInfo::builder()
+            .imdb_id("12")
+            .language(SubtitleLanguage::Danish)
+            .build();
 
         let result = info1 == info2;
 
@@ -518,10 +613,10 @@ mod test {
             .score(9.0)
             .downloads(44134)
             .build();
-        let subtitle_info = SubtitleInfo::new_with_files(
-            Some("tt100001010".to_string()),
-            SubtitleLanguage::English,
-            vec![
+        let subtitle_info = SubtitleInfo::builder()
+            .imdb_id("tt100001010")
+            .language(SubtitleLanguage::English)
+            .files(vec![
                 SubtitleFile::builder()
                     .file_id(100)
                     .name("Lorem S02 E11 Ipsum to Dolor 720p x264.srt")
@@ -546,8 +641,8 @@ mod test {
                     .score(0.0)
                     .downloads(5735)
                     .build()
-            ],
-        );
+            ])
+            .build();
 
         let result = subtitle_info.best_matching_file(&SubtitleMatcher::from_int(Some(filename.to_string()), quality))
             .expect("expected a file to be found");

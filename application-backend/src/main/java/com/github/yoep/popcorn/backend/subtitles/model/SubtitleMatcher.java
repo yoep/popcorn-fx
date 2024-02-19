@@ -11,7 +11,13 @@ import java.io.Closeable;
 @EqualsAndHashCode(callSuper = false)
 @Structure.FieldOrder({"name", "quality"})
 public class SubtitleMatcher extends Structure implements Closeable {
-    public static class ByReference extends SubtitleMatcher implements Structure.ByReference {
+    public static class ByValue extends SubtitleMatcher implements Structure.ByValue {
+        public ByValue() {
+        }
+
+        public ByValue(String name, String quality) {
+            super(name, quality);
+        }
     }
 
     public String name;
@@ -38,8 +44,8 @@ public class SubtitleMatcher extends Structure implements Closeable {
      * @param quality The quality of the media.
      * @return Returns the subtitle matcher.
      */
-    public static SubtitleMatcher from(String name, @Nullable String quality) {
-        return new SubtitleMatcher(name, quality);
+    public static SubtitleMatcher.ByValue from(String name, @Nullable String quality) {
+        return new SubtitleMatcher.ByValue(name, quality);
     }
 
     @Override

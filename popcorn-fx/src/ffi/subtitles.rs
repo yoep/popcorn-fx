@@ -1,6 +1,6 @@
 use log::trace;
 
-use popcorn_fx_core::{from_c_as_ref, from_c_owned, from_c_vec, into_c_owned};
+use popcorn_fx_core::{from_c_vec, into_c_owned};
 use popcorn_fx_core::core::subtitles::model::SubtitleInfo;
 use popcorn_fx_core::core::subtitles::SubtitleCallback;
 
@@ -78,10 +78,9 @@ pub extern "C" fn subtitle_custom() -> *mut SubtitleInfoC {
 ///
 /// A pointer to the selected default subtitle in C-compatible form.
 #[no_mangle]
-pub extern "C" fn select_or_default_subtitle(popcorn_fx: &mut PopcornFX, set: *mut SubtitleInfoSet) -> *mut SubtitleInfoC {
-    let subtitle_set = from_c_as_ref(set);
-    trace!("Retrieving default subtitle selection from C for {:?}", subtitle_set);
-    let subtitles: Vec<SubtitleInfo> = from_c_vec(subtitle_set.subtitles, subtitle_set.len).into_iter()
+pub extern "C" fn select_or_default_subtitle(popcorn_fx: &mut PopcornFX, set: &mut SubtitleInfoSet) -> *mut SubtitleInfoC {
+    trace!("Retrieving default subtitle selection from C for {:?}", set);
+    let subtitles: Vec<SubtitleInfo> = from_c_vec(set.subtitles, set.len).into_iter()
         .map(|e| SubtitleInfo::from(e))
         .collect();
 
@@ -112,7 +111,7 @@ pub extern "C" fn register_subtitle_callback(popcorn_fx: &mut PopcornFX, callbac
         callback(event_c)
     });
 
-    popcorn_fx.subtitle_manager().register(wrapper);
+    popcorn_fx.subtitle_manager().add(wrapper);
 }
 
 /// Clean the subtitles directory.
@@ -139,8 +138,7 @@ pub extern "C" fn cleanup_subtitles_directory(popcorn_fx: &mut PopcornFX) {
 /// and dropping a `Box` pointing to valid memory is safe. However, if the `SubtitleInfoSet` was allocated in a different way
 /// or if the memory was already deallocated, calling this function could lead to undefined behavior.
 #[no_mangle]
-pub extern "C" fn dispose_subtitle_info_set(set: *mut SubtitleInfoSet) {
-    let set = from_c_owned(set);
+pub extern "C" fn dispose_subtitle_info_set(set: Box<SubtitleInfoSet>) {
     trace!("Disposing subtitle info set C for {:?}", set);
     drop(set);
 }
@@ -165,7 +163,7 @@ mod test {
     use log::info;
     use tempfile::tempdir;
 
-    use popcorn_fx_core::{from_c_owned, from_c_vec, into_c_vec};
+    use popcorn_fx_core::{from_c_owned, from_c_vec};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::core::subtitles::SubtitleFile;
     use popcorn_fx_core::testing::{copy_test_file, init_logger};
@@ -243,20 +241,20 @@ mod test {
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = new_instance(temp_path);
-        let info = SubtitleInfo::new_with_files(
-            Some("tt200002"),
-            SubtitleLanguage::English,
-            vec![SubtitleFile::builder()
+        let info = SubtitleInfo::builder()
+            .imdb_id("tt200002")
+            .language(SubtitleLanguage::English)
+            .files(vec![SubtitleFile::builder()
                 .file_id(1)
                 .url("SomeUrl")
                 .name("MyFilename")
                 .score(0.1)
                 .downloads(20)
-                .build()],
-        );
-        let set = SubtitleInfoSet::from(vec![SubtitleInfoC::from(info.clone())]);
+                .build()])
+            .build();
+        let mut set = SubtitleInfoSet::from(vec![SubtitleInfoC::from(info.clone())]);
 
-        let result = from_c_owned(select_or_default_subtitle(&mut instance, into_c_owned(set)));
+        let result = from_c_owned(select_or_default_subtitle(&mut instance, &mut set));
 
         assert_eq!(info, SubtitleInfo::from(result));
     }
@@ -266,7 +264,7 @@ mod test {
         init_logger();
         let set = SubtitleInfoSet::from(vec![SubtitleInfoC::from(SubtitleInfo::none()), SubtitleInfoC::from(SubtitleInfo::custom())]);
 
-        dispose_subtitle_info_set(into_c_owned(set));
+        dispose_subtitle_info_set(Box::new(set));
     }
 
     #[test]

@@ -2,13 +2,15 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.stereotype.ViewController;
+import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
-import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.player.PlayerAction;
 import com.github.yoep.popcorn.backend.utils.TimeUtils;
+import com.github.yoep.popcorn.ui.torrent.utils.SizeUtils;
 import com.github.yoep.popcorn.ui.utils.ProgressUtils;
 import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
+import com.github.yoep.popcorn.ui.view.controls.ProgressControl;
 import com.github.yoep.popcorn.ui.view.listeners.PlayerExternalListener;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import com.github.yoep.popcorn.ui.view.services.PlayerExternalComponentService;
@@ -17,7 +19,6 @@ import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
-import javafx.scene.control.ProgressBar;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
@@ -26,9 +27,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import javax.annotation.PostConstruct;
 import java.net.URL;
-import java.util.Optional;
 import java.util.ResourceBundle;
-import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
 @ViewController
@@ -37,8 +36,6 @@ public class PlayerExternalComponent implements Initializable {
     private final ImageService imageService;
     private final PlayerExternalComponentService playerExternalService;
     private final EventHandler<KeyEvent> keyPressedEventHandler = this::onPaneKeyReleased;
-
-    private Long duration;
 
     @FXML
     Pane playerExternalPane;
@@ -51,7 +48,7 @@ public class PlayerExternalComponent implements Initializable {
     @FXML
     Label durationText;
     @FXML
-    ProgressBar playbackProgress;
+    ProgressControl playbackProgress;
     @FXML
     Icon playPauseIcon;
     @FXML
@@ -62,6 +59,8 @@ public class PlayerExternalComponent implements Initializable {
     Label uploadText;
     @FXML
     Label activePeersText;
+    @FXML
+    Label downloadedText;
 
     //region Init
 
@@ -69,13 +68,8 @@ public class PlayerExternalComponent implements Initializable {
     void init() {
         playerExternalService.addListener(new PlayerExternalListener() {
             @Override
-            public void onTitleChanged(String title) {
-                PlayerExternalComponent.this.onTitleChanged(title);
-            }
-
-            @Override
-            public void onMediaChanged(Media media) {
-                PlayerExternalComponent.this.onMediaChanged(media);
+            public void onRequestChanged(PlayRequest request) {
+                PlayerExternalComponent.this.onRequestChanged(request);
             }
 
             @Override
@@ -121,26 +115,26 @@ public class PlayerExternalComponent implements Initializable {
 
     //region Functions
 
-    private void onTitleChanged(String title) {
-        Platform.runLater(() -> titleText.setText(title));
-    }
-
-    private void onMediaChanged(Media media) {
+    private void onRequestChanged(PlayRequest request) {
         reset();
-        Optional.ofNullable(media).ifPresent(this::loadBackgroundImage);
+        Platform.runLater(() -> titleText.setText(request.getTitle()));
+        request.getBackground()
+                .ifPresent(this::loadBackgroundImage);
     }
 
     private void reset() {
         Platform.runLater(() -> {
             backgroundImage.reset();
-            playbackProgress.setProgress(ProgressBar.INDETERMINATE_PROGRESS);
+            playbackProgress.setTime(0);
+            playbackProgress.setDuration(0);
+            playbackProgress.setLoadProgress(0.0);
         });
     }
 
-    private void loadBackgroundImage(Media media) {
-        imageService.loadFanart(media).whenComplete((bytes, throwable) -> {
+    private void loadBackgroundImage(String url) {
+        imageService.load(url).whenComplete((image, throwable) -> {
             if (throwable == null) {
-                bytes.ifPresent(e -> backgroundImage.setBackgroundImage(e));
+                Platform.runLater(() -> backgroundImage.setBackgroundImage(image));
             } else {
                 log.error(throwable.getMessage(), throwable);
             }
@@ -148,20 +142,16 @@ public class PlayerExternalComponent implements Initializable {
     }
 
     private void onPlayerDurationChanged(long duration) {
-        this.duration = duration;
-        Platform.runLater(() -> durationText.setText(TimeUtils.format(duration)));
+        Platform.runLater(() -> {
+            playbackProgress.setDuration(duration);
+            durationText.setText(TimeUtils.format(duration));
+        });
     }
 
     private void onPlayerTimeChanged(long time) {
-        var progress = new AtomicReference<>(0d);
-
-        if (duration != null && duration != 0) {
-            progress.set((double) time / duration);
-        }
-
         Platform.runLater(() -> {
             timeText.setText(TimeUtils.format(time));
-            playbackProgress.setProgress(progress.get());
+            playbackProgress.setTime(time);
         });
     }
 
@@ -169,7 +159,6 @@ public class PlayerExternalComponent implements Initializable {
         switch (state) {
             case PLAYING -> updatePlayState(true);
             case PAUSED -> updatePlayState(false);
-            case LOADING -> Platform.runLater(() -> playbackProgress.setProgress(ProgressBar.INDETERMINATE_PROGRESS));
         }
     }
 
@@ -185,10 +174,12 @@ public class PlayerExternalComponent implements Initializable {
 
     private void onDownloadStatus(DownloadStatus status) {
         Platform.runLater(() -> {
+            playbackProgress.setLoadProgress(status.progress());
             progressPercentage.setText(ProgressUtils.progressToPercentage(status));
             downloadText.setText(ProgressUtils.progressToDownload(status));
             uploadText.setText(ProgressUtils.progressToUpload(status));
             activePeersText.setText(String.valueOf(status.seeds()));
+            downloadedText.setText(SizeUtils.toDisplaySize(status.downloaded()));
         });
     }
 

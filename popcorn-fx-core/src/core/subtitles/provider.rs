@@ -30,7 +30,7 @@ pub trait SubtitleProvider: Debug + Send + Sync {
 
     /// Download the subtitle for the given [SubtitleInfo].
     ///
-    /// It returns the location to the downloaded subtitle file on success, else the [subtitles::SubtitleError].
+    /// It returns the location the downloaded subtitle file on success, else the [subtitles::SubtitleError].
     async fn download(&self, subtitle_info: &SubtitleInfo, matcher: &SubtitleMatcher) -> subtitles::Result<String>;
 
     /// Download the subtitle for the given [SubtitleInfo].

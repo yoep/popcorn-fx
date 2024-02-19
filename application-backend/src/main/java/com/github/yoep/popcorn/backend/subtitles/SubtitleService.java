@@ -62,7 +62,7 @@ public interface SubtitleService {
     CompletableFuture<List<SubtitleInfo>> retrieveSubtitles(String filename);
 
     @Async
-    CompletableFuture<String> download(SubtitleInfo subtitleInfo, SubtitleMatcher matcher);
+    CompletableFuture<String> download(SubtitleInfo subtitleInfo, SubtitleMatcher.ByValue matcher);
 
     /**
      * Download and parse the SRT file for the given {@link SubtitleInfo}.
@@ -71,7 +71,7 @@ public interface SubtitleService {
      * @return Returns the subtitle for the given subtitle info.
      */
     @Async
-    CompletableFuture<Subtitle> downloadAndParse(SubtitleInfo subtitleInfo, SubtitleMatcher matcher);
+    CompletableFuture<Subtitle> downloadAndParse(SubtitleInfo subtitleInfo, SubtitleMatcher.ByValue matcher);
 
     /**
      * Get the subtitle that needs to be selected by default for the given subtitles list.

@@ -3,7 +3,7 @@ use std::ptr;
 
 use log::trace;
 
-use popcorn_fx_core::{from_c_owned, from_c_string, from_c_vec, from_c_vec_owned, into_c_owned, into_c_string, into_c_vec};
+use popcorn_fx_core::{from_c_owned, from_c_string, from_c_vec, into_c_owned, into_c_string, into_c_vec};
 use popcorn_fx_core::core::subtitles::{SubtitleEvent, SubtitleFile};
 use popcorn_fx_core::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
@@ -70,11 +70,15 @@ impl From<&SubtitleInfoC> for SubtitleInfo {
             vec![]
         };
 
-        SubtitleInfo::new_with_files(
-            imdb_id,
-            value.language.clone(),
-            files,
-        )
+        let mut builder = SubtitleInfo::builder()
+            .language(value.language.clone())
+            .files(files);
+
+        if let Some(e) = imdb_id {
+            builder = builder.imdb_id(e);
+        }
+
+        builder.build()
     }
 }
 
@@ -94,11 +98,15 @@ impl From<SubtitleInfoC> for SubtitleInfo {
             vec![]
         };
 
-        SubtitleInfo::new_with_files(
-            imdb_id,
-            value.language.clone(),
-            files,
-        )
+        let mut builder = SubtitleInfo::builder()
+            .language(value.language.clone())
+            .files(files);
+
+        if let Some(e) = imdb_id {
+            builder = builder.imdb_id(e);
+        }
+
+        builder.build()
     }
 }
 
@@ -415,10 +423,10 @@ mod test {
     #[test]
     fn test_subtitle_info_set_from() {
         init_logger();
-        let subtitle = SubtitleInfo::new(
-            "tt111000".to_string(),
-            SubtitleLanguage::French,
-        );
+        let subtitle = SubtitleInfo::builder()
+            .imdb_id("tt111000")
+            .language(SubtitleLanguage::French)
+            .build();
         let subtitles = vec![SubtitleInfoC::from(subtitle.clone())];
 
         let set = SubtitleInfoSet::from(subtitles);
@@ -456,10 +464,10 @@ mod test {
     #[test]
     fn test_subtitle_info_with_files() {
         init_logger();
-        let subtitle = SubtitleInfo::new_with_files(
-            Some("tt22222233".to_string()),
-            SubtitleLanguage::Italian,
-            vec![
+        let subtitle = SubtitleInfo::builder()
+            .imdb_id("tt22222233")
+            .language(SubtitleLanguage::Italian)
+            .files(vec![
                 SubtitleFile::builder()
                     .file_id(1)
                     .name("lorem")
@@ -467,8 +475,8 @@ mod test {
                     .score(8.0)
                     .downloads(1544)
                     .build()
-            ],
-        );
+            ])
+            .build();
 
         let info_c = SubtitleInfoC::from(subtitle.clone());
         let result = SubtitleInfo::from(&info_c);
@@ -479,10 +487,10 @@ mod test {
     #[test]
     fn test_subtitle_info_without_files() {
         init_logger();
-        let subtitle = SubtitleInfo::new(
-            "tt8788777".to_string(),
-            SubtitleLanguage::Spanish,
-        );
+        let subtitle = SubtitleInfo::builder()
+            .imdb_id("tt8788777")
+            .language(SubtitleLanguage::Spanish)
+            .build();
 
         let info_c = SubtitleInfoC::from(subtitle.clone());
         let result = SubtitleInfo::from(&info_c);
@@ -518,7 +526,10 @@ mod test {
         init_logger();
         let imdb_id = "tt122121";
         let info_none_event = SubtitleEvent::SubtitleInfoChanged(None);
-        let subtitle_info = SubtitleInfo::new(imdb_id.to_string(), SubtitleLanguage::Finnish);
+        let subtitle_info = SubtitleInfo::builder()
+            .imdb_id(imdb_id)
+            .language(SubtitleLanguage::Finnish)
+            .build();
         let info_event = SubtitleEvent::SubtitleInfoChanged(Some(subtitle_info.clone()));
 
         let info_event_result = SubtitleEventC::from(info_event);
@@ -553,7 +564,10 @@ mod test {
                     )]
                 )],
             )],
-            Some(SubtitleInfo::new("tt00001".to_string(), SubtitleLanguage::English)),
+            Some(SubtitleInfo::builder()
+                     .imdb_id("tt00001")
+                     .language(SubtitleLanguage::English)
+                     .build()),
             "lorem.srt".to_string(),
         )
     }

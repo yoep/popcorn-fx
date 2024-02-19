@@ -72,8 +72,8 @@ public class PlayerManagerServiceImpl extends AbstractListenerService<PlayerMana
         Assert.notNull(player, "player cannot be null");
         log.trace("Registering new player {}", player);
         try (var wrapper = new PlayerWrapperRegistration(player)) {
-            var playerC = fxLib.register_player(instance, wrapper);
-            wrapper.setPlayerC(playerC);
+            fxLib.register_player(instance, wrapper);
+            wrapper.setPlayerC(fxLib.player_pointer_by_id(instance, player.getId()));
             wrapper.setListener(new PlayerListener() {
                 @Override
                 public void onDurationChanged(long newDuration) {
@@ -121,12 +121,16 @@ public class PlayerManagerServiceImpl extends AbstractListenerService<PlayerMana
         try (event) {
             invokeListeners(listener -> {
                 switch (event.getTag()) {
-                    case ActivePlayerChanged -> {
+                    case ACTIVE_PLAYER_CHANGED -> {
                         var change = event.getUnion().getPlayerChanged_body().playerChangedEvent;
                         listener.activePlayerChanged(new PlayerChanged(change.getOldPlayerId().orElse(null), change.getNewPlayerId(),
                                 change.getNewPlayerName()));
                     }
-                    case PlayersChanged -> listener.playersChanged();
+                    case PLAYERS_CHANGED -> listener.playersChanged();
+                    case PLAYER_PLAYBACK_CHANGED -> listener.onPlayerPlaybackChanged(event.getUnion().getPlayerPlaybackChanged_body().getRequest());
+                    case PLAYER_TIME_CHANGED -> listener.onPlayerTimeChanged(event.getUnion().getPlayerTimeChanged_body().getTime());
+                    case PLAYER_DURATION_CHANGED -> listener.onPlayerDurationChanged(event.getUnion().getPlayerDurationChanged_body().getDuration());
+                    case PLAYER_STATE_CHANGED -> listener.onPlayerStateChanged(event.getUnion().getPlayerStateChanged_body().getState());
                 }
             });
         }
@@ -151,6 +155,9 @@ public class PlayerManagerServiceImpl extends AbstractListenerService<PlayerMana
 
     private Player enhance(Player player) {
         if (player instanceof PlayerWrapper wrapper) {
+            if (wrapper.getPlayerC() == null) {
+                wrapper.setPlayerC(fxLib.player_pointer_by_id(instance, player.getId()));
+            }
             return playerWrappers.stream()
                     .filter(e -> Objects.equals(e.getId(), wrapper.getId()))
                     .findFirst()

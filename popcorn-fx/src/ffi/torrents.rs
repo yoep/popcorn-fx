@@ -213,6 +213,12 @@ pub extern "C" fn cleanup_torrents_directory(popcorn_fx: &mut PopcornFX) {
     popcorn_fx.torrent_manager().cleanup();
 }
 
+#[no_mangle]
+pub extern "C" fn dispose_torrent_stream_event_value(event: TorrentStreamEventC) {
+    trace!("Disposing torrent stream event from C {:?}", event);
+    drop(event);
+}
+
 #[cfg(test)]
 mod test {
     use std::path::PathBuf;

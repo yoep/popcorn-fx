@@ -177,8 +177,8 @@ pub extern "C" fn reset_subtitle(popcorn_fx: &mut PopcornFX) {
 ///
 /// It returns the filepath to the subtitle on success, else [ptr::null_mut].
 #[no_mangle]
-pub extern "C" fn download(popcorn_fx: &mut PopcornFX, subtitle: &SubtitleInfoC, matcher: &SubtitleMatcherC) -> *const c_char {
-    trace!("Starting subtitle download for info: {:?}, matcher: {:?}", subtitle, matcher);
+pub extern "C" fn download(popcorn_fx: &mut PopcornFX, subtitle: &SubtitleInfoC, matcher: SubtitleMatcherC) -> *const c_char {
+    trace!("Starting subtitle download from C for info: {:?}, matcher: {:?}", subtitle, matcher);
     let subtitle_info = SubtitleInfo::from(subtitle);
     let matcher = matcher.to_matcher();
 
@@ -198,7 +198,8 @@ pub extern "C" fn download(popcorn_fx: &mut PopcornFX, subtitle: &SubtitleInfoC,
 ///
 /// It returns the [SubtitleC] reference on success, else [ptr::null_mut].
 #[no_mangle]
-pub extern "C" fn download_and_parse_subtitle(popcorn_fx: &mut PopcornFX, subtitle: &SubtitleInfoC, matcher: &SubtitleMatcherC) -> *mut SubtitleC {
+pub extern "C" fn download_and_parse_subtitle(popcorn_fx: &mut PopcornFX, subtitle: &SubtitleInfoC, matcher: SubtitleMatcherC) -> *mut SubtitleC {
+    trace!("Downloading and parsing subtitle from C for info: {:?}, matcher: {:?}", subtitle, matcher);
     let subtitle_info = SubtitleInfo::from(subtitle);
     let matcher = matcher.to_matcher();
 

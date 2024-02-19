@@ -107,7 +107,7 @@ class ChromecastServiceTest {
         when(request.getUrl()).thenReturn(url);
         when(request.getAutoResumeTimestamp()).thenReturn(Optional.of(20000L));
         when(subtitleService.preferredSubtitle()).thenReturn(Optional.of(subtitleInfo));
-        when(subtitleService.downloadAndParse(eq(subtitleInfo), isA(SubtitleMatcher.class))).thenReturn(CompletableFuture.completedFuture(subtitle));
+        when(subtitleService.downloadAndParse(eq(subtitleInfo), isA(SubtitleMatcher.ByValue.class))).thenReturn(CompletableFuture.completedFuture(subtitle));
         when(subtitleService.serve(subtitle, SubtitleType.VTT)).thenReturn(subtitleUri);
         when(contentTypeService.resolveMetadata(URI.create(url))).thenReturn(VideoMetadata.builder()
                 .contentType(contentType)

@@ -103,17 +103,19 @@ public class SubtitleServiceImpl implements SubtitleService {
     }
 
     @Override
-    public CompletableFuture<String> download(SubtitleInfo subtitleInfo, SubtitleMatcher matcher) {
+    public CompletableFuture<String> download(SubtitleInfo subtitleInfo, SubtitleMatcher.ByValue matcher) {
         Objects.requireNonNull(subtitleInfo, "subtitleInfo cannot be null");
         Objects.requireNonNull(matcher, "matcher cannot be null");
         synchronized (mutex) {
             log.debug("Starting subtitle download subtitleInfo: {}, matcher: {}", subtitleInfo, matcher);
-            return CompletableFuture.completedFuture(fxLib.download(instance, subtitleInfo, matcher));
+            var subtitleFilepath = fxLib.download(instance, subtitleInfo, matcher);
+            log.info("Downloaded subtitle file to {}", subtitleFilepath);
+            return CompletableFuture.completedFuture(subtitleFilepath);
         }
     }
 
     @Override
-    public CompletableFuture<Subtitle> downloadAndParse(SubtitleInfo subtitleInfo, SubtitleMatcher matcher) {
+    public CompletableFuture<Subtitle> downloadAndParse(SubtitleInfo subtitleInfo, SubtitleMatcher.ByValue matcher) {
         Objects.requireNonNull(subtitleInfo, "subtitleInfo cannot be null");
         Objects.requireNonNull(matcher, "matcher cannot be null");
         synchronized (mutex) {
@@ -227,10 +229,8 @@ public class SubtitleServiceImpl implements SubtitleService {
 
     private SubtitleEventCallback createCallback() {
         return event -> {
-            log.debug("Received subtitle event callback {}", event);
-            event.close();
-
-            new Thread(() -> {
+            try (event) {
+                log.debug("Received subtitle event callback {}", event);
                 for (var listener : listeners) {
                     try {
                         listener.callback(event);
@@ -238,7 +238,7 @@ public class SubtitleServiceImpl implements SubtitleService {
                         log.error("Failed to invoke subtitle callback, {}", ex.getMessage(), ex);
                     }
                 }
-            }, "SubtitleEventCallbackHandler").start();
+            }
         };
     }
 }

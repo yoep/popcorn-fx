@@ -540,6 +540,7 @@ struct PlayerStartedEventC {
   const char *url;
   const char *title;
   const char *thumbnail;
+  const char *background;
   const char *quality;
   uint64_t *auto_resume_timestamp;
   bool subtitles_enabled;
@@ -771,6 +772,61 @@ struct MediaSetC {
   int32_t shows_len;
 };
 
+/// A C-compatible enum representing player events.
+struct PlayerEventC {
+  enum class Tag {
+    DurationChanged,
+    TimeChanged,
+    StateChanged,
+    VolumeChanged,
+  };
+
+  struct DurationChanged_Body {
+    uint64_t _0;
+  };
+
+  struct TimeChanged_Body {
+    uint64_t _0;
+  };
+
+  struct StateChanged_Body {
+    PlayerState _0;
+  };
+
+  struct VolumeChanged_Body {
+    uint32_t _0;
+  };
+
+  Tag tag;
+  union {
+    DurationChanged_Body duration_changed;
+    TimeChanged_Body time_changed;
+    StateChanged_Body state_changed;
+    VolumeChanged_Body volume_changed;
+  };
+};
+
+/// Represents a play request in C-compatible form.
+struct PlayRequestC {
+  /// The URL of the media to be played.
+  const char *url;
+  /// The title of the media.
+  const char *title;
+  /// The URL of the thumbnail image for the media.
+  const char *thumb;
+  /// The URL of the background image for the media.
+  const char *background;
+  /// The quality of the media.
+  const char *quality;
+  /// Pointer to a mutable u64 value representing the auto-resume timestamp.
+  uint64_t *auto_resume_timestamp;
+  /// The stream handle pointer of the play request.
+  /// This handle can be used to retrieve more information about the underlying stream.
+  int64_t *stream_handle;
+  /// Indicates whether subtitles are enabled for the media.
+  bool subtitles_enabled;
+};
+
 /// Represents events related to player management in C-compatible form.
 struct PlayerManagerEventC {
   enum class Tag {
@@ -778,6 +834,8 @@ struct PlayerManagerEventC {
     ActivePlayerChanged,
     /// Indicates a change in the players set.
     PlayersChanged,
+    /// Indicates that the active player's playback has been changed
+    PlayerPlaybackChanged,
     /// Indicates a change in the duration of a player.
     PlayerDurationChanged,
     /// Indicates a change in the playback time of a player.
@@ -788,6 +846,10 @@ struct PlayerManagerEventC {
 
   struct ActivePlayerChanged_Body {
     PlayerChangedEventC _0;
+  };
+
+  struct PlayerPlaybackChanged_Body {
+    PlayRequestC _0;
   };
 
   struct PlayerDurationChanged_Body {
@@ -805,6 +867,7 @@ struct PlayerManagerEventC {
   Tag tag;
   union {
     ActivePlayerChanged_Body active_player_changed;
+    PlayerPlaybackChanged_Body player_playback_changed;
     PlayerDurationChanged_Body player_duration_changed;
     PlayerTimeChanged_Body player_time_changed;
     PlayerStateChanged_Body player_state_changed;
@@ -926,6 +989,47 @@ struct TorrentCollectionSet {
   int32_t len;
 };
 
+struct DownloadStatusC {
+  /// Progress indication between 0 and 1 that represents the progress of the download.
+  float progress;
+  /// The number of seeds available for the torrent.
+  uint32_t seeds;
+  /// The number of peers connected to the torrent.
+  uint32_t peers;
+  /// The total download transfer rate in bytes of payload only, not counting protocol chatter.
+  uint32_t download_speed;
+  /// The total upload transfer rate in bytes of payload only, not counting protocol chatter.
+  uint32_t upload_speed;
+  /// The total amount of data downloaded in bytes.
+  uint64_t downloaded;
+  /// The total size of the torrent in bytes.
+  uint64_t total_size;
+};
+
+/// Represents a torrent stream event in C-compatible form.
+struct TorrentStreamEventC {
+  enum class Tag {
+    /// Indicates a change in the state of the torrent stream.
+    StateChanged,
+    /// Indicates a change in the download status of the torrent stream.
+    DownloadStatus,
+  };
+
+  struct StateChanged_Body {
+    TorrentStreamState _0;
+  };
+
+  struct DownloadStatus_Body {
+    DownloadStatusC _0;
+  };
+
+  Tag tag;
+  union {
+    StateChanged_Body state_changed;
+    DownloadStatus_Body download_status;
+  };
+};
+
 /// The subtitle matcher C compatible struct.
 /// It contains the information which should be matched when selecting a subtitle file to load.
 struct SubtitleMatcherC {
@@ -934,40 +1038,6 @@ struct SubtitleMatcherC {
   /// The nullable quality of the media item.
   /// This can be represented as `720p` or `720`.
   const char *quality;
-};
-
-/// A C-compatible enum representing player events.
-struct PlayerEventC {
-  enum class Tag {
-    DurationChanged,
-    TimeChanged,
-    StateChanged,
-    VolumeChanged,
-  };
-
-  struct DurationChanged_Body {
-    uint64_t _0;
-  };
-
-  struct TimeChanged_Body {
-    uint64_t _0;
-  };
-
-  struct StateChanged_Body {
-    PlayerState _0;
-  };
-
-  struct VolumeChanged_Body {
-    uint32_t _0;
-  };
-
-  Tag tag;
-  union {
-    DurationChanged_Body duration_changed;
-    TimeChanged_Body time_changed;
-    StateChanged_Body state_changed;
-    VolumeChanged_Body volume_changed;
-  };
 };
 
 /// A C-compatible handle representing a loading process.
@@ -1022,27 +1092,6 @@ using LoaderEventCallback = void(*)(LoaderEventC);
 /// The C compatible callback for playback control events.
 using PlaybackControlsCallbackC = void(*)(PlaybackControlEvent);
 
-/// Represents a play request in C-compatible form.
-struct PlayRequestC {
-  /// The URL of the media to be played.
-  const char *url;
-  /// The title of the media.
-  const char *title;
-  /// The URL of the thumbnail image for the media.
-  const char *thumb;
-  /// The URL of the background image for the media.
-  const char *background;
-  /// The quality of the media.
-  const char *quality;
-  /// Pointer to a mutable u64 value representing the auto-resume timestamp.
-  uint64_t *auto_resume_timestamp;
-  /// The stream handle pointer of the play request.
-  /// This handle can be used to retrieve more information about the underlying stream.
-  int64_t *stream_handle;
-  /// Indicates whether subtitles are enabled for the media.
-  bool subtitles_enabled;
-};
-
 /// A C-compatible callback function type for player play events.
 using PlayerPlayCallback = void(*)(PlayRequestC);
 
@@ -1051,6 +1100,9 @@ using PlayerPauseCallback = void(*)();
 
 /// A C-compatible callback function type for player resume events.
 using PlayerResumeCallback = void(*)();
+
+/// A C-compatible callback function type for player seek events.
+using PlayerSeekCallback = void(*)(uint64_t);
 
 /// A C-compatible callback function type for player stop events.
 using PlayerStopCallback = void(*)();
@@ -1073,8 +1125,12 @@ struct PlayerRegistrationC {
   bool embedded_playback_supported;
   /// A callback function pointer for the "play" action.
   PlayerPlayCallback play_callback;
+  /// A callback function pointer for the "pause" action.
   PlayerPauseCallback pause_callback;
+  /// A callback function pointer for the "resume" action.
   PlayerResumeCallback resume_callback;
+  /// A callback function pointer for the "seek" action.
+  PlayerSeekCallback seek_callback;
   /// A callback function pointer for the "stop" action.
   PlayerStopCallback stop_callback;
 };
@@ -1162,47 +1218,6 @@ struct SubtitleEventC {
 
 /// The C callback for the subtitle events.
 using SubtitleCallbackC = void(*)(SubtitleEventC);
-
-struct DownloadStatusC {
-  /// Progress indication between 0 and 1 that represents the progress of the download.
-  float progress;
-  /// The number of seeds available for the torrent.
-  uint32_t seeds;
-  /// The number of peers connected to the torrent.
-  uint32_t peers;
-  /// The total download transfer rate in bytes of payload only, not counting protocol chatter.
-  uint32_t download_speed;
-  /// The total upload transfer rate in bytes of payload only, not counting protocol chatter.
-  uint32_t upload_speed;
-  /// The total amount of data downloaded in bytes.
-  uint64_t downloaded;
-  /// The total size of the torrent in bytes.
-  uint64_t total_size;
-};
-
-/// Represents a torrent stream event in C-compatible form.
-struct TorrentStreamEventC {
-  enum class Tag {
-    /// Indicates a change in the state of the torrent stream.
-    StateChanged,
-    /// Indicates a change in the download status of the torrent stream.
-    DownloadStatus,
-  };
-
-  struct StateChanged_Body {
-    TorrentStreamState _0;
-  };
-
-  struct DownloadStatus_Body {
-    DownloadStatusC _0;
-  };
-
-  Tag tag;
-  union {
-    StateChanged_Body state_changed;
-    DownloadStatus_Body download_status;
-  };
-};
 
 /// Type alias for a callback that handles torrent stream events.
 using TorrentStreamEventCallback = void(*)(TorrentStreamEventC);
@@ -1521,6 +1536,30 @@ void dispose_media_item_value(MediaItemC media);
 /// * `media` - A C-compatible media set to be disposed of.
 void dispose_media_items(MediaSetC media);
 
+/// Disposes of the `PlayerC` instance and deallocates its memory.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it interacts with external code (C/C++),
+/// and the caller is responsible for ensuring the safety of the provided `player` pointer.
+///
+/// # Arguments
+///
+/// * `player` - A box containing the `PlayerC` instance to be disposed of.
+void dispose_player(Box<PlayerC> player);
+
+/// Disposes of the `PlayerEventC` instance and deallocates its memory.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it interacts with external code (C/C++),
+/// and the caller is responsible for ensuring the safety of the provided `event` pointer.
+///
+/// # Arguments
+///
+/// * `event` - A box containing the `PlayerEventC` instance to be disposed of.
+void dispose_player_event_value(PlayerEventC event);
+
 /// Dispose of a C-compatible player manager event.
 ///
 /// This function is responsible for cleaning up resources associated with a C-compatible player manager event.
@@ -1600,20 +1639,22 @@ void dispose_subtitle_info(Box<SubtitleInfoC> info);
 /// This function is marked as `unsafe` because it's assumed that the `SubtitleInfoSet` structure was allocated using `Box`,
 /// and dropping a `Box` pointing to valid memory is safe. However, if the `SubtitleInfoSet` was allocated in a different way
 /// or if the memory was already deallocated, calling this function could lead to undefined behavior.
-void dispose_subtitle_info_set(SubtitleInfoSet *set);
+void dispose_subtitle_info_set(Box<SubtitleInfoSet> set);
 
 /// Dispose the [TorrentCollectionSet] from memory.
 void dispose_torrent_collection(Box<TorrentCollectionSet> collection_set);
 
+void dispose_torrent_stream_event_value(TorrentStreamEventC event);
+
 /// Download the given [SubtitleInfo] based on the best match according to the [SubtitleMatcher].
 ///
 /// It returns the filepath to the subtitle on success, else [ptr::null_mut].
-const char *download(PopcornFX *popcorn_fx, const SubtitleInfoC *subtitle, const SubtitleMatcherC *matcher);
+const char *download(PopcornFX *popcorn_fx, const SubtitleInfoC *subtitle, SubtitleMatcherC matcher);
 
 /// Download and parse the given subtitle info.
 ///
 /// It returns the [SubtitleC] reference on success, else [ptr::null_mut].
-SubtitleC *download_and_parse_subtitle(PopcornFX *popcorn_fx, const SubtitleInfoC *subtitle, const SubtitleMatcherC *matcher);
+SubtitleC *download_and_parse_subtitle(PopcornFX *popcorn_fx, const SubtitleInfoC *subtitle, SubtitleMatcherC matcher);
 
 /// Start downloading the application update if available.
 ///
@@ -1900,6 +1941,19 @@ PlayerWrapperC *player_pointer_by_id(PopcornFX *popcorn_fx, const char *player_i
 ///
 /// * `player` - A mutable reference to a `PlayerWrapperC` instance.
 void player_resume(PlayerWrapperC *player);
+
+/// Seeks the player associated with the given `PlayerWrapperC` instance to the specified time position.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it interacts with external code (C/C++),
+/// and the caller is responsible for ensuring the safety of the provided `player` pointer.
+///
+/// # Arguments
+///
+/// * `player` - A mutable reference to a `PlayerWrapperC` instance.
+/// * `time` - The time position to seek to, in milliseconds.
+void player_seek(PlayerWrapperC *player, uint64_t time);
 
 /// Stops the player associated with the given `PlayerWrapperC` instance.
 ///

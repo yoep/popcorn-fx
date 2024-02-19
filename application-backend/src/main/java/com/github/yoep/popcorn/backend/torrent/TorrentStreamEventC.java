@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.backend.torrent;
 
+import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentStreamState;
 import com.sun.jna.FromNativeContext;
 import com.sun.jna.NativeMapped;
@@ -19,7 +20,11 @@ import java.util.Optional;
 @Structure.FieldOrder({"tag", "union"})
 public class TorrentStreamEventC extends Structure implements Closeable {
     public static class ByValue extends TorrentStreamEventC implements Structure.ByValue {
-
+        @Override
+        public void close() {
+            super.close();
+            FxLib.INSTANCE.get().dispose_torrent_stream_event_value(this);
+        }
     }
 
     public Tag tag;

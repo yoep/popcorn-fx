@@ -306,12 +306,17 @@ impl From<PlayerRegistrationC> for PlayerWrapper {
 }
 
 #[repr(C)]
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct PlayerWrapperC {
+    id: *const c_char,
     wrapper: Weak<Box<dyn Player>>,
 }
 
 impl PlayerWrapperC {
+    pub fn id(&self) -> String {
+        from_c_string(self.id)
+    }
+
     pub fn instance(&self) -> Option<Arc<Box<dyn Player>>> {
         self.wrapper.upgrade()
     }
@@ -319,7 +324,13 @@ impl PlayerWrapperC {
 
 impl From<Weak<Box<dyn Player>>> for PlayerWrapperC {
     fn from(value: Weak<Box<dyn Player>>) -> Self {
+        trace!("Converting PlayerWrapperC from Weak<Box<dyn Player>>");
+        let id = into_c_string(value.upgrade()
+            .map(|e| e.id().to_string())
+            .unwrap_or("unknown".to_string()));
+
         Self {
+            id,
             wrapper: value,
         }
     }

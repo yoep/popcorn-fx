@@ -1,6 +1,6 @@
 use log::trace;
 
-use popcorn_fx_core::{from_c_owned, from_c_vec, into_c_owned};
+use popcorn_fx_core::{from_c_vec, into_c_owned};
 use popcorn_fx_core::core::subtitles::model::SubtitleInfo;
 use popcorn_fx_core::core::subtitles::SubtitleCallback;
 
@@ -138,8 +138,7 @@ pub extern "C" fn cleanup_subtitles_directory(popcorn_fx: &mut PopcornFX) {
 /// and dropping a `Box` pointing to valid memory is safe. However, if the `SubtitleInfoSet` was allocated in a different way
 /// or if the memory was already deallocated, calling this function could lead to undefined behavior.
 #[no_mangle]
-pub extern "C" fn dispose_subtitle_info_set(set: *mut SubtitleInfoSet) {
-    let set = from_c_owned(set);
+pub extern "C" fn dispose_subtitle_info_set(set: Box<SubtitleInfoSet>) {
     trace!("Disposing subtitle info set C for {:?}", set);
     drop(set);
 }
@@ -253,9 +252,9 @@ mod test {
                 .downloads(20)
                 .build()])
             .build();
-        let set = SubtitleInfoSet::from(vec![SubtitleInfoC::from(info.clone())]);
+        let mut set = SubtitleInfoSet::from(vec![SubtitleInfoC::from(info.clone())]);
 
-        let result = from_c_owned(select_or_default_subtitle(&mut instance, into_c_owned(set)));
+        let result = from_c_owned(select_or_default_subtitle(&mut instance, &mut set));
 
         assert_eq!(info, SubtitleInfo::from(result));
     }
@@ -265,7 +264,7 @@ mod test {
         init_logger();
         let set = SubtitleInfoSet::from(vec![SubtitleInfoC::from(SubtitleInfo::none()), SubtitleInfoC::from(SubtitleInfo::custom())]);
 
-        dispose_subtitle_info_set(into_c_owned(set));
+        dispose_subtitle_info_set(Box::new(set));
     }
 
     #[test]

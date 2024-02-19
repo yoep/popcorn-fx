@@ -1,7 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
-import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.player.PlayerAction;
 import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
 import com.github.yoep.popcorn.ui.view.controls.ProgressControl;
@@ -9,6 +8,7 @@ import com.github.yoep.popcorn.ui.view.listeners.PlayerExternalListener;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import com.github.yoep.popcorn.ui.view.services.PlayerExternalComponentService;
 import javafx.scene.control.Label;
+import javafx.scene.image.Image;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,9 +17,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.core.io.ClassPathResource;
 import org.testfx.framework.junit5.ApplicationExtension;
 import org.testfx.util.WaitForAsyncUtils;
 
+import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -28,7 +30,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.*;
-
 
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
 class PlayerExternalComponentTest {
@@ -57,18 +58,18 @@ class PlayerExternalComponentTest {
     }
 
     @Test
-    void testListener_whenMediaItemIsChanged_shouldLoadBackgroundImage() {
-        var media = mock(Media.class);
+    void testListener_whenMediaItemIsChanged_shouldLoadBackgroundImage() throws IOException {
         var background = "MyBackgroundUri.jpg";
         var request = mock(PlayRequest.class);
+        var holder = new ClassPathResource("posterholder.png");
         when(request.getBackground()).thenReturn(Optional.of(background));
-        when(imageService.loadFanart(isA(Media.class))).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+        when(imageService.load(isA(String.class))).thenReturn(CompletableFuture.completedFuture(new Image(holder.getInputStream())));
         controller.init();
 
         var listener = externalListenerHolder.get();
         listener.onRequestChanged(request);
 
-        verify(imageService).loadFanart(media);
+        verify(imageService).load(background);
     }
 
     @Test

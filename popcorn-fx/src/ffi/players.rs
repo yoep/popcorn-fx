@@ -1,9 +1,9 @@
-use std::{mem, ptr};
 use std::os::raw::c_char;
+use std::ptr;
 
 use log::{debug, error, info, trace, warn};
 
-use popcorn_fx_core::{from_c_owned, from_c_string, into_c_owned};
+use popcorn_fx_core::{from_c_string, into_c_owned};
 use popcorn_fx_core::core::players::{Player, PlayerEvent};
 
 use crate::ffi::{PlayerC, PlayerEventC, PlayerManagerEventC, PlayerManagerEventCallback, PlayerRegistrationC, PlayerSet, PlayerWrapper, PlayerWrapperC};
@@ -225,8 +225,7 @@ pub extern "C" fn remove_player(popcorn_fx: &mut PopcornFX, player_id: *const c_
 /// If the conditions are met, it invokes the specified player event on the wrapped player.
 #[no_mangle]
 pub extern "C" fn invoke_player_event(player: &mut PlayerWrapperC, event: PlayerEventC) {
-    trace!("Received player event from C {:?} for pointer {:?}", event, player);
-    let player = from_c_owned(player);
+    trace!("Received player event from C {:?} for player {}", event, player.id());
     match player.instance() {
         Some(player) => {
             player.downcast_ref::<PlayerWrapper>().map(|wrapper| {
@@ -238,10 +237,9 @@ pub extern "C" fn invoke_player_event(player: &mut PlayerWrapperC, event: Player
             });
         }
         None => {
-            warn!("Unable to process C player event, player instance has been disposed");
+            warn!("Unable to process C player event, player {} has been disposed", player.id());
         }
     }
-    mem::forget(player);
 }
 
 /// Pauses the player associated with the given `PlayerWrapperC` instance.
@@ -372,6 +370,22 @@ pub extern "C" fn dispose_player_event_value(event: PlayerEventC) {
 pub extern "C" fn dispose_player_pointer(ptr: Box<PlayerWrapperC>) {
     trace!("Disposing player pointer {:?}", ptr);
     drop(ptr);
+}
+
+/// Disposes of the `PlayerC` instance and deallocates its memory.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it interacts with external code (C/C++),
+/// and the caller is responsible for ensuring the safety of the provided `player` pointer.
+///
+/// # Arguments
+///
+/// * `player` - A box containing the `PlayerC` instance to be disposed of.
+#[no_mangle]
+pub extern "C" fn dispose_player(player: Box<PlayerC>) {
+    trace!("Disposing player info {:?}", player);
+    drop(player);
 }
 
 #[cfg(test)]
@@ -717,5 +731,24 @@ mod tests {
         let ptr = from_c_owned(player_pointer_by_id(&mut instance, into_c_string(player_id.to_string())));
 
         dispose_player_pointer(Box::new(ptr));
+    }
+
+    #[test]
+    fn test_dispose_player() {
+        init_logger();
+        let mut player = MockPlayer::new();
+        player.expect_id()
+            .return_const("MyPlayerId".to_string());
+        player.expect_name()
+            .return_const("MyPlayer".to_string());
+        player.expect_description()
+            .return_const("SomeRandomDescription".to_string());
+        player.expect_graphic_resource()
+            .return_const(vec![]);
+        player.expect_state()
+            .return_const(PlayerState::Playing);
+        let player_c = PlayerC::from(Arc::new(Box::new(player) as Box<dyn Player>));
+
+        dispose_player(Box::new(player_c));
     }
 }

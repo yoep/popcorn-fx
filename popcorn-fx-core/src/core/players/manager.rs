@@ -908,11 +908,12 @@ mod tests {
         let url = "MyUrl";
         let title = "FooBar";
         let player_id = "LoremIpsumPlayer";
-        let request = Box::new(PlayUrlRequestBuilder::builder()
+        let request = PlayUrlRequestBuilder::builder()
             .url(url)
             .title(title)
             .subtitles_enabled(false)
-            .build()) as Box<dyn PlayRequest>;
+            .build();
+        let request_ref = Arc::new(Box::new(request.clone()) as Box<dyn PlayRequest>);
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let (tx, rx) = channel();
@@ -930,6 +931,8 @@ mod tests {
             .returning(move |e| {
                 tx.send(e).unwrap();
             });
+        player.expect_request()
+            .return_const(Arc::downgrade(&request_ref));
         let torrent_stream_server = MockTorrentStreamServer::new();
         let (tx_screen, rx_screen) = channel();
         let mut screen_service = MockScreenService::new();
@@ -957,7 +960,7 @@ mod tests {
         manager.add_player(Box::new(player));
         manager.set_active_player(player_id);
 
-        block_in_place(manager.play(request));
+        block_in_place(manager.play(Box::new(request) as Box<dyn PlayRequest>));
         let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
 
         assert_eq!(url, result.url());

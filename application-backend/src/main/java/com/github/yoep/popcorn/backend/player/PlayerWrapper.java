@@ -24,6 +24,11 @@ import java.util.Optional;
 @Structure.FieldOrder({"id", "name", "description", "graphicResource", "playerState", "embeddedPlaybackSupported"})
 public class PlayerWrapper extends Structure implements Player, Closeable {
     public static class ByReference extends PlayerWrapper implements Structure.ByReference {
+        @Override
+        public void close() {
+            super.close();
+//            FxLib.INSTANCE.get().dispose_player(this);
+        }
     }
 
     public String id;
@@ -76,8 +81,6 @@ public class PlayerWrapper extends Structure implements Player, Closeable {
         setAutoSynch(false);
         Optional.ofNullable(graphicResource)
                 .ifPresent(ByteArray::close);
-        Optional.ofNullable(playerC)
-                .ifPresent(e -> FxLib.INSTANCE.get().dispose_player_pointer(e));
     }
 
     //region Player
@@ -105,6 +108,9 @@ public class PlayerWrapper extends Structure implements Player, Closeable {
             player.removeListener(playerListener);
             player.dispose();
         }
+
+        Optional.ofNullable(playerC)
+                .ifPresent(e -> FxLib.INSTANCE.get().dispose_player_pointer(e));
     }
 
     @Override

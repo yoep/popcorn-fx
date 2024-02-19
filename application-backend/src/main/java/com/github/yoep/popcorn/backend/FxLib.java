@@ -99,9 +99,9 @@ public interface FxLib extends Library {
 
     void cleanup_subtitles_directory(PopcornFx instance);
 
-    String download(PopcornFx instance, SubtitleInfo subtitle, SubtitleMatcher matcher);
+    String download(PopcornFx instance, SubtitleInfo subtitle, SubtitleMatcher.ByValue matcher);
 
-    Subtitle download_and_parse_subtitle(PopcornFx instance, SubtitleInfo subtitle, SubtitleMatcher matcher);
+    Subtitle download_and_parse_subtitle(PopcornFx instance, SubtitleInfo subtitle, SubtitleMatcher.ByValue matcher);
 
     void register_subtitle_callback(PopcornFx instance, SubtitleEventCallback callback);
 
@@ -309,9 +309,13 @@ public interface FxLib extends Library {
 
     void dispose_player_event_value(PlayerEventC.ByValue event);
 
+    void dispose_player(PlayerWrapper.ByReference wrapper);
+
     void dispose_loader_event_value(LoaderEventC.ByValue event);
 
     void dispose_playlist_manager_event_value(PlaylistManagerEvent.ByValue event);
+
+    void dispose_torrent_stream_event_value(TorrentStreamEventC.ByValue event);
 
     void dispose_popcorn_fx(PopcornFx instance);
 

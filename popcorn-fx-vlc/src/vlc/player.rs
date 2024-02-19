@@ -30,6 +30,7 @@ use popcorn_fx_core::core::subtitles::matcher::SubtitleMatcher;
 
 use crate::vlc::VlcStatus;
 
+pub const VLC_ID: &str = "vlc";
 const VLC_GRAPHIC_RESOURCE: &[u8] = include_bytes!("../../resources/external-vlc-icon.png");
 const VLC_DESCRIPTION: &str = "VLC is a free and open source cross-platform multimedia player";
 const VLC_HOST: &str = "localhost";
@@ -356,7 +357,7 @@ impl Callbacks<PlayerEvent> for InnerVlcPlayer {
 #[async_trait]
 impl Player for InnerVlcPlayer {
     fn id(&self) -> &str {
-        "vlc"
+        VLC_ID
     }
 
     fn name(&self) -> &str {

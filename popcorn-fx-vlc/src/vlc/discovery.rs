@@ -66,10 +66,15 @@ impl VlcDiscovery {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::mpsc::channel;
+    use std::time::Duration;
+
     use popcorn_fx_core::core::block_in_place;
     use popcorn_fx_core::core::players::MockPlayerManager;
     use popcorn_fx_core::core::subtitles::MockSubtitleProvider;
     use popcorn_fx_core::testing::{init_logger, MockSubtitleManager};
+
+    use crate::vlc::VLC_ID;
 
     use super::*;
 
@@ -78,12 +83,20 @@ mod tests {
         init_logger();
         let manager = MockSubtitleManager::new();
         let provider = MockSubtitleProvider::new();
+        let (tx, rx) = channel();
         let mut player_manager = MockPlayerManager::new();
         player_manager.expect_add_player()
             .times(1)
-            .return_const(true);
+            .returning(move |e| {
+                tx.send(e).unwrap();
+                true
+            });
         let discovery = VlcDiscovery::new(Arc::new(Box::new(manager)), Arc::new(Box::new(provider)), Arc::new(Box::new(player_manager)));
 
         block_in_place(discovery.start());
+
+        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+
+        assert_eq!(VLC_ID, result.id());
     }
 }

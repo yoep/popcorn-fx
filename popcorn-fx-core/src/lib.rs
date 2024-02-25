@@ -196,12 +196,16 @@ pub mod testing {
     use log4rs::encode::pattern::PatternEncoder;
     use mockall::mock;
     use tempfile::TempDir;
+    use url::Url;
 
-    use crate::core::{CallbackHandle, Callbacks, CoreCallback};
+    use crate::core::{CallbackHandle, Callbacks, CoreCallback, Handle, torrents};
+    use crate::core::platform::{Platform, PlatformCallback, PlatformData, PlatformInfo};
+    use crate::core::playback::MediaNotificationEvent;
     use crate::core::players::{Player, PlayerEvent, PlayerState, PlayRequest};
     use crate::core::subtitles::{SubtitleEvent, SubtitleManager};
     use crate::core::subtitles::language::SubtitleLanguage;
     use crate::core::subtitles::model::SubtitleInfo;
+    use crate::core::torrents::{Torrent, TorrentCallback, TorrentState, TorrentStream, TorrentStreamCallback, TorrentStreamingResourceWrapper, TorrentStreamState};
 
     static INIT: Once = Once::new();
 
@@ -378,6 +382,91 @@ pub mod testing {
         }
     }
 
+    mock! {
+        #[derive(Debug)]
+        pub TorrentStream {}
+    
+        impl Torrent for TorrentStream {
+            fn handle(&self) -> &str;
+    
+            fn file(&self) -> PathBuf;
+    
+            fn has_bytes(&self, bytes: &[u64]) -> bool;
+    
+            fn has_piece(&self, piece: u32) -> bool;
+    
+            fn prioritize_bytes(&self, bytes: &[u64]);
+    
+            fn prioritize_pieces(&self, pieces: &[u32]);
+    
+            fn total_pieces(&self) -> i32;
+    
+            fn sequential_mode(&self);
+    
+            fn state(&self) -> TorrentState;
+    
+            fn subscribe(&self, callback: TorrentCallback) -> CallbackHandle;
+        }
+    
+        impl TorrentStream for TorrentStream {
+            fn stream_handle(&self) -> Handle;
+    
+            fn url(&self) -> Url;
+    
+            fn stream(&self) -> torrents::Result<TorrentStreamingResourceWrapper>;
+    
+            fn stream_offset(&self, offset: u64, len: Option<u64>) -> torrents::Result<TorrentStreamingResourceWrapper>;
+    
+            fn stream_state(&self) -> TorrentStreamState;
+    
+            fn subscribe_stream(&self, callback: TorrentStreamCallback) -> CallbackHandle;
+    
+            fn unsubscribe_stream(&self, handle: CallbackHandle);
+    
+            fn stop_stream(&self);
+        }
+    }
+
+    impl Display for MockTorrentStream {
+        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+            write!(f, "MockTorrentStream")
+        }
+    }
+
+    mock! {
+        #[derive(Debug)]
+        pub DummyPlatform {}
+    
+        impl Platform for DummyPlatform {
+            fn disable_screensaver(&self) -> bool;
+    
+            fn enable_screensaver(&self) -> bool;
+    
+            fn notify_media_event(&self, notification: MediaNotificationEvent);
+    
+            fn register(&self, callback: PlatformCallback);
+        }
+    }
+
+    mock! {
+        #[derive(Debug)]
+        pub DummyPlatformData {}
+    
+        impl PlatformData for DummyPlatformData {
+            fn info(&self) -> PlatformInfo;
+        }
+    
+        impl Platform for DummyPlatformData {
+            fn disable_screensaver(&self) -> bool;
+    
+            fn enable_screensaver(&self) -> bool;
+            
+            fn notify_media_event(&self, notification: MediaNotificationEvent);
+    
+            fn register(&self, callback: PlatformCallback);
+        }
+    }
+
     #[macro_export]
     macro_rules! assert_timeout {
     ($timeout:expr, $condition:expr) => {{
@@ -476,6 +565,7 @@ mod test {
                 providers: create_providers(&server),
                 enhancers: Default::default(),
                 subtitle: Default::default(),
+                tracking: Default::default(),
             })
             .build());
 

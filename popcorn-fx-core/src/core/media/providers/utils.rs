@@ -58,6 +58,7 @@ mod test {
                 ]),
                 enhancers: Default::default(),
                 subtitle: Default::default(),
+                tracking: Default::default(),
             })
             .settings(PopcornSettings {
                 subtitle_settings: Default::default(),
@@ -93,6 +94,7 @@ mod test {
                 providers: HashMap::new(),
                 enhancers: Default::default(),
                 subtitle: Default::default(),
+                tracking: Default::default(),
             })
             .settings(PopcornSettings {
                 subtitle_settings: Default::default(),

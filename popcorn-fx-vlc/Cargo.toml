@@ -14,9 +14,9 @@ crate-type = ["rlib"]
 [dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core" }
 
-async-trait = "0.1"
+async-trait.workspace = true
 chbs = "0.1.1"
-derive_more = "0"
+derive_more.workspace = true
 itertools.workspace = true
 log.workspace = true
 reqwest = { workspace = true, features = ["stream"] }
@@ -30,5 +30,5 @@ url.workspace = true
 [dev-dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }
 
-tempfile = "3"
-httpmock = "0"
+tempfile.workspace = true
+httpmock.workspace = true

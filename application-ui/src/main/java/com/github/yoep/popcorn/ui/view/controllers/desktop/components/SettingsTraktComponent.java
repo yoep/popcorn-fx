@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
+import com.github.yoep.popcorn.backend.tracking.TrackingService;
 import com.github.yoep.popcorn.ui.trakt.TraktService;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -15,13 +16,14 @@ import java.util.ResourceBundle;
 @RequiredArgsConstructor
 public class SettingsTraktComponent implements Initializable {
     private final TraktService traktService;
+    private final TrackingService trackingService;
 
     @FXML
-    private Label statusText;
+    Label statusText;
     @FXML
-    private Button connectButton;
+    Button connectButton;
     @FXML
-    private Button disconnectButton;
+    Button disconnectButton;
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
@@ -48,13 +50,7 @@ public class SettingsTraktComponent implements Initializable {
 
     @FXML
     private void onConnectClicked() {
-        traktService.authorize().whenComplete((authorized, throwable) -> {
-            if (throwable == null) {
-                switchButtons(authorized);
-            } else {
-                log.error("Trakt.tv authorization failed, " + throwable.getMessage(), throwable);
-            }
-        });
+        trackingService.authorize();
     }
 
     @FXML

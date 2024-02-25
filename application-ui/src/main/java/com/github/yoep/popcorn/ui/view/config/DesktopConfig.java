@@ -12,6 +12,7 @@ import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
+import com.github.yoep.popcorn.backend.tracking.TrackingService;
 import com.github.yoep.popcorn.ui.torrent.TorrentCollectionService;
 import com.github.yoep.popcorn.ui.trakt.TraktService;
 import com.github.yoep.popcorn.ui.view.controllers.common.sections.ListSectionController;
@@ -99,8 +100,9 @@ public class DesktopConfig {
     }
 
     @Bean
-    public SettingsTraktComponent settingsTraktComponent(TraktService traktService) {
-        return new SettingsTraktComponent(traktService);
+    public SettingsTraktComponent settingsTraktComponent(TraktService traktService,
+                                                         TrackingService trackingService) {
+        return new SettingsTraktComponent(traktService, trackingService);
     }
 
     @Bean

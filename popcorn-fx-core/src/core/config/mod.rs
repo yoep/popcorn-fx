@@ -1,5 +1,5 @@
 pub use application::*;
-pub use error::*;
+pub use errors::*;
 pub use playback_settings::*;
 pub use properties::*;
 pub use provider::*;
@@ -10,7 +10,7 @@ pub use torrent_settings::*;
 pub use ui_settings::*;
 
 mod application;
-mod error;
+mod errors;
 mod playback_settings;
 mod properties;
 mod provider;

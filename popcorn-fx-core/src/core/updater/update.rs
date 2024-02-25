@@ -1340,6 +1340,7 @@ mod test {
                 providers: Default::default(),
                 enhancers: Default::default(),
                 subtitle: Default::default(),
+                tracking: Default::default(),
             })
             .build());
         let updater = Updater::builder()
@@ -1597,6 +1598,7 @@ mod test {
                 providers: Default::default(),
                 enhancers: Default::default(),
                 subtitle: Default::default(),
+                tracking: Default::default(),
             })
             .build())
     }
@@ -1613,6 +1615,7 @@ mod test {
                 providers: Default::default(),
                 enhancers: Default::default(),
                 subtitle: Default::default(),
+                tracking: Default::default(),
             })
             .build()))
     }

@@ -1,7 +1,6 @@
 package com.github.yoep.popcorn.ui.trakt;
 
 import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.yoep.popcorn.backend.config.properties.PopcornProperties;
 import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.media.providers.models.Images;
@@ -26,6 +25,7 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import javax.annotation.PostConstruct;
+import java.net.URI;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -38,13 +38,14 @@ import static java.util.Arrays.asList;
 @Service
 @RequiredArgsConstructor
 public class TraktService {
-    private final OAuth2RestOperations traktTemplate;
-    private final PopcornProperties properties;
+//    private final OAuth2RestOperations traktTemplate;
     private final ApplicationConfig settingsService;
     private final WatchedService watchedService;
     private final TaskExecutor taskExecutor;
     private final LocaleText localeText;
     private final EventPublisher eventPublisher;
+
+    OAuth2RestOperations traktTemplate = null;
 
     //region Methods
 
@@ -85,7 +86,7 @@ public class TraktService {
      */
     @Async
     public CompletableFuture<List<WatchListItem>> getWatchlist() {
-        var uri = UriComponentsBuilder.fromUri(properties.getTrakt().getUrl())
+        var uri = UriComponentsBuilder.fromUri(null)
                 .path("sync/watchlist")
                 .build(Collections.emptyMap());
 
@@ -160,7 +161,7 @@ public class TraktService {
     }
 
     private <T> T getWatched(String item, Class<T> type) {
-        var url = UriComponentsBuilder.fromUri(properties.getTrakt().getUrl())
+        var url = UriComponentsBuilder.fromUri(null)
                 .path("/sync/watched/{item}")
                 .buildAndExpand(item)
                 .toUriString();
@@ -255,7 +256,7 @@ public class TraktService {
     }
 
     private void executeWatchlistRequest(AddToWatchlistRequest request) {
-        String url = UriComponentsBuilder.fromUri(properties.getTrakt().getUrl())
+        String url = UriComponentsBuilder.fromUri(null)
                 .path("/sync/watchlist")
                 .toUriString();
 

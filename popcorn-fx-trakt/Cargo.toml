@@ -1,5 +1,5 @@
 [package]
-name = "popcorn-fx-torrent"
+name = "popcorn-fx-trakt"
 version = "0.7.5"
 edition = "2021"
 rust-version = "1.62"
@@ -16,14 +16,22 @@ popcorn-fx-core = { path = "../popcorn-fx-core" }
 
 async-trait.workspace = true
 chrono.workspace = true
+derive_more.workspace = true
 itertools.workspace = true
 log.workspace = true
-serde.workspace = true
+oauth2.workspace = true
+open.workspace = true
+reqwest = { workspace = true, features = ["stream"] }
+serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
+thiserror.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread"] }
+tokio-util = { workspace = true }
+url.workspace = true
+warp.workspace = true
 
 [dev-dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }
 
 tempfile.workspace = true
-utime = "0"
+httpmock.workspace = true

@@ -14,6 +14,7 @@ pub use properties::*;
 pub use screen::*;
 pub use subtitles::*;
 pub use torrents::*;
+pub use tracking::*;
 pub use update::*;
 
 mod arrays;
@@ -32,4 +33,5 @@ mod properties;
 mod screen;
 mod subtitles;
 mod torrents;
+mod tracking;
 mod update;

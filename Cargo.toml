@@ -9,23 +9,38 @@ members = [
     "popcorn-fx-opensubtitles",
     "popcorn-fx-platform",
     "popcorn-fx-torrent",
+    "popcorn-fx-trakt",
     "popcorn-fx-vlc",
 ]
 
 [workspace.dependencies]
+async-trait = "0.1.77"
+chrono = "0.4.34"
+derive_more = "0.99.17"
 directories = "5.0.1"
+downcast-rs = "1.2.0"
+futures = "0.3.30"
 itertools = "0.12.1"
 log = "0.4.20"
+oauth2 = "4.4.2"
+open = "5.0.1"
+rand = "0.8.5"
 reqwest = "0.11.24"
 serde = "1.0.196"
-serde_json = "1.0.113"
 serde-xml-rs = "0.6.0"
+serde_json = "1.0.113"
 serde_yaml = "0.9.31"
 thiserror = "1.0.57"
 tokio = "1.36.0"
 tokio-stream = "0.1.14"
 tokio-util = "0.7.10"
 url = "2.5.0"
+warp = "0.3.6"
+
+# dev-dependencies
+httpmock = "0.7.0"
+mockall = "0.12.1"
+tempfile = "3.10.0"
 
 [profile.release]
 opt-level = 3

@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.ui.trakt.authorization;
 
-import com.github.yoep.popcorn.backend.config.properties.PopcornProperties;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.OAuth2AccessTokenWrapper;
 import com.github.yoep.popcorn.backend.settings.models.TraktSettings;
@@ -30,9 +29,7 @@ import java.util.concurrent.ExecutionException;
 @Component
 @RequiredArgsConstructor
 public class TraktAccessTokenProvider extends AuthorizationCodeAccessTokenProvider implements AccessTokenProvider {
-    private final PopcornProperties properties;
     private final ApplicationConfig settingsService;
-    private final AuthorizationService authorizationService;
 
     @Override
     public OAuth2AccessToken obtainAccessToken(OAuth2ProtectedResourceDetails details, AccessTokenRequest parameters)
@@ -52,13 +49,8 @@ public class TraktAccessTokenProvider extends AuthorizationCodeAccessTokenProvid
     }
 
     private OAuth2AccessToken startUserRedirect(OAuth2ProtectedResourceDetails details, UserRedirectRequiredException ex) {
-        String accessToken;
+        String accessToken = "";
 
-        try {
-            accessToken = authorizationService.startAuthorization(ex, properties.getTrakt().getClient().getPreEstablishedRedirectUri()).get();
-        } catch (InterruptedException | ExecutionException exc) {
-            throw new AccessTokenException(exc.getMessage(), exc);
-        }
         return retrieveAccessToken(details, accessToken, Optional.ofNullable(ex.getStateToPreserve())
                 .map(Object::toString)
                 .orElse(null));

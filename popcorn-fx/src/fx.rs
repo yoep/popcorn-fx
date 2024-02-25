@@ -40,10 +40,12 @@ use popcorn_fx_core::core::subtitles::parsers::{SrtParser, VttParser};
 use popcorn_fx_core::core::torrents::{TorrentManager, TorrentStreamServer};
 use popcorn_fx_core::core::torrents::collection::TorrentCollection;
 use popcorn_fx_core::core::torrents::stream::DefaultTorrentStreamServer;
+use popcorn_fx_core::core::tracking::TrackingProvider;
 use popcorn_fx_core::core::updater::Updater;
 use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
 use popcorn_fx_platform::platform::DefaultPlatform;
 use popcorn_fx_torrent::torrent::DefaultTorrentManager;
+use popcorn_fx_trakt::trakt::TraktProvider;
 use popcorn_fx_vlc::vlc::VlcDiscovery;
 
 static INIT: Once = Once::new();
@@ -167,6 +169,7 @@ pub struct PopcornFX {
     player_manager: Arc<Box<dyn PlayerManager>>,
     media_loader: Arc<Box<dyn MediaLoader>>,
     screen_service: Arc<Box<dyn ScreenService>>,
+    tracking_provider: Arc<Box<dyn TrackingProvider>>,
     /// The runtime pool to use for async tasks
     runtime: Arc<Runtime>,
     /// The options that were used to create this instance
@@ -246,6 +249,7 @@ impl PopcornFX {
         ];
         let media_loader = Arc::new(Box::new(DefaultMediaLoader::new(loading_chain)) as Box<dyn MediaLoader>);
         let playlist_manager = Arc::new(PlaylistManager::new(player_manager.clone(), event_publisher.clone(), media_loader.clone()));
+        let tracking_provider = Arc::new(Box::new(TraktProvider::new(settings.clone()).unwrap()) as Box<dyn TrackingProvider>);
 
         // disable the screensaver
         platform.disable_screensaver();
@@ -276,6 +280,7 @@ impl PopcornFX {
             playlist_manager,
             media_loader,
             screen_service,
+            tracking_provider,
             runtime,
             opts: args,
         }
@@ -387,6 +392,11 @@ impl PopcornFX {
     /// Retrieve the screen service of the FX instance.
     pub fn screen_service(&self) -> &Arc<Box<dyn ScreenService>> {
         &self.screen_service
+    }
+    
+    /// Retrieve the tracking provider of the FX instance.
+    pub fn tracking_provider(&self) -> &Arc<Box<dyn TrackingProvider>> {
+        &self.tracking_provider
     }
 
     /// Retrieve the given runtime pool from this Popcorn FX instance.
@@ -646,6 +656,7 @@ mod test {
                 providers: Default::default(),
                 enhancers: Default::default(),
                 subtitle: Default::default(),
+                tracking: Default::default(),
             },
         };
 

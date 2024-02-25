@@ -1,7 +1,8 @@
 use std::fmt::Debug;
 
 use derive_more::Display;
-use mockall::{automock, mock};
+#[cfg(any(test, feature = "testing"))]
+use mockall::automock;
 
 use crate::core::CoreCallback;
 use crate::core::playback::MediaNotificationEvent;
@@ -11,7 +12,7 @@ pub type PlatformCallback = CoreCallback<PlatformEvent>;
 
 /// The platform system specific functions trait.
 /// This trait defines actions which should be performed on the current platform.
-#[automock]
+#[cfg_attr(any(test, feature = "testing"), automock)]
 pub trait Platform: Debug + Send + Sync {
     /// Disable the screensaver on the current platform
     /// It returns `true` if the screensaver was disabled with success, else `false`.
@@ -76,40 +77,6 @@ impl PlatformType {
             PlatformType::MacOs => "macos",
             PlatformType::Linux => "debian",
         }
-    }
-}
-
-mock! {
-    #[derive(Debug)]
-    pub DummyPlatformData {}
-
-    impl PlatformData for DummyPlatformData {
-        fn info(&self) -> PlatformInfo;
-    }
-
-    impl Platform for DummyPlatformData {
-        fn disable_screensaver(&self) -> bool;
-
-        fn enable_screensaver(&self) -> bool;
-        
-        fn notify_media_event(&self, notification: MediaNotificationEvent);
-
-        fn register(&self, callback: PlatformCallback);
-    }
-}
-
-mock! {
-    #[derive(Debug)]
-    pub DummyPlatform {}
-
-    impl Platform for DummyPlatform {
-        fn disable_screensaver(&self) -> bool;
-
-        fn enable_screensaver(&self) -> bool;
-
-        fn notify_media_event(&self, notification: MediaNotificationEvent);
-
-        fn register(&self, callback: PlatformCallback);
     }
 }
 

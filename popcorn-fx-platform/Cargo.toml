@@ -14,15 +14,16 @@ crate-type = ["rlib"]
 [dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core" }
 
-derive_more = "0"
-futures = "0.3"
+derive_more.workspace = true
+futures.workspace = true
 log.workspace = true
-mockall = "0"
 souvlaki = "0"
 tokio.workspace = true
 
 [dev-dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }
+
+mockall.workspace = true
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0", features = [

@@ -1,8 +1,8 @@
-use std::convert::Into;
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
 
 use log::{debug, error, info, trace, warn};
+#[cfg(any(test, feature = "testing"))]
 use mockall::automock;
 use tokio::runtime::Handle;
 use tokio::sync::Mutex;
@@ -37,7 +37,7 @@ impl Display for WatchedEvent {
 }
 
 /// The watched service is responsible for tracking seen/unseen media items.
-#[automock]
+#[cfg_attr(any(test, feature = "testing"), automock)]
 pub trait WatchedService: Debug + Send + Sync {
     /// Verify if the given ID has been seen.
     ///

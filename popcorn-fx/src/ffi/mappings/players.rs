@@ -551,8 +551,8 @@ mod tests {
     use popcorn_fx_core::core::Handle;
     use popcorn_fx_core::core::media::MovieOverview;
     use popcorn_fx_core::core::players::PlayerChange;
-    use popcorn_fx_core::core::torrents::{MockTorrentStream, TorrentStream};
-    use popcorn_fx_core::testing::{init_logger, MockPlayer};
+    use popcorn_fx_core::core::torrents::TorrentStream;
+    use popcorn_fx_core::testing::{init_logger, MockPlayer, MockTorrentStream};
 
     use super::*;
 

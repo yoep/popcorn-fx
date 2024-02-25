@@ -1,4 +1,6 @@
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{Debug, Display};
+#[cfg(any(test, feature = "testing"))]
+use std::fmt::Formatter;
 use std::sync::Weak;
 
 use derive_more::Display;

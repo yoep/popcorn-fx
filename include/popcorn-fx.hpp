@@ -1222,6 +1222,8 @@ using SubtitleCallbackC = void(*)(SubtitleEventC);
 /// Type alias for a callback that handles torrent stream events.
 using TorrentStreamEventCallback = void(*)(TorrentStreamEventC);
 
+using AuthorizationOpenC = bool(*)(const char *uri);
+
 /// The C compatible representation of the application runtime information.
 struct PatchInfoC {
   /// The runtime version of the application.
@@ -2161,6 +2163,8 @@ void register_subtitle_callback(PopcornFX *popcorn_fx, SubtitleCallbackC callbac
 ///
 /// A pointer to an integer value representing the handle of the registered callback, or a null pointer if registration fails.
 const int64_t *register_torrent_stream_event_callback(PopcornFX *popcorn_fx, int64_t stream_handle, TorrentStreamEventCallback callback);
+
+void register_tracking_authorization_open(PopcornFX *popcorn_fx, AuthorizationOpenC callback);
 
 /// Register a new callback for update events.
 ///

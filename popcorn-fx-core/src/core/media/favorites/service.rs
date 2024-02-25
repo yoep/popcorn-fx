@@ -2,6 +2,7 @@ use std::fmt::Debug;
 
 use derive_more::Display;
 use log::{debug, error, info, trace, warn};
+#[cfg(any(test, feature = "testing"))]
 use mockall::automock;
 use tokio::sync::Mutex;
 
@@ -26,7 +27,7 @@ pub enum FavoriteEvent {
     LikedStateChanged(String, bool)
 }
 
-#[automock]
+#[cfg_attr(any(test, feature = "testing"), automock)]
 pub trait FavoriteService: Debug + Send + Sync {
     /// Verify if the given media item id is liked.
     fn is_liked(&self, id: &str) -> bool;

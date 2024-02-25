@@ -36,6 +36,7 @@ import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfoSet;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
 import com.github.yoep.popcorn.backend.torrent.*;
 import com.github.yoep.popcorn.backend.torrent.collection.StoredTorrentSet;
+import com.github.yoep.popcorn.backend.tracking.AuthorizationOpenCallback;
 import com.github.yoep.popcorn.backend.updater.UpdateCallback;
 import com.github.yoep.popcorn.backend.updater.UpdateState;
 import com.github.yoep.popcorn.backend.updater.VersionInfo;
@@ -278,6 +279,10 @@ public interface FxLib extends Library {
     void register_is_fullscreen_callback(PopcornFx instance, IsFullscreenCallback callback);
 
     void register_fullscreen_callback(PopcornFx instance, FullscreenCallback callback);
+    
+    void register_tracking_authorization_open(PopcornFx instance, AuthorizationOpenCallback callback);
+    
+    void tracking_authorize(PopcornFx instance);
 
     void log(String target, String message, LogLevel level);
 

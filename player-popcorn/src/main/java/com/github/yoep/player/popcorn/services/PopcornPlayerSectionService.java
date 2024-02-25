@@ -120,7 +120,7 @@ public class PopcornPlayerSectionService extends AbstractListenerService<Popcorn
     }
 
     private void onSubtitleSettingsChanged(ApplicationConfigEvent.ByValue event) {
-        if (event.getTag() == ApplicationConfigEvent.Tag.SubtitleSettingsChanged) {
+        if (event.getTag() == ApplicationConfigEvent.Tag.SUBTITLE_SETTINGS_CHANGED) {
             var settings = event.getUnion().getSubtitleSettings().getSettings();
             invokeListeners(e -> e.onSubtitleFamilyChanged(settings.getFontFamily().getFamily()));
             invokeListeners(e -> e.onSubtitleSizeChanged(settings.getFontSize()));

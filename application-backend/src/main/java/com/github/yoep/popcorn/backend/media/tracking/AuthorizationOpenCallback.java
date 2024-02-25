@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.backend.tracking;
+package com.github.yoep.popcorn.backend.media.tracking;
 
 import com.sun.jna.Callback;
 

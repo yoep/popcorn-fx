@@ -21,6 +21,7 @@ import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
+import com.github.yoep.popcorn.backend.media.tracking.AuthorizationOpenCallback;
 import com.github.yoep.popcorn.backend.media.watched.WatchedEventCallback;
 import com.github.yoep.popcorn.backend.player.*;
 import com.github.yoep.popcorn.backend.playlists.Playlist;
@@ -36,7 +37,6 @@ import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfoSet;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
 import com.github.yoep.popcorn.backend.torrent.*;
 import com.github.yoep.popcorn.backend.torrent.collection.StoredTorrentSet;
-import com.github.yoep.popcorn.backend.tracking.AuthorizationOpenCallback;
 import com.github.yoep.popcorn.backend.updater.UpdateCallback;
 import com.github.yoep.popcorn.backend.updater.UpdateState;
 import com.github.yoep.popcorn.backend.updater.VersionInfo;
@@ -144,7 +144,7 @@ public interface FxLib extends Library {
 
     void torrent_resolve_info_callback(PopcornFx instance, ResolveTorrentInfoCallback callback);
 
-    void torrent_resolve_callback(PopcornFx instance, ResolveTorrentCallback callback);
+    void register_torrent_resolve_callback(PopcornFx instance, ResolveTorrentCallback callback);
 
     void torrent_cancel_callback(PopcornFx instance, CancelTorrentCallback callback);
 

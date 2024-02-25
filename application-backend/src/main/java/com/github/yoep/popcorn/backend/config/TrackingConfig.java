@@ -2,9 +2,9 @@ package com.github.yoep.popcorn.backend.config;
 
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
-import com.github.yoep.popcorn.backend.tracking.AuthorizationOpenCallback;
-import com.github.yoep.popcorn.backend.tracking.TrackingService;
-import com.github.yoep.popcorn.backend.tracking.TraktTrackingService;
+import com.github.yoep.popcorn.backend.media.tracking.AuthorizationOpenCallback;
+import com.github.yoep.popcorn.backend.media.tracking.TrackingService;
+import com.github.yoep.popcorn.backend.media.tracking.TraktTrackingService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 

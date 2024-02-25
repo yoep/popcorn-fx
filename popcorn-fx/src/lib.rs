@@ -6,7 +6,7 @@ use std::os::raw::c_char;
 use log::{debug, error, info, trace, warn};
 
 pub use fx::*;
-use popcorn_fx_core::{from_c_into_boxed, from_c_owned, from_c_string, from_c_vec, into_c_owned, into_c_string, TorrentCollectionSet};
+use popcorn_fx_core::{from_c_into_boxed, from_c_owned, from_c_string, from_c_vec, into_c_owned, into_c_string};
 use popcorn_fx_core::core::config::{PlaybackSettings, ServerSettings, SubtitleSettings, TorrentSettings, UiSettings};
 use popcorn_fx_core::core::media::*;
 use popcorn_fx_core::core::media::favorites::FavoriteCallback;

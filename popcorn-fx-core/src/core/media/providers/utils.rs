@@ -68,6 +68,7 @@ mod test {
                 },
                 torrent_settings: Default::default(),
                 playback_settings: Default::default(),
+                tracking_settings: Default::default(),
             })
             .build();
         let expected_result = vec![
@@ -104,6 +105,7 @@ mod test {
                 },
                 torrent_settings: Default::default(),
                 playback_settings: Default::default(),
+                tracking_settings: Default::default(),
             })
             .build();
         let expected_result = vec![

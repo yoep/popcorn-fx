@@ -2,18 +2,19 @@ use derive_more::Display;
 use log::{debug, trace, warn};
 use serde::{Deserialize, Serialize};
 
-use crate::core::config::{PlaybackSettings, ServerSettings, SubtitleSettings, TorrentSettings, UiSettings};
+use crate::core::config::{PlaybackSettings, ServerSettings, SubtitleSettings, TorrentSettings, TrackingSettings, UiSettings};
 
 const DEFAULT_SUBTITLES: fn() -> SubtitleSettings = SubtitleSettings::default;
 const DEFAULT_UI: fn() -> UiSettings = UiSettings::default;
 const DEFAULT_SERVER: fn() -> ServerSettings = ServerSettings::default;
 const DEFAULT_TORRENT: fn() -> TorrentSettings = TorrentSettings::default;
 const DEFAULT_PLAYBACK: fn() -> PlaybackSettings = PlaybackSettings::default;
+const DEFAULT_TRACKING: fn() -> TrackingSettings = TrackingSettings::default;
 
 /// The Popcorn FX user settings.
 /// These contain the preferences of the user for the application.
 #[derive(Debug, Display, Default, Clone, Serialize, Deserialize, PartialEq)]
-#[display(fmt = "subtitle_settings: {}, ui_settings: {}, server_settings: {}, torrent_settings: {}, playback_settings: {}", subtitle_settings, ui_settings, server_settings, torrent_settings, playback_settings)]
+#[display(fmt = "subtitle_settings: {}, ui_settings: {}, server_settings: {}, torrent_settings: {}, playback_settings: {}, tracking_settings: {}", subtitle_settings, ui_settings, server_settings, torrent_settings, playback_settings, tracking_settings)]
 pub struct PopcornSettings {
     #[serde(default = "DEFAULT_SUBTITLES")]
     pub subtitle_settings: SubtitleSettings,
@@ -25,6 +26,8 @@ pub struct PopcornSettings {
     pub torrent_settings: TorrentSettings,
     #[serde(default = "DEFAULT_PLAYBACK")]
     pub playback_settings: PlaybackSettings,
+    #[serde(default = "DEFAULT_TRACKING")]
+    pub tracking_settings: TrackingSettings,
 }
 
 impl PopcornSettings {
@@ -51,6 +54,11 @@ impl PopcornSettings {
     /// Retrieve the playback settings of the application.
     pub fn playback(&self) -> &PlaybackSettings {
         &self.playback_settings
+    }
+    
+    /// Retrieve the media tracking settings of the application.
+    pub fn tracking(&self) -> &TrackingSettings {
+        &self.tracking_settings
     }
 }
 
@@ -108,6 +116,7 @@ mod test {
             server_settings: Default::default(),
             torrent_settings: Default::default(),
             playback_settings: Default::default(),
+            tracking_settings: Default::default(),
         };
 
         let result = PopcornSettings::from(value);

@@ -1,9 +1,8 @@
-package com.github.yoep.popcorn.backend.tracking;
+package com.github.yoep.popcorn.backend.media.tracking;
 
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
 import lombok.EqualsAndHashCode;
-import lombok.RequiredArgsConstructor;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 

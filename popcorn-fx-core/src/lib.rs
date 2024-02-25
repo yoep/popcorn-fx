@@ -6,22 +6,16 @@ use log::{error, trace};
 
 pub use popcorn_fx_common::VERSION;
 
-pub use crate::torrent_collection_c::*;
-
 pub mod core;
-
-mod torrent_collection_c;
 
 /// Convert the given [String] into a C compatible string.
 ///
 /// This function will consume the provided data and use the underlying bytes to construct a new string, ensuring that there is a trailing 0 byte.
 /// This trailing 0 byte will be appended by this function; the provided data should not contain any 0 bytes in it.
-pub fn into_c_string(value: String) -> *const c_char {
-    // DO NOT use [CString::into_raw] as Rust still cleans the original string which the pointer uses
-    let c_string = CString::new(value.as_bytes()).unwrap();
-    let ptr = c_string.as_ptr();
-    mem::forget(c_string);
-    ptr
+pub fn into_c_string<S>(value: S) -> *const c_char
+    where S: Into<String> {
+    let c_string = CString::new(value.into()).unwrap();
+    c_string.into_raw()
 }
 
 /// Convert the given C string to an owned rust [String].

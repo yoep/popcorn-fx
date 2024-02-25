@@ -1,7 +1,9 @@
 use std::os::raw::c_char;
 
-use crate::{into_c_string, into_c_vec};
-use crate::core::torrents::collection::MagnetInfo;
+use popcorn_fx_core::core::torrents::collection::MagnetInfo;
+use popcorn_fx_core::into_c_vec;
+
+use crate::into_c_string;
 
 /// The collection of stored magnets.
 /// It contains the C compatible information for [std::ffi].

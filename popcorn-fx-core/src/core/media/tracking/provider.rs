@@ -53,6 +53,8 @@ pub trait TrackingProvider: Debug + Callbacks<TrackingEvent> + Send + Sync {
 
     /// Authorizes access to the tracking provider.
     async fn authorize(&self) -> Result<(), AuthorizationError>;
+    
+    async fn disconnect(&self);
 }
 
 #[cfg(any(test, feature = "testing"))]
@@ -65,6 +67,7 @@ mock! {
         fn register_open_authorization(&self, open_callback: OpenAuthorization);
         fn is_authorized(&self) -> bool;
         async fn authorize(&self) -> Result<(), AuthorizationError>;
+        async fn disconnect(&self);
     }
     
     impl Callbacks<TrackingEvent> for TrackingProvider {

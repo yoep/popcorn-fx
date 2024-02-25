@@ -3,7 +3,7 @@ use log::{debug, error, info, trace, warn};
 use tokio::sync::{Mutex, MutexGuard};
 
 use crate::core::{block_in_place, Callbacks, CoreCallback, CoreCallbacks};
-use crate::core::config::{ConfigError, PlaybackSettings, PopcornProperties, PopcornSettings, ServerSettings, SubtitleSettings, TorrentSettings, UiSettings};
+use crate::core::config::{ConfigError, PlaybackSettings, PopcornProperties, PopcornSettings, ServerSettings, SubtitleSettings, TorrentSettings, TrackingSettings, UiSettings};
 use crate::core::storage::Storage;
 
 const DEFAULT_SETTINGS_FILENAME: &str = "settings.json";
@@ -35,6 +35,9 @@ pub enum ApplicationConfigEvent {
     /// Invoked when the playback settings have been changed
     #[display(fmt = "Playback settings have been changed")]
     PlaybackSettingsChanged(PlaybackSettings),
+    /// Invoked when the tracking settings have been changed
+    #[display(fmt = "Tracking settings have changed")]
+    TrackingSettingsChanged(TrackingSettings),
 }
 
 /// The application properties & settings of Popcorn FX.
@@ -179,6 +182,7 @@ impl ApplicationConfig {
     /// Update the playback settings of the application.
     /// The update will be ignored if no fields have been changed.
     pub fn update_playback(&self, settings: PlaybackSettings) {
+        trace!("Updating playback settings");
         let mut playback_settings: Option<PlaybackSettings> = None;
         {
             let mut mutex = block_in_place(self.settings.lock());
@@ -191,6 +195,24 @@ impl ApplicationConfig {
 
         if let Some(settings) = playback_settings {
             self.callbacks.invoke(ApplicationConfigEvent::PlaybackSettingsChanged(settings));
+            self.save();
+        }
+    }
+
+    pub fn update_tracking(&self, settings: TrackingSettings) {
+        trace!("Updating tracking settings");
+        let mut tracking_settings: Option<TrackingSettings> = None;
+        {
+            let mut mutex = block_in_place(self.settings.lock());
+            if mutex.tracking_settings != settings {
+                mutex.tracking_settings = settings;
+                tracking_settings = Some(mutex.tracking().clone());
+                debug!("Tracking settings have been updated");
+            }
+        }
+
+        if let Some(settings) = tracking_settings {
+            self.callbacks.invoke(ApplicationConfigEvent::TrackingSettingsChanged(settings));
             self.save();
         }
     }
@@ -454,6 +476,7 @@ mod test {
             server_settings: Default::default(),
             torrent_settings: Default::default(),
             playback_settings: Default::default(),
+            tracking_settings: Default::default(),
         };
 
         let result = application.user_settings();
@@ -535,6 +558,7 @@ mod test {
                 server_settings: Default::default(),
                 torrent_settings: Default::default(),
                 playback_settings: Default::default(),
+                tracking_settings: Default::default(),
             })
             .expect("expected the test file to have been written");
 

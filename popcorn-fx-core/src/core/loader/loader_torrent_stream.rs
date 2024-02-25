@@ -112,8 +112,8 @@ mod tests {
 
     use crate::core::{block_in_place, Handle};
     use crate::core::playlists::PlaylistItem;
-    use crate::core::torrents::{MockTorrentStream, MockTorrentStreamServer, TorrentStream};
-    use crate::testing::init_logger;
+    use crate::core::torrents::{MockTorrentStreamServer, TorrentStream};
+    use crate::testing::{init_logger, MockTorrentStream};
 
     use super::*;
 

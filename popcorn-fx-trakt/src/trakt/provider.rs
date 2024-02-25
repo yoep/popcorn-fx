@@ -21,8 +21,9 @@ use warp::http::Response;
 
 use popcorn_fx_core::core::{block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks};
 use popcorn_fx_core::core::config::{ApplicationConfig, TrackingClientProperties, TrackingProperties};
-use popcorn_fx_core::core::tracking::{AuthorizationError, OpenAuthorization, TrackingEvent, TrackingProvider};
+use popcorn_fx_core::core::media::tracking::{AuthorizationError, OpenAuthorization, TrackingEvent, TrackingProvider};
 
+const TRACKING_NAME: &str = "trakt";
 const AUTHORIZED_PORTS: [u16; 3] = [
     30200u16,
     30201u16,
@@ -40,6 +41,7 @@ pub enum TraktError {
 }
 
 pub struct TraktProvider {
+    config: Arc<ApplicationConfig>,
     oauth_client: BasicClient,
     client: Client,
     port: u16,
@@ -49,12 +51,12 @@ pub struct TraktProvider {
 }
 
 impl TraktProvider {
-    pub fn new(application_config: Arc<ApplicationConfig>) -> Result<Self> {
+    pub fn new(config: Arc<ApplicationConfig>) -> Result<Self> {
         let tracking: TrackingProperties;
         let client: &TrackingClientProperties;
         {
-            let properties = application_config.properties_ref();
-            tracking = properties.tracker("trakt")
+            let properties = config.properties_ref();
+            tracking = properties.tracker(TRACKING_NAME)
                 .cloned()
                 .map_err(|e| {
                     TraktError::Creation(e.to_string())
@@ -83,6 +85,7 @@ impl TraktProvider {
             .expect("expected a new runtime");
 
         Ok(Self {
+            config,
             oauth_client,
             client: Self::create_new_client(client),
             port,
@@ -223,6 +226,14 @@ impl TrackingProvider for TraktProvider {
         } else {
             Err(AuthorizationError::AuthorizationUriOpen)
         };
+    }
+
+    async fn disconnect(&self) {
+        trace!("Disconnecting Trakt media tracking");
+        let mut settings = self.config.user_settings().tracking_settings;
+        settings.remove(TRACKING_NAME);
+        self.config.update_tracking(settings);
+        self.callbacks.invoke(TrackingEvent::AuthorizationStateChanged(false));
     }
 }
 

@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
-import com.github.yoep.popcorn.backend.tracking.TrackingService;
+import com.github.yoep.popcorn.backend.media.tracking.TrackingService;
 import com.github.yoep.popcorn.ui.trakt.TraktService;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;

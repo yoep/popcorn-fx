@@ -3,7 +3,7 @@ package com.github.yoep.popcorn.ui.tracking;
 import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.spring.boot.javafx.view.ViewProperties;
-import com.github.yoep.popcorn.backend.tracking.AuthorizationOpenCallback;
+import com.github.yoep.popcorn.backend.media.tracking.AuthorizationOpenCallback;
 import com.github.yoep.popcorn.ui.messages.SettingsMessage;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.AuthorizationComponent;
 import javafx.application.Platform;

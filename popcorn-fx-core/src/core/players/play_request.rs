@@ -419,7 +419,7 @@ mod tests {
 
     use crate::core::media::{Episode, Images, ShowOverview};
     use crate::core::playlists::PlaylistItem;
-    use crate::core::torrents::MockTorrentStream;
+    use crate::testing::MockTorrentStream;
 
     use super::*;
 

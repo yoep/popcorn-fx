@@ -1159,6 +1159,8 @@ struct ApplicationConfigEventC {
     ServerSettingsChanged,
     /// Invoked when the playback settings have been changed
     PlaybackSettingsChanged,
+    /// Invoked when the tracking settings have been changed
+    TrackingSettingsChanged,
   };
 
   struct SubtitleSettingsChanged_Body {
@@ -2149,6 +2151,25 @@ void register_settings_callback(PopcornFX *popcorn_fx, ApplicationConfigCallback
 /// * `callback` - A function pointer to the C callback function.
 void register_subtitle_callback(PopcornFX *popcorn_fx, SubtitleCallbackC callback);
 
+/// A callback function for resolving torrents.
+///
+/// This function is exposed as a C-compatible function and is intended to be called from C or other languages.
+/// It takes a `PopcornFX` instance and a `ResolveTorrentCallback` function as arguments.
+///
+/// The function registers the provided callback function with the `DefaultTorrentManager` from the `PopcornFX` instance.
+/// When the callback function is invoked by the manager, it converts the arguments and the result between Rust and C types.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it interacts with C-compatible code and dereferences raw pointers.
+/// Users of this function should ensure that they provide a valid `PopcornFX` instance and a valid `ResolveTorrentCallback`.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to the `PopcornFX` instance.
+/// * `callback` - The `ResolveTorrentCallback` function to be registered.
+void register_torrent_resolve_callback(PopcornFX *popcorn_fx, ResolveTorrentCallback callback);
+
 /// Registers a new torrent stream event callback.
 ///
 /// This function registers a callback function to receive torrent stream events.
@@ -2403,25 +2424,6 @@ void torrent_download_status(PopcornFX *popcorn_fx, const char *handle, Download
 /// * `piece` - The index of the finished piece.
 void torrent_piece_finished(PopcornFX *popcorn_fx, const char *handle, uint32_t piece);
 
-/// A callback function for resolving torrents.
-///
-/// This function is exposed as a C-compatible function and is intended to be called from C or other languages.
-/// It takes a `PopcornFX` instance and a `ResolveTorrentCallback` function as arguments.
-///
-/// The function registers the provided callback function with the `DefaultTorrentManager` from the `PopcornFX` instance.
-/// When the callback function is invoked by the manager, it converts the arguments and the result between Rust and C types.
-///
-/// # Safety
-///
-/// This function is marked as `unsafe` because it interacts with C-compatible code and dereferences raw pointers.
-/// Users of this function should ensure that they provide a valid `PopcornFX` instance and a valid `ResolveTorrentCallback`.
-///
-/// # Arguments
-///
-/// * `popcorn_fx` - A mutable reference to the `PopcornFX` instance.
-/// * `callback` - The `ResolveTorrentCallback` function to be registered.
-void torrent_resolve_callback(PopcornFX *popcorn_fx, ResolveTorrentCallback callback);
-
 /// Registers a new C-compatible resolve torrent callback function with PopcornFX.
 ///
 /// This function allows registering a callback that will be invoked when torrent resolution is complete.
@@ -2460,6 +2462,8 @@ void torrent_resolve_info_callback(PopcornFX *popcorn_fx, ResolveTorrentInfoCall
 /// * `handle` - The handle to the torrent.
 /// * `state` - The new state of the torrent.
 void torrent_state_changed(PopcornFX *popcorn_fx, const char *handle, TorrentState state);
+
+void tracking_authorize(PopcornFX *popcorn_fx);
 
 /// Update the playback settings with the new value.
 void update_playback_settings(PopcornFX *popcorn_fx, PlaybackSettingsC settings);

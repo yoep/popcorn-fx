@@ -28,6 +28,7 @@ use popcorn_fx_core::core::media::favorites::{DefaultFavoriteService, FavoriteCa
 use popcorn_fx_core::core::media::providers::{FavoritesProvider, MovieProvider, ProviderManager, ShowProvider};
 use popcorn_fx_core::core::media::providers::enhancers::ThumbEnhancer;
 use popcorn_fx_core::core::media::resume::{AutoResumeService, DefaultAutoResumeService};
+use popcorn_fx_core::core::media::tracking::TrackingProvider;
 use popcorn_fx_core::core::media::watched::{DefaultWatchedService, WatchedService};
 use popcorn_fx_core::core::platform::PlatformData;
 use popcorn_fx_core::core::playback::PlaybackControls;
@@ -40,7 +41,6 @@ use popcorn_fx_core::core::subtitles::parsers::{SrtParser, VttParser};
 use popcorn_fx_core::core::torrents::{TorrentManager, TorrentStreamServer};
 use popcorn_fx_core::core::torrents::collection::TorrentCollection;
 use popcorn_fx_core::core::torrents::stream::DefaultTorrentStreamServer;
-use popcorn_fx_core::core::tracking::TrackingProvider;
 use popcorn_fx_core::core::updater::Updater;
 use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
 use popcorn_fx_platform::platform::DefaultPlatform;

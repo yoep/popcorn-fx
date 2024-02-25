@@ -7,6 +7,7 @@ pub use server_settings::*;
 pub use settings::*;
 pub use subtitle_settings::*;
 pub use torrent_settings::*;
+pub use tracking_settings::*;
 pub use ui_settings::*;
 
 mod application;
@@ -18,6 +19,7 @@ mod server_settings;
 mod settings;
 mod subtitle_settings;
 mod torrent_settings;
+mod tracking_settings;
 mod ui_settings;
 
 const DEFAULT_HOME_DIRECTORY: &str = ".popcorn-time";

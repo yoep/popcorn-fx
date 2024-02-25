@@ -25,11 +25,11 @@ public class ApplicationConfigEvent extends Structure implements Closeable {
     public void read() {
         super.read();
         switch (tag) {
-            case SubtitleSettingsChanged -> union.setType(ApplicationConfigEvent.SubtitleSettingsChanged_Body.class);
-            case TorrentSettingsChanged -> union.setType(ApplicationConfigEvent.TorrentSettingsChanged_Body.class);
-            case UiSettingsChanged -> union.setType(ApplicationConfigEvent.UiSettingsChanged_Body.class);
-            case ServerSettingsChanged -> union.setType(ApplicationConfigEvent.ServerSettingsChanged_Body.class);
-            case PlaybackSettingsChanged -> union.setType(ApplicationConfigEvent.PlaybackSettingsChanged_Body.class);
+            case SUBTITLE_SETTINGS_CHANGED -> union.setType(ApplicationConfigEvent.SubtitleSettingsChanged_Body.class);
+            case TORRENT_SETTINGS_CHANGED -> union.setType(ApplicationConfigEvent.TorrentSettingsChanged_Body.class);
+            case UI_SETTINGS_CHANGED -> union.setType(ApplicationConfigEvent.UiSettingsChanged_Body.class);
+            case SERVER_SETTINGS_CHANGED -> union.setType(ApplicationConfigEvent.ServerSettingsChanged_Body.class);
+            case PLAYBACK_SETTINGS_CHANGED -> union.setType(ApplicationConfigEvent.PlaybackSettingsChanged_Body.class);
         }
         union.read();
     }
@@ -88,12 +88,13 @@ public class ApplicationConfigEvent extends Structure implements Closeable {
     }
 
     public enum Tag implements NativeMapped {
-        SettingsLoaded,
-        SubtitleSettingsChanged,
-        TorrentSettingsChanged,
-        UiSettingsChanged,
-        ServerSettingsChanged,
-        PlaybackSettingsChanged;
+        SETTINGS_LOADED,
+        SUBTITLE_SETTINGS_CHANGED,
+        TORRENT_SETTINGS_CHANGED,
+        UI_SETTINGS_CHANGED,
+        SERVER_SETTINGS_CHANGED,
+        PLAYBACK_SETTINGS_CHANGED,
+        TRACKING_SETTINGS_CHANGED;
 
         @Override
         public Object fromNative(Object nativeValue, FromNativeContext context) {

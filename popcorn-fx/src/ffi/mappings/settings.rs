@@ -28,6 +28,8 @@ pub enum ApplicationConfigEventC {
     ServerSettingsChanged(ServerSettingsC),
     /// Invoked when the playback settings have been changed
     PlaybackSettingsChanged(PlaybackSettingsC),
+    /// Invoked when the tracking settings have been changed
+    TrackingSettingsChanged,
 }
 
 impl From<ApplicationConfigEvent> for ApplicationConfigEventC {
@@ -38,7 +40,8 @@ impl From<ApplicationConfigEvent> for ApplicationConfigEventC {
             ApplicationConfigEvent::TorrentSettingsChanged(settings) => ApplicationConfigEventC::TorrentSettingsChanged(TorrentSettingsC::from(&settings)),
             ApplicationConfigEvent::UiSettingsChanged(settings) => ApplicationConfigEventC::UiSettingsChanged(UiSettingsC::from(&settings)),
             ApplicationConfigEvent::ServerSettingsChanged(settings) => ApplicationConfigEventC::ServerSettingsChanged(ServerSettingsC::from(&settings)),
-            ApplicationConfigEvent::PlaybackSettingsChanged(settings) => ApplicationConfigEventC::PlaybackSettingsChanged(PlaybackSettingsC::from(&settings))
+            ApplicationConfigEvent::PlaybackSettingsChanged(settings) => ApplicationConfigEventC::PlaybackSettingsChanged(PlaybackSettingsC::from(&settings)),
+            ApplicationConfigEvent::TrackingSettingsChanged(_) => ApplicationConfigEventC::TrackingSettingsChanged,
         }
     }
 }

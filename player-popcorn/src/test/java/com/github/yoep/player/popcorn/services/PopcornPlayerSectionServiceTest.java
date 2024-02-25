@@ -235,7 +235,7 @@ class PopcornPlayerSectionServiceTest {
         var subtitleSettings = mock(SubtitleSettings.class);
         var settingsListener = new AtomicReference<ApplicationConfigEventCallback>();
         var event = new ApplicationConfigEvent.ByValue();
-        event.tag = ApplicationConfigEvent.Tag.SubtitleSettingsChanged;
+        event.tag = ApplicationConfigEvent.Tag.SUBTITLE_SETTINGS_CHANGED;
         event.union = new ApplicationConfigEvent.ApplicationConfigEventUnion.ByValue();
         event.union.subtitleSettings = new ApplicationConfigEvent.SubtitleSettingsChanged_Body();
         event.union.subtitleSettings.settings = subtitleSettings;

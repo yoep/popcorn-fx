@@ -807,9 +807,9 @@ mod test {
 
     use crate::{assert_timeout, assert_timeout_eq};
     use crate::core::config::PopcornProperties;
-    use crate::core::platform::{MockDummyPlatformData, PlatformInfo, PlatformType};
+    use crate::core::platform::{PlatformInfo, PlatformType};
     use crate::core::updater::PatchInfo;
-    use crate::testing::{copy_test_file, init_logger, read_temp_dir_file_as_bytes, read_temp_dir_file_as_string, read_test_file_to_bytes, read_test_file_to_string, test_resource_filepath};
+    use crate::testing::{copy_test_file, init_logger, MockDummyPlatformData, read_temp_dir_file_as_bytes, read_temp_dir_file_as_string, read_test_file_to_bytes, read_test_file_to_string, test_resource_filepath};
 
     use super::*;
 

@@ -223,7 +223,7 @@ public class TorrentServiceImpl implements TorrentService {
     @PostConstruct
     void init() {
         fxLib.torrent_resolve_info_callback(instance, resolveTorrentInfoCallback);
-        fxLib.torrent_resolve_callback(instance, resolveTorrentCallback);
+        fxLib.register_torrent_resolve_callback(instance, resolveTorrentCallback);
         fxLib.torrent_cancel_callback(instance, cancelTorrentCallback);
     }
 

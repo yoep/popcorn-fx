@@ -561,8 +561,8 @@ mod tests {
     use crate::core::media::MockMediaIdentifier;
     use crate::core::players::{PlayUrlRequest, PlayUrlRequestBuilder};
     use crate::core::screen::MockScreenService;
-    use crate::core::torrents::{MockTorrentStream, MockTorrentStreamServer, TorrentStream};
-    use crate::testing::{init_logger, MockPlayer};
+    use crate::core::torrents::{MockTorrentStreamServer, TorrentStream};
+    use crate::testing::{init_logger, MockPlayer, MockTorrentStream};
 
     use super::*;
 
@@ -953,6 +953,7 @@ mod tests {
                     fullscreen: true,
                     auto_play_next_episode_enabled: false,
                 },
+                tracking_settings: Default::default(),
             })
             .build());
         let manager = DefaultPlayerManager::new(settings, Arc::new(EventPublisher::default()), Arc::new(Box::new(torrent_stream_server)), Arc::new(Box::new(screen_service) as Box<dyn ScreenService>));

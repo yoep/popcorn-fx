@@ -212,7 +212,7 @@ public class ApplicationConfig {
     }
 
     private void handleEvent(ApplicationConfigEvent.ByValue event) {
-        if (event.tag == ApplicationConfigEvent.Tag.UiSettingsChanged) {
+        if (event.tag == ApplicationConfigEvent.Tag.UI_SETTINGS_CHANGED) {
             var settings = event.getUnion().getUiSettings().getSettings();
             updateUIScale(settings.getUiScale().getValue());
             localeText.updateLocale(Locale.forLanguageTag(settings.getDefaultLanguage()));

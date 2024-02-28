@@ -1217,10 +1217,10 @@
     -fx-text-fill: #c3c5c7;
 }
 
-.root .settings-section .sub-section Icon {
-    -fx-text-fill: #c3c5c7;
-    -fx-cursor: hand;
-    -fx-padding: 0 0 0 8;
+.root .settings-section .sub-section .button .icon,
+.root .settings-section .sub-section .button .icon:hover {
+    -fx-padding: 0 0 0 0;
+    -fx-font: 1em;
 }
 
 .root .settings-section .sub-section .label,
@@ -1233,6 +1233,7 @@
     -fx-padding: 0 0 0 15;
 }
 
+.root .settings-section .settings-actions .button .text,
 .root .settings-section .settings-actions .label {
     -fx-font-size: 1em;
     -fx-padding: 0 0 0 3;

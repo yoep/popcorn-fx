@@ -100,8 +100,9 @@ public class DesktopConfig {
     }
 
     @Bean
-    public SettingsTraktComponent settingsTraktComponent(TrackingService trackingService) {
-        return new SettingsTraktComponent(trackingService);
+    public SettingsTraktComponent settingsTraktComponent(TrackingService trackingService,
+                                                         LocaleText localeText) {
+        return new SettingsTraktComponent(trackingService, localeText);
     }
 
     @Bean

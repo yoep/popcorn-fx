@@ -151,7 +151,7 @@ pub extern "C" fn update_subtitle(popcorn_fx: &mut PopcornFX, subtitle: &Subtitl
 /// Update the preferred subtitle to a custom subtitle filepath.
 /// This action will reset any preferred subtitle.
 #[no_mangle]
-pub extern "C" fn update_subtitle_custom_file(popcorn_fx: &mut PopcornFX, custom_filepath: *const c_char) {
+pub extern "C" fn update_subtitle_custom_file(popcorn_fx: &mut PopcornFX, custom_filepath: *mut c_char) {
     let custom_filepath = from_c_string(custom_filepath);
     trace!("Updating custom subtitle filepath to {}", &custom_filepath);
 
@@ -177,7 +177,7 @@ pub extern "C" fn reset_subtitle(popcorn_fx: &mut PopcornFX) {
 ///
 /// It returns the filepath to the subtitle on success, else [ptr::null_mut].
 #[no_mangle]
-pub extern "C" fn download(popcorn_fx: &mut PopcornFX, subtitle: &SubtitleInfoC, matcher: SubtitleMatcherC) -> *const c_char {
+pub extern "C" fn download(popcorn_fx: &mut PopcornFX, subtitle: &SubtitleInfoC, matcher: SubtitleMatcherC) -> *mut c_char {
     trace!("Starting subtitle download from C for info: {:?}, matcher: {:?}", subtitle, matcher);
     let subtitle_info = SubtitleInfo::from(subtitle);
     let matcher = matcher.to_matcher();
@@ -227,7 +227,7 @@ pub extern "C" fn reset_show_apis(popcorn_fx: &mut PopcornFX) {
 ///
 /// It returns the [VecFavoritesC] holder for the array on success, else [ptr::null_mut].
 #[no_mangle]
-pub extern "C" fn retrieve_available_favorites(popcorn_fx: &mut PopcornFX, genre: &GenreC, sort_by: &SortByC, keywords: *const c_char, page: u32) -> *mut VecFavoritesC {
+pub extern "C" fn retrieve_available_favorites(popcorn_fx: &mut PopcornFX, genre: &GenreC, sort_by: &SortByC, keywords: *mut c_char, page: u32) -> *mut VecFavoritesC {
     trace!("Retrieving favorites from C for genre: {:?}, sort_by: {:?}, keywords: {:?}, page: {}", genre, sort_by, keywords, page);
     let genre = genre.to_struct();
     let sort_by = sort_by.to_struct();
@@ -346,7 +346,7 @@ pub extern "C" fn register_favorites_event_callback<'a>(popcorn_fx: &mut Popcorn
 ///
 /// It returns the url which hosts the [Subtitle].
 #[no_mangle]
-pub extern "C" fn serve_subtitle(popcorn_fx: &mut PopcornFX, subtitle: SubtitleC, output_type: usize) -> *const c_char {
+pub extern "C" fn serve_subtitle(popcorn_fx: &mut PopcornFX, subtitle: SubtitleC, output_type: usize) -> *mut c_char {
     let subtitle = Subtitle::from(subtitle);
     let subtitle_type = SubtitleType::from_ordinal(output_type);
 
@@ -357,7 +357,7 @@ pub extern "C" fn serve_subtitle(popcorn_fx: &mut PopcornFX, subtitle: SubtitleC
         }
         Err(e) => {
             error!("Failed to serve subtitle, {}", e);
-            ptr::null()
+            ptr::null_mut()
         }
     }
 }
@@ -476,7 +476,7 @@ pub extern "C" fn register_watched_event_callback<'a>(popcorn_fx: &mut PopcornFX
 
 /// Retrieve the auto-resume timestamp for the given media id and/or filename.
 #[no_mangle]
-pub extern "C" fn auto_resume_timestamp(popcorn_fx: &mut PopcornFX, id: *const c_char, filename: *const c_char) -> *mut u64 {
+pub extern "C" fn auto_resume_timestamp(popcorn_fx: &mut PopcornFX, id: *mut c_char, filename: *mut c_char) -> *mut u64 {
     trace!("Retrieving auto-resume timestamp of id: {:?}, filename: {:?}", id, filename);
     let id_value: String;
     let filename_value: String;
@@ -506,7 +506,7 @@ pub extern "C" fn auto_resume_timestamp(popcorn_fx: &mut PopcornFX, id: *const c
 
 /// Verify if the given magnet uri has already been stored.
 #[no_mangle]
-pub extern "C" fn torrent_collection_is_stored(popcorn_fx: &mut PopcornFX, magnet_uri: *const c_char) -> bool {
+pub extern "C" fn torrent_collection_is_stored(popcorn_fx: &mut PopcornFX, magnet_uri: *mut c_char) -> bool {
     let magnet_uri = from_c_string(magnet_uri);
     trace!("Checking if magnet uri is stored for {}", magnet_uri.as_str());
     popcorn_fx.torrent_collection().is_stored(magnet_uri.as_str())
@@ -531,7 +531,7 @@ pub extern "C" fn torrent_collection_all(popcorn_fx: &mut PopcornFX) -> *mut Tor
 
 /// Add the given magnet info to the torrent collection.
 #[no_mangle]
-pub extern "C" fn torrent_collection_add(popcorn_fx: &mut PopcornFX, name: *const c_char, magnet_uri: *const c_char) {
+pub extern "C" fn torrent_collection_add(popcorn_fx: &mut PopcornFX, name: *mut c_char, magnet_uri: *mut c_char) {
     let name = from_c_string(name);
     let magnet_uri = from_c_string(magnet_uri);
     trace!("Adding magnet {} to torrent collection", magnet_uri);
@@ -541,7 +541,7 @@ pub extern "C" fn torrent_collection_add(popcorn_fx: &mut PopcornFX, name: *cons
 
 /// Remove the given magnet uri from the torrent collection.
 #[no_mangle]
-pub extern "C" fn torrent_collection_remove(popcorn_fx: &mut PopcornFX, magnet_uri: *const c_char) {
+pub extern "C" fn torrent_collection_remove(popcorn_fx: &mut PopcornFX, magnet_uri: *mut c_char) {
     let magnet_uri = from_c_string(magnet_uri);
     trace!("Removing magnet {} from torrent collection", magnet_uri);
 

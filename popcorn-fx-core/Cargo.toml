@@ -15,8 +15,8 @@ crate-type = ["rlib"]
 popcorn-fx-common = { path = "../popcorn-fx-common" }
 
 async-trait.workspace = true
-bytes = "1.4"
-chrono.workspace = true
+bytes.workspace = true
+chrono = { workspace = true, features = ["serde"] }
 derive_more.workspace = true
 directories.workspace = true
 downcast-rs.workspace = true
@@ -30,7 +30,7 @@ log4rs = { version = "1", features = ["console_writer"], optional = true }
 mockall = { workspace = true, optional = true }
 percent-encoding = "2"
 rand.workspace = true
-regex = "1"
+regex.workspace = true
 reqwest = { workspace = true, features = ["serde_json", "json", "stream"] }
 ring = "0.17"
 semver = "1.0"

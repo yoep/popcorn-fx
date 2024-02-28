@@ -8,27 +8,61 @@ pub use popcorn_fx_common::VERSION;
 
 pub mod core;
 
-/// Convert the given [String] into a C compatible string.
+/// Converts the given value into a C compatible string.
 ///
 /// This function will consume the provided data and use the underlying bytes to construct a new string, ensuring that there is a trailing 0 byte.
 /// This trailing 0 byte will be appended by this function; the provided data should not contain any 0 bytes in it.
-pub fn into_c_string<S>(value: S) -> *const c_char
-    where S: Into<String> {
+///
+/// # Arguments
+///
+/// * `value` - The value to convert into a C string.
+///
+/// # Returns
+///
+/// A pointer to the C string.
+pub fn into_c_string<S: Into<String>>(value: S) -> *mut c_char {
     let c_string = CString::new(value.into()).unwrap();
     c_string.into_raw()
 }
 
-/// Convert the given C string to an owned rust [String].
+/// Converts the given C string pointer into a Rust string.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it dereferences a raw pointer.
+///
+/// # Arguments
+///
+/// * `ptr` - The pointer to the C string.
+///
+/// # Returns
+///
+/// The owned Rust String.
 pub fn from_c_string(ptr: *const c_char) -> String {
     if !ptr.is_null() {
         let slice = unsafe { CStr::from_ptr(ptr).to_bytes() };
 
-        return std::str::from_utf8(slice)
+        std::str::from_utf8(slice)
             .map(|e| e.to_string())
             .unwrap_or_else(|e| {
                 error!("Failed to read C string, using empty string instead ({})", e);
                 String::new()
-            });
+            })
+    } else {
+        error!("Unable to read C string, pointer is null");
+        String::new()
+    }
+}
+
+pub fn from_c_string_owned(ptr: *mut c_char) -> String {
+    if !ptr.is_null() {
+        let value = unsafe { CString::from_raw(ptr) };
+        
+        value.into_string()
+            .unwrap_or_else(|e| {
+                error!("Failed to read C string, using empty string instead ({})", e);
+                String::new()
+            })
     } else {
         error!("Unable to read C string, pointer is null");
         String::new()

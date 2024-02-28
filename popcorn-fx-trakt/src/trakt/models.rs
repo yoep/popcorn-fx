@@ -1,4 +1,7 @@
-use serde::{Deserialize, Serialize};
+use derive_more::Display;
+use serde::Deserialize;
+
+use popcorn_fx_core::core::media::{MediaIdentifier, MediaType};
 
 /// Represents an item in a watch list.
 #[derive(Debug, Clone, Deserialize)]
@@ -17,7 +20,7 @@ pub struct WatchListItem {
 }
 
 /// Represents the type of an item in a watch list.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum TraktType {
     /// Indicates that the item is a movie.
@@ -30,8 +33,33 @@ pub enum TraktType {
     Episode,
 }
 
+/// Represents a watched movie.
+#[derive(Debug, Display, Clone, Deserialize, PartialEq)]
+#[display(fmt = "imdb_id: {}, title: {}", "movie.ids.imdb", "movie.title")]
+pub struct WatchedMovie {
+    /// The movie being watched.
+    pub movie: Movie,
+}
+
+impl MediaIdentifier for WatchedMovie {
+    /// Gets the IMDb ID of the watched movie.
+    fn imdb_id(&self) -> &str {
+        self.movie.ids.imdb.as_str()
+    }
+
+    /// Gets the media type, which is `MediaType::Movie`.
+    fn media_type(&self) -> MediaType {
+        MediaType::Movie
+    }
+
+    /// Gets the title of the watched movie.
+    fn title(&self) -> String {
+        self.movie.title.clone()
+    }
+}
+
 /// Represents information about a movie.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct Movie {
     /// The title of the movie.
     pub title: String,
@@ -42,7 +70,7 @@ pub struct Movie {
 }
 
 /// Represents unique identifiers for a movie.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct MovieId {
     /// The Trakt ID of the movie.
     pub trakt: i32,
@@ -55,7 +83,7 @@ pub struct MovieId {
 }
 
 /// Represents information about a show.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct Show {
     /// The title of the show.
     pub title: String,
@@ -66,7 +94,7 @@ pub struct Show {
 }
 
 /// Represents unique identifiers for a show.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct ShowId {
     /// The Trakt ID of the show.
     pub trakt: i32,

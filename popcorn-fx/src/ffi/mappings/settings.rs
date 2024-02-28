@@ -80,7 +80,7 @@ impl From<PopcornSettings> for PopcornSettingsC {
 #[derive(Debug, PartialEq)]
 pub struct SubtitleSettingsC {
     /// The directory path for storing subtitles
-    pub directory: *const c_char,
+    pub directory: *mut c_char,
     /// Indicates if the subtitle directory will be cleaned
     /// when the application is closed
     pub auto_cleaning: bool,
@@ -129,7 +129,7 @@ impl From<SubtitleSettingsC> for SubtitleSettings {
 #[derive(Debug, PartialEq)]
 pub struct TorrentSettingsC {
     /// The torrent directory to store the torrents
-    pub directory: *const c_char,
+    pub directory: *mut c_char,
     /// Indicates if the torrents directory will be cleaned on closure
     pub cleaning_mode: CleaningMode,
     /// The max number of connections
@@ -169,7 +169,7 @@ impl From<TorrentSettingsC> for TorrentSettings {
 #[derive(Debug, PartialEq)]
 pub struct UiSettingsC {
     /// The default language of the application
-    pub default_language: *const c_char,
+    pub default_language: *mut c_char,
     /// The ui scale of the application
     pub ui_scale: UiScale,
     /// The default start screen of the application
@@ -209,14 +209,14 @@ impl From<UiSettingsC> for UiSettings {
 #[derive(Debug, PartialEq)]
 pub struct ServerSettingsC {
     /// The configured api server to use, can be `ptr::null()`
-    pub api_server: *const c_char,
+    pub api_server: *mut c_char,
 }
 
 impl From<&ServerSettings> for ServerSettingsC {
     fn from(value: &ServerSettings) -> Self {
         Self {
             api_server: match value.api_server() {
-                None => ptr::null(),
+                None => ptr::null_mut(),
                 Some(e) => into_c_string(e.clone())
             },
         }

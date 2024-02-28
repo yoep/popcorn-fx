@@ -302,7 +302,8 @@ public class TorrentServiceImpl implements TorrentService {
         return url -> {
             log.debug("Executing resolve torrent info callback for {}", url);
             try {
-                var info = new com.github.yoep.popcorn.backend.adapters.torrent.TorrentInfoWrapper.ByValue(getTorrentInfo(url).get());
+                var torrentInfo = getTorrentInfo(url).get();
+                var info = new com.github.yoep.popcorn.backend.adapters.torrent.TorrentInfoWrapper.ByValue(torrentInfo);
                 torrentInfos.add(info);
                 return info;
             } catch (Exception ex) {

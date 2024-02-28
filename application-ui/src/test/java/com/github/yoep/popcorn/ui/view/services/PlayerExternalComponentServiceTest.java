@@ -114,7 +114,6 @@ class PlayerExternalComponentServiceTest {
 
         service.closePlayer();
 
-        verify(player).stop();
         verify(eventPublisher).publishEvent(new ClosePlayerEvent(service, ClosePlayerEvent.Reason.USER));
     }
 

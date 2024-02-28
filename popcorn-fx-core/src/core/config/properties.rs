@@ -361,6 +361,12 @@ pub struct TrackingProperties {
 }
 
 impl TrackingProperties {
+    /// Gets the URI for tracking.
+    pub fn uri(&self) -> &str {
+        self.uri.as_str()
+    }
+
+    /// Gets the properties related to the tracking client.
     pub fn client(&self) -> &TrackingClientProperties {
         &self.client
     }

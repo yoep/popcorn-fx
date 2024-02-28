@@ -12,7 +12,7 @@ use crate::{PopcornFX, PopcornFxArgs};
 /// The caller will become responsible for managing the memory of the struct.
 /// The instance can be safely deleted by using [dispose_popcorn_fx].
 #[no_mangle]
-pub extern "C" fn new_popcorn_fx(args: *mut *const c_char, len: i32) -> *mut PopcornFX {
+pub extern "C" fn new_popcorn_fx(args: *mut *mut c_char, len: i32) -> *mut PopcornFX {
     trace!("Creating new popcorn FX instance from C for args: {:?}", args);
     let start = Instant::now();
     let args = from_c_vec(args, len).into_iter()
@@ -44,7 +44,7 @@ pub extern "C" fn dispose_popcorn_fx(instance: Box<PopcornFX>) {
 
 /// Retrieve the version of Popcorn FX.
 #[no_mangle]
-pub extern "C" fn version() -> *const c_char {
+pub extern "C" fn version() -> *mut c_char {
     into_c_string(VERSION.to_string())
 }
 

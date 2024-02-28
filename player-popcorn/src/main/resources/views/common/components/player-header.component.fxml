@@ -15,10 +15,18 @@
         <RowConstraints/>
     </rowConstraints>
 
-    <Label fx:id="title" styleClass="title" cache="true"
-           GridPane.columnIndex="0" GridPane.rowIndex="0">
-        <padding>
-            <Insets left="15"/>
-        </padding>
-    </Label>
+    <HBox GridPane.columnIndex="0" GridPane.rowIndex="0">
+        <Label fx:id="title" styleClass="title" cache="true">
+            <padding>
+                <Insets left="15"/>
+            </padding>
+        </Label>
+        <Label fx:id="separator" styleClass="title" cache="true">
+            <padding>
+                <Insets left="3" right="3"/>
+            </padding>
+            -
+        </Label>
+        <Label fx:id="caption" styleClass="caption, muted" cache="true" />
+    </HBox>
 </GridPane>

@@ -858,6 +858,7 @@ mod tests {
             base: PlayUrlRequest {
                 url: "".to_string(),
                 title: "".to_string(),
+                caption: None,
                 thumb: None,
                 background: None,
                 auto_resume_timestamp: None,

@@ -30,7 +30,7 @@ pub extern "C" fn register_loader_callback(instance: &mut PopcornFX, callback: L
 
 /// Load a media item using the media loader from a C-compatible URL.
 ///
-/// This function takes a mutable reference to a `PopcornFX` instance and a C-compatible string (`*const c_char`) representing the URL of the media item to load.
+/// This function takes a mutable reference to a `PopcornFX` instance and a C-compatible string (`*mut c_char`) representing the URL of the media item to load.
 /// It uses the media loader to load the media item asynchronously and returns a handle (represented as a `LoadingHandleC`) for the loading process.
 ///
 /// # Arguments
@@ -42,7 +42,7 @@ pub extern "C" fn register_loader_callback(instance: &mut PopcornFX, callback: L
 ///
 /// A `LoadingHandleC` representing the loading process associated with the loaded item.
 #[no_mangle]
-pub extern "C" fn loader_load(instance: &mut PopcornFX, url: *const c_char) -> LoadingHandleC {
+pub extern "C" fn loader_load(instance: &mut PopcornFX, url: *mut c_char) -> LoadingHandleC {
     let url = from_c_string(url);
     trace!("Loading new loader url {} from C", url);
     let handle = instance.media_loader().load_url(url.as_str());

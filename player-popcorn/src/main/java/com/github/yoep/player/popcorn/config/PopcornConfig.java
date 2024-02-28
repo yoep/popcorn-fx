@@ -48,9 +48,9 @@ public class PopcornConfig {
     }
 
     @Bean
-    public PlayerHeaderComponent playerHeaderComponent(EventPublisher eventPublisher,
+    public PlayerHeaderComponent playerHeaderComponent(PlayerHeaderService playerHeaderService,
                                                        ViewLoader viewLoader) {
-        return new PlayerHeaderComponent(eventPublisher, viewLoader);
+        return new PlayerHeaderComponent(playerHeaderService, viewLoader);
     }
 
     @Bean

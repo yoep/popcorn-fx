@@ -505,6 +505,7 @@ mod test {
                     upload_rate_limit: 0,
                 },
                 playback_settings: Default::default(),
+                tracking_settings: Default::default(),
             })
             .build())
     }

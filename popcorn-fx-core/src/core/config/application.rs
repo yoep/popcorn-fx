@@ -3,7 +3,7 @@ use log::{debug, error, info, trace, warn};
 use tokio::sync::{Mutex, MutexGuard};
 
 use crate::core::{block_in_place, Callbacks, CoreCallback, CoreCallbacks};
-use crate::core::config::{ConfigError, PlaybackSettings, PopcornProperties, PopcornSettings, ServerSettings, SubtitleSettings, TorrentSettings, TrackingSettings, UiSettings};
+use crate::core::config::{ConfigError, PlaybackSettings, PopcornProperties, PopcornSettings, ServerSettings, SubtitleSettings, TorrentSettings, Tracker, TrackingSettings, UiSettings};
 use crate::core::storage::Storage;
 
 const DEFAULT_SETTINGS_FILENAME: &str = "settings.json";
@@ -199,21 +199,40 @@ impl ApplicationConfig {
         }
     }
 
-    pub fn update_tracking(&self, settings: TrackingSettings) {
-        trace!("Updating tracking settings");
-        let mut tracking_settings: Option<TrackingSettings> = None;
+    /// Update the tracking settings of the application.
+    /// This will update an individual tracker of the application without affecting any other trackers.
+    pub fn update_tracker(&self, name: &str, tracker: Tracker) {
+        trace!("Updating tracker info of {}", name);
+        let settings: TrackingSettings;
         {
             let mut mutex = block_in_place(self.settings.lock());
-            if mutex.tracking_settings != settings {
-                mutex.tracking_settings = settings;
-                tracking_settings = Some(mutex.tracking().clone());
-                debug!("Tracking settings have been updated");
+            mutex.tracking_mut().update(name, tracker);
+            settings = mutex.tracking().clone();
+        }
+        debug!("Tracking settings of {} have been updated", name);
+
+        self.callbacks.invoke(ApplicationConfigEvent::TrackingSettingsChanged(settings));
+        self.save();
+    }
+
+    /// Remove a specific tracker from the application.
+    /// This will only remove the specified tracker when present, it not, not callbacks will be triggered.
+    pub fn remove_tracker(&self, name: &str) {
+        trace!("Removing tracker info of {}", name);
+        let mut settings: Option<TrackingSettings> = None;
+        {
+            let mut mutex = block_in_place(self.settings.lock());
+            if mutex.tracking_mut().remove(name) {
+                settings = Some(mutex.tracking().clone());
             }
         }
+        debug!("Tracking settings of {} have been updated", name);
 
-        if let Some(settings) = tracking_settings {
+        if let Some(settings) = settings {
             self.callbacks.invoke(ApplicationConfigEvent::TrackingSettingsChanged(settings));
             self.save();
+        } else {
+            trace!("Tracker {} wasn't found, not triggering TrackingSettingsChanged callback", name);
         }
     }
 
@@ -311,7 +330,7 @@ pub struct ApplicationConfigBuilder {
     callbacks: CoreCallbacks<ApplicationConfigEvent>,
 }
 
-impl ApplicationConfigBuilder {
+impl ApplicationConfigBuilder {    
     /// Sets the storage to use for reading the settings.
     ///
     /// # Examples

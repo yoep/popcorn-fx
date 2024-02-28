@@ -22,6 +22,8 @@ import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.media.tracking.AuthorizationOpenCallback;
+import com.github.yoep.popcorn.backend.media.tracking.TrackingEventC;
+import com.github.yoep.popcorn.backend.media.tracking.TrackingEventCallback;
 import com.github.yoep.popcorn.backend.media.watched.WatchedEventCallback;
 import com.github.yoep.popcorn.backend.player.*;
 import com.github.yoep.popcorn.backend.playlists.Playlist;
@@ -281,8 +283,14 @@ public interface FxLib extends Library {
     void register_fullscreen_callback(PopcornFx instance, FullscreenCallback callback);
     
     void register_tracking_authorization_open(PopcornFx instance, AuthorizationOpenCallback callback);
+
+    void register_tracking_provider_callback(PopcornFx instance, TrackingEventCallback callback);
+    
+    byte tracking_is_authorized(PopcornFx instance);
     
     void tracking_authorize(PopcornFx instance);
+    
+    void tracking_disconnect(PopcornFx instance);
 
     void log(String target, String message, LogLevel level);
 
@@ -321,6 +329,8 @@ public interface FxLib extends Library {
     void dispose_playlist_manager_event_value(PlaylistManagerEvent.ByValue event);
 
     void dispose_torrent_stream_event_value(TorrentStreamEventC.ByValue event);
+
+    void dispose_tracking_event_value(TrackingEventC.ByValue event);
 
     void dispose_popcorn_fx(PopcornFx instance);
 

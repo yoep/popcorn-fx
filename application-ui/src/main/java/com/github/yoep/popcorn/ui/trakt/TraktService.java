@@ -25,7 +25,6 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import javax.annotation.PostConstruct;
-import java.net.URI;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -34,11 +33,13 @@ import java.util.stream.Collectors;
 
 import static java.util.Arrays.asList;
 
+/**
+ * @deprecated Use {@link com.github.yoep.popcorn.backend.media.tracking.TrackingService} instead
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class TraktService {
-//    private final OAuth2RestOperations traktTemplate;
     private final ApplicationConfig settingsService;
     private final WatchedService watchedService;
     private final TaskExecutor taskExecutor;
@@ -90,7 +91,7 @@ public class TraktService {
                 .path("sync/watchlist")
                 .build(Collections.emptyMap());
 
-        log.trace("Retrieving the user's watchlist at \"{}\"", uri.toString());
+        log.trace("Retrieving the user's watchlist at \"{}\"", uri);
         ResponseEntity<WatchListItem[]> response = traktTemplate.getForEntity(uri, WatchListItem[].class);
 
         return Optional.ofNullable(response.getBody())
@@ -102,15 +103,6 @@ public class TraktService {
                     log.trace("Failed to retrieve the user's watchlist, body is null");
                     return CompletableFuture.failedFuture(new TraktException("Failed to retrieve watchlist, response body is null"));
                 });
-    }
-
-    /**
-     * Forget the current authorized trakt user.
-     * This will remove the access token from the settings.
-     */
-    public void forget() {
-        log.trace("Forgetting the authorization of trakt.tv");
-        getSettings().setAccessToken(null);
     }
 
     //endregion

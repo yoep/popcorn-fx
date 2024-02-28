@@ -70,11 +70,11 @@ impl From<PlayerEvent> for PlayerEventC {
 #[derive(Debug, Clone)]
 pub struct PlayerC {
     /// A pointer to a null-terminated C string representing the player's unique identifier (ID).
-    pub id: *const c_char,
+    pub id: *mut c_char,
     /// A pointer to a null-terminated C string representing the name of the player.
-    pub name: *const c_char,
+    pub name: *mut c_char,
     /// A pointer to a null-terminated C string representing the description of the player.
-    pub description: *const c_char,
+    pub description: *mut c_char,
     /// A pointer to a `ByteArray` struct representing the graphic resource associated with the player.
     ///
     /// This field can be a null pointer if no graphic resource is associated with the player.
@@ -118,11 +118,11 @@ impl From<Arc<Box<dyn Player>>> for PlayerC {
 #[derive(Debug, Clone)]
 pub struct PlayerRegistrationC {
     /// A pointer to a null-terminated C string representing the player's unique identifier (ID).
-    pub id: *const c_char,
+    pub id: *mut c_char,
     /// A pointer to a null-terminated C string representing the name of the player.
-    pub name: *const c_char,
+    pub name: *mut c_char,
     /// A pointer to a null-terminated C string representing the description of the player.
-    pub description: *const c_char,
+    pub description: *mut c_char,
     /// A pointer to a `ByteArray` struct representing the graphic resource associated with the player.
     ///
     /// This field can be a null pointer if no graphic resource is associated with the player.
@@ -308,7 +308,7 @@ impl From<PlayerRegistrationC> for PlayerWrapper {
 #[repr(C)]
 #[derive(Debug)]
 pub struct PlayerWrapperC {
-    id: *const c_char,
+    id: *mut c_char,
     wrapper: Weak<Box<dyn Player>>,
 }
 
@@ -414,15 +414,17 @@ impl From<PlayerManagerEvent> for PlayerManagerEventC {
 #[derive(Debug)]
 pub struct PlayRequestC {
     /// The URL of the media to be played.
-    pub url: *const c_char,
+    pub url: *mut c_char,
     /// The title of the media.
-    pub title: *const c_char,
-    /// The URL of the thumbnail image for the media.
-    pub thumb: *const c_char,
-    /// The URL of the background image for the media.
-    pub background: *const c_char,
-    /// The quality of the media.
-    pub quality: *const c_char,
+    pub title: *mut c_char,
+    /// The optional caption of the media, or [ptr::null_mut] if not available.
+    pub caption: *mut c_char,
+    /// The optional URL of the thumbnail image for the media, or [ptr::null_mut] if not available.
+    pub thumb: *mut c_char,
+    /// The URL of the background image for the media, or [ptr::null_mut] if not available.
+    pub background: *mut c_char,
+    /// The quality of the media, or [ptr::null_mut] if not available.
+    pub quality: *mut c_char,
     /// Pointer to a mutable u64 value representing the auto-resume timestamp.
     pub auto_resume_timestamp: *mut u64,
     /// The stream handle pointer of the play request.
@@ -435,20 +437,25 @@ pub struct PlayRequestC {
 impl From<&PlayUrlRequest> for PlayRequestC {
     fn from(value: &PlayUrlRequest) -> Self {
         trace!("Converting PlayUrlRequest to PlayRequestC for {:?}", value);
+        let caption = if let Some(caption) = value.caption() {
+            into_c_string(caption)
+        } else {
+            ptr::null_mut()
+        };
         let thumb = if let Some(thumb) = value.thumbnail() {
             into_c_string(thumb)
         } else {
-            ptr::null()
+            ptr::null_mut()
         };
         let background = if let Some(background) = value.background() {
             into_c_string(background)
         } else {
-            ptr::null()
+            ptr::null_mut()
         };
         let quality = if let Some(quality) = value.quality() {
             into_c_string(quality)
         } else {
-            ptr::null()
+            ptr::null_mut()
         };
         let auto_resume_timestamp = if let Some(e) = value.auto_resume_timestamp() {
             into_c_owned(e)
@@ -460,6 +467,7 @@ impl From<&PlayUrlRequest> for PlayRequestC {
             url: into_c_string(value.url.clone()),
             title: into_c_string(value.title.clone()),
             thumb,
+            caption,
             background,
             quality,
             auto_resume_timestamp,
@@ -472,20 +480,25 @@ impl From<&PlayUrlRequest> for PlayRequestC {
 impl From<&PlayMediaRequest> for PlayRequestC {
     fn from(value: &PlayMediaRequest) -> Self {
         trace!("Converting PlayMediaRequest to PlayRequestC for {:?}", value);
+        let caption = if let Some(caption) = value.caption() {
+            into_c_string(caption)
+        } else {
+            ptr::null_mut()
+        };
         let thumb = if let Some(thumb) = value.thumbnail() {
             into_c_string(thumb)
         } else {
-            ptr::null()
+            ptr::null_mut()
         };
         let background = if let Some(background) = value.background() {
             into_c_string(background)
         } else {
-            ptr::null()
+            ptr::null_mut()
         };
         let quality = if let Some(quality) = value.quality() {
             into_c_string(quality)
         } else {
-            ptr::null()
+            ptr::null_mut()
         };
         let auto_resume_timestamp = if let Some(e) = value.auto_resume_timestamp() {
             into_c_owned(e)
@@ -501,6 +514,7 @@ impl From<&PlayMediaRequest> for PlayRequestC {
         Self {
             url: into_c_string(value.base.url.clone()),
             title: into_c_string(value.base.title.clone()),
+            caption,
             thumb,
             background,
             quality,
@@ -644,7 +658,7 @@ mod tests {
         let player = PlayerC {
             id: into_c_string(player_id.to_string()),
             name: into_c_string("my_player".to_string()),
-            description: ptr::null(),
+            description: ptr::null_mut(),
             graphic_resource: ptr::null_mut(),
             state: PlayerState::Stopped,
             embedded_playback_supported: false,

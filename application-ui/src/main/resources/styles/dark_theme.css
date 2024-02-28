@@ -64,6 +64,10 @@
     -fx-font-smoothing-type: gray;
 }
 
+.root .muted {
+    -fx-text-fill: #999999;
+}
+
 .root .tooltip {
     -fx-background-color: rgba(23, 24, 27, 0.6);
     -fx-font-family: "Open Sans Semibold";
@@ -846,8 +850,13 @@
 }
 
 .root .player .player-header .title {
-    -fx-font-family: "Open Sans";
+    -fx-font-family: "Open Sans Bold";
     -fx-text-fill: #fff;
+    -fx-font-size: 1.8em;
+}
+
+.root .player .player-header .caption {
+    -fx-font-family: "Open Sans";
     -fx-font-size: 1.8em;
 }
 
@@ -1131,6 +1140,11 @@
 
 .root .player-external .title-text {
     -fx-font-size: 2em;
+}
+
+.root .player-external .caption {
+    -fx-font-family: "Open Sans Semibold";
+    -fx-font-size: 1.25em;
 }
 
 .root .loader .progress-status,

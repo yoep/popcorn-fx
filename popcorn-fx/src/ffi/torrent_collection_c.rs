@@ -34,9 +34,9 @@ impl From<Vec<MagnetInfo>> for TorrentCollectionSet {
 #[derive(Debug, Clone)]
 pub struct MagnetInfoC {
     /// The name of the magnet
-    pub name: *const c_char,
+    pub name: *mut c_char,
     /// The magnet uri to the torrent
-    pub magnet_uri: *const c_char,
+    pub magnet_uri: *mut c_char,
 }
 
 impl From<MagnetInfo> for MagnetInfoC {

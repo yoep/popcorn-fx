@@ -13,7 +13,7 @@ use crate::ffi::LogLevel;
 /// * `message` - A pointer to the null-terminated C string containing the log message to be logged.
 /// * `level` - The log level of the message. Determines the verbosity of the message and how it will be formatted by the Rust logger.
 #[no_mangle]
-pub extern "C" fn log(target: *const c_char, message: *const c_char, level: LogLevel) {
+pub extern "C" fn log(target: *mut c_char, message: *mut c_char, level: LogLevel) {
     let target = from_c_string(target);
     let message = from_c_string(message);
     match level {

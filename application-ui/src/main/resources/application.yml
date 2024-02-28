@@ -7,8 +7,6 @@ spring:
     web-application-type: none
   autoconfigure:
     exclude: org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
-  codec:
-    max-in-memory-size: 25MB
 
 logging:
   level:

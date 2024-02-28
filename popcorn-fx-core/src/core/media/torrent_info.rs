@@ -32,6 +32,10 @@ pub struct TorrentInfo {
 }
 
 impl TorrentInfo {
+    pub fn builder() -> TorrentInfoBuilder {
+        TorrentInfoBuilder::builder()
+    }
+
     /// Creates a new `TorrentInfo` instance with the specified details.
     pub fn new(
         url: String,
@@ -114,6 +118,108 @@ impl TorrentInfo {
     }
 }
 
+/// Builder for constructing `TorrentInfo` instances.
+#[derive(Debug, Default)]
+pub struct TorrentInfoBuilder {
+    url: Option<String>,
+    provider: Option<String>,
+    source: Option<String>,
+    title: Option<String>,
+    quality: Option<String>,
+    seed: Option<u32>,
+    peer: Option<u32>,
+    size: Option<String>,
+    filesize: Option<String>,
+    file: Option<String>,
+}
+
+impl TorrentInfoBuilder {
+    /// Creates a new `TorrentInfoBuilder`.
+    pub fn builder() -> Self {
+        Self::default()
+    }
+
+    /// Sets the URL for the builder.
+    pub fn url<T: ToString>(mut self, url: T) -> Self {
+        self.url = Some(url.to_string());
+        self
+    }
+
+    /// Sets the provider for the builder.
+    pub fn provider<T: ToString>(mut self, provider: T) -> Self {
+        self.provider = Some(provider.to_string());
+        self
+    }
+
+    /// Sets the source for the builder.
+    pub fn source<T: ToString>(mut self, source: T) -> Self {
+        self.source = Some(source.to_string());
+        self
+    }
+
+    /// Sets the title for the builder.
+    pub fn title<T: ToString>(mut self, title: T) -> Self {
+        self.title = Some(title.to_string());
+        self
+    }
+
+    /// Sets the quality for the builder.
+    pub fn quality<T: ToString>(mut self, quality: T) -> Self {
+        self.quality = Some(quality.to_string());
+        self
+    }
+
+    /// Sets the seed for the builder.
+    pub fn seed(mut self, seed: u32) -> Self {
+        self.seed = Some(seed);
+        self
+    }
+
+    /// Sets the peer for the builder.
+    pub fn peer(mut self, peer: u32) -> Self {
+        self.peer = Some(peer);
+        self
+    }
+
+    /// Sets the size for the builder.
+    pub fn size<T: ToString>(mut self, size: T) -> Self {
+        self.size = Some(size.to_string());
+        self
+    }
+
+    /// Sets the filesize for the builder.
+    pub fn filesize<T: ToString>(mut self, filesize: T) -> Self {
+        self.filesize = Some(filesize.to_string());
+        self
+    }
+
+    /// Sets the file for the builder.
+    pub fn file<T: ToString>(mut self, file: T) -> Self {
+        self.file = Some(file.to_string());
+        self
+    }
+
+    /// Builds the `TorrentInfo` instance.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if any of the mandatory fields (`url`, `provider`, `source`, `title`, `quality`, `seed`, `peer`) are not set.
+    pub fn build(self) -> TorrentInfo {
+        TorrentInfo {
+            url: self.url.expect("url is not set"),
+            provider: self.provider.expect("provider is not set"),
+            source: self.source.expect("source is not set"),
+            title: self.title.expect("title is not set"),
+            quality: self.quality.expect("quality is not set"),
+            seed: self.seed.expect("seed is not set"),
+            peer: self.peer.expect("peer is not set"),
+            size: self.size,
+            filesize: self.filesize,
+            file: self.file,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -143,5 +249,33 @@ mod tests {
         assert_eq!(torrent_info.size, Some("100 MB".to_string()));
         assert_eq!(torrent_info.filesize, Some("500 MB".to_string()));
         assert_eq!(torrent_info.file, Some("sample.torrent".to_string()));
+    }
+    
+    #[test]
+    fn test_builder() {
+        let expected_result = TorrentInfo {
+            url: "MyUrl".to_string(),
+            provider: "MyProvider".to_string(),
+            source: "MySource".to_string(),
+            title: "MyTitle".to_string(),
+            quality: "480p".to_string(),
+            seed: 18,
+            peer: 5,
+            size: None,
+            filesize: None,
+            file: None,
+        };
+        
+        let result = TorrentInfo::builder()
+            .url("MyUrl")
+            .provider("MyProvider")
+            .source("MySource")
+            .title("MyTitle")
+            .quality("480p")
+            .seed(18)
+            .peer(5)
+            .build();
+        
+        assert_eq!(expected_result, result)
     }
 }

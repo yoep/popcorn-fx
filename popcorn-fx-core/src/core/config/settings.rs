@@ -60,6 +60,11 @@ impl PopcornSettings {
     pub fn tracking(&self) -> &TrackingSettings {
         &self.tracking_settings
     }
+
+    /// Retrieve a mutable reference to the media tracking settings of the application.
+    pub fn tracking_mut(&mut self) -> &mut TrackingSettings {
+        &mut self.tracking_settings
+    }
 }
 
 impl From<&str> for PopcornSettings {

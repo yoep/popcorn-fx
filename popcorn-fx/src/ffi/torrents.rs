@@ -19,7 +19,7 @@ use crate::PopcornFX;
 /// * `handle` - The handle to the torrent.
 /// * `state` - The new state of the torrent.
 #[no_mangle]
-pub extern "C" fn torrent_state_changed(popcorn_fx: &mut PopcornFX, handle: *const c_char, state: TorrentState) {
+pub extern "C" fn torrent_state_changed(popcorn_fx: &mut PopcornFX, handle: *mut c_char, state: TorrentState) {
     let handle = from_c_string(handle);
     if let Some(torrent) = popcorn_fx.torrent_manager().by_handle(handle.as_str())
         .and_then(|e| e.upgrade()) {
@@ -40,7 +40,7 @@ pub extern "C" fn torrent_state_changed(popcorn_fx: &mut PopcornFX, handle: *con
 /// * `handle` - The handle to the torrent.
 /// * `piece` - The index of the finished piece.
 #[no_mangle]
-pub extern "C" fn torrent_piece_finished(popcorn_fx: &mut PopcornFX, handle: *const c_char, piece: u32) {
+pub extern "C" fn torrent_piece_finished(popcorn_fx: &mut PopcornFX, handle: *mut c_char, piece: u32) {
     let handle = from_c_string(handle);
     if let Some(torrent) = popcorn_fx.torrent_manager().by_handle(handle.as_str())
         .and_then(|e| e.upgrade()) {
@@ -60,7 +60,7 @@ pub extern "C" fn torrent_piece_finished(popcorn_fx: &mut PopcornFX, handle: *co
 /// * `handle` - The handle to the torrent.
 /// * `download_status` - The new download status of the torrent.
 #[no_mangle]
-pub extern "C" fn torrent_download_status(popcorn_fx: &mut PopcornFX, handle: *const c_char, download_status: DownloadStatusC) {
+pub extern "C" fn torrent_download_status(popcorn_fx: &mut PopcornFX, handle: *mut c_char, download_status: DownloadStatusC) {
     let handle = from_c_string(handle);
     if let Some(torrent) = popcorn_fx.torrent_manager().by_handle(handle.as_str())
         .and_then(|e| e.upgrade()) {
@@ -275,7 +275,7 @@ mod test {
     }
 
     #[no_mangle]
-    extern "C" fn torrent_resolve_callback(file_info: TorrentFileInfoC, _: *const c_char, _: bool) -> TorrentC {
+    extern "C" fn torrent_resolve_callback(file_info: TorrentFileInfoC, _: *mut c_char, _: bool) -> TorrentC {
         info!("Received torrent resolve callback for {:?}", file_info);
         TorrentC {
             handle: into_c_string("MyHandle"),
@@ -348,11 +348,12 @@ mod test {
         init_logger();
         let handle = "MyHandleId654";
         let temp_dir = tempdir().unwrap();
-        let temp_path = temp_dir.path().to_str().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap
+        ();
         let mut instance = new_instance(temp_path);
 
         let manager = instance.torrent_manager().downcast_ref::<DefaultTorrentManager>().unwrap();
-        manager.register_resolve_callback(Box::new(|info, _, _| {
+        manager.register_resolve_callback(Box::new(|_, _, _| {
             TorrentWrapper {
                 handle: handle.to_string(),
                 filepath: Default::default(),

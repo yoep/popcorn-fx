@@ -1,7 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.yoep.popcorn.backend.media.tracking.TrackingService;
-import com.github.yoep.popcorn.ui.trakt.TraktService;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Button;
@@ -15,7 +14,6 @@ import java.util.ResourceBundle;
 @Slf4j
 @RequiredArgsConstructor
 public class SettingsTraktComponent implements Initializable {
-    private final TraktService traktService;
     private final TrackingService trackingService;
 
     @FXML
@@ -27,20 +25,12 @@ public class SettingsTraktComponent implements Initializable {
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
-        initializeStatus();
-        initializeButton();
+        trackingService.addListener(this::updateState);
+        updateState(trackingService.isAuthorized());
     }
 
-    private void initializeStatus() {
-        switchText(traktService.isAuthorized());
-    }
-
-    private void initializeButton() {
-        switchButtons(traktService.isAuthorized());
-    }
-
-    private void switchText(boolean isAuthorized) {
-
+    private void updateState(boolean isAuthorized) {
+        switchButtons(isAuthorized);
     }
 
     private void switchButtons(boolean isAuthorized) {
@@ -55,7 +45,6 @@ public class SettingsTraktComponent implements Initializable {
 
     @FXML
     private void onDisconnectClicked() {
-        traktService.forget();
-        switchButtons(false);
+        trackingService.disconnect();
     }
 }

@@ -49,7 +49,7 @@ pub extern "C" fn active_player(popcorn_fx: &mut PopcornFX) -> *mut PlayerC {
 /// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
 /// * `player_id` - A pointer to a null-terminated C string representing the player's unique identifier (ID).
 #[no_mangle]
-pub extern "C" fn set_active_player(popcorn_fx: &mut PopcornFX, player_id: *const c_char) {
+pub extern "C" fn set_active_player(popcorn_fx: &mut PopcornFX, player_id: *mut c_char) {
     let player_id = from_c_string(player_id);
     trace!("Updating active player from C to {}", player_id);
 
@@ -98,7 +98,7 @@ pub extern "C" fn players(popcorn_fx: &mut PopcornFX) -> *mut PlayerSet {
 ///
 /// Returns a pointer to a `PlayerC` instance representing the player if found, or a null pointer if no player with the given ID exists.
 #[no_mangle]
-pub extern "C" fn player_by_id(popcorn_fx: &mut PopcornFX, player_id: *const c_char) -> *mut PlayerC {
+pub extern "C" fn player_by_id(popcorn_fx: &mut PopcornFX, player_id: *mut c_char) -> *mut PlayerC {
     let player_id = from_c_string(player_id);
     trace!("Retrieving C player by id {}", player_id);
 
@@ -126,7 +126,7 @@ pub extern "C" fn player_by_id(popcorn_fx: &mut PopcornFX, player_id: *const c_c
 ///
 /// Returns a pointer to a `PlayerWrapperC` instance representing the player if found, or a null pointer if no player with the given ID exists.
 #[no_mangle]
-pub extern "C" fn player_pointer_by_id(popcorn_fx: &mut PopcornFX, player_id: *const c_char) -> *mut PlayerWrapperC {
+pub extern "C" fn player_pointer_by_id(popcorn_fx: &mut PopcornFX, player_id: *mut c_char) -> *mut PlayerWrapperC {
     let player_id = from_c_string(player_id);
     trace!("Retrieving C player wrapper for {}", player_id);
     popcorn_fx.player_manager().by_id(player_id.as_str())
@@ -200,7 +200,7 @@ pub extern "C" fn register_player(popcorn_fx: &mut PopcornFX, player: PlayerRegi
 /// This function removes a player with the specified ID from the PopcornFX player manager.
 /// It converts the `player_id` C string to a Rust String and logs a trace message to indicate the removal.
 #[no_mangle]
-pub extern "C" fn remove_player(popcorn_fx: &mut PopcornFX, player_id: *const c_char) {
+pub extern "C" fn remove_player(popcorn_fx: &mut PopcornFX, player_id: *mut c_char) {
     let id = from_c_string(player_id);
 
     trace!("Removing C player ID {}", id);
@@ -587,9 +587,9 @@ mod tests {
         init_logger();
         let expected_result = 240;
         let player = PlayerWrapper::from(PlayerRegistrationC {
-            id: ptr::null(),
-            name: ptr::null(),
-            description: ptr::null(),
+            id: ptr::null_mut(),
+            name: ptr::null_mut(),
+            description: ptr::null_mut(),
             graphic_resource: ptr::null_mut(),
             state: Default::default(),
             embedded_playback_supported: false,

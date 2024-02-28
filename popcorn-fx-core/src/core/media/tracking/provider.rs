@@ -9,6 +9,7 @@ use thiserror::Error;
 use crate::core::{Callbacks, CoreCallback};
 #[cfg(any(test, feature = "testing"))]
 use crate::core::CallbackHandle;
+use crate::core::media::MediaIdentifier;
 
 /// Represents errors that can occur during authorization.
 #[derive(Debug, Clone, Error, PartialEq)]
@@ -27,13 +28,30 @@ pub enum AuthorizationError {
     AuthorizationUriOpen,
 }
 
+/// Represents errors that can occur during tracking operations.
+#[derive(Debug, Clone, Error, PartialEq)]
+pub enum TrackingError {
+    /// The tracker provider is not authorized to execute the operation.
+    #[error("tracker provider is not authorized to execute the operation")]
+    Unauthorized,
+    /// An error occurred while exchanging data with the tracker.
+    #[error("an error occurred while exchanging data with the tracker")]
+    Retrieval,
+    /// An error occurred while parsing the tracking data.
+    #[error("an error occurred while parsing the tracking data")]
+    Parsing,
+}
+
 /// A type alias for a function that opens an authorization URI.
 pub type OpenAuthorization = Box<dyn Fn(String) -> bool + Send + Sync>;
 
+/// Type alias for the callback function for tracking events.
 pub type TrackingCallback = CoreCallback<TrackingEvent>;
 
+/// Represents events related to tracking.
 #[derive(Debug, Clone, Display)]
 pub enum TrackingEvent {
+    /// Indicates a change in authorization state.
     #[display(fmt = "Authorization state changed to {}", _0)]
     AuthorizationStateChanged(bool),
 }
@@ -48,13 +66,21 @@ pub trait TrackingProvider: Debug + Callbacks<TrackingEvent> + Send + Sync {
     ///
     /// # Returns
     ///
-    /// It returns `true` when the user has authorized this tracker, else `false`.
+    /// Returns `true` when the user has authorized this tracker, otherwise `false`.
     fn is_authorized(&self) -> bool;
 
     /// Authorizes access to the tracking provider.
     async fn authorize(&self) -> Result<(), AuthorizationError>;
-    
+
+    /// Disconnects from the tracking provider.
     async fn disconnect(&self);
+
+    /// Retrieves the list of watched movies from the tracking provider.
+    ///
+    /// # Returns
+    ///
+    /// Returns a vector of boxed `MediaIdentifier` instances representing watched movies.
+    async fn watched_movies(&self) -> Result<Vec<Box<dyn MediaIdentifier>>, TrackingError>;
 }
 
 #[cfg(any(test, feature = "testing"))]
@@ -68,6 +94,7 @@ mock! {
         fn is_authorized(&self) -> bool;
         async fn authorize(&self) -> Result<(), AuthorizationError>;
         async fn disconnect(&self);
+        async fn watched_movies(&self) -> Result<Vec<Box<dyn MediaIdentifier>>, TrackingError>;
     }
     
     impl Callbacks<TrackingEvent> for TrackingProvider {

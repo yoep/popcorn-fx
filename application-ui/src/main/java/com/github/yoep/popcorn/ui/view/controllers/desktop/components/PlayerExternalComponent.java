@@ -44,6 +44,8 @@ public class PlayerExternalComponent implements Initializable {
     @FXML
     Label titleText;
     @FXML
+    Label captionText;
+    @FXML
     Label timeText;
     @FXML
     Label durationText;
@@ -117,7 +119,10 @@ public class PlayerExternalComponent implements Initializable {
 
     private void onRequestChanged(PlayRequest request) {
         reset();
-        Platform.runLater(() -> titleText.setText(request.getTitle()));
+        Platform.runLater(() -> {
+            titleText.setText(request.getTitle());
+            captionText.setText(request.getCaption().orElse(null));
+        });
         request.getBackground()
                 .ifPresent(this::loadBackgroundImage);
     }
@@ -132,6 +137,7 @@ public class PlayerExternalComponent implements Initializable {
     }
 
     private void loadBackgroundImage(String url) {
+        log.debug("Loading external player background url {}", url);
         imageService.load(url).whenComplete((image, throwable) -> {
             if (throwable == null) {
                 Platform.runLater(() -> backgroundImage.setBackgroundImage(image));

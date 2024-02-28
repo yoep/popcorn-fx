@@ -3,7 +3,7 @@ use std::ptr;
 
 use log::trace;
 
-use popcorn_fx_core::{from_c_owned, from_c_string, from_c_vec, into_c_owned, into_c_string, into_c_vec};
+use popcorn_fx_core::{from_c_owned, from_c_string, from_c_string_owned, from_c_vec, into_c_owned, into_c_string, into_c_vec};
 use popcorn_fx_core::core::subtitles::{SubtitleEvent, SubtitleFile};
 use popcorn_fx_core::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
@@ -15,7 +15,7 @@ use popcorn_fx_core::core::subtitles::model::{Subtitle, SubtitleInfo};
 #[derive(Debug, Clone, PartialEq)]
 pub struct SubtitleInfoC {
     /// The IMDB ID if known, this can be [ptr::null]
-    pub imdb_id: *const c_char,
+    pub imdb_id: *mut c_char,
     pub language: SubtitleLanguage,
     pub files: *mut SubtitleFileC,
     pub len: i32,
@@ -24,7 +24,7 @@ pub struct SubtitleInfoC {
 impl SubtitleInfoC {
     pub fn empty() -> Self {
         Self {
-            imdb_id: ptr::null(),
+            imdb_id: ptr::null_mut(),
             language: SubtitleLanguage::None,
             files: ptr::null_mut(),
             len: 0,
@@ -44,7 +44,7 @@ impl From<SubtitleInfo> for SubtitleInfoC {
 
         Self {
             imdb_id: match value.imdb_id() {
-                None => ptr::null(),
+                None => ptr::null_mut(),
                 Some(e) => into_c_string(e.clone())
             },
             language: value.language().clone(),
@@ -113,7 +113,7 @@ impl From<SubtitleInfoC> for SubtitleInfo {
 impl Drop for SubtitleInfoC {
     fn drop(&mut self) {
         trace!("Dropping {:?}", self);
-        let _ = from_c_string(self.imdb_id);
+        // let _ = from_c_string_owned(self.imdb_id);
         // from_c_vec_owned(self.files, self.len);
     }
 }
@@ -144,8 +144,8 @@ impl From<SubtitleEvent> for SubtitleEventC {
 #[derive(Debug, Clone)]
 pub struct SubtitleFileC {
     pub file_id: i32,
-    pub name: *const c_char,
-    pub url: *const c_char,
+    pub name: *mut c_char,
+    pub url: *mut c_char,
     pub score: f32,
     pub downloads: i32,
     pub quality: *const i32,
@@ -213,6 +213,7 @@ impl From<Vec<SubtitleInfoC>> for SubtitleInfoSet {
 impl Drop for SubtitleInfoSet {
     fn drop(&mut self) {
         trace!("Dropping {:?}", self);
+        // let _ = from_c_vec(self.subtitles, self.len);
         // from_c_vec_owned(self.subtitles, self.len);
     }
 }
@@ -223,21 +224,21 @@ impl Drop for SubtitleInfoSet {
 #[derive(Debug, Clone)]
 pub struct SubtitleMatcherC {
     /// The nullable name of the media item.
-    name: *const c_char,
+    name: *mut c_char,
     /// The nullable quality of the media item.
     /// This can be represented as `720p` or `720`.
-    quality: *const c_char,
+    quality: *mut c_char,
 }
 
 impl SubtitleMatcherC {
     pub fn from(matcher: SubtitleMatcher) -> Self {
         Self {
             name: match matcher.name() {
-                None => ptr::null(),
+                None => ptr::null_mut(),
                 Some(e) => into_c_string(e.to_string())
             },
             quality: match matcher.quality() {
-                None => ptr::null(),
+                None => ptr::null_mut(),
                 Some(e) => into_c_string(e.to_string())
             },
         }
@@ -260,13 +261,21 @@ impl SubtitleMatcherC {
     }
 }
 
+impl Drop for SubtitleMatcherC {
+    fn drop(&mut self) {
+        trace!("Dropping {:?}", self);
+        // let _ = from_c_string_owned(self.name);
+        // let _ = from_c_string_owned(self.quality);
+    }
+}
+
 /// The parsed subtitle representation for C.
 /// It contains the data of a subtitle file that can be displayed.
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct SubtitleC {
     /// The filepath that has been parsed
-    pub file: *const c_char,
+    pub file: *mut c_char,
     /// The info of the parsed subtitle if available, else [ptr::null_mut]
     pub info: *mut SubtitleInfoC,
     /// The parsed cues from the subtitle file
@@ -317,7 +326,7 @@ impl From<SubtitleC> for Subtitle {
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct SubtitleCueC {
-    pub id: *const c_char,
+    pub id: *mut c_char,
     pub start_time: u64,
     pub end_time: u64,
     pub lines: *mut SubtitleLineC,
@@ -388,7 +397,7 @@ impl SubtitleLineC {
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct StyledTextC {
-    pub text: *const c_char,
+    pub text: *mut c_char,
     pub italic: bool,
     pub bold: bool,
     pub underline: bool,
@@ -410,6 +419,13 @@ impl StyledTextC {
         let underline = self.underline.clone();
 
         StyledText::new(from_c_string(self.text), italic, bold, underline)
+    }
+}
+
+impl Drop for StyledTextC {
+    fn drop(&mut self) {
+        trace!("Dropping {:?}", self);
+        // let _ = from_c_string_owned(self.text);
     }
 }
 

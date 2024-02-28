@@ -40,15 +40,15 @@ impl From<LoaderEvent> for LoaderEventC {
 #[derive(Debug)]
 pub struct LoadingStartedEventC {
     /// The URL of the media being loaded.
-    pub url: *const c_char,
+    pub url: *mut c_char,
     /// The title or name of the media being loaded.
-    pub title: *const c_char,
+    pub title: *mut c_char,
     /// The URL of a thumbnail image associated with the media, or `ptr::null()` if not available.
-    pub thumbnail: *const c_char,
+    pub thumbnail: *mut c_char,
     /// The URL of a background image associated with the media, or `ptr::null()` if not available.
-    pub background: *const c_char,
+    pub background: *mut c_char,
     /// The quality or resolution information of the media, or `ptr::null()` if not available.
-    pub quality: *const c_char,
+    pub quality: *mut c_char,
 }
 
 /// Convert a `LoadingStartedEvent` into a C-compatible `LoadingStartedEventC`.
@@ -57,17 +57,17 @@ impl From<LoadingStartedEvent> for LoadingStartedEventC {
         let thumbnail = if let Some(e) = value.thumbnail {
             into_c_string(e)
         } else {
-            ptr::null()
+            ptr::null_mut()
         };
         let background = if let Some(e) = value.background {
             into_c_string(e)
         } else {
-            ptr::null()
+            ptr::null_mut()
         };
         let quality = if let Some(e) = value.quality {
             into_c_string(e)
         } else {
-            ptr::null()
+            ptr::null_mut()
         };
 
         Self {
@@ -114,14 +114,14 @@ impl From<LoadingStartedEventC> for LoadingStartedEvent {
 #[derive(Debug)]
 pub enum LoadingErrorC {
     /// Error indicating a parsing failure with an associated error message.
-    ParseError(*const c_char),
+    ParseError(*mut c_char),
     /// Error indicating a torrent-related failure with an associated error message.
-    TorrentError(*const c_char),
+    TorrentError(*mut c_char),
     /// Error indicating a media-related failure with an associated error message.
-    MediaError(*const c_char),
+    MediaError(*mut c_char),
     /// Error indicating a timeout with an associated error message.
-    TimeoutError(*const c_char),
-    InvalidData(*const c_char),
+    TimeoutError(*mut c_char),
+    InvalidData(*mut c_char),
     Cancelled,
 }
 
@@ -223,7 +223,7 @@ mod tests {
             title: into_c_string(title.to_string()),
             thumbnail: into_c_string(thumb.to_string()),
             background: into_c_string(background.to_string()),
-            quality: ptr::null(),
+            quality: ptr::null_mut(),
         };
         let expected_result = LoadingStartedEvent {
             url: url.to_string(),

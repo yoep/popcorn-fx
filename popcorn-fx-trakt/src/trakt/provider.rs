@@ -7,21 +7,26 @@ use std::sync::mpsc::{channel, Sender};
 use std::time::Duration;
 
 use async_trait::async_trait;
+use chrono::{Local, Utc};
 use log::{debug, error, trace, warn};
-use oauth2::{AuthorizationCode, AuthUrl, ClientId, ClientSecret, CsrfToken, RedirectUrl, TokenUrl};
-use oauth2::basic::BasicClient;
+use oauth2::{AuthorizationCode, AuthUrl, ClientId, ClientSecret, CsrfToken, RedirectUrl, TokenResponse, TokenUrl};
+use oauth2::basic::{BasicClient, BasicTokenResponse};
 use oauth2::http::HeaderMap;
 use oauth2::reqwest::async_http_client;
 use reqwest::Client;
 use thiserror::Error;
 use tokio::runtime::Runtime;
 use tokio::sync::{Mutex, oneshot};
+use url::Url;
 use warp::Filter;
 use warp::http::Response;
 
 use popcorn_fx_core::core::{block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks};
-use popcorn_fx_core::core::config::{ApplicationConfig, TrackingClientProperties, TrackingProperties};
-use popcorn_fx_core::core::media::tracking::{AuthorizationError, OpenAuthorization, TrackingEvent, TrackingProvider};
+use popcorn_fx_core::core::config::{ApplicationConfig, Tracker, TrackingClientProperties, TrackingProperties};
+use popcorn_fx_core::core::media::MediaIdentifier;
+use popcorn_fx_core::core::media::tracking::{AuthorizationError, OpenAuthorization, TrackingError, TrackingEvent, TrackingProvider};
+
+use crate::trakt::WatchedMovie;
 
 const TRACKING_NAME: &str = "trakt";
 const AUTHORIZED_PORTS: [u16; 3] = [
@@ -38,6 +43,10 @@ pub enum TraktError {
     Creation(String),
     #[error("none of the authorized ports are available")]
     NoAvailablePorts,
+    #[error("Trakt provider has not been authorized")]
+    Unauthorized,
+    #[error("failed to exchange token, {0}")]
+    TokenError(String),
 }
 
 pub struct TraktProvider {
@@ -129,8 +138,65 @@ impl TraktProvider {
             shutdown_signal.await.ok();
             debug!("Shutting down Trakt auth server");
         });
-        
+
         self.runtime.spawn(server);
+    }
+
+    async fn bearer_token(&self) -> Result<String> {
+        match self.config.user_settings_ref()
+            .tracking()
+            .tracker(TRACKING_NAME)
+            .clone() {
+            None => Err(TraktError::Unauthorized),
+            Some(settings) => {
+                let mut access_token = settings.access_token;
+
+                if let Some(expired_at) = settings.expires_in.filter(|e| {
+                    let now = Local::now().with_timezone(&Utc);
+                    &now > e
+                }) {
+                    if let Some(refresh_token) = settings.refresh_token {
+                        debug!("Token has expired at {}, refreshing token info", expired_at);
+                        let token = self.exchange_refresh_token(refresh_token).await?;
+                        access_token = token.access_token().secret().clone();
+                        self.update_token_info(token);
+                    } else {
+                        warn!("Token has expired at {}, unable to refresh token, no refresh token present", expired_at);
+                        return Err(TraktError::Unauthorized);
+                    }
+                }
+
+                Ok(access_token)
+            }
+        }
+    }
+
+    async fn exchange_refresh_token<S: Into<String>>(&self, refresh_token: S) -> Result<BasicTokenResponse> {
+        let refresh_token = refresh_token.into();
+        trace!("Exchanging refresh token {}", refresh_token);
+        self.oauth_client.exchange_refresh_token(&oauth2::RefreshToken::new(refresh_token))
+            .request_async(async_http_client)
+            .await
+            .map_err(|e| TraktError::TokenError(e.to_string()))
+    }
+
+    fn update_token_info(&self, token: BasicTokenResponse) {
+        let tracker = Tracker {
+            access_token: token.access_token().secret().clone(),
+            expires_in: token.expires_in()
+                .map(|e| {
+                    let now = Local::now().with_timezone(&Utc);
+                    now + e
+                }),
+            refresh_token: token.refresh_token()
+                .map(|e| e.secret().clone()),
+            scopes: token.scopes()
+                .map(|vec| vec.into_iter()
+                    .map(|e| e.to_string())
+                    .collect()),
+        };
+
+        self.config.update_tracker(TRACKING_NAME, tracker);
     }
 
     fn available_port() -> Result<u16> {
@@ -143,13 +209,13 @@ impl TraktProvider {
 
         Err(TraktError::NoAvailablePorts)
     }
-    
+
     fn create_new_client(properties: &TrackingClientProperties) -> Client {
         let mut headers = HeaderMap::new();
-        
+
         headers.insert("trakt-api-version", "2".parse().unwrap());
         headers.insert("trakt-api-key", properties.client_id.parse().unwrap());
-        
+
         Client::builder()
             .default_headers(headers)
             .build().unwrap()
@@ -176,7 +242,10 @@ impl TrackingProvider for TraktProvider {
     }
 
     fn is_authorized(&self) -> bool {
-        false
+        self.config.user_settings_ref()
+            .tracking()
+            .tracker(TRACKING_NAME)
+            .is_some()
     }
 
     async fn authorize(&self) -> result::Result<(), AuthorizationError> {
@@ -208,6 +277,7 @@ impl TrackingProvider for TraktProvider {
                         .await {
                         Ok(e) => {
                             trace!("Received token response {:?}", e);
+                            self.update_token_info(e);
                             self.callbacks.invoke(TrackingEvent::AuthorizationStateChanged(true));
                             Ok(())
                         }
@@ -230,10 +300,44 @@ impl TrackingProvider for TraktProvider {
 
     async fn disconnect(&self) {
         trace!("Disconnecting Trakt media tracking");
-        let mut settings = self.config.user_settings().tracking_settings;
-        settings.remove(TRACKING_NAME);
-        self.config.update_tracking(settings);
+        self.config.remove_tracker(TRACKING_NAME);
         self.callbacks.invoke(TrackingEvent::AuthorizationStateChanged(false));
+    }
+
+    async fn watched_movies(&self) -> result::Result<Vec<Box<dyn MediaIdentifier>>, TrackingError> {
+        trace!("Retrieving Trakt watched movies");
+        let properties = self.config.properties();
+        let properties = properties
+            .tracker(TRACKING_NAME)
+            .expect("expected the tracker properties to have been present");
+        let bearer_token = self.bearer_token()
+            .await
+            .map_err(|e| {
+                error!("Failed to retrieve Trakt bearer token, {}", e);
+                TrackingError::Unauthorized
+            })?;
+        let mut uri = Url::parse(properties.uri()).unwrap();
+        uri.set_path("/sync/watched/movies");
+
+        let response = self.client.get(uri)
+            .bearer_auth(bearer_token)
+            .send()
+            .await
+            .map_err(|e| {
+                error!("Failed to retrieve watched movies, {}", e);
+                TrackingError::Retrieval
+            })?
+            .json::<Vec<WatchedMovie>>()
+            .await
+            .map_err(|e| {
+                error!("Failed to parse movies, {}", e);
+                TrackingError::Parsing
+            })?;
+
+        trace!("Mapping tracking movie response {:?}", response);
+        Ok(response.into_iter()
+            .map(|e| Box::new(e) as Box<dyn MediaIdentifier>)
+            .collect())
     }
 }
 
@@ -255,13 +359,14 @@ struct AuthCallbackResult {
 
 #[cfg(test)]
 mod tests {
-    use httpmock::Method::POST;
+    use httpmock::Method::{GET, POST};
     use httpmock::MockServer;
     use reqwest::Client;
     use tempfile::tempdir;
     use url::Url;
 
-    use popcorn_fx_core::core::config::PopcornProperties;
+    use popcorn_fx_core::core::config::{PopcornProperties, PopcornSettings, TrackingSettings};
+    use popcorn_fx_core::core::media::MediaType;
     use popcorn_fx_core::testing::init_logger;
 
     use super::*;
@@ -283,6 +388,58 @@ mod tests {
     }
 
     #[test]
+    fn test_is_authorized() {
+        init_logger();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let settings = Arc::new(ApplicationConfig::builder()
+            .storage(temp_path)
+            .settings(PopcornSettings {
+                subtitle_settings: Default::default(),
+                ui_settings: Default::default(),
+                server_settings: Default::default(),
+                torrent_settings: Default::default(),
+                playback_settings: Default::default(),
+                tracking_settings: Default::default(),
+            })
+            .build());
+        settings.update_tracker(TRACKING_NAME, Tracker {
+            access_token: "".to_string(),
+            expires_in: None,
+            refresh_token: None,
+            scopes: None,
+        });
+        let trakt = TraktProvider::new(settings).unwrap();
+
+        let result = trakt.is_authorized();
+
+        assert!(result, "expected the tracker to have been authorized");
+    }
+
+    #[test]
+    fn test_is_authorized_tracker_settings_not_present() {
+        init_logger();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let settings = Arc::new(ApplicationConfig::builder()
+            .storage(temp_path)
+            .settings(PopcornSettings {
+                subtitle_settings: Default::default(),
+                ui_settings: Default::default(),
+                server_settings: Default::default(),
+                torrent_settings: Default::default(),
+                playback_settings: Default::default(),
+                tracking_settings: Default::default(),
+            })
+            .build());
+        let trakt = TraktProvider::new(settings).unwrap();
+
+        let result = trakt.is_authorized();
+
+        assert!(!result, "expected the tracker to not have been authorized");
+    }
+
+    #[test]
     fn test_authorize() {
         init_logger();
         let expected_code = "MyAuthCodeResult";
@@ -295,15 +452,14 @@ mod tests {
                 .header_exists("authorization");
             then.status(200)
                 .header("Content-Type", "application/json")
-                .json_body(r#"
-{
-  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
-  "token_type": "Bearer",
-  "expires_in": 3600,
-  "refresh_token": "tGzv3JOkF0XG5Qx2TlKWIA",
-  "scope": "openid"
-}
-                "#);
+                .body(r#"{
+  "access_token": "dbaf9757982a9e738f05d249b7b5b4a266b3a139049317c4909f2f263572c781",
+  "token_type": "bearer",
+  "expires_in": 7200,
+  "refresh_token": "76ba4c5c75c96f6087f58a4de10be6c00b29ea1ddc3b2022ee2016d1363e3a7c",
+  "scope": "public",
+  "created_at": 1487889741
+}"#);
         });
         let settings = Arc::new(ApplicationConfig::builder()
             .storage(temp_path)
@@ -356,12 +512,121 @@ mod tests {
         });
 
         let result = block_in_place(trakt.authorize());
-        
+
         if let Err(e) = result {
             assert!(false, "expected the authorization to have succeeded, {}", e);
         }
-        
+
+        let result = trakt.config.user_settings().tracking().tracker(TRACKING_NAME).unwrap();
+
+        assert_ne!(String::new(), result.access_token);
         mock.assert_hits(1);
+    }
+
+    #[test]
+    fn test_disconnect() {
+        init_logger();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let settings = Arc::new(ApplicationConfig::builder()
+            .storage(temp_path)
+            .build());
+        settings.update_tracker(TRACKING_NAME, Tracker {
+            access_token: "SomeRandomToken".to_string(),
+            expires_in: None,
+            refresh_token: None,
+            scopes: None,
+        });
+        let trakt = TraktProvider::new(settings).unwrap();
+
+        let settings = trakt.config.user_settings().tracking_settings;
+        assert!(settings.tracker(TRACKING_NAME).is_some(), "expected the tracker info to have been present");
+        block_in_place(trakt.disconnect());
+
+        let settings = trakt.config.user_settings().tracking_settings;
+        let result = settings.tracker(TRACKING_NAME);
+        assert!(result.is_none(), "expected the tracker info to have been removed");
+    }
+
+    #[test]
+    fn test_watched_movies() {
+        init_logger();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let server = MockServer::start();
+        let mock = server.mock(|when, then| {
+            when.method(GET)
+                .path("/sync/watched/movies")
+                .header_exists("Authorization");
+            then.status(200)
+                .header("Content-Type", "application/json")
+                .body(r#"[{
+    "plays": 4,
+    "last_watched_at": "2014-10-11T17:00:54.000Z",
+    "last_updated_at": "2014-10-11T17:00:54.000Z",
+    "movie": {
+      "title": "Batman Begins",
+      "year": 2005,
+      "ids": {
+        "trakt": 6,
+        "slug": "batman-begins-2005",
+        "imdb": "tt0372784",
+        "tmdb": 272
+      }
+    }
+}]"#);
+        });
+        let settings = Arc::new(ApplicationConfig::builder()
+            .storage(temp_path)
+            .properties(PopcornProperties {
+                loggers: Default::default(),
+                update_channel: Default::default(),
+                providers: Default::default(),
+                enhancers: Default::default(),
+                subtitle: Default::default(),
+                tracking: vec![
+                    ("trakt".to_string(), TrackingProperties {
+                        uri: server.base_url(),
+                        client: TrackingClientProperties {
+                            client_id: "Foo".to_string(),
+                            client_secret: "Bar".to_string(),
+                            user_authorization_uri: server.url("/oauth/authorize"),
+                            access_token_uri: server.url("/oauth/token"),
+                        },
+                    })
+                ].into_iter().collect(),
+            })
+            .settings(PopcornSettings {
+                subtitle_settings: Default::default(),
+                ui_settings: Default::default(),
+                server_settings: Default::default(),
+                torrent_settings: Default::default(),
+                playback_settings: Default::default(),
+                tracking_settings: TrackingSettings::builder()
+                    .tracker(TRACKING_NAME, Tracker {
+                        access_token: "MyAccessToken".to_string(),
+                        expires_in: None,
+                        refresh_token: None,
+                        scopes: None,
+                    })
+                    .build(),
+            })
+            .build());
+        let trakt = TraktProvider::new(settings).unwrap();
+
+        let result = block_in_place(trakt.watched_movies());
+
+
+        if let Ok(result) = result {
+            let result = result.get(0).unwrap();
+            
+            mock.assert_hits(1);
+            assert_eq!("tt0372784", result.imdb_id());
+            assert_eq!(MediaType::Movie, result.media_type());
+            assert_eq!("Batman Begins", result.title());
+        } else {
+            assert!(false, "expected Result::Ok, but got {:?} instead", result);
+        }
     }
 }
 

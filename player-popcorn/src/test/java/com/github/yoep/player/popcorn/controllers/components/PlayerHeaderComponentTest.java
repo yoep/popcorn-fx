@@ -1,8 +1,8 @@
 package com.github.yoep.player.popcorn.controllers.components;
 
 import com.github.spring.boot.javafx.view.ViewLoader;
-import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.events.PlayerStartedEvent;
+import com.github.yoep.player.popcorn.listeners.PlayerHeaderListener;
+import com.github.yoep.player.popcorn.services.PlayerHeaderService;
 import javafx.scene.control.Label;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
@@ -12,7 +12,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.testfx.framework.junit5.ApplicationExtension;
 import org.testfx.util.WaitForAsyncUtils;
@@ -21,16 +20,17 @@ import java.net.URL;
 import java.util.ResourceBundle;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.isA;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
 class PlayerHeaderComponentTest {
-    @Spy
-    private EventPublisher eventPublisher = new EventPublisher(false);
+    @Mock
+    private PlayerHeaderService playerHeaderService;
     @Mock
     private ViewLoader viewLoader;
     @Mock
@@ -40,10 +40,18 @@ class PlayerHeaderComponentTest {
     @InjectMocks
     private PlayerHeaderComponent component;
 
+    private final AtomicReference<PlayerHeaderListener> headerListener = new AtomicReference<>();
+
     @BeforeEach
     void setUp() {
+        doAnswer(invocation -> {
+            headerListener.set(invocation.getArgument(0, PlayerHeaderListener.class));
+            return null;
+        }).when(playerHeaderService).addListener(isA(PlayerHeaderListener.class));
         component.playerHeader = new GridPane();
         component.title = new Label();
+        component.separator = new Label();
+        component.caption = new Label();
     }
 
     @Test
@@ -58,23 +66,29 @@ class PlayerHeaderComponentTest {
     }
 
     @Test
-    void testOnPlayVideoEvent() {
+    void testOnTitleChanged() throws TimeoutException {
         var title = "lorem ipsum";
         when(viewLoader.load(PlayerHeaderComponent.VIEW_HEADER_ACTIONS)).thenReturn(new Pane());
         component.initialize(url, resourceBundle);
 
-        eventPublisher.publish(PlayerStartedEvent.builder()
-                .source(this)
-                .url("http://localhost")
-                .title(title)
-                .subtitleEnabled(false)
-                .build());
+        var listener = headerListener.get();
+        listener.onTitleChanged(title);
 
-        try {
-            WaitForAsyncUtils.waitFor(250, TimeUnit.MILLISECONDS, () -> StringUtils.isNotEmpty(component.title.getText()));
-        } catch (TimeoutException ignored) {
-        }
-
+        WaitForAsyncUtils.waitFor(250, TimeUnit.MILLISECONDS, () -> StringUtils.isNotEmpty(component.title.getText()));
         assertEquals(title, component.title.getText());
+    }
+
+    @Test
+    void testOnCaptionChanged() throws TimeoutException {
+        var caption = "foo bar";
+        when(viewLoader.load(PlayerHeaderComponent.VIEW_HEADER_ACTIONS)).thenReturn(new Pane());
+        component.initialize(url, resourceBundle);
+
+        var listener = headerListener.get();
+        listener.onCaptionChanged(caption);
+
+        WaitForAsyncUtils.waitFor(250, TimeUnit.MILLISECONDS, () -> StringUtils.isNotEmpty(component.caption.getText()));
+        assertEquals(caption, component.caption.getText());
+        assertTrue(component.separator.isVisible());
     }
 }

@@ -11,7 +11,7 @@ use popcorn_fx_core::{from_c_string, from_c_vec, from_c_vec_owned, into_c_string
 #[derive(Debug)]
 pub struct StringArray {
     /// The string array
-    pub values: *mut *const c_char,
+    pub values: *mut *mut c_char,
     /// The length of the string array
     pub len: i32,
 }
@@ -225,10 +225,10 @@ mod test {
         let url = "https://MyUrl";
         let item = PlaylistItemC {
             url: into_c_string(url.to_string()),
-            title: ptr::null(),
-            caption: ptr::null(),
-            thumb: ptr::null(),
-            quality: ptr::null(),
+            title: ptr::null_mut(),
+            caption: ptr::null_mut(),
+            thumb: ptr::null_mut(),
+            quality: ptr::null_mut(),
             parent_media: ptr::null_mut(),
             media: ptr::null_mut(),
             auto_resume_timestamp: ptr::null_mut(),
@@ -252,9 +252,9 @@ mod test {
         let item = PlaylistItemC {
             url: into_c_string(url.to_string()),
             title: into_c_string("MyTitle".to_string()),
-            caption: ptr::null(),
-            thumb: ptr::null(),
-            quality: ptr::null(),
+            caption: ptr::null_mut(),
+            thumb: ptr::null_mut(),
+            quality: ptr::null_mut(),
             parent_media: ptr::null_mut(),
             media: ptr::null_mut(),
             auto_resume_timestamp: ptr::null_mut(),

@@ -3,6 +3,7 @@ package com.github.yoep.popcorn.backend.adapters.torrent;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentFileInfo;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
 import com.sun.jna.Structure;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 
@@ -15,6 +16,7 @@ import java.util.stream.Collectors;
 
 @Getter
 @ToString
+@EqualsAndHashCode(callSuper = false)
 @Structure.FieldOrder({"magnetUri", "name", "directoryName", "totalFiles", "files"})
 public class TorrentInfoWrapper extends Structure implements TorrentInfo, Closeable {
     public static class ByValue extends TorrentInfoWrapper implements Structure.ByValue {
@@ -50,6 +52,7 @@ public class TorrentInfoWrapper extends Structure implements TorrentInfo, Closea
         Objects.requireNonNull(info, "info cannot be null");
         this.magnetUri = info.getMagnetUri();
         this.name = info.getName();
+        this.directoryName = info.getDirectoryName();
         this.totalFiles = info.getTotalFiles();
         this.files = new TorrentFileInfoSet.ByValue(info.getFiles().stream()
                 .map(e -> new TorrentFileInfoWrapper.ByReference(info, e))

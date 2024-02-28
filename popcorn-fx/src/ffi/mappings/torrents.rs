@@ -30,13 +30,13 @@ pub type SequentialModeCallbackC = extern "C" fn();
 pub type TorrentStateCallbackC = extern "C" fn() -> TorrentState;
 
 /// Type alias for a callback that resolves torrent information.
-pub type ResolveTorrentInfoCallback = extern "C" fn(url: *const c_char) -> TorrentInfoC;
+pub type ResolveTorrentInfoCallback = extern "C" fn(url: *mut c_char) -> TorrentInfoC;
 
 /// Type alias for a callback that resolves torrent information and starts a download.
-pub type ResolveTorrentCallback = extern "C" fn(file_info: TorrentFileInfoC, torrent_directory: *const c_char, auto_start_download: bool) -> TorrentC;
+pub type ResolveTorrentCallback = extern "C" fn(file_info: TorrentFileInfoC, torrent_directory: *mut c_char, auto_start_download: bool) -> TorrentC;
 
 /// Type alias for a callback that cancels a torrent download.
-pub type CancelTorrentCallback = extern "C" fn(*const c_char);
+pub type CancelTorrentCallback = extern "C" fn(*mut c_char);
 
 /// Type alias for a callback that handles torrent stream events.
 pub type TorrentStreamEventCallback = extern "C" fn(TorrentStreamEventC);
@@ -46,9 +46,9 @@ pub type TorrentStreamEventCallback = extern "C" fn(TorrentStreamEventC);
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct TorrentC {
-    pub handle: *const c_char,
+    pub handle: *mut c_char,
     /// The filepath to the torrent file
-    pub filepath: *const c_char,
+    pub filepath: *mut c_char,
     pub has_byte_callback: HasByteCallbackC,
     pub has_piece_callback: HasPieceCallbackC,
     pub total_pieces: TotalPiecesCallbackC,
@@ -90,11 +90,11 @@ impl From<TorrentC> for TorrentWrapper {
 #[repr(C)]
 #[derive(Debug)]
 pub struct TorrentInfoC {
-    pub uri: *const c_char,
+    pub uri: *mut c_char,
     /// A pointer to a null-terminated C string representing the name of the torrent.
-    pub name: *const c_char,
+    pub name: *mut c_char,
     /// A pointer to a null-terminated C string representing the directory name of the torrent.
-    pub directory_name: *const c_char,
+    pub directory_name: *mut c_char,
     /// The total number of files in the torrent.
     pub total_files: i32,
     /// A set of `TorrentFileInfoC` structs representing individual files within the torrent.
@@ -107,7 +107,7 @@ impl From<TorrentInfo> for TorrentInfoC {
         let directory_name = if let Some(e) = value.directory_name {
             into_c_string(e)
         } else {
-            ptr::null()
+            ptr::null_mut()
         };
         let torrent_info_files: Vec<TorrentFileInfoC> = value.files.into_iter()
             .map(|e| TorrentFileInfoC::from(e))
@@ -150,9 +150,9 @@ impl From<TorrentInfoC> for TorrentInfo {
 #[derive(Debug, Clone)]
 pub struct TorrentFileInfoC {
     /// A pointer to a null-terminated C string representing the filename.
-    pub filename: *const c_char,
+    pub filename: *mut c_char,
     /// A pointer to a null-terminated C string representing the file path.
-    pub file_path: *const c_char,
+    pub file_path: *mut c_char,
     /// The size of the file in bytes.
     pub file_size: i64,
     /// The index of the file.
@@ -265,7 +265,7 @@ mod tests {
         let info = TorrentInfoC {
             uri: into_c_string(uri.to_string()),
             name: into_c_string(name.to_string()),
-            directory_name: ptr::null(),
+            directory_name: ptr::null_mut(),
             total_files,
             files: CArray::from(Vec::<TorrentFileInfoC>::new()),
         };

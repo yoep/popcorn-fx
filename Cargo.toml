@@ -15,6 +15,7 @@ members = [
 
 [workspace.dependencies]
 async-trait = "0.1.77"
+bytes = "1.5.0"
 chrono = "0.4.34"
 derive_more = "0.99.17"
 directories = "5.0.1"
@@ -25,6 +26,7 @@ log = "0.4.20"
 oauth2 = "4.4.2"
 open = "5.0.1"
 rand = "0.8.5"
+regex = "1.10.3"
 reqwest = "0.11.24"
 serde = "1.0.196"
 serde-xml-rs = "0.6.0"

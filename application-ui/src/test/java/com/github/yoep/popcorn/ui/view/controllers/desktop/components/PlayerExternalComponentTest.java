@@ -53,6 +53,7 @@ class PlayerExternalComponentTest {
 
         controller.backgroundImage = new BackgroundImageCover();
         controller.titleText = new Label();
+        controller.captionText = new Label();
         controller.progressPercentage = new Label();
         controller.playbackProgress = new ProgressControl();
     }

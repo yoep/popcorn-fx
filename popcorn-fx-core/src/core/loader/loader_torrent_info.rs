@@ -60,8 +60,14 @@ impl TorrentInfoLoadingStrategy {
                         episode_torrents.get(&quality.to_string())
                     })
                     .and_then(|media_torrent| media_torrent.file()
-                        .and_then(|filename| info.by_filename(filename.as_str()))
-                        .or(info.largest_file()))
+                        .and_then(|filename| {
+                            trace!("Searching for torrent file by filename {}", filename);
+                            info.by_filename(filename.as_str())
+                        })
+                        .or_else(|| {
+                            trace!("Torrent file by filename not found, using largest file instead");
+                            info.largest_file()
+                        }))
                     .ok_or(LoadingError::MediaError(format!("failed to resolve torrent file for {} with quality {}", media, quality)))
             }
             _ => {
@@ -103,9 +109,10 @@ impl LoadingStrategy for TorrentInfoLoadingStrategy {
                 Ok(info) => {
                     if let Some(media) = data.media.as_ref() {
                         if let Some(quality) = data.quality.as_ref() {
-                            trace!("Updating torrent file info for media {}", media);
+                            trace!("Updating torrent file info for media {} with quality {}", media, quality);
                             match self.resolve_torrent_file_from_media(&info, media, quality.as_str()).await {
                                 Ok(torrent_file) => {
+                                    debug!("Updating torrent file info to {}", torrent_file);
                                     data.torrent_file_info = Some(torrent_file);
                                 }
                                 Err(e) => return LoadingResult::Err(e),
@@ -113,7 +120,7 @@ impl LoadingStrategy for TorrentInfoLoadingStrategy {
                         }
                     }
 
-                    trace!("Updating loading data torrent info to {:?}", info);
+                    debug!("Updating torrent info to {:?}", info);
                     data.url = None; // remove the original url as the item has been enhanced with the data of it
                     data.torrent_info = Some(info);
                 }
@@ -136,7 +143,8 @@ mod tests {
 
     use tokio_util::sync::CancellationToken;
 
-    use crate::core::block_in_place;
+    use crate::core::{block_in_place, media};
+    use crate::core::media::ShowOverview;
     use crate::core::playlists::PlaylistItem;
     use crate::core::torrents::{MockTorrentManager, TorrentInfo};
     use crate::testing::init_logger;
@@ -186,6 +194,98 @@ mod tests {
 
         assert_eq!(magnet_url.to_string(), resolve_url);
         assert_eq!(LoadingResult::Ok(data), result);
+    }
+
+    #[test]
+    fn test_process_media_url() {
+        init_logger();
+        let magnet_url = "magnet:?MyFullShowTorrent";
+        let expected_torrent_file_info = TorrentFileInfo {
+            filename: "MySecondFile".to_string(),
+            file_path: "MySecondFile".to_string(),
+            file_size: 25000,
+            file_index: 2,
+        };
+        let show = ShowOverview {
+            imdb_id: "tt000111".to_string(),
+            tvdb_id: "".to_string(),
+            title: "MyShow".to_string(),
+            year: "2013".to_string(),
+            num_seasons: 2,
+            images: Default::default(),
+            rating: None,
+        };
+        let episode = Episode {
+            season: 1,
+            episode: 2,
+            first_aired: 0,
+            title: "MySecondEpisode".to_string(),
+            overview: "".to_string(),
+            tvdb_id: 0,
+            tvdb_id_value: "".to_string(),
+            thumb: None,
+            torrents: vec![
+                ("720p".to_string(), media::TorrentInfo::builder()
+                    .url("magnet:?MyEpisodeTorrentUrl")
+                    .provider("MyProvider")
+                    .source("MySource")
+                    .title("MyTitle")
+                    .quality("720p")
+                    .seed(10)
+                    .peer(5)
+                    .file("MySecondFile")
+                    .build())
+            ].into_iter().collect(),
+        };
+        let item = PlaylistItem {
+            url: Some(magnet_url.to_string()),
+            title: "Lorem ipsum".to_string(),
+            caption: None,
+            thumb: None,
+            parent_media: Some(Box::new(show)),
+            media: Some(Box::new(episode)),
+            torrent_info: None,
+            torrent_file_info: None,
+            quality: Some("720p".to_string()),
+            auto_resume_timestamp: None,
+            subtitles_enabled: false,
+        };
+        let info = TorrentInfo {
+            uri: String::new(),
+            name: "MyShowTorrentInfo".to_string(),
+            directory_name: None,
+            total_files: 2,
+            files: vec![
+                TorrentFileInfo {
+                    filename: "MyFirstFile".to_string(),
+                    file_path: "".to_string(),
+                    file_size: 25000,
+                    file_index: 1,
+                },
+                expected_torrent_file_info.clone(),
+            ],
+        };
+        let data = LoadingData::from(item);
+        let (tx, rx) = channel();
+        let (tx_event, _rx_event) = channel();
+        let manager_info = info.clone();
+        let mut torrent_manager = MockTorrentManager::new();
+        torrent_manager.expect_info()
+            .returning(move |e| {
+                tx.send(e.to_string()).unwrap();
+                Ok(manager_info.clone())
+            });
+        let strategy = TorrentInfoLoadingStrategy::new(Arc::new(Box::new(torrent_manager)));
+
+        let result = block_in_place(strategy.process(data, tx_event, CancellationToken::new()));
+        let resolve_url = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+
+        assert_eq!(magnet_url.to_string(), resolve_url);
+        if let LoadingResult::Ok(result) = result {
+            assert_eq!(Some(expected_torrent_file_info), result.torrent_file_info);
+        } else {
+            assert!(false, "expected LoadingResult::Ok, but got {:?} instead", result)
+        }
     }
 
     #[test]

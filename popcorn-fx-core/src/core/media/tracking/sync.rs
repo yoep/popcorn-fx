@@ -8,7 +8,7 @@ use tokio::runtime::Runtime;
 use tokio::sync::Mutex;
 
 use crate::core::{block_in_place, CallbackHandle};
-use crate::core::config::{ApplicationConfig, TrackerSyncState};
+use crate::core::config::{ApplicationConfig, MediaTrackingSyncState};
 use crate::core::media::tracking::{TrackingError, TrackingEvent, TrackingProvider};
 use crate::core::media::watched::WatchedService;
 
@@ -38,9 +38,12 @@ pub enum SyncError {
 /// Alias for `Result` with `SyncError`.
 pub type Result<T> = result::Result<T, SyncError>;
 
+/// Represents synchronized media tracking.
 #[derive(Debug)]
 pub struct SyncMediaTracking {
+    /// The inner actual synchronizer.
     inner: Arc<InnerSyncMediaTracking>,
+    /// Optional callback handle.
     callback_handle: Option<CallbackHandle>,
 }
 
@@ -79,6 +82,13 @@ impl SyncMediaTracking {
                 }
             }
         })));
+        let auto_sync_instance = instance.inner.clone();
+        instance.inner.runtime.spawn(async move {
+            if auto_sync_instance.provider.is_authorized() {
+                debug!("Tracking provider has been authorized, starting automatic startup synchronization");
+                Self::handle_sync_result(auto_sync_instance.sync().await)
+            }
+        });
 
         instance
     }
@@ -208,25 +218,70 @@ impl InnerSyncMediaTracking {
             *mutex = SyncState::Syncing;
         }
 
-        trace!("Syncing tracker movies");
-        match self.provider.watched_movies().await {
-            Ok(_) => {}
-            Err(e) => self.handle_error(e)?,
-        }
+        self.sync_movies().await?;
 
-        info!("Media tracker has been synced");
+        info!("Media tracker has been synchronized");
         self.config.user_settings_ref()
             .tracking_mut()
-            .update_state(TrackerSyncState::Success);
+            .update_state(MediaTrackingSyncState::Success);
+        self.config.save_async().await;
+        self.update_state_to_idle().await;
         Ok(())
     }
 
-    fn handle_error(&self, err: TrackingError) -> Result<()> {
+    async fn sync_movies(&self) -> Result<()> {
+        trace!("Retrieving locally watched movies");
+        match self.watched_service.watched_movies() {
+            Ok(watched_movies) => {
+                trace!("Syncing movies from tracker");
+                match self.provider.watched_movies().await {
+                    Ok(tracker_movies) => {
+                        let mut synced_items = 0;
+                        for movie in tracker_movies {
+                            if !watched_movies.contains(&movie.imdb_id().to_string()) {
+                                if let Err(e) = self.watched_service.add(movie) {
+                                    error!("Failed to add watched movie, {}", e);
+                                } else {
+                                    synced_items += 1;
+                                }
+                            }
+                        }
+                        debug!("Synced a total of {} movies to local DB", synced_items);
+                    }
+                    Err(e) => self.handle_error(e).await?,
+                }
+
+                trace!("Syncing movies to tracker");
+                match self.watched_service.watched_movies() {
+                    Ok(movies) => {
+                        match self.provider.add_watched_movies(movies).await {
+                            Ok(_) => debug!("Remote tracker has been updated with watched movies"),
+                            Err(e) => self.handle_error(e).await?,
+                        }
+                    }
+                    Err(e) => error!("Failed to retrieve watched movies, {}", e),
+                }
+            }
+            Err(e) => {
+                error!("Unable to sync movies, {}", e);
+            }
+        }
+        Ok(())
+    }
+
+    async fn handle_error(&self, err: TrackingError) -> Result<()> {
         error!("Failed to synchronize tracking data, {}", err);
+        self.update_state_to_idle().await;
         self.config.user_settings_ref()
             .tracking_mut()
-            .update_state(TrackerSyncState::Failed);
+            .update_state(MediaTrackingSyncState::Failed);
+        self.config.save_async().await;
         Err(SyncError::Failed(err.to_string()))
+    }
+
+    async fn update_state_to_idle(&self) {
+        let mut mutex = self.state.lock().await;
+        *mutex = SyncState::Idle;
     }
 }
 
@@ -239,12 +294,58 @@ mod tests {
 
     use crate::assert_timeout_eq;
     use crate::core::Handle;
-    use crate::core::media::MediaIdentifier;
+    use crate::core::media::{MediaIdentifier, MockMediaIdentifier};
     use crate::core::media::tracking::MockTrackingProvider;
     use crate::core::media::watched::MockWatchedService;
     use crate::testing::init_logger;
 
     use super::*;
+
+    #[test]
+    fn test_new_is_authorized() {
+        init_logger();
+        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let config = Arc::new(ApplicationConfig::builder()
+            .storage(temp_path)
+            .build());
+        let mut provider = MockTrackingProvider::new();
+        provider.expect_is_authorized()
+            .times(1)
+            .return_const(true);
+        provider.expect_add()
+            .times(1)
+            .return_const(Handle::new());
+        provider.expect_remove()
+            .times(1)
+            .return_const(());
+        provider.expect_add_watched_movies()
+            .return_const(Ok(()));
+        provider.expect_watched_movies()
+            .times(1)
+            .returning(move || {
+                let mut movie = MockMediaIdentifier::new();
+                movie.expect_imdb_id()
+                    .return_const("tt000123".to_string());
+                Ok(vec![Box::new(movie)])
+            });
+        let mut watched_service = MockWatchedService::new();
+        watched_service.expect_watched_movies()
+            .return_const(Ok(vec![]));
+        watched_service.expect_add()
+            .return_const(Ok(()));
+        let sync = SyncMediaTracking::builder()
+            .config(config)
+            .tracking_provider(Arc::new(Box::new(provider)))
+            .watched_service(Arc::new(Box::new(watched_service)))
+            .build();
+
+        assert_timeout_eq!(Duration::from_millis(200), true, sync.inner.config.user_settings().tracking().last_sync().is_some());
+
+        let settings = sync.inner.config.user_settings();
+        let result = settings.tracking().last_sync().unwrap();
+        assert_eq!(&MediaTrackingSyncState::Success, &result.state);
+    }
 
     #[test]
     fn test_drop() {
@@ -285,15 +386,21 @@ mod tests {
             .storage(temp_path)
             .build());
         let mut provider = MockTrackingProvider::new();
+        provider.expect_is_authorized()
+            .return_const(false);
         provider.expect_add()
             .return_const(Handle::new());
         provider.expect_remove()
             .return_const(());
+        provider.expect_add_watched_movies()
+            .return_const(Ok(()));
         provider.expect_watched_movies()
             .returning(|| {
                 Ok(Vec::<Box<dyn MediaIdentifier>>::new())
             });
-        let watched_service = MockWatchedService::new();
+        let mut watched_service = MockWatchedService::new();
+        watched_service.expect_watched_movies()
+            .return_const(Ok(vec![]));
         let sync = SyncMediaTracking::builder()
             .config(config)
             .tracking_provider(Arc::new(Box::new(provider)))
@@ -305,7 +412,7 @@ mod tests {
 
         let settings = sync.inner.config.user_settings();
         let result = settings.tracking().last_sync().unwrap();
-        assert_eq!(TrackerSyncState::Success, result.state);
+        assert_eq!(MediaTrackingSyncState::Success, result.state);
     }
 
     #[test]
@@ -317,15 +424,21 @@ mod tests {
             .storage(temp_path)
             .build());
         let mut provider = MockTrackingProvider::new();
+        provider.expect_is_authorized()
+            .return_const(false);
         provider.expect_add()
             .return_const(Handle::new());
         provider.expect_remove()
             .return_const(());
+        provider.expect_add_watched_movies()
+            .return_const(Ok(()));
         provider.expect_watched_movies()
             .returning(|| {
-               Err(TrackingError::Retrieval)
+                Err(TrackingError::Request)
             });
-        let watched_service = MockWatchedService::new();
+        let mut watched_service = MockWatchedService::new();
+        watched_service.expect_watched_movies()
+            .return_const(Ok(vec![]));
         let sync = SyncMediaTracking::builder()
             .config(config)
             .tracking_provider(Arc::new(Box::new(provider)))
@@ -337,7 +450,7 @@ mod tests {
 
         let settings = sync.inner.config.user_settings();
         let result = settings.tracking().last_sync().unwrap();
-        assert_eq!(TrackerSyncState::Failed, result.state);
+        assert_eq!(MediaTrackingSyncState::Failed, result.state);
     }
 
     #[test]
@@ -350,6 +463,8 @@ mod tests {
             .storage(temp_path)
             .build());
         let mut provider = MockTrackingProvider::new();
+        provider.expect_is_authorized()
+            .return_const(false);
         provider.expect_add()
             .returning(move |e| {
                 tx.send(e).unwrap();
@@ -357,11 +472,15 @@ mod tests {
             });
         provider.expect_remove()
             .return_const(());
+        provider.expect_add_watched_movies()
+            .return_const(Ok(()));
         provider.expect_watched_movies()
             .returning(|| {
                 Ok(Vec::<Box<dyn MediaIdentifier>>::new())
             });
-        let watched_service = MockWatchedService::new();
+        let mut watched_service = MockWatchedService::new();
+        watched_service.expect_watched_movies()
+            .return_const(Ok(vec![]));
         let sync = SyncMediaTracking::builder()
             .config(config)
             .tracking_provider(Arc::new(Box::new(provider)))
@@ -375,7 +494,7 @@ mod tests {
 
         let settings = sync.inner.config.user_settings();
         let result = settings.tracking().last_sync().unwrap();
-        assert_eq!(TrackerSyncState::Success, result.state);
+        assert_eq!(MediaTrackingSyncState::Success, result.state);
     }
 }
 

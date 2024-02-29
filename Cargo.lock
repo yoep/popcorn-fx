@@ -2242,6 +2242,7 @@ version = "0.7.5"
 dependencies = [
  "async-trait",
  "cbindgen",
+ "chrono",
  "clap 4.5.1",
  "derive_more",
  "directories",

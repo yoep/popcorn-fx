@@ -23,7 +23,7 @@ impl TrackingSettings {
         self.last_sync.as_ref()
     }
 
-    pub fn update_state(&mut self, state: TrackerSyncState) {
+    pub fn update_state(&mut self, state: MediaTrackingSyncState) {
         trace!("Updating last sync state to {}", state);
         self.last_sync = Some(LastSync {
             time: Local::now().with_timezone(&Utc),
@@ -56,7 +56,7 @@ impl TrackingSettings {
 pub struct LastSync {
     #[serde(with = "ts_milliseconds")]
     pub time: DateTime<Utc>,
-    pub state: TrackerSyncState,
+    pub state: MediaTrackingSyncState,
 }
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
@@ -68,13 +68,14 @@ pub struct Tracker {
     pub scopes: Option<Vec<String>>,
 }
 
+#[repr(i32)]
 #[derive(Debug, Display, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum TrackerSyncState {
+pub enum MediaTrackingSyncState {
     #[display(fmt = "success")]
-    Success,
+    Success = 0,
     #[display(fmt = "failed")]
-    Failed,
+    Failed = 1,
 }
 
 /// Builder for constructing `TrackingSettings` instances.
@@ -126,10 +127,10 @@ mod tests {
             trackers: vec![].into_iter().collect(),
         };
 
-        settings.update_state(TrackerSyncState::Success);
+        settings.update_state(MediaTrackingSyncState::Success);
 
         let result = settings.last_sync().unwrap();
-        assert_eq!(TrackerSyncState::Success, result.state);
+        assert_eq!(MediaTrackingSyncState::Success, result.state);
         assert!(Local::now().with_timezone(&Utc) - result.time < TimeDelta::milliseconds(100), "expected the last sync time to have been filled in");
     }
 
@@ -210,7 +211,7 @@ mod tests {
     #[test]
     fn test_builder() {
         let name = "MyTracker";
-        let time = Local::now().with_timezone(&Utc {});
+        let time = Local::now().with_timezone(&Utc);
         let tracker = Tracker {
             access_token: "84521".to_string(),
             expires_in: None,
@@ -220,7 +221,7 @@ mod tests {
         let expected_result = TrackingSettings {
             last_sync: Some(LastSync {
                 time,
-                state: TrackerSyncState::Success,
+                state: MediaTrackingSyncState::Success,
             }),
             trackers: vec![
                 (name.to_string(), tracker.clone())
@@ -230,7 +231,7 @@ mod tests {
         let result = TrackingSettings::builder()
             .last_sync(LastSync {
                 time,
-                state: TrackerSyncState::Success,
+                state: MediaTrackingSyncState::Success,
             })
             .tracker(name, tracker)
             .build();

@@ -1,7 +1,16 @@
 use derive_more::Display;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use popcorn_fx_core::core::media::{MediaIdentifier, MediaType};
+
+/// Represents a request to add items to the watchlist.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AddToWatchList {
+    /// A list of movies to add to the watchlist.
+    pub movies: Vec<Movie>,
+    /// A list of shows to add to the watchlist.
+    pub shows: Vec<Show>,
+}
 
 /// Represents an item in a watch list.
 #[derive(Debug, Clone, Deserialize)]
@@ -59,31 +68,31 @@ impl MediaIdentifier for WatchedMovie {
 }
 
 /// Represents information about a movie.
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Movie {
     /// The title of the movie.
     pub title: String,
     /// The release year of the movie.
-    pub year: i32,
+    pub year: Option<i32>,
     /// Unique identifiers for the movie.
     pub ids: MovieId
 }
 
 /// Represents unique identifiers for a movie.
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct MovieId {
     /// The Trakt ID of the movie.
-    pub trakt: i32,
+    pub trakt: Option<i32>,
     /// The slug of the movie.
-    pub slug: String,
+    pub slug: Option<String>,
     /// The IMDb ID of the movie.
     pub imdb: String,
     /// The TMDb ID of the movie.
-    pub tmdb: i32,
+    pub tmdb: Option<i32>,
 }
 
 /// Represents information about a show.
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Show {
     /// The title of the show.
     pub title: String,
@@ -94,16 +103,16 @@ pub struct Show {
 }
 
 /// Represents unique identifiers for a show.
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ShowId {
     /// The Trakt ID of the show.
-    pub trakt: i32,
+    pub trakt: Option<i32>,
     /// The slug of the show.
-    pub slug: String,
+    pub slug: Option<String>,
     /// The IMDb ID of the show.
     pub imdb: String,
     /// The TMDb ID of the show.
-    pub tmdb: i32,
+    pub tmdb: Option<i32>,
     /// The TVDB ID of the show.
-    pub tvdb: i32,
+    pub tvdb: Option<i32>,
 }

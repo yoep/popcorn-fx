@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use chrono::{Local, Utc};
-use log::{debug, error, trace, warn};
+use log::{debug, error, info, trace, warn};
 use oauth2::{AuthorizationCode, AuthUrl, ClientId, ClientSecret, CsrfToken, RedirectUrl, TokenResponse, TokenUrl};
 use oauth2::basic::{BasicClient, BasicTokenResponse};
 use oauth2::http::HeaderMap;
@@ -26,8 +26,9 @@ use popcorn_fx_core::core::config::{ApplicationConfig, Tracker, TrackingClientPr
 use popcorn_fx_core::core::media::MediaIdentifier;
 use popcorn_fx_core::core::media::tracking::{AuthorizationError, OpenAuthorization, TrackingError, TrackingEvent, TrackingProvider};
 
-use crate::trakt::WatchedMovie;
+use crate::trakt::{AddToWatchList, Movie, MovieId, WatchedMovie};
 
+const HEADER_APPLICATION_JSON: &str = "application/json";
 const TRACKING_NAME: &str = "trakt";
 const AUTHORIZED_PORTS: [u16; 3] = [
     30200u16,
@@ -35,17 +36,23 @@ const AUTHORIZED_PORTS: [u16; 3] = [
     30202u16,
 ];
 
+/// Represents the result type used in Trakt operations.
 pub type Result<T> = result::Result<T, TraktError>;
 
+/// Represents errors that can occur during Trakt operations.
 #[derive(Debug, Clone, Error, PartialEq)]
 pub enum TraktError {
-    #[error("failed to create new instance, {0}")]
+    /// Indicates a failure during instance creation.
+    #[error("Failed to create new instance: {0}")]
     Creation(String),
-    #[error("none of the authorized ports are available")]
+    /// Indicates that none of the authorized ports are available.
+    #[error("None of the authorized ports are available")]
     NoAvailablePorts,
+    /// Indicates that the Trakt provider has not been authorized.
     #[error("Trakt provider has not been authorized")]
     Unauthorized,
-    #[error("failed to exchange token, {0}")]
+    /// Indicates an error during token exchange.
+    #[error("Failed to exchange token: {0}")]
     TokenError(String),
 }
 
@@ -220,6 +227,15 @@ impl TraktProvider {
             .default_headers(headers)
             .build().unwrap()
     }
+
+    fn properties(&self) -> TrackingProperties {
+        let properties = self.config.properties();
+
+        properties
+            .tracker(TRACKING_NAME)
+            .cloned()
+            .expect("expected the tracker properties to have been present")
+    }
 }
 
 impl Callbacks<TrackingEvent> for TraktProvider {
@@ -304,12 +320,54 @@ impl TrackingProvider for TraktProvider {
         self.callbacks.invoke(TrackingEvent::AuthorizationStateChanged(false));
     }
 
+    async fn add_watched_movies(&self, movie_ids: Vec<String>) -> result::Result<(), TrackingError> {
+        trace!("Adding {:?} movies to Trakt", movie_ids);
+        let properties = self.properties();
+        let bearer_token = self.bearer_token()
+            .await
+            .map_err(|e| {
+                error!("Failed to retrieve Trakt bearer token, {}", e);
+                TrackingError::Unauthorized
+            })?;
+        let mut uri = Url::parse(properties.uri()).unwrap();
+        uri.set_path("/sync/watchlist");
+
+        let response = self.client.post(uri)
+            .bearer_auth(bearer_token)
+            .json(&AddToWatchList {
+                movies: movie_ids.into_iter()
+                    .map(|e| Movie {
+                        title: "".to_string(),
+                        year: None,
+                        ids: MovieId {
+                            trakt: None,
+                            slug: None,
+                            imdb: e,
+                            tmdb: None,
+                        },
+                    })
+                    .collect(),
+                shows: vec![],
+            })
+            .send()
+            .await
+            .map_err(|e| {
+                error!("Failed to updated watched movies, {}", e);
+                TrackingError::Request
+            })?;
+
+        if response.status().is_success() {
+            info!("Watched movies have been updated with Trakt");
+            Ok(())
+        } else {
+            error!("Received status code {}", response.status());
+            Err(TrackingError::Request)
+        }
+    }
+
     async fn watched_movies(&self) -> result::Result<Vec<Box<dyn MediaIdentifier>>, TrackingError> {
         trace!("Retrieving Trakt watched movies");
-        let properties = self.config.properties();
-        let properties = properties
-            .tracker(TRACKING_NAME)
-            .expect("expected the tracker properties to have been present");
+        let properties = self.properties();
         let bearer_token = self.bearer_token()
             .await
             .map_err(|e| {
@@ -325,7 +383,7 @@ impl TrackingProvider for TraktProvider {
             .await
             .map_err(|e| {
                 error!("Failed to retrieve watched movies, {}", e);
-                TrackingError::Retrieval
+                TrackingError::Request
             })?
             .json::<Vec<WatchedMovie>>()
             .await
@@ -362,6 +420,7 @@ mod tests {
     use httpmock::Method::{GET, POST};
     use httpmock::MockServer;
     use reqwest::Client;
+    use reqwest::header::CONTENT_TYPE;
     use tempfile::tempdir;
     use url::Url;
 
@@ -451,7 +510,7 @@ mod tests {
                 .path("/oauth/token")
                 .header_exists("authorization");
             then.status(200)
-                .header("Content-Type", "application/json")
+                .header(CONTENT_TYPE.as_str(), HEADER_APPLICATION_JSON)
                 .body(r#"{
   "access_token": "dbaf9757982a9e738f05d249b7b5b4a266b3a139049317c4909f2f263572c781",
   "token_type": "bearer",
@@ -619,7 +678,7 @@ mod tests {
 
         if let Ok(result) = result {
             let result = result.get(0).unwrap();
-            
+
             mock.assert_hits(1);
             assert_eq!("tt0372784", result.imdb_id());
             assert_eq!(MediaType::Movie, result.media_type());

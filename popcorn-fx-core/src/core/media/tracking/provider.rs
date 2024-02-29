@@ -36,7 +36,7 @@ pub enum TrackingError {
     Unauthorized,
     /// An error occurred while exchanging data with the tracker.
     #[error("an error occurred while exchanging data with the tracker")]
-    Retrieval,
+    Request,
     /// An error occurred while parsing the tracking data.
     #[error("an error occurred while parsing the tracking data")]
     Parsing,
@@ -75,6 +75,17 @@ pub trait TrackingProvider: Debug + Callbacks<TrackingEvent> + Send + Sync {
     /// Disconnects from the tracking provider.
     async fn disconnect(&self);
 
+    /// Adds watched movies to the tracking provider.
+    ///
+    /// # Arguments
+    ///
+    /// * `movie_ids` - A vector of movie IDs to add to watched list.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` on success, or a `TrackingError` on failure.
+    async fn add_watched_movies(&self, movie_ids: Vec<String>) -> Result<(), TrackingError>;
+
     /// Retrieves the list of watched movies from the tracking provider.
     ///
     /// # Returns
@@ -94,6 +105,7 @@ mock! {
         fn is_authorized(&self) -> bool;
         async fn authorize(&self) -> Result<(), AuthorizationError>;
         async fn disconnect(&self);
+        async fn add_watched_movies(&self, movie_ids: Vec<String>) -> Result<(), TrackingError>;
         async fn watched_movies(&self) -> Result<Vec<Box<dyn MediaIdentifier>>, TrackingError>;
     }
     

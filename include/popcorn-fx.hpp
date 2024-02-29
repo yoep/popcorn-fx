@@ -64,6 +64,11 @@ enum class MediaErrorC : int32_t {
   NoAvailableProviders = 2,
 };
 
+enum class MediaTrackingSyncState : int32_t {
+  Success = 0,
+  Failed = 1,
+};
+
 /// Events related to playback control, triggered by the media system of the OS.
 /// These events can be used to modify the player state based on the given media event.
 enum class PlaybackControlEvent : int32_t {
@@ -485,6 +490,20 @@ struct PlaybackSettingsC {
   bool auto_play_next_episode_enabled;
 };
 
+/// Represents the C-compatible struct for the last sync.
+struct LastSyncC {
+  /// The number of non-leap seconds since January 1, 1970 0:00:00 UTC = Unix timestamp.
+  int64_t time;
+  /// The state of media tracking sync.
+  MediaTrackingSyncState state;
+};
+
+/// Represents the C-compatible struct for tracking settings.
+struct TrackingSettingsC {
+  /// Pointer to the last sync.
+  LastSyncC *last_sync;
+};
+
 /// The C compatible application settings.
 struct PopcornSettingsC {
   /// The subtitle settings of the application
@@ -497,6 +516,8 @@ struct PopcornSettingsC {
   ServerSettingsC server_settings;
   /// The playback settings of the application
   PlaybackSettingsC playback_settings;
+  /// The tracking settings of the application
+  TrackingSettingsC tracking_settings;
 };
 
 /// The C compatible [SubtitleFile] representation.
@@ -534,16 +555,6 @@ struct PlayerChangedEventC {
   char *new_player_id;
   /// The new player name
   char *new_player_name;
-};
-
-struct PlayerStartedEventC {
-  char *url;
-  char *title;
-  char *thumbnail;
-  char *background;
-  char *quality;
-  uint64_t *auto_resume_timestamp;
-  bool subtitles_enabled;
 };
 
 /// A C-compatible struct representing torrent file information.
@@ -612,10 +623,6 @@ struct EventC {
     PlayerChangedEventC _0;
   };
 
-  struct PlayerStarted_Body {
-    PlayerStartedEventC _0;
-  };
-
   struct PlaybackStateChanged_Body {
     PlaybackState _0;
   };
@@ -632,7 +639,6 @@ struct EventC {
   Tag tag;
   union {
     PlayerChanged_Body player_changed;
-    PlayerStarted_Body player_started;
     PlaybackStateChanged_Body playback_state_changed;
     WatchStateChanged_Body watch_state_changed;
     TorrentDetailsLoaded_Body torrent_details_loaded;
@@ -812,11 +818,13 @@ struct PlayRequestC {
   char *url;
   /// The title of the media.
   char *title;
-  /// The URL of the thumbnail image for the media.
+  /// The optional caption of the media, or [ptr::null_mut] if not available.
+  char *caption;
+  /// The optional URL of the thumbnail image for the media, or [ptr::null_mut] if not available.
   char *thumb;
-  /// The URL of the background image for the media.
+  /// The URL of the background image for the media, or [ptr::null_mut] if not available.
   char *background;
-  /// The quality of the media.
+  /// The quality of the media, or [ptr::null_mut] if not available.
   char *quality;
   /// Pointer to a mutable u64 value representing the auto-resume timestamp.
   uint64_t *auto_resume_timestamp;
@@ -1030,6 +1038,23 @@ struct TorrentStreamEventC {
   };
 };
 
+/// Represents a C-compatible tracking event.
+struct TrackingEventC {
+  enum class Tag {
+    /// Authorization state change event.
+    AuthorizationStateChanged,
+  };
+
+  struct AuthorizationStateChanged_Body {
+    bool _0;
+  };
+
+  Tag tag;
+  union {
+    AuthorizationStateChanged_Body authorization_state_changed;
+  };
+};
+
 /// The subtitle matcher C compatible struct.
 /// It contains the information which should be matched when selecting a subtitle file to load.
 struct SubtitleMatcherC {
@@ -1183,6 +1208,10 @@ struct ApplicationConfigEventC {
     PlaybackSettingsC _0;
   };
 
+  struct TrackingSettingsChanged_Body {
+    TrackingSettingsC _0;
+  };
+
   Tag tag;
   union {
     SubtitleSettingsChanged_Body subtitle_settings_changed;
@@ -1190,6 +1219,7 @@ struct ApplicationConfigEventC {
     UiSettingsChanged_Body ui_settings_changed;
     ServerSettingsChanged_Body server_settings_changed;
     PlaybackSettingsChanged_Body playback_settings_changed;
+    TrackingSettingsChanged_Body tracking_settings_changed;
   };
 };
 
@@ -1224,7 +1254,11 @@ using SubtitleCallbackC = void(*)(SubtitleEventC);
 /// Type alias for a callback that handles torrent stream events.
 using TorrentStreamEventCallback = void(*)(TorrentStreamEventC);
 
+/// Type alias for the C-compatible authorization open function.
 using AuthorizationOpenC = bool(*)(char *uri);
+
+/// Type alias for the C-compatible tracking event callback function.
+using TrackingEventCCallback = void(*)(TrackingEventC event);
 
 /// The C compatible representation of the application runtime information.
 struct PatchInfoC {
@@ -1649,6 +1683,13 @@ void dispose_subtitle_info_set(Box<SubtitleInfoSet> set);
 void dispose_torrent_collection(Box<TorrentCollectionSet> collection_set);
 
 void dispose_torrent_stream_event_value(TorrentStreamEventC event);
+
+/// Disposes a tracking event value.
+///
+/// # Arguments
+///
+/// * `event` - The tracking event to be disposed.
+void dispose_tracking_event_value(TrackingEventC event);
 
 /// Download the given [SubtitleInfo] based on the best match according to the [SubtitleMatcher].
 ///
@@ -2184,7 +2225,21 @@ void register_torrent_resolve_callback(PopcornFX *popcorn_fx, ResolveTorrentCall
 /// A pointer to an integer value representing the handle of the registered callback, or a null pointer if registration fails.
 const int64_t *register_torrent_stream_event_callback(PopcornFX *popcorn_fx, int64_t stream_handle, TorrentStreamEventCallback callback);
 
+/// Registers a callback function to handle authorization URI openings from C code.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
+/// * `callback` - The callback function to be registered.
 void register_tracking_authorization_open(PopcornFX *popcorn_fx, AuthorizationOpenC callback);
+
+/// Registers a callback function to handle tracking provider events from C code.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
+/// * `callback` - The callback function to be registered.
+void register_tracking_provider_callback(PopcornFX *popcorn_fx, TrackingEventCCallback callback);
 
 /// Register a new callback for update events.
 ///
@@ -2462,7 +2517,30 @@ void torrent_resolve_info_callback(PopcornFX *popcorn_fx, ResolveTorrentInfoCall
 /// * `state` - The new state of the torrent.
 void torrent_state_changed(PopcornFX *popcorn_fx, char *handle, TorrentState state);
 
+/// Initiates the authorization process with the tracking provider.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
 void tracking_authorize(PopcornFX *popcorn_fx);
+
+/// Disconnects from the tracking provider.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
+void tracking_disconnect(PopcornFX *popcorn_fx);
+
+/// Checks if the current tracking provider is authorized.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
+///
+/// # Returns
+///
+/// Returns `true` if the tracking provider is authorized, otherwise `false`.
+bool tracking_is_authorized(PopcornFX *popcorn_fx);
 
 /// Update the playback settings with the new value.
 void update_playback_settings(PopcornFX *popcorn_fx, PlaybackSettingsC settings);

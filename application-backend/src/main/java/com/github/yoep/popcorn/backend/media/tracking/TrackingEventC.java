@@ -27,7 +27,7 @@ public class TrackingEventC extends Structure implements Closeable {
     }
 
     public Tag tag;
-    public TrackingEventCUnion union;
+    public TrackingEventCUnion.ByValue union;
 
     @Override
     public void read() {

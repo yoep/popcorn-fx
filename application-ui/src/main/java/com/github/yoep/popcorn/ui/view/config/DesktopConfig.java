@@ -7,20 +7,16 @@ import com.github.yoep.popcorn.backend.loader.LoaderService;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.backend.media.providers.ProviderService;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
-import com.github.yoep.popcorn.backend.media.providers.models.MovieOverview;
-import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
 import com.github.yoep.popcorn.backend.media.tracking.TrackingService;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.ui.torrent.TorrentCollectionService;
-import com.github.yoep.popcorn.ui.trakt.TraktService;
 import com.github.yoep.popcorn.ui.view.controllers.common.sections.ListSectionController;
 import com.github.yoep.popcorn.ui.view.controllers.common.sections.LoaderSectionController;
 import com.github.yoep.popcorn.ui.view.controllers.common.sections.SettingsSectionController;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.*;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.sections.TorrentCollectionSectionController;
-import com.github.yoep.popcorn.ui.view.controllers.desktop.sections.WatchlistSectionController;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import com.github.yoep.popcorn.ui.view.services.TorrentSettingService;
 import org.springframework.context.annotation.Bean;
@@ -64,17 +60,6 @@ public class DesktopConfig {
         return new TorrentCollectionSectionController(eventPublisher, torrentCollectionService, localeText, loaderService);
     }
 
-    @Bean
-    public WatchlistSectionController watchlistSectionController(EventPublisher eventPublisher,
-                                                                 ViewLoader viewLoader,
-                                                                 LocaleText localeText,
-                                                                 TraktService traktService,
-                                                                 ProviderService<MovieOverview> movieProviderService,
-                                                                 ProviderService<ShowOverview> showProviderService,
-                                                                 ImageService imageService) {
-        return new WatchlistSectionController(eventPublisher, viewLoader, localeText, traktService, movieProviderService, showProviderService, imageService);
-    }
-
     //endregion
 
     //region Components
@@ -100,9 +85,10 @@ public class DesktopConfig {
     }
 
     @Bean
-    public SettingsTraktComponent settingsTraktComponent(TrackingService trackingService,
+    public SettingsTraktComponent settingsTraktComponent(ApplicationConfig config, 
+                                                         TrackingService trackingService,
                                                          LocaleText localeText) {
-        return new SettingsTraktComponent(trackingService, localeText);
+        return new SettingsTraktComponent(config, trackingService, localeText);
     }
 
     @Bean

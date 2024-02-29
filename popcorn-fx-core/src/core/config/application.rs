@@ -287,11 +287,15 @@ impl ApplicationConfig {
 
     /// Save the application settings.
     pub fn save(&self) {
+        block_in_place(self.save_async())
+    }
+    
+    pub async fn save_async(&self) {
         let settings = self.user_settings();
-        block_in_place(self.save_async(&settings))
+        self.internal_save(&settings).await
     }
 
-    async fn save_async(&self, settings: &PopcornSettings) {
+    async fn internal_save(&self, settings: &PopcornSettings) {
         trace!("Saving application settings {:?}", settings);
         match self.storage.options()
             .serializer(DEFAULT_SETTINGS_FILENAME)

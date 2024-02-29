@@ -41,6 +41,8 @@ popcorn:
       level: info
     popcorn_fx_core::core::media::providers:
       level: info
+    popcorn_fx_core::core::media::tracking:
+      level: trace
     popcorn_fx_core::core::media::resume:
       level: info
     popcorn_fx_core::core::media::watched:

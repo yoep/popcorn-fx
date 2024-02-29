@@ -19,9 +19,10 @@ popcorn-fx-trakt = { path = "../popcorn-fx-trakt" }
 popcorn-fx-vlc = { path = "../popcorn-fx-vlc" }
 
 async-trait.workspace = true
+chrono.workspace = true
 clap = { version = "4", features = ["derive"] }
-directories.workspace = true
 derive_more.workspace = true
+directories.workspace = true
 futures.workspace = true
 itertools.workspace = true
 log.workspace = true

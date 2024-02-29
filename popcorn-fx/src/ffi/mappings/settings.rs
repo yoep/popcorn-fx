@@ -5,7 +5,7 @@ use std::ptr;
 use log::trace;
 
 use popcorn_fx_core::{from_c_owned, from_c_string, into_c_owned, into_c_string};
-use popcorn_fx_core::core::config::{ApplicationConfigEvent, CleaningMode, DecorationType, PlaybackSettings, PopcornSettings, Quality, ServerSettings, SubtitleFamily, SubtitleSettings, TorrentSettings, UiScale, UiSettings};
+use popcorn_fx_core::core::config::{ApplicationConfigEvent, CleaningMode, DecorationType, LastSync, MediaTrackingSyncState, PlaybackSettings, PopcornSettings, Quality, ServerSettings, SubtitleFamily, SubtitleSettings, TorrentSettings, TrackingSettings, UiScale, UiSettings};
 use popcorn_fx_core::core::media::Category;
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
 
@@ -29,19 +29,19 @@ pub enum ApplicationConfigEventC {
     /// Invoked when the playback settings have been changed
     PlaybackSettingsChanged(PlaybackSettingsC),
     /// Invoked when the tracking settings have been changed
-    TrackingSettingsChanged,
+    TrackingSettingsChanged(TrackingSettingsC),
 }
 
 impl From<ApplicationConfigEvent> for ApplicationConfigEventC {
     fn from(value: ApplicationConfigEvent) -> Self {
         match value {
             ApplicationConfigEvent::SettingsLoaded => ApplicationConfigEventC::SettingsLoaded,
-            ApplicationConfigEvent::SubtitleSettingsChanged(settings) => ApplicationConfigEventC::SubtitleSettingsChanged(SubtitleSettingsC::from(&settings)),
-            ApplicationConfigEvent::TorrentSettingsChanged(settings) => ApplicationConfigEventC::TorrentSettingsChanged(TorrentSettingsC::from(&settings)),
-            ApplicationConfigEvent::UiSettingsChanged(settings) => ApplicationConfigEventC::UiSettingsChanged(UiSettingsC::from(&settings)),
-            ApplicationConfigEvent::ServerSettingsChanged(settings) => ApplicationConfigEventC::ServerSettingsChanged(ServerSettingsC::from(&settings)),
-            ApplicationConfigEvent::PlaybackSettingsChanged(settings) => ApplicationConfigEventC::PlaybackSettingsChanged(PlaybackSettingsC::from(&settings)),
-            ApplicationConfigEvent::TrackingSettingsChanged(_) => ApplicationConfigEventC::TrackingSettingsChanged,
+            ApplicationConfigEvent::SubtitleSettingsChanged(e) => ApplicationConfigEventC::SubtitleSettingsChanged(SubtitleSettingsC::from(&e)),
+            ApplicationConfigEvent::TorrentSettingsChanged(e) => ApplicationConfigEventC::TorrentSettingsChanged(TorrentSettingsC::from(&e)),
+            ApplicationConfigEvent::UiSettingsChanged(e) => ApplicationConfigEventC::UiSettingsChanged(UiSettingsC::from(&e)),
+            ApplicationConfigEvent::ServerSettingsChanged(e) => ApplicationConfigEventC::ServerSettingsChanged(ServerSettingsC::from(&e)),
+            ApplicationConfigEvent::PlaybackSettingsChanged(e) => ApplicationConfigEventC::PlaybackSettingsChanged(PlaybackSettingsC::from(&e)),
+            ApplicationConfigEvent::TrackingSettingsChanged(e) => ApplicationConfigEventC::TrackingSettingsChanged(TrackingSettingsC::from(&e)),
         }
     }
 }
@@ -60,6 +60,8 @@ pub struct PopcornSettingsC {
     pub server_settings: ServerSettingsC,
     /// The playback settings of the application
     pub playback_settings: PlaybackSettingsC,
+    /// The tracking settings of the application
+    pub tracking_settings: TrackingSettingsC,
 }
 
 impl From<PopcornSettings> for PopcornSettingsC {
@@ -71,6 +73,7 @@ impl From<PopcornSettings> for PopcornSettingsC {
             ui_settings: UiSettingsC::from(value.ui()),
             server_settings: ServerSettingsC::from(value.server()),
             playback_settings: PlaybackSettingsC::from(value.playback()),
+            tracking_settings: TrackingSettingsC::from(value.tracking()),
         }
     }
 }
@@ -280,9 +283,70 @@ impl From<PlaybackSettingsC> for PlaybackSettings {
     }
 }
 
+/// Represents the C-compatible struct for tracking settings.
+#[repr(C)]
+#[derive(Debug, PartialEq)]
+pub struct TrackingSettingsC {
+    /// Pointer to the last sync.
+    pub last_sync: *mut LastSyncC,
+}
+
+impl From<&TrackingSettings> for TrackingSettingsC {
+    /// Converts from `TrackingSettings` to `TrackingSettingsC`.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - The `TrackingSettings` value to convert.
+    ///
+    /// # Returns
+    ///
+    /// Returns the converted `TrackingSettingsC` value.
+    fn from(value: &TrackingSettings) -> Self {
+        let last_sync = if let Some(e) = value.last_sync() {
+            into_c_owned(LastSyncC::from(e.clone()))
+        } else {
+            ptr::null_mut()
+        };
+
+        Self {
+            last_sync,
+        }
+    }
+}
+
+/// Represents the C-compatible struct for the last sync.
+#[repr(C)]
+#[derive(Debug, PartialEq)]
+pub struct LastSyncC {
+    /// The number of non-leap seconds since January 1, 1970 0:00:00 UTC = Unix timestamp.
+    pub time: i64,
+    /// The state of media tracking sync.
+    pub state: MediaTrackingSyncState,
+}
+
+impl From<LastSync> for LastSyncC {
+    /// Converts from `LastSync` to `LastSyncC`.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - The `LastSync` value to convert.
+    ///
+    /// # Returns
+    ///
+    /// Returns the converted `LastSyncC` value.
+    fn from(value: LastSync) -> Self {
+        Self {
+            time: value.time.timestamp(),
+            state: MediaTrackingSyncState::Success,
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std::path::PathBuf;
+
+    use chrono::{Local, Utc};
 
     use popcorn_fx_core::core::config::SubtitleFamily;
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
@@ -528,5 +592,23 @@ mod test {
         let result = PlaybackSettings::from(settings);
 
         assert_eq!(expected_result, result)
+    }
+
+    #[test]
+    fn test_tracking_settings_c_from() {
+        let time = Local::now().with_timezone(&Utc);
+        let timestamp = time.timestamp();
+        let settings = TrackingSettings::builder()
+            .last_sync(LastSync {
+                time,
+                state: MediaTrackingSyncState::Success,
+            })
+            .build();
+
+        let result = TrackingSettingsC::from(&settings);
+        let last_sync = from_c_owned(result.last_sync);
+        
+        assert_eq!(timestamp, last_sync.time);
+        assert_eq!(MediaTrackingSyncState::Success, last_sync.state);
     }
 }

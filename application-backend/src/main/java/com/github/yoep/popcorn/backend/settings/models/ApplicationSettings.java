@@ -10,13 +10,14 @@ import java.io.Closeable;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Structure.FieldOrder({"subtitleSettings", "torrentSettings", "uiSettings", "serverSettings", "playbackSettings"})
+@Structure.FieldOrder({"subtitleSettings", "torrentSettings", "uiSettings", "serverSettings", "playbackSettings", "trackingSettings"})
 public class ApplicationSettings extends Structure implements Closeable {
     public SubtitleSettings subtitleSettings;
     public TorrentSettings torrentSettings;
     public UISettings uiSettings;
     public ServerSettings serverSettings;
     public PlaybackSettings playbackSettings;
+    public TrackingSettings trackingSettings;
 
     /**
      * The trakt.tv settings of the application.
@@ -41,6 +42,7 @@ public class ApplicationSettings extends Structure implements Closeable {
         uiSettings.close();
         serverSettings.close();
         playbackSettings.close();
+        trackingSettings.close();
     }
 
     //endregion

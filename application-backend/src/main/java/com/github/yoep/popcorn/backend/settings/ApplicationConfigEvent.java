@@ -5,11 +5,13 @@ import com.sun.jna.FromNativeContext;
 import com.sun.jna.NativeMapped;
 import com.sun.jna.Structure;
 import com.sun.jna.Union;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 
 import java.io.Closeable;
 import java.util.Arrays;
+import java.util.Optional;
 
 @Getter
 @ToString
@@ -37,54 +39,111 @@ public class ApplicationConfigEvent extends Structure implements Closeable {
     @Override
     public void close() {
         setAutoSynch(false);
+        getUnion().close();
     }
 
     @Getter
     @ToString
     @FieldOrder({"settings"})
-    public static class SubtitleSettingsChanged_Body extends Structure {
+    public static class SubtitleSettingsChanged_Body extends Structure implements Closeable {
         public SubtitleSettings settings;
+
+        @Override
+        public void close() {
+            setAutoSynch(false);
+        }
     }
 
     @Getter
     @ToString
     @FieldOrder({"settings"})
-    public static class TorrentSettingsChanged_Body extends Structure {
+    public static class TorrentSettingsChanged_Body extends Structure implements Closeable {
         public TorrentSettings settings;
+
+        @Override
+        public void close() {
+            setAutoSynch(false);
+        }
     }
 
     @Getter
     @ToString
     @FieldOrder({"settings"})
-    public static class UiSettingsChanged_Body extends Structure {
+    public static class UiSettingsChanged_Body extends Structure implements Closeable {
         public UISettings settings;
+
+        @Override
+        public void close() {
+            setAutoSynch(false);
+        }
     }
 
     @Getter
     @ToString
     @FieldOrder({"settings"})
-    public static class ServerSettingsChanged_Body extends Structure {
+    public static class ServerSettingsChanged_Body extends Structure implements Closeable {
         public ServerSettings settings;
+
+        @Override
+        public void close() {
+            setAutoSynch(false);
+        }
     }
 
     @Getter
     @ToString
     @FieldOrder({"settings"})
-    public static class PlaybackSettingsChanged_Body extends Structure {
+    public static class PlaybackSettingsChanged_Body extends Structure implements Closeable {
         public PlaybackSettings settings;
+
+        @Override
+        public void close() {
+            setAutoSynch(false);
+        }
     }
 
     @Getter
     @ToString
-    public static class ApplicationConfigEventUnion extends Union {
+    @FieldOrder({"settings"})
+    public static class TrackingSettingsChanged_Body extends Structure implements Closeable {
+        public TrackingSettings settings;
+
+        @Override
+        public void close() {
+            setAutoSynch(false);
+        }
+    }
+
+    @Getter
+    @ToString
+    @EqualsAndHashCode(callSuper = false)
+    public static class ApplicationConfigEventUnion extends Union implements Closeable {
         public static class ByValue extends ApplicationConfigEventUnion implements Union.ByValue {
         }
 
-        public ApplicationConfigEvent.SubtitleSettingsChanged_Body subtitleSettings;
-        public ApplicationConfigEvent.TorrentSettingsChanged_Body torrentSettings;
-        public ApplicationConfigEvent.UiSettingsChanged_Body uiSettings;
-        public ApplicationConfigEvent.ServerSettingsChanged_Body serverSettings;
-        public ApplicationConfigEvent.PlaybackSettingsChanged_Body playbackSettings;
+        public SubtitleSettingsChanged_Body subtitleSettingsChanged_body;
+        public TorrentSettingsChanged_Body torrentSettingsChanged_body;
+        public UiSettingsChanged_Body uiSettingsChanged_body;
+        public ServerSettingsChanged_Body serverSettingsChanged_body;
+        public PlaybackSettingsChanged_Body playbackSettingsChanged_body;
+        public TrackingSettingsChanged_Body trackingSettingsChanged_body;
+
+        @Override
+        public void close() {
+            setAutoSynch(false);
+            Optional.ofNullable(subtitleSettingsChanged_body)
+                    .ifPresent(SubtitleSettingsChanged_Body::close);
+            Optional.ofNullable(torrentSettingsChanged_body)
+                    .ifPresent(TorrentSettingsChanged_Body::close);
+            Optional.ofNullable(uiSettingsChanged_body)
+                    .ifPresent(UiSettingsChanged_Body::close);
+            Optional.ofNullable(serverSettingsChanged_body)
+                    .ifPresent(ServerSettingsChanged_Body::close);
+            Optional.ofNullable(playbackSettingsChanged_body)
+                    .ifPresent(PlaybackSettingsChanged_Body::close);
+            Optional.ofNullable(trackingSettingsChanged_body)
+                    .ifPresent(TrackingSettingsChanged_Body::close);
+        }
     }
 
     public enum Tag implements NativeMapped {

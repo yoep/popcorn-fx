@@ -248,6 +248,7 @@ pub mod testing {
                 .logger(Logger::builder().build("polling", LevelFilter::Info))
                 .logger(Logger::builder().build("hyper", LevelFilter::Info))
                 .logger(Logger::builder().build("tracing", LevelFilter::Info))
+                .logger(Logger::builder().build("neli", LevelFilter::Info))
                 .build(Root::builder().appender("stdout").build(LevelFilter::Trace))
                 .unwrap())
                 .unwrap();

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
-use std::net::TcpListener;
+use std::net::{SocketAddr, TcpListener};
 use std::result;
 use std::sync::Arc;
 use std::sync::mpsc::{channel, Sender};
@@ -30,10 +30,12 @@ use crate::trakt::{AddToWatchList, Movie, MovieId, WatchedMovie};
 
 const HEADER_APPLICATION_JSON: &str = "application/json";
 const TRACKING_NAME: &str = "trakt";
-const AUTHORIZED_PORTS: [u16; 3] = [
+const AUTHORIZED_PORTS: [u16; 5] = [
     30200u16,
     30201u16,
     30202u16,
+    30203u16,
+    30204u16,
 ];
 
 /// Represents the result type used in Trakt operations.
@@ -43,16 +45,19 @@ pub type Result<T> = result::Result<T, TraktError>;
 #[derive(Debug, Clone, Error, PartialEq)]
 pub enum TraktError {
     /// Indicates a failure during instance creation.
-    #[error("Failed to create new instance: {0}")]
+    #[error("failed to create new instance: {0}")]
     Creation(String),
     /// Indicates that none of the authorized ports are available.
-    #[error("None of the authorized ports are available")]
+    #[error("none of the authorized ports are available")]
     NoAvailablePorts,
+    /// Indicates that the authorization process failed.
+    #[error("failed to authorize the user, {0}")]
+    AuthorizationError(String),
     /// Indicates that the Trakt provider has not been authorized.
     #[error("Trakt provider has not been authorized")]
     Unauthorized,
     /// Indicates an error during token exchange.
-    #[error("Failed to exchange token: {0}")]
+    #[error("failed to exchange token: {0}")]
     TokenError(String),
 }
 
@@ -60,7 +65,6 @@ pub struct TraktProvider {
     config: Arc<ApplicationConfig>,
     oauth_client: BasicClient,
     client: Client,
-    port: u16,
     open_authorization_callback: Mutex<OpenAuthorization>,
     runtime: Runtime,
     callbacks: CoreCallbacks<TrackingEvent>,
@@ -80,7 +84,6 @@ impl TraktProvider {
             client = tracking.client();
         }
 
-        let port = Self::available_port()?;
         let oauth_client = BasicClient::new(
             ClientId::new(client.client_id.clone()),
             Some(ClientSecret::new(client.client_secret.clone())),
@@ -90,8 +93,7 @@ impl TraktProvider {
             Some(TokenUrl::new(client.access_token_uri.clone()).map_err(|e| {
                 TraktError::Creation(e.to_string())
             })?),
-        )
-            .set_redirect_uri(RedirectUrl::new(format!("http://localhost:{}/callback", port)).expect("expected a valid redirect url"));
+        );
 
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
@@ -104,7 +106,6 @@ impl TraktProvider {
             config,
             oauth_client,
             client: Self::create_new_client(client),
-            port,
             open_authorization_callback: Mutex::new(Box::new(|uri: String| match open::that(uri.as_str()) {
                 Ok(_) => true,
                 Err(e) => {
@@ -117,8 +118,8 @@ impl TraktProvider {
         })
     }
 
-    fn start_auth_server(&self, sender: Sender<AuthCallbackResult>, shutdown_signal: oneshot::Receiver<()>) {
-        trace!("Starting new Trakt auth server on port {}", self.port);
+    fn start_auth_server(&self, sender: Sender<AuthCallbackResult>, shutdown_signal: oneshot::Receiver<()>) -> Result<SocketAddr> {
+        trace!("Starting new Trakt authorization callback server");
         let routes = warp::get()
             .and(warp::path!("callback"))
             .and(warp::query::<HashMap<String, String>>())
@@ -140,13 +141,18 @@ impl TraktProvider {
 
         let server = warp::serve(routes);
 
-        debug!("Starting auth server on port {}", self.port);
-        let (_, server) = server.bind_with_graceful_shutdown(([127, 0, 0, 1], self.port), async {
+        let port = Self::available_port()?;
+        debug!("Starting auth server on port {}", port);
+        match server.try_bind_with_graceful_shutdown(([127, 0, 0, 1], port), async {
             shutdown_signal.await.ok();
             debug!("Shutting down Trakt auth server");
-        });
-
-        self.runtime.spawn(server);
+        }) {
+            Ok((addr, server)) => {
+                self.runtime.spawn(server);
+                Ok(addr)
+            }
+            Err(e) => Err(TraktError::AuthorizationError(e.to_string())),
+        }
     }
 
     async fn bearer_token(&self) -> Result<String> {
@@ -269,11 +275,17 @@ impl TrackingProvider for TraktProvider {
         let open_callback = self.open_authorization_callback.lock().await;
         let (tx_shutdown, rx_shutdown) = oneshot::channel();
         let (tx, rx) = channel();
-
-        let (auth_url, csrf_token) = self.oauth_client
+        
+        let addr = self.start_auth_server(tx, rx_shutdown)
+            .map_err(|e| {
+                error!("Failed to start authorization server, {}", e);
+                AuthorizationError::AuthorizationCode
+            })?;
+        let oauth_client = self.oauth_client.clone()
+            .set_redirect_uri(RedirectUrl::new(format!("http://localhost:{}/callback", addr.port())).expect("expected a valid redirect url"));
+        let (auth_url, csrf_token) = oauth_client
             .authorize_url(CsrfToken::new_random)
             .url();
-        self.start_auth_server(tx, rx_shutdown);
 
         return if open_callback(auth_url.to_string()) {
             return match rx.recv_timeout(Duration::from_secs(60 * 5)) {
@@ -402,9 +414,11 @@ impl TrackingProvider for TraktProvider {
 impl Debug for TraktProvider {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("TraktProvider")
-            .field("client", &self.oauth_client)
-            .field("port", &self.port)
+            .field("config", &self.config)
+            .field("oauth_client", &self.oauth_client)
+            .field("client", &self.client)
             .field("runtime", &self.runtime)
+            .field("callbacks", &self.callbacks)
             .finish()
     }
 }
@@ -549,14 +563,20 @@ mod tests {
             true
         }));
 
-        let callback_uri = trakt.oauth_client.redirect_url().cloned().unwrap();
         trakt.runtime.spawn(async move {
             let client = Client::new();
-            let auth_uri = Url::parse(rx.recv_timeout(Duration::from_secs(1)).unwrap().as_str()).expect("expected the authorization open to have been invoked");
+            let authorization_uri = rx.recv_timeout(Duration::from_secs(1)).unwrap();
+            let auth_uri = Url::parse(authorization_uri.as_str()).expect("expected the authorization open to have been invoked");
 
-            let (_, state) = auth_uri.query_pairs().find(|(key, _)| key == "state").expect("expected the state key to have been found");
+            let (_, state) = auth_uri.query_pairs()
+                .find(|(key, _)| key == "state")
+                .expect("expected the state key to have been found");
+            let (_, redirect_uri) = auth_uri.query_pairs()
+                .find(|(key, _)| key == "redirect_uri")
+                .expect("expected the redirect uri to have been present");
 
-            let uri = callback_uri.url().clone()
+            let uri = Url::parse(redirect_uri.as_ref())
+                .expect("expected a valid redirect uri")
                 .query_pairs_mut()
                 .append_pair("code", expected_code)
                 .append_pair("state", state.as_ref())

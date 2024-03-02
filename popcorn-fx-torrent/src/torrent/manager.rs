@@ -399,7 +399,7 @@ mod test {
             }
         }));
         let torrent_info_callback = torrent_info.clone();
-        manager.register_resolve_info_callback(Box::new(move |url| {
+        manager.register_resolve_info_callback(Box::new(move |_| {
             torrent_info_callback.clone()
         }));
 

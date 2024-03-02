@@ -141,9 +141,9 @@ impl TraktProvider {
 
         let server = warp::serve(routes);
 
-        let port = Self::available_port()?;
-        debug!("Starting auth server on port {}", port);
-        match server.try_bind_with_graceful_shutdown(([127, 0, 0, 1], port), async {
+        let addr = Self::available_address()?;
+        debug!("Starting auth server on {}", addr);
+        match server.try_bind_with_graceful_shutdown(addr, async {
             shutdown_signal.await.ok();
             debug!("Shutting down Trakt auth server");
         }) {
@@ -212,11 +212,11 @@ impl TraktProvider {
         self.config.update_tracker(TRACKING_NAME, tracker);
     }
 
-    fn available_port() -> Result<u16> {
+    fn available_address() -> Result<SocketAddr> {
         for port in AUTHORIZED_PORTS.iter() {
             trace!("Checking port availability of {}", port);
-            if TcpListener::bind(("localhost", port.clone())).is_ok() {
-                return Ok(port.clone());
+            if let Ok(listener) = TcpListener::bind(("localhost", port.clone())) {
+                return Ok(listener.local_addr().unwrap());
             }
         }
 
@@ -275,7 +275,7 @@ impl TrackingProvider for TraktProvider {
         let open_callback = self.open_authorization_callback.lock().await;
         let (tx_shutdown, rx_shutdown) = oneshot::channel();
         let (tx, rx) = channel();
-        
+
         let addr = self.start_auth_server(tx, rx_shutdown)
             .map_err(|e| {
                 error!("Failed to start authorization server, {}", e);

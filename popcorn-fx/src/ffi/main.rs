@@ -4,7 +4,7 @@ use std::time::Instant;
 use clap::{CommandFactory, FromArgMatches};
 use log::{debug, info, trace};
 
-use popcorn_fx_core::{from_c_string, from_c_vec, into_c_owned, into_c_string, VERSION};
+use popcorn_fx_core::{from_c_string, from_c_string_owned, from_c_vec, into_c_owned, into_c_string, VERSION};
 
 use crate::{PopcornFX, PopcornFxArgs};
 
@@ -12,11 +12,11 @@ use crate::{PopcornFX, PopcornFxArgs};
 /// The caller will become responsible for managing the memory of the struct.
 /// The instance can be safely deleted by using [dispose_popcorn_fx].
 #[no_mangle]
-pub extern "C" fn new_popcorn_fx(args: *mut *const c_char, len: i32) -> *mut PopcornFX {
+pub extern "C" fn new_popcorn_fx(args: *mut *mut c_char, len: i32) -> *mut PopcornFX {
     trace!("Creating new popcorn FX instance from C for args: {:?}", args);
     let start = Instant::now();
     let args = from_c_vec(args, len).into_iter()
-        .map(|e| from_c_string(e))
+        .map(|e| from_c_string_owned(e))
         .collect::<Vec<String>>();
     let matches = PopcornFxArgs::command()
         .allow_external_subcommands(true)
@@ -44,7 +44,7 @@ pub extern "C" fn dispose_popcorn_fx(instance: Box<PopcornFX>) {
 
 /// Retrieve the version of Popcorn FX.
 #[no_mangle]
-pub extern "C" fn version() -> *const c_char {
+pub extern "C" fn version() -> *mut c_char {
     into_c_string(VERSION.to_string())
 }
 
@@ -90,6 +90,6 @@ mod test {
     fn test_version() {
         let result = version();
 
-        assert_eq!(VERSION.to_string(), from_c_string(result))
+        assert_eq!(VERSION.to_string(), from_c_string_owned(result))
     }
 }

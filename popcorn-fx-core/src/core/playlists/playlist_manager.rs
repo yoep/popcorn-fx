@@ -71,8 +71,8 @@ impl PlaylistManager {
         let event_manager = manager.inner.clone();
         manager.inner.event_publisher.register(Box::new(move |event| {
             if let Event::ClosePlayer = event {
-                if event_manager.has_next() {
-                    debug!("Consuming Event::ClosePlayer, next item will be loaded");
+                if event_manager.is_next_allowed() {
+                    debug!("Consuming Event::ClosePlayer, next playlist item will be loaded");
                     return None;
                 }
             }
@@ -321,22 +321,35 @@ impl InnerPlaylistManager {
         match (duration, new_state) {
             (0, _) => trace!("Skipping player stopped, last known duration is {}", duration),
             (_, PlayerState::Stopped) => {
-                if self.has_next() {
+                if self.is_next_allowed() {
                     debug!("Starting automatic playback of the next playlist item");
                     self.play_next();
+                } else {
+                    debug!("Automatic playback is not allowed to start next playlist item");
                 }
             }
             _ => {}
         }
     }
 
-    pub fn stop(&self) {
+    fn stop(&self) {
         trace!("Stopping the current playlist");
         {
             let mut mutex = block_in_place(self.playlist.lock());
             mutex.clear();
         }
         self.event_publisher.publish(Event::ClosePlayer);
+    }
+
+    /// Determine with-either the next item is allowed to be played.
+    fn is_next_allowed(&self) -> bool {
+        let duration = block_in_place(self.player_duration.lock()).clone();
+        let playing_in = block_in_place(self.player_playing_in.lock()).clone()
+            .and_then(|(time, _)| time)
+            .filter(|e| e <= &PLAYING_NEXT_IN_THRESHOLD_SECONDS);
+
+        self.has_next() &&
+            duration > 0 && playing_in.is_some()
     }
 
     fn update_state_stat(new_state: PlaylistState, state: Arc<Mutex<PlaylistState>>, callbacks: CoreCallbacks<PlaylistManagerEvent>) {
@@ -531,11 +544,83 @@ mod test {
 
         let callback = rx_player_manager.recv_timeout(Duration::from_millis(200)).expect("Expected the playlist manager to subscribe to the player manager");
         callback(PlayerManagerEvent::PlayerDurationChanged(50000));
+        callback(PlayerManagerEvent::PlayerTimeChanged(40000));
         callback(PlayerManagerEvent::PlayerStateChanged(PlayerState::Stopped));
 
         // verify the playlist item that has been loaded
         let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
         assert_eq!(item2.to_string(), result.title);
+    }
+
+    #[test]
+    fn test_player_stopped_event_by_player_during_playback() {
+        init_logger();
+        let url = "https://www.youtube.com";
+        let item1 = "MyFirstItem";
+        let item2 = "MySecondItem";
+        let mut playlist = Playlist::default();
+        let (tx_manager, rx_manager) = channel();
+        let (tx_player_manager, rx_player_manager) = channel();
+        let event_publisher = Arc::new(EventPublisher::default());
+        let mut player_manager = Box::new(MockPlayerManager::new());
+        player_manager.expect_subscribe()
+            .times(1)
+            .returning(move |e| {
+                tx_player_manager.send(e).unwrap();
+                Handle::new()
+            });
+        let player_manager = Arc::new(player_manager as Box<dyn PlayerManager>);
+        let mut loader = MockMediaLoader::new();
+        loader.expect_load_playlist_item()
+            .times(2)
+            .returning(move |_| {
+                Handle::new()
+            });
+        let manager = PlaylistManager::new(player_manager.clone(), event_publisher.clone(), Arc::new(Box::new(loader)));
+
+        playlist.add(PlaylistItem {
+            url: Some(url.to_string()),
+            title: item1.to_string(),
+            caption: None,
+            thumb: None,
+            media: None,
+            parent_media: None,
+            torrent_info: None,
+            torrent_file_info: None,
+            quality: None,
+            auto_resume_timestamp: None,
+            subtitles_enabled: false,
+        });
+        playlist.add(PlaylistItem {
+            url: None,
+            title: item2.to_string(),
+            caption: None,
+            thumb: None,
+            parent_media: None,
+            media: None,
+            torrent_info: None,
+            torrent_file_info: None,
+            quality: None,
+            auto_resume_timestamp: None,
+            subtitles_enabled: false,
+        });
+
+        manager.subscribe(Box::new(move |e| {
+            tx_manager.send(e).unwrap();
+        }));
+
+        // start the playlist
+        manager.play(playlist);
+        let result = rx_manager.recv_timeout(Duration::from_millis(200)).unwrap();
+        assert_eq!(PlaylistManagerEvent::PlaylistChanged, result);
+
+        let callback = rx_player_manager.recv_timeout(Duration::from_millis(200)).expect("Expected the playlist manager to subscribe to the player manager");
+        callback(PlayerManagerEvent::PlayerDurationChanged(120000));
+        callback(PlayerManagerEvent::PlayerTimeChanged(40000));
+        callback(PlayerManagerEvent::PlayerStateChanged(PlayerState::Stopped));
+
+        // verify the playlist item that has been loaded
+        assert_eq!(false, manager.inner.is_next_allowed(), "expected the next item to not be loaded");
     }
 
     #[test]
@@ -545,11 +630,13 @@ mod test {
         let mut playlist = Playlist::default();
         let (tx_manager, rx_manager) = channel();
         let (tx_event, rx_event) = channel();
+        let (tx_player_manager, rx_player_manager) = channel();
         let event_publisher = Arc::new(EventPublisher::default());
         let mut player_manager = Box::new(MockPlayerManager::new());
         player_manager.expect_subscribe()
             .times(1)
-            .returning(move |_| {
+            .returning(move |e| {
+                tx_player_manager.send(e).unwrap();
                 Handle::new()
             });
         let player_manager = Arc::new(player_manager as Box<dyn PlayerManager>);
@@ -602,6 +689,9 @@ mod test {
         let result = rx_manager.recv_timeout(Duration::from_millis(200)).unwrap();
         assert_eq!(PlaylistManagerEvent::PlaylistChanged, result);
 
+        let callback = rx_player_manager.recv_timeout(Duration::from_millis(200)).expect("Expected the playlist manager to subscribe to the player manager");
+        callback(PlayerManagerEvent::PlayerDurationChanged(120000));
+        callback(PlayerManagerEvent::PlayerTimeChanged(100000));
         event_publisher.publish(Event::ClosePlayer);
         let result = rx_event.recv_timeout(Duration::from_millis(100));
         assert!(result.is_err(), "expected the close player event to have been consumed");
@@ -676,6 +766,7 @@ mod test {
         assert_eq!(item1.to_string(), result.title);
 
         let callback = rx_player_manager.recv_timeout(Duration::from_millis(200)).expect("Expected the playlist manager to subscribe to the player manager");
+        callback(PlayerManagerEvent::PlayerTimeChanged(100000));
         callback(PlayerManagerEvent::PlayerStateChanged(PlayerState::Stopped));
         // should not invoke any events, otherwise, the MockPlayerManager will fail at this point due to too many calls
     }

@@ -7,6 +7,8 @@ import javax.validation.constraints.NotNull;
 public interface PlayerHeaderListener {
     void onTitleChanged(String title);
 
+    void onCaptionChanged(String caption);
+
     void onQualityChanged(String quality);
 
     /**

@@ -11,36 +11,28 @@ import javafx.stage.Stage;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
+import java.util.Objects;
 import java.util.ResourceBundle;
 
 @Slf4j
 public class AuthorizationComponent extends ScaleAwareImpl implements Initializable {
-    private boolean initialized;
-    private AuthorizationRequest authorizationRequest;
+    static final String CALLBACK_HOST = "http://localhost";
+
+    private final String authorizationUri;
 
     @FXML
-    private WebView webView;
+    WebView webView;
+
+    public AuthorizationComponent(String authorizationUri) {
+        Objects.requireNonNull(authorizationUri, "authorizationUri cannot be null");
+        this.authorizationUri = authorizationUri;
+    }
 
     //region Methods
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
-        initialized = true;
-
-        if (authorizationRequest != null)
-            startAuthorization();
-    }
-
-    /**
-     * Start the authorization process for the given authorization request.
-     *
-     * @param authorizationRequest The authorization request to execute.
-     */
-    public void startAuthorization(AuthorizationRequest authorizationRequest) {
-        this.authorizationRequest = authorizationRequest;
-
-        if (initialized)
-            startAuthorization();
+        startAuthorization();
     }
 
     //endregion
@@ -51,16 +43,14 @@ public class AuthorizationComponent extends ScaleAwareImpl implements Initializa
         WebEngine engine = webView.getEngine();
 
         engine.setUserAgent("Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/65.0.3325.181 Safari/537.36");
-        engine.load(authorizationRequest.getAuthorizationUrl());
+        engine.load(authorizationUri);
         engine.locationProperty().addListener((observable, oldValue, newValue) -> verifyIfRedirectIsCallback(newValue));
         engine.setOnError(this::handleEngineError);
         engine.setOnAlert(this::handleEngineAlert);
     }
 
     private void verifyIfRedirectIsCallback(String url) {
-        if (url.startsWith(authorizationRequest.getRedirectUrl())) {
-            authorizationRequest.onComplete(url);
-
+        if (url.startsWith(CALLBACK_HOST)) {
             closeWindow();
         }
     }
@@ -68,8 +58,6 @@ public class AuthorizationComponent extends ScaleAwareImpl implements Initializa
     private void closeWindow() {
         Stage stage = (Stage) webView.getScene().getWindow();
         stage.close();
-
-        this.authorizationRequest = null;
     }
 
     private void handleEngineError(WebErrorEvent webErrorEvent) {

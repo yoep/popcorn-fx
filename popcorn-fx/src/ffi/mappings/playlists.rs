@@ -20,15 +20,15 @@ pub type PlaylistManagerCallbackC = extern "C" fn(PlaylistManagerEventC);
 #[derive(Debug, Clone)]
 pub struct PlaylistItemC {
     /// The URL of the playlist item.
-    pub url: *const c_char,
+    pub url: *mut c_char,
     /// The title of the playlist item.
-    pub title: *const c_char,
+    pub title: *mut c_char,
     /// The caption/subtitle of the playlist item.
-    pub caption: *const c_char,
+    pub caption: *mut c_char,
     /// The thumbnail URL of the playlist item.
-    pub thumb: *const c_char,
+    pub thumb: *mut c_char,
     /// The quality information of the playlist item.
-    pub quality: *const c_char,
+    pub quality: *mut c_char,
     /// A pointer to the parent media item, if applicable.
     pub parent_media: *mut MediaItemC,
     /// A pointer to the media item associated with the playlist item.
@@ -131,22 +131,22 @@ impl From<PlaylistItem> for PlaylistItemC {
         let url = if let Some(e) = value.url {
             into_c_string(e)
         } else {
-            ptr::null()
+            ptr::null_mut()
         };
         let caption = if let Some(e) = value.caption {
             into_c_string(e)
         } else {
-            ptr::null()
+            ptr::null_mut()
         };
         let thumb = if let Some(e) = value.thumb {
             into_c_string(e)
         } else {
-            ptr::null()
+            ptr::null_mut()
         };
         let quality = if let Some(e) = value.quality {
             into_c_string(e)
         } else {
-            ptr::null()
+            ptr::null_mut()
         };
         let auto_resume_timestamp = if let Some(e) = value.auto_resume_timestamp {
             e as *const u64
@@ -243,8 +243,8 @@ mod test {
         let item = PlaylistItemC {
             url: into_c_string(url.to_string()),
             title: into_c_string(title.to_string()),
-            caption: ptr::null(),
-            thumb: ptr::null(),
+            caption: ptr::null_mut(),
+            thumb: ptr::null_mut(),
             parent_media: ptr::null_mut(),
             media: into_c_owned(MediaItemC::from(media.clone())),
             quality: into_c_string(quality.to_string()),

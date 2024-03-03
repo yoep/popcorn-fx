@@ -1,4 +1,6 @@
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{Debug, Display};
+#[cfg(any(test, feature = "testing"))]
+use std::fmt::Formatter;
 use std::sync::Weak;
 
 use derive_more::Display;
@@ -18,8 +20,13 @@ pub trait PlayRequest: Debug + Display + DowncastSync {
 
     /// Get the title of the media (if available).
     ///
-    /// Returns an optional `String` containing the title, or `None` if not available.
+    /// Returns a `String` containing the title.
     fn title(&self) -> &str;
+
+    /// Get the optional caption of this request.
+    ///
+    /// Returns an optional `String` containing the caption of the request, or `None` if not available.
+    fn caption(&self) -> Option<String>;
 
     /// Get the URL of the thumbnail associated with the media (if available).
     ///
@@ -62,8 +69,10 @@ impl Display for MockPlayRequest {
 pub struct PlayUrlRequest {
     /// The URL of the media to be played.
     pub url: String,
-    /// The title of the media (if available).
+    /// The title of the media.
     pub title: String,
+    /// The caption of the media request (if available).
+    pub caption: Option<String>,
     /// The URL of the thumbnail associated with the media (if available).
     pub thumb: Option<String>,
     /// The URL of the background image associated with the media (if available).
@@ -88,6 +97,10 @@ impl PlayRequest for PlayUrlRequest {
 
     fn title(&self) -> &str {
         self.title.as_str()
+    }
+
+    fn caption(&self) -> Option<String> {
+        self.caption.clone()
     }
 
     fn thumbnail(&self) -> Option<String> {
@@ -127,6 +140,7 @@ impl<S> From<S> for PlayUrlRequest
 pub struct PlayUrlRequestBuilder {
     url: Option<String>,
     title: Option<String>,
+    caption: Option<String>,
     thumb: Option<String>,
     background: Option<String>,
     auto_resume_timestamp: Option<u64>,
@@ -140,26 +154,34 @@ impl PlayUrlRequestBuilder {
     }
 
     /// Sets the URL for the media to be played.
-    pub fn url(mut self, url: &str) -> Self {
-        self.url = Some(url.to_string());
+    pub fn url<S: Into<String>>(mut self, url: S) -> Self {
+        self.url = Some(url.into());
         self
     }
 
     /// Sets the title of the media.
-    pub fn title(mut self, title: &str) -> Self {
-        self.title = Some(title.to_string());
+    pub fn title<S: Into<String>>(mut self, title: S) -> Self{
+        self.title = Some(title.into());
+        self
+    }
+
+    /// Sets the caption of the associated media.
+    pub fn caption<S: Into<String>>(mut self, caption: S) -> Self
+        where S: Into<String>
+    {
+        self.caption = Some(caption.into());
         self
     }
 
     /// Sets the URL of the thumbnail associated with the media.
-    pub fn thumb(mut self, thumb: &str) -> Self {
-        self.thumb = Some(thumb.to_string());
+    pub fn thumb<S: Into<String>>(mut self, thumb: S) -> Self {
+        self.thumb = Some(thumb.into());
         self
     }
 
     /// Sets the URL of the background associated with the media.
-    pub fn background(mut self, background: &str) -> Self {
-        self.background = Some(background.to_string());
+    pub fn background<S: Into<String>>(mut self, background: S) -> Self {
+        self.background = Some(background.into());
         self
     }
 
@@ -184,6 +206,7 @@ impl PlayUrlRequestBuilder {
         PlayUrlRequest {
             url: self.url.expect("url has not been set"),
             title: self.title.expect("title has not been set"),
+            caption: self.caption,
             thumb: self.thumb,
             background: self.background,
             auto_resume_timestamp: self.auto_resume_timestamp,
@@ -233,6 +256,10 @@ impl PlayRequest for PlayMediaRequest {
         self.base.title()
     }
 
+    fn caption(&self) -> Option<String> {
+        self.base.caption()
+    }
+
     fn thumbnail(&self) -> Option<String> {
         self.base.thumbnail()
     }
@@ -274,8 +301,11 @@ impl From<LoadingData> for PlayMediaRequest {
             .title(value.title.expect("expected a title to have been present").as_str())
             .subtitles_enabled(value.subtitles_enabled.unwrap_or(false));
 
+        if let Some(e) = value.caption {
+            builder = builder.caption(e);
+        } 
         if let Some(e) = value.thumb {
-            builder = builder.thumb(e.as_str());
+            builder = builder.thumb(e);
         }
         if let Some(media_identifier) = value.media.as_ref() {
             if let Some(media) = media_identifier.into_overview() {
@@ -285,8 +315,12 @@ impl From<LoadingData> for PlayMediaRequest {
         if let Some(e) = value.auto_resume_timestamp {
             builder = builder.auto_resume_timestamp(e);
         }
-        if let Some(e) = value.parent_media {
-            builder = builder.parent_media(e);
+        if let Some(media_identifier) = value.parent_media {
+            if let Some(media) = media_identifier.into_overview() {
+                builder = builder.background(media.images().fanart());
+            }
+
+            builder = builder.parent_media(media_identifier);
         }
         if let Some(e) = value.quality {
             builder = builder.quality(e.as_str());
@@ -306,6 +340,7 @@ impl From<LoadingData> for PlayMediaRequest {
 pub struct PlayMediaRequestBuilder {
     url: Option<String>,
     title: Option<String>,
+    caption: Option<String>,
     thumb: Option<String>,
     background: Option<String>,
     auto_resume_timestamp: Option<u64>,
@@ -323,26 +358,42 @@ impl PlayMediaRequestBuilder {
     }
 
     /// Sets the URL for the media to be played.
-    pub fn url(mut self, url: &str) -> Self {
-        self.url = Some(url.to_string());
+    pub fn url<S>(mut self, url: S) -> Self
+        where S: Into<String>
+    {
+        self.url = Some(url.into());
         self
     }
 
     /// Sets the title of the media.
-    pub fn title(mut self, title: &str) -> Self {
-        self.title = Some(title.to_string());
+    pub fn title<S>(mut self, title: S) -> Self
+        where S: Into<String>
+    {
+        self.title = Some(title.into());
+        self
+    }
+
+    /// Sets the caption of the media.
+    pub fn caption<S>(mut self, caption: S) -> Self
+        where S: Into<String>
+    {
+        self.caption = Some(caption.into());
         self
     }
 
     /// Sets the URL of the thumbnail associated with the media.
-    pub fn thumb(mut self, thumb: &str) -> Self {
-        self.thumb = Some(thumb.to_string());
+    pub fn thumb<S>(mut self, thumb: S) -> Self
+        where S: Into<String>
+    {
+        self.thumb = Some(thumb.into());
         self
     }
 
     /// Sets the URL of the background associated with the media.
-    pub fn background(mut self, background: &str) -> Self {
-        self.background = Some(background.to_string());
+    pub fn background<S>(mut self, background: S) -> Self
+        where S: Into<String>
+    {
+        self.background = Some(background.into());
         self
     }
 
@@ -371,8 +422,10 @@ impl PlayMediaRequestBuilder {
     }
 
     /// Sets the quality information for the media.
-    pub fn quality(mut self, quality: &str) -> Self {
-        self.quality = Some(quality.to_string());
+    pub fn quality<S>(mut self, quality: S) -> Self
+        where S: Into<String>
+    {
+        self.quality = Some(quality.into());
         self
     }
 
@@ -395,6 +448,7 @@ impl PlayMediaRequestBuilder {
         let base = PlayUrlRequest {
             url: self.url.unwrap(),
             title: self.title.unwrap(),
+            caption: self.caption,
             thumb: self.thumb,
             background: self.background,
             auto_resume_timestamp: self.auto_resume_timestamp,
@@ -415,9 +469,9 @@ impl PlayMediaRequestBuilder {
 mod tests {
     use std::sync::Arc;
 
-    use crate::core::media::{Episode, Images, ShowOverview};
+    use crate::core::media::{Episode, Images, MovieOverview, ShowOverview};
     use crate::core::playlists::PlaylistItem;
-    use crate::core::torrents::MockTorrentStream;
+    use crate::testing::MockTorrentStream;
 
     use super::*;
 
@@ -425,12 +479,14 @@ mod tests {
     fn test_play_url_request_builder() {
         let url = "https://localhost:8054/my-video.mp4";
         let title = "DolorEsta";
+        let caption = "lorem ipsum dolor esta";
         let thumb = "https://imgur.com/something.jpg";
         let background = "https://imgur.com/background.jpg";
         let auto_resume = 84000u64;
         let expected_result = PlayUrlRequest {
             url: url.to_string(),
             title: title.to_string(),
+            caption: Some(caption.to_string()),
             thumb: Some(thumb.to_string()),
             background: Some(background.to_string()),
             auto_resume_timestamp: Some(auto_resume),
@@ -440,6 +496,7 @@ mod tests {
         let result = PlayUrlRequestBuilder::builder()
             .url(url)
             .title(title)
+            .caption(caption)
             .thumb(thumb)
             .background(background)
             .auto_resume_timestamp(auto_resume)
@@ -473,6 +530,7 @@ mod tests {
         let expected_result = PlayUrlRequest {
             url: url.to_string(),
             title: title.to_string(),
+            caption: None,
             thumb: None,
             background: None,
             auto_resume_timestamp: Some(auto_resume),
@@ -515,6 +573,7 @@ mod tests {
             base: PlayUrlRequest {
                 url: url.to_string(),
                 title: title.to_string(),
+                caption: None,
                 thumb: Some(thumb.to_string()),
                 background: None,
                 auto_resume_timestamp: None,
@@ -540,19 +599,19 @@ mod tests {
     }
 
     #[test]
-    fn test_player_media_request_from() {
+    fn test_player_media_request_from_movie() {
         let url = "https://exmaple.com";
         let title = "FooBar";
         let subtitles_enabled = true;
         let quality = "1080p";
         let background = "MyBackgroundUri";
-        let media = ShowOverview {
+        let media = MovieOverview {
             imdb_id: "tt123456".to_string(),
-            tvdb_id: "tt200020".to_string(),
             title: "MyTitle".to_string(),
             year: "2016".to_string(),
-            num_seasons: 5,
             images: Images::builder()
+                .poster("MyPoster.jpg")
+                .banner("MyBanner.jpg")
                 .fanart(background)
                 .build(),
             rating: None,
@@ -577,6 +636,7 @@ mod tests {
             base: PlayUrlRequest {
                 url: url.to_string(),
                 title: title.to_string(),
+                caption: None,
                 thumb: None,
                 background: Some(background.to_string()),
                 auto_resume_timestamp: None,
@@ -584,6 +644,72 @@ mod tests {
             },
             parent_media: None,
             media: Box::new(media),
+            quality: quality.to_string(),
+            torrent_stream: Arc::downgrade(&stream),
+        };
+
+        let result = PlayMediaRequest::from(data);
+
+        assert_eq!(expected_result, result)
+    }
+
+    #[test]
+    fn test_player_media_request_from_episode() {
+        let url = "https://localhost:87445/my-episode.mkv";
+        let title = "FooBar";
+        let subtitles_enabled = true;
+        let quality = "720p";
+        let background = "MyShowBackground.png";
+        let media = ShowOverview {
+            imdb_id: "tt123456".to_string(),
+            tvdb_id: "tt200020".to_string(),
+            title: "MyTitle".to_string(),
+            year: "2016".to_string(),
+            num_seasons: 5,
+            images: Images::builder()
+                .fanart(background)
+                .build(),
+            rating: None,
+        };
+        let episode = Episode {
+            season: 1,
+            episode: 5,
+            first_aired: 2013,
+            title: "MyEpisodeTitle".to_string(),
+            overview: "lorem ipsum dolor".to_string(),
+            tvdb_id: 1202220,
+            tvdb_id_value: "tt1202220".to_string(),
+            thumb: Some("MyEpisodeThumb.jpg".to_string()),
+            torrents: Default::default(),
+        };
+        let item = PlaylistItem {
+            url: Some(url.to_string()),
+            title: title.to_string(),
+            caption: None,
+            thumb: None,
+            parent_media: Some(Box::new(media.clone())),
+            media: Some(Box::new(episode.clone())),
+            torrent_info: None,
+            torrent_file_info: None,
+            quality: Some(quality.to_string()),
+            auto_resume_timestamp: None,
+            subtitles_enabled,
+        };
+        let stream = Arc::new(Box::new(MockTorrentStream::new()) as Box<dyn TorrentStream>);
+        let mut data = LoadingData::from(item);
+        data.torrent_stream = Some(Arc::downgrade(&stream));
+        let expected_result = PlayMediaRequest {
+            base: PlayUrlRequest {
+                url: url.to_string(),
+                title: title.to_string(),
+                caption: None,
+                thumb: None,
+                background: Some(background.to_string()),
+                auto_resume_timestamp: None,
+                subtitles_enabled,
+            },
+            parent_media: Some(Box::new(media)),
+            media: Box::new(episode),
             quality: quality.to_string(),
             torrent_stream: Arc::downgrade(&stream),
         };

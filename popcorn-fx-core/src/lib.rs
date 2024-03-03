@@ -6,35 +6,72 @@ use log::{error, trace};
 
 pub use popcorn_fx_common::VERSION;
 
-pub use crate::torrent_collection_c::*;
-
 pub mod core;
 
-mod torrent_collection_c;
-
-/// Convert the given [String] into a C compatible string.
+/// Converts the given value into a C compatible string.
 ///
 /// This function will consume the provided data and use the underlying bytes to construct a new string, ensuring that there is a trailing 0 byte.
 /// This trailing 0 byte will be appended by this function; the provided data should not contain any 0 bytes in it.
-pub fn into_c_string(value: String) -> *const c_char {
-    // DO NOT use [CString::into_raw] as Rust still cleans the original string which the pointer uses
-    let c_string = CString::new(value.as_bytes()).unwrap();
-    let ptr = c_string.as_ptr();
-    mem::forget(c_string);
-    ptr
+///
+/// # Arguments
+///
+/// * `value` - The value to convert into a C string.
+///
+/// # Returns
+///
+/// A pointer to the C string.
+pub fn into_c_string<S: Into<String>>(value: S) -> *mut c_char {
+    let c_string = CString::new(value.into()).unwrap();
+    c_string.into_raw()
 }
 
-/// Convert the given C string to an owned rust [String].
+/// Converts the given C string pointer into a Rust string.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it dereferences a raw pointer.
+///
+/// # Arguments
+///
+/// * `ptr` - The pointer to the C string.
+///
+/// # Returns
+///
+/// The owned Rust String.
 pub fn from_c_string(ptr: *const c_char) -> String {
     if !ptr.is_null() {
         let slice = unsafe { CStr::from_ptr(ptr).to_bytes() };
 
-        return std::str::from_utf8(slice)
+        std::str::from_utf8(slice)
             .map(|e| e.to_string())
             .unwrap_or_else(|e| {
                 error!("Failed to read C string, using empty string instead ({})", e);
                 String::new()
-            });
+            })
+    } else {
+        error!("Unable to read C string, pointer is null");
+        String::new()
+    }
+}
+
+/// Converts a C string into a Rust owned string, consuming the provided pointer.
+///
+/// # Arguments
+///
+/// * `ptr` - A pointer to the C string.
+///
+/// # Returns
+///
+/// Returns the Rust owned string if the conversion is successful, otherwise an empty string.
+pub fn from_c_string_owned(ptr: *mut c_char) -> String {
+    if !ptr.is_null() {
+        let value = unsafe { CString::from_raw(ptr) };
+        
+        value.into_string()
+            .unwrap_or_else(|e| {
+                error!("Failed to read C string, using empty string instead ({})", e);
+                String::new()
+            })
     } else {
         error!("Unable to read C string, pointer is null");
         String::new()
@@ -196,12 +233,16 @@ pub mod testing {
     use log4rs::encode::pattern::PatternEncoder;
     use mockall::mock;
     use tempfile::TempDir;
+    use url::Url;
 
-    use crate::core::{CallbackHandle, Callbacks, CoreCallback};
+    use crate::core::{CallbackHandle, Callbacks, CoreCallback, Handle, torrents};
+    use crate::core::platform::{Platform, PlatformCallback, PlatformData, PlatformInfo};
+    use crate::core::playback::MediaNotificationEvent;
     use crate::core::players::{Player, PlayerEvent, PlayerState, PlayRequest};
     use crate::core::subtitles::{SubtitleEvent, SubtitleManager};
     use crate::core::subtitles::language::SubtitleLanguage;
     use crate::core::subtitles::model::SubtitleInfo;
+    use crate::core::torrents::{Torrent, TorrentCallback, TorrentState, TorrentStream, TorrentStreamCallback, TorrentStreamingResourceWrapper, TorrentStreamState};
 
     static INIT: Once = Once::new();
 
@@ -216,6 +257,7 @@ pub mod testing {
                 .logger(Logger::builder().build("polling", LevelFilter::Info))
                 .logger(Logger::builder().build("hyper", LevelFilter::Info))
                 .logger(Logger::builder().build("tracing", LevelFilter::Info))
+                .logger(Logger::builder().build("neli", LevelFilter::Info))
                 .build(Root::builder().appender("stdout").build(LevelFilter::Trace))
                 .unwrap())
                 .unwrap();
@@ -378,6 +420,91 @@ pub mod testing {
         }
     }
 
+    mock! {
+        #[derive(Debug)]
+        pub TorrentStream {}
+    
+        impl Torrent for TorrentStream {
+            fn handle(&self) -> &str;
+    
+            fn file(&self) -> PathBuf;
+    
+            fn has_bytes(&self, bytes: &[u64]) -> bool;
+    
+            fn has_piece(&self, piece: u32) -> bool;
+    
+            fn prioritize_bytes(&self, bytes: &[u64]);
+    
+            fn prioritize_pieces(&self, pieces: &[u32]);
+    
+            fn total_pieces(&self) -> i32;
+    
+            fn sequential_mode(&self);
+    
+            fn state(&self) -> TorrentState;
+    
+            fn subscribe(&self, callback: TorrentCallback) -> CallbackHandle;
+        }
+    
+        impl TorrentStream for TorrentStream {
+            fn stream_handle(&self) -> Handle;
+    
+            fn url(&self) -> Url;
+    
+            fn stream(&self) -> torrents::Result<TorrentStreamingResourceWrapper>;
+    
+            fn stream_offset(&self, offset: u64, len: Option<u64>) -> torrents::Result<TorrentStreamingResourceWrapper>;
+    
+            fn stream_state(&self) -> TorrentStreamState;
+    
+            fn subscribe_stream(&self, callback: TorrentStreamCallback) -> CallbackHandle;
+    
+            fn unsubscribe_stream(&self, handle: CallbackHandle);
+    
+            fn stop_stream(&self);
+        }
+    }
+
+    impl Display for MockTorrentStream {
+        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+            write!(f, "MockTorrentStream")
+        }
+    }
+
+    mock! {
+        #[derive(Debug)]
+        pub DummyPlatform {}
+    
+        impl Platform for DummyPlatform {
+            fn disable_screensaver(&self) -> bool;
+    
+            fn enable_screensaver(&self) -> bool;
+    
+            fn notify_media_event(&self, notification: MediaNotificationEvent);
+    
+            fn register(&self, callback: PlatformCallback);
+        }
+    }
+
+    mock! {
+        #[derive(Debug)]
+        pub DummyPlatformData {}
+    
+        impl PlatformData for DummyPlatformData {
+            fn info(&self) -> PlatformInfo;
+        }
+    
+        impl Platform for DummyPlatformData {
+            fn disable_screensaver(&self) -> bool;
+    
+            fn enable_screensaver(&self) -> bool;
+            
+            fn notify_media_event(&self, notification: MediaNotificationEvent);
+    
+            fn register(&self, callback: PlatformCallback);
+        }
+    }
+
     #[macro_export]
     macro_rules! assert_timeout {
     ($timeout:expr, $condition:expr) => {{
@@ -476,6 +603,7 @@ mod test {
                 providers: create_providers(&server),
                 enhancers: Default::default(),
                 subtitle: Default::default(),
+                tracking: Default::default(),
             })
             .build());
 

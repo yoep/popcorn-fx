@@ -64,6 +64,11 @@ enum class MediaErrorC : int32_t {
   NoAvailableProviders = 2,
 };
 
+enum class MediaTrackingSyncState : int32_t {
+  Success = 0,
+  Failed = 1,
+};
+
 /// Events related to playback control, triggered by the media system of the OS.
 /// These events can be used to modify the player state based on the given media event.
 enum class PlaybackControlEvent : int32_t {
@@ -272,11 +277,11 @@ struct ByteArray {
 /// A C-compatible struct representing a player.
 struct PlayerC {
   /// A pointer to a null-terminated C string representing the player's unique identifier (ID).
-  const char *id;
+  char *id;
   /// A pointer to a null-terminated C string representing the name of the player.
-  const char *name;
+  char *name;
   /// A pointer to a null-terminated C string representing the description of the player.
-  const char *description;
+  char *description;
   /// A pointer to a `ByteArray` struct representing the graphic resource associated with the player.
   ///
   /// This field can be a null pointer if no graphic resource is associated with the player.
@@ -297,15 +302,15 @@ struct RatingC {
 
 /// The C compatible [Images] representation.
 struct ImagesC {
-  const char *poster;
-  const char *fanart;
-  const char *banner;
+  char *poster;
+  char *fanart;
+  char *banner;
 };
 
 struct MovieOverviewC {
-  const char *title;
-  const char *imdb_id;
-  const char *year;
+  char *title;
+  char *imdb_id;
+  char *year;
   RatingC *rating;
   ImagesC images;
 };
@@ -313,34 +318,34 @@ struct MovieOverviewC {
 /// A C-compatible struct representing torrent information.
 struct TorrentMediaInfoC {
   /// A pointer to a null-terminated C string representing the torrent URL.
-  const char *url;
+  char *url;
   /// A pointer to a null-terminated C string representing the torrent provider.
-  const char *provider;
+  char *provider;
   /// A pointer to a null-terminated C string representing the torrent source.
-  const char *source;
+  char *source;
   /// A pointer to a null-terminated C string representing the torrent title.
-  const char *title;
+  char *title;
   /// A pointer to a null-terminated C string representing the torrent quality.
-  const char *quality;
+  char *quality;
   /// The number of seeders for the torrent.
   uint32_t seed;
   /// The number of peers for the torrent.
   uint32_t peer;
   /// A pointer to a null-terminated C string representing the torrent size in bytes.
-  const char *size;
+  char *size;
   /// A pointer to a null-terminated C string representing the torrent filesize in human-readable format.
-  const char *filesize;
+  char *filesize;
   /// A pointer to a null-terminated C string representing the selected file within the torrent collection.
-  const char *file;
+  char *file;
 };
 
 struct TorrentQualityC {
-  const char *quality;
+  char *quality;
   TorrentMediaInfoC torrent;
 };
 
 struct TorrentEntryC {
-  const char *language;
+  char *language;
   TorrentQualityC *qualities;
   int32_t len;
 };
@@ -349,25 +354,25 @@ struct TorrentEntryC {
 ///
 /// Use the [MovieDetails::from] to convert the C instance back to a rust struct.
 struct MovieDetailsC {
-  const char *title;
-  const char *imdb_id;
-  const char *year;
+  char *title;
+  char *imdb_id;
+  char *year;
   RatingC *rating;
   ImagesC images;
-  const char *synopsis;
+  char *synopsis;
   int32_t runtime;
-  const char *trailer;
-  const char **genres;
+  char *trailer;
+  char **genres;
   int32_t genres_len;
   TorrentEntryC *torrents;
   int32_t torrents_len;
 };
 
 struct ShowOverviewC {
-  const char *imdb_id;
-  const char *tvdb_id;
-  const char *title;
-  const char *year;
+  char *imdb_id;
+  char *tvdb_id;
+  char *title;
+  char *year;
   int32_t num_seasons;
   ImagesC images;
   RatingC *rating;
@@ -378,26 +383,26 @@ struct EpisodeC {
   int32_t season;
   int32_t episode;
   int64_t first_aired;
-  const char *title;
-  const char *synopsis;
-  const char *tvdb_id;
-  const char *thumb;
+  char *title;
+  char *synopsis;
+  char *tvdb_id;
+  char *thumb;
   TorrentQualityC *torrents;
   int32_t len;
 };
 
 struct ShowDetailsC {
-  const char *imdb_id;
-  const char *tvdb_id;
-  const char *title;
-  const char *year;
+  char *imdb_id;
+  char *tvdb_id;
+  char *title;
+  char *year;
   int32_t num_seasons;
   ImagesC images;
   RatingC *rating;
-  const char *synopsis;
+  char *synopsis;
   int32_t runtime;
-  const char *status;
-  const char **genres;
+  char *status;
+  char **genres;
   int32_t genres_len;
   EpisodeC *episodes;
   int32_t episodes_len;
@@ -420,7 +425,7 @@ struct MediaItemC {
 /// The C compatible subtitle settings.
 struct SubtitleSettingsC {
   /// The directory path for storing subtitles
-  const char *directory;
+  char *directory;
   /// Indicates if the subtitle directory will be cleaned
   /// when the application is closed
   bool auto_cleaning;
@@ -439,7 +444,7 @@ struct SubtitleSettingsC {
 /// The C compatible torrent settings.
 struct TorrentSettingsC {
   /// The torrent directory to store the torrents
-  const char *directory;
+  char *directory;
   /// Indicates if the torrents directory will be cleaned on closure
   CleaningMode cleaning_mode;
   /// The max number of connections
@@ -458,7 +463,7 @@ struct UiScale {
 /// The C compatible ui settings
 struct UiSettingsC {
   /// The default language of the application
-  const char *default_language;
+  char *default_language;
   /// The ui scale of the application
   UiScale ui_scale;
   /// The default start screen of the application
@@ -472,7 +477,7 @@ struct UiSettingsC {
 /// The C compatible server settings.
 struct ServerSettingsC {
   /// The configured api server to use, can be `ptr::null()`
-  const char *api_server;
+  char *api_server;
 };
 
 /// The C compatible playback settings
@@ -483,6 +488,20 @@ struct PlaybackSettingsC {
   bool fullscreen;
   /// Indicates if the next episode of the show will be played
   bool auto_play_next_episode_enabled;
+};
+
+/// Represents the C-compatible struct for the last sync.
+struct LastSyncC {
+  /// The number of non-leap seconds since January 1, 1970 0:00:00 UTC = Unix timestamp.
+  int64_t time;
+  /// The state of media tracking sync.
+  MediaTrackingSyncState state;
+};
+
+/// Represents the C-compatible struct for tracking settings.
+struct TrackingSettingsC {
+  /// Pointer to the last sync.
+  LastSyncC *last_sync;
 };
 
 /// The C compatible application settings.
@@ -497,13 +516,15 @@ struct PopcornSettingsC {
   ServerSettingsC server_settings;
   /// The playback settings of the application
   PlaybackSettingsC playback_settings;
+  /// The tracking settings of the application
+  TrackingSettingsC tracking_settings;
 };
 
 /// The C compatible [SubtitleFile] representation.
 struct SubtitleFileC {
   int32_t file_id;
-  const char *name;
-  const char *url;
+  char *name;
+  char *url;
   float score;
   int32_t downloads;
   const int32_t *quality;
@@ -512,7 +533,7 @@ struct SubtitleFileC {
 /// The C compatible [SubtitleInfo] representation.
 struct SubtitleInfoC {
   /// The IMDB ID if known, this can be [ptr::null]
-  const char *imdb_id;
+  char *imdb_id;
   SubtitleLanguage language;
   SubtitleFileC *files;
   int32_t len;
@@ -529,29 +550,19 @@ struct SubtitleInfoSet {
 /// A C-compatible struct representing a player change event.
 struct PlayerChangedEventC {
   /// The (nullable) old player id
-  const char *old_player_id;
+  char *old_player_id;
   /// The new player id
-  const char *new_player_id;
+  char *new_player_id;
   /// The new player name
-  const char *new_player_name;
-};
-
-struct PlayerStartedEventC {
-  const char *url;
-  const char *title;
-  const char *thumbnail;
-  const char *background;
-  const char *quality;
-  uint64_t *auto_resume_timestamp;
-  bool subtitles_enabled;
+  char *new_player_name;
 };
 
 /// A C-compatible struct representing torrent file information.
 struct TorrentFileInfoC {
   /// A pointer to a null-terminated C string representing the filename.
-  const char *filename;
+  char *filename;
   /// A pointer to a null-terminated C string representing the file path.
-  const char *file_path;
+  char *file_path;
   /// The size of the file in bytes.
   int64_t file_size;
   /// The index of the file.
@@ -572,11 +583,11 @@ struct CArray {
 
 /// A C-compatible struct representing torrent information.
 struct TorrentInfoC {
-  const char *uri;
+  char *uri;
   /// A pointer to a null-terminated C string representing the name of the torrent.
-  const char *name;
+  char *name;
   /// A pointer to a null-terminated C string representing the directory name of the torrent.
-  const char *directory_name;
+  char *directory_name;
   /// The total number of files in the torrent.
   int32_t total_files;
   /// A set of `TorrentFileInfoC` structs representing individual files within the torrent.
@@ -612,16 +623,12 @@ struct EventC {
     PlayerChangedEventC _0;
   };
 
-  struct PlayerStarted_Body {
-    PlayerStartedEventC _0;
-  };
-
   struct PlaybackStateChanged_Body {
     PlaybackState _0;
   };
 
   struct WatchStateChanged_Body {
-    const char *_0;
+    char *_0;
     bool _1;
   };
 
@@ -632,7 +639,6 @@ struct EventC {
   Tag tag;
   union {
     PlayerChanged_Body player_changed;
-    PlayerStarted_Body player_started;
     PlaybackStateChanged_Body playback_state_changed;
     WatchStateChanged_Body watch_state_changed;
     TorrentDetailsLoaded_Body torrent_details_loaded;
@@ -650,15 +656,15 @@ struct VecFavoritesC {
 /// A C-compatible struct representing the event when loading starts.
 struct LoadingStartedEventC {
   /// The URL of the media being loaded.
-  const char *url;
+  char *url;
   /// The title or name of the media being loaded.
-  const char *title;
+  char *title;
   /// The URL of a thumbnail image associated with the media, or `ptr::null()` if not available.
-  const char *thumbnail;
+  char *thumbnail;
   /// The URL of a background image associated with the media, or `ptr::null()` if not available.
-  const char *background;
+  char *background;
   /// The quality or resolution information of the media, or `ptr::null()` if not available.
-  const char *quality;
+  char *quality;
 };
 
 struct LoadingProgressC {
@@ -694,23 +700,23 @@ struct LoadingErrorC {
   };
 
   struct ParseError_Body {
-    const char *_0;
+    char *_0;
   };
 
   struct TorrentError_Body {
-    const char *_0;
+    char *_0;
   };
 
   struct MediaError_Body {
-    const char *_0;
+    char *_0;
   };
 
   struct TimeoutError_Body {
-    const char *_0;
+    char *_0;
   };
 
   struct InvalidData_Body {
-    const char *_0;
+    char *_0;
   };
 
   Tag tag;
@@ -809,15 +815,17 @@ struct PlayerEventC {
 /// Represents a play request in C-compatible form.
 struct PlayRequestC {
   /// The URL of the media to be played.
-  const char *url;
+  char *url;
   /// The title of the media.
-  const char *title;
-  /// The URL of the thumbnail image for the media.
-  const char *thumb;
-  /// The URL of the background image for the media.
-  const char *background;
-  /// The quality of the media.
-  const char *quality;
+  char *title;
+  /// The optional caption of the media, or [ptr::null_mut] if not available.
+  char *caption;
+  /// The optional URL of the thumbnail image for the media, or [ptr::null_mut] if not available.
+  char *thumb;
+  /// The URL of the background image for the media, or [ptr::null_mut] if not available.
+  char *background;
+  /// The quality of the media, or [ptr::null_mut] if not available.
+  char *quality;
   /// Pointer to a mutable u64 value representing the auto-resume timestamp.
   uint64_t *auto_resume_timestamp;
   /// The stream handle pointer of the play request.
@@ -877,15 +885,15 @@ struct PlayerManagerEventC {
 /// A C-compatible struct representing a playlist item.
 struct PlaylistItemC {
   /// The URL of the playlist item.
-  const char *url;
+  char *url;
   /// The title of the playlist item.
-  const char *title;
+  char *title;
   /// The caption/subtitle of the playlist item.
-  const char *caption;
+  char *caption;
   /// The thumbnail URL of the playlist item.
-  const char *thumb;
+  char *thumb;
   /// The quality information of the playlist item.
-  const char *quality;
+  char *quality;
   /// A pointer to the parent media item, if applicable.
   MediaItemC *parent_media;
   /// A pointer to the media item associated with the playlist item.
@@ -934,13 +942,13 @@ struct PlaylistManagerEventC {
 /// It's mainly used for returning string arrays as result of C function calls.
 struct StringArray {
   /// The string array
-  const char **values;
+  char **values;
   /// The length of the string array
   int32_t len;
 };
 
 struct StyledTextC {
-  const char *text;
+  char *text;
   bool italic;
   bool bold;
   bool underline;
@@ -952,7 +960,7 @@ struct SubtitleLineC {
 };
 
 struct SubtitleCueC {
-  const char *id;
+  char *id;
   uint64_t start_time;
   uint64_t end_time;
   SubtitleLineC *lines;
@@ -963,7 +971,7 @@ struct SubtitleCueC {
 /// It contains the data of a subtitle file that can be displayed.
 struct SubtitleC {
   /// The filepath that has been parsed
-  const char *file;
+  char *file;
   /// The info of the parsed subtitle if available, else [ptr::null_mut]
   SubtitleInfoC *info;
   /// The parsed cues from the subtitle file
@@ -975,9 +983,9 @@ struct SubtitleC {
 /// The C compatible struct for [MagnetInfo].
 struct MagnetInfoC {
   /// The name of the magnet
-  const char *name;
+  char *name;
   /// The magnet uri to the torrent
-  const char *magnet_uri;
+  char *magnet_uri;
 };
 
 /// The collection of stored magnets.
@@ -1030,14 +1038,31 @@ struct TorrentStreamEventC {
   };
 };
 
+/// Represents a C-compatible tracking event.
+struct TrackingEventC {
+  enum class Tag {
+    /// Authorization state change event.
+    AuthorizationStateChanged,
+  };
+
+  struct AuthorizationStateChanged_Body {
+    bool _0;
+  };
+
+  Tag tag;
+  union {
+    AuthorizationStateChanged_Body authorization_state_changed;
+  };
+};
+
 /// The subtitle matcher C compatible struct.
 /// It contains the information which should be matched when selecting a subtitle file to load.
 struct SubtitleMatcherC {
   /// The nullable name of the media item.
-  const char *name;
+  char *name;
   /// The nullable quality of the media item.
   /// This can be represented as `720p` or `720`.
-  const char *quality;
+  char *quality;
 };
 
 /// A C-compatible handle representing a loading process.
@@ -1064,13 +1089,13 @@ struct FavoriteEventC {
   enum class Tag {
     /// Event indicating that the like state of a media item changed.
     ///
-    /// * `*const c_char`   - The imdb id of the media item that changed.
+    /// * `*mut c_char`   - The imdb id of the media item that changed.
     /// * `bool`            - The new like state of the media item.
     LikedStateChanged,
   };
 
   struct LikedStateChanged_Body {
-    const char *_0;
+    char *_0;
     bool _1;
   };
 
@@ -1110,11 +1135,11 @@ using PlayerStopCallback = void(*)();
 /// A C-compatible struct representing player registration information.
 struct PlayerRegistrationC {
   /// A pointer to a null-terminated C string representing the player's unique identifier (ID).
-  const char *id;
+  char *id;
   /// A pointer to a null-terminated C string representing the name of the player.
-  const char *name;
+  char *name;
   /// A pointer to a null-terminated C string representing the description of the player.
-  const char *description;
+  char *description;
   /// A pointer to a `ByteArray` struct representing the graphic resource associated with the player.
   ///
   /// This field can be a null pointer if no graphic resource is associated with the player.
@@ -1159,6 +1184,8 @@ struct ApplicationConfigEventC {
     ServerSettingsChanged,
     /// Invoked when the playback settings have been changed
     PlaybackSettingsChanged,
+    /// Invoked when the tracking settings have been changed
+    TrackingSettingsChanged,
   };
 
   struct SubtitleSettingsChanged_Body {
@@ -1181,6 +1208,10 @@ struct ApplicationConfigEventC {
     PlaybackSettingsC _0;
   };
 
+  struct TrackingSettingsChanged_Body {
+    TrackingSettingsC _0;
+  };
+
   Tag tag;
   union {
     SubtitleSettingsChanged_Body subtitle_settings_changed;
@@ -1188,6 +1219,7 @@ struct ApplicationConfigEventC {
     UiSettingsChanged_Body ui_settings_changed;
     ServerSettingsChanged_Body server_settings_changed;
     PlaybackSettingsChanged_Body playback_settings_changed;
+    TrackingSettingsChanged_Body tracking_settings_changed;
   };
 };
 
@@ -1222,10 +1254,16 @@ using SubtitleCallbackC = void(*)(SubtitleEventC);
 /// Type alias for a callback that handles torrent stream events.
 using TorrentStreamEventCallback = void(*)(TorrentStreamEventC);
 
+/// Type alias for the C-compatible authorization open function.
+using AuthorizationOpenC = bool(*)(char *uri);
+
+/// Type alias for the C-compatible tracking event callback function.
+using TrackingEventCCallback = void(*)(TrackingEventC event);
+
 /// The C compatible representation of the application runtime information.
 struct PatchInfoC {
   /// The runtime version of the application.
-  const char *version;
+  char *version;
 };
 
 /// The C compatible representation of version information from the update channel.
@@ -1312,13 +1350,13 @@ struct WatchedEventC {
   enum class Tag {
     /// Event indicating that the watched state of a media item changed.
     ///
-    /// * `*const c_char`   - The imdb id of the media item that changed.
+    /// * `*mut c_char`   - The imdb id of the media item that changed.
     /// * `bool`            - The new watched state of the media item.
     WatchedStateChanged,
   };
 
   struct WatchedStateChanged_Body {
-    const char *_0;
+    char *_0;
     bool _1;
   };
 
@@ -1329,13 +1367,13 @@ struct WatchedEventC {
 };
 
 struct GenreC {
-  const char *key;
-  const char *text;
+  char *key;
+  char *text;
 };
 
 struct SortByC {
-  const char *key;
-  const char *text;
+  char *key;
+  char *text;
 };
 
 /// The C compatible media result for an array of media items.
@@ -1427,7 +1465,7 @@ PopcornSettingsC *application_settings(PopcornFX *popcorn_fx);
 ByteArray *artwork_placeholder(PopcornFX *popcorn_fx);
 
 /// Retrieve the auto-resume timestamp for the given media id and/or filename.
-uint64_t *auto_resume_timestamp(PopcornFX *popcorn_fx, const char *id, const char *filename);
+uint64_t *auto_resume_timestamp(PopcornFX *popcorn_fx, char *id, char *filename);
 
 /// Start polling the update channel for new application versions.
 ///
@@ -1646,10 +1684,17 @@ void dispose_torrent_collection(Box<TorrentCollectionSet> collection_set);
 
 void dispose_torrent_stream_event_value(TorrentStreamEventC event);
 
+/// Disposes a tracking event value.
+///
+/// # Arguments
+///
+/// * `event` - The tracking event to be disposed.
+void dispose_tracking_event_value(TrackingEventC event);
+
 /// Download the given [SubtitleInfo] based on the best match according to the [SubtitleMatcher].
 ///
 /// It returns the filepath to the subtitle on success, else [ptr::null_mut].
-const char *download(PopcornFX *popcorn_fx, const SubtitleInfoC *subtitle, SubtitleMatcherC matcher);
+char *download(PopcornFX *popcorn_fx, const SubtitleInfoC *subtitle, SubtitleMatcherC matcher);
 
 /// Download and parse the given subtitle info.
 ///
@@ -1781,7 +1826,7 @@ ByteArray *load_fanart(PopcornFX *popcorn_fx, const MediaItemC *media);
 /// # Safety
 ///
 /// This function should only be called from C code, and the returned byte array should be disposed of using the dispose_byte_array function.
-ByteArray *load_image(PopcornFX *popcorn_fx, const char *url);
+ByteArray *load_image(PopcornFX *popcorn_fx, char *url);
 
 /// Load the poster image data for the given media item.
 ///
@@ -1807,7 +1852,7 @@ void loader_cancel(PopcornFX *instance, LoadingHandleC handle);
 
 /// Load a media item using the media loader from a C-compatible URL.
 ///
-/// This function takes a mutable reference to a `PopcornFX` instance and a C-compatible string (`*const c_char`) representing the URL of the media item to load.
+/// This function takes a mutable reference to a `PopcornFX` instance and a C-compatible string (`*mut c_char`) representing the URL of the media item to load.
 /// It uses the media loader to load the media item asynchronously and returns a handle (represented as a `LoadingHandleC`) for the loading process.
 ///
 /// # Arguments
@@ -1818,8 +1863,7 @@ void loader_cancel(PopcornFX *instance, LoadingHandleC handle);
 /// # Returns
 ///
 /// A `LoadingHandleC` representing the loading process associated with the loaded item.
-LoadingHandleC loader_load(PopcornFX *instance,
-                           const char *url);
+LoadingHandleC loader_load(PopcornFX *instance, char *url);
 
 LoadingHandleC loader_load_torrent_file(PopcornFX *instance, TorrentInfoC torrent_info, TorrentFileInfoC torrent_file);
 
@@ -1829,7 +1873,7 @@ LoadingHandleC loader_load_torrent_file(PopcornFX *instance, TorrentInfoC torren
 ///
 /// * `message` - A pointer to the null-terminated C string containing the log message to be logged.
 /// * `level` - The log level of the message. Determines the verbosity of the message and how it will be formatted by the Rust logger.
-void log(const char *target, const char *message, LogLevel level);
+void log(char *target, char *message, LogLevel level);
 
 /// Retrieve the available subtitles for the given [MovieDetailsC].
 ///
@@ -1851,7 +1895,7 @@ SubtitleInfoSet *movie_subtitles(PopcornFX *popcorn_fx, const MovieDetailsC *mov
 /// Create a new PopcornFX instance.
 /// The caller will become responsible for managing the memory of the struct.
 /// The instance can be safely deleted by using [dispose_popcorn_fx].
-PopcornFX *new_popcorn_fx(const char **args, int32_t len);
+PopcornFX *new_popcorn_fx(char **args, int32_t len);
 
 /// Play the next item in the playlist from C.
 ///
@@ -1899,7 +1943,7 @@ const int64_t *play_playlist(PopcornFX *popcorn_fx, CArray<PlaylistItemC> playli
 /// # Returns
 ///
 /// Returns a pointer to a `PlayerC` instance representing the player if found, or a null pointer if no player with the given ID exists.
-PlayerC *player_by_id(PopcornFX *popcorn_fx, const char *player_id);
+PlayerC *player_by_id(PopcornFX *popcorn_fx, char *player_id);
 
 /// Pauses the player associated with the given `PlayerWrapperC` instance.
 ///
@@ -1928,7 +1972,7 @@ void player_pause(PlayerWrapperC *player);
 /// # Returns
 ///
 /// Returns a pointer to a `PlayerWrapperC` instance representing the player if found, or a null pointer if no player with the given ID exists.
-PlayerWrapperC *player_pointer_by_id(PopcornFX *popcorn_fx, const char *player_id);
+PlayerWrapperC *player_pointer_by_id(PopcornFX *popcorn_fx, char *player_id);
 
 /// Resumes the player associated with the given `PlayerWrapperC` instance.
 ///
@@ -2147,6 +2191,25 @@ void register_settings_callback(PopcornFX *popcorn_fx, ApplicationConfigCallback
 /// * `callback` - A function pointer to the C callback function.
 void register_subtitle_callback(PopcornFX *popcorn_fx, SubtitleCallbackC callback);
 
+/// A callback function for resolving torrents.
+///
+/// This function is exposed as a C-compatible function and is intended to be called from C or other languages.
+/// It takes a `PopcornFX` instance and a `ResolveTorrentCallback` function as arguments.
+///
+/// The function registers the provided callback function with the `DefaultTorrentManager` from the `PopcornFX` instance.
+/// When the callback function is invoked by the manager, it converts the arguments and the result between Rust and C types.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it interacts with C-compatible code and dereferences raw pointers.
+/// Users of this function should ensure that they provide a valid `PopcornFX` instance and a valid `ResolveTorrentCallback`.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to the `PopcornFX` instance.
+/// * `callback` - The `ResolveTorrentCallback` function to be registered.
+void register_torrent_resolve_callback(PopcornFX *popcorn_fx, ResolveTorrentCallback callback);
+
 /// Registers a new torrent stream event callback.
 ///
 /// This function registers a callback function to receive torrent stream events.
@@ -2161,6 +2224,22 @@ void register_subtitle_callback(PopcornFX *popcorn_fx, SubtitleCallbackC callbac
 ///
 /// A pointer to an integer value representing the handle of the registered callback, or a null pointer if registration fails.
 const int64_t *register_torrent_stream_event_callback(PopcornFX *popcorn_fx, int64_t stream_handle, TorrentStreamEventCallback callback);
+
+/// Registers a callback function to handle authorization URI openings from C code.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
+/// * `callback` - The callback function to be registered.
+void register_tracking_authorization_open(PopcornFX *popcorn_fx, AuthorizationOpenC callback);
+
+/// Registers a callback function to handle tracking provider events from C code.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
+/// * `callback` - The callback function to be registered.
+void register_tracking_provider_callback(PopcornFX *popcorn_fx, TrackingEventCCallback callback);
 
 /// Register a new callback for update events.
 ///
@@ -2208,7 +2287,7 @@ void remove_from_watched(PopcornFX *popcorn_fx, const MediaItemC *watchable);
 ///
 /// This function removes a player with the specified ID from the PopcornFX player manager.
 /// It converts the `player_id` C string to a Rust String and logs a trace message to indicate the removal.
-void remove_player(PopcornFX *popcorn_fx, const char *player_id);
+void remove_player(PopcornFX *popcorn_fx, char *player_id);
 
 void remove_torrent_stream_event_callback(PopcornFX *popcorn_fx, const int64_t *stream_handle, const int64_t *callback_handle);
 
@@ -2237,17 +2316,17 @@ StringArray retrieve_all_watched(PopcornFX *popcorn_fx);
 /// Retrieve all liked favorite media items.
 ///
 /// It returns the [VecFavoritesC] holder for the array on success, else [ptr::null_mut].
-VecFavoritesC *retrieve_available_favorites(PopcornFX *popcorn_fx, const GenreC *genre, const SortByC *sort_by, const char *keywords, uint32_t page);
+VecFavoritesC *retrieve_available_favorites(PopcornFX *popcorn_fx, const GenreC *genre, const SortByC *sort_by, char *keywords, uint32_t page);
 
 /// Retrieve the available movies for the given criteria.
 ///
 /// It returns the [VecMovieC] reference on success, else [ptr::null_mut].
-MediaSetResult retrieve_available_movies(PopcornFX *popcorn_fx, const GenreC *genre, const SortByC *sort_by, const char *keywords, uint32_t page);
+MediaSetResult retrieve_available_movies(PopcornFX *popcorn_fx, const GenreC *genre, const SortByC *sort_by, char *keywords, uint32_t page);
 
 /// Retrieve the available [ShowOverviewC] items for the given criteria.
 ///
 /// It returns an array of [ShowOverviewC] items on success, else a [ptr::null_mut].
-MediaSetResult retrieve_available_shows(PopcornFX *popcorn_fx, const GenreC *genre, const SortByC *sort_by, const char *keywords, uint32_t page);
+MediaSetResult retrieve_available_shows(PopcornFX *popcorn_fx, const GenreC *genre, const SortByC *sort_by, char *keywords, uint32_t page);
 
 /// Retrieve the details of a favorite item on the given IMDB ID.
 /// The details contain all information about the media item.
@@ -2268,12 +2347,12 @@ SubtitleLanguage retrieve_preferred_subtitle_language(PopcornFX *popcorn_fx);
 /// Retrieve the array of available genres for the given provider.
 ///
 /// It returns an empty list when the provider name doesn't exist.
-StringArray *retrieve_provider_genres(PopcornFX *popcorn_fx, const char *name);
+StringArray *retrieve_provider_genres(PopcornFX *popcorn_fx, char *name);
 
 /// Retrieve the array of available sorts for the given provider.
 ///
 /// It returns an empty list when the provider name doesn't exist.
-StringArray *retrieve_provider_sort_by(PopcornFX *popcorn_fx, const char *name);
+StringArray *retrieve_provider_sort_by(PopcornFX *popcorn_fx, char *name);
 
 /// Retrieve all watched movie id's.
 ///
@@ -2304,7 +2383,7 @@ SubtitleInfoC *select_or_default_subtitle(PopcornFX *popcorn_fx, SubtitleInfoSet
 /// Serve the given subtitle as [SubtitleType] format.
 ///
 /// It returns the url which hosts the [Subtitle].
-const char *serve_subtitle(PopcornFX *popcorn_fx, SubtitleC subtitle, size_t output_type);
+char *serve_subtitle(PopcornFX *popcorn_fx, SubtitleC subtitle, size_t output_type);
 
 /// Set the active player in the PopcornFX player manager.
 ///
@@ -2317,7 +2396,7 @@ const char *serve_subtitle(PopcornFX *popcorn_fx, SubtitleC subtitle, size_t out
 ///
 /// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
 /// * `player_id` - A pointer to a null-terminated C string representing the player's unique identifier (ID).
-void set_active_player(PopcornFX *popcorn_fx, const char *player_id);
+void set_active_player(PopcornFX *popcorn_fx, char *player_id);
 
 /// Stop the playback of the current playlist from C.
 ///
@@ -2369,17 +2448,17 @@ SubtitleInfoC *subtitle_none();
 void torrent_cancel_callback(PopcornFX *popcorn_fx, CancelTorrentCallback callback);
 
 /// Add the given magnet info to the torrent collection.
-void torrent_collection_add(PopcornFX *popcorn_fx, const char *name, const char *magnet_uri);
+void torrent_collection_add(PopcornFX *popcorn_fx, char *name, char *magnet_uri);
 
 /// Retrieve all stored magnets from the torrent collection.
 /// It returns the set on success, else [ptr::null_mut].
 TorrentCollectionSet *torrent_collection_all(PopcornFX *popcorn_fx);
 
 /// Verify if the given magnet uri has already been stored.
-bool torrent_collection_is_stored(PopcornFX *popcorn_fx, const char *magnet_uri);
+bool torrent_collection_is_stored(PopcornFX *popcorn_fx, char *magnet_uri);
 
 /// Remove the given magnet uri from the torrent collection.
-void torrent_collection_remove(PopcornFX *popcorn_fx, const char *magnet_uri);
+void torrent_collection_remove(PopcornFX *popcorn_fx, char *magnet_uri);
 
 /// Callback function for handling changes in the download status of a torrent.
 ///
@@ -2388,7 +2467,7 @@ void torrent_collection_remove(PopcornFX *popcorn_fx, const char *magnet_uri);
 /// * `popcorn_fx` - A mutable reference to the PopcornFX instance.
 /// * `handle` - The handle to the torrent.
 /// * `download_status` - The new download status of the torrent.
-void torrent_download_status(PopcornFX *popcorn_fx, const char *handle, DownloadStatusC download_status);
+void torrent_download_status(PopcornFX *popcorn_fx, char *handle, DownloadStatusC download_status);
 
 /// Callback function for handling the completion of downloading a piece in a torrent.
 ///
@@ -2397,26 +2476,7 @@ void torrent_download_status(PopcornFX *popcorn_fx, const char *handle, Download
 /// * `popcorn_fx` - A mutable reference to the PopcornFX instance.
 /// * `handle` - The handle to the torrent.
 /// * `piece` - The index of the finished piece.
-void torrent_piece_finished(PopcornFX *popcorn_fx, const char *handle, uint32_t piece);
-
-/// A callback function for resolving torrents.
-///
-/// This function is exposed as a C-compatible function and is intended to be called from C or other languages.
-/// It takes a `PopcornFX` instance and a `ResolveTorrentCallback` function as arguments.
-///
-/// The function registers the provided callback function with the `DefaultTorrentManager` from the `PopcornFX` instance.
-/// When the callback function is invoked by the manager, it converts the arguments and the result between Rust and C types.
-///
-/// # Safety
-///
-/// This function is marked as `unsafe` because it interacts with C-compatible code and dereferences raw pointers.
-/// Users of this function should ensure that they provide a valid `PopcornFX` instance and a valid `ResolveTorrentCallback`.
-///
-/// # Arguments
-///
-/// * `popcorn_fx` - A mutable reference to the `PopcornFX` instance.
-/// * `callback` - The `ResolveTorrentCallback` function to be registered.
-void torrent_resolve_callback(PopcornFX *popcorn_fx, ResolveTorrentCallback callback);
+void torrent_piece_finished(PopcornFX *popcorn_fx, char *handle, uint32_t piece);
 
 /// Registers a new C-compatible resolve torrent callback function with PopcornFX.
 ///
@@ -2455,7 +2515,32 @@ void torrent_resolve_info_callback(PopcornFX *popcorn_fx, ResolveTorrentInfoCall
 /// * `popcorn_fx` - A mutable reference to the PopcornFX instance.
 /// * `handle` - The handle to the torrent.
 /// * `state` - The new state of the torrent.
-void torrent_state_changed(PopcornFX *popcorn_fx, const char *handle, TorrentState state);
+void torrent_state_changed(PopcornFX *popcorn_fx, char *handle, TorrentState state);
+
+/// Initiates the authorization process with the tracking provider.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
+void tracking_authorize(PopcornFX *popcorn_fx);
+
+/// Disconnects from the tracking provider.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
+void tracking_disconnect(PopcornFX *popcorn_fx);
+
+/// Checks if the current tracking provider is authorized.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
+///
+/// # Returns
+///
+/// Returns `true` if the tracking provider is authorized, otherwise `false`.
+bool tracking_is_authorized(PopcornFX *popcorn_fx);
 
 /// Update the playback settings with the new value.
 void update_playback_settings(PopcornFX *popcorn_fx, PlaybackSettingsC settings);
@@ -2480,7 +2565,7 @@ void update_subtitle(PopcornFX *popcorn_fx, const SubtitleInfoC *subtitle);
 
 /// Update the preferred subtitle to a custom subtitle filepath.
 /// This action will reset any preferred subtitle.
-void update_subtitle_custom_file(PopcornFX *popcorn_fx, const char *custom_filepath);
+void update_subtitle_custom_file(PopcornFX *popcorn_fx, char *custom_filepath);
 
 /// Update the subtitle settings with the new value.
 void update_subtitle_settings(PopcornFX *popcorn_fx, SubtitleSettingsC subtitle_settings);
@@ -2492,7 +2577,7 @@ void update_torrent_settings(PopcornFX *popcorn_fx, TorrentSettingsC torrent_set
 void update_ui_settings(PopcornFX *popcorn_fx, UiSettingsC settings);
 
 /// Retrieve the version of Popcorn FX.
-const char *version();
+char *version();
 
 /// Retrieve the latest release version information from the update channel.
 ///

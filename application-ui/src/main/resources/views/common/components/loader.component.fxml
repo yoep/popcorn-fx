@@ -2,8 +2,9 @@
 
 <?import com.github.spring.boot.javafx.font.controls.Icon?>
 <?import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover?>
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.control.*?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ProgressBar?>
 <?import javafx.scene.layout.*?>
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
           fx:controller="com.github.yoep.popcorn.ui.view.controllers.common.components.LoaderComponent"
@@ -22,47 +23,13 @@
     <BackgroundImageCover fx:id="backgroundImage"
                           GridPane.columnSpan="3" GridPane.rowSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
 
-    <VBox GridPane.columnIndex="1" GridPane.rowIndex="1" spacing="20" alignment="CENTER">
+    <VBox fx:id="infoPane" GridPane.columnIndex="1" GridPane.rowIndex="1" spacing="20" alignment="CENTER">
         <!-- Label -->
         <Label fx:id="statusText" styleClass="status-text"/>
 
         <!-- Progress -->
         <ProgressBar fx:id="progressBar" cache="true" cacheHint="SPEED" maxWidth="Infinity"/>
-        <GridPane fx:id="progressStatus" styleClass="progress-status">
-            <columnConstraints>
-                <ColumnConstraints percentWidth="50"/>
-                <ColumnConstraints percentWidth="50"/>
-            </columnConstraints>
-            <rowConstraints>
-                <RowConstraints/>
-                <RowConstraints/>
-                <RowConstraints/>
-                <RowConstraints/>
-            </rowConstraints>
-            <vgap>2</vgap>
-            <hgap>2</hgap>
-            <padding>
-                <Insets topRightBottomLeft="10"/>
-            </padding>
-
-            <!-- Percentage -->
-            <Label fx:id="progressPercentage" GridPane.halignment="CENTER"
-                   GridPane.columnSpan="2" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
-
-            <Label text="%torrent_download"
-                   GridPane.columnIndex="0" GridPane.rowIndex="1"/>
-            <Label text="%torrent_upload"
-                   GridPane.columnIndex="0" GridPane.rowIndex="2"/>
-            <Label text="%torrent_active_peers"
-                   GridPane.columnIndex="0" GridPane.rowIndex="3"/>
-
-            <Label fx:id="downloadText"
-                   GridPane.columnIndex="1" GridPane.rowIndex="1"/>
-            <Label fx:id="uploadText"
-                   GridPane.columnIndex="1" GridPane.rowIndex="2"/>
-            <Label fx:id="activePeersText"
-                   GridPane.columnIndex="1" GridPane.rowIndex="3"/>
-        </GridPane>
+        <fx:include fx:id="progressStatus" source="progress-info.component.fxml" />
 
         <!-- Actions -->
         <HBox fx:id="loaderActions" alignment="CENTER" spacing="5">

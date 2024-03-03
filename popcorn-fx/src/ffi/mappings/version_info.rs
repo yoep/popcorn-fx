@@ -36,7 +36,7 @@ impl PartialEq for VersionInfoC {
 #[derive(Debug)]
 pub struct PatchInfoC {
     /// The runtime version of the application.
-    pub version: *const c_char,
+    pub version: *mut c_char,
 }
 
 impl From<&PatchInfo> for PatchInfoC {

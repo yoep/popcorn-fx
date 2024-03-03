@@ -41,7 +41,7 @@ public class MediaConfig {
     }
 
     @Bean
-    public PlayerManagerService playerService(FxLib fxLib, PopcornFx instance) {
-        return new PlayerManagerServiceImpl(fxLib, instance);
+    public PlayerManagerService playerService(FxLib fxLib, PopcornFx instance, EventPublisher eventPublisher) {
+        return new PlayerManagerServiceImpl(fxLib, instance, eventPublisher);
     }
 }

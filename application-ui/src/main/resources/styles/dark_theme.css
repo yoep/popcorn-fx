@@ -64,6 +64,10 @@
     -fx-font-smoothing-type: gray;
 }
 
+.root .muted {
+    -fx-text-fill: #999999;
+}
+
 .root .tooltip {
     -fx-background-color: rgba(23, 24, 27, 0.6);
     -fx-font-family: "Open Sans Semibold";
@@ -846,8 +850,13 @@
 }
 
 .root .player .player-header .title {
-    -fx-font-family: "Open Sans";
+    -fx-font-family: "Open Sans Bold";
     -fx-text-fill: #fff;
+    -fx-font-size: 1.8em;
+}
+
+.root .player .player-header .caption {
+    -fx-font-family: "Open Sans";
     -fx-font-size: 1.8em;
 }
 
@@ -1133,6 +1142,11 @@
     -fx-font-size: 2em;
 }
 
+.root .player-external .caption {
+    -fx-font-family: "Open Sans Semibold";
+    -fx-font-size: 1.25em;
+}
+
 .root .loader .progress-status,
 .root .player-external .progress-status {
     -fx-max-width: 400;
@@ -1203,10 +1217,10 @@
     -fx-text-fill: #c3c5c7;
 }
 
-.root .settings-section .sub-section Icon {
-    -fx-text-fill: #c3c5c7;
-    -fx-cursor: hand;
-    -fx-padding: 0 0 0 8;
+.root .settings-section .sub-section .button .icon,
+.root .settings-section .sub-section .button .icon:hover {
+    -fx-padding: 0 0 0 0;
+    -fx-font-size: 1em;
 }
 
 .root .settings-section .sub-section .label,
@@ -1219,6 +1233,7 @@
     -fx-padding: 0 0 0 15;
 }
 
+.root .settings-section .settings-actions .button .text,
 .root .settings-section .settings-actions .label {
     -fx-font-size: 1em;
     -fx-padding: 0 0 0 3;

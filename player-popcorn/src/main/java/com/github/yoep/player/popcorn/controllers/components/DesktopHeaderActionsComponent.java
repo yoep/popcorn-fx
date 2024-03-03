@@ -56,6 +56,11 @@ public class DesktopHeaderActionsComponent implements Initializable {
             }
 
             @Override
+            public void onCaptionChanged(String caption) {
+                // no-op
+            }
+
+            @Override
             public void onQualityChanged(String quality) {
                 DesktopHeaderActionsComponent.this.onQualityChanged(quality);
             }
@@ -80,7 +85,7 @@ public class DesktopHeaderActionsComponent implements Initializable {
     private void onQualityChanged(String quality) {
         Platform.runLater(() -> {
             this.quality.setText(quality);
-            this.quality.setVisible(true);
+            this.quality.setVisible(quality != null);
         });
     }
 

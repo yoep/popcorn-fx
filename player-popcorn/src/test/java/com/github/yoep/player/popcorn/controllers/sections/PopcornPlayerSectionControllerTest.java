@@ -129,9 +129,6 @@ class PopcornPlayerSectionControllerTest {
         controller.errorText.setText("Lorem");
         eventPublisher.publish(PlayerStartedEvent.builder()
                 .source(this)
-                .url("http://localhost/video.mp4")
-                .title("Lorem ipsum")
-                .subtitleEnabled(false)
                 .build());
         WaitForAsyncUtils.waitForFxEvents();
 

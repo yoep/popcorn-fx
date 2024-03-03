@@ -153,9 +153,9 @@ impl VecFavoritesC {
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct MovieOverviewC {
-    title: *const c_char,
-    imdb_id: *const c_char,
-    year: *const c_char,
+    title: *mut c_char,
+    imdb_id: *mut c_char,
+    year: *mut c_char,
     rating: *mut RatingC,
     images: ImagesC,
 }
@@ -200,15 +200,15 @@ impl MovieOverviewC {
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct MovieDetailsC {
-    pub title: *const c_char,
-    pub imdb_id: *const c_char,
-    pub year: *const c_char,
+    pub title: *mut c_char,
+    pub imdb_id: *mut c_char,
+    pub year: *mut c_char,
     pub rating: *mut RatingC,
     pub images: ImagesC,
-    pub synopsis: *const c_char,
+    pub synopsis: *mut c_char,
     pub runtime: i32,
-    pub trailer: *const c_char,
-    pub genres: *mut *const c_char,
+    pub trailer: *mut c_char,
+    pub genres: *mut *mut c_char,
     pub genres_len: i32,
     pub torrents: *mut TorrentEntryC,
     pub torrents_len: i32,
@@ -286,10 +286,10 @@ impl From<&MovieDetailsC> for MovieDetails {
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct ShowOverviewC {
-    imdb_id: *const c_char,
-    tvdb_id: *const c_char,
-    title: *const c_char,
-    year: *const c_char,
+    imdb_id: *mut c_char,
+    tvdb_id: *mut c_char,
+    title: *mut c_char,
+    year: *mut c_char,
     num_seasons: i32,
     images: ImagesC,
     rating: *mut RatingC,
@@ -337,17 +337,17 @@ impl ShowOverviewC {
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct ShowDetailsC {
-    imdb_id: *const c_char,
-    tvdb_id: *const c_char,
-    title: *const c_char,
-    year: *const c_char,
+    imdb_id: *mut c_char,
+    tvdb_id: *mut c_char,
+    title: *mut c_char,
+    year: *mut c_char,
     num_seasons: i32,
     images: ImagesC,
     rating: *mut RatingC,
-    synopsis: *const c_char,
+    synopsis: *mut c_char,
     runtime: i32,
-    status: *const c_char,
-    genres: *mut *const c_char,
+    status: *mut c_char,
+    genres: *mut *mut c_char,
     genres_len: i32,
     episodes: *mut EpisodeC,
     episodes_len: i32,
@@ -414,10 +414,10 @@ pub struct EpisodeC {
     pub season: i32,
     pub episode: i32,
     pub first_aired: i64,
-    pub title: *const c_char,
-    pub synopsis: *const c_char,
-    pub tvdb_id: *const c_char,
-    pub thumb: *const c_char,
+    pub title: *mut c_char,
+    pub synopsis: *mut c_char,
+    pub tvdb_id: *mut c_char,
+    pub thumb: *mut c_char,
     pub torrents: *mut TorrentQualityC,
     pub len: i32,
 }
@@ -439,7 +439,7 @@ impl From<Episode> for EpisodeC {
             tvdb_id: into_c_string(value.tvdb_id().clone()),
             thumb: value.thumb()
                 .map(|e| into_c_string(e.clone()))
-                .or_else(|| Some(ptr::null()))
+                .or_else(|| Some(ptr::null_mut()))
                 .unwrap(),
             torrents,
             len,
@@ -688,8 +688,8 @@ impl From<Episode> for MediaItemC {
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct GenreC {
-    key: *const c_char,
-    text: *const c_char,
+    key: *mut c_char,
+    text: *mut c_char,
 }
 
 impl GenreC {
@@ -712,8 +712,8 @@ impl GenreC {
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct SortByC {
-    key: *const c_char,
-    text: *const c_char,
+    key: *mut c_char,
+    text: *mut c_char,
 }
 
 impl SortByC {
@@ -771,9 +771,9 @@ impl RatingC {
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct ImagesC {
-    pub poster: *const c_char,
-    pub fanart: *const c_char,
-    pub banner: *const c_char,
+    pub poster: *mut c_char,
+    pub fanart: *mut c_char,
+    pub banner: *mut c_char,
 }
 
 impl ImagesC {
@@ -799,7 +799,7 @@ impl ImagesC {
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct TorrentEntryC {
-    language: *const c_char,
+    language: *mut c_char,
     qualities: *mut TorrentQualityC,
     len: i32,
 }
@@ -830,7 +830,7 @@ impl TorrentEntryC {
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct TorrentQualityC {
-    quality: *const c_char,
+    quality: *mut c_char,
     torrent: TorrentMediaInfoC,
 }
 
@@ -848,25 +848,25 @@ impl TorrentQualityC {
 #[derive(Debug, Clone)]
 pub struct TorrentMediaInfoC {
     /// A pointer to a null-terminated C string representing the torrent URL.
-    pub url: *const c_char,
+    pub url: *mut c_char,
     /// A pointer to a null-terminated C string representing the torrent provider.
-    pub provider: *const c_char,
+    pub provider: *mut c_char,
     /// A pointer to a null-terminated C string representing the torrent source.
-    pub source: *const c_char,
+    pub source: *mut c_char,
     /// A pointer to a null-terminated C string representing the torrent title.
-    pub title: *const c_char,
+    pub title: *mut c_char,
     /// A pointer to a null-terminated C string representing the torrent quality.
-    pub quality: *const c_char,
+    pub quality: *mut c_char,
     /// The number of seeders for the torrent.
     pub seed: u32,
     /// The number of peers for the torrent.
     pub peer: u32,
     /// A pointer to a null-terminated C string representing the torrent size in bytes.
-    pub size: *const c_char,
+    pub size: *mut c_char,
     /// A pointer to a null-terminated C string representing the torrent filesize in human-readable format.
-    pub filesize: *const c_char,
+    pub filesize: *mut c_char,
     /// A pointer to a null-terminated C string representing the selected file within the torrent collection.
-    pub file: *const c_char,
+    pub file: *mut c_char,
 }
 
 impl From<&TorrentInfo> for TorrentMediaInfoC {
@@ -880,15 +880,15 @@ impl From<&TorrentInfo> for TorrentMediaInfoC {
             seed: value.seed().clone(),
             peer: value.peer().clone(),
             size: match value.size() {
-                None => ptr::null(),
+                None => ptr::null_mut(),
                 Some(e) => into_c_string(e.clone())
             },
             filesize: match value.filesize() {
-                None => ptr::null(),
+                None => ptr::null_mut(),
                 Some(e) => into_c_string(e.clone())
             },
             file: match value.file() {
-                None => ptr::null(),
+                None => ptr::null_mut(),
                 Some(e) => into_c_string(e.clone())
             },
         }
@@ -933,9 +933,9 @@ impl From<TorrentMediaInfoC> for TorrentInfo {
 pub enum FavoriteEventC {
     /// Event indicating that the like state of a media item changed.
     ///
-    /// * `*const c_char`   - The imdb id of the media item that changed.
+    /// * `*mut c_char`   - The imdb id of the media item that changed.
     /// * `bool`            - The new like state of the media item.
-    LikedStateChanged(*const c_char, bool)
+    LikedStateChanged(*mut c_char, bool)
 }
 
 impl FavoriteEventC {
@@ -952,9 +952,9 @@ impl FavoriteEventC {
 pub enum WatchedEventC {
     /// Event indicating that the watched state of a media item changed.
     ///
-    /// * `*const c_char`   - The imdb id of the media item that changed.
+    /// * `*mut c_char`   - The imdb id of the media item that changed.
     /// * `bool`            - The new watched state of the media item.
-    WatchedStateChanged(*const c_char, bool)
+    WatchedStateChanged(*mut c_char, bool)
 }
 
 impl WatchedEventC {

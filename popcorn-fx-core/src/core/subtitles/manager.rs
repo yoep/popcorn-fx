@@ -430,6 +430,7 @@ mod test {
                 server_settings: Default::default(),
                 torrent_settings: Default::default(),
                 playback_settings: Default::default(),
+                tracking_settings: Default::default(),
             })
             .build())
     }

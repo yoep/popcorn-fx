@@ -36,6 +36,7 @@ public class PlayerHeaderService extends AbstractListenerService<PlayerHeaderLis
 
     private void onPlayRequest(PlayRequest request) {
         invokeListeners(e -> e.onTitleChanged(request.getTitle()));
+        invokeListeners(e -> e.onCaptionChanged(request.getCaption().orElse(null)));
         invokeListeners(e -> e.onQualityChanged(request.getQuality().orElse(null)));
         invokeListeners(e -> e.onStreamStateChanged(request.getStreamHandle().isPresent()));
 

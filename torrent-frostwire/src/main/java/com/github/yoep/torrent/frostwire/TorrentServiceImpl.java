@@ -223,7 +223,7 @@ public class TorrentServiceImpl implements TorrentService {
     @PostConstruct
     void init() {
         fxLib.torrent_resolve_info_callback(instance, resolveTorrentInfoCallback);
-        fxLib.torrent_resolve_callback(instance, resolveTorrentCallback);
+        fxLib.register_torrent_resolve_callback(instance, resolveTorrentCallback);
         fxLib.torrent_cancel_callback(instance, cancelTorrentCallback);
     }
 
@@ -302,7 +302,8 @@ public class TorrentServiceImpl implements TorrentService {
         return url -> {
             log.debug("Executing resolve torrent info callback for {}", url);
             try {
-                var info = new com.github.yoep.popcorn.backend.adapters.torrent.TorrentInfoWrapper.ByValue(getTorrentInfo(url).get());
+                var torrentInfo = getTorrentInfo(url).get();
+                var info = new com.github.yoep.popcorn.backend.adapters.torrent.TorrentInfoWrapper.ByValue(torrentInfo);
                 torrentInfos.add(info);
                 return info;
             } catch (Exception ex) {

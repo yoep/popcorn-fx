@@ -66,16 +66,8 @@ public class EventC extends Structure implements Closeable {
                         .build();
             }
             case PLAYER_STARTED -> {
-                var event = union.getPlayerStarted_body().startedEvent;
-
                 return PlayerStartedEvent.builder()
                         .source(this)
-                        .url(event.getUrl())
-                        .title(event.getTitle())
-                        .thumbnail(event.getThumbnail().orElse(null))
-                        .quality(event.getQuality().orElse(null))
-                        .autoResumeTimestamp(event.getAutoResumeTimestamp())
-                        .subtitleEnabled(event.isSubtitlesEnabled())
                         .build();
             }
             case PLAYER_STOPPED -> {
@@ -104,7 +96,6 @@ public class EventC extends Structure implements Closeable {
     private void updateUnionType() {
         switch (tag) {
             case PLAYER_CHANGED -> union.setType(PlayerChanged_Body.class);
-            case PLAYER_STARTED -> union.setType(PlayerStarted_Body.class);
             case PLAYBACK_STATE_CHANGED -> union.setType(PlaybackState_Body.class);
             case WATCH_STATE_CHANGED -> union.setType(WatchStateChanged_Body.class);
             case TORRENT_DETAILS_LOADED -> union.setType(TorrentDetailsLoaded_Body.class);
@@ -121,19 +112,6 @@ public class EventC extends Structure implements Closeable {
         public void close() {
             setAutoSynch(false);
             playerChangedEvent.close();
-        }
-    }
-
-    @Getter
-    @ToString
-    @FieldOrder({"startedEvent"})
-    public static class PlayerStarted_Body extends Structure implements Closeable {
-        public PlayerStartedEventC.ByValue startedEvent;
-
-        @Override
-        public void close() {
-            setAutoSynch(false);
-            startedEvent.close();
         }
     }
 
@@ -189,7 +167,6 @@ public class EventC extends Structure implements Closeable {
         }
 
         public PlayerChanged_Body playerChanged_body;
-        public PlayerStarted_Body playerStarted_body;
         public PlaybackState_Body playbackState_body;
         public WatchStateChanged_Body watchStateChanged_body;
         public TorrentDetailsLoaded_Body torrentDetailsLoaded_body;
@@ -199,8 +176,6 @@ public class EventC extends Structure implements Closeable {
             setAutoSynch(false);
             Optional.ofNullable(playerChanged_body)
                     .ifPresent(PlayerChanged_Body::close);
-            Optional.ofNullable(playerStarted_body)
-                    .ifPresent(PlayerStarted_Body::close);
             Optional.ofNullable(playbackState_body)
                     .ifPresent(PlaybackState_Body::close);
             Optional.ofNullable(watchStateChanged_body)

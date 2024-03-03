@@ -259,7 +259,7 @@ mod test {
         let item = Box::new(PlaylistItemC {
             url: into_c_string("http://my_url".to_string()),
             title: into_c_string("Foo Bar".to_string()),
-            caption: ptr::null(),
+            caption: ptr::null_mut(),
             thumb: into_c_string("MyThumb".to_string()),
             parent_media: ptr::null_mut(),
             media: ptr::null_mut(),
@@ -277,7 +277,7 @@ mod test {
         let item = PlaylistItemC {
             url: into_c_string("http://my_url".to_string()),
             title: into_c_string("Foo Bar".to_string()),
-            caption: ptr::null(),
+            caption: ptr::null_mut(),
             thumb: into_c_string("MyThumb".to_string()),
             parent_media: ptr::null_mut(),
             media: ptr::null_mut(),

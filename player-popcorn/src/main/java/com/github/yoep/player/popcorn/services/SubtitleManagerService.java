@@ -145,8 +145,8 @@ public class SubtitleManagerService {
 
         subtitleSize.set(subtitleSettings.getFontSize());
         applicationConfig.register(event -> {
-            if (event.tag == ApplicationConfigEvent.Tag.SubtitleSettingsChanged) {
-                subtitleSize.set(event.getUnion().getSubtitleSettings().getSettings().getFontSize());
+            if (event.tag == ApplicationConfigEvent.Tag.SUBTITLE_SETTINGS_CHANGED) {
+                subtitleSize.set(event.getUnion().getSubtitleSettingsChanged_body().getSettings().getFontSize());
             }
         });
     }

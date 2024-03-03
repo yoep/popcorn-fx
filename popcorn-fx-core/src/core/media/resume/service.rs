@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use log::{debug, error, info, trace, warn};
+#[cfg(any(test, feature = "testing"))]
 use mockall::automock;
 use tokio::sync::Mutex;
 
@@ -21,7 +22,7 @@ const RESUME_PERCENTAGE_THRESHOLD: u32 = 85;
 
 /// The auto-resume service which handles the resume timestamp for video playbacks.
 /// It stores the last known timestamp when needed based on a player stopped event.
-#[automock]
+#[cfg_attr(any(test, feature = "testing"), automock)]
 pub trait AutoResumeService: Debug + Send + Sync {
     /// Retrieve the resume timestamp for the given media id and/or filename.
     ///

@@ -4,42 +4,58 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * The {@link TorrentInfo} interface represents information about a torrent, including its magnet URI, name, directory name,
+ * total number of files, list of files, and methods to retrieve specific file information.
+ */
 public interface TorrentInfo extends Serializable {
+    /**
+     * Get the magnet URI of the torrent.
+     *
+     * @return The magnet URI of the torrent.
+     */
     String getMagnetUri();
 
     /**
-     * Get the name of the torrent info.
+     * Get the name of the torrent.
      *
-     * @return Returns the torrent info name.
+     * @return The name of the torrent.
      */
     String getName();
 
     /**
-     * Get the total number of files which are present in the torrent.
+     * Get the directory name of the torrent.
      *
-     * @return Returns the total number of files.
+     * @return The directory name of the torrent.
+     */
+    String getDirectoryName();
+
+    /**
+     * Get the total number of files present in the torrent.
+     *
+     * @return The total number of files in the torrent.
      */
     int getTotalFiles();
 
     /**
-     * Get a list of torrent files contained in this torrent info.
+     * Get a list of files contained in this torrent.
      *
-     * @return Returns a list of torrent info files.
+     * @return A list of torrent files.
      */
     List<TorrentFileInfo> getFiles();
 
     /**
-     * Get the largest torrent file contained within this torrent info collection.
+     * Get the largest torrent file contained within this torrent.
      *
-     * @return Returns the largest torrent file info from this torrent info.
+     * @return The largest torrent file information.
      */
     TorrentFileInfo getLargestFile();
 
     /**
-     * Get the torrent file based on the filename of the torrent file.
+     * Get the torrent file based on its filename.
      *
      * @param filename The filename of the torrent file to search for.
-     * @return Returns the torrent file if found, else {@link Optional#empty()}.
+     * @return An {@link Optional} containing the torrent file if found, otherwise {@link Optional#empty()}.
      */
     Optional<TorrentFileInfo> getByFilename(String filename);
 }

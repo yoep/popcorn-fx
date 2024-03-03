@@ -125,8 +125,6 @@ class MainControllerTest {
         WaitForAsyncUtils.waitFor(100, TimeUnit.MILLISECONDS, () -> controller.playerPane != null);
         eventPublisher.publish(PlayerStartedEvent.builder()
                 .source(this)
-                .title("MyVideoTitle")
-                .subtitleEnabled(true)
                 .build());
 
         WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> controller.root.getChildren().contains(controller.playerPane));

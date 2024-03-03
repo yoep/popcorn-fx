@@ -2,11 +2,11 @@ package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.spring.boot.javafx.text.LocaleText;
+import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.loader.*;
 import com.github.yoep.popcorn.ui.events.CloseLoadEvent;
 import com.github.yoep.popcorn.ui.messages.TorrentMessage;
-import com.github.yoep.popcorn.ui.utils.ProgressUtils;
 import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.application.Platform;
@@ -31,22 +31,19 @@ import java.util.ResourceBundle;
 @RequiredArgsConstructor
 public class LoaderComponent implements Initializable {
     static final String PROGRESS_ERROR_STYLE_CLASS = "error";
+    static final String PROGRESS_INFO_VIEW = "common/components/progress-info.component.fxml";
 
     private final LocaleText localeText;
     private final ImageService imageService;
     private final LoaderService loaderService;
     private final EventPublisher eventPublisher;
+    private final ViewLoader viewLoader;
+    final ProgressInfoComponent infoComponent = new ProgressInfoComponent();
 
     @FXML
     Pane loaderActions;
     @FXML
-    Label progressPercentage;
-    @FXML
-    Label downloadText;
-    @FXML
-    Label uploadText;
-    @FXML
-    Label activePeersText;
+    Pane infoPane;
     @FXML
     Pane progressStatus;
     @FXML
@@ -62,8 +59,15 @@ public class LoaderComponent implements Initializable {
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
+        initializeProgressInfo();
         initializeProgressBar();
         initializeRetryButton();
+    }
+
+    private void initializeProgressInfo() {
+        infoPane.getChildren().remove(progressStatus);
+        progressStatus = viewLoader.load(PROGRESS_INFO_VIEW, infoComponent);
+        infoPane.getChildren().add(2, progressStatus);
     }
 
     private void initializeProgressBar() {
@@ -153,10 +157,7 @@ public class LoaderComponent implements Initializable {
         progressBar.setProgress(progress.getProgress());
         progressBar.setVisible(true);
         statusText.setText(localeText.get(TorrentMessage.DOWNLOADING));
-        progressPercentage.setText(ProgressUtils.progressToPercentage(progress));
-        downloadText.setText(ProgressUtils.progressToDownload(progress));
-        uploadText.setText(ProgressUtils.progressToUpload(progress));
-        activePeersText.setText(String.valueOf(progress.getSeeds()));
+        infoComponent.update(progress);
     }
 
     private void onLoadTorrentError() {

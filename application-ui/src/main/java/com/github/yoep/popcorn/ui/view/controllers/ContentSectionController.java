@@ -41,7 +41,6 @@ public class ContentSectionController implements Initializable {
     private final ApplicationConfig applicationConfig;
 
     Pane detailsPane;
-    Pane watchlistPane;
     Pane torrentCollectionPane;
     Pane settingsPane;
     Pane aboutPane;
@@ -71,14 +70,12 @@ public class ContentSectionController implements Initializable {
             log.debug("Loading content panes");
             detailsPane = viewLoader.load("common/sections/details.section.fxml");
             torrentCollectionPane = viewLoader.load("common/sections/torrent-collection.section.fxml");
-            watchlistPane = viewLoader.load("common/sections/watchlist.section.fxml");
             settingsPane = viewLoader.load(SETTINGS_SECTION);
             aboutPane = viewLoader.load("common/sections/about.section.fxml");
             updatePane = viewLoader.load("common/sections/update.section.fxml");
 
             setAnchor(detailsPane);
             setAnchor(torrentCollectionPane);
-            setAnchor(watchlistPane);
             setAnchor(settingsPane);
             setAnchor(aboutPane);
             setAnchor(updatePane);
@@ -100,10 +97,6 @@ public class ContentSectionController implements Initializable {
         });
         eventPublisher.register(ShowDetailsEvent.class, event -> {
             switchContent(ContentType.DETAILS);
-            return event;
-        });
-        eventPublisher.register(ShowWatchlistEvent.class, event -> {
-            switchContent(ContentType.WATCHLIST);
             return event;
         });
         eventPublisher.register(ShowTorrentCollectionEvent.class, event -> {
@@ -158,7 +151,6 @@ public class ContentSectionController implements Initializable {
         switch (contentType) {
             case LIST -> pane.set(listPane);
             case DETAILS -> pane.set(detailsPane);
-            case WATCHLIST -> pane.set(watchlistPane);
             case TORRENT_COLLECTION -> pane.set(torrentCollectionPane);
             case SETTINGS -> pane.set(settingsPane);
             case ABOUT -> pane.set(aboutPane);
@@ -215,7 +207,6 @@ public class ContentSectionController implements Initializable {
     enum ContentType {
         LIST,
         DETAILS,
-        WATCHLIST,
         TORRENT_COLLECTION,
         SETTINGS,
         ABOUT,

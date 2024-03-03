@@ -109,12 +109,8 @@ class PlayerExternalComponentServiceTest {
 
     @Test
     void testClosePlayer_whenInvoked_shouldStopAndCloseThePlayer() {
-        var player = mock(Player.class);
-        when(playerManagerService.getActivePlayer()).thenReturn(Optional.of(player));
-
         service.closePlayer();
 
-        verify(player).stop();
         verify(eventPublisher).publishEvent(new ClosePlayerEvent(service, ClosePlayerEvent.Reason.USER));
     }
 

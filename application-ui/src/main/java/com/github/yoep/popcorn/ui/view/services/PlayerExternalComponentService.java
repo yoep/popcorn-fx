@@ -42,8 +42,6 @@ public class PlayerExternalComponentService extends AbstractListenerService<Play
     }
 
     public void closePlayer() {
-        playerManagerService.getActivePlayer()
-                .ifPresent(Player::stop);
         eventPublisher.publishEvent(new ClosePlayerEvent(this, ClosePlayerEvent.Reason.USER));
     }
 

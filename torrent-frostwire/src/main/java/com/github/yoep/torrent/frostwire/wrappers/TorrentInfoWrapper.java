@@ -61,6 +61,11 @@ public class TorrentInfoWrapper implements TorrentInfo {
     }
 
     @Override
+    public String getDirectoryName() {
+        return torrentDirectoryName;
+    }
+
+    @Override
     public int getTotalFiles() {
         return nativeInfo.numFiles();
     }

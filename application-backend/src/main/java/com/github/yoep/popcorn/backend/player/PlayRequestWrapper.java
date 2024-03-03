@@ -12,13 +12,14 @@ import java.util.Optional;
 
 @Getter
 @ToString
-@Structure.FieldOrder({"url", "title", "thumb", "background", "quality", "autoResumeTimestamp", "streamHandle", "subtitlesEnabled"})
+@Structure.FieldOrder({"url", "title", "caption", "thumb", "background", "quality", "autoResumeTimestamp", "streamHandle", "subtitlesEnabled"})
 public class PlayRequestWrapper extends Structure implements Closeable, PlayRequest {
     public static class ByValue extends PlayRequestWrapper implements Structure.ByValue {
     }
 
     public String url;
     public String title;
+    public Pointer caption;
     public Pointer thumb;
     public Pointer background;
     public Pointer quality;
@@ -26,6 +27,7 @@ public class PlayRequestWrapper extends Structure implements Closeable, PlayRequ
     public Pointer streamHandle;
     public byte subtitlesEnabled;
 
+    private String cachedCaption;
     private String cachedThumb;
     private String cachedBackground;
     private String cachedQuality;
@@ -34,6 +36,11 @@ public class PlayRequestWrapper extends Structure implements Closeable, PlayRequ
 
     public boolean isSubtitlesEnabled() {
         return subtitlesEnabled == 1;
+    }
+
+    @Override
+    public Optional<String> getCaption() {
+        return Optional.ofNullable(cachedCaption);
     }
 
     @Override
@@ -64,6 +71,9 @@ public class PlayRequestWrapper extends Structure implements Closeable, PlayRequ
     @Override
     public void read() {
         super.read();
+        this.cachedCaption = Optional.ofNullable(caption)
+                .map(e -> e.getString(0))
+                .orElse(null);
         this.cachedThumb = Optional.ofNullable(thumb)
                 .map(e -> e.getString(0))
                 .orElse(null);

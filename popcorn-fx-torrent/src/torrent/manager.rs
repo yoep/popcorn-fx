@@ -399,7 +399,7 @@ mod test {
             }
         }));
         let torrent_info_callback = torrent_info.clone();
-        manager.register_resolve_info_callback(Box::new(move |url| {
+        manager.register_resolve_info_callback(Box::new(move |_| {
             torrent_info_callback.clone()
         }));
 
@@ -505,6 +505,7 @@ mod test {
                     upload_rate_limit: 0,
                 },
                 playback_settings: Default::default(),
+                tracking_settings: Default::default(),
             })
             .build())
     }

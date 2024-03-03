@@ -28,6 +28,7 @@ use popcorn_fx_core::core::media::favorites::{DefaultFavoriteService, FavoriteCa
 use popcorn_fx_core::core::media::providers::{FavoritesProvider, MovieProvider, ProviderManager, ShowProvider};
 use popcorn_fx_core::core::media::providers::enhancers::ThumbEnhancer;
 use popcorn_fx_core::core::media::resume::{AutoResumeService, DefaultAutoResumeService};
+use popcorn_fx_core::core::media::tracking::{SyncMediaTracking, TrackingProvider};
 use popcorn_fx_core::core::media::watched::{DefaultWatchedService, WatchedService};
 use popcorn_fx_core::core::platform::PlatformData;
 use popcorn_fx_core::core::playback::PlaybackControls;
@@ -44,6 +45,7 @@ use popcorn_fx_core::core::updater::Updater;
 use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
 use popcorn_fx_platform::platform::DefaultPlatform;
 use popcorn_fx_torrent::torrent::DefaultTorrentManager;
+use popcorn_fx_trakt::trakt::TraktProvider;
 use popcorn_fx_vlc::vlc::VlcDiscovery;
 
 static INIT: Once = Once::new();
@@ -167,6 +169,8 @@ pub struct PopcornFX {
     player_manager: Arc<Box<dyn PlayerManager>>,
     media_loader: Arc<Box<dyn MediaLoader>>,
     screen_service: Arc<Box<dyn ScreenService>>,
+    tracking_provider: Arc<Box<dyn TrackingProvider>>,
+    tracking_sync: Arc<SyncMediaTracking>,
     /// The runtime pool to use for async tasks
     runtime: Arc<Runtime>,
     /// The options that were used to create this instance
@@ -246,6 +250,13 @@ impl PopcornFX {
         ];
         let media_loader = Arc::new(Box::new(DefaultMediaLoader::new(loading_chain)) as Box<dyn MediaLoader>);
         let playlist_manager = Arc::new(PlaylistManager::new(player_manager.clone(), event_publisher.clone(), media_loader.clone()));
+        let tracking_provider = Arc::new(Box::new(TraktProvider::new(settings.clone()).unwrap()) as Box<dyn TrackingProvider>);
+        let tracking_sync = Arc::new(SyncMediaTracking::builder()
+            .config(settings.clone())
+            .tracking_provider(tracking_provider.clone())
+            .watched_service(watched_service.clone())
+            .runtime(runtime.clone())
+            .build());
 
         // disable the screensaver
         platform.disable_screensaver();
@@ -276,6 +287,8 @@ impl PopcornFX {
             playlist_manager,
             media_loader,
             screen_service,
+            tracking_provider,
+            tracking_sync,
             runtime,
             opts: args,
         }
@@ -387,6 +400,16 @@ impl PopcornFX {
     /// Retrieve the screen service of the FX instance.
     pub fn screen_service(&self) -> &Arc<Box<dyn ScreenService>> {
         &self.screen_service
+    }
+
+    /// Retrieve the tracking provider of the FX instance.
+    pub fn tracking_provider(&self) -> &Arc<Box<dyn TrackingProvider>> {
+        &self.tracking_provider
+    }
+    
+    /// Retrieve the tracking synchronizer of the FX instance.
+    pub fn tracking_sync(&self) -> &Arc<SyncMediaTracking> {
+        &self.tracking_sync
     }
 
     /// Retrieve the given runtime pool from this Popcorn FX instance.
@@ -503,9 +526,9 @@ impl PopcornFX {
             .build()
     }
 
-    fn initialize_discovery_services(runtime: &Arc<Runtime>, 
-                                     subtitle_manager: &Arc<Box<dyn SubtitleManager>>, 
-                                     subtitle_provider: &Arc<Box<dyn SubtitleProvider>>, 
+    fn initialize_discovery_services(runtime: &Arc<Runtime>,
+                                     subtitle_manager: &Arc<Box<dyn SubtitleManager>>,
+                                     subtitle_provider: &Arc<Box<dyn SubtitleProvider>>,
                                      player_manager: &Arc<Box<dyn PlayerManager>>) {
         let subtitle_manager = subtitle_manager.clone();
         let subtitle_provider = subtitle_provider.clone();
@@ -646,6 +669,7 @@ mod test {
                 providers: Default::default(),
                 enhancers: Default::default(),
                 subtitle: Default::default(),
+                tracking: Default::default(),
             },
         };
 

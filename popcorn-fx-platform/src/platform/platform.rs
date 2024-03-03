@@ -4,7 +4,6 @@ use std::fmt::Debug;
 use std::sync::Arc;
 
 use log::{debug, error, info, trace, warn};
-use mockall::mock;
 use souvlaki::{MediaControlEvent, MediaControls, MediaMetadata, MediaPlayback, PlatformConfig};
 use tokio::sync::{Mutex, MutexGuard};
 
@@ -34,19 +33,6 @@ pub trait SystemPlatform: Debug + Send + Sync {
 
     /// Retrieve the handle of the window for the platform.
     fn window_handle(&self) -> Option<*mut std::ffi::c_void>;
-}
-
-mock! {
-    #[derive(Debug)]
-    pub DummySystemPlatform{}
-
-    impl SystemPlatform for DummySystemPlatform {
-        fn disable_screensaver(&self) -> bool;
-
-        fn enable_screensaver(&self) -> bool;
-
-        fn window_handle(&self) -> Option<*mut std::ffi::c_void>;
-    }
 }
 
 /// The `DefaultPlatform` struct represents the [PlatformData], which contains a reference to a
@@ -242,9 +228,24 @@ mod test {
     use std::sync::mpsc::channel;
     use std::time::Duration;
 
+    use mockall::mock;
+
     use popcorn_fx_core::testing::init_logger;
 
     use super::*;
+
+    mock! {
+        #[derive(Debug)]
+        pub DummySystemPlatform{}
+    
+        impl SystemPlatform for DummySystemPlatform {
+            fn disable_screensaver(&self) -> bool;
+    
+            fn enable_screensaver(&self) -> bool;
+    
+            fn window_handle(&self) -> Option<*mut std::ffi::c_void>;
+        }
+    }
 
     #[test]
     fn test_disable_screensaver() {

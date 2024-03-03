@@ -14,23 +14,23 @@ crate-type = ["rlib"]
 [dependencies]
 popcorn-fx-common = { path = "../popcorn-fx-common" }
 
-async-trait = "0"
-bytes = "1.4"
-chrono = "0"
-derive_more = "0"
+async-trait.workspace = true
+bytes.workspace = true
+chrono = { workspace = true, features = ["serde"] }
+derive_more.workspace = true
 directories.workspace = true
-downcast-rs = "1"
+downcast-rs.workspace = true
 flate2 = "1"
-futures = "0.3"
+futures.workspace = true
 html-escape = "0"
 itertools.workspace = true
 local-ip-address = "0"
 log.workspace = true
 log4rs = { version = "1", features = ["console_writer"], optional = true }
-mockall = "0"
+mockall = { workspace = true, optional = true }
 percent-encoding = "2"
-rand = "0.8"
-regex = "1"
+rand.workspace = true
+regex.workspace = true
 reqwest = { workspace = true, features = ["serde_json", "json", "stream"] }
 ring = "0.17"
 semver = "1.0"
@@ -38,21 +38,21 @@ serde.workspace = true
 serde_json.workspace = true
 serde_yaml.workspace = true
 tar = "0.4"
-tempfile = { version = "3", optional = true }
+tempfile = { workspace = true, optional = true }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread", "fs", "macros"] }
 tokio-stream = { workspace = true }
 tokio-util = { workspace = true }
 url.workspace = true
-warp = "0"
+warp.workspace = true
 
 [dev-dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }
 
-mockall = "0"
-httpmock = "0"
-tempfile = "3"
-tokio = { workspace = true, features = ["test-util", "macros"] }
+httpmock.workspace = true
+mockall.workspace = true
+tempfile.workspace = true
+tokio = { workspace = true, features = ["test-util"] }
 
 [features]
-testing = ["dep:log4rs", "dep:tempfile"]
+testing = ["dep:log4rs", "dep:tempfile", "dep:mockall"]

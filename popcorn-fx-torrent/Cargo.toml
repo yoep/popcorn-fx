@@ -14,8 +14,8 @@ crate-type = ["rlib"]
 [dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core" }
 
-async-trait = "0.1"
-chrono = "0"
+async-trait.workspace = true
+chrono.workspace = true
 itertools.workspace = true
 log.workspace = true
 serde.workspace = true
@@ -25,5 +25,5 @@ tokio = { workspace = true, features = ["rt-multi-thread"] }
 [dev-dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }
 
-tempfile = "3"
+tempfile.workspace = true
 utime = "0"

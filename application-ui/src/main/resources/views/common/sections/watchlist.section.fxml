@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-
-<?import com.github.yoep.popcorn.ui.view.controls.InfiniteScrollPane?>
-<?import javafx.scene.layout.GridPane?>
-<?import javafx.scene.layout.StackPane?>
-<StackPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-           fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.sections.WatchlistSectionController" styleClass="list-section">
-    <InfiniteScrollPane fx:id="scrollPane" GridPane.fillWidth="true"/>
-</StackPane>

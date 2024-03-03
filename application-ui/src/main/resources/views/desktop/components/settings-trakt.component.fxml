@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import com.github.spring.boot.javafx.font.controls.Icon?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
@@ -13,24 +14,38 @@
         <RowConstraints/>
         <RowConstraints/>
         <RowConstraints/>
+        <RowConstraints/>
+        <RowConstraints/>
     </rowConstraints>
 
     <!-- Title -->
     <Label styleClass="subsection-title" text="%settings_trakt_title" GridPane.valignment="TOP"
-           GridPane.rowSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+           GridPane.rowSpan="5" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
 
     <!-- Connect text -->
     <Label fx:id="statusText" text="%settings_trakt_status_not_connected"
            GridPane.columnSpan="2" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
 
     <!-- Buttons -->
-    <StackPane styleClass="button-holder" alignment="CENTER_LEFT"
-               GridPane.columnSpan="2" GridPane.columnIndex="1" GridPane.rowIndex="1">
-        <Button fx:id="connectButton" text="%settings_trakt_connect" onMouseClicked="#onConnectClicked"/>
-        <Button fx:id="disconnectButton" text="%settings_trakt_disconnect" onMouseClicked="#onDisconnectClicked"/>
-    </StackPane>
+    <VBox styleClass="button-holder"
+          GridPane.columnSpan="2" GridPane.columnIndex="1" GridPane.rowIndex="1">
+        <Button fx:id="authorizeBtn" text="%settings_trakt_connect" onMouseClicked="#onAuthorizeClicked" onKeyPressed="#onAuthorizationPressed">
+            <graphic>
+                <Icon fx:id="authorizeIcn">
+                    <Icon fx:constant="LINK_UNICODE"/>
+                </Icon>
+            </graphic>
+        </Button>
+    </VBox>
+
+    <!-- Sync info -->
+    <Label fx:id="syncState"
+           GridPane.columnSpan="2" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+
+    <Label fx:id="syncTime"
+           GridPane.columnSpan="2" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
 
     <!-- Separator -->
     <Separator
-            GridPane.columnSpan="2" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+            GridPane.columnSpan="2" GridPane.columnIndex="1" GridPane.rowIndex="4"/>
 </GridPane>

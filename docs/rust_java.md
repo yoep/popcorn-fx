@@ -33,8 +33,8 @@ Each of these `String` fields should therefore be translated to a `c_char` array
 
 _Example:_
 ```rust
-fn example() -> *const c_char{
-    let c_compatible_text: *const c_char;
+fn example() -> *mut c_char{
+    let c_compatible_text: *mut c_char;
     let text = String::from("lorem ipsum dolor");
 
     c_compatible_text = CString::new(text).unwrap().into_raw();

@@ -58,6 +58,7 @@ mod test {
                 ]),
                 enhancers: Default::default(),
                 subtitle: Default::default(),
+                tracking: Default::default(),
             })
             .settings(PopcornSettings {
                 subtitle_settings: Default::default(),
@@ -67,6 +68,7 @@ mod test {
                 },
                 torrent_settings: Default::default(),
                 playback_settings: Default::default(),
+                tracking_settings: Default::default(),
             })
             .build();
         let expected_result = vec![
@@ -93,6 +95,7 @@ mod test {
                 providers: HashMap::new(),
                 enhancers: Default::default(),
                 subtitle: Default::default(),
+                tracking: Default::default(),
             })
             .settings(PopcornSettings {
                 subtitle_settings: Default::default(),
@@ -102,6 +105,7 @@ mod test {
                 },
                 torrent_settings: Default::default(),
                 playback_settings: Default::default(),
+                tracking_settings: Default::default(),
             })
             .build();
         let expected_result = vec![

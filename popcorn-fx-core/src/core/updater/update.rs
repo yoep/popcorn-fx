@@ -805,11 +805,11 @@ mod test {
     use httpmock::MockServer;
     use tempfile::tempdir;
 
-    use crate::{assert_timeout, assert_timeout_eq};
+    use crate::assert_timeout_eq;
     use crate::core::config::PopcornProperties;
-    use crate::core::platform::{MockDummyPlatformData, PlatformInfo, PlatformType};
+    use crate::core::platform::{PlatformInfo, PlatformType};
     use crate::core::updater::PatchInfo;
-    use crate::testing::{copy_test_file, init_logger, read_temp_dir_file_as_bytes, read_temp_dir_file_as_string, read_test_file_to_bytes, read_test_file_to_string, test_resource_filepath};
+    use crate::testing::{copy_test_file, init_logger, MockDummyPlatformData, read_temp_dir_file_as_bytes, read_temp_dir_file_as_string, read_test_file_to_bytes, read_test_file_to_string, test_resource_filepath};
 
     use super::*;
 
@@ -1340,6 +1340,7 @@ mod test {
                 providers: Default::default(),
                 enhancers: Default::default(),
                 subtitle: Default::default(),
+                tracking: Default::default(),
             })
             .build());
         let updater = Updater::builder()
@@ -1374,6 +1375,7 @@ mod test {
         init_logger();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
+        let (tx, rx) = channel();
         let (server, settings) = create_server_and_settings(temp_path);
         let mut first_mock = server.mock(move |when, then| {
             when.method(GET)
@@ -1399,14 +1401,19 @@ mod test {
             .insecure(false)
             .build();
 
-        assert_timeout!(Duration::from_millis(300), updater.state() != UpdateState::CheckingForNewVersion);
-        assert_eq!(UpdateState::NoUpdateAvailable, updater.state());
+        updater.register(Box::new(move |event| {
+            if let UpdateEvent::StateChanged(state) = event {
+                tx.send(state).unwrap();
+            }
+        }));
+
+        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        assert_eq!(UpdateState::NoUpdateAvailable, result);
         first_mock.delete();
         server.mock(|when, then| {
             when.method(GET)
                 .path(format!("/{}", UPDATE_INFO_FILE));
             then.status(200)
-                .delay(Duration::from_millis(500))
                 .header("content-type", "application/json")
                 .body(format!(r#"{{
   "application": {{
@@ -1435,8 +1442,11 @@ mod test {
         });
 
         updater.check_for_updates();
-        assert_timeout_eq!(Duration::from_millis(200), UpdateState::CheckingForNewVersion, updater.state());
-        assert_timeout_eq!(Duration::from_millis(500), UpdateState::UpdateAvailable, updater.state());
+        
+        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        assert_eq!(UpdateState::CheckingForNewVersion, result);
+        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        assert_eq!(UpdateState::UpdateAvailable, result);
     }
 
     #[tokio::test]
@@ -1597,6 +1607,7 @@ mod test {
                 providers: Default::default(),
                 enhancers: Default::default(),
                 subtitle: Default::default(),
+                tracking: Default::default(),
             })
             .build())
     }
@@ -1613,6 +1624,7 @@ mod test {
                 providers: Default::default(),
                 enhancers: Default::default(),
                 subtitle: Default::default(),
+                tracking: Default::default(),
             })
             .build()))
     }

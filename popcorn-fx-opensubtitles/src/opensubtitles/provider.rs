@@ -654,6 +654,7 @@ mod test {
                     user_agent: String::new(),
                     api_token: String::new(),
                 },
+                tracking: Default::default(),
             })
             .settings(PopcornSettings {
                 subtitle_settings: SubtitleSettings {
@@ -669,6 +670,7 @@ mod test {
                 server_settings: Default::default(),
                 torrent_settings: Default::default(),
                 playback_settings: Default::default(),
+                tracking_settings: Default::default(),
             })
             .build());
 
@@ -966,6 +968,7 @@ mod test {
             server_settings: ServerSettings::default(),
             torrent_settings: TorrentSettings::default(),
             playback_settings: Default::default(),
+            tracking_settings: Default::default(),
         };
         let settings = Arc::new(ApplicationConfig::builder()
             .storage(temp_path)
@@ -1051,6 +1054,7 @@ mod test {
             server_settings: ServerSettings::default(),
             torrent_settings: TorrentSettings::default(),
             playback_settings: Default::default(),
+            tracking_settings: Default::default(),
         };
         let settings = Arc::new(ApplicationConfig::builder()
             .storage(temp_path)
@@ -1096,6 +1100,7 @@ mod test {
             server_settings: Default::default(),
             torrent_settings: Default::default(),
             playback_settings: Default::default(),
+            tracking_settings: Default::default(),
         };
         let settings = Arc::new(ApplicationConfig::builder()
             .storage(temp_path)

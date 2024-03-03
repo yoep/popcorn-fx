@@ -12,7 +12,7 @@ use crate::PopcornFX;
 ///
 /// It returns the [VecMovieC] reference on success, else [ptr::null_mut].
 #[no_mangle]
-pub extern "C" fn retrieve_available_movies(popcorn_fx: &mut PopcornFX, genre: &GenreC, sort_by: &SortByC, keywords: *const c_char, page: u32) -> MediaSetResult {
+pub extern "C" fn retrieve_available_movies(popcorn_fx: &mut PopcornFX, genre: &GenreC, sort_by: &SortByC, keywords: *mut c_char, page: u32) -> MediaSetResult {
     let genre = genre.to_struct();
     let sort_by = sort_by.to_struct();
     let keywords = from_c_string(keywords);
@@ -45,7 +45,7 @@ pub extern "C" fn retrieve_available_movies(popcorn_fx: &mut PopcornFX, genre: &
 ///
 /// It returns an array of [ShowOverviewC] items on success, else a [ptr::null_mut].
 #[no_mangle]
-pub extern "C" fn retrieve_available_shows(popcorn_fx: &mut PopcornFX, genre: &GenreC, sort_by: &SortByC, keywords: *const c_char, page: u32) -> MediaSetResult {
+pub extern "C" fn retrieve_available_shows(popcorn_fx: &mut PopcornFX, genre: &GenreC, sort_by: &SortByC, keywords: *mut c_char, page: u32) -> MediaSetResult {
     let genre = genre.to_struct();
     let sort_by = sort_by.to_struct();
     let keywords = from_c_string(keywords);

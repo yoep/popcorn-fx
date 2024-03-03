@@ -120,7 +120,7 @@ pub extern "C" fn load_poster(popcorn_fx: &mut PopcornFX, media: &MediaItemC) ->
 ///
 /// This function should only be called from C code, and the returned byte array should be disposed of using the dispose_byte_array function.
 #[no_mangle]
-pub extern "C" fn load_image(popcorn_fx: &mut PopcornFX, url: *const c_char) -> *mut ByteArray {
+pub extern "C" fn load_image(popcorn_fx: &mut PopcornFX, url: *mut c_char) -> *mut ByteArray {
     trace!("Loading image url from C for {:?}", url);
     let url = from_c_string(url);
     let image_loader = popcorn_fx.image_loader().clone();

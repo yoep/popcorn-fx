@@ -1,16 +1,13 @@
-use std::fmt::{Display, Formatter};
-use std::path::PathBuf;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use derive_more::Display;
 use downcast_rs::impl_downcast;
 use futures::Stream;
-use mockall::mock;
 use url::Url;
 
 use crate::core::{CallbackHandle, CoreCallback, Handle, torrents};
-use crate::core::torrents::{DownloadStatus, Torrent, TorrentCallback, TorrentState};
+use crate::core::torrents::{DownloadStatus, Torrent};
 
 /// The stream bytes that are available to be used for the [TorrentStream].
 pub type StreamBytes = Vec<u8>;
@@ -109,57 +106,6 @@ pub trait TorrentStream: Torrent {
     fn stop_stream(&self);
 }
 impl_downcast!(sync TorrentStream);
-
-mock! {
-    #[derive(Debug)]
-    pub TorrentStream {}
-
-    impl Torrent for TorrentStream {
-        fn handle(&self) -> &str;
-
-        fn file(&self) -> PathBuf;
-
-        fn has_bytes(&self, bytes: &[u64]) -> bool;
-
-        fn has_piece(&self, piece: u32) -> bool;
-
-        fn prioritize_bytes(&self, bytes: &[u64]);
-
-        fn prioritize_pieces(&self, pieces: &[u32]);
-
-        fn total_pieces(&self) -> i32;
-
-        fn sequential_mode(&self);
-
-        fn state(&self) -> TorrentState;
-
-        fn subscribe(&self, callback: TorrentCallback) -> CallbackHandle;
-    }
-
-    impl TorrentStream for TorrentStream {
-        fn stream_handle(&self) -> Handle;
-
-        fn url(&self) -> Url;
-
-        fn stream(&self) -> torrents::Result<TorrentStreamingResourceWrapper>;
-
-        fn stream_offset(&self, offset: u64, len: Option<u64>) -> torrents::Result<TorrentStreamingResourceWrapper>;
-
-        fn stream_state(&self) -> TorrentStreamState;
-
-        fn subscribe_stream(&self, callback: TorrentStreamCallback) -> CallbackHandle;
-
-        fn unsubscribe_stream(&self, handle: CallbackHandle);
-
-        fn stop_stream(&self);
-    }
-}
-
-impl Display for MockTorrentStream {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "MockTorrentStream")
-    }
-}
 
 /// The streaming resource of a [TorrentStream].
 /// It allows a [Torrent] to be streamed over HTTP.

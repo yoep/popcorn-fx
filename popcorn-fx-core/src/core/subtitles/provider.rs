@@ -2,6 +2,7 @@ use std::fmt::Debug;
 use std::path::Path;
 
 use async_trait::async_trait;
+#[cfg(any(test, feature = "testing"))]
 use mockall::automock;
 
 use crate::core::media::{Episode, MovieDetails, ShowDetails};
@@ -11,7 +12,7 @@ use crate::core::subtitles::model::{Subtitle, SubtitleInfo, SubtitleType};
 
 /// The subtitle provider is responsible for discovering & downloading of [Subtitle] files
 /// for [Media] items.
-#[automock]
+#[cfg_attr(any(test, feature = "testing"), automock)]
 #[async_trait]
 pub trait SubtitleProvider: Debug + Send + Sync {
     /// The available default subtitle options.

@@ -7,25 +7,9 @@ spring:
     web-application-type: none
   autoconfigure:
     exclude: org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
-  codec:
-    max-in-memory-size: 25MB
 
 logging:
   level:
     org.springframework: WARN
     com.github.yoep.popcorn: INFO
     com.github.kokorin.jaffree: WARN
-
-popcorn:
-  trakt:
-    url: https://api.trakt.tv
-    client:
-      client-id: 62a497cb224dc3d4c71a9da940fb9ef1b20ff8ab148c0ffb38b228e0a58ef246
-      client-secret: 5dddda26c750b108990025e2d3a4fb4c0d348eb5c927c99622ca8edd5ca8c202
-      user-authorization-uri: https://trakt.tv/oauth/authorize
-      access-token-uri: https://api.trakt.tv/oauth/token
-      pre-established-redirect-uri: http://localhost:9999
-      token-name: oauth_token
-      use-current-uri: false
-  imdb:
-    url: https://www.imdb.com/

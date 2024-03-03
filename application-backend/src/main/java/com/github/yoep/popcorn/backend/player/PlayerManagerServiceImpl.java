@@ -6,6 +6,8 @@ import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
+import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.Assert;
@@ -22,10 +24,12 @@ public class PlayerManagerServiceImpl extends AbstractListenerService<PlayerMana
     private final List<PlayerWrapper> playerWrappers = new ArrayList<>();
     private final FxLib fxLib;
     private final PopcornFx instance;
+    private final EventPublisher eventPublisher;
 
-    public PlayerManagerServiceImpl(FxLib fxLib, PopcornFx instance) {
+    public PlayerManagerServiceImpl(FxLib fxLib, PopcornFx instance, EventPublisher eventPublisher) {
         this.fxLib = fxLib;
         this.instance = instance;
+        this.eventPublisher = eventPublisher;
         init();
     }
 
@@ -149,8 +153,31 @@ public class PlayerManagerServiceImpl extends AbstractListenerService<PlayerMana
     //endregion
 
     void init() {
-        log.debug("Registering player manager C callback");
-        fxLib.register_player_callback(instance, this);
+        registerCallbackHandler();
+
+        registerEventListeners();
+    }
+
+    private void registerCallbackHandler() {
+        try {
+            log.debug("Registering player manager C callback");
+            fxLib.register_player_callback(instance, this);
+        } catch (Exception ex) {
+            log.error("Failed to register player manager callback handler, {}", ex.getMessage(), ex);
+        }
+    }
+
+    private void registerEventListeners() {
+        eventPublisher.register(ClosePlayerEvent.class, closePlayerEvent -> {
+            if (closePlayerEvent.getReason() == ClosePlayerEvent.Reason.USER) {
+                getActivePlayer().ifPresentOrElse(
+                        Player::stop,
+                        () -> log.warn("Unable to stop player, no active player present")
+                );
+            }
+
+            return closePlayerEvent;
+        }, EventPublisher.HIGHEST_ORDER);
     }
 
     private Player enhance(Player player) {

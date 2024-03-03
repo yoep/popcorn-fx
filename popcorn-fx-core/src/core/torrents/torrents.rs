@@ -161,25 +161,11 @@ pub struct TorrentInfo {
 
 impl TorrentInfo {
     pub fn by_filename(&self, filename: &str) -> Option<TorrentFileInfo> {
-        self.files.iter()
-            .find(|e| {
-                let filepath = Self::simplified_filepath(e.file_path.as_str());
-                let expected_filepath = Self::simplified_filepath(filename);
-
-                trace!("Checking if filepath {} matches filename {} without torrent directory", filepath, expected_filepath);
-                filepath.eq_ignore_ascii_case(expected_filepath.as_str())
-            })
+        trace!("Searching for torrent file {} within {:?}", filename, self.files);
+        self.by_filename_without_directory(filename)
             .or_else(|| {
                 debug!("Torrent file couldn't be found for {} without torrent directory, searching with torrent directory {:?}", filename, self.directory_name);
-                let torrent_directory_name = self.directory_name.clone();
-                let filepath = PathBuf::from(torrent_directory_name.unwrap_or("".to_string()))
-                    .join(filename)
-                    .to_str()
-                    .map(Self::simplified_filepath)
-                    .expect("expected a valid filepath to have been created");
-
-                self.files.iter()
-                    .find(|e| Self::simplified_filepath(e.file_path.as_str()).eq_ignore_ascii_case(filepath.as_str()))
+                self.by_filename_with_directory(filename)
             })
             .cloned()
     }
@@ -203,6 +189,36 @@ impl TorrentInfo {
             .cloned()
     }
 
+    fn by_filename_without_directory(&self, filename: &str) -> Option<&TorrentFileInfo> {
+        debug!("Searching for torrent file {} without torrent directory", filename);
+        self.files.iter()
+            .find(|e| {
+                let filepath = Self::simplified_filepath(e.file_path.as_str());
+                let expected_filepath = Self::simplified_filepath(filename);
+
+                trace!("Checking if filepath \"{}\" matches filename \"{}\" without torrent directory", filepath, expected_filepath);
+                filepath.eq_ignore_ascii_case(expected_filepath.as_str())
+            })
+    }
+
+    fn by_filename_with_directory(&self, filename: &str) -> Option<&TorrentFileInfo> {
+        debug!("Searching for torrent file {} with torrent directory {:?}", filename, self.directory_name);
+        let torrent_directory_name = self.directory_name.clone();
+        let expected_filepath = PathBuf::from(torrent_directory_name.unwrap_or("".to_string()))
+            .join(filename)
+            .to_str()
+            .map(Self::simplified_filepath)
+            .expect("expected a valid filepath to have been created");
+
+        self.files.iter()
+            .find(|e| {
+                let filepath = Self::simplified_filepath(e.file_path.as_str());
+                
+                trace!("Checking if filepath \"{}\" matches filename \"{}\" with torrent directory", filepath, expected_filepath);
+                filepath.eq_ignore_ascii_case(expected_filepath.as_str())
+            })
+    }
+
     fn simplified_filepath(file_path: &str) -> String {
         file_path
             .replace("/", "")
@@ -213,7 +229,8 @@ impl TorrentInfo {
 }
 
 /// Represents information about a file within a torrent.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Display, Clone, PartialEq)]
+#[display(fmt = "filename: {}, path: {}, size: {}, index: {}", filename, file_path, file_size, file_index)]
 pub struct TorrentFileInfo {
     /// The name of the file.
     pub filename: String,

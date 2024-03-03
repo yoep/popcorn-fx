@@ -7,6 +7,7 @@ use std::string::ToString;
 use derive_more::Display;
 use log::{debug, trace, warn};
 use serde::Deserialize;
+use crate::core::config;
 
 use crate::core::config::{ConfigError, EnhancerProperties, ProviderProperties};
 
@@ -123,6 +124,19 @@ const DEFAULT_ENHANCERS: fn() -> HashMap<String, EnhancerProperties> = || {
     ].into_iter().collect()
 };
 const DEFAULT_LOGGERS: fn() -> HashMap<String, LoggingProperties> = || HashMap::new();
+const DEFAULT_TRACKING: fn() -> HashMap<String, TrackingProperties> = || {
+    vec![
+        ("trakt".to_string(), TrackingProperties {
+            uri: "https://api.trakt.tv".to_string(),
+            client: TrackingClientProperties {
+                client_id: "62a497cb224dc3d4c71a9da940fb9ef1b20ff8ab148c0ffb38b228e0a58ef246".to_string(),
+                client_secret: "5dddda26c750b108990025e2d3a4fb4c0d348eb5c927c99622ca8edd5ca8c202".to_string(),
+                user_authorization_uri: "https://trakt.tv/oauth/authorize".to_string(),
+                access_token_uri: "https://api.trakt.tv/oauth/token".to_string()
+            },
+        })
+    ].into_iter().collect()
+};
 
 const DEFAULT_CONFIG_FILENAME: &str = "application";
 const CONFIG_EXTENSIONS: [&str; 2] = [
@@ -130,10 +144,11 @@ const CONFIG_EXTENSIONS: [&str; 2] = [
     "yaml"
 ];
 
-/// In-between wrapper for serde to support the backwards compatible mapping
+/// In-between wrapper for serde to support the backwards compatible mapping.
 #[derive(Debug, Display, Clone, Deserialize, PartialEq)]
 #[display(fmt = "popcorn: {:?}", popcorn)]
 struct PropertiesWrapper {
+    /// The properties under the "popcorn" field.
     #[serde(default)]
     pub popcorn: PopcornProperties,
 }
@@ -142,19 +157,27 @@ struct PropertiesWrapper {
 #[derive(Debug, Display, Clone, Deserialize, PartialEq)]
 #[display(fmt = "update_channel: {}, subtitle: {:?}", update_channel, subtitle)]
 pub struct PopcornProperties {
+    /// Configuration for loggers.
     #[serde(default = "DEFAULT_LOGGERS")]
     pub loggers: HashMap<String, LoggingProperties>,
+    /// The channel for updates.
     #[serde(alias = "update-channel")]
     #[serde(alias = "update_channel")]
     #[serde(default = "DEFAULT_UPDATE_CHANNEL")]
     pub update_channel: String,
+    /// Configuration for providers.
     #[serde(default = "DEFAULT_PROVIDERS")]
     pub providers: HashMap<String, ProviderProperties>,
-    /// The enhancer properties to enhance media items
+    /// Configuration for enhancers.
+    /// Enhancer properties to enhance media items.
     #[serde(default = "DEFAULT_ENHANCERS")]
     pub enhancers: HashMap<String, EnhancerProperties>,
+    /// Configuration for subtitles.
     #[serde(default)]
     pub subtitle: SubtitleProperties,
+    /// Configuration for tracking.
+    #[serde(default = "DEFAULT_TRACKING")]
+    pub tracking: HashMap<String, TrackingProperties>,
 }
 
 impl PopcornProperties {
@@ -190,10 +213,19 @@ impl PopcornProperties {
 
     /// Retrieve the provider properties for the given name.
     /// It returns the properties when found, else the [ConfigError].
-    pub fn provider(&self, name: &str) -> crate::core::config::Result<&ProviderProperties> {
-        self.providers.get(&name.to_string())
-            .ok_or(ConfigError::UnknownProvider(name.to_string()))
+    pub fn provider(&self, name: &str) -> config::Result<&ProviderProperties> {
+        let name = name.to_string();
+        self.providers.get(&name)
+            .ok_or(ConfigError::UnknownProvider(name))
     }
+
+    /// Retrieve the tracking provider properties for the given name.
+    /// It returns the properties when found, else the [ConfigError].
+    pub fn tracker(&self, name: &str) -> config::Result<&TrackingProperties> {
+        let name = name.to_string();
+        self.tracking.get(&name)
+            .ok_or(ConfigError::UnknownTrackingProvider(name))
+    } 
 
     /// Retrieve the default provider properties.
     pub fn default_providers() -> HashMap<String, ProviderProperties> {
@@ -203,6 +235,10 @@ impl PopcornProperties {
     /// Retrieve the default enhancer properties.
     pub fn default_enhancers() -> HashMap<String, EnhancerProperties> {
         DEFAULT_ENHANCERS()
+    }
+    
+    pub fn default_trackings() -> HashMap<String, TrackingProperties> {
+        DEFAULT_TRACKING()
     }
 
     fn find_existing_file(filename: &str) -> Option<File> {
@@ -258,18 +294,23 @@ impl Default for PopcornProperties {
             providers: DEFAULT_PROVIDERS(),
             enhancers: DEFAULT_ENHANCERS(),
             subtitle: SubtitleProperties::default(),
+            tracking: DEFAULT_TRACKING(),
         }
     }
 }
 
+/// Represents properties for subtitle provider configuration.
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct SubtitleProperties {
+    /// The URL for subtitle retrieval.
     #[serde(default = "DEFAULT_SUBTITLE_URL")]
     pub url: String,
+    /// The user agent to be used in the connection URL.
     #[serde(alias = "user-agent")]
     #[serde(alias = "userAgent")]
     #[serde(default = "DEFAULT_USER_AGENT")]
     pub user_agent: String,
+    /// The API token to use while querying the subtitle provider.
     #[serde(alias = "api-token")]
     #[serde(alias = "apiToken")]
     #[serde(default = "DEFAULT_API_TOKEN")]
@@ -277,17 +318,17 @@ pub struct SubtitleProperties {
 }
 
 impl SubtitleProperties {
-    /// Retrieve the subtitle base url to retrieve the subtitle info from.
+    /// Retrieves the subtitle base URL for retrieving subtitle information.
     pub fn url(&self) -> &str {
         self.url.as_str()
     }
 
-    /// Retrieve the user agent which needs to be used within the connection url.
+    /// Retrieves the user agent to be used within the connection URL.
     pub fn user_agent(&self) -> &str {
         self.user_agent.as_str()
     }
 
-    /// Retrieve the api token to use while querying the subtitle provider.
+    /// Retrieves the API token to use while querying the subtitle provider.
     pub fn api_token(&self) -> &str {
         self.api_token.as_str()
     }
@@ -303,10 +344,45 @@ impl Default for SubtitleProperties {
     }
 }
 
+/// Represents properties for logging configuration.
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct LoggingProperties {
-    /// The logging level to apply
+    /// The logging level to apply.
     pub level: String,
+}
+
+/// Represents properties for tracking configuration.
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+pub struct TrackingProperties {
+    /// The URI for tracking.
+    pub uri: String,
+    /// Properties related to the tracking client.
+    pub client: TrackingClientProperties,
+}
+
+impl TrackingProperties {
+    /// Gets the URI for tracking.
+    pub fn uri(&self) -> &str {
+        self.uri.as_str()
+    }
+
+    /// Gets the properties related to the tracking client.
+    pub fn client(&self) -> &TrackingClientProperties {
+        &self.client
+    }
+}
+
+/// Represents properties for the tracking client configuration.
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+pub struct TrackingClientProperties {
+    /// The client ID for tracking.
+    pub client_id: String,
+    /// The client secret for tracking.
+    pub client_secret: String,
+    /// The URI for user authorization.
+    pub user_authorization_uri: String,
+    /// The URI for accessing the access token.
+    pub access_token_uri: String,
 }
 
 #[cfg(test)]
@@ -342,6 +418,7 @@ mod test {
                 user_agent: String::from("Popcorn Time v1"),
                 api_token: String::from("mjU10F1qmFwv3JHPodNt9T4O4SeQFhCo"),
             },
+            tracking: PopcornProperties::default_trackings(),
         };
 
         let result = PopcornProperties::new_auto();
@@ -368,6 +445,7 @@ popcorn:
                 user_agent: "lorem".to_string(),
                 api_token: "ipsum".to_string(),
             },
+            tracking: PopcornProperties::default_trackings(),
         };
 
         let result = PopcornProperties::from(config_value);
@@ -392,6 +470,7 @@ popcorn:
                 user_agent: String::from("lorem"),
                 api_token: String::from("mjU10F1qmFwv3JHPodNt9T4O4SeQFhCo"),
             },
+            tracking: PopcornProperties::default_trackings(),
         };
 
         let result = PopcornProperties::from(config_value);

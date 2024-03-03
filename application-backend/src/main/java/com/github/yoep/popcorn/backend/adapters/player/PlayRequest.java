@@ -26,6 +26,8 @@ public interface PlayRequest {
      */
     String getTitle();
 
+    Optional<String> getCaption();
+
     /**
      * Get the thumbnail URL for the media item if available.
      *

@@ -25,3 +25,4 @@ pub mod favorites;
 pub mod providers;
 pub mod resume;
 pub mod watched;
+pub mod tracking;

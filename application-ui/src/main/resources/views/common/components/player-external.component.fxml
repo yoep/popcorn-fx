@@ -3,11 +3,10 @@
 <?import com.github.spring.boot.javafx.font.controls.*?>
 <?import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover?>
 <?import com.github.yoep.popcorn.ui.view.controls.ProgressControl?>
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.control.*?>
+<?import javafx.scene.control.Label?>
 <?import javafx.scene.layout.*?>
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-          fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.components.PlayerExternalComponent"
+          fx:controller="com.github.yoep.popcorn.ui.view.controllers.common.components.PlayerExternalComponent"
           fx:id="playerExternalPane" styleClass="player-external">
     <columnConstraints>
         <ColumnConstraints minWidth="45" percentWidth="20" hgrow="SOMETIMES"/>
@@ -23,7 +22,8 @@
     <BackgroundImageCover fx:id="backgroundImage"
                           GridPane.columnSpan="3" GridPane.rowSpan="3" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
 
-    <GridPane GridPane.columnIndex="1" GridPane.rowIndex="1" alignment="CENTER" vgap="20" hgap="10">
+    <GridPane fx:id="dataPane"
+              GridPane.columnIndex="1" GridPane.rowIndex="1" alignment="CENTER" vgap="20" hgap="10">
         <columnConstraints>
             <ColumnConstraints halignment="CENTER"/>
             <ColumnConstraints halignment="CENTER" hgrow="ALWAYS"/>
@@ -36,9 +36,12 @@
             <RowConstraints/>
         </rowConstraints>
 
-        <!-- Label -->
-        <Label fx:id="titleText" styleClass="title-text"
-               GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.columnSpan="3"/>
+        <!-- Title & Caption info -->
+        <VBox alignment="CENTER"
+              GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.columnSpan="3">
+            <Label fx:id="titleText" styleClass="title-text" />
+            <Label fx:id="captionText" styleClass="caption, muted" />
+        </VBox>
 
         <!-- Playback info -->
         <Label fx:id="timeText" styleClass="time" text="00:00"
@@ -65,46 +68,7 @@
         </HBox>
 
         <!-- Progress info -->
-        <GridPane fx:id="progressStatus" styleClass="progress-status"
-                  GridPane.columnIndex="1" GridPane.rowIndex="3">
-            <columnConstraints>
-                <ColumnConstraints percentWidth="50"/>
-                <ColumnConstraints percentWidth="50"/>
-            </columnConstraints>
-            <rowConstraints>
-                <RowConstraints/>
-                <RowConstraints/>
-                <RowConstraints/>
-                <RowConstraints/>
-                <RowConstraints/>
-            </rowConstraints>
-            <vgap>2</vgap>
-            <hgap>2</hgap>
-            <padding>
-                <Insets topRightBottomLeft="10"/>
-            </padding>
-
-            <!-- Percentage -->
-            <Label fx:id="progressPercentage" GridPane.halignment="CENTER"
-                   GridPane.columnSpan="2" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
-
-            <Label text="%torrent_download"
-                   GridPane.columnIndex="0" GridPane.rowIndex="1"/>
-            <Label text="%torrent_upload"
-                   GridPane.columnIndex="0" GridPane.rowIndex="2"/>
-            <Label text="%torrent_active_peers"
-                   GridPane.columnIndex="0" GridPane.rowIndex="3"/>
-            <Label text="%torrent_downloaded"
-                   GridPane.columnIndex="0" GridPane.rowIndex="4"/>
-
-            <Label fx:id="downloadText"
-                   GridPane.columnIndex="1" GridPane.rowIndex="1"/>
-            <Label fx:id="uploadText"
-                   GridPane.columnIndex="1" GridPane.rowIndex="2"/>
-            <Label fx:id="activePeersText"
-                   GridPane.columnIndex="1" GridPane.rowIndex="3"/>
-            <Label fx:id="downloadedText"
-                   GridPane.columnIndex="1" GridPane.rowIndex="4"/>
-        </GridPane>
+        <fx:include fx:id="progressInfoPane" source="./progress-info.component.fxml"
+                    GridPane.columnIndex="1" GridPane.rowIndex="3"/>
     </GridPane>
 </GridPane>

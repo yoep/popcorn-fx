@@ -194,8 +194,7 @@ mod test {
     use std::time::Duration;
 
     use crate::core::events::PlayerStoppedEvent;
-    use crate::core::platform::MockDummyPlatformData;
-    use crate::testing::init_logger;
+    use crate::testing::{init_logger, MockDummyPlatformData};
 
     use super::*;
 

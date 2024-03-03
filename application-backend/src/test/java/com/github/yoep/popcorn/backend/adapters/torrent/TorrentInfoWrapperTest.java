@@ -16,8 +16,10 @@ class TorrentInfoWrapperTest {
         var info = mock(com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo.class);
         var magnetUri = "magnet:?MyFooMagnetUri";
         var name = "FooBarName";
+        var directoryName = "MyDirName";
         when(info.getMagnetUri()).thenReturn(magnetUri);
         when(info.getName()).thenReturn(name);
+        when(info.getDirectoryName()).thenReturn(directoryName);
         when(info.getFiles()).thenReturn(Collections.singletonList(fileInfo));
         when(info.getTotalFiles()).thenReturn(1);
 
@@ -25,6 +27,7 @@ class TorrentInfoWrapperTest {
 
         assertEquals(magnetUri, result.magnetUri);
         assertEquals(name, result.name);
+        assertEquals(directoryName, result.directoryName);
         assertEquals(1, result.totalFiles);
     }
 }

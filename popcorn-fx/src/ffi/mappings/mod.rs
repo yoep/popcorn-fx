@@ -10,6 +10,7 @@ pub use playlists::*;
 pub use settings::*;
 pub use subtitle::*;
 pub use torrents::*;
+pub use tracking::*;
 pub use update::*;
 pub use version_info::*;
 
@@ -25,5 +26,6 @@ mod playlists;
 mod settings;
 mod subtitle;
 mod torrents;
+mod tracking;
 mod update;
 mod version_info;

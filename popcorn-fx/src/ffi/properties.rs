@@ -12,7 +12,7 @@ use crate::PopcornFX;
 ///
 /// It returns an empty list when the provider name doesn't exist.
 #[no_mangle]
-pub extern "C" fn retrieve_provider_genres(popcorn_fx: &mut PopcornFX, name: *const c_char) -> *mut StringArray {
+pub extern "C" fn retrieve_provider_genres(popcorn_fx: &mut PopcornFX, name: *mut c_char) -> *mut StringArray {
     let name = from_c_string(name);
     trace!("Retrieving genres from C for {}", name);
     match popcorn_fx.settings().properties().provider(name.as_str()) {
@@ -30,7 +30,7 @@ pub extern "C" fn retrieve_provider_genres(popcorn_fx: &mut PopcornFX, name: *co
 ///
 /// It returns an empty list when the provider name doesn't exist.
 #[no_mangle]
-pub extern "C" fn retrieve_provider_sort_by(popcorn_fx: &mut PopcornFX, name: *const c_char) -> *mut StringArray {
+pub extern "C" fn retrieve_provider_sort_by(popcorn_fx: &mut PopcornFX, name: *mut c_char) -> *mut StringArray {
     let name = from_c_string(name);
     trace!("Retrieving sort_by from C for {}", name);
     match popcorn_fx.settings().properties().provider(name.as_str()) {

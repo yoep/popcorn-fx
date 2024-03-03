@@ -2258,9 +2258,11 @@ dependencies = [
  "popcorn-fx-torrent",
  "popcorn-fx-trakt",
  "popcorn-fx-vlc",
+ "reqwest",
  "tempfile",
  "thiserror",
  "tokio",
+ "url",
 ]
 
 [[package]]

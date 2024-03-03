@@ -1,14 +1,13 @@
-package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
+package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.stereotype.ViewController;
+import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import com.github.yoep.popcorn.backend.player.PlayerAction;
 import com.github.yoep.popcorn.backend.utils.TimeUtils;
-import com.github.yoep.popcorn.ui.torrent.utils.SizeUtils;
-import com.github.yoep.popcorn.ui.utils.ProgressUtils;
 import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
 import com.github.yoep.popcorn.ui.view.controls.ProgressControl;
 import com.github.yoep.popcorn.ui.view.listeners.PlayerExternalListener;
@@ -21,6 +20,7 @@ import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,10 +35,14 @@ import java.util.ResourceBundle;
 public class PlayerExternalComponent implements Initializable {
     private final ImageService imageService;
     private final PlayerExternalComponentService playerExternalService;
+    private final ViewLoader viewLoader;
     private final EventHandler<KeyEvent> keyPressedEventHandler = this::onPaneKeyReleased;
+    final ProgressInfoComponent infoComponent = new ProgressInfoComponent();
 
     @FXML
     Pane playerExternalPane;
+    @FXML
+    Pane dataPane;
     @FXML
     BackgroundImageCover backgroundImage;
     @FXML
@@ -54,15 +58,7 @@ public class PlayerExternalComponent implements Initializable {
     @FXML
     Icon playPauseIcon;
     @FXML
-    Label progressPercentage;
-    @FXML
-    Label downloadText;
-    @FXML
-    Label uploadText;
-    @FXML
-    Label activePeersText;
-    @FXML
-    Label downloadedText;
+    Pane progressInfoPane;
 
     //region Init
 
@@ -102,6 +98,7 @@ public class PlayerExternalComponent implements Initializable {
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
+        initializeProgressInfo();
         playerExternalPane.sceneProperty().addListener((observableValue, scene, newScene) -> {
             if (newScene != null) {
                 log.trace("Registering key event handler to scene for external player");
@@ -116,6 +113,14 @@ public class PlayerExternalComponent implements Initializable {
     //endregion
 
     //region Functions
+
+    private void initializeProgressInfo() {
+        dataPane.getChildren().remove(progressInfoPane);
+        progressInfoPane = viewLoader.load("common/components/progress-info.component.fxml", infoComponent);
+        GridPane.setColumnIndex(progressInfoPane, 1);
+        GridPane.setRowIndex(progressInfoPane, 3);
+        dataPane.getChildren().add(progressInfoPane);
+    }
 
     private void onRequestChanged(PlayRequest request) {
         reset();
@@ -181,11 +186,7 @@ public class PlayerExternalComponent implements Initializable {
     private void onDownloadStatus(DownloadStatus status) {
         Platform.runLater(() -> {
             playbackProgress.setLoadProgress(status.progress());
-            progressPercentage.setText(ProgressUtils.progressToPercentage(status));
-            downloadText.setText(ProgressUtils.progressToDownload(status));
-            uploadText.setText(ProgressUtils.progressToUpload(status));
-            activePeersText.setText(String.valueOf(status.seeds()));
-            downloadedText.setText(SizeUtils.toDisplaySize(status.downloaded()));
+            infoComponent.update(status);
         });
     }
 

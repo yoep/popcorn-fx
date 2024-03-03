@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
+package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.player.PlayerAction;
@@ -54,8 +54,8 @@ class PlayerExternalComponentTest {
         controller.backgroundImage = new BackgroundImageCover();
         controller.titleText = new Label();
         controller.captionText = new Label();
-        controller.progressPercentage = new Label();
         controller.playbackProgress = new ProgressControl();
+        controller.infoComponent.progressPercentage = new Label();
     }
 
     @Test

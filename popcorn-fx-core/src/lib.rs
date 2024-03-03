@@ -54,6 +54,15 @@ pub fn from_c_string(ptr: *const c_char) -> String {
     }
 }
 
+/// Converts a C string into a Rust owned string, consuming the provided pointer.
+///
+/// # Arguments
+///
+/// * `ptr` - A pointer to the C string.
+///
+/// # Returns
+///
+/// Returns the Rust owned string if the conversion is successful, otherwise an empty string.
 pub fn from_c_string_owned(ptr: *mut c_char) -> String {
     if !ptr.is_null() {
         let value = unsafe { CString::from_raw(ptr) };

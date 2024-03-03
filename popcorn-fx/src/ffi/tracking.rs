@@ -98,9 +98,12 @@ mod tests {
     use std::time::Duration;
 
     use log::info;
+    use reqwest::Client;
     use tempfile::tempdir;
+    use url::Url;
 
     use popcorn_fx_core::{assert_timeout_eq, from_c_string};
+    use popcorn_fx_core::core::block_in_place;
     use popcorn_fx_core::core::config::Tracker;
     use popcorn_fx_core::testing::init_logger;
 
@@ -159,15 +162,34 @@ mod tests {
         let properties = instance.settings().properties();
         let expected_uri = properties.tracker("trakt").unwrap().client.user_authorization_uri.clone();
 
-        instance.tracking_provider().register_open_authorization(Box::new(move |uri| {
-            tx.send(uri).unwrap();
+        instance.tracking_provider().register_open_authorization(Box::new(move |url| {
+            // execute a callback to stop the authorization process
+            let client = Client::new();
+            let auth_uri = Url::parse(url.as_str()).unwrap();
+
+            let (_, redirect_uri) = auth_uri.query_pairs()
+                .find(|(key, _)| key == "redirect_uri")
+                .expect("expected the redirect uri to have been present");
+
+            let mut uri = Url::parse(redirect_uri.as_ref())
+                .expect("expected a valid redirect uri");
+            let uri = uri
+                .query_pairs_mut()
+                .append_pair("code", "someRandomCode")
+                .append_pair("state", "SomeState")
+                .finish();
+
+            block_in_place(client.get(uri.as_str())
+                .send())
+                .unwrap();
+
+            tx.send(url).unwrap();
             true
         }));
 
         tracking_authorize(&mut instance);
 
         let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
-
         assert!(result.starts_with(expected_uri.as_str()))
     }
 

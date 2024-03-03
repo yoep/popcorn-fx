@@ -70,7 +70,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public interface FxLib extends Library {
     AtomicReference<FxLib> INSTANCE = new AtomicReference<>();
 
-    PopcornFx new_popcorn_fx(String[] args, int len);
+    PopcornFx new_popcorn_fx(Pointer args, int len);
 
     SubtitleInfoSet.ByReference default_subtitle_options(PopcornFx instance);
 

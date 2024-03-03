@@ -31,6 +31,7 @@ import java.util.ResourceBundle;
 @RequiredArgsConstructor
 public class LoaderComponent implements Initializable {
     static final String PROGRESS_ERROR_STYLE_CLASS = "error";
+    static final String PROGRESS_INFO_VIEW = "common/components/progress-info.component.fxml";
 
     private final LocaleText localeText;
     private final ImageService imageService;
@@ -65,7 +66,7 @@ public class LoaderComponent implements Initializable {
 
     private void initializeProgressInfo() {
         infoPane.getChildren().remove(progressStatus);
-        progressStatus = viewLoader.load("common/components/progress-info.component.fxml", infoComponent);
+        progressStatus = viewLoader.load(PROGRESS_INFO_VIEW, infoComponent);
         infoPane.getChildren().add(2, progressStatus);
     }
 

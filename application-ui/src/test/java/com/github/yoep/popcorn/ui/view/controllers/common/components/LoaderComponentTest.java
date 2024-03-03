@@ -1,6 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.spring.boot.javafx.text.LocaleText;
+import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.loader.LoaderListener;
 import com.github.yoep.popcorn.backend.loader.LoaderService;
@@ -39,6 +40,8 @@ class LoaderComponentTest {
     @Mock
     private ImageService imageService;
     @Mock
+    private ViewLoader viewLoader;
+    @Mock
     private URL url;
     @Mock
     private ResourceBundle resourceBundle;
@@ -54,6 +57,7 @@ class LoaderComponentTest {
             return null;
         }).when(service).addListener(isA(LoaderListener.class));
 
+        component.infoPane = new Pane(new Label(), new Label(), new Label());
         component.loaderActions = new Pane();
         component.progressBar = new ProgressBar();
         component.statusText = new Label();
@@ -62,6 +66,8 @@ class LoaderComponentTest {
     @Test
     void testOnCancelClicked() {
         var event = mock(MouseEvent.class);
+        var progressPane = new Pane();
+        when(viewLoader.load(LoaderComponent.PROGRESS_INFO_VIEW, component.infoComponent)).thenReturn(progressPane);
         component.initialize(url, resourceBundle);
 
         component.onCancelClicked(event);
@@ -74,6 +80,8 @@ class LoaderComponentTest {
     @Test
     void testOnCancelKeyPressed() {
         var event = mock(KeyEvent.class);
+        var progressPane = new Pane();
+        when(viewLoader.load(LoaderComponent.PROGRESS_INFO_VIEW, component.infoComponent)).thenReturn(progressPane);
         when(event.getCode()).thenReturn(KeyCode.ENTER);
         component.initialize(url, resourceBundle);
 
@@ -90,6 +98,8 @@ class LoaderComponentTest {
         when(backEvent.getCode()).thenReturn(KeyCode.BACK_SPACE);
         var escEvent = mock(KeyEvent.class);
         when(escEvent.getCode()).thenReturn(KeyCode.BACK_SPACE);
+        var progressPane = new Pane();
+        when(viewLoader.load(LoaderComponent.PROGRESS_INFO_VIEW, component.infoComponent)).thenReturn(progressPane);
         component.initialize(url, resourceBundle);
 
         component.onLoaderKeyPressed(backEvent);

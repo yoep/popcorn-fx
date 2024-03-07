@@ -154,7 +154,7 @@ impl<T: Debug + Clone> From<CArray<T>> for Vec<T> {
     /// let c_set = CArray { items: [1, 2, 3].as_mut_ptr(), len: 3 };
     /// let rust_vec: Vec<i32> = c_set.into();
     /// ```
-    fn from(value: CArray<T>) -> Self {
+    fn from(value: CArray<T>) -> Self { 
         trace!("Converting C set {:?} into vector", value);
         from_c_vec(value.items, value.len)
     }

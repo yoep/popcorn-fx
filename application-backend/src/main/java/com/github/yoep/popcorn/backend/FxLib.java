@@ -234,7 +234,7 @@ public interface FxLib extends Library {
 
     ByteArray load_image(PopcornFx instance, String url);
 
-    Long play_playlist(PopcornFx instance, Playlist set);
+    Long play_playlist(PopcornFx instance, Playlist.ByValue set);
 
     void register_playlist_manager_callback(PopcornFx instance, PlaylistManagerCallback callback);
 
@@ -256,7 +256,7 @@ public interface FxLib extends Library {
 
     void register_player_callback(PopcornFx instance, PlayerManagerCallback callback);
 
-    void register_player(PopcornFx instance, PlayerWrapperRegistration player);
+    void register_player(PopcornFx instance, PlayerWrapperRegistration.ByValue player);
 
     void invoke_player_event(PlayerWrapperPointer wrapper, PlayerEventC.ByValue event);
 

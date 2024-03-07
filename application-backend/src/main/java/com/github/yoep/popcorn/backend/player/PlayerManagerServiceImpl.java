@@ -75,7 +75,7 @@ public class PlayerManagerServiceImpl extends AbstractListenerService<PlayerMana
     public void register(Player player) {
         Assert.notNull(player, "player cannot be null");
         log.trace("Registering new player {}", player);
-        try (var wrapper = new PlayerWrapperRegistration(player)) {
+        try (var wrapper = new PlayerWrapperRegistration.ByValue(player)) {
             fxLib.register_player(instance, wrapper);
             wrapper.setPlayerC(fxLib.player_pointer_by_id(instance, player.getId()));
             wrapper.setListener(new PlayerListener() {
@@ -120,7 +120,7 @@ public class PlayerManagerServiceImpl extends AbstractListenerService<PlayerMana
     }
 
     @Override
-    public void callback(PlayerManagerEvent event) {
+    public void callback(PlayerManagerEvent.ByValue event) {
         log.debug("Received player manager event {}", event);
         try (event) {
             invokeListeners(listener -> {

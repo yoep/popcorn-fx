@@ -66,7 +66,7 @@ pub fn from_c_string(ptr: *const c_char) -> String {
 pub fn from_c_string_owned(ptr: *mut c_char) -> String {
     if !ptr.is_null() {
         let value = unsafe { CString::from_raw(ptr) };
-        
+
         value.into_string()
             .unwrap_or_else(|e| {
                 error!("Failed to read C string, using empty string instead ({})", e);
@@ -176,8 +176,13 @@ pub fn into_c_vec<T>(mut vec: Vec<T>) -> (*mut T, i32) {
 pub fn from_c_vec<T: Clone>(ptr: *mut T, len: i32) -> Vec<T> {
     trace!("Converting C ptr: {:?}, len: {} into a Vec", ptr, len);
     if !ptr.is_null() {
-        let slice = unsafe { std::slice::from_raw_parts_mut(ptr, len as usize) };
-        slice.into()
+        if len >= 0 {
+            let slice = unsafe { std::slice::from_raw_parts_mut(ptr, len as usize) };
+            slice.into()
+        } else {
+            error!("Unable to read C array, array length is negative");
+            vec![]
+        }
     } else {
         error!("Unable to read C array, array pointer is null");
         vec![]

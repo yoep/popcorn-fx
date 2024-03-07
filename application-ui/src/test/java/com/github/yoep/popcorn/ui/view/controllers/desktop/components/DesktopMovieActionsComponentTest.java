@@ -5,7 +5,6 @@ import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.Images;
-import com.github.yoep.popcorn.backend.media.providers.models.MediaTorrentInfo;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.player.PlayerManagerListener;
 import com.github.yoep.popcorn.backend.playlists.Playlist;
@@ -32,8 +31,6 @@ import org.testfx.framework.junit5.ApplicationExtension;
 import org.testfx.util.WaitForAsyncUtils;
 
 import java.net.URL;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 
@@ -156,17 +153,7 @@ class DesktopMovieActionsComponentTest {
         component.onTrailerClicked(event);
 
         verify(event).consume();
-        verify(playlistManager).play(isA(Playlist.class));
+        verify(playlistManager).play(isA(Playlist.ByValue.class));
         verify(playerManager).addListener(isA(PlayerManagerListener.class));
-    }
-
-    private Map<String, Map<String, MediaTorrentInfo>> getTorrents() {
-        return new HashMap<>() {{
-            put(DesktopMovieActionsComponent.DEFAULT_TORRENT_AUDIO, new HashMap<>() {{
-                put("480p", mock(MediaTorrentInfo.class));
-                put("720p", mock(MediaTorrentInfo.class));
-                put("1080p", mock(MediaTorrentInfo.class));
-            }});
-        }};
     }
 }

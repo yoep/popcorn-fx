@@ -172,7 +172,7 @@ pub extern "C" fn register_player_callback(popcorn_fx: &mut PopcornFX, callback:
 /// It logs an info message if the registration is successful and a warning message if registration fails.
 #[no_mangle]
 pub extern "C" fn register_player(popcorn_fx: &mut PopcornFX, player: PlayerRegistrationC) {
-    trace!("Registering new C player");
+    trace!("Registering new C player {:?}", player);
     let player = PlayerWrapper::from(player);
     let id = player.id().to_string();
 
@@ -396,12 +396,12 @@ mod tests {
 
     use tempfile::tempdir;
 
-    use popcorn_fx_core::{from_c_owned, from_c_vec, into_c_string};
+    use popcorn_fx_core::{from_c_owned, from_c_vec, into_c_string, into_c_vec};
     use popcorn_fx_core::core::Callbacks;
     use popcorn_fx_core::core::players::{PlayerManagerEvent, PlayerState};
     use popcorn_fx_core::testing::{init_logger, MockPlayer};
 
-    use crate::ffi::{ByteArray, PlayRequestC};
+    use crate::ffi::PlayRequestC;
     use crate::test::default_args;
 
     use super::*;
@@ -443,6 +443,7 @@ mod tests {
             name: into_c_string("FooBar".to_string()),
             description: into_c_string("Lorem ipsum".to_string()),
             graphic_resource: ptr::null_mut(),
+            graphic_resource_len: 0,
             state: PlayerState::Playing,
             embedded_playback_supported: false,
             play_callback: play_registration_callback,
@@ -463,15 +464,17 @@ mod tests {
     fn test_players() {
         init_logger();
         let player_id = "MyPlayerId999";
-        let graphic_resource = vec![80, 20];
+        let graphic_resource_vec = vec![80, 20];
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(default_args(temp_path));
+        let (graphic_resource, graphic_resource_len) = into_c_vec(graphic_resource_vec.clone());
         let player = PlayerRegistrationC {
             id: into_c_string(player_id.to_string()),
             name: into_c_string("FooBar".to_string()),
             description: into_c_string("Lorem ipsum".to_string()),
-            graphic_resource: into_c_owned(ByteArray::from(graphic_resource.clone())),
+            graphic_resource,
+            graphic_resource_len,
             state: PlayerState::Paused,
             embedded_playback_supported: false,
             play_callback: play_registration_callback,
@@ -486,10 +489,10 @@ mod tests {
         let players = from_c_vec(set.players, set.len);
 
         let result = players.get(0).unwrap();
-        let bytes = from_c_owned(result.graphic_resource);
+        let bytes = from_c_vec(result.graphic_resource, result.graphic_resource_len);
         assert_eq!(1, players.len());
         assert_eq!(player_id.to_string(), from_c_string(result.id));
-        assert_eq!(graphic_resource, Vec::from(&bytes));
+        assert_eq!(graphic_resource_vec, bytes);
     }
 
     #[test]
@@ -497,15 +500,17 @@ mod tests {
         init_logger();
         let player_id = "MyId666";
         let name = "VlcPlayer";
-        let graphic_resource = vec![155, 30, 16];
+        let graphic_resource_vec = vec![155, 30, 16];
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(default_args(temp_path));
+        let (graphic_resource, graphic_resource_len) = into_c_vec(graphic_resource_vec.clone());
         let player = PlayerRegistrationC {
             id: into_c_string(player_id.to_string()),
             name: into_c_string(name.to_string()),
             description: into_c_string("Lorem ipsum".to_string()),
-            graphic_resource: into_c_owned(ByteArray::from(graphic_resource.clone())),
+            graphic_resource,
+            graphic_resource_len,
             state: PlayerState::Paused,
             embedded_playback_supported: false,
             play_callback: play_registration_callback,
@@ -518,10 +523,10 @@ mod tests {
         register_player(&mut instance, player);
         let player = from_c_owned(player_by_id(&mut instance, into_c_string(player_id.to_string())));
 
-        let bytes = from_c_owned(player.graphic_resource);
+        let bytes = from_c_vec(player.graphic_resource, player.graphic_resource_len);
         assert_eq!(player_id.to_string(), from_c_string(player.id));
         assert_eq!(name.to_string(), from_c_string(player.name));
-        assert_eq!(graphic_resource, Vec::from(&bytes));
+        assert_eq!(graphic_resource_vec, bytes);
     }
 
     #[test]
@@ -536,6 +541,7 @@ mod tests {
             name: into_c_string("FooBar".to_string()),
             description: into_c_string("Lorem ipsum".to_string()),
             graphic_resource: ptr::null_mut(),
+            graphic_resource_len: 0,
             state: PlayerState::Error,
             embedded_playback_supported: false,
             play_callback: play_registration_callback,
@@ -567,6 +573,7 @@ mod tests {
             name: into_c_string("FooBar".to_string()),
             description: into_c_string("Lorem ipsum".to_string()),
             graphic_resource: ptr::null_mut(),
+            graphic_resource_len: 0,
             state: PlayerState::Buffering,
             embedded_playback_supported: false,
             play_callback: play_registration_callback,
@@ -591,6 +598,7 @@ mod tests {
             name: ptr::null_mut(),
             description: ptr::null_mut(),
             graphic_resource: ptr::null_mut(),
+            graphic_resource_len: 0,
             state: Default::default(),
             embedded_playback_supported: false,
             play_callback: play_registration_callback,

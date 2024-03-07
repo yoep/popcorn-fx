@@ -218,7 +218,7 @@ public class MainController extends ScaleAwareImpl implements Initializable {
         var file = files.get(0);
         var title = FilenameUtils.getBaseName(file.getName());
 
-        try (var playlist = new Playlist(Collections.singletonList(new PlaylistItem(file.getAbsolutePath(), title)))) {
+        try (var playlist = new Playlist.ByValue(Collections.singletonList(new PlaylistItem(file.getAbsolutePath(), title)))) {
             playlistManager.play(playlist);
         }
     }

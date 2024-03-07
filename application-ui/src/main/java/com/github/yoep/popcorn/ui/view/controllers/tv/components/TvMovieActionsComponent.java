@@ -124,7 +124,7 @@ public class TvMovieActionsComponent extends AbstractActionsComponent {
 
     private void playTrailer() {
         try (var item = PlaylistItem.fromMediaTrailer(media)) {
-            playlistManager.play(new Playlist(Collections.singletonList(item)));
+            playlistManager.play(new Playlist.ByValue(Collections.singletonList(item)));
         }
     }
 

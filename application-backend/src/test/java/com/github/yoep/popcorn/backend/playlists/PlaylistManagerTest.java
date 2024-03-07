@@ -38,7 +38,7 @@ class PlaylistManagerTest {
 
     @Test
     void testPlay_Playlist() {
-        var playlist = new Playlist();
+        var playlist = new Playlist.ByValue();
 
         playlistManager.play(playlist);
 
@@ -57,11 +57,11 @@ class PlaylistManagerTest {
         doAnswer(invocation -> {
             playlistHolder.set(invocation.getArgument(1, Playlist.class));
             return null;
-        }).when(fxLib).play_playlist(isA(PopcornFx.class), isA(Playlist.class));
+        }).when(fxLib).play_playlist(isA(PopcornFx.class), isA(Playlist.ByValue.class));
 
         playlistManager.play(movie, quality);
 
-        verify(fxLib).play_playlist(isA(PopcornFx.class), isA(Playlist.class));
+        verify(fxLib).play_playlist(isA(PopcornFx.class), isA(Playlist.ByValue.class));
         var playlist = playlistHolder.get();
         var playlistItems = playlist.getCachedItems();
         assertEquals(1, playlistItems.size());
@@ -90,7 +90,7 @@ class PlaylistManagerTest {
         doAnswer(invocation -> {
             playlistHolder.set(invocation.getArgument(1, Playlist.class));
             return null;
-        }).when(fxLib).play_playlist(isA(PopcornFx.class), isA(Playlist.class));
+        }).when(fxLib).play_playlist(isA(PopcornFx.class), isA(Playlist.ByValue.class));
         when(applicationConfig.getSettings()).thenReturn(applicationSettings);
         when(applicationSettings.getPlaybackSettings()).thenReturn(playbackSettings);
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
@@ -98,7 +98,7 @@ class PlaylistManagerTest {
         playlistManager.play(show, episode, quality);
 
         verify(playbackSettings).isAutoPlayNextEpisodeEnabled();
-        verify(fxLib).play_playlist(isA(PopcornFx.class), isA(Playlist.class));
+        verify(fxLib).play_playlist(isA(PopcornFx.class), isA(Playlist.ByValue.class));
         var playlist = playlistHolder.get();
         var playlistItems = playlist.getCachedItems();
         assertEquals(1, playlistItems.size());

@@ -234,7 +234,7 @@ public interface FxLib extends Library {
 
     ByteArray load_image(PopcornFx instance, String url);
 
-    Long play_playlist(PopcornFx instance, Playlist set);
+    Long play_playlist(PopcornFx instance, Playlist.ByValue set);
 
     void register_playlist_manager_callback(PopcornFx instance, PlaylistManagerCallback callback);
 

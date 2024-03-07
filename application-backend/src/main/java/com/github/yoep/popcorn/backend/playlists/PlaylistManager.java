@@ -31,7 +31,7 @@ public class PlaylistManager extends AbstractListenerService<PlaylistManagerList
         init();
     }
 
-    public void play(Playlist playlist) {
+    public void play(Playlist.ByValue playlist) {
         try (playlist) {
             playlistLoaderHandle = fxLib.play_playlist(instance, playlist);
         } catch (Exception ex) {
@@ -42,7 +42,7 @@ public class PlaylistManager extends AbstractListenerService<PlaylistManagerList
     public void play(MovieDetails movie, String quality) {
         var items = new ArrayList<PlaylistItem>();
         items.add(itemFrom(movie, quality));
-        play(new Playlist(items));
+        play(new Playlist.ByValue(items));
     }
 
     public void play(ShowDetails show, Episode episode, String quality) {
@@ -61,7 +61,7 @@ public class PlaylistManager extends AbstractListenerService<PlaylistManagerList
             }
         }
 
-        play(new Playlist(items));
+        play(new Playlist.ByValue(items));
     }
 
     public void playNext() {

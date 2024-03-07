@@ -19,6 +19,12 @@ import static java.util.Arrays.asList;
 @Structure.FieldOrder({"items", "len"})
 public class Playlist extends Structure implements Closeable {
     public static class ByValue extends Playlist implements Structure.ByValue {
+        public ByValue() {
+        }
+
+        public ByValue(List<PlaylistItem> items) {
+            super(items);
+        }
     }
 
     public PlaylistItem.ByReference items;

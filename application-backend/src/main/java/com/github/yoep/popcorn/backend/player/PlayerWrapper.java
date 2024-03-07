@@ -25,6 +25,13 @@ import java.util.Optional;
 @Structure.FieldOrder({"id", "name", "description", "graphicResource", "graphicResourceLen", "playerState", "embeddedPlaybackSupported"})
 public class PlayerWrapper extends Structure implements Player, Closeable {
     public static class ByReference extends PlayerWrapper implements Structure.ByReference {
+        public ByReference() {
+        }
+
+        public ByReference(Player player) {
+            super(player);
+        }
+
         @Override
         public void close() {
             super.close();

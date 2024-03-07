@@ -144,7 +144,7 @@ public class PlayerManagerEvent extends Structure implements Closeable {
     }
 
     private void updateUnionType() {
-        switch (tag) {
+        switch (getTag()) {
             case ACTIVE_PLAYER_CHANGED -> union.setType(PlayerManagerEvent.PlayerChanged_Body.class);
             case PLAYER_PLAYBACK_CHANGED -> union.setType(PlayerPlaybackChanged_Body.class);
             case PLAYER_DURATION_CHANGED -> union.setType(PlayerDurationChanged_Body.class);

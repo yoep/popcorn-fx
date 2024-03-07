@@ -10,6 +10,15 @@ import lombok.ToString;
 @ToString(callSuper = true)
 @Structure.FieldOrder({"playerPlayCallback", "playerPauseCallback", "playerResumeCallback", "playerSeekCallback", "playerStopCallback"})
 public class PlayerWrapperRegistration extends PlayerWrapper {
+    public static class ByValue extends PlayerWrapperRegistration implements Structure.ByValue {
+        public ByValue() {
+        }
+
+        public ByValue(Player player) {
+            super(player);
+        }
+    }
+    
     public PlayerPlayCallback playerPlayCallback;
     public PlayerPauseCallback playerPauseCallback;
     public PlayerResumeCallback playerResumeCallback;

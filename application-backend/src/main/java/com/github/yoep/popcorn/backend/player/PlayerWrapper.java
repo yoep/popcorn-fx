@@ -5,7 +5,8 @@ import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
-import com.github.yoep.popcorn.backend.lib.ByteArray;
+import com.sun.jna.Memory;
+import com.sun.jna.Pointer;
 import com.sun.jna.Structure;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
@@ -21,7 +22,7 @@ import java.util.Optional;
 @Getter
 @ToString
 @EqualsAndHashCode(callSuper = false, exclude = "description")
-@Structure.FieldOrder({"id", "name", "description", "graphicResource", "playerState", "embeddedPlaybackSupported"})
+@Structure.FieldOrder({"id", "name", "description", "graphicResource", "graphicResourceLen", "playerState", "embeddedPlaybackSupported"})
 public class PlayerWrapper extends Structure implements Player, Closeable {
     public static class ByReference extends PlayerWrapper implements Structure.ByReference {
         @Override
@@ -34,7 +35,8 @@ public class PlayerWrapper extends Structure implements Player, Closeable {
     public String id;
     public String name;
     public String description;
-    public ByteArray.ByReference graphicResource;
+    public Pointer graphicResource;
+    public int graphicResourceLen;
     public PlayerState playerState;
     public byte embeddedPlaybackSupported;
 
@@ -44,6 +46,8 @@ public class PlayerWrapper extends Structure implements Player, Closeable {
     PlayerWrapperPointer playerC;
     PlayerListener playerListener;
 
+    private byte[] cachedGraphicResource;
+
     public PlayerWrapper() {
     }
 
@@ -52,18 +56,17 @@ public class PlayerWrapper extends Structure implements Player, Closeable {
         this.id = player.getId();
         this.name = player.getName();
         this.description = player.getDescription();
-        this.graphicResource = player.getGraphicResource()
-                .map(e -> {
+        player.getGraphicResource()
+                .ifPresent(e -> {
                     try {
                         var bytes = e.getInputStream().readAllBytes();
-                        return new ByteArray.ByReference(bytes);
+                        this.graphicResource = new Memory(bytes.length);
+                        this.graphicResource.write(0, bytes, 0, bytes.length);
+                        this.graphicResourceLen = bytes.length;
                     } catch (IOException ex) {
                         log.error("Failed to read graphic resource data, {}", ex.getMessage(), ex);
                     }
-
-                    return null;
-                })
-                .orElse(null);
+                });
         this.playerState = player.getState();
         this.embeddedPlaybackSupported = (byte) (player.isEmbeddedPlaybackSupported() ? 1 : 0);
         this.player = player;
@@ -77,18 +80,23 @@ public class PlayerWrapper extends Structure implements Player, Closeable {
     }
 
     @Override
+    public void read() {
+        super.read();
+        this.cachedGraphicResource = Optional.ofNullable(graphicResource)
+                .map(e -> e.getByteArray(0, graphicResourceLen))
+                .orElse(null);
+    }
+
+    @Override
     public void close() {
         setAutoSynch(false);
-        Optional.ofNullable(graphicResource)
-                .ifPresent(ByteArray::close);
     }
 
     //region Player
 
     @Override
     public Optional<Resource> getGraphicResource() {
-        return Optional.ofNullable(graphicResource)
-                .map(ByteArray::getBytes)
+        return Optional.ofNullable(cachedGraphicResource)
                 .map(ByteArrayResource::new);
     }
 

@@ -1,6 +1,6 @@
-use std::{mem, ptr};
 use std::fmt::{Debug, Formatter};
 use std::os::raw::c_char;
+use std::ptr;
 use std::sync::{Arc, Weak};
 
 use async_trait::async_trait;
@@ -8,11 +8,11 @@ use derive_more::Display;
 use log::trace;
 use tokio::sync::Mutex;
 
-use popcorn_fx_core::{from_c_string, into_c_owned, into_c_string, into_c_vec};
+use popcorn_fx_core::{from_c_string, from_c_vec, into_c_owned, into_c_string, into_c_vec};
 use popcorn_fx_core::core::{block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks};
 use popcorn_fx_core::core::players::{Player, PlayerEvent, PlayerManagerEvent, PlayerState, PlayMediaRequest, PlayRequest, PlayUrlRequest};
 
-use crate::ffi::{ByteArray, PlayerChangedEventC};
+use crate::ffi::PlayerChangedEventC;
 
 /// A C-compatible callback function type for player manager events.
 pub type PlayerManagerEventCallback = extern "C" fn(PlayerManagerEventC);
@@ -75,10 +75,8 @@ pub struct PlayerC {
     pub name: *mut c_char,
     /// A pointer to a null-terminated C string representing the description of the player.
     pub description: *mut c_char,
-    /// A pointer to a `ByteArray` struct representing the graphic resource associated with the player.
-    ///
-    /// This field can be a null pointer if no graphic resource is associated with the player.
-    pub graphic_resource: *mut ByteArray,
+    pub graphic_resource: *mut u8,
+    pub graphic_resource_len: i32,
     /// The state of the player.
     pub state: PlayerState,
     /// Indicates whether embedded playback is supported by the player.
@@ -91,10 +89,10 @@ impl From<Arc<Box<dyn Player>>> for PlayerC {
         let id = into_c_string(value.id().to_string());
         let name = into_c_string(value.name().to_string());
         let description = into_c_string(value.description().to_string());
-        let graphic_resource = if !value.graphic_resource().is_empty() {
-            into_c_owned(ByteArray::from(value.graphic_resource()))
+        let (graphic_resource, graphic_resource_len) = if !value.graphic_resource().is_empty() {
+            into_c_vec(value.graphic_resource())
         } else {
-            ptr::null_mut()
+            (ptr::null_mut(), 0)
         };
         let embedded_playback_supported = if let Some(e) = value.downcast_ref::<PlayerWrapper>() {
             e.embedded_playback_supported.clone()
@@ -107,6 +105,7 @@ impl From<Arc<Box<dyn Player>>> for PlayerC {
             name,
             description,
             graphic_resource,
+            graphic_resource_len,
             state: value.state().clone(),
             embedded_playback_supported,
         }
@@ -123,10 +122,11 @@ pub struct PlayerRegistrationC {
     pub name: *mut c_char,
     /// A pointer to a null-terminated C string representing the description of the player.
     pub description: *mut c_char,
-    /// A pointer to a `ByteArray` struct representing the graphic resource associated with the player.
-    ///
-    /// This field can be a null pointer if no graphic resource is associated with the player.
-    pub graphic_resource: *mut ByteArray,
+    /// A Pointer to the graphic resource of the player.
+    /// Use graphic_resource_len to get the length of the graphic resource byte array.
+    pub graphic_resource: *mut u8,
+    /// The length of the graphic resource array.
+    pub graphic_resource_len: i32,
     /// The state of the player.
     pub state: PlayerState,
     /// Indicates whether embedded playback is supported by the player.
@@ -268,11 +268,8 @@ impl From<PlayerRegistrationC> for PlayerWrapper {
         let id = from_c_string(value.id);
         let name = from_c_string(value.name);
         let description = from_c_string(value.description);
-        let graphic_resource = if !value.graphic_resource.is_null() {
-            let bytes = unsafe { value.graphic_resource.read() };
-            let result = Vec::from(&bytes);
-            mem::forget(bytes);
-            result
+        let graphic_resource : Vec<u8> = if !value.graphic_resource.is_null() {
+            from_c_vec(value.graphic_resource, value.graphic_resource_len)
         } else {
             Vec::new()
         };
@@ -617,11 +614,11 @@ mod tests {
 
         let result = PlayerC::from(player);
 
-        let bytes = from_c_owned(result.graphic_resource);
+        let bytes = from_c_vec(result.graphic_resource, result.graphic_resource_len);
         assert_eq!(player_id.to_string(), from_c_string(result.id));
         assert_eq!(player_name.to_string(), from_c_string(result.name));
         assert_eq!(player_description, from_c_string(result.description));
-        assert_eq!(graphic_resource, Vec::from(&bytes));
+        assert_eq!(graphic_resource, bytes);
         assert_eq!(PlayerState::Playing, result.state);
     }
 
@@ -660,6 +657,7 @@ mod tests {
             name: into_c_string("my_player".to_string()),
             description: ptr::null_mut(),
             graphic_resource: ptr::null_mut(),
+            graphic_resource_len: 0,
             state: PlayerState::Stopped,
             embedded_playback_supported: false,
         };
@@ -680,11 +678,13 @@ mod tests {
         let player_name = "InternalPlayerName";
         let description = "Lorem ipsum dolor esta";
         let resource = vec![84, 78, 90];
+        let (graphic_resource, graphic_resource_len) = into_c_vec(resource.clone());
         let player = PlayerRegistrationC {
             id: into_c_string(player_id.to_string()),
             name: into_c_string(player_name.to_string()),
             description: into_c_string(description.to_string()),
-            graphic_resource: into_c_owned(ByteArray::from(resource.clone())),
+            graphic_resource,
+            graphic_resource_len,
             state: PlayerState::Paused,
             embedded_playback_supported: false,
             play_callback,

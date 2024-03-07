@@ -256,7 +256,7 @@ public interface FxLib extends Library {
 
     void register_player_callback(PopcornFx instance, PlayerManagerCallback callback);
 
-    void register_player(PopcornFx instance, PlayerWrapperRegistration player);
+    void register_player(PopcornFx instance, PlayerWrapperRegistration.ByValue player);
 
     void invoke_player_event(PlayerWrapperPointer wrapper, PlayerEventC.ByValue event);
 

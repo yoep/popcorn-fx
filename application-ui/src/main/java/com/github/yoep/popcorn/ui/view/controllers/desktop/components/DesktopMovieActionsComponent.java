@@ -43,8 +43,6 @@ import java.util.concurrent.CompletableFuture;
 @Slf4j
 @RequiredArgsConstructor
 public class DesktopMovieActionsComponent implements Initializable {
-    static final String DEFAULT_TORRENT_AUDIO = "en";
-
     private final PlayerManagerService playerService;
     private final PlaylistManager playlistManager;
     private final EventPublisher eventPublisher;
@@ -119,8 +117,8 @@ public class DesktopMovieActionsComponent implements Initializable {
             }
         });
 
-        languageSelection.addListener(createLanguageListener());
         resetLanguageSelection();
+        languageSelection.addListener(createLanguageListener());
     }
 
     private void resetLanguageSelection() {

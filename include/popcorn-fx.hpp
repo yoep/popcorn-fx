@@ -263,17 +263,6 @@ struct ResolveTorrentCallback;
 /// a `TorrentInfo` struct. It must be `Send` and `Sync` to support concurrent execution.
 struct ResolveTorrentInfoCallback;
 
-/// A C-compatible byte array that can be used to return byte array data from Rust functions.
-///
-/// This struct contains a pointer to the byte array data and the length of the byte array.
-/// It is intended for use in C code that needs to interact with Rust functions that return byte array data.
-struct ByteArray {
-  /// A pointer to the byte array data.
-  uint8_t *values;
-  /// The length of the byte array.
-  int32_t len;
-};
-
 /// A C-compatible struct representing a player.
 struct PlayerC {
   /// A pointer to a null-terminated C string representing the player's unique identifier (ID).
@@ -282,10 +271,8 @@ struct PlayerC {
   char *name;
   /// A pointer to a null-terminated C string representing the description of the player.
   char *description;
-  /// A pointer to a `ByteArray` struct representing the graphic resource associated with the player.
-  ///
-  /// This field can be a null pointer if no graphic resource is associated with the player.
-  ByteArray *graphic_resource;
+  uint8_t *graphic_resource;
+  int32_t graphic_resource_len;
   /// The state of the player.
   PlayerState state;
   /// Indicates whether embedded playback is supported by the player.
@@ -518,6 +505,17 @@ struct PopcornSettingsC {
   PlaybackSettingsC playback_settings;
   /// The tracking settings of the application
   TrackingSettingsC tracking_settings;
+};
+
+/// A C-compatible byte array that can be used to return byte array data from Rust functions.
+///
+/// This struct contains a pointer to the byte array data and the length of the byte array.
+/// It is intended for use in C code that needs to interact with Rust functions that return byte array data.
+struct ByteArray {
+  /// A pointer to the byte array data.
+  uint8_t *values;
+  /// The length of the byte array.
+  int32_t len;
 };
 
 /// The C compatible [SubtitleFile] representation.
@@ -1140,10 +1138,11 @@ struct PlayerRegistrationC {
   char *name;
   /// A pointer to a null-terminated C string representing the description of the player.
   char *description;
-  /// A pointer to a `ByteArray` struct representing the graphic resource associated with the player.
-  ///
-  /// This field can be a null pointer if no graphic resource is associated with the player.
-  ByteArray *graphic_resource;
+  /// A Pointer to the graphic resource of the player.
+  /// Use graphic_resource_len to get the length of the graphic resource byte array.
+  uint8_t *graphic_resource;
+  /// The length of the graphic resource array.
+  int32_t graphic_resource_len;
   /// The state of the player.
   PlayerState state;
   /// Indicates whether embedded playback is supported by the player.
@@ -1865,6 +1864,21 @@ void loader_cancel(PopcornFX *instance, LoadingHandleC handle);
 /// A `LoadingHandleC` representing the loading process associated with the loaded item.
 LoadingHandleC loader_load(PopcornFX *instance, char *url);
 
+/// Loads a torrent file using its information and file details.
+///
+/// # Safety
+///
+/// This function accepts values to C structs (`TorrentInfoC` and `TorrentFileInfoC`) as arguments.
+///
+/// # Arguments
+///
+/// * `instance` - A mutable reference to the PopcornFX instance.
+/// * `torrent_info` - Information about the torrent.
+/// * `torrent_file` - Details of the torrent file.
+///
+/// # Returns
+///
+/// Returns a handle to the loading process.
 LoadingHandleC loader_load_torrent_file(PopcornFX *instance, TorrentInfoC torrent_info, TorrentFileInfoC torrent_file);
 
 /// Logs a message sent over FFI using the Rust logger.

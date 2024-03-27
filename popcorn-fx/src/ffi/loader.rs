@@ -51,6 +51,21 @@ pub extern "C" fn loader_load(instance: &mut PopcornFX, url: *mut c_char) -> Loa
     handle.value() as *const i64
 }
 
+/// Loads a torrent file using its information and file details.
+///
+/// # Safety
+///
+/// This function accepts values to C structs (`TorrentInfoC` and `TorrentFileInfoC`) as arguments.
+///
+/// # Arguments
+///
+/// * `instance` - A mutable reference to the PopcornFX instance.
+/// * `torrent_info` - Information about the torrent.
+/// * `torrent_file` - Details of the torrent file.
+///
+/// # Returns
+///
+/// Returns a handle to the loading process.
 #[no_mangle]
 pub extern "C" fn loader_load_torrent_file(instance: &mut PopcornFX, torrent_info: TorrentInfoC, torrent_file: TorrentFileInfoC) -> LoadingHandleC {
     trace!("Loading torrent file from C for info: {:?}, file: {:?}", torrent_info, torrent_file);
@@ -60,6 +75,7 @@ pub extern "C" fn loader_load_torrent_file(instance: &mut PopcornFX, torrent_inf
         .title(torrent_file.filename())
         .torrent_info(torrent_info)
         .torrent_file_info(torrent_file)
+        .subtitles_enabled(true)
         .build();
 
     let handle = instance.media_loader().load_playlist_item(item);
@@ -98,15 +114,20 @@ pub extern "C" fn dispose_loader_event_value(event: LoaderEventC) {
 
 #[cfg(test)]
 mod tests {
+    use std::ptr;
+    use std::sync::mpsc::channel;
+    use std::time::Duration;
+
     use log::info;
     use tempfile::tempdir;
 
-    use popcorn_fx_core::core::loader::LoadingState;
+    use popcorn_fx_core::core::loader::{HIGHEST_ORDER, LoadingResult, LoadingState, MockLoadingStrategy};
     use popcorn_fx_core::core::media::MovieDetails;
     use popcorn_fx_core::core::playlists::PlaylistItem;
     use popcorn_fx_core::into_c_string;
     use popcorn_fx_core::testing::init_logger;
 
+    use crate::ffi::CArray;
     use crate::test::default_args;
 
     use super::*;
@@ -164,6 +185,43 @@ mod tests {
         let result = loader_load(&mut instance, into_c_string(url.to_string()));
 
         assert_ne!(0i64, result as i64);
+    }
+    
+    #[test]
+    fn test_loader_load_torrent_file() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let filename = "MyVideoFile.mkv";
+        let torrent_info = TorrentInfoC {
+            uri: into_c_string("TorrentUri"),
+            name: into_c_string("TorrentName"),
+            directory_name: ptr::null_mut(),
+            total_files: 0,
+            files: CArray::from(vec![]),
+        };
+        let torrent_file = TorrentFileInfoC {
+            filename: into_c_string(filename),
+            file_path: into_c_string("/tmp/some/path/MyVideoFile.mkv"),
+            file_size: 128000,
+            file_index: 0,
+        };
+        let (tx, rx) = channel();
+        let mut loading_strategy = MockLoadingStrategy::new();
+        loading_strategy.expect_process()
+            .returning(move |e, _, _|{
+                tx.send(e.clone()).unwrap();
+                LoadingResult::Ok(e)
+            });
+        let mut instance = PopcornFX::new(default_args(temp_path));
+
+        instance.media_loader().add(Box::new(loading_strategy), HIGHEST_ORDER);
+        let result = loader_load_torrent_file(&mut instance, torrent_info, torrent_file);
+        assert_ne!(0, result as i64);
+
+        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        assert_eq!(Some(filename.to_string()), result.title);
+        assert_eq!(Some(true), result.subtitles_enabled);
     }
 
     #[test]

@@ -7,6 +7,7 @@ pub use loader_torrent::*;
 pub use loader_torrent_details::*;
 pub use loader_torrent_info::*;
 pub use loader_torrent_stream::*;
+pub use loading_chain::*;
 pub use loading_strategy::*;
 pub use media_loader::*;
 

@@ -435,7 +435,8 @@ impl SerializerStorage {
 
         trace!("Application file {:?} exists", &self.base.absolute_path());
         let mut data = String::new();
-        file.read_to_string(&mut data).expect("unable to read file data");
+        file.read_to_string(&mut data)
+            .map_err(|e| StorageError::ReadingFailed(self.base.absolute_path().to_string(), e.to_string()))?;
 
         match serde_json::from_str::<T>(data.as_str()) {
             Ok(e) => {

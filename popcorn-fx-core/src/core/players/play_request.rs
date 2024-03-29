@@ -215,6 +215,207 @@ impl PlayUrlRequestBuilder {
     }
 }
 
+/// Represents a request for streaming media.
+#[derive(Debug, Display, Clone)]
+#[display(fmt = "{}", base)]
+pub struct PlayStreamRequest {
+    /// The base play request for URL-based media.
+    pub base: PlayUrlRequest,
+    /// The quality of the media.
+    pub quality: Option<String>,
+    /// The torrent stream being used to stream the media item.
+    pub torrent_stream: Weak<Box<dyn TorrentStream>>,
+}
+
+impl PlayStreamRequest {
+    /// Creates a new builder for `PlayStreamRequest`.
+    pub fn builder() -> PlayStreamRequestBuilder {
+        PlayStreamRequestBuilder::builder()
+    }
+}
+
+impl PlayRequest for PlayStreamRequest {
+    fn url(&self) -> &str {
+        self.base.url()
+    }
+
+    fn title(&self) -> &str {
+        self.base.title()
+    }
+
+    fn caption(&self) -> Option<String> {
+        self.base.caption()
+    }
+
+    fn thumbnail(&self) -> Option<String> {
+        self.base.thumbnail()
+    }
+
+    fn background(&self) -> Option<String> {
+        self.base.background()
+    }
+
+    fn quality(&self) -> Option<String> {
+        self.quality.clone()
+    }
+
+    fn auto_resume_timestamp(&self) -> Option<u64> {
+        self.base.auto_resume_timestamp()
+    }
+
+    fn subtitles_enabled(&self) -> bool {
+        self.base.subtitles_enabled()
+    }
+}
+
+impl PartialEq for PlayStreamRequest {
+    fn eq(&self, other: &Self) -> bool {
+        self.base.eq(&other.base) &&
+            self.quality == other.quality
+    }
+}
+
+impl From<LoadingData> for PlayStreamRequest {
+    fn from(value: LoadingData) -> Self {
+        let mut builder = Self::builder()
+            .url(value.url.expect("expected a url to have been present").as_str())
+            .title(value.title.expect("expected a title to have been present").as_str())
+            .subtitles_enabled(value.subtitles_enabled.unwrap_or(false));
+
+        if let Some(e) = value.caption {
+            builder = builder.caption(e);
+        }
+        if let Some(e) = value.thumb {
+            builder = builder.thumb(e);
+        }
+        if let Some(e) = value.auto_resume_timestamp {
+            builder = builder.auto_resume_timestamp(e);
+        }
+        if let Some(e) = value.quality {
+            builder = builder.quality(e.as_str());
+        }
+        if let Some(e) = value.torrent_stream {
+            builder = builder.torrent_stream(e);
+        }
+
+        builder.build()
+    }
+}
+
+/// A builder for `PlayStreamRequest`.
+#[derive(Debug, Default)]
+pub struct PlayStreamRequestBuilder {
+    url: Option<String>,
+    title: Option<String>,
+    caption: Option<String>,
+    thumb: Option<String>,
+    background: Option<String>,
+    auto_resume_timestamp: Option<u64>,
+    subtitles_enabled: bool,
+    quality: Option<String>,
+    torrent_stream: Option<Weak<Box<dyn TorrentStream>>>,
+}
+
+impl PlayStreamRequestBuilder {
+    /// Creates a new instance of the builder with default values.
+    pub fn builder() -> Self {
+        Self::default()
+    }
+
+    /// Sets the URL for the media to be played.
+    pub fn url<S>(mut self, url: S) -> Self
+        where S: Into<String>
+    {
+        self.url = Some(url.into());
+        self
+    }
+
+    /// Sets the title of the media.
+    pub fn title<S>(mut self, title: S) -> Self
+        where S: Into<String>
+    {
+        self.title = Some(title.into());
+        self
+    }
+
+    /// Sets the caption of the media.
+    pub fn caption<S>(mut self, caption: S) -> Self
+        where S: Into<String>
+    {
+        self.caption = Some(caption.into());
+        self
+    }
+
+    /// Sets the URL of the thumbnail associated with the media.
+    pub fn thumb<S>(mut self, thumb: S) -> Self
+        where S: Into<String>
+    {
+        self.thumb = Some(thumb.into());
+        self
+    }
+
+    /// Sets the URL of the background associated with the media.
+    pub fn background<S>(mut self, background: S) -> Self
+        where S: Into<String>
+    {
+        self.background = Some(background.into());
+        self
+    }
+
+    /// Sets the auto-resume timestamp for media playback.
+    pub fn auto_resume_timestamp(mut self, auto_resume_timestamp: u64) -> Self {
+        self.auto_resume_timestamp = Some(auto_resume_timestamp);
+        self
+    }
+
+    /// Sets whether subtitles are enabled for the media playback.
+    pub fn subtitles_enabled(mut self, subtitles_enabled: bool) -> Self {
+        self.subtitles_enabled = subtitles_enabled;
+        self
+    }
+
+    /// Sets the quality information for the media.
+    pub fn quality<S>(mut self, quality: S) -> Self
+        where S: Into<String>
+    {
+        self.quality = Some(quality.into());
+        self
+    }
+
+    /// Sets the torrent stream of the media.
+    pub fn torrent_stream(mut self, torrent_stream: Weak<Box<dyn TorrentStream>>) -> Self {
+        self.torrent_stream = Some(torrent_stream);
+        self
+    }
+
+    /// Builds the `PlayStreamRequest`.
+    ///
+    /// # Panics
+    ///
+    /// This method will panic if the `url` or `title` fields are not provided.
+    pub fn build(self) -> PlayStreamRequest {
+        if self.url.is_none() || self.title.is_none() {
+            panic!("url and title fields must be provided to build PlayMediaRequest");
+        }
+
+        let base = PlayUrlRequest {
+            url: self.url.unwrap(),
+            title: self.title.unwrap(),
+            caption: self.caption,
+            thumb: self.thumb,
+            background: self.background,
+            auto_resume_timestamp: self.auto_resume_timestamp,
+            subtitles_enabled: self.subtitles_enabled,
+        };
+
+        PlayStreamRequest {
+            base,
+            quality: self.quality,
+            torrent_stream: self.torrent_stream.expect("torrent_stream has not been set"),
+        }
+    }
+}
+
 /// A struct representing a play request for media with additional metadata.
 #[derive(Debug, Display)]
 #[display(fmt = "{}", base)]
@@ -296,7 +497,7 @@ impl Clone for PlayMediaRequest {
 
 impl From<LoadingData> for PlayMediaRequest {
     fn from(value: LoadingData) -> Self {
-        let mut builder = PlayMediaRequestBuilder::builder()
+        let mut builder = Self::builder()
             .url(value.url.expect("expected a url to have been present").as_str())
             .title(value.title.expect("expected a title to have been present").as_str())
             .subtitles_enabled(value.subtitles_enabled.unwrap_or(false));
@@ -354,7 +555,7 @@ pub struct PlayMediaRequestBuilder {
 impl PlayMediaRequestBuilder {
     /// Creates a new instance of the builder with default values.
     pub fn builder() -> Self {
-        PlayMediaRequestBuilder::default()
+        Self::default()
     }
 
     /// Sets the URL for the media to be played.

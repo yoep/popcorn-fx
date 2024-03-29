@@ -237,7 +237,7 @@ impl PopcornFX {
             .build());
         let image_loader = Arc::new(Box::new(DefaultImageLoader::new(cache_manager.clone())) as Box<dyn ImageLoader>);
         let screen_service = Arc::new(Box::new(DefaultScreenService::new()) as Box<dyn ScreenService>);
-        let player_manager = Arc::new(Box::new(DefaultPlayerManager::new(settings.clone(), event_publisher.clone(), torrent_stream_server.clone(), screen_service.clone())) as Box<dyn PlayerManager>);
+        let player_manager = Arc::new(Box::new(DefaultPlayerManager::new(settings.clone(), event_publisher.clone(), torrent_manager.clone(), torrent_stream_server.clone(), screen_service.clone())) as Box<dyn PlayerManager>);
         let loading_chain: Vec<Box<dyn LoadingStrategy>> = vec![
             Box::new(MediaTorrentUrlLoadingStrategy::new()),
             Box::new(TorrentInfoLoadingStrategy::new(torrent_manager.clone())),

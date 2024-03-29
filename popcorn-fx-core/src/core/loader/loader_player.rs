@@ -8,7 +8,7 @@ use log::{debug, trace};
 use tokio_util::sync::CancellationToken;
 
 use crate::core::loader::{CancellationResult, LoadingData, LoadingError, LoadingEvent, LoadingResult, LoadingState, LoadingStrategy};
-use crate::core::players::{PlayerManager, PlayMediaRequest, PlayRequest, PlayUrlRequest};
+use crate::core::players::{PlayerManager, PlayMediaRequest, PlayRequest, PlayStreamRequest, PlayUrlRequest};
 
 /// A loading strategy specifically designed for player loading.
 /// This strategy will translate the [PlaylistItem] into a [PlayRequest] which is invoked on the [PlayerManager].
@@ -51,8 +51,12 @@ impl PlayerLoadingStrategy {
             } else {
                 Err(LoadingError::InvalidData(format!("Missing torrent stream for {:?}", data.media)))
             };
+        } else if data.torrent_stream.is_some() {
+            trace!("Trying to start torrent stream playback for {:?}", data);
+            return Ok(Box::new(PlayStreamRequest::from(data)));
         }
 
+        trace!("Starting URL playback for {:?}", data);
         Ok(Box::new(PlayUrlRequest::from(data)))
     }
 }
@@ -91,7 +95,7 @@ impl LoadingStrategy for PlayerLoadingStrategy {
                     LoadingResult::Completed
                 }
                 Err(err) => LoadingResult::Err(err),
-            }
+            };
         }
 
         debug!("No playlist item url is present, playback won't be started");
@@ -261,6 +265,49 @@ mod tests {
             }
         } else {
             assert!(false, "expected LoadingResult::Err, but got {:?} instead", result);
+        }
+    }
+
+    #[test]
+    fn test_process_torrent_stream() {
+        init_logger();
+        let url = "https://localhost:87445/MyVideo.mkv";
+        let title = "streaming title";
+        let quality = "1080p";
+        let stream = Arc::new(Box::new(MockTorrentStream::new()) as Box<dyn TorrentStream>);
+        let item = PlaylistItem {
+            url: Some(url.to_string()),
+            title: title.to_string(),
+            caption: None,
+            thumb: None,
+            parent_media: None,
+            media: None,
+            torrent_info: None,
+            torrent_file_info: None,
+            quality: Some(quality.to_string()),
+            auto_resume_timestamp: None,
+            subtitles_enabled: false,
+        };
+        let mut data = LoadingData::from(item);
+        data.torrent_stream = Some(Arc::downgrade(&stream));
+        let (tx, rx) = channel();
+        let (tx_event, _rx_event) = channel();
+        let mut manager = MockPlayerManager::new();
+        manager.expect_play()
+            .returning(move |e| {
+                tx.send(e).unwrap();
+                ()
+            });
+        let strategy = PlayerLoadingStrategy::new(Arc::new(Box::new(manager)));
+
+        block_in_place(strategy.process(data, tx_event, CancellationToken::new()));
+        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+
+        if let Some(result) = result.downcast_ref::<PlayStreamRequest>() {
+            assert_eq!(Some(quality.to_string()), result.quality());
+            assert!(result.torrent_stream.upgrade().is_some(), "expected Some(torrent_stream), but got None instead");
+        } else {
+            assert!(false, "expected PlayMediaRequest, but got {:?} instead", result);
         }
     }
 }

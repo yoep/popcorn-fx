@@ -1,3 +1,5 @@
+use std::ptr;
+
 use log::trace;
 
 use popcorn_fx_core::{from_c_vec, into_c_owned};
@@ -9,6 +11,25 @@ use crate::PopcornFX;
 
 /// The C callback for the subtitle events.
 pub type SubtitleCallbackC = extern "C" fn(SubtitleEventC);
+
+/// Retrieves the preferred subtitle from the PopcornFX instance.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to the PopcornFX instance.
+///
+/// # Returns
+///
+/// Returns a pointer to the preferred subtitle information in C-compatible format.
+/// If no preferred subtitle is found, it returns a null pointer.
+#[no_mangle]
+pub extern "C" fn retrieve_preferred_subtitle(popcorn_fx: &mut PopcornFX) -> *mut SubtitleInfoC {
+    trace!("Retrieving preferred subtitle from C");
+    match popcorn_fx.subtitle_manager().preferred_subtitle() {
+        None => ptr::null_mut(),
+        Some(e) => into_c_owned(SubtitleInfoC::from(e))
+    }
+}
 
 /// Retrieve the default options available for the subtitles.
 ///
@@ -257,6 +278,18 @@ mod test {
         let result = from_c_owned(select_or_default_subtitle(&mut instance, &mut set));
 
         assert_eq!(info, SubtitleInfo::from(result));
+    }
+
+    #[test]
+    fn test_retrieve_preferred_subtitle_default_null_ptr() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut instance = new_instance(temp_path);
+
+        let result = retrieve_preferred_subtitle(&mut instance);
+
+        assert_eq!(ptr::null_mut(), result);
     }
 
     #[test]

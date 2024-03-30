@@ -154,9 +154,7 @@ public class SubtitleServiceImpl implements SubtitleService {
 
     @Override
     public Optional<SubtitleInfo> preferredSubtitle() {
-        synchronized (mutex) {
-            return Optional.ofNullable(fxLib.retrieve_preferred_subtitle(instance));
-        }
+        return Optional.ofNullable(fxLib.retrieve_preferred_subtitle(instance));
     }
 
     @Override

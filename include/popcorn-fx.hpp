@@ -2348,9 +2348,16 @@ MediaSetResult retrieve_available_shows(PopcornFX *popcorn_fx, const GenreC *gen
 /// It returns the [MediaItemC] on success, else a [ptr::null_mut].
 MediaResult retrieve_media_details(PopcornFX *popcorn_fx, const MediaItemC *media);
 
-/// Retrieve the preferred subtitle instance for the next [Media] item playback.
+/// Retrieves the preferred subtitle from the PopcornFX instance.
 ///
-/// It returns the [SubtitleInfoC] when present, else [ptr::null_mut].
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to the PopcornFX instance.
+///
+/// # Returns
+///
+/// Returns a pointer to the preferred subtitle information in C-compatible format.
+/// If no preferred subtitle is found, it returns a null pointer.
 SubtitleInfoC *retrieve_preferred_subtitle(PopcornFX *popcorn_fx);
 
 /// Retrieve the preferred subtitle language for the next [Media] item playback.

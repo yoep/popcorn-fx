@@ -16,6 +16,8 @@
 
             <fx:include source="../components/settings-torrent.component.fxml"/>
 
+            <fx:include source="../components/settings-server.component.fxml"/>
+
             <!-- Actions -->
             <fx:include source="../../common/components/settings-actions.component.fxml"/>
         </VBox>

@@ -16,7 +16,7 @@ use crate::core::events::{Event, EventPublisher, PlayerChangedEvent, PlayerStart
 use crate::core::media::MediaIdentifier;
 use crate::core::players::{Player, PlayerEvent, PlayerState, PlayMediaRequest, PlayRequest};
 use crate::core::screen::ScreenService;
-use crate::core::torrents::TorrentStreamServer;
+use crate::core::torrents::{TorrentManager, TorrentStreamServer};
 
 /// An event representing changes to the player manager.
 #[derive(Debug, Clone, Display)]
@@ -163,11 +163,12 @@ impl DefaultPlayerManager {
     /// A new `DefaultPlayerManager` instance.
     pub fn new(application_config: Arc<ApplicationConfig>,
                event_publisher: Arc<EventPublisher>,
+               torrent_manager: Arc<Box<dyn TorrentManager>>,
                torrent_stream_server: Arc<Box<dyn TorrentStreamServer>>,
                screen_service: Arc<Box<dyn ScreenService>>) -> Self {
         let runtime = Runtime::new().unwrap();
         let (listener_sender, listener_receiver) = channel::<PlayerEventWrapper>();
-        let inner = Arc::new(InnerPlayerManager::new(application_config, listener_sender, event_publisher, torrent_stream_server, screen_service));
+        let inner = Arc::new(InnerPlayerManager::new(application_config, listener_sender, event_publisher, torrent_manager, torrent_stream_server, screen_service));
 
         let receiver_manager = inner.clone();
         runtime.spawn(async move {
@@ -244,6 +245,7 @@ struct InnerPlayerManager {
     players: RwLock<Vec<Arc<Box<dyn Player>>>>,
     listener_id: Mutex<Option<CallbackHandle>>,
     listener_sender: Sender<PlayerEventWrapper>,
+    torrent_manager: Arc<Box<dyn TorrentManager>>,
     torrent_stream_server: Arc<Box<dyn TorrentStreamServer>>,
     screen_service: Arc<Box<dyn ScreenService>>,
     callbacks: CoreCallbacks<PlayerManagerEvent>,
@@ -254,6 +256,7 @@ impl InnerPlayerManager {
     fn new(application_config: Arc<ApplicationConfig>,
            listener_sender: Sender<PlayerEventWrapper>,
            event_publisher: Arc<EventPublisher>,
+           torrent_manager: Arc<Box<dyn TorrentManager>>,
            torrent_stream_server: Arc<Box<dyn TorrentStreamServer>>,
            screen_service: Arc<Box<dyn ScreenService>>) -> Self {
         let instance = Self {
@@ -263,6 +266,7 @@ impl InnerPlayerManager {
             players: RwLock::default(),
             listener_id: Default::default(),
             listener_sender,
+            torrent_manager,
             torrent_stream_server,
             screen_service,
             callbacks: CoreCallbacks::default(),
@@ -362,12 +366,20 @@ impl InnerPlayerManager {
                 trace!("Last known player duration was {}", duration);
                 if duration > 0 {
                     if let Some(request) = player.request()
-                        .and_then(|e| e.upgrade()) {
+                        .and_then(|e| e.upgrade())
+                        .map(|e| {
+                            trace!("Last known playback request {:?}", e);
+                            e
+                        }) {
                         if let Some(stream) = request.downcast_ref::<PlayMediaRequest>()
                             .and_then(|e| e.torrent_stream.upgrade()) {
                             debug!("Stopping player stream of {}", stream);
                             self.torrent_stream_server.stop_stream(stream.stream_handle());
+                            debug!("Stopping torrent download of {}", stream.handle());
+                            self.torrent_manager.remove(stream.handle());
                         }
+                    } else {
+                        warn!("Unable to determine last playback request for player {}", player);
                     }
 
                     trace!("Player stopped event resulted in Event::ClosePlayer");
@@ -561,7 +573,7 @@ mod tests {
     use crate::core::media::MockMediaIdentifier;
     use crate::core::players::{PlayUrlRequest, PlayUrlRequestBuilder};
     use crate::core::screen::MockScreenService;
-    use crate::core::torrents::{MockTorrentStreamServer, TorrentStream};
+    use crate::core::torrents::{MockTorrentManager, MockTorrentStreamServer, TorrentStream};
     use crate::testing::{init_logger, MockPlayer, MockTorrentStream};
 
     use super::*;
@@ -653,12 +665,13 @@ mod tests {
         player.expect_add()
             .return_const(1245i64);
         let player = Box::new(player) as Box<dyn Player>;
+        let torrent_manager = MockTorrentManager::new();
         let torrent_stream_server = MockTorrentStreamServer::new();
         let screen_service = Arc::new(Box::new(MockScreenService::new()) as Box<dyn ScreenService>);
         let settings = Arc::new(ApplicationConfig::builder()
             .storage(temp_path)
             .build());
-        let manager = DefaultPlayerManager::new(settings, Arc::new(EventPublisher::default()), Arc::new(Box::new(torrent_stream_server)), screen_service);
+        let manager = DefaultPlayerManager::new(settings, Arc::new(EventPublisher::default()), Arc::new(Box::new(torrent_manager)), Arc::new(Box::new(torrent_stream_server)), screen_service);
 
         manager.add_player(player);
         let player = manager.by_id(player_id).expect("expected the player to have been found");
@@ -684,12 +697,13 @@ mod tests {
         let player = Box::new(player) as Box<dyn Player>;
         let (tx, rx) = channel();
         let event_publisher = Arc::new(EventPublisher::default());
+        let torrent_manager = MockTorrentManager::new();
         let torrent_stream_server = MockTorrentStreamServer::new();
         let screen_service = Arc::new(Box::new(MockScreenService::new()) as Box<dyn ScreenService>);
         let settings = Arc::new(ApplicationConfig::builder()
             .storage(temp_path)
             .build());
-        let manager = DefaultPlayerManager::new(settings, event_publisher.clone(), Arc::new(Box::new(torrent_stream_server)), screen_service);
+        let manager = DefaultPlayerManager::new(settings, event_publisher.clone(), Arc::new(Box::new(torrent_manager)), Arc::new(Box::new(torrent_stream_server)), screen_service);
 
         event_publisher.register(Box::new(move |e| {
             match &e {
@@ -723,12 +737,13 @@ mod tests {
         let player = Box::new(player) as Box<dyn Player>;
         let (tx, rx) = channel();
         let event_publisher = Arc::new(EventPublisher::default());
+        let torrent_manager = MockTorrentManager::new();
         let torrent_stream_server = MockTorrentStreamServer::new();
         let screen_service = Arc::new(Box::new(MockScreenService::new()) as Box<dyn ScreenService>);
         let settings = Arc::new(ApplicationConfig::builder()
             .storage(temp_path)
             .build());
-        let manager = DefaultPlayerManager::new(settings, event_publisher.clone(), Arc::new(Box::new(torrent_stream_server)), screen_service);
+        let manager = DefaultPlayerManager::new(settings, event_publisher.clone(), Arc::new(Box::new(torrent_manager)), Arc::new(Box::new(torrent_stream_server)), screen_service);
 
         event_publisher.register(Box::new(move |e| {
             match &e {
@@ -759,12 +774,13 @@ mod tests {
         let player2 = Box::new(DummyPlayer::new(player2_id));
         let (tx, rx) = channel();
         let event_publisher = Arc::new(EventPublisher::default());
+        let torrent_manager = MockTorrentManager::new();
         let torrent_stream_server = MockTorrentStreamServer::new();
         let screen_service = Arc::new(Box::new(MockScreenService::new()) as Box<dyn ScreenService>);
         let settings = Arc::new(ApplicationConfig::builder()
             .storage(temp_path)
             .build());
-        let manager = DefaultPlayerManager::new(settings, event_publisher.clone(), Arc::new(Box::new(torrent_stream_server)), screen_service);
+        let manager = DefaultPlayerManager::new(settings, event_publisher.clone(), Arc::new(Box::new(torrent_manager)), Arc::new(Box::new(torrent_stream_server)), screen_service);
 
         manager.subscribe(Box::new(move |e| {
             if let PlayerManagerEvent::PlayerDurationChanged(_) = &e {
@@ -799,12 +815,13 @@ mod tests {
         player.expect_id()
             .return_const(player_id.to_string());
         let player = Box::new(player) as Box<dyn Player>;
+        let torrent_manager = MockTorrentManager::new();
         let torrent_stream_server = MockTorrentStreamServer::new();
         let screen_service = Arc::new(Box::new(MockScreenService::new()) as Box<dyn ScreenService>);
         let settings = Arc::new(ApplicationConfig::builder()
             .storage(temp_path)
             .build());
-        let manager = DefaultPlayerManager::new(settings, Arc::new(EventPublisher::default()), Arc::new(Box::new(torrent_stream_server)), screen_service);
+        let manager = DefaultPlayerManager::new(settings, Arc::new(EventPublisher::default()), Arc::new(Box::new(torrent_manager)), Arc::new(Box::new(torrent_stream_server)), screen_service);
 
         manager.add_player(player);
         let result = manager.by_id(player_id);
@@ -826,12 +843,13 @@ mod tests {
         player2.expect_id()
             .return_const(player_id.to_string());
         let player2 = Box::new(player2) as Box<dyn Player>;
+        let torrent_manager = MockTorrentManager::new();
         let torrent_stream_server = MockTorrentStreamServer::new();
         let screen_service = Arc::new(Box::new(MockScreenService::new()) as Box<dyn ScreenService>);
         let settings = Arc::new(ApplicationConfig::builder()
             .storage(temp_path)
             .build());
-        let manager = DefaultPlayerManager::new(settings, Arc::new(EventPublisher::default()), Arc::new(Box::new(torrent_stream_server)), screen_service);
+        let manager = DefaultPlayerManager::new(settings, Arc::new(EventPublisher::default()), Arc::new(Box::new(torrent_manager)), Arc::new(Box::new(torrent_stream_server)), screen_service);
 
         manager.add_player(player);
         let result = manager.by_id(player_id);
@@ -848,9 +866,12 @@ mod tests {
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let player_id = "SomeId123";
+        let torrent_handle = "MyTorrentHandle";
         let stream_handle = Handle::new();
         let (tx, rx) = channel();
         let mut stream = MockTorrentStream::new();
+        stream.expect_handle()
+            .return_const(torrent_handle.to_string());
         stream.expect_stream_handle()
             .return_const(stream_handle);
         let stream = Arc::new(Box::new(stream) as Box<dyn TorrentStream>);
@@ -884,6 +905,11 @@ mod tests {
             .returning(Box::new(move || {
                 Some(Arc::downgrade(&request))
             }));
+        let mut torrent_manager = MockTorrentManager::new();
+        torrent_manager.expect_remove()
+            .times(1)
+            .withf(move |e| e == torrent_handle)
+            .return_const(());
         let mut torrent_stream_server = MockTorrentStreamServer::new();
         torrent_stream_server.expect_stop_stream()
             .times(1)
@@ -893,7 +919,7 @@ mod tests {
         let settings = Arc::new(ApplicationConfig::builder()
             .storage(temp_path)
             .build());
-        let manager = DefaultPlayerManager::new(settings, Arc::new(EventPublisher::default()), Arc::new(Box::new(torrent_stream_server)), screen_service);
+        let manager = DefaultPlayerManager::new(settings, Arc::new(EventPublisher::default()), Arc::new(Box::new(torrent_manager)), Arc::new(Box::new(torrent_stream_server)), screen_service);
 
         let result = manager.add_player(Box::new(player));
         assert!(result, "expected the player to have been added");
@@ -934,6 +960,7 @@ mod tests {
             });
         player.expect_request()
             .return_const(Arc::downgrade(&request_ref));
+        let torrent_manager = MockTorrentManager::new();
         let torrent_stream_server = MockTorrentStreamServer::new();
         let (tx_screen, rx_screen) = channel();
         let mut screen_service = MockScreenService::new();
@@ -957,7 +984,7 @@ mod tests {
                 tracking_settings: Default::default(),
             })
             .build());
-        let manager = DefaultPlayerManager::new(settings, Arc::new(EventPublisher::default()), Arc::new(Box::new(torrent_stream_server)), Arc::new(Box::new(screen_service) as Box<dyn ScreenService>));
+        let manager = DefaultPlayerManager::new(settings, Arc::new(EventPublisher::default()), Arc::new(Box::new(torrent_manager)), Arc::new(Box::new(torrent_stream_server)), Arc::new(Box::new(screen_service) as Box<dyn ScreenService>));
 
         manager.add_player(Box::new(player));
         manager.set_active_player(player_id);
@@ -982,12 +1009,13 @@ mod tests {
         player1.expect_id()
             .return_const(player_id.to_string());
         let player = Box::new(player1) as Box<dyn Player>;
+        let torrent_manager = MockTorrentManager::new();
         let torrent_stream_server = MockTorrentStreamServer::new();
         let screen_service = Arc::new(Box::new(MockScreenService::new()) as Box<dyn ScreenService>);
         let settings = Arc::new(ApplicationConfig::builder()
             .storage(temp_path)
             .build());
-        let manager = DefaultPlayerManager::new(settings, Arc::new(EventPublisher::default()), Arc::new(Box::new(torrent_stream_server)), screen_service);
+        let manager = DefaultPlayerManager::new(settings, Arc::new(EventPublisher::default()), Arc::new(Box::new(torrent_manager)), Arc::new(Box::new(torrent_stream_server)), screen_service);
 
         manager.add_player(player);
         assert!(manager.by_id(player_id).is_some(), "expected the player to have been registered");

@@ -103,9 +103,17 @@ impl DefaultSubtitleManager {
     }
 
     fn update_subtitle_info(&self, subtitle: SubtitleInfo) {
-        let mut mutex = block_in_place(self.subtitle_info.lock());
-        let _ = mutex.insert(subtitle);
-        self.callbacks.invoke(SubtitleEvent::SubtitleInfoChanged(mutex.clone()));
+        trace!("Updating subtitle info to {:?}", subtitle);
+        let event_value: Option<SubtitleInfo>;
+        
+        {
+            let mut mutex = block_in_place(self.subtitle_info.lock());
+            let _ = mutex.insert(subtitle);
+            debug!("Subtitle info has been updated to {:?}", mutex);
+            event_value = mutex.clone();
+        }
+        
+        self.callbacks.invoke(SubtitleEvent::SubtitleInfoChanged(event_value));
     }
 
     fn update_disabled_state(&self, new_state: bool) {
@@ -133,6 +141,7 @@ impl SubtitleManager for DefaultSubtitleManager {
     ///
     /// The preferred [SubtitleInfo] if present.
     fn preferred_subtitle(&self) -> Option<SubtitleInfo> {
+        trace!("Retrieving preferred subtitle from subtitle manager");
         let mutex = block_in_place(self.subtitle_info.lock());
 
         if mutex.is_some() {

@@ -229,18 +229,21 @@ public class SubtitleManagerService {
         log.debug("Downloading subtitle \"{}\" for video playback", subtitleInfo);
         var matcher = SubtitleMatcher.from(FilenameUtils.getBaseName(url), quality);
 
-        subtitleService.downloadAndParse(subtitleInfo, matcher).whenComplete((subtitle, throwable) -> {
-            if (throwable == null) {
-                log.debug("Subtitle (imdbId: {}, language: {}) has been downloaded with success", imdbId, language);
-                // auto-clean the subtitle
-                try (subtitle) {
-                    onSubtitleDownloaded(subtitle);
-                }
-            } else {
-                log.error("Video subtitle failed, " + throwable.getMessage(), throwable);
-                eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(VideoMessage.SUBTITLE_DOWNLOAD_FILED)));
-            }
-        });
+        subtitleService.preferredSubtitle()
+                .ifPresent(preferredSubtitle -> subtitleService.downloadAndParse(preferredSubtitle, matcher).whenComplete((subtitle, throwable) -> {
+                    if (throwable == null) {
+                        log.debug("Subtitle (imdbId: {}, language: {}) has been downloaded with success", imdbId, language);
+                        // auto-clean the subtitle
+                        try (subtitle) {
+                            onSubtitleDownloaded(subtitle);
+                        }
+                    } else {
+                        log.error("Video subtitle failed, " + throwable.getMessage(), throwable);
+                        eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(VideoMessage.SUBTITLE_DOWNLOAD_FILED)));
+                    }
+
+                    preferredSubtitle.close();
+                }));
     }
 
     private SubtitleInfo pickCustomSubtitleTrack() {

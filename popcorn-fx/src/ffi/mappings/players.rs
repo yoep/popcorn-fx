@@ -10,7 +10,7 @@ use tokio::sync::Mutex;
 
 use popcorn_fx_core::{from_c_string, from_c_vec, into_c_owned, into_c_string, into_c_vec};
 use popcorn_fx_core::core::{block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks};
-use popcorn_fx_core::core::players::{Player, PlayerEvent, PlayerManagerEvent, PlayerState, PlayMediaRequest, PlayRequest, PlayUrlRequest};
+use popcorn_fx_core::core::players::{Player, PlayerEvent, PlayerManagerEvent, PlayerState, PlayMediaRequest, PlayRequest, PlayStreamRequest, PlayUrlRequest};
 
 use crate::ffi::PlayerChangedEventC;
 
@@ -474,6 +474,54 @@ impl From<&PlayUrlRequest> for PlayRequestC {
     }
 }
 
+impl From<&PlayStreamRequest> for PlayRequestC {
+    fn from(value: &PlayStreamRequest) -> Self {
+        trace!("Converting PlayStreamRequest to PlayRequestC for {:?}", value);
+        let caption = if let Some(caption) = value.caption() {
+            into_c_string(caption)
+        } else {
+            ptr::null_mut()
+        };
+        let thumb = if let Some(thumb) = value.thumbnail() {
+            into_c_string(thumb)
+        } else {
+            ptr::null_mut()
+        };
+        let background = if let Some(background) = value.background() {
+            into_c_string(background)
+        } else {
+            ptr::null_mut()
+        };
+        let quality = if let Some(quality) = value.quality() {
+            into_c_string(quality)
+        } else {
+            ptr::null_mut()
+        };
+        let auto_resume_timestamp = if let Some(e) = value.auto_resume_timestamp() {
+            into_c_owned(e)
+        } else {
+            ptr::null_mut()
+        };
+        let stream_handle = if let Some(e) = value.torrent_stream.upgrade() {
+            into_c_owned(e.stream_handle().value())
+        } else {
+            ptr::null_mut()
+        };
+
+        Self {
+            url: into_c_string(value.base.url.clone()),
+            title: into_c_string(value.base.title.clone()),
+            caption,
+            thumb,
+            background,
+            quality,
+            auto_resume_timestamp,
+            subtitles_enabled: value.subtitles_enabled(),
+            stream_handle,
+        }
+    }
+}
+
 impl From<&PlayMediaRequest> for PlayRequestC {
     fn from(value: &PlayMediaRequest) -> Self {
         trace!("Converting PlayMediaRequest to PlayRequestC for {:?}", value);
@@ -532,6 +580,8 @@ impl From<&Box<dyn PlayRequest>> for PlayRequestC {
     fn from(value: &Box<dyn PlayRequest>) -> Self {
         if let Some(value) = value.downcast_ref::<PlayMediaRequest>() {
             return PlayRequestC::from(value);
+        } else if let Some(value) = value.downcast_ref::<PlayStreamRequest>() {
+            return PlayRequestC::from(value);
         } else if let Some(value) = value.downcast_ref::<PlayUrlRequest>() {
             return PlayRequestC::from(value);
         }
@@ -543,6 +593,8 @@ impl From<&Box<dyn PlayRequest>> for PlayRequestC {
 impl From<Arc<Box<dyn PlayRequest>>> for PlayRequestC {
     fn from(value: Arc<Box<dyn PlayRequest>>) -> Self {
         if let Some(value) = value.downcast_ref::<PlayMediaRequest>() {
+            return PlayRequestC::from(value);
+        } else if let Some(value) = value.downcast_ref::<PlayStreamRequest>() {
             return PlayRequestC::from(value);
         } else if let Some(value) = value.downcast_ref::<PlayUrlRequest>() {
             return PlayRequestC::from(value);
@@ -743,6 +795,35 @@ mod tests {
         assert_eq!(title.to_string(), from_c_string(result.title));
         assert_eq!(thumb.to_string(), from_c_string(result.thumb));
         assert_eq!(background.to_string(), from_c_string(result.background));
+    }
+
+    #[test]
+    fn test_play_request_c_from_play_stream_request() {
+        let url = "https://localhost:15200/MyStream.mkv";
+        let title = "Stream title";
+        let thumb = "MyThumb.png";
+        let background = "MyBackground.png";
+        let handle = Handle::new();
+        let mut torrent_stream = MockTorrentStream::new();
+        torrent_stream.expect_stream_handle()
+            .times(1)
+            .return_const(handle.clone());
+        let torrent_stream = Arc::new(Box::new(torrent_stream) as Box<dyn TorrentStream>);
+        let request = PlayStreamRequest::builder()
+            .url(url)
+            .title(title)
+            .thumb(thumb)
+            .background(background)
+            .torrent_stream(Arc::downgrade(&torrent_stream))
+            .build();
+
+        let result = PlayRequestC::from(&request);
+
+        assert_eq!(url.to_string(), from_c_string(result.url));
+        assert_eq!(title.to_string(), from_c_string(result.title));
+        assert_eq!(thumb.to_string(), from_c_string(result.thumb));
+        assert_eq!(background.to_string(), from_c_string(result.background));
+        assert_eq!(handle.value(), from_c_owned(result.stream_handle));
     }
 
     #[test]

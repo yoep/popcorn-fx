@@ -114,17 +114,6 @@ pub extern "C" fn filename_subtitles(popcorn_fx: &mut PopcornFX, filename: *mut 
     }
 }
 
-/// Retrieve the preferred subtitle instance for the next [Media] item playback.
-///
-/// It returns the [SubtitleInfoC] when present, else [ptr::null_mut].
-#[no_mangle]
-pub extern "C" fn retrieve_preferred_subtitle(popcorn_fx: &mut PopcornFX) -> *mut SubtitleInfoC {
-    match popcorn_fx.subtitle_manager().preferred_subtitle() {
-        None => ptr::null_mut(),
-        Some(e) => into_c_owned(SubtitleInfoC::from(e))
-    }
-}
-
 /// Retrieve the preferred subtitle language for the next [Media] item playback.
 ///
 /// It returns the preferred subtitle language.

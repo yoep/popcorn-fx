@@ -29,6 +29,13 @@ import java.util.Optional;
 @Structure.FieldOrder({"imdbId", "language", "files", "len"})
 public class SubtitleInfo extends Structure implements Closeable {
     public static class ByReference extends SubtitleInfo implements Structure.ByReference {
+        public ByReference() {
+        }
+
+        public ByReference(String imdbId, SubtitleLanguage language) {
+            super(imdbId, language);
+        }
+
         @Override
         public void close() {
             super.close();
@@ -47,11 +54,6 @@ public class SubtitleInfo extends Structure implements Closeable {
 
     public SubtitleInfo() {
         super();
-    }
-
-    private SubtitleInfo(SubtitleLanguage language) {
-        this.imdbId = null;
-        this.language = language;
     }
 
     @Builder

@@ -111,8 +111,7 @@ impl<E: Display + Clone> Callbacks<E> for CoreCallbacks<E> {
     fn add(&self, callback: CoreCallback<E>) -> CallbackHandle {
         trace!("Registering new callback to CoreCallbacks");
         let handle = Handle::new();
-        let callbacks = self.callbacks.clone();
-        let mut mutex = block_in_place(callbacks.lock());
+        let mut mutex = block_in_place(self.callbacks.lock());
 
         mutex.push(InternalCallbackHolder {
             handle: handle.clone(),

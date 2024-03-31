@@ -2,7 +2,7 @@ use std::{mem, ptr};
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
-use log::{error, trace};
+use log::{error, trace, warn};
 
 pub use popcorn_fx_common::VERSION;
 
@@ -21,8 +21,15 @@ pub mod core;
 ///
 /// A pointer to the C string.
 pub fn into_c_string<S: Into<String>>(value: S) -> *mut c_char {
-    let c_string = CString::new(value.into()).unwrap();
-    c_string.into_raw()
+    let value = value.into();
+
+    if value.len() > 0 {
+        let c_string = CString::new(value).expect("expected valid C string");
+        c_string.into_raw()
+    } else {
+        warn!("Unable to create C string from empty string");
+        ptr::null_mut()
+    }
 }
 
 /// Converts the given C string pointer into a Rust string.

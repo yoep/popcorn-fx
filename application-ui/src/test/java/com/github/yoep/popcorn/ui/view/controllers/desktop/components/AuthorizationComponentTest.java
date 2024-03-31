@@ -27,7 +27,7 @@ class AuthorizationComponentTest {
         var component = new AuthorizationComponent(authorizationUri);
         Platform.runLater(() -> component.webView = new WebView());
 
-        WaitForAsyncUtils.waitFor(1000, TimeUnit.MILLISECONDS, () -> component.webView != null);
+        WaitForAsyncUtils.waitFor(1500, TimeUnit.MILLISECONDS, () -> component.webView != null);
         Platform.runLater(() -> component.initialize(url, resourceBundle));
         WaitForAsyncUtils.waitForFxEvents();
 

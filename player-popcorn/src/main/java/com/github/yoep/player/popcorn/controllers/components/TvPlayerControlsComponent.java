@@ -37,6 +37,7 @@ import java.util.ResourceBundle;
 @RequiredArgsConstructor
 public class TvPlayerControlsComponent implements Initializable {
     static final int OFFSET_IN_SECONDS = 10;
+    static final int OFFSET_SMALL_IN_SECONDS = 1;
 
     private final EventPublisher eventPublisher;
     private final PlayerControlsService playerControlsService;
@@ -54,7 +55,11 @@ public class TvPlayerControlsComponent implements Initializable {
     @FXML
     Button subtitleIncreaseOffset;
     @FXML
+    Button subtitleIncreaseOffsetSmall;
+    @FXML
     Button subtitleDecreaseOffset;
+    @FXML
+    Button subtitleDecreaseOffsetSmall;
     @FXML
     Overlay subtitleOptionsOverlay;
     @FXML
@@ -157,7 +162,9 @@ public class TvPlayerControlsComponent implements Initializable {
 
     private void initializeText() {
         subtitleIncreaseOffset.setText(localeText.get(SubtitleMessage.INCREASE_SUBTITLE_OFFSET, OFFSET_IN_SECONDS));
+        subtitleIncreaseOffsetSmall.setText(localeText.get(SubtitleMessage.INCREASE_SUBTITLE_OFFSET, OFFSET_SMALL_IN_SECONDS));
         subtitleDecreaseOffset.setText(localeText.get(SubtitleMessage.DECREASE_SUBTITLE_OFFSET, OFFSET_IN_SECONDS));
+        subtitleDecreaseOffsetSmall.setText(localeText.get(SubtitleMessage.DECREASE_SUBTITLE_OFFSET, OFFSET_SMALL_IN_SECONDS));
     }
 
     private void closePlayer() {
@@ -267,6 +274,24 @@ public class TvPlayerControlsComponent implements Initializable {
 
         event.consume();
         onSubtitleOffsetChanged(-OFFSET_IN_SECONDS);
+    }
+
+    @FXML
+    void onIncreaseOffsetSmall(Event event) {
+        if (event instanceof KeyEvent keyEvent && keyEvent.getCode() != KeyCode.ENTER)
+            return;
+
+        event.consume();
+        onSubtitleOffsetChanged(OFFSET_SMALL_IN_SECONDS);
+    }
+
+    @FXML
+    void onDecreaseOffsetSmall(Event event) {
+        if (event instanceof KeyEvent keyEvent && keyEvent.getCode() != KeyCode.ENTER)
+            return;
+
+        event.consume();
+        onSubtitleOffsetChanged(-OFFSET_SMALL_IN_SECONDS);
     }
 
     @FXML

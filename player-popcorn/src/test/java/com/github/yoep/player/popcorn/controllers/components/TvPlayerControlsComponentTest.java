@@ -7,6 +7,7 @@ import com.github.yoep.player.popcorn.services.PlayerSubtitleService;
 import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.messages.SubtitleMessage;
+import com.github.yoep.popcorn.ui.events.SubtitleOffsetEvent;
 import com.github.yoep.popcorn.ui.view.controls.AxisItemSelection;
 import com.github.yoep.popcorn.ui.view.controls.Overlay;
 import javafx.event.Event;
@@ -57,7 +58,9 @@ class TvPlayerControlsComponentTest {
         component.subtitleOverlay = new Overlay();
         component.subtitleSelection = new AxisItemSelection<>();
         component.subtitleIncreaseOffset = new Button();
+        component.subtitleIncreaseOffsetSmall = new Button();
         component.subtitleDecreaseOffset = new Button();
+        component.subtitleDecreaseOffsetSmall = new Button();
 
         component.subtitleOverlay.getChildren().add(component.subtitleSelection);
     }
@@ -67,13 +70,17 @@ class TvPlayerControlsComponentTest {
         var increaseText = "lorem";
         var decreaseText = "ipsum";
         when(localeText.get(SubtitleMessage.INCREASE_SUBTITLE_OFFSET, TvPlayerControlsComponent.OFFSET_IN_SECONDS)).thenReturn(increaseText);
+        when(localeText.get(SubtitleMessage.INCREASE_SUBTITLE_OFFSET, TvPlayerControlsComponent.OFFSET_SMALL_IN_SECONDS)).thenReturn(increaseText);
         when(localeText.get(SubtitleMessage.DECREASE_SUBTITLE_OFFSET, TvPlayerControlsComponent.OFFSET_IN_SECONDS)).thenReturn(decreaseText);
+        when(localeText.get(SubtitleMessage.DECREASE_SUBTITLE_OFFSET, TvPlayerControlsComponent.OFFSET_SMALL_IN_SECONDS)).thenReturn(decreaseText);
 
         component.initialize(url, resourceBundle);
         WaitForAsyncUtils.waitForFxEvents();
 
         WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> Objects.equals(component.subtitleIncreaseOffset.getText(), increaseText));
+        WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> Objects.equals(component.subtitleIncreaseOffsetSmall.getText(), increaseText));
         WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> Objects.equals(component.subtitleDecreaseOffset.getText(), decreaseText));
+        WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> Objects.equals(component.subtitleDecreaseOffsetSmall.getText(), decreaseText));
     }
 
     @Test
@@ -148,5 +155,49 @@ class TvPlayerControlsComponentTest {
         component.onChangeSubtitle(event);
 
         verify(playerControlsService).pause();
+    }
+
+    @Test
+    void testOnIncreaseSubtitleOffset() {
+        var event = mock(Event.class);
+        component.initialize(url, resourceBundle);
+
+        component.onIncreaseOffset(event);
+
+        verify(event).consume();
+        verify(eventPublisher).publish(new SubtitleOffsetEvent(component, TvPlayerControlsComponent.OFFSET_IN_SECONDS));
+    }
+
+    @Test
+    void testOnIncreaseSubtitleOffsetSmall() {
+        var event = mock(Event.class);
+        component.initialize(url, resourceBundle);
+
+        component.onIncreaseOffsetSmall(event);
+
+        verify(event).consume();
+        verify(eventPublisher).publish(new SubtitleOffsetEvent(component, TvPlayerControlsComponent.OFFSET_SMALL_IN_SECONDS));
+    }
+
+    @Test
+    void testOnDecreaseSubtitleOffset() {
+        var event = mock(Event.class);
+        component.initialize(url, resourceBundle);
+
+        component.onDecreaseOffset(event);
+
+        verify(event).consume();
+        verify(eventPublisher).publish(new SubtitleOffsetEvent(component, -TvPlayerControlsComponent.OFFSET_IN_SECONDS));
+    }
+
+    @Test
+    void testOnDecreaseSubtitleOffsetSmall() {
+        var event = mock(Event.class);
+        component.initialize(url, resourceBundle);
+
+        component.onDecreaseOffsetSmall(event);
+
+        verify(event).consume();
+        verify(eventPublisher).publish(new SubtitleOffsetEvent(component, -TvPlayerControlsComponent.OFFSET_SMALL_IN_SECONDS));
     }
 }

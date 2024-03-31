@@ -1,7 +1,7 @@
 .PHONY: cargo mvn help clean test build-cargo build
 
 ## Set global variables
-VERSION = 0.7.5
+VERSION = 0.8.0
 RUNTIME_VERSION = 17.0.6
 
 ifeq ($(shell command -v jenv >/dev/null 2>&1 && echo "found"),found)

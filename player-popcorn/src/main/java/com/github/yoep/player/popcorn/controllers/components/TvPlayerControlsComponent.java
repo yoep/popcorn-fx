@@ -83,7 +83,7 @@ public class TvPlayerControlsComponent implements Initializable {
         playerControlsService.addListener(new PlayerControlsListener() {
             @Override
             public void onFullscreenStateChanged(boolean isFullscreenEnabled) {
-
+                // no-op
             }
 
             @Override

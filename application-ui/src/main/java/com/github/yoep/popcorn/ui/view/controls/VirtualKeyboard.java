@@ -144,6 +144,7 @@ public class VirtualKeyboard extends Control {
 
     class VirtualKeyboardSkin extends SkinBase<VirtualKeyboard> {
         GridPane grid;
+        Button closeButton;
 
         protected VirtualKeyboardSkin(VirtualKeyboard control) {
             super(control);
@@ -212,14 +213,14 @@ public class VirtualKeyboard extends Control {
         }
 
         private void initCloseButton() {
-            var closeBtn = new Button();
+            closeButton = new Button();
 
-            closeBtn.getStyleClass().add(VERTICAL_LARGE_BUTTON_STYLE_CLASS);
-            closeBtn.setGraphic(new Icon(Icon.TIMES_UNICODE));
+            closeButton.getStyleClass().add(VERTICAL_LARGE_BUTTON_STYLE_CLASS);
+            closeButton.setGraphic(new Icon(Icon.TIMES_UNICODE));
 
-            addAction(closeBtn, () -> getOnClose().handle(new ActionEvent()));
+            addAction(closeButton, () -> getOnClose().handle(new ActionEvent()));
 
-            grid.add(closeBtn, 7, 0, 1, 3);
+            grid.add(closeButton, 7, 0, 1, 3);
         }
 
         private void addButton(char letter, int column, int row) {

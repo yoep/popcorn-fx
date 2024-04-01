@@ -2,8 +2,11 @@ package com.github.yoep.player.popcorn.controllers.components;
 
 import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.spring.boot.javafx.text.LocaleText;
+import com.github.yoep.player.popcorn.controls.ProgressControl;
+import com.github.yoep.player.popcorn.listeners.PlayerControlsListener;
 import com.github.yoep.player.popcorn.services.PlayerControlsService;
 import com.github.yoep.player.popcorn.services.PlayerSubtitleService;
+import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.messages.SubtitleMessage;
@@ -13,6 +16,7 @@ import com.github.yoep.popcorn.ui.view.controls.Overlay;
 import javafx.event.Event;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.Label;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
@@ -32,6 +36,7 @@ import java.util.Objects;
 import java.util.ResourceBundle;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.*;
 
@@ -61,6 +66,9 @@ class TvPlayerControlsComponentTest {
         component.subtitleIncreaseOffsetSmall = new Button();
         component.subtitleDecreaseOffset = new Button();
         component.subtitleDecreaseOffsetSmall = new Button();
+        component.time = new Label();
+        component.duration = new Label();
+        component.timeline = new ProgressControl();
 
         component.subtitleOverlay.getChildren().add(component.subtitleSelection);
     }
@@ -199,5 +207,59 @@ class TvPlayerControlsComponentTest {
 
         verify(event).consume();
         verify(eventPublisher).publish(new SubtitleOffsetEvent(component, -TvPlayerControlsComponent.OFFSET_SMALL_IN_SECONDS));
+    }
+
+    @Test
+    void testOnPlayerStateChanged() throws TimeoutException {
+        var listenerHolder = new AtomicReference<PlayerControlsListener>();
+        doAnswer(invocation -> {
+            listenerHolder.set(invocation.getArgument(0, PlayerControlsListener.class));
+            return null;
+        }).when(playerControlsService).addListener(any(PlayerControlsListener.class));
+        component.initialize(url, resourceBundle);
+
+        var listener = listenerHolder.get();
+
+        listener.onPlayerStateChanged(PlayerState.PLAYING);
+        WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> Objects.equals(component.playButton.getText(), Icon.PAUSE_UNICODE));
+
+        listener.onPlayerStateChanged(PlayerState.PAUSED);
+        WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> Objects.equals(component.playButton.getText(), Icon.PLAY_UNICODE));
+
+        listener.onPlayerStateChanged(PlayerState.BUFFERING);
+        WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> Objects.equals(component.playButton.getText(), Icon.SPINNER_UNICODE));
+
+        listener.onPlayerStateChanged(PlayerState.ERROR);
+        WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> Objects.equals(component.playButton.getText(), Icon.BAN_UNICODE));
+    }
+
+    @Test
+    void testOnPlayerTimeChanged() throws TimeoutException {
+        var listenerHolder = new AtomicReference<PlayerControlsListener>();
+        doAnswer(invocation -> {
+            listenerHolder.set(invocation.getArgument(0, PlayerControlsListener.class));
+            return null;
+        }).when(playerControlsService).addListener(any(PlayerControlsListener.class));
+        component.initialize(url, resourceBundle);
+
+        var listener = listenerHolder.get();
+
+        listener.onPlayerTimeChanged(15000);
+        WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> Objects.equals(component.time.getText(), "00:15"));
+    }
+
+    @Test
+    void testOnPlayerDurationChanged() throws TimeoutException {
+        var listenerHolder = new AtomicReference<PlayerControlsListener>();
+        doAnswer(invocation -> {
+            listenerHolder.set(invocation.getArgument(0, PlayerControlsListener.class));
+            return null;
+        }).when(playerControlsService).addListener(any(PlayerControlsListener.class));
+        component.initialize(url, resourceBundle);
+
+        var listener = listenerHolder.get();
+
+        listener.onPlayerDurationChanged(35000);
+        WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> Objects.equals(component.duration.getText(), "00:35"));
     }
 }

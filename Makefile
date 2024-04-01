@@ -29,7 +29,7 @@ ASSETS := windows
 PYTHON := python.exe
 
 # check required software
-ISCC_PATH := $(shell command -v iscc)
+ISCC_PATH := $(shell which iscc)
 ifndef ISCC_PATH
    $(error "Inno Setup Compiler (iscc) is not installed")
 endif

@@ -57,9 +57,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Bump minor
+    - name: Release version
       run: |
         git config --global user.name 'GitHub Actions'
         git config --global user.email 'actions@noreply.github.com'
         make bump-${{ github.event.inputs.release_type }}
-        git push
+        git push && git push --tags

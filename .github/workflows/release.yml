@@ -2,7 +2,16 @@ name: Release
 
 on:
   workflow_dispatch:
-    inputs: {}
+    inputs:
+      release_type:
+        type: choice
+        description: 'Release type'
+        required: true
+        default: 'minor'
+        options:
+          - 'major'
+          - 'minor'
+          - 'patch'
 
 jobs:
   test-java:
@@ -52,5 +61,5 @@ jobs:
       run: |
         git config --global user.name 'GitHub Actions'
         git config --global user.email 'actions@noreply.github.com'
-        make bump-minor
+        make bump-${{ github.event.inputs.release_type }}
         git push

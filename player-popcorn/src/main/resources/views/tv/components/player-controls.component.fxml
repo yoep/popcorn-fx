@@ -57,6 +57,8 @@
         <VBox spacing="3">
             <Button text="%subtitles_change" onMouseClicked="#onSubtitleChange" onKeyPressed="#onSubtitleChange"/>
             <Button fx:id="subtitleIncreaseOffset" text="%subtitles_increase_offset" onMouseClicked="#onIncreaseOffset" onKeyPressed="#onIncreaseOffset"/>
+            <Button fx:id="subtitleIncreaseOffsetSmall" text="%subtitles_increase_offset" onMouseClicked="#onIncreaseOffsetSmall" onKeyPressed="#onIncreaseOffsetSmall"/>
+            <Button fx:id="subtitleDecreaseOffsetSmall" text="%subtitles_decrease_offset" onMouseClicked="#onDecreaseOffsetSmall" onKeyPressed="#onDecreaseOffsetSmall"/>
             <Button fx:id="subtitleDecreaseOffset" text="%subtitles_decrease_offset" onMouseClicked="#onDecreaseOffset" onKeyPressed="#onDecreaseOffset"/>
             <Button text="%subtitles_increase_font_size" onMouseClicked="#onIncreaseFontSize" onKeyPressed="#onIncreaseFontSize"/>
             <Button text="%subtitles_decrease_font_size" onMouseClicked="#onDecreaseFontSize" onKeyPressed="#onDecreaseFontSize"/>

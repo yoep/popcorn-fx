@@ -99,4 +99,10 @@ public class TvConfig {
                                                            DetailsComponentService detailsComponentService) {
         return new TvSerieActionsComponent(eventPublisher, localeText, detailsComponentService);
     }
+
+    @Bean
+    @ConditionalOnTvMode
+    public TvSettingsServerComponent tvSettingsServerComponent(ApplicationConfig applicationConfig) {
+        return new TvSettingsServerComponent(applicationConfig);
+    }
 }

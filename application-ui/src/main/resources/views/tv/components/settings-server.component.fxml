@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import com.github.yoep.popcorn.ui.view.controls.Overlay?>
+<?import com.github.yoep.popcorn.ui.view.controls.VirtualKeyboard?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+          fx:controller="com.github.yoep.popcorn.ui.view.controllers.tv.components.TvSettingsServerComponent"
+          styleClass="sub-section">
+    <columnConstraints>
+        <ColumnConstraints/>
+        <ColumnConstraints/>
+        <ColumnConstraints hgrow="ALWAYS"/>
+    </columnConstraints>
+    <rowConstraints>
+        <RowConstraints/>
+        <RowConstraints/>
+        <RowConstraints/>
+        <RowConstraints/>
+    </rowConstraints>
+
+    <!-- User interface title -->
+    <Label styleClass="subsection-title" text="%settings_server"
+           GridPane.valignment="TOP" GridPane.rowSpan="4" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+
+    <!-- API Server -->
+    <Label styleClass="subsection-label" text="%settings_server_api"
+           GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+    <Button fx:id="apiServerBtn" styleClass="long"
+            GridPane.columnIndex="2" GridPane.rowIndex="0"/>
+
+    <!-- Separator -->
+    <Separator
+            GridPane.columnSpan="2" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
+
+    <Overlay fx:id="apiServerOverlay" for="$apiServerBtn" attachTo="settings">
+        <GridPane>
+            <columnConstraints>
+                <ColumnConstraints minWidth="100" percentWidth="10"/>
+                <ColumnConstraints maxWidth="700"/>
+                <ColumnConstraints minWidth="100" percentWidth="10"/>
+            </columnConstraints>
+            <rowConstraints>
+                <RowConstraints/>
+                <RowConstraints/>
+                <RowConstraints/>
+                <RowConstraints/>
+            </rowConstraints>
+
+            <Label fx:id="apiServerTxt" text="%settings_subtitles_default" styleClass="virtual-keyboard-value"
+                   GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+            <VirtualKeyboard fx:id="apiServerVirtualKeyboard" minWidth="0"
+                             enableSpecialKeys="true" enableCloseKey="true" onClose="#onCloseApiOverlay"
+                             GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+        </GridPane>
+    </Overlay>
+</GridPane>

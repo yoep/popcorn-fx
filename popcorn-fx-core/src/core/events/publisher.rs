@@ -7,6 +7,7 @@ use log::{debug, info, trace};
 use tokio::runtime::Runtime;
 use tokio::sync::Mutex;
 
+use crate::core::block_in_place;
 use crate::core::events::Event;
 
 /// The highest order for events, this priority will be first invoked
@@ -112,7 +113,7 @@ impl EventPublisher {
     pub fn register(&self, callback: EventCallback, order: Order) {
         trace!("Registering a new callback to the EventPublisher");
         let callbacks = self.callbacks.clone();
-        let mut mutex = callbacks.blocking_lock();
+        let mut mutex = block_in_place(callbacks.lock());
 
         mutex.push(EventCallbackHolder {
             order,

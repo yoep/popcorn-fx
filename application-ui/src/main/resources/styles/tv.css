@@ -433,7 +433,8 @@
     -fx-pref-width: 18em;
 }
 
-.root .content-section .filter .search-value {
+.root .content-section .search-value,
+.root .content-section .virtual-keyboard-value {
     -fx-min-width: 0;
     -fx-font-size: 1.5em;
     -fx-font-family: "Open Sans Semibold";
@@ -441,11 +442,11 @@
     -fx-text-overrun: clip;
 }
 
-.root .content-section .filter .virtual-keyboard {
+.root .content-section .virtual-keyboard {
     -fx-padding: 15 8 15 8;
 }
 
-.root .content-section .filter .virtual-keyboard .button {
+.root .content-section .virtual-keyboard .button {
     -fx-min-width: 0;
     -fx-pref-width: 3em;
     -fx-pref-height: 3em;
@@ -455,17 +456,21 @@
     -fx-border-style: solid;
 }
 
-.root .content-section .filter .virtual-keyboard .button .icon {
+.root .content-section  .virtual-keyboard .button .icon {
     -fx-min-width: 0;
     -fx-font-size: 1.5em;
 }
 
-.root .content-section .filter .virtual-keyboard .button.large {
+.root .content-section .virtual-keyboard .button.large {
     -fx-pref-width: 9em;
 }
 
-.root .content-section .filter .virtual-keyboard .button:focused,
-.root .content-section .filter .virtual-keyboard .button:hover {
+.root .content-section .virtual-keyboard .button.v-large {
+    -fx-pref-height: 9em;
+}
+
+.root .content-section .virtual-keyboard .button:focused,
+.root .content-section .virtual-keyboard .button:hover {
     -fx-background-color: rgba(24, 43, 77, 0.85);
     -fx-border-color: #4c82e6;
 }

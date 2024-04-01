@@ -1,5 +1,6 @@
 use log::{info, trace, warn};
 use tokio::sync::Mutex;
+
 use windows::core::{PCWSTR, PWSTR};
 use windows::core::Result;
 use windows::Win32::Foundation::HANDLE;
@@ -46,7 +47,7 @@ impl SystemPlatform for PlatformWin {
                     let mut mutex = self.screensaver_request.blocking_lock();
                     *mutex = Some(handle);
 
-                    if PowerSetRequest(handle, PowerRequestDisplayRequired).is_ok() {
+                    if PowerSetRequest(handle, PowerRequestDisplayRequired).as_bool() {
                         info!("Screensaver has been disabled");
                         true
                     } else {
@@ -63,7 +64,7 @@ impl SystemPlatform for PlatformWin {
         let mut mutex = self.screensaver_request.blocking_lock();
 
         if let Some(handle) = *mutex {
-            if unsafe { PowerClearRequest(handle, PowerRequestDisplayRequired).is_ok() } {
+            if unsafe { PowerClearRequest(handle, PowerRequestDisplayRequired).as_bool() } {
                 info!("Screensaver has been enabled");
                 *mutex = None;
                 true

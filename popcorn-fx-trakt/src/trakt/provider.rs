@@ -28,7 +28,6 @@ use popcorn_fx_core::core::media::tracking::{AuthorizationError, OpenAuthorizati
 
 use crate::trakt::{AddToWatchList, Movie, MovieId, WatchedMovie};
 
-const HEADER_APPLICATION_JSON: &str = "application/json";
 const TRACKING_NAME: &str = "trakt";
 const AUTHORIZED_PORTS: [u16; 5] = [
     30200u16,
@@ -444,6 +443,8 @@ mod tests {
 
     use super::*;
 
+    const HEADER_APPLICATION_JSON: &str = "application/json";
+
     #[test]
     fn test_new() {
         init_logger();
@@ -638,7 +639,7 @@ mod tests {
                 .path("/sync/watched/movies")
                 .header_exists("Authorization");
             then.status(200)
-                .header("Content-Type", "application/json")
+                .header("Content-Type", HEADER_APPLICATION_JSON)
                 .body(r#"[{
     "plays": 4,
     "last_watched_at": "2014-10-11T17:00:54.000Z",

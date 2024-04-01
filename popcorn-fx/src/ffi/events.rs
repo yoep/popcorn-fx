@@ -98,10 +98,19 @@ mod test {
         init_logger();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
+        let (tx, rx) = channel();
         let mut instance = PopcornFX::new(default_args(temp_path));
 
         register_event_callback(&mut instance, event_callback);
+        instance.event_publisher().register(Box::new(move |e| {
+            tx.send(e).unwrap();
+            None
+        }), LOWEST_ORDER);
+        
         instance.event_publisher().publish(Event::ClosePlayer);
+        
+        let result = rx.recv_timeout(Duration::from_millis(200));
+        assert!(result.is_err(), "expected the event to have been consumed");
     }
 
     #[test]

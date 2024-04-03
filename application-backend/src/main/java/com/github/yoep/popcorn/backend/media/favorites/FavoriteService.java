@@ -2,16 +2,12 @@ package com.github.yoep.popcorn.backend.media.favorites;
 
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
-import com.github.yoep.popcorn.backend.media.FavoritesSet;
 import com.github.yoep.popcorn.backend.media.MediaItem;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.Collections;
-import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedDeque;
 
 @Slf4j
@@ -41,21 +37,6 @@ public class FavoriteService {
         synchronized (lock) {
             try (var item = MediaItem.from(favorable)) {
                 return fxLib.is_media_liked(instance, item) == 1;
-            }
-        }
-    }
-
-    /**
-     * Get all the {@link Media} items that are liked by the user.
-     *
-     * @return Returns the list of liked items by the user.
-     */
-    public List<Media> getAll() {
-        synchronized (lock) {
-            try (var favorites = fxLib.retrieve_all_favorites(instance)) {
-                return Optional.ofNullable(favorites)
-                        .map(FavoritesSet::<Media>getAll)
-                        .orElse(Collections.emptyList());
             }
         }
     }

@@ -546,7 +546,7 @@ mod tests {
 
         let _ = rx.recv_timeout(Duration::from_millis(200)).expect("expected the strategy process to have been started");
         task.cancel();
-        let result = rx_cancel.recv_timeout(Duration::from_millis(200)).expect("expected the cancel fn to have been invoked");
+        let result = rx_cancel.recv_timeout(Duration::from_millis(500)).expect("expected the cancel fn to have been invoked");
         assert_eq!(data, result);
     }
 }

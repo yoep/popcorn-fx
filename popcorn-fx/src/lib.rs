@@ -7,6 +7,7 @@ use log::{debug, error, info, trace, warn};
 
 pub use fx::*;
 use popcorn_fx_core::{from_c_into_boxed, from_c_owned, from_c_string, from_c_vec, into_c_owned, into_c_string};
+use popcorn_fx_core::core::block_in_place;
 use popcorn_fx_core::core::config::{PlaybackSettings, ServerSettings, SubtitleSettings, TorrentSettings, UiSettings};
 use popcorn_fx_core::core::media::*;
 use popcorn_fx_core::core::media::favorites::FavoriteCallback;
@@ -223,7 +224,7 @@ pub extern "C" fn retrieve_available_favorites(popcorn_fx: &mut PopcornFX, genre
     let keywords = from_c_string(keywords);
 
     trace!("Retrieving favorites for genre: {:?}, sort_by: {:?}, page: {}", genre, sort_by, page);
-    match popcorn_fx.runtime().block_on(popcorn_fx.providers().retrieve(&Category::Favorites, &genre, &sort_by, &keywords, page)) {
+    match block_in_place(popcorn_fx.providers().retrieve(&Category::Favorites, &genre, &sort_by, &keywords, page)) {
         Ok(e) => {
             info!("Retrieved a total of {} favorites, {:?}", e.len(), &e);
             favorites_to_c(e)

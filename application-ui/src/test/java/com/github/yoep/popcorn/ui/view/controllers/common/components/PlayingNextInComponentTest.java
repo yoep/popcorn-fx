@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
+package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.yoep.popcorn.backend.playlists.PlaylistItem;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
@@ -106,6 +106,19 @@ class PlayingNextInComponentTest {
 
         component.onPlayNextStopClicked(event);
 
+        verify(event).consume();
+        verify(playlistManager).stop();
+    }
+
+    @Test
+    void testOnStopPressed() {
+        var event = mock(KeyEvent.class);
+        when(event.getCode()).thenReturn(KeyCode.ENTER);
+        component.initialize(url, resourceBundle);
+
+        component.onPlayNextStopPressed(event);
+
+        verify(event).consume();
         verify(playlistManager).stop();
     }
 }

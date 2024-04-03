@@ -34,15 +34,15 @@ popcorn:
     popcorn_fx_core::core::events:
       level: info
     popcorn_fx_core::core::loader:
-      level: trace
+      level: info
     popcorn_fx_core::core::media:
       level: info
     popcorn_fx_core::core::media::favorites:
-      level: info
-    popcorn_fx_core::core::media::providers:
-      level: info
-    popcorn_fx_core::core::media::tracking:
       level: trace
+    popcorn_fx_core::core::media::providers:
+      level: trace
+    popcorn_fx_core::core::media::tracking:
+      level: info
     popcorn_fx_core::core::media::resume:
       level: info
     popcorn_fx_core::core::media::watched:

@@ -12,6 +12,7 @@ import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.ui.torrent.TorrentCollectionService;
+import com.github.yoep.popcorn.ui.view.controllers.common.components.PlayingNextInComponent;
 import com.github.yoep.popcorn.ui.view.controllers.common.sections.ListSectionController;
 import com.github.yoep.popcorn.ui.view.controllers.common.sections.LoaderSectionController;
 import com.github.yoep.popcorn.ui.view.controllers.common.sections.SettingsSectionController;

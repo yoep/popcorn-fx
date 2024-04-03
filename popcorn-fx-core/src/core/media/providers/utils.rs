@@ -2,10 +2,21 @@ use log::error;
 
 use crate::core::config::ApplicationConfig;
 
-/// Retrieve the available uri's from the settings for the given provider name.
+/// Retrieves the available URIs for a given provider name based on the application configuration.
+///
+/// # Arguments
+///
+/// * `config` - A reference to the `ApplicationConfig` containing the configuration settings.
+/// * `provider_name` - The name of the provider for which URIs are to be retrieved.
+///
+/// # Returns
+///
+/// Returns a vector of URIs representing the available endpoints for the specified provider.
 pub fn available_uris(config: &ApplicationConfig, provider_name: &str) -> Vec<String> {
     let settings = config.user_settings();
-    let api_server = settings.server().api_server();
+    let api_server = settings.server()
+        .api_server()
+        .filter(|e| !e.is_empty());
     let mut uris: Vec<String> = vec![];
 
     match api_server {

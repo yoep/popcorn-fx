@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
+package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.yoep.popcorn.backend.playlists.PlaylistItem;
@@ -131,6 +131,8 @@ public class PlayingNextInComponent implements Initializable {
     }
 
     private void reset() {
+        this.lastKnownPlayingIn = null;
+
         Platform.runLater(() -> {
             playNextPane.setVisible(false);
             showName.setText(null);
@@ -142,6 +144,11 @@ public class PlayingNextInComponent implements Initializable {
 
     private void onPlayNextNow() {
         playlistManager.playNext();
+        reset();
+    }
+
+    private void onPlayNextStop() {
+        playlistManager.stop();
         reset();
     }
 
@@ -162,8 +169,15 @@ public class PlayingNextInComponent implements Initializable {
     @FXML
     void onPlayNextStopClicked(MouseEvent event) {
         event.consume();
-        playlistManager.stop();
-        reset();
+        onPlayNextStop();
+    }
+
+    @FXML
+    void onPlayNextStopPressed(KeyEvent event) {
+        if(event.getCode() == KeyCode.ENTER) {
+            event.consume();
+            onPlayNextStop();
+        }
     }
 
     //endregion

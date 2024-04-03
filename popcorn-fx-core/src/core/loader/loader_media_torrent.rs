@@ -3,7 +3,7 @@ use std::sync::mpsc::Sender;
 
 use async_trait::async_trait;
 use derive_more::Display;
-use log::{debug, trace};
+use log::{debug, info, trace};
 use tokio_util::sync::CancellationToken;
 
 use crate::core::loader::{CancellationResult, LoadingData, LoadingError, LoadingEvent, LoadingResult, LoadingStrategy};
@@ -81,8 +81,9 @@ impl LoadingStrategy for MediaTorrentUrlLoadingStrategy {
                 if let Some(torrent_info) = media_torrent_info {
                     let url = torrent_info.url().to_string();
                     debug!("Updating playlist item url to {} for media {}", url, media);
-                    data.url = Some(url);
+                    data.url = Some(url.clone());
                     data.media_torrent_info = Some(torrent_info);
+                    info!("Loading media url {}", url);
                 } else {
                     return LoadingResult::Err(LoadingError::MediaError(format!("failed to resolve media torrent url for {}", media)));
                 }

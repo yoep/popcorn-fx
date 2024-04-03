@@ -167,7 +167,7 @@ impl Default for EventPublisher {
 
 impl Debug for EventPublisher {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mutex = &self.callbacks.blocking_lock();
+        let mutex = block_in_place(self.callbacks.lock());
         f.debug_struct("EventPublisher")
             .field("callbacks", &mutex.len())
             .finish()
@@ -229,7 +229,7 @@ mod test {
         publisher.register(callback, DEFAULT_ORDER);
 
         // Check if the event consumer is registered
-        let callbacks = publisher.callbacks.blocking_lock();
+        let callbacks = block_in_place(publisher.callbacks.lock());
         assert_eq!(callbacks.len(), 1);
     }
 

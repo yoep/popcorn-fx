@@ -150,13 +150,16 @@ impl MediaProvider for FavoritesProvider {
 
         match self.favorites.all() {
             Ok(favorites) => {
-                debug!("Retrieved a total of {} favorites before filtering", favorites.len());
-                Ok(favorites.into_iter()
+                let total_favorites = favorites.len();
+                trace!("Filtering a total of {} favorites", total_favorites);
+                let filtered : Vec<Box<dyn MediaOverview>> = favorites.into_iter()
                     .filter(|e| Self::filter_movies(e, genre))
                     .filter(|e| Self::filter_shows(e, genre))
                     .filter(|e| Self::filter_keywords(e, keywords))
                     .sorted_by(|a, b| self.sort_by(sort_by, a, b))
-                    .collect())
+                    .collect();
+                debug!("Retrieved a total of {} favorites out of {}", filtered.len(), total_favorites);
+                Ok(filtered)
             }
             Err(e) => Err(e)
         }
@@ -170,10 +173,10 @@ mod test {
     use crate::core::events::EventPublisher;
     use crate::core::media;
     use crate::core::media::{Images, MovieOverview, ShowOverview};
-    use crate::core::media::favorites::MockFavoriteService;
+    use crate::core::media::favorites::{DefaultFavoriteService, MockFavoriteService};
     use crate::core::media::watched::DefaultWatchedService;
     use crate::core::media::watched::MockWatchedService;
-    use crate::testing::init_logger;
+    use crate::testing::{copy_test_file, init_logger};
 
     use super::*;
 
@@ -204,6 +207,30 @@ mod test {
             .expect("expected the favorites to have been returned");
 
         assert_eq!(1, result.len())
+    }
+
+    #[test]
+    fn test_retrieve_return_stored_favorites_movies() {
+        init_logger();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let genre = Genre::new("movies".to_string(), "Movies".to_string());
+        let sort_by = SortBy::new("watched".to_string(), String::new());
+        let keywords = "".to_string();
+        copy_test_file(temp_path, "favorites2.json", Some("favorites.json"));
+        let favorites = DefaultFavoriteService::new(temp_path);
+        let mut watched_service = MockWatchedService::new();
+        watched_service.expect_is_watched()
+            .return_const(false);
+        let provider = FavoritesProvider::new(
+            Arc::new(Box::new(favorites)),
+            Arc::new(Box::new(watched_service)));
+        let runtime = tokio::runtime::Runtime::new().expect("expected a new runtime");
+
+        let result = runtime.block_on(provider.retrieve(&genre, &sort_by, &keywords, 1))
+            .expect("expected the favorites to have been returned");
+
+        assert_eq!(21, result.len())
     }
 
     #[test]

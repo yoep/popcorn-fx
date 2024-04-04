@@ -957,11 +957,17 @@ struct SubtitleLineC {
   int32_t len;
 };
 
+/// Represents a cue in a subtitle track in a C-compatible format.
 struct SubtitleCueC {
+  /// A pointer to a null-terminated C string representing the cue identifier.
   char *id;
+  /// The start time of the cue in milliseconds.
   uint64_t start_time;
+  /// The end time of the cue in milliseconds.
   uint64_t end_time;
+  /// A pointer to an array of subtitle lines.
   SubtitleLineC *lines;
+  /// The number of lines in the cue.
   int32_t number_of_lines;
 };
 
@@ -1657,7 +1663,13 @@ void dispose_popcorn_fx(Box<PopcornFX> instance);
 /// * `array` - A boxed `StringArray` object to be disposed of.
 void dispose_string_array(Box<StringArray> array);
 
-/// Dispose the given subtitle.
+/// Frees the memory allocated for the `SubtitleC` structure.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it's assumed that the `SubtitleC` structure was allocated using `Box`,
+/// and dropping a `Box` pointing to valid memory is safe. However, if the `SubtitleC` was allocated in a different way
+/// or if the memory was already deallocated, calling this function could lead to undefined behavior.
 void dispose_subtitle(Box<SubtitleC> subtitle);
 
 /// Frees the memory allocated for the `SubtitleInfoC` structure.

@@ -642,18 +642,6 @@ pub extern "C" fn dispose_media_item_value(media: MediaItemC) {
     }
 }
 
-/// Dispose the given subtitle.
-#[no_mangle]
-pub extern "C" fn dispose_subtitle(subtitle: Box<SubtitleC>) {
-    trace!("Disposing subtitle {:?}", subtitle);
-    if !subtitle.info.is_null() {
-        let info = from_c_owned(subtitle.info);
-        drop(from_c_vec(info.files, info.len));
-    }
-
-    drop(from_c_vec(subtitle.cues, subtitle.len))
-}
-
 /// Dispose the [TorrentCollectionSet] from memory.
 #[no_mangle]
 pub extern "C" fn dispose_torrent_collection(collection_set: Box<TorrentCollectionSet>) {
@@ -685,7 +673,6 @@ mod test {
     use tempfile::tempdir;
 
     use popcorn_fx_core::core::config::{DecorationType, SubtitleFamily};
-    use popcorn_fx_core::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::from_c_owned;
     use popcorn_fx_core::testing::{copy_test_file, init_logger};
@@ -912,33 +899,6 @@ mod test {
         let media = MediaItemC::from(movie);
 
         dispose_media_item(Box::new(media));
-    }
-
-    #[test]
-    fn test_dispose_subtitle() {
-        let subtitle = Subtitle::new(
-            vec![SubtitleCue::new(
-                "012".to_string(),
-                10000,
-                20000,
-                vec![SubtitleLine::new(
-                    vec![StyledText::new(
-                        "Lorem ipsum dolor".to_string(),
-                        true,
-                        false,
-                        false,
-                    )]
-                )],
-            )],
-            Some(SubtitleInfo::builder()
-                .imdb_id("tt00001")
-                .language(SubtitleLanguage::English)
-                .build()),
-            "lorem.srt".to_string(),
-        );
-        let subtitle_c = SubtitleC::from(subtitle);
-
-        dispose_subtitle(Box::new(subtitle_c))
     }
 
     #[test]

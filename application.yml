@@ -61,6 +61,8 @@ popcorn:
       level: info
     popcorn_fx_core::core::updater:
       level: info
+    popcorn_fx_dlna:
+      level: trace
     popcorn_fx_opensubtitles:
       level: info
     popcorn_fx_platform:

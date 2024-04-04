@@ -3,7 +3,7 @@ use std::ptr;
 
 use log::trace;
 
-use popcorn_fx_core::{from_c_owned, from_c_string, from_c_string_owned, from_c_vec, into_c_owned, into_c_string, into_c_vec};
+use popcorn_fx_core::{from_c_owned, from_c_string, from_c_vec, from_c_vec_owned, into_c_owned, into_c_string, into_c_vec};
 use popcorn_fx_core::core::subtitles::{SubtitleEvent, SubtitleFile};
 use popcorn_fx_core::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
@@ -323,13 +323,31 @@ impl From<SubtitleC> for Subtitle {
     }
 }
 
+impl Drop for SubtitleC {
+    fn drop(&mut self) {
+        trace!("Dropping {:?}", self);
+        if !self.info.is_null() {
+            let info = from_c_owned(self.info);
+            drop(info);
+        }
+        
+        drop(from_c_vec_owned(self.cues, self.len));
+    }
+}
+
+/// Represents a cue in a subtitle track in a C-compatible format.
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct SubtitleCueC {
+    /// A pointer to a null-terminated C string representing the cue identifier.
     pub id: *mut c_char,
+    /// The start time of the cue in milliseconds.
     pub start_time: u64,
+    /// The end time of the cue in milliseconds.
     pub end_time: u64,
+    /// A pointer to an array of subtitle lines.
     pub lines: *mut SubtitleLineC,
+    /// The number of lines in the cue.
     pub number_of_lines: i32,
 }
 
@@ -581,9 +599,9 @@ mod test {
                 )],
             )],
             Some(SubtitleInfo::builder()
-                     .imdb_id("tt00001")
-                     .language(SubtitleLanguage::English)
-                     .build()),
+                .imdb_id("tt00001")
+                .language(SubtitleLanguage::English)
+                .build()),
             "lorem.srt".to_string(),
         )
     }

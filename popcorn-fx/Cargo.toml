@@ -12,6 +12,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core" }
+popcorn-fx-dlna = { path = "../popcorn-fx-dlna" }
 popcorn-fx-platform = { path = "../popcorn-fx-platform" }
 popcorn-fx-opensubtitles = { path = "../popcorn-fx-opensubtitles" }
 popcorn-fx-torrent = { path = "../popcorn-fx-torrent" }

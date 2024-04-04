@@ -211,7 +211,7 @@ pub fn from_c_vec<T: Clone>(ptr: *mut T, len: i32) -> Vec<T> {
 /// # Returns
 ///
 /// The resulting `Vec` on success, or an empty `Vec` if the `ptr` is null.
-pub fn from_c_vec_owned<T: Clone>(ptr: *mut T, len: i32) -> Vec<T> {
+pub fn from_c_vec_owned<T>(ptr: *mut T, len: i32) -> Vec<T> {
     trace!("Converting C ptr: {:?}, len: {} into a owned Vec", ptr, len);
     if !ptr.is_null() {
         if len > 0 {

@@ -6,7 +6,7 @@ use popcorn_fx_core::{from_c_vec, into_c_owned};
 use popcorn_fx_core::core::subtitles::model::SubtitleInfo;
 use popcorn_fx_core::core::subtitles::SubtitleCallback;
 
-use crate::ffi::{SubtitleEventC, SubtitleInfoC, SubtitleInfoSet};
+use crate::ffi::{SubtitleC, SubtitleEventC, SubtitleInfoC, SubtitleInfoSet};
 use crate::PopcornFX;
 
 /// The C callback for the subtitle events.
@@ -177,6 +177,19 @@ pub extern "C" fn dispose_subtitle_info(info: Box<SubtitleInfoC>) {
     drop(info);
 }
 
+/// Frees the memory allocated for the `SubtitleC` structure.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it's assumed that the `SubtitleC` structure was allocated using `Box`,
+/// and dropping a `Box` pointing to valid memory is safe. However, if the `SubtitleC` was allocated in a different way
+/// or if the memory was already deallocated, calling this function could lead to undefined behavior.
+#[no_mangle]
+pub extern "C" fn dispose_subtitle(subtitle: Box<SubtitleC>) {
+    trace!("Disposing subtitle C {:?}", subtitle);
+    drop(subtitle)
+}
+
 #[cfg(test)]
 mod test {
     use std::path::PathBuf;
@@ -185,7 +198,9 @@ mod test {
     use tempfile::tempdir;
 
     use popcorn_fx_core::{from_c_owned, from_c_vec};
+    use popcorn_fx_core::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
+    use popcorn_fx_core::core::subtitles::model::Subtitle;
     use popcorn_fx_core::core::subtitles::SubtitleFile;
     use popcorn_fx_core::testing::{copy_test_file, init_logger};
 
@@ -306,5 +321,32 @@ mod test {
         let info = from_c_owned(subtitle_none());
 
         dispose_subtitle_info(Box::new(info));
+    }
+
+    #[test]
+    fn test_dispose_subtitle() {
+        let subtitle = Subtitle::new(
+            vec![SubtitleCue::new(
+                "012".to_string(),
+                10000,
+                20000,
+                vec![SubtitleLine::new(
+                    vec![StyledText::new(
+                        "Lorem ipsum dolor".to_string(),
+                        true,
+                        false,
+                        false,
+                    )]
+                )],
+            )],
+            Some(SubtitleInfo::builder()
+                .imdb_id("tt00001")
+                .language(SubtitleLanguage::English)
+                .build()),
+            "lorem.srt".to_string(),
+        );
+        let subtitle_c = SubtitleC::from(subtitle);
+
+        dispose_subtitle(Box::new(subtitle_c))
     }
 }

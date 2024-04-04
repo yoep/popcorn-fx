@@ -6,6 +6,7 @@ members = [
     "popcorn-fx-bootstrap",
     "popcorn-fx-common",
     "popcorn-fx-core",
+    "popcorn-fx-dlna",
     "popcorn-fx-opensubtitles",
     "popcorn-fx-platform",
     "popcorn-fx-torrent",

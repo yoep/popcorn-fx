@@ -1,0 +1,33 @@
+[package]
+name = "popcorn-fx-dlna"
+version = "0.8.1"
+edition = "2021"
+rust-version = "1.62"
+publish = false
+license-file = "../LICENSE"
+
+[lib]
+crate-type = ["rlib"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+popcorn-fx-core = { path = "../popcorn-fx-core" }
+
+async-trait.workspace = true
+derive_more.workspace = true
+futures.workspace = true
+itertools.workspace = true
+log.workspace = true
+rupnp = "2.0.0"
+ssdp-client = "2.0.0"
+thiserror.workspace = true
+tokio = { workspace = true }
+tokio-util = { workspace = true }
+warp.workspace = true
+
+[dev-dependencies]
+popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }
+
+tempfile.workspace = true
+httpmock.workspace = true

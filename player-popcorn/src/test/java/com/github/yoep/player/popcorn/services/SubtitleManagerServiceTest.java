@@ -110,7 +110,7 @@ class SubtitleManagerServiceTest {
 
     @Test
     void testUpdateSubtitle_whenSubtitleIsGivenAndNotCustom_shouldDownloadAndActivateTheSubtitle() {
-        var subtitleInfo = mock(SubtitleInfo.class);
+        var subtitleInfo = mock(SubtitleInfo.ByReference.class);
         var subtitle = mock(Subtitle.class);
         when(subtitleInfo.getLanguage()).thenReturn(SubtitleLanguage.DUTCH);
         when(subtitleService.preferredSubtitle()).thenReturn(Optional.of(subtitleInfo));
@@ -124,7 +124,7 @@ class SubtitleManagerServiceTest {
     @Test
     void testUpdateSubtitle_whenSubtitleDownloadFails_shouldPublishErrorNotification() {
         var expectedErrorText = "my error text";
-        var subtitleInfo = mock(SubtitleInfo.class);
+        var subtitleInfo = mock(SubtitleInfo.ByReference.class);
         when(subtitleService.preferredSubtitle()).thenReturn(Optional.of(subtitleInfo));
         when(subtitleService.downloadAndParse(eq(subtitleInfo), isA(SubtitleMatcher.ByValue.class)))
                 .thenReturn(CompletableFuture.failedFuture(new RuntimeException("my subtitle exception")));
@@ -137,7 +137,7 @@ class SubtitleManagerServiceTest {
 
     @Test
     void testUpdateSubtitle_whenSubtitleIsDownloadedAndVideoPlayerSupportNativeSubtitle_shouldUpdateSubtitleWithinVideoPlayer() {
-        var subtitleInfo = mock(SubtitleInfo.class);
+        var subtitleInfo = mock(SubtitleInfo.ByReference.class);
         var subtitle = mock(Subtitle.class);
         var videoPlayer = mock(VideoPlayback.class);
         var subtitleFile = new File(".");
@@ -208,7 +208,7 @@ class SubtitleManagerServiceTest {
 
     @Test
     void testVideoPlayerProperty_shouldUpdateSubtitle() throws ExecutionException, InterruptedException, TimeoutException {
-        var subtitleInfo = mock(SubtitleInfo.class);
+        var subtitleInfo = mock(SubtitleInfo.ByReference.class);
         var subtitle = mock(Subtitle.class);
         var videoPlayback = mock(VideoPlayback.class);
         var subtitleFuture = new CompletableFuture<Subtitle>();

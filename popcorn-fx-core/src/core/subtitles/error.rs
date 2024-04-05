@@ -6,32 +6,38 @@ use crate::core::subtitles::model::SubtitleType;
 /// The specialized subtitle result.
 pub type Result<T> = std::result::Result<T, SubtitleError>;
 
-/// The subtitle specific errors.
+/// Represents errors specific to subtitles.
 #[derive(PartialEq, Debug, Clone, Error)]
 pub enum SubtitleError {
-    #[error("Failed to create valid url, {0}")]
+    /// Failed to create a valid URL.
+    #[error("Failed to create valid URL: {0}")]
     InvalidUrl(String),
-    #[error("Failed to retrieve available subtitles, {0}")]
+    /// Failed to retrieve available subtitles.
+    #[error("Failed to retrieve available subtitles: {0}")]
     SearchFailed(String),
-    /// Indicates that an error occurred while downloading the subtitle file.
-    /// It contains the the `file_id` and `error_message`.
-    #[error("Failed to download subtitle {0}, {1}")]
+    /// Failed to download the subtitle file.
+    #[error("Failed to download subtitle {0}: {1}")]
     DownloadFailed(String, String),
-    /// Indicates that an IO error occurred while handling the subtitle.
-    /// It contains the `filepath` and `error_message`.
-    #[error("Failed to write subtitle file to {0}, {1}")]
+    /// IO error occurred while handling the subtitle.
+    #[error("Failed to write subtitle file to {0}: {1}")]
     IO(String, String),
-    #[error("Failed to parse file {0}, {1}")]
+    /// Failed to parse the subtitle file.
+    #[error("Failed to parse file {0}: {1}")]
     ParseFileError(String, String),
-    #[error("Failed to parse url, {0}")]
+    /// Failed to parse the subtitle URL.
+    #[error("Failed to parse URL: {0}")]
     ParseUrlError(String),
-    #[error("Subtitle conversion to {0} failed, {1}")]
+    /// Subtitle conversion failed.
+    #[error("Subtitle conversion to {0} failed: {1}")]
     ConversionFailed(SubtitleType, String),
+    /// Subtitle type is not supported.
     #[error("Subtitle type {0} is not supported")]
     TypeNotSupported(SubtitleType),
+    /// No available subtitle files found.
     #[error("No available subtitle files found")]
     NoFilesFound,
-    #[error("File {0} is invalid, {1}")]
+    /// Invalid subtitle file.
+    #[error("File {0} is invalid: {1}")]
     InvalidFile(String, String),
 }
 

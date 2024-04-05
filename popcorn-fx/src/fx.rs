@@ -267,15 +267,6 @@ impl PopcornFX {
         // disable the screensaver
         platform.disable_screensaver();
 
-        // start discovery services
-        Self::initialize_discovery_services(
-            &runtime,
-            &subtitle_manager,
-            &subtitle_provider,
-            &player_manager,
-            &dlna_server,
-        );
-
         Self {
             auto_resume_service,
             cache_manager,
@@ -436,6 +427,25 @@ impl PopcornFX {
         &self.opts
     }
 
+    /// Start the discovery of external players such as VLC and DLNA servers.
+    /// This will start new threads in the background for handling the discovery processes.
+    pub fn start_discovery_external_players(&self) {
+        let subtitle_manager = self.subtitle_manager.clone();
+        let subtitle_provider = self.subtitle_provider.clone();
+        let player_manager = self.player_manager.clone();
+        let dlna_server = self.dlna_server.clone();
+        
+        self.runtime.spawn(async move {
+            let vlc_discovery = VlcDiscovery::new(subtitle_manager, subtitle_provider.clone(), player_manager.clone());
+            vlc_discovery.start().await;
+        });
+        self.runtime.spawn(async move {
+            if let Err(e) = dlna_server.start_discovery() {
+                error!("Failed to start DLNA discovery, {}", e);
+            }
+        });
+    }
+
     fn initialize_logger(args: &PopcornFxArgs) {
         INIT.call_once(|| {
             let config: Config;
@@ -537,24 +547,6 @@ impl PopcornFX {
             .with_details_provider(show_provider)
             .with_enhancer(thumb_enhancer)
             .build()
-    }
-
-    fn initialize_discovery_services(runtime: &Arc<Runtime>,
-                                     subtitle_manager: &Arc<Box<dyn SubtitleManager>>,
-                                     subtitle_provider: &Arc<Box<dyn SubtitleProvider>>,
-                                     player_manager: &Arc<Box<dyn PlayerManager>>,
-                                     dlna_server: &Arc<DlnaServer>) {
-        let subtitle_manager = subtitle_manager.clone();
-        let subtitle_provider = subtitle_provider.clone();
-        let player_manager = player_manager.clone();
-        runtime.spawn(async move {
-            let vlc_discovery = VlcDiscovery::new(subtitle_manager.clone(), subtitle_provider.clone(), player_manager.clone());
-            vlc_discovery.start().await;
-        });
-
-        if let Err(e) = dlna_server.start_discovery() {
-            error!("Failed to start DLNA discovery, {}", e);
-        }
     }
 }
 

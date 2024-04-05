@@ -13,6 +13,7 @@ use popcorn_fx_core::core::media::*;
 use popcorn_fx_core::core::media::favorites::FavoriteCallback;
 use popcorn_fx_core::core::media::watched::WatchedCallback;
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
+use popcorn_fx_core::core::subtitles::matcher::SubtitleMatcher;
 use popcorn_fx_core::core::subtitles::model::{Subtitle, SubtitleInfo, SubtitleType};
 
 #[cfg(feature = "ffi")]
@@ -170,7 +171,7 @@ pub extern "C" fn reset_subtitle(popcorn_fx: &mut PopcornFX) {
 pub extern "C" fn download(popcorn_fx: &mut PopcornFX, subtitle: &SubtitleInfoC, matcher: SubtitleMatcherC) -> *mut c_char {
     trace!("Starting subtitle download from C for info: {:?}, matcher: {:?}", subtitle, matcher);
     let subtitle_info = SubtitleInfo::from(subtitle);
-    let matcher = matcher.to_matcher();
+    let matcher = SubtitleMatcher::from(matcher);
 
     match popcorn_fx.runtime().block_on(popcorn_fx.subtitle_provider().download(&subtitle_info, &matcher)) {
         Ok(e) => {
@@ -191,7 +192,7 @@ pub extern "C" fn download(popcorn_fx: &mut PopcornFX, subtitle: &SubtitleInfoC,
 pub extern "C" fn download_and_parse_subtitle(popcorn_fx: &mut PopcornFX, subtitle: &SubtitleInfoC, matcher: SubtitleMatcherC) -> *mut SubtitleC {
     trace!("Downloading and parsing subtitle from C for info: {:?}, matcher: {:?}", subtitle, matcher);
     let subtitle_info = SubtitleInfo::from(subtitle);
-    let matcher = matcher.to_matcher();
+    let matcher = SubtitleMatcher::from(matcher);
 
     match popcorn_fx.runtime().block_on(popcorn_fx.subtitle_provider().download_and_parse(&subtitle_info, &matcher)) {
         Ok(e) => {
@@ -330,26 +331,6 @@ pub extern "C" fn register_favorites_event_callback<'a>(popcorn_fx: &mut Popcorn
     });
 
     popcorn_fx.favorite_service().register(wrapper)
-}
-
-/// Serve the given subtitle as [SubtitleType] format.
-///
-/// It returns the url which hosts the [Subtitle].
-#[no_mangle]
-pub extern "C" fn serve_subtitle(popcorn_fx: &mut PopcornFX, subtitle: SubtitleC, output_type: usize) -> *mut c_char {
-    let subtitle = Subtitle::from(subtitle);
-    let subtitle_type = SubtitleType::from_ordinal(output_type);
-
-    match popcorn_fx.subtitle_server().serve(subtitle, subtitle_type) {
-        Ok(e) => {
-            info!("Serving subtitle at {}", &e);
-            into_c_string(e)
-        }
-        Err(e) => {
-            error!("Failed to serve subtitle, {}", e);
-            ptr::null_mut()
-        }
-    }
 }
 
 /// Verify if the given media item is watched by the user.

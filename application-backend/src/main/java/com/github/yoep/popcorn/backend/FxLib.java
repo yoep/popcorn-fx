@@ -74,9 +74,9 @@ public interface FxLib extends Library {
 
     SubtitleInfoSet.ByReference default_subtitle_options(PopcornFx instance);
 
-    SubtitleInfo subtitle_none();
+    SubtitleInfo.ByReference subtitle_none();
 
-    SubtitleInfo subtitle_custom();
+    SubtitleInfo.ByReference subtitle_custom();
 
     SubtitleInfoSet.ByReference movie_subtitles(PopcornFx instance, MovieDetails movie);
 
@@ -86,7 +86,7 @@ public interface FxLib extends Library {
 
     SubtitleInfo.ByReference select_or_default_subtitle(PopcornFx instance, SubtitleInfoSet.ByReference subtitleSet);
 
-    SubtitleInfo retrieve_preferred_subtitle(PopcornFx instance);
+    SubtitleInfo.ByReference retrieve_preferred_subtitle(PopcornFx instance);
 
     SubtitleLanguage retrieve_preferred_subtitle_language(PopcornFx instance);
 
@@ -130,7 +130,7 @@ public interface FxLib extends Library {
 
     void register_favorites_event_callback(PopcornFx instance, FavoriteEventCallback callback);
 
-    String serve_subtitle(PopcornFx instance, Subtitle subtitle, int type);
+    String serve_subtitle(PopcornFx instance, SubtitleInfo.ByReference subtitleInfo, SubtitleMatcher.ByValue matcher, int type);
 
     byte is_media_watched(PopcornFx instance, MediaItem media);
 
@@ -291,6 +291,8 @@ public interface FxLib extends Library {
     void tracking_authorize(PopcornFx instance);
     
     void tracking_disconnect(PopcornFx instance);
+    
+    void discover_external_players(PopcornFx instance);
 
     void log(String target, String message, LogLevel level);
 

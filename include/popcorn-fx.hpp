@@ -182,6 +182,14 @@ enum class SubtitleLanguage : int32_t {
   Vietnamese = 35,
 };
 
+/// The type of a subtitle, indicating its format.
+enum class SubtitleType : int32_t {
+  /// SubRip subtitle format.
+  Srt = 0,
+  /// WebVTT subtitle format.
+  Vtt = 1,
+};
+
 /// The state of a [Torrent] which is represented as a [i32].
 /// This state is abi compatible to be used over [std::ffi].
 enum class TorrentState : int32_t {
@@ -1515,6 +1523,9 @@ SubtitleInfoSet *default_subtitle_options(PopcornFX *popcorn_fx);
 /// This will make the [is_subtitle_disabled] return `true`.
 void disable_subtitle(PopcornFX *popcorn_fx);
 
+/// Starts the discovery process for external players such as VLC and DLNA servers.
+void discover_external_players(PopcornFX *popcorn_fx);
+
 /// Frees the memory allocated for the given C-compatible byte array.
 ///
 /// This function should be called from C code in order to free memory that has been allocated by Rust.
@@ -2413,10 +2424,7 @@ StringArray *retrieve_watched_shows(PopcornFX *popcorn_fx);
 /// A pointer to the selected default subtitle in C-compatible form.
 SubtitleInfoC *select_or_default_subtitle(PopcornFX *popcorn_fx, SubtitleInfoSet *set);
 
-/// Serve the given subtitle as [SubtitleType] format.
-///
-/// It returns the url which hosts the [Subtitle].
-char *serve_subtitle(PopcornFX *popcorn_fx, SubtitleC subtitle, size_t output_type);
+char *serve_subtitle(PopcornFX *popcorn_fx, const SubtitleInfoC *subtitle_info, SubtitleMatcherC matcher, SubtitleType subtitle_type);
 
 /// Set the active player in the PopcornFX player manager.
 ///

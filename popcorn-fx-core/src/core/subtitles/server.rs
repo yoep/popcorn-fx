@@ -12,7 +12,7 @@ use warp::{Filter, Rejection};
 use warp::http::{HeaderValue, Response};
 use warp::http::header::{ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_METHODS, ACCESS_CONTROL_ALLOW_ORIGIN, CONTENT_DISPOSITION, CONTENT_TYPE};
 
-use crate::core::subtitles;
+use crate::core::{block_in_place, subtitles};
 use crate::core::subtitles::{SubtitleError, SubtitleProvider};
 use crate::core::subtitles::model::{Subtitle, SubtitleType};
 
@@ -152,7 +152,7 @@ impl SubtitleServer {
                             debug!("Registered new subtitle entry {}", filename_full);
                         };
 
-                        self.runtime.block_on(execute);
+                        block_in_place(execute);
 
                         info!("Serving new subtitle url {}", &result);
                         Ok(result.to_string())

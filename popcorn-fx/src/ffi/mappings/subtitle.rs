@@ -243,22 +243,6 @@ impl SubtitleMatcherC {
             },
         }
     }
-
-    pub fn to_matcher(&self) -> SubtitleMatcher {
-        trace!("Converting matcher from C for {:?}", self);
-        let name = if self.name.is_null() {
-            None
-        } else {
-            Some(from_c_string(self.name))
-        };
-        let quality = if self.quality.is_null() {
-            None
-        } else {
-            Some(from_c_string(self.quality))
-        };
-
-        SubtitleMatcher::from_string(name, quality)
-    }
 }
 
 impl Drop for SubtitleMatcherC {
@@ -266,6 +250,24 @@ impl Drop for SubtitleMatcherC {
         trace!("Dropping {:?}", self);
         // let _ = from_c_string_owned(self.name);
         // let _ = from_c_string_owned(self.quality);
+    }
+}
+
+impl From<SubtitleMatcherC> for SubtitleMatcher {
+    fn from(value: SubtitleMatcherC) -> Self {
+        trace!("Converting matcher from C for {:?}", value);
+        let name = if value.name.is_null() {
+            None
+        } else {
+            Some(from_c_string(value.name))
+        };
+        let quality = if value.quality.is_null() {
+            None
+        } else {
+            Some(from_c_string(value.quality))
+        };
+
+        SubtitleMatcher::from_string(name, quality)
     }
 }
 
@@ -330,7 +332,7 @@ impl Drop for SubtitleC {
             let info = from_c_owned(self.info);
             drop(info);
         }
-        
+
         drop(from_c_vec_owned(self.cues, self.len));
     }
 }
@@ -581,6 +583,21 @@ mod test {
             }
             _ => assert!(false, "expected SubtitleEventC::SubtitleInfoChanged"),
         }
+    }
+
+    #[test]
+    fn test_subtitle_matcher_from() {
+        let name = "FooBar";
+        let quality = "720p";
+        let matcher = SubtitleMatcherC {
+            name: into_c_string(name.to_string()),
+            quality: into_c_string(quality.to_string()),
+        };
+        let expected_result = SubtitleMatcher::from_string(Some(name.to_string()), Some(quality.to_string()));
+
+        let result = SubtitleMatcher::from(matcher);
+        
+        assert_eq!(expected_result, result);
     }
 
     fn create_simple_subtitle() -> Subtitle {

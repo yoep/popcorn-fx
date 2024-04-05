@@ -61,9 +61,6 @@ public interface SubtitleService {
     @Async
     CompletableFuture<List<SubtitleInfo>> retrieveSubtitles(String filename);
 
-    @Async
-    CompletableFuture<String> download(SubtitleInfo subtitleInfo, SubtitleMatcher.ByValue matcher);
-
     /**
      * Download and parse the SRT file for the given {@link SubtitleInfo}.
      *
@@ -84,21 +81,15 @@ public interface SubtitleService {
      */
     SubtitleInfo getDefaultOrInterfaceLanguage(List<SubtitleInfo> subtitles);
 
-    /**
-     * Serve the given subtitle over HTTP as the given output type.
-     *
-     * @param subtitle The subtitle to serve.
-     * @param type     The subtitle type.
-     * @return Returns the http url on which the subtitle is served.
-     */
-    String serve(Subtitle subtitle, SubtitleType type);
+
+    String serve(SubtitleInfo.ByReference subtitle, SubtitleMatcher.ByValue matcher, SubtitleType type);
 
     /**
      * Get the preferred subtitle for the next media item playback.
      *
      * @return Returns the preferred subtitle.
      */
-    Optional<SubtitleInfo> preferredSubtitle();
+    Optional<SubtitleInfo.ByReference> preferredSubtitle();
 
     /**
      * Get the preferred subtitle language for the next media item playback.

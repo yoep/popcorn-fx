@@ -30,6 +30,13 @@ pub extern "C" fn new_popcorn_fx(args: *mut *mut c_char, len: i32) -> *mut Popco
     into_c_owned(instance)
 }
 
+/// Starts the discovery process for external players such as VLC and DLNA servers.
+#[no_mangle]
+pub extern "C" fn discover_external_players(popcorn_fx: &mut PopcornFX){
+    trace!("Starting external player discovery from C");
+    popcorn_fx.start_discovery_external_players();
+}
+
 /// Delete the PopcornFX instance, given as a [ptr], in a safe way.
 /// All data within the instance will be deleted from memory making the instance unusable.
 /// This means that the original pointer will become invalid.
@@ -74,6 +81,16 @@ mod test {
         let result = new_popcorn_fx(args, len);
 
         assert!(!result.is_null(), "expected a valid instance pointer")
+    }
+    
+    #[test]
+    fn test_discover_external_players() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut instance = PopcornFX::new(default_args(temp_path));
+        
+        discover_external_players(&mut instance);
     }
 
     #[test]

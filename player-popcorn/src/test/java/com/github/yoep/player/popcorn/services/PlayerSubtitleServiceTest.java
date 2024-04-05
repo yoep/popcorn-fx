@@ -35,7 +35,7 @@ class PlayerSubtitleServiceTest {
     @Mock
     private FxLib fxLib;
     @Mock
-    private SubtitleInfo subtitleNone;
+    private SubtitleInfo.ByReference subtitleNone;
     @InjectMocks
     private PlayerSubtitleService service;
 
@@ -87,7 +87,7 @@ class PlayerSubtitleServiceTest {
 
     @Test
     void testPlaybackListener_whenRequestIsShowPlayRequest_shouldInvokeListenersWithAvailableEpisodeSubtitles() {
-        var activeSubtitle = mock(SubtitleInfo.class);
+        var activeSubtitle = mock(SubtitleInfo.ByReference.class);
         var request = mock(PlayRequest.class);
         var availableSubtitles = asList(mock(SubtitleInfo.class), mock(SubtitleInfo.class));
         when(request.getUrl()).thenReturn("http://localhost:8080/MyFilename.mp4");

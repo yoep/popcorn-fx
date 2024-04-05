@@ -3,6 +3,8 @@ package com.github.yoep.popcorn.ui;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.spring.boot.javafx.view.ViewManager;
 import com.github.spring.boot.javafx.view.ViewProperties;
+import com.github.yoep.popcorn.backend.FxLib;
+import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
@@ -39,6 +41,10 @@ class PopcornTimeApplicationTest {
     private ViewLoader viewLoader;
     @Mock
     private ViewManager viewManager;
+    @Mock
+    private FxLib fxLib;
+    @Mock
+    private PopcornFx popcornFx;
 
     private PopcornTimeApplication application;
 
@@ -51,6 +57,8 @@ class PopcornTimeApplicationTest {
         lenient().when(applicationContext.getBean(PlatformProvider.class)).thenReturn(platformProvider);
         lenient().when(applicationContext.getBean(MaximizeService.class)).thenReturn(maximizeService);
         lenient().when(applicationContext.getBean(ViewLoader.class)).thenReturn(viewLoader);
+        lenient().when(applicationContext.getBean(FxLib.class)).thenReturn(fxLib);
+        lenient().when(applicationContext.getBean(PopcornFx.class)).thenReturn(popcornFx);
         lenient().when(stage.sceneProperty()).thenReturn(sceneProperty);
 
         application = new PopcornTimeApplication(applicationContext);
@@ -124,5 +132,19 @@ class PopcornTimeApplicationTest {
         application.start(stage);
 
         verify(viewLoader).show(stage, PopcornTimeApplication.STAGE_VIEW, expectedProperties);
+    }
+
+    @Test
+    void testStart_shouldStartExternalPlayerDiscovery() throws Exception {
+        var settings = ApplicationSettings.builder()
+                .uiSettings(UISettings.builder()
+                        .nativeWindowEnabled((byte) 1)
+                        .build())
+                .build();
+        when(applicationConfig.getSettings()).thenReturn(settings);
+
+        application.start(stage);
+
+        verify(fxLib).discover_external_players(popcornFx);
     }
 }

@@ -11,7 +11,6 @@ import com.github.yoep.player.chromecast.api.v2.TextTrackType;
 import com.github.yoep.player.chromecast.api.v2.Track;
 import com.github.yoep.player.chromecast.model.VideoMetadata;
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
-import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
@@ -26,7 +25,6 @@ import su.litvak.chromecast.api.v2.Media;
 
 import java.net.URI;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
@@ -71,15 +69,15 @@ class ChromecastServiceTest {
 
     @Test
     void testToLoadRequest_whenFormatIsSupported_shouldUseOriginalUrl() {
+        var name = "my-video-url.mp4";
         var url = "http://localhost:9976/my-video-url.mp4";
         var subtitleUri = "http://localhost:8754/lorem.vtt";
         var sessionId = "mySessionId";
         var contentType = "video/mp4";
+        var quality = "720p";
         var duration = 20000L;
-        var subtitleInfo = mock(SubtitleInfo.class);
-        var subtitle = mock(Subtitle.class);
+        var subtitleInfo = mock(SubtitleInfo.ByReference.class);
         var request = mock(PlayRequest.class);
-        var metadata = createMetadata(request);
         var tracks = Collections.singletonList(Track.builder()
                 .trackId(0)
                 .type(su.litvak.chromecast.api.v2.Track.TrackType.TEXT)
@@ -89,6 +87,12 @@ class ChromecastServiceTest {
                 .trackContentType("text/vtt")
                 .trackContentId(subtitleUri)
                 .build());
+        var matcher = SubtitleMatcher.from(name, quality);
+        when(request.getUrl()).thenReturn(url);
+        when(request.getQuality()).thenReturn(Optional.of(quality));
+        when(request.getAutoResumeTimestamp()).thenReturn(Optional.of(20000L));
+        when(subtitleService.preferredSubtitle()).thenReturn(Optional.of(subtitleInfo));
+        var metadata = createMetadata(request);
         var expectedResult = Load.builder()
                 .sessionId(sessionId)
                 .autoplay(true)
@@ -104,11 +108,7 @@ class ChromecastServiceTest {
                         .build())
                 .activeTrackIds(Collections.singletonList(0))
                 .build();
-        when(request.getUrl()).thenReturn(url);
-        when(request.getAutoResumeTimestamp()).thenReturn(Optional.of(20000L));
-        when(subtitleService.preferredSubtitle()).thenReturn(Optional.of(subtitleInfo));
-        when(subtitleService.downloadAndParse(eq(subtitleInfo), isA(SubtitleMatcher.ByValue.class))).thenReturn(CompletableFuture.completedFuture(subtitle));
-        when(subtitleService.serve(subtitle, SubtitleType.VTT)).thenReturn(subtitleUri);
+        when(subtitleService.serve(subtitleInfo, matcher, SubtitleType.VTT)).thenReturn(subtitleUri);
         when(contentTypeService.resolveMetadata(URI.create(url))).thenReturn(VideoMetadata.builder()
                 .contentType(contentType)
                 .duration(duration)
@@ -128,7 +128,7 @@ class ChromecastServiceTest {
         var sessionId = "mySessionId";
         var contentType = "video/mp4";
         var duration = 20000L;
-        var subtitleInfo = mock(SubtitleInfo.class);
+        var subtitleInfo = mock(SubtitleInfo.ByReference.class);
         var request = mock(PlayRequest.class);
         when(request.getUrl()).thenReturn(url);
         when(subtitleInfo.isNone()).thenReturn(true);

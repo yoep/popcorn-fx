@@ -608,13 +608,14 @@
 /* region Playing Next */
 
 .root .player .playing-next {
-    -fx-min-width: 840px;
-    -fx-max-width: 840px;
+    -fx-min-width: 900px;
+    -fx-max-width: 950px;
     -fx-min-height: 280px;
     -fx-max-height: 280px;
 }
 
 .root .player .playing-next .poster {
+    -fx-min-width: 200px;
     -fx-pref-width: 200px;
     -fx-pref-height: 280px;
 }

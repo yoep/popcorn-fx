@@ -42,7 +42,7 @@ use popcorn_fx_core::core::torrents::{TorrentManager, TorrentStreamServer};
 use popcorn_fx_core::core::torrents::collection::TorrentCollection;
 use popcorn_fx_core::core::torrents::stream::DefaultTorrentStreamServer;
 use popcorn_fx_core::core::updater::Updater;
-use popcorn_fx_dlna::dlna::DlnaServer;
+use popcorn_fx_dlna::dlna::DlnaDiscovery;
 use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
 use popcorn_fx_platform::platform::DefaultPlatform;
 use popcorn_fx_torrent::torrent::DefaultTorrentManager;
@@ -150,7 +150,7 @@ impl Default for PopcornFxArgs {
 pub struct PopcornFX {
     auto_resume_service: Arc<Box<dyn AutoResumeService>>,
     cache_manager: Arc<CacheManager>,
-    dlna_server: Arc<DlnaServer>,
+    dlna_discovery: Arc<DlnaDiscovery>,
     event_publisher: Arc<EventPublisher>,
     favorite_cache_updater: Arc<FavoriteCacheUpdater>,
     favorites_service: Arc<Box<dyn FavoriteService>>,
@@ -209,7 +209,7 @@ impl PopcornFX {
             .insecure(args.insecure)
             .build()));
         let subtitle_server = Arc::new(SubtitleServer::new(&subtitle_provider));
-        let subtitle_manager = Arc::new(Box::new(DefaultSubtitleManager::new(settings.clone())) as Box<dyn SubtitleManager>);
+        let subtitle_manager = Arc::new(Box::new(DefaultSubtitleManager::new(settings.clone(), event_publisher.clone())) as Box<dyn SubtitleManager>);
         let platform = Arc::new(Box::new(DefaultPlatform::default()) as Box<dyn PlatformData>);
         let favorites_service = Arc::new(Box::new(DefaultFavoriteService::new(app_directory_path)) as Box<dyn FavoriteService>);
         let watched_service = Arc::new(Box::new(DefaultWatchedService::new(app_directory_path, event_publisher.clone())) as Box<dyn WatchedService>);
@@ -259,7 +259,7 @@ impl PopcornFX {
             .watched_service(watched_service.clone())
             .runtime(runtime.clone())
             .build());
-        let dlna_server = Arc::new(DlnaServer::builder()
+        let dlna_discovery = Arc::new(DlnaDiscovery::builder()
             .runtime(runtime.clone())
             .player_manager(player_manager.clone())
             .build());
@@ -270,7 +270,7 @@ impl PopcornFX {
         Self {
             auto_resume_service,
             cache_manager,
-            dlna_server,
+            dlna_discovery,
             event_publisher,
             favorite_cache_updater,
             favorites_service,
@@ -433,14 +433,14 @@ impl PopcornFX {
         let subtitle_manager = self.subtitle_manager.clone();
         let subtitle_provider = self.subtitle_provider.clone();
         let player_manager = self.player_manager.clone();
-        let dlna_server = self.dlna_server.clone();
+        let dlna_discovery = self.dlna_discovery.clone();
         
         self.runtime.spawn(async move {
             let vlc_discovery = VlcDiscovery::new(subtitle_manager, subtitle_provider.clone(), player_manager.clone());
             vlc_discovery.start().await;
         });
         self.runtime.spawn(async move {
-            if let Err(e) = dlna_server.start_discovery() {
+            if let Err(e) = dlna_discovery.start_discovery() {
                 error!("Failed to start DLNA discovery, {}", e);
             }
         });

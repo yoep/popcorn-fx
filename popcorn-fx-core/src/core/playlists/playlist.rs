@@ -97,7 +97,7 @@ impl FromIterator<PlaylistItem> for Playlist {
 
 /// Represents an item in a playlist, which can be a media file, a stream URL, or other media content.
 #[derive(Debug, Display)]
-#[display(fmt = "url: {:?}, title: {}, caption: {:?}, thumb: {:?}, media: {:?}, quality: {:?}, subtitles_enabled: {}", url, title, caption, thumb, media, quality, subtitles_enabled)]
+#[display(fmt = "url: {:?}, title: {}, quality: {:?}, subtitles_enabled: {}", url, title, quality, subtitles_enabled)]
 pub struct PlaylistItem {
     /// The URL of the playlist item, if available.
     pub url: Option<String>,

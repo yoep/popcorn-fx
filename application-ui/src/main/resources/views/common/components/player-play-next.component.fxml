@@ -4,49 +4,51 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<HBox xmlns="http://javafx.com/javafx/10.0.2-internal" xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="com.github.yoep.popcorn.ui.view.controllers.common.components.PlayingNextInComponent"
-      fx:id="playNextPane" styleClass="playing-next" focusTraversable="true" onMouseClicked="#onPlayNextClicked" onKeyPressed="#onPlayNextPressed">
+<GridPane xmlns="http://javafx.com/javafx/10.0.2-internal" xmlns:fx="http://javafx.com/fxml/1"
+          fx:controller="com.github.yoep.popcorn.ui.view.controllers.common.components.PlayingNextInComponent"
+          fx:id="playNextPane" styleClass="playing-next" focusTraversable="true" onMouseClicked="#onPlayNextClicked" onKeyPressed="#onPlayNextPressed">
+    <columnConstraints>
+        <ColumnConstraints/>
+        <ColumnConstraints hgrow="ALWAYS"/>
+        <ColumnConstraints minWidth="125" fillWidth="false"/>
+    </columnConstraints>
+    <rowConstraints>
+        <RowConstraints vgrow="SOMETIMES"/>
+        <RowConstraints vgrow="SOMETIMES" valignment="TOP"/>
+        <RowConstraints valignment="TOP"/>
+        <RowConstraints vgrow="ALWAYS"/>
+    </rowConstraints>
+
     <!-- Image poster -->
-    <BorderPane styleClass="poster">
+    <BorderPane styleClass="poster"
+                GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.rowSpan="4">
         <SizedImageView fx:id="playNextPoster" preserveRatio="true"/>
     </BorderPane>
 
-    <GridPane>
-        <columnConstraints>
-            <ColumnConstraints hgrow="ALWAYS"/>
-            <ColumnConstraints fillWidth="false"/>
-        </columnConstraints>
-        <rowConstraints>
-            <RowConstraints/>
-            <RowConstraints/>
-            <RowConstraints vgrow="ALWAYS" valignment="TOP"/>
-            <RowConstraints/>
-        </rowConstraints>
-        <padding>
-            <Insets top="5" right="15" bottom="5" left="5"/>
-        </padding>
+    <!-- Show -->
+    <Label fx:id="showName" styleClass="show-name, info"
+           GridPane.columnIndex="1" GridPane.rowIndex="0"/>
 
-        <!-- Show -->
-        <Label fx:id="showName" styleClass="show-name, info" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+    <!-- Episode -->
+    <Label fx:id="episodeTitle" styleClass="episode-title, info"
+           GridPane.columnIndex="1" GridPane.rowIndex="1"/>
 
-        <!-- Episode -->
-        <Label fx:id="episodeTitle" styleClass="episode-title, info" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+    <!-- Number -->
+    <Label fx:id="episodeNumber" styleClass="episode-number, info"
+           GridPane.columnIndex="1" GridPane.rowIndex="2"/>
 
-        <!-- Number -->
-        <Label fx:id="episodeNumber" styleClass="episode-number, info" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+    <!-- Playing in -->
+    <Label styleClass="playing-in" text="%player_playing_next"
+           GridPane.columnIndex="2" GridPane.rowIndex="0"/>
+    <Label fx:id="playingInCountdown" styleClass="playing-in-countdown"
+           GridPane.columnIndex="2" GridPane.rowIndex="1" GridPane.rowSpan="3"
+           GridPane.halignment="CENTER" GridPane.valignment="CENTER"/>
 
-        <!-- Playing in -->
-        <Label styleClass="playing-in" text="%player_playing_next" GridPane.columnIndex="2" GridPane.rowIndex="0"/>
-        <Label fx:id="playingInCountdown" styleClass="playing-in-countdown" GridPane.columnIndex="2" GridPane.halignment="CENTER" GridPane.rowIndex="1"
-               GridPane.rowSpan="2147483647" GridPane.valignment="CENTER"/>
-
-        <!-- Stop button -->
-        <Button GridPane.columnIndex="1" GridPane.rowIndex="3"
-                text="%player_playing_next_stop" onMouseClicked="#onPlayNextStopClicked" onKeyPressed="#onPlayNextStopPressed">
-            <GridPane.margin>
-                <Insets top="10" left="10"/>
-            </GridPane.margin>
-        </Button>
-    </GridPane>
-</HBox>
+    <!-- Stop button -->
+    <Button text="%player_playing_next_stop" onMouseClicked="#onPlayNextStopClicked" onKeyPressed="#onPlayNextStopPressed"
+            GridPane.columnIndex="1" GridPane.rowIndex="3">
+        <GridPane.margin>
+            <Insets top="8" bottom="10" left="10"/>
+        </GridPane.margin>
+    </Button>
+</GridPane>

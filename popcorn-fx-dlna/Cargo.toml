@@ -2,7 +2,7 @@
 name = "popcorn-fx-dlna"
 version = "0.8.1"
 edition = "2021"
-rust-version = "1.62"
+rust-version = "1.71"
 publish = false
 license-file = "../LICENSE"
 

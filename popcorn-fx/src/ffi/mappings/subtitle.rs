@@ -3,7 +3,7 @@ use std::ptr;
 
 use log::trace;
 
-use popcorn_fx_core::{from_c_owned, from_c_string, from_c_vec, from_c_vec_owned, into_c_owned, into_c_string, into_c_vec};
+use popcorn_fx_core::{from_c_owned, from_c_string, from_c_string_owned, from_c_vec, from_c_vec_owned, into_c_owned, into_c_string, into_c_vec};
 use popcorn_fx_core::core::subtitles::{SubtitleEvent, SubtitleFile};
 use popcorn_fx_core::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
@@ -113,8 +113,13 @@ impl From<SubtitleInfoC> for SubtitleInfo {
 impl Drop for SubtitleInfoC {
     fn drop(&mut self) {
         trace!("Dropping {:?}", self);
-        // let _ = from_c_string_owned(self.imdb_id);
-        // from_c_vec_owned(self.files, self.len);
+        // if !self.imdb_id.is_null() {
+        //     let _ = from_c_string_owned(self.imdb_id);
+        // }
+
+        // if !self.files.is_null() {
+        //     let _ = from_c_vec_owned(self.files, self.len);
+        // }
     }
 }
 
@@ -186,6 +191,18 @@ impl From<&SubtitleFileC> for SubtitleFile {
         }
 
         builder.build()
+    }
+}
+
+impl Drop for SubtitleFileC {
+    fn drop(&mut self) {
+        trace!("Dropping {:?}", self);
+        // if !self.name.is_null() {
+        //     let _ = from_c_string_owned(self.name);
+        // }
+        // if !self.url.is_null() {
+        //     let _ = from_c_string_owned(self.url);
+        // }
     }
 }
 
@@ -328,10 +345,10 @@ impl From<SubtitleC> for Subtitle {
 impl Drop for SubtitleC {
     fn drop(&mut self) {
         trace!("Dropping {:?}", self);
-        if !self.info.is_null() {
-            let info = from_c_owned(self.info);
-            drop(info);
-        }
+        // if !self.info.is_null() {
+        //     let info = from_c_owned(self.info);
+        //     drop(info);
+        // }
 
         drop(from_c_vec_owned(self.cues, self.len));
     }
@@ -598,6 +615,20 @@ mod test {
         let result = SubtitleMatcher::from(matcher);
         
         assert_eq!(expected_result, result);
+    }
+
+    #[test]
+    fn test_drop_subtitle_file_c() {
+        let subtitle = SubtitleFileC {
+            file_id: 0,
+            name: into_c_string("FooBar"),
+            url: into_c_string("LoremIpsum"),
+            score: 0.0,
+            downloads: 0,
+            quality: 720 as *const i32,
+        };
+
+        drop(subtitle);
     }
 
     fn create_simple_subtitle() -> Subtitle {

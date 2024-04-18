@@ -10,7 +10,6 @@ import com.github.yoep.player.chromecast.api.v2.Track;
 import com.github.yoep.player.chromecast.model.VideoMetadata;
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
-import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
@@ -173,28 +172,21 @@ public class ChromecastService {
         log.trace("Loading chromecast tracks for filename: {}, quality: {}", filename, quality);
         return subtitleService.preferredSubtitle()
                 .filter(e -> !e.isNone())
-                .flatMap(e -> {
-                    try {
-                        return Optional.of(subtitleService.downloadAndParse(e, SubtitleMatcher.from(filename, quality)).get());
-                    } catch (Exception ex) {
-                        log.error(ex.getMessage(), ex);
-                        return Optional.empty();
-                    }
-                })
-                .map(this::getMediaTrack)
+                .map(e -> getMediaTrack(e, SubtitleMatcher.from(filename, quality)))
                 .orElse(Collections.emptyList());
     }
 
-    private List<Track> getMediaTrack(Subtitle subtitle) {
-        var languageCode = subtitle.getSubtitleInfo()
+    private List<Track> getMediaTrack(SubtitleInfo.ByReference subtitleInfo, SubtitleMatcher.ByValue matcher) {
+        Objects.requireNonNull(subtitleInfo, "subtitleInfo cannot be null");
+        var languageCode = Optional.of(subtitleInfo)
                 .map(SubtitleInfo::getLanguage)
                 .map(SubtitleLanguage::getCode)
                 .orElse(SubtitleLanguage.ENGLISH.getCode());
-        var languageName = subtitle.getSubtitleInfo()
+        var languageName = Optional.of(subtitleInfo)
                 .map(SubtitleInfo::getLanguage)
                 .map(SubtitleLanguage::getNativeName)
                 .orElse(SubtitleLanguage.ENGLISH.getNativeName());
-        var uri = subtitleService.serve(subtitle, SubtitleType.VTT);
+        var uri = subtitleService.serve(subtitleInfo, matcher, SubtitleType.VTT);
 
         return Collections.singletonList(Track.builder()
                 .trackId(0)
@@ -210,14 +202,26 @@ public class ChromecastService {
     private static Map<String, Object> getMediaMetaData(PlayRequest request) {
         var thumbnailImage = request.getBackground()
                 .orElse(request.getThumbnail().orElse(null));
+
+
         return new HashMap<>() {{
             put(Media.METADATA_TYPE, Media.MetadataType.MOVIE);
             put(Media.METADATA_TITLE, request.getTitle());
-            put(Media.METADATA_SUBTITLE, request.getQuality().orElse(null));
+            put(Media.METADATA_SUBTITLE, getSubtitle(request));
             put(ChromeCastMetadata.METADATA_THUMBNAIL, thumbnailImage);
             put(ChromeCastMetadata.METADATA_THUMBNAIL_URL, thumbnailImage);
             put(ChromeCastMetadata.METADATA_POSTER_URL, thumbnailImage);
         }};
+    }
+
+    private static String getSubtitle(PlayRequest request) {
+        var separator = request.getCaption().isPresent() && request.getQuality().isPresent() ? " - " : "";
+        var subtitle = String.format("%s%s%s",
+                request.getCaption().orElse(""),
+                separator,
+                request.getQuality().orElse(""));
+
+        return subtitle.isEmpty() ? null : subtitle;
     }
 
     private static Map<String, Object> getTrackStyle() {

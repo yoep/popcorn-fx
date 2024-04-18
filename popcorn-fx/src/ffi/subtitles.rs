@@ -1,12 +1,15 @@
+use std::os::raw::c_char;
 use std::ptr;
 
-use log::trace;
+use log::{error, info, trace};
 
-use popcorn_fx_core::{from_c_vec, into_c_owned};
-use popcorn_fx_core::core::subtitles::model::SubtitleInfo;
+use popcorn_fx_core::{from_c_vec, into_c_owned, into_c_string};
+use popcorn_fx_core::core::block_in_place;
+use popcorn_fx_core::core::subtitles::matcher::SubtitleMatcher;
+use popcorn_fx_core::core::subtitles::model::{SubtitleInfo, SubtitleType};
 use popcorn_fx_core::core::subtitles::SubtitleCallback;
 
-use crate::ffi::{SubtitleEventC, SubtitleInfoC, SubtitleInfoSet};
+use crate::ffi::{SubtitleC, SubtitleEventC, SubtitleInfoC, SubtitleInfoSet, SubtitleMatcherC};
 use crate::PopcornFX;
 
 /// The C callback for the subtitle events.
@@ -135,6 +138,37 @@ pub extern "C" fn register_subtitle_callback(popcorn_fx: &mut PopcornFX, callbac
     popcorn_fx.subtitle_manager().add(wrapper);
 }
 
+#[no_mangle]
+pub extern "C" fn serve_subtitle(popcorn_fx: &mut PopcornFX, subtitle_info: &SubtitleInfoC, matcher: SubtitleMatcherC, subtitle_type: SubtitleType) -> *mut c_char {
+    trace!("Serving subtitle from C for {:?} with quality {:?}", subtitle_info, matcher);
+    let subtitle_provider = popcorn_fx.subtitle_provider().clone();
+    let subtitle_server = popcorn_fx.subtitle_server().clone();
+
+    block_in_place(async move {
+        let subtitle_info = SubtitleInfo::from(subtitle_info);
+        let matcher = SubtitleMatcher::from(matcher);
+        
+        match subtitle_provider.download_and_parse(&subtitle_info, &matcher).await {
+            Ok(subtitle) => {
+                match subtitle_server.serve(subtitle, subtitle_type) {
+                    Ok(e) => {
+                        info!("Serving subtitle at {}", &e);
+                        into_c_string(e)
+                    }
+                    Err(e) => {
+                        error!("Failed to serve subtitle, {}", e);
+                        ptr::null_mut()
+                    }
+                }
+            }
+            Err(e) => {
+                error!("Failed to serve subtitle, {}", e);
+                ptr::null_mut()
+            }
+        }
+    })
+}
+
 /// Clean the subtitles directory.
 ///
 /// # Safety
@@ -177,6 +211,19 @@ pub extern "C" fn dispose_subtitle_info(info: Box<SubtitleInfoC>) {
     drop(info);
 }
 
+/// Frees the memory allocated for the `SubtitleC` structure.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it's assumed that the `SubtitleC` structure was allocated using `Box`,
+/// and dropping a `Box` pointing to valid memory is safe. However, if the `SubtitleC` was allocated in a different way
+/// or if the memory was already deallocated, calling this function could lead to undefined behavior.
+#[no_mangle]
+pub extern "C" fn dispose_subtitle(subtitle: Box<SubtitleC>) {
+    trace!("Disposing subtitle C {:?}", subtitle);
+    drop(subtitle)
+}
+
 #[cfg(test)]
 mod test {
     use std::path::PathBuf;
@@ -185,7 +232,9 @@ mod test {
     use tempfile::tempdir;
 
     use popcorn_fx_core::{from_c_owned, from_c_vec};
+    use popcorn_fx_core::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
+    use popcorn_fx_core::core::subtitles::model::Subtitle;
     use popcorn_fx_core::core::subtitles::SubtitleFile;
     use popcorn_fx_core::testing::{copy_test_file, init_logger};
 
@@ -306,5 +355,32 @@ mod test {
         let info = from_c_owned(subtitle_none());
 
         dispose_subtitle_info(Box::new(info));
+    }
+
+    #[test]
+    fn test_dispose_subtitle() {
+        let subtitle = Subtitle::new(
+            vec![SubtitleCue::new(
+                "012".to_string(),
+                10000,
+                20000,
+                vec![SubtitleLine::new(
+                    vec![StyledText::new(
+                        "Lorem ipsum dolor".to_string(),
+                        true,
+                        false,
+                        false,
+                    )]
+                )],
+            )],
+            Some(SubtitleInfo::builder()
+                .imdb_id("tt00001")
+                .language(SubtitleLanguage::English)
+                .build()),
+            "lorem.srt".to_string(),
+        );
+        let subtitle_c = SubtitleC::from(subtitle);
+
+        dispose_subtitle(Box::new(subtitle_c))
     }
 }

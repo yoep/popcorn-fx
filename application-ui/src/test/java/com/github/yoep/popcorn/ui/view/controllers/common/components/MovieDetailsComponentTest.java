@@ -40,7 +40,7 @@ class MovieDetailsComponentTest {
     @Mock
     private FxLib fxLib;
     @Mock
-    private SubtitleInfo subtitleNone;
+    private SubtitleInfo.ByReference subtitleNone;
     @InjectMocks
     private MovieDetailsComponent component;
 

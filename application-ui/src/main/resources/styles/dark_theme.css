@@ -998,6 +998,10 @@
     -fx-background-color: #ccc;
 }
 
+.root .player-external .progress.error .background-track {
+    -fx-background-color: #d53f3f;
+}
+
 .root .player .player-controls .progress .play-progress,
 .root .player-external .progress .play-progress {
     -fx-background-color: #2d72d9;
@@ -1059,16 +1063,20 @@
 }
 
 .root .player .playing-next {
-    -fx-min-width: 400px;
-    -fx-max-width: 450px;
+    -fx-min-width: 450px;
+    -fx-max-width: 500px;
     -fx-min-height: 100px;
     -fx-max-height: 140px;
     -fx-background-color: rgba(0, 0, 0, 0.5);
     -fx-cursor: hand;
+    -fx-hgap: 5;
+    -fx-vgap: 3;
 }
 
 .root .player .playing-next .poster {
+    -fx-min-width: 100px;
     -fx-pref-width: 100px;
+    -fx-max-width: 100px;
     -fx-pref-height: 140px;
 }
 
@@ -1090,8 +1098,11 @@
 }
 
 .root .player .playing-next .info {
-    -fx-text-fill: #fff;
     -fx-padding: 0 10 0 10;
+    -fx-alignment: top-left;
+    -fx-text-alignment: left;
+    -fx-text-fill: #fff;
+    -fx-wrap-text: true;
 }
 
 .root .player .playing-next .show-name {
@@ -1113,6 +1124,7 @@
     -fx-font-family: "Open Sans Bold";
     -fx-font-size: 1.5em;
     -fx-text-fill: #2d72d9;
+    -fx-wrap-text: true;
 }
 
 .root .player .playing-next:hover .playing-in,
@@ -1129,6 +1141,7 @@
 
 .root .player .playing-next .button {
     -fx-padding: 5 15 5 15;
+    -fx-font-size: 1.2em;
 }
 
 .root .loader .status-text,

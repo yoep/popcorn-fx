@@ -3,7 +3,7 @@ use std::ptr;
 
 use log::trace;
 
-use popcorn_fx_core::{from_c_owned, from_c_string, from_c_string_owned, from_c_vec, into_c_owned, into_c_string, into_c_vec};
+use popcorn_fx_core::{from_c_owned, from_c_string, from_c_string_owned, from_c_vec, from_c_vec_owned, into_c_owned, into_c_string, into_c_vec};
 use popcorn_fx_core::core::subtitles::{SubtitleEvent, SubtitleFile};
 use popcorn_fx_core::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
@@ -113,8 +113,13 @@ impl From<SubtitleInfoC> for SubtitleInfo {
 impl Drop for SubtitleInfoC {
     fn drop(&mut self) {
         trace!("Dropping {:?}", self);
-        // let _ = from_c_string_owned(self.imdb_id);
-        // from_c_vec_owned(self.files, self.len);
+        // if !self.imdb_id.is_null() {
+        //     let _ = from_c_string_owned(self.imdb_id);
+        // }
+
+        // if !self.files.is_null() {
+        //     let _ = from_c_vec_owned(self.files, self.len);
+        // }
     }
 }
 
@@ -189,6 +194,18 @@ impl From<&SubtitleFileC> for SubtitleFile {
     }
 }
 
+impl Drop for SubtitleFileC {
+    fn drop(&mut self) {
+        trace!("Dropping {:?}", self);
+        // if !self.name.is_null() {
+        //     let _ = from_c_string_owned(self.name);
+        // }
+        // if !self.url.is_null() {
+        //     let _ = from_c_string_owned(self.url);
+        // }
+    }
+}
+
 /// The C array of available [SubtitleInfo].
 #[repr(C)]
 #[derive(Debug, Clone)]
@@ -243,22 +260,6 @@ impl SubtitleMatcherC {
             },
         }
     }
-
-    pub fn to_matcher(&self) -> SubtitleMatcher {
-        trace!("Converting matcher from C for {:?}", self);
-        let name = if self.name.is_null() {
-            None
-        } else {
-            Some(from_c_string(self.name))
-        };
-        let quality = if self.quality.is_null() {
-            None
-        } else {
-            Some(from_c_string(self.quality))
-        };
-
-        SubtitleMatcher::from_string(name, quality)
-    }
 }
 
 impl Drop for SubtitleMatcherC {
@@ -266,6 +267,24 @@ impl Drop for SubtitleMatcherC {
         trace!("Dropping {:?}", self);
         // let _ = from_c_string_owned(self.name);
         // let _ = from_c_string_owned(self.quality);
+    }
+}
+
+impl From<SubtitleMatcherC> for SubtitleMatcher {
+    fn from(value: SubtitleMatcherC) -> Self {
+        trace!("Converting matcher from C for {:?}", value);
+        let name = if value.name.is_null() {
+            None
+        } else {
+            Some(from_c_string(value.name))
+        };
+        let quality = if value.quality.is_null() {
+            None
+        } else {
+            Some(from_c_string(value.quality))
+        };
+
+        SubtitleMatcher::from_string(name, quality)
     }
 }
 
@@ -323,13 +342,31 @@ impl From<SubtitleC> for Subtitle {
     }
 }
 
+impl Drop for SubtitleC {
+    fn drop(&mut self) {
+        trace!("Dropping {:?}", self);
+        // if !self.info.is_null() {
+        //     let info = from_c_owned(self.info);
+        //     drop(info);
+        // }
+
+        drop(from_c_vec_owned(self.cues, self.len));
+    }
+}
+
+/// Represents a cue in a subtitle track in a C-compatible format.
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct SubtitleCueC {
+    /// A pointer to a null-terminated C string representing the cue identifier.
     pub id: *mut c_char,
+    /// The start time of the cue in milliseconds.
     pub start_time: u64,
+    /// The end time of the cue in milliseconds.
     pub end_time: u64,
+    /// A pointer to an array of subtitle lines.
     pub lines: *mut SubtitleLineC,
+    /// The number of lines in the cue.
     pub number_of_lines: i32,
 }
 
@@ -565,6 +602,35 @@ mod test {
         }
     }
 
+    #[test]
+    fn test_subtitle_matcher_from() {
+        let name = "FooBar";
+        let quality = "720p";
+        let matcher = SubtitleMatcherC {
+            name: into_c_string(name.to_string()),
+            quality: into_c_string(quality.to_string()),
+        };
+        let expected_result = SubtitleMatcher::from_string(Some(name.to_string()), Some(quality.to_string()));
+
+        let result = SubtitleMatcher::from(matcher);
+        
+        assert_eq!(expected_result, result);
+    }
+
+    #[test]
+    fn test_drop_subtitle_file_c() {
+        let subtitle = SubtitleFileC {
+            file_id: 0,
+            name: into_c_string("FooBar"),
+            url: into_c_string("LoremIpsum"),
+            score: 0.0,
+            downloads: 0,
+            quality: 720 as *const i32,
+        };
+
+        drop(subtitle);
+    }
+
     fn create_simple_subtitle() -> Subtitle {
         Subtitle::new(
             vec![SubtitleCue::new(
@@ -581,9 +647,9 @@ mod test {
                 )],
             )],
             Some(SubtitleInfo::builder()
-                     .imdb_id("tt00001")
-                     .language(SubtitleLanguage::English)
-                     .build()),
+                .imdb_id("tt00001")
+                .language(SubtitleLanguage::English)
+                .build()),
             "lorem.srt".to_string(),
         )
     }

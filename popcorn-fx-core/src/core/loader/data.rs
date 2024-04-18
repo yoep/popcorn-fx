@@ -183,4 +183,40 @@ mod tests {
         assert_eq!(Some(thumb.to_string()), result.thumb);
         assert_eq!(Some(quality.to_string()), result.quality);
     }
+    
+    #[test]
+    fn test_from_play_url_request() {
+        let url = "http://localhost:8080/movie.mp4";
+        let title = "FooBar";
+        let thumb = "http://localhost:8080/thumbnail.jpg";
+        let data = LoadingData {
+            url: Some(url.to_string()),
+            title: Some(title.to_string()),
+            caption: None,
+            thumb: Some(thumb.to_string()),
+            parent_media: None,
+            media: None,
+            torrent_info: None,
+            torrent_file_info: None,
+            quality: None,
+            auto_resume_timestamp: None,
+            subtitles_enabled: Some(true),
+            media_torrent_info: None,
+            torrent: None,
+            torrent_stream: None,
+        };
+        let expected = PlayUrlRequest {
+            url: url.to_string(),
+            title: title.to_string(),
+            caption: None,
+            thumb: Some(thumb.to_string()),
+            background: None,
+            auto_resume_timestamp: None,
+            subtitles_enabled: true,
+        };
+
+        let result = PlayUrlRequest::from(data);
+        
+        assert_eq!(expected, result);
+    }
 }

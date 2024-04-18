@@ -9,17 +9,20 @@ import javafx.scene.layout.StackPane;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.Assert;
 
+import java.util.Objects;
+
 @Slf4j
 public class ProgressControl extends StackPane {
     public static final String DURATION_PROPERTY = "duration";
     public static final String TIME_PROPERTY = "time";
     public static final String PROGRESS_PROPERTY = "progress";
 
-    private static final String STYLE_CLASS = "progress";
-    private static final String LOAD_PROGRESS_STYLE_CLASS = "load-progress";
-    private static final String PLAY_PROGRESS_STYLE_CLASS = "play-progress";
-    private static final String BACKGROUND_TRACK_STYLE_CLASS = "background-track";
-    private static final String TRACK_STYLE_CLASS = "track";
+    static final String STYLE_CLASS = "progress";
+    static final String ERROR_STYLE_CLASS = "error";
+    static final String LOAD_PROGRESS_STYLE_CLASS = "load-progress";
+    static final String PLAY_PROGRESS_STYLE_CLASS = "play-progress";
+    static final String BACKGROUND_TRACK_STYLE_CLASS = "background-track";
+    static final String TRACK_STYLE_CLASS = "track";
 
     private final LongProperty duration = new SimpleLongProperty(this, DURATION_PROPERTY, 0);
     private final LongProperty time = new SimpleLongProperty(this, TIME_PROPERTY, 0);
@@ -90,6 +93,19 @@ public class ProgressControl extends StackPane {
         this.loadProgress.set(loadProgress);
     }
 
+    /**
+     * Sets the error state of the element based on the given boolean value.
+     *
+     * @param  isError  true if the element should be in error state, false otherwise
+     */
+    public void setError(boolean isError) {
+        if (isError) {
+            getStyleClass().add(ERROR_STYLE_CLASS);
+        } else {
+            removeErrorState();
+        }
+    }
+
     //endregion
 
     //region Methods
@@ -101,6 +117,7 @@ public class ProgressControl extends StackPane {
         setTime(0);
         setDuration(0);
         setLoadProgress(0);
+        removeErrorState();
     }
 
     //endregion
@@ -143,6 +160,10 @@ public class ProgressControl extends StackPane {
         time.addListener((observable, oldValue, newValue) -> calculatePlayProgress());
         duration.addListener((observable, oldValue, newValue) -> calculatePlayProgress());
         loadProgress.addListener((observable, oldValue, newValue) -> calculateLoadProgress());
+    }
+
+    private void removeErrorState() {
+        getStyleClass().removeIf(e -> Objects.equals(e, ERROR_STYLE_CLASS));
     }
 
     private void calculatePlayProgress() {

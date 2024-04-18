@@ -299,19 +299,31 @@ impl BootstrapperBuilder {
     /// Disables the log4rs logger used by `Bootstrapper`.
     /// This allows you to use your own logger if needed, or modify the default logger settings.
     ///
+    /// # Arguments
+    ///
+    /// * `disable_logger` - A boolean value indicating whether to disable the logger (`true`) or not (`false`).
+    ///
     /// # Examples
     ///
     /// ```
+    /// use my_crate::BootstrapperBuilder;
+    ///
     /// let bootstrapper = BootstrapperBuilder::default()
     ///     .disable_logger(true)
     ///     .build();
     /// ```
+    #[allow(dead_code)]
     pub fn disable_logger(mut self, disable_logger: bool) -> Self {
         self.disable_logger = disable_logger;
         self
     }
 
     /// Sets the static path to the process executable for the `Bootstrapper`.
+    ///
+    /// # Arguments
+    ///
+    /// * `process_path` - A string representing the path to the process executable.
+    #[allow(dead_code)]
     pub fn process_path(mut self, process_path: String) -> Self {
         self.process_path = Some(process_path);
         self

@@ -7,6 +7,8 @@ import com.github.spring.boot.javafx.view.ViewManager;
 import com.github.spring.boot.javafx.view.ViewManagerPolicy;
 import com.github.spring.boot.javafx.view.ViewProperties;
 import com.github.yoep.popcorn.backend.BackendConstants;
+import com.github.yoep.popcorn.backend.FxLib;
+import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.lib.FxLibInstance;
 import com.github.yoep.popcorn.backend.lib.PopcornFxInstance;
@@ -59,11 +61,16 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
 
         var loader = applicationContext.getBean(ViewLoader.class);
         var viewManager = applicationContext.getBean(ViewManager.class);
+        var fxLib = applicationContext.getBean(FxLib.class);
+        var instance = applicationContext.getBean(PopcornFx.class);
 
         log.trace("Loading the main view of the application");
         centerOnActiveScreen(stage);
         loader.show(stage, STAGE_VIEW, getViewProperties());
         viewManager.setPolicy(ViewManagerPolicy.CLOSEABLE);
+
+        log.trace("Starting the discovery of external players");
+        fxLib.discover_external_players(instance);
     }
 
     private void updateStageType(Stage stage) {

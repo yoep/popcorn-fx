@@ -182,6 +182,14 @@ enum class SubtitleLanguage : int32_t {
   Vietnamese = 35,
 };
 
+/// The type of a subtitle, indicating its format.
+enum class SubtitleType : int32_t {
+  /// SubRip subtitle format.
+  Srt = 0,
+  /// WebVTT subtitle format.
+  Vtt = 1,
+};
+
 /// The state of a [Torrent] which is represented as a [i32].
 /// This state is abi compatible to be used over [std::ffi].
 enum class TorrentState : int32_t {
@@ -271,7 +279,9 @@ struct PlayerC {
   char *name;
   /// A pointer to a null-terminated C string representing the description of the player.
   char *description;
+  /// A pointer to the graphic resource data.
   uint8_t *graphic_resource;
+  /// The length of the graphic resource data.
   int32_t graphic_resource_len;
   /// The state of the player.
   PlayerState state;
@@ -957,11 +967,17 @@ struct SubtitleLineC {
   int32_t len;
 };
 
+/// Represents a cue in a subtitle track in a C-compatible format.
 struct SubtitleCueC {
+  /// A pointer to a null-terminated C string representing the cue identifier.
   char *id;
+  /// The start time of the cue in milliseconds.
   uint64_t start_time;
+  /// The end time of the cue in milliseconds.
   uint64_t end_time;
+  /// A pointer to an array of subtitle lines.
   SubtitleLineC *lines;
+  /// The number of lines in the cue.
   int32_t number_of_lines;
 };
 
@@ -1463,9 +1479,6 @@ PopcornSettingsC *application_settings(PopcornFX *popcorn_fx);
 /// This function should only be called from C code, and the returned byte array should be disposed of using the `dispose_byte_array` function.
 ByteArray *artwork_placeholder(PopcornFX *popcorn_fx);
 
-/// Retrieve the auto-resume timestamp for the given media id and/or filename.
-uint64_t *auto_resume_timestamp(PopcornFX *popcorn_fx, char *id, char *filename);
-
 /// Start polling the update channel for new application versions.
 ///
 /// # Arguments
@@ -1508,6 +1521,9 @@ SubtitleInfoSet *default_subtitle_options(PopcornFX *popcorn_fx);
 /// Disable the subtitle track on request of the user.
 /// This will make the [is_subtitle_disabled] return `true`.
 void disable_subtitle(PopcornFX *popcorn_fx);
+
+/// Starts the discovery process for external players such as VLC and DLNA servers.
+void discover_external_players(PopcornFX *popcorn_fx);
 
 /// Frees the memory allocated for the given C-compatible byte array.
 ///
@@ -1657,7 +1673,13 @@ void dispose_popcorn_fx(Box<PopcornFX> instance);
 /// * `array` - A boxed `StringArray` object to be disposed of.
 void dispose_string_array(Box<StringArray> array);
 
-/// Dispose the given subtitle.
+/// Frees the memory allocated for the `SubtitleC` structure.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it's assumed that the `SubtitleC` structure was allocated using `Box`,
+/// and dropping a `Box` pointing to valid memory is safe. However, if the `SubtitleC` was allocated in a different way
+/// or if the memory was already deallocated, calling this function could lead to undefined behavior.
 void dispose_subtitle(Box<SubtitleC> subtitle);
 
 /// Frees the memory allocated for the `SubtitleInfoC` structure.
@@ -2401,10 +2423,7 @@ StringArray *retrieve_watched_shows(PopcornFX *popcorn_fx);
 /// A pointer to the selected default subtitle in C-compatible form.
 SubtitleInfoC *select_or_default_subtitle(PopcornFX *popcorn_fx, SubtitleInfoSet *set);
 
-/// Serve the given subtitle as [SubtitleType] format.
-///
-/// It returns the url which hosts the [Subtitle].
-char *serve_subtitle(PopcornFX *popcorn_fx, SubtitleC subtitle, size_t output_type);
+char *serve_subtitle(PopcornFX *popcorn_fx, const SubtitleInfoC *subtitle_info, SubtitleMatcherC matcher, SubtitleType subtitle_type);
 
 /// Set the active player in the PopcornFX player manager.
 ///

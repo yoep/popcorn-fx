@@ -2,7 +2,7 @@
 name = "popcorn-fx-opensubtitles"
 version = "0.8.1"
 edition = "2021"
-rust-version = "1.62"
+rust-version = "1.71"
 publish = false
 license-file = "../LICENSE"
 
@@ -21,7 +21,7 @@ derive-new = "0"
 futures.workspace = true
 itertools.workspace = true
 log.workspace = true
-reqwest = { workspace = true, features = ["serde_json", "json", "stream"] }
+reqwest = { workspace = true, features = ["json", "stream"] }
 serde.workspace = true
 serde_json.workspace = true
 tokio = {workspace = true, features = ["fs"]}

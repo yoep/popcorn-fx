@@ -34,7 +34,7 @@ class SubtitleServiceImplTest {
 
     @Test
     void testNone() {
-        var none = new SubtitleInfo();
+        var none = new SubtitleInfo.ByReference();
         none.language = SubtitleLanguage.NONE;
         when(fxLib.subtitle_none()).thenReturn(none);
 
@@ -45,7 +45,7 @@ class SubtitleServiceImplTest {
 
     @Test
     void testCustom() {
-        var custom = new SubtitleInfo();
+        var custom = new SubtitleInfo.ByReference();
         custom.language = SubtitleLanguage.CUSTOM;
         when(fxLib.subtitle_custom()).thenReturn(custom);
 
@@ -56,7 +56,7 @@ class SubtitleServiceImplTest {
 
     @Test
     void testGetDefaultOrInterfaceLanguage_whenListIsEmpty_shouldReturnNone() {
-        var none = mock(SubtitleInfo.class);
+        var none = mock(SubtitleInfo.ByReference.class);
         when(fxLib.subtitle_none()).thenReturn(none);
 
         var result = service.getDefaultOrInterfaceLanguage(new ArrayList<>());

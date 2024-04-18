@@ -7,7 +7,7 @@ use regex::Regex;
 use crate::core::subtitles::cue::SubtitleCue;
 use crate::core::subtitles::error::SubtitleParseError;
 use crate::core::subtitles::parsers::{NEWLINE, Parser, StyleParser};
-use crate::core::subtitles::parsers::utils::time_from_millis;
+use crate::core::utils::time::parse_time_from_millis;
 
 const HEADER: &str = "WEBVTT";
 const TIME_INDICATOR: &str = "-->";
@@ -49,8 +49,8 @@ impl Parser for VttParser {
 
         for cue in cues.iter() {
             let id = cue.id().clone();
-            let start_time = time_from_millis(cue.start_time().clone());
-            let end_time = time_from_millis(cue.end_time().clone());
+            let start_time = parse_time_from_millis(cue.start_time().clone());
+            let end_time = parse_time_from_millis(cue.end_time().clone());
 
             output.push_str(id.as_str());
             output.push_str(NEWLINE);

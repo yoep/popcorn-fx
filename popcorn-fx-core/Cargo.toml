@@ -2,7 +2,7 @@
 name = "popcorn-fx-core"
 version = "0.8.1"
 edition = "2021"
-rust-version = "1.62"
+rust-version = "1.71"
 publish = false
 license-file = "../LICENSE"
 
@@ -31,7 +31,7 @@ mockall = { workspace = true, optional = true }
 percent-encoding = "2"
 rand.workspace = true
 regex.workspace = true
-reqwest = { workspace = true, features = ["serde_json", "json", "stream"] }
+reqwest = { workspace = true, features = ["json", "stream"] }
 ring = "0.17"
 semver = "1.0"
 serde.workspace = true

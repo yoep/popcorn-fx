@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.backend.subtitles;
 
-import com.github.yoep.popcorn.backend.lib.FxLibInstance;
+import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleCue;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.sun.jna.Structure;
@@ -30,7 +30,7 @@ public class Subtitle extends Structure implements Serializable, Closeable {
         @Override
         public void close() {
             super.close();
-            FxLibInstance.INSTANCE.get().dispose_subtitle(this);
+            FxLib.INSTANCE.get().dispose_subtitle(this);
         }
     }
 

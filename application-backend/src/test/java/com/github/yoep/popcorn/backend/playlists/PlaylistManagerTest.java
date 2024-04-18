@@ -15,6 +15,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -103,9 +104,23 @@ class PlaylistManagerTest {
         var playlistItems = playlist.getCachedItems();
         assertEquals(1, playlistItems.size());
         assertEquals(showTitle, playlistItems.get(0).getTitle());
-        assertEquals(episodeTitle, playlistItems.get(0).caption);
+        assertEquals(Optional.of(episodeTitle), playlistItems.get(0).getCaption());
         assertEquals(thumbnail, playlistItems.get(0).thumb);
         assertEquals(quality, playlistItems.get(0).quality);
+    }
+
+    @Test
+    void testPlayNext() {
+        playlistManager.playNext();
+
+        verify(fxLib).play_next_playlist_item(instance);
+    }
+
+    @Test
+    void testStop() {
+        playlistManager.stop();
+
+        verify(fxLib).stop_playlist(instance);
     }
 
     @Test

@@ -1,6 +1,8 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
+import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
+import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.player.PlayerAction;
 import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
 import com.github.yoep.popcorn.ui.view.controls.ProgressControl;
@@ -11,6 +13,7 @@ import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.Pane;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,6 +31,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.*;
 
@@ -55,7 +60,9 @@ class PlayerExternalComponentTest {
         controller.titleText = new Label();
         controller.captionText = new Label();
         controller.playbackProgress = new ProgressControl();
+        controller.playPauseIcon = new Icon();
         controller.infoComponent.progressPercentage = new Label();
+        controller.progressInfoPane = new Pane();
     }
 
     @Test
@@ -84,6 +91,25 @@ class PlayerExternalComponentTest {
         listener.onRequestChanged(request);
 
         WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> controller.titleText.getText().equals(title));
+    }
+
+    @Test
+    void testListener_whenPlayerStateIsChanged() {
+        controller.init();
+
+        var listener = externalListenerHolder.get();
+
+        listener.onStateChanged(PlayerState.PLAYING);
+        WaitForAsyncUtils.waitForFxEvents();
+        assertEquals(Icon.PAUSE_UNICODE, controller.playPauseIcon.getText());
+
+        listener.onStateChanged(PlayerState.PAUSED);
+        WaitForAsyncUtils.waitForFxEvents();
+        assertEquals(Icon.PLAY_UNICODE, controller.playPauseIcon.getText());
+
+        listener.onStateChanged(PlayerState.ERROR);
+        WaitForAsyncUtils.waitForFxEvents();
+        assertFalse(controller.progressInfoPane.isVisible());
     }
 
     @Test

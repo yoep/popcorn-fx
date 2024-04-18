@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use clap::Parser;
 use derive_more::Display;
 use directories::{BaseDirs, UserDirs};
-use log::{info, LevelFilter, warn};
+use log::{error, info, LevelFilter, warn};
 use log4rs::append::console::ConsoleAppender;
 use log4rs::append::rolling_file::policy::compound::CompoundPolicy;
 use log4rs::append::rolling_file::policy::compound::roll::fixed_window::FixedWindowRoller;
@@ -42,6 +42,7 @@ use popcorn_fx_core::core::torrents::{TorrentManager, TorrentStreamServer};
 use popcorn_fx_core::core::torrents::collection::TorrentCollection;
 use popcorn_fx_core::core::torrents::stream::DefaultTorrentStreamServer;
 use popcorn_fx_core::core::updater::Updater;
+use popcorn_fx_dlna::dlna::DlnaDiscovery;
 use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
 use popcorn_fx_platform::platform::DefaultPlatform;
 use popcorn_fx_torrent::torrent::DefaultTorrentManager;
@@ -147,30 +148,31 @@ impl Default for PopcornFxArgs {
 /// ```
 #[repr(C)]
 pub struct PopcornFX {
+    auto_resume_service: Arc<Box<dyn AutoResumeService>>,
+    cache_manager: Arc<CacheManager>,
+    dlna_discovery: Arc<DlnaDiscovery>,
+    event_publisher: Arc<EventPublisher>,
+    favorite_cache_updater: Arc<FavoriteCacheUpdater>,
+    favorites_service: Arc<Box<dyn FavoriteService>>,
+    image_loader: Arc<Box<dyn ImageLoader>>,
+    media_loader: Arc<Box<dyn MediaLoader>>,
+    platform: Arc<Box<dyn PlatformData>>,
+    playback_controls: Arc<PlaybackControls>,
+    player_manager: Arc<Box<dyn PlayerManager>>,
+    playlist_manager: Arc<PlaylistManager>,
+    providers: Arc<ProviderManager>,
+    screen_service: Arc<Box<dyn ScreenService>>,
     settings: Arc<ApplicationConfig>,
+    subtitle_manager: Arc<Box<dyn SubtitleManager>>,
     subtitle_provider: Arc<Box<dyn SubtitleProvider>>,
     subtitle_server: Arc<SubtitleServer>,
-    subtitle_manager: Arc<Box<dyn SubtitleManager>>,
-    platform: Arc<Box<dyn PlatformData>>,
-    favorites_service: Arc<Box<dyn FavoriteService>>,
-    watched_service: Arc<Box<dyn WatchedService>>,
+    torrent_collection: Arc<TorrentCollection>,
     torrent_manager: Arc<Box<dyn TorrentManager>>,
     torrent_stream_server: Arc<Box<dyn TorrentStreamServer>>,
-    torrent_collection: Arc<TorrentCollection>,
-    auto_resume_service: Arc<Box<dyn AutoResumeService>>,
-    favorite_cache_updater: Arc<FavoriteCacheUpdater>,
-    providers: Arc<ProviderManager>,
-    updater: Arc<Updater>,
-    event_publisher: Arc<EventPublisher>,
-    playback_controls: Arc<PlaybackControls>,
-    image_loader: Arc<Box<dyn ImageLoader>>,
-    cache_manager: Arc<CacheManager>,
-    playlist_manager: Arc<PlaylistManager>,
-    player_manager: Arc<Box<dyn PlayerManager>>,
-    media_loader: Arc<Box<dyn MediaLoader>>,
-    screen_service: Arc<Box<dyn ScreenService>>,
     tracking_provider: Arc<Box<dyn TrackingProvider>>,
     tracking_sync: Arc<SyncMediaTracking>,
+    updater: Arc<Updater>,
+    watched_service: Arc<Box<dyn WatchedService>>,
     /// The runtime pool to use for async tasks
     runtime: Arc<Runtime>,
     /// The options that were used to create this instance
@@ -207,7 +209,7 @@ impl PopcornFX {
             .insecure(args.insecure)
             .build()));
         let subtitle_server = Arc::new(SubtitleServer::new(&subtitle_provider));
-        let subtitle_manager = Arc::new(Box::new(DefaultSubtitleManager::new(settings.clone())) as Box<dyn SubtitleManager>);
+        let subtitle_manager = Arc::new(Box::new(DefaultSubtitleManager::new(settings.clone(), event_publisher.clone())) as Box<dyn SubtitleManager>);
         let platform = Arc::new(Box::new(DefaultPlatform::default()) as Box<dyn PlatformData>);
         let favorites_service = Arc::new(Box::new(DefaultFavoriteService::new(app_directory_path)) as Box<dyn FavoriteService>);
         let watched_service = Arc::new(Box::new(DefaultWatchedService::new(app_directory_path, event_publisher.clone())) as Box<dyn WatchedService>);
@@ -257,38 +259,40 @@ impl PopcornFX {
             .watched_service(watched_service.clone())
             .runtime(runtime.clone())
             .build());
+        let dlna_discovery = Arc::new(DlnaDiscovery::builder()
+            .runtime(runtime.clone())
+            .player_manager(player_manager.clone())
+            .build());
 
         // disable the screensaver
         platform.disable_screensaver();
 
-        // start discovery services
-        Self::initialize_discovery_services(&runtime, &subtitle_manager, &subtitle_provider, &player_manager);
-
         Self {
-            settings,
-            subtitle_provider,
-            subtitle_server,
-            subtitle_manager,
-            platform,
-            favorites_service,
-            watched_service,
-            torrent_manager,
-            torrent_stream_server,
-            torrent_collection,
             auto_resume_service,
-            favorite_cache_updater,
-            providers,
-            updater: app_updater,
-            event_publisher,
-            playback_controls,
-            image_loader,
             cache_manager,
+            dlna_discovery,
+            event_publisher,
+            favorite_cache_updater,
+            favorites_service,
+            image_loader,
+            media_loader,
+            platform,
+            playback_controls,
             player_manager,
             playlist_manager,
-            media_loader,
+            providers,
             screen_service,
+            settings,
+            subtitle_manager,
+            subtitle_provider,
+            subtitle_server,
+            torrent_collection,
+            torrent_manager,
+            torrent_stream_server,
             tracking_provider,
             tracking_sync,
+            updater: app_updater,
+            watched_service,
             runtime,
             opts: args,
         }
@@ -406,7 +410,7 @@ impl PopcornFX {
     pub fn tracking_provider(&self) -> &Arc<Box<dyn TrackingProvider>> {
         &self.tracking_provider
     }
-    
+
     /// Retrieve the tracking synchronizer of the FX instance.
     pub fn tracking_sync(&self) -> &Arc<SyncMediaTracking> {
         &self.tracking_sync
@@ -421,6 +425,25 @@ impl PopcornFX {
     /// It returns a read-only reference to the options as they can't be changed anymore during the runtime.
     pub fn opts(&self) -> &PopcornFxArgs {
         &self.opts
+    }
+
+    /// Start the discovery of external players such as VLC and DLNA servers.
+    /// This will start new threads in the background for handling the discovery processes.
+    pub fn start_discovery_external_players(&self) {
+        let subtitle_manager = self.subtitle_manager.clone();
+        let subtitle_provider = self.subtitle_provider.clone();
+        let player_manager = self.player_manager.clone();
+        let dlna_discovery = self.dlna_discovery.clone();
+        
+        self.runtime.spawn(async move {
+            let vlc_discovery = VlcDiscovery::new(subtitle_manager, subtitle_provider.clone(), player_manager.clone());
+            vlc_discovery.start().await;
+        });
+        self.runtime.spawn(async move {
+            if let Err(e) = dlna_discovery.start_discovery() {
+                error!("Failed to start DLNA discovery, {}", e);
+            }
+        });
     }
 
     fn initialize_logger(args: &PopcornFxArgs) {
@@ -524,19 +547,6 @@ impl PopcornFX {
             .with_details_provider(show_provider)
             .with_enhancer(thumb_enhancer)
             .build()
-    }
-
-    fn initialize_discovery_services(runtime: &Arc<Runtime>,
-                                     subtitle_manager: &Arc<Box<dyn SubtitleManager>>,
-                                     subtitle_provider: &Arc<Box<dyn SubtitleProvider>>,
-                                     player_manager: &Arc<Box<dyn PlayerManager>>) {
-        let subtitle_manager = subtitle_manager.clone();
-        let subtitle_provider = subtitle_provider.clone();
-        let player_manager = player_manager.clone();
-        runtime.spawn(async move {
-            let vlc_discovery = VlcDiscovery::new(subtitle_manager.clone(), subtitle_provider.clone(), player_manager.clone());
-            vlc_discovery.start().await;
-        });
     }
 }
 

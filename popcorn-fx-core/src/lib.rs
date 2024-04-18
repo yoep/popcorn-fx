@@ -211,7 +211,7 @@ pub fn from_c_vec<T: Clone>(ptr: *mut T, len: i32) -> Vec<T> {
 /// # Returns
 ///
 /// The resulting `Vec` on success, or an empty `Vec` if the `ptr` is null.
-pub fn from_c_vec_owned<T: Clone>(ptr: *mut T, len: i32) -> Vec<T> {
+pub fn from_c_vec_owned<T>(ptr: *mut T, len: i32) -> Vec<T> {
     trace!("Converting C ptr: {:?}, len: {} into a owned Vec", ptr, len);
     if !ptr.is_null() {
         if len > 0 {
@@ -265,11 +265,13 @@ pub mod testing {
                     .encoder(Box::new(PatternEncoder::new("\x1B[37m{d(%Y-%m-%d %H:%M:%S%.3f)}\x1B[0m {h({l:>5.5})} \x1B[35m{I:>6.6}\x1B[0m \x1B[37m---\x1B[0m \x1B[37m[{T:>15.15}]\x1B[0m \x1B[36m{t:<40.40}\x1B[0m \x1B[37m:\x1B[0m {m}{n}")))
                     .build())))
                 .logger(Logger::builder().build("httpmock::server", LevelFilter::Debug))
-                .logger(Logger::builder().build("want", LevelFilter::Info))
-                .logger(Logger::builder().build("polling", LevelFilter::Info))
+                .logger(Logger::builder().build("async_io", LevelFilter::Info))
                 .logger(Logger::builder().build("hyper", LevelFilter::Info))
-                .logger(Logger::builder().build("tracing", LevelFilter::Info))
                 .logger(Logger::builder().build("neli", LevelFilter::Info))
+                .logger(Logger::builder().build("polling", LevelFilter::Info))
+                .logger(Logger::builder().build("serde_xml_rs", LevelFilter::Info))
+                .logger(Logger::builder().build("tracing", LevelFilter::Info))
+                .logger(Logger::builder().build("want", LevelFilter::Info))
                 .build(Root::builder().appender("stdout").build(LevelFilter::Trace))
                 .unwrap())
                 .unwrap();

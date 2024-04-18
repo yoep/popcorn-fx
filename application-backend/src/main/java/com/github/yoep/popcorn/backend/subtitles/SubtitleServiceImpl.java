@@ -103,18 +103,6 @@ public class SubtitleServiceImpl implements SubtitleService {
     }
 
     @Override
-    public CompletableFuture<String> download(SubtitleInfo subtitleInfo, SubtitleMatcher.ByValue matcher) {
-        Objects.requireNonNull(subtitleInfo, "subtitleInfo cannot be null");
-        Objects.requireNonNull(matcher, "matcher cannot be null");
-        synchronized (mutex) {
-            log.debug("Starting subtitle download subtitleInfo: {}, matcher: {}", subtitleInfo, matcher);
-            var subtitleFilepath = fxLib.download(instance, subtitleInfo, matcher);
-            log.info("Downloaded subtitle file to {}", subtitleFilepath);
-            return CompletableFuture.completedFuture(subtitleFilepath);
-        }
-    }
-
-    @Override
     public CompletableFuture<Subtitle> downloadAndParse(SubtitleInfo subtitleInfo, SubtitleMatcher.ByValue matcher) {
         Objects.requireNonNull(subtitleInfo, "subtitleInfo cannot be null");
         Objects.requireNonNull(matcher, "matcher cannot be null");
@@ -145,15 +133,15 @@ public class SubtitleServiceImpl implements SubtitleService {
     }
 
     @Override
-    public String serve(Subtitle subtitle, SubtitleType type) {
+    public String serve(SubtitleInfo.ByReference subtitle, SubtitleMatcher.ByValue matcher, SubtitleType type) {
         Objects.requireNonNull(subtitle, "subtitle cannot be null");
         synchronized (mutex) {
-            return fxLib.serve_subtitle(instance, subtitle, type.ordinal());
+            return fxLib.serve_subtitle(instance, subtitle, matcher, type.ordinal());
         }
     }
 
     @Override
-    public Optional<SubtitleInfo> preferredSubtitle() {
+    public Optional<SubtitleInfo.ByReference> preferredSubtitle() {
         return Optional.ofNullable(fxLib.retrieve_preferred_subtitle(instance));
     }
 

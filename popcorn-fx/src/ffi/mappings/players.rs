@@ -75,7 +75,9 @@ pub struct PlayerC {
     pub name: *mut c_char,
     /// A pointer to a null-terminated C string representing the description of the player.
     pub description: *mut c_char,
+    /// A pointer to the graphic resource data.
     pub graphic_resource: *mut u8,
+    /// The length of the graphic resource data.
     pub graphic_resource_len: i32,
     /// The state of the player.
     pub state: PlayerState,

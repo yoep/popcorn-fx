@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use derive_more::Display;
-use log::{debug, trace};
+use log::{debug, info, trace};
 use tokio::sync::Mutex;
 
 use crate::core::{block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks, Handle};
@@ -21,6 +21,7 @@ pub enum PlaylistManagerEvent {
     /// Event indicating that the next item will start playing after a specified delay.
     #[display(fmt = "Playing next item in {:?} seconds", "_0.playing_in")]
     PlayingNext(PlayingNextInfo),
+    /// Event indicating a change in the playlist state.
     #[display(fmt = "Playlist state changed to {}", _0)]
     StateChanged(PlaylistState),
 }
@@ -298,7 +299,12 @@ impl InnerPlaylistManager {
 
                             if invocation_allowed {
                                 *mutex = Some((playing_in.clone(), next_item.clone()));
-                                trace!("Playing next item in {:?} seconds", remaining_time);
+                                if remaining_time <= 3 {
+                                    debug!("Playing next item in {:?} seconds", remaining_time);
+                                } else {
+                                    trace!("Playing next item in {:?} seconds", remaining_time);
+                                }
+
                                 self.callbacks.invoke(PlaylistManagerEvent::PlayingNext(PlayingNextInfo {
                                     playing_in,
                                     item: next_item,
@@ -322,7 +328,16 @@ impl InnerPlaylistManager {
             (0, _) => trace!("Skipping player stopped, last known duration is {}", duration),
             (_, PlayerState::Stopped) => {
                 if self.is_next_allowed() {
-                    debug!("Starting automatic playback of the next playlist item");
+                    let next_item: String;
+
+                    {
+                        let mutex = block_in_place(self.playlist.lock());
+                        next_item = mutex.next_as_ref()
+                            .map(|e| e.to_string())
+                            .unwrap_or_else(|| String::new());
+                    }
+                    
+                    info!("Starting next playlist item {}", next_item);
                     self.play_next();
                 } else {
                     debug!("Automatic playback is not allowed to start next playlist item");

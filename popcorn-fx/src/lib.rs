@@ -13,7 +13,8 @@ use popcorn_fx_core::core::media::*;
 use popcorn_fx_core::core::media::favorites::FavoriteCallback;
 use popcorn_fx_core::core::media::watched::WatchedCallback;
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
-use popcorn_fx_core::core::subtitles::model::{Subtitle, SubtitleInfo, SubtitleType};
+use popcorn_fx_core::core::subtitles::matcher::SubtitleMatcher;
+use popcorn_fx_core::core::subtitles::model::SubtitleInfo;
 
 #[cfg(feature = "ffi")]
 use crate::ffi::*;
@@ -170,7 +171,7 @@ pub extern "C" fn reset_subtitle(popcorn_fx: &mut PopcornFX) {
 pub extern "C" fn download(popcorn_fx: &mut PopcornFX, subtitle: &SubtitleInfoC, matcher: SubtitleMatcherC) -> *mut c_char {
     trace!("Starting subtitle download from C for info: {:?}, matcher: {:?}", subtitle, matcher);
     let subtitle_info = SubtitleInfo::from(subtitle);
-    let matcher = matcher.to_matcher();
+    let matcher = SubtitleMatcher::from(matcher);
 
     match popcorn_fx.runtime().block_on(popcorn_fx.subtitle_provider().download(&subtitle_info, &matcher)) {
         Ok(e) => {
@@ -191,7 +192,7 @@ pub extern "C" fn download(popcorn_fx: &mut PopcornFX, subtitle: &SubtitleInfoC,
 pub extern "C" fn download_and_parse_subtitle(popcorn_fx: &mut PopcornFX, subtitle: &SubtitleInfoC, matcher: SubtitleMatcherC) -> *mut SubtitleC {
     trace!("Downloading and parsing subtitle from C for info: {:?}, matcher: {:?}", subtitle, matcher);
     let subtitle_info = SubtitleInfo::from(subtitle);
-    let matcher = matcher.to_matcher();
+    let matcher = SubtitleMatcher::from(matcher);
 
     match popcorn_fx.runtime().block_on(popcorn_fx.subtitle_provider().download_and_parse(&subtitle_info, &matcher)) {
         Ok(e) => {
@@ -332,26 +333,6 @@ pub extern "C" fn register_favorites_event_callback<'a>(popcorn_fx: &mut Popcorn
     popcorn_fx.favorite_service().register(wrapper)
 }
 
-/// Serve the given subtitle as [SubtitleType] format.
-///
-/// It returns the url which hosts the [Subtitle].
-#[no_mangle]
-pub extern "C" fn serve_subtitle(popcorn_fx: &mut PopcornFX, subtitle: SubtitleC, output_type: usize) -> *mut c_char {
-    let subtitle = Subtitle::from(subtitle);
-    let subtitle_type = SubtitleType::from_ordinal(output_type);
-
-    match popcorn_fx.subtitle_server().serve(subtitle, subtitle_type) {
-        Ok(e) => {
-            info!("Serving subtitle at {}", &e);
-            into_c_string(e)
-        }
-        Err(e) => {
-            error!("Failed to serve subtitle, {}", e);
-            ptr::null_mut()
-        }
-    }
-}
-
 /// Verify if the given media item is watched by the user.
 ///
 /// It returns true when the item is watched, else false.
@@ -462,36 +443,6 @@ pub extern "C" fn register_watched_event_callback<'a>(popcorn_fx: &mut PopcornFX
     });
 
     popcorn_fx.watched_service().register(wrapper)
-}
-
-/// Retrieve the auto-resume timestamp for the given media id and/or filename.
-#[no_mangle]
-pub extern "C" fn auto_resume_timestamp(popcorn_fx: &mut PopcornFX, id: *mut c_char, filename: *mut c_char) -> *mut u64 {
-    trace!("Retrieving auto-resume timestamp of id: {:?}, filename: {:?}", id, filename);
-    let id_value: String;
-    let filename_value: String;
-    let id = if !id.is_null() {
-        id_value = from_c_string(id);
-        Some(id_value.as_str())
-    } else {
-        None
-    };
-    let filename = if !filename.is_null() {
-        filename_value = from_c_string(filename);
-        Some(filename_value.as_str())
-    } else {
-        None
-    };
-
-    match popcorn_fx.auto_resume_service().resume_timestamp(id, filename) {
-        None => {
-            info!("Auto-resume timestamp not found for id: {:?}, filename: {:?}", id, filename);
-            ptr::null_mut()
-        }
-        Some(e) => {
-            into_c_owned(e)
-        }
-    }
 }
 
 /// Verify if the given magnet uri has already been stored.
@@ -642,18 +593,6 @@ pub extern "C" fn dispose_media_item_value(media: MediaItemC) {
     }
 }
 
-/// Dispose the given subtitle.
-#[no_mangle]
-pub extern "C" fn dispose_subtitle(subtitle: Box<SubtitleC>) {
-    trace!("Disposing subtitle {:?}", subtitle);
-    if !subtitle.info.is_null() {
-        let info = from_c_owned(subtitle.info);
-        drop(from_c_vec(info.files, info.len));
-    }
-
-    drop(from_c_vec(subtitle.cues, subtitle.len))
-}
-
 /// Dispose the [TorrentCollectionSet] from memory.
 #[no_mangle]
 pub extern "C" fn dispose_torrent_collection(collection_set: Box<TorrentCollectionSet>) {
@@ -685,7 +624,6 @@ mod test {
     use tempfile::tempdir;
 
     use popcorn_fx_core::core::config::{DecorationType, SubtitleFamily};
-    use popcorn_fx_core::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::from_c_owned;
     use popcorn_fx_core::testing::{copy_test_file, init_logger};
@@ -767,19 +705,6 @@ mod test {
         let result = is_media_liked(&mut instance, &mut media);
 
         assert_eq!(false, result)
-    }
-
-    #[test]
-    fn test_auto_resume_timestamp() {
-        let temp_dir = tempdir().expect("expected a tempt dir to be created");
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let mut instance = PopcornFX::new(default_args(temp_path));
-        let id = "tt0000001111".to_string();
-        let filename = "lorem-ipsum-dolor-estla.mkv".to_string();
-
-        let result = auto_resume_timestamp(&mut instance, into_c_string(id), into_c_string(filename));
-
-        assert_eq!(ptr::null_mut(), result)
     }
 
     #[test]
@@ -912,33 +837,6 @@ mod test {
         let media = MediaItemC::from(movie);
 
         dispose_media_item(Box::new(media));
-    }
-
-    #[test]
-    fn test_dispose_subtitle() {
-        let subtitle = Subtitle::new(
-            vec![SubtitleCue::new(
-                "012".to_string(),
-                10000,
-                20000,
-                vec![SubtitleLine::new(
-                    vec![StyledText::new(
-                        "Lorem ipsum dolor".to_string(),
-                        true,
-                        false,
-                        false,
-                    )]
-                )],
-            )],
-            Some(SubtitleInfo::builder()
-                .imdb_id("tt00001")
-                .language(SubtitleLanguage::English)
-                .build()),
-            "lorem.srt".to_string(),
-        );
-        let subtitle_c = SubtitleC::from(subtitle);
-
-        dispose_subtitle(Box::new(subtitle_c))
     }
 
     #[test]

@@ -998,6 +998,10 @@
     -fx-background-color: #ccc;
 }
 
+.root .player-external .progress.error .background-track {
+    -fx-background-color: #d53f3f;
+}
+
 .root .player .player-controls .progress .play-progress,
 .root .player-external .progress .play-progress {
     -fx-background-color: #2d72d9;

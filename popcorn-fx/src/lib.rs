@@ -14,7 +14,7 @@ use popcorn_fx_core::core::media::favorites::FavoriteCallback;
 use popcorn_fx_core::core::media::watched::WatchedCallback;
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
 use popcorn_fx_core::core::subtitles::matcher::SubtitleMatcher;
-use popcorn_fx_core::core::subtitles::model::{Subtitle, SubtitleInfo, SubtitleType};
+use popcorn_fx_core::core::subtitles::model::SubtitleInfo;
 
 #[cfg(feature = "ffi")]
 use crate::ffi::*;
@@ -445,36 +445,6 @@ pub extern "C" fn register_watched_event_callback<'a>(popcorn_fx: &mut PopcornFX
     popcorn_fx.watched_service().register(wrapper)
 }
 
-/// Retrieve the auto-resume timestamp for the given media id and/or filename.
-#[no_mangle]
-pub extern "C" fn auto_resume_timestamp(popcorn_fx: &mut PopcornFX, id: *mut c_char, filename: *mut c_char) -> *mut u64 {
-    trace!("Retrieving auto-resume timestamp of id: {:?}, filename: {:?}", id, filename);
-    let id_value: String;
-    let filename_value: String;
-    let id = if !id.is_null() {
-        id_value = from_c_string(id);
-        Some(id_value.as_str())
-    } else {
-        None
-    };
-    let filename = if !filename.is_null() {
-        filename_value = from_c_string(filename);
-        Some(filename_value.as_str())
-    } else {
-        None
-    };
-
-    match popcorn_fx.auto_resume_service().resume_timestamp(id, filename) {
-        None => {
-            info!("Auto-resume timestamp not found for id: {:?}, filename: {:?}", id, filename);
-            ptr::null_mut()
-        }
-        Some(e) => {
-            into_c_owned(e)
-        }
-    }
-}
-
 /// Verify if the given magnet uri has already been stored.
 #[no_mangle]
 pub extern "C" fn torrent_collection_is_stored(popcorn_fx: &mut PopcornFX, magnet_uri: *mut c_char) -> bool {
@@ -735,19 +705,6 @@ mod test {
         let result = is_media_liked(&mut instance, &mut media);
 
         assert_eq!(false, result)
-    }
-
-    #[test]
-    fn test_auto_resume_timestamp() {
-        let temp_dir = tempdir().expect("expected a tempt dir to be created");
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let mut instance = PopcornFX::new(default_args(temp_path));
-        let id = "tt0000001111".to_string();
-        let filename = "lorem-ipsum-dolor-estla.mkv".to_string();
-
-        let result = auto_resume_timestamp(&mut instance, into_c_string(id), into_c_string(filename));
-
-        assert_eq!(ptr::null_mut(), result)
     }
 
     #[test]

@@ -17,9 +17,9 @@ use popcorn_fx_core::core::players::PlayerManager;
 
 use crate::dlna::{DlnaError, DlnaPlayer, errors};
 
-const SSDP_QUERY_URN: URN = URN::device("schemas-upnp-org", "MediaRenderer", 1);
-const AV_TRANSPORT: URN = URN::service("schemas-upnp-org", "AVTransport", 1);
-const DEFAULT_INTERVAL_SECONDS: u64 = 30;
+pub(crate) const SSDP_QUERY_URN: URN = URN::device("schemas-upnp-org", "MediaRenderer", 1);
+pub(crate) const AV_TRANSPORT: URN = URN::service("schemas-upnp-org", "AVTransport", 1);
+const DEFAULT_INTERVAL_SECONDS: u64 = 120;
 
 /// Represents the state of a DLNA server.
 #[derive(Debug, Display, Clone, PartialEq)]
@@ -32,16 +32,16 @@ pub enum DlnaServerState {
     Error,
 }
 
-/// Represents a DLNA server responsible for discovering DLNA devices.
-pub struct DlnaServer {
-    inner: Arc<InnerDlnaServer>,
+/// Represents a DLNA discovery service responsible for discovering DLNA devices within the local network.
+pub struct DlnaDiscovery {
+    inner: Arc<InnerDlnaDiscovery>,
     runtime: Arc<Runtime>,
 }
 
-impl DlnaServer {
-    /// Creates a new `DlnaServerBuilder` to build a `DlnaServer` instance.
-    pub fn builder() -> DlnaServerBuilder {
-        DlnaServerBuilder::builder()
+impl DlnaDiscovery {
+    /// Creates a new `DlnaDiscoveryBuilder` to build a `DlnaDiscovery` instance.
+    pub fn builder() -> DlnaDiscoveryBuilder {
+        DlnaDiscoveryBuilder::builder()
     }
 
     /// Starts the DLNA devices discovery process.
@@ -87,47 +87,58 @@ impl DlnaServer {
     }
 }
 
-impl Drop for DlnaServer {
+impl Drop for DlnaDiscovery {
     fn drop(&mut self) {
         self.stop_discovery()
     }
 }
 
+/// Builder for configuring DLNA discovery.
 #[derive(Debug, Default)]
-pub struct DlnaServerBuilder {
+pub struct DlnaDiscoveryBuilder {
     player_manager: Option<Arc<Box<dyn PlayerManager>>>,
     runtime: Option<Arc<Runtime>>,
     interval_seconds: Option<u64>,
 }
 
-impl DlnaServerBuilder {
+impl DlnaDiscoveryBuilder {
+    /// Creates a new instance of the builder.
     pub fn builder() -> Self {
         Self::default()
     }
 
+    /// Sets the runtime for the DLNA discovery.
     pub fn runtime(mut self, runtime: Arc<Runtime>) -> Self {
         self.runtime = Some(runtime);
         self
     }
 
+    /// Sets the interval between DLNA discovery checks, in seconds.
     pub fn interval_seconds(mut self, interval_seconds: u64) -> Self {
         self.interval_seconds = Some(interval_seconds);
         self
     }
 
+    /// Sets the player manager for the DLNA discovery.
     pub fn player_manager(mut self, player_manager: Arc<Box<dyn PlayerManager>>) -> Self {
         self.player_manager = Some(player_manager);
         self
     }
 
-    pub fn build(self) -> DlnaServer {
+    /// Builds the DLNA discovery instance.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the player manager is not set.
+    pub fn build(self) -> DlnaDiscovery {
         let runtime = self.runtime.unwrap_or_else(|| Arc::new(Runtime::new().expect("expected a valid runtime")));
         let interval_seconds = self.interval_seconds.unwrap_or(DEFAULT_INTERVAL_SECONDS);
 
-        DlnaServer {
-            inner: Arc::new(InnerDlnaServer {
+        DlnaDiscovery {
+            inner: Arc::new(InnerDlnaDiscovery {
                 player_manager: self.player_manager.expect("expected a player manager to have been set"),
                 interval_seconds,
+                discovered_devices: Default::default(),
                 state: Mutex::new(DlnaServerState::Stopped),
                 cancel_token: Default::default(),
             }),
@@ -136,14 +147,15 @@ impl DlnaServerBuilder {
     }
 }
 
-struct InnerDlnaServer {
+struct InnerDlnaDiscovery {
     interval_seconds: u64,
     player_manager: Arc<Box<dyn PlayerManager>>,
+    discovered_devices: Mutex<Vec<String>>,
     state: Mutex<DlnaServerState>,
     cancel_token: CancellationToken,
 }
 
-impl InnerDlnaServer {
+impl InnerDlnaDiscovery {
     fn state(&self) -> DlnaServerState {
         let mutex = block_in_place(self.state.lock());
         mutex.clone()
@@ -186,13 +198,25 @@ impl InnerDlnaServer {
         debug!("Requesting DLNA device info from {}", uri);
         let device = Device::from_url(uri).await
             .map_err(|e| DlnaError::Device(e.to_string()))?;
-        self.add_player(device);
+
+        if !self.is_already_discovered(&device).await {
+            self.add_player(device).await
+        } else {
+            trace!("DLNA device {} has already been discovered", device.friendly_name());
+        }
 
         Ok(())
     }
 
-    fn add_player(&self, device: Device) {
+    async fn is_already_discovered(&self, device: &Device) -> bool {
+        let mutex = self.discovered_devices.lock().await;
+        mutex.contains(&device.url().to_string())
+    }
+
+    async fn add_player(&self, device: Device) {
         let name = device.friendly_name().to_string();
+        let device_url = device.url().to_string();
+
         if let Some(service) = device.find_service(&AV_TRANSPORT).cloned() {
             trace!("Creating new player from {:?}", device);
             let player = DlnaPlayer::new(device, service);
@@ -201,17 +225,26 @@ impl InnerDlnaServer {
             self.player_manager.add_player(Box::new(player));
             info!("Registered new DLNA player {}", name);
         } else {
-            debug!("Device {} doesn't support AV data", name)
+            info!("DLNA device {} doesn't support AV transport service", name)
         }
+
+        let mut mutex = self.discovered_devices.lock().await;
+        mutex.push(device_url);
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::sync::mpsc::channel;
+
+    use httpmock::Method::GET;
+    use httpmock::MockServer;
+
     use popcorn_fx_core::assert_timeout;
-    use popcorn_fx_core::core::block_in_place;
-    use popcorn_fx_core::core::players::MockPlayerManager;
+    use popcorn_fx_core::core::players::{MockPlayerManager, Player};
     use popcorn_fx_core::testing::init_logger;
+
+    use crate::tests::{DEFAULT_SSDP_DESCRIPTION_RESPONSE, MockUdpServer};
 
     use super::*;
 
@@ -219,16 +252,42 @@ mod tests {
     fn test_execute_search() {
         init_logger();
         let runtime = Arc::new(Runtime::new().unwrap());
-        let player_manager = Arc::new(Box::new(MockPlayerManager::new()) as Box<dyn PlayerManager>);
-        let server = DlnaServer::builder()
+        let server = MockServer::start();
+        server.mock(|when, then| {
+            when.method(GET)
+                .path("/description.xml");
+            then.status(200)
+                .header("Content-Type", "text/xml")
+                .body(DEFAULT_SSDP_DESCRIPTION_RESPONSE);
+        });
+        let (tx, rx) = channel();
+        let mut player_manager = MockPlayerManager::new();
+        player_manager.expect_add_player()
+            .returning(move |e| {
+                if let Ok(player) = e.downcast::<DlnaPlayer>() {
+                    if player.name() == "test" {
+                        tx.send(player).unwrap();
+                    }
+                }
+
+                true
+            });
+        let _dlna_server = MockUdpServer::new()
+            .runtime(runtime.clone())
+            .device_name("test")
+            .upnp_server_addr(server.address().clone())
+            .build();
+        let server = DlnaDiscovery::builder()
             .runtime(runtime.clone())
             .interval_seconds(1)
-            .player_manager(player_manager)
+            .player_manager(Arc::new(Box::new(player_manager)))
             .build();
 
-        let result = block_in_place(server.inner.execute_search());
-
+        let result = runtime.block_on(server.inner.execute_search());
         assert_eq!(false, result.is_err(), "expected no error");
+
+        let player = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        assert_eq!("test", player.name());
     }
 
     #[test]
@@ -238,7 +297,7 @@ mod tests {
         let mut player_manager = MockPlayerManager::new();
         player_manager.expect_add_player()
             .return_const(true);
-        let server = DlnaServer::builder()
+        let server = DlnaDiscovery::builder()
             .runtime(runtime.clone())
             .interval_seconds(1)
             .player_manager(Arc::new(Box::new(player_manager)))

@@ -23,8 +23,12 @@ const SERVER_VIDEO_PATH: &str = "video";
 const USER_AGENT_JAVA: &str = "Java";
 const ACCEPT_RANGES_TYPE: &str = "bytes";
 const CONNECTION_TYPE: &str = "Keep-Alive";
-const HEADER_DLNA_TRANSFER_MODE: &str = "TransferMode.dlna.org";
+const HEADER_DLNA_TRANSFER_MODE: &str = "transferMode.dlna.org";
+const HEADER_DLNA_REAL_TIME_INFO: &str = "realTimeInfo.dlna.org";
+const HEADER_DLNA_CONTENT_FEATURES: &str = "contentFeatures.dlna.org";
 const DLNA_TRANSFER_MODE_TYPE: &str = "Streaming";
+const DLNA_REAL_TIME_TYPE: &str = "DLNA.ORG_TLAG=*";
+const DLNA_CONTENT_FEATURES: &str = "DLNA.ORG_OP=01;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01700000000000000000000000000000";
 const PLAIN_TEXT_TYPE: &str = "text/plain";
 
 /// The stream mutex type used within the server.
@@ -141,8 +145,9 @@ impl TorrentStreamServerInner {
         });
     }
 
-    fn handle_video_request(mutex: MutexGuard<StreamMutex>, media_type_factory: Arc<MediaTypeFactory>, filename: &str, headers: HeaderMap)
-                            -> Result<warp::reply::Response, Rejection> {
+    fn handle_video_request(mutex: MutexGuard<StreamMutex>,
+                            media_type_factory: Arc<MediaTypeFactory>,
+                            filename: &str, headers: HeaderMap) -> Result<warp::reply::Response, Rejection> {
         match mutex.get(filename) {
             None => {
                 warn!("Torrent stream not found for {}", filename);
@@ -192,6 +197,8 @@ impl TorrentStreamServerInner {
                             .status(status)
                             .header(ACCEPT_RANGES, ACCEPT_RANGES_TYPE)
                             .header(HEADER_DLNA_TRANSFER_MODE, DLNA_TRANSFER_MODE_TYPE)
+                            .header(HEADER_DLNA_REAL_TIME_INFO, DLNA_REAL_TIME_TYPE)
+                            .header(HEADER_DLNA_CONTENT_FEATURES, DLNA_CONTENT_FEATURES)
                             .header(CONTENT_RANGE, &content_range)
                             .header(RANGE, &content_range)
                             .header(CONTENT_LENGTH, resource.content_length())
@@ -494,8 +501,8 @@ mod test {
             }
         });
 
-        assert_eq!(ACCEPT_RANGES_TYPE, result.get(ACCEPT_RANGES).unwrap().to_str().unwrap());
-        assert_eq!("text/plain", result.get(CONTENT_TYPE).unwrap().to_str().unwrap());
+        assert_eq!(ACCEPT_RANGES_TYPE, result.get(ACCEPT_RANGES.as_str()).unwrap().to_str().unwrap());
+        assert_eq!("text/plain", result.get(CONTENT_TYPE.as_str()).unwrap().to_str().unwrap());
     }
 
     #[test]
@@ -515,7 +522,7 @@ mod test {
             response.status()
         });
 
-        assert_eq!(StatusCode::NOT_FOUND, result)
+        assert_eq!(reqwest::StatusCode::NOT_FOUND, result)
     }
 
     #[test]
@@ -559,7 +566,7 @@ mod test {
             .expect("expected the torrent stream to have started");
         let result = runtime.block_on(async {
             let response = client.get(stream.upgrade().unwrap().url())
-                .header(RANGE, "bytes=0-50000")
+                .header(RANGE.as_str(), "bytes=0-50000")
                 .send()
                 .await
                 .expect("expected a valid response");
@@ -609,7 +616,7 @@ mod test {
         server.stop_stream(stream.upgrade().unwrap().stream_handle());
         let result = runtime.block_on(async {
             let response = client.get(stream_url)
-                .header(RANGE, "bytes=0-50000")
+                .header(RANGE.as_str(), "bytes=0-50000")
                 .send()
                 .await
                 .expect("expected a valid response");
@@ -618,7 +625,7 @@ mod test {
         });
 
         assert!(stream.upgrade().is_none(), "expected the stream reference to have been dropped");
-        assert_eq!(StatusCode::NOT_FOUND, result)
+        assert_eq!(reqwest::StatusCode::NOT_FOUND, result)
     }
 
     #[test]
@@ -638,7 +645,7 @@ mod test {
             response.status()
         });
 
-        assert_eq!(StatusCode::NOT_FOUND, result)
+        assert_eq!(reqwest::StatusCode::NOT_FOUND, result)
     }
 
     #[test]

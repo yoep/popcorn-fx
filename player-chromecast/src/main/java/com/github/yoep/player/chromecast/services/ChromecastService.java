@@ -202,14 +202,26 @@ public class ChromecastService {
     private static Map<String, Object> getMediaMetaData(PlayRequest request) {
         var thumbnailImage = request.getBackground()
                 .orElse(request.getThumbnail().orElse(null));
+
+
         return new HashMap<>() {{
             put(Media.METADATA_TYPE, Media.MetadataType.MOVIE);
             put(Media.METADATA_TITLE, request.getTitle());
-            put(Media.METADATA_SUBTITLE, request.getQuality().orElse(null));
+            put(Media.METADATA_SUBTITLE, getSubtitle(request));
             put(ChromeCastMetadata.METADATA_THUMBNAIL, thumbnailImage);
             put(ChromeCastMetadata.METADATA_THUMBNAIL_URL, thumbnailImage);
             put(ChromeCastMetadata.METADATA_POSTER_URL, thumbnailImage);
         }};
+    }
+
+    private static String getSubtitle(PlayRequest request) {
+        var separator = request.getCaption().isPresent() && request.getQuality().isPresent() ? " - " : "";
+        var subtitle = String.format("%s%s%s",
+                request.getCaption().orElse(""),
+                separator,
+                request.getQuality().orElse(""));
+
+        return subtitle.isEmpty() ? null : subtitle;
     }
 
     private static Map<String, Object> getTrackStyle() {

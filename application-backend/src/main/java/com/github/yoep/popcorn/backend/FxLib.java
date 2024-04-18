@@ -160,8 +160,6 @@ public interface FxLib extends Library {
 
     void torrent_download_status(PopcornFx instance, String handle, DownloadStatusC.ByValue downloadStatus);
 
-    Pointer auto_resume_timestamp(PopcornFx instance, String id, String filename);
-
     void publish_event(PopcornFx instance, EventC.ByValue event);
 
     void register_event_callback(PopcornFx instance, EventBridgeCallback callback);

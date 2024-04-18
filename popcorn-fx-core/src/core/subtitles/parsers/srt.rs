@@ -9,7 +9,7 @@ use regex::Regex;
 use crate::core::subtitles::cue::{SubtitleCue, SubtitleCueBuilder};
 use crate::core::subtitles::error::SubtitleParseError;
 use crate::core::subtitles::parsers::{NEWLINE, Parser, StyleParser};
-use crate::core::subtitles::parsers::utils::{time_from_millis, time_to_millis};
+use crate::core::utils::time::{parse_millis_from_time, parse_time_from_millis};
 
 const TIME_SEPARATOR: &str = "-->";
 const TIME_PATTERN: &str = "(\\d{1,2}:\\d{2}:\\d{2},\\d{3}) --> (\\d{1,2}:\\d{2}:\\d{2},\\d{3})";
@@ -90,7 +90,7 @@ impl SrtParser {
                     })
                     .map(|e| {
                         match e {
-                            Ok(time) => time_to_millis(&time),
+                            Ok(time) => parse_millis_from_time(&time),
                             Err(err) => {
                                 warn!("Start time is invalid for line {}, {}, value: {}", line_index, err, line);
                                 0
@@ -108,7 +108,7 @@ impl SrtParser {
                     })
                     .map(|e| {
                         match e {
-                            Ok(time) => time_to_millis(&time),
+                            Ok(time) => parse_millis_from_time(&time),
                             Err(err) => {
                                 warn!("End time is invalid for line {}, {}, value: {}", line_index, err, line);
                                 0
@@ -149,8 +149,8 @@ impl Parser for SrtParser {
 
         for cue in cues {
             let id = cue.id().clone();
-            let start_time = time_from_millis(cue.start_time().clone());
-            let end_time = time_from_millis(cue.end_time().clone());
+            let start_time = parse_time_from_millis(cue.start_time().clone());
+            let end_time = parse_time_from_millis(cue.end_time().clone());
 
             output.push_str(id.as_str());
             output.push_str(NEWLINE);

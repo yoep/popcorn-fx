@@ -4,7 +4,7 @@ use std::time::Instant;
 use clap::{CommandFactory, FromArgMatches};
 use log::{debug, info, trace};
 
-use popcorn_fx_core::{from_c_string_owned, from_c_vec, into_c_owned, into_c_string, VERSION};
+use popcorn_fx_core::{from_c_string, from_c_vec, into_c_owned, into_c_string, VERSION};
 
 use crate::{PopcornFX, PopcornFxArgs};
 
@@ -16,7 +16,7 @@ pub extern "C" fn new_popcorn_fx(args: *mut *mut c_char, len: i32) -> *mut Popco
     trace!("Creating new popcorn FX instance from C for args: {:?}", args);
     let start = Instant::now();
     let args = from_c_vec(args, len).into_iter()
-        .map(|e| from_c_string_owned(e))
+        .map(|e| from_c_string(e))
         .collect::<Vec<String>>();
     let matches = PopcornFxArgs::command()
         .allow_external_subcommands(true)
@@ -32,7 +32,7 @@ pub extern "C" fn new_popcorn_fx(args: *mut *mut c_char, len: i32) -> *mut Popco
 
 /// Starts the discovery process for external players such as VLC and DLNA servers.
 #[no_mangle]
-pub extern "C" fn discover_external_players(popcorn_fx: &mut PopcornFX){
+pub extern "C" fn discover_external_players(popcorn_fx: &mut PopcornFX) {
     trace!("Starting external player discovery from C");
     popcorn_fx.start_discovery_external_players();
 }
@@ -59,7 +59,7 @@ pub extern "C" fn version() -> *mut c_char {
 mod test {
     use tempfile::tempdir;
 
-    use popcorn_fx_core::into_c_vec;
+    use popcorn_fx_core::{from_c_string_owned, into_c_vec};
     use popcorn_fx_core::testing::init_logger;
 
     use crate::test::default_args;
@@ -82,14 +82,14 @@ mod test {
 
         assert!(!result.is_null(), "expected a valid instance pointer")
     }
-    
+
     #[test]
     fn test_discover_external_players() {
         init_logger();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(default_args(temp_path));
-        
+
         discover_external_players(&mut instance);
     }
 

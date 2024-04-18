@@ -70,6 +70,8 @@ class ChromecastServiceTest {
     @Test
     void testToLoadRequest_whenFormatIsSupported_shouldUseOriginalUrl() {
         var name = "my-video-url.mp4";
+        var title = "Lorem ipsum";
+        var caption = "Episode title";
         var url = "http://localhost:9976/my-video-url.mp4";
         var subtitleUri = "http://localhost:8754/lorem.vtt";
         var sessionId = "mySessionId";
@@ -89,10 +91,19 @@ class ChromecastServiceTest {
                 .build());
         var matcher = SubtitleMatcher.from(name, quality);
         when(request.getUrl()).thenReturn(url);
+        when(request.getTitle()).thenReturn(title);
+        when(request.getCaption()).thenReturn(Optional.of(caption));
         when(request.getQuality()).thenReturn(Optional.of(quality));
         when(request.getAutoResumeTimestamp()).thenReturn(Optional.of(20000L));
         when(subtitleService.preferredSubtitle()).thenReturn(Optional.of(subtitleInfo));
-        var metadata = createMetadata(request);
+        var metadata = new HashMap<String, Object>() {{
+            put(Media.METADATA_TYPE, Media.MetadataType.MOVIE);
+            put(Media.METADATA_TITLE, title);
+            put(Media.METADATA_SUBTITLE, caption + " - " + quality);
+            put(ChromeCastMetadata.METADATA_THUMBNAIL, request.getThumbnail().orElse(null));
+            put(ChromeCastMetadata.METADATA_THUMBNAIL_URL, request.getThumbnail().orElse(null));
+            put(ChromeCastMetadata.METADATA_POSTER_URL, request.getThumbnail().orElse(null));
+        }};
         var expectedResult = Load.builder()
                 .sessionId(sessionId)
                 .autoplay(true)

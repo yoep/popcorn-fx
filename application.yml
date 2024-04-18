@@ -38,9 +38,9 @@ popcorn:
     popcorn_fx_core::core::media:
       level: info
     popcorn_fx_core::core::media::favorites:
-      level: trace
+      level: info
     popcorn_fx_core::core::media::providers:
-      level: trace
+      level: info
     popcorn_fx_core::core::media::tracking:
       level: info
     popcorn_fx_core::core::media::resume:
@@ -50,7 +50,7 @@ popcorn:
     popcorn_fx_core::core::subtitles::parsers:
       level: info
     popcorn_fx_core::core::players:
-      level: debug
+      level: info
     popcorn_fx_core::core::playlists:
       level: info
     popcorn_fx_core::core::screen:

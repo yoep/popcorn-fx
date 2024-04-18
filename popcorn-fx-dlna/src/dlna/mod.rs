@@ -1,7 +1,8 @@
+pub use discovery::*;
 pub use errors::*;
 pub use player::*;
-pub use server::*;
 
-mod server;
+mod discovery;
 mod errors;
 mod player;
+mod models;

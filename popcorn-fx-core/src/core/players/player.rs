@@ -21,7 +21,7 @@ pub trait Player: Debug + Display + DowncastSync + Callbacks<PlayerEvent> {
     /// The unique identifier of the player as a string.
     fn id(&self) -> &str;
 
-    /// Get the name of the player.
+    /// Get the display friendly name of the player.
     ///
     /// # Returns
     ///
@@ -36,7 +36,6 @@ pub trait Player: Debug + Display + DowncastSync + Callbacks<PlayerEvent> {
     fn description(&self) -> &str;
 
     /// Get the graphic resource associated with the player.
-    ///
     /// This can be used to retrieve graphical assets related to the player.
     ///
     /// # Returns

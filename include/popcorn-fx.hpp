@@ -279,7 +279,9 @@ struct PlayerC {
   char *name;
   /// A pointer to a null-terminated C string representing the description of the player.
   char *description;
+  /// A pointer to the graphic resource data.
   uint8_t *graphic_resource;
+  /// The length of the graphic resource data.
   int32_t graphic_resource_len;
   /// The state of the player.
   PlayerState state;
@@ -1476,9 +1478,6 @@ PopcornSettingsC *application_settings(PopcornFX *popcorn_fx);
 ///
 /// This function should only be called from C code, and the returned byte array should be disposed of using the `dispose_byte_array` function.
 ByteArray *artwork_placeholder(PopcornFX *popcorn_fx);
-
-/// Retrieve the auto-resume timestamp for the given media id and/or filename.
-uint64_t *auto_resume_timestamp(PopcornFX *popcorn_fx, char *id, char *filename);
 
 /// Start polling the update channel for new application versions.
 ///

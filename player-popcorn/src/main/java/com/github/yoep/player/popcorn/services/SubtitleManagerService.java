@@ -136,6 +136,7 @@ public class SubtitleManagerService {
         eventPublisher.register(PlayerStoppedEvent.class, event -> {
             this.url = null;
             this.quality = null;
+            updateSubtitleOffset(0);
             return event;
         });
     }
@@ -265,12 +266,6 @@ public class SubtitleManagerService {
                 .ifPresent(VideoPlayback::resume);
 
         return subtitleInfo.get();
-    }
-
-    private boolean isSubtitleAlreadyActive(final SubtitleInfo subtitleInfo) {
-        return subtitleService.preferredSubtitle()
-                .filter(e -> e == subtitleInfo)
-                .isPresent();
     }
 
     private void invokeListeners(Consumer<SubtitleListener> action) {

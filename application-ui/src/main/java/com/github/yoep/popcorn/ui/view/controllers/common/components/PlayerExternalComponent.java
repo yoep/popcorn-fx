@@ -135,9 +135,8 @@ public class PlayerExternalComponent implements Initializable {
     private void reset() {
         Platform.runLater(() -> {
             backgroundImage.reset();
-            playbackProgress.setTime(0);
-            playbackProgress.setDuration(0);
-            playbackProgress.setLoadProgress(0.0);
+            playbackProgress.reset();
+            progressInfoPane.setVisible(true);
         });
     }
 
@@ -170,11 +169,13 @@ public class PlayerExternalComponent implements Initializable {
         switch (state) {
             case PLAYING -> updatePlayState(true);
             case PAUSED -> updatePlayState(false);
+            case ERROR -> onPlayerError();
         }
     }
 
     private void updatePlayState(boolean isPlaying) {
         Platform.runLater(() -> {
+            playbackProgress.setError(false);
             if (isPlaying) {
                 playPauseIcon.setText(Icon.PAUSE_UNICODE);
             } else {
@@ -187,6 +188,13 @@ public class PlayerExternalComponent implements Initializable {
         Platform.runLater(() -> {
             playbackProgress.setLoadProgress(status.progress());
             infoComponent.update(status);
+        });
+    }
+
+    private void onPlayerError() {
+        Platform.runLater(() -> {
+            playbackProgress.setError(true);
+            progressInfoPane.setVisible(false);
         });
     }
 

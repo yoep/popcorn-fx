@@ -3,7 +3,7 @@ use std::ptr;
 
 use log::trace;
 
-use popcorn_fx_core::{from_c_string, into_c_owned, into_c_string};
+use popcorn_fx_core::{from_c_string, into_c_string};
 use popcorn_fx_core::core::events::{Event, PlayerChangedEvent};
 use popcorn_fx_core::core::playback::PlaybackState;
 use popcorn_fx_core::core::players::PlayerChange;

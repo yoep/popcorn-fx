@@ -10,7 +10,6 @@ pub use crate::core::subtitles::parsers::vtt::VttParser;
 mod srt;
 mod vtt;
 mod style_parser;
-mod utils;
 
 const NEWLINE: &str = "\n";
 

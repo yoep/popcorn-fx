@@ -14,16 +14,13 @@ import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieOverview;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.stereotype.Service;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
-@Service
 @RequiredArgsConstructor
 public class MovieProviderService implements ProviderService<MovieOverview> {
     private static final Category CATEGORY = Category.MOVIES;
@@ -37,12 +34,12 @@ public class MovieProviderService implements ProviderService<MovieOverview> {
     }
 
     @Override
-    public CompletableFuture<Page<MovieOverview>> getPage(Genre genre, SortBy sortBy, int page) {
+    public CompletableFuture<List<MovieOverview>> getPage(Genre genre, SortBy sortBy, int page) {
         return CompletableFuture.completedFuture(getPage(genre, sortBy, "", page));
     }
 
     @Override
-    public CompletableFuture<Page<MovieOverview>> getPage(Genre genre, SortBy sortBy, int page, String keywords) {
+    public CompletableFuture<List<MovieOverview>> getPage(Genre genre, SortBy sortBy, int page, String keywords) {
         return CompletableFuture.completedFuture(getPage(genre, sortBy, keywords, page));
     }
 
@@ -56,7 +53,7 @@ public class MovieProviderService implements ProviderService<MovieOverview> {
         fxLib.reset_movie_apis(instance);
     }
 
-    public Page<MovieOverview> getPage(Genre genre, SortBy sortBy, String keywords, int page) {
+    public List<MovieOverview> getPage(Genre genre, SortBy sortBy, String keywords, int page) {
         try (var mediaResult = fxLib.retrieve_available_movies(instance, genre, sortBy, keywords, page)) {
             if (mediaResult.getTag() == MediaSetResult.Tag.Ok) {
                 var movies = Optional.ofNullable(mediaResult.getUnion())
@@ -66,13 +63,13 @@ public class MovieProviderService implements ProviderService<MovieOverview> {
                         .orElse(Collections.emptyList());
                 log.debug("Retrieved movies {}", movies);
 
-                return new PageImpl<>(movies);
+                return movies;
             } else {
                 var mediaError = mediaResult.getUnion().getErr().getMediaError();
                 switch (mediaError) {
                     case NoAvailableProviders -> throw new MediaRetrievalException(mediaError.getMessage());
                     case NoItemsFound -> {
-                        return new PageImpl<>(Collections.emptyList());
+                        return Collections.emptyList();
                     }
                     default -> throw new MediaException(mediaError.getMessage());
                 }

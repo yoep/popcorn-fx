@@ -3,8 +3,6 @@ package com.github.yoep.player.popcorn.listeners;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 
-import javax.validation.constraints.NotNull;
-
 public interface PlayerControlsListener {
     void onFullscreenStateChanged(boolean isFullscreenEnabled);
 
@@ -16,7 +14,7 @@ public interface PlayerControlsListener {
 
     void onPlayerDurationChanged(long duration);
 
-    void onDownloadStatusChanged(@NotNull DownloadStatus progress);
+    void onDownloadStatusChanged( DownloadStatus progress);
 
     void onVolumeChanged(int volume);
 }

@@ -9,23 +9,20 @@ import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
 import com.github.yoep.popcorn.backend.adapters.video.listeners.VideoListener;
 import com.github.yoep.popcorn.backend.adapters.video.state.VideoState;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.core.io.Resource;
-import org.springframework.stereotype.Component;
-import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
+import java.io.InputStream;
 import java.util.Collection;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 @Slf4j
-@Component
 public class PopcornPlayer implements Player {
     public static final String PLAYER_ID = "internalPlayer";
     public static final String PLAYER_NAME = "Popcorn Time";
 
-    static final Resource GRAPHIC_RESOURCE = new ClassPathResource("/internal-popcorn-icon.png");
+    static final String GRAPHIC_RESOURCE = "/internal-popcorn-icon.png";
 
     private final Collection<PlayerListener> listeners = new ConcurrentLinkedQueue<>();
     private final VideoListener videoListener = createVideoListener();
@@ -57,8 +54,13 @@ public class PopcornPlayer implements Player {
     }
 
     @Override
-    public Optional<Resource> getGraphicResource() {
-        return Optional.of(GRAPHIC_RESOURCE);
+    public Optional<InputStream> getGraphicResource() {
+        try {
+            return Optional.ofNullable(PopcornPlayer.class.getResourceAsStream(GRAPHIC_RESOURCE));
+        } catch (Exception e) {
+            log.error("Failed to load graphic resource", e);
+            return Optional.empty();
+        }
     }
 
     @Override
@@ -78,7 +80,7 @@ public class PopcornPlayer implements Player {
 
     @Override
     public void addListener(PlayerListener listener) {
-        Assert.notNull(listener, "listener cannot be null");
+        Objects.requireNonNull(listener, "listener cannot be null");
         listeners.add(listener);
     }
 
@@ -89,7 +91,7 @@ public class PopcornPlayer implements Player {
 
     @Override
     public void play(PlayRequest request) {
-        Assert.notNull(request, "request cannot be null");
+        Objects.requireNonNull(request, "request cannot be null");
         videoService.onPlay(request);
     }
 

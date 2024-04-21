@@ -14,12 +14,10 @@ import com.github.yoep.popcorn.backend.settings.ApplicationConfigEvent;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 
 @Slf4j
-@Service
 @RequiredArgsConstructor
 public class PopcornPlayerSectionService extends AbstractListenerService<PopcornPlayerSectionListener> {
     private final PopcornPlayer player;

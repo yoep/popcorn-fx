@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.ui.screen;
 
-import com.github.spring.boot.javafx.view.ViewManager;
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.adapters.screen.FullscreenCallback;
@@ -9,6 +8,7 @@ import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
+import com.github.yoep.popcorn.ui.view.ViewManager;
 import com.github.yoep.popcorn.ui.view.services.MaximizeService;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
@@ -19,12 +19,10 @@ import javafx.scene.input.KeyCombination;
 import javafx.stage.Stage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 
 @Slf4j
-@Service
 @RequiredArgsConstructor
 public class ScreenServiceImpl implements ScreenService {
     public static final String FULLSCREEN_PROPERTY = "fullscreen";

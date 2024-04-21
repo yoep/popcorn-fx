@@ -11,9 +11,6 @@ import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfoSet;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleType;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Async;
-import org.springframework.stereotype.Service;
-import org.springframework.util.Assert;
 
 import java.util.Collections;
 import java.util.List;
@@ -25,7 +22,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Slf4j
-@Service
 public class SubtitleServiceImpl implements SubtitleService {
     private final FxLib fxLib;
     private final PopcornFx instance;
@@ -62,7 +58,6 @@ public class SubtitleServiceImpl implements SubtitleService {
     //region Methods
 
     @Override
-    @Async
     public CompletableFuture<List<SubtitleInfo>> retrieveSubtitles(final MovieDetails media) {
         Objects.requireNonNull(media, "media cannot be null");
         try (var set = fxLib.movie_subtitles(instance, media)) {
@@ -77,7 +72,6 @@ public class SubtitleServiceImpl implements SubtitleService {
     }
 
     @Override
-    @Async
     public CompletableFuture<List<SubtitleInfo>> retrieveSubtitles(final ShowDetails media, final Episode episode) {
         Objects.requireNonNull(media, "media cannot be null");
         Objects.requireNonNull(episode, "episode cannot be null");
@@ -91,9 +85,8 @@ public class SubtitleServiceImpl implements SubtitleService {
     }
 
     @Override
-    @Async
     public CompletableFuture<List<SubtitleInfo>> retrieveSubtitles(final String filename) {
-        Assert.hasText(filename, "filename cannot be empty");
+        Objects.requireNonNull(filename, "filename cannot be null");
         var subtitles = Optional.ofNullable(fxLib.filename_subtitles(instance, filename))
                 .map(SubtitleInfoSet::getSubtitles)
                 .orElse(Collections.emptyList());

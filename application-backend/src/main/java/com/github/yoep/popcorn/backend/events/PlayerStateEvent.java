@@ -4,7 +4,6 @@ import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
-import org.springframework.context.ApplicationEvent;
 
 /**
  * Invoked when the player state has changed.

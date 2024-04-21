@@ -9,14 +9,12 @@ import com.github.yoep.popcorn.backend.settings.models.TorrentSettings;
 import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import java.io.File;
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
-@Service
 @RequiredArgsConstructor
 public class HealthService {
     private final TorrentService torrentService;

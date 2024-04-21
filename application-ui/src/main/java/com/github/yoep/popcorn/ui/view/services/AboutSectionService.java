@@ -7,13 +7,11 @@ import com.github.yoep.popcorn.ui.info.VideoInfoService;
 import com.github.yoep.popcorn.ui.view.listeners.AboutSectionListener;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import java.util.List;
 
 @Slf4j
-@Service
 @RequiredArgsConstructor
 public class AboutSectionService extends AbstractListenerService<AboutSectionListener> {
     private final PlayerInfoService playerInfoService;
@@ -44,5 +42,5 @@ public class AboutSectionService extends AbstractListenerService<AboutSectionLis
 
     private void onPlayersChanged(List<ComponentInfo> players) {
         invokeListeners(e -> e.onPlayersChanged(players));
-   }
+    }
 }

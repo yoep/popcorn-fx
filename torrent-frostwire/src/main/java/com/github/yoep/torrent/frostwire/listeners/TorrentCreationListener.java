@@ -9,8 +9,8 @@ import com.frostwire.jlibtorrent.alerts.AlertType;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.util.Assert;
 
+import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
@@ -26,8 +26,8 @@ public class TorrentCreationListener implements AlertListener {
     //region Constructors
 
     public TorrentCreationListener(String name, Consumer<TorrentHandle> onCompleteConsumer) {
-        Assert.hasText(name, "name cannot be null");
-        Assert.notNull(onCompleteConsumer, "onCompleteConsumer cannot be null");
+        Objects.requireNonNull(name, "name cannot be null");
+        Objects.requireNonNull(onCompleteConsumer, "onCompleteConsumer cannot be null");
         this.name = name;
         this.onCompleteConsumer = onCompleteConsumer;
     }

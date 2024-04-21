@@ -10,15 +10,13 @@ import lombok.EqualsAndHashCode;
 import lombok.RequiredArgsConstructor;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.core.io.Resource;
-import org.springframework.util.Assert;
 import su.litvak.chromecast.api.v2.ChromeCast;
 import su.litvak.chromecast.api.v2.ChromeCastSpontaneousEvent;
 import su.litvak.chromecast.api.v2.ChromeCastSpontaneousEventListener;
 import su.litvak.chromecast.api.v2.MediaStatus;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.security.GeneralSecurityException;
 import java.util.Objects;
 import java.util.Optional;
@@ -30,7 +28,7 @@ import java.util.TimerTask;
 @EqualsAndHashCode(exclude = {"playerState", "chromeCast", "listener"}, callSuper = true)
 @RequiredArgsConstructor
 public class ChromecastPlayer extends AbstractListenerService<PlayerListener> implements Player {
-    static final Resource GRAPHIC_RESOURCE = new ClassPathResource("/external-chromecast-icon.png");
+    static final String GRAPHIC_RESOURCE = "/external-chromecast-icon.png";
     static final String MEDIA_RECEIVER_APP_ID = "CC1AD845";
     static final String MEDIA_NAMESPACE = "urn:x-cast:com.google.cast.media";
     static final String DESCRIPTION = "Chromecast streaming media device which allows the playback of videos on your TV.";
@@ -65,8 +63,13 @@ public class ChromecastPlayer extends AbstractListenerService<PlayerListener> im
     }
 
     @Override
-    public Optional<Resource> getGraphicResource() {
-        return Optional.of(GRAPHIC_RESOURCE);
+    public Optional<InputStream> getGraphicResource() {
+        try {
+            return Optional.ofNullable(ChromecastPlayer.class.getResourceAsStream(GRAPHIC_RESOURCE));
+        } catch (Exception ex) {
+            log.error("Failed to get the graphic resource, {}", ex.getMessage(), ex);
+            return Optional.empty();
+        }
     }
 
     @Override
@@ -92,7 +95,7 @@ public class ChromecastPlayer extends AbstractListenerService<PlayerListener> im
 
     @Override
     public void play(PlayRequest request) {
-        Assert.notNull(request, "request cannot be null");
+        Objects.requireNonNull(request, "request cannot be null");
 
         // check if we need to stop the previous playback thread
         stopPreviousPlaybackThreadIfNeeded();
@@ -147,7 +150,10 @@ public class ChromecastPlayer extends AbstractListenerService<PlayerListener> im
 
     @Override
     public void volume(int volume) {
-        Assert.state(volume >= 0 && volume <= 100, "Volume level must be between 0 and 100");
+        if (volume >= 0 && volume <= 100) {
+            throw new IllegalArgumentException("Volume level must be between 0 and 100");
+        }
+
         var volumeLevel = volume / 100f;
 
         try {

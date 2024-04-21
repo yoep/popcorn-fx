@@ -1,8 +1,8 @@
 package com.github.yoep.popcorn.ui.view.services;
 
-import com.github.spring.boot.javafx.view.ViewManager;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.UISettings;
+import com.github.yoep.popcorn.ui.view.ViewManager;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
@@ -11,12 +11,10 @@ import javafx.stage.Screen;
 import javafx.stage.Stage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 
 @Slf4j
-@Service
 @RequiredArgsConstructor
 public class MaximizeService {
     public static final String MAXIMIZED_PROPERTY = "maximized";

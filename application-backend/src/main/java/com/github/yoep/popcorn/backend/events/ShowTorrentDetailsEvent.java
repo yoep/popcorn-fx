@@ -3,7 +3,8 @@ package com.github.yoep.popcorn.backend.events;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import org.springframework.util.Assert;
+
+import java.util.Objects;
 
 @Getter
 @EqualsAndHashCode(callSuper = false)
@@ -20,8 +21,8 @@ public class ShowTorrentDetailsEvent extends ShowDetailsEvent {
 
     public ShowTorrentDetailsEvent(Object source, String magnetUri, TorrentInfo torrentInfo) {
         super(source, null);
-        Assert.notNull(magnetUri, "magnetUri cannot be null");
-        Assert.notNull(torrentInfo, "torrentInfo cannot be null");
+        Objects.requireNonNull(magnetUri, "magnetUri cannot be null");
+        Objects.requireNonNull(torrentInfo, "torrentInfo cannot be null");
         this.magnetUri = magnetUri;
         this.torrentInfo = torrentInfo;
     }

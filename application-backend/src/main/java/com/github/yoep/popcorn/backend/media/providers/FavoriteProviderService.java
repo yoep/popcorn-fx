@@ -11,9 +11,6 @@ import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.stereotype.Service;
 
 import java.util.Collections;
 import java.util.List;
@@ -21,7 +18,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
-@Service
 @RequiredArgsConstructor
 public class FavoriteProviderService implements ProviderService<Media> {
     private static final Category CATEGORY = Category.FAVORITES;
@@ -35,13 +31,13 @@ public class FavoriteProviderService implements ProviderService<Media> {
     }
 
     @Override
-    public CompletableFuture<Page<Media>> getPage(Genre genre, SortBy sortBy, int page) {
-        return CompletableFuture.completedFuture(new PageImpl<>(doInternalPageRetrieval(genre, sortBy, "", page)));
+    public CompletableFuture<List<Media>> getPage(Genre genre, SortBy sortBy, int page) {
+        return CompletableFuture.completedFuture(doInternalPageRetrieval(genre, sortBy, "", page));
     }
 
     @Override
-    public CompletableFuture<Page<Media>> getPage(Genre genre, SortBy sortBy, int page, String keywords) {
-        return CompletableFuture.completedFuture(new PageImpl<>(doInternalPageRetrieval(genre, sortBy, keywords, page)));
+    public CompletableFuture<List<Media>> getPage(Genre genre, SortBy sortBy, int page, String keywords) {
+        return CompletableFuture.completedFuture(doInternalPageRetrieval(genre, sortBy, keywords, page));
     }
 
     @Override

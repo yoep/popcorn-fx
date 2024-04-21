@@ -6,8 +6,6 @@ import com.github.yoep.popcorn.backend.media.MediaItem;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.watched.models.Watchable;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.util.Assert;
 
 import java.util.List;
 import java.util.Objects;
@@ -18,7 +16,6 @@ import java.util.concurrent.ConcurrentLinkedDeque;
  * This is done through the {@link Watchable} items that are received from events and marking them as watched.
  */
 @Slf4j
-@Service
 public class WatchedService {
     private final FxLib fxLib;
     private final PopcornFx instance;
@@ -107,7 +104,7 @@ public class WatchedService {
     }
 
     public void registerListener(WatchedEventCallback callback) {
-        Assert.notNull(callback, "callback cannot be null");
+        Objects.requireNonNull(callback, "callback cannot be null");
         listeners.add(callback);
     }
 

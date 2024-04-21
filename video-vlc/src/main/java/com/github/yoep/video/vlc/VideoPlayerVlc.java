@@ -12,8 +12,6 @@ import javafx.scene.layout.Pane;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.util.Assert;
-import org.springframework.util.StringUtils;
 import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
 import uk.co.caprica.vlcj.javafx.videosurface.ImageViewVideoSurface;
 import uk.co.caprica.vlcj.player.base.MediaPlayer;
@@ -74,7 +72,7 @@ public class VideoPlayerVlc extends AbstractVideoPlayer implements VideoPlayback
 
     @Override
     public boolean supports(String url) {
-        return isInitialized() && StringUtils.hasText(url);
+        return isInitialized() && url != null && !url.isBlank();
     }
 
     @Override
@@ -105,7 +103,7 @@ public class VideoPlayerVlc extends AbstractVideoPlayer implements VideoPlayback
 
     @Override
     public void addListener(VideoListener listener) {
-        Assert.notNull(listener, "listener cannot be null");
+        Objects.requireNonNull(listener, "listener cannot be null");
         listeners.add(listener);
     }
 

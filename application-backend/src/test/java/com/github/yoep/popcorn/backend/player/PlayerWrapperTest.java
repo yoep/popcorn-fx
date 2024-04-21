@@ -7,8 +7,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.core.io.ByteArrayResource;
 
+import java.io.ByteArrayInputStream;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -31,7 +31,7 @@ class PlayerWrapperTest {
         var playerName = "MyPlayerName";
         var playerDescription = "MyPlayerDescription";
         var expectedGraphicResource = new byte[]{10, 13, 99, 78};
-        var graphicResource = new ByteArrayResource(expectedGraphicResource);
+        var graphicResource = new ByteArrayInputStream(expectedGraphicResource);
         var player = mock(Player.class);
         when(player.getId()).thenReturn(playerId);
         when(player.getName()).thenReturn(playerName);

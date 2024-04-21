@@ -2,7 +2,6 @@ package com.github.yoep.popcorn.ui.view.listeners;
 
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
-import org.springframework.lang.Nullable;
 
 public interface LoadTorrentListener {
 
@@ -18,7 +17,7 @@ public interface LoadTorrentListener {
      *
      * @param media The new media item of the loading torrent, can be null if no media item is present.
      */
-    void onMediaChanged(@Nullable Media media);
+    void onMediaChanged(Media media);
 
     /**
      * Invoked when the download status of the torrent is changed.

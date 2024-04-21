@@ -1,10 +1,10 @@
 package com.github.yoep.popcorn.ui.view.services;
 
-import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.InfoNotificationEvent;
 import com.github.yoep.popcorn.backend.loader.LoaderService;
+import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.OpenMagnetLinkEvent;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
 import com.github.yoep.popcorn.ui.messages.MediaMessage;
@@ -12,17 +12,15 @@ import javafx.application.Application;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.stereotype.Service;
-import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.Objects;
 import java.util.regex.Pattern;
 
 @Slf4j
-@Service
 @RequiredArgsConstructor
 public class UrlService {
     private static final Pattern URL_TYPE_PATTERN = Pattern.compile("([a-zA-Z]*):?(.*)");
@@ -40,7 +38,7 @@ public class UrlService {
      * @param url The url link to open.
      */
     public void open(String url) {
-        Assert.notNull(url, "url cannot be null");
+        Objects.requireNonNull(url, "url cannot be null");
 
         try {
             application.getHostServices().showDocument(url);
@@ -117,7 +115,7 @@ public class UrlService {
      * @throws IOException Is thrown when the file cannot be read.
      */
     public boolean isVideoFile(File file) throws IOException {
-        Assert.notNull(file, "file cannot be null");
+        Objects.requireNonNull(file, "file cannot be null");
         var contentType = Files.probeContentType(file.toPath());
 
         if (contentType != null) {
@@ -141,7 +139,7 @@ public class UrlService {
     }
 
     private boolean isWebUrl(String type) {
-        Assert.notNull(type, "type cannot be null");
+        Objects.requireNonNull(type, "type cannot be null");
         return type.equalsIgnoreCase("http") || type.equalsIgnoreCase("https");
     }
 

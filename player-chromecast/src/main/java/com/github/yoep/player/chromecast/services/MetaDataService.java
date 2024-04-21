@@ -2,20 +2,13 @@ package com.github.yoep.player.chromecast.services;
 
 import com.github.yoep.player.chromecast.model.VideoMetadata;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
+import org.apache.http.client.HttpClient;
 
 import java.net.URI;
-import java.time.Duration;
-import java.util.Optional;
 
+// TODO: refactor to rust
 @Slf4j
-@Service
-public record MetaDataService(WebClient chromecastWebClient) {
-    private static final int DEFAULT_RETRIEVE_TIMEOUT_SECONDS = 3;
+public record MetaDataService(HttpClient chromecastWebClient) {
 
     /**
      * Resolve the meta data for the given video uri.
@@ -25,14 +18,8 @@ public record MetaDataService(WebClient chromecastWebClient) {
      */
     public VideoMetadata resolveMetadata(URI uri) {
         log.trace("Resolving video metadata of {}", uri);
-        var headers = retrieveVideoHeaders(uri);
-        var contentType = headers
-                .map(HttpHeaders::getContentType)
-                .orElse(MediaType.APPLICATION_OCTET_STREAM)
-                .toString();
-        var duration = headers
-                .map(HttpHeaders::getContentLength)
-                .orElse(VideoMetadata.UNKNOWN_DURATION);
+        var contentType = "application/octet-stream";
+        var duration = VideoMetadata.UNKNOWN_DURATION;
         var metadata = VideoMetadata.builder()
                 .contentType(contentType)
                 .duration(duration)
@@ -40,20 +27,5 @@ public record MetaDataService(WebClient chromecastWebClient) {
 
         log.debug("Resolved metadata {} for uri {}", metadata, uri);
         return metadata;
-    }
-
-    private Optional<HttpHeaders> retrieveVideoHeaders(URI uri) {
-        log.trace("Retrieving HTTP headers for {}", uri);
-        try {
-            return Optional.ofNullable(chromecastWebClient.head()
-                            .uri(uri)
-                            .retrieve()
-                            .toBodilessEntity()
-                            .block(Duration.ofSeconds(DEFAULT_RETRIEVE_TIMEOUT_SECONDS)))
-                    .map(HttpEntity::getHeaders);
-        } catch (RuntimeException ex) {
-            log.warn("Failed to retrieve video headers, {}", ex.getMessage(), ex);
-            return Optional.empty();
-        }
     }
 }

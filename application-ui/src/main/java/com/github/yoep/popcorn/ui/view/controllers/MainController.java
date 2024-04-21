@@ -8,6 +8,7 @@ import com.github.yoep.popcorn.backend.playlists.Playlist;
 import com.github.yoep.popcorn.backend.playlists.PlaylistItem;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
+import com.github.yoep.popcorn.ui.ApplicationArgs;
 import com.github.yoep.popcorn.ui.events.CloseLoadEvent;
 import com.github.yoep.popcorn.ui.stage.BorderlessStageHolder;
 import com.github.yoep.popcorn.ui.view.services.UrlService;
@@ -20,12 +21,10 @@ import javafx.scene.Scene;
 import javafx.scene.input.*;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.boot.ApplicationArguments;
 
 import java.io.File;
 import java.io.IOException;
@@ -36,8 +35,9 @@ import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static java.util.Arrays.asList;
+
 @Slf4j
-@RequiredArgsConstructor
 public class MainController extends ScaleAwareImpl implements Initializable {
     static final String TV_STYLESHEET = "/styles/tv.css";
     static final String MOUSE_DISABLED_STYLE_CLASS = "mouse-disabled";
@@ -53,11 +53,11 @@ public class MainController extends ScaleAwareImpl implements Initializable {
 
     private final EventPublisher eventPublisher;
     private final ViewLoader viewLoader;
-    private final ApplicationArguments arguments;
     private final UrlService urlService;
     private final ApplicationConfig applicationConfig;
     private final PlatformProvider platformProvider;
     private final PlaylistManager playlistManager;
+    private final ApplicationArgs applicationArgs;
 
     @FXML
     AnchorPane root;
@@ -66,6 +66,22 @@ public class MainController extends ScaleAwareImpl implements Initializable {
     Pane loaderPane;
     Pane notificationPane;
     SectionType currentSection;
+
+    public MainController(EventPublisher eventPublisher,
+                          ViewLoader viewLoader,
+                          UrlService urlService,
+                          ApplicationConfig applicationConfig,
+                          PlatformProvider platformProvider,
+                          PlaylistManager playlistManager,
+                          ApplicationArgs applicationArgs) {
+        this.eventPublisher = eventPublisher;
+        this.viewLoader = viewLoader;
+        this.urlService = urlService;
+        this.applicationConfig = applicationConfig;
+        this.platformProvider = platformProvider;
+        this.playlistManager = playlistManager;
+        this.applicationArgs = applicationArgs;
+    }
 
     //region Initializable
 
@@ -244,15 +260,13 @@ public class MainController extends ScaleAwareImpl implements Initializable {
     }
 
     protected boolean processApplicationArguments() {
-        var nonOptionArgs = arguments.getNonOptionArgs();
-
-        if (nonOptionArgs.size() > 0) {
-            log.debug("Retrieved the following non-option argument: {}", nonOptionArgs);
+        if (applicationArgs.args().length > 0) {
+            log.debug("Retrieved the following non-option argument: {}", asList(applicationArgs));
 
             // try to process the url that has been passed along the application during startup
             // if the url is processed with success, wait for the activity event to change the section
             // otherwise, we still show the content section
-            return urlService.process(nonOptionArgs.get(0));
+            return urlService.process(applicationArgs.args()[0]);
         }
 
         return false;

@@ -1,9 +1,9 @@
 package com.github.yoep.popcorn.ui.view.controllers.tv.components;
 
-import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.CleaningMode;
 import com.github.yoep.popcorn.backend.settings.models.TorrentSettings;
+import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.view.controls.AxisItemSelection;
 import com.github.yoep.popcorn.ui.view.controls.Overlay;
 import javafx.fxml.FXML;

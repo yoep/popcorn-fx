@@ -11,14 +11,12 @@ import javafx.scene.Node;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.io.Resource;
-import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
+import java.io.InputStream;
 import java.util.Optional;
 
 @Slf4j
-@Component
 @EqualsAndHashCode(exclude = "embeddablePlayer", callSuper = false)
 @ToString(exclude = "embeddablePlayer")
 public class EmbeddablePopcornPlayer implements EmbeddablePlayer {
@@ -54,7 +52,7 @@ public class EmbeddablePopcornPlayer implements EmbeddablePlayer {
     }
 
     @Override
-    public Optional<Resource> getGraphicResource() {
+    public Optional<InputStream> getGraphicResource() {
         return popcornPlayer.getGraphicResource();
     }
 

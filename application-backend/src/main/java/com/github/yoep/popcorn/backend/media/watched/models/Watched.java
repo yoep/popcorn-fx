@@ -4,10 +4,10 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.springframework.util.Assert;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Data
 @Builder
@@ -40,7 +40,7 @@ public class Watched {
      * @param key The key to add.
      */
     public void addMovie(String key) {
-        Assert.notNull(key, "key cannot be null");
+        Objects.requireNonNull(key, "key cannot be null");
         movies.add(key);
     }
 
@@ -50,7 +50,7 @@ public class Watched {
      * @param key The key to add.
      */
     public void addShow(String key) {
-        Assert.notNull(key, "key cannot be null");
+        Objects.requireNonNull(key, "key cannot be null");
         shows.add(key);
     }
 

@@ -53,7 +53,7 @@ class ShowProviderServiceTest {
 
         var result = provider.getPage(genre, sortBy, 1).get();
 
-        assertEquals(expectedResult, result.getContent());
+        assertEquals(expectedResult, result);
     }
 
     @Test
@@ -83,7 +83,7 @@ class ShowProviderServiceTest {
 
         var result = provider.getPage(genre, sortBy, 1).get();
 
-        assertEquals(Collections.emptyList(), result.getContent());
+        assertEquals(Collections.emptyList(), result);
     }
 
     @Test

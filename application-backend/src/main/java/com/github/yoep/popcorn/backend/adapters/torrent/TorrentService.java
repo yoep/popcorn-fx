@@ -7,7 +7,6 @@ import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
 import com.github.yoep.popcorn.backend.adapters.torrent.state.SessionState;
 import com.github.yoep.popcorn.backend.lib.Handle;
 import javafx.beans.property.ReadOnlyObjectProperty;
-import org.springframework.scheduling.annotation.Async;
 
 import java.io.File;
 import java.util.Optional;
@@ -46,7 +45,6 @@ public interface TorrentService {
      * @param torrentUrl The URL to the .torrent file or a magnet link.
      * @return Returns the torrent information.
      */
-    @Async
     CompletableFuture<TorrentInfo> getTorrentInfo(String torrentUrl);
 
     /**
@@ -57,7 +55,6 @@ public interface TorrentService {
      * @return Returns the health of the torrent.
      * @throws TorrentException Is thrown when an error occurred during retrieval of the health info.
      */
-    @Async
     CompletableFuture<TorrentHealth> getTorrentHealth(String url, File torrentDirectory);
 
     /**
@@ -68,7 +65,6 @@ public interface TorrentService {
      * @return Returns the health of the torrent.
      * @throws TorrentException Is thrown when an error occurred during retrieval of the health info.
      */
-    @Async
     CompletableFuture<TorrentHealth> getTorrentHealth(TorrentFileInfo torrentFile, File torrentDirectory);
 
     /**
@@ -78,7 +74,6 @@ public interface TorrentService {
      * @param torrentDirectory The directory where the torrent will be stored.
      * @return Returns the torrent for the given torrent file.
      */
-    @Async
     CompletableFuture<Torrent> create(TorrentFileInfo torrentFile, File torrentDirectory);
 
     /**
@@ -89,7 +84,6 @@ public interface TorrentService {
      * @param autoStartDownload Set if the download of the torrent should be started automatically.
      * @return Returns the torrent for the given torrent file.
      */
-    @Async
     CompletableFuture<Torrent> create(TorrentFileInfo torrentFile, File torrentDirectory, boolean autoStartDownload);
 
     /**

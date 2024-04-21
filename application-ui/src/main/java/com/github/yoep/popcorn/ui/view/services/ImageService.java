@@ -8,8 +8,6 @@ import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import javafx.scene.image.Image;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Async;
-import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -22,7 +20,6 @@ import java.util.concurrent.CompletableFuture;
  * This image service selects the correct image from the {@link Media} items and will handle redirects automatically.
  */
 @Slf4j
-@Service
 @RequiredArgsConstructor
 public class ImageService {
     private final FxLib fxLib;
@@ -68,7 +65,6 @@ public class ImageService {
      * @return Returns the fanart image if available, else {@link Optional#empty()}.
      * @throws ImageException Is thrown when the image data failed to load.
      */
-    @Async
     public CompletableFuture<Optional<Image>> loadFanart(Media media) {
         Objects.requireNonNull(media, "media cannot be null");
         log.debug("Loading fanart image for {}", media);
@@ -90,7 +86,6 @@ public class ImageService {
      * @return Returns the poster image if available, else {@link Optional#empty()}.
      * @throws ImageException Is thrown when the image data failed to load.
      */
-    @Async
     public CompletableFuture<Optional<Image>> loadPoster(Media media) {
         return loadPoster(media, 0, 0);
     }
@@ -105,7 +100,6 @@ public class ImageService {
      * @return Returns the poster image if available, else {@link Optional#empty()}.
      * @throws ImageException Is thrown when the image data failed to load.
      */
-    @Async
     public CompletableFuture<Optional<Image>> loadPoster(final Media media, final double width, final double height) {
         Objects.requireNonNull(media, "media cannot be null");
         log.debug("Loading the poster holder for {}", media);
@@ -127,7 +121,6 @@ public class ImageService {
      * @return Returns the image data.
      * @throws ImageException Is thrown when the image data failed to load.
      */
-    @Async
     public CompletableFuture<Image> load(String url) {
         Objects.requireNonNull(url, "url cannot be null");
         try (var bytes = fxLib.load_image(instance, url)) {
@@ -146,7 +139,6 @@ public class ImageService {
      * @return Returns the loaded image resource.
      * @throws ImageException Is thrown when the resource image failed to load.
      */
-    @Async
     public CompletableFuture<Image> loadResource(String url) {
         Objects.requireNonNull(url, "url cannot be empty");
         var classpathUrl = "/images/" + url;

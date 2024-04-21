@@ -1,7 +1,6 @@
 package com.github.yoep.popcorn.ui;
 
 import com.github.spring.boot.javafx.view.ViewLoader;
-import com.github.spring.boot.javafx.view.ViewManager;
 import com.github.spring.boot.javafx.view.ViewProperties;
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
@@ -9,6 +8,8 @@ import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.models.UISettings;
+import com.github.yoep.popcorn.ui.view.ViewManager;
+import com.github.yoep.popcorn.ui.view.controllers.MainController;
 import com.github.yoep.popcorn.ui.view.services.MaximizeService;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.Scene;
@@ -20,8 +21,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ConfigurableApplicationContext;
 
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.*;
 
@@ -29,8 +30,6 @@ import static org.mockito.Mockito.*;
 class PopcornTimeApplicationTest {
     @Mock
     private Stage stage;
-    @Mock
-    private ConfigurableApplicationContext applicationContext;
     @Mock
     private ApplicationConfig applicationConfig;
     @Mock
@@ -52,16 +51,21 @@ class PopcornTimeApplicationTest {
 
     @BeforeEach
     void setUp() {
-        lenient().when(applicationContext.getBean(ApplicationConfig.class)).thenReturn(applicationConfig);
-        lenient().when(applicationContext.getBean(ViewManager.class)).thenReturn(viewManager);
-        lenient().when(applicationContext.getBean(PlatformProvider.class)).thenReturn(platformProvider);
-        lenient().when(applicationContext.getBean(MaximizeService.class)).thenReturn(maximizeService);
-        lenient().when(applicationContext.getBean(ViewLoader.class)).thenReturn(viewLoader);
-        lenient().when(applicationContext.getBean(FxLib.class)).thenReturn(fxLib);
-        lenient().when(applicationContext.getBean(PopcornFx.class)).thenReturn(popcornFx);
         lenient().when(stage.sceneProperty()).thenReturn(sceneProperty);
 
-        application = new PopcornTimeApplication(applicationContext);
+        application = new PopcornTimeApplication();
+        PopcornTimeApplication.IOC.registerInstance(fxLib);
+        PopcornTimeApplication.IOC.registerInstance(popcornFx);
+        PopcornTimeApplication.IOC.registerInstance(new ApplicationArgs(new String[]{}));
+    }
+
+    @Test
+    void testInit() throws Exception {
+        application.init();
+
+        var result = application.IOC.getInstance(MainController.class);
+
+        assertNotNull(result);
     }
 
     @Test

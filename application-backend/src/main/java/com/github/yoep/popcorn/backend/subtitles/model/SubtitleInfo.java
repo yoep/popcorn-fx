@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.backend.subtitles.model;
 
-import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.sun.jna.Structure;
@@ -9,10 +8,9 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.core.io.Resource;
 
 import java.io.Closeable;
+import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -99,8 +97,8 @@ public class SubtitleInfo extends Structure implements Closeable {
      *
      * @return Returns the flag class path resource.
      */
-    public Resource getFlagResource() {
-        return new ClassPathResource(ViewLoader.IMAGE_DIRECTORY + "/flags/" + language.getCode() + ".png");
+    public InputStream getFlagResource() {
+        return SubtitleInfo.class.getResourceAsStream( "/images/flags/" + language.getCode() + ".png");
     }
 
     public List<SubtitleFile> getFiles() {

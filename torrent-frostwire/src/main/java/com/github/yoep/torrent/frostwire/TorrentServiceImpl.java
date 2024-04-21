@@ -23,7 +23,6 @@ import com.github.yoep.torrent.frostwire.wrappers.TorrentInfoWrapper;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
 import java.io.File;
@@ -75,7 +74,7 @@ public class TorrentServiceImpl implements TorrentService {
 
     @Override
     public CompletableFuture<TorrentHealth> getTorrentHealth(String url, File torrentDirectory) {
-        Assert.hasText(url, "url cannot be empty");
+        Objects.requireNonNull(url, "url cannot be empty");
         var torrentInfo = torrentResolverService.resolveUrl(url);
 
         return getTorrentHealth(torrentInfo.getLargestFile(), torrentDirectory);
@@ -83,8 +82,8 @@ public class TorrentServiceImpl implements TorrentService {
 
     @Override
     public CompletableFuture<TorrentHealth> getTorrentHealth(TorrentFileInfo torrentFile, File torrentDirectory) {
-        Assert.notNull(torrentFile, "torrentFile cannot be null");
-        Assert.notNull(torrentDirectory, "torrentDirectory cannot be null");
+        Objects.requireNonNull(torrentFile, "torrentFile cannot be null");
+        Objects.requireNonNull(torrentDirectory, "torrentDirectory cannot be null");
         var session = sessionManager.getSession();
         var completableFuture = new CompletableFuture<TorrentHealth>();
         var handle = internalCreateTorrentHandle(torrentFile, torrentDirectory);
@@ -112,8 +111,8 @@ public class TorrentServiceImpl implements TorrentService {
 
     @Override
     public CompletableFuture<Torrent> create(TorrentFileInfo torrentFile, File torrentDirectory, boolean autoStartDownload) {
-        Assert.notNull(torrentFile, "torrentFile cannot be null");
-        Assert.notNull(torrentDirectory, "torrentDirectory cannot be null");
+        Objects.requireNonNull(torrentFile, "torrentFile cannot be null");
+        Objects.requireNonNull(torrentDirectory, "torrentDirectory cannot be null");
         var session = sessionManager.getSession();
         var handle = internalCreateTorrentHandle(torrentFile, torrentDirectory);
         var torrent = new FrostTorrent(handle, torrentFile.getFileIndex(), autoStartDownload);
@@ -128,7 +127,7 @@ public class TorrentServiceImpl implements TorrentService {
 
     @Override
     public void remove(Torrent torrent) {
-        Assert.notNull(torrent, "torrent cannot be null");
+        Objects.requireNonNull(torrent, "torrent cannot be null");
         var session = sessionManager.getSession();
 
         // pause the torrent download

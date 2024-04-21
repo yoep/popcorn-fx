@@ -6,13 +6,11 @@ import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
 import com.github.yoep.popcorn.backend.torrent.collection.StoredTorrent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Objects;
 
 @Slf4j
-@Service
 @RequiredArgsConstructor
 public class TorrentCollectionService {
     private final FxLib fxLib;
@@ -43,7 +41,7 @@ public class TorrentCollectionService {
     /**
      * Add the given torrent to the torrent collection.
      *
-     * @param torrent   The torrent info to add.
+     * @param torrent The torrent info to add.
      */
     public void addTorrent(TorrentInfo torrent) {
         Objects.requireNonNull(torrent, "torrent cannot be null");

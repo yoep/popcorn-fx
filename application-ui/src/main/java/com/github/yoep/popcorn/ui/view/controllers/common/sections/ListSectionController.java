@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
-import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
@@ -9,6 +8,7 @@ import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteEventCallback;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.backend.media.providers.MediaParsingException;
+import com.github.yoep.popcorn.backend.media.providers.MediaRetrievalException;
 import com.github.yoep.popcorn.backend.media.providers.ProviderService;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
@@ -16,13 +16,14 @@ import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.media.watched.WatchedEventCallback;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
+import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.CategoryChangedEvent;
 import com.github.yoep.popcorn.ui.events.GenreChangeEvent;
 import com.github.yoep.popcorn.ui.events.SearchEvent;
 import com.github.yoep.popcorn.ui.events.SortByChangeEvent;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
 import com.github.yoep.popcorn.ui.messages.ListMessage;
-import com.github.yoep.popcorn.ui.view.controllers.common.components.DesktopMediaCardComponent;
+import com.github.yoep.popcorn.ui.view.controllers.common.components.MediaCardComponent;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.TvMediaCardComponent;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.OverlayItemListener;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.OverlayItemMetadataProvider;
@@ -38,8 +39,6 @@ import javafx.scene.layout.AnchorPane;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.data.domain.Page;
-import org.springframework.web.client.HttpStatusCodeException;
 
 import java.net.URL;
 import java.util.Arrays;
@@ -151,7 +150,7 @@ public class ListSectionController extends AbstractListSectionController impleme
             mediaCardComponent = new TvMediaCardComponent(item, imageService, metadataProvider, overlayItemListener);
         } else {
             // load a new media card controller and inject it into the view
-            mediaCardComponent = new DesktopMediaCardComponent(item, localeText, imageService, metadataProvider, overlayItemListener);
+            mediaCardComponent = new MediaCardComponent(item, localeText, imageService, metadataProvider, overlayItemListener);
         }
 
         return viewLoader.load("components/media-card-overlay.component.fxml", mediaCardComponent);
@@ -269,8 +268,8 @@ public class ListSectionController extends AbstractListSectionController impleme
 
         // verify if an invalid response was received from the backend
         // if so, show the status code
-        if (rootCause instanceof HttpStatusCodeException ex) {
-            message.set(localeText.get(ListMessage.API_UNAVAILABLE, ex.getStatusCode()));
+        if (rootCause instanceof MediaRetrievalException) {
+            message.set(localeText.get(ListMessage.API_UNAVAILABLE, 500));
         }
 
         Platform.runLater(() -> {
@@ -302,11 +301,11 @@ public class ListSectionController extends AbstractListSectionController impleme
                 .exceptionally(this::onMediaRequestFailed);
     }
 
-    private Media[] onMediaRequestCompleted(final Page<? extends Media> page) {
+    private Media[] onMediaRequestCompleted(final List<? extends Media> page) {
         releaseCurrentLoadRequest();
 
         // filter out any duplicate items
-        return page.get()
+        return page.stream()
                 .filter(e -> !scrollPane.contains(e))
                 .toArray(Media[]::new);
     }

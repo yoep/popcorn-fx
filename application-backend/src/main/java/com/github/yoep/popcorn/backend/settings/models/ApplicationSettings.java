@@ -19,20 +19,8 @@ public class ApplicationSettings extends Structure implements Closeable {
     public PlaybackSettings playbackSettings;
     public TrackingSettings trackingSettings;
 
-    /**
-     * The trakt.tv settings of the application.
-     */
-    @Builder.Default
-    private TraktSettings traktSettings = TraktSettings.builder().build();
 
     //region Getters & Setters
-
-    public TraktSettings getTraktSettings() {
-        if (traktSettings == null)
-            traktSettings = TraktSettings.builder().build();
-
-        return traktSettings;
-    }
 
     @Override
     public void close() {

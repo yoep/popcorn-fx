@@ -1,7 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    <include resource="org/springframework/boot/logging/logback/defaults.xml" />
+    <!-- Suppress internal Logback initialization logs -->
+    <statusListener class="ch.qos.logback.core.status.NopStatusListener" />
 
+    <!-- Define the logging levels -->
+    <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"/>
+
+    <!-- Appenders -->
     <appender name="bridge" class="com.github.yoep.popcorn.backend.logging.LoggingBridge"/>
 
     <root level="INFO">

@@ -9,10 +9,8 @@ import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.io.ClassPathResource;
 
 import javax.annotation.PostConstruct;
-import java.io.IOException;
 import java.net.URL;
 import java.util.ResourceBundle;
 
@@ -54,15 +52,11 @@ public class WindowComponent implements Initializable {
     }
 
     private void initializeImages() {
-        var restore = new ClassPathResource("/images/windows/restore.png");
-        var maximize = new ClassPathResource("/images/windows/maximize.png");
+        var restore = WindowComponent.class.getResourceAsStream("/images/windows/restore.png");
+        var maximize = WindowComponent.class.getResourceAsStream("/images/windows/maximize.png");
 
-        try {
-            restoreImage = new Image(restore.getInputStream());
-            maximizeImage = new Image(maximize.getInputStream());
-        } catch (IOException ex) {
-            log.error("Failed to initialize title bar images, " + ex.getMessage(), ex);
-        }
+        restoreImage = new Image(restore);
+        maximizeImage = new Image(maximize);
     }
 
     //endregion

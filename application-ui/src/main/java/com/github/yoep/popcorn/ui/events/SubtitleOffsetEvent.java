@@ -1,9 +1,9 @@
 package com.github.yoep.popcorn.ui.events;
 
+import com.github.yoep.popcorn.backend.events.ApplicationEvent;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
-import org.springframework.context.ApplicationEvent;
 
 @Getter
 @ToString

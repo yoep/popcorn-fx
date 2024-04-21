@@ -7,8 +7,6 @@ import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguag
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleType;
-import org.springframework.lang.Nullable;
-import org.springframework.scheduling.annotation.Async;
 
 import java.util.List;
 import java.util.Optional;
@@ -38,7 +36,6 @@ public interface SubtitleService {
      * @param media The media to retrieve the subtitles of.
      * @return Returns the list of available subtitles for the media.
      */
-    @Async
     CompletableFuture<List<SubtitleInfo>> retrieveSubtitles(MovieDetails media);
 
     /**
@@ -48,7 +45,6 @@ public interface SubtitleService {
      * @param episode The episode of the media to retrieve the subtitle of.
      * @return Returns the list of available subtitles for the media.
      */
-    @Async
     CompletableFuture<List<SubtitleInfo>> retrieveSubtitles(ShowDetails media, Episode episode);
 
     /**
@@ -58,7 +54,6 @@ public interface SubtitleService {
      * @param filename The filename to retrieve the subtitle for.
      * @return Returns the list of available subtitles for the given file.
      */
-    @Async
     CompletableFuture<List<SubtitleInfo>> retrieveSubtitles(String filename);
 
     /**
@@ -67,7 +62,6 @@ public interface SubtitleService {
      * @param subtitleInfo The subtitle info to download and parse.
      * @return Returns the subtitle for the given subtitle info.
      */
-    @Async
     CompletableFuture<Subtitle> downloadAndParse(SubtitleInfo subtitleInfo, SubtitleMatcher.ByValue matcher);
 
     /**
@@ -102,9 +96,9 @@ public interface SubtitleService {
      * Update the preferred subtitle for the media playback.
      * Passing `null` will disable the subtitle for the next media playback item.
      *
-     * @param subtitle The new subtitle info to prefer on the next playback.
+     * @param subtitle The new subtitle info to prefer on the next playback, or null.
      */
-    void updateSubtitle(@Nullable SubtitleInfo subtitle);
+    void updateSubtitle(SubtitleInfo subtitle);
 
     /**
      * Update the subtitle to a custom filepath.

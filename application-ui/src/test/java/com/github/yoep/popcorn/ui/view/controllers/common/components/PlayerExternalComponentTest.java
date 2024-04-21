@@ -20,7 +20,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.core.io.ClassPathResource;
 import org.testfx.framework.junit5.ApplicationExtension;
 import org.testfx.util.WaitForAsyncUtils;
 
@@ -31,7 +30,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.*;
@@ -69,9 +67,9 @@ class PlayerExternalComponentTest {
     void testListener_whenMediaItemIsChanged_shouldLoadBackgroundImage() throws IOException {
         var background = "MyBackgroundUri.jpg";
         var request = mock(PlayRequest.class);
-        var holder = new ClassPathResource("posterholder.png");
+        var holder = PlayerExternalComponentTest.class.getResourceAsStream("/posterholder.png");
         when(request.getBackground()).thenReturn(Optional.of(background));
-        when(imageService.load(isA(String.class))).thenReturn(CompletableFuture.completedFuture(new Image(holder.getInputStream())));
+        when(imageService.load(isA(String.class))).thenReturn(CompletableFuture.completedFuture(new Image(holder)));
         controller.init();
 
         var listener = externalListenerHolder.get();

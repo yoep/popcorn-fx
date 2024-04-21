@@ -4,7 +4,6 @@ import com.github.yoep.popcorn.backend.adapters.video.listeners.VideoListener;
 import com.github.yoep.popcorn.backend.adapters.video.state.VideoState;
 import javafx.scene.Node;
 
-import javax.validation.constraints.NotNull;
 import java.io.File;
 
 /**
@@ -43,7 +42,7 @@ public interface VideoPlayback {
      *
      * @return Return the name of the video player.
      */
-    @NotNull
+    
     String getName();
 
     /**

@@ -1,80 +1,178 @@
 package com.github.yoep.popcorn.ui;
 
-import com.github.spring.boot.javafx.SpringJavaFXApplication;
-import com.github.spring.boot.javafx.stage.BorderlessStageWrapper;
-import com.github.spring.boot.javafx.view.ViewLoader;
-import com.github.spring.boot.javafx.view.ViewManager;
-import com.github.spring.boot.javafx.view.ViewManagerPolicy;
-import com.github.spring.boot.javafx.view.ViewProperties;
-import com.github.yoep.popcorn.backend.BackendConstants;
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
-import com.github.yoep.popcorn.backend.lib.FxLibInstance;
-import com.github.yoep.popcorn.backend.lib.PopcornFxInstance;
+import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.events.EventPublisherBridge;
+import com.github.yoep.popcorn.backend.loader.LoaderService;
+import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
+import com.github.yoep.popcorn.backend.media.providers.FavoriteProviderService;
+import com.github.yoep.popcorn.backend.media.providers.MovieProviderService;
+import com.github.yoep.popcorn.backend.media.providers.ShowProviderService;
+import com.github.yoep.popcorn.backend.media.tracking.TraktTrackingService;
+import com.github.yoep.popcorn.backend.media.watched.WatchedService;
+import com.github.yoep.popcorn.backend.player.PlayerManagerServiceImpl;
+import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
+import com.github.yoep.popcorn.backend.subtitles.SubtitleServiceImpl;
+import com.github.yoep.popcorn.backend.updater.UpdateService;
+import com.github.yoep.popcorn.backend.utils.PopcornLocaleText;
+import com.github.yoep.popcorn.backend.utils.ResourceBundleMessageSource;
+import com.github.yoep.popcorn.ui.info.PlayerInfoService;
+import com.github.yoep.popcorn.ui.info.VideoInfoService;
+import com.github.yoep.popcorn.ui.platform.PlatformFX;
 import com.github.yoep.popcorn.ui.stage.BorderlessStageHolder;
-import com.github.yoep.popcorn.ui.view.services.MaximizeService;
-import com.sun.jna.Memory;
-import com.sun.jna.Native;
-import com.sun.jna.Pointer;
+import com.github.yoep.popcorn.ui.torrent.TorrentCollectionService;
+import com.github.yoep.popcorn.ui.tracking.EmbeddedAuthorization;
+import com.github.yoep.popcorn.ui.view.*;
+import com.github.yoep.popcorn.ui.view.controllers.ContentSectionController;
+import com.github.yoep.popcorn.ui.view.controllers.MainController;
+import com.github.yoep.popcorn.ui.view.controllers.common.components.*;
+import com.github.yoep.popcorn.ui.view.controllers.common.sections.*;
+import com.github.yoep.popcorn.ui.view.controllers.desktop.components.*;
+import com.github.yoep.popcorn.ui.view.controllers.desktop.sections.TorrentCollectionSectionController;
+import com.github.yoep.popcorn.ui.view.controllers.tv.components.TvFilterComponent;
+import com.github.yoep.popcorn.ui.view.services.*;
+import javafx.application.Application;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.context.ConfigurableApplicationContext;
 
 import java.awt.*;
-import java.io.File;
-import java.nio.charset.StandardCharsets;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 @Slf4j
-@SpringBootApplication
 @NoArgsConstructor
-public class PopcornTimeApplication extends SpringJavaFXApplication {
+public class PopcornTimeApplication extends Application {
     public static final String ICON_NAME = "icon_64.png";
     public static final String APPLICATION_TITLE = "Popcorn Time";
-
     static final String STAGE_VIEW = "main.fxml";
 
-    public static void main(String[] args) {
-        System.setProperty("log.dir", getLogDirectory());
-        System.setProperty("jna.encoding", StandardCharsets.UTF_8.name());
+    @Getter
+    static final IoC IOC = new IoC();
+    @Getter
+    static final AtomicReference<Consumer<IoC>> ON_INIT = new AtomicReference<>();
 
-        var libArgs = createLibraryArguments(args);
-        PopcornFxInstance.INSTANCE.set(FxLibInstance.INSTANCE.get().new_popcorn_fx(libArgs.ptr, libArgs.length));
+    @Override
+    public void init() throws Exception {
+        var fxLib = IOC.getInstance(FxLib.class);
+        var popcornFx = IOC.getInstance(PopcornFx.class);
+        var resourceBundle = IOC.registerInstance(new ResourceBundleMessageSource("main", "about", "genres", "languages", "sort-by"));
+        var localeText = IOC.registerInstance(new PopcornLocaleText(resourceBundle));
+        var applicationConfig = IOC.registerInstance(new ApplicationConfig(localeText, fxLib, popcornFx));
+        var viewManager = IOC.registerInstance(new PopcornViewManager());
+        var viewLoader = IOC.registerInstance(new PopcornViewLoader(IOC, applicationConfig, viewManager, localeText));
+        var eventPublisher = IOC.registerInstance(new EventPublisher());
+        var eventPublisherBridge = IOC.registerInstance(new EventPublisherBridge(eventPublisher, fxLib, popcornFx));
+        var maximizeService = IOC.registerInstance(new MaximizeService(viewManager, applicationConfig));
+        var platformProvider = IOC.registerInstance(new PlatformFX());
+        var loaderService = IOC.registerInstance(new LoaderService(fxLib, popcornFx, eventPublisher));
+        var playlistManager = IOC.registerInstance(new PlaylistManager(fxLib, popcornFx, applicationConfig));
+        var playerManagerService = new PlayerManagerServiceImpl(fxLib, popcornFx, eventPublisher);
+        IOC.registerInstance(new FavoriteProviderService(fxLib, popcornFx));
+        IOC.registerInstance(new MovieProviderService(fxLib, popcornFx));
+        IOC.registerInstance(new ShowProviderService(fxLib, popcornFx));
+        IOC.registerInstance(new FavoriteService(fxLib, popcornFx));
+        IOC.registerInstance(new WatchedService(fxLib, popcornFx));
+        IOC.registerInstance(playerManagerService);
+        IOC.registerInstance(new UrlService(eventPublisher, this, localeText, loaderService));
 
-        launch(PopcornTimeApplication.class, PopcornTimePreloader.class, args);
-    }
+        // services
+        IOC.register(EmbeddedAuthorization.class);
+        IOC.register(HealthService.class);
+        IOC.register(ImageService.class);
+        IOC.register(PlayerExternalComponentService.class);
+        IOC.register(ShowHelperService.class);
+        IOC.register(SubtitlePickerService.class);
+        IOC.register(SubtitleServiceImpl.class);
+        IOC.register(TorrentCollectionService.class);
+        IOC.register(TorrentSettingService.class);
+        IOC.register(TraktTrackingService.class);
+        IOC.register(UpdateService.class);
+        IOC.register(VideoQualityService.class);
 
-    protected PopcornTimeApplication(ConfigurableApplicationContext applicationContext) {
-        this.applicationContext = applicationContext;
+        // components
+        IOC.register(EpisodeComponent.class);
+        IOC.register(LoaderComponent.class);
+        IOC.register(LoadingCardComponent.class);
+        IOC.register(MediaCardComponent.class);
+        IOC.register(MovieDetailsComponent.class);
+        IOC.register(NotificationComponent.class);
+        IOC.register(PlayerExternalComponent.class);
+        IOC.register(PlayingNextInComponent.class);
+        IOC.register(PlaylistItemComponent.class);
+        IOC.register(PosterComponent.class);
+        IOC.register(ProgressInfoComponent.class);
+        IOC.register(SettingsActionsComponent.class);
+        IOC.register(ShowDetailsComponent.class);
+        IOC.register(TvMediaCardComponent.class);
+        IOC.register(TvPosterComponent.class);
+
+        // controllers
+        IOC.register(AboutSectionController.class);
+        IOC.register(ContentSectionController.class);
+        IOC.register(DetailsComponentService.class);
+        IOC.register(DetailsSectionController.class);
+        IOC.register(LoaderSectionController.class);
+        IOC.register(NotificationSectionController.class);
+        IOC.register(PlayerSectionController.class);
+        IOC.register(SettingsSectionController.class);
+        IOC.register(SidebarController.class);
+        IOC.register(UpdateSectionController.class);
+        IOC.register(ListSectionController.class);
+        IOC.register(MainController.class);
+
+        // register additional init beans
+        Optional.ofNullable(ON_INIT.get())
+                .ifPresent(consumer -> consumer.accept(IOC));
+
+        // register video playback
+        var playerInfoService = IOC.registerInstance(new PlayerInfoService(playerManagerService));
+        var videoInfoService = IOC.registerInstance(new VideoInfoService(IOC.getInstances(VideoPlayback.class)));
+        IOC.registerInstance(new AboutSectionService(playerInfoService, videoInfoService));
+
+        if (!applicationConfig.isTvMode()) {
+            loadDesktopControllers(IOC);
+        } else {
+            loadTvControllers(IOC);
+        }
     }
 
     @Override
     public void start(Stage stage) throws Exception {
         log.trace("Starting the application");
         updateStageType(stage);
-        super.start(stage);
-
-        var loader = applicationContext.getBean(ViewLoader.class);
-        var viewManager = applicationContext.getBean(ViewManager.class);
-        var fxLib = applicationContext.getBean(FxLib.class);
-        var instance = applicationContext.getBean(PopcornFx.class);
 
         log.trace("Loading the main view of the application");
         centerOnActiveScreen(stage);
-        loader.show(stage, STAGE_VIEW, getViewProperties());
-        viewManager.setPolicy(ViewManagerPolicy.CLOSEABLE);
+        var viewProperties = getViewProperties(
+                IOC.getInstance(ApplicationConfig.class),
+                IOC.getInstance(MaximizeService.class),
+                IOC.getInstance(PlatformProvider.class)
+        );
+        IOC.getInstance(ViewLoader.class).show(stage, STAGE_VIEW, viewProperties);
+        IOC.getInstance(ViewManager.class).setPolicy(ViewManagerPolicy.CLOSEABLE);
 
         log.trace("Starting the discovery of external players");
-        fxLib.discover_external_players(instance);
+        IOC.getInstance(FxLib.class).discover_external_players(IOC.getInstance(PopcornFx.class));
+    }
+
+    @Override
+    public void stop() throws Exception {
+        super.stop();
+        IOC.dispose();
+        System.exit(0);
     }
 
     private void updateStageType(Stage stage) {
-        var settingsService = applicationContext.getBean(ApplicationConfig.class);
+        var settingsService = IOC.getInstance(ApplicationConfig.class);
         var uiSettings = settingsService.getSettings().getUiSettings();
 
         if (uiSettings.isNativeWindowEnabled()) {
@@ -86,11 +184,10 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
         }
     }
 
-    private ViewProperties getViewProperties() {
+    private ViewProperties getViewProperties(ApplicationConfig applicationConfig,
+                                             MaximizeService maximizeService,
+                                             PlatformProvider platformProvider) {
         log.trace("Building the view properties of the application");
-        var applicationConfig = applicationContext.getBean(ApplicationConfig.class);
-        var maximizeService = applicationContext.getBean(MaximizeService.class);
-        var platformProvider = applicationContext.getBean(PlatformProvider.class);
         var properties = ViewProperties.builder()
                 .title(APPLICATION_TITLE)
                 .icon(ICON_NAME)
@@ -102,8 +199,7 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
         if (applicationConfig.isTvMode() || applicationConfig.isMaximized()) {
             maximizeService.setMaximized(true);
         } else {
-            var settingsService = applicationContext.getBean(ApplicationConfig.class);
-            var uiSettings = settingsService.getSettings().getUiSettings();
+            var uiSettings = applicationConfig.getSettings().getUiSettings();
 
             maximizeService.setMaximized(uiSettings.isMaximized());
         }
@@ -132,30 +228,25 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
         stage.centerOnScreen();
     }
 
-    public static String getLogDirectory() {
-        var loggingDirectoryPath = System.getProperty("user.home") + File.separator + BackendConstants.POPCORN_HOME_DIRECTORY + File.separator;
-        var loggingDirectory = new File(loggingDirectoryPath);
-
-        return loggingDirectory.getAbsolutePath();
+    private static void loadDesktopControllers(IoC instance) {
+        instance.register(DesktopFilterComponent.class);
+        instance.register(DesktopMovieActionsComponent.class);
+        instance.register(DesktopMovieQualityComponent.class);
+        instance.register(DesktopSerieActionsComponent.class);
+        instance.register(DesktopSerieQualityComponent.class);
+        instance.register(DesktopSidebarSearchComponent.class);
+        instance.register(DetailsTorrentComponent.class);
+        instance.register(SettingsPlaybackComponent.class);
+        instance.register(SettingsServerComponent.class);
+        instance.register(SettingsSubtitlesComponent.class);
+        instance.register(SettingsTorrentComponent.class);
+        instance.register(SettingsTraktComponent.class);
+        instance.register(SettingsUIComponent.class);
+        instance.register(TorrentCollectionSectionController.class);
+        instance.register(WindowComponent.class);
     }
 
-    private static Args createLibraryArguments(String[] args) {
-        var length = args.length + 1;
-        var libArgs = new String[length];
-        libArgs[0] = "popcorn-fx";
-        System.arraycopy(args, 0, libArgs, 1, args.length);
-        var pointer = new Memory((long) length * Native.POINTER_SIZE);
-        var stringPointers =  new Pointer[length];
-
-        for (int i = 0; i < length; i++) {
-            stringPointers[i] = new Memory(libArgs[i].length() + 1);
-            stringPointers[i].setString(0, libArgs[i]);
-            pointer.setPointer((long) i * Native.POINTER_SIZE, stringPointers[i]);
-        }
-
-        return new Args(pointer, length);
-    }
-
-    private record Args(Pointer ptr, int length) {
+    private static void loadTvControllers(IoC instance) {
+        instance.register(TvFilterComponent.class);
     }
 }

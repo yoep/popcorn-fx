@@ -15,7 +15,6 @@ import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.task.TaskExecutor;
 
 import javax.annotation.PostConstruct;
 import java.util.concurrent.atomic.AtomicReference;
@@ -25,7 +24,6 @@ import java.util.concurrent.atomic.AtomicReference;
 public class DetailsSectionController {
     private final EventPublisher eventPublisher;
     private final ViewLoader viewLoader;
-    private final TaskExecutor taskExecutor;
 
     private Pane movieDetailsPane;
     private Pane showDetailsPane;
@@ -63,7 +61,7 @@ public class DetailsSectionController {
     }
 
     private void initializePanes() {
-        taskExecutor.execute(() -> {
+        new Thread(() -> {
             movieDetailsPane = viewLoader.load("common/components/details-movie.component.fxml");
             showDetailsPane = viewLoader.load("common/components/details-show.component.fxml");
             torrentDetailsPane = viewLoader.load("common/components/details-torrent.component.fxml");
@@ -71,7 +69,7 @@ public class DetailsSectionController {
             anchor(movieDetailsPane);
             anchor(showDetailsPane);
             anchor(torrentDetailsPane);
-        });
+        }, "DetailsSectionController.initializePanes").start();
     }
 
     //endregion

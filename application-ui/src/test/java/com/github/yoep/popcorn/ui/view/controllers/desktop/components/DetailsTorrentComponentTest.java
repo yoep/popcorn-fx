@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
-import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentFileInfo;
@@ -9,12 +8,13 @@ import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowTorrentDetailsEvent;
 import com.github.yoep.popcorn.backend.loader.LoaderService;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
-import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
+import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.torrent.TorrentCollectionService;
 import com.github.yoep.popcorn.ui.view.controls.PlayerDropDownButton;
 import com.github.yoep.popcorn.ui.view.controls.SubtitleDropDownButton;
+import com.github.yoep.popcorn.ui.view.services.SubtitlePickerService;
 import javafx.scene.control.Button;
 import javafx.scene.control.ListView;
 import javafx.scene.layout.Pane;
@@ -25,11 +25,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.core.io.ByteArrayResource;
-import org.springframework.core.io.ClassPathResource;
 import org.testfx.framework.junit5.ApplicationExtension;
 import org.testfx.util.WaitForAsyncUtils;
 
+import java.io.ByteArrayInputStream;
 import java.net.URL;
 import java.util.Collections;
 import java.util.ResourceBundle;
@@ -78,9 +77,9 @@ class DetailsTorrentComponentTest {
         var subtitleNone = mock(SubtitleInfo.class);
         var subtitleCustom = mock(SubtitleInfo.class);
         when(subtitleNone.getLanguage()).thenReturn(SubtitleLanguage.NONE);
-        when(subtitleNone.getFlagResource()).thenReturn(new ByteArrayResource(new byte[0]));
+        when(subtitleNone.getFlagResource()).thenReturn(new ByteArrayInputStream(new byte[0]));
         when(subtitleCustom.getLanguage()).thenReturn(SubtitleLanguage.CUSTOM);
-        when(subtitleCustom.getFlagResource()).thenReturn(new ByteArrayResource(new byte[0]));
+        when(subtitleCustom.getFlagResource()).thenReturn(new ByteArrayInputStream(new byte[0]));
         when(subtitleService.none()).thenReturn(subtitleNone);
         when(subtitleService.custom()).thenReturn(subtitleCustom);
 
@@ -99,9 +98,9 @@ class DetailsTorrentComponentTest {
         var subtitleNone = mock(SubtitleInfo.class);
         var subtitleCustom = mock(SubtitleInfo.class);
         when(subtitleNone.getLanguage()).thenReturn(SubtitleLanguage.NONE);
-        when(subtitleNone.getFlagResource()).thenReturn(new ByteArrayResource(new byte[0]));
+        when(subtitleNone.getFlagResource()).thenReturn(new ByteArrayInputStream(new byte[0]));
         when(subtitleCustom.getLanguage()).thenReturn(SubtitleLanguage.CUSTOM);
-        when(subtitleCustom.getFlagResource()).thenReturn(new ByteArrayResource(new byte[0]));
+        when(subtitleCustom.getFlagResource()).thenReturn(new ByteArrayInputStream(new byte[0]));
         when(subtitleService.none()).thenReturn(subtitleNone);
         when(subtitleService.custom()).thenReturn(subtitleCustom);
         when(torrent.getFiles()).thenReturn(Collections.singletonList(fileInfo));
@@ -121,9 +120,9 @@ class DetailsTorrentComponentTest {
         var subtitleNone = mock(SubtitleInfo.class);
         var subtitleCustom = mock(SubtitleInfo.class);
         when(subtitleNone.getLanguage()).thenReturn(SubtitleLanguage.NONE);
-        when(subtitleNone.getFlagResource()).thenReturn(new ByteArrayResource(new byte[0]));
+        when(subtitleNone.getFlagResource()).thenReturn(new ByteArrayInputStream(new byte[0]));
         when(subtitleCustom.getLanguage()).thenReturn(SubtitleLanguage.CUSTOM);
-        when(subtitleCustom.getFlagResource()).thenReturn(new ByteArrayResource(new byte[0]));
+        when(subtitleCustom.getFlagResource()).thenReturn(new ByteArrayInputStream(new byte[0]));
         when(subtitleService.none()).thenReturn(subtitleNone);
         when(subtitleService.custom()).thenReturn(subtitleCustom);
         component.initialize(url, resourceBundle);
@@ -132,15 +131,5 @@ class DetailsTorrentComponentTest {
         component.onFileInfoClicked(fileInfo);
 
         verify(loaderService).load(torrent, fileInfo);
-    }
-
-    private SubtitleInfo createSubtitle() {
-        var subtitleInfo = mock(SubtitleInfo.class);
-        var imageResource = new ClassPathResource("images/flags/ar.png");
-
-        when(subtitleInfo.getLanguage()).thenReturn(SubtitleLanguage.NONE);
-        when(subtitleInfo.getFlagResource()).thenReturn(imageResource);
-
-        return subtitleInfo;
     }
 }

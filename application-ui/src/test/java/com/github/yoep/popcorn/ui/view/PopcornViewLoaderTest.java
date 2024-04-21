@@ -1,13 +1,12 @@
 package com.github.yoep.popcorn.ui.view;
 
-import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.spring.boot.javafx.view.ViewManager;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
+import com.github.yoep.popcorn.backend.utils.LocaleText;
+import com.github.yoep.popcorn.ui.IoC;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationContext;
 import org.testfx.framework.junit5.ApplicationExtension;
 
 import java.util.concurrent.atomic.AtomicReference;
@@ -20,7 +19,7 @@ import static org.mockito.Mockito.doAnswer;
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
 class PopcornViewLoaderTest {
     @Mock
-    private ApplicationContext applicationContext;
+    private IoC instance;
     @Mock
     private ViewManager viewManager;
     @Mock
@@ -36,7 +35,7 @@ class PopcornViewLoaderTest {
             holder.set(invocation.getArgument(0));
             return null;
         }).when(applicationConfig).setOnUiScaleChanged(isA(Consumer.class));
-        var loader = new PopcornViewLoader(applicationContext, viewManager, localeText, applicationConfig);
+        var loader = new PopcornViewLoader(instance, applicationConfig, viewManager, localeText);
 
         var consumer = holder.get();
         consumer.accept(newScale);

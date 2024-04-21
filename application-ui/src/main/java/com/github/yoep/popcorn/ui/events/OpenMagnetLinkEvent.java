@@ -1,9 +1,10 @@
 package com.github.yoep.popcorn.ui.events;
 
+import com.github.yoep.popcorn.backend.events.ApplicationEvent;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import org.springframework.context.ApplicationEvent;
-import org.springframework.util.Assert;
+
+import java.util.Objects;
 
 @Getter
 @EqualsAndHashCode(callSuper = false)
@@ -15,7 +16,7 @@ public class OpenMagnetLinkEvent extends ApplicationEvent {
 
     public OpenMagnetLinkEvent(Object source, String url) {
         super(source);
-        Assert.notNull(url, "url cannot be null");
+        Objects.requireNonNull(url, "url cannot be null");
         this.url = url;
     }
 }

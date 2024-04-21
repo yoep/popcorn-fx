@@ -8,7 +8,6 @@ import javafx.scene.control.SplitMenuButton;
 import javafx.scene.image.ImageView;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.validation.constraints.NotNull;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
@@ -76,7 +75,7 @@ public class DropDownButton<T> extends SplitMenuButton {
      *
      * @param itemFactory The item factory of the drop down button.
      */
-    public void setItemFactory(@NotNull DropDownButtonFactory<T> itemFactory) {
+    public void setItemFactory(DropDownButtonFactory<T> itemFactory) {
         Objects.requireNonNull(itemFactory, "itemFactory cannot be null");
         this.itemFactory = itemFactory;
     }

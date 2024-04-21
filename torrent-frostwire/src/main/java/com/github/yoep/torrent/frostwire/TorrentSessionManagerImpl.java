@@ -8,7 +8,6 @@ import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.task.TaskExecutor;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
@@ -18,7 +17,6 @@ import javax.annotation.PreDestroy;
 public class TorrentSessionManagerImpl implements TorrentSessionManager {
     public static final String STATE_PROPERTY = "state";
 
-    private final TaskExecutor taskExecutor;
     private final ReadOnlyObjectWrapper<SessionState> state = new ReadOnlyObjectWrapper<>(this, STATE_PROPERTY, SessionState.CREATING);
 
     private SessionManager session;
@@ -70,24 +68,22 @@ public class TorrentSessionManagerImpl implements TorrentSessionManager {
     //region PostConstruct
 
     @PostConstruct
-    private void init() {
-        taskExecutor.execute(() -> {
-            try {
-                var startTime = System.currentTimeMillis();
-                initializeSession();
-                initializeDht();
-                log.info("Torrent session initialized in {} seconds", (System.currentTimeMillis() - startTime) / 1000.0);
-            } catch (TorrentException ex) {
-                log.error(ex.getMessage(), ex);
-                state.set(SessionState.ERROR);
-                error = ex;
-            } catch (Exception ex) {
-                var message = "Failed to create torrent session, " + ex.getMessage();
-                log.error(message, ex);
-                state.set(SessionState.ERROR);
-                error = new TorrentException(message, ex);
-            }
-        });
+    void init() {
+        try {
+            var startTime = System.currentTimeMillis();
+            initializeSession();
+            initializeDht();
+            log.info("Torrent session initialized in {} seconds", (System.currentTimeMillis() - startTime) / 1000.0);
+        } catch (TorrentException ex) {
+            log.error(ex.getMessage(), ex);
+            state.set(SessionState.ERROR);
+            error = ex;
+        } catch (Exception ex) {
+            var message = "Failed to create torrent session, " + ex.getMessage();
+            log.error(message, ex);
+            state.set(SessionState.ERROR);
+            error = new TorrentException(message, ex);
+        }
     }
 
     private void initializeSession() {

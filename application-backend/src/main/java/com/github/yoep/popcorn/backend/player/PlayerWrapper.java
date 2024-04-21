@@ -10,11 +10,11 @@ import com.sun.jna.Pointer;
 import com.sun.jna.Structure;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.io.ByteArrayResource;
-import org.springframework.core.io.Resource;
 
+import java.io.ByteArrayInputStream;
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -66,7 +66,7 @@ public class PlayerWrapper extends Structure implements Player, Closeable {
         player.getGraphicResource()
                 .ifPresent(e -> {
                     try {
-                        var bytes = e.getInputStream().readAllBytes();
+                        var bytes = e.readAllBytes();
                         this.graphicResource = new Memory(bytes.length);
                         this.graphicResource.write(0, bytes, 0, bytes.length);
                         this.graphicResourceLen = bytes.length;
@@ -102,9 +102,9 @@ public class PlayerWrapper extends Structure implements Player, Closeable {
     //region Player
 
     @Override
-    public Optional<Resource> getGraphicResource() {
+    public Optional<InputStream> getGraphicResource() {
         return Optional.ofNullable(cachedGraphicResource)
-                .map(ByteArrayResource::new);
+                .map(ByteArrayInputStream::new);
     }
 
     @Override

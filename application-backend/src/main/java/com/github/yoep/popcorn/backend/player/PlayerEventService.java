@@ -10,10 +10,10 @@ import com.github.yoep.popcorn.backend.events.PlayerChangedEvent;
 import com.github.yoep.popcorn.backend.events.PlayerStateEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
 import java.util.Collection;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -34,7 +34,7 @@ public class PlayerEventService {
     //region Methods
 
     public void addListener(PlayerListener listener) {
-        Assert.notNull(listener, "listener cannot be null");
+        Objects.requireNonNull(listener, "listener cannot be null");
         listeners.add(listener);
     }
 

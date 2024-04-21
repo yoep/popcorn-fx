@@ -3,9 +3,8 @@ package com.github.yoep.popcorn.backend.adapters.player;
 import com.github.yoep.popcorn.backend.adapters.player.embaddable.EmbeddablePlayer;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
-import org.springframework.core.io.Resource;
 
-import javax.validation.constraints.NotNull;
+import java.io.InputStream;
 import java.util.Optional;
 
 /**
@@ -24,7 +23,7 @@ public interface Player {
      *
      * @return Returns the name of the player.
      */
-    @NotNull
+    
     String getName();
 
     /**
@@ -33,7 +32,7 @@ public interface Player {
      *
      * @return Returns the description of the player.
      */
-    @NotNull
+    
     String getDescription();
 
     /**
@@ -41,14 +40,14 @@ public interface Player {
      *
      * @return Returns the graphical resource of the player if it exists, else {@link Optional#empty()}.
      */
-    Optional<Resource> getGraphicResource();
+    Optional<InputStream> getGraphicResource();
 
     /**
      * Get the current state of the player.
      *
      * @return Returns the current player state.
      */
-    @NotNull
+    
     PlayerState getState();
 
     /**

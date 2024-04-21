@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.backend.media.watched.models;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 
@@ -8,7 +7,6 @@ import javafx.beans.property.SimpleBooleanProperty;
  * Abstract implementation of {@link Watchable}.
  */
 public abstract class AbstractWatchable implements Watchable {
-    @JsonIgnore
     private final BooleanProperty watched = new SimpleBooleanProperty(this, WATCHED_PROPERTY);
 
     //region Properties

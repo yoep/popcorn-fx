@@ -10,7 +10,6 @@ import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.util.Assert;
 
 import javax.annotation.PreDestroy;
 import java.util.*;
@@ -73,7 +72,7 @@ public class PlayerManagerServiceImpl extends AbstractListenerService<PlayerMana
 
     @Override
     public void register(Player player) {
-        Assert.notNull(player, "player cannot be null");
+        Objects.requireNonNull(player, "player cannot be null");
         log.trace("Registering new player {}", player);
         try (var wrapper = new PlayerWrapperRegistration.ByValue(player)) {
             fxLib.register_player(instance, wrapper);

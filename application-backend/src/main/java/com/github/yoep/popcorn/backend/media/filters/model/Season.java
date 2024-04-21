@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.backend.media.filters.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.github.yoep.popcorn.backend.media.providers.models.Images;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.MediaType;
@@ -63,7 +62,6 @@ public class Season implements Media, Comparable {
     }
 
     @Override
-    @JsonIgnore
     public MediaType getType() {
         return MediaType.SHOW;
     }

@@ -3,7 +3,6 @@ package com.github.yoep.popcorn.backend.events;
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEvent;
 
 /**
  * The FFI bridge for all events that can be thrown across the application.

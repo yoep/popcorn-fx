@@ -23,7 +23,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.boot.ApplicationArguments;
 import org.testfx.framework.junit5.ApplicationExtension;
 import org.testfx.util.WaitForAsyncUtils;
 
@@ -45,8 +44,6 @@ class MainControllerTest {
     private EventPublisher eventPublisher = new EventPublisher(false);
     @Mock
     private ViewLoader viewLoader;
-    @Mock
-    private ApplicationArguments arguments;
     @Mock
     private UrlService urlService;
     @Mock

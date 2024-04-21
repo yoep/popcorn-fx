@@ -174,7 +174,7 @@ public class PlayingNextInComponent implements Initializable {
 
     @FXML
     void onPlayNextStopPressed(KeyEvent event) {
-        if(event.getCode() == KeyCode.ENTER) {
+        if (event.getCode() == KeyCode.ENTER) {
             event.consume();
             onPlayNextStop();
         }

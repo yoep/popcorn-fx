@@ -6,7 +6,6 @@ import com.github.yoep.popcorn.backend.settings.models.PlaybackSettings;
 import com.github.yoep.popcorn.ui.view.ViewHelper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 
 import java.util.Comparator;
 import java.util.List;
@@ -15,7 +14,6 @@ import java.util.Optional;
 import java.util.regex.Pattern;
 
 @Slf4j
-@Service
 @RequiredArgsConstructor
 public class VideoQualityService {
     static final Pattern QUALITY_PATTERN = Pattern.compile("(?i)[0-9]+p?");

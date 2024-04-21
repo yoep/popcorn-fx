@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
-import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.media.filters.model.Category;
@@ -8,6 +7,7 @@ import com.github.yoep.popcorn.backend.media.filters.model.Genre;
 import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
 import com.github.yoep.popcorn.backend.media.providers.ProviderService;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
+import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.view.controls.InfiniteScrollPane;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
@@ -15,10 +15,9 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.layout.Pane;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.util.Assert;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
@@ -37,7 +36,7 @@ public abstract class AbstractListSectionController {
      */
     protected int numberOfPageFailures;
 
-    protected CompletableFuture<? extends Page<? extends Media>> currentLoadRequest;
+    protected CompletableFuture<? extends List<? extends Media>> currentLoadRequest;
 
     @FXML
     protected InfiniteScrollPane<Media> scrollPane;
@@ -57,9 +56,9 @@ public abstract class AbstractListSectionController {
                                             LocaleText localeText,
                                             EventPublisher eventPublisher) {
         this.eventPublisher = eventPublisher;
-        Assert.notNull(providerServices, "providerServices cannot be null");
-        Assert.notNull(viewLoader, "viewLoader cannot be null");
-        Assert.notNull(localeText, "localeText cannot be null");
+        Objects.requireNonNull(providerServices, "providerServices cannot be null");
+        Objects.requireNonNull(viewLoader, "viewLoader cannot be null");
+        Objects.requireNonNull(localeText, "localeText cannot be null");
         this.providerServices = providerServices;
         this.viewLoader = viewLoader;
         this.localeText = localeText;

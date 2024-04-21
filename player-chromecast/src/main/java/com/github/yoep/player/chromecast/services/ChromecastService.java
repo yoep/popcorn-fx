@@ -17,7 +17,6 @@ import com.github.yoep.popcorn.backend.subtitles.model.SubtitleType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
-import org.springframework.stereotype.Service;
 import su.litvak.chromecast.api.v2.Media;
 
 import java.net.URI;
@@ -30,7 +29,6 @@ import static java.util.Arrays.asList;
  * This service tries to handle the most logic which isn't directly related to a {@link su.litvak.chromecast.api.v2.ChromeCast} device.
  */
 @Slf4j
-@Service
 @RequiredArgsConstructor
 public class ChromecastService {
     static final Collection<String> SUPPORTED_CODECS = asList("h264", "vp8");

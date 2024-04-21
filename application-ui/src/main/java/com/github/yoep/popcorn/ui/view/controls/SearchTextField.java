@@ -10,10 +10,10 @@ import javafx.scene.control.skin.TextFieldSkin;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.util.Assert;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Slf4j
 public class SearchTextField extends TextField {
@@ -40,7 +40,7 @@ public class SearchTextField extends TextField {
      * @param listener The listener to register.
      */
     public void addListener(SearchListener listener) {
-        Assert.notNull(listener, "listener cannot be null");
+        Objects.requireNonNull(listener, "listener cannot be null");
         synchronized (listeners) {
             listeners.add(listener);
         }
@@ -52,7 +52,7 @@ public class SearchTextField extends TextField {
      * @param listener The listener to remove.
      */
     public void removeListener(SearchListener listener) {
-        Assert.notNull(listener, "listener cannot be null");
+        Objects.requireNonNull(listener, "listener cannot be null");
         synchronized (listeners) {
             listeners.remove(listener);
         }

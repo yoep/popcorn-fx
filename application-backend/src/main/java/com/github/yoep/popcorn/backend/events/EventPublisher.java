@@ -1,7 +1,6 @@
 package com.github.yoep.popcorn.backend.events;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEvent;
 
 import java.util.Objects;
 import java.util.Queue;

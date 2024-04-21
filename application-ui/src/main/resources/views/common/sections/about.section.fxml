@@ -1,13 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import com.github.spring.boot.javafx.font.controls.Icon?>
 <?import com.github.yoep.popcorn.ui.view.controls.AboutDetails?>
 <?import com.github.yoep.popcorn.ui.view.controls.ImageCover?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.*?>
 <GridPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-          fx:controller="com.github.yoep.popcorn.ui.view.controllers.desktop.sections.AboutSectionController"
+          fx:controller="com.github.yoep.popcorn.ui.view.controllers.common.sections.AboutSectionController"
           styleClass="about-section" onKeyPressed="#onAboutPressed" focusTraversable="true">
     <columnConstraints>
         <ColumnConstraints percentWidth="10"/>

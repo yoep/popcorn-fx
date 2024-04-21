@@ -1,12 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import com.github.spring.boot.javafx.font.controls.Icon?>
 <?import com.github.yoep.popcorn.ui.view.controls.CornerButton?>
 <?import com.github.yoep.popcorn.ui.view.controls.ImageCover?>
 <?import javafx.scene.control.Tooltip?>
 <?import javafx.scene.layout.StackPane?>
 <StackPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-           fx:controller="com.github.yoep.popcorn.ui.view.controllers.common.components.DesktopPosterComponent"
+           fx:controller="com.github.yoep.popcorn.ui.view.controllers.common.components.PosterComponent"
            fx:id="posterHolder" styleClass="poster">
     <ImageCover fx:id="poster" styleClass="poster-image"/>
 

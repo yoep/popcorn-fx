@@ -2,14 +2,11 @@ package com.github.yoep.popcorn.ui.view.services;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.stereotype.Service;
-import org.springframework.util.Assert;
 
-import javax.validation.constraints.NotNull;
 import java.text.DecimalFormat;
+import java.util.Objects;
 
 @Slf4j
-@Service
 public class TorrentSettingService {
 
     //region Methods
@@ -39,8 +36,8 @@ public class TorrentSettingService {
      * @param displayValue The display text to convert.
      * @return Returns the bytes value from the display value.
      */
-    public int toSettingsValue(@NotNull String displayValue) {
-        Assert.notNull(displayValue, "displayValue cannot be null");
+    public int toSettingsValue(String displayValue) {
+        Objects.requireNonNull(displayValue, "displayValue cannot be null");
         // check if the display value is empty
         // if so, return zero
         if (StringUtils.isEmpty(displayValue))

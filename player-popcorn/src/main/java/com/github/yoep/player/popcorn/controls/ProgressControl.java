@@ -8,7 +8,6 @@ import javafx.scene.Node;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.StackPane;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.util.Assert;
 
 @Slf4j
 public class ProgressControl extends AnchorPane {
@@ -87,7 +86,10 @@ public class ProgressControl extends AnchorPane {
      * @throws IllegalArgumentException Is thrown when the progress value is invalid.
      */
     public void setLoadProgress(double loadProgress) {
-        Assert.isTrue(loadProgress >= 0 && loadProgress <= 1, "progress must be between 0 and 1");
+        if (loadProgress >= 0 && loadProgress <= 1) {
+            throw new IllegalArgumentException("progress must be between 0 and 1");
+        }
+
         this.loadProgress.set(loadProgress);
     }
 

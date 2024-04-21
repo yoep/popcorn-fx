@@ -5,13 +5,11 @@ import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.media.MediaItem;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 
 import java.util.Objects;
 import java.util.concurrent.ConcurrentLinkedDeque;
 
 @Slf4j
-@Service
 public class FavoriteService {
     private final FxLib fxLib;
     private final PopcornFx instance;

@@ -2,7 +2,6 @@ package com.github.yoep.popcorn.backend.events;
 
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import org.springframework.context.ApplicationEvent;
 
 @Getter
 @EqualsAndHashCode(callSuper = false)

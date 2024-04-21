@@ -15,7 +15,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.core.task.TaskExecutor;
 import org.testfx.framework.junit5.ApplicationExtension;
 
 import static org.mockito.Mockito.*;
@@ -26,8 +25,6 @@ class DetailsSectionControllerTest {
     private EventPublisher eventPublisher = new EventPublisher(false);
     @Mock
     private ViewLoader viewLoader;
-    @Mock
-    private TaskExecutor taskExecutor;
     @InjectMocks
     private DetailsSectionController controller;
 

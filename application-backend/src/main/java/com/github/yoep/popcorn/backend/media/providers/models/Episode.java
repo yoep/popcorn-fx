@@ -1,14 +1,11 @@
 package com.github.yoep.popcorn.backend.media.providers.models;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.sun.jna.Structure;
 import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
-import javax.validation.constraints.NotNull;
 import java.io.Closeable;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -18,7 +15,6 @@ import java.util.*;
 @Data
 @ToString(callSuper = true, exclude = "torrents")
 @EqualsAndHashCode(callSuper = false)
-@JsonIgnoreProperties({"autoAllocate", "stringEncoding", "typeMapper", "fields", "pointer"})
 @Structure.FieldOrder({"season", "episode", "firstAired", "title", "synopsis", "tvdbId", "thumb", "torrentRef", "len"})
 public class Episode extends Structure implements Comparable<Episode>, Closeable, Media {
     public static class ByReference extends Episode implements Structure.ByReference {
@@ -42,11 +38,11 @@ public class Episode extends Structure implements Comparable<Episode>, Closeable
     }
 
     @Builder
-    public Episode(@JsonProperty("tvdb_id") String tvdbId,
+    public Episode(String tvdbId,
                    Map<String, MediaTorrentInfo> torrents,
                    long firstAired,
                    String title,
-                   @JsonProperty("overview") String synopsis,
+                   String synopsis,
                    Images images,
                    int episode,
                    int season) {
@@ -65,7 +61,8 @@ public class Episode extends Structure implements Comparable<Episode>, Closeable
      *
      * @param episode The episode to copy.
      */
-    public Episode(@NotNull Episode episode) {
+    public Episode(Episode episode) {
+        Objects.requireNonNull(episode, "episode cannot be null");
         this.tvdbId = episode.getId();
         this.title = episode.getTitle();
         this.synopsis = episode.getSynopsis();

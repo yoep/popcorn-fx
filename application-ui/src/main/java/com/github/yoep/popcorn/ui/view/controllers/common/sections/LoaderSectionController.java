@@ -8,7 +8,6 @@ import javafx.fxml.Initializable;
 import javafx.scene.layout.Pane;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.task.TaskExecutor;
 
 import java.net.URL;
 import java.util.ResourceBundle;
@@ -17,13 +16,10 @@ import java.util.ResourceBundle;
 @RequiredArgsConstructor
 public class LoaderSectionController implements Initializable {
     private final ViewLoader viewLoader;
-    private final TaskExecutor taskExecutor;
     private final EventPublisher eventPublisher;
 
     @FXML
     Pane rootPane;
-
-    //region Initializable
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
@@ -32,8 +28,7 @@ public class LoaderSectionController implements Initializable {
     }
 
     private void initializePanes() {
-        taskExecutor.execute(() -> rootPane.getChildren().add(viewLoader.load("common/components/loader.component.fxml")));
+        new Thread(() -> rootPane.getChildren().add(viewLoader.load("common/components/loader.component.fxml")),
+                "LoaderSectionController.initialize").start();
     }
-
-    //endregion
 }

@@ -1,6 +1,5 @@
 package com.github.yoep.player.popcorn.services;
 
-import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.player.popcorn.listeners.AbstractPlaybackListener;
 import com.github.yoep.player.popcorn.listeners.SubtitleListener;
 import com.github.yoep.player.popcorn.messages.VideoMessage;
@@ -13,16 +12,15 @@ import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfigEvent;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleEvent;
-import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
+import com.github.yoep.popcorn.backend.utils.LocaleText;
+import com.github.yoep.popcorn.ui.view.services.SubtitlePickerService;
 import javafx.beans.property.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
-import org.springframework.lang.Nullable;
-import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import java.util.Objects;
@@ -33,7 +31,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 @Slf4j
-@Service
 @RequiredArgsConstructor
 public class SubtitleManagerService {
     public static final String SUBTITLE_SIZE_PROPERTY = "subtitleSize";
@@ -103,7 +100,7 @@ public class SubtitleManagerService {
      *
      * @param subtitleInfo The subtitle to use.
      */
-    public void updateSubtitle(@Nullable SubtitleInfo subtitleInfo) {
+    public void updateSubtitle(SubtitleInfo subtitleInfo) {
         if (subtitleInfo == null || subtitleInfo.isNone()) {
             subtitleService.disableSubtitle();
         } else {

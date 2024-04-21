@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
-import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
@@ -12,6 +11,7 @@ import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.listeners.LanguageSelectionListener;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
+import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.utils.WatchNowUtils;
 import com.github.yoep.popcorn.ui.view.ViewHelper;
 import com.github.yoep.popcorn.ui.view.controls.LanguageFlagCell;
@@ -32,7 +32,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 
-import java.io.IOException;
 import java.net.URL;
 import java.util.Collections;
 import java.util.List;
@@ -87,14 +86,6 @@ public class DesktopMovieActionsComponent implements Initializable {
 
                 var language = item.getLanguage().getNativeName();
                 var image = Optional.ofNullable(item.getFlagResource())
-                        .map(e -> {
-                            try {
-                                return e.getInputStream();
-                            } catch (IOException ex) {
-                                log.error("Failed to load flag image resource, {}", ex.getMessage(), ex);
-                                return null;
-                            }
-                        })
                         .map(Image::new)
                         .map(ImageView::new)
                         .orElseGet(ImageView::new);

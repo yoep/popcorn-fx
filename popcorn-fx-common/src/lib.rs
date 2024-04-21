@@ -3,4 +3,4 @@ pub use launcher::*;
 mod launcher;
 
 /// The current application version of Popcorn FX.
-pub const VERSION: &str = "0.8.1";
+pub const VERSION: &str = "0.8.2";

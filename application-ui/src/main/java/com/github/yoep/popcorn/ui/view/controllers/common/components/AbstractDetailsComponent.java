@@ -26,13 +26,10 @@ import java.net.URL;
 import java.util.Objects;
 import java.util.ResourceBundle;
 import java.util.concurrent.CancellationException;
-import java.util.regex.Pattern;
 
 @Slf4j
 @RequiredArgsConstructor(access = AccessLevel.PROTECTED)
 public abstract class AbstractDetailsComponent<T extends Media> implements Initializable {
-    private static final Pattern QUALITY_PATTERN = Pattern.compile("(?i)[0-9]+p?");
-
     protected final LocaleText localeText;
     protected final ImageService imageService;
     protected final HealthService healthService;

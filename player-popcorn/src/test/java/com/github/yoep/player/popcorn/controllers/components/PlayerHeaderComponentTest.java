@@ -1,8 +1,8 @@
 package com.github.yoep.player.popcorn.controllers.components;
 
-import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.player.popcorn.listeners.PlayerHeaderListener;
 import com.github.yoep.player.popcorn.services.PlayerHeaderService;
+import com.github.yoep.popcorn.ui.view.ViewLoader;
 import javafx.scene.control.Label;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;

@@ -1,10 +1,10 @@
 package com.github.yoep.player.chromecast.discovery;
 
 import com.github.yoep.player.chromecast.ChromecastPlayer;
+import com.github.yoep.player.chromecast.services.ChromecastService;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import su.litvak.chromecast.api.v2.ChromeCast;
@@ -20,9 +20,9 @@ class DiscoveryServiceTest {
     @Mock
     private PlayerManagerService playerService;
     @Mock
+    private ChromecastService chromecastService;
+    @Mock
     private ChromeCast chromeCast;
-    @InjectMocks
-    private DiscoveryService service;
 
     @Test
     void testNewChromeCastDiscovered_whenChromecastDeviceIsFound_shouldRegisterANewChromecastPlayer() {
@@ -33,6 +33,7 @@ class DiscoveryServiceTest {
             playerHolder.set(invocation.getArgument(0, ChromecastPlayer.class));
             return null;
         }).when(playerService).register(isA(ChromecastPlayer.class));
+        var service = new DiscoveryService(playerService, chromecastService);
 
         service.newChromeCastDiscovered(chromeCast);
 
@@ -42,6 +43,8 @@ class DiscoveryServiceTest {
 
     @Test
     void testChromeCastRemoved_whenChromeCastIsNotRegistered_shouldNotUnregisterPlayer() {
+        var service = new DiscoveryService(playerService, chromecastService);
+
         service.chromeCastRemoved(chromeCast);
 
         verify(playerService, times(0)).unregister(isA(ChromecastPlayer.class));
@@ -49,14 +52,14 @@ class DiscoveryServiceTest {
 
     @Test
     void testInit_whenInvoked_shouldCreateDiscoveryThread() {
-        service.init();
+        var service = new DiscoveryService(playerService, chromecastService);
 
         assertNotNull(service.discoveryThread, "Expected a discovery thread to have been started");
     }
 
     @Test
     void testOnDestroy_whenInvoked_shouldStopRunningDiscoveryThread() {
-        service.init();
+        var service = new DiscoveryService(playerService, chromecastService);
 
         service.onDestroy();
         var result = service.discoveryThread.isInterrupted() || !service.discoveryThread.isAlive();

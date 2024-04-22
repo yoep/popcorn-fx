@@ -10,7 +10,6 @@ import com.github.yoep.popcorn.backend.adapters.video.listeners.VideoListener;
 import com.github.yoep.popcorn.backend.adapters.video.state.VideoState;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.annotation.PostConstruct;
 import java.io.InputStream;
 import java.util.Collection;
 import java.util.Objects;
@@ -32,7 +31,9 @@ public class PopcornPlayer implements Player {
     private Long time;
 
     public PopcornPlayer(VideoService videoService) {
+        Objects.requireNonNull(videoService, "videoService cannot be null");
         this.videoService = videoService;
+        init();
     }
 
     //region Player
@@ -140,8 +141,7 @@ public class PopcornPlayer implements Player {
 
     //region Init
 
-    @PostConstruct
-    void init() {
+    private void init() {
         videoService.videoPlayerProperty().addListener((observable, oldValue, newValue) -> {
             onVideoPlayerChanged(oldValue, newValue);
         });

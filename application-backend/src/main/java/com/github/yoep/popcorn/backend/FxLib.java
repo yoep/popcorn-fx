@@ -122,8 +122,6 @@ public interface FxLib extends Library {
 
     byte is_media_liked(PopcornFx instance, MediaItem.ByReference media);
 
-    FavoritesSet retrieve_all_favorites(PopcornFx instance);
-
     void add_to_favorites(PopcornFx instance, MediaItem media);
 
     void remove_from_favorites(PopcornFx instance, MediaItem media);
@@ -190,11 +188,7 @@ public interface FxLib extends Library {
 
     void update_playback_settings(PopcornFx instance, PlaybackSettings.ByValue settings);
 
-    byte is_youtube_video_player_disabled(PopcornFx instance);
-
     byte is_fx_video_player_disabled(PopcornFx instance);
-
-    byte is_vlc_video_player_disabled(PopcornFx instance);
 
     byte is_mouse_disabled(PopcornFx instance);
 
@@ -203,6 +197,10 @@ public interface FxLib extends Library {
     byte is_maximized(PopcornFx instance);
 
     byte is_kiosk_mode(PopcornFx instance);
+    
+    byte is_youtube_video_player_enabled(PopcornFx instance);
+    
+    byte is_vlc_video_player_enabled(PopcornFx instance);
 
     VersionInfo version_info(PopcornFx instance);
 

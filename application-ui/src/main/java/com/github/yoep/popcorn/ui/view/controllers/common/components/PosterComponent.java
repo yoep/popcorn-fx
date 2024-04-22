@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
-import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteEvent;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
@@ -8,6 +7,7 @@ import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.watched.WatchedEvent;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
+import com.github.yoep.popcorn.ui.font.controls.Icon;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.application.Platform;
@@ -68,8 +68,8 @@ public class PosterComponent extends TvPosterComponent implements Initializable 
     }
 
     @Override
-    void onPlayEvent(Media media) {
-        super.onPlayEvent(media);
+    void onShowDetailsEvent(Media media) {
+        super.onShowDetailsEvent(media);
         updateWatchedState(watchedService.isWatched(media));
         updateLikedState(favoriteService.isLiked(media));
     }

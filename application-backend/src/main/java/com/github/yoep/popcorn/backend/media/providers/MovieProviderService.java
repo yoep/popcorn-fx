@@ -19,6 +19,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -27,6 +28,7 @@ public class MovieProviderService implements ProviderService<MovieOverview> {
 
     private final FxLib fxLib;
     private final PopcornFx instance;
+    private final ExecutorService executorService;
 
     @Override
     public boolean supports(Category category) {
@@ -35,17 +37,17 @@ public class MovieProviderService implements ProviderService<MovieOverview> {
 
     @Override
     public CompletableFuture<List<MovieOverview>> getPage(Genre genre, SortBy sortBy, int page) {
-        return CompletableFuture.completedFuture(getPage(genre, sortBy, "", page));
+        return CompletableFuture.supplyAsync(() -> getPage(genre, sortBy, "", page), executorService);
     }
 
     @Override
     public CompletableFuture<List<MovieOverview>> getPage(Genre genre, SortBy sortBy, int page, String keywords) {
-        return CompletableFuture.completedFuture(getPage(genre, sortBy, keywords, page));
+        return CompletableFuture.supplyAsync(() -> getPage(genre, sortBy, keywords, page), executorService);
     }
 
     @Override
     public CompletableFuture<Media> retrieveDetails(Media media) {
-        return CompletableFuture.completedFuture(getInternalDetails(media));
+        return CompletableFuture.supplyAsync(() -> getInternalDetails(media), executorService);
     }
 
     @Override

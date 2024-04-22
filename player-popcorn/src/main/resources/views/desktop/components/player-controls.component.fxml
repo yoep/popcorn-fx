@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import com.github.spring.boot.javafx.font.controls.Icon?>
 <?import com.github.yoep.player.popcorn.controls.ProgressSliderControl?>
 <?import com.github.yoep.player.popcorn.controls.Volume?>
+<?import com.github.yoep.popcorn.ui.font.controls.Icon?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.Tooltip?>
 <?import javafx.scene.layout.*?>

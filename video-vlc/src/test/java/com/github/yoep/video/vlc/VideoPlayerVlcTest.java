@@ -136,8 +136,6 @@ class VideoPlayerVlcTest {
     void testInit_whenInvoked_shouldSetVideoSurfaceOfVlcPlayer() {
         var videoPlayerVlc = new VideoPlayerVlc(mediaPlayerFactory);
 
-        videoPlayerVlc.init();
-
         verify(videoSurfaceApi).set(isA(VideoSurface.class));
     }
 

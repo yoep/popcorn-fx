@@ -1,12 +1,11 @@
 package com.github.yoep.popcorn.ui.view;
 
-import com.github.spring.boot.javafx.ui.scale.ScaleAware;
-import com.github.spring.boot.javafx.ui.size.SizeAware;
-import com.github.spring.boot.javafx.ui.stage.StageAware;
-import com.github.spring.boot.javafx.view.*;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.IoC;
+import com.github.yoep.popcorn.ui.scale.ScaleAware;
+import com.github.yoep.popcorn.ui.size.SizeAware;
+import com.github.yoep.popcorn.ui.stage.StageAware;
 import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Rectangle2D;
@@ -19,8 +18,6 @@ import javafx.scene.layout.Region;
 import javafx.stage.Modality;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 
@@ -209,8 +206,8 @@ public class PopcornViewLoader implements ViewLoader {
     }
 
     private void showScene(Stage window, SceneInfo sceneInfo, ViewProperties properties) {
-        var scene = sceneInfo.getScene();
-        var controller = sceneInfo.getController();
+        var scene = sceneInfo.scene();
+        var controller = sceneInfo.controller();
 
         window.setScene(scene);
         viewManager.addWindowView(window, scene);
@@ -271,9 +268,9 @@ public class PopcornViewLoader implements ViewLoader {
     }
 
     private void initWindowScale(SceneInfo sceneInfo) {
-        ScaleAware controller = (ScaleAware) sceneInfo.getController();
+        ScaleAware controller = (ScaleAware) sceneInfo.controller();
 
-        controller.scale(sceneInfo.getScene(), sceneInfo.getRoot(), scale);
+        controller.scale(sceneInfo.scene(), sceneInfo.root(), scale);
     }
 
     private void initWindowSize(Scene scene, SizeAware controller) {
@@ -304,26 +301,25 @@ public class PopcornViewLoader implements ViewLoader {
     }
 
     private void onScaleChanged(final float newValue) {
-        // TODO: implement this
+        for (var scaleAware : applicationInstance.getInstances(ScaleAware.class)) {
+            try {
+                scaleAware.onScaleChanged(newValue);
+            } catch (Exception ex) {
+                log.error("Failed to invoke scale awareness with error {}", ex.getMessage(), ex);
+            }
+        }
     }
 
     //endregion
 
-    @Getter
-    @AllArgsConstructor
-    static class SceneInfo {
-        /**
-         * The scene for the loaded FXML file.
-         */
-        private Scene scene;
-        /**
-         * The root region of the loaded FXML file.
-         */
-        private Region root;
-        /**
-         * The FXML controller that has been created.
-         */
-        private Object controller;
+    /**
+     * Contains the general information about a certain scene which might actively be rendered within JavaFX.
+     *
+     * @param scene      The scene to be rendered.
+     * @param root       The root region of the scene.
+     * @param controller The controller of the scene.
+     */
+    record SceneInfo(Scene scene, Region root, Object controller) {
     }
 
     //region Functions

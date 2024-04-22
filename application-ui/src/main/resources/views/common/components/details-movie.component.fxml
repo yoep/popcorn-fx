@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import com.github.spring.boot.javafx.font.controls.*?>
+<?import com.github.yoep.popcorn.ui.font.controls.*?>
 <?import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover?>
 <?import com.github.yoep.popcorn.ui.view.controls.HealthIcon?>
 <?import com.github.yoep.popcorn.ui.view.controls.Stars?>

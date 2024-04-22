@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
-import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentHealth;
 import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentHealthState;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
@@ -14,6 +13,7 @@ import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.MediaQualityChangedEvent;
+import com.github.yoep.popcorn.ui.view.ViewLoader;
 import com.github.yoep.popcorn.ui.view.controls.*;
 import com.github.yoep.popcorn.ui.view.services.*;
 import javafx.scene.control.Label;

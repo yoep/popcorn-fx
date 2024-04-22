@@ -53,7 +53,7 @@ class PlaylistItemComponentTest {
         var thumbUrl = "http://myimage";
         var title = "Foo";
         var caption = "Bar";
-        var image = new Image(PlaylistItemComponentTest.class.getResourceAsStream("posterholder.png"));
+        var image = new Image(PlaylistItemComponentTest.class.getResourceAsStream("/posterholder.png"));
         when(item.getThumb()).thenReturn(Optional.of(thumbUrl));
         when(item.getTitle()).thenReturn(title);
         when(item.getCaption()).thenReturn(Optional.of(caption));

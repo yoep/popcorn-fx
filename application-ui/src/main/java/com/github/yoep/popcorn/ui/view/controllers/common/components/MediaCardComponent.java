@@ -1,11 +1,11 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
-import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteEventCallback;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import com.github.yoep.popcorn.backend.media.providers.models.Rating;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
+import com.github.yoep.popcorn.ui.font.controls.Icon;
 import com.github.yoep.popcorn.ui.messages.MediaMessage;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.OverlayItemListener;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.OverlayItemMetadataProvider;

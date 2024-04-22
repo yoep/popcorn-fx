@@ -73,7 +73,6 @@ class DesktopFilterComponentTest {
         when(sortBy.values()).thenReturn(Collections.singletonList("ipsum"));
         when(localeText.get("genre_lorem")).thenReturn(displayText);
         when(localeText.get("sort-by_ipsum")).thenReturn(displayText);
-        component.init();
         component.initialize(location, resources);
 
         listener.get().apply(event);

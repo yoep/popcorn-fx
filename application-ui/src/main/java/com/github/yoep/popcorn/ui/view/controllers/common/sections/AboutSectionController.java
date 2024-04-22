@@ -1,7 +1,5 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
-import com.github.spring.boot.javafx.font.controls.Icon;
-import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowAboutEvent;
@@ -13,6 +11,7 @@ import com.github.yoep.popcorn.backend.updater.UpdateState;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.CloseAboutEvent;
 import com.github.yoep.popcorn.ui.events.ShowUpdateEvent;
+import com.github.yoep.popcorn.ui.font.controls.Icon;
 import com.github.yoep.popcorn.ui.view.controls.AboutDetails;
 import com.github.yoep.popcorn.ui.view.controls.ImageCover;
 import com.github.yoep.popcorn.ui.view.listeners.AboutSectionListener;
@@ -38,7 +37,7 @@ import java.util.List;
 import java.util.ResourceBundle;
 
 @Slf4j
-@ViewController
+
 @RequiredArgsConstructor
 public class AboutSectionController implements Initializable {
     private final AboutSectionService aboutService;

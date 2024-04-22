@@ -1,8 +1,8 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
-import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.InfoNotificationEvent;
+import com.github.yoep.popcorn.ui.view.ViewLoader;
 import javafx.scene.Scene;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
@@ -47,7 +47,6 @@ class NotificationSectionControllerTest {
     void testOnNotificationEvent() throws TimeoutException {
         var node = new BorderPane();
         when(viewLoader.load(eq(NotificationSectionController.NOTIFICATION_VIEW), isA(Object.class))).thenReturn(node);
-        controller.init();
 
         eventPublisher.publish(new InfoNotificationEvent(this, "lorem"));
         var scene = new Scene(controller.rootPane);

@@ -16,6 +16,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -24,6 +25,7 @@ public class FavoriteProviderService implements ProviderService<Media> {
 
     private final FxLib fxLib;
     private final PopcornFx instance;
+    private final ExecutorService executorService;
 
     @Override
     public boolean supports(Category category) {
@@ -32,28 +34,30 @@ public class FavoriteProviderService implements ProviderService<Media> {
 
     @Override
     public CompletableFuture<List<Media>> getPage(Genre genre, SortBy sortBy, int page) {
-        return CompletableFuture.completedFuture(doInternalPageRetrieval(genre, sortBy, "", page));
+        return CompletableFuture.supplyAsync(() -> doInternalPageRetrieval(genre, sortBy, "", page), executorService);
     }
 
     @Override
     public CompletableFuture<List<Media>> getPage(Genre genre, SortBy sortBy, int page, String keywords) {
-        return CompletableFuture.completedFuture(doInternalPageRetrieval(genre, sortBy, keywords, page));
+        return CompletableFuture.supplyAsync(() -> doInternalPageRetrieval(genre, sortBy, keywords, page), executorService);
     }
 
     @Override
     public CompletableFuture<Media> retrieveDetails(Media media) {
-        try (var result = fxLib.retrieve_media_details(instance, MediaItem.from(media))) {
-            if (result.getTag() == MediaResult.Tag.Ok) {
-                var mediaItem = result.getUnion().getOk().getMediaItem();
-                return CompletableFuture.completedFuture(mediaItem.getMedia());
-            } else {
-                var error = result.getUnion().getErr();
-                switch (error.getMediaError()) {
-                    case NoAvailableProviders -> throw new MediaRetrievalException("no providers are available");
-                    default -> throw new MediaException("failed to retrieve media details");
+        return CompletableFuture.supplyAsync(() -> {
+            try (var result = fxLib.retrieve_media_details(instance, MediaItem.from(media))) {
+                if (result.getTag() == MediaResult.Tag.Ok) {
+                    var mediaItem = result.getUnion().getOk().getMediaItem();
+                    return mediaItem.getMedia();
+                } else {
+                    var error = result.getUnion().getErr();
+                    switch (error.getMediaError()) {
+                        case NoAvailableProviders -> throw new MediaRetrievalException("no providers are available");
+                        default -> throw new MediaException("failed to retrieve media details");
+                    }
                 }
             }
-        }
+        }, executorService);
     }
 
     @Override

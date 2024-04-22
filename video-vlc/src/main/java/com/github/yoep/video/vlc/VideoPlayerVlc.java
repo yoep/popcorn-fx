@@ -18,7 +18,6 @@ import uk.co.caprica.vlcj.player.base.MediaPlayer;
 import uk.co.caprica.vlcj.player.base.MediaPlayerEventAdapter;
 import uk.co.caprica.vlcj.player.embedded.EmbeddedMediaPlayer;
 
-import javax.annotation.PostConstruct;
 import java.io.File;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -189,25 +188,6 @@ public class VideoPlayerVlc extends AbstractVideoPlayer implements VideoPlayback
 
     //endregion
 
-    //region PostConstruct
-
-    @PostConstruct
-    void init() {
-        log.trace("Initializing VLC player");
-
-        try {
-            this.mediaPlayer.videoSurface().set(new ImageViewVideoSurface(videoSurface));
-
-            initialized = true;
-            log.trace("VLC player initialization done");
-        } catch (Exception ex) {
-            log.error("Failed to initialize VLC player, " + ex.getMessage(), ex);
-            setError(new VideoPlayerException(ex.getMessage(), ex));
-        }
-    }
-
-    //endregion
-
     //region Functions
 
     private void initialize() {
@@ -218,6 +198,8 @@ public class VideoPlayerVlc extends AbstractVideoPlayer implements VideoPlayback
     }
 
     private void initializeListeners() {
+        log.trace("Initializing VLC player");
+        createVideoSurface();
         videoSurface.parentProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue != null && !bound) {
                 var parent = (Pane) newValue;
@@ -225,6 +207,18 @@ public class VideoPlayerVlc extends AbstractVideoPlayer implements VideoPlayback
                 bindToParent(parent);
             }
         });
+    }
+
+    private void createVideoSurface() {
+        try {
+            this.mediaPlayer.videoSurface().set(new ImageViewVideoSurface(videoSurface));
+
+            initialized = true;
+            log.trace("VLC player initialization done");
+        } catch (Exception ex) {
+            log.error("Failed to initialize VLC player, " + ex.getMessage(), ex);
+            setError(new VideoPlayerException(ex.getMessage(), ex));
+        }
     }
 
     private void initializeEvents() {

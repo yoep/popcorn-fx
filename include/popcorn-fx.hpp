@@ -1809,11 +1809,27 @@ bool is_subtitle_disabled(PopcornFX *popcorn_fx);
 /// Verify if the TV mode is activated for the application.
 bool is_tv_mode(PopcornFX *popcorn_fx);
 
-/// Verify if the vlc video player has been disabled.
-bool is_vlc_video_player_disabled(PopcornFX *popcorn_fx);
+/// Checks if the VLC video player is enabled in the PopcornFX options.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to the PopcornFX instance.
+///
+/// # Returns
+///
+/// `true` if the VLC video player is enabled, otherwise `false`.
+bool is_vlc_video_player_enabled(PopcornFX *popcorn_fx);
 
-/// Verify if the youtube video player has been disabled.
-bool is_youtube_video_player_disabled(PopcornFX *popcorn_fx);
+/// Checks if the YouTube video player is enabled in the PopcornFX options.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to the PopcornFX instance.
+///
+/// # Returns
+///
+/// `true` if the YouTube video player is enabled, otherwise `false`.
+bool is_youtube_video_player_enabled(PopcornFX *popcorn_fx);
 
 /// Loads the fanart image data for the given media item.
 ///
@@ -2338,11 +2354,6 @@ void reset_show_apis(PopcornFX *popcorn_fx);
 /// Reset the current preferred subtitle configuration.
 /// This will remove any selected [SubtitleInfo] or custom subtitle file.
 void reset_subtitle(PopcornFX *popcorn_fx);
-
-/// Retrieve all favorites of the user.
-///
-/// It will return an array of favorites on success, else [ptr::null_mut].
-VecFavoritesC *retrieve_all_favorites(PopcornFX *popcorn_fx);
 
 /// Retrieve all watched media item id's.
 ///

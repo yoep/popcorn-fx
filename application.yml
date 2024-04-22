@@ -10,8 +10,13 @@ logging:
     com.github.yoep.popcorn.backend.subtitles: INFO
     com.github.yoep.popcorn.backend.torrent: INFO
     com.github.yoep.popcorn.media: INFO
-    com.github.yoep.popcorn.ui: INFO
-    com.github.yoep.popcorn.view: INFO
+    com.github.yoep.popcorn.ui.events: INFO
+    com.github.yoep.popcorn.ui.font: INFO
+    com.github.yoep.popcorn.ui.info: INFO
+    com.github.yoep.popcorn.ui.messages: INFO
+    com.github.yoep.popcorn.ui.platform: INFO
+    com.github.yoep.popcorn.ui.view: INFO
+    com.github.yoep.popcorn.ui: DEBUG
     com.github.yoep.popcorn: INFO
     com.github.yoep.torrent.frostwire: INFO
     com.github.yoep.video.vlc: INFO

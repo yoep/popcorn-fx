@@ -3,6 +3,7 @@ package com.github.yoep.popcorn.ui;
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
+import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.EventPublisherBridge;
@@ -23,7 +24,9 @@ import com.github.yoep.popcorn.backend.utils.ResourceBundleMessageSource;
 import com.github.yoep.popcorn.ui.info.PlayerInfoService;
 import com.github.yoep.popcorn.ui.info.VideoInfoService;
 import com.github.yoep.popcorn.ui.platform.PlatformFX;
+import com.github.yoep.popcorn.ui.screen.ScreenServiceImpl;
 import com.github.yoep.popcorn.ui.stage.BorderlessStageHolder;
+import com.github.yoep.popcorn.ui.stage.BorderlessStageWrapper;
 import com.github.yoep.popcorn.ui.torrent.TorrentCollectionService;
 import com.github.yoep.popcorn.ui.tracking.EmbeddedAuthorization;
 import com.github.yoep.popcorn.ui.view.*;
@@ -45,6 +48,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.awt.*;
 import java.util.Optional;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
@@ -62,26 +66,27 @@ public class PopcornTimeApplication extends Application {
 
     @Override
     public void init() throws Exception {
+        var startTime = System.currentTimeMillis();
         var fxLib = IOC.getInstance(FxLib.class);
         var popcornFx = IOC.getInstance(PopcornFx.class);
+        var executorService = IOC.registerInstance(Executors.newCachedThreadPool(e -> new Thread(e, "popcorn-fx")));
         var resourceBundle = IOC.registerInstance(new ResourceBundleMessageSource("main", "about", "genres", "languages", "sort-by"));
         var localeText = IOC.registerInstance(new PopcornLocaleText(resourceBundle));
-        var applicationConfig = IOC.registerInstance(new ApplicationConfig(localeText, fxLib, popcornFx));
+        var applicationConfig = IOC.registerInstance(new ApplicationConfig(fxLib, popcornFx, localeText));
         var viewManager = IOC.registerInstance(new PopcornViewManager());
         var viewLoader = IOC.registerInstance(new PopcornViewLoader(IOC, applicationConfig, viewManager, localeText));
         var eventPublisher = IOC.registerInstance(new EventPublisher());
-        var eventPublisherBridge = IOC.registerInstance(new EventPublisherBridge(eventPublisher, fxLib, popcornFx));
-        var maximizeService = IOC.registerInstance(new MaximizeService(viewManager, applicationConfig));
-        var platformProvider = IOC.registerInstance(new PlatformFX());
         var loaderService = IOC.registerInstance(new LoaderService(fxLib, popcornFx, eventPublisher));
-        var playlistManager = IOC.registerInstance(new PlaylistManager(fxLib, popcornFx, applicationConfig));
-        var playerManagerService = new PlayerManagerServiceImpl(fxLib, popcornFx, eventPublisher);
-        IOC.registerInstance(new FavoriteProviderService(fxLib, popcornFx));
-        IOC.registerInstance(new MovieProviderService(fxLib, popcornFx));
-        IOC.registerInstance(new ShowProviderService(fxLib, popcornFx));
+        var playerManagerService = IOC.registerInstance(new PlayerManagerServiceImpl(fxLib, popcornFx, eventPublisher));
+        IOC.registerInstance(new MaximizeService(viewManager, applicationConfig));
+        IOC.registerInstance(new PlatformFX());
+        IOC.registerInstance(new PlaylistManager(fxLib, popcornFx, applicationConfig));
+        IOC.registerInstance(new EventPublisherBridge(eventPublisher, fxLib, popcornFx));
+        IOC.registerInstance(new FavoriteProviderService(fxLib, popcornFx, executorService));
+        IOC.registerInstance(new MovieProviderService(fxLib, popcornFx, executorService));
+        IOC.registerInstance(new ShowProviderService(fxLib, popcornFx, executorService));
         IOC.registerInstance(new FavoriteService(fxLib, popcornFx));
         IOC.registerInstance(new WatchedService(fxLib, popcornFx));
-        IOC.registerInstance(playerManagerService);
         IOC.registerInstance(new UrlService(eventPublisher, this, localeText, loaderService));
 
         // services
@@ -97,6 +102,7 @@ public class PopcornTimeApplication extends Application {
         IOC.register(TraktTrackingService.class);
         IOC.register(UpdateService.class);
         IOC.register(VideoQualityService.class);
+        IOC.register(ScreenServiceImpl.class);
 
         // components
         IOC.register(EpisodeComponent.class);
@@ -108,12 +114,19 @@ public class PopcornTimeApplication extends Application {
         IOC.register(PlayerExternalComponent.class);
         IOC.register(PlayingNextInComponent.class);
         IOC.register(PlaylistItemComponent.class);
-        IOC.register(PosterComponent.class);
         IOC.register(ProgressInfoComponent.class);
         IOC.register(SettingsActionsComponent.class);
         IOC.register(ShowDetailsComponent.class);
         IOC.register(TvMediaCardComponent.class);
-        IOC.register(TvPosterComponent.class);
+
+        // register additional init beans
+        Optional.ofNullable(ON_INIT.get())
+                .ifPresent(consumer -> consumer.accept(IOC));
+
+        // register video playback
+        var playerInfoService = IOC.registerInstance(new PlayerInfoService(playerManagerService));
+        var videoInfoService = IOC.registerInstance(new VideoInfoService(IOC.getInstances(VideoPlayback.class)));
+        IOC.registerInstance(new AboutSectionService(playerInfoService, videoInfoService));
 
         // controllers
         IOC.register(AboutSectionController.class);
@@ -129,24 +142,22 @@ public class PopcornTimeApplication extends Application {
         IOC.register(ListSectionController.class);
         IOC.register(MainController.class);
 
-        // register additional init beans
-        Optional.ofNullable(ON_INIT.get())
-                .ifPresent(consumer -> consumer.accept(IOC));
-
-        // register video playback
-        var playerInfoService = IOC.registerInstance(new PlayerInfoService(playerManagerService));
-        var videoInfoService = IOC.registerInstance(new VideoInfoService(IOC.getInstances(VideoPlayback.class)));
-        IOC.registerInstance(new AboutSectionService(playerInfoService, videoInfoService));
-
         if (!applicationConfig.isTvMode()) {
-            loadDesktopControllers(IOC);
+            loadDesktopControllers();
         } else {
-            loadTvControllers(IOC);
+            loadTvControllers();
         }
+
+        var players = IOC.getInstances(Player.class);
+        log.info("Loaded a total of {} players during the initialization phase", players.size());
+
+        var elapsedTime = System.currentTimeMillis() - startTime;
+        log.debug("Application initialized in {} seconds", elapsedTime / 1000.0);
     }
 
     @Override
     public void start(Stage stage) throws Exception {
+        var startTime = System.currentTimeMillis();
         log.trace("Starting the application");
         updateStageType(stage);
 
@@ -158,10 +169,15 @@ public class PopcornTimeApplication extends Application {
                 IOC.getInstance(PlatformProvider.class)
         );
         IOC.getInstance(ViewLoader.class).show(stage, STAGE_VIEW, viewProperties);
-        IOC.getInstance(ViewManager.class).setPolicy(ViewManagerPolicy.CLOSEABLE);
+        var viewManager = IOC.getInstance(ViewManager.class);
+        viewManager.setPolicy(ViewManagerPolicy.CLOSEABLE);
+        viewManager.registerPrimaryStage(stage);
 
         log.trace("Starting the discovery of external players");
         IOC.getInstance(FxLib.class).discover_external_players(IOC.getInstance(PopcornFx.class));
+
+        var elapsedTime = System.currentTimeMillis() - startTime;
+        log.debug("Application started in {} seconds", elapsedTime / 1000.0);
     }
 
     @Override
@@ -228,25 +244,27 @@ public class PopcornTimeApplication extends Application {
         stage.centerOnScreen();
     }
 
-    private static void loadDesktopControllers(IoC instance) {
-        instance.register(DesktopFilterComponent.class);
-        instance.register(DesktopMovieActionsComponent.class);
-        instance.register(DesktopMovieQualityComponent.class);
-        instance.register(DesktopSerieActionsComponent.class);
-        instance.register(DesktopSerieQualityComponent.class);
-        instance.register(DesktopSidebarSearchComponent.class);
-        instance.register(DetailsTorrentComponent.class);
-        instance.register(SettingsPlaybackComponent.class);
-        instance.register(SettingsServerComponent.class);
-        instance.register(SettingsSubtitlesComponent.class);
-        instance.register(SettingsTorrentComponent.class);
-        instance.register(SettingsTraktComponent.class);
-        instance.register(SettingsUIComponent.class);
-        instance.register(TorrentCollectionSectionController.class);
-        instance.register(WindowComponent.class);
+    private static void loadDesktopControllers() {
+        IOC.register(DesktopFilterComponent.class);
+        IOC.register(DesktopMovieActionsComponent.class);
+        IOC.register(DesktopMovieQualityComponent.class);
+        IOC.register(DesktopSerieActionsComponent.class);
+        IOC.register(DesktopSerieQualityComponent.class);
+        IOC.register(DesktopSidebarSearchComponent.class);
+        IOC.register(DetailsTorrentComponent.class);
+        IOC.register(SettingsPlaybackComponent.class);
+        IOC.register(SettingsServerComponent.class);
+        IOC.register(SettingsSubtitlesComponent.class);
+        IOC.register(SettingsTorrentComponent.class);
+        IOC.register(SettingsTraktComponent.class);
+        IOC.register(SettingsUIComponent.class);
+        IOC.register(TorrentCollectionSectionController.class);
+        IOC.register(WindowComponent.class);
+        IOC.register(PosterComponent.class, false);
     }
 
-    private static void loadTvControllers(IoC instance) {
-        instance.register(TvFilterComponent.class);
+    private static void loadTvControllers() {
+        IOC.register(TvFilterComponent.class);
+        IOC.register(TvPosterComponent.class, false);
     }
 }

@@ -18,7 +18,6 @@ import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.annotation.PostConstruct;
 import java.io.File;
 import java.util.Objects;
 
@@ -35,6 +34,10 @@ public class VideoPlayerFX extends AbstractVideoPlayer implements VideoPlayback 
 
     private Throwable error;
     private boolean initialized;
+
+    public VideoPlayerFX() {
+        init();
+    }
 
     //region Getters
 
@@ -169,7 +172,6 @@ public class VideoPlayerFX extends AbstractVideoPlayer implements VideoPlayback 
 
     //region PostConstruct
 
-    @PostConstruct
     private void init() {
         log.trace("Initializing JavaFX player");
         Platform.runLater(() -> {

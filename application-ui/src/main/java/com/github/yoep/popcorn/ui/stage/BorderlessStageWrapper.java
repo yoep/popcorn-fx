@@ -1,7 +1,5 @@
-package com.github.yoep.popcorn.ui.view;
+package com.github.yoep.popcorn.ui.stage;
 
-import com.github.spring.boot.javafx.stage.BorderlessStage;
-import com.github.spring.boot.javafx.stage.InvalidStageException;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.event.EventHandler;

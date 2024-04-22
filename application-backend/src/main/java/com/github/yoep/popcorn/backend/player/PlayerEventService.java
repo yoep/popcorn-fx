@@ -8,10 +8,8 @@ import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayerChangedEvent;
 import com.github.yoep.popcorn.backend.events.PlayerStateEvent;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.annotation.PostConstruct;
 import java.util.Collection;
 import java.util.Objects;
 import java.util.Optional;
@@ -23,13 +21,20 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * and only want to register ones instead of each time a different player is used.
  */
 @Slf4j
-@RequiredArgsConstructor
 public class PlayerEventService {
     private final PlayerManagerService playerService;
     private final EventPublisher eventPublisher;
 
     private final PlayerListener playerListener = createListener();
     private final Collection<PlayerListener> listeners = new ConcurrentLinkedQueue<>();
+
+    public PlayerEventService(PlayerManagerService playerService, EventPublisher eventPublisher) {
+        Objects.requireNonNull(playerService, "playerService cannot be null");
+        Objects.requireNonNull(eventPublisher, "eventPublisher cannot be null");
+        this.playerService = playerService;
+        this.eventPublisher = eventPublisher;
+        init();
+    }
 
     //region Methods
 
@@ -46,8 +51,7 @@ public class PlayerEventService {
 
     //region PostConstruct
 
-    @PostConstruct
-    void init() {
+    private void init() {
         eventPublisher.register(PlayerChangedEvent.class, event -> {
             var oldPlayer = event.getOldPlayerId()
                     .flatMap(playerService::getById)

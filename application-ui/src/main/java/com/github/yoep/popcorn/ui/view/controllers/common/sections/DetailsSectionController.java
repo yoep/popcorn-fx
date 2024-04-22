@@ -1,26 +1,23 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
-import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
 import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
 import com.github.yoep.popcorn.backend.events.ShowTorrentDetailsEvent;
 import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
 import com.github.yoep.popcorn.ui.events.CloseTorrentDetailsEvent;
+import com.github.yoep.popcorn.ui.view.ViewLoader;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
 import javafx.scene.input.*;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.annotation.PostConstruct;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
-@RequiredArgsConstructor
 public class DetailsSectionController {
     private final EventPublisher eventPublisher;
     private final ViewLoader viewLoader;
@@ -33,10 +30,15 @@ public class DetailsSectionController {
     @FXML
     Pane detailPane;
 
+    public DetailsSectionController(EventPublisher eventPublisher, ViewLoader viewLoader) {
+        this.eventPublisher = eventPublisher;
+        this.viewLoader = viewLoader;
+        init();
+    }
+
     //region PostConstruct
 
-    @PostConstruct
-    void init() {
+    private void init() {
         initializePanes();
         eventPublisher.register(ShowMovieDetailsEvent.class, event -> {
             switchContent(DetailsType.MOVIE_DETAILS);

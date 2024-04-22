@@ -1,18 +1,17 @@
 package com.github.yoep.player.popcorn.player;
 
-import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.adapters.player.embaddable.EmbeddablePlayer;
 import com.github.yoep.popcorn.backend.adapters.player.embaddable.LayoutMode;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
+import com.github.yoep.popcorn.ui.view.ViewLoader;
 import javafx.scene.Node;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.annotation.PostConstruct;
 import java.io.InputStream;
 import java.util.Optional;
 
@@ -32,6 +31,7 @@ public class EmbeddablePopcornPlayer implements EmbeddablePlayer {
         this.playerService = playerService;
         this.viewLoader = viewLoader;
         this.popcornPlayer = popcornPlayer;
+        init();
     }
 
     //region EmbeddablePlayer
@@ -130,8 +130,7 @@ public class EmbeddablePopcornPlayer implements EmbeddablePlayer {
 
     //region Init
 
-    @PostConstruct
-    void init() {
+    private void init() {
         initializeEmbeddablePlayer();
         registerPlayer();
     }

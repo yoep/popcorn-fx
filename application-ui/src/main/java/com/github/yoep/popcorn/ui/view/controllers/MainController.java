@@ -1,7 +1,5 @@
 package com.github.yoep.popcorn.ui.view.controllers;
 
-import com.github.spring.boot.javafx.ui.scale.ScaleAwareImpl;
-import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.events.*;
 import com.github.yoep.popcorn.backend.playlists.Playlist;
@@ -10,7 +8,9 @@ import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.ui.ApplicationArgs;
 import com.github.yoep.popcorn.ui.events.CloseLoadEvent;
+import com.github.yoep.popcorn.ui.scale.PopcornScaleAware;
 import com.github.yoep.popcorn.ui.stage.BorderlessStageHolder;
+import com.github.yoep.popcorn.ui.view.ViewLoader;
 import com.github.yoep.popcorn.ui.view.services.UrlService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -38,7 +38,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static java.util.Arrays.asList;
 
 @Slf4j
-public class MainController extends ScaleAwareImpl implements Initializable {
+public class MainController extends PopcornScaleAware implements Initializable {
     static final String TV_STYLESHEET = "/styles/tv.css";
     static final String MOUSE_DISABLED_STYLE_CLASS = "mouse-disabled";
 

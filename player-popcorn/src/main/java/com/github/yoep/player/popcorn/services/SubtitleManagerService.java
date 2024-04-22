@@ -18,11 +18,9 @@ import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.view.services.SubtitlePickerService;
 import javafx.beans.property.*;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
 
-import javax.annotation.PostConstruct;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Queue;
@@ -31,7 +29,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 @Slf4j
-@RequiredArgsConstructor
 public class SubtitleManagerService {
     public static final String SUBTITLE_SIZE_PROPERTY = "subtitleSize";
     public static final String SUBTITLE_OFFSET_PROPERTY = "subtitleOffset";
@@ -48,6 +45,16 @@ public class SubtitleManagerService {
 
     private String quality;
     private String url;
+
+    public SubtitleManagerService(ApplicationConfig applicationConfig, VideoService videoService, SubtitleService subtitleService, SubtitlePickerService subtitlePickerService, LocaleText localeText, EventPublisher eventPublisher) {
+        this.applicationConfig = applicationConfig;
+        this.videoService = videoService;
+        this.subtitleService = subtitleService;
+        this.subtitlePickerService = subtitlePickerService;
+        this.localeText = localeText;
+        this.eventPublisher = eventPublisher;
+        init();
+    }
 
     //region Properties
 
@@ -119,8 +126,7 @@ public class SubtitleManagerService {
 
     //region PostConstruct
 
-    @PostConstruct
-    void init() {
+    private void init() {
         log.trace("Initializing video player subtitle service");
         initializeSubtitleSize();
         initializeSubtitleListener();
@@ -166,6 +172,10 @@ public class SubtitleManagerService {
     //region Functions
 
     private void onPlay(PlayRequest request) {
+        Objects.requireNonNull(request, "request cannot be null");
+        this.url = request.getUrl();
+        this.quality = request.getQuality().orElse(null);
+
         if (request.isSubtitlesEnabled()) {
             subtitleService.preferredSubtitle()
                     .filter(e -> !e.isNone())

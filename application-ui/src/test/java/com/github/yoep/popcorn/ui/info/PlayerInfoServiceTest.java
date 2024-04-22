@@ -10,7 +10,6 @@ import com.github.yoep.popcorn.backend.player.PlayerManagerListener;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -24,9 +23,6 @@ import static org.mockito.Mockito.*;
 class PlayerInfoServiceTest {
     @Mock
     private PlayerManagerService playerManagerService;
-    @InjectMocks
-    private PlayerInfoService service;
-
     private final AtomicReference<PlayerListener> listenerHolder = new AtomicReference<>();
     private final AtomicReference<PlayerManagerListener> playerListenerHolder = new AtomicReference<>();
 
@@ -53,7 +49,7 @@ class PlayerInfoServiceTest {
         when(player.getName()).thenReturn(name);
         when(player.getDescription()).thenReturn(description);
         when(player.getState()).thenReturn(state);
-        service.init();
+        var service = new PlayerInfoService(playerManagerService);
 
         playerListenerHolder.get().playersChanged();
         var result = service.getComponentDetails();
@@ -73,7 +69,7 @@ class PlayerInfoServiceTest {
             listenerHolder.set(invocation.getArgument(0, PlayerListener.class));
             return null;
         }).when(player).addListener(isA(PlayerListener.class));
-        service.init();
+        var service = new PlayerInfoService(playerManagerService);
 
         playerListenerHolder.get().playersChanged();
         var listener = listenerHolder.get();
@@ -100,7 +96,7 @@ class PlayerInfoServiceTest {
             listenerHolder.set(invocation.getArgument(0, PlayerListener.class));
             return null;
         }).when(player).addListener(isA(PlayerListener.class));
-        service.init();
+        var service = new PlayerInfoService(playerManagerService);
 
         service.addListener(infoListener);
         playerListenerHolder.get().playersChanged();

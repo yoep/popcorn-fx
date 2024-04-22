@@ -258,22 +258,6 @@ pub extern "C" fn is_media_liked(popcorn_fx: &mut PopcornFX, favorite: &mut Medi
     }
 }
 
-/// Retrieve all favorites of the user.
-///
-/// It will return an array of favorites on success, else [ptr::null_mut].
-#[no_mangle]
-pub extern "C" fn retrieve_all_favorites(popcorn_fx: &mut PopcornFX) -> *mut VecFavoritesC {
-    match popcorn_fx.favorite_service().all() {
-        Ok(e) => {
-            favorites_to_c(e)
-        }
-        Err(e) => {
-            error!("Failed to retrieve favorites, {}", e);
-            ptr::null_mut()
-        }
-    }
-}
-
 /// Add the media item to the favorites.
 /// Duplicate favorite media items are ignored.
 #[no_mangle]
@@ -639,9 +623,9 @@ mod test {
         PopcornFxArgs {
             disable_logger: true,
             disable_mouse: false,
-            disable_youtube_video_player: false,
+            enable_youtube_video_player: false,
             disable_fx_video_player: false,
-            disable_vlc_video_player: false,
+            enable_vlc_video_player: false,
             tv: false,
             maximized: false,
             kiosk: false,

@@ -20,6 +20,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -28,6 +29,7 @@ public class ShowProviderService implements ProviderService<ShowOverview> {
 
     private final FxLib fxLib;
     private final PopcornFx instance;
+    private final ExecutorService executorService;
 
     @Override
     public boolean supports(Category category) {
@@ -36,21 +38,23 @@ public class ShowProviderService implements ProviderService<ShowOverview> {
 
     @Override
     public CompletableFuture<List<ShowOverview>> getPage(Genre genre, SortBy sortBy, int page) {
-        return CompletableFuture.completedFuture(getPage(genre, sortBy, StringUtils.EMPTY, page));
+        return CompletableFuture.supplyAsync(() -> getPage(genre, sortBy, StringUtils.EMPTY, page), executorService);
     }
 
     @Override
     public CompletableFuture<List<ShowOverview>> getPage(Genre genre, SortBy sortBy, int page, String keywords) {
-        return CompletableFuture.completedFuture(getPage(genre, sortBy, keywords, page));
+        return CompletableFuture.supplyAsync(() -> getPage(genre, sortBy, keywords, page), executorService);
     }
 
     @Override
     public CompletableFuture<Media> retrieveDetails(Media media) {
-        try {
-            return CompletableFuture.completedFuture(getDetailsInternal(media));
-        } catch (Exception ex) {
-            throw new MediaDetailsException(media, "Failed to load show details", ex);
-        }
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return getDetailsInternal(media);
+            } catch (Exception ex) {
+                throw new MediaDetailsException(media, "Failed to load show details", ex);
+            }
+        }, executorService);
     }
 
     @Override

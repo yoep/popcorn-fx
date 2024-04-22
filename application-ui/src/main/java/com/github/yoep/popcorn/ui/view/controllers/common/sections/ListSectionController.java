@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
-import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
@@ -23,6 +22,7 @@ import com.github.yoep.popcorn.ui.events.SearchEvent;
 import com.github.yoep.popcorn.ui.events.SortByChangeEvent;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
 import com.github.yoep.popcorn.ui.messages.ListMessage;
+import com.github.yoep.popcorn.ui.view.ViewLoader;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.MediaCardComponent;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.TvMediaCardComponent;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.OverlayItemListener;

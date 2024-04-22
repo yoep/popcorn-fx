@@ -1,13 +1,17 @@
 package com.github.yoep.popcorn;
 
-import com.github.yoep.player.chromecast.ChromecastPlayer;
 import com.github.yoep.player.chromecast.discovery.DiscoveryService;
 import com.github.yoep.player.chromecast.discovery.FfmpegDiscovery;
 import com.github.yoep.player.chromecast.services.ChromecastService;
 import com.github.yoep.player.chromecast.services.MetaDataService;
+import com.github.yoep.player.chromecast.transcode.NoOpTranscodeService;
+import com.github.yoep.player.chromecast.transcode.VlcTranscodeService;
 import com.github.yoep.player.popcorn.controllers.components.*;
+import com.github.yoep.player.popcorn.controllers.sections.PopcornPlayerSectionController;
 import com.github.yoep.player.popcorn.player.EmbeddablePopcornPlayer;
 import com.github.yoep.player.popcorn.player.PopcornPlayer;
+import com.github.yoep.player.popcorn.services.*;
+import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.lib.FxLibInstance;
 import com.github.yoep.popcorn.backend.lib.PopcornFxInstance;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
@@ -26,6 +30,8 @@ import com.sun.jna.Memory;
 import com.sun.jna.Native;
 import com.sun.jna.Pointer;
 import javafx.application.Application;
+import javafx.application.ConditionalFeature;
+import javafx.application.Platform;
 import javafx.application.Preloader;
 import org.apache.http.impl.client.DefaultRedirectStrategy;
 import org.apache.http.impl.client.HttpClientBuilder;
@@ -35,7 +41,6 @@ import uk.co.caprica.vlcj.factory.discovery.strategy.NativeDiscoveryStrategy;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import java.util.Optional;
 
 public class PopcornTimeStarter {
     public static void main(String[] args) {
@@ -74,7 +79,8 @@ public class PopcornTimeStarter {
         return new Args(pointer, length);
     }
 
-    private static void onInit(IoC ioC) {
+    static void onInit(IoC ioC) {
+        var applicationConfig = ioC.getInstance(ApplicationConfig.class);
         var client = HttpClientBuilder.create()
                 .setRedirectStrategy(new DefaultRedirectStrategy())
                 .build();
@@ -90,24 +96,44 @@ public class PopcornTimeStarter {
         ioC.register(TorrentSettingsServiceImpl.class);
         ioC.registerInstance(new TorrentResolverService(ioC.getInstance(TorrentSessionManager.class), client));
 
+        // youtube video player
+        if (applicationConfig.isYoutubeVideoPlayerEnabled() && Platform.isSupported(ConditionalFeature.WEB)) {
+            ioC.register(VideoPlayerYoutube.class);
+        }
+
+        // vlc video player
+        if (applicationConfig.isVlcVideoPlayerEnabled()) {
+            var discovery = new NativeDiscovery(discoveryStrategies.toArray(NativeDiscoveryStrategy[]::new));
+            if (discovery.discover()) {
+                ioC.registerInstance(discovery);
+                ioC.register(MediaPlayerFactory.class);
+                ioC.register(VideoPlayerVlc.class);
+                ioC.register(VlcTranscodeService.class);
+            } else {
+                ioC.register(NoOpTranscodeService.class);
+            }
+        }
+
         // popcorn fx player
-        ioC.registerInstance(new NativeDiscovery(discoveryStrategies.toArray(NativeDiscoveryStrategy[]::new)));
-        ioC.register(MediaPlayerFactory.class);
-        ioC.register(VideoPlayerYoutube.class);
-        ioC.register(VideoPlayerVlc.class);
-        ioC.register(VideoPlayerFX.class);
         ioC.register(EmbeddablePopcornPlayer.class);
-        ioC.register(PopcornPlayer.class);
+        ioC.register(PlayerControlsService.class);
         ioC.register(PlayerHeaderComponent.class);
-        ioC.register(PlayerSubtitleComponent.class);
+        ioC.register(PlayerHeaderService.class);
         ioC.register(PlayerPlaylistComponent.class);
+        ioC.register(PlayerSubtitleComponent.class);
+        ioC.register(PlayerSubtitleService.class);
+        ioC.register(PopcornPlayer.class);
+        ioC.register(PopcornPlayerSectionController.class);
+        ioC.register(PopcornPlayerSectionService.class);
+        ioC.register(SubtitleManagerService.class);
+        ioC.register(VideoPlayerFX.class);
+        ioC.register(VideoService.class);
 
         // chromecast
-        ioC.register(ChromecastPlayer.class);
         ioC.register(ChromecastService.class);
-        ioC.register(MetaDataService.class);
-        ioC.register(DiscoveryService.class);
-        Optional.ofNullable(FfmpegDiscovery.discoverProbe()).ifPresent(ioC::registerInstance);
+        ioC.registerInstance(new MetaDataService(client));
+        ioC.registerInstance(FfmpegDiscovery.discoverProbe());
+        ioC.registerInstance(new DiscoveryService(ioC.getInstance(PlayerManagerService.class), ioC.getInstance(ChromecastService.class)));
 
         if (isDesktopMode(ioC)) {
             onInitDesktop(ioC);

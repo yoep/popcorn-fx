@@ -1,13 +1,12 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
-import com.github.spring.boot.javafx.font.controls.Icon;
-import com.github.spring.boot.javafx.stereotype.ViewController;
-import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import com.github.yoep.popcorn.backend.player.PlayerAction;
 import com.github.yoep.popcorn.backend.utils.TimeUtils;
+import com.github.yoep.popcorn.ui.font.controls.Icon;
+import com.github.yoep.popcorn.ui.view.ViewLoader;
 import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
 import com.github.yoep.popcorn.ui.view.controls.ProgressControl;
 import com.github.yoep.popcorn.ui.view.listeners.PlayerExternalListener;
@@ -22,16 +21,13 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.annotation.PostConstruct;
 import java.net.URL;
+import java.util.Objects;
 import java.util.ResourceBundle;
 
 @Slf4j
-@ViewController
-@RequiredArgsConstructor
 public class PlayerExternalComponent implements Initializable {
     private final ImageService imageService;
     private final PlayerExternalComponentService playerExternalService;
@@ -60,10 +56,29 @@ public class PlayerExternalComponent implements Initializable {
     @FXML
     Pane progressInfoPane;
 
-    //region Init
+    public PlayerExternalComponent(ImageService imageService, PlayerExternalComponentService playerExternalService, ViewLoader viewLoader) {
+        Objects.requireNonNull(imageService, "imageService cannot be null");
+        Objects.requireNonNull(playerExternalService, "playerExternalService cannot be null");
+        Objects.requireNonNull(viewLoader, "viewLoader cannot be null");
+        this.imageService = imageService;
+        this.playerExternalService = playerExternalService;
+        this.viewLoader = viewLoader;
+    }
 
-    @PostConstruct
-    void init() {
+    //region Initializable
+
+    @Override
+    public void initialize(URL url, ResourceBundle resourceBundle) {
+        initializeProgressInfo();
+        playerExternalPane.sceneProperty().addListener((observableValue, scene, newScene) -> {
+            if (newScene != null) {
+                log.trace("Registering key event handler to scene for external player");
+                newScene.addEventHandler(KeyEvent.KEY_RELEASED, keyPressedEventHandler);
+            } else {
+                log.trace("Removing key event handler from scene for external player");
+                scene.removeEventHandler(KeyEvent.KEY_RELEASED, keyPressedEventHandler);
+            }
+        });
         playerExternalService.addListener(new PlayerExternalListener() {
             @Override
             public void onRequestChanged(PlayRequest request) {
@@ -88,24 +103,6 @@ public class PlayerExternalComponent implements Initializable {
             @Override
             public void onDownloadStatus(DownloadStatus status) {
                 PlayerExternalComponent.this.onDownloadStatus(status);
-            }
-        });
-    }
-
-    //endregion
-
-    //region Initializable
-
-    @Override
-    public void initialize(URL url, ResourceBundle resourceBundle) {
-        initializeProgressInfo();
-        playerExternalPane.sceneProperty().addListener((observableValue, scene, newScene) -> {
-            if (newScene != null) {
-                log.trace("Registering key event handler to scene for external player");
-                newScene.addEventHandler(KeyEvent.KEY_RELEASED, keyPressedEventHandler);
-            } else {
-                log.trace("Removing key event handler from scene for external player");
-                scene.removeEventHandler(KeyEvent.KEY_RELEASED, keyPressedEventHandler);
             }
         });
     }

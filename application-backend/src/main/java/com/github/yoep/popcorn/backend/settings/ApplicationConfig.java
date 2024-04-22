@@ -4,10 +4,8 @@ import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.settings.models.*;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.annotation.PostConstruct;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.function.Consumer;
@@ -15,17 +13,26 @@ import java.util.function.Consumer;
 import static java.util.Arrays.asList;
 
 @Slf4j
-@RequiredArgsConstructor
 public class ApplicationConfig {
-    private final LocaleText localeText;
     private final FxLib fxLib;
     private final PopcornFx instance;
+    private final LocaleText localeText;
 
     private final Queue<ApplicationConfigEventCallback> listeners = new ConcurrentLinkedDeque<>();
     private final ApplicationConfigEventCallback callback = createCallback();
 
     private ApplicationSettings cachedSettings;
     private Consumer<Float> onUiScaleChanged;
+
+    public ApplicationConfig(FxLib fxLib, PopcornFx instance, LocaleText localeText) {
+        Objects.requireNonNull(fxLib, "fxLib cannot be null");
+        Objects.requireNonNull(instance, "instance cannot be null");
+        Objects.requireNonNull(localeText, "localeText cannot be null");
+        this.fxLib = fxLib;
+        this.instance = instance;
+        this.localeText = localeText;
+        init();
+    }
 
     //region Properties
 
@@ -58,6 +65,14 @@ public class ApplicationConfig {
 
     public boolean isMouseDisabled() {
         return fxLib.is_mouse_disabled(instance) == 1;
+    }
+    
+    public boolean isYoutubeVideoPlayerEnabled() {
+        return fxLib.is_youtube_video_player_enabled(instance) == 1;
+    }
+    
+    public boolean isVlcVideoPlayerEnabled() {
+        return fxLib.is_vlc_video_player_enabled(instance) == 1;
     }
 
     public void setOnUiScaleChanged(Consumer<Float> onUiScaleChanged) {
@@ -174,8 +189,7 @@ public class ApplicationConfig {
 
     //region PostConstruct
 
-    @PostConstruct
-    void init() {
+    private void init() {
         initializeSettings();
         fxLib.register_settings_callback(instance, callback);
     }

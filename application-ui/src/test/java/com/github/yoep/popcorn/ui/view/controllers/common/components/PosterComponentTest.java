@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
-import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteEvent;
@@ -9,6 +8,7 @@ import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
+import com.github.yoep.popcorn.ui.font.controls.Icon;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
 import com.github.yoep.popcorn.ui.view.controls.ImageCover;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
@@ -31,6 +31,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
@@ -70,14 +71,13 @@ class PosterComponentTest {
     }
 
     @Test
-    void testOnPlayEvent() throws TimeoutException {
+    void testOnShowDetailsEvent() throws TimeoutException {
         var event = mock(ShowMovieDetailsEvent.class);
         var media = mock(MovieDetails.class);
         when(event.getMedia()).thenReturn(media);
         when(favoriteService.isLiked(media)).thenReturn(true);
         when(watchedService.isWatched(media)).thenReturn(true);
         when(imageService.loadPoster(media)).thenReturn(new CompletableFuture<>());
-        component.init();
         component.initialize(url, resourceBundle);
 
         eventPublisher.publish(event);
@@ -104,7 +104,6 @@ class PosterComponentTest {
         when(media.getId()).thenReturn(imdbId);
         when(favoriteService.isLiked(media)).thenReturn(false);
         when(imageService.loadPoster(media)).thenReturn(new CompletableFuture<>());
-        component.init();
         component.initialize(url, resourceBundle);
 
         // add a media item to the details

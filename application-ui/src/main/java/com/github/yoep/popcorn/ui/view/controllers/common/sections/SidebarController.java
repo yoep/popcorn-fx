@@ -1,8 +1,5 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
-import com.github.spring.boot.javafx.font.controls.Icon;
-import com.github.spring.boot.javafx.stereotype.ViewController;
-import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowAboutEvent;
 import com.github.yoep.popcorn.backend.media.filters.model.Category;
@@ -13,6 +10,8 @@ import com.github.yoep.popcorn.backend.updater.UpdateService;
 import com.github.yoep.popcorn.backend.updater.UpdateState;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.*;
+import com.github.yoep.popcorn.ui.font.controls.Icon;
+import com.github.yoep.popcorn.ui.view.ViewLoader;
 import javafx.animation.Animation;
 import javafx.animation.FadeTransition;
 import javafx.animation.Transition;
@@ -37,7 +36,7 @@ import java.util.ResourceBundle;
 
 @Slf4j
 @RequiredArgsConstructor
-@ViewController
+
 public class SidebarController implements Initializable {
     static final String ACTIVE_STYLE = "active";
 

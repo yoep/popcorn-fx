@@ -8,17 +8,14 @@ import com.github.yoep.popcorn.backend.events.InfoNotificationEvent;
 import com.github.yoep.popcorn.backend.events.ShowAboutEvent;
 import com.github.yoep.popcorn.backend.messages.UpdateMessage;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.annotation.PostConstruct;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedDeque;
 
 @Slf4j
-@RequiredArgsConstructor
 public class UpdateService {
     private final FxLib fxLib;
     private final PopcornFx instance;
@@ -28,6 +25,17 @@ public class UpdateService {
 
     private final Queue<UpdateCallback> listeners = new ConcurrentLinkedDeque<>();
     private final UpdateCallback callback = createCallback();
+
+    public UpdateService(FxLib fxLib, PopcornFx instance, PlatformProvider platform, EventPublisher eventPublisher, LocaleText localeText) {
+        Objects.requireNonNull(fxLib, "fxLib cannot be null");
+        Objects.requireNonNull(instance, "instance cannot be null");
+        this.fxLib = fxLib;
+        this.instance = instance;
+        this.platform = platform;
+        this.eventPublisher = eventPublisher;
+        this.localeText = localeText;
+        init();
+    }
 
     //region Properties
 
@@ -67,8 +75,7 @@ public class UpdateService {
 
     //endregion
 
-    @PostConstruct
-    void init() {
+    private void init() {
         fxLib.register_update_callback(instance, callback);
         onStateChanged(fxLib.update_state(instance));
     }

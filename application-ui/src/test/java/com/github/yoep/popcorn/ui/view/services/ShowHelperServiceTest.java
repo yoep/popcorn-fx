@@ -32,7 +32,7 @@ class ShowHelperServiceTest {
     class GetSeasonsTest {
         @Test
         void testGetSeasons_whenMediaIsNull_shouldThrowIllegalArgumentException() {
-            assertThrows(IllegalArgumentException.class, () -> ShowHelperService.getSeasons(null), "media cannot be null");
+            assertThrows(NullPointerException.class, () -> ShowHelperService.getSeasons(null), "media cannot be null");
         }
 
         @Test

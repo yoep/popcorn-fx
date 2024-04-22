@@ -1,12 +1,11 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
-import com.github.spring.boot.javafx.stereotype.ViewController;
-import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.loader.*;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.CloseLoadEvent;
 import com.github.yoep.popcorn.ui.messages.TorrentMessage;
+import com.github.yoep.popcorn.ui.view.ViewLoader;
 import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.application.Platform;
@@ -27,7 +26,7 @@ import java.net.URL;
 import java.util.ResourceBundle;
 
 @Slf4j
-@ViewController
+
 @RequiredArgsConstructor
 public class LoaderComponent implements Initializable {
     static final String PROGRESS_ERROR_STYLE_CLASS = "error";

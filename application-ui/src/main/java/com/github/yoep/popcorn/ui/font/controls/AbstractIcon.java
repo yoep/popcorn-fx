@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui.font.controls;
 
-import com.github.spring.boot.javafx.font.FontRegistryImpl;
+import com.github.yoep.popcorn.ui.font.PopcornFontRegistry;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.scene.control.Label;
@@ -62,7 +62,7 @@ abstract class AbstractIcon extends Label {
     }
 
     private void initializeFont(String filename) {
-        Font font = FontRegistryImpl.getInstance().loadFont(filename);
+        Font font = PopcornFontRegistry.getInstance().loadFont(filename);
 
         fontFamily = font.getFamily();
         setFont(font);

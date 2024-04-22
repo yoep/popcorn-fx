@@ -1,7 +1,5 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
-import com.github.spring.boot.javafx.stereotype.ViewController;
-import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.adapters.player.embaddable.EmbeddablePlayer;
@@ -9,6 +7,7 @@ import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayerStartedEvent;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
+import com.github.yoep.popcorn.ui.view.ViewLoader;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -24,7 +23,7 @@ import java.net.URL;
 import java.util.ResourceBundle;
 
 @Slf4j
-@ViewController
+
 @RequiredArgsConstructor
 public class PlayerSectionController implements Initializable {
     static final String EXTERNAL_PLAYER_VIEW = "common/components/player-external.component.fxml";

@@ -1,13 +1,14 @@
 package com.github.yoep.popcorn.ui.view.controllers;
 
-import com.github.spring.boot.javafx.font.controls.Icon;
-import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayerStartedEvent;
 import com.github.yoep.popcorn.backend.events.ShowDetailsEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
+import com.github.yoep.popcorn.ui.ApplicationArgs;
+import com.github.yoep.popcorn.ui.font.controls.Icon;
+import com.github.yoep.popcorn.ui.view.ViewLoader;
 import com.github.yoep.popcorn.ui.view.services.UrlService;
 import javafx.application.Platform;
 import javafx.scene.Cursor;
@@ -29,7 +30,6 @@ import org.testfx.util.WaitForAsyncUtils;
 import java.net.URL;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -42,6 +42,8 @@ import static org.mockito.Mockito.*;
 class MainControllerTest {
     @Spy
     private EventPublisher eventPublisher = new EventPublisher(false);
+    @Mock
+    private ApplicationArgs applicationArgs;
     @Mock
     private ViewLoader viewLoader;
     @Mock
@@ -59,11 +61,12 @@ class MainControllerTest {
 
     @BeforeEach
     void setUp() {
+        lenient().when(applicationArgs.args()).thenReturn(new String[0]);
         controller.root = new AnchorPane();
     }
 
     @Test
-    void testOnMouseDisabledMouseEvent() throws ExecutionException, InterruptedException, TimeoutException {
+    void testOnMouseDisabledMouseEvent() throws TimeoutException {
         var eventFuture = new CompletableFuture<KeyEvent>();
         var targetNode = new Icon();
         var event = new MouseEvent(MouseEvent.MOUSE_CLICKED, 0, 0, 0, 0, MouseButton.PRIMARY, 1, false, false, false, false, true,

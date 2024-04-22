@@ -2,15 +2,11 @@ package com.github.yoep.popcorn.backend.settings;
 
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
-import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
-import com.github.yoep.popcorn.backend.settings.models.CleaningMode;
-import com.github.yoep.popcorn.backend.settings.models.SubtitleSettings;
-import com.github.yoep.popcorn.backend.settings.models.TorrentSettings;
+import com.github.yoep.popcorn.backend.settings.models.*;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -28,15 +24,32 @@ class ApplicationConfigTest {
     private FxLib fxLib;
     @Mock
     private PopcornFx instance;
-    @InjectMocks
-    private ApplicationConfig config;
     @TempDir
     public File workingDir;
 
     @Test
+    void testInit() {
+        var settings = mock(ApplicationSettings.class);
+        var uiSettings = mock(UISettings.class);
+        when(fxLib.application_settings(instance)).thenReturn(settings);
+        when(settings.getUiSettings()).thenReturn(uiSettings);
+        when(uiSettings.getUiScale()).thenReturn(mock(UIScale.class));
+        when(uiSettings.getDefaultLanguage()).thenReturn("en-US");
+
+        new ApplicationConfig(fxLib, instance, localeText);
+
+        verify(fxLib).register_settings_callback(eq(instance), isA(ApplicationConfigEventCallback.class));
+    }
+
+    @Test
     void testGetSettings() {
         var settings = mock(ApplicationSettings.class);
+        var uiSettings = mock(UISettings.class);
         when(fxLib.application_settings(instance)).thenReturn(settings);
+        when(settings.getUiSettings()).thenReturn(uiSettings);
+        when(uiSettings.getUiScale()).thenReturn(mock(UIScale.class));
+        when(uiSettings.getDefaultLanguage()).thenReturn("en-US");
+        var config = new ApplicationConfig(fxLib, instance, localeText);
 
         var result = config.getSettings();
 
@@ -45,33 +58,54 @@ class ApplicationConfigTest {
 
     @Test
     void testUpdateSubtitleSettings() {
-        var settings = new SubtitleSettings();
-        settings.directory = workingDir.getAbsolutePath();
-        settings.autoCleaningEnabled = (byte) 1;
+        var settings = mock(ApplicationSettings.class);
+        var uiSettings = mock(UISettings.class);
+        when(fxLib.application_settings(instance)).thenReturn(settings);
+        when(settings.getUiSettings()).thenReturn(uiSettings);
+        when(uiSettings.getUiScale()).thenReturn(mock(UIScale.class));
+        when(uiSettings.getDefaultLanguage()).thenReturn("en-US");
+        var subtitleSettings = new SubtitleSettings();
+        subtitleSettings.directory = workingDir.getAbsolutePath();
+        subtitleSettings.autoCleaningEnabled = (byte) 1;
         var expected = new SubtitleSettings.ByValue();
         expected.directory = workingDir.getAbsolutePath();
         expected.autoCleaningEnabled = (byte) 1;
+        var config = new ApplicationConfig(fxLib, instance, localeText);
 
-        config.update(settings);
+        config.update(subtitleSettings);
 
         verify(fxLib).update_subtitle_settings(instance, expected);
     }
 
     @Test
     void testUpdateTorrentSettings() {
-        var settings = new TorrentSettings();
-        settings.cleaningMode = CleaningMode.ON_SHUTDOWN;
+        var settings = mock(ApplicationSettings.class);
+        var uiSettings = mock(UISettings.class);
+        when(fxLib.application_settings(instance)).thenReturn(settings);
+        when(settings.getUiSettings()).thenReturn(uiSettings);
+        when(uiSettings.getUiScale()).thenReturn(mock(UIScale.class));
+        when(uiSettings.getDefaultLanguage()).thenReturn("en-US");
+        var torrentSettings = new TorrentSettings();
+        torrentSettings.cleaningMode = CleaningMode.ON_SHUTDOWN;
         var expected = new TorrentSettings.ByValue();
         expected.cleaningMode = CleaningMode.ON_SHUTDOWN;
+        var config = new ApplicationConfig(fxLib, instance, localeText);
 
-        config.update(settings);
+        config.update(torrentSettings);
 
         verify(fxLib).update_torrent_settings(instance, expected);
     }
 
     @Test
     void testIsTvMode() {
+        var settings = mock(ApplicationSettings.class);
+        var uiSettings = mock(UISettings.class);
+        when(fxLib.application_settings(instance)).thenReturn(settings);
+        when(settings.getUiSettings()).thenReturn(uiSettings);
+        when(uiSettings.getUiScale()).thenReturn(mock(UIScale.class));
+        when(uiSettings.getDefaultLanguage()).thenReturn("en-US");
         when(fxLib.is_tv_mode(instance)).thenReturn((byte) 1);
+        var config = new ApplicationConfig(fxLib, instance, localeText);
 
         var result = config.isTvMode();
 
@@ -80,7 +114,14 @@ class ApplicationConfigTest {
 
     @Test
     void testIsMaximized() {
+        var settings = mock(ApplicationSettings.class);
+        var uiSettings = mock(UISettings.class);
+        when(fxLib.application_settings(instance)).thenReturn(settings);
+        when(settings.getUiSettings()).thenReturn(uiSettings);
+        when(uiSettings.getUiScale()).thenReturn(mock(UIScale.class));
+        when(uiSettings.getDefaultLanguage()).thenReturn("en-US");
         when(fxLib.is_maximized(instance)).thenReturn((byte) 1);
+        var config = new ApplicationConfig(fxLib, instance, localeText);
 
         var result = config.isMaximized();
 
@@ -89,7 +130,14 @@ class ApplicationConfigTest {
 
     @Test
     void testIsKioskMode() {
+        var settings = mock(ApplicationSettings.class);
+        var uiSettings = mock(UISettings.class);
+        when(fxLib.application_settings(instance)).thenReturn(settings);
+        when(settings.getUiSettings()).thenReturn(uiSettings);
+        when(uiSettings.getUiScale()).thenReturn(mock(UIScale.class));
+        when(uiSettings.getDefaultLanguage()).thenReturn("en-US");
         when(fxLib.is_kiosk_mode(instance)).thenReturn((byte) 1);
+        var config = new ApplicationConfig(fxLib, instance, localeText);
 
         var result = config.isKioskMode();
 

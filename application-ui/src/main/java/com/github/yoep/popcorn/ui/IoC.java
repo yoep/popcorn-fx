@@ -9,6 +9,7 @@ import javax.annotation.PostConstruct;
 import java.lang.reflect.*;
 import java.text.MessageFormat;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
 /**
@@ -87,6 +88,9 @@ public class IoC {
      */
     public void dispose() {
         getInstance(PopcornFx.class).dispose();
+        getInstance(ExecutorService.class).shutdownNow();
+
+        beans.clear();
     }
 
     private void doInternalRegister(Class<?> clazz, Object instance, boolean isSingleton) {
@@ -155,6 +159,7 @@ public class IoC {
         throw new IoCException(definition.getType(), "Failed to initialize type instance");
     }
 
+    @Deprecated
     private static void initializePostConstructMethods(ComponentDefinition definition, Object instance) throws IllegalAccessException, InvocationTargetException {
         var postConstructMethods = Arrays.stream(definition.getType().getDeclaredMethods())
                 .filter(e -> Arrays.stream(e.getDeclaredAnnotations())
@@ -173,10 +178,6 @@ public class IoC {
                 throw new IoCException(definition.getType(), MessageFormat.format("Failed to invoke post construct method {0}", method), ex);
             }
         }
-    }
-
-    private static boolean isCollectionType(Class<?> e) {
-        return Collection.class.isAssignableFrom(e);
     }
 
     private static Class<?> getGenericType(ParameterizedType parameterizedType) {

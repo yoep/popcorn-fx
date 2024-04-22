@@ -9,21 +9,24 @@ import com.github.yoep.popcorn.backend.info.ComponentState;
 import com.github.yoep.popcorn.backend.info.SimpleComponentDetails;
 import com.github.yoep.popcorn.backend.player.PlayerChanged;
 import com.github.yoep.popcorn.backend.player.PlayerManagerListener;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.annotation.PostConstruct;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Slf4j
-@RequiredArgsConstructor
 public class PlayerInfoService extends AbstractInfoService {
     private final PlayerManagerService playerManagerService;
 
-    @PostConstruct
-    void init() {
+    public PlayerInfoService(PlayerManagerService playerManagerService) {
+        Objects.requireNonNull(playerManagerService, "playerManagerService cannot be null");
+        this.playerManagerService = playerManagerService;
+        init();
+    }
+
+    private void init() {
         playerManagerService.addListener(new PlayerManagerListener() {
             @Override
             public void activePlayerChanged(PlayerChanged playerChange) {

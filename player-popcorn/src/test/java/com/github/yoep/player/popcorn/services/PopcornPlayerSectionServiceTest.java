@@ -23,7 +23,6 @@ import javafx.scene.Node;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -51,8 +50,6 @@ class PopcornPlayerSectionServiceTest {
     private PopcornPlayerSectionListener listener;
     @Mock
     private ApplicationSettings settings;
-    @InjectMocks
-    private PopcornPlayerSectionService service;
 
     private final ObjectProperty<VideoPlayback> videoPlayerProperty = new SimpleObjectProperty<>();
     private final IntegerProperty subtitleSizeProperty = new SimpleIntegerProperty();
@@ -72,13 +69,13 @@ class PopcornPlayerSectionServiceTest {
             subtitleListenerHolder.set(invocation.getArgument(0, SubtitleListener.class));
             return null;
         }).when(subtitleManagerService).registerListener(isA(SubtitleListener.class));
-
-        service.addListener(listener);
     }
 
     @Test
     void testTogglePlaybackState_whenPlayerIsPlaying_shouldPausePlayer() {
         when(player.getState()).thenReturn(PlayerState.PLAYING);
+        var service = new PopcornPlayerSectionService(player, screenService, applicationConfig, subtitleManagerService, videoService);
+        service.addListener(listener);
 
         service.togglePlayerPlaybackState();
 
@@ -88,6 +85,8 @@ class PopcornPlayerSectionServiceTest {
     @Test
     void testTogglePlaybackState_whenPlayerIsPaused_shouldResumePlayer() {
         when(player.getState()).thenReturn(PlayerState.PAUSED);
+        var service = new PopcornPlayerSectionService(player, screenService, applicationConfig, subtitleManagerService, videoService);
+        service.addListener(listener);
 
         service.togglePlayerPlaybackState();
 
@@ -96,6 +95,9 @@ class PopcornPlayerSectionServiceTest {
 
     @Test
     void testToggleFullscreen_whenInvoked_shouldToggleFullscreen() {
+        var service = new PopcornPlayerSectionService(player, screenService, applicationConfig, subtitleManagerService, videoService);
+        service.addListener(listener);
+
         service.toggleFullscreen();
 
         verify(screenService).toggleFullscreen();
@@ -106,6 +108,8 @@ class PopcornPlayerSectionServiceTest {
         var offset = 2000;
         var currentTime = 10000L;
         when(player.getTime()).thenReturn(currentTime);
+        var service = new PopcornPlayerSectionService(player, screenService, applicationConfig, subtitleManagerService, videoService);
+        service.addListener(listener);
 
         service.videoTimeOffset(offset);
 
@@ -117,6 +121,8 @@ class PopcornPlayerSectionServiceTest {
         var offset = -1000;
         var currentTime = 20000L;
         when(player.getTime()).thenReturn(currentTime);
+        var service = new PopcornPlayerSectionService(player, screenService, applicationConfig, subtitleManagerService, videoService);
+        service.addListener(listener);
 
         service.videoTimeOffset(offset);
 
@@ -129,6 +135,8 @@ class PopcornPlayerSectionServiceTest {
         var supportNativeSubtitle = true;
         when(videoService.getVideoPlayer()).thenReturn(Optional.of(videoPlayer));
         when(videoPlayer.supportsNativeSubtitleFile()).thenReturn(supportNativeSubtitle);
+        var service = new PopcornPlayerSectionService(player, screenService, applicationConfig, subtitleManagerService, videoService);
+        service.addListener(listener);
 
         var result = service.isNativeSubtitlePlaybackSupported();
 
@@ -138,6 +146,8 @@ class PopcornPlayerSectionServiceTest {
     @Test
     void testIsNativeSubtitlePlaybackSupported_whenThereIsNoVideoPlayerActive_shouldReturnFalse() {
         when(videoService.getVideoPlayer()).thenReturn(Optional.empty());
+        var service = new PopcornPlayerSectionService(player, screenService, applicationConfig, subtitleManagerService, videoService);
+        service.addListener(listener);
 
         var result = service.isNativeSubtitlePlaybackSupported();
 
@@ -147,7 +157,8 @@ class PopcornPlayerSectionServiceTest {
     @Test
     void testPlayerListener_whenPlayerTimeChanged_shouldInvokedListeners() {
         var value = 10200;
-        service.init();
+        var service = new PopcornPlayerSectionService(player, screenService, applicationConfig, subtitleManagerService, videoService);
+        service.addListener(listener);
 
         listenerHolder.get().onTimeChanged(value);
 
@@ -157,7 +168,8 @@ class PopcornPlayerSectionServiceTest {
     @Test
     void testPlayerListener_whenPlayerStateChanged_shouldInvokedListeners() {
         var value = PlayerState.PLAYING;
-        service.init();
+        var service = new PopcornPlayerSectionService(player, screenService, applicationConfig, subtitleManagerService, videoService);
+        service.addListener(listener);
 
         listenerHolder.get().onStateChanged(value);
 
@@ -169,7 +181,8 @@ class PopcornPlayerSectionServiceTest {
         var videoPlayer = mock(VideoPlayback.class);
         var videoView = mock(Node.class);
         when(videoPlayer.getVideoSurface()).thenReturn(videoView);
-        service.init();
+        var service = new PopcornPlayerSectionService(player, screenService, applicationConfig, subtitleManagerService, videoService);
+        service.addListener(listener);
 
         videoPlayerProperty.set(videoPlayer);
 
@@ -182,7 +195,8 @@ class PopcornPlayerSectionServiceTest {
         var subtitle = mock(SubtitleSettings.ByValue.class);
         when(subtitle.getFontFamily()).thenReturn(value);
         when(settings.getSubtitleSettings()).thenReturn(subtitle);
-        service.init();
+        var service = new PopcornPlayerSectionService(player, screenService, applicationConfig, subtitleManagerService, videoService);
+        service.addListener(listener);
 
         service.provideSubtitleValues();
 
@@ -195,7 +209,8 @@ class PopcornPlayerSectionServiceTest {
         subtitleSettings.bold = (byte) 1;
         subtitleSettings.fontFamily = SubtitleFamily.ARIAL;
         when(settings.getSubtitleSettings()).thenReturn(subtitleSettings);
-        service.init();
+        var service = new PopcornPlayerSectionService(player, screenService, applicationConfig, subtitleManagerService, videoService);
+        service.addListener(listener);
 
         service.provideSubtitleValues();
 
@@ -208,7 +223,8 @@ class PopcornPlayerSectionServiceTest {
         var subtitle = mock(SubtitleSettings.ByValue.class);
         when(subtitle.getFontSize()).thenReturn(fontSize);
         when(settings.getSubtitleSettings()).thenReturn(subtitle);
-        service.init();
+        var service = new PopcornPlayerSectionService(player, screenService, applicationConfig, subtitleManagerService, videoService);
+        service.addListener(listener);
 
         service.provideSubtitleValues();
 
@@ -222,7 +238,8 @@ class PopcornPlayerSectionServiceTest {
         subtitleSettings.decoration = value;
         subtitleSettings.fontFamily = SubtitleFamily.ARIAL;
         when(settings.getSubtitleSettings()).thenReturn(subtitleSettings);
-        service.init();
+        var service = new PopcornPlayerSectionService(player, screenService, applicationConfig, subtitleManagerService, videoService);
+        service.addListener(listener);
 
         service.provideSubtitleValues();
 
@@ -244,7 +261,8 @@ class PopcornPlayerSectionServiceTest {
             return null;
         }).when(applicationConfig).register(isA(ApplicationConfigEventCallback.class));
         when(subtitleSettings.getFontFamily()).thenReturn(SubtitleFamily.ARIAL);
-        service.init();
+        var service = new PopcornPlayerSectionService(player, screenService, applicationConfig, subtitleManagerService, videoService);
+        service.addListener(listener);
 
         settingsListener.get().callback(event);
 
@@ -254,7 +272,8 @@ class PopcornPlayerSectionServiceTest {
     @Test
     void testSubtitleListener_whenSubtitleIsChanged_shouldInvokedListeners() {
         var subtitle = mock(Subtitle.class);
-        service.init();
+        var service = new PopcornPlayerSectionService(player, screenService, applicationConfig, subtitleManagerService, videoService);
+        service.addListener(listener);
 
         var listener = subtitleListenerHolder.get();
         listener.onSubtitleChanged(subtitle);
@@ -264,7 +283,8 @@ class PopcornPlayerSectionServiceTest {
 
     @Test
     void testSubtitleListener_whenSubtitleIsDisabled_shouldInvokedListeners() {
-        service.init();
+        var service = new PopcornPlayerSectionService(player, screenService, applicationConfig, subtitleManagerService, videoService);
+        service.addListener(listener);
 
         var listener = subtitleListenerHolder.get();
         listener.onSubtitleDisabled();
@@ -275,7 +295,8 @@ class PopcornPlayerSectionServiceTest {
     @Test
     void testSubtitleListener_whenSubtitleSizeIsChanged_shouldInvokedListeners() {
         var subtitleSize = 28;
-        service.init();
+        var service = new PopcornPlayerSectionService(player, screenService, applicationConfig, subtitleManagerService, videoService);
+        service.addListener(listener);
 
         subtitleSizeProperty.set(subtitleSize);
 
@@ -285,6 +306,8 @@ class PopcornPlayerSectionServiceTest {
     @Test
     void testOnVolumeScroll_whenNewVolumeIsAbove100_shouldUpdateVolumeTo100() {
         when(player.getVolume()).thenReturn(95);
+        var service = new PopcornPlayerSectionService(player, screenService, applicationConfig, subtitleManagerService, videoService);
+        service.addListener(listener);
 
         service.onVolumeScroll(15);
 
@@ -294,6 +317,8 @@ class PopcornPlayerSectionServiceTest {
     @Test
     void testOnVolumeScroll_whenNewVolumeIsBelowZero_shouldUpdateVolumeToZero() {
         when(player.getVolume()).thenReturn(10);
+        var service = new PopcornPlayerSectionService(player, screenService, applicationConfig, subtitleManagerService, videoService);
+        service.addListener(listener);
 
         service.onVolumeScroll(-20);
 
@@ -303,7 +328,8 @@ class PopcornPlayerSectionServiceTest {
     @Test
     void testListener_whenPlayerVolumeIsChanged_shouldInvokedListeners() {
         var volume = 75;
-        service.init();
+        var service = new PopcornPlayerSectionService(player, screenService, applicationConfig, subtitleManagerService, videoService);
+        service.addListener(listener);
 
         listenerHolder.get().onVolumeChanged(volume);
 

@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.ui.view.controllers;
 
-import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowAboutEvent;
@@ -9,6 +8,7 @@ import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.*;
 import com.github.yoep.popcorn.ui.messages.ContentMessage;
+import com.github.yoep.popcorn.ui.view.ViewLoader;
 import com.github.yoep.popcorn.ui.view.services.MaximizeService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;

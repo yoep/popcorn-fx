@@ -10,7 +10,6 @@ import com.github.yoep.popcorn.backend.messages.UpdateMessage;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -33,13 +32,12 @@ class UpdateServiceTest {
     private EventPublisher eventPublisher = new EventPublisher(false);
     @Mock
     private LocaleText localeText;
-    @InjectMocks
-    private UpdateService service;
 
     @Test
     void testGetUpdateInfo() {
         var version = mock(VersionInfo.class);
         when(fxLib.version_info(instance)).thenReturn(version);
+        var service = new UpdateService(fxLib, instance, platform, eventPublisher, localeText);
 
         var result = service.getUpdateInfo();
 
@@ -50,6 +48,7 @@ class UpdateServiceTest {
     void testGetState() {
         var state = UpdateState.NO_UPDATE_AVAILABLE;
         when(fxLib.update_state(instance)).thenReturn(state);
+        var service = new UpdateService(fxLib, instance, platform, eventPublisher, localeText);
 
         var result = service.getState();
 
@@ -65,7 +64,7 @@ class UpdateServiceTest {
             listenerHolder.set(invocation.getArgument(1, UpdateCallback.class));
             return null;
         }).when(fxLib).register_update_callback(eq(instance), isA(UpdateCallback.class));
-        service.init();
+        var service = new UpdateService(fxLib, instance, platform, eventPublisher, localeText);
 
         service.register(callback);
         listenerHolder.get().callback(event);
@@ -81,7 +80,7 @@ class UpdateServiceTest {
             listenerHolder.set(invocation.getArgument(1, UpdateCallback.class));
             return null;
         }).when(fxLib).register_update_callback(eq(instance), isA(UpdateCallback.class));
-        service.init();
+        var service = new UpdateService(fxLib, instance, platform, eventPublisher, localeText);
 
         listenerHolder.get().callback(event);
 
@@ -103,7 +102,7 @@ class UpdateServiceTest {
             eventHolder.set(e);
             return e;
         });
-        service.init();
+        var service = new UpdateService(fxLib, instance, platform, eventPublisher, localeText);
 
         listenerHolder.get().callback(event);
 
@@ -115,6 +114,8 @@ class UpdateServiceTest {
 
     @Test
     void testStartUpdateAndExit() {
+        var service = new UpdateService(fxLib, instance, platform, eventPublisher, localeText);
+
         service.startUpdateInstallation();
 
         verify(fxLib).install_update(instance);
@@ -122,6 +123,8 @@ class UpdateServiceTest {
 
     @Test
     void testCheckForUpdates() {
+        var service = new UpdateService(fxLib, instance, platform, eventPublisher, localeText);
+
         service.checkForUpdates();
 
         verify(fxLib).check_for_updates(instance);

@@ -29,7 +29,7 @@ class UrlServiceTest {
 
     @Test
     void testOpen_whenUrlIsNull_shouldThrowIllegalArgumentException() {
-        assertThrows(IllegalArgumentException.class, () -> urlService.open((String) null), "url cannot be null");
+        assertThrows(NullPointerException.class, () -> urlService.open(null), "url cannot be null");
     }
 
     @Test

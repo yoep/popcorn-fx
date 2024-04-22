@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controls;
 
-import com.github.spring.boot.javafx.font.controls.Icon;
-import com.github.spring.boot.javafx.font.controls.IconSolid;
+import com.github.yoep.popcorn.ui.font.controls.Icon;
+import com.github.yoep.popcorn.ui.font.controls.IconSolid;
 import javafx.beans.property.*;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;

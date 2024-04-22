@@ -22,7 +22,6 @@ import javafx.beans.property.SimpleObjectProperty;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -58,8 +57,6 @@ class SubtitleManagerServiceTest {
     private SubtitleSettings.ByValue subtitleSettings;
     @Mock
     private SubtitleInfo subtitleNone;
-    @InjectMocks
-    private SubtitleManagerService service;
 
     private final AtomicReference<SubtitleEventCallback> listenerHolder = new AtomicReference<>();
     private final ObjectProperty<VideoPlayback> videoPlaybackProperty = new SimpleObjectProperty<>();
@@ -79,6 +76,7 @@ class SubtitleManagerServiceTest {
     @Test
     void testUpdateSubtitleOffset_whenOffsetIsGiven_shouldUpdateTheOffsetValue() {
         var value = 100;
+        var service = new SubtitleManagerService(settingsService, videoService, subtitleService, subtitlePickerService, localeText, eventPublisher);
 
         service.updateSubtitleOffset(value);
         var result = service.getSubtitleOffset();
@@ -92,6 +90,7 @@ class SubtitleManagerServiceTest {
         var videoPlayer = mock(VideoPlayback.class);
         when(videoService.getVideoPlayer()).thenReturn(Optional.of(videoPlayer));
         when(videoPlayer.supportsNativeSubtitleFile()).thenReturn(true);
+        var service = new SubtitleManagerService(settingsService, videoService, subtitleService, subtitlePickerService, localeText, eventPublisher);
 
         service.updateSubtitleOffset(value);
 
@@ -100,6 +99,8 @@ class SubtitleManagerServiceTest {
 
     @Test
     void testUpdateSubtitle_whenSubtitleIsNone_shouldDisableSubtitleTrack() {
+        var service = new SubtitleManagerService(settingsService, videoService, subtitleService, subtitlePickerService, localeText, eventPublisher);
+
         service.updateSubtitle(subtitleNone);
 
         verify(subtitleService).disableSubtitle();
@@ -107,6 +108,8 @@ class SubtitleManagerServiceTest {
 
     @Test
     void testUpdateSubtitle_whenSubtitleIsNull_shouldDisableSubtitleTrack() {
+        var service = new SubtitleManagerService(settingsService, videoService, subtitleService, subtitlePickerService, localeText, eventPublisher);
+
         service.updateSubtitle(null);
 
         verify(subtitleService).disableSubtitle();
@@ -119,6 +122,7 @@ class SubtitleManagerServiceTest {
         when(subtitleInfo.getLanguage()).thenReturn(SubtitleLanguage.DUTCH);
         when(subtitleService.preferredSubtitle()).thenReturn(Optional.of(subtitleInfo));
         when(subtitleService.downloadAndParse(isA(SubtitleInfo.class), isA(SubtitleMatcher.ByValue.class))).thenReturn(CompletableFuture.completedFuture(subtitle));
+        var service = new SubtitleManagerService(settingsService, videoService, subtitleService, subtitlePickerService, localeText, eventPublisher);
 
         service.updateSubtitle(subtitleInfo);
 
@@ -133,6 +137,7 @@ class SubtitleManagerServiceTest {
         when(subtitleService.downloadAndParse(eq(subtitleInfo), isA(SubtitleMatcher.ByValue.class)))
                 .thenReturn(CompletableFuture.failedFuture(new RuntimeException("my subtitle exception")));
         when(localeText.get(VideoMessage.SUBTITLE_DOWNLOAD_FILED)).thenReturn(expectedErrorText);
+        var service = new SubtitleManagerService(settingsService, videoService, subtitleService, subtitlePickerService, localeText, eventPublisher);
 
         service.updateSubtitle(subtitleInfo);
 
@@ -150,6 +155,7 @@ class SubtitleManagerServiceTest {
         when(videoService.getVideoPlayer()).thenReturn(Optional.of(videoPlayer));
         when(videoPlayer.supportsNativeSubtitleFile()).thenReturn(true);
         when(subtitle.getFile()).thenReturn(subtitleFile);
+        var service = new SubtitleManagerService(settingsService, videoService, subtitleService, subtitlePickerService, localeText, eventPublisher);
 
         service.updateSubtitle(subtitleInfo);
 
@@ -170,7 +176,7 @@ class SubtitleManagerServiceTest {
         var expected_filepath = "/lorem/ipsum.srt";
         when(custom.isCustom()).thenReturn(true);
         when(subtitlePickerService.pickCustomSubtitle()).thenReturn(Optional.of(expected_filepath));
-        service.init();
+        var service = new SubtitleManagerService(settingsService, videoService, subtitleService, subtitlePickerService, localeText, eventPublisher);
 
         var listener = listenerHolder.get();
         listener.callback(event);
@@ -188,7 +194,7 @@ class SubtitleManagerServiceTest {
         event.union.subtitle_info_changed.subtitleInfo = custom;
         when(custom.isCustom()).thenReturn(true);
         when(subtitlePickerService.pickCustomSubtitle()).thenReturn(Optional.empty());
-        service.init();
+        var service = new SubtitleManagerService(settingsService, videoService, subtitleService, subtitlePickerService, localeText, eventPublisher);
 
         var listener = listenerHolder.get();
         listener.callback(event);
@@ -202,7 +208,7 @@ class SubtitleManagerServiceTest {
         var subtitleSettings = mock(SubtitleSettings.ByValue.class);
         when(subtitleSettings.getFontSize()).thenReturn(expectedValue);
         when(settings.getSubtitleSettings()).thenReturn(subtitleSettings);
-        service.init();
+        var service = new SubtitleManagerService(settingsService, videoService, subtitleService, subtitlePickerService, localeText, eventPublisher);
 
         subtitleSettings.setFontSize(expectedValue);
         var result = service.getSubtitleSize();
@@ -220,6 +226,7 @@ class SubtitleManagerServiceTest {
         when(subtitleService.downloadAndParse(eq(subtitleInfo), isA(SubtitleMatcher.ByValue.class))).thenReturn(CompletableFuture.completedFuture(subtitle));
         when(videoService.getVideoPlayer()).thenReturn(Optional.of(videoPlayback));
         when(videoPlayback.supportsNativeSubtitleFile()).thenReturn(false);
+        var service = new SubtitleManagerService(settingsService, videoService, subtitleService, subtitlePickerService, localeText, eventPublisher);
         service.registerListener(new SubtitleListener() {
             @Override
             public void onSubtitleChanged(Subtitle newSubtitle) {
@@ -231,7 +238,6 @@ class SubtitleManagerServiceTest {
 
             }
         });
-        service.init();
 
         videoPlaybackProperty.set(videoPlayback);
 

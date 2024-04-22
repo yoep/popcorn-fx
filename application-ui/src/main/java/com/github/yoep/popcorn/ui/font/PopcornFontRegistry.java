@@ -10,7 +10,7 @@ import java.util.Optional;
 /**
  * Registry for loading additional fonts into JavaFX.
  */
-public class PopcornFontRegistry  implements FontRegistry {
+public class PopcornFontRegistry implements FontRegistry {
     private static final PopcornFontRegistry INSTANCE = new PopcornFontRegistry();
     private final Map<String, Font> loadedFonts = new HashMap<>();
 

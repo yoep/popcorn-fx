@@ -1642,7 +1642,7 @@ dependencies = [
  "iana-time-zone-haiku",
  "js-sys",
  "wasm-bindgen",
- "windows-core 0.52.0",
+ "windows-core",
 ]
 
 [[package]]
@@ -2377,7 +2377,7 @@ dependencies = [
 
 [[package]]
 name = "popcorn-fx"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "async-trait",
  "cbindgen",
@@ -2407,7 +2407,7 @@ dependencies = [
 
 [[package]]
 name = "popcorn-fx-bootstrap"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "directories",
  "log",
@@ -2438,7 +2438,7 @@ dependencies = [
 
 [[package]]
 name = "popcorn-fx-core"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "async-trait",
  "bytes",
@@ -2501,7 +2501,7 @@ dependencies = [
 
 [[package]]
 name = "popcorn-fx-opensubtitles"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "async-trait",
  "bytes",
@@ -2521,7 +2521,7 @@ dependencies = [
 
 [[package]]
 name = "popcorn-fx-platform"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "core-foundation",
  "derive_more",
@@ -2532,13 +2532,13 @@ dependencies = [
  "popcorn-fx-core",
  "souvlaki",
  "tokio",
- "windows 0.56.0",
+ "windows",
  "x11rb",
 ]
 
 [[package]]
 name = "popcorn-fx-torrent"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "async-trait",
  "chrono",
@@ -2554,7 +2554,7 @@ dependencies = [
 
 [[package]]
 name = "popcorn-fx-trakt"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "async-trait",
  "chrono",
@@ -2578,7 +2578,7 @@ dependencies = [
 
 [[package]]
 name = "popcorn-fx-vlc"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "async-trait",
  "chbs",
@@ -3229,7 +3229,7 @@ dependencies = [
  "dispatch",
  "objc",
  "thiserror",
- "windows 0.44.0",
+ "windows",
 ]
 
 [[package]]
@@ -3942,63 +3942,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "windows"
-version = "0.56.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1de69df01bdf1ead2f4ac895dc77c9351aefff65b2f3db429a343f9cbf05e132"
-dependencies = [
- "windows-core 0.56.0",
- "windows-targets 0.52.5",
-]
-
-[[package]]
 name = "windows-core"
 version = "0.52.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "33ab640c8d7e35bf8ba19b884ba838ceb4fba93a4e8c65a9059d08afcfc683d9"
-dependencies = [
- "windows-targets 0.52.5",
-]
-
-[[package]]
-name = "windows-core"
-version = "0.56.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4698e52ed2d08f8658ab0c39512a7c00ee5fe2688c65f8c0a4f06750d729f2a6"
-dependencies = [
- "windows-implement",
- "windows-interface",
- "windows-result",
- "windows-targets 0.52.5",
-]
-
-[[package]]
-name = "windows-implement"
-version = "0.56.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f6fc35f58ecd95a9b71c4f2329b911016e6bec66b3f2e6a4aad86bd2e99e2f9b"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.59",
-]
-
-[[package]]
-name = "windows-interface"
-version = "0.56.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "08990546bf4edef8f431fa6326e032865f27138718c587dc21bc0265bbcb57cc"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.59",
-]
-
-[[package]]
-name = "windows-result"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "749f0da9cc72d82e600d8d2e44cadd0b9eedb9038f71a1c58556ac1c5791813b"
 dependencies = [
  "windows-targets 0.52.5",
 ]

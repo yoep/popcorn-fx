@@ -3,23 +3,29 @@ package com.github.yoep.player.chromecast.discovery;
 import com.github.yoep.player.chromecast.ChromecastPlayer;
 import com.github.yoep.player.chromecast.services.ChromecastService;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import su.litvak.chromecast.api.v2.ChromeCast;
 import su.litvak.chromecast.api.v2.ChromeCasts;
 import su.litvak.chromecast.api.v2.ChromeCastsListener;
 
-import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import java.io.IOException;
+import java.util.Objects;
 
 @Slf4j
-@RequiredArgsConstructor
 public class DiscoveryService implements ChromeCastsListener {
     private final PlayerManagerService playerService;
     private final ChromecastService chromecastService;
 
     Thread discoveryThread;
+
+    public DiscoveryService(PlayerManagerService playerService, ChromecastService chromecastService) {
+        Objects.requireNonNull(playerService, "playerService cannot be null");
+        Objects.requireNonNull(chromecastService, "chromecastService cannot be null");
+        this.playerService = playerService;
+        this.chromecastService = chromecastService;
+        init();
+    }
 
     //region ChromeCastsListener
 
@@ -42,8 +48,7 @@ public class DiscoveryService implements ChromeCastsListener {
 
     //region Functions
 
-    @PostConstruct
-    void init() {
+    private void init() {
         discoveryThread = new Thread(this::startDiscovery, "ChromecastDiscovery");
         discoveryThread.start();
     }

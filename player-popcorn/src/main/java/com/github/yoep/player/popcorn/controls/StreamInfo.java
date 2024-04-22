@@ -1,8 +1,8 @@
 package com.github.yoep.player.popcorn.controls;
 
-import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.yoep.player.popcorn.utils.SizeUtils;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
+import com.github.yoep.popcorn.ui.font.controls.Icon;
 import javafx.application.Platform;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;

@@ -43,7 +43,6 @@ class PlayerEventServiceTest {
         when(playerService.getById(oldPlayerId)).thenReturn(Optional.of(oldPlayer));
         when(playerService.getById(newPlayerId)).thenReturn(Optional.of(newPlayer));
 
-        service.init();
         eventPublisher.publish(PlayerChangedEvent.builder()
                 .source(this)
                 .oldPlayerId(oldPlayerId)
@@ -67,7 +66,6 @@ class PlayerEventServiceTest {
         }).when(player).addListener(isA(PlayerListener.class));
         when(playerService.getById(playerId)).thenReturn(Optional.of(player));
 
-        service.init();
         eventPublisher.publish(PlayerChangedEvent.builder()
                 .source(this)
                 .newPlayerId(playerId)
@@ -91,7 +89,6 @@ class PlayerEventServiceTest {
         }).when(player).addListener(isA(PlayerListener.class));
         when(playerService.getById(playerId)).thenReturn(Optional.of(player));
 
-        service.init();
         eventPublisher.publish(PlayerChangedEvent.builder()
                 .source(this)
                 .newPlayerId(playerId)
@@ -115,7 +112,6 @@ class PlayerEventServiceTest {
         }).when(player).addListener(isA(PlayerListener.class));
         when(playerService.getById(playerId)).thenReturn(Optional.of(player));
 
-        service.init();
         eventPublisher.publish(PlayerChangedEvent.builder()
                 .source(this)
                 .newPlayerId(playerId)
@@ -138,7 +134,6 @@ class PlayerEventServiceTest {
         }).when(player).addListener(isA(PlayerListener.class));
         when(playerService.getById(playerId)).thenReturn(Optional.of(player));
 
-        service.init();
         eventPublisher.publish(PlayerChangedEvent.builder()
                 .source(this)
                 .newPlayerId(playerId)
@@ -154,7 +149,6 @@ class PlayerEventServiceTest {
     void testOnClosePlayerEvent() {
         var player = mock(Player.class);
         when(playerService.getActivePlayer()).thenReturn(Optional.of(player));
-        service.init();
 
         eventPublisher.publish(new ClosePlayerEvent(this, ClosePlayerEvent.Reason.USER));
 

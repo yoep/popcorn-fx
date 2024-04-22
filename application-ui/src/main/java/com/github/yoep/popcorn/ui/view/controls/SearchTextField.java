@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controls;
 
-import com.github.spring.boot.javafx.font.controls.Icon;
+import com.github.yoep.popcorn.ui.font.controls.Icon;
 import javafx.geometry.Pos;
 import javafx.scene.Cursor;
 import javafx.scene.control.Control;

@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
-import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.messages.UpdateMessage;
 import com.github.yoep.popcorn.backend.updater.DownloadProgress;
@@ -27,7 +26,7 @@ import java.net.URL;
 import java.util.ResourceBundle;
 
 @Slf4j
-@ViewController
+
 @RequiredArgsConstructor
 public class UpdateSectionController implements Initializable {
     private static final String PROGRESS_ERROR_STYLE_CLASS = "error";

@@ -17,13 +17,9 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCombination;
 import javafx.stage.Stage;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.annotation.PostConstruct;
-
 @Slf4j
-@RequiredArgsConstructor
 public class ScreenServiceImpl implements ScreenService {
     public static final String FULLSCREEN_PROPERTY = "fullscreen";
 
@@ -40,6 +36,16 @@ public class ScreenServiceImpl implements ScreenService {
 
     private Stage primaryStage;
     private long lastChange;
+
+    public ScreenServiceImpl(ViewManager viewManager, ApplicationConfig applicationConfig, EventPublisher eventPublisher, MaximizeService maximizeService, FxLib fxLib, PopcornFx instance) {
+        this.viewManager = viewManager;
+        this.applicationConfig = applicationConfig;
+        this.eventPublisher = eventPublisher;
+        this.maximizeService = maximizeService;
+        this.fxLib = fxLib;
+        this.instance = instance;
+        init();
+    }
 
     //region Properties
 
@@ -81,8 +87,7 @@ public class ScreenServiceImpl implements ScreenService {
 
     //region PostConstruct
 
-    @PostConstruct
-    void init() {
+    private void init() {
         initializeViewManagerListeners();
         eventPublisher.register(PlayerStoppedEvent.class, event -> {
             if (!applicationConfig.isKioskMode()) {

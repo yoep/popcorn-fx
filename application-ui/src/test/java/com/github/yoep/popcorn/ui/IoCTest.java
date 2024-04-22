@@ -11,8 +11,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class IoCTest {
@@ -53,10 +58,25 @@ class IoCTest {
         ioc.register(ShowProviderService.class);
         ioc.registerInstance(fxLib);
         ioc.registerInstance(instance);
+        ioc.registerInstance(Executors.newCachedThreadPool());
 
         var result = ioc.getInstances(ProviderService.class);
 
         assertNotNull(result);
         assertEquals(2, result.size());
+    }
+
+    @Test
+    void testDispose() {
+        var ioc = new IoC();
+        var executorService = mock(ExecutorService.class);
+        ioc.registerInstance(fxLib);
+        ioc.registerInstance(instance);
+        ioc.registerInstance(executorService);
+
+        ioc.dispose();
+
+        verify(instance).dispose();
+        verify(executorService).shutdownNow();
     }
 }

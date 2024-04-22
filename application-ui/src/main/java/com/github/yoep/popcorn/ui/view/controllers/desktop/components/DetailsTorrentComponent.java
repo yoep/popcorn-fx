@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
-import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentFileInfo;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
@@ -42,7 +41,7 @@ import java.util.ResourceBundle;
 import static java.util.Arrays.asList;
 
 @Slf4j
-@ViewController
+
 @RequiredArgsConstructor
 public class DetailsTorrentComponent implements Initializable {
     private static final List<String> SUPPORTED_FILES = asList("mp4", "m4v", "avi", "mov", "mkv", "wmv");

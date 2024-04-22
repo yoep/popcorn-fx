@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import com.github.yoep.popcorn.ui.font.controls.Icon?>
 <?import com.github.yoep.popcorn.ui.view.controls.AboutDetails?>
 <?import com.github.yoep.popcorn.ui.view.controls.ImageCover?>
 <?import javafx.scene.control.*?>

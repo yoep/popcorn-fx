@@ -1,12 +1,12 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
-import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.yoep.popcorn.backend.media.tracking.TrackingService;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfigEvent;
 import com.github.yoep.popcorn.backend.settings.models.TrackingSettings;
 import com.github.yoep.popcorn.backend.settings.models.TrackingSyncState;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
+import com.github.yoep.popcorn.ui.font.controls.Icon;
 import com.github.yoep.popcorn.ui.messages.SettingsMessage;
 import javafx.application.Platform;
 import javafx.fxml.FXML;

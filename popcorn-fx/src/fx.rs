@@ -91,14 +91,14 @@ pub struct PopcornFxArgs {
     #[arg(long, default_value_t = false)]
     pub disable_mouse: bool,
     /// Disable the youtube video player.
-    #[arg(long, default_value_t = false)]
-    pub disable_youtube_video_player: bool,
+    #[arg(long, default_value_t = true)]
+    pub enable_youtube_video_player: bool,
     /// Disable the FX embedded video player.
     #[arg(long, default_value_t = false)]
     pub disable_fx_video_player: bool,
     /// Disable the VLC video player.
-    #[arg(long, default_value_t = false)]
-    pub disable_vlc_video_player: bool,
+    #[arg(long, default_value_t = true)]
+    pub enable_vlc_video_player: bool,
     /// Indicates if the TV mode is enabled of the application.
     #[arg(long, default_value_t = false)]
     pub tv: bool,
@@ -123,9 +123,9 @@ impl Default for PopcornFxArgs {
             data_directory: DEFAULT_DATA_DIRECTORY(),
             disable_logger: false,
             disable_mouse: false,
-            disable_youtube_video_player: false,
+            enable_youtube_video_player: false,
             disable_fx_video_player: false,
-            disable_vlc_video_player: false,
+            enable_vlc_video_player: false,
             tv: false,
             maximized: false,
             kiosk: false,
@@ -659,9 +659,9 @@ mod test {
             data_directory: temp_path.to_string(),
             disable_logger: false,
             disable_mouse: false,
-            disable_youtube_video_player: false,
+            enable_youtube_video_player: false,
             disable_fx_video_player: false,
-            disable_vlc_video_player: false,
+            enable_vlc_video_player: false,
             tv: false,
             maximized: false,
             kiosk: false,

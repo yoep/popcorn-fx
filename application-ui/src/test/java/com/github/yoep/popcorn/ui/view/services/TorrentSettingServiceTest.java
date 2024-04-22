@@ -49,7 +49,7 @@ class TorrentSettingServiceTest {
 
     @Test
     void testToSettingsValue_whenDisplayValueIsNull_shouldThrowIllegalArgumentException() {
-        assertThrows(IllegalArgumentException.class, () -> torrentSettingService.toSettingsValue(null), "displayValue cannot be null");
+        assertThrows(NullPointerException.class, () -> torrentSettingService.toSettingsValue(null), "displayValue cannot be null");
     }
 
     @Test

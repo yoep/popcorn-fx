@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.ui.view;
 
-import com.github.spring.boot.javafx.view.StageNotFoundException;
 import javafx.application.Platform;
 import javafx.beans.property.Property;
 import javafx.beans.property.ReadOnlyProperty;

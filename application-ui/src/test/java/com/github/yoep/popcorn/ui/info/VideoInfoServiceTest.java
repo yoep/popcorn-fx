@@ -31,9 +31,8 @@ class VideoInfoServiceTest {
         when(video.getName()).thenReturn(name);
         when(video.getDescription()).thenReturn(description);
         when(video.getVideoState()).thenReturn(VideoState.READY);
-        service = new VideoInfoService(Collections.singletonList(video));
 
-        service.init();
+        service = new VideoInfoService(Collections.singletonList(video));
 
         var result = service.getComponentDetails();
         assertEquals(1, result.size());
@@ -53,7 +52,6 @@ class VideoInfoServiceTest {
             return null;
         }).when(video).addListener(isA(VideoListener.class));
         service = new VideoInfoService(Collections.singletonList(video));
-        service.init();
 
         var listener = listenerHolder.get();
         listener.onStateChanged(VideoState.ERROR);

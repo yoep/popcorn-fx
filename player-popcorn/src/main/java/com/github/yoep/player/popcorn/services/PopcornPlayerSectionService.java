@@ -12,13 +12,9 @@ import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfigEvent;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.annotation.PostConstruct;
-
 @Slf4j
-@RequiredArgsConstructor
 public class PopcornPlayerSectionService extends AbstractListenerService<PopcornPlayerSectionListener> {
     private final PopcornPlayer player;
     private final ScreenService screenService;
@@ -27,6 +23,15 @@ public class PopcornPlayerSectionService extends AbstractListenerService<Popcorn
     private final VideoService videoService;
 
     private final PlayerListener playerListener = createPlayerListener();
+
+    public PopcornPlayerSectionService(PopcornPlayer player, ScreenService screenService, ApplicationConfig applicationConfig, SubtitleManagerService subtitleManagerService, VideoService videoService) {
+        this.player = player;
+        this.screenService = screenService;
+        this.applicationConfig = applicationConfig;
+        this.subtitleManagerService = subtitleManagerService;
+        this.videoService = videoService;
+        init();
+    }
 
     //region Methods
 
@@ -81,8 +86,7 @@ public class PopcornPlayerSectionService extends AbstractListenerService<Popcorn
 
     //region PostConstruct
 
-    @PostConstruct
-    void init() {
+    private void init() {
         initializeListeners();
     }
 

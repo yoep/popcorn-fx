@@ -6,12 +6,11 @@ members = [
     "popcorn-fx-bootstrap",
     "popcorn-fx-common",
     "popcorn-fx-core",
-    "popcorn-fx-dlna",
+    "popcorn-fx-players",
     "popcorn-fx-opensubtitles",
     "popcorn-fx-platform",
     "popcorn-fx-torrent",
     "popcorn-fx-trakt",
-    "popcorn-fx-vlc",
 ]
 
 [workspace.dependencies]

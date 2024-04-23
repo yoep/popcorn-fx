@@ -8,10 +8,7 @@ use downcast_rs::{DowncastSync, impl_downcast};
 use crate::core::Callbacks;
 use crate::core::players::PlayRequest;
 
-/// A trait representing a player for media playback.
-///
-/// This trait extends `PlayerIdentifier` and includes additional methods related to the player's
-/// description, graphic resource, and current state.
+/// A trait representing a Popcorn FX supported media player for media playback.
 #[async_trait]
 pub trait Player: Debug + Display + DowncastSync + Callbacks<PlayerEvent> {
     /// Get the unique identifier of the player.

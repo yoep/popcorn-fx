@@ -22,7 +22,7 @@ logging:
 popcorn:
   loggers:
     popcorn_fx:
-      level: trace
+      level: info
     popcorn_fx::ffi::mappings::subtitle:
       level: info
     popcorn_fx_core:
@@ -61,13 +61,15 @@ popcorn:
       level: info
     popcorn_fx_core::core::updater:
       level: info
-    popcorn_fx_dlna:
-      level: trace
     popcorn_fx_opensubtitles:
       level: info
     popcorn_fx_platform:
       level: info
-    popcorn_fx_torrent:
+    popcorn_fx_players::chromecast:
+      level: trace
+    popcorn_fx_players::dlna:
       level: info
-    popcorn_fx_vlc:
+    popcorn_fx_players::vlc:
+      level: info
+    popcorn_fx_torrent:
       level: info

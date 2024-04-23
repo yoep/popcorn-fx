@@ -1,27 +1,27 @@
 use thiserror::Error;
 
-use crate::dlna::DlnaServerState;
+use crate::DiscoveryState;
 
 /// Errors that can occur during DLNA operations.
 #[derive(Debug, Clone, Error)]
 pub enum DlnaError {
     /// Indicates a failure to discover devices.
-    #[error("Failed to discover devices: {0}")]
+    #[error("failed to discover devices: {0}")]
     Discovery(String),
     /// Indicates an invalid server state.
-    #[error("Server state is invalid: {0}")]
-    InvalidState(DlnaServerState),
+    #[error("server state is invalid: {0}")]
+    InvalidState(DiscoveryState),
     /// Indicates an invalid transport state for UPnP.
-    #[error("Transport state is invalid: {0}")]
+    #[error("transport state is invalid: {0}")]
     InvalidTransportState(String),
     /// Indicates an error related to a specific device.
-    #[error("A device error occurred: {0}")]
+    #[error("a device error occurred: {0}")]
     Device(String),
     /// Indicates an invalid device URI.
-    #[error("Invalid device URI: {0}")]
+    #[error("invalid device URI: {0}")]
     Uri(String),
     /// Indicates command for the device service failed.
-    #[error("Failed to execute service command")]
+    #[error("failed to execute service command")]
     ServiceCommand,
 }
 

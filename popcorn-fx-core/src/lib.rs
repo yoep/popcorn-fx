@@ -267,6 +267,7 @@ pub mod testing {
                 .logger(Logger::builder().build("httpmock::server", LevelFilter::Debug))
                 .logger(Logger::builder().build("async_io", LevelFilter::Info))
                 .logger(Logger::builder().build("hyper", LevelFilter::Info))
+                .logger(Logger::builder().build("mdns_sd", LevelFilter::Info))
                 .logger(Logger::builder().build("neli", LevelFilter::Info))
                 .logger(Logger::builder().build("polling", LevelFilter::Info))
                 .logger(Logger::builder().build("serde_xml_rs", LevelFilter::Info))

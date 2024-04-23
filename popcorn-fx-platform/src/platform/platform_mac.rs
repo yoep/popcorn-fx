@@ -43,13 +43,13 @@ impl PlatformMac {
 impl SystemPlatform for PlatformMac {
     fn disable_screensaver(&self) -> bool {
         let result = self.call_io_assertion(KIOPMASSERTIONLEVEL_ON);
-        info!("Disable screensaver returned state {}", result);
+        debug!("Disable screensaver returned state {}", result);
         result
     }
 
     fn enable_screensaver(&self) -> bool {
         let result = self.call_io_assertion(KIOPMASSERTIONLEVEL_OFF);
-        info!("Enable screensaver returned state {}", result);
+        debug!("Enable screensaver returned state {}", result);
         result
     }
 

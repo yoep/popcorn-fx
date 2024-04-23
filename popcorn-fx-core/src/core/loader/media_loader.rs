@@ -347,7 +347,7 @@ impl InnerMediaLoader {
             callbacks: Default::default(),
             runtime: Arc::new(tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
-                .worker_threads(4)
+                .worker_threads(5)
                 .thread_name("media_loader")
                 .build()
                 .expect("expected a new runtime")),

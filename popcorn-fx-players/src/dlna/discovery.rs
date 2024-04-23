@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use async_trait::async_trait;
 use derive_more::Display;
 use futures::StreamExt;
 use log::{debug, error, info, trace, warn};
@@ -15,24 +16,16 @@ use tokio_util::sync::CancellationToken;
 use popcorn_fx_core::core::block_in_place;
 use popcorn_fx_core::core::players::PlayerManager;
 
+use crate::{Discovery, DiscoveryState};
 use crate::dlna::{DlnaError, DlnaPlayer, errors};
 
 pub(crate) const SSDP_QUERY_URN: URN = URN::device("schemas-upnp-org", "MediaRenderer", 1);
 pub(crate) const AV_TRANSPORT: URN = URN::service("schemas-upnp-org", "AVTransport", 1);
 const DEFAULT_INTERVAL_SECONDS: u64 = 120;
 
-/// Represents the state of a DLNA server.
-#[derive(Debug, Display, Clone, PartialEq)]
-pub enum DlnaServerState {
-    /// The DLNA server is running.
-    Running,
-    /// The DLNA server is stopped.
-    Stopped,
-    /// An error occurred with the DLNA server.
-    Error,
-}
-
 /// Represents a DLNA discovery service responsible for discovering DLNA devices within the local network.
+#[derive(Display)]
+#[display(fmt = "DLNA device discovery")]
 pub struct DlnaDiscovery {
     inner: Arc<InnerDlnaDiscovery>,
     runtime: Arc<Runtime>,
@@ -43,16 +36,22 @@ impl DlnaDiscovery {
     pub fn builder() -> DlnaDiscoveryBuilder {
         DlnaDiscoveryBuilder::builder()
     }
+}
 
-    /// Starts the DLNA devices discovery process.
-    pub fn start_discovery(&self) -> errors::Result<()> {
+#[async_trait]
+impl Discovery for DlnaDiscovery {
+    fn state(&self) -> DiscoveryState {
+        self.inner.state()
+    }
+
+    async fn start_discovery(&self) -> crate::Result<()> {
         let state = self.inner.state();
 
-        if state != DlnaServerState::Running {
+        if state != DiscoveryState::Running {
             debug!("Starting DLNA devices discovery");
             let inner = self.inner.clone();
             self.runtime.spawn(async move {
-                inner.update_state(DlnaServerState::Running);
+                inner.update_state(DiscoveryState::Running);
                 loop {
                     if inner.cancel_token.is_cancelled() {
                         break;
@@ -67,29 +66,30 @@ impl DlnaDiscovery {
                     }
                     time::sleep(Duration::from_secs(inner.interval_seconds)).await;
                 }
-                inner.update_state(DlnaServerState::Stopped);
+                inner.update_state(DiscoveryState::Stopped);
             });
 
             Ok(())
         } else {
-            Err(DlnaError::InvalidState(state))
+            Err(crate::DiscoveryError::InvalidState(state))
         }
     }
 
-    /// Stops the DLNA devices discovery process.
-    pub fn stop_discovery(&self) {
+    fn stop_discovery(&self) -> crate::Result<()> {
         let state = self.inner.state();
 
-        if state == DlnaServerState::Running && !self.inner.cancel_token.is_cancelled() {
+        if state == DiscoveryState::Running && !self.inner.cancel_token.is_cancelled() {
             trace!("Stopping DLNA devices discovery");
-            self.inner.cancel_token.cancel()
+            self.inner.cancel_token.cancel();
         }
+
+        Ok(())
     }
 }
 
 impl Drop for DlnaDiscovery {
     fn drop(&mut self) {
-        self.stop_discovery()
+        let _ = self.stop_discovery();
     }
 }
 
@@ -139,7 +139,7 @@ impl DlnaDiscoveryBuilder {
                 player_manager: self.player_manager.expect("expected a player manager to have been set"),
                 interval_seconds,
                 discovered_devices: Default::default(),
-                state: Mutex::new(DlnaServerState::Stopped),
+                state: Mutex::new(DiscoveryState::Stopped),
                 cancel_token: Default::default(),
             }),
             runtime,
@@ -151,21 +151,21 @@ struct InnerDlnaDiscovery {
     interval_seconds: u64,
     player_manager: Arc<Box<dyn PlayerManager>>,
     discovered_devices: Mutex<Vec<String>>,
-    state: Mutex<DlnaServerState>,
+    state: Mutex<DiscoveryState>,
     cancel_token: CancellationToken,
 }
 
 impl InnerDlnaDiscovery {
-    fn state(&self) -> DlnaServerState {
+    fn state(&self) -> DiscoveryState {
         let mutex = block_in_place(self.state.lock());
         mutex.clone()
     }
 
-    fn update_state(&self, state: DlnaServerState) {
-        trace!("Updating DLNA server state to {:?}", state);
+    fn update_state(&self, state: DiscoveryState) {
         let mut mutex = block_in_place(self.state.lock());
+        trace!("Updating DLNA server state to {:?}", state);
         *mutex = state.clone();
-        info!("DLNA server state changed to {}", state);
+        info!("DLNA discovery state changed to {}", state);
     }
 
     async fn execute_search(&self) -> Result<(), DlnaError> {
@@ -244,9 +244,25 @@ mod tests {
     use popcorn_fx_core::core::players::{MockPlayerManager, Player};
     use popcorn_fx_core::testing::init_logger;
 
-    use crate::tests::{DEFAULT_SSDP_DESCRIPTION_RESPONSE, MockUdpServer};
+    use crate::dlna::tests::{DEFAULT_SSDP_DESCRIPTION_RESPONSE, MockUdpServer};
 
     use super::*;
+
+    #[test]
+    fn test_state() {
+        init_logger();
+        let runtime = Arc::new(Runtime::new().unwrap());
+        let player_manager = MockPlayerManager::new();
+        let server = DlnaDiscovery::builder()
+            .runtime(runtime.clone())
+            .interval_seconds(1)
+            .player_manager(Arc::new(Box::new(player_manager)))
+            .build();
+
+        let result = server.state();
+
+        assert_eq!(DiscoveryState::Stopped, result);
+    }
 
     #[test]
     fn test_execute_search() {
@@ -303,12 +319,12 @@ mod tests {
             .player_manager(Arc::new(Box::new(player_manager)))
             .build();
 
-        let result = server.start_discovery();
+        let result = runtime.block_on(server.start_discovery());
         assert_eq!(true, result.is_ok(), "expected the server to have been started");
-        assert_timeout!(Duration::from_millis(200), DlnaServerState::Running == server.inner.state());
+        assert_timeout!(Duration::from_millis(200), DiscoveryState::Running == server.inner.state());
 
-        server.stop_discovery();
+        server.stop_discovery().unwrap();
         assert_eq!(true, server.inner.cancel_token.is_cancelled(), "server should be stopped");
-        assert_timeout!(Duration::from_millis(1500), DlnaServerState::Stopped == server.inner.state());
+        assert_timeout!(Duration::from_millis(1500), DiscoveryState::Stopped == server.inner.state());
     }
 }

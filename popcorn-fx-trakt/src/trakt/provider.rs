@@ -65,12 +65,12 @@ pub struct TraktProvider {
     oauth_client: BasicClient,
     client: Client,
     open_authorization_callback: Mutex<OpenAuthorization>,
-    runtime: Runtime,
+    runtime: Arc<Runtime>,
     callbacks: CoreCallbacks<TrackingEvent>,
 }
 
 impl TraktProvider {
-    pub fn new(config: Arc<ApplicationConfig>) -> Result<Self> {
+    pub fn new(config: Arc<ApplicationConfig>, runtime: Arc<Runtime>) -> Result<Self> {
         let tracking: TrackingProperties;
         let client: &TrackingClientProperties;
         {
@@ -93,13 +93,6 @@ impl TraktProvider {
                 TraktError::Creation(e.to_string())
             })?),
         );
-
-        let runtime = tokio::runtime::Builder::new_multi_thread()
-            .enable_all()
-            .worker_threads(1)
-            .thread_name("trakt-auth-server")
-            .build()
-            .expect("expected a new runtime");
 
         Ok(Self {
             config,
@@ -450,11 +443,12 @@ mod tests {
         init_logger();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
+        let runtime = Arc::new(Runtime::new().unwrap());
         let settings = Arc::new(ApplicationConfig::builder()
             .storage(temp_path)
             .build());
 
-        let result = TraktProvider::new(settings);
+        let result = TraktProvider::new(settings, runtime);
 
         if let Err(e) = result {
             assert!(false, "failed to create new Trakt instance, {}", e)
@@ -466,6 +460,7 @@ mod tests {
         init_logger();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
+        let runtime = Arc::new(Runtime::new().unwrap());
         let settings = Arc::new(ApplicationConfig::builder()
             .storage(temp_path)
             .settings(PopcornSettings {
@@ -483,7 +478,7 @@ mod tests {
             refresh_token: None,
             scopes: None,
         });
-        let trakt = TraktProvider::new(settings).unwrap();
+        let trakt = TraktProvider::new(settings, runtime).unwrap();
 
         let result = trakt.is_authorized();
 
@@ -495,6 +490,7 @@ mod tests {
         init_logger();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
+        let runtime = Arc::new(Runtime::new().unwrap());
         let settings = Arc::new(ApplicationConfig::builder()
             .storage(temp_path)
             .settings(PopcornSettings {
@@ -506,7 +502,7 @@ mod tests {
                 tracking_settings: Default::default(),
             })
             .build());
-        let trakt = TraktProvider::new(settings).unwrap();
+        let trakt = TraktProvider::new(settings, runtime).unwrap();
 
         let result = trakt.is_authorized();
 
@@ -519,6 +515,7 @@ mod tests {
         let expected_code = "MyAuthCodeResult";
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
+        let runtime = Arc::new(Runtime::new().unwrap());
         let server = MockServer::start();
         let mock = server.mock(|when, then| {
             when.method(POST)
@@ -557,7 +554,7 @@ mod tests {
             })
             .build());
         let (tx, rx) = channel();
-        let trakt = TraktProvider::new(settings).unwrap();
+        let trakt = TraktProvider::new(settings, runtime).unwrap();
 
         trakt.register_open_authorization(Box::new(move |uri| {
             tx.send(uri).unwrap();
@@ -608,6 +605,7 @@ mod tests {
         init_logger();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
+        let runtime = Arc::new(Runtime::new().unwrap());
         let settings = Arc::new(ApplicationConfig::builder()
             .storage(temp_path)
             .build());
@@ -617,7 +615,7 @@ mod tests {
             refresh_token: None,
             scopes: None,
         });
-        let trakt = TraktProvider::new(settings).unwrap();
+        let trakt = TraktProvider::new(settings, runtime).unwrap();
 
         let settings = trakt.config.user_settings().tracking_settings;
         assert!(settings.tracker(TRACKING_NAME).is_some(), "expected the tracker info to have been present");
@@ -633,6 +631,7 @@ mod tests {
         init_logger();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
+        let runtime = Arc::new(Runtime::new().unwrap());
         let server = MockServer::start();
         let mock = server.mock(|when, then| {
             when.method(GET)
@@ -692,7 +691,7 @@ mod tests {
                     .build(),
             })
             .build());
-        let trakt = TraktProvider::new(settings).unwrap();
+        let trakt = TraktProvider::new(settings, runtime).unwrap();
 
         let result = block_in_place(trakt.watched_movies());
 

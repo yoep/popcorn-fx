@@ -42,12 +42,14 @@ use popcorn_fx_core::core::torrents::{TorrentManager, TorrentStreamServer};
 use popcorn_fx_core::core::torrents::collection::TorrentCollection;
 use popcorn_fx_core::core::torrents::stream::DefaultTorrentStreamServer;
 use popcorn_fx_core::core::updater::Updater;
-use popcorn_fx_dlna::dlna::DlnaDiscovery;
 use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
 use popcorn_fx_platform::platform::DefaultPlatform;
+use popcorn_fx_players::chromecast::ChromecastDiscovery;
+use popcorn_fx_players::Discovery;
+use popcorn_fx_players::dlna::DlnaDiscovery;
+use popcorn_fx_players::vlc::VlcDiscovery;
 use popcorn_fx_torrent::torrent::DefaultTorrentManager;
 use popcorn_fx_trakt::trakt::TraktProvider;
-use popcorn_fx_vlc::vlc::VlcDiscovery;
 
 static INIT: Once = Once::new();
 
@@ -150,7 +152,6 @@ impl Default for PopcornFxArgs {
 pub struct PopcornFX {
     auto_resume_service: Arc<Box<dyn AutoResumeService>>,
     cache_manager: Arc<CacheManager>,
-    dlna_discovery: Arc<DlnaDiscovery>,
     event_publisher: Arc<EventPublisher>,
     favorite_cache_updater: Arc<FavoriteCacheUpdater>,
     favorites_service: Arc<Box<dyn FavoriteService>>,
@@ -158,6 +159,7 @@ pub struct PopcornFX {
     media_loader: Arc<Box<dyn MediaLoader>>,
     platform: Arc<Box<dyn PlatformData>>,
     playback_controls: Arc<PlaybackControls>,
+    player_discovery_services: Vec<Arc<Box<dyn Discovery>>>,
     player_manager: Arc<Box<dyn PlayerManager>>,
     playlist_manager: Arc<PlaylistManager>,
     providers: Arc<ProviderManager>,
@@ -252,25 +254,36 @@ impl PopcornFX {
         ];
         let media_loader = Arc::new(Box::new(DefaultMediaLoader::new(loading_chain)) as Box<dyn MediaLoader>);
         let playlist_manager = Arc::new(PlaylistManager::new(player_manager.clone(), event_publisher.clone(), media_loader.clone()));
-        let tracking_provider = Arc::new(Box::new(TraktProvider::new(settings.clone()).unwrap()) as Box<dyn TrackingProvider>);
+        let tracking_provider = Arc::new(Box::new(TraktProvider::new(settings.clone(), runtime.clone()).unwrap()) as Box<dyn TrackingProvider>);
         let tracking_sync = Arc::new(SyncMediaTracking::builder()
             .config(settings.clone())
             .tracking_provider(tracking_provider.clone())
             .watched_service(watched_service.clone())
             .runtime(runtime.clone())
             .build());
-        let dlna_discovery = Arc::new(DlnaDiscovery::builder()
-            .runtime(runtime.clone())
-            .player_manager(player_manager.clone())
-            .build());
+        let player_discovery_services: Vec<Arc<Box<dyn Discovery>>> = vec![
+            Arc::new(Box::new(ChromecastDiscovery::builder()
+                .runtime(runtime.clone())
+                .player_manager(player_manager.clone())
+                .build())),
+            Arc::new(Box::new(DlnaDiscovery::builder()
+                .runtime(runtime.clone())
+                .player_manager(player_manager.clone())
+                .build())),
+            Arc::new(Box::new(VlcDiscovery::new(
+                subtitle_manager.clone(),
+                subtitle_provider.clone(),
+                player_manager.clone()))),
+        ];
 
         // disable the screensaver
-        platform.disable_screensaver();
+        if platform.disable_screensaver() {
+            info!("Screensaver has been disabled");
+        }
 
         Self {
             auto_resume_service,
             cache_manager,
-            dlna_discovery,
             event_publisher,
             favorite_cache_updater,
             favorites_service,
@@ -293,6 +306,7 @@ impl PopcornFX {
             tracking_sync,
             updater: app_updater,
             watched_service,
+            player_discovery_services,
             runtime,
             opts: args,
         }
@@ -430,18 +444,12 @@ impl PopcornFX {
     /// Start the discovery of external players such as VLC and DLNA servers.
     /// This will start new threads in the background for handling the discovery processes.
     pub fn start_discovery_external_players(&self) {
-        let subtitle_manager = self.subtitle_manager.clone();
-        let subtitle_provider = self.subtitle_provider.clone();
-        let player_manager = self.player_manager.clone();
-        let dlna_discovery = self.dlna_discovery.clone();
-        
+        let player_discovery_services = self.player_discovery_services.clone();
         self.runtime.spawn(async move {
-            let vlc_discovery = VlcDiscovery::new(subtitle_manager, subtitle_provider.clone(), player_manager.clone());
-            vlc_discovery.start().await;
-        });
-        self.runtime.spawn(async move {
-            if let Err(e) = dlna_discovery.start_discovery() {
-                error!("Failed to start DLNA discovery, {}", e);
+            for service in player_discovery_services {
+                if let Err(e) = service.start_discovery().await {
+                    error!("Failed to start {}, {}", service, e);
+                }
             }
         });
     }
@@ -517,7 +525,7 @@ impl PopcornFX {
     fn new_runtime() -> Runtime {
         tokio::runtime::Builder::new_multi_thread()
             .enable_all()
-            .worker_threads(4)
+            .worker_threads(10)
             .thread_name_fn(|| {
                 static ATOMIC_ID: AtomicUsize = AtomicUsize::new(0);
                 let id = ATOMIC_ID.fetch_add(1, Ordering::SeqCst);

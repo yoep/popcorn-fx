@@ -1,17 +1,24 @@
-extern crate core;
+pub use discovery::*;
+pub use errors::*;
+pub use player::*;
 
-pub mod dlna;
+mod discovery;
+mod errors;
+mod player;
+mod models;
 
 #[cfg(test)]
 mod tests {
     use std::io;
     use std::net::{SocketAddr, UdpSocket};
     use std::sync::Arc;
+
     use log::{debug, error};
     use socket2::{Protocol, SockAddr};
     use tokio::runtime::Runtime;
     use tokio::sync::Mutex;
     use tokio_util::sync::CancellationToken;
+
     use popcorn_fx_core::core::block_in_place;
 
     pub const DEFAULT_SSDP_DESCRIPTION_RESPONSE: &str = r#"<?xml version="1.0" encoding="utf-8"?>
@@ -78,7 +85,6 @@ mod tests {
 
     struct InnerSsdpServer {
         socket: UdpSocket,
-        device_friendly_name: String,
         upnp_server_addr: SocketAddr,
         invocations: Arc<Mutex<u32>>,
         cancellation_token: CancellationToken,
@@ -161,7 +167,6 @@ EXT:\r
             let runtime = self.runtime.unwrap_or_else(|| Arc::new(Runtime::new().expect("expected a runtime")));
             let cancellation_token = CancellationToken::new();
             let invocations = Arc::new(Mutex::new(0));
-            let device_friendly_name = self.device_name.expect("expected a device name to have been set");
             let upnp_server_addr = self.upnp_server_addr.expect("expected an upnp server address to have been set");
             let addr = SockAddr::from(SocketAddr::from(([0, 0, 0, 0], 1900)));
             let socket = socket2::Socket::new(socket2::Domain::IPV4, socket2::Type::DGRAM, Some(Protocol::UDP)).expect("failed to create socket");
@@ -173,7 +178,6 @@ EXT:\r
             let instance = SsdpServer {
                 inner: Arc::new(InnerSsdpServer {
                     socket,
-                    device_friendly_name,
                     upnp_server_addr,
                     invocations,
                     cancellation_token,

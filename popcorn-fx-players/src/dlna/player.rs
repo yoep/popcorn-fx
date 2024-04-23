@@ -53,7 +53,7 @@ impl DlnaPlayer {
     /// ```rust,no_run
     /// use rupnp::Device;
     /// use ssdp_client::SearchTarget::URN;
-    /// use popcorn_fx_dlna::dlna::DlnaPlayer;
+    /// use popcorn_fx_players::dlna::DlnaPlayer;
     ///
     /// #[tokio::main]
     /// async fn main() {
@@ -74,6 +74,7 @@ impl DlnaPlayer {
         let (tx, mut rx) = channel(10);
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
+            .worker_threads(2)
             .thread_name(format!("dlna-{}", name))
             .build()
             .expect("expected a new runtime");
@@ -460,7 +461,7 @@ mod tests {
     use popcorn_fx_core::testing::init_logger;
 
     use crate::dlna::AV_TRANSPORT;
-    use crate::tests::DEFAULT_SSDP_DESCRIPTION_RESPONSE;
+    use crate::dlna::tests::DEFAULT_SSDP_DESCRIPTION_RESPONSE;
 
     use super::*;
 
@@ -506,37 +507,37 @@ mod tests {
             self.player.clone()
         }
     }
-    
+
     #[test]
     fn test_id() {
         init_logger();
         let instance = new_test_instance();
         let player = instance.player_instance();
-        
+
         let result = player.id();
-        
+
         assert_eq!("[urn:schemas-upnp-org:device:MediaRenderer:1]test", result);
     }
-    
+
     #[test]
     fn test_name() {
         init_logger();
         let instance = new_test_instance();
         let player = instance.player_instance();
-        
+
         let result = player.name();
-        
+
         assert_eq!("test", result);
     }
-    
+
     #[test]
     fn test_description() {
         init_logger();
         let instance = new_test_instance();
         let player = instance.player_instance();
-        
+
         let result = player.description();
-        
+
         assert_eq!(DLNA_PLAYER_DESCRIPTION, result);
     }
 
@@ -622,7 +623,7 @@ mod tests {
 
         resume_mock.assert();
     }
-    
+
     #[test]
     fn test_seek() {
         init_logger();
@@ -645,7 +646,7 @@ mod tests {
                     </s:Envelope>"#);
         });
         let player = instance.player_instance();
-        
+
         player.seek(14000);
 
         seek_mock.assert();

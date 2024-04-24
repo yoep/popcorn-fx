@@ -75,7 +75,7 @@ pub struct Movie {
     /// The release year of the movie.
     pub year: Option<i32>,
     /// Unique identifiers for the movie.
-    pub ids: MovieId
+    pub ids: MovieId,
 }
 
 /// Represents unique identifiers for a movie.

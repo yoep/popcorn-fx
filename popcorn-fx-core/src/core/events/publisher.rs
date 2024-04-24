@@ -115,10 +115,7 @@ impl EventPublisher {
         let callbacks = self.callbacks.clone();
         let mut mutex = block_in_place(callbacks.lock());
 
-        mutex.push(EventCallbackHolder {
-            order,
-            callback,
-        });
+        mutex.push(EventCallbackHolder { order, callback });
         mutex.sort();
         debug!("Added event callback, new total callbacks {}", mutex.len());
     }
@@ -137,7 +134,10 @@ impl EventPublisher {
             info!("Publishing event {}", event);
             let mut arg = event;
 
-            debug!("Invoking a total of {} callbacks for the event publisher", invocations.len());
+            debug!(
+                "Invoking a total of {} callbacks for the event publisher",
+                invocations.len()
+            );
             trace!("Invoking callbacks {:?}", invocations);
             for invocation in invocations.iter() {
                 if let Some(event) = (invocation.callback)(arg) {
@@ -197,7 +197,8 @@ impl PartialOrd for EventCallbackHolder {
 
 impl Ord for EventCallbackHolder {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other).expect("expected an Ordering to be returned")
+        self.partial_cmp(other)
+            .expect("expected an Ordering to be returned")
     }
 }
 
@@ -296,8 +297,12 @@ mod test {
         publisher.publish(Event::PlayerStopped(event.clone()));
 
         // Check if the event consumers are invoked in the correct order
-        let callback1_result = rx_callback1.recv_timeout(Duration::from_millis(100)).unwrap();
-        let callback2_result = rx_callback2.recv_timeout(Duration::from_millis(100)).unwrap();
+        let callback1_result = rx_callback1
+            .recv_timeout(Duration::from_millis(100))
+            .unwrap();
+        let callback2_result = rx_callback2
+            .recv_timeout(Duration::from_millis(100))
+            .unwrap();
         assert_eq!(event, callback1_result);
         assert_eq!(event, callback2_result);
     }
@@ -337,9 +342,14 @@ mod test {
         publisher.publish(Event::PlayerStopped(event.clone()));
 
         // Check if the event consumers are invoked in the correct order
-        let callback2_result = rx_callback2.recv_timeout(Duration::from_millis(100)).unwrap();
+        let callback2_result = rx_callback2
+            .recv_timeout(Duration::from_millis(100))
+            .unwrap();
         let callback1_result = rx_callback1.recv_timeout(Duration::from_millis(100));
         assert_eq!(event, callback2_result);
-        assert!(callback1_result.is_err(), "expected the rx_callback1 to not have been invoked");
+        assert!(
+            callback1_result.is_err(),
+            "expected the rx_callback1 to not have been invoked"
+        );
     }
 }

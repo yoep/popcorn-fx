@@ -7,7 +7,9 @@ use popcorn_fx_core::core::playlists::PlaylistItem;
 use popcorn_fx_core::core::torrents::{TorrentFileInfo, TorrentInfo};
 use popcorn_fx_core::from_c_string;
 
-use crate::ffi::{LoaderEventC, LoaderEventCallback, LoadingHandleC, TorrentFileInfoC, TorrentInfoC};
+use crate::ffi::{
+    LoaderEventC, LoaderEventCallback, LoadingHandleC, TorrentFileInfoC, TorrentInfoC,
+};
 use crate::PopcornFX;
 
 /// Register a loader event callback to receive loader state change events.
@@ -20,7 +22,10 @@ use crate::PopcornFX;
 /// * `instance` - A mutable reference to the PopcornFX instance to register the callback with.
 /// * `callback` - A C-compatible callback function that will be invoked when loader state change events occur.
 #[no_mangle]
-pub extern "C" fn register_loader_callback(instance: &mut PopcornFX, callback: LoaderEventCallback) {
+pub extern "C" fn register_loader_callback(
+    instance: &mut PopcornFX,
+    callback: LoaderEventCallback,
+) {
     trace!("Registering new loader callback");
     instance.media_loader().subscribe(Box::new(move |e| {
         trace!("Invoking loader C callback for {}", e);
@@ -67,8 +72,16 @@ pub extern "C" fn loader_load(instance: &mut PopcornFX, url: *mut c_char) -> Loa
 ///
 /// Returns a handle to the loading process.
 #[no_mangle]
-pub extern "C" fn loader_load_torrent_file(instance: &mut PopcornFX, torrent_info: TorrentInfoC, torrent_file: TorrentFileInfoC) -> LoadingHandleC {
-    trace!("Loading torrent file from C for info: {:?}, file: {:?}", torrent_info, torrent_file);
+pub extern "C" fn loader_load_torrent_file(
+    instance: &mut PopcornFX,
+    torrent_info: TorrentInfoC,
+    torrent_file: TorrentFileInfoC,
+) -> LoadingHandleC {
+    trace!(
+        "Loading torrent file from C for info: {:?}, file: {:?}",
+        torrent_info,
+        torrent_file
+    );
     let torrent_info = TorrentInfo::from(torrent_info);
     let torrent_file = TorrentFileInfo::from(torrent_file);
     let item = PlaylistItem::builder()
@@ -121,7 +134,9 @@ mod tests {
     use log::info;
     use tempfile::tempdir;
 
-    use popcorn_fx_core::core::loader::{HIGHEST_ORDER, LoadingResult, LoadingState, MockLoadingStrategy};
+    use popcorn_fx_core::core::loader::{
+        HIGHEST_ORDER, LoadingResult, LoadingState, MockLoadingStrategy,
+    };
     use popcorn_fx_core::core::media::MovieDetails;
     use popcorn_fx_core::core::playlists::PlaylistItem;
     use popcorn_fx_core::into_c_string;
@@ -186,7 +201,7 @@ mod tests {
 
         assert_ne!(0i64, result as i64);
     }
-    
+
     #[test]
     fn test_loader_load_torrent_file() {
         init_logger();
@@ -208,14 +223,15 @@ mod tests {
         };
         let (tx, rx) = channel();
         let mut loading_strategy = MockLoadingStrategy::new();
-        loading_strategy.expect_process()
-            .returning(move |e, _, _|{
-                tx.send(e.clone()).unwrap();
-                LoadingResult::Ok(e)
-            });
+        loading_strategy.expect_process().returning(move |e, _, _| {
+            tx.send(e.clone()).unwrap();
+            LoadingResult::Ok(e)
+        });
         let mut instance = PopcornFX::new(default_args(temp_path));
 
-        instance.media_loader().add(Box::new(loading_strategy), HIGHEST_ORDER);
+        instance
+            .media_loader()
+            .add(Box::new(loading_strategy), HIGHEST_ORDER);
         let result = loader_load_torrent_file(&mut instance, torrent_info, torrent_file);
         assert_ne!(0, result as i64);
 

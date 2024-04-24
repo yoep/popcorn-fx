@@ -19,7 +19,9 @@ pub enum TrackingEventC {
 impl From<TrackingEvent> for TrackingEventC {
     fn from(value: TrackingEvent) -> Self {
         match value {
-            TrackingEvent::AuthorizationStateChanged(e) => TrackingEventC::AuthorizationStateChanged(e),
+            TrackingEvent::AuthorizationStateChanged(e) => {
+                TrackingEventC::AuthorizationStateChanged(e)
+            }
         }
     }
 }
@@ -39,7 +41,11 @@ mod tests {
         if let TrackingEventC::AuthorizationStateChanged(state) = result {
             assert_eq!(true, state);
         } else {
-            assert!(false, "expected TrackingEventC::AuthorizationStateChanged, but got {:?} instead", result)
+            assert!(
+                false,
+                "expected TrackingEventC::AuthorizationStateChanged, but got {:?} instead",
+                result
+            )
         }
     }
 }

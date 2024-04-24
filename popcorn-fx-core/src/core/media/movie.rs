@@ -4,14 +4,21 @@ use derive_more::Display;
 use log::warn;
 use serde::{Deserialize, Serialize};
 
-use crate::core::media::{Images, MediaDetails, MediaIdentifier, MediaOverview, MediaType, Rating, TorrentInfo};
+use crate::core::media::{
+    Images, MediaDetails, MediaIdentifier, MediaOverview, MediaType, Rating, TorrentInfo,
+};
 
 pub const DEFAULT_AUDIO_LANGUAGE: &str = "en";
 
 /// The simple version of a media item representing a movie.
 /// It contains only the basic information needed for search results.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Display)]
-#[display(fmt = "MovieOverview: {{imdb_id: {}, title: {}, year: {}}}", imdb_id, title, year)]
+#[display(
+    fmt = "MovieOverview: {{imdb_id: {}, title: {}, year: {}}}",
+    imdb_id,
+    title,
+    year
+)]
 pub struct MovieOverview {
     /// The title of the movie
     pub title: String,
@@ -34,7 +41,13 @@ impl MovieOverview {
         }
     }
 
-    pub fn new_detailed(title: String, imdb_id: String, year: String, rating: Option<Rating>, images: Images) -> Self {
+    pub fn new_detailed(
+        title: String,
+        imdb_id: String,
+        year: String,
+        rating: Option<Rating>,
+        images: Images,
+    ) -> Self {
         Self {
             title,
             imdb_id,
@@ -63,7 +76,7 @@ impl MediaOverview for MovieOverview {
     fn rating(&self) -> Option<&Rating> {
         match &self.rating {
             None => None,
-            Some(e) => Some(e)
+            Some(e) => Some(e),
         }
     }
 
@@ -79,7 +92,14 @@ impl MediaOverview for MovieOverview {
 /// The detailed version of a media item representing a movie.
 /// It contains all information need for a movie description.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Display)]
-#[display(fmt = "MovieDetails: {{imdb_id: {}, title: {}, year: {}, runtime: {}, torrents: {}}}", imdb_id, title, year, runtime, "torrents.len()")]
+#[display(
+    fmt = "MovieDetails: {{imdb_id: {}, title: {}, year: {}, runtime: {}, torrents: {}}}",
+    imdb_id,
+    title,
+    year,
+    runtime,
+    "torrents.len()"
+)]
 pub struct MovieDetails {
     pub title: String,
     pub imdb_id: String,
@@ -109,8 +129,17 @@ impl MovieDetails {
         }
     }
 
-    pub fn new_detailed(title: String, imdb_id: String, year: String, runtime: String, genres: Vec<String>,
-                        synopsis: String, rating: Option<Rating>, images: Images, trailer: String) -> Self {
+    pub fn new_detailed(
+        title: String,
+        imdb_id: String,
+        year: String,
+        runtime: String,
+        genres: Vec<String>,
+        synopsis: String,
+        rating: Option<Rating>,
+        images: Images,
+        trailer: String,
+    ) -> Self {
         Self {
             title,
             imdb_id,
@@ -166,7 +195,7 @@ impl MediaOverview for MovieDetails {
     fn rating(&self) -> Option<&Rating> {
         match &self.rating {
             None => None,
-            Some(e) => Some(e)
+            Some(e) => Some(e),
         }
     }
 

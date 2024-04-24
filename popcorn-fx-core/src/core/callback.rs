@@ -9,7 +9,9 @@ use crate::core::{block_in_place, Handle};
 pub type CallbackHandle = Handle;
 
 pub trait Callbacks<E>
-    where E: Display + Clone {
+where
+    E: Display + Clone,
+{
     /// Adds a new callback to the event handler, which will be triggered when an event is received.
     ///
     /// # Arguments
@@ -84,7 +86,9 @@ pub type CoreCallback<E> = Box<dyn Fn(E) + Send>;
 /// ```
 #[derive(Clone)]
 pub struct CoreCallbacks<E>
-    where E: Display + Clone {
+where
+    E: Display + Clone,
+{
     callbacks: Arc<Mutex<Vec<InternalCallbackHolder<E>>>>,
 }
 
@@ -96,7 +100,11 @@ impl<E: Display + Clone> CoreCallbacks<E> {
         let execute = async move {
             let mutex = callbacks.lock().await;
 
-            trace!("Calling a total of {} callbacks for {{{}}}", mutex.len(), &event);
+            trace!(
+                "Calling a total of {} callbacks for {{{}}}",
+                mutex.len(),
+                &event
+            );
             for internal_callback in mutex.iter() {
                 let callback = &internal_callback.callback;
                 callback(event.clone());
@@ -117,7 +125,10 @@ impl<E: Display + Clone> Callbacks<E> for CoreCallbacks<E> {
             handle: handle.clone(),
             callback,
         });
-        debug!("Added new callback for events, new total callbacks {}", mutex.len());
+        debug!(
+            "Added new callback for events, new total callbacks {}",
+            mutex.len()
+        );
         handle
     }
 
@@ -125,8 +136,7 @@ impl<E: Display + Clone> Callbacks<E> for CoreCallbacks<E> {
         trace!("Removing callback from CoreCallbacks");
         let callbacks = self.callbacks.clone();
         let mut mutex = block_in_place(callbacks.lock());
-        let position = mutex.iter()
-            .position(|e| e.handle == handle);
+        let position = mutex.iter().position(|e| e.handle == handle);
 
         if let Some(position) = position {
             mutex.remove(position);
@@ -147,13 +157,15 @@ impl<E: Display + Clone> Debug for CoreCallbacks<E> {
 impl<E: Display + Clone> Default for CoreCallbacks<E> {
     fn default() -> Self {
         Self {
-            callbacks: Arc::new(Mutex::new(vec![]))
+            callbacks: Arc::new(Mutex::new(vec![])),
         }
     }
 }
 
 struct InternalCallbackHolder<E>
-    where E: Display + Clone {
+where
+    E: Display + Clone,
+{
     handle: CallbackHandle,
     callback: CoreCallback<E>,
 }
@@ -178,7 +190,9 @@ mod test {
     fn test_invoke_callbacks() {
         let (tx, rx) = channel();
         let callbacks = CoreCallbacks::<Event>::default();
-        let event = Event { value: "lorem".to_string() };
+        let event = Event {
+            value: "lorem".to_string(),
+        };
 
         callbacks.add(Box::new(move |e| {
             tx.send(e).unwrap();

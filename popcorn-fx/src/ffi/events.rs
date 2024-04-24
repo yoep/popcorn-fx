@@ -33,11 +33,14 @@ pub extern "C" fn publish_event(popcorn_fx: &mut PopcornFX, event: EventC) {
 /// * `callback` - A C-compatible function pointer representing the callback to be registered.
 #[no_mangle]
 pub extern "C" fn register_event_callback(popcorn_fx: &mut PopcornFX, callback: EventCCallback) {
-    popcorn_fx.event_publisher().register(Box::new(move |e| {
-        trace!("Executing EventPublisher bridge event callback for {}", e);
-        callback(EventC::from(e));
-        None // consume the event
-    }), LOWEST_ORDER);
+    popcorn_fx.event_publisher().register(
+        Box::new(move |e| {
+            trace!("Executing EventPublisher bridge event callback for {}", e);
+            callback(EventC::from(e));
+            None // consume the event
+        }),
+        LOWEST_ORDER,
+    );
 }
 
 /// Dispose of the given event from the event bridge.
@@ -82,10 +85,13 @@ mod test {
         let (tx, rx) = channel();
         let mut instance = PopcornFX::new(default_args(temp_path));
 
-        instance.event_publisher().register(Box::new(move |e| {
-            tx.send(e).unwrap();
-            None
-        }), DEFAULT_ORDER);
+        instance.event_publisher().register(
+            Box::new(move |e| {
+                tx.send(e).unwrap();
+                None
+            }),
+            DEFAULT_ORDER,
+        );
         publish_event(&mut instance, EventC::ClosePlayer);
 
         let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
@@ -102,13 +108,16 @@ mod test {
         let mut instance = PopcornFX::new(default_args(temp_path));
 
         register_event_callback(&mut instance, event_callback);
-        instance.event_publisher().register(Box::new(move |e| {
-            tx.send(e).unwrap();
-            None
-        }), LOWEST_ORDER);
-        
+        instance.event_publisher().register(
+            Box::new(move |e| {
+                tx.send(e).unwrap();
+                None
+            }),
+            LOWEST_ORDER,
+        );
+
         instance.event_publisher().publish(Event::ClosePlayer);
-        
+
         let result = rx.recv_timeout(Duration::from_millis(200));
         assert!(result.is_err(), "expected the event to have been consumed");
     }

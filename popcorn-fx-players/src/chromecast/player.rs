@@ -1,28 +1,32 @@
 use std::fmt::{Debug, Formatter};
 use std::future::Future;
-use std::ops::Deref;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
 use async_trait::async_trait;
 use derive_more::Display;
 use log::{debug, error, trace, warn};
-use rust_cast::{CastDevice, ChannelMessage, channels};
-use rust_cast::channels::media::{MediaResponse, Status};
+use rust_cast::{CastDevice, channels};
+use rust_cast::channels::media::Status;
 use rust_cast::channels::receiver::{Application, CastDeviceApp};
 use tokio::{runtime, time};
 use tokio::runtime::Runtime;
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 
-use popcorn_fx_core::core::{block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks};
+use popcorn_fx_core::core::{
+    block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks,
+};
 use popcorn_fx_core::core::players::{Player, PlayerEvent, PlayerState, PlayRequest};
 
 use crate::chromecast;
-use crate::chromecast::{ChromecastError, Image, LoadCommand, Media, Metadata, MovieMetadata, StreamType};
+use crate::chromecast::{
+    ChromecastError, Image, LoadCommand, Media, Metadata, MovieMetadata, StreamType,
+};
 
 const GRAPHIC_RESOURCE: &[u8] = include_bytes!("../../resources/external-chromecast-icon.png");
-const DESCRIPTION: &str = "Chromecast streaming media device which allows the playback of videos on your TV.";
+const DESCRIPTION: &str =
+    "Chromecast streaming media device which allows the playback of videos on your TV.";
 const DEFAULT_HEARTBEAT_INTERVAL_MILLIS: u64 = 10 * 1000;
 const MEDIA_CHANNEL_NAMESPACE: &str = "urn:x-cast:com.google.cast.media";
 
@@ -40,14 +44,23 @@ impl ChromecastPlayer {
         cast_address: impl Into<String>,
         cast_port: u16,
         heartbeat_millis: u64,
-        runtime: Arc<Runtime>) -> chromecast::Result<Self> {
+        runtime: Arc<Runtime>,
+    ) -> chromecast::Result<Self> {
         let name = name.into();
         let cast_address = cast_address.into();
 
-        trace!("Trying to establish connection with Chromecast device {} on {}:{}...", name, cast_address, cast_port);
+        trace!(
+            "Trying to establish connection with Chromecast device {} on {}:{}...",
+            name,
+            cast_address,
+            cast_port
+        );
         match CastDevice::connect_without_host_verification(cast_address.clone(), cast_port) {
             Ok(cast_device) => {
-                debug!("Connected to Chromecast device {} on {}:{}", name, cast_address, cast_port);
+                debug!(
+                    "Connected to Chromecast device {} on {}:{}",
+                    name, cast_address, cast_port
+                );
                 if let Err(e) = cast_device.connection.connect("receiver-0") {
                     return Err(ChromecastError::Connection(e.to_string()));
                 }
@@ -74,11 +87,13 @@ impl ChromecastPlayer {
 
                 let inner = instance.clone();
                 let cancellation_token = instance.shutdown_token.clone();
-                instance.runtime.spawn(Self::start_heartbeat(inner, cancellation_token, heartbeat_millis));
+                instance.runtime.spawn(Self::start_heartbeat(
+                    inner,
+                    cancellation_token,
+                    heartbeat_millis,
+                ));
 
-                Ok(Self {
-                    inner: instance
-                })
+                Ok(Self { inner: instance })
             }
             Err(e) => Err(ChromecastError::Connection(e.to_string())),
         }
@@ -88,7 +103,11 @@ impl ChromecastPlayer {
         ChromecastPlayerBuilder::builder()
     }
 
-    async fn start_heartbeat(inner: Arc<InnerChromecastPlayer>, cancellation_token: CancellationToken, heartbeat_millis: u64) {
+    async fn start_heartbeat(
+        inner: Arc<InnerChromecastPlayer>,
+        cancellation_token: CancellationToken,
+        heartbeat_millis: u64,
+    ) {
         loop {
             if cancellation_token.is_cancelled() {
                 break;
@@ -111,7 +130,10 @@ impl ChromecastPlayer {
         debug!("Chromecast {} heartbeat has been stopped", inner.name);
     }
 
-    async fn start_status_updates(inner: Arc<InnerChromecastPlayer>, cancellation_token: CancellationToken) {
+    async fn start_status_updates(
+        inner: Arc<InnerChromecastPlayer>,
+        cancellation_token: CancellationToken,
+    ) {
         loop {
             if cancellation_token.is_cancelled() {
                 break;
@@ -165,12 +187,15 @@ impl Player for ChromecastPlayer {
 
     fn request(&self) -> Option<Weak<Box<dyn PlayRequest>>> {
         let mutex = block_in_place(self.inner.request.lock());
-        mutex.as_ref()
-            .map(|e| Arc::downgrade(e))
+        mutex.as_ref().map(|e| Arc::downgrade(e))
     }
 
     async fn play(&self, request: Box<dyn PlayRequest>) {
-        trace!("Starting Chromecast {} playback for {:?}", self.name(), self.request());
+        trace!(
+            "Starting Chromecast {} playback for {:?}",
+            self.name(),
+            self.request()
+        );
         self.inner.update_state_async(PlayerState::Loading).await;
 
         match self.inner.start_app().await {
@@ -188,9 +213,11 @@ impl Player for ChromecastPlayer {
                 }
 
                 debug!("Starting Chromecast {} playback", self.name());
-                self.inner.resume().await;
                 let token = self.inner.generate_status_token().await;
-                self.inner.runtime.spawn(Self::start_status_updates(self.inner.clone(), token));
+                self.inner
+                    .runtime
+                    .spawn(Self::start_status_updates(self.inner.clone(), token));
+                self.inner.resume().await;
 
                 {
                     trace!("Updating Chromecast player request to {:?}", request);
@@ -277,15 +304,23 @@ impl ChromecastPlayerBuilder {
         let id = self.id.expect("expected an id to be set");
         let name = self.name.expect("expected a name to be set");
         let cast_model = self.cast_model.expect("expected a cast model to be set");
-        let cast_address = self.cast_address.expect("expected a cast address to be set");
+        let cast_address = self
+            .cast_address
+            .expect("expected a cast address to be set");
         let cast_port = self.cast_port.expect("expected a cast port to be set");
-        let heartbeat_millis = self.heartbeat_millis.unwrap_or(DEFAULT_HEARTBEAT_INTERVAL_MILLIS);
-        let runtime = self.runtime.unwrap_or_else(|| Arc::new(runtime::Builder::new_multi_thread()
-            .enable_all()
-            .worker_threads(2)
-            .thread_name(format!("chromecast-{}", name))
-            .build()
-            .expect("failed to create runtime")));
+        let heartbeat_millis = self
+            .heartbeat_millis
+            .unwrap_or(DEFAULT_HEARTBEAT_INTERVAL_MILLIS);
+        let runtime = self.runtime.unwrap_or_else(|| {
+            Arc::new(
+                runtime::Builder::new_multi_thread()
+                    .enable_all()
+                    .worker_threads(2)
+                    .thread_name(format!("chromecast-{}", name))
+                    .build()
+                    .expect("failed to create runtime"),
+            )
+        });
 
         ChromecastPlayer::new(
             id,
@@ -334,7 +369,10 @@ impl InnerChromecastPlayer {
             if *mutex != state {
                 trace!("Updating Chromecast {} state to {:?}", self.name, state);
                 *mutex = state.clone();
-                debug!("Chromecast {} state has been updated to {:?}", self.name, state);
+                debug!(
+                    "Chromecast {} state has been updated to {:?}",
+                    self.name, state
+                );
                 event_state = Some(state);
             }
         }
@@ -373,7 +411,8 @@ impl InnerChromecastPlayer {
                     Ok(app)
                 }
             }
-        }).await
+        })
+            .await
     }
 
     async fn connect(&self) -> chromecast::Result<()> {
@@ -393,37 +432,48 @@ impl InnerChromecastPlayer {
             }
 
             Err(ChromecastError::AppNotInitialized)
-        }).await
+        })
+            .await
     }
 
-    async fn load(&self, app: &Application, request: &Box<dyn PlayRequest>) -> chromecast::Result<()> {
-        return self.try_command(|| async {
-            {
-                let cast_device = self.cast_device.lock().await;
-                let media = Self::request_to_media_payload(request);
-                let load = LoadCommand {
-                    request_id: 0,
-                    session_id: app.session_id.to_string(),
-                    payload_type: (),
-                    media,
-                    autoplay: true,
-                    current_time: request.auto_resume_timestamp()
-                        .map(|e| Self::parse_to_chromecast_time(e))
-                        .unwrap_or(0f32),
-                    active_track_ids: None,
-                };
-                trace!("Parsing load command payload {:?}", load);
-                let load_payload = serde_json::to_string(&load)
-                    .map_err(|e| ChromecastError::Parsing(e.to_string()))?;
+    async fn load(
+        &self,
+        app: &Application,
+        request: &Box<dyn PlayRequest>,
+    ) -> chromecast::Result<()> {
+        return self
+            .try_command(|| async {
+                {
+                    let cast_device = self.cast_device.lock().await;
+                    let media = Self::request_to_media_payload(request);
+                    let load = LoadCommand {
+                        request_id: 0,
+                        session_id: app.session_id.to_string(),
+                        payload_type: (),
+                        media,
+                        autoplay: true,
+                        current_time: request
+                            .auto_resume_timestamp()
+                            .map(|e| Self::parse_to_chromecast_time(e))
+                            .unwrap_or(0f32),
+                        active_track_ids: None,
+                    };
+                    trace!("Parsing load command payload {:?}", load);
+                    let load_payload = serde_json::to_string(&load)
+                        .map_err(|e| ChromecastError::Parsing(e.to_string()))?;
 
-                trace!("Sending load command {}", load_payload);
-                if let Err(e) = cast_device.receiver.broadcast_message(MEDIA_CHANNEL_NAMESPACE, &load) {
-                    return Err(ChromecastError::AppInitializationFailed(e.to_string()));
+                    trace!("Sending load command {}", load_payload);
+                    if let Err(e) = cast_device
+                        .receiver
+                        .broadcast_message(MEDIA_CHANNEL_NAMESPACE, &load)
+                    {
+                        return Err(ChromecastError::AppInitializationFailed(e.to_string()));
+                    }
                 }
-            }
 
-            Ok(())
-        }).await;
+                Ok(())
+            })
+            .await;
     }
 
     async fn stop_app(&self) -> chromecast::Result<()> {
@@ -433,26 +483,37 @@ impl InnerChromecastPlayer {
 
             if let Some(app) = mutex.take() {
                 debug!("Stopping chromecast app {:?}", app);
-                cast_device.receiver.stop_app(app.session_id)
+                cast_device
+                    .receiver
+                    .stop_app(app.session_id)
                     .map_err(|e| ChromecastError::AppTerminationFailed(e.to_string()))?;
             }
 
             Ok(())
-        }).await
+        })
+            .await
     }
 
     async fn pause(&self) {
         if let Some(app) = self.cast_app.lock().await.as_ref() {
             if let Some(media_session_id) = self.cast_media_session_id.lock().await.as_ref() {
-                if let Err(e) = self.try_command(|| async {
-                    let cast_device = self.cast_device.lock().await;
-                    cast_device.media.pause(app.transport_id.as_str(), media_session_id.clone())
-                        .map_err(|e| ChromecastError::Connection(e.to_string()))
-                }).await {
+                if let Err(e) = self
+                    .try_command(|| async {
+                        let cast_device = self.cast_device.lock().await;
+                        cast_device
+                            .media
+                            .pause(app.transport_id.as_str(), media_session_id.clone())
+                            .map_err(|e| ChromecastError::Connection(e.to_string()))
+                    })
+                    .await
+                {
                     error!("Failed to pause Chromecast {} playback, {}", self.name, e);
                 }
             } else {
-                warn!("Unable to pause Chromecast {}, media session id is unknown", self.name);
+                warn!(
+                    "Unable to pause Chromecast {}, media session id is unknown",
+                    self.name
+                );
             }
         }
     }
@@ -460,15 +521,23 @@ impl InnerChromecastPlayer {
     async fn resume(&self) {
         if let Some(app) = self.cast_app.lock().await.as_ref() {
             if let Some(media_session_id) = self.cast_media_session_id.lock().await.as_ref() {
-                if let Err(e) = self.try_command(|| async {
-                    let cast_device = self.cast_device.lock().await;
-                    cast_device.media.play(app.transport_id.as_str(), media_session_id.clone())
-                        .map_err(|e| ChromecastError::Connection(e.to_string()))
-                }).await {
+                if let Err(e) = self
+                    .try_command(|| async {
+                        let cast_device = self.cast_device.lock().await;
+                        cast_device
+                            .media
+                            .play(app.transport_id.as_str(), media_session_id.clone())
+                            .map_err(|e| ChromecastError::Connection(e.to_string()))
+                    })
+                    .await
+                {
                     error!("Failed to resume Chromecast {} playback, {}", self.name, e);
                 }
             } else {
-                warn!("Unable to resume Chromecast {}, media session id is unknown", self.name);
+                warn!(
+                    "Unable to resume Chromecast {}, media session id is unknown",
+                    self.name
+                );
             }
         }
     }
@@ -476,17 +545,30 @@ impl InnerChromecastPlayer {
     async fn seek(&self, time: u64) {
         if let Some(app) = self.cast_app.lock().await.as_ref() {
             if let Some(media_session_id) = self.cast_media_session_id.lock().await.as_ref() {
-                if let Err(e) = self.try_command(|| async {
-                    let chromecast_time = Self::parse_to_chromecast_time(time);
-                    let cast_device = self.cast_device.lock().await;
+                if let Err(e) = self
+                    .try_command(|| async {
+                        let chromecast_time = Self::parse_to_chromecast_time(time);
+                        let cast_device = self.cast_device.lock().await;
 
-                    cast_device.media.seek(app.transport_id.as_str(), media_session_id.clone(), Some(chromecast_time), None)
-                        .map_err(|e| ChromecastError::Connection(e.to_string()))
-                }).await {
+                        cast_device
+                            .media
+                            .seek(
+                                app.transport_id.as_str(),
+                                media_session_id.clone(),
+                                Some(chromecast_time),
+                                None,
+                            )
+                            .map_err(|e| ChromecastError::Connection(e.to_string()))
+                    })
+                    .await
+                {
                     error!("Failed to seek Chromecast {} playback, {}", self.name, e);
                 }
             } else {
-                warn!("Unable to seek Chromecast {}, media session id is unknown", self.name);
+                warn!(
+                    "Unable to seek Chromecast {}, media session id is unknown",
+                    self.name
+                );
             }
         }
     }
@@ -525,43 +607,66 @@ impl InnerChromecastPlayer {
     }
 
     async fn status(&self) -> chromecast::Result<Status> {
-        let mutex = self.cast_device.lock().await;
+        tokio::select! {
+            _ = time::sleep(Duration::from_secs(5)) =>Err(ChromecastError::CommandTimeout("status".to_string())),
+            status = self.try_command(|| async {
+                if let Some(app) = self.cast_app.lock().await.as_ref() {
+                    let mutex = self.cast_device.lock().await;
 
-        self.try_command(|| async {
-            if let Some(app) = self.cast_app.lock().await.as_ref() {
-                trace!("Requesting Chromecast {} status info", self.name);
-                return mutex.media.get_status(app.transport_id.as_str(), None)
-                    .map_err(|e| ChromecastError::Connection(e.to_string()));
-            }
+                    trace!("Requesting Chromecast {} status info", self.name);
+                    return mutex.media.get_status(app.transport_id.as_str(), None)
+                        .map_err(|e| ChromecastError::Connection(e.to_string()));
+                }
 
-            Err(ChromecastError::AppNotInitialized)
-        }).await
+                Err(ChromecastError::AppNotInitialized)
+            }) => status,
+        }
     }
 
     async fn handle_status_update(&self, status: Status) {
-        trace!("Received Chromecast {} status update {:?}", self.name, status);
+        trace!(
+            "Received Chromecast {} status update {:?}",
+            self.name,
+            status
+        );
         if let Some(e) = status.entries.get(0) {
             {
                 let mut mutex = self.cast_media_session_id.lock().await;
                 if mutex.is_none() {
                     *mutex = Some(e.media_session_id.clone());
-                    debug!("Received Chromecast media session id {}", e.media_session_id);
+                    debug!(
+                        "Received Chromecast media session id {}",
+                        e.media_session_id
+                    );
                 }
             }
 
             match e.player_state {
-                channels::media::PlayerState::Idle => self.update_state_async(PlayerState::Ready).await,
-                channels::media::PlayerState::Playing => self.update_state_async(PlayerState::Playing).await,
-                channels::media::PlayerState::Buffering => self.update_state_async(PlayerState::Buffering).await,
-                channels::media::PlayerState::Paused => self.update_state_async(PlayerState::Paused).await,
+                channels::media::PlayerState::Idle => {
+                    self.update_state_async(PlayerState::Ready).await
+                }
+                channels::media::PlayerState::Playing => {
+                    self.update_state_async(PlayerState::Playing).await
+                }
+                channels::media::PlayerState::Buffering => {
+                    self.update_state_async(PlayerState::Buffering).await
+                }
+                channels::media::PlayerState::Paused => {
+                    self.update_state_async(PlayerState::Paused).await
+                }
             }
 
             if let Some(time) = e.current_time {
-                self.callbacks.invoke(PlayerEvent::TimeChanged(Self::parse_to_popcorn_fx_time(time)));
+                self.callbacks
+                    .invoke(PlayerEvent::TimeChanged(Self::parse_to_popcorn_fx_time(
+                        time,
+                    )));
             }
             if let Some(media) = &e.media {
                 if let Some(duration) = media.duration {
-                    self.callbacks.invoke(PlayerEvent::DurationChanged(Self::parse_to_popcorn_fx_time(duration)));
+                    self.callbacks.invoke(PlayerEvent::DurationChanged(
+                        Self::parse_to_popcorn_fx_time(duration),
+                    ));
                 }
             }
         } else {
@@ -583,8 +688,10 @@ impl InnerChromecastPlayer {
     /// - `Ok(O)` if the command was executed successfully.
     /// - `Err(chromecast::Error)` if an error occurred during the command execution.
     async fn try_command<F, O>(&self, command_fn: impl Fn() -> F) -> chromecast::Result<O>
-        where F: Future<Output=chromecast::Result<O>> + Send,
-              O: Send, {
+        where
+            F: Future<Output=chromecast::Result<O>> + Send,
+            O: Send,
+    {
         match command_fn().await {
             Ok(e) => Ok(e),
             Err(e) => {
@@ -610,7 +717,10 @@ impl InnerChromecastPlayer {
         let address = self.cast_address.clone();
         let port = self.cast_port.clone();
 
-        trace!("Reestablishing connection to the Chromecast device {}", self.name);
+        trace!(
+            "Reestablishing connection to the Chromecast device {}",
+            self.name
+        );
         let cast_device = CastDevice::connect_without_host_verification(address, port)
             .map_err(|e| ChromecastError::Connection(e.to_string()))?;
         *mutex = cast_device;
@@ -640,7 +750,7 @@ impl InnerChromecastPlayer {
                 title: Some(request.title().to_string()),
                 subtitle: Some(subtitle),
                 studio: None,
-                images: Some(images).filter(|e| !e.is_empty()),
+                images,
                 release_date: None,
                 thumb: request.thumbnail(),
                 thumbnail_url: request.thumbnail(),
@@ -659,10 +769,12 @@ impl InnerChromecastPlayer {
             ""
         };
 
-        format!("{}{}{}",
-                request.caption().unwrap_or(String::new()),
-                separator,
-                request.quality().unwrap_or(String::new()))
+        format!(
+            "{}{}{}",
+            request.caption().unwrap_or(String::new()),
+            separator,
+            request.quality().unwrap_or(String::new())
+        )
     }
 
     fn parse_to_popcorn_fx_time(time: f32) -> u64 {

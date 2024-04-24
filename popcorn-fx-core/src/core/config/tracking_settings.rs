@@ -32,13 +32,12 @@ impl TrackingSettings {
     }
 
     pub fn trackers(&self) -> Vec<String> {
-        self.trackers.keys()
-            .map(|e| e.clone())
-            .collect()
+        self.trackers.keys().map(|e| e.clone()).collect()
     }
 
     pub fn tracker(&self, name: &str) -> Option<Tracker> {
-        self.trackers.iter()
+        self.trackers
+            .iter()
             .find(|(key, _)| key.as_str() == name)
             .map(|(_, v)| v.clone())
     }
@@ -131,7 +130,10 @@ mod tests {
 
         let result = settings.last_sync().unwrap();
         assert_eq!(MediaTrackingSyncState::Success, result.state);
-        assert!(Local::now().with_timezone(&Utc) - result.time < TimeDelta::milliseconds(100), "expected the last sync time to have been filled in");
+        assert!(
+            Local::now().with_timezone(&Utc) - result.time < TimeDelta::milliseconds(100),
+            "expected the last sync time to have been filled in"
+        );
     }
 
     #[test]
@@ -142,13 +144,19 @@ mod tests {
             trackers: vec![
                 ("lorem".to_string(), Tracker::default()),
                 ("ipsum".to_string(), Tracker::default()),
-            ].into_iter().collect(),
+            ]
+            .into_iter()
+            .collect(),
         };
 
         let result = settings.trackers();
 
         for e in expected_result {
-            assert!(result.contains(&e.to_string()), "expected {} to have been present", e)
+            assert!(
+                result.contains(&e.to_string()),
+                "expected {} to have been present",
+                e
+            )
         }
     }
 
@@ -163,9 +171,9 @@ mod tests {
         };
         let settings = TrackingSettings {
             last_sync: None,
-            trackers: vec![
-                (name.to_string(), tracker.clone()),
-            ].into_iter().collect(),
+            trackers: vec![(name.to_string(), tracker.clone())]
+                .into_iter()
+                .collect(),
         };
 
         let result = settings.tracker(name);
@@ -198,16 +206,16 @@ mod tests {
         let name = "FooBar";
         let mut settings = TrackingSettings {
             last_sync: None,
-            trackers: vec![
-                (name.to_string(), Tracker::default()),
-            ].into_iter().collect(),
+            trackers: vec![(name.to_string(), Tracker::default())]
+                .into_iter()
+                .collect(),
         };
 
         settings.remove(name);
 
         assert_eq!(0, settings.trackers.len());
     }
-    
+
     #[test]
     fn test_builder() {
         let name = "MyTracker";
@@ -223,9 +231,9 @@ mod tests {
                 time,
                 state: MediaTrackingSyncState::Success,
             }),
-            trackers: vec![
-                (name.to_string(), tracker.clone())
-            ].into_iter().collect(),
+            trackers: vec![(name.to_string(), tracker.clone())]
+                .into_iter()
+                .collect(),
         };
 
         let result = TrackingSettings::builder()
@@ -235,7 +243,7 @@ mod tests {
             })
             .tracker(name, tracker)
             .build();
-        
+
         assert_eq!(expected_result, result);
     }
 }

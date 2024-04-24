@@ -79,13 +79,19 @@ impl PlayerStoppedEvent {
                         return Some(Self::url_decode(filename));
                     }
                 } else {
-                    warn!("Unable to retrieve filename, uri has no path for {:?}", self);
+                    warn!(
+                        "Unable to retrieve filename, uri has no path for {:?}",
+                        self
+                    );
                 }
 
                 None
             }
             None => {
-                warn!("Unable to retrieve filename, no valid uri found for {:?}", self);
+                warn!(
+                    "Unable to retrieve filename, no valid uri found for {:?}",
+                    self
+                );
                 None
             }
         }
@@ -137,9 +143,7 @@ impl Clone for PlayerStoppedEvent {
 
 impl PartialEq for PlayerStoppedEvent {
     fn eq(&self, other: &Self) -> bool {
-        self.url == other.url &&
-            self.time == other.time &&
-            self.duration == other.duration
+        self.url == other.url && self.time == other.time && self.duration == other.duration
     }
 }
 
@@ -234,7 +238,8 @@ mod test {
                 hated: 50,
             }),
         };
-        let boxed_media_with_rating = Box::new(media_with_rating.clone()) as Box<dyn MediaIdentifier>;
+        let boxed_media_with_rating =
+            Box::new(media_with_rating.clone()) as Box<dyn MediaIdentifier>;
 
         let event_with_rating = PlayerStoppedEvent {
             url: String::from("https://example.com/video.mp4"),
@@ -246,7 +251,10 @@ mod test {
         let cloned_event_with_rating = event_with_rating.clone();
 
         let cloned_media_with_rating = cloned_event_with_rating.media.unwrap();
-        let cloned_show_overview_with_rating = cloned_media_with_rating.as_ref().downcast_ref::<ShowOverview>().unwrap();
+        let cloned_show_overview_with_rating = cloned_media_with_rating
+            .as_ref()
+            .downcast_ref::<ShowOverview>()
+            .unwrap();
 
         assert_eq!(cloned_show_overview_with_rating, &media_with_rating);
     }

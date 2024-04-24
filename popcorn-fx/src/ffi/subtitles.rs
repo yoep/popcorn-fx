@@ -30,7 +30,7 @@ pub extern "C" fn retrieve_preferred_subtitle(popcorn_fx: &mut PopcornFX) -> *mu
     trace!("Retrieving preferred subtitle from C");
     match popcorn_fx.subtitle_manager().preferred_subtitle() {
         None => ptr::null_mut(),
-        Some(e) => into_c_owned(SubtitleInfoC::from(e))
+        Some(e) => into_c_owned(SubtitleInfoC::from(e)),
     }
 }
 
@@ -52,9 +52,7 @@ pub extern "C" fn retrieve_preferred_subtitle(popcorn_fx: &mut PopcornFX) -> *mu
 pub extern "C" fn default_subtitle_options(popcorn_fx: &mut PopcornFX) -> *mut SubtitleInfoSet {
     trace!("Retrieving default subtitle options");
     let subtitles = popcorn_fx.subtitle_provider().default_subtitle_options();
-    let subtitles: Vec<SubtitleInfoC> = subtitles.into_iter()
-        .map(SubtitleInfoC::from)
-        .collect();
+    let subtitles: Vec<SubtitleInfoC> = subtitles.into_iter().map(SubtitleInfoC::from).collect();
 
     into_c_owned(SubtitleInfoSet::from(subtitles))
 }
@@ -102,13 +100,19 @@ pub extern "C" fn subtitle_custom() -> *mut SubtitleInfoC {
 ///
 /// A pointer to the selected default subtitle in C-compatible form.
 #[no_mangle]
-pub extern "C" fn select_or_default_subtitle(popcorn_fx: &mut PopcornFX, set: &mut SubtitleInfoSet) -> *mut SubtitleInfoC {
+pub extern "C" fn select_or_default_subtitle(
+    popcorn_fx: &mut PopcornFX,
+    set: &mut SubtitleInfoSet,
+) -> *mut SubtitleInfoC {
     trace!("Retrieving default subtitle selection from C for {:?}", set);
-    let subtitles: Vec<SubtitleInfo> = from_c_vec(set.subtitles, set.len).into_iter()
+    let subtitles: Vec<SubtitleInfo> = from_c_vec(set.subtitles, set.len)
+        .into_iter()
         .map(|e| SubtitleInfo::from(e))
         .collect();
 
-    let subtitle_info = popcorn_fx.subtitle_provider().select_or_default(&subtitles[..]);
+    let subtitle_info = popcorn_fx
+        .subtitle_provider()
+        .select_or_default(&subtitles[..]);
     trace!("Default subtitle selection resulted in {:?}", subtitle_info);
     into_c_owned(SubtitleInfoC::from(subtitle_info))
 }
@@ -127,7 +131,10 @@ pub extern "C" fn select_or_default_subtitle(popcorn_fx: &mut PopcornFX, set: &m
 /// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
 /// * `callback` - A function pointer to the C callback function.
 #[no_mangle]
-pub extern "C" fn register_subtitle_callback(popcorn_fx: &mut PopcornFX, callback: SubtitleCallbackC) {
+pub extern "C" fn register_subtitle_callback(
+    popcorn_fx: &mut PopcornFX,
+    callback: SubtitleCallbackC,
+) {
     trace!("Wrapping C callback for SubtitleCallback");
     let wrapper: SubtitleCallback = Box::new(move |event| {
         let event_c = SubtitleEventC::from(event);
@@ -139,28 +146,38 @@ pub extern "C" fn register_subtitle_callback(popcorn_fx: &mut PopcornFX, callbac
 }
 
 #[no_mangle]
-pub extern "C" fn serve_subtitle(popcorn_fx: &mut PopcornFX, subtitle_info: &SubtitleInfoC, matcher: SubtitleMatcherC, subtitle_type: SubtitleType) -> *mut c_char {
-    trace!("Serving subtitle from C for {:?} with quality {:?}", subtitle_info, matcher);
+pub extern "C" fn serve_subtitle(
+    popcorn_fx: &mut PopcornFX,
+    subtitle_info: &SubtitleInfoC,
+    matcher: SubtitleMatcherC,
+    subtitle_type: SubtitleType,
+) -> *mut c_char {
+    trace!(
+        "Serving subtitle from C for {:?} with quality {:?}",
+        subtitle_info,
+        matcher
+    );
     let subtitle_provider = popcorn_fx.subtitle_provider().clone();
     let subtitle_server = popcorn_fx.subtitle_server().clone();
 
     block_in_place(async move {
         let subtitle_info = SubtitleInfo::from(subtitle_info);
         let matcher = SubtitleMatcher::from(matcher);
-        
-        match subtitle_provider.download_and_parse(&subtitle_info, &matcher).await {
-            Ok(subtitle) => {
-                match subtitle_server.serve(subtitle, subtitle_type) {
-                    Ok(e) => {
-                        info!("Serving subtitle at {}", &e);
-                        into_c_string(e)
-                    }
-                    Err(e) => {
-                        error!("Failed to serve subtitle, {}", e);
-                        ptr::null_mut()
-                    }
+
+        match subtitle_provider
+            .download_and_parse(&subtitle_info, &matcher)
+            .await
+        {
+            Ok(subtitle) => match subtitle_server.serve(subtitle, subtitle_type) {
+                Ok(e) => {
+                    info!("Serving subtitle at {}", &e);
+                    into_c_string(e)
                 }
-            }
+                Err(e) => {
+                    error!("Failed to serve subtitle, {}", e);
+                    ptr::null_mut()
+                }
+            },
             Err(e) => {
                 error!("Failed to serve subtitle, {}", e);
                 ptr::null_mut()
@@ -256,7 +273,8 @@ mod test {
         let expected_result = vec![SubtitleInfo::none(), SubtitleInfo::custom()];
 
         let set_ptr = from_c_owned(default_subtitle_options(&mut instance));
-        let result: Vec<SubtitleInfo> = from_c_vec(set_ptr.subtitles, set_ptr.len).into_iter()
+        let result: Vec<SubtitleInfo> = from_c_vec(set_ptr.subtitles, set_ptr.len)
+            .into_iter()
             .map(SubtitleInfo::from)
             .collect();
 
@@ -289,7 +307,9 @@ mod test {
         let mut instance = new_instance(temp_path);
 
         register_subtitle_callback(&mut instance, subtitle_callback);
-        instance.subtitle_manager().update_subtitle(SubtitleInfo::none())
+        instance
+            .subtitle_manager()
+            .update_subtitle(SubtitleInfo::none())
     }
 
     #[test]
@@ -298,11 +318,24 @@ mod test {
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = new_instance(temp_path);
-        let filepath = copy_test_file(instance.settings().user_settings().subtitle_settings.directory.as_str(), "example.srt", None);
+        let filepath = copy_test_file(
+            instance
+                .settings()
+                .user_settings()
+                .subtitle_settings
+                .directory
+                .as_str(),
+            "example.srt",
+            None,
+        );
 
         cleanup_subtitles_directory(&mut instance);
 
-        assert_eq!(false, PathBuf::from(filepath).exists(), "expected the subtitle file to have been cleaned");
+        assert_eq!(
+            false,
+            PathBuf::from(filepath).exists(),
+            "expected the subtitle file to have been cleaned"
+        );
     }
 
     #[test]
@@ -344,7 +377,10 @@ mod test {
     #[test]
     fn test_dispose_subtitle_info_set() {
         init_logger();
-        let set = SubtitleInfoSet::from(vec![SubtitleInfoC::from(SubtitleInfo::none()), SubtitleInfoC::from(SubtitleInfo::custom())]);
+        let set = SubtitleInfoSet::from(vec![
+            SubtitleInfoC::from(SubtitleInfo::none()),
+            SubtitleInfoC::from(SubtitleInfo::custom()),
+        ]);
 
         dispose_subtitle_info_set(Box::new(set));
     }
@@ -364,19 +400,19 @@ mod test {
                 "012".to_string(),
                 10000,
                 20000,
-                vec![SubtitleLine::new(
-                    vec![StyledText::new(
-                        "Lorem ipsum dolor".to_string(),
-                        true,
-                        false,
-                        false,
-                    )]
-                )],
+                vec![SubtitleLine::new(vec![StyledText::new(
+                    "Lorem ipsum dolor".to_string(),
+                    true,
+                    false,
+                    false,
+                )])],
             )],
-            Some(SubtitleInfo::builder()
-                .imdb_id("tt00001")
-                .language(SubtitleLanguage::English)
-                .build()),
+            Some(
+                SubtitleInfo::builder()
+                    .imdb_id("tt00001")
+                    .language(SubtitleLanguage::English)
+                    .build(),
+            ),
             "lorem.srt".to_string(),
         );
         let subtitle_c = SubtitleC::from(subtitle);

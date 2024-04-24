@@ -37,8 +37,14 @@ impl From<HashMap<String, String>> for PositionInfo {
     fn from(map: HashMap<String, String>) -> Self {
         Self {
             track_uri: map.get("TrackURI").cloned().unwrap_or_default(),
-            abs_count: map.get("AbsCount").map(|e| e.parse().unwrap_or(-1)).unwrap_or(-1),
-            rel_count: map.get("RelCount").map(|e| e.parse().unwrap_or(-1)).unwrap_or(-1),
+            abs_count: map
+                .get("AbsCount")
+                .map(|e| e.parse().unwrap_or(-1))
+                .unwrap_or(-1),
+            rel_count: map
+                .get("RelCount")
+                .map(|e| e.parse().unwrap_or(-1))
+                .unwrap_or(-1),
             rel_time: map.get("RelTime").cloned().unwrap_or_default(),
             track: map.get("Track").unwrap().parse().unwrap(),
             track_metadata: map.get("TrackMetaData").cloned().unwrap_or_default(),
@@ -63,7 +69,10 @@ impl From<HashMap<String, String>> for TransportInfo {
         Self {
             current_speed: map.get("CurrentSpeed").unwrap().parse().unwrap(),
             current_transport_state: map.get("CurrentTransportState").unwrap().parse().unwrap(),
-            current_transport_status: map.get("CurrentTransportStatus").cloned().unwrap_or_default(),
+            current_transport_status: map
+                .get("CurrentTransportStatus")
+                .cloned()
+                .unwrap_or_default(),
         }
     }
 }
@@ -123,7 +132,7 @@ mod tests {
         let rel_time = "00:01:25";
         let track_metadata = "MyTrackMetaData";
         let track_duration = "00:30:00";
-        let map : HashMap<String, String> = vec![
+        let map: HashMap<String, String> = vec![
             ("TrackURI".to_string(), track_uri.to_string()),
             ("AbsCount".to_string(), "100".to_string()),
             ("RelCount".to_string(), "2".to_string()),
@@ -131,7 +140,9 @@ mod tests {
             ("Track".to_string(), "1".to_string()),
             ("TrackMetaData".to_string(), track_metadata.to_string()),
             ("TrackDuration".to_string(), track_duration.to_string()),
-        ].into_iter().collect();
+        ]
+        .into_iter()
+        .collect();
         let expected_result = PositionInfo {
             track_uri: track_uri.to_string(),
             abs_count: 100,
@@ -143,43 +154,45 @@ mod tests {
         };
 
         let result = PositionInfo::from(map);
-        
+
         assert_eq!(expected_result, result);
     }
-    
+
     #[test]
     fn test_transport_info_from_hashmap() {
         let status = "OK";
-        let map : HashMap<String, String> = vec![
+        let map: HashMap<String, String> = vec![
             ("CurrentSpeed".to_string(), "1".to_string()),
             ("CurrentTransportState".to_string(), "PLAYING".to_string()),
             ("CurrentTransportStatus".to_string(), status.to_string()),
-        ].into_iter().collect();
+        ]
+        .into_iter()
+        .collect();
         let expected_result = TransportInfo {
             current_speed: 1,
             current_transport_state: UpnpState::Playing,
             current_transport_status: status.to_string(),
         };
-        
+
         let result = TransportInfo::from(map);
-        
+
         assert_eq!(expected_result, result);
     }
-    
+
     #[test]
     fn test_upnp_state_from_str() {
         let result = UpnpState::from_str("STOPPED").unwrap();
         assert_eq!(UpnpState::Stopped, result);
-        
+
         let result = UpnpState::from_str("PLAYING").unwrap();
         assert_eq!(UpnpState::Playing, result);
-        
+
         let result = UpnpState::from_str("PAUSED_PLAYBACK").unwrap();
         assert_eq!(UpnpState::PausedPlayback, result);
-        
+
         let result = UpnpState::from_str("TRANSITIONING").unwrap();
         assert_eq!(UpnpState::Transitioning, result);
-        
+
         let result = UpnpState::from_str("NO_MEDIA_PRESENT").unwrap();
         assert_eq!(UpnpState::NoMediaPresent, result);
     }

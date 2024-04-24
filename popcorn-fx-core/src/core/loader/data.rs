@@ -30,18 +30,18 @@ pub struct LoadingData {
 
 impl PartialEq for LoadingData {
     fn eq(&self, other: &Self) -> bool {
-        self.url == other.url &&
-            self.title == other.title &&
-            self.caption == other.caption &&
-            self.thumb == other.thumb &&
-            self.parent_media.is_some() == other.parent_media.is_some() &&
-            self.media.is_some() == other.media.is_some() &&
-            self.torrent_info == other.torrent_info &&
-            self.torrent_file_info == other.torrent_file_info &&
-            self.quality == other.quality &&
-            self.auto_resume_timestamp == other.auto_resume_timestamp &&
-            self.torrent.is_some() == other.torrent.is_some() &&
-            self.torrent_stream.is_some() == other.torrent_stream.is_some()
+        self.url == other.url
+            && self.title == other.title
+            && self.caption == other.caption
+            && self.thumb == other.thumb
+            && self.parent_media.is_some() == other.parent_media.is_some()
+            && self.media.is_some() == other.media.is_some()
+            && self.torrent_info == other.torrent_info
+            && self.torrent_file_info == other.torrent_file_info
+            && self.quality == other.quality
+            && self.auto_resume_timestamp == other.auto_resume_timestamp
+            && self.torrent.is_some() == other.torrent.is_some()
+            && self.torrent_stream.is_some() == other.torrent_stream.is_some()
     }
 
     fn ne(&self, other: &Self) -> bool {
@@ -53,15 +53,11 @@ impl Clone for LoadingData {
     fn clone(&self) -> Self {
         let cloned_parent_media = match &self.parent_media {
             None => None,
-            Some(media) => {
-                media.clone_identifier()
-            }
+            Some(media) => media.clone_identifier(),
         };
         let cloned_media = match &self.media {
             None => None,
-            Some(media) => {
-                media.clone_identifier()
-            }
+            Some(media) => media.clone_identifier(),
         };
 
         Self {
@@ -128,7 +124,12 @@ impl From<PlaylistItem> for LoadingData {
 impl From<LoadingData> for PlayUrlRequest {
     fn from(value: LoadingData) -> Self {
         let mut builder = PlayUrlRequestBuilder::builder()
-            .url(value.url.expect("expected an url to have been present").as_str())
+            .url(
+                value
+                    .url
+                    .expect("expected an url to have been present")
+                    .as_str(),
+            )
             .title(value.title.unwrap_or(String::new()).as_str())
             .subtitles_enabled(value.subtitles_enabled.unwrap_or(false));
 
@@ -177,13 +178,13 @@ mod tests {
         };
 
         let result = LoadingData::from(item);
-        
+
         assert_eq!(Some(title.to_string()), result.title);
         assert_eq!(Some(caption.to_string()), result.caption);
         assert_eq!(Some(thumb.to_string()), result.thumb);
         assert_eq!(Some(quality.to_string()), result.quality);
     }
-    
+
     #[test]
     fn test_from_play_url_request() {
         let url = "http://localhost:8080/movie.mp4";
@@ -216,7 +217,7 @@ mod tests {
         };
 
         let result = PlayUrlRequest::from(data);
-        
+
         assert_eq!(expected, result);
     }
 }

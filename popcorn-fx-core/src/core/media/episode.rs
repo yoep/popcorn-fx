@@ -8,7 +8,13 @@ use crate::core::media::{MediaIdentifier, MediaType, TorrentInfo};
 
 /// The episode media information of a show media item.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Display)]
-#[display(fmt = "tvdb_id: {}, title: {}, season: {}, episode: {}", tvdb_id, title, season, episode)]
+#[display(
+    fmt = "tvdb_id: {}, title: {}, season: {}, episode: {}",
+    tvdb_id,
+    title,
+    season,
+    episode
+)]
 pub struct Episode {
     pub season: u32,
     pub episode: u32,
@@ -24,7 +30,14 @@ pub struct Episode {
 }
 
 impl Episode {
-    pub fn new(season: u32, episode: u32, first_aired: u64, title: String, overview: String, tvdb_id: i32) -> Self {
+    pub fn new(
+        season: u32,
+        episode: u32,
+        first_aired: u64,
+        title: String,
+        overview: String,
+        tvdb_id: i32,
+    ) -> Self {
         Self {
             season,
             episode,
@@ -38,7 +51,15 @@ impl Episode {
         }
     }
 
-    pub fn new_with_torrents(season: u32, episode: u32, first_aired: u64, title: String, overview: String, tvdb_id: i32, torrents: HashMap<String, TorrentInfo>) -> Self {
+    pub fn new_with_torrents(
+        season: u32,
+        episode: u32,
+        first_aired: u64,
+        title: String,
+        overview: String,
+        tvdb_id: i32,
+        torrents: HashMap<String, TorrentInfo>,
+    ) -> Self {
         Self {
             season,
             episode,

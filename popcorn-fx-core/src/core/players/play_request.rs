@@ -125,8 +125,9 @@ impl PlayRequest for PlayUrlRequest {
 }
 
 impl<S> From<S> for PlayUrlRequest
-    where
-        S: Into<String> {
+where
+    S: Into<String>,
+{
     fn from(value: S) -> Self {
         PlayUrlRequestBuilder::builder()
             .url(value.into().as_str())
@@ -160,14 +161,15 @@ impl PlayUrlRequestBuilder {
     }
 
     /// Sets the title of the media.
-    pub fn title<S: Into<String>>(mut self, title: S) -> Self{
+    pub fn title<S: Into<String>>(mut self, title: S) -> Self {
         self.title = Some(title.into());
         self
     }
 
     /// Sets the caption of the associated media.
     pub fn caption<S: Into<String>>(mut self, caption: S) -> Self
-        where S: Into<String>
+    where
+        S: Into<String>,
     {
         self.caption = Some(caption.into());
         self
@@ -270,16 +272,25 @@ impl PlayRequest for PlayStreamRequest {
 
 impl PartialEq for PlayStreamRequest {
     fn eq(&self, other: &Self) -> bool {
-        self.base.eq(&other.base) &&
-            self.quality == other.quality
+        self.base.eq(&other.base) && self.quality == other.quality
     }
 }
 
 impl From<LoadingData> for PlayStreamRequest {
     fn from(value: LoadingData) -> Self {
         let mut builder = Self::builder()
-            .url(value.url.expect("expected a url to have been present").as_str())
-            .title(value.title.expect("expected a title to have been present").as_str())
+            .url(
+                value
+                    .url
+                    .expect("expected a url to have been present")
+                    .as_str(),
+            )
+            .title(
+                value
+                    .title
+                    .expect("expected a title to have been present")
+                    .as_str(),
+            )
             .subtitles_enabled(value.subtitles_enabled.unwrap_or(false));
 
         if let Some(e) = value.caption {
@@ -324,7 +335,8 @@ impl PlayStreamRequestBuilder {
 
     /// Sets the URL for the media to be played.
     pub fn url<S>(mut self, url: S) -> Self
-        where S: Into<String>
+    where
+        S: Into<String>,
     {
         self.url = Some(url.into());
         self
@@ -332,7 +344,8 @@ impl PlayStreamRequestBuilder {
 
     /// Sets the title of the media.
     pub fn title<S>(mut self, title: S) -> Self
-        where S: Into<String>
+    where
+        S: Into<String>,
     {
         self.title = Some(title.into());
         self
@@ -340,7 +353,8 @@ impl PlayStreamRequestBuilder {
 
     /// Sets the caption of the media.
     pub fn caption<S>(mut self, caption: S) -> Self
-        where S: Into<String>
+    where
+        S: Into<String>,
     {
         self.caption = Some(caption.into());
         self
@@ -348,7 +362,8 @@ impl PlayStreamRequestBuilder {
 
     /// Sets the URL of the thumbnail associated with the media.
     pub fn thumb<S>(mut self, thumb: S) -> Self
-        where S: Into<String>
+    where
+        S: Into<String>,
     {
         self.thumb = Some(thumb.into());
         self
@@ -356,7 +371,8 @@ impl PlayStreamRequestBuilder {
 
     /// Sets the URL of the background associated with the media.
     pub fn background<S>(mut self, background: S) -> Self
-        where S: Into<String>
+    where
+        S: Into<String>,
     {
         self.background = Some(background.into());
         self
@@ -376,7 +392,8 @@ impl PlayStreamRequestBuilder {
 
     /// Sets the quality information for the media.
     pub fn quality<S>(mut self, quality: S) -> Self
-        where S: Into<String>
+    where
+        S: Into<String>,
     {
         self.quality = Some(quality.into());
         self
@@ -411,7 +428,9 @@ impl PlayStreamRequestBuilder {
         PlayStreamRequest {
             base,
             quality: self.quality,
-            torrent_stream: self.torrent_stream.expect("torrent_stream has not been set"),
+            torrent_stream: self
+                .torrent_stream
+                .expect("torrent_stream has not been set"),
         }
     }
 }
@@ -440,10 +459,10 @@ impl PlayMediaRequest {
 
 impl PartialEq for PlayMediaRequest {
     fn eq(&self, other: &Self) -> bool {
-        self.base.eq(&other.base) &&
-            self.parent_media.is_some() == other.parent_media.is_some() &&
-            self.media.imdb_id() == other.media.imdb_id() &&
-            self.quality == other.quality
+        self.base.eq(&other.base)
+            && self.parent_media.is_some() == other.parent_media.is_some()
+            && self.media.imdb_id() == other.media.imdb_id()
+            && self.quality == other.quality
     }
 }
 
@@ -486,9 +505,14 @@ impl Clone for PlayMediaRequest {
     fn clone(&self) -> Self {
         Self {
             base: self.base.clone(),
-            parent_media: self.parent_media.as_ref()
+            parent_media: self
+                .parent_media
+                .as_ref()
                 .and_then(|e| e.clone_identifier()),
-            media: self.media.clone_identifier().expect("expected the media identifier to have been cloned"),
+            media: self
+                .media
+                .clone_identifier()
+                .expect("expected the media identifier to have been cloned"),
             quality: self.quality.clone(),
             torrent_stream: self.torrent_stream.clone(),
         }
@@ -498,13 +522,23 @@ impl Clone for PlayMediaRequest {
 impl From<LoadingData> for PlayMediaRequest {
     fn from(value: LoadingData) -> Self {
         let mut builder = Self::builder()
-            .url(value.url.expect("expected a url to have been present").as_str())
-            .title(value.title.expect("expected a title to have been present").as_str())
+            .url(
+                value
+                    .url
+                    .expect("expected a url to have been present")
+                    .as_str(),
+            )
+            .title(
+                value
+                    .title
+                    .expect("expected a title to have been present")
+                    .as_str(),
+            )
             .subtitles_enabled(value.subtitles_enabled.unwrap_or(false));
 
         if let Some(e) = value.caption {
             builder = builder.caption(e);
-        } 
+        }
         if let Some(e) = value.thumb {
             builder = builder.thumb(e);
         }
@@ -531,7 +565,11 @@ impl From<LoadingData> for PlayMediaRequest {
         }
 
         builder
-            .media(value.media.expect("expected a media item to have been present"))
+            .media(
+                value
+                    .media
+                    .expect("expected a media item to have been present"),
+            )
             .build()
     }
 }
@@ -560,7 +598,8 @@ impl PlayMediaRequestBuilder {
 
     /// Sets the URL for the media to be played.
     pub fn url<S>(mut self, url: S) -> Self
-        where S: Into<String>
+    where
+        S: Into<String>,
     {
         self.url = Some(url.into());
         self
@@ -568,7 +607,8 @@ impl PlayMediaRequestBuilder {
 
     /// Sets the title of the media.
     pub fn title<S>(mut self, title: S) -> Self
-        where S: Into<String>
+    where
+        S: Into<String>,
     {
         self.title = Some(title.into());
         self
@@ -576,7 +616,8 @@ impl PlayMediaRequestBuilder {
 
     /// Sets the caption of the media.
     pub fn caption<S>(mut self, caption: S) -> Self
-        where S: Into<String>
+    where
+        S: Into<String>,
     {
         self.caption = Some(caption.into());
         self
@@ -584,7 +625,8 @@ impl PlayMediaRequestBuilder {
 
     /// Sets the URL of the thumbnail associated with the media.
     pub fn thumb<S>(mut self, thumb: S) -> Self
-        where S: Into<String>
+    where
+        S: Into<String>,
     {
         self.thumb = Some(thumb.into());
         self
@@ -592,7 +634,8 @@ impl PlayMediaRequestBuilder {
 
     /// Sets the URL of the background associated with the media.
     pub fn background<S>(mut self, background: S) -> Self
-        where S: Into<String>
+    where
+        S: Into<String>,
     {
         self.background = Some(background.into());
         self
@@ -624,7 +667,8 @@ impl PlayMediaRequestBuilder {
 
     /// Sets the quality information for the media.
     pub fn quality<S>(mut self, quality: S) -> Self
-        where S: Into<String>
+    where
+        S: Into<String>,
     {
         self.quality = Some(quality.into());
         self
@@ -661,7 +705,9 @@ impl PlayMediaRequestBuilder {
             parent_media: self.parent_media,
             media: self.media.expect("media has not been set"),
             quality: self.quality.unwrap_or_else(|| "".to_string()),
-            torrent_stream: self.torrent_stream.expect("torrent_stream has not been set"),
+            torrent_stream: self
+                .torrent_stream
+                .expect("torrent_stream has not been set"),
         }
     }
 }
@@ -867,9 +913,7 @@ mod tests {
             title: "MyTitle".to_string(),
             year: "2016".to_string(),
             num_seasons: 5,
-            images: Images::builder()
-                .fanart(background)
-                .build(),
+            images: Images::builder().fanart(background).build(),
             rating: None,
         };
         let episode = Episode {

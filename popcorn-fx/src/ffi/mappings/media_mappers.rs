@@ -12,15 +12,19 @@ pub fn favorites_to_c(favorites: Vec<Box<dyn MediaOverview>>) -> *mut VecFavorit
 
     for media in favorites.into_iter() {
         if media.media_type() == MediaType::Movie {
-            movies.push(MovieOverviewC::from(*media
-                .into_any()
-                .downcast::<MovieOverview>()
-                .expect("expected the media to be a movie overview")))
+            movies.push(MovieOverviewC::from(
+                *media
+                    .into_any()
+                    .downcast::<MovieOverview>()
+                    .expect("expected the media to be a movie overview"),
+            ))
         } else if media.media_type() == MediaType::Show {
-            shows.push(ShowOverviewC::from(*media
-                .into_any()
-                .downcast::<ShowOverview>()
-                .expect("expected the media to be a show overview")));
+            shows.push(ShowOverviewC::from(
+                *media
+                    .into_any()
+                    .downcast::<ShowOverview>()
+                    .expect("expected the media to be a show overview"),
+            ));
         }
     }
 
@@ -35,17 +39,16 @@ mod test {
 
     #[test]
     fn test_favorites_to_c_movie() {
-        let movie = MovieOverview::new(
-            String::new(),
-            "tt54888877".to_string(),
-            String::new(),
-        );
+        let movie = MovieOverview::new(String::new(), "tt54888877".to_string(), String::new());
         let favorites = vec![Box::new(movie) as Box<dyn MediaOverview>];
 
         let raw = favorites_to_c(favorites);
         let result = unsafe { &*raw };
 
-        assert!(!result.movies.is_null(), "expected movie array to be filled in");
+        assert!(
+            !result.movies.is_null(),
+            "expected movie array to be filled in"
+        );
         assert_eq!(1, result.movies_len)
     }
 
@@ -65,7 +68,10 @@ mod test {
         let raw = favorites_to_c(favorites);
         let result = unsafe { &*raw };
 
-        assert!(!result.shows.is_null(), "expected show array to be filled in");
+        assert!(
+            !result.shows.is_null(),
+            "expected show array to be filled in"
+        );
         assert_eq!(1, result.shows_len)
     }
 }

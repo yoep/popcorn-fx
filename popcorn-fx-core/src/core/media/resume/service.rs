@@ -116,19 +116,26 @@ impl DefaultAutoResumeServiceBuilder {
     pub fn build(self) -> DefaultAutoResumeService {
         let instance = DefaultAutoResumeService {
             inner: Arc::new(InnerAutoResumeService {
-                storage: Mutex::new(Storage::from(self.storage_directory.expect("Storage directory not set").as_str())),
+                storage: Mutex::new(Storage::from(
+                    self.storage_directory
+                        .expect("Storage directory not set")
+                        .as_str(),
+                )),
                 cache: Mutex::new(None),
             }),
         };
 
         if let Some(event_publisher) = self.event_publisher {
             let inner = instance.inner.clone();
-            event_publisher.register(Box::new(move |event| {
-                if let Event::PlayerStopped(player_stopped) = &event {
-                    inner.player_stopped(player_stopped);
-                }
-                Some(event)
-            }), HIGHEST_ORDER + 10);
+            event_publisher.register(
+                Box::new(move |event| {
+                    if let Event::PlayerStopped(player_stopped) = &event {
+                        inner.player_stopped(player_stopped);
+                    }
+                    Some(event)
+                }),
+                HIGHEST_ORDER + 10,
+            );
         } else {
             warn!("No EventPublisher configured for DefaultAutoResumeService, unable to automatically detect PlayerStopped events");
         }
@@ -154,7 +161,7 @@ impl InnerAutoResumeService {
                     let _ = cache.insert(e);
                     Ok(())
                 }
-                Err(e) => Err(e)
+                Err(e) => Err(e),
             };
         }
 
@@ -164,26 +171,22 @@ impl InnerAutoResumeService {
 
     async fn load_resume_from_storage(&self) -> media::Result<AutoResume> {
         let mutex = self.storage.lock().await;
-        match mutex.options()
-            .serializer(FILENAME)
-            .read() {
+        match mutex.options().serializer(FILENAME).read() {
             Ok(e) => Ok(e),
-            Err(e) => {
-                match e {
-                    StorageError::NotFound(file) => {
-                        debug!("Creating new auto-resume file {}", file);
-                        Ok(AutoResume::default())
-                    }
-                    StorageError::ReadingFailed(_, error) => {
-                        error!("Failed to load auto-resume, {}", error);
-                        Err(MediaError::AutoResumeLoadingFailed(error))
-                    }
-                    _ => {
-                        warn!("Unexpected error returned from storage, {}", e);
-                        Ok(AutoResume::default())
-                    }
+            Err(e) => match e {
+                StorageError::NotFound(file) => {
+                    debug!("Creating new auto-resume file {}", file);
+                    Ok(AutoResume::default())
                 }
-            }
+                StorageError::ReadingFailed(_, error) => {
+                    error!("Failed to load auto-resume, {}", error);
+                    Err(MediaError::AutoResumeLoadingFailed(error))
+                }
+                _ => {
+                    warn!("Unexpected error returned from storage, {}", e);
+                    Ok(AutoResume::default())
+                }
+            },
         }
     }
 
@@ -193,11 +196,14 @@ impl InnerAutoResumeService {
 
     async fn save_async(&self, resume: &AutoResume) {
         let mutex = self.storage.lock().await;
-        match mutex.options()
+        match mutex
+            .options()
             .serializer(FILENAME)
-            .write_async(resume).await {
+            .write_async(resume)
+            .await
+        {
             Ok(_) => info!("Auto-resume data has been saved"),
-            Err(e) => error!("Failed to save auto-resume, {}", e)
+            Err(e) => error!("Failed to save auto-resume, {}", e),
         }
     }
 }
@@ -206,7 +212,10 @@ impl AutoResumeService for InnerAutoResumeService {
     fn resume_timestamp<'a>(&self, id: Option<&'a str>, filename: Option<&'a str>) -> Option<u64> {
         match futures::executor::block_on(self.load_resume_cache()) {
             Ok(_) => {
-                debug!("Retrieving auto-resume info for id: {:?}, filename: {:?}", &id, &filename);
+                debug!(
+                    "Retrieving auto-resume info for id: {:?}, filename: {:?}",
+                    &id, &filename
+                );
                 tokio::task::block_in_place(|| {
                     let mutex = self.cache.blocking_lock();
                     let cache = mutex.as_ref().expect("expected the auto-resume cache");
@@ -214,11 +223,18 @@ impl AutoResumeService for InnerAutoResumeService {
                     // always search first on the filename as it might be more correct
                     // than the id which might have been watched on a different quality
                     if let Some(filename) = filename {
-                        trace!("Searching for auto resume timestamp with filename {}", filename);
+                        trace!(
+                            "Searching for auto resume timestamp with filename {}",
+                            filename
+                        );
                         match cache.find_filename(filename) {
                             None => {}
                             Some(e) => {
-                                info!("Found resume timestamp {} for {}", e.last_known_timestamp(), filename);
+                                info!(
+                                    "Found resume timestamp {} for {}",
+                                    e.last_known_timestamp(),
+                                    filename
+                                );
                                 return Some(*e.last_known_timestamp());
                             }
                         }
@@ -229,7 +245,11 @@ impl AutoResumeService for InnerAutoResumeService {
                         match cache.find_id(id) {
                             None => {}
                             Some(e) => {
-                                info!("Found resume timestamp {} for {}", e.last_known_timestamp(), id);
+                                info!(
+                                    "Found resume timestamp {} for {}",
+                                    e.last_known_timestamp(),
+                                    id
+                                );
                                 return Some(*e.last_known_timestamp());
                             }
                         }
@@ -249,7 +269,11 @@ impl AutoResumeService for InnerAutoResumeService {
         trace!("Received player stop event {:?}", event);
         if let (Some(time), Some(duration)) = (event.time(), event.duration()) {
             if duration < &VIDEO_DURATION_THRESHOLD {
-                debug!("Video playback {} is shorter than {} millis", event.url(), VIDEO_DURATION_THRESHOLD);
+                debug!(
+                    "Video playback {} is shorter than {} millis",
+                    event.url(),
+                    VIDEO_DURATION_THRESHOLD
+                );
                 return;
             }
 
@@ -265,16 +289,25 @@ impl AutoResumeService for InnerAutoResumeService {
                         .to_str()
                         .unwrap();
 
-                    trace!("Video playback {} has been played for {}%", event.url(), percentage_watched);
+                    trace!(
+                        "Video playback {} has been played for {}%",
+                        event.url(),
+                        percentage_watched
+                    );
                     if percentage_watched < RESUME_PERCENTAGE_THRESHOLD {
                         let id = event.media().map(|e| e.imdb_id());
-                        debug!("Adding auto resume timestamp {} for id: {:?}, filename: {}", time, id, filename);
+                        debug!(
+                            "Adding auto resume timestamp {} for id: {:?}, filename: {}",
+                            time, id, filename
+                        );
                         cache.insert(id, filename, time.clone());
                     } else {
-                        let id = event.media()
-                            .map(|e| e.imdb_id());
+                        let id = event.media().map(|e| e.imdb_id());
 
-                        debug!("Removing auto resume timestamp for id: {:?}, filename: {}", id, filename);
+                        debug!(
+                            "Removing auto resume timestamp for id: {:?}, filename: {}",
+                            id, filename
+                        );
                         cache.remove(id, filename);
                     }
 
@@ -297,7 +330,7 @@ impl Drop for InnerAutoResumeService {
 
         match cache {
             None => {}
-            Some(e) => self.save(e)
+            Some(e) => self.save(e),
         }
     }
 }
@@ -326,7 +359,7 @@ mod test {
 
         match result {
             Some(e) => assert_eq!(19826, e),
-            None => assert!(false, "expected the timestamp to have been found")
+            None => assert!(false, "expected the timestamp to have been found"),
         }
     }
 
@@ -360,7 +393,7 @@ mod test {
 
         match result {
             Some(e) => assert_eq!(19826, e),
-            None => assert!(false, "expected the timestamp to have been found")
+            None => assert!(false, "expected the timestamp to have been found"),
         }
     }
 
@@ -422,7 +455,8 @@ mod test {
         };
 
         service.player_stopped(&event);
-        let result = service.resume_timestamp(Some(id), None)
+        let result = service
+            .resume_timestamp(Some(id), None)
             .expect("expected a timestamp to be returned");
 
         assert_eq!(expected_timestamp, result)
@@ -479,8 +513,7 @@ mod test {
         let expected_result = "{\"video_timestamps\":[{\"id\":\"tt00001212\",\"filename\":\"already-started-watching.mkv\",\"last_known_time\":20000}]}";
 
         service.player_stopped(&event);
-        let result = read_temp_dir_file_as_string(&temp_dir, FILENAME)
-            .replace("\r\n", "\n");
+        let result = read_temp_dir_file_as_string(&temp_dir, FILENAME).replace("\r\n", "\n");
 
         assert_eq!(expected_result, result.as_str())
     }

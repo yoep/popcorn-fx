@@ -68,7 +68,8 @@ mod tests {
             state: VlcState::Paused,
         };
 
-        let result: VlcStatus = from_str(response).expect("expected the vlc response to have been parsed");
+        let result: VlcStatus =
+            from_str(response).expect("expected the vlc response to have been parsed");
 
         assert_eq!(expected_result, result)
     }

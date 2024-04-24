@@ -18,7 +18,7 @@ impl ServerSettings {
     pub fn api_server(&self) -> Option<&String> {
         match &self.api_server {
             None => None,
-            Some(e) => Some(e)
+            Some(e) => Some(e),
         }
     }
 }

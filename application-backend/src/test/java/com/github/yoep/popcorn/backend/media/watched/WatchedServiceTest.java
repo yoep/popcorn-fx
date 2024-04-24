@@ -2,7 +2,7 @@ package com.github.yoep.popcorn.backend.media.watched;
 
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
-import com.github.yoep.popcorn.backend.lib.StringArray;
+import com.github.yoep.popcorn.backend.lib.FxStringArray;
 import com.github.yoep.popcorn.backend.media.MediaItem;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
 import org.junit.jupiter.api.Test;
@@ -41,7 +41,7 @@ class WatchedServiceTest {
 
     @Test
     void testGetWatchedMovies() {
-        var movies = mock(StringArray.ByReference.class);
+        var movies = mock(FxStringArray.ByReference.class);
         var expectedResult = asList("tt1111", "tt2222");
         when(movies.values()).thenReturn(expectedResult);
         when(fxLib.retrieve_watched_movies(instance)).thenReturn(movies);
@@ -53,7 +53,7 @@ class WatchedServiceTest {
 
     @Test
     void testGetWatchedShows() {
-        var shows = mock(StringArray.ByReference.class);
+        var shows = mock(FxStringArray.ByReference.class);
         var expectedResult = asList("tt7410", "tt8520");
         when(shows.values()).thenReturn(expectedResult);
         when(fxLib.retrieve_watched_shows(instance)).thenReturn(shows);

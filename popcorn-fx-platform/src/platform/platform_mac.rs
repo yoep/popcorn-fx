@@ -1,4 +1,4 @@
-use std::os::raw::c_int;
+use std::ffi::c_int;
 
 use core_foundation::base::TCFType;
 use core_foundation::string::{CFString, CFStringRef};
@@ -10,9 +10,14 @@ const KIOPMASSERTIONLEVEL_ON: u32 = 255;
 const KIOPMASSERTIONLEVEL_OFF: u32 = 0;
 
 #[link(name = "IOKit", kind = "framework")]
-extern {
+extern "C" {
     #[allow(non_snake_case)]
-    fn IOPMAssertionCreateWithName(AssertionType: CFStringRef, AssertionLevel: u32, AssertionName: CFStringRef, AssertionID: *mut u32) -> c_int;
+    fn IOPMAssertionCreateWithName(
+        AssertionType: CFStringRef,
+        AssertionLevel: u32,
+        AssertionName: CFStringRef,
+        AssertionID: *mut u32,
+    ) -> c_int;
 }
 
 #[derive(Debug, Default)]
@@ -23,11 +28,19 @@ impl PlatformMac {
         let prevent_sleep = CFString::new("PreventUserIdleSystemSleep");
         let reason = CFString::new("Media playback application is active");
         #[allow(unused_mut)]
-            let mut id = Box::new(u32::MIN);
+        let mut id = Box::new(u32::MIN);
 
         unsafe {
-            debug!("Calling IOPMAssertion on macos with assertion level {}", assertion_level);
-            let result = IOPMAssertionCreateWithName(prevent_sleep.as_concrete_TypeRef(), assertion_level, reason.as_concrete_TypeRef(), Box::into_raw(id));
+            debug!(
+                "Calling IOPMAssertion on macos with assertion level {}",
+                assertion_level
+            );
+            let result = IOPMAssertionCreateWithName(
+                prevent_sleep.as_concrete_TypeRef(),
+                assertion_level,
+                reason.as_concrete_TypeRef(),
+                Box::into_raw(id),
+            );
 
             if result == 0 {
                 debug!("IOPMAssertion succeeded");
@@ -79,7 +92,11 @@ mod test {
         init_logger();
         let platform = PlatformMac::default();
 
-        assert_eq!(true, platform.disable_screensaver(), "Failed to disable the screensaver first");
+        assert_eq!(
+            true,
+            platform.disable_screensaver(),
+            "Failed to disable the screensaver first"
+        );
         assert_eq!(true, platform.enable_screensaver());
     }
 

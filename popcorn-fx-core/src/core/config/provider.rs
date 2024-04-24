@@ -36,5 +36,5 @@ impl ProviderProperties {
 #[display(fmt = "uri: {}", uri)]
 pub struct EnhancerProperties {
     /// The enhancer uri to use for retrieving additional information
-    pub uri: String
+    pub uri: String,
 }

@@ -44,7 +44,8 @@ impl MediaType {
     /// let media_type = MediaType::parse(value).unwrap();
     /// ```
     pub fn parse(value: &str) -> MediaTypeResult<Self> {
-        let tokens = value.split("/")
+        let tokens = value
+            .split("/")
             .filter(|e| !e.is_empty())
             .collect::<Vec<&str>>();
         if tokens.len() != 2 {
@@ -61,7 +62,7 @@ impl MediaType {
     pub fn octet_stream() -> Self {
         Self {
             mime_type: "application".to_string(),
-            subtype: "octet-stream".to_string()
+            subtype: "octet-stream".to_string(),
         }
     }
 }
@@ -93,14 +94,11 @@ impl MediaTypeFactory {
     pub fn media_type(&self, filename: &str) -> MediaTypeResult<MediaType> {
         let filename = filename.to_lowercase();
 
-        match Path::new(&filename).extension()
-            .and_then(|e| e.to_str()) {
-            Some(extension) => {
-                match self.media_types.get(extension) {
-                    None => Err(MediaTypeError::NotFound(extension.to_string())),
-                    Some(e) => Ok(e.clone())
-                }
-            }
+        match Path::new(&filename).extension().and_then(|e| e.to_str()) {
+            Some(extension) => match self.media_types.get(extension) {
+                None => Err(MediaTypeError::NotFound(extension.to_string())),
+                Some(e) => Ok(e.clone()),
+            },
             None => {
                 debug!("Unable to extract extension from {}", &filename);
                 Err(MediaTypeError::InvalidFile(filename))
@@ -118,7 +116,8 @@ impl Default for MediaTypeFactory {
                 continue;
             }
 
-            let tokens = line.split_terminator(&['\t', ' '][..])
+            let tokens = line
+                .split_terminator(&['\t', ' '][..])
                 .filter(|e| !e.is_empty())
                 .collect::<Vec<&str>>();
 
@@ -129,14 +128,15 @@ impl Default for MediaTypeFactory {
                         media_types.insert(extension, media_type.clone());
                     }
                 }
-                Err(e) => error!("Failed to parse mime type line {}, {}", line, e)
+                Err(e) => error!("Failed to parse mime type line {}, {}", line, e),
             }
         }
 
-        debug!("Media type factory has a total of {} known mime types", media_types.len());
-        Self {
-            media_types,
-        }
+        debug!(
+            "Media type factory has a total of {} known mime types",
+            media_types.len()
+        );
+        Self { media_types }
     }
 }
 
@@ -152,7 +152,8 @@ mod test {
         let filename = "video.mp4";
         let factory = MediaTypeFactory::default();
 
-        let result = factory.media_type(filename)
+        let result = factory
+            .media_type(filename)
             .expect("expected a mime type to be returned");
 
         assert_eq!("video/mp4".to_string(), result.to_string())
@@ -168,8 +169,11 @@ mod test {
 
         assert!(result.is_err(), "expected an error to be returned");
         match result.err().unwrap() {
-            MediaTypeError::NotFound(_) => {},
-            _ => assert!(false, "expected MediaTypeError::NotFound to have been returned")
+            MediaTypeError::NotFound(_) => {}
+            _ => assert!(
+                false,
+                "expected MediaTypeError::NotFound to have been returned"
+            ),
         }
     }
 
@@ -183,8 +187,11 @@ mod test {
 
         assert!(result.is_err(), "expected an error to be returned");
         match result.err().unwrap() {
-            MediaTypeError::InvalidFile(_) => {},
-            _ => assert!(false, "expected MediaTypeError::InvalidFile to have been returned")
+            MediaTypeError::InvalidFile(_) => {}
+            _ => assert!(
+                false,
+                "expected MediaTypeError::InvalidFile to have been returned"
+            ),
         }
     }
 
@@ -194,8 +201,11 @@ mod test {
 
         assert!(result.is_err(), "expected an error to be returned");
         match result.err().unwrap() {
-            MediaTypeError::InvalidMediaType(_) => {},
-            _ => assert!(false, "expected MediaTypeError::InvalidMediaType to have been returned")
+            MediaTypeError::InvalidMediaType(_) => {}
+            _ => assert!(
+                false,
+                "expected MediaTypeError::InvalidMediaType to have been returned"
+            ),
         }
     }
 }

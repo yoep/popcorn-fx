@@ -64,22 +64,33 @@ impl PlaylistManager {
     /// # Returns
     ///
     /// A new `PlaylistManager` instance.
-    pub fn new(player_manager: Arc<Box<dyn PlayerManager>>, event_publisher: Arc<EventPublisher>, loader: Arc<Box<dyn MediaLoader>>) -> Self {
+    pub fn new(
+        player_manager: Arc<Box<dyn PlayerManager>>,
+        event_publisher: Arc<EventPublisher>,
+        loader: Arc<Box<dyn MediaLoader>>,
+    ) -> Self {
         let manager = Self {
-            inner: Arc::new(InnerPlaylistManager::new(player_manager, event_publisher, loader)),
+            inner: Arc::new(InnerPlaylistManager::new(
+                player_manager,
+                event_publisher,
+                loader,
+            )),
         };
 
         let event_manager = manager.inner.clone();
-        manager.inner.event_publisher.register(Box::new(move |event| {
-            if let Event::ClosePlayer = event {
-                if event_manager.is_next_allowed() {
-                    debug!("Consuming Event::ClosePlayer, next playlist item will be loaded");
-                    return None;
+        manager.inner.event_publisher.register(
+            Box::new(move |event| {
+                if let Event::ClosePlayer = event {
+                    if event_manager.is_next_allowed() {
+                        debug!("Consuming Event::ClosePlayer, next playlist item will be loaded");
+                        return None;
+                    }
                 }
-            }
 
-            Some(event)
-        }), HIGHEST_ORDER + 10);
+                Some(event)
+            }),
+            HIGHEST_ORDER + 10,
+        );
 
         let listener_manager = manager.inner.clone();
         manager.inner.player_manager.subscribe(Box::new(move |e| {
@@ -96,9 +107,7 @@ impl PlaylistManager {
     /// The current playlist.
     pub fn playlist(&self) -> Playlist {
         let playlist = block_in_place(self.inner.playlist.lock());
-        playlist.iter()
-            .cloned()
-            .collect()
+        playlist.iter().cloned().collect()
     }
 
     /// Start playing the specified playlist.
@@ -185,7 +194,11 @@ struct InnerPlaylistManager {
 }
 
 impl InnerPlaylistManager {
-    fn new(player_manager: Arc<Box<dyn PlayerManager>>, event_publisher: Arc<EventPublisher>, loader: Arc<Box<dyn MediaLoader>>) -> Self {
+    fn new(
+        player_manager: Arc<Box<dyn PlayerManager>>,
+        event_publisher: Arc<EventPublisher>,
+        loader: Arc<Box<dyn MediaLoader>>,
+    ) -> Self {
         let instance = Self {
             playlist: Default::default(),
             player_manager,
@@ -234,7 +247,10 @@ impl InnerPlaylistManager {
         self.update_state(PlaylistState::Playing);
         let handle = self.loader.load_playlist_item(item);
 
-        trace!("Updating current playlist item loading handle to {}", handle);
+        trace!(
+            "Updating current playlist item loading handle to {}",
+            handle
+        );
         let store_handle = handle.clone();
         let mut mutex = block_in_place(self.loading_handle.lock());
         *mutex = Some(store_handle);
@@ -250,8 +266,7 @@ impl InnerPlaylistManager {
     /// Retrieve a cloned version of the next item without removing it from the playlist.
     fn next_cloned(&self) -> Option<PlaylistItem> {
         let mutex = block_in_place(self.playlist.lock());
-        mutex.next_as_ref()
-            .map(|e| e.clone())
+        mutex.next_as_ref().map(|e| e.clone())
     }
 
     fn state(&self) -> PlaylistState {
@@ -277,7 +292,10 @@ impl InnerPlaylistManager {
                 if duration > 0 && time <= duration {
                     let remaining_time = (duration - time) / 1000;
 
-                    trace!("Player has {} seconds remaining within the playback", remaining_time);
+                    trace!(
+                        "Player has {} seconds remaining within the playback",
+                        remaining_time
+                    );
                     if let Some(next_item) = self.next_cloned() {
                         let playing_in: Option<u64>;
 
@@ -292,7 +310,8 @@ impl InnerPlaylistManager {
                             let invocation_allowed: bool;
 
                             if let Some((last_playing_in, item)) = mutex.as_ref() {
-                                invocation_allowed = last_playing_in != &playing_in || item != &next_item;
+                                invocation_allowed =
+                                    last_playing_in != &playing_in || item != &next_item;
                             } else {
                                 invocation_allowed = true;
                             }
@@ -305,10 +324,12 @@ impl InnerPlaylistManager {
                                     trace!("Playing next item in {:?} seconds", remaining_time);
                                 }
 
-                                self.callbacks.invoke(PlaylistManagerEvent::PlayingNext(PlayingNextInfo {
-                                    playing_in,
-                                    item: next_item,
-                                }));
+                                self.callbacks.invoke(PlaylistManagerEvent::PlayingNext(
+                                    PlayingNextInfo {
+                                        playing_in,
+                                        item: next_item,
+                                    },
+                                ));
                             }
                         }
                     } else {
@@ -325,18 +346,22 @@ impl InnerPlaylistManager {
         let duration = block_in_place(self.player_duration.lock()).clone();
 
         match (duration, new_state) {
-            (0, _) => trace!("Skipping player stopped, last known duration is {}", duration),
+            (0, _) => trace!(
+                "Skipping player stopped, last known duration is {}",
+                duration
+            ),
             (_, PlayerState::Stopped) => {
                 if self.is_next_allowed() {
                     let next_item: String;
 
                     {
                         let mutex = block_in_place(self.playlist.lock());
-                        next_item = mutex.next_as_ref()
+                        next_item = mutex
+                            .next_as_ref()
                             .map(|e| e.to_string())
                             .unwrap_or_else(|| String::new());
                     }
-                    
+
                     info!("Starting next playlist item {}", next_item);
                     self.play_next();
                 } else {
@@ -359,15 +384,19 @@ impl InnerPlaylistManager {
     /// Determine with-either the next item is allowed to be played.
     fn is_next_allowed(&self) -> bool {
         let duration = block_in_place(self.player_duration.lock()).clone();
-        let playing_in = block_in_place(self.player_playing_in.lock()).clone()
+        let playing_in = block_in_place(self.player_playing_in.lock())
+            .clone()
             .and_then(|(time, _)| time)
             .filter(|e| e <= &PLAYING_NEXT_IN_THRESHOLD_SECONDS);
 
-        self.has_next() &&
-            duration > 0 && playing_in.is_some()
+        self.has_next() && duration > 0 && playing_in.is_some()
     }
 
-    fn update_state_stat(new_state: PlaylistState, state: Arc<Mutex<PlaylistState>>, callbacks: CoreCallbacks<PlaylistManagerEvent>) {
+    fn update_state_stat(
+        new_state: PlaylistState,
+        state: Arc<Mutex<PlaylistState>>,
+        callbacks: CoreCallbacks<PlaylistManagerEvent>,
+    ) {
         trace!("Updating playlist state to {}", new_state);
         let event_state = new_state.clone();
         {
@@ -412,19 +441,25 @@ mod test {
         };
         let event_publisher = Arc::new(EventPublisher::default());
         let mut player_manager = Box::new(MockPlayerManager::new());
-        player_manager.expect_subscribe()
+        player_manager
+            .expect_subscribe()
             .return_const(Handle::new());
         let player_manager = Arc::new(player_manager as Box<dyn PlayerManager>);
         let (tx, rx) = channel();
         let (tx_event, rx_event) = channel();
         let mut loader = MockMediaLoader::new();
-        loader.expect_load_playlist_item()
+        loader
+            .expect_load_playlist_item()
             .times(1)
             .returning(move |e| {
                 tx.send(e).unwrap();
                 Handle::new()
             });
-        let manager = PlaylistManager::new(player_manager.clone(), event_publisher.clone(), Arc::new(Box::new(loader)));
+        let manager = PlaylistManager::new(
+            player_manager.clone(),
+            event_publisher.clone(),
+            Arc::new(Box::new(loader)),
+        );
 
         playlist.add(playlist_item.clone());
 
@@ -436,10 +471,17 @@ mod test {
         manager.play(playlist);
 
         let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
-        assert_eq!(playlist_item, result, "expected the load_playlist_item to have been called");
+        assert_eq!(
+            playlist_item, result,
+            "expected the load_playlist_item to have been called"
+        );
 
         let result = rx_event.recv_timeout(Duration::from_millis(200)).unwrap();
-        assert_eq!(PlaylistManagerEvent::PlaylistChanged, result, "expected the PlaylistManagerEvent::PlaylistChanged event to have been published");
+        assert_eq!(
+            PlaylistManagerEvent::PlaylistChanged,
+            result,
+            "expected the PlaylistManagerEvent::PlaylistChanged event to have been published"
+        );
     }
 
     #[test]
@@ -448,15 +490,19 @@ mod test {
         let mut playlist = Playlist::default();
         let event_publisher = Arc::new(EventPublisher::default());
         let mut player_manager = Box::new(MockPlayerManager::new());
-        player_manager.expect_subscribe()
+        player_manager
+            .expect_subscribe()
             .return_const(Handle::new());
         let player_manager = Arc::new(player_manager as Box<dyn PlayerManager>);
         let mut loader = MockMediaLoader::new();
-        loader.expect_load_playlist_item()
-            .returning(move |_| {
-                Handle::new()
-            });
-        let manager = PlaylistManager::new(player_manager.clone(), event_publisher.clone(), Arc::new(Box::new(loader)));
+        loader
+            .expect_load_playlist_item()
+            .returning(move |_| Handle::new());
+        let manager = PlaylistManager::new(
+            player_manager.clone(),
+            event_publisher.clone(),
+            Arc::new(Box::new(loader)),
+        );
 
         playlist.add(PlaylistItem {
             url: Some("http://localhost/myvideo1.mp4".to_string()),
@@ -486,7 +532,10 @@ mod test {
         });
         manager.play(playlist);
 
-        assert!(manager.has_next(), "expected a next playlist item to have been available");
+        assert!(
+            manager.has_next(),
+            "expected a next playlist item to have been available"
+        );
     }
 
     #[test]
@@ -501,7 +550,8 @@ mod test {
         let (tx_player_manager, rx_player_manager) = channel();
         let event_publisher = Arc::new(EventPublisher::default());
         let mut player_manager = Box::new(MockPlayerManager::new());
-        player_manager.expect_subscribe()
+        player_manager
+            .expect_subscribe()
             .times(1)
             .returning(move |e| {
                 tx_player_manager.send(e).unwrap();
@@ -509,13 +559,18 @@ mod test {
             });
         let player_manager = Arc::new(player_manager as Box<dyn PlayerManager>);
         let mut loader = MockMediaLoader::new();
-        loader.expect_load_playlist_item()
+        loader
+            .expect_load_playlist_item()
             .times(2)
             .returning(move |e| {
                 tx.send(e).unwrap();
                 Handle::new()
             });
-        let manager = PlaylistManager::new(player_manager.clone(), event_publisher.clone(), Arc::new(Box::new(loader)));
+        let manager = PlaylistManager::new(
+            player_manager.clone(),
+            event_publisher.clone(),
+            Arc::new(Box::new(loader)),
+        );
 
         playlist.add(PlaylistItem {
             url: Some(url.to_string()),
@@ -557,7 +612,9 @@ mod test {
         let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
         assert_eq!(item1.to_string(), result.title);
 
-        let callback = rx_player_manager.recv_timeout(Duration::from_millis(200)).expect("Expected the playlist manager to subscribe to the player manager");
+        let callback = rx_player_manager
+            .recv_timeout(Duration::from_millis(200))
+            .expect("Expected the playlist manager to subscribe to the player manager");
         callback(PlayerManagerEvent::PlayerDurationChanged(50000));
         callback(PlayerManagerEvent::PlayerTimeChanged(40000));
         callback(PlayerManagerEvent::PlayerStateChanged(PlayerState::Stopped));
@@ -578,7 +635,8 @@ mod test {
         let (tx_player_manager, rx_player_manager) = channel();
         let event_publisher = Arc::new(EventPublisher::default());
         let mut player_manager = Box::new(MockPlayerManager::new());
-        player_manager.expect_subscribe()
+        player_manager
+            .expect_subscribe()
             .times(1)
             .returning(move |e| {
                 tx_player_manager.send(e).unwrap();
@@ -586,12 +644,15 @@ mod test {
             });
         let player_manager = Arc::new(player_manager as Box<dyn PlayerManager>);
         let mut loader = MockMediaLoader::new();
-        loader.expect_load_playlist_item()
+        loader
+            .expect_load_playlist_item()
             .times(2)
-            .returning(move |_| {
-                Handle::new()
-            });
-        let manager = PlaylistManager::new(player_manager.clone(), event_publisher.clone(), Arc::new(Box::new(loader)));
+            .returning(move |_| Handle::new());
+        let manager = PlaylistManager::new(
+            player_manager.clone(),
+            event_publisher.clone(),
+            Arc::new(Box::new(loader)),
+        );
 
         playlist.add(PlaylistItem {
             url: Some(url.to_string()),
@@ -629,13 +690,19 @@ mod test {
         let result = rx_manager.recv_timeout(Duration::from_millis(200)).unwrap();
         assert_eq!(PlaylistManagerEvent::PlaylistChanged, result);
 
-        let callback = rx_player_manager.recv_timeout(Duration::from_millis(200)).expect("Expected the playlist manager to subscribe to the player manager");
+        let callback = rx_player_manager
+            .recv_timeout(Duration::from_millis(200))
+            .expect("Expected the playlist manager to subscribe to the player manager");
         callback(PlayerManagerEvent::PlayerDurationChanged(120000));
         callback(PlayerManagerEvent::PlayerTimeChanged(40000));
         callback(PlayerManagerEvent::PlayerStateChanged(PlayerState::Stopped));
 
         // verify the playlist item that has been loaded
-        assert_eq!(false, manager.inner.is_next_allowed(), "expected the next item to not be loaded");
+        assert_eq!(
+            false,
+            manager.inner.is_next_allowed(),
+            "expected the next item to not be loaded"
+        );
     }
 
     #[test]
@@ -648,7 +715,8 @@ mod test {
         let (tx_player_manager, rx_player_manager) = channel();
         let event_publisher = Arc::new(EventPublisher::default());
         let mut player_manager = Box::new(MockPlayerManager::new());
-        player_manager.expect_subscribe()
+        player_manager
+            .expect_subscribe()
             .times(1)
             .returning(move |e| {
                 tx_player_manager.send(e).unwrap();
@@ -656,11 +724,14 @@ mod test {
             });
         let player_manager = Arc::new(player_manager as Box<dyn PlayerManager>);
         let mut loader = MockMediaLoader::new();
-        loader.expect_load_playlist_item()
-            .returning(move |_| {
-                Handle::new()
-            });
-        let manager = PlaylistManager::new(player_manager.clone(), event_publisher.clone(), Arc::new(Box::new(loader)));
+        loader
+            .expect_load_playlist_item()
+            .returning(move |_| Handle::new());
+        let manager = PlaylistManager::new(
+            player_manager.clone(),
+            event_publisher.clone(),
+            Arc::new(Box::new(loader)),
+        );
 
         playlist.add(PlaylistItem {
             url: Some(url.to_string()),
@@ -692,24 +763,32 @@ mod test {
         manager.subscribe(Box::new(move |e| {
             tx_manager.send(e).unwrap();
         }));
-        event_publisher.register(Box::new(move |event| {
-            if let Event::ClosePlayer = event {
-                tx_event.send(event.clone()).unwrap();
-            }
-            Some(event)
-        }), LOWEST_ORDER);
+        event_publisher.register(
+            Box::new(move |event| {
+                if let Event::ClosePlayer = event {
+                    tx_event.send(event.clone()).unwrap();
+                }
+                Some(event)
+            }),
+            LOWEST_ORDER,
+        );
 
         // start the playlist
         manager.play(playlist);
         let result = rx_manager.recv_timeout(Duration::from_millis(200)).unwrap();
         assert_eq!(PlaylistManagerEvent::PlaylistChanged, result);
 
-        let callback = rx_player_manager.recv_timeout(Duration::from_millis(200)).expect("Expected the playlist manager to subscribe to the player manager");
+        let callback = rx_player_manager
+            .recv_timeout(Duration::from_millis(200))
+            .expect("Expected the playlist manager to subscribe to the player manager");
         callback(PlayerManagerEvent::PlayerDurationChanged(120000));
         callback(PlayerManagerEvent::PlayerTimeChanged(100000));
         event_publisher.publish(Event::ClosePlayer);
         let result = rx_event.recv_timeout(Duration::from_millis(100));
-        assert!(result.is_err(), "expected the close player event to have been consumed");
+        assert!(
+            result.is_err(),
+            "expected the close player event to have been consumed"
+        );
     }
 
     #[test]
@@ -724,7 +803,8 @@ mod test {
         let (tx_player_manager, rx_player_manager) = channel();
         let event_publisher = Arc::new(EventPublisher::default());
         let mut player_manager = Box::new(MockPlayerManager::new());
-        player_manager.expect_subscribe()
+        player_manager
+            .expect_subscribe()
             .times(1)
             .returning(move |e| {
                 tx_player_manager.send(e).unwrap();
@@ -732,13 +812,18 @@ mod test {
             });
         let player_manager = Arc::new(player_manager as Box<dyn PlayerManager>);
         let mut loader = MockMediaLoader::new();
-        loader.expect_load_playlist_item()
+        loader
+            .expect_load_playlist_item()
             .times(1)
             .returning(move |e| {
                 tx.send(e).unwrap();
                 Handle::new()
             });
-        let manager = PlaylistManager::new(player_manager.clone(), event_publisher.clone(), Arc::new(Box::new(loader)));
+        let manager = PlaylistManager::new(
+            player_manager.clone(),
+            event_publisher.clone(),
+            Arc::new(Box::new(loader)),
+        );
 
         playlist.add(PlaylistItem {
             url: Some(url.to_string()),
@@ -780,7 +865,9 @@ mod test {
         let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
         assert_eq!(item1.to_string(), result.title);
 
-        let callback = rx_player_manager.recv_timeout(Duration::from_millis(200)).expect("Expected the playlist manager to subscribe to the player manager");
+        let callback = rx_player_manager
+            .recv_timeout(Duration::from_millis(200))
+            .expect("Expected the playlist manager to subscribe to the player manager");
         callback(PlayerManagerEvent::PlayerTimeChanged(100000));
         callback(PlayerManagerEvent::PlayerStateChanged(PlayerState::Stopped));
         // should not invoke any events, otherwise, the MockPlayerManager will fail at this point due to too many calls
@@ -807,7 +894,8 @@ mod test {
         let subscribe_callback = callback.clone();
         let event_publisher = Arc::new(EventPublisher::default());
         let mut player_manager = Box::new(MockPlayerManager::new());
-        player_manager.expect_subscribe()
+        player_manager
+            .expect_subscribe()
             .times(1)
             .returning(move |e| {
                 subscribe_callback.add(e);
@@ -816,11 +904,14 @@ mod test {
         let (tx, rx) = channel();
         let player_manager = Arc::new(player_manager as Box<dyn PlayerManager>);
         let mut loader = MockMediaLoader::new();
-        loader.expect_load_playlist_item()
-            .returning(move |_| {
-                Handle::new()
-            });
-        let manager = PlaylistManager::new(player_manager.clone(), event_publisher.clone(), Arc::new(Box::new(loader)));
+        loader
+            .expect_load_playlist_item()
+            .returning(move |_| Handle::new());
+        let manager = PlaylistManager::new(
+            player_manager.clone(),
+            event_publisher.clone(),
+            Arc::new(Box::new(loader)),
+        );
 
         playlist.add(PlaylistItem {
             url: None,
@@ -851,7 +942,11 @@ mod test {
             assert_eq!(playing_next_item, e.item);
             assert_eq!(Some(60u64), e.playing_in);
         } else {
-            assert!(false, "expected PlaylistManagerEvent::PlayingNext, but got {} instead", result)
+            assert!(
+                false,
+                "expected PlaylistManagerEvent::PlayingNext, but got {} instead",
+                result
+            )
         }
 
         callback.invoke(PlayerManagerEvent::PlayerTimeChanged(35000));
@@ -861,7 +956,11 @@ mod test {
             assert_eq!(playing_next_item, e.item);
             assert_eq!(None, e.playing_in);
         } else {
-            assert!(false, "expected PlaylistManagerEvent::PlayingNext, but got {} instead", result)
+            assert!(
+                false,
+                "expected PlaylistManagerEvent::PlayingNext, but got {} instead",
+                result
+            )
         }
     }
 
@@ -873,7 +972,8 @@ mod test {
         let subscribe_callback = callback.clone();
         let event_publisher = Arc::new(EventPublisher::default());
         let mut player_manager = Box::new(MockPlayerManager::new());
-        player_manager.expect_subscribe()
+        player_manager
+            .expect_subscribe()
             .times(1)
             .returning(move |e| {
                 subscribe_callback.add(e);
@@ -882,11 +982,14 @@ mod test {
         let (tx, rx) = channel();
         let player_manager = Arc::new(player_manager as Box<dyn PlayerManager>);
         let mut loader = MockMediaLoader::new();
-        loader.expect_load_playlist_item()
-            .returning(move |_| {
-                Handle::new()
-            });
-        let manager = PlaylistManager::new(player_manager.clone(), event_publisher.clone(), Arc::new(Box::new(loader)));
+        loader
+            .expect_load_playlist_item()
+            .returning(move |_| Handle::new());
+        let manager = PlaylistManager::new(
+            player_manager.clone(),
+            event_publisher.clone(),
+            Arc::new(Box::new(loader)),
+        );
 
         playlist.add(PlaylistItem {
             url: None,
@@ -915,19 +1018,33 @@ mod test {
             subtitles_enabled: false,
         });
 
-        event_publisher.register(Box::new(move |event| {
-            if let Event::ClosePlayer = event {
-                tx.send(event.clone()).unwrap();
-            }
-            Some(event)
-        }), DEFAULT_ORDER);
+        event_publisher.register(
+            Box::new(move |event| {
+                if let Event::ClosePlayer = event {
+                    tx.send(event.clone()).unwrap();
+                }
+                Some(event)
+            }),
+            DEFAULT_ORDER,
+        );
 
         let result = manager.play(playlist);
-        assert!(result.is_some(), "expected a loader handle to have been returned");
-        assert_eq!(true, manager.has_next(), "expected a next item to have been available");
+        assert!(
+            result.is_some(),
+            "expected a loader handle to have been returned"
+        );
+        assert_eq!(
+            true,
+            manager.has_next(),
+            "expected a next item to have been available"
+        );
 
         manager.stop();
-        assert_eq!(false, manager.has_next(), "expected all playlist items to have been cleared");
+        assert_eq!(
+            false,
+            manager.has_next(),
+            "expected all playlist items to have been cleared"
+        );
 
         let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
         assert_eq!(Event::ClosePlayer, result);

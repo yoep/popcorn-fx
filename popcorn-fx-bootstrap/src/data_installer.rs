@@ -27,11 +27,11 @@ pub enum DataInstallerError {
     IoError(String),
 }
 
-impl From<LauncherError> for DataInstallerError{
+impl From<LauncherError> for DataInstallerError {
     fn from(value: LauncherError) -> Self {
         match value {
             LauncherError::ParsingError(e) => DataInstallerError::ParsingError(e),
-            LauncherError::IoError(e) => DataInstallerError::IoError(e)
+            LauncherError::IoError(e) => DataInstallerError::IoError(e),
         }
     }
 }
@@ -60,7 +60,10 @@ impl DefaultDataInstaller {
     fn is_initialized<T: AsRef<Path>>(&self, launcher_options_path: T) -> bool {
         let expected_path = PathBuf::from(launcher_options_path.as_ref());
 
-        trace!("Checking if application data is initialized at {:?}", expected_path);
+        trace!(
+            "Checking if application data is initialized at {:?}",
+            expected_path
+        );
         expected_path.exists()
     }
 
@@ -69,8 +72,7 @@ impl DefaultDataInstaller {
         let destination = dest.as_ref();
         if !destination.exists() {
             trace!("Creating application data directory {:?}", destination);
-            fs::create_dir(destination)
-                .map_err(|e| DataInstallerError::IoError(e.to_string()))?;
+            fs::create_dir(destination).map_err(|e| DataInstallerError::IoError(e.to_string()))?;
         }
 
         trace!("Copying files from {:?} to {:?}", source, destination);
@@ -94,15 +96,16 @@ impl DefaultDataInstaller {
 
     fn write_default_launcher_options<T: AsRef<Path>>(launcher_options_path: T) -> Result<()> {
         let options = LauncherOptions::default();
-        options.write(launcher_options_path)
+        options
+            .write(launcher_options_path)
             .map_err(|e| DataInstallerError::from(e))
     }
 }
 
 impl DataInstaller for DefaultDataInstaller {
     fn prepare(&self) -> Result<()> {
-        let launcher_options_path = PathBuf::from(self.data_path.as_path())
-            .join(LauncherOptions::filename());
+        let launcher_options_path =
+            PathBuf::from(self.data_path.as_path()).join(LauncherOptions::filename());
 
         if !self.is_initialized(launcher_options_path.as_path()) {
             trace!("Initializing application data setup");
@@ -112,7 +115,10 @@ impl DataInstaller for DefaultDataInstaller {
             }
 
             trace!("Copying application data to user data directory");
-            Self::copy_directory_contents(initial_data_setup_path.as_path(), self.data_path.as_path())?;
+            Self::copy_directory_contents(
+                initial_data_setup_path.as_path(),
+                self.data_path.as_path(),
+            )?;
             Self::write_default_launcher_options(launcher_options_path.as_path())?;
             debug!("Initial application data setup completed");
         } else {
@@ -161,7 +167,11 @@ mod test {
         if let Err(e) = result {
             match e {
                 DataInstallerError::MissingAppData(_path) => {}
-                _ => assert!(false, "expected DataInstallerError::MissingAppData, got {:?} instead", e)
+                _ => assert!(
+                    false,
+                    "expected DataInstallerError::MissingAppData, got {:?} instead",
+                    e
+                ),
             }
         } else {
             assert!(false, "expected an error to be returned")
@@ -179,7 +189,11 @@ mod test {
         let file1 = data_path.join(filename);
         let file2 = data_path.join("test1").join(filename);
         copy_test_file(installation_path_value, filename, None);
-        copy_test_file(installation_path.join("test1").to_str().unwrap(), filename, None);
+        copy_test_file(
+            installation_path.join("test1").to_str().unwrap(),
+            filename,
+            None,
+        );
         let installer = DefaultDataInstaller {
             data_path: data_path.clone(),
             installation_path: PathBuf::from(temp_dir.path()),
@@ -197,7 +211,13 @@ mod test {
         let parser_error = "my parser error";
         let io_error = "my IO error";
 
-        assert_eq!(DataInstallerError::ParsingError(parser_error.to_string()), DataInstallerError::from(LauncherError::ParsingError(parser_error.to_string())));
-        assert_eq!(DataInstallerError::IoError(io_error.to_string()), DataInstallerError::from(LauncherError::IoError(io_error.to_string())));
+        assert_eq!(
+            DataInstallerError::ParsingError(parser_error.to_string()),
+            DataInstallerError::from(LauncherError::ParsingError(parser_error.to_string()))
+        );
+        assert_eq!(
+            DataInstallerError::IoError(io_error.to_string()),
+            DataInstallerError::from(LauncherError::IoError(io_error.to_string()))
+        );
     }
 }

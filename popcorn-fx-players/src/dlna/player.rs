@@ -14,9 +14,13 @@ use tokio::time;
 use tokio_util::sync::CancellationToken;
 use xml::escape::escape_str_attribute;
 
-use popcorn_fx_core::core::{block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks};
+use popcorn_fx_core::core::{
+    block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks,
+};
 use popcorn_fx_core::core::players::{Player, PlayerEvent, PlayerState, PlayRequest};
-use popcorn_fx_core::core::utils::time::{parse_millis_from_time, parse_str_from_time, parse_time_from_millis, parse_time_from_str};
+use popcorn_fx_core::core::utils::time::{
+    parse_millis_from_time, parse_str_from_time, parse_time_from_millis, parse_time_from_str,
+};
 
 use crate::dlna;
 use crate::dlna::models::{PositionInfo, TransportInfo, UpnpEvent};
@@ -62,15 +66,12 @@ impl DlnaPlayer {
     ///     let device = Device::from_url(uri).await.unwrap();
     ///     let service = device.find_service(service_uri).unwrap().clone();
     ///
-    ///     let player = DlnaPlayer::new(device, service); 
+    ///     let player = DlnaPlayer::new(device, service);
     /// }
     /// ```
     pub fn new(device: Device, service: Service) -> Self {
         let name = device.friendly_name().to_string();
-        let id = format!(
-            "[{}]{}",
-            device.device_type(),
-            name);
+        let id = format!("[{}]{}", device.device_type(), name);
         let (tx, mut rx) = channel(10);
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
@@ -100,7 +101,7 @@ impl DlnaPlayer {
                         if let Some(event) = result {
                             match event {
                                 UpnpEvent::Time(e) => inner_instance.handle_time_event(e).await,
-                                UpnpEvent::State(e) => inner_instance.handle_state_event(e).await, 
+                                UpnpEvent::State(e) => inner_instance.handle_state_event(e).await,
                             }
                         } else {
                             break;
@@ -127,9 +128,7 @@ impl DlnaPlayer {
             debug!("UPnP main event poller stopped");
         });
 
-        Self {
-            inner: instance
-        }
+        Self { inner: instance }
     }
 }
 
@@ -236,9 +235,15 @@ impl InnerPlayer {
         *mutex = false;
     }
 
-    async fn execute_action(&self, action: &str, payload: &str) -> dlna::Result<HashMap<String, String>> {
+    async fn execute_action(
+        &self,
+        action: &str,
+        payload: &str,
+    ) -> dlna::Result<HashMap<String, String>> {
         trace!("Executing UPnP {} command with payload {}", action, payload);
-        self.service.action(self.device.url(), action, payload).await
+        self.service
+            .action(self.device.url(), action, payload)
+            .await
             .map(|e| {
                 trace!("Received command {} response: {:?}", action, e);
                 e
@@ -251,14 +256,20 @@ impl InnerPlayer {
     }
 
     async fn poll_event_info(&self) {
-        if let Ok(info) = self.execute_action("GetPositionInfo", UPNP_PLAYER_POSITION_PAYLOAD).await {
+        if let Ok(info) = self
+            .execute_action("GetPositionInfo", UPNP_PLAYER_POSITION_PAYLOAD)
+            .await
+        {
             trace!("Received UPnP position info: {:?}", info);
             let event = UpnpEvent::Time(PositionInfo::from(info));
             if let Err(e) = self.event_sender.send(event).await {
                 self.handle_poll_event_error(e).await;
             }
         }
-        if let Ok(info) = self.execute_action("GetTransportInfo", UPNP_PLAYER_TRANSPORT_INFO_PAYLOAD).await {
+        if let Ok(info) = self
+            .execute_action("GetTransportInfo", UPNP_PLAYER_TRANSPORT_INFO_PAYLOAD)
+            .await
+        {
             trace!("Received UPnP transport info: {:?}", info);
             let event = UpnpEvent::State(TransportInfo::from(info));
             if let Err(e) = self.event_sender.send(event).await {
@@ -281,7 +292,8 @@ impl InnerPlayer {
 
             if mutex.duration != duration {
                 mutex.duration = duration;
-                self.callbacks.invoke(PlayerEvent::DurationChanged(duration));
+                self.callbacks
+                    .invoke(PlayerEvent::DurationChanged(duration));
             }
         }
 
@@ -301,7 +313,8 @@ impl InnerPlayer {
 
         if current_state != player_state {
             self.update_state_async(player_state.clone()).await;
-            self.callbacks.invoke(PlayerEvent::StateChanged(player_state));
+            self.callbacks
+                .invoke(PlayerEvent::StateChanged(player_state));
         }
     }
 }
@@ -341,8 +354,7 @@ impl Player for InnerPlayer {
 
     fn request(&self) -> Option<Weak<Box<dyn PlayRequest>>> {
         let mutex = block_in_place(self.request.lock());
-        mutex.as_ref()
-            .map(|e| Arc::downgrade(e))
+        mutex.as_ref().map(|e| Arc::downgrade(e))
     }
 
     async fn play(&self, request: Box<dyn PlayRequest>) {
@@ -352,7 +364,8 @@ impl Player for InnerPlayer {
         }
 
         let metadata = escape_str_attribute(
-            format!(r#"<DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"
+            format!(
+                r#"<DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"
                xmlns:dc="http://purl.org/dc/elements/1.1/"
                xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/"
                xmlns:dlna="urn:schemas-dlna-org:device-1-0">
@@ -362,18 +375,28 @@ impl Player for InnerPlayer {
                 <upnp:class>object.item.videoItem.movie</upnp:class>
             </item>
         </DIDL-Lite>"#,
-                    title = request.title(),
-                    video_uri = request.url()).as_str())
-            .to_string();
-        let initialize_payload = format!(r#"
+                title = request.title(),
+                video_uri = request.url()
+            )
+            .as_str(),
+        )
+        .to_string();
+        let initialize_payload = format!(
+            r#"
             <InstanceID xmlns:dt="urn:schemas-microsoft-com:datatypes" dt:dt="ui4">0</InstanceID>
             <CurrentURI xmlns:dt="urn:schemas-microsoft-com:datatypes" dt:dt="string">{}</CurrentURI>
             <CurrentURIMetaData xmlns:dt="urn:schemas-microsoft-com:datatypes" dt:dt="string">{}</CurrentURIMetaData>
-        "#, request.url(), metadata);
+        "#,
+            request.url(),
+            metadata
+        );
 
         trace!("Initializing DLNA playback with {:?}", initialize_payload);
-        if let Err(e) =
-            self.service.action(self.device.url(), "SetAVTransportURI", &initialize_payload).await {
+        if let Err(e) = self
+            .service
+            .action(self.device.url(), "SetAVTransportURI", &initialize_payload)
+            .await
+        {
             error!("Failed to initialize UPnP playback, {}", e);
             self.update_state_async(PlayerState::Error).await;
             return;
@@ -395,7 +418,9 @@ impl Player for InnerPlayer {
 
     fn pause(&self) {
         block_in_place(async {
-            let _ = self.execute_action("Pause", UPNP_PLAYER_PAUSE_PAYLOAD).await;
+            let _ = self
+                .execute_action("Pause", UPNP_PLAYER_PAUSE_PAYLOAD)
+                .await;
         })
     }
 
@@ -409,11 +434,20 @@ impl Player for InnerPlayer {
         let time = parse_time_from_millis(time);
         let time_str = parse_str_from_time(&time);
         block_in_place(async {
-            let _ = self.execute_action("Seek", format!(r#"
+            let _ = self
+                .execute_action(
+                    "Seek",
+                    format!(
+                        r#"
                 <InstanceID>0</InstanceID>
                 <Unit>REL_TIME</Unit>
                 <Target>{}</Target>
-            "#, time_str).as_str()).await;
+            "#,
+                        time_str
+                    )
+                    .as_str(),
+                )
+                .await;
         })
     }
 
@@ -544,11 +578,13 @@ mod tests {
     #[test]
     fn test_play() {
         init_logger();
-        let request = Box::new(PlayUrlRequestBuilder::builder()
-            .url("http://localhost/my-video.mp4")
-            .title("FooBar")
-            .subtitles_enabled(true)
-            .build());
+        let request = Box::new(
+            PlayUrlRequestBuilder::builder()
+                .url("http://localhost/my-video.mp4")
+                .title("FooBar")
+                .subtitles_enabled(true)
+                .build(),
+        );
         let instance = new_test_instance();
         let init_mock = create_init_mock(&instance);
         let play_mock = instance.server().mock(|when, then| {
@@ -569,7 +605,11 @@ mod tests {
         instance.runtime.block_on(player.play(request));
 
         assert_eq!(PlayerState::Buffering, player.state());
-        assert_eq!(true, *block_in_place(player.inner.event_poller_activated.lock()), "expected the event poller to have been activated");
+        assert_eq!(
+            true,
+            *block_in_place(player.inner.event_poller_activated.lock()),
+            "expected the event poller to have been activated"
+        );
         init_mock.assert();
         play_mock.assert();
     }
@@ -632,10 +672,14 @@ mod tests {
             when.method(POST)
                 .path("/AVTransport/control")
                 .header("content-type", "text/xml; charset=\"utf-8\"")
-                .header("soapaction", "\"urn:schemas-upnp-org:service:AVTransport:1#Seek\"");
+                .header(
+                    "soapaction",
+                    "\"urn:schemas-upnp-org:service:AVTransport:1#Seek\"",
+                );
             then.status(200)
                 .header("content-type", "text/xml; charset=\"utf-8\"")
-                .body(r#"<?xml version="1.0"?>
+                .body(
+                    r#"<?xml version="1.0"?>
                     <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" 
                                 s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
                       <s:Body>
@@ -643,7 +687,8 @@ mod tests {
                           <InstanceID>0</InstanceID>
                         </u:SeekResponse>
                       </s:Body>
-                    </s:Envelope>"#);
+                    </s:Envelope>"#,
+                );
         });
         let player = instance.player_instance();
 
@@ -675,7 +720,10 @@ mod tests {
         player.stop();
 
         let result = block_in_place(player.inner.event_poller_activated.lock());
-        assert_eq!(false, *result, "expected event poller to have been cancelled");
+        assert_eq!(
+            false, *result,
+            "expected event poller to have been cancelled"
+        );
         stop_mock.assert();
     }
 
@@ -685,9 +733,10 @@ mod tests {
         let instance = new_test_instance();
         let _ = create_init_mock(&instance);
         instance.server().mock(|when, then| {
-            when.method(POST)
-                .path("/AVTransport/control")
-                .header("soapaction", "\"urn:schemas-upnp-org:service:AVTransport:1#GetPositionInfo\"");
+            when.method(POST).path("/AVTransport/control").header(
+                "soapaction",
+                "\"urn:schemas-upnp-org:service:AVTransport:1#GetPositionInfo\"",
+            );
             then.status(200)
                 .header("Content-Type", "text/xml; charset=\"utf-8\"")
                 .body(RESPONSE_GET_POSITION);
@@ -696,27 +745,38 @@ mod tests {
         let (tx_time, rx_time) = channel();
         let player = instance.player_instance();
 
-        player.add(Box::new(move |event| {
-            match &event {
-                PlayerEvent::DurationChanged(_) => tx_duration.send(event).unwrap(),
-                PlayerEvent::TimeChanged(_) => tx_time.send(event).unwrap(),
-                _ => {}
-            }
+        player.add(Box::new(move |event| match &event {
+            PlayerEvent::DurationChanged(_) => tx_duration.send(event).unwrap(),
+            PlayerEvent::TimeChanged(_) => tx_time.send(event).unwrap(),
+            _ => {}
         }));
-        player.inner.runtime.block_on(player.inner.poll_event_info());
+        player
+            .inner
+            .runtime
+            .block_on(player.inner.poll_event_info());
 
-        let result = rx_duration.recv_timeout(Duration::from_millis(200)).unwrap();
+        let result = rx_duration
+            .recv_timeout(Duration::from_millis(200))
+            .unwrap();
         if let PlayerEvent::DurationChanged(duration) = result {
             assert_eq!(332000, duration);
         } else {
-            assert!(false, "expected PlayerEvent::DurationChanged, but got {:?} instead", result);
+            assert!(
+                false,
+                "expected PlayerEvent::DurationChanged, but got {:?} instead",
+                result
+            );
         }
 
         let result = rx_time.recv_timeout(Duration::from_millis(200)).unwrap();
         if let PlayerEvent::TimeChanged(time) = result {
             assert_eq!(135000, time);
         } else {
-            assert!(false, "expected PlayerEvent::TimeChanged, but got {:?} instead", result);
+            assert!(
+                false,
+                "expected PlayerEvent::TimeChanged, but got {:?} instead",
+                result
+            );
         }
     }
 
@@ -726,9 +786,10 @@ mod tests {
         let instance = new_test_instance();
         let _ = create_init_mock(&instance);
         instance.server().mock(|when, then| {
-            when.method(POST)
-                .path("/AVTransport/control")
-                .header("soapaction", "\"urn:schemas-upnp-org:service:AVTransport:1#GetPositionInfo\"");
+            when.method(POST).path("/AVTransport/control").header(
+                "soapaction",
+                "\"urn:schemas-upnp-org:service:AVTransport:1#GetPositionInfo\"",
+            );
             then.status(200)
                 .header("Content-Type", "text/xml; charset=\"utf-8\"")
                 .body(RESPONSE_GET_POSITION);
@@ -759,13 +820,20 @@ mod tests {
                 tx.send(event).unwrap();
             }
         }));
-        player.inner.runtime.block_on(player.inner.poll_event_info());
+        player
+            .inner
+            .runtime
+            .block_on(player.inner.poll_event_info());
 
         let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
         if let PlayerEvent::StateChanged(state) = result {
             assert_eq!(PlayerState::Playing, state);
         } else {
-            assert!(false, "expected PlayerEvent::StateChanged, but got {:?} instead", result);
+            assert!(
+                false,
+                "expected PlayerEvent::StateChanged, but got {:?} instead",
+                result
+            );
         }
     }
 
@@ -789,14 +857,15 @@ mod tests {
         let runtime = Arc::new(Runtime::new().unwrap());
         let server = MockServer::start();
         server.mock(|when, then| {
-            when.method(GET)
-                .path("/description.xml");
+            when.method(GET).path("/description.xml");
             then.status(200)
                 .header("Content-Type", "text/xml; charset=\"utf-8\"")
                 .body(DEFAULT_SSDP_DESCRIPTION_RESPONSE);
         });
         let addr = format!("http://{}/description.xml", server.address());
-        let device = runtime.block_on(Device::from_url(addr.parse().unwrap())).unwrap();
+        let device = runtime
+            .block_on(Device::from_url(addr.parse().unwrap()))
+            .unwrap();
         let service = device.find_service(&AV_TRANSPORT).cloned().unwrap();
         let player = Arc::new(DlnaPlayer::new(device, service));
 

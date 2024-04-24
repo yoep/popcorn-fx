@@ -150,10 +150,18 @@ impl CacheManager {
     ///     }
     /// }
     /// ```
-    pub async fn execute<T, E, O>(&self, name: &str, key: &str, options: CacheOptions, operation: O) -> Result<T, CacheExecutionError<E>>
-        where T: AsRef<[u8]> + From<Vec<u8>>,
-              E: Error,
-              O: Future<Output=Result<T, E>> {
+    pub async fn execute<T, E, O>(
+        &self,
+        name: &str,
+        key: &str,
+        options: CacheOptions,
+        operation: O,
+    ) -> Result<T, CacheExecutionError<E>>
+    where
+        T: AsRef<[u8]> + From<Vec<u8>>,
+        E: Error,
+        O: Future<Output = Result<T, E>>,
+    {
         self.inner.execute(name, key, options, operation).await
     }
 
@@ -201,12 +209,23 @@ impl CacheManager {
     ///     }
     /// }
     /// ```
-    pub async fn execute_with_mapper<T, E, M, O>(&self, name: &str, key: &str, options: CacheOptions, mapper: M, operation: O) -> Result<T, CacheExecutionError<E>>
-        where T: AsRef<[u8]> + From<Vec<u8>>,
-              E: Error,
-              M: FnOnce(Vec<u8>) -> Result<T, E>,
-              O: Future<Output=Result<T, E>> {
-        self.inner.execute_with_mapper(name, key, options, mapper, operation).await
+    pub async fn execute_with_mapper<T, E, M, O>(
+        &self,
+        name: &str,
+        key: &str,
+        options: CacheOptions,
+        mapper: M,
+        operation: O,
+    ) -> Result<T, CacheExecutionError<E>>
+    where
+        T: AsRef<[u8]> + From<Vec<u8>>,
+        E: Error,
+        M: FnOnce(Vec<u8>) -> Result<T, E>,
+        O: Future<Output = Result<T, E>>,
+    {
+        self.inner
+            .execute_with_mapper(name, key, options, mapper, operation)
+            .await
     }
 
     fn run_cleanup(&self) {
@@ -220,10 +239,18 @@ impl CacheManager {
                 match Storage::delete(expired.entry.path()) {
                     Ok(_) => {
                         cache.remove(expired.name.as_str(), expired.entry.key());
-                        debug!("Cache {} entry {} has been cleaned", expired.name, expired.entry.key())
+                        debug!(
+                            "Cache {} entry {} has been cleaned",
+                            expired.name,
+                            expired.entry.key()
+                        )
                     }
                     Err(e) => {
-                        error!("Failed to delete cache file {}, {}", expired.entry.absolute_path(), e.to_string())
+                        error!(
+                            "Failed to delete cache file {}, {}",
+                            expired.entry.absolute_path(),
+                            e.to_string()
+                        )
                     }
                 }
             }
@@ -281,12 +308,16 @@ impl CacheManagerBuilder {
     /// A new `CacheManager` instance.
     pub fn build(self) -> CacheManager {
         let storage_path = self.storage_path.expect("Storage path is required.");
-        let runtime = self.runtime.unwrap_or_else(|| Arc::new(tokio::runtime::Builder::new_multi_thread()
-            .enable_all()
-            .worker_threads(1)
-            .thread_name("cache")
-            .build()
-            .expect("expected a new runtime")));
+        let runtime = self.runtime.unwrap_or_else(|| {
+            Arc::new(
+                tokio::runtime::Builder::new_multi_thread()
+                    .enable_all()
+                    .worker_threads(1)
+                    .thread_name("cache")
+                    .build()
+                    .expect("expected a new runtime"),
+            )
+        });
 
         CacheManager::new(storage_path.as_str(), runtime)
     }
@@ -300,10 +331,10 @@ pub struct InnerCacheManager {
 
 impl InnerCacheManager {
     fn new(storage_path: &str) -> Self {
-        let storage_path = PathBuf::from(storage_path)
-            .join(DIRECTORY);
+        let storage_path = PathBuf::from(storage_path).join(DIRECTORY);
         let storage = Storage::from(&storage_path);
-        let info = storage.options()
+        let info = storage
+            .options()
             .serializer(FILENAME)
             .read::<CacheInfo>()
             .map(|e| {
@@ -322,26 +353,40 @@ impl InnerCacheManager {
         }
     }
 
-    async fn execute<T, E, O>(&self, name: &str, key: &str, options: CacheOptions, operation: O) -> Result<T, CacheExecutionError<E>>
-        where T: AsRef<[u8]> + From<Vec<u8>>,
-              E: Error,
-              O: Future<Output=Result<T, E>> {
+    async fn execute<T, E, O>(
+        &self,
+        name: &str,
+        key: &str,
+        options: CacheOptions,
+        operation: O,
+    ) -> Result<T, CacheExecutionError<E>>
+    where
+        T: AsRef<[u8]> + From<Vec<u8>>,
+        E: Error,
+        O: Future<Output = Result<T, E>>,
+    {
         self.internal_execute(name, key, options, operation)
             .await
             .map(|e| T::from(e))
     }
 
-    async fn execute_serializer<T, E, O>(&self, name: &str, key: &str, options: CacheOptions, operation: O) -> Result<T, CacheExecutionError<E>>
-        where T: Serialize + DeserializeOwned,
-              E: Error,
-              O: Future<Output=Result<T, E>> {
+    async fn execute_serializer<T, E, O>(
+        &self,
+        name: &str,
+        key: &str,
+        options: CacheOptions,
+        operation: O,
+    ) -> Result<T, CacheExecutionError<E>>
+    where
+        T: Serialize + DeserializeOwned,
+        E: Error,
+        O: Future<Output = Result<T, E>>,
+    {
         let operation = async move {
             match operation.await {
-                Ok(e) => {
-                    serde_json::to_string::<T>(&e)
-                        .map(|e| e.as_bytes().to_vec())
-                        .map_err(|e| CacheParserError::Parsing(e.to_string()))
-                }
+                Ok(e) => serde_json::to_string::<T>(&e)
+                    .map(|e| e.as_bytes().to_vec())
+                    .map_err(|e| CacheParserError::Parsing(e.to_string())),
                 Err(e) => Err(CacheParserError::Operation(e)),
             }
         };
@@ -350,7 +395,10 @@ impl InnerCacheManager {
                 .map_err(|e| CacheParserError::Parsing(e.to_string()))
         };
 
-        match self.internal_execute(name, key, options.clone(), operation).await {
+        match self
+            .internal_execute(name, key, options.clone(), operation)
+            .await
+        {
             Ok(e) => {
                 debug!("Invoking cache mapper for cache {} entry {}", name, key);
                 output_mapping(e).map_err(|e| Self::map_cache_parser_error(e))
@@ -365,16 +413,25 @@ impl InnerCacheManager {
                         .map_err(|e| {
                             return if let CacheError::NotFound(_) = e {
                                 match error {
-                                    CacheExecutionError::Operation(e) => Self::map_cache_parser_error(e),
-                                    CacheExecutionError::Mapping(e) => Self::map_cache_parser_error(e),
-                                    CacheExecutionError::Cache(inner) => CacheExecutionError::Cache(inner),
+                                    CacheExecutionError::Operation(e) => {
+                                        Self::map_cache_parser_error(e)
+                                    }
+                                    CacheExecutionError::Mapping(e) => {
+                                        Self::map_cache_parser_error(e)
+                                    }
+                                    CacheExecutionError::Cache(inner) => {
+                                        CacheExecutionError::Cache(inner)
+                                    }
                                 }
                             } else {
                                 CacheExecutionError::Cache(e)
-                            }
+                            };
                         })
-                        .and_then(|e| output_mapping(e)
-                            .map_err(|err| CacheExecutionError::Cache(CacheError::Parsing(err.to_string()))))
+                        .and_then(|e| {
+                            output_mapping(e).map_err(|err| {
+                                CacheExecutionError::Cache(CacheError::Parsing(err.to_string()))
+                            })
+                        })
                 } else {
                     match error {
                         CacheExecutionError::Operation(e) => Err(Self::map_cache_parser_error(e)),
@@ -386,26 +443,41 @@ impl InnerCacheManager {
         }
     }
 
-    async fn execute_with_mapper<T, E, M, O>(&self, name: &str, key: &str, options: CacheOptions, output_mapping: M, operation: O) -> Result<T, CacheExecutionError<E>>
-        where T: AsRef<[u8]>,
-              E: Error,
-              M: FnOnce(Vec<u8>) -> Result<T, E>,
-              O: Future<Output=Result<T, E>> {
+    async fn execute_with_mapper<T, E, M, O>(
+        &self,
+        name: &str,
+        key: &str,
+        options: CacheOptions,
+        output_mapping: M,
+        operation: O,
+    ) -> Result<T, CacheExecutionError<E>>
+    where
+        T: AsRef<[u8]>,
+        E: Error,
+        M: FnOnce(Vec<u8>) -> Result<T, E>,
+        O: Future<Output = Result<T, E>>,
+    {
         match self.internal_execute(name, key, options, operation).await {
             Ok(e) => {
                 debug!("Invoking cache mapper for cache {} entry {}", name, key);
                 output_mapping(e).map_err(|e| CacheExecutionError::Mapping(e))
             }
-            Err(e) => {
-                Err(e)
-            }
+            Err(e) => Err(e),
         }
     }
 
-    async fn internal_execute<T, E, O>(&self, name: &str, key: &str, options: CacheOptions, operation: O) -> Result<Vec<u8>, CacheExecutionError<E>>
-        where T: AsRef<[u8]>,
-              E: Error,
-              O: Future<Output=Result<T, E>> {
+    async fn internal_execute<T, E, O>(
+        &self,
+        name: &str,
+        key: &str,
+        options: CacheOptions,
+        operation: O,
+    ) -> Result<Vec<u8>, CacheExecutionError<E>>
+    where
+        T: AsRef<[u8]>,
+        E: Error,
+        O: Future<Output = Result<T, E>>,
+    {
         trace!("Executing cache operation for {} with key {}", name, key);
         let cache_entry = self.cache_entry(name, key, &options).await;
 
@@ -418,58 +490,91 @@ impl InnerCacheManager {
             };
 
             match options.cache_type {
-                CacheType::CacheFirst => CacheFirstStrategy::execute(self.read_entry(cache_entry), operation).await,
-                CacheType::CacheLast => CacheLastStrategy::execute(self.read_entry(cache_entry), operation).await,
+                CacheType::CacheFirst => {
+                    CacheFirstStrategy::execute(self.read_entry(cache_entry), operation).await
+                }
+                CacheType::CacheLast => {
+                    CacheLastStrategy::execute(self.read_entry(cache_entry), operation).await
+                }
             }
         } else {
             debug!("Cache entry not found for {} {}", name, key);
-            self.execute_operation(name, key, &options, operation).await
+            self.execute_operation(name, key, &options, operation)
+                .await
                 .map(|e| e.as_ref().to_vec())
         }
     }
 
-    async fn execute_operation<T, E, O>(&self, name: &str, key: &str, options: &CacheOptions, operation: O) -> Result<T, CacheExecutionError<E>>
-        where T: AsRef<[u8]>,
-              E: Error,
-              O: Future<Output=Result<T, E>> {
+    async fn execute_operation<T, E, O>(
+        &self,
+        name: &str,
+        key: &str,
+        options: &CacheOptions,
+        operation: O,
+    ) -> Result<T, CacheExecutionError<E>>
+    where
+        T: AsRef<[u8]>,
+        E: Error,
+        O: Future<Output = Result<T, E>>,
+    {
         trace!("Executing cache operation for cache {} entry {}", name, key);
         match operation.await {
             Ok(e) => {
-                debug!("Cache operation of {} entry {} executed with success", name, key);
+                debug!(
+                    "Cache operation of {} entry {} executed with success",
+                    name, key
+                );
                 self.store(name, key, &options.expires_after, e.as_ref())
                     .await
                     .map_err(|e| CacheExecutionError::Cache(e))?;
                 Ok(e)
             }
-            Err(e) => Err(CacheExecutionError::Operation(e))
+            Err(e) => Err(CacheExecutionError::Operation(e)),
         }
     }
 
-    async fn cache_entry(&self, name: &str, key: &str, options: &CacheOptions) -> Option<CacheEntry> {
+    async fn cache_entry(
+        &self,
+        name: &str,
+        key: &str,
+        options: &CacheOptions,
+    ) -> Option<CacheEntry> {
         let cache = self.cache_info.lock().await;
-        let cache_entry = cache.info(name, key)
-            .filter(|entry| {
-                trace!("Filtering cache entry {:?} against options {:?}", entry, options);
-                !entry.is_expired(&options.expires_after)
-            });
+        let cache_entry = cache.info(name, key).filter(|entry| {
+            trace!(
+                "Filtering cache entry {:?} against options {:?}",
+                entry,
+                options
+            );
+            !entry.is_expired(&options.expires_after)
+        });
 
         cache_entry
     }
 
-    async fn read(&self, name: &str, key: &str, options: &CacheOptions) -> Result<Vec<u8>, CacheError> {
+    async fn read(
+        &self,
+        name: &str,
+        key: &str,
+        options: &CacheOptions,
+    ) -> Result<Vec<u8>, CacheError> {
         let cache_entry = self.cache_entry(name, key, options).await;
 
         if let Some(cache_entry) = cache_entry {
             self.read_entry(cache_entry).await
         } else {
-            debug!("Unable to read cache entry {} with key {}, cache not found", name, key);
+            debug!(
+                "Unable to read cache entry {} with key {}, cache not found",
+                name, key
+            );
             Err(CacheError::NotFound(format!("Cache {} not found", name)))
         }
     }
 
     async fn read_entry(&self, cache: CacheEntry) -> Result<Vec<u8>, CacheError> {
         trace!("Trying to load cached entry {}", cache);
-        self.storage.options()
+        self.storage
+            .options()
             .make_dirs(false)
             .binary(cache.filename())
             .read()
@@ -486,8 +591,19 @@ impl InnerCacheManager {
             })
     }
 
-    async fn store(&self, name: &str, key: &str, expiration: &Duration, data: &[u8]) -> cache::Result<()> {
-        trace!("Storing new cache {} entry {} with expiration {}", name, key, expiration);
+    async fn store(
+        &self,
+        name: &str,
+        key: &str,
+        expiration: &Duration,
+        data: &[u8],
+    ) -> cache::Result<()> {
+        trace!(
+            "Storing new cache {} entry {} with expiration {}",
+            name,
+            key,
+            expiration
+        );
         let filename = Self::generate_cache_filename(name, key);
         let path = self.write_cache_data(filename.as_str(), data).await?;
         self.create_cache_entry(name, key, path, expiration).await;
@@ -496,20 +612,27 @@ impl InnerCacheManager {
         Ok(())
     }
 
-    async fn create_cache_entry(&self, name: &str, key: &str, path: PathBuf, expiration: &Duration) {
+    async fn create_cache_entry(
+        &self,
+        name: &str,
+        key: &str,
+        path: PathBuf,
+        expiration: &Duration,
+    ) {
         trace!("Creating new cache {} entry {}", name, key);
         let mut info = self.cache_info.lock().await;
 
-        info.add(name, CacheEntry::new(
-            key,
-            path.to_str().unwrap(),
-            expiration),
+        info.add(
+            name,
+            CacheEntry::new(key, path.to_str().unwrap(), expiration),
         );
     }
 
     async fn write_cache_data(&self, filename: &str, data: &[u8]) -> cache::Result<PathBuf> {
         trace!("Writing cache data to {}", filename);
-        let path = self.storage.options()
+        let path = self
+            .storage
+            .options()
             .make_dirs(true)
             .binary(filename)
             .write(data)
@@ -525,7 +648,8 @@ impl InnerCacheManager {
         trace!("Saving cache information");
         let info = self.cache_info.lock().await;
 
-        self.storage.options()
+        self.storage
+            .options()
             .make_dirs(true)
             .serializer(FILENAME)
             .write_async(&*info)
@@ -541,16 +665,22 @@ impl InnerCacheManager {
         let filename = name.to_string() + key;
         trace!("Hashing filename {}", filename);
 
-        digest(&digest::SHA256, filename.as_bytes()).as_ref().to_vec().iter()
+        digest(&digest::SHA256, filename.as_bytes())
+            .as_ref()
+            .to_vec()
+            .iter()
             .map(|byte| format!("{:02x}", byte))
-            .collect::<String>() + EXTENSION
+            .collect::<String>()
+            + EXTENSION
     }
 
     fn map_cache_parser_error<E>(error: CacheParserError<E>) -> CacheExecutionError<E>
-        where E: Error {
+    where
+        E: Error,
+    {
         match error {
             CacheParserError::Operation(e) => CacheExecutionError::Operation(e),
-            CacheParserError::Parsing(e) => CacheExecutionError::Cache(CacheError::Parsing(e))
+            CacheParserError::Parsing(e) => CacheExecutionError::Cache(CacheError::Parsing(e)),
         }
     }
 }
@@ -631,9 +761,11 @@ impl CacheOperation {
     ///
     /// A `MappedCacheOperation` instance with the specified mapper function.
     pub fn map<T, E, M>(self, mapper: M) -> MappedCacheOperation<T, E, M>
-        where T: AsRef<[u8]>,
-              E: Error,
-              M: FnOnce(Vec<u8>) -> Result<T, E> {
+    where
+        T: AsRef<[u8]>,
+        E: Error,
+        M: FnOnce(Vec<u8>) -> Result<T, E>,
+    {
         MappedCacheOperation {
             inner: self,
             mapper,
@@ -646,9 +778,7 @@ impl CacheOperation {
     ///
     /// A `SerializedCacheOperation` instance for further serialization operations.
     pub fn serializer(self) -> SerializedCacheOperation {
-        SerializedCacheOperation {
-            inner: self,
-        }
+        SerializedCacheOperation { inner: self }
     }
 
     /// Executes the cache operation asynchronously.
@@ -694,31 +824,39 @@ impl CacheOperation {
     /// }
     /// ```
     pub async fn execute<T, E, O>(self, operation: O) -> Result<T, CacheExecutionError<E>>
-        where T: AsRef<[u8]> + From<Vec<u8>>,
-              E: Error,
-              O: Future<Output=Result<T, E>> {
+    where
+        T: AsRef<[u8]> + From<Vec<u8>>,
+        E: Error,
+        O: Future<Output = Result<T, E>>,
+    {
         let name = self.name.expect("Name is missing");
         let key = self.key.expect("Key is missing");
         let options = self.options.expect("Options are missing");
 
-        self.cache_manager.execute(name.as_str(), key.as_str(), options, operation).await
+        self.cache_manager
+            .execute(name.as_str(), key.as_str(), options, operation)
+            .await
     }
 }
 
 /// Represents a mapped cache operation.
 #[derive(Debug)]
 pub struct MappedCacheOperation<T, E, M>
-    where T: AsRef<[u8]>,
-          E: Error,
-          M: FnOnce(Vec<u8>) -> Result<T, E> {
+where
+    T: AsRef<[u8]>,
+    E: Error,
+    M: FnOnce(Vec<u8>) -> Result<T, E>,
+{
     inner: CacheOperation,
     mapper: M,
 }
 
 impl<T, E, M> MappedCacheOperation<T, E, M>
-    where T: AsRef<[u8]>,
-          E: Error,
-          M: FnOnce(Vec<u8>) -> Result<T, E> {
+where
+    T: AsRef<[u8]>,
+    E: Error,
+    M: FnOnce(Vec<u8>) -> Result<T, E>,
+{
     /// Sets the name for the cache operation.
     ///
     /// # Arguments
@@ -768,12 +906,17 @@ impl<T, E, M> MappedCacheOperation<T, E, M>
     /// This method panics if the cache name, key, or options are missing from the `inner`
     /// `CacheOperation` instance.
     pub async fn execute<O>(self, operation: O) -> Result<T, CacheExecutionError<E>>
-        where O: Future<Output=Result<T, E>> {
+    where
+        O: Future<Output = Result<T, E>>,
+    {
         let name = self.inner.name.expect("Name is missing");
         let key = self.inner.key.expect("Key is missing");
         let options = self.inner.options.expect("Options are missing");
 
-        self.inner.cache_manager.execute_with_mapper(name.as_str(), key.as_str(), options, self.mapper, operation).await
+        self.inner
+            .cache_manager
+            .execute_with_mapper(name.as_str(), key.as_str(), options, self.mapper, operation)
+            .await
     }
 }
 
@@ -858,14 +1001,19 @@ impl SerializedCacheOperation {
     /// }
     /// ```
     pub async fn execute<T, E, O>(self, operation: O) -> Result<T, CacheExecutionError<E>>
-        where T: Serialize + DeserializeOwned,
-              E: Error,
-              O: Future<Output=Result<T, E>> {
+    where
+        T: Serialize + DeserializeOwned,
+        E: Error,
+        O: Future<Output = Result<T, E>>,
+    {
         let name = self.inner.name.expect("Name is missing");
         let key = self.inner.key.expect("Key is missing");
         let options = self.inner.options.expect("Options are missing");
 
-        self.inner.cache_manager.execute_serializer(name.as_str(), key.as_str(), options, operation).await
+        self.inner
+            .cache_manager
+            .execute_serializer(name.as_str(), key.as_str(), options, operation)
+            .await
     }
 }
 
@@ -890,9 +1038,11 @@ mod test {
         init_logger();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let cache_manager = Arc::new(CacheManagerBuilder::default()
-            .storage_path(temp_path)
-            .build());
+        let cache_manager = Arc::new(
+            CacheManagerBuilder::default()
+                .storage_path(temp_path)
+                .build(),
+        );
         let expected_data = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur suscipit ullamcorper eleifend. Nulla ac urna tellus. Nullam posuere ligula non consectetur rhoncus. Nam eleifend non elit nec accumsan.";
         let name = "test";
         let key = "lorem";
@@ -900,7 +1050,8 @@ mod test {
 
         let cloned_manager = cache_manager.clone();
         match runtime.block_on(async move {
-            let result: Result<String, CacheExecutionError<FromUtf8Error>> = cloned_manager.operation()
+            let result: Result<String, CacheExecutionError<FromUtf8Error>> = cloned_manager
+                .operation()
                 .name(name)
                 .key(key)
                 .options(CacheOptions {
@@ -908,7 +1059,8 @@ mod test {
                     expires_after: Duration::hours(6),
                 })
                 .map(|e| String::from_utf8(e))
-                .execute(async { Ok(expected_data.to_string()) }).await;
+                .execute(async { Ok(expected_data.to_string()) })
+                .await;
             result
         }) {
             Ok(data) => assert_eq!(expected_data.to_string(), data),
@@ -916,13 +1068,22 @@ mod test {
         };
 
         thread::sleep(std::time::Duration::from_millis(10));
-        let cache_info: CacheInfo = cache_manager.inner.storage.options()
+        let cache_info: CacheInfo = cache_manager
+            .inner
+            .storage
+            .options()
             .serializer(FILENAME)
             .read()
             .unwrap();
         let cache_entry = cache_info.info(name, key);
-        assert!(cache_entry.is_some(), "expected the cache to contain the entry info");
-        let stored_data = cache_manager.inner.storage.options()
+        assert!(
+            cache_entry.is_some(),
+            "expected the cache to contain the entry info"
+        );
+        let stored_data = cache_manager
+            .inner
+            .storage
+            .options()
             .binary(cache_entry.unwrap().filename())
             .read()
             .map(|e| String::from_utf8(e))
@@ -936,9 +1097,11 @@ mod test {
         init_logger();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let cache_manager = Arc::new(CacheManagerBuilder::default()
-            .storage_path(temp_path)
-            .build());
+        let cache_manager = Arc::new(
+            CacheManagerBuilder::default()
+                .storage_path(temp_path)
+                .build(),
+        );
         let name = "test";
         let key = "lorem";
         let runtime = Runtime::new().unwrap();
@@ -947,19 +1110,27 @@ mod test {
         let cloned_manager = cache_manager.clone();
         let cloned_error = expected_error.clone();
         if let Err(e) = runtime.block_on(async move {
-            let result: Result<Vec<u8>, CacheExecutionError<MediaError>> = cloned_manager.operation()
+            let result: Result<Vec<u8>, CacheExecutionError<MediaError>> = cloned_manager
+                .operation()
                 .name(name)
                 .key(key)
                 .options(CacheOptions {
                     cache_type: CacheType::CacheFirst,
                     expires_after: Duration::hours(6),
                 })
-                .execute(async { Err(cloned_error) }).await;
+                .execute(async { Err(cloned_error) })
+                .await;
             result
         }) {
             match e {
-                CacheExecutionError::Operation(media_error) => assert_eq!(expected_error, media_error),
-                _ => assert!(false, "expected error CacheExecutionError::Operation, got {:?} instead", e)
+                CacheExecutionError::Operation(media_error) => {
+                    assert_eq!(expected_error, media_error)
+                }
+                _ => assert!(
+                    false,
+                    "expected error CacheExecutionError::Operation, got {:?} instead",
+                    e
+                ),
             }
         } else {
             assert!(false, "expected an error to be returned")
@@ -972,9 +1143,11 @@ mod test {
         let filename = "simple.jpg";
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let cache_manager = Arc::new(CacheManagerBuilder::default()
-            .storage_path(temp_path)
-            .build());
+        let cache_manager = Arc::new(
+            CacheManagerBuilder::default()
+                .storage_path(temp_path)
+                .build(),
+        );
         let name = "test";
         let key = "lorem";
         let runtime = Runtime::new().unwrap();
@@ -982,21 +1155,33 @@ mod test {
         let test_file_output = copy_test_file(temp_path, filename, Some("cache/simple.jpg"));
 
         let cloned_manager = cache_manager.clone();
-        let data = runtime.block_on(async move {
-            let mut cache_info = cloned_manager.inner.cache_info.lock().await;
-            cache_info.add(name, CacheEntry::new(key, test_file_output.as_str(), &Duration::hours(6)));
-            drop(cache_info);
+        let data = runtime
+            .block_on(async move {
+                let mut cache_info = cloned_manager.inner.cache_info.lock().await;
+                cache_info.add(
+                    name,
+                    CacheEntry::new(key, test_file_output.as_str(), &Duration::hours(6)),
+                );
+                drop(cache_info);
 
-            let result: Result<Vec<u8>, CacheExecutionError<MediaError>> = cloned_manager.operation()
-                .name(name)
-                .key(key)
-                .options(CacheOptions {
-                    cache_type: CacheType::CacheFirst,
-                    expires_after: Duration::hours(6),
-                })
-                .execute(async { Err(MediaError::ProviderRequestFailed("this should not have been executed".to_string(), 500)) }).await;
-            result
-        }).unwrap();
+                let result: Result<Vec<u8>, CacheExecutionError<MediaError>> = cloned_manager
+                    .operation()
+                    .name(name)
+                    .key(key)
+                    .options(CacheOptions {
+                        cache_type: CacheType::CacheFirst,
+                        expires_after: Duration::hours(6),
+                    })
+                    .execute(async {
+                        Err(MediaError::ProviderRequestFailed(
+                            "this should not have been executed".to_string(),
+                            500,
+                        ))
+                    })
+                    .await;
+                result
+            })
+            .unwrap();
         assert_eq!(expected_result, data);
     }
 
@@ -1006,9 +1191,11 @@ mod test {
         let filename = "simple.jpg";
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let cache_manager = Arc::new(CacheManagerBuilder::default()
-            .storage_path(temp_path)
-            .build());
+        let cache_manager = Arc::new(
+            CacheManagerBuilder::default()
+                .storage_path(temp_path)
+                .build(),
+        );
         let name = "test";
         let key = "lorem";
         let runtime = Runtime::new().unwrap();
@@ -1017,26 +1204,37 @@ mod test {
         let test_file_output = copy_test_file(temp_path, filename, Some("cache/simple.jpg"));
 
         let cloned_manager = cache_manager.clone();
-        let data = runtime.block_on(async move {
-            let mut cache_info = cloned_manager.inner.cache_info.lock().await;
-            cache_info.add(name, CacheEntry::new(key, test_file_output.as_str(), &Duration::hours(6)));
-            drop(cache_info);
+        let data = runtime
+            .block_on(async move {
+                let mut cache_info = cloned_manager.inner.cache_info.lock().await;
+                cache_info.add(
+                    name,
+                    CacheEntry::new(key, test_file_output.as_str(), &Duration::hours(6)),
+                );
+                drop(cache_info);
 
-            let result: Result<Vec<u8>, CacheExecutionError<MediaError>> = cloned_manager.operation()
-                .name(name)
-                .key(key)
-                .options(CacheOptions {
-                    cache_type: CacheType::CacheLast,
-                    expires_after: Duration::hours(6),
-                })
-                .execute(async {
-                    tx.send(true).unwrap();
-                    Err(MediaError::ProviderRequestFailed("this should not have been executed".to_string(), 500))
-                }).await;
-            result
-        }).unwrap();
+                let result: Result<Vec<u8>, CacheExecutionError<MediaError>> = cloned_manager
+                    .operation()
+                    .name(name)
+                    .key(key)
+                    .options(CacheOptions {
+                        cache_type: CacheType::CacheLast,
+                        expires_after: Duration::hours(6),
+                    })
+                    .execute(async {
+                        tx.send(true).unwrap();
+                        Err(MediaError::ProviderRequestFailed(
+                            "this should not have been executed".to_string(),
+                            500,
+                        ))
+                    })
+                    .await;
+                result
+            })
+            .unwrap();
 
-        rx.recv_timeout(core::time::Duration::from_millis(200)).unwrap();
+        rx.recv_timeout(core::time::Duration::from_millis(200))
+            .unwrap();
         assert_eq!(expected_result, data);
     }
 
@@ -1045,9 +1243,11 @@ mod test {
         init_logger();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let cache_manager = Arc::new(CacheManagerBuilder::default()
-            .storage_path(temp_path)
-            .build());
+        let cache_manager = Arc::new(
+            CacheManagerBuilder::default()
+                .storage_path(temp_path)
+                .build(),
+        );
         let media = MovieOverview {
             imdb_id: "tt1112233".to_string(),
             title: "Lorem ipsum".to_string(),
@@ -1060,7 +1260,8 @@ mod test {
         let cloned_manager = cache_manager.clone();
         let cloned_media = media.clone();
         let result = runtime.block_on(async move {
-            let result: Result<MovieOverview, CacheExecutionError<MediaError>> = cloned_manager.operation()
+            let result: Result<MovieOverview, CacheExecutionError<MediaError>> = cloned_manager
+                .operation()
                 .name("test")
                 .key("lorem")
                 .options(CacheOptions {
@@ -1068,9 +1269,7 @@ mod test {
                     expires_after: Duration::hours(5),
                 })
                 .serializer()
-                .execute(async {
-                    Ok(cloned_media)
-                })
+                .execute(async { Ok(cloned_media) })
                 .await;
             result
         });
@@ -1078,7 +1277,11 @@ mod test {
         if let Ok(e) = result {
             assert_eq!(media, e)
         } else {
-            assert!(false, "expected the cache operation to succeed, {:?}", result)
+            assert!(
+                false,
+                "expected the cache operation to succeed, {:?}",
+                result
+            )
         }
     }
 
@@ -1087,14 +1290,17 @@ mod test {
         init_logger();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let cache_manager = Arc::new(CacheManagerBuilder::default()
-            .storage_path(temp_path)
-            .build());
+        let cache_manager = Arc::new(
+            CacheManagerBuilder::default()
+                .storage_path(temp_path)
+                .build(),
+        );
         let runtime = Runtime::new().unwrap();
 
         let cloned_manager = cache_manager.clone();
         let result = runtime.block_on(async move {
-            let result: Result<MovieOverview, CacheExecutionError<MediaError>> = cloned_manager.operation()
+            let result: Result<MovieOverview, CacheExecutionError<MediaError>> = cloned_manager
+                .operation()
                 .name("test")
                 .key("lorem")
                 .options(CacheOptions {
@@ -1102,32 +1308,44 @@ mod test {
                     expires_after: Duration::hours(5),
                 })
                 .serializer()
-                .execute(async {
-                    Err(MediaError::NoAvailableProviders)
-                })
+                .execute(async { Err(MediaError::NoAvailableProviders) })
                 .await;
             result
         });
 
         if let Err(execution_error) = result {
             match execution_error {
-                CacheExecutionError::Operation(e) => assert_eq!(MediaError::NoAvailableProviders, e),
-                _ => assert!(false, "expected CacheExecutionError::Operation, but got {:?} instead", execution_error)
+                CacheExecutionError::Operation(e) => {
+                    assert_eq!(MediaError::NoAvailableProviders, e)
+                }
+                _ => assert!(
+                    false,
+                    "expected CacheExecutionError::Operation, but got {:?} instead",
+                    execution_error
+                ),
             }
         } else {
-            assert!(false, "expected the cache operation to succeed, {:?}", result)
+            assert!(
+                false,
+                "expected the cache operation to succeed, {:?}",
+                result
+            )
         }
     }
 
     #[test]
     fn test_map_parser_error() {
-        if let CacheExecutionError::Operation(e) = InnerCacheManager::map_cache_parser_error(CacheParserError::Operation(MediaError::NoAvailableProviders)) {
+        if let CacheExecutionError::Operation(e) = InnerCacheManager::map_cache_parser_error(
+            CacheParserError::Operation(MediaError::NoAvailableProviders),
+        ) {
             assert_eq!(MediaError::NoAvailableProviders, e);
         } else {
             assert!(false, "CacheExecutionError::Operation");
         }
 
-        if let CacheExecutionError::Cache(e) = InnerCacheManager::map_cache_parser_error(CacheParserError::Parsing::<MediaError>("lorem".to_string())) {
+        if let CacheExecutionError::Cache(e) = InnerCacheManager::map_cache_parser_error(
+            CacheParserError::Parsing::<MediaError>("lorem".to_string()),
+        ) {
             assert_eq!(CacheError::Parsing("lorem".to_string()), e);
         } else {
             assert!(false, "CacheExecutionError::Mapping");
@@ -1142,22 +1360,29 @@ mod test {
         let test_filepath = copy_test_file(temp_path, "simple.jpg", Some("cache/simple.jpg"));
         let storage = Storage::from(&PathBuf::from(temp_path).join(DIRECTORY));
         let path = PathBuf::from(test_filepath.as_str());
-        storage.options()
+        storage
+            .options()
             .make_dirs(true)
             .serializer(FILENAME)
             .write(&CacheInfo {
-                entries: vec![
-                    ("lorem".to_string(), vec![CacheEntry {
+                entries: vec![(
+                    "lorem".to_string(),
+                    vec![CacheEntry {
                         key: "ipsum".to_string(),
                         path: test_filepath,
                         expires_after: 60,
                         created_on: "2023-01-01T12:00".to_string(),
-                    }])
-                ].into_iter().collect(),
-            }).unwrap();
-        let _cache_manager = Arc::new(CacheManagerBuilder::default()
-            .storage_path(temp_path)
-            .build());
+                    }],
+                )]
+                .into_iter()
+                .collect(),
+            })
+            .unwrap();
+        let _cache_manager = Arc::new(
+            CacheManagerBuilder::default()
+                .storage_path(temp_path)
+                .build(),
+        );
 
         assert_timeout!(Duration::from_millis(100), !path.exists());
     }

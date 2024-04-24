@@ -15,11 +15,11 @@ import java.util.Optional;
 @ToString
 @EqualsAndHashCode(callSuper = false)
 @Structure.FieldOrder({"values", "len"})
-public class StringArray extends Structure implements Closeable {
-    public static class ByValue extends StringArray implements Structure.ByValue {
+public class FxStringArray extends Structure implements Closeable {
+    public static class ByValue extends FxStringArray implements Structure.ByValue {
     }
 
-    public static class ByReference extends StringArray implements Structure.ByReference {
+    public static class ByReference extends FxStringArray implements Structure.ByReference {
         public ByReference() {
         }
 
@@ -39,7 +39,7 @@ public class StringArray extends Structure implements Closeable {
         return cache;
     }
 
-    public StringArray() {
+    public FxStringArray() {
     }
 
     @Override

@@ -24,7 +24,11 @@ pub trait SubtitleProvider: Debug + Send + Sync {
     async fn movie_subtitles(&self, media: &MovieDetails) -> subtitles::Result<Vec<SubtitleInfo>>;
 
     /// Retrieve the available subtitles for the given episode.
-    async fn episode_subtitles(&self, media: &ShowDetails, episode: &Episode) -> subtitles::Result<Vec<SubtitleInfo>>;
+    async fn episode_subtitles(
+        &self,
+        media: &ShowDetails,
+        episode: &Episode,
+    ) -> subtitles::Result<Vec<SubtitleInfo>>;
 
     /// Retrieve the available subtitles for the given filename.
     async fn file_subtitles(&self, filename: &str) -> subtitles::Result<Vec<SubtitleInfo>>;
@@ -32,13 +36,21 @@ pub trait SubtitleProvider: Debug + Send + Sync {
     /// Download the subtitle for the given [SubtitleInfo].
     ///
     /// It returns the location the downloaded subtitle file on success, else the [subtitles::SubtitleError].
-    async fn download(&self, subtitle_info: &SubtitleInfo, matcher: &SubtitleMatcher) -> subtitles::Result<String>;
+    async fn download(
+        &self,
+        subtitle_info: &SubtitleInfo,
+        matcher: &SubtitleMatcher,
+    ) -> subtitles::Result<String>;
 
     /// Download the subtitle for the given [SubtitleInfo].
     /// This method automatically parses the downloaded file.
     ///
     /// It returns the parsed [Subtitle] on success, else the [subtitles::SubtitleError].
-    async fn download_and_parse(&self, subtitle_info: &SubtitleInfo, matcher: &SubtitleMatcher) -> subtitles::Result<Subtitle>;
+    async fn download_and_parse(
+        &self,
+        subtitle_info: &SubtitleInfo,
+        matcher: &SubtitleMatcher,
+    ) -> subtitles::Result<Subtitle>;
 
     /// Parse the given file path to a subtitle struct.
     ///

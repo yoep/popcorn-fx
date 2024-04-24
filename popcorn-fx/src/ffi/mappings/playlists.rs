@@ -5,7 +5,9 @@ use log::trace;
 
 use popcorn_fx_core::{from_c_into_boxed, from_c_string, into_c_owned, into_c_string};
 use popcorn_fx_core::core::media::MediaIdentifier;
-use popcorn_fx_core::core::playlists::{PlayingNextInfo, PlaylistItem, PlaylistManagerEvent, PlaylistState};
+use popcorn_fx_core::core::playlists::{
+    PlayingNextInfo, PlaylistItem, PlaylistManagerEvent, PlaylistState,
+};
 
 use crate::ffi::MediaItemC;
 
@@ -182,10 +184,15 @@ pub enum PlaylistManagerEventC {
 
 impl From<PlaylistManagerEvent> for PlaylistManagerEventC {
     fn from(value: PlaylistManagerEvent) -> Self {
-        trace!("Converting playlist manager event {:?} to PlaylistManagerEventC", value);
+        trace!(
+            "Converting playlist manager event {:?} to PlaylistManagerEventC",
+            value
+        );
         match value {
             PlaylistManagerEvent::PlaylistChanged => PlaylistManagerEventC::PlaylistChanged,
-            PlaylistManagerEvent::PlayingNext(e) => PlaylistManagerEventC::PlayingNext(PlayingNextInfoC::from(e)),
+            PlaylistManagerEvent::PlayingNext(e) => {
+                PlaylistManagerEventC::PlayingNext(PlayingNextInfoC::from(e))
+            }
             PlaylistManagerEvent::StateChanged(e) => PlaylistManagerEventC::StateChanged(e),
         }
     }
@@ -203,7 +210,10 @@ pub struct PlayingNextInfoC {
 
 impl From<PlayingNextInfo> for PlayingNextInfoC {
     fn from(value: PlayingNextInfo) -> Self {
-        trace!("Converting playing next info {:?} to PlayingNextInfoC", value);
+        trace!(
+            "Converting playing next info {:?} to PlayingNextInfoC",
+            value
+        );
         let playing_in = if let Some(e) = value.playing_in {
             e as *const u64
         } else {
@@ -351,8 +361,13 @@ mod test {
 
         let result = PlaylistManagerEventC::from(event);
 
-        if let PlaylistManagerEventC::PlaylistChanged = result {} else {
-            assert!(false, "expected PlaylistManagerEventC::PlaylistChanged, but got {:?} instead", result)
+        if let PlaylistManagerEventC::PlaylistChanged = result {
+        } else {
+            assert!(
+                false,
+                "expected PlaylistManagerEventC::PlaylistChanged, but got {:?} instead",
+                result
+            )
         }
     }
 }

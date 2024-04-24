@@ -33,7 +33,7 @@ mod test {
         let category = Category::Movies;
         let expected_result = "movies".to_string();
 
-        let result= category.name();
+        let result = category.name();
 
         assert_eq!(expected_result, result)
     }
@@ -43,7 +43,7 @@ mod test {
         let category = Category::Series;
         let expected_result = "series".to_string();
 
-        let result= category.name();
+        let result = category.name();
 
         assert_eq!(expected_result, result)
     }

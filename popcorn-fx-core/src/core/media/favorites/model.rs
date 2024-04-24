@@ -59,10 +59,8 @@ impl Favorites {
 
     /// Remove the media item from the favorites based on the given ID.
     pub fn remove_id(&mut self, imdb_id: &str) {
-        let movie = self.movies.iter()
-            .position(|e| e.imdb_id().eq(imdb_id));
-        let show = self.shows.iter()
-            .position(|e| e.imdb_id().eq(imdb_id));
+        let movie = self.movies.iter().position(|e| e.imdb_id().eq(imdb_id));
+        let show = self.shows.iter().position(|e| e.imdb_id().eq(imdb_id));
 
         match movie {
             None => {}
@@ -83,9 +81,7 @@ impl Favorites {
 
     pub fn last_update(&self) -> DateTime<Local> {
         match self.last_cache_update.parse::<NaiveDateTime>() {
-            Ok(e) => {
-                Local.from_local_datetime(&e).unwrap()
-            }
+            Ok(e) => Local.from_local_datetime(&e).unwrap(),
             Err(e) => {
                 warn!("Failed to parse last_cache_update, {}", e);
                 Local.timestamp_opt(0, 0).unwrap()
@@ -131,11 +127,7 @@ mod test {
 
     #[test]
     fn test_add_movie_when_not_yet_present_should_add_movie() {
-        let movie = MovieOverview::new(
-            String::new(),
-            String::from("tt12345678"),
-            String::new(),
-        );
+        let movie = MovieOverview::new(String::new(), String::from("tt12345678"), String::new());
         let mut favorites = Favorites::default();
 
         favorites.add_movie(&movie);
@@ -146,11 +138,7 @@ mod test {
 
     #[test]
     fn test_add_movie_when_already_present_should_ignore() {
-        let movie = MovieOverview::new(
-            String::new(),
-            String::from("tt12345678"),
-            String::new(),
-        );
+        let movie = MovieOverview::new(String::new(), String::from("tt12345678"), String::new());
         let mut favorites = Favorites {
             movies: vec![movie.clone()],
             shows: vec![],
@@ -208,17 +196,14 @@ mod test {
     #[test]
     fn test_last_update() {
         init_logger();
-        let movie = MovieOverview::new(
-            String::new(),
-            String::from("tt111222"),
-            String::new(),
-        );
+        let movie = MovieOverview::new(String::new(), String::from("tt111222"), String::new());
         let favorites = Favorites {
             movies: vec![movie],
             shows: vec![],
             last_cache_update: "2022-02-01T22:00:15.100".to_string(),
         };
-        let expected = Local.with_ymd_and_hms(2022, 2, 1, 22, 0, 15)
+        let expected = Local
+            .with_ymd_and_hms(2022, 2, 1, 22, 0, 15)
             .unwrap()
             .with_nanosecond(100000000)
             .unwrap();

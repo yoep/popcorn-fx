@@ -49,7 +49,7 @@ pub enum DiscoveryState {
 pub trait Discovery: Display + Send + Sync {
     /// Returns the current state of the discovery process.
     fn state(&self) -> DiscoveryState;
-    
+
     /// Starts the discovery process.
     ///
     /// # Returns

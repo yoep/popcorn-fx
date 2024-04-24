@@ -18,34 +18,30 @@ pub struct StringArray {
 
 impl From<Vec<String>> for StringArray {
     fn from(value: Vec<String>) -> Self {
-        let (values, len) = into_c_vec(value.into_iter()
-            .map(|e| into_c_string(e))
-            .collect());
+        let (values, len) = into_c_vec(value.into_iter().map(|e| into_c_string(e)).collect());
 
-        Self {
-            values,
-            len,
-        }
+        Self { values, len }
     }
 }
 
 impl From<&[String]> for StringArray {
     fn from(value: &[String]) -> Self {
-        let (values, len) = into_c_vec(value.into_iter()
-            .map(|e| into_c_string(e.clone()))
-            .collect());
+        let (values, len) = into_c_vec(
+            value
+                .into_iter()
+                .map(|e| into_c_string(e.clone()))
+                .collect(),
+        );
 
-        Self {
-            values,
-            len,
-        }
+        Self { values, len }
     }
 }
 
 impl Drop for StringArray {
     fn drop(&mut self) {
         trace!("Dropping {:?}", self);
-        let _ = from_c_vec_owned(self.values, self.len).into_iter()
+        let _ = from_c_vec_owned(self.values, self.len)
+            .into_iter()
             .map(|e| from_c_string(e))
             .collect::<Vec<String>>();
     }
@@ -69,10 +65,7 @@ impl From<Vec<u8>> for ByteArray {
         trace!("Converting Vec<u8> to ByteArray");
         let (values, len) = into_c_vec(value);
 
-        Self {
-            values,
-            len,
-        }
+        Self { values, len }
     }
 }
 
@@ -130,10 +123,7 @@ impl<T: Debug + Clone> From<Vec<T>> for CArray<T> {
         trace!("Converting vector into C set");
         let (items, len) = into_c_vec(value);
 
-        Self {
-            items,
-            len,
-        }
+        Self { items, len }
     }
 }
 
@@ -154,7 +144,7 @@ impl<T: Debug + Clone> From<CArray<T>> for Vec<T> {
     /// let c_set = CArray { items: [1, 2, 3].as_mut_ptr(), len: 3 };
     /// let rust_vec: Vec<i32> = c_set.into();
     /// ```
-    fn from(value: CArray<T>) -> Self { 
+    fn from(value: CArray<T>) -> Self {
         trace!("Converting C set {:?} into vector", value);
         from_c_vec(value.items, value.len)
     }
@@ -180,13 +170,11 @@ mod test {
 
     #[test]
     fn test_from_string_array_vec() {
-        let vec = vec![
-            "lorem".to_string(),
-            "ipsum".to_string(),
-        ];
+        let vec = vec!["lorem".to_string(), "ipsum".to_string()];
 
         let array = StringArray::from(vec.clone());
-        let result: Vec<String> = from_c_vec(array.values, array.len).into_iter()
+        let result: Vec<String> = from_c_vec(array.values, array.len)
+            .into_iter()
             .map(|e| from_c_string(e))
             .collect();
 
@@ -195,13 +183,11 @@ mod test {
 
     #[test]
     fn test_from_string_array_slice() {
-        let vec = vec![
-            "ipsum".to_string(),
-            "dol.or".to_string(),
-        ];
+        let vec = vec!["ipsum".to_string(), "dol.or".to_string()];
 
         let array = StringArray::from(&vec[..]);
-        let result: Vec<String> = from_c_vec(array.values, array.len).into_iter()
+        let result: Vec<String> = from_c_vec(array.values, array.len)
+            .into_iter()
             .map(|e| from_c_string(e))
             .collect();
 
@@ -235,10 +221,7 @@ mod test {
             subtitles_enabled: false,
         };
         let (items, len) = into_c_vec(vec![item]);
-        let set = CArray::<PlaylistItemC> {
-            items,
-            len,
-        };
+        let set = CArray::<PlaylistItemC> { items, len };
 
         let result = Vec::<PlaylistItemC>::from(set);
 

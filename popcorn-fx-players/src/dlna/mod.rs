@@ -4,8 +4,8 @@ pub use player::*;
 
 mod discovery;
 mod errors;
-mod player;
 mod models;
+mod player;
 
 #[cfg(test)]
 mod tests {
@@ -101,7 +101,11 @@ mod tests {
             (self.socket.recv_from(&mut temp_buf), temp_buf)
         }
 
-        async fn handle_socket_packet(&self, resp: io::Result<(usize, SocketAddr)>, msg_buf: [u8; 1024]) {
+        async fn handle_socket_packet(
+            &self,
+            resp: io::Result<(usize, SocketAddr)>,
+            msg_buf: [u8; 1024],
+        ) {
             match resp {
                 Ok((msg_size, src_addr)) => {
                     if let Ok(msg) = std::str::from_utf8(&msg_buf[..msg_size]) {
@@ -119,7 +123,8 @@ mod tests {
         }
 
         async fn send_response(&self, src_addr: SocketAddr) {
-            let resp_msg = format!("HTTP/1.1 200 OK\r
+            let resp_msg = format!(
+                "HTTP/1.1 200 OK\r
 CACHE-CONTROL: max-age=100\r
 LOCATION: http://{}/description.xml\r
 SERVER: Unix/5.0 UPnP/1.1 TestDevice/1.0\r
@@ -127,7 +132,9 @@ ST: urn:schemas-upnp-org:service:MediaRenderer:1\r
 USN: uuid:TEST-DEVICE-001::urn:schemas-upnp-org:device:TestDevice:1\r
 EXT:\r
 \r
-", self.upnp_server_addr);
+",
+                self.upnp_server_addr
+            );
 
             if let Err(e) = self.socket.send_to(resp_msg.as_bytes(), src_addr) {
                 error!("Failed to send SSDP response: {}", e);
@@ -164,16 +171,30 @@ EXT:\r
         }
 
         pub fn build(self) -> SsdpServer {
-            let runtime = self.runtime.unwrap_or_else(|| Arc::new(Runtime::new().expect("expected a runtime")));
+            let runtime = self
+                .runtime
+                .unwrap_or_else(|| Arc::new(Runtime::new().expect("expected a runtime")));
             let cancellation_token = CancellationToken::new();
             let invocations = Arc::new(Mutex::new(0));
-            let upnp_server_addr = self.upnp_server_addr.expect("expected an upnp server address to have been set");
+            let upnp_server_addr = self
+                .upnp_server_addr
+                .expect("expected an upnp server address to have been set");
             let addr = SockAddr::from(SocketAddr::from(([0, 0, 0, 0], 1900)));
-            let socket = socket2::Socket::new(socket2::Domain::IPV4, socket2::Type::DGRAM, Some(Protocol::UDP)).expect("failed to create socket");
+            let socket = socket2::Socket::new(
+                socket2::Domain::IPV4,
+                socket2::Type::DGRAM,
+                Some(Protocol::UDP),
+            )
+            .expect("failed to create socket");
             socket.set_reuse_port(true).unwrap();
             socket.bind(&addr).expect("failed to bind socket");
             let socket = UdpSocket::from(socket);
-            socket.join_multicast_v4(&"239.255.255.250".parse().unwrap(), &"0.0.0.0".parse().unwrap()).unwrap();
+            socket
+                .join_multicast_v4(
+                    &"239.255.255.250".parse().unwrap(),
+                    &"0.0.0.0".parse().unwrap(),
+                )
+                .unwrap();
 
             let instance = SsdpServer {
                 inner: Arc::new(InnerSsdpServer {

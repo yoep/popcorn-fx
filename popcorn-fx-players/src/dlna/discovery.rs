@@ -131,12 +131,16 @@ impl DlnaDiscoveryBuilder {
     ///
     /// Panics if the player manager is not set.
     pub fn build(self) -> DlnaDiscovery {
-        let runtime = self.runtime.unwrap_or_else(|| Arc::new(Runtime::new().expect("expected a valid runtime")));
+        let runtime = self
+            .runtime
+            .unwrap_or_else(|| Arc::new(Runtime::new().expect("expected a valid runtime")));
         let interval_seconds = self.interval_seconds.unwrap_or(DEFAULT_INTERVAL_SECONDS);
 
         DlnaDiscovery {
             inner: Arc::new(InnerDlnaDiscovery {
-                player_manager: self.player_manager.expect("expected a player manager to have been set"),
+                player_manager: self
+                    .player_manager
+                    .expect("expected a player manager to have been set"),
                 interval_seconds,
                 discovered_devices: Default::default(),
                 state: Mutex::new(DiscoveryState::Stopped),
@@ -171,12 +175,18 @@ impl InnerDlnaDiscovery {
     async fn execute_search(&self) -> Result<(), DlnaError> {
         let search_target = SearchTarget::URN(SSDP_QUERY_URN);
 
-        debug!("Executing DLNA devices search with target {}", search_target.to_string());
-        let mut responses = ssdp_client::search(&search_target, Duration::from_secs(self.interval_seconds), 3, Some(4))
-            .await
-            .map_err(|e| {
-                DlnaError::Discovery(e.to_string())
-            })?;
+        debug!(
+            "Executing DLNA devices search with target {}",
+            search_target.to_string()
+        );
+        let mut responses = ssdp_client::search(
+            &search_target,
+            Duration::from_secs(self.interval_seconds),
+            3,
+            Some(4),
+        )
+        .await
+        .map_err(|e| DlnaError::Discovery(e.to_string()))?;
 
         trace!("Received DLNA device responses");
         while let Some(response) = responses.next().await {
@@ -192,17 +202,23 @@ impl InnerDlnaDiscovery {
         trace!("Received DLNA response {:?}", response);
         let uri = response
             .map_err(|e| DlnaError::Device(e.to_string()))
-            .and_then(|e| e.location().parse().map_err(|err: InvalidUri| {
-                DlnaError::Uri(err.to_string())
-            }))?;
+            .and_then(|e| {
+                e.location()
+                    .parse()
+                    .map_err(|err: InvalidUri| DlnaError::Uri(err.to_string()))
+            })?;
         debug!("Requesting DLNA device info from {}", uri);
-        let device = Device::from_url(uri).await
+        let device = Device::from_url(uri)
+            .await
             .map_err(|e| DlnaError::Device(e.to_string()))?;
 
         if !self.is_already_discovered(&device).await {
             self.add_player(device).await
         } else {
-            trace!("DLNA device {} has already been discovered", device.friendly_name());
+            trace!(
+                "DLNA device {} has already been discovered",
+                device.friendly_name()
+            );
         }
 
         Ok(())
@@ -270,24 +286,22 @@ mod tests {
         let runtime = Arc::new(Runtime::new().unwrap());
         let server = MockServer::start();
         server.mock(|when, then| {
-            when.method(GET)
-                .path("/description.xml");
+            when.method(GET).path("/description.xml");
             then.status(200)
                 .header("Content-Type", "text/xml")
                 .body(DEFAULT_SSDP_DESCRIPTION_RESPONSE);
         });
         let (tx, rx) = channel();
         let mut player_manager = MockPlayerManager::new();
-        player_manager.expect_add_player()
-            .returning(move |e| {
-                if let Ok(player) = e.downcast::<DlnaPlayer>() {
-                    if player.name() == "test" {
-                        tx.send(player).unwrap();
-                    }
+        player_manager.expect_add_player().returning(move |e| {
+            if let Ok(player) = e.downcast::<DlnaPlayer>() {
+                if player.name() == "test" {
+                    tx.send(player).unwrap();
                 }
+            }
 
-                true
-            });
+            true
+        });
         let _dlna_server = MockUdpServer::new()
             .runtime(runtime.clone())
             .device_name("test")
@@ -311,8 +325,7 @@ mod tests {
         init_logger();
         let runtime = Arc::new(Runtime::new().unwrap());
         let mut player_manager = MockPlayerManager::new();
-        player_manager.expect_add_player()
-            .return_const(true);
+        player_manager.expect_add_player().return_const(true);
         let server = DlnaDiscovery::builder()
             .runtime(runtime.clone())
             .interval_seconds(1)
@@ -320,11 +333,25 @@ mod tests {
             .build();
 
         let result = runtime.block_on(server.start_discovery());
-        assert_eq!(true, result.is_ok(), "expected the server to have been started");
-        assert_timeout!(Duration::from_millis(200), DiscoveryState::Running == server.inner.state());
+        assert_eq!(
+            true,
+            result.is_ok(),
+            "expected the server to have been started"
+        );
+        assert_timeout!(
+            Duration::from_millis(200),
+            DiscoveryState::Running == server.inner.state()
+        );
 
         server.stop_discovery().unwrap();
-        assert_eq!(true, server.inner.cancel_token.is_cancelled(), "server should be stopped");
-        assert_timeout!(Duration::from_millis(1500), DiscoveryState::Stopped == server.inner.state());
+        assert_eq!(
+            true,
+            server.inner.cancel_token.is_cancelled(),
+            "server should be stopped"
+        );
+        assert_timeout!(
+            Duration::from_millis(1500),
+            DiscoveryState::Stopped == server.inner.state()
+        );
     }
 }

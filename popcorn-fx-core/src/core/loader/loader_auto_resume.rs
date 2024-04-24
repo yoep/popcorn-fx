@@ -7,7 +7,9 @@ use derive_more::Display;
 use log::{debug, trace};
 use tokio_util::sync::CancellationToken;
 
-use crate::core::loader::{CancellationResult, LoadingData, LoadingError, LoadingEvent, LoadingResult, LoadingStrategy};
+use crate::core::loader::{
+    CancellationResult, LoadingData, LoadingError, LoadingEvent, LoadingResult, LoadingStrategy,
+};
 use crate::core::media::resume::AutoResumeService;
 
 /// Represents a strategy for loading auto resume timestamps.
@@ -51,24 +53,35 @@ impl Debug for AutoResumeLoadingStrategy {
 
 #[async_trait]
 impl LoadingStrategy for AutoResumeLoadingStrategy {
-    async fn process(&self, mut data: LoadingData, _: Sender<LoadingEvent>, cancel: CancellationToken) -> LoadingResult {
+    async fn process(
+        &self,
+        mut data: LoadingData,
+        _: Sender<LoadingEvent>,
+        cancel: CancellationToken,
+    ) -> LoadingResult {
         trace!("Processing auto resume timestamp for {:?}", data);
         let mut id: Option<&str> = None;
-        let filename = data.torrent_file_info.as_ref()
-            .map(|e| e.filename.as_str());
+        let filename = data.torrent_file_info.as_ref().map(|e| e.filename.as_str());
 
         if cancel.is_cancelled() {
             return LoadingResult::Err(LoadingError::Cancelled);
         }
         if let Some(media) = data.media.as_ref() {
-            debug!("Using media id {} for retrieving auto resume timestamp", media.imdb_id());
+            debug!(
+                "Using media id {} for retrieving auto resume timestamp",
+                media.imdb_id()
+            );
             id = Some(media.imdb_id());
         }
 
         if cancel.is_cancelled() {
             return LoadingResult::Err(LoadingError::Cancelled);
         }
-        trace!("Retrieving auto resume timestamp for id: {:?}, filename: {:?}", id, filename);
+        trace!(
+            "Retrieving auto resume timestamp for id: {:?}, filename: {:?}",
+            id,
+            filename
+        );
         if let Some(timestamp) = self.auto_resume.resume_timestamp(id, filename) {
             debug!("Using auto resume timestamp {} for {:?}", timestamp, data);
             data.auto_resume_timestamp = Some(timestamp)
@@ -133,14 +146,17 @@ mod tests {
         let (tx_filename, rx_filename) = channel();
         let (tx_event, _rx_event) = channel();
         let mut auto_resume = MockAutoResumeService::new();
-        auto_resume.expect_resume_timestamp()
+        auto_resume
+            .expect_resume_timestamp()
             .times(1)
             .returning(move |id, filename| {
                 tx.send(id.map(|e| e.to_string())).unwrap();
                 tx_filename.send(filename.map(|e| e.to_string())).unwrap();
                 Some(timestamp)
             });
-        let strategy = AutoResumeLoadingStrategy::new(Arc::new(Box::new(auto_resume) as Box<dyn AutoResumeService>));
+        let strategy = AutoResumeLoadingStrategy::new(Arc::new(
+            Box::new(auto_resume) as Box<dyn AutoResumeService>
+        ));
 
         let result = block_in_place(strategy.process(data, tx_event, CancellationToken::new()));
 
@@ -148,12 +164,26 @@ mod tests {
             assert_eq!(Some(timestamp), result.auto_resume_timestamp);
 
             let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
-            assert_eq!(Some(imdb_id.to_string()), result, "expected the media id to have been given");
+            assert_eq!(
+                Some(imdb_id.to_string()),
+                result,
+                "expected the media id to have been given"
+            );
 
-            let result = rx_filename.recv_timeout(Duration::from_millis(200)).unwrap();
-            assert_eq!(Some(filename.to_string()), result, "expected torrent file info to have been given");
+            let result = rx_filename
+                .recv_timeout(Duration::from_millis(200))
+                .unwrap();
+            assert_eq!(
+                Some(filename.to_string()),
+                result,
+                "expected torrent file info to have been given"
+            );
         } else {
-            assert!(false, "expected LoadingResult::Ok, but got {:?} instead", result);
+            assert!(
+                false,
+                "expected LoadingResult::Ok, but got {:?} instead",
+                result
+            );
         }
     }
 
@@ -184,14 +214,17 @@ mod tests {
         let (tx_filename, rx_filename) = channel();
         let (tx_event, _rx_event) = channel();
         let mut auto_resume = MockAutoResumeService::new();
-        auto_resume.expect_resume_timestamp()
+        auto_resume
+            .expect_resume_timestamp()
             .times(1)
             .returning(move |id, filename| {
                 tx.send(id.map(|e| e.to_string())).unwrap();
                 tx_filename.send(filename.map(|e| e.to_string())).unwrap();
                 Some(timestamp)
             });
-        let strategy = AutoResumeLoadingStrategy::new(Arc::new(Box::new(auto_resume) as Box<dyn AutoResumeService>));
+        let strategy = AutoResumeLoadingStrategy::new(Arc::new(
+            Box::new(auto_resume) as Box<dyn AutoResumeService>
+        ));
 
         let result = block_in_place(strategy.process(data, tx_event, CancellationToken::new()));
 
@@ -201,10 +234,20 @@ mod tests {
             let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
             assert_eq!(None, result, "expected no media id to have been given");
 
-            let result = rx_filename.recv_timeout(Duration::from_millis(200)).unwrap();
-            assert_eq!(Some(filename.to_string()), result, "expected torrent file info to have been given");
+            let result = rx_filename
+                .recv_timeout(Duration::from_millis(200))
+                .unwrap();
+            assert_eq!(
+                Some(filename.to_string()),
+                result,
+                "expected torrent file info to have been given"
+            );
         } else {
-            assert!(false, "expected LoadingResult::Ok, but got {:?} instead", result);
+            assert!(
+                false,
+                "expected LoadingResult::Ok, but got {:?} instead",
+                result
+            );
         }
     }
 
@@ -227,7 +270,9 @@ mod tests {
         };
         let mut data = LoadingData::from(item);
         let auto_resume = MockAutoResumeService::new();
-        let strategy = AutoResumeLoadingStrategy::new(Arc::new(Box::new(auto_resume) as Box<dyn AutoResumeService>));
+        let strategy = AutoResumeLoadingStrategy::new(Arc::new(
+            Box::new(auto_resume) as Box<dyn AutoResumeService>
+        ));
 
         let result = block_in_place(strategy.cancel(data.clone()));
         data.auto_resume_timestamp = None;

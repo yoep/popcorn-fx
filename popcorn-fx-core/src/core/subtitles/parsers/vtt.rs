@@ -54,7 +54,15 @@ impl Parser for VttParser {
 
             output.push_str(id.as_str());
             output.push_str(NEWLINE);
-            output.push_str(format!("{} {} {}", Self::convert_time_to_string(start_time), TIME_INDICATOR, Self::convert_time_to_string(end_time)).as_str());
+            output.push_str(
+                format!(
+                    "{} {} {}",
+                    Self::convert_time_to_string(start_time),
+                    TIME_INDICATOR,
+                    Self::convert_time_to_string(end_time)
+                )
+                .as_str(),
+            );
             output.push_str(NEWLINE);
 
             for line in cue.lines().iter() {
@@ -79,27 +87,47 @@ mod test {
 
     #[test]
     fn test_parse_raw() {
-        let cues = vec![SubtitleCue::new(
-            "1".to_string(),
-            30000,
-            48100,
-            vec![
-                SubtitleLine::new(vec![StyledText::new("lorem".to_string(), true, false, false)]),
-                SubtitleLine::new(vec![StyledText::new("ipsum".to_string(), false, false, false)]),
-            ]), SubtitleCue::new(
-            "2".to_string(),
-            60000,
-            60500,
-            vec![
-                SubtitleLine::new(vec![StyledText::new("dolor".to_string(), false, false, false)]),
-            ]),
+        let cues = vec![
+            SubtitleCue::new(
+                "1".to_string(),
+                30000,
+                48100,
+                vec![
+                    SubtitleLine::new(vec![StyledText::new(
+                        "lorem".to_string(),
+                        true,
+                        false,
+                        false,
+                    )]),
+                    SubtitleLine::new(vec![StyledText::new(
+                        "ipsum".to_string(),
+                        false,
+                        false,
+                        false,
+                    )]),
+                ],
+            ),
+            SubtitleCue::new(
+                "2".to_string(),
+                60000,
+                60500,
+                vec![SubtitleLine::new(vec![StyledText::new(
+                    "dolor".to_string(),
+                    false,
+                    false,
+                    false,
+                )])],
+            ),
         ];
         let parser = VttParser::default();
-        let expected_result = read_test_file_to_string("conversion-example.vtt")
-            .replace("\r\n", "\n");
+        let expected_result =
+            read_test_file_to_string("conversion-example.vtt").replace("\r\n", "\n");
 
         let result = parser.convert(&cues);
 
-        assert_eq!(expected_result, result.expect("Expected the parsing to have succeeded"))
+        assert_eq!(
+            expected_result,
+            result.expect("Expected the parsing to have succeeded")
+        )
     }
 }

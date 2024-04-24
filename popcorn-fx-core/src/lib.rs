@@ -52,7 +52,10 @@ pub fn from_c_string(ptr: *const c_char) -> String {
         std::str::from_utf8(slice)
             .map(|e| e.to_string())
             .unwrap_or_else(|e| {
-                error!("Failed to read C string, using empty string instead ({})", e);
+                error!(
+                    "Failed to read C string, using empty string instead ({})",
+                    e
+                );
                 String::new()
             })
     } else {
@@ -74,11 +77,13 @@ pub fn from_c_string_owned(ptr: *mut c_char) -> String {
     if !ptr.is_null() {
         let value = unsafe { CString::from_raw(ptr) };
 
-        value.into_string()
-            .unwrap_or_else(|e| {
-                error!("Failed to read C string, using empty string instead ({})", e);
-                String::new()
-            })
+        value.into_string().unwrap_or_else(|e| {
+            error!(
+                "Failed to read C string, using empty string instead ({})",
+                e
+            );
+            String::new()
+        })
     } else {
         error!("Unable to read C string, pointer is null");
         String::new()
@@ -240,8 +245,8 @@ pub mod testing {
     use async_trait::async_trait;
     use log::{debug, LevelFilter, trace};
     use log4rs::append::console::ConsoleAppender;
-    use log4rs::Config;
     use log4rs::config::{Appender, Logger, Root};
+    use log4rs::Config;
     use log4rs::encode::pattern::PatternEncoder;
     use mockall::mock;
     use tempfile::TempDir;
@@ -254,7 +259,10 @@ pub mod testing {
     use crate::core::subtitles::{SubtitleEvent, SubtitleManager};
     use crate::core::subtitles::language::SubtitleLanguage;
     use crate::core::subtitles::model::SubtitleInfo;
-    use crate::core::torrents::{Torrent, TorrentCallback, TorrentState, TorrentStream, TorrentStreamCallback, TorrentStreamingResourceWrapper, TorrentStreamState};
+    use crate::core::torrents::{
+        Torrent, TorrentCallback, TorrentState, TorrentStream, TorrentStreamCallback,
+        TorrentStreamingResourceWrapper, TorrentStreamState,
+    };
 
     static INIT: Once = Once::new();
 
@@ -286,11 +294,8 @@ pub mod testing {
     /// * `output_filename` - The new filename within the temp directory
     pub fn copy_test_file(temp_dir: &str, filename: &str, output_filename: Option<&str>) -> String {
         let root_dir = &env::var("CARGO_MANIFEST_DIR").expect("$CARGO_MANIFEST_DIR");
-        let source = PathBuf::from(root_dir)
-            .join("test")
-            .join(filename);
-        let destination = PathBuf::from(temp_dir)
-            .join(output_filename.unwrap_or(filename));
+        let source = PathBuf::from(root_dir).join("test").join(filename);
+        let destination = PathBuf::from(temp_dir).join(output_filename.unwrap_or(filename));
 
         // make sure the parent dir exists
         fs::create_dir_all(destination.parent().unwrap()).unwrap();
@@ -347,12 +352,13 @@ pub mod testing {
                 .read(true)
                 .open(&path)
                 .unwrap()
-                .read_to_string(&mut content) {
+                .read_to_string(&mut content)
+            {
                 Ok(e) => {
                     debug!("Read temp file {:?} with size {}", path, e);
                     content
                 }
-                Err(e) => panic!("Failed to read temp file, {}", e)
+                Err(e) => panic!("Failed to read temp file, {}", e),
             }
         } else {
             panic!("Temp filepath {:?} does not exist", path)
@@ -369,12 +375,13 @@ pub mod testing {
                 .read(true)
                 .open(&path)
                 .unwrap()
-                .read_to_end(&mut buffer) {
+                .read_to_end(&mut buffer)
+            {
                 Ok(e) => {
                     debug!("Read temp file {:?} with size {}", path, e);
                     buffer
                 }
-                Err(e) => panic!("Failed to read temp file, {}", e)
+                Err(e) => panic!("Failed to read temp file, {}", e),
             }
         } else {
             panic!("Temp filepath {:?} does not exist", path)
@@ -438,44 +445,44 @@ pub mod testing {
     mock! {
         #[derive(Debug)]
         pub TorrentStream {}
-    
+
         impl Torrent for TorrentStream {
             fn handle(&self) -> &str;
-    
+
             fn file(&self) -> PathBuf;
-    
+
             fn has_bytes(&self, bytes: &[u64]) -> bool;
-    
+
             fn has_piece(&self, piece: u32) -> bool;
-    
+
             fn prioritize_bytes(&self, bytes: &[u64]);
-    
+
             fn prioritize_pieces(&self, pieces: &[u32]);
-    
+
             fn total_pieces(&self) -> i32;
-    
+
             fn sequential_mode(&self);
-    
+
             fn state(&self) -> TorrentState;
-    
+
             fn subscribe(&self, callback: TorrentCallback) -> CallbackHandle;
         }
-    
+
         impl TorrentStream for TorrentStream {
             fn stream_handle(&self) -> Handle;
-    
+
             fn url(&self) -> Url;
-    
+
             fn stream(&self) -> torrents::Result<TorrentStreamingResourceWrapper>;
-    
+
             fn stream_offset(&self, offset: u64, len: Option<u64>) -> torrents::Result<TorrentStreamingResourceWrapper>;
-    
+
             fn stream_state(&self) -> TorrentStreamState;
-    
+
             fn subscribe_stream(&self, callback: TorrentStreamCallback) -> CallbackHandle;
-    
+
             fn unsubscribe_stream(&self, handle: CallbackHandle);
-    
+
             fn stop_stream(&self);
         }
     }
@@ -489,14 +496,14 @@ pub mod testing {
     mock! {
         #[derive(Debug)]
         pub DummyPlatform {}
-    
+
         impl Platform for DummyPlatform {
             fn disable_screensaver(&self) -> bool;
-    
+
             fn enable_screensaver(&self) -> bool;
-    
+
             fn notify_media_event(&self, notification: MediaNotificationEvent);
-    
+
             fn register(&self, callback: PlatformCallback);
         }
     }
@@ -504,93 +511,101 @@ pub mod testing {
     mock! {
         #[derive(Debug)]
         pub DummyPlatformData {}
-    
+
         impl PlatformData for DummyPlatformData {
             fn info(&self) -> PlatformInfo;
         }
-    
+
         impl Platform for DummyPlatformData {
             fn disable_screensaver(&self) -> bool;
-    
+
             fn enable_screensaver(&self) -> bool;
-            
+
             fn notify_media_event(&self, notification: MediaNotificationEvent);
-    
+
             fn register(&self, callback: PlatformCallback);
         }
     }
 
     #[macro_export]
     macro_rules! assert_timeout {
-    ($timeout:expr, $condition:expr) => {{
-        use std::thread;
-        use std::time::{Duration, Instant};
+        ($timeout:expr, $condition:expr) => {{
+            use std::thread;
+            use std::time::{Duration, Instant};
 
-        let start_time = Instant::now();
-        let timeout: Duration = $timeout;
+            let start_time = Instant::now();
+            let timeout: Duration = $timeout;
 
-        let result = loop {
-            if $condition {
-                break true;
+            let result = loop {
+                if $condition {
+                    break true;
+                }
+                if start_time.elapsed() >= timeout {
+                    break false;
+                }
+                thread::sleep(Duration::from_millis(10));
+            };
+
+            if !result {
+                assert!(false, "Timeout assertion failed after {:?}", $timeout);
             }
-            if start_time.elapsed() >= timeout {
-                break false;
+        }};
+        ($timeout:expr, $condition:expr, $message:expr) => {{
+            use std::thread;
+            use std::time::{Duration, Instant};
+
+            let start_time = Instant::now();
+            let timeout: Duration = $timeout;
+
+            let result = loop {
+                if $condition {
+                    break true;
+                }
+                if start_time.elapsed() >= timeout {
+                    break false;
+                }
+                thread::sleep(Duration::from_millis(10));
+            };
+
+            if !result {
+                assert!(
+                    false,
+                    concat!("Timeout assertion failed after {:?}: ", $message),
+                    $timeout
+                );
             }
-            thread::sleep(Duration::from_millis(10));
-        };
-
-        if !result {
-            assert!(false, "Timeout assertion failed after {:?}", $timeout);
-        }
-    }};
-    ($timeout:expr, $condition:expr, $message:expr) => {{
-        use std::thread;
-        use std::time::{Duration, Instant};
-
-        let start_time = Instant::now();
-        let timeout: Duration = $timeout;
-
-        let result = loop {
-            if $condition {
-                break true;
-            }
-            if start_time.elapsed() >= timeout {
-                break false;
-            }
-            thread::sleep(Duration::from_millis(10));
-        };
-
-        if !result {
-            assert!(false, concat!("Timeout assertion failed after {:?}: ", $message), $timeout);
-        }
-    }};
+        }};
     }
 
     #[macro_export]
     macro_rules! assert_timeout_eq {
-    ($timeout:expr, $left:expr, $right:expr) => {{
-        use std::thread;
-        use std::time::{Duration, Instant};
+        ($timeout:expr, $left:expr, $right:expr) => {{
+            use std::thread;
+            use std::time::{Duration, Instant};
 
-        let start_time = Instant::now();
-        let timeout: Duration = $timeout;
-        let mut actual_value;
+            let start_time = Instant::now();
+            let timeout: Duration = $timeout;
+            let mut actual_value;
 
-        let result = loop {
-            actual_value = $right;
-            if $left == actual_value {
-                break true;
+            let result = loop {
+                actual_value = $right;
+                if $left == actual_value {
+                    break true;
+                }
+                if start_time.elapsed() >= timeout {
+                    break false;
+                }
+                thread::sleep(Duration::from_millis(10));
+            };
+
+            if !result {
+                assert!(
+                    false,
+                    "Assertion timed out after {:?}, expected {} but got {} instead",
+                    $timeout, $left, actual_value
+                );
             }
-            if start_time.elapsed() >= timeout {
-                break false;
-            }
-            thread::sleep(Duration::from_millis(10));
-        };
-
-        if !result {
-            assert!(false, "Assertion timed out after {:?}, expected {} but got {} instead", $timeout, $left, actual_value);
-        }
-    }};
+        }};
     }
 }
 
@@ -610,37 +625,41 @@ mod test {
     pub fn start_mock_server(temp_dir: &TempDir) -> (MockServer, Arc<ApplicationConfig>) {
         let server = MockServer::start();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(ApplicationConfig::builder()
-            .storage(temp_path)
-            .properties(PopcornProperties {
-                loggers: Default::default(),
-                update_channel: String::new(),
-                providers: create_providers(&server),
-                enhancers: Default::default(),
-                subtitle: Default::default(),
-                tracking: Default::default(),
-            })
-            .build());
+        let settings = Arc::new(
+            ApplicationConfig::builder()
+                .storage(temp_path)
+                .properties(PopcornProperties {
+                    loggers: Default::default(),
+                    update_channel: String::new(),
+                    providers: create_providers(&server),
+                    enhancers: Default::default(),
+                    subtitle: Default::default(),
+                    tracking: Default::default(),
+                })
+                .build(),
+        );
 
         (server, settings)
     }
 
     fn create_providers(server: &MockServer) -> HashMap<String, ProviderProperties> {
         let mut map: HashMap<String, ProviderProperties> = HashMap::new();
-        map.insert("movies".to_string(), ProviderProperties {
-            uris: vec![
-                server.url("")
-            ],
-            genres: vec![],
-            sort_by: vec![],
-        });
-        map.insert("series".to_string(), ProviderProperties {
-            uris: vec![
-                server.url("")
-            ],
-            genres: vec![],
-            sort_by: vec![],
-        });
+        map.insert(
+            "movies".to_string(),
+            ProviderProperties {
+                uris: vec![server.url("")],
+                genres: vec![],
+                sort_by: vec![],
+            },
+        );
+        map.insert(
+            "series".to_string(),
+            ProviderProperties {
+                uris: vec![server.url("")],
+                genres: vec![],
+                sort_by: vec![],
+            },
+        );
         map
     }
 
@@ -662,9 +681,7 @@ mod test {
 
     #[test]
     fn test_owned() {
-        let value = Example {
-            a: 13
-        };
+        let value = Example { a: 13 };
 
         let c = into_c_owned(value.clone());
         let result = from_c_owned(c);
@@ -674,9 +691,7 @@ mod test {
 
     #[test]
     fn test_owned_boxed() {
-        let value = Example {
-            a: 54
-        };
+        let value = Example { a: 54 };
 
         let c = into_c_owned(value.clone());
         let result = from_c_into_boxed(c);
@@ -697,28 +712,34 @@ mod test {
     #[test]
     fn test_from_c_vec() {
         init_logger();
-        let value = Example {
-            a: 25,
-        };
+        let value = Example { a: 25 };
         let array = vec![value.clone()];
 
         let (ptr, len) = into_c_vec(array);
         let result = from_c_vec(ptr, len);
 
-        assert_eq!(&value, result.get(0).expect("expected the value item to have been present"));
+        assert_eq!(
+            &value,
+            result
+                .get(0)
+                .expect("expected the value item to have been present")
+        );
     }
 
     #[test]
     fn test_from_c_vec_owned() {
         init_logger();
-        let value = Example {
-            a: 25,
-        };
+        let value = Example { a: 25 };
         let array = vec![value.clone()];
 
         let (ptr, len) = into_c_vec(array);
         let result = from_c_vec_owned(ptr, len);
 
-        assert_eq!(&value, result.get(0).expect("expected the value item to have been present"));
+        assert_eq!(
+            &value,
+            result
+                .get(0)
+                .expect("expected the value item to have been present")
+        );
     }
 }

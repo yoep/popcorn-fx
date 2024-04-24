@@ -33,9 +33,7 @@ impl LoadingChain {
     /// Get a vector of weak references to the loading strategies in the chain.
     pub fn strategies(&self) -> Vec<Weak<Box<dyn LoadingStrategy>>> {
         let chain = self.chain.read().unwrap();
-        chain.iter()
-            .map(|e| Arc::downgrade(&e.strategy))
-            .collect()
+        chain.iter().map(|e| Arc::downgrade(&e.strategy)).collect()
     }
 }
 
@@ -50,7 +48,7 @@ impl From<Vec<Box<dyn LoadingStrategy>>> for LoadingChain {
 }
 
 impl FromIterator<Box<dyn LoadingStrategy>> for LoadingChain {
-    fn from_iter<T: IntoIterator<Item=Box<dyn LoadingStrategy>>>(iter: T) -> Self {
+    fn from_iter<T: IntoIterator<Item = Box<dyn LoadingStrategy>>>(iter: T) -> Self {
         let instance = Self::default();
         let mut order: Order = DEFAULT_ORDER;
 

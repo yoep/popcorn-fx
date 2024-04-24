@@ -17,5 +17,5 @@ pub enum StorageError {
     /// Indicates that an IO error occurred.
     /// It contains the `filepath` and `error_message`.
     #[error("an io error occurred on {0}, {1}")]
-    IO(String, String)
+    IO(String, String),
 }

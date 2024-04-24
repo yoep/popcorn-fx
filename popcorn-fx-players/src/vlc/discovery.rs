@@ -25,9 +25,11 @@ pub struct VlcDiscovery {
 
 impl VlcDiscovery {
     /// Creates a new instance of `VlcDiscovery`.
-    pub fn new(subtitle_manager: Arc<Box<dyn SubtitleManager>>,
-               subtitle_provider: Arc<Box<dyn SubtitleProvider>>,
-               player_manager: Arc<Box<dyn PlayerManager>>) -> Self {
+    pub fn new(
+        subtitle_manager: Arc<Box<dyn SubtitleManager>>,
+        subtitle_provider: Arc<Box<dyn SubtitleProvider>>,
+        player_manager: Arc<Box<dyn PlayerManager>>,
+    ) -> Self {
         Self {
             subtitle_manager,
             subtitle_provider,
@@ -77,7 +79,8 @@ impl Discovery for VlcDiscovery {
                 .stdout(Stdio::null())
                 .status()
                 .map(|e| e.success())
-                .unwrap_or(false) {
+                .unwrap_or(false)
+            {
                 trace!("Creating new external VLC player instance");
                 let vlc_player = VlcPlayer::builder()
                     .subtitle_manager(self.subtitle_manager.clone())
@@ -88,7 +91,9 @@ impl Discovery for VlcDiscovery {
                     info!("Added new external VLC player");
                 } else {
                     self.update_state_async(DiscoveryState::Error).await;
-                    return Err(DiscoveryError::Initialization("Unable to add external VLC player".to_string()));
+                    return Err(DiscoveryError::Initialization(
+                        "Unable to add external VLC player".to_string(),
+                    ));
                 }
             } else {
                 info!("External VLC executable not found, external VLC player won't be registered");
@@ -129,13 +134,18 @@ mod tests {
         let provider = MockSubtitleProvider::new();
         let (tx, rx) = channel();
         let mut player_manager = MockPlayerManager::new();
-        player_manager.expect_add_player()
+        player_manager
+            .expect_add_player()
             .times(1)
             .returning(move |e| {
                 tx.send(e).unwrap();
                 true
             });
-        let discovery = VlcDiscovery::new(Arc::new(Box::new(manager)), Arc::new(Box::new(provider)), Arc::new(Box::new(player_manager)));
+        let discovery = VlcDiscovery::new(
+            Arc::new(Box::new(manager)),
+            Arc::new(Box::new(provider)),
+            Arc::new(Box::new(player_manager)),
+        );
 
         block_in_place(discovery.start_discovery()).unwrap();
 
@@ -153,7 +163,8 @@ mod tests {
         let discovery = VlcDiscovery::new(
             Arc::new(Box::new(manager)),
             Arc::new(Box::new(provider)),
-            Arc::new(Box::new(player_manager)));
+            Arc::new(Box::new(player_manager)),
+        );
 
         let result = discovery.stop_discovery();
 

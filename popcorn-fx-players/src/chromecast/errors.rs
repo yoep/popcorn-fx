@@ -14,6 +14,8 @@ pub enum ChromecastError {
     AppTerminationFailed(String),
     #[error("failed to parse chromecast message, {0}")]
     Parsing(String),
+    #[error("command {0} timed out")]
+    CommandTimeout(String),
 }
 
 pub type Result<T> = std::result::Result<T, ChromecastError>;

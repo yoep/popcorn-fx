@@ -4,7 +4,7 @@ import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.lib.StringArray;
+import com.github.yoep.popcorn.backend.lib.FxStringArray;
 import com.github.yoep.popcorn.backend.media.filters.model.Category;
 import com.github.yoep.popcorn.backend.media.filters.model.Genre;
 import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
@@ -65,8 +65,8 @@ class DesktopFilterComponentTest {
     void testCategoryChangedEvent() {
         var displayText = "Lorem ipsum";
         var event = new CategoryChangedEvent(component, Category.FAVORITES);
-        var genres = mock(StringArray.class);
-        var sortBy = mock(StringArray.class);
+        var genres = mock(FxStringArray.class);
+        var sortBy = mock(FxStringArray.class);
         when(fxLib.retrieve_provider_genres(instance, Category.FAVORITES.getProviderName())).thenReturn(genres);
         when(fxLib.retrieve_provider_sort_by(instance, Category.FAVORITES.getProviderName())).thenReturn(sortBy);
         when(genres.values()).thenReturn(Collections.singletonList("lorem"));

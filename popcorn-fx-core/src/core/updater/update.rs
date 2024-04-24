@@ -149,12 +149,10 @@ impl Updater {
     ///
     /// An error if the download failed.
     pub async fn download(&self) -> updater::Result<()> {
-        self.inner.download()
-            .await
-            .map_err(|e| {
-                warn!("Failed to download update, {}", e);
-                e
-            })
+        self.inner.download().await.map_err(|e| {
+            warn!("Failed to download update, {}", e);
+            e
+        })
     }
 
     /// Install the downloaded update.
@@ -181,9 +179,9 @@ impl Updater {
     /// Start polling the update channel on a new thread.
     fn start_polling(&self) {
         let updater = self.inner.clone();
-        self.inner.runtime.spawn(async move {
-            updater.poll().await
-        });
+        self.inner
+            .runtime
+            .spawn(async move { updater.poll().await });
     }
 }
 
@@ -288,7 +286,8 @@ impl UpdaterBuilder {
                 self.callbacks,
                 self.runtime
                     .or_else(|| Some(Arc::new(Runtime::new().unwrap())))
-                    .unwrap()))
+                    .unwrap(),
+            )),
         };
 
         instance.start_polling();
@@ -328,7 +327,14 @@ struct InnerUpdater {
 }
 
 impl InnerUpdater {
-    fn new(settings: Arc<ApplicationConfig>, insecure: bool, platform: Arc<Box<dyn PlatformData>>, data_path: &str, callbacks: Vec<UpdateCallback>, runtime: Arc<Runtime>) -> Self {
+    fn new(
+        settings: Arc<ApplicationConfig>,
+        insecure: bool,
+        platform: Arc<Box<dyn PlatformData>>,
+        data_path: &str,
+        callbacks: Vec<UpdateCallback>,
+        runtime: Arc<Runtime>,
+    ) -> Self {
         let core_callbacks: CoreCallbacks<UpdateEvent> = Default::default();
 
         // add the given callbacks to the initial list
@@ -377,7 +383,8 @@ impl InnerUpdater {
         let properties = self.settings.properties();
         let update_channel = properties.update_channel();
 
-        self.update_state_async(UpdateState::CheckingForNewVersion).await;
+        self.update_state_async(UpdateState::CheckingForNewVersion)
+            .await;
         trace!("Parsing update channel url {}", update_channel);
         match Url::parse(update_channel) {
             Ok(mut url) => {
@@ -385,13 +392,16 @@ impl InnerUpdater {
                 let response = self.poll_info_from_url(url).await?;
                 let version_info = Self::handle_query_response(response).await?;
 
-                self.update_version_info(&version_info).await
+                self.update_version_info(&version_info)
+                    .await
                     .map(|_| version_info)
             }
             Err(e) => {
                 error!("Failed to poll update channel, {}", e);
                 self.update_state_async(UpdateState::Error).await;
-                Err(UpdateError::InvalidUpdateChannel(update_channel.to_string()))
+                Err(UpdateError::InvalidUpdateChannel(
+                    update_channel.to_string(),
+                ))
             }
         }
     }
@@ -409,43 +419,94 @@ impl InnerUpdater {
     async fn create_update_tasks(&self, version_info: &VersionInfo) -> updater::Result<()> {
         let platform_identifier = self.platform_identifier();
         let current_version = Self::current_application_version();
-        let application_version = Version::parse(version_info.application.version())
-            .map_err(|e| UpdateError::InvalidApplicationVersion(version_info.application.version().to_string(), e.to_string()))?;
-        let runtime_version = Version::parse(version_info.runtime.version())
-            .map_err(|e| UpdateError::InvalidRuntimeVersion(version_info.runtime.version().to_string(), e.to_string()))?;
+        let application_version =
+            Version::parse(version_info.application.version()).map_err(|e| {
+                UpdateError::InvalidApplicationVersion(
+                    version_info.application.version().to_string(),
+                    e.to_string(),
+                )
+            })?;
+        let runtime_version = Version::parse(version_info.runtime.version()).map_err(|e| {
+            UpdateError::InvalidRuntimeVersion(
+                version_info.runtime.version().to_string(),
+                e.to_string(),
+            )
+        })?;
         let mut tasks_mutex = self.tasks.lock().await;
 
-        debug!("Checking channel app version {} against local version {}", current_version.to_string(), application_version.to_string());
-        if self.is_application_update_available(version_info, &application_version).await {
-            info!("New application version {} is available", application_version);
-            tasks_mutex.push(UpdateTask::builder()
-                .current_version(current_version)
-                .install_directory(application_version.to_string())
-                .new_version(application_version)
-                .download_link(Self::convert_download_link_to_url(version_info.application.download_link(platform_identifier.as_str()))?)
-                .build());
+        debug!(
+            "Checking channel app version {} against local version {}",
+            current_version.to_string(),
+            application_version.to_string()
+        );
+        if self
+            .is_application_update_available(version_info, &application_version)
+            .await
+        {
+            info!(
+                "New application version {} is available",
+                application_version
+            );
+            tasks_mutex.push(
+                UpdateTask::builder()
+                    .current_version(current_version)
+                    .install_directory(application_version.to_string())
+                    .new_version(application_version)
+                    .download_link(Self::convert_download_link_to_url(
+                        version_info
+                            .application
+                            .download_link(platform_identifier.as_str()),
+                    )?)
+                    .build(),
+            );
         } else {
             info!("Application version {} is up-to-date", VERSION);
         }
 
-        debug!("Checking channel runtime version {} against local version {}", self.launcher_options.runtime_version, runtime_version.to_string());
-        if self.is_runtime_update_available(version_info, &runtime_version).await {
+        debug!(
+            "Checking channel runtime version {} against local version {}",
+            self.launcher_options.runtime_version,
+            runtime_version.to_string()
+        );
+        if self
+            .is_runtime_update_available(version_info, &runtime_version)
+            .await
+        {
             info!("New runtime version {} is available", runtime_version);
-            tasks_mutex.push(UpdateTask::builder()
-                .current_version(Version::parse(self.launcher_options.runtime_version.as_str())
-                    .map_err(|e| UpdateError::InvalidRuntimeVersion(self.launcher_options.runtime_version.clone(), e.to_string()))?)
-                .new_version(runtime_version)
-                .download_link(Self::convert_download_link_to_url(version_info.runtime.download_link(platform_identifier.as_str()))?)
-                .install_directory(RUNTIMES_DIRECTORY.to_string())
-                .build());
+            tasks_mutex.push(
+                UpdateTask::builder()
+                    .current_version(
+                        Version::parse(self.launcher_options.runtime_version.as_str()).map_err(
+                            |e| {
+                                UpdateError::InvalidRuntimeVersion(
+                                    self.launcher_options.runtime_version.clone(),
+                                    e.to_string(),
+                                )
+                            },
+                        )?,
+                    )
+                    .new_version(runtime_version)
+                    .download_link(Self::convert_download_link_to_url(
+                        version_info
+                            .runtime
+                            .download_link(platform_identifier.as_str()),
+                    )?)
+                    .install_directory(RUNTIMES_DIRECTORY.to_string())
+                    .build(),
+            );
         }
 
         if tasks_mutex.len() > 0 {
-            debug!("A total of {} update tasks have been created", tasks_mutex.len());
+            debug!(
+                "A total of {} update tasks have been created",
+                tasks_mutex.len()
+            );
             self.update_state_async(UpdateState::UpdateAvailable).await;
-            self.callbacks.invoke(UpdateEvent::UpdateAvailable(version_info.clone()));
+            self.callbacks
+                .invoke(UpdateEvent::UpdateAvailable(version_info.clone()));
         } else {
-            self.update_state_async(UpdateState::NoUpdateAvailable).await;
+            self.update_state_async(UpdateState::NoUpdateAvailable)
+                .await;
         }
 
         Ok(())
@@ -464,13 +525,10 @@ impl InnerUpdater {
 
     async fn poll_info_from_url(&self, url: Url) -> updater::Result<Response> {
         debug!("Polling update information from {}", url.as_str());
-        self.client.get(url.clone())
-            .send()
-            .await
-            .map_err(|e| {
-                error!("Failed to poll update channel, {}", e);
-                UpdateError::InvalidUpdateChannel(url.to_string())
-            })
+        self.client.get(url.clone()).send().await.map_err(|e| {
+            error!("Failed to poll update channel, {}", e);
+            UpdateError::InvalidUpdateChannel(url.to_string())
+        })
     }
 
     async fn download(&self) -> updater::Result<()> {
@@ -504,17 +562,26 @@ impl InnerUpdater {
     async fn download_update_task(&self, task: &mut UpdateTask) -> updater::Result<()> {
         let directory = self.update_directory_path();
         let url_path = PathBuf::from(task.download_link.path());
-        let filename = url_path.file_name().expect("expected a valid filename").to_str().unwrap();
+        let filename = url_path
+            .file_name()
+            .expect("expected a valid filename")
+            .to_str()
+            .unwrap();
         let mut file = self.create_update_file(&directory, filename).await?;
 
-        debug!("Downloading update patch from {}", task.download_link.as_str());
-        match self.client.get(task.download_link.as_ref())
-            .send()
-            .await {
+        debug!(
+            "Downloading update patch from {}",
+            task.download_link.as_str()
+        );
+        match self.client.get(task.download_link.as_ref()).send().await {
             Ok(response) => {
                 let status_code = response.status();
 
-                trace!("Received update download status code {} for {}", status_code, task.download_link.as_str());
+                trace!(
+                    "Received update download status code {} for {}",
+                    status_code,
+                    task.download_link.as_str()
+                );
                 if status_code == StatusCode::OK {
                     let total_size = response.content_length().unwrap_or(0);
                     let mut stream = response.bytes_stream();
@@ -523,15 +590,21 @@ impl InnerUpdater {
                     while let Some(chunk) = stream.next().await {
                         let chunk = chunk.map_err(|e| {
                             error!("Failed to read update chunk, {}", e);
-                            UpdateError::DownloadFailed(status_code.to_string(), filename.to_string())
+                            UpdateError::DownloadFailed(
+                                status_code.to_string(),
+                                filename.to_string(),
+                            )
                         })?;
 
-                        tokio::io::copy(&mut chunk.as_ref(), &mut file).await.map_err(|e| {
-                            error!("Failed to write update chunk, {}", e);
-                            UpdateError::IO("Failed to write chunk to file".to_string())
-                        })?;
+                        tokio::io::copy(&mut chunk.as_ref(), &mut file)
+                            .await
+                            .map_err(|e| {
+                                error!("Failed to write update chunk, {}", e);
+                                UpdateError::IO("Failed to write chunk to file".to_string())
+                            })?;
 
-                        self.update_download_progress(None, Some(chunk.len() as u64)).await;
+                        self.update_download_progress(None, Some(chunk.len() as u64))
+                            .await;
                     }
 
                     task.set_archive_location(directory.join(filename))?;
@@ -539,18 +612,36 @@ impl InnerUpdater {
                 }
 
                 self.update_state_async(UpdateState::Error).await;
-                Err(UpdateError::DownloadFailed(status_code.to_string(), filename.to_string()))
+                Err(UpdateError::DownloadFailed(
+                    status_code.to_string(),
+                    filename.to_string(),
+                ))
             }
             Err(e) => {
-                trace!("Received an error for {}, error: {}", task.download_link.as_str(), e.to_string());
+                trace!(
+                    "Received an error for {}, error: {}",
+                    task.download_link.as_str(),
+                    e.to_string()
+                );
                 self.update_state_async(UpdateState::Error).await;
-                Err(UpdateError::DownloadFailed("UNKNOWN".to_string(), e.to_string()))
+                Err(UpdateError::DownloadFailed(
+                    "UNKNOWN".to_string(),
+                    e.to_string(),
+                ))
             }
         }
     }
 
-    async fn update_download_progress(&self, total_size: Option<u64>, downloaded_size: Option<u64>) {
-        trace!("Updating download progression with downloaded: {:?} and total: {:?}", downloaded_size, total_size);
+    async fn update_download_progress(
+        &self,
+        total_size: Option<u64>,
+        downloaded_size: Option<u64>,
+    ) {
+        trace!(
+            "Updating download progression with downloaded: {:?} and total: {:?}",
+            downloaded_size,
+            total_size
+        );
         let mut mutex = self.download_progress.lock().await;
 
         if mutex.is_none() {
@@ -571,10 +662,15 @@ impl InnerUpdater {
         trace!("Dropping download progression lock");
         drop(mutex);
 
-        self.callbacks.invoke(UpdateEvent::DownloadProgress(progress));
+        self.callbacks
+            .invoke(UpdateEvent::DownloadProgress(progress));
     }
 
-    async fn create_update_file(&self, directory: &PathBuf, filename: &str) -> updater::Result<tokio::fs::File> {
+    async fn create_update_file(
+        &self,
+        directory: &PathBuf,
+        filename: &str,
+    ) -> updater::Result<tokio::fs::File> {
         self.create_updates_directory(directory).await?;
         let filepath = directory.join(filename);
         match tokio::fs::OpenOptions::new()
@@ -582,7 +678,8 @@ impl InnerUpdater {
             .write(true)
             .truncate(true)
             .open(&filepath)
-            .await {
+            .await
+        {
             Ok(e) => Ok(e),
             Err(e) => {
                 error!("Failed to create update file, {}", e);
@@ -597,7 +694,9 @@ impl InnerUpdater {
             Ok(_) => Ok(()),
             Err(e) => {
                 error!("Failed to create update directory, {}", e);
-                Err(UpdateError::IO("update directory couldn't be created".to_string()))
+                Err(UpdateError::IO(
+                    "update directory couldn't be created".to_string(),
+                ))
             }
         }
     }
@@ -607,14 +706,19 @@ impl InnerUpdater {
         let mutex = self.state.blocking_lock();
 
         if let UpdateState::DownloadFinished = *mutex {
-            debug!("Starting update installation from {:?}", self.update_directory_path());
+            debug!(
+                "Starting update installation from {:?}",
+                self.update_directory_path()
+            );
             let runtime = inner.runtime.clone();
 
             runtime.spawn(async move {
                 match Self::execute_installation(inner.clone()).await {
                     Ok(_) => {
                         info!("Update installation finished, restart required");
-                        inner.update_state_async(UpdateState::InstallationFinished).await;
+                        inner
+                            .update_state_async(UpdateState::InstallationFinished)
+                            .await;
                     }
                     Err(e) => {
                         error!("Update installation failed, {}", e);
@@ -632,7 +736,8 @@ impl InnerUpdater {
 
     async fn execute_installation(updater: Arc<InnerUpdater>) -> updater::Result<()> {
         let tasks_mutex = updater.tasks.lock().await;
-        let tasks: Vec<&UpdateTask> = tasks_mutex.iter()
+        let tasks: Vec<&UpdateTask> = tasks_mutex
+            .iter()
             .filter(|e| e.archive_location().is_some())
             .collect();
         let destination = &updater.data_path;
@@ -645,13 +750,21 @@ impl InnerUpdater {
             let destination = destination.join(task.install_directory());
             let file = OpenOptions::new()
                 .read(true)
-                .open(task.archive_location().expect("expected archive location to be present"))
+                .open(
+                    task.archive_location()
+                        .expect("expected archive location to be present"),
+                )
                 .map_err(|e| UpdateError::IO(e.to_string()))?;
             let gz = GzDecoder::new(file);
             let mut archive = Archive::new(gz);
 
-            debug!("Extracting archive {:?} to {:?}", task.archive_location().unwrap(), destination);
-            archive.unpack(destination)
+            debug!(
+                "Extracting archive {:?} to {:?}",
+                task.archive_location().unwrap(),
+                destination
+            );
+            archive
+                .unpack(destination)
                 .map_err(|e| UpdateError::ExtractionFailed(e.to_string()))?;
             index += 1;
             info!("Installation task {} of {} completed", index, total_tasks);
@@ -663,7 +776,8 @@ impl InnerUpdater {
 
         launcher_options.version = info.application.version;
         launcher_options.runtime_version = info.runtime.version;
-        launcher_options.write(updater.data_path.join(LauncherOptions::filename()))
+        launcher_options
+            .write(updater.data_path.join(LauncherOptions::filename()))
             .map_err(|e| UpdateError::IO(e.to_string()))?;
         debug!("Launcher options have been updated");
 
@@ -677,22 +791,31 @@ impl InnerUpdater {
     /// Verify if an application update is available for the current platform.
     ///
     /// It returns `true` when a new version is available for the platform, else `false`.
-    async fn is_application_update_available(&self, version_info: &VersionInfo, channel_version: &Version) -> bool {
+    async fn is_application_update_available(
+        &self,
+        version_info: &VersionInfo,
+        channel_version: &Version,
+    ) -> bool {
         let current_version = Self::current_application_version();
 
         if channel_version.cmp(&current_version) == Ordering::Greater {
             let platform_identifier = self.platform_identifier();
-            if let Some(url) = version_info.application.download_link(platform_identifier.as_str()) {
+            if let Some(url) = version_info
+                .application
+                .download_link(platform_identifier.as_str())
+            {
                 trace!("Verifying if application download link exists for {}", url);
-                return match self.client.head(url.as_str())
-                    .send()
-                    .await {
+                return match self.client.head(url.as_str()).send().await {
                     Ok(response) => {
-                        if response.status().is_success() || response.status() == StatusCode::FOUND {
+                        if response.status().is_success() || response.status() == StatusCode::FOUND
+                        {
                             debug!("Application download link is available at {}", url);
                             true
                         } else {
-                            warn!("Application download link is unavailable, status {}", response.status());
+                            warn!(
+                                "Application download link is unavailable, status {}",
+                                response.status()
+                            );
                             false
                         }
                     }
@@ -702,7 +825,11 @@ impl InnerUpdater {
                     }
                 };
             }
-            warn!("New version {} available, but no installer found for {}", channel_version, platform_identifier.as_str());
+            warn!(
+                "New version {} available, but no installer found for {}",
+                channel_version,
+                platform_identifier.as_str()
+            );
         }
 
         false
@@ -711,22 +838,33 @@ impl InnerUpdater {
     /// Verify if a runtime update is available for the current platform.
     ///
     /// It returns `true` when a new runtime version is available for the platform, else `false`.
-    async fn is_runtime_update_available(&self, version_info: &VersionInfo, runtime_version: &Version) -> bool {
-        let current_runtime_version = Version::parse(self.launcher_options.runtime_version.as_str()).unwrap();
+    async fn is_runtime_update_available(
+        &self,
+        version_info: &VersionInfo,
+        runtime_version: &Version,
+    ) -> bool {
+        let current_runtime_version =
+            Version::parse(self.launcher_options.runtime_version.as_str()).unwrap();
 
         if runtime_version.cmp(&current_runtime_version) == Ordering::Greater {
             let platform_identifier = self.platform_identifier();
-            if let Some(url) = version_info.runtime.platforms.get(platform_identifier.as_str()) {
+            if let Some(url) = version_info
+                .runtime
+                .platforms
+                .get(platform_identifier.as_str())
+            {
                 trace!("Verifying if runtime download link exists for {}", url);
-                return match self.client.head(url.as_str())
-                    .send()
-                    .await {
+                return match self.client.head(url.as_str()).send().await {
                     Ok(response) => {
-                        if response.status().is_success() || response.status() == StatusCode::FOUND {
+                        if response.status().is_success() || response.status() == StatusCode::FOUND
+                        {
                             debug!("Runtime download link is available at {}", url);
                             true
                         } else {
-                            warn!("Runtime download link is unavailable, status {}", response.status());
+                            warn!(
+                                "Runtime download link is unavailable, status {}",
+                                response.status()
+                            );
                             false
                         }
                     }
@@ -736,7 +874,11 @@ impl InnerUpdater {
                     }
                 };
             }
-            warn!("New runtime version {} available, but no runtime update found for {}", runtime_version, platform_identifier.as_str());
+            warn!(
+                "New runtime version {} available, but no runtime update found for {}",
+                runtime_version,
+                platform_identifier.as_str()
+            );
         }
 
         false
@@ -759,7 +901,10 @@ impl InnerUpdater {
                 UpdateError::Response(e.to_string())
             })
         } else {
-            Err(UpdateError::Response(format!("received invalid status code {} from update channel", status_code)))
+            Err(UpdateError::Response(format!(
+                "received invalid status code {} from update channel",
+                status_code
+            )))
         }
     }
 
@@ -771,11 +916,10 @@ impl InnerUpdater {
     fn convert_download_link_to_url(link: Option<&String>) -> updater::Result<Url> {
         match link {
             None => Err(UpdateError::PlatformUpdateUnavailable),
-            Some(e) => Url::parse(e.as_str())
-                .map_err(|e| {
-                    warn!("Download link is invalid for {:?}", link);
-                    UpdateError::InvalidDownloadUrl(e.to_string())
-                })
+            Some(e) => Url::parse(e.as_str()).map_err(|e| {
+                warn!("Download link is invalid for {:?}", link);
+                UpdateError::InvalidDownloadUrl(e.to_string())
+            }),
         }
     }
 
@@ -786,10 +930,16 @@ impl InnerUpdater {
 
 impl Drop for InnerUpdater {
     fn drop(&mut self) {
-        trace!("Starting cleanup of update directory located at {:?}", self.update_directory_path());
+        trace!(
+            "Starting cleanup of update directory located at {:?}",
+            self.update_directory_path()
+        );
         match Storage::clean_directory(self.update_directory_path()) {
-            Ok(_) => info!("Cleaned updates directory located at {:?}", self.update_directory_path()),
-            Err(e) => warn!("Failed to clean the updates directory, {}", e)
+            Ok(_) => info!(
+                "Cleaned updates directory located at {:?}",
+                self.update_directory_path()
+            ),
+            Err(e) => warn!("Failed to clean the updates directory, {}", e),
         }
     }
 }
@@ -809,7 +959,11 @@ mod test {
     use crate::core::config::PopcornProperties;
     use crate::core::platform::{PlatformInfo, PlatformType};
     use crate::core::updater::PatchInfo;
-    use crate::testing::{copy_test_file, init_logger, MockDummyPlatformData, read_temp_dir_file_as_bytes, read_temp_dir_file_as_string, read_test_file_to_bytes, read_test_file_to_string, test_resource_filepath};
+    use crate::testing::{
+        copy_test_file, init_logger, MockDummyPlatformData, read_temp_dir_file_as_bytes,
+        read_temp_dir_file_as_string, read_test_file_to_bytes, read_test_file_to_string,
+        test_resource_filepath,
+    };
 
     use super::*;
 
@@ -820,11 +974,11 @@ mod test {
         let temp_path = temp_dir.path().to_str().unwrap();
         let (server, settings) = create_server_and_settings(temp_path);
         server.mock(|when, then| {
-            when.method(GET)
-                .path(format!("/{}", UPDATE_INFO_FILE));
+            when.method(GET).path(format!("/{}", UPDATE_INFO_FILE));
             then.status(200)
                 .header("content-type", "application/json")
-                .body(r#"{
+                .body(
+                    r#"{
   "version": "deprecated",
   "application": {
     "version": "1.0.0",
@@ -838,7 +992,8 @@ mod test {
       "debian.x86_64": "http://localhost/runtime_debian_x86_64.tar.gz"
     }
   }
-}"#);
+}"#,
+                );
         });
         let platform = default_platform_info();
         let runtime = Runtime::new().unwrap();
@@ -851,21 +1006,23 @@ mod test {
         let expected_result = VersionInfo {
             application: PatchInfo {
                 version: "1.0.0".to_string(),
-                platforms: HashMap::from([
-                    ("debian.x86_64".to_string(), "http://localhost/v1.0.0/popcorn-time_1.0.0.deb".to_string())
-                ]),
+                platforms: HashMap::from([(
+                    "debian.x86_64".to_string(),
+                    "http://localhost/v1.0.0/popcorn-time_1.0.0.deb".to_string(),
+                )]),
             },
             runtime: PatchInfo {
                 version: "17.0.6".to_string(),
-                platforms: HashMap::from([
-                    ("debian.x86_64".to_string(), "http://localhost/runtime_debian_x86_64.tar.gz".to_string())
-                ]),
+                platforms: HashMap::from([(
+                    "debian.x86_64".to_string(),
+                    "http://localhost/runtime_debian_x86_64.tar.gz".to_string(),
+                )]),
             },
         };
 
-        let result = runtime.block_on(async {
-            updater.version_info().await
-        }).expect("expected the poll to succeed");
+        let result = runtime
+            .block_on(async { updater.version_info().await })
+            .expect("expected the poll to succeed");
 
         assert_eq!(expected_result, result)
     }
@@ -877,11 +1034,11 @@ mod test {
         let temp_path = temp_dir.path().to_str().unwrap();
         let (server, settings) = create_server_and_settings(temp_path);
         server.mock(|when, then| {
-            when.method(GET)
-                .path(format!("/{}", UPDATE_INFO_FILE));
+            when.method(GET).path(format!("/{}", UPDATE_INFO_FILE));
             then.status(200)
                 .header("content-type", "application/json")
-                .body(r#"{
+                .body(
+                    r#"{
   "application": {
     "version": "0.5.0",
     "platforms": {}
@@ -892,7 +1049,8 @@ mod test {
       "debian.x86_64": "http://localhost/runtime.tar.gz"
     }
   }
-}"#);
+}"#,
+                );
         });
         let platform = default_platform_info();
         let (tx, rx) = channel();
@@ -901,16 +1059,14 @@ mod test {
             .platform(platform)
             .data_path(temp_path)
             .insecure(false)
-            .with_callback(Box::new(move |event| {
-                tx.send(event).unwrap()
-            }))
+            .with_callback(Box::new(move |event| tx.send(event).unwrap()))
             .build();
 
         let event = rx.recv_timeout(Duration::from_millis(100)).unwrap();
 
         match event {
             UpdateEvent::StateChanged(result) => assert_eq!(UpdateState::NoUpdateAvailable, result),
-            _ => assert!(false, "expected UpdateEvent::StateChanged")
+            _ => assert!(false, "expected UpdateEvent::StateChanged"),
         }
     }
 
@@ -921,11 +1077,11 @@ mod test {
         let temp_path = temp_dir.path().to_str().unwrap();
         let (server, settings) = create_server_and_settings(temp_path);
         server.mock(|when, then| {
-            when.method(GET)
-                .path(format!("/{}", UPDATE_INFO_FILE));
+            when.method(GET).path(format!("/{}", UPDATE_INFO_FILE));
             then.status(200)
                 .header("content-type", "application/json")
-                .body(format!(r#"{{
+                .body(format!(
+                    r#"{{
   "application": {{
     "version": "999.0.0",
     "platforms": {{
@@ -936,11 +1092,12 @@ mod test {
     "version": "1.0.0",
     "platforms": {{}}
   }}
-}}"#, server.url("/v999.0.0/popcorn-time_999.0.0.deb")));
+}}"#,
+                    server.url("/v999.0.0/popcorn-time_999.0.0.deb")
+                ));
         });
         server.mock(|when, then| {
-            when.method(HEAD)
-                .path("/v999.0.0/popcorn-time_999.0.0.deb");
+            when.method(HEAD).path("/v999.0.0/popcorn-time_999.0.0.deb");
             then.status(200);
         });
         let platform = default_platform_info();
@@ -951,7 +1108,11 @@ mod test {
             .insecure(false)
             .build();
 
-        assert_timeout_eq!(Duration::from_millis(500), UpdateState::UpdateAvailable, updater.state());
+        assert_timeout_eq!(
+            Duration::from_millis(500),
+            UpdateState::UpdateAvailable,
+            updater.state()
+        );
     }
 
     #[test]
@@ -961,11 +1122,11 @@ mod test {
         let temp_path = temp_dir.path().to_str().unwrap();
         let (server, settings) = create_server_and_settings(temp_path);
         server.mock(|when, then| {
-            when.method(GET)
-                .path(format!("/{}", UPDATE_INFO_FILE));
+            when.method(GET).path(format!("/{}", UPDATE_INFO_FILE));
             then.status(200)
                 .header("content-type", "application/json")
-                .body(format!(r#"{{
+                .body(format!(
+                    r#"{{
   "application": {{
     "version": "999.0.0",
     "platforms": {{
@@ -976,7 +1137,9 @@ mod test {
     "version": "2.0.0",
     "platforms": {{}}
   }}
-}}"#, server.url("/v999.0.0/popcorn-time_999.0.0.deb")));
+}}"#,
+                    server.url("/v999.0.0/popcorn-time_999.0.0.deb")
+                ));
         });
         let platform = default_platform_info();
         let updater = Updater::builder()
@@ -986,7 +1149,11 @@ mod test {
             .insecure(false)
             .build();
 
-        assert_timeout_eq!(Duration::from_millis(500), UpdateState::NoUpdateAvailable, updater.state());
+        assert_timeout_eq!(
+            Duration::from_millis(500),
+            UpdateState::NoUpdateAvailable,
+            updater.state()
+        );
     }
 
     #[test]
@@ -998,11 +1165,11 @@ mod test {
         let filename = "popcorn-time_99.0.0.deb";
         let app_url = server.url("/v99.0.0/popcorn-time_99.0.0.deb");
         server.mock(move |when, then| {
-            when.method(GET)
-                .path(format!("/{}", UPDATE_INFO_FILE));
+            when.method(GET).path(format!("/{}", UPDATE_INFO_FILE));
             then.status(200)
                 .header("content-type", "application/json")
-                .body(format!(r#"{{
+                .body(format!(
+                    r#"{{
   "application": {{
     "version": "99.0.0",
     "platforms": {{
@@ -1013,16 +1180,16 @@ mod test {
     "version": "1.0.0",
     "platforms": {{}}
   }}
-}}"#, app_url));
+}}"#,
+                    app_url
+                ));
         });
         server.mock(|when, then| {
-            when.method(HEAD)
-                .path("/v99.0.0/popcorn-time_99.0.0.deb");
+            when.method(HEAD).path("/v99.0.0/popcorn-time_99.0.0.deb");
             then.status(302);
         });
         server.mock(move |when, then| {
-            when.method(GET)
-                .path("/v99.0.0/popcorn-time_99.0.0.deb");
+            when.method(GET).path("/v99.0.0/popcorn-time_99.0.0.deb");
             then.status(200)
                 .header("content-type", "application/octet-stream")
                 .body_from_file(test_resource_filepath(filename).to_str().unwrap());
@@ -1038,12 +1205,17 @@ mod test {
         let expected_result = read_test_file_to_string(filename);
 
         // wait for state update available
-        assert_timeout_eq!(Duration::from_millis(200), UpdateState::UpdateAvailable, updater.state());
+        assert_timeout_eq!(
+            Duration::from_millis(200),
+            UpdateState::UpdateAvailable,
+            updater.state()
+        );
 
-        let _ = runtime.block_on(async {
-            updater.download().await
-        }).expect("expected the download to succeed");
-        let result = read_temp_dir_file_as_string(&temp_dir, format!("updates/{}", filename).as_str());
+        let _ = runtime
+            .block_on(async { updater.download().await })
+            .expect("expected the download to succeed");
+        let result =
+            read_temp_dir_file_as_string(&temp_dir, format!("updates/{}", filename).as_str());
 
         assert_eq!(expected_result, result)
     }
@@ -1057,11 +1229,11 @@ mod test {
         let filename = "runtime.tar.gz";
         let runtime_url = server.url("/v100.0.0/runtime.tar.gz");
         server.mock(move |when, then| {
-            when.method(GET)
-                .path(format!("/{}", UPDATE_INFO_FILE));
+            when.method(GET).path(format!("/{}", UPDATE_INFO_FILE));
             then.status(200)
                 .header("content-type", "application/json")
-                .body(format!(r#"{{
+                .body(format!(
+                    r#"{{
   "application": {{
     "version": "1.0.0",
     "platforms": {{}}
@@ -1072,16 +1244,16 @@ mod test {
         "debian.x86_64": "{}"
     }}
   }}
-}}"#, runtime_url));
+}}"#,
+                    runtime_url
+                ));
         });
         server.mock(move |when, then| {
-            when.method(HEAD)
-                .path("/v100.0.0/runtime.tar.gz");
+            when.method(HEAD).path("/v100.0.0/runtime.tar.gz");
             then.status(302);
         });
         server.mock(move |when, then| {
-            when.method(GET)
-                .path("/v100.0.0/runtime.tar.gz");
+            when.method(GET).path("/v100.0.0/runtime.tar.gz");
             then.status(200)
                 .header("content-type", "application/octet-stream")
                 .body_from_file(test_resource_filepath(filename).to_str().unwrap());
@@ -1097,12 +1269,17 @@ mod test {
         let expected_result = read_test_file_to_bytes(filename);
 
         // wait for state update available
-        assert_timeout_eq!(Duration::from_millis(200), UpdateState::UpdateAvailable, updater.state());
+        assert_timeout_eq!(
+            Duration::from_millis(200),
+            UpdateState::UpdateAvailable,
+            updater.state()
+        );
 
-        let _ = runtime.block_on(async {
-            updater.download().await
-        }).expect("expected the download to succeed");
-        let result = read_temp_dir_file_as_bytes(&temp_dir, format!("updates/{}", filename).as_str());
+        let _ = runtime
+            .block_on(async { updater.download().await })
+            .expect("expected the download to succeed");
+        let result =
+            read_temp_dir_file_as_bytes(&temp_dir, format!("updates/{}", filename).as_str());
 
         assert_eq!(expected_result, result)
     }
@@ -1115,11 +1292,11 @@ mod test {
         let (server, settings) = create_server_and_settings(temp_path);
         let url = server.url("/unknown.deb");
         server.mock(move |when, then| {
-            when.method(GET)
-                .path(format!("/{}", UPDATE_INFO_FILE));
+            when.method(GET).path(format!("/{}", UPDATE_INFO_FILE));
             then.status(200)
                 .header("content-type", "application/json")
-                .body(format!(r#"{{
+                .body(format!(
+                    r#"{{
   "application": {{
     "version": "99.0.0",
     "platforms": {{
@@ -1129,11 +1306,12 @@ mod test {
   "runtime": {{
     "version": "17.0.0",
     "platforms": {{}}
-  }} }}"#, url));
+  }} }}"#,
+                    url
+                ));
         });
         server.mock(move |when, then| {
-            when.method(HEAD)
-                .path("/unknown.deb");
+            when.method(HEAD).path("/unknown.deb");
             then.status(302);
         });
         let platform = default_platform_info();
@@ -1146,16 +1324,20 @@ mod test {
             .build();
 
         // wait for state update available
-        assert_timeout_eq!(Duration::from_millis(200), UpdateState::UpdateAvailable, updater.state());
+        assert_timeout_eq!(
+            Duration::from_millis(200),
+            UpdateState::UpdateAvailable,
+            updater.state()
+        );
 
-        let result = runtime.block_on(async {
-            updater.download().await
-        });
+        let result = runtime.block_on(async { updater.download().await });
 
         assert!(result.is_err(), "expected the download to return an error");
         match result.err().unwrap() {
-            UpdateError::DownloadFailed(status, _) => assert_eq!(StatusCode::NOT_FOUND.to_string(), status),
-            _ => assert!(false, "expected UpdateError::DownloadFailed")
+            UpdateError::DownloadFailed(status, _) => {
+                assert_eq!(StatusCode::NOT_FOUND.to_string(), status)
+            }
+            _ => assert!(false, "expected UpdateError::DownloadFailed"),
         }
     }
 
@@ -1173,9 +1355,7 @@ mod test {
             .platform(platform)
             .data_path(temp_path)
             .insecure(false)
-            .with_callback(Box::new(move |event| {
-                tx.send(event).unwrap()
-            }))
+            .with_callback(Box::new(move |event| tx.send(event).unwrap()))
             .build();
 
         rx.recv_timeout(Duration::from_millis(300))
@@ -1183,8 +1363,10 @@ mod test {
 
         if let Err(result) = updater.install() {
             match result {
-                UpdateError::UpdateNotAvailable(state) => assert_eq!(UpdateState::NoUpdateAvailable, state),
-                _ => assert!(false, "expected UpdateError::UpdateNotAvailable")
+                UpdateError::UpdateNotAvailable(state) => {
+                    assert_eq!(UpdateState::NoUpdateAvailable, state)
+                }
+                _ => assert!(false, "expected UpdateError::UpdateNotAvailable"),
             }
         } else {
             assert!(false, "expected an error to have been returned")
@@ -1200,11 +1382,11 @@ mod test {
         let (server, settings) = create_server_and_settings(temp_path);
         let application_patch_url = server.url("/application.tar.gz");
         server.mock(move |when, then| {
-            when.method(GET)
-                .path(format!("/{}", UPDATE_INFO_FILE));
+            when.method(GET).path(format!("/{}", UPDATE_INFO_FILE));
             then.status(200)
                 .header("content-type", "application/json")
-                .body(format!(r#"{{
+                .body(format!(
+                    r#"{{
   "application": {{
     "version": "99.0.0",
     "platforms": {{
@@ -1215,18 +1397,21 @@ mod test {
     "version": "1.0.0",
     "platforms": {{}}
   }}
- }}"#, application_patch_url));
+ }}"#,
+                    application_patch_url
+                ));
         });
         server.mock(|when, then| {
-            when.method(HEAD)
-                .path("/application.tar.gz");
+            when.method(HEAD).path("/application.tar.gz");
             then.status(302);
         });
         server.mock(|when, then| {
-            when.method(GET)
-                .path("/application.tar.gz");
-            then.status(200)
-                .body_from_file(test_resource_filepath("application.tar.gz").to_str().unwrap());
+            when.method(GET).path("/application.tar.gz");
+            then.status(200).body_from_file(
+                test_resource_filepath("application.tar.gz")
+                    .to_str()
+                    .unwrap(),
+            );
         });
         let platform = default_platform_info();
         let updater = Updater::builder()
@@ -1238,7 +1423,11 @@ mod test {
         let runtime = Runtime::new().unwrap();
 
         // wait for the UpdateAvailable state
-        assert_timeout_eq!(Duration::from_millis(200), UpdateState::UpdateAvailable, updater.state());
+        assert_timeout_eq!(
+            Duration::from_millis(200),
+            UpdateState::UpdateAvailable,
+            updater.state()
+        );
 
         // download the update
         if let Err(err) = runtime.block_on(updater.download()) {
@@ -1251,10 +1440,18 @@ mod test {
         }
 
         // wait for the installation to complete
-        assert_timeout_eq!(Duration::from_millis(200), UpdateState::InstallationFinished, updater.state());
+        assert_timeout_eq!(
+            Duration::from_millis(200),
+            UpdateState::InstallationFinished,
+            updater.state()
+        );
 
         // verify if the patch file exists
-        assert!(application_patch_filepath.exists(), "expected application patch file {:?} to exist", application_patch_filepath);
+        assert!(
+            application_patch_filepath.exists(),
+            "expected application patch file {:?} to exist",
+            application_patch_filepath
+        );
     }
 
     #[test]
@@ -1266,11 +1463,11 @@ mod test {
         let (server, settings) = create_server_and_settings(temp_path);
         let runtime_patch_url = server.url("/runtime.tar.gz");
         server.mock(move |when, then| {
-            when.method(GET)
-                .path(format!("/{}", UPDATE_INFO_FILE));
+            when.method(GET).path(format!("/{}", UPDATE_INFO_FILE));
             then.status(200)
                 .header("content-type", "application/json")
-                .body(format!(r#"{{
+                .body(format!(
+                    r#"{{
   "application": {{
     "version": "1.0.0",
     "platforms": {{}}
@@ -1281,16 +1478,16 @@ mod test {
         "debian.x86_64": "{}"
     }}
   }}
- }}"#, runtime_patch_url));
+ }}"#,
+                    runtime_patch_url
+                ));
         });
         server.mock(|when, then| {
-            when.method(HEAD)
-                .path("/runtime.tar.gz");
+            when.method(HEAD).path("/runtime.tar.gz");
             then.status(302);
         });
         server.mock(|when, then| {
-            when.method(GET)
-                .path("/runtime.tar.gz");
+            when.method(GET).path("/runtime.tar.gz");
             then.status(200)
                 .body_from_file(test_resource_filepath("runtime.tar.gz").to_str().unwrap());
         });
@@ -1304,7 +1501,11 @@ mod test {
         let runtime = Runtime::new().unwrap();
 
         // wait for the UpdateAvailable state
-        assert_timeout_eq!(Duration::from_millis(200), UpdateState::UpdateAvailable, updater.state());
+        assert_timeout_eq!(
+            Duration::from_millis(200),
+            UpdateState::UpdateAvailable,
+            updater.state()
+        );
 
         // download the update
         if let Err(err) = runtime.block_on(updater.download()) {
@@ -1317,10 +1518,18 @@ mod test {
         }
 
         // wait for the installation to complete
-        assert_timeout_eq!(Duration::from_millis(200), UpdateState::InstallationFinished, updater.state());
+        assert_timeout_eq!(
+            Duration::from_millis(200),
+            UpdateState::InstallationFinished,
+            updater.state()
+        );
 
         // verify if the patch file exists
-        assert!(runtime_patch_filepath.exists(), "expected runtime patch file {:?} to exist", runtime_patch_filepath);
+        assert!(
+            runtime_patch_filepath.exists(),
+            "expected runtime patch file {:?} to exist",
+            runtime_patch_filepath
+        );
     }
 
     #[test]
@@ -1332,17 +1541,19 @@ mod test {
         let filename = "popcorn-time_99.0.0.deb";
         let platform_mock = MockDummyPlatformData::new();
         let platform = Arc::new(Box::new(platform_mock) as Box<dyn PlatformData>);
-        let settings = Arc::new(ApplicationConfig::builder()
-            .storage(temp_path)
-            .properties(PopcornProperties {
-                loggers: Default::default(),
-                update_channel: String::new(),
-                providers: Default::default(),
-                enhancers: Default::default(),
-                subtitle: Default::default(),
-                tracking: Default::default(),
-            })
-            .build());
+        let settings = Arc::new(
+            ApplicationConfig::builder()
+                .storage(temp_path)
+                .properties(PopcornProperties {
+                    loggers: Default::default(),
+                    update_channel: String::new(),
+                    providers: Default::default(),
+                    enhancers: Default::default(),
+                    subtitle: Default::default(),
+                    tracking: Default::default(),
+                })
+                .build(),
+        );
         let updater = Updater::builder()
             .settings(settings)
             .platform(platform)
@@ -1378,11 +1589,11 @@ mod test {
         let (tx, rx) = channel();
         let (server, settings) = create_server_and_settings(temp_path);
         let mut first_mock = server.mock(move |when, then| {
-            when.method(GET)
-                .path(format!("/{}", UPDATE_INFO_FILE));
+            when.method(GET).path(format!("/{}", UPDATE_INFO_FILE));
             then.status(200)
                 .header("content-type", "application/json")
-                .body(r#"{
+                .body(
+                    r#"{
   "application": {
     "version": "0.0.1",
     "platforms": {}
@@ -1391,7 +1602,8 @@ mod test {
     "version": "0.0.1",
     "platforms": {}
   }
-}"#);
+}"#,
+                );
         });
         let platform = default_platform_info();
         let updater = Updater::builder()
@@ -1411,11 +1623,11 @@ mod test {
         assert_eq!(UpdateState::NoUpdateAvailable, result);
         first_mock.delete();
         server.mock(|when, then| {
-            when.method(GET)
-                .path(format!("/{}", UPDATE_INFO_FILE));
+            when.method(GET).path(format!("/{}", UPDATE_INFO_FILE));
             then.status(200)
                 .header("content-type", "application/json")
-                .body(format!(r#"{{
+                .body(format!(
+                    r#"{{
   "application": {{
     "version": "999.0.0",
     "platforms": {{
@@ -1428,21 +1640,22 @@ mod test {
         "debian.x86_64": "{}"
     }}
   }}
- }}"#, server.url("/app-update"), server.url("/runtime-update")));
+ }}"#,
+                    server.url("/app-update"),
+                    server.url("/runtime-update")
+                ));
         });
         server.mock(move |when, then| {
-            when.method(HEAD)
-                .path("/app-update");
+            when.method(HEAD).path("/app-update");
             then.status(302);
         });
         server.mock(move |when, then| {
-            when.method(HEAD)
-                .path("/runtime-update");
+            when.method(HEAD).path("/runtime-update");
             then.status(302);
         });
 
         updater.check_for_updates();
-        
+
         let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
         assert_eq!(UpdateState::CheckingForNewVersion, result);
         let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
@@ -1463,21 +1676,24 @@ mod test {
             .insecure(false)
             .build();
 
-        let result = updater.inner.update_version_info(&VersionInfo {
-            application: PatchInfo {
-                version: "lorem".to_string(),
-                platforms: Default::default(),
-            },
-            runtime: PatchInfo {
-                version: "ipsum".to_string(),
-                platforms: Default::default(),
-            },
-        }).await;
+        let result = updater
+            .inner
+            .update_version_info(&VersionInfo {
+                application: PatchInfo {
+                    version: "lorem".to_string(),
+                    platforms: Default::default(),
+                },
+                runtime: PatchInfo {
+                    version: "ipsum".to_string(),
+                    platforms: Default::default(),
+                },
+            })
+            .await;
 
         if let Err(err) = result {
             match err {
                 UpdateError::InvalidApplicationVersion(_, _) => {}
-                _ => assert!(false, "expected UpdateError::InvalidApplicationVersion")
+                _ => assert!(false, "expected UpdateError::InvalidApplicationVersion"),
             }
         } else {
             assert!(false, "expected an error to be returned")
@@ -1496,11 +1712,9 @@ mod test {
         let _updater = Updater::builder()
             .settings(settings)
             .platform(platform)
-            .with_callback(Box::new(move |event| {
-                match event {
-                    UpdateEvent::StateChanged(_) => tx.send(event).unwrap(),
-                    _ => {}
-                }
+            .with_callback(Box::new(move |event| match event {
+                UpdateEvent::StateChanged(_) => tx.send(event).unwrap(),
+                _ => {}
             }))
             .data_path(temp_path)
             .insecure(false)
@@ -1510,7 +1724,7 @@ mod test {
 
         match event {
             UpdateEvent::StateChanged(_) => {}
-            _ => assert!(false, "expected UpdateEvent::StateChanged event")
+            _ => assert!(false, "expected UpdateEvent::StateChanged event"),
         }
     }
 
@@ -1530,18 +1744,16 @@ mod test {
             .insecure(false)
             .build();
 
-        updater.register(Box::new(move |event| {
-            match event {
-                UpdateEvent::StateChanged(_) => tx.send(event).unwrap(),
-                _ => {}
-            }
+        updater.register(Box::new(move |event| match event {
+            UpdateEvent::StateChanged(_) => tx.send(event).unwrap(),
+            _ => {}
         }));
 
         let event = rx.recv_timeout(Duration::from_millis(300)).unwrap();
 
         match event {
             UpdateEvent::StateChanged(_) => {}
-            _ => assert!(false, "expected UpdateEvent::StateChanged event")
+            _ => assert!(false, "expected UpdateEvent::StateChanged event"),
         }
     }
 
@@ -1569,22 +1781,21 @@ mod test {
 
     fn default_platform_info() -> Arc<Box<dyn PlatformData>> {
         let mut platform_mock = MockDummyPlatformData::new();
-        platform_mock.expect_info()
-            .returning(|| PlatformInfo {
-                platform_type: PlatformType::Linux,
-                arch: "x86_64".to_string(),
-            });
+        platform_mock.expect_info().returning(|| PlatformInfo {
+            platform_type: PlatformType::Linux,
+            arch: "x86_64".to_string(),
+        });
         let platform = Arc::new(Box::new(platform_mock) as Box<dyn PlatformData>);
         platform
     }
 
     fn no_update_response(server: &MockServer) {
         server.mock(move |when, then| {
-            when.method(GET)
-                .path(format!("/{}", UPDATE_INFO_FILE));
+            when.method(GET).path(format!("/{}", UPDATE_INFO_FILE));
             then.status(200)
                 .header("content-type", "application/json")
-                .body(r#"{
+                .body(
+                    r#"{
   "application": {
     "version": "0.0.5",
     "platforms": {}
@@ -1593,39 +1804,47 @@ mod test {
     "version": "0.2.1",
     "platforms": {}
   }
- }"#)
+ }"#,
+                )
                 .delay(Duration::from_millis(100));
         });
     }
 
     fn create_simple_settings(temp_path: &str) -> Arc<ApplicationConfig> {
-        Arc::new(ApplicationConfig::builder()
-            .storage(temp_path)
-            .properties(PopcornProperties {
-                loggers: Default::default(),
-                update_channel: "http://localhost:8080/update.json".to_string(),
-                providers: Default::default(),
-                enhancers: Default::default(),
-                subtitle: Default::default(),
-                tracking: Default::default(),
-            })
-            .build())
+        Arc::new(
+            ApplicationConfig::builder()
+                .storage(temp_path)
+                .properties(PopcornProperties {
+                    loggers: Default::default(),
+                    update_channel: "http://localhost:8080/update.json".to_string(),
+                    providers: Default::default(),
+                    enhancers: Default::default(),
+                    subtitle: Default::default(),
+                    tracking: Default::default(),
+                })
+                .build(),
+        )
     }
 
     fn create_server_and_settings(temp_path: &str) -> (MockServer, Arc<ApplicationConfig>) {
         let server = MockServer::start();
         let update_channel = server.url("");
 
-        (server, Arc::new(ApplicationConfig::builder()
-            .storage(temp_path)
-            .properties(PopcornProperties {
-                loggers: Default::default(),
-                update_channel,
-                providers: Default::default(),
-                enhancers: Default::default(),
-                subtitle: Default::default(),
-                tracking: Default::default(),
-            })
-            .build()))
+        (
+            server,
+            Arc::new(
+                ApplicationConfig::builder()
+                    .storage(temp_path)
+                    .properties(PopcornProperties {
+                        loggers: Default::default(),
+                        update_channel,
+                        providers: Default::default(),
+                        enhancers: Default::default(),
+                        subtitle: Default::default(),
+                        tracking: Default::default(),
+                    })
+                    .build(),
+            ),
+        )
     }
 }

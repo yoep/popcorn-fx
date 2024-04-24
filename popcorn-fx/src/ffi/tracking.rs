@@ -12,12 +12,17 @@ use crate::PopcornFX;
 /// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
 /// * `callback` - The callback function to be registered.
 #[no_mangle]
-pub extern "C" fn register_tracking_authorization_open(popcorn_fx: &mut PopcornFX, callback: AuthorizationOpenC) {
+pub extern "C" fn register_tracking_authorization_open(
+    popcorn_fx: &mut PopcornFX,
+    callback: AuthorizationOpenC,
+) {
     trace!("Registering new tracking authorization open callback from C");
-    popcorn_fx.tracking_provider().register_open_authorization(Box::new(move |uri| {
-        trace!("Calling tracker authorization open callback for {}", uri);
-        callback(into_c_string(uri))
-    }))
+    popcorn_fx
+        .tracking_provider()
+        .register_open_authorization(Box::new(move |uri| {
+            trace!("Calling tracker authorization open callback for {}", uri);
+            callback(into_c_string(uri))
+        }))
 }
 
 /// Registers a callback function to handle tracking provider events from C code.
@@ -27,7 +32,10 @@ pub extern "C" fn register_tracking_authorization_open(popcorn_fx: &mut PopcornF
 /// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
 /// * `callback` - The callback function to be registered.
 #[no_mangle]
-pub extern "C" fn register_tracking_provider_callback(popcorn_fx: &mut PopcornFX, callback: TrackingEventCCallback) {
+pub extern "C" fn register_tracking_provider_callback(
+    popcorn_fx: &mut PopcornFX,
+    callback: TrackingEventCCallback,
+) {
     trace!("Registering new tracking provider callback for C");
     popcorn_fx.tracking_provider().add(Box::new(move |event| {
         trace!("Invoking tracking event C for {:?}", event);
@@ -75,9 +83,9 @@ pub extern "C" fn tracking_authorize(popcorn_fx: &mut PopcornFX) {
 pub extern "C" fn tracking_disconnect(popcorn_fx: &mut PopcornFX) {
     trace!("Disconnecting tracker");
     let tracking_service = popcorn_fx.tracking_provider().clone();
-    popcorn_fx.runtime().spawn(async move {
-        tracking_service.disconnect().await
-    });
+    popcorn_fx
+        .runtime()
+        .spawn(async move { tracking_service.disconnect().await });
 }
 
 /// Disposes a tracking event value.
@@ -160,32 +168,38 @@ mod tests {
         let (tx, rx) = channel();
         let mut instance = new_instance(temp_path);
         let properties = instance.settings().properties();
-        let expected_uri = properties.tracker("trakt").unwrap().client.user_authorization_uri.clone();
+        let expected_uri = properties
+            .tracker("trakt")
+            .unwrap()
+            .client
+            .user_authorization_uri
+            .clone();
 
-        instance.tracking_provider().register_open_authorization(Box::new(move |url| {
-            // execute a callback to stop the authorization process
-            let client = Client::new();
-            let auth_uri = Url::parse(url.as_str()).unwrap();
+        instance
+            .tracking_provider()
+            .register_open_authorization(Box::new(move |url| {
+                // execute a callback to stop the authorization process
+                let client = Client::new();
+                let auth_uri = Url::parse(url.as_str()).unwrap();
 
-            let (_, redirect_uri) = auth_uri.query_pairs()
-                .find(|(key, _)| key == "redirect_uri")
-                .expect("expected the redirect uri to have been present");
+                let (_, redirect_uri) = auth_uri
+                    .query_pairs()
+                    .find(|(key, _)| key == "redirect_uri")
+                    .expect("expected the redirect uri to have been present");
 
-            let mut uri = Url::parse(redirect_uri.as_ref())
-                .expect("expected a valid redirect uri");
-            let uri = uri
-                .query_pairs_mut()
-                .append_pair("code", "someRandomCode")
-                .append_pair("state", "SomeState")
-                .finish();
+                let mut uri =
+                    Url::parse(redirect_uri.as_ref()).expect("expected a valid redirect uri");
+                let uri = uri
+                    .query_pairs_mut()
+                    .append_pair("code", "someRandomCode")
+                    .append_pair("state", "SomeState")
+                    .finish();
 
-            block_in_place(client.get(uri.as_str())
-                .send())
-                .unwrap();
+                block_in_place(client.get(uri.as_str()).send()).unwrap();
 
-            tx.send(url).unwrap();
-            true
-        }));
+                tx.send(url).unwrap();
+                true
+            }));
 
         tracking_authorize(&mut instance);
 
@@ -199,16 +213,26 @@ mod tests {
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = new_instance(temp_path);
-        instance.settings().update_tracker("trakt", Tracker {
-            access_token: "MyAccessToken".to_string(),
-            expires_in: None,
-            refresh_token: None,
-            scopes: None,
-        });
+        instance.settings().update_tracker(
+            "trakt",
+            Tracker {
+                access_token: "MyAccessToken".to_string(),
+                expires_in: None,
+                refresh_token: None,
+                scopes: None,
+            },
+        );
 
-        assert!(instance.tracking_provider().is_authorized(), "expected the tracker to have been authorized");
+        assert!(
+            instance.tracking_provider().is_authorized(),
+            "expected the tracker to have been authorized"
+        );
         tracking_disconnect(&mut instance);
 
-        assert_timeout_eq!(Duration::from_millis(200), false, instance.tracking_provider().is_authorized());
+        assert_timeout_eq!(
+            Duration::from_millis(200),
+            false,
+            instance.tracking_provider().is_authorized()
+        );
     }
 }

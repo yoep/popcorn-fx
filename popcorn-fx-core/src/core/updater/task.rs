@@ -70,13 +70,20 @@ impl UpdateTask {
     /// Sets the archive location for the downloaded update archive.
     ///
     /// If an archive location has already been set, this method will return an error.
-    pub fn set_archive_location<P: AsRef<Path>>(&mut self, archive_location: P) -> updater::Result<()> {
+    pub fn set_archive_location<P: AsRef<Path>>(
+        &mut self,
+        archive_location: P,
+    ) -> updater::Result<()> {
         if self.archive_location.is_some() {
             return Err(UpdateError::ArchiveLocationAlreadyExists);
         }
 
         self.archive_location = Some(PathBuf::from(archive_location.as_ref()));
-        info!("Download task {} has been stored in {:?}", self.download_link, archive_location.as_ref());
+        info!(
+            "Download task {} has been stored in {:?}",
+            self.download_link,
+            archive_location.as_ref()
+        );
         Ok(())
     }
 }
@@ -132,10 +139,14 @@ impl UpdateTaskBuilder {
     ///     .build();
     /// ```
     pub fn build(self) -> UpdateTask {
-        let current_version = self.current_version.expect("Current version has not been set");
+        let current_version = self
+            .current_version
+            .expect("Current version has not been set");
         let new_version = self.new_version.expect("New version has not been set");
         let download_link = self.download_link.expect("Download link has not been set");
-        let install_directory = self.install_directory.expect("Install directory has not been set");
+        let install_directory = self
+            .install_directory
+            .expect("Install directory has not been set");
 
         UpdateTask {
             current_version,

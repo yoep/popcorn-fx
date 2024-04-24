@@ -10,7 +10,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
-class StringArrayTest {
+class FxStringArrayTest {
     @Mock
     private FxLib fxLib;
 
@@ -21,7 +21,7 @@ class StringArrayTest {
 
     @Test
     void testClose() {
-        var array = new StringArray.ByReference();
+        var array = new FxStringArray.ByReference();
 
         array.close();
 

@@ -49,10 +49,14 @@ impl EventC {
         match self {
             EventC::PlayerChanged(e) => Some(Event::PlayerChanged(PlayerChangedEvent::from(e))),
             EventC::PlaybackStateChanged(new_state) => Some(Event::PlaybackStateChanged(new_state)),
-            EventC::WatchStateChanged(id, state) => Some(Event::WatchStateChanged(from_c_string(id), state)),
+            EventC::WatchStateChanged(id, state) => {
+                Some(Event::WatchStateChanged(from_c_string(id), state))
+            }
             EventC::LoadingStarted => Some(Event::LoadingStarted),
             EventC::LoadingCompleted => Some(Event::LoadingCompleted),
-            EventC::TorrentDetailsLoaded(e) => Some(Event::TorrentDetailsLoaded(TorrentInfo::from(e))),
+            EventC::TorrentDetailsLoaded(e) => {
+                Some(Event::TorrentDetailsLoaded(TorrentInfo::from(e)))
+            }
             EventC::ClosePlayer => Some(Event::ClosePlayer),
             _ => None,
         }
@@ -67,7 +71,9 @@ impl From<Event> for EventC {
             Event::PlayerStarted(_) => EventC::PlayerStarted,
             Event::PlayerStopped(_) => EventC::PlayerStopped,
             Event::PlaybackStateChanged(e) => EventC::PlaybackStateChanged(e),
-            Event::WatchStateChanged(id, state) => EventC::WatchStateChanged(into_c_string(id), state),
+            Event::WatchStateChanged(id, state) => {
+                EventC::WatchStateChanged(into_c_string(id), state)
+            }
             Event::LoadingStarted => EventC::LoadingStarted,
             Event::LoadingCompleted => EventC::LoadingCompleted,
             Event::TorrentDetailsLoaded(e) => EventC::TorrentDetailsLoaded(TorrentInfoC::from(e)),
@@ -144,7 +150,9 @@ mod test {
 
     #[test]
     fn test_from_event_c_to_event() {
-        let event = EventC::PlaybackStateChanged(PlaybackState::PAUSED).into_event().unwrap();
+        let event = EventC::PlaybackStateChanged(PlaybackState::PAUSED)
+            .into_event()
+            .unwrap();
         assert_eq!(Event::PlaybackStateChanged(PlaybackState::PAUSED), event);
 
         let event = EventC::ClosePlayer.into_event().unwrap();
@@ -167,7 +175,11 @@ mod test {
     fn test_from_playback_state_changed() {
         init_logger();
 
-        if let Event::PlaybackStateChanged(state) = EventC::PlaybackStateChanged(PlaybackState::BUFFERING).into_event().unwrap() {
+        if let Event::PlaybackStateChanged(state) =
+            EventC::PlaybackStateChanged(PlaybackState::BUFFERING)
+                .into_event()
+                .unwrap()
+        {
             assert_eq!(PlaybackState::BUFFERING, state)
         } else {
             assert!(false, "expected Event::PlaybackStateChanged")
@@ -187,9 +199,18 @@ mod test {
 
         let result = PlayerChangedEventC::from(event);
 
-        assert_eq!(old_player_id.to_string(), from_c_string(result.old_player_id));
-        assert_eq!(new_player_id.to_string(), from_c_string(result.new_player_id));
-        assert_eq!(new_player_name.to_string(), from_c_string(result.new_player_name));
+        assert_eq!(
+            old_player_id.to_string(),
+            from_c_string(result.old_player_id)
+        );
+        assert_eq!(
+            new_player_id.to_string(),
+            from_c_string(result.new_player_id)
+        );
+        assert_eq!(
+            new_player_name.to_string(),
+            from_c_string(result.new_player_name)
+        );
     }
 
     #[test]
@@ -205,8 +226,17 @@ mod test {
 
         let result = PlayerChangedEventC::from(event);
 
-        assert_eq!(old_player_id.to_string(), from_c_string(result.old_player_id));
-        assert_eq!(new_player_id.to_string(), from_c_string(result.new_player_id));
-        assert_eq!(new_player_name.to_string(), from_c_string(result.new_player_name));
+        assert_eq!(
+            old_player_id.to_string(),
+            from_c_string(result.old_player_id)
+        );
+        assert_eq!(
+            new_player_id.to_string(),
+            from_c_string(result.new_player_id)
+        );
+        assert_eq!(
+            new_player_name.to_string(),
+            from_c_string(result.new_player_name)
+        );
     }
 }

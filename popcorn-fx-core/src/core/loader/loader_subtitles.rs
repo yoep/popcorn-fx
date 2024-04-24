@@ -7,7 +7,10 @@ use derive_more::Display;
 use log::{debug, trace, warn};
 use tokio_util::sync::CancellationToken;
 
-use crate::core::loader::{CancellationResult, LoadingData, LoadingError, LoadingEvent, LoadingResult, LoadingState, LoadingStrategy};
+use crate::core::loader::{
+    CancellationResult, LoadingData, LoadingError, LoadingEvent, LoadingResult, LoadingState,
+    LoadingStrategy,
+};
 use crate::core::media::{Episode, MediaIdentifier, MovieDetails, ShowDetails};
 use crate::core::subtitles;
 use crate::core::subtitles::{SubtitleError, SubtitleManager, SubtitleProvider};
@@ -33,7 +36,10 @@ impl SubtitlesLoadingStrategy {
     /// # Returns
     ///
     /// A new `SubtitlesLoadingStrategy` instance.
-    pub fn new(subtitle_provider: Arc<Box<dyn SubtitleProvider>>, subtitle_manager: Arc<Box<dyn SubtitleManager>>) -> Self {
+    pub fn new(
+        subtitle_provider: Arc<Box<dyn SubtitleProvider>>,
+        subtitle_manager: Arc<Box<dyn SubtitleManager>>,
+    ) -> Self {
         Self {
             subtitle_provider,
             subtitle_manager,
@@ -56,14 +62,19 @@ impl SubtitlesLoadingStrategy {
                 subtitles = self.handle_movie_subtitles(media).await
             }
         } else if let Some(file_info) = data.torrent_file_info.as_ref() {
-            subtitles = self.subtitle_provider.file_subtitles(file_info.filename.as_str()).await
+            subtitles = self
+                .subtitle_provider
+                .file_subtitles(file_info.filename.as_str())
+                .await
         } else {
             warn!("Unable to retrieve subtitles, no information known about the played item");
             return;
         }
 
         if let Ok(subtitles) = subtitles {
-            let subtitle = self.subtitle_provider.select_or_default(subtitles.as_slice());
+            let subtitle = self
+                .subtitle_provider
+                .select_or_default(subtitles.as_slice());
 
             debug!("Updating subtitle to {} for {:?}", subtitle, data);
             self.subtitle_manager.update_subtitle(subtitle);
@@ -79,13 +90,21 @@ impl SubtitlesLoadingStrategy {
     /// # Returns
     ///
     /// A result containing a vector of `SubtitleInfo` if successful, or a `SubtitleError` if an error occurs.
-    async fn handle_movie_subtitles(&self, movie: &Box<dyn MediaIdentifier>) -> subtitles::Result<Vec<SubtitleInfo>> {
+    async fn handle_movie_subtitles(
+        &self,
+        movie: &Box<dyn MediaIdentifier>,
+    ) -> subtitles::Result<Vec<SubtitleInfo>> {
         trace!("Loading movie subtitles for playlist item");
         return if let Some(movie) = movie.downcast_ref::<MovieDetails>() {
             self.subtitle_provider.movie_subtitles(movie).await
         } else {
-            warn!("Unable to load playlist item subtitle, expected MovieDetails but got {} instead", movie);
-            Err(SubtitleError::ParseUrlError("Unable to load playlist item subtitle, expected MovieDetails".to_string()))
+            warn!(
+                "Unable to load playlist item subtitle, expected MovieDetails but got {} instead",
+                movie
+            );
+            Err(SubtitleError::ParseUrlError(
+                "Unable to load playlist item subtitle, expected MovieDetails".to_string(),
+            ))
         };
     }
 
@@ -99,22 +118,37 @@ impl SubtitlesLoadingStrategy {
     /// # Returns
     ///
     /// A result containing a vector of `SubtitleInfo` if successful, or a `SubtitleError` if an error occurs.
-    async fn handle_episode_subtitle(&self, show: &Box<dyn MediaIdentifier>, episode: &Box<dyn MediaIdentifier>) -> subtitles::Result<Vec<SubtitleInfo>> {
+    async fn handle_episode_subtitle(
+        &self,
+        show: &Box<dyn MediaIdentifier>,
+        episode: &Box<dyn MediaIdentifier>,
+    ) -> subtitles::Result<Vec<SubtitleInfo>> {
         trace!("Loading episode subtitles for playlist item");
         return if let Some(show) = show.downcast_ref::<ShowDetails>() {
             if let Some(episode) = episode.downcast_ref::<Episode>() {
-                self.subtitle_provider.episode_subtitles(show, episode).await
+                self.subtitle_provider
+                    .episode_subtitles(show, episode)
+                    .await
             } else {
-                warn!("Unable to load playlist item subtitle, expected Episode but got {} instead", episode);
-                Err(SubtitleError::ParseUrlError("Unable to load playlist item subtitle, expected Episode".to_string()))
+                warn!(
+                    "Unable to load playlist item subtitle, expected Episode but got {} instead",
+                    episode
+                );
+                Err(SubtitleError::ParseUrlError(
+                    "Unable to load playlist item subtitle, expected Episode".to_string(),
+                ))
             }
         } else {
-            warn!("Unable to load playlist item subtitle, expected ShowDetails but got {} instead", show);
-            Err(SubtitleError::ParseUrlError("Unable to load playlist item subtitle, expected ShowDetails".to_string()))
+            warn!(
+                "Unable to load playlist item subtitle, expected ShowDetails but got {} instead",
+                show
+            );
+            Err(SubtitleError::ParseUrlError(
+                "Unable to load playlist item subtitle, expected ShowDetails".to_string(),
+            ))
         };
     }
 }
-
 
 impl Debug for SubtitlesLoadingStrategy {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -127,7 +161,12 @@ impl Debug for SubtitlesLoadingStrategy {
 
 #[async_trait]
 impl LoadingStrategy for SubtitlesLoadingStrategy {
-    async fn process(&self, data: LoadingData, event_channel: Sender<LoadingEvent>, cancel: CancellationToken) -> LoadingResult {
+    async fn process(
+        &self,
+        data: LoadingData,
+        event_channel: Sender<LoadingEvent>,
+        cancel: CancellationToken,
+    ) -> LoadingResult {
         if data.subtitles_enabled.unwrap_or(false) {
             trace!("Subtitle manager state {:?}", self.subtitle_manager);
 
@@ -137,7 +176,11 @@ impl LoadingStrategy for SubtitlesLoadingStrategy {
             if !self.subtitle_manager.is_disabled_async().await {
                 if self.subtitle_manager.preferred_language() == SubtitleLanguage::None {
                     trace!("Processing subtitle for {:?}", data);
-                    event_channel.send(LoadingEvent::StateChanged(LoadingState::RetrievingSubtitles)).unwrap();
+                    event_channel
+                        .send(LoadingEvent::StateChanged(
+                            LoadingState::RetrievingSubtitles,
+                        ))
+                        .unwrap();
                     self.update_to_default_subtitle(&data).await;
                 } else {
                     debug!("Subtitle has already been selected for {:?}", data);
@@ -208,33 +251,38 @@ mod tests {
         let (tx, rx) = channel();
         let (tx_event, _rx_event) = channel();
         let mut provider = MockSubtitleProvider::new();
-        provider.expect_movie_subtitles()
+        provider
+            .expect_movie_subtitles()
             .times(1)
             .returning(move |e| {
                 tx.send(e.clone()).unwrap();
                 Ok(Vec::new())
             });
-        provider.expect_file_subtitles()
+        provider
+            .expect_file_subtitles()
             .times(0)
             .return_const(Ok(Vec::new()));
-        provider.expect_select_or_default()
+        provider
+            .expect_select_or_default()
             .times(1)
-            .returning(|_| {
-                SubtitleInfo::none()
-            });
+            .returning(|_| SubtitleInfo::none());
         let mut manager = MockSubtitleManager::new();
-        manager.expect_is_disabled_async()
+        manager
+            .expect_is_disabled_async()
             .times(1)
             .return_const(false);
-        manager.expect_preferred_language()
+        manager
+            .expect_preferred_language()
             .times(1)
             .return_const(SubtitleLanguage::None);
-        manager.expect_update_subtitle()
-            .times(1)
-            .return_const(());
-        let loader = SubtitlesLoadingStrategy::new(Arc::new(Box::new(provider)), Arc::new(Box::new(manager)));
+        manager.expect_update_subtitle().times(1).return_const(());
+        let loader = SubtitlesLoadingStrategy::new(
+            Arc::new(Box::new(provider)),
+            Arc::new(Box::new(manager)),
+        );
 
-        let result = block_in_place(loader.process(data.clone(), tx_event, CancellationToken::new()));
+        let result =
+            block_in_place(loader.process(data.clone(), tx_event, CancellationToken::new()));
         assert_eq!(LoadingResult::Ok(data), result);
 
         let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
@@ -268,33 +316,38 @@ mod tests {
         let (tx, rx) = channel();
         let (tx_event, _rx_event) = channel();
         let mut provider = MockSubtitleProvider::new();
-        provider.expect_movie_subtitles()
+        provider
+            .expect_movie_subtitles()
             .times(0)
             .return_const(Ok(Vec::new()));
-        provider.expect_file_subtitles()
+        provider
+            .expect_file_subtitles()
             .times(1)
             .returning(move |e| {
                 tx.send(e.to_string()).unwrap();
                 Ok(Vec::new())
             });
-        provider.expect_select_or_default()
+        provider
+            .expect_select_or_default()
             .times(1)
-            .returning(|_| {
-                SubtitleInfo::none()
-            });
+            .returning(|_| SubtitleInfo::none());
         let mut manager = MockSubtitleManager::new();
-        manager.expect_is_disabled_async()
+        manager
+            .expect_is_disabled_async()
             .times(1)
             .return_const(false);
-        manager.expect_preferred_language()
+        manager
+            .expect_preferred_language()
             .times(1)
             .return_const(SubtitleLanguage::None);
-        manager.expect_update_subtitle()
-            .times(1)
-            .return_const(());
-        let loader = SubtitlesLoadingStrategy::new(Arc::new(Box::new(provider)), Arc::new(Box::new(manager)));
+        manager.expect_update_subtitle().times(1).return_const(());
+        let loader = SubtitlesLoadingStrategy::new(
+            Arc::new(Box::new(provider)),
+            Arc::new(Box::new(manager)),
+        );
 
-        let result = block_in_place(loader.process(data.clone(), tx_event, CancellationToken::new()));
+        let result =
+            block_in_place(loader.process(data.clone(), tx_event, CancellationToken::new()));
         assert_eq!(LoadingResult::Ok(data), result);
 
         let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
@@ -332,17 +385,16 @@ mod tests {
         let data = LoadingData::from(playlist_item);
         let (tx_event, _) = channel();
         let mut provider = MockSubtitleProvider::new();
-        provider.expect_movie_subtitles()
-            .returning(|_| {
-                panic!("movie_subtitles should not have been invoked")
-            });
+        provider
+            .expect_movie_subtitles()
+            .returning(|_| panic!("movie_subtitles should not have been invoked"));
         let mut manager = MockSubtitleManager::new();
-        manager.expect_is_disabled_async()
-            .return_const(true);
+        manager.expect_is_disabled_async().return_const(true);
         let manager = Arc::new(Box::new(manager) as Box<dyn SubtitleManager>);
         let loader = SubtitlesLoadingStrategy::new(Arc::new(Box::new(provider)), manager);
 
-        let result = block_in_place(loader.process(data.clone(), tx_event, CancellationToken::new()));
+        let result =
+            block_in_place(loader.process(data.clone(), tx_event, CancellationToken::new()));
 
         assert_eq!(LoadingResult::Ok(data), result);
     }
@@ -366,25 +418,34 @@ mod tests {
         let data = LoadingData::from(playlist_item);
         let (tx_event, _) = channel();
         let mut provider = MockSubtitleProvider::new();
-        provider.expect_movie_subtitles()
+        provider
+            .expect_movie_subtitles()
             .times(0)
             .return_const(subtitles::Result::Ok(Vec::new()));
-        provider.expect_episode_subtitles()
+        provider
+            .expect_episode_subtitles()
             .times(0)
             .return_const(subtitles::Result::Ok(Vec::new()));
-        provider.expect_file_subtitles()
+        provider
+            .expect_file_subtitles()
             .times(0)
             .return_const(subtitles::Result::Ok(Vec::new()));
         let mut manager = MockSubtitleManager::new();
-        manager.expect_is_disabled_async()
+        manager
+            .expect_is_disabled_async()
             .times(0)
             .return_const(true);
-        manager.expect_preferred_subtitle()
+        manager
+            .expect_preferred_subtitle()
             .times(0)
             .return_const(Some(SubtitleInfo::custom()));
-        let loader = SubtitlesLoadingStrategy::new(Arc::new(Box::new(provider)), Arc::new(Box::new(manager)));
+        let loader = SubtitlesLoadingStrategy::new(
+            Arc::new(Box::new(provider)),
+            Arc::new(Box::new(manager)),
+        );
 
-        let result = block_in_place(loader.process(data.clone(), tx_event, CancellationToken::new()));
+        let result =
+            block_in_place(loader.process(data.clone(), tx_event, CancellationToken::new()));
         assert_eq!(LoadingResult::Ok(data), result);
     }
 
@@ -405,14 +466,11 @@ mod tests {
             subtitles_enabled: true,
         });
         let mut provider = MockSubtitleProvider::new();
-        provider.expect_movie_subtitles()
-            .returning(|_| {
-                panic!("movie_subtitles should not have been invoked")
-            });
+        provider
+            .expect_movie_subtitles()
+            .returning(|_| panic!("movie_subtitles should not have been invoked"));
         let mut manager = MockSubtitleManager::new();
-        manager.expect_reset()
-            .times(1)
-            .return_const(());
+        manager.expect_reset().times(1).return_const(());
         let manager = Arc::new(Box::new(manager) as Box<dyn SubtitleManager>);
         let loader = SubtitlesLoadingStrategy::new(Arc::new(Box::new(provider)), manager);
 

@@ -8,7 +8,10 @@ use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 
 use crate::core::{block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks, Handle};
-use crate::core::loader::{LoadingCallback, LoadingData, LoadingError, LoadingEvent, LoadingHandle, LoadingResult, LoadingState};
+use crate::core::loader::{
+    LoadingCallback, LoadingData, LoadingError, LoadingEvent, LoadingHandle, LoadingResult,
+    LoadingState,
+};
 use crate::core::loader::loading_chain::LoadingChain;
 
 /// Represents a task responsible for loading media items in a playlist.
@@ -35,13 +38,15 @@ impl LoadingTask {
     pub fn new(chain: Arc<LoadingChain>, runtime: Arc<Runtime>) -> Self {
         let (tx, rx) = channel();
         let inner = Arc::new(Mutex::new(Some(Arc::new(InnerLoadingTask::new(chain, tx)))));
-        let handle = block_in_place(inner.lock()).as_ref()
+        let handle = block_in_place(inner.lock())
+            .as_ref()
             .map(|e| e.handle())
             .unwrap_or(Handle::new());
 
         let event_inner = inner.clone();
         runtime.spawn(async move {
-            let handle = block_in_place(event_inner.lock()).as_ref()
+            let handle = block_in_place(event_inner.lock())
+                .as_ref()
                 .map(|e| e.handle())
                 .unwrap_or(Handle::new());
 
@@ -59,9 +64,7 @@ impl LoadingTask {
         });
 
         debug!("Creating new loading task {}", handle);
-        Self {
-            inner,
-        }
+        Self { inner }
     }
 
     /// Gets the handle associated with the loading task.
@@ -73,7 +76,8 @@ impl LoadingTask {
     /// The loading task's handle.
     pub fn handle(&self) -> LoadingHandle {
         let mutex = block_in_place(self.inner.lock());
-        mutex.as_ref()
+        mutex
+            .as_ref()
             .map(|e| e.handle.clone())
             .unwrap_or(Handle::new())
     }
@@ -144,9 +148,7 @@ impl LoadingTask {
     /// A `CallbackHandle` representing the subscription to the loading events.
     pub fn subscribe(&self, callback: LoadingCallback) -> CallbackHandle {
         let mutex = block_in_place(self.inner.lock());
-        mutex.as_ref()
-            .unwrap()
-            .subscribe(callback)
+        mutex.as_ref().unwrap().subscribe(callback)
     }
 
     /// Unsubscribes from loading events using a callback handle.
@@ -204,7 +206,11 @@ impl InnerLoadingTask {
         let strategies = self.chain.strategies();
         let mut index: i32 = 0;
 
-        trace!("Processing a total of {} loading strategies for {}", strategies.len(), self.handle);
+        trace!(
+            "Processing a total of {} loading strategies for {}",
+            strategies.len(),
+            self.handle
+        );
         self.handle_state_callback(LoadingState::Initializing);
         for strategy in strategies.iter() {
             if self.cancel_token.is_cancelled() {
@@ -215,14 +221,20 @@ impl InnerLoadingTask {
             if let Some(strategy) = strategy.upgrade() {
                 index += 1;
                 trace!("Executing {}", strategy);
-                match strategy.process(data, self.sender_channel.clone(), self.cancel_token.clone()).await {
+                match strategy
+                    .process(data, self.sender_channel.clone(), self.cancel_token.clone())
+                    .await
+                {
                     LoadingResult::Ok(updated_data) => data = updated_data,
                     LoadingResult::Completed => {
                         debug!("Loading strategies have been completed");
                         return Ok(());
                     }
                     LoadingResult::Err(err) => {
-                        error!("An unexpected error occurred while loading playlist item, {}", err);
+                        error!(
+                            "An unexpected error occurred while loading playlist item, {}",
+                            err
+                        );
                         return Err(err);
                     }
                 }
@@ -234,8 +246,7 @@ impl InnerLoadingTask {
         if self.cancel_token.is_cancelled() {
             debug!("Cancelling a total of {} loading strategies", index);
             while index >= 0 {
-                if let Some(strategy) = strategies.get(index as usize)
-                    .and_then(|e| e.upgrade()) {
+                if let Some(strategy) = strategies.get(index as usize).and_then(|e| e.upgrade()) {
                     trace!("Cancelling {}", strategy);
                     match strategy.cancel(data).await {
                         Ok(new_data) => data = new_data,
@@ -272,8 +283,12 @@ impl InnerLoadingTask {
             let mut mutex = block_in_place(self.state.lock());
             *mutex = state;
         }
-        debug!("Loading task {} state changed to {}", self.handle, event_state);
-        self.callbacks.invoke(LoadingEvent::StateChanged(event_state));
+        debug!(
+            "Loading task {} state changed to {}",
+            self.handle, event_state
+        );
+        self.callbacks
+            .invoke(LoadingEvent::StateChanged(event_state));
     }
 }
 
@@ -300,7 +315,12 @@ mod tests {
 
     #[async_trait]
     impl LoadingStrategy for CancelStrategy {
-        async fn process(&self, _: LoadingData, _: Sender<LoadingEvent>, cancel: CancellationToken) -> LoadingResult {
+        async fn process(
+            &self,
+            _: LoadingData,
+            _: Sender<LoadingEvent>,
+            cancel: CancellationToken,
+        ) -> LoadingResult {
             self.initiated.send(()).unwrap();
             while !cancel.is_cancelled() {
                 thread::sleep(Duration::from_millis(50));
@@ -342,14 +362,22 @@ mod tests {
         });
         let (tx, rx) = channel();
         let mut strategy = MockLoadingStrategy::new();
-        strategy.expect_process()
+        strategy
+            .expect_process()
             .times(1)
             .returning(move |_, callback, _| {
-                callback.send(LoadingEvent::StateChanged(LoadingState::Downloading)).unwrap();
+                callback
+                    .send(LoadingEvent::StateChanged(LoadingState::Downloading))
+                    .unwrap();
                 LoadingResult::Completed
             });
         let runtime = Arc::new(Runtime::new().unwrap());
-        let task = Arc::new(LoadingTask::new(Arc::new(LoadingChain::from(vec![Box::new(strategy) as Box<dyn LoadingStrategy>])), runtime.clone()));
+        let task = Arc::new(LoadingTask::new(
+            Arc::new(LoadingChain::from(vec![
+                Box::new(strategy) as Box<dyn LoadingStrategy>
+            ])),
+            runtime.clone(),
+        ));
         let runtime = Runtime::new().unwrap();
 
         task.subscribe(Box::new(move |event| {
@@ -389,14 +417,20 @@ mod tests {
         let (tx_data, rx_data) = channel();
         let (tx_event, rx_event) = channel();
         let mut strategy = MockLoadingStrategy::new();
-        strategy.expect_process()
+        strategy
+            .expect_process()
             .times(1)
             .returning(move |data, _, _| {
                 tx_data.send(data).unwrap();
                 LoadingResult::Completed
             });
         let runtime = Arc::new(Runtime::new().unwrap());
-        let task = LoadingTask::new(Arc::new(LoadingChain::from(vec![Box::new(strategy) as Box<dyn LoadingStrategy>])), runtime.clone());
+        let task = LoadingTask::new(
+            Arc::new(LoadingChain::from(vec![
+                Box::new(strategy) as Box<dyn LoadingStrategy>
+            ])),
+            runtime.clone(),
+        );
 
         task.subscribe(Box::new(move |e| {
             tx_event.send(e).unwrap();
@@ -409,7 +443,10 @@ mod tests {
         assert_eq!(data, result);
 
         let result = rx_event.recv_timeout(Duration::from_millis(200)).unwrap();
-        assert_eq!(LoadingEvent::StateChanged(LoadingState::Initializing), result);
+        assert_eq!(
+            LoadingEvent::StateChanged(LoadingState::Initializing),
+            result
+        );
     }
 
     #[test]
@@ -430,15 +467,20 @@ mod tests {
         });
         let mut strategy = MockLoadingStrategy::new();
         let (tx, rx) = channel();
-        strategy.expect_process()
-            .returning(move |_, _, _| {
-                thread::sleep(Duration::from_secs(20));
-                LoadingResult::Completed
-            });
-        strategy.expect_cancel()
+        strategy.expect_process().returning(move |_, _, _| {
+            thread::sleep(Duration::from_secs(20));
+            LoadingResult::Completed
+        });
+        strategy
+            .expect_cancel()
             .returning(|data| CancellationResult::Ok(data));
         let runtime = Arc::new(Runtime::new().unwrap());
-        let task = Arc::new(LoadingTask::new(Arc::new(LoadingChain::from(vec![Box::new(strategy) as Box<dyn LoadingStrategy>])), runtime.clone()));
+        let task = Arc::new(LoadingTask::new(
+            Arc::new(LoadingChain::from(vec![
+                Box::new(strategy) as Box<dyn LoadingStrategy>
+            ])),
+            runtime.clone(),
+        ));
         let runtime = Runtime::new().unwrap();
 
         let del_task = task.clone();
@@ -475,7 +517,12 @@ mod tests {
             cancelled: tx_cancelled,
         };
         let runtime = Arc::new(Runtime::new().unwrap());
-        let task = Arc::new(LoadingTask::new(Arc::new(LoadingChain::from(vec![Box::new(strategy) as Box<dyn LoadingStrategy>])), runtime.clone()));
+        let task = Arc::new(LoadingTask::new(
+            Arc::new(LoadingChain::from(vec![
+                Box::new(strategy) as Box<dyn LoadingStrategy>
+            ])),
+            runtime.clone(),
+        ));
         let runtime = Runtime::new().unwrap();
 
         let del_task = task.clone();
@@ -483,9 +530,13 @@ mod tests {
             let _ = del_task.load(data).await;
         });
 
-        let _ = rx.recv_timeout(Duration::from_millis(200)).expect("expected the strategy process to have been started");
+        let _ = rx
+            .recv_timeout(Duration::from_millis(200))
+            .expect("expected the strategy process to have been started");
         task.cancel();
-        let result = rx_cancelled.recv_timeout(Duration::from_millis(200)).unwrap();
+        let result = rx_cancelled
+            .recv_timeout(Duration::from_millis(200))
+            .unwrap();
         assert!(result, "expected the strategy to have been cancelled");
     }
 
@@ -508,34 +559,30 @@ mod tests {
         let (tx, rx) = channel();
         let (tx_cancel, rx_cancel) = channel();
         let mut strat1 = MockLoadingStrategy::new();
-        strat1.expect_process()
-            .times(1)
-            .returning(move |e, _, _| {
-                tx.send(()).unwrap();
-                LoadingResult::Ok(e)
-            });
-        strat1.expect_cancel()
-            .times(1)
-            .returning(move |e| {
-                tx_cancel.send(e.clone()).unwrap();
-                CancellationResult::Ok(e)
-            });
+        strat1.expect_process().times(1).returning(move |e, _, _| {
+            tx.send(()).unwrap();
+            LoadingResult::Ok(e)
+        });
+        strat1.expect_cancel().times(1).returning(move |e| {
+            tx_cancel.send(e.clone()).unwrap();
+            CancellationResult::Ok(e)
+        });
         let mut strat2 = MockLoadingStrategy::new();
-        strat2.expect_process()
-            .times(1)
-            .returning(|data, _, _| {
-                thread::sleep(Duration::from_millis(200));
-                LoadingResult::Ok(data)
-            });
-        strat2.expect_cancel()
-            .returning(|e| {
-                CancellationResult::Ok(e)
-            });
+        strat2.expect_process().times(1).returning(|data, _, _| {
+            thread::sleep(Duration::from_millis(200));
+            LoadingResult::Ok(data)
+        });
+        strat2
+            .expect_cancel()
+            .returning(|e| CancellationResult::Ok(e));
         let runtime = Arc::new(Runtime::new().unwrap());
-        let task = Arc::new(LoadingTask::new(Arc::new(LoadingChain::from(vec![
-            Box::new(strat1) as Box<dyn LoadingStrategy>,
-            Box::new(strat2) as Box<dyn LoadingStrategy>,
-        ])), runtime.clone()));
+        let task = Arc::new(LoadingTask::new(
+            Arc::new(LoadingChain::from(vec![
+                Box::new(strat1) as Box<dyn LoadingStrategy>,
+                Box::new(strat2) as Box<dyn LoadingStrategy>,
+            ])),
+            runtime.clone(),
+        ));
         let runtime = Runtime::new().unwrap();
 
         let del_task = task.clone();
@@ -544,9 +591,13 @@ mod tests {
             let _ = del_task.load(data_copy).await;
         });
 
-        let _ = rx.recv_timeout(Duration::from_millis(200)).expect("expected the strategy process to have been started");
+        let _ = rx
+            .recv_timeout(Duration::from_millis(200))
+            .expect("expected the strategy process to have been started");
         task.cancel();
-        let result = rx_cancel.recv_timeout(Duration::from_millis(500)).expect("expected the cancel fn to have been invoked");
+        let result = rx_cancel
+            .recv_timeout(Duration::from_millis(500))
+            .expect("expected the cancel fn to have been invoked");
         assert_eq!(data, result);
     }
 }

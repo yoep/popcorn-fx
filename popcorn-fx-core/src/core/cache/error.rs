@@ -8,7 +8,9 @@ pub type Result<T> = std::result::Result<T, CacheError>;
 /// An error that occurred during the execution of a cache operation.
 #[derive(Debug, Clone, PartialEq, Error)]
 pub enum CacheExecutionError<T>
-    where T: Error {
+where
+    T: Error,
+{
     /// An error occurred while executing the operation.
     #[error("an error occurred while executing the operation: {0}")]
     Operation(T),
@@ -37,7 +39,9 @@ pub enum CacheError {
 /// An error related to cache data parsing.
 #[derive(Debug, Clone, PartialEq, Error)]
 pub enum CacheParserError<T>
-    where T: Error {
+where
+    T: Error,
+{
     /// An error occurred while executing the operation.
     #[error("an error occurred while executing the operation: {0}")]
     Operation(T),

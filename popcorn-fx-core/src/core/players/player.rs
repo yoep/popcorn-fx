@@ -134,11 +134,9 @@ mod tests {
     fn test_player_identifier_eq() {
         let player_id = "ID123456";
         let mut m_player1 = MockPlayer::new();
-        m_player1.expect_id()
-            .return_const(player_id.to_string());
+        m_player1.expect_id().return_const(player_id.to_string());
         let mut m_player2 = MockPlayer::new();
-        m_player2.expect_id()
-            .return_const(player_id.to_string());
+        m_player2.expect_id().return_const(player_id.to_string());
         let player = Box::new(m_player1) as Box<dyn Player>;
         let other_player = Box::new(m_player2) as Box<dyn Player>;
 

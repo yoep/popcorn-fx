@@ -96,7 +96,10 @@ impl ScreenService for DefaultScreenService {
     }
 
     fn fullscreen(&self, active_fullscreen: bool) {
-        trace!("Updating screen service fullscreen to {}", active_fullscreen);
+        trace!(
+            "Updating screen service fullscreen to {}",
+            active_fullscreen
+        );
         let callback = block_in_place(self.fullscreen_callback.lock());
         callback(active_fullscreen)
     }
@@ -104,8 +107,7 @@ impl ScreenService for DefaultScreenService {
 
 impl Debug for DefaultScreenService {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("DefaultScreenService")
-            .finish()
+        f.debug_struct("DefaultScreenService").finish()
     }
 }
 
@@ -132,7 +134,9 @@ mod tests {
         let result = service.is_fullscreen();
         assert_eq!(true, result, "expected the fullscreen mode to be active");
 
-        let _ = rx.recv_timeout(Duration::from_millis(200)).expect("expected the callback to have been invoked");
+        let _ = rx
+            .recv_timeout(Duration::from_millis(200))
+            .expect("expected the callback to have been invoked");
     }
 
     #[test]
@@ -147,7 +151,9 @@ mod tests {
 
         service.toggle_fullscreen();
 
-        let _ = rx.recv_timeout(Duration::from_millis(200)).expect("expected the callback to have been invoked");
+        let _ = rx
+            .recv_timeout(Duration::from_millis(200))
+            .expect("expected the callback to have been invoked");
     }
 
     #[test]
@@ -162,7 +168,9 @@ mod tests {
 
         service.fullscreen(true);
 
-        let result = rx.recv_timeout(Duration::from_millis(200)).expect("expected the callback to have been invoked");
+        let result = rx
+            .recv_timeout(Duration::from_millis(200))
+            .expect("expected the callback to have been invoked");
         assert_eq!(true, result);
     }
 }

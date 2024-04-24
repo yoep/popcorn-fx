@@ -1,4 +1,6 @@
-use popcorn_fx_core::core::updater::{DownloadProgress, InstallationProgress, UpdateEvent, UpdateState};
+use popcorn_fx_core::core::updater::{
+    DownloadProgress, InstallationProgress, UpdateEvent, UpdateState,
+};
 
 use crate::ffi::VersionInfoC;
 
@@ -26,10 +28,18 @@ pub enum UpdateEventC {
 impl From<UpdateEvent> for UpdateEventC {
     fn from(value: UpdateEvent) -> Self {
         match value {
-            UpdateEvent::StateChanged(state) => UpdateEventC::StateChanged(UpdateStateC::from(state)),
-            UpdateEvent::UpdateAvailable(version) => UpdateEventC::UpdateAvailable(VersionInfoC::from(&version)),
-            UpdateEvent::DownloadProgress(progress) => UpdateEventC::DownloadProgress(DownloadProgressC::from(progress)),
-            UpdateEvent::InstallationProgress(progress) => UpdateEventC::InstallationProgress(InstallationProgressC::from(progress)),
+            UpdateEvent::StateChanged(state) => {
+                UpdateEventC::StateChanged(UpdateStateC::from(state))
+            }
+            UpdateEvent::UpdateAvailable(version) => {
+                UpdateEventC::UpdateAvailable(VersionInfoC::from(&version))
+            }
+            UpdateEvent::DownloadProgress(progress) => {
+                UpdateEventC::DownloadProgress(DownloadProgressC::from(progress))
+            }
+            UpdateEvent::InstallationProgress(progress) => {
+                UpdateEventC::InstallationProgress(InstallationProgressC::from(progress))
+            }
         }
     }
 }
@@ -125,7 +135,7 @@ mod test {
 
         match result {
             UpdateEventC::StateChanged(state) => assert_eq!(UpdateStateC::UpdateAvailable, state),
-            _ => assert!(false, "expected UpdateEventC::StateChanged")
+            _ => assert!(false, "expected UpdateEventC::StateChanged"),
         }
     }
 
@@ -145,13 +155,34 @@ mod test {
 
     #[test]
     fn test_from_update_state() {
-        assert_eq!(UpdateStateC::CheckingForNewVersion, UpdateStateC::from(UpdateState::CheckingForNewVersion));
-        assert_eq!(UpdateStateC::NoUpdateAvailable, UpdateStateC::from(UpdateState::NoUpdateAvailable));
-        assert_eq!(UpdateStateC::UpdateAvailable, UpdateStateC::from(UpdateState::UpdateAvailable));
-        assert_eq!(UpdateStateC::Downloading, UpdateStateC::from(UpdateState::Downloading));
-        assert_eq!(UpdateStateC::DownloadFinished, UpdateStateC::from(UpdateState::DownloadFinished));
-        assert_eq!(UpdateStateC::Installing, UpdateStateC::from(UpdateState::Installing));
-        assert_eq!(UpdateStateC::InstallationFinished, UpdateStateC::from(UpdateState::InstallationFinished));
+        assert_eq!(
+            UpdateStateC::CheckingForNewVersion,
+            UpdateStateC::from(UpdateState::CheckingForNewVersion)
+        );
+        assert_eq!(
+            UpdateStateC::NoUpdateAvailable,
+            UpdateStateC::from(UpdateState::NoUpdateAvailable)
+        );
+        assert_eq!(
+            UpdateStateC::UpdateAvailable,
+            UpdateStateC::from(UpdateState::UpdateAvailable)
+        );
+        assert_eq!(
+            UpdateStateC::Downloading,
+            UpdateStateC::from(UpdateState::Downloading)
+        );
+        assert_eq!(
+            UpdateStateC::DownloadFinished,
+            UpdateStateC::from(UpdateState::DownloadFinished)
+        );
+        assert_eq!(
+            UpdateStateC::Installing,
+            UpdateStateC::from(UpdateState::Installing)
+        );
+        assert_eq!(
+            UpdateStateC::InstallationFinished,
+            UpdateStateC::from(UpdateState::InstallationFinished)
+        );
     }
 
     #[test]

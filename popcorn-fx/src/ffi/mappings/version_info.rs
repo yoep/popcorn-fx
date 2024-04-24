@@ -26,8 +26,8 @@ impl From<&VersionInfo> for VersionInfoC {
 impl PartialEq for VersionInfoC {
     /// Check whether two `VersionInfoC` instances are equal.
     fn eq(&self, other: &Self) -> bool {
-        from_c_string(self.application.version) == from_c_string(other.application.version) &&
-            from_c_string(self.runtime.version) == from_c_string(other.runtime.version)
+        from_c_string(self.application.version) == from_c_string(other.application.version)
+            && from_c_string(self.runtime.version) == from_c_string(other.runtime.version)
     }
 }
 
@@ -71,7 +71,13 @@ mod test {
 
         let result = VersionInfoC::from(&version_info);
 
-        assert_eq!(version.to_string(), from_c_string(result.application.version));
-        assert_eq!(runtime_version.to_string(), from_c_string(result.runtime.version));
+        assert_eq!(
+            version.to_string(),
+            from_c_string(result.application.version)
+        );
+        assert_eq!(
+            runtime_version.to_string(),
+            from_c_string(result.runtime.version)
+        );
     }
 }

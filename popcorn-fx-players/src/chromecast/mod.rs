@@ -7,3 +7,4 @@ mod discovery;
 mod errors;
 mod models;
 mod player;
+pub mod transcode;

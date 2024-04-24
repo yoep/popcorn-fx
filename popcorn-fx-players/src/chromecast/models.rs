@@ -83,8 +83,9 @@ pub struct MovieMetadata {
     pub subtitle: Option<String>,
     /// The studio producing the movie.
     pub studio: Option<String>,
-    /// Images associated with the movie.
-    pub images: Option<Vec<Image>>,
+    /// Images associated with the movie if present, else an empty array.
+    /// This field is always required.
+    pub images: Vec<Image>,
     /// The release date of the movie.
     pub release_date: Option<String>,
     /// The URL of the movie thumbnail.

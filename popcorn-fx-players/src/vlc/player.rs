@@ -23,7 +23,9 @@ use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 use url::Url;
 
-use popcorn_fx_core::core::{block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks};
+use popcorn_fx_core::core::{
+    block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks,
+};
 use popcorn_fx_core::core::players::{Player, PlayerEvent, PlayerState, PlayRequest};
 use popcorn_fx_core::core::subtitles::{SubtitleManager, SubtitleProvider};
 use popcorn_fx_core::core::subtitles::matcher::SubtitleMatcher;
@@ -190,8 +192,8 @@ impl VlcPlayerBuilder {
 
     /// Sets the password for the VLC player.
     pub fn password<S>(mut self, password: S) -> Self
-        where
-            S: Into<String>,
+    where
+        S: Into<String>,
     {
         self.password = Some(password.into());
         self
@@ -211,14 +213,17 @@ impl VlcPlayerBuilder {
 
     /// Builds the `VlcPlayer` instance.
     pub fn build(self) -> VlcPlayer {
-        let runtime = Arc::new(self.runtime.unwrap_or_else(|| runtime::Builder::new_multi_thread()
-            .enable_all()
-            .worker_threads(1)
-            .thread_name("vlc")
-            .build()
-            .expect("expected a new runtime")));
+        let runtime = Arc::new(self.runtime.unwrap_or_else(|| {
+            runtime::Builder::new_multi_thread()
+                .enable_all()
+                .worker_threads(1)
+                .thread_name("vlc")
+                .build()
+                .expect("expected a new runtime")
+        }));
         let address = self.address.unwrap_or_else(|| {
-            let listener = TcpListener::bind("localhost:0").expect("expected a TCP address to be bound");
+            let listener =
+                TcpListener::bind("localhost:0").expect("expected a TCP address to be bound");
             listener.local_addr().expect("expected a valid socket")
         });
         let password = self.password.unwrap_or_else(|| {
@@ -234,16 +239,25 @@ impl VlcPlayerBuilder {
                 .generate()
         });
         let client = ClientBuilder::new()
-            .default_headers(HeaderMap::try_from(&vec![
-                ("User-Agent".to_string(), "popcorn-fx".to_string())
-            ].into_iter().collect::<HashMap<String, String>>())
-                .expect("expected a valid header map"))
+            .default_headers(
+                HeaderMap::try_from(
+                    &vec![("User-Agent".to_string(), "popcorn-fx".to_string())]
+                        .into_iter()
+                        .collect::<HashMap<String, String>>(),
+                )
+                .expect("expected a valid header map"),
+            )
             .build()
             .unwrap();
 
         VlcPlayer {
             inner: Arc::new(InnerVlcPlayer {
-                options: format!("--http-host={} --http-port={} --extraintf=http --http-password={}", VLC_HOST, address.port(), password),
+                options: format!(
+                    "--http-host={} --http-port={} --extraintf=http --http-password={}",
+                    VLC_HOST,
+                    address.port(),
+                    password
+                ),
                 password,
                 client,
                 socket: address,
@@ -252,8 +266,12 @@ impl VlcPlayerBuilder {
                 state: Default::default(),
                 callbacks: Default::default(),
                 runtime,
-                subtitle_manager: self.subtitle_manager.expect("expected the subtitle_manager to have been set"),
-                subtitle_provider: self.subtitle_provider.expect("expected the subtitle_provider to have been set"),
+                subtitle_manager: self
+                    .subtitle_manager
+                    .expect("expected the subtitle_manager to have been set"),
+                subtitle_provider: self
+                    .subtitle_provider
+                    .expect("expected the subtitle_provider to have been set"),
             }),
             cancel_token: Default::default(),
         }
@@ -278,8 +296,11 @@ struct InnerVlcPlayer {
 
 impl InnerVlcPlayer {
     fn build_uri(&self, params: Vec<(&str, &str)>) -> Url {
-        Url::parse_with_params(format!("http://{}:{}{}", VLC_HOST, self.socket.port(), STATUS_URI).as_str(), params)
-            .expect("expected a valid uri to have been created")
+        Url::parse_with_params(
+            format!("http://{}:{}{}", VLC_HOST, self.socket.port(), STATUS_URI).as_str(),
+            params,
+        )
+        .expect("expected a valid uri to have been created")
     }
 
     async fn check_status(&self) -> bool {
@@ -287,10 +308,14 @@ impl InnerVlcPlayer {
         return match self.retrieve_status().await {
             Ok(status) => {
                 debug!("Received external VLC status {:?}", status);
-                self.update_state_async(PlayerState::from(status.state)).await;
-                self.callbacks.invoke(PlayerEvent::TimeChanged(status.time * 1000));
-                self.callbacks.invoke(PlayerEvent::DurationChanged(status.length * 1000));
-                self.callbacks.invoke(PlayerEvent::VolumeChanged(status.volume));
+                self.update_state_async(PlayerState::from(status.state))
+                    .await;
+                self.callbacks
+                    .invoke(PlayerEvent::TimeChanged(status.time * 1000));
+                self.callbacks
+                    .invoke(PlayerEvent::DurationChanged(status.length * 1000));
+                self.callbacks
+                    .invoke(PlayerEvent::VolumeChanged(status.volume));
                 true
             }
             Err(e) => {
@@ -310,12 +335,15 @@ impl InnerVlcPlayer {
             .text()
             .await
             .map_err(|e| VlcError::Request(e.to_string()))
-            .and_then(|body| from_str::<VlcStatus>(body.as_str())
-                .map_err(|err| VlcError::Parsing(err.to_string())))
+            .and_then(|body| {
+                from_str::<VlcStatus>(body.as_str())
+                    .map_err(|err| VlcError::Parsing(err.to_string()))
+            })
     }
 
     async fn execute_request(&self, uri: Url) -> Result<Response, Error> {
-        self.client.get(uri)
+        self.client
+            .get(uri)
             .basic_auth("", Some(self.password.as_str()))
             .timeout(Duration::from_millis(750))
             .send()
@@ -378,13 +406,13 @@ impl Player for InnerVlcPlayer {
 
     fn request(&self) -> Option<Weak<Box<dyn PlayRequest>>> {
         let mutex = block_in_place(self.request.lock());
-        mutex.as_ref()
-            .map(|e| Arc::downgrade(e))
+        mutex.as_ref().map(|e| Arc::downgrade(e))
     }
 
     async fn play(&self, request: Box<dyn PlayRequest>) {
         trace!("Trying to start VLC playback for {:?}", request);
-        let filename = Path::new(request.url()).file_name()
+        let filename = Path::new(request.url())
+            .file_name()
             .and_then(|e| e.to_str())
             .map(|e| e.to_string());
         let mut command = Command::new("vlc");
@@ -408,7 +436,8 @@ impl Player for InnerVlcPlayer {
         {
             debug!("Launching VLC command {:?}", command);
             let mut mutex = self.process.lock().await;
-            *mutex = command.spawn()
+            *mutex = command
+                .spawn()
                 .map(|e| {
                     info!("VLC play process has been started");
                     Some(e)
@@ -428,37 +457,29 @@ impl Player for InnerVlcPlayer {
     }
 
     fn pause(&self) {
-        block_in_place(self.execute_command(VlcCommand::builder()
-            .name(COMMAND_PLAY_PAUSE)
-            .build()))
+        block_in_place(self.execute_command(VlcCommand::builder().name(COMMAND_PLAY_PAUSE).build()))
     }
 
     fn resume(&self) {
-        block_in_place(self.execute_command(VlcCommand::builder()
-            .name(COMMAND_PLAY_PAUSE)
-            .build()))
+        block_in_place(self.execute_command(VlcCommand::builder().name(COMMAND_PLAY_PAUSE).build()))
     }
 
     fn seek(&self, mut time: u64) {
         if time <= 999 {
             warn!("Invalid seek time {} given", time);
             time = 0;
-        }else{
+        } else {
             time = time / 1000;
         }
 
-        block_in_place(self.execute_command(VlcCommand::builder()
-            .name(COMMAND_SEEK)
-            .value(time)
-            .build()))
+        block_in_place(
+            self.execute_command(VlcCommand::builder().name(COMMAND_SEEK).value(time).build()),
+        )
     }
-
 
     fn stop(&self) {
         debug!("Stopping external VLC player");
-        block_in_place(self.execute_command(VlcCommand::builder()
-            .name(COMMAND_STOP)
-            .build()));
+        block_in_place(self.execute_command(VlcCommand::builder().name(COMMAND_STOP).build()));
 
         {
             let mut mutex = block_in_place(self.process.lock());
@@ -469,7 +490,8 @@ impl Player for InnerVlcPlayer {
             }
         }
 
-        self.callbacks.invoke(PlayerEvent::StateChanged(PlayerState::Stopped));
+        self.callbacks
+            .invoke(PlayerEvent::StateChanged(PlayerState::Stopped));
     }
 }
 
@@ -601,7 +623,10 @@ mod tests {
             .subtitle_provider(Arc::new(Box::new(provider)))
             .build();
 
-        assert!(player.graphic_resource().len() > 0, "expected a graphic resource to have been returned");
+        assert!(
+            player.graphic_resource().len() > 0,
+            "expected a graphic resource to have been returned"
+        );
     }
 
     #[test]
@@ -622,13 +647,12 @@ mod tests {
         init_logger();
         let title = "FooBarTitle";
         let mut request = MockPlayRequest::new();
-        request.expect_url()
+        request
+            .expect_url()
             .return_const("http://localhost:8080/myvideo.mp4".to_string());
-        request.expect_title()
-            .return_const(title.to_string());
+        request.expect_title().return_const(title.to_string());
         let mut manager = MockSubtitleManager::new();
-        manager.expect_preferred_subtitle()
-            .return_const(None);
+        manager.expect_preferred_subtitle().return_const(None);
         let provider = MockSubtitleProvider::new();
         let player = VlcPlayer::builder()
             .subtitle_manager(Arc::new(Box::new(manager)))
@@ -638,9 +662,14 @@ mod tests {
         block_in_place(player.play(Box::new(request)));
 
         let result = block_in_place(player.inner.process.lock());
-        assert!(result.is_some(), "expected the VLC process to have been spawned");
+        assert!(
+            result.is_some(),
+            "expected the VLC process to have been spawned"
+        );
 
-        let result = player.request().and_then(|e| e.upgrade())
+        let result = player
+            .request()
+            .and_then(|e| e.upgrade())
             .expect("expected the request to have been stored");
         assert_eq!(title.to_string(), result.title());
     }
@@ -656,11 +685,11 @@ mod tests {
             then.status(200);
         });
         let mut request = MockPlayRequest::new();
-        request.expect_url()
+        request
+            .expect_url()
             .return_const("http://localhost:8080/myvideo.mp4".to_string());
         let mut manager = MockSubtitleManager::new();
-        manager.expect_preferred_subtitle()
-            .return_const(None);
+        manager.expect_preferred_subtitle().return_const(None);
         let provider = MockSubtitleProvider::new();
         let player = VlcPlayer::builder()
             .subtitle_manager(Arc::new(Box::new(manager)))
@@ -672,7 +701,10 @@ mod tests {
         player.stop();
 
         let result = block_in_place(player.inner.process.lock());
-        assert!(result.is_none(), "expected the VLC process to have been killed");
+        assert!(
+            result.is_none(),
+            "expected the VLC process to have been killed"
+        );
 
         mock.assert();
     }
@@ -682,17 +714,18 @@ mod tests {
         init_logger();
         let server = MockServer::start();
         server.mock(|when, then| {
-            when.method(GET)
-                .path(STATUS_URI);
+            when.method(GET).path(STATUS_URI);
             then.status(200)
                 .header("Content-Type", "application/xml")
-                .body(r#"<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+                .body(
+                    r#"<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
 <root>
     <time>1</time>
     <length>6300</length>
     <state>playing</state>
     <volume>256</volume>
-</root>"#);
+</root>"#,
+                );
         });
         let (tx_status, rx_status) = channel();
         let (tx_time, rx_time) = channel();
@@ -705,13 +738,11 @@ mod tests {
             .address(server.address().clone())
             .build();
 
-        player.add(Box::new(move |event| {
-            match event {
-                PlayerEvent::DurationChanged(e) => tx_duration.send(e).unwrap(),
-                PlayerEvent::TimeChanged(e) => tx_time.send(e).unwrap(),
-                PlayerEvent::StateChanged(e) => tx_status.send(e).unwrap(),
-                _ => {}
-            }
+        player.add(Box::new(move |event| match event {
+            PlayerEvent::DurationChanged(e) => tx_duration.send(e).unwrap(),
+            PlayerEvent::TimeChanged(e) => tx_time.send(e).unwrap(),
+            PlayerEvent::StateChanged(e) => tx_status.send(e).unwrap(),
+            _ => {}
         }));
 
         let result = block_in_place(player.inner.check_status());
@@ -723,7 +754,9 @@ mod tests {
         let result = rx_time.recv_timeout(Duration::from_millis(200)).unwrap();
         assert_eq!(1000u64, result);
 
-        let result = rx_duration.recv_timeout(Duration::from_millis(200)).unwrap();
+        let result = rx_duration
+            .recv_timeout(Duration::from_millis(200))
+            .unwrap();
         assert_eq!(6300000u64, result);
     }
 

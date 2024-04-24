@@ -99,9 +99,9 @@ impl SyncMediaTracking {
 
     pub fn start_sync(&self) {
         let inner = self.inner.clone();
-        self.inner.runtime.spawn(async move {
-            Self::handle_sync_result(inner.sync().await)
-        });
+        self.inner
+            .runtime
+            .spawn(async move { Self::handle_sync_result(inner.sync().await) });
     }
 
     pub async fn sync(&self) -> Result<()> {
@@ -168,18 +168,22 @@ impl SyncMediaTrackingBuilder {
     /// Builds the `SyncMediaTracking` instance.
     pub fn build(self) -> SyncMediaTracking {
         let runtime = self.runtime.unwrap_or_else(|| {
-            Arc::new(tokio::runtime::Builder::new_multi_thread()
-                .enable_all()
-                .worker_threads(1)
-                .thread_name("tracking")
-                .build()
-                .expect("expected a new runtime"))
+            Arc::new(
+                tokio::runtime::Builder::new_multi_thread()
+                    .enable_all()
+                    .worker_threads(1)
+                    .thread_name("tracking")
+                    .build()
+                    .expect("expected a new runtime"),
+            )
         });
 
         SyncMediaTracking::new(
             self.config.expect("expected the config to have been set"),
-            self.provider.expect("expected the tracking provider to have been set"),
-            self.watched_service.expect("expected the watched service to have been set"),
+            self.provider
+                .expect("expected the tracking provider to have been set"),
+            self.watched_service
+                .expect("expected the watched service to have been set"),
             runtime,
         )
     }
@@ -209,7 +213,10 @@ impl InnerSyncMediaTracking {
         }
 
         if state != SyncState::Idle {
-            debug!("Unable to start tracking synchronization, synchronizer is in invalid state {}", state);
+            debug!(
+                "Unable to start tracking synchronization, synchronizer is in invalid state {}",
+                state
+            );
             return Err(SyncError::InvalidState(state));
         }
 
@@ -221,7 +228,8 @@ impl InnerSyncMediaTracking {
         self.sync_movies().await?;
 
         info!("Media tracker has been synchronized");
-        self.config.user_settings_ref()
+        self.config
+            .user_settings_ref()
             .tracking_mut()
             .update_state(MediaTrackingSyncState::Success);
         self.config.save_async().await;
@@ -253,12 +261,10 @@ impl InnerSyncMediaTracking {
 
                 trace!("Syncing movies to tracker");
                 match self.watched_service.watched_movies() {
-                    Ok(movies) => {
-                        match self.provider.add_watched_movies(movies).await {
-                            Ok(_) => debug!("Remote tracker has been updated with watched movies"),
-                            Err(e) => self.handle_error(e).await?,
-                        }
-                    }
+                    Ok(movies) => match self.provider.add_watched_movies(movies).await {
+                        Ok(_) => debug!("Remote tracker has been updated with watched movies"),
+                        Err(e) => self.handle_error(e).await?,
+                    },
                     Err(e) => error!("Failed to retrieve watched movies, {}", e),
                 }
             }
@@ -272,7 +278,8 @@ impl InnerSyncMediaTracking {
     async fn handle_error(&self, err: TrackingError) -> Result<()> {
         error!("Failed to synchronize tracking data, {}", err);
         self.update_state_to_idle().await;
-        self.config.user_settings_ref()
+        self.config
+            .user_settings_ref()
             .tracking_mut()
             .update_state(MediaTrackingSyncState::Failed);
         self.config.save_async().await;
@@ -306,41 +313,41 @@ mod tests {
         init_logger();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let config = Arc::new(ApplicationConfig::builder()
-            .storage(temp_path)
-            .build());
+        let config = Arc::new(ApplicationConfig::builder().storage(temp_path).build());
         let mut provider = MockTrackingProvider::new();
-        provider.expect_is_authorized()
-            .times(1)
-            .return_const(true);
-        provider.expect_add()
-            .times(1)
-            .return_const(Handle::new());
-        provider.expect_remove()
-            .times(1)
-            .return_const(());
-        provider.expect_add_watched_movies()
-            .return_const(Ok(()));
-        provider.expect_watched_movies()
+        provider.expect_is_authorized().times(1).return_const(true);
+        provider.expect_add().times(1).return_const(Handle::new());
+        provider.expect_remove().times(1).return_const(());
+        provider.expect_add_watched_movies().return_const(Ok(()));
+        provider
+            .expect_watched_movies()
             .times(1)
             .returning(move || {
                 let mut movie = MockMediaIdentifier::new();
-                movie.expect_imdb_id()
-                    .return_const("tt000123".to_string());
+                movie.expect_imdb_id().return_const("tt000123".to_string());
                 Ok(vec![Box::new(movie)])
             });
         let mut watched_service = MockWatchedService::new();
-        watched_service.expect_watched_movies()
+        watched_service
+            .expect_watched_movies()
             .return_const(Ok(vec![]));
-        watched_service.expect_add()
-            .return_const(Ok(()));
+        watched_service.expect_add().return_const(Ok(()));
         let sync = SyncMediaTracking::builder()
             .config(config)
             .tracking_provider(Arc::new(Box::new(provider)))
             .watched_service(Arc::new(Box::new(watched_service)))
             .build();
 
-        assert_timeout_eq!(Duration::from_millis(200), true, sync.inner.config.user_settings().tracking().last_sync().is_some());
+        assert_timeout_eq!(
+            Duration::from_millis(200),
+            true,
+            sync.inner
+                .config
+                .user_settings()
+                .tracking()
+                .last_sync()
+                .is_some()
+        );
 
         let settings = sync.inner.config.user_settings();
         let result = settings.tracking().last_sync().unwrap();
@@ -353,15 +360,12 @@ mod tests {
         let handle = Handle::new();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let config = Arc::new(ApplicationConfig::builder()
-            .storage(temp_path)
-            .build());
+        let config = Arc::new(ApplicationConfig::builder().storage(temp_path).build());
         let watched_service = MockWatchedService::new();
         let mut provider = MockTrackingProvider::new();
-        provider.expect_add()
-            .times(1)
-            .return_const(handle.clone());
-        provider.expect_remove()
+        provider.expect_add().times(1).return_const(handle.clone());
+        provider
+            .expect_remove()
             .times(1)
             .with(predicate::eq(handle))
             .return_const(());
@@ -382,24 +386,18 @@ mod tests {
         init_logger();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let config = Arc::new(ApplicationConfig::builder()
-            .storage(temp_path)
-            .build());
+        let config = Arc::new(ApplicationConfig::builder().storage(temp_path).build());
         let mut provider = MockTrackingProvider::new();
-        provider.expect_is_authorized()
-            .return_const(false);
-        provider.expect_add()
-            .return_const(Handle::new());
-        provider.expect_remove()
-            .return_const(());
-        provider.expect_add_watched_movies()
-            .return_const(Ok(()));
-        provider.expect_watched_movies()
-            .returning(|| {
-                Ok(Vec::<Box<dyn MediaIdentifier>>::new())
-            });
+        provider.expect_is_authorized().return_const(false);
+        provider.expect_add().return_const(Handle::new());
+        provider.expect_remove().return_const(());
+        provider.expect_add_watched_movies().return_const(Ok(()));
+        provider
+            .expect_watched_movies()
+            .returning(|| Ok(Vec::<Box<dyn MediaIdentifier>>::new()));
         let mut watched_service = MockWatchedService::new();
-        watched_service.expect_watched_movies()
+        watched_service
+            .expect_watched_movies()
             .return_const(Ok(vec![]));
         let sync = SyncMediaTracking::builder()
             .config(config)
@@ -408,7 +406,16 @@ mod tests {
             .build();
 
         sync.start_sync();
-        assert_timeout_eq!(Duration::from_millis(200), true, sync.inner.config.user_settings().tracking().last_sync().is_some());
+        assert_timeout_eq!(
+            Duration::from_millis(200),
+            true,
+            sync.inner
+                .config
+                .user_settings()
+                .tracking()
+                .last_sync()
+                .is_some()
+        );
 
         let settings = sync.inner.config.user_settings();
         let result = settings.tracking().last_sync().unwrap();
@@ -420,24 +427,18 @@ mod tests {
         init_logger();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let config = Arc::new(ApplicationConfig::builder()
-            .storage(temp_path)
-            .build());
+        let config = Arc::new(ApplicationConfig::builder().storage(temp_path).build());
         let mut provider = MockTrackingProvider::new();
-        provider.expect_is_authorized()
-            .return_const(false);
-        provider.expect_add()
-            .return_const(Handle::new());
-        provider.expect_remove()
-            .return_const(());
-        provider.expect_add_watched_movies()
-            .return_const(Ok(()));
-        provider.expect_watched_movies()
-            .returning(|| {
-                Err(TrackingError::Request)
-            });
+        provider.expect_is_authorized().return_const(false);
+        provider.expect_add().return_const(Handle::new());
+        provider.expect_remove().return_const(());
+        provider.expect_add_watched_movies().return_const(Ok(()));
+        provider
+            .expect_watched_movies()
+            .returning(|| Err(TrackingError::Request));
         let mut watched_service = MockWatchedService::new();
-        watched_service.expect_watched_movies()
+        watched_service
+            .expect_watched_movies()
             .return_const(Ok(vec![]));
         let sync = SyncMediaTracking::builder()
             .config(config)
@@ -446,7 +447,16 @@ mod tests {
             .build();
 
         sync.start_sync();
-        assert_timeout_eq!(Duration::from_millis(200), true, sync.inner.config.user_settings().tracking().last_sync().is_some());
+        assert_timeout_eq!(
+            Duration::from_millis(200),
+            true,
+            sync.inner
+                .config
+                .user_settings()
+                .tracking()
+                .last_sync()
+                .is_some()
+        );
 
         let settings = sync.inner.config.user_settings();
         let result = settings.tracking().last_sync().unwrap();
@@ -459,27 +469,21 @@ mod tests {
         let (tx, rx) = channel();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let config = Arc::new(ApplicationConfig::builder()
-            .storage(temp_path)
-            .build());
+        let config = Arc::new(ApplicationConfig::builder().storage(temp_path).build());
         let mut provider = MockTrackingProvider::new();
-        provider.expect_is_authorized()
-            .return_const(false);
-        provider.expect_add()
-            .returning(move |e| {
-                tx.send(e).unwrap();
-                Handle::new()
-            });
-        provider.expect_remove()
-            .return_const(());
-        provider.expect_add_watched_movies()
-            .return_const(Ok(()));
-        provider.expect_watched_movies()
-            .returning(|| {
-                Ok(Vec::<Box<dyn MediaIdentifier>>::new())
-            });
+        provider.expect_is_authorized().return_const(false);
+        provider.expect_add().returning(move |e| {
+            tx.send(e).unwrap();
+            Handle::new()
+        });
+        provider.expect_remove().return_const(());
+        provider.expect_add_watched_movies().return_const(Ok(()));
+        provider
+            .expect_watched_movies()
+            .returning(|| Ok(Vec::<Box<dyn MediaIdentifier>>::new()));
         let mut watched_service = MockWatchedService::new();
-        watched_service.expect_watched_movies()
+        watched_service
+            .expect_watched_movies()
             .return_const(Ok(vec![]));
         let sync = SyncMediaTracking::builder()
             .config(config)
@@ -490,11 +494,19 @@ mod tests {
         let callback = rx.recv_timeout(Duration::from_millis(200)).unwrap();
         callback(TrackingEvent::AuthorizationStateChanged(true));
 
-        assert_timeout_eq!(Duration::from_millis(200), true, sync.inner.config.user_settings().tracking().last_sync().is_some());
+        assert_timeout_eq!(
+            Duration::from_millis(200),
+            true,
+            sync.inner
+                .config
+                .user_settings()
+                .tracking()
+                .last_sync()
+                .is_some()
+        );
 
         let settings = sync.inner.config.user_settings();
         let result = settings.tracking().last_sync().unwrap();
         assert_eq!(MediaTrackingSyncState::Success, result.state);
     }
 }
-

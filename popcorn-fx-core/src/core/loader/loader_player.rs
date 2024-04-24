@@ -7,8 +7,13 @@ use derive_more::Display;
 use log::{debug, trace};
 use tokio_util::sync::CancellationToken;
 
-use crate::core::loader::{CancellationResult, LoadingData, LoadingError, LoadingEvent, LoadingResult, LoadingState, LoadingStrategy};
-use crate::core::players::{PlayerManager, PlayMediaRequest, PlayRequest, PlayStreamRequest, PlayUrlRequest};
+use crate::core::loader::{
+    CancellationResult, LoadingData, LoadingError, LoadingEvent, LoadingResult, LoadingState,
+    LoadingStrategy,
+};
+use crate::core::players::{
+    PlayerManager, PlayMediaRequest, PlayRequest, PlayStreamRequest, PlayUrlRequest,
+};
 
 /// A loading strategy specifically designed for player loading.
 /// This strategy will translate the [PlaylistItem] into a [PlayRequest] which is invoked on the [PlayerManager].
@@ -29,9 +34,7 @@ impl PlayerLoadingStrategy {
     ///
     /// A new `PlayerLoadingStrategy` instance.
     pub fn new(player_manager: Arc<Box<dyn PlayerManager>>) -> Self {
-        Self {
-            player_manager,
-        }
+        Self { player_manager }
     }
 
     /// Converts the loading data into a play request.
@@ -49,7 +52,10 @@ impl PlayerLoadingStrategy {
             return if data.torrent_stream.is_some() {
                 Ok(Box::new(PlayMediaRequest::from(data)))
             } else {
-                Err(LoadingError::InvalidData(format!("Missing torrent stream for {:?}", data.media)))
+                Err(LoadingError::InvalidData(format!(
+                    "Missing torrent stream for {:?}",
+                    data.media
+                )))
             };
         } else if data.torrent_stream.is_some() {
             trace!("Trying to start torrent stream playback for {:?}", data);
@@ -85,12 +91,19 @@ impl LoadingStrategy for PlayerLoadingStrategy {
     /// # Arguments
     ///
     /// * `item` - The playlist item to process.
-    async fn process(&self, data: LoadingData, event_channel: Sender<LoadingEvent>, _: CancellationToken) -> LoadingResult {
+    async fn process(
+        &self,
+        data: LoadingData,
+        event_channel: Sender<LoadingEvent>,
+        _: CancellationToken,
+    ) -> LoadingResult {
         if let Some(url) = data.url.as_ref() {
             debug!("Starting playlist item playback for {}", url);
             return match self.convert(data) {
                 Ok(request) => {
-                    event_channel.send(LoadingEvent::StateChanged(LoadingState::Playing)).unwrap();
+                    event_channel
+                        .send(LoadingEvent::StateChanged(LoadingState::Playing))
+                        .unwrap();
                     self.player_manager.play(request).await;
                     LoadingResult::Completed
                 }
@@ -144,11 +157,10 @@ mod tests {
         let (tx, rx) = channel();
         let (tx_event, _rx_event) = channel();
         let mut manager = MockPlayerManager::new();
-        manager.expect_play()
-            .returning(move |e| {
-                tx.send(e).unwrap();
-                ()
-            });
+        manager.expect_play().returning(move |e| {
+            tx.send(e).unwrap();
+            ()
+        });
         let strategy = PlayerLoadingStrategy::new(Arc::new(Box::new(manager)));
 
         block_in_place(strategy.process(data, tx_event, CancellationToken::new()));
@@ -195,11 +207,10 @@ mod tests {
         let (tx, rx) = channel();
         let (tx_event, _rx_event) = channel();
         let mut manager = MockPlayerManager::new();
-        manager.expect_play()
-            .returning(move |e| {
-                tx.send(e).unwrap();
-                ()
-            });
+        manager.expect_play().returning(move |e| {
+            tx.send(e).unwrap();
+            ()
+        });
         let strategy = PlayerLoadingStrategy::new(Arc::new(Box::new(manager)));
 
         block_in_place(strategy.process(data, tx_event, CancellationToken::new()));
@@ -210,10 +221,18 @@ mod tests {
                 assert_eq!(movie, *media);
                 assert_eq!(Some(quality.to_string()), result.quality());
             } else {
-                assert!(false, "expected MovieDetails, but got {:?} instead", result.media);
+                assert!(
+                    false,
+                    "expected MovieDetails, but got {:?} instead",
+                    result.media
+                );
             }
         } else {
-            assert!(false, "expected PlayMediaRequest, but got {:?} instead", result);
+            assert!(
+                false,
+                "expected PlayMediaRequest, but got {:?} instead",
+                result
+            );
         }
     }
 
@@ -250,21 +269,32 @@ mod tests {
         let data = LoadingData::from(item);
         let (tx_event, _rx_event) = channel();
         let mut manager = MockPlayerManager::new();
-        manager.expect_play()
-            .times(0)
-            .return_const(());
+        manager.expect_play().times(0).return_const(());
         let strategy = PlayerLoadingStrategy::new(Arc::new(Box::new(manager)));
 
         let result = block_in_place(strategy.process(data, tx_event, CancellationToken::new()));
 
         if let LoadingResult::Err(err) = result {
             if let LoadingError::InvalidData(e) = err {
-                assert!(e.contains(expected_error_message), "expected the error message to contain \"{}\", but got {}", expected_error_message, e);
+                assert!(
+                    e.contains(expected_error_message),
+                    "expected the error message to contain \"{}\", but got {}",
+                    expected_error_message,
+                    e
+                );
             } else {
-                assert!(false, "expected LoadingError::InvalidData, but got {:?} instead", err);
+                assert!(
+                    false,
+                    "expected LoadingError::InvalidData, but got {:?} instead",
+                    err
+                );
             }
         } else {
-            assert!(false, "expected LoadingResult::Err, but got {:?} instead", result);
+            assert!(
+                false,
+                "expected LoadingResult::Err, but got {:?} instead",
+                result
+            );
         }
     }
 
@@ -293,11 +323,10 @@ mod tests {
         let (tx, rx) = channel();
         let (tx_event, _rx_event) = channel();
         let mut manager = MockPlayerManager::new();
-        manager.expect_play()
-            .returning(move |e| {
-                tx.send(e).unwrap();
-                ()
-            });
+        manager.expect_play().returning(move |e| {
+            tx.send(e).unwrap();
+            ()
+        });
         let strategy = PlayerLoadingStrategy::new(Arc::new(Box::new(manager)));
 
         block_in_place(strategy.process(data, tx_event, CancellationToken::new()));
@@ -305,9 +334,16 @@ mod tests {
 
         if let Some(result) = result.downcast_ref::<PlayStreamRequest>() {
             assert_eq!(Some(quality.to_string()), result.quality());
-            assert!(result.torrent_stream.upgrade().is_some(), "expected Some(torrent_stream), but got None instead");
+            assert!(
+                result.torrent_stream.upgrade().is_some(),
+                "expected Some(torrent_stream), but got None instead"
+            );
         } else {
-            assert!(false, "expected PlayMediaRequest, but got {:?} instead", result);
+            assert!(
+                false,
+                "expected PlayMediaRequest, but got {:?} instead",
+                result
+            );
         }
     }
 }

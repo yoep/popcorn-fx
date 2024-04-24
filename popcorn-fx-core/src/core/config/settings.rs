@@ -2,7 +2,10 @@ use derive_more::Display;
 use log::{debug, trace, warn};
 use serde::{Deserialize, Serialize};
 
-use crate::core::config::{PlaybackSettings, ServerSettings, SubtitleSettings, TorrentSettings, TrackingSettings, UiSettings};
+use crate::core::config::{
+    PlaybackSettings, ServerSettings, SubtitleSettings, TorrentSettings, TrackingSettings,
+    UiSettings,
+};
 
 const DEFAULT_SUBTITLES: fn() -> SubtitleSettings = SubtitleSettings::default;
 const DEFAULT_UI: fn() -> UiSettings = UiSettings::default;
@@ -14,7 +17,15 @@ const DEFAULT_TRACKING: fn() -> TrackingSettings = TrackingSettings::default;
 /// The Popcorn FX user settings.
 /// These contain the preferences of the user for the application.
 #[derive(Debug, Display, Default, Clone, Serialize, Deserialize, PartialEq)]
-#[display(fmt = "subtitle_settings: {}, ui_settings: {}, server_settings: {}, torrent_settings: {}, playback_settings: {}, tracking_settings: {}", subtitle_settings, ui_settings, server_settings, torrent_settings, playback_settings, tracking_settings)]
+#[display(
+    fmt = "subtitle_settings: {}, ui_settings: {}, server_settings: {}, torrent_settings: {}, playback_settings: {}, tracking_settings: {}",
+    subtitle_settings,
+    ui_settings,
+    server_settings,
+    torrent_settings,
+    playback_settings,
+    tracking_settings
+)]
 pub struct PopcornSettings {
     #[serde(default = "DEFAULT_SUBTITLES")]
     pub subtitle_settings: SubtitleSettings,
@@ -55,7 +66,7 @@ impl PopcornSettings {
     pub fn playback(&self) -> &PlaybackSettings {
         &self.playback_settings
     }
-    
+
     /// Retrieve the media tracking settings of the application.
     pub fn tracking(&self) -> &TrackingSettings {
         &self.tracking_settings
@@ -78,7 +89,10 @@ impl From<&str> for PopcornSettings {
                 e
             }
             Err(err) => {
-                warn!("Failed to deserialize settings, {}, using defaults instead", err.to_string());
+                warn!(
+                    "Failed to deserialize settings, {}, using defaults instead",
+                    err.to_string()
+                );
                 PopcornSettings::default()
             }
         }

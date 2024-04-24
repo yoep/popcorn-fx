@@ -9,7 +9,9 @@ use tokio_util::sync::CancellationToken;
 
 use crate::core::config::ApplicationConfig;
 use crate::core::loader;
-use crate::core::loader::{CancellationResult, LoadingData, LoadingError, LoadingEvent, LoadingState, LoadingStrategy};
+use crate::core::loader::{
+    CancellationResult, LoadingData, LoadingError, LoadingEvent, LoadingState, LoadingStrategy,
+};
 use crate::core::torrents::TorrentManager;
 
 #[derive(Display)]
@@ -20,7 +22,10 @@ pub struct TorrentLoadingStrategy {
 }
 
 impl TorrentLoadingStrategy {
-    pub fn new(torrent_manager: Arc<Box<dyn TorrentManager>>, application_settings: Arc<ApplicationConfig>) -> Self {
+    pub fn new(
+        torrent_manager: Arc<Box<dyn TorrentManager>>,
+        application_settings: Arc<ApplicationConfig>,
+    ) -> Self {
         Self {
             torrent_manager,
             application_settings,
@@ -39,21 +44,34 @@ impl Debug for TorrentLoadingStrategy {
 
 #[async_trait]
 impl LoadingStrategy for TorrentLoadingStrategy {
-    async fn process(&self, mut data: LoadingData, event_channel: Sender<LoadingEvent>, _: CancellationToken) -> loader::LoadingResult {
+    async fn process(
+        &self,
+        mut data: LoadingData,
+        event_channel: Sender<LoadingEvent>,
+        _: CancellationToken,
+    ) -> loader::LoadingResult {
         if let Some(torrent_file_info) = data.torrent_file_info.as_ref() {
             trace!("Processing torrent info of {:?}", torrent_file_info);
-            event_channel.send(LoadingEvent::StateChanged(LoadingState::Connecting)).unwrap();
+            event_channel
+                .send(LoadingEvent::StateChanged(LoadingState::Connecting))
+                .unwrap();
             let torrent_directory: String;
 
             {
                 let settings = self.application_settings.user_settings();
-                torrent_directory = settings.torrent().directory()
+                torrent_directory = settings
+                    .torrent()
+                    .directory()
                     .to_str()
                     .map(|e| e.to_string())
                     .expect("expected a valid torrent directory from the user settings");
             }
 
-            match self.torrent_manager.create(torrent_file_info, torrent_directory.as_str(), true).await {
+            match self
+                .torrent_manager
+                .create(torrent_file_info, torrent_directory.as_str(), true)
+                .await
+            {
                 Ok(torrent) => {
                     debug!("Enhancing playlist item with torrent");
                     data.torrent = Some(torrent);
@@ -66,9 +84,7 @@ impl LoadingStrategy for TorrentLoadingStrategy {
     }
 
     async fn cancel(&self, mut data: LoadingData) -> CancellationResult {
-        if let Some(torrent) = data.torrent
-            .take()
-            .and_then(|e| e.upgrade()) {
+        if let Some(torrent) = data.torrent.take().and_then(|e| e.upgrade()) {
             debug!("Cancelling the torrent downloading");
             self.torrent_manager.remove(torrent.handle());
         } else {
@@ -119,13 +135,12 @@ mod tests {
         let (tx_event, _) = channel();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(ApplicationConfig::builder()
-            .storage(temp_path)
-            .build());
+        let settings = Arc::new(ApplicationConfig::builder().storage(temp_path).build());
         let torrent_manager = MockTorrentManager::new();
         let strategy = TorrentLoadingStrategy::new(Arc::new(Box::new(torrent_manager)), settings);
 
-        let result = block_in_place(strategy.process(data.clone(), tx_event, CancellationToken::new()));
+        let result =
+            block_in_place(strategy.process(data.clone(), tx_event, CancellationToken::new()));
 
         assert_eq!(LoadingResult::Ok(data), result);
     }
@@ -148,18 +163,16 @@ mod tests {
             subtitles_enabled: false,
         });
         let mut torrent = MockTorrent::new();
-        torrent.expect_handle()
-            .return_const(handle.to_string());
+        torrent.expect_handle().return_const(handle.to_string());
         let torrent = Arc::new(Box::new(torrent) as Box<dyn Torrent>);
         data.torrent = Some(Arc::downgrade(&torrent));
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(ApplicationConfig::builder()
-            .storage(temp_path)
-            .build());
+        let settings = Arc::new(ApplicationConfig::builder().storage(temp_path).build());
         let (tx, rx) = channel();
         let mut torrent_manager = MockTorrentManager::new();
-        torrent_manager.expect_remove()
+        torrent_manager
+            .expect_remove()
             .times(1)
             .returning(move |e| {
                 tx.send(e.to_string()).unwrap();
@@ -168,9 +181,16 @@ mod tests {
 
         let result = block_in_place(strategy.cancel(data));
         if let Ok(result) = result {
-            assert!(result.torrent.is_none(), "expected the torrent to have been removed from the data");
+            assert!(
+                result.torrent.is_none(),
+                "expected the torrent to have been removed from the data"
+            );
         } else {
-            assert!(false, "expected CancellationResult::Ok, but got {:?} instead", result);
+            assert!(
+                false,
+                "expected CancellationResult::Ok, but got {:?} instead",
+                result
+            );
         }
 
         let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();

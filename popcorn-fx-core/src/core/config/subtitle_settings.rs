@@ -11,9 +11,10 @@ const DEFAULT_SUBTITLE_DIRECTORY_NAME: &str = "subtitles";
 const DEFAULT_DIRECTORY: fn() -> String = || {
     UserDirs::new()
         .map(|e| PathBuf::from(e.home_dir()))
-        .map(|e| e
-            .join(DEFAULT_HOME_DIRECTORY)
-            .join(DEFAULT_SUBTITLE_DIRECTORY_NAME))
+        .map(|e| {
+            e.join(DEFAULT_HOME_DIRECTORY)
+                .join(DEFAULT_SUBTITLE_DIRECTORY_NAME)
+        })
         .map(|e| e.to_str().unwrap().to_string())
         .expect("expected a home directory to exist")
 };
@@ -27,7 +28,12 @@ const DEFAULT_BOLD: fn() -> bool = || true;
 /// The subtitle settings of the application.
 /// These are the subtitle preferences of the user.
 #[derive(Debug, Display, Clone, Serialize, Deserialize, PartialEq)]
-#[display(fmt = "directory: {}, auto_cleaning_enabled: {}, default_subtitle: {}", directory, auto_cleaning_enabled, default_subtitle)]
+#[display(
+    fmt = "directory: {}, auto_cleaning_enabled: {}, default_subtitle: {}",
+    directory,
+    auto_cleaning_enabled,
+    default_subtitle
+)]
 pub struct SubtitleSettings {
     /// The subtitle directory where the subtitle files will be stored
     #[serde(default = "DEFAULT_DIRECTORY")]
@@ -54,14 +60,26 @@ pub struct SubtitleSettings {
 }
 
 impl SubtitleSettings {
-    pub fn new(directory: Option<String>, auto_cleaning_enabled: Option<bool>,
-               default_subtitle: Option<SubtitleLanguage>, font_family: Option<SubtitleFamily>,
-               font_size: Option<u32>, decoration: Option<DecorationType>, bold: Option<bool>) -> Self {
+    pub fn new(
+        directory: Option<String>,
+        auto_cleaning_enabled: Option<bool>,
+        default_subtitle: Option<SubtitleLanguage>,
+        font_family: Option<SubtitleFamily>,
+        font_size: Option<u32>,
+        decoration: Option<DecorationType>,
+        bold: Option<bool>,
+    ) -> Self {
         Self {
             directory: directory.or_else(|| Some(DEFAULT_DIRECTORY())).unwrap(),
-            auto_cleaning_enabled: auto_cleaning_enabled.or_else(|| Some(DEFAULT_AUTO_CLEANING())).unwrap(),
-            default_subtitle: default_subtitle.or_else(|| Some(DEFAULT_SUBTITLE_LANGUAGE())).unwrap(),
-            font_family: font_family.or_else(|| Some(DEFAULT_SUBTITLE_FAMILY())).unwrap(),
+            auto_cleaning_enabled: auto_cleaning_enabled
+                .or_else(|| Some(DEFAULT_AUTO_CLEANING()))
+                .unwrap(),
+            default_subtitle: default_subtitle
+                .or_else(|| Some(DEFAULT_SUBTITLE_LANGUAGE()))
+                .unwrap(),
+            font_family: font_family
+                .or_else(|| Some(DEFAULT_SUBTITLE_FAMILY()))
+                .unwrap(),
             font_size: font_size.or_else(|| Some(DEFAULT_FONT_SIZE())).unwrap(),
             decoration: decoration.or_else(|| Some(DEFAULT_DECORATION())).unwrap(),
             bold: bold.or_else(|| Some(DEFAULT_BOLD())).unwrap(),
@@ -138,7 +156,10 @@ pub enum DecorationType {
 #[cfg(test)]
 mod test {
     use crate::core::config::{SubtitleFamily, SubtitleSettings};
-    use crate::core::config::subtitle_settings::{DEFAULT_AUTO_CLEANING, DEFAULT_BOLD, DEFAULT_DECORATION, DEFAULT_FONT_SIZE, DEFAULT_SUBTITLE_FAMILY, DEFAULT_SUBTITLE_LANGUAGE};
+    use crate::core::config::subtitle_settings::{
+        DEFAULT_AUTO_CLEANING, DEFAULT_BOLD, DEFAULT_DECORATION, DEFAULT_FONT_SIZE,
+        DEFAULT_SUBTITLE_FAMILY, DEFAULT_SUBTITLE_LANGUAGE,
+    };
 
     #[test]
     fn test_subtitle_new_use_defaults() {

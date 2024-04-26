@@ -12,7 +12,7 @@ use crate::{PopcornFX, PopcornFxArgs};
 /// The caller will become responsible for managing the memory of the struct.
 /// The instance can be safely deleted by using [dispose_popcorn_fx].
 #[no_mangle]
-pub extern "C" fn new_popcorn_fx(len: i32, args: *mut *const c_char) -> *mut PopcornFX {
+pub extern "C" fn new_popcorn_fx(len: i32, args: *mut *mut c_char) -> *mut PopcornFX {
     trace!(
         "Creating new popcorn FX instance from C for args: {:?}",
         args
@@ -93,7 +93,7 @@ mod test {
             .collect(),
         );
 
-        let result = new_popcorn_fx(args, len);
+        let result = new_popcorn_fx(len, args);
 
         assert!(!result.is_null(), "expected a valid instance pointer")
     }

@@ -1923,7 +1923,7 @@ SubtitleInfoSet *movie_subtitles(PopcornFX *popcorn_fx, const MovieDetailsC *mov
 /// Create a new PopcornFX instance.
 /// The caller will become responsible for managing the memory of the struct.
 /// The instance can be safely deleted by using [dispose_popcorn_fx].
-PopcornFX *new_popcorn_fx(int32_t len, const char **args);
+PopcornFX *new_popcorn_fx(int32_t len, char **args);
 
 /// Play the next item in the playlist from C.
 ///

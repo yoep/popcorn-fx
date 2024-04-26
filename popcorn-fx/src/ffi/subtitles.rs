@@ -1,15 +1,12 @@
-use std::os::raw::c_char;
 use std::ptr;
 
-use log::{error, info, trace};
+use log::{info, trace};
 
-use popcorn_fx_core::{from_c_vec, into_c_owned, into_c_string};
-use popcorn_fx_core::core::block_in_place;
-use popcorn_fx_core::core::subtitles::matcher::SubtitleMatcher;
-use popcorn_fx_core::core::subtitles::model::{SubtitleInfo, SubtitleType};
+use popcorn_fx_core::{from_c_vec, into_c_owned};
+use popcorn_fx_core::core::subtitles::model::SubtitleInfo;
 use popcorn_fx_core::core::subtitles::SubtitleCallback;
 
-use crate::ffi::{SubtitleC, SubtitleEventC, SubtitleInfoC, SubtitleInfoSet, SubtitleMatcherC};
+use crate::ffi::{SubtitleC, SubtitleEventC, SubtitleInfoC, SubtitleInfoSet};
 use crate::PopcornFX;
 
 /// The C callback for the subtitle events.
@@ -111,7 +108,7 @@ pub extern "C" fn select_or_default_subtitle(
         .collect();
 
     let subtitle_info = popcorn_fx
-        .subtitle_provider()
+        .subtitle_manager()
         .select_or_default(&subtitles[..]);
     trace!("Default subtitle selection resulted in {:?}", subtitle_info);
     into_c_owned(SubtitleInfoC::from(subtitle_info))

@@ -8,6 +8,7 @@ import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowTorrentDetailsEvent;
 import com.github.yoep.popcorn.backend.loader.LoaderService;
+import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
@@ -55,6 +56,8 @@ class DetailsTorrentComponentTest {
     private SubtitleService subtitleService;
     @Mock
     private LoaderService loaderService;
+    @Mock
+    private PlaylistManager playlistManager;
     @Mock
     private FxLib fxLib;
     @Mock

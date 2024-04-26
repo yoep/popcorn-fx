@@ -31,7 +31,9 @@ const LIBVLC_PLUGIN_PATHS: [&str; 1] = [
     "../plugins",
 ];
 #[cfg(target_os = "linux")]
-const LIBVLC_FILENAMES: [&str; 1] = vec!["libvlc.so"];
+const LIBVLC_FILENAMES: [&str; 1] = [
+    "libvlc.so"
+];
 #[cfg(target_os = "linux")]
 const LIBVLC_WELL_KNOWN_DIRECTORIES: [&str; 6] = [
     "/usr/lib/x86_64-linux-gnu",
@@ -47,7 +49,9 @@ const LIBVLC_PLUGIN_PATHS: [&str; 2] = [
     "vlc/plugins",
 ];
 #[cfg(target_os = "windows")]
-const LIBVLC_FILENAMES: [&str; 1] = vec!["libvlc.dll"];
+const LIBVLC_FILENAMES: [&str; 1] = [
+    "libvlc.dll"
+];
 #[cfg(target_os = "windows")]
 const LIBVLC_WELL_KNOWN_DIRECTORIES: [&str; 0] = [];
 #[cfg(target_os = "windows")]

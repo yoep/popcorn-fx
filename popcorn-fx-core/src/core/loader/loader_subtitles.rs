@@ -294,6 +294,13 @@ mod tests {
             .expect_file_subtitles()
             .times(0)
             .return_const(Ok(Vec::new()));
+        provider.expect_download_and_parse()
+            .times(1)
+            .return_const(Ok(Subtitle::new(
+                vec![],
+                None,
+                "MySubtitleFile".to_string()
+            )));
         let mut manager = MockSubtitleManager::new();
         manager
             .expect_is_disabled_async()
@@ -303,6 +310,9 @@ mod tests {
             .expect_preferred_language()
             .times(1)
             .return_const(SubtitleLanguage::None);
+        manager.expect_preferred_subtitle()
+            .times(..2)
+            .returning(|| Some(SubtitleInfo::none()));
         manager
             .expect_select_or_default()
             .times(1)
@@ -359,6 +369,13 @@ mod tests {
                 tx.send(e.to_string()).unwrap();
                 Ok(Vec::new())
             });
+        provider.expect_download_and_parse()
+            .times(1)
+            .return_const(Ok(Subtitle::new(
+                vec![],
+                None,
+                "MySubtitleFile".to_string()
+            )));
         let mut manager = MockSubtitleManager::new();
         manager
             .expect_is_disabled_async()

@@ -48,8 +48,9 @@ impl ChromecastDiscovery {
                 player_manager,
                 service_daemon,
                 transcoder,
-                state: Mutex::new(DiscoveryState::Stopped),
                 subtitle_server,
+                discovered_devices: Default::default(),
+                state: Mutex::new(DiscoveryState::Stopped),
             }),
             runtime,
         }
@@ -188,8 +189,9 @@ struct InnerChromecastDiscovery {
     player_manager: Arc<Box<dyn PlayerManager>>,
     service_daemon: ServiceDaemon,
     transcoder: Arc<Box<dyn Transcoder>>,
-    state: Mutex<DiscoveryState>,
     subtitle_server: Arc<SubtitleServer>,
+    discovered_devices: Mutex<Vec<String>>,
+    state: Mutex<DiscoveryState>,
 }
 
 impl InnerChromecastDiscovery {
@@ -209,10 +211,17 @@ impl InnerChromecastDiscovery {
                 .find_or_first(|e| e.is_ipv4())
                 .map(|e| e.to_string())
             {
+                let mut mutex = self.discovered_devices.lock().await;
+                let id = info.get_fullname().to_string();
                 let port = info.get_port();
 
-                if let Err(e) = self.register_device(info, addr, port).await {
-                    warn!("Failed to connect to Chromecast device: {}", e)
+                if !mutex.contains(&id) {
+                    match self.register_device(info, addr, port).await {
+                        Ok(_) => mutex.push(id),
+                        Err(e) => warn!("Failed to connect to Chromecast device: {}", e),
+                    }
+                } else {
+                    trace!("Chromecast device {} is already known", id);
                 }
             } else {
                 warn!("Chromecast device {:?} has no available IPv4 address", info);
@@ -237,6 +246,7 @@ impl InnerChromecastDiscovery {
             .cast_address(addr.into())
             .cast_port(port)
             .subtitle_server(self.subtitle_server.clone())
+            .cast_device_factory(Box::new(|addr, port| DefaultCastDevice::new(addr, port)))
             .build()
         {
             Ok(player) => {

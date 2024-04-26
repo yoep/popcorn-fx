@@ -1,4 +1,4 @@
-use std::env;
+use std::{env, fs};
 use std::ffi::{c_char, CString};
 use std::path::PathBuf;
 use std::string::ToString;
@@ -6,6 +6,7 @@ use std::string::ToString;
 use async_trait::async_trait;
 use libloading::Library;
 use log::{debug, error, trace, warn};
+use regex::Regex;
 use tokio::sync::Mutex;
 
 use popcorn_fx_core::core::block_in_place;
@@ -20,7 +21,10 @@ const PATH_SEPARATOR: &str = ":";
 #[cfg(target_family = "windows")]
 const PATH_SEPARATOR: &str = ";";
 #[cfg(target_os = "macos")]
-const LIBVLC_FILENAMES: [&str; 1] = ["libvlc.dylib"];
+const LIBVLC_FILENAME_PATTERNS: [&str; 2] = [
+    "libvlccore\\.dylib",
+    "libvlc\\.dylib",
+];
 #[cfg(target_os = "macos")]
 const LIBVLC_WELL_KNOWN_DIRECTORIES: [&str; 2] = [
     "/Applications/VLC.app/Contents/Frameworks",
@@ -31,8 +35,9 @@ const LIBVLC_PLUGIN_PATHS: [&str; 1] = [
     "../plugins",
 ];
 #[cfg(target_os = "linux")]
-const LIBVLC_FILENAMES: [&str; 1] = [
-    "libvlc.so"
+const LIBVLC_FILENAME_PATTERNS: [&str; 2] = [
+    "libvlccore\\.so(?:\\.\\d)*",
+    "libvlc\\.so(?:\\.\\d)*",
 ];
 #[cfg(target_os = "linux")]
 const LIBVLC_WELL_KNOWN_DIRECTORIES: [&str; 6] = [
@@ -49,8 +54,9 @@ const LIBVLC_PLUGIN_PATHS: [&str; 2] = [
     "vlc/plugins",
 ];
 #[cfg(target_os = "windows")]
-const LIBVLC_FILENAMES: [&str; 1] = [
-    "libvlc.dll"
+const LIBVLC_FILENAME_PATTERNS: [&str; 2] = [
+    "libvlccore\\.dll",
+    "libvlc\\.dll",
 ];
 #[cfg(target_os = "windows")]
 const LIBVLC_WELL_KNOWN_DIRECTORIES: [&str; 0] = [];
@@ -309,12 +315,38 @@ impl VlcTranscoderDiscovery {
     /// An `Option<(libvlc_instance_t, LibraryHandle)>` containing the VLC library instance and handle if found, otherwise `None`.
     pub fn do_libvlc_discovery(directories: Vec<String>) -> Option<(libvlc_instance_t, LibraryHandle)> {
         for path in directories {
-            for filename in LIBVLC_FILENAMES {
-                if let Some(library) = Self::search_lib(path.as_str(), filename) {
-                    return library.libvlc_instance()
-                        .map(|instance| (instance, library));
+            // search for all specific library filenames defined for the current os
+            let mut filenames: Vec<String> = vec![];
+            for filename in LIBVLC_FILENAME_PATTERNS {
+                if let Some(filename) = Self::find_filename_pattern(&path, filename) {
+                    filenames.push(filename);
                 }
             }
+
+            if filenames.is_empty() {
+                continue;
+            }
+
+            // try to load all libraries for the found filenames
+            let mut libraries: Vec<Library> = vec![];
+            for filename in filenames {
+                if let Some(library) = Self::load_library(path.as_str(), filename.as_str()) {
+                    libraries.push(library);
+                }
+            }
+
+            // try to find the plugin path
+            return if let Some(plugin_path) = Self::search_plugins_path(path.as_str()) {
+                let mut libraries_iter = libraries.into_iter();
+                let libvlc_core = libraries_iter.next();
+                let libvlc = libraries_iter.next();
+
+                let handle = LibraryHandle::new(path, plugin_path, libvlc.unwrap(), libvlc_core.unwrap());
+                handle.libvlc_instance()
+                    .map(|instance| (instance, handle))
+            } else {
+                None
+            };
         }
 
         debug!("VLC library couldn't be found");
@@ -350,48 +382,56 @@ impl VlcTranscoderDiscovery {
         directories
     }
 
-    /// Searches for a VLC library in the specified path with the given filename.
-    ///
-    /// Additionally, it attempts to load the core dependency from the same location.
+    fn load_library(lib_path: &str, filename: &str) -> Option<Library> {
+        if let Some(filename) = Self::find_filename_pattern(lib_path, filename) {
+            let main_buf = PathBuf::from(lib_path).join(filename.as_str());
+            let filepath = main_buf.to_str().unwrap();
+
+            return match unsafe { Library::new(filepath) } {
+                Ok(lib) => {
+                    trace!("VLC library {} loaded from {}", filename, filepath);
+                    Some(lib)
+                }
+                Err(e) => {
+                    trace!("VLC library {} not found, {}", filepath, e);
+                    None
+                }
+            };
+        }
+
+        None
+    }
+
+    /// Find the matching file for the given filename pattern within the library path.
     ///
     /// # Arguments
     ///
-    /// * `path` - The path where the VLC library may be located.
-    /// * `filename` - The filename of the VLC library.
+    /// * `lib_path`: the path which might contain the file matching the pattern.
+    /// * `filename_pattern`: the pattern to search for within the library path.
     ///
     /// # Returns
     ///
-    /// An `Option<Library>` containing the loaded VLC library if found, otherwise `None`.
-    fn search_lib(lib_path: &str, filename: &str) -> Option<LibraryHandle> {
-        let main_buf = PathBuf::from(lib_path).join(filename);
-        let filepath = main_buf.to_str().unwrap();
-        let core_filename = filename.replace(".", "core.");
-        let core_buf = PathBuf::from(lib_path).join(core_filename);
-        let core_filepath = core_buf.to_str().unwrap();
+    /// Returns the found filename for the given pattern if found within the provided library path, else `None`.
+    fn find_filename_pattern(lib_path: &str, filename_pattern: &str) -> Option<String> {
+        let regex = Regex::new(filename_pattern).expect("expected the filename regex pattern to be valid");
 
-        // try to load the core dependency from the same location
-        match unsafe { Library::new(core_filepath) } {
-            Ok(libcore) => {
-                return match unsafe { Library::new(filepath) } {
-                    Ok(libvlc) => {
-                        debug!("Found libvlc at {}", filepath);
-                        if let Some(plugin_path) = Self::search_plugins_path(lib_path) {
-                            Some(LibraryHandle::new(lib_path, plugin_path, libvlc, libcore))
-                        } else {
-                            None
+        match fs::read_dir(lib_path) {
+            Ok(read) => {
+                for entry in read {
+                    if let Ok(entry) = entry {
+                        let filename = entry.file_name();
+                        let filename = filename.to_str().unwrap();
+
+                        if regex.is_match(filename) {
+                            return Some(filename.to_string());
                         }
                     }
-                    Err(e) => {
-                        trace!("VLC library {} not found, {}", filepath, e);
-                        None
-                    }
-                };
+                }
             }
-            Err(e) => {
-                trace!("VLC library {} not found, {}", filepath, e);
-                None
-            }
+            Err(e) => warn!("Failed to read library directory, {}", e),
         }
+
+        None
     }
 
     /// Searches for VLC plugins in the specified library path.
@@ -423,9 +463,10 @@ impl VlcTranscoderDiscovery {
 mod tests {
     use std::sync::Arc;
 
+    use tempfile::tempdir;
     use tokio::runtime::Runtime;
 
-    use popcorn_fx_core::testing::init_logger;
+    use popcorn_fx_core::testing::{init_logger, write_tmp_dir_file};
 
     use super::*;
 
@@ -433,9 +474,9 @@ mod tests {
     fn test_vlc_transcoder_state() {
         init_logger();
         let transcoder = VlcTranscoderDiscovery::discover().unwrap();
-        
+
         let result = transcoder.state();
-        
+
         assert_eq!(TranscodeState::Unknown, result);
     }
 
@@ -465,5 +506,20 @@ mod tests {
         assert_eq!(TranscodeType::Live, result.output_type);
         assert_eq!(TranscodeState::Transcoding, transcoder.state());
         runtime.block_on(transcoder.stop());
+    }
+
+    #[test]
+    fn test_vlc_transcoder_find_filename_pattern() {
+        init_logger();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        write_tmp_dir_file(&temp_dir, "libvlc.so.5.6.0", "");
+        write_tmp_dir_file(&temp_dir, "libvlccore.so.9.0.0", "");
+
+        let result = VlcTranscoderDiscovery::find_filename_pattern(temp_path, "libvlc\\.so(?:\\.\\d)*");
+        assert_eq!(Some("libvlc.so.5.6.0".to_string()), result);
+
+        let result = VlcTranscoderDiscovery::find_filename_pattern(temp_path, "libvlccore\\.so(?:\\.\\d)*");
+        assert_eq!(Some("libvlccore.so.9.0.0".to_string()), result);
     }
 }

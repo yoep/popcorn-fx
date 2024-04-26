@@ -2753,6 +2753,7 @@ dependencies = [
  "popcorn-fx-core",
  "protobuf",
  "rcgen",
+ "regex",
  "reqwest 0.12.3",
  "rupnp",
  "rust_cast",

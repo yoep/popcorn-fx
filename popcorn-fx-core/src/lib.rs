@@ -388,6 +388,12 @@ pub mod testing {
             panic!("Temp filepath {:?} does not exist", path)
         }
     }
+    
+    pub fn write_tmp_dir_file(temp_dir: &TempDir, filename: &str, contents: impl AsRef<[u8]>) {
+        let path = temp_dir.path().join(filename);
+        trace!("Writing test file {:?}", path);
+        fs::write(path, contents).unwrap();
+    } 
 
     mock! {
         #[derive(Debug)]

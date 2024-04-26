@@ -7,7 +7,7 @@ const METADATA_TYPE_MOVIE: i16 = 1;
 const METADATA_TYPE_TV_SHOW: i16 = 2;
 
 /// Represents a command to load media content on the Chromecast device.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LoadCommand {
     /// The unique identifier for the request.
@@ -28,7 +28,7 @@ pub struct LoadCommand {
 }
 
 /// Represents media content to be loaded on the Chromecast device.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Media {
     /// The URL of the media content.
@@ -52,7 +52,7 @@ pub struct Media {
 }
 
 /// Represents metadata associated with media content.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(untagged)]
 pub enum Metadata {
     /// Metadata for a movie.
@@ -62,7 +62,7 @@ pub enum Metadata {
 }
 
 /// Represents the type of stream.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum StreamType {
     /// No stream type.
@@ -74,7 +74,7 @@ pub enum StreamType {
 }
 
 /// Represents metadata for a movie.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MovieMetadata {
     /// The type of metadata.
@@ -100,7 +100,7 @@ pub struct MovieMetadata {
 }
 
 /// Represents an image associated with media content.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Image {
     /// The URL of the image.
@@ -111,7 +111,7 @@ pub struct Image {
     pub width: Option<i32>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Track {
     pub track_id: u64,
@@ -126,7 +126,7 @@ pub struct Track {
 
 /// Possible track types.
 /// https://developers.google.com/cast/docs/reference/web_sender/chrome.cast.media#.TrackType
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum TrackType {
     Text,
@@ -136,7 +136,7 @@ pub enum TrackType {
 
 /// Possible text track types.
 /// https://developers.google.com/cast/docs/reference/web_sender/chrome.cast.media#.TextTrackType
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum TextTrackType {
     /// Transcription or translation of the dialogue, suitable for when the sound is available but not understood (e.g. because the user does not understand
@@ -157,7 +157,7 @@ pub enum TextTrackType {
 
 /// The style of the subtitle track.
 /// https://developers.google.com/cast/docs/reference/web_sender/chrome.cast.media.TextTrackStyle
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TextTrackStyle {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -178,7 +178,7 @@ pub struct TextTrackStyle {
     pub window_color: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum TextTrackEdgeType {
     None,

@@ -8,13 +8,13 @@ use derive_more::Display;
 use log::{debug, error, info, trace};
 use tokio::sync::Mutex;
 
+use crate::core::{block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks};
 use crate::core::config::ApplicationConfig;
-use crate::core::events::{Event, EventPublisher, DEFAULT_ORDER};
+use crate::core::events::{DEFAULT_ORDER, Event, EventPublisher};
 use crate::core::storage::Storage;
 use crate::core::subtitles::language::SubtitleLanguage;
 use crate::core::subtitles::model::SubtitleInfo;
 use crate::core::subtitles::SubtitleFile;
-use crate::core::{block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks};
 
 /// The callback to listen on events of the subtitle manager.
 pub type SubtitleCallback = CoreCallback<SubtitleEvent>;
@@ -71,6 +71,15 @@ pub trait SubtitleManager: Debug + Callbacks<SubtitleEvent> + Send + Sync {
 
     /// Updates the subtitle with the custom subtitle file.
     fn update_custom_subtitle(&self, subtitle_file: &str);
+    
+    /// Select one of the available subtitles.
+    ///
+    /// * `subtitles` - The available subtitle slice to pick from.
+    ///
+    /// # Returns
+    /// 
+    /// It returns the default [SubtitleInfo::none] when the preferred subtitle is not present.
+    fn select_or_default(&self, subtitles: &[SubtitleInfo]) -> SubtitleInfo;
 
     /// Disables the subtitle on behalf of the user.
     /// To undo this action, call [reset].
@@ -150,6 +159,10 @@ impl SubtitleManager for DefaultSubtitleManager {
         self.inner.update_custom_subtitle(subtitle_file)
     }
 
+    fn select_or_default(&self, subtitles: &[SubtitleInfo]) -> SubtitleInfo {
+        self.inner.select_or_default(subtitles)
+    }
+    
     fn disable_subtitle(&self) {
         self.inner.disable_subtitle()
     }
@@ -236,6 +249,33 @@ impl InnerSubtitleManager {
         // only reset the subtitle info as we might need the preferred language
         // for the next playback
         self.reset_subtitle_info();
+    }
+
+    /// Find the subtitle for the default configured subtitle language.
+    /// This uses the [SubtitleSettings::default_subtitle] setting.
+    fn find_for_default_subtitle_language(
+        &self,
+        subtitles: &[SubtitleInfo],
+    ) -> Option<SubtitleInfo> {
+        let settings = self.settings.user_settings();
+        let subtitle_language = settings.subtitle().default_subtitle();
+
+        subtitles
+            .iter()
+            .find(|e| e.language() == subtitle_language)
+            .map(|e| e.clone())
+    }
+
+    /// Find the subtitle for the interface language.
+    /// This uses the [UiSettings::default_language] setting.
+    fn find_for_interface_language(&self, subtitles: &[SubtitleInfo]) -> Option<SubtitleInfo> {
+        let settings = self.settings.user_settings();
+        let language = settings.ui().default_language();
+
+        subtitles
+            .iter()
+            .find(|e| &e.language().code() == language)
+            .map(|e| e.clone())
     }
 }
 
@@ -344,6 +384,16 @@ impl SubtitleManager for InnerSubtitleManager {
         );
     }
 
+    fn select_or_default(&self, subtitles: &[SubtitleInfo]) -> SubtitleInfo {
+        trace!("Selecting subtitle out of {:?}", subtitles);
+        let subtitle = self
+            .find_for_default_subtitle_language(subtitles)
+            .or_else(|| self.find_for_interface_language(subtitles))
+            .unwrap_or(SubtitleInfo::none());
+        debug!("Selected subtitle {:?}", &subtitle);
+        subtitle
+    }
+
     /// Disable the subtitle track.
     fn disable_subtitle(&self) {
         self.update_subtitle_info(SubtitleInfo::none());
@@ -400,10 +450,9 @@ mod test {
 
     use tempfile::tempdir;
 
-    use crate::core::config::{
-        DecorationType, PopcornProperties, PopcornSettings, SubtitleFamily, SubtitleSettings,
-    };
-    use crate::core::events::{PlayerStoppedEvent, LOWEST_ORDER};
+    use crate::core::config::{DecorationType, PopcornProperties, PopcornSettings, SubtitleFamily, SubtitleSettings, UiScale, UiSettings};
+    use crate::core::events::{LOWEST_ORDER, PlayerStoppedEvent};
+    use crate::core::media::Category;
     use crate::core::subtitles::language::SubtitleLanguage::English;
     use crate::testing::{copy_test_file, init_logger};
 
@@ -563,6 +612,51 @@ mod test {
             manager.is_disabled(),
             "expected the subtitle to not be disabled"
         )
+    }
+
+    #[test]
+    fn test_select_or_default_select_for_default_subtitle_language() {
+        init_logger();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let settings = default_settings(temp_path, true);
+        let event_publisher = Arc::new(EventPublisher::default());
+        let manager = DefaultSubtitleManager::new(settings, event_publisher);
+        let subtitle_info = SubtitleInfo::builder()
+            .imdb_id("lorem")
+            .language(SubtitleLanguage::English)
+            .build();
+        let subtitles: Vec<SubtitleInfo> = vec![subtitle_info.clone()];
+
+        let result = manager.select_or_default(&subtitles);
+
+        assert_eq!(subtitle_info, result)
+    }
+
+    #[test]
+    fn test_select_or_default_select_for_interface_language() {
+        init_logger();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let mut settings = default_settings(temp_path, true);
+        settings.update_ui(UiSettings {
+            default_language: "fr".to_string(),
+            ui_scale: UiScale::new(1.0).unwrap(),
+            start_screen: Category::Movies,
+            maximized: false,
+            native_window_enabled: false,
+        });
+        let event_publisher = Arc::new(EventPublisher::default());
+        let manager = DefaultSubtitleManager::new(settings, event_publisher);
+        let subtitle_info = SubtitleInfo::builder()
+            .imdb_id("ipsum")
+            .language(SubtitleLanguage::French)
+            .build();
+        let subtitles: Vec<SubtitleInfo> = vec![subtitle_info.clone()];
+
+        let result = manager.select_or_default(&subtitles);
+
+        assert_eq!(subtitle_info, result)
     }
 
     #[test]

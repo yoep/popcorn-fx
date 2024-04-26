@@ -2749,6 +2749,7 @@ dependencies = [
  "libloading",
  "log",
  "mdns-sd",
+ "mockall",
  "popcorn-fx-core",
  "protobuf",
  "rcgen",

@@ -432,6 +432,7 @@ pub mod testing {
             async fn is_disabled_async(&self) -> bool;
             fn update_subtitle(&self, subtitle: SubtitleInfo);
             fn update_custom_subtitle(&self, subtitle_file: &str);
+            fn select_or_default(&self, subtitles: &[SubtitleInfo]) -> SubtitleInfo;
             fn disable_subtitle(&self);
             fn reset(&self);
             fn cleanup(&self);

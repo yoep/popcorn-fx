@@ -19,8 +19,6 @@ mod tests {
     use tokio::sync::Mutex;
     use tokio_util::sync::CancellationToken;
 
-    use popcorn_fx_core::core::block_in_place;
-
     pub const DEFAULT_SSDP_DESCRIPTION_RESPONSE: &str = r#"<?xml version="1.0" encoding="utf-8"?>
         <root xmlns="urn:schemas-upnp-org:device-1-0">
             <specVersion>
@@ -69,11 +67,6 @@ mod tests {
                     }
                 }
             });
-        }
-
-        pub fn assert_invocations(&self, expected: u32) {
-            let invocations = block_in_place(self.inner.invocations.lock());
-            assert_eq!(*invocations, expected);
         }
     }
 

@@ -6,8 +6,8 @@ use std::time::Duration;
 use async_trait::async_trait;
 use derive_more::Display;
 use log::{debug, error, trace, warn};
-use rust_cast::{CastDevice, channels};
-use rust_cast::channels::media::Status;
+use rust_cast::channels;
+use rust_cast::channels::media::{Status, StatusEntry};
 use rust_cast::channels::receiver::{Application, CastDeviceApp};
 use tokio::{runtime, time};
 use tokio::runtime::Runtime;
@@ -23,6 +23,7 @@ use popcorn_fx_core::core::subtitles::SubtitleServer;
 
 use crate::chromecast;
 use crate::chromecast::{ChromecastError, Image, LoadCommand, Media, Metadata, MovieMetadata, StreamType, TextTrackEdgeType, TextTrackStyle, TextTrackType, Track, TrackType};
+use crate::chromecast::cast::FxCastDevice;
 
 const GRAPHIC_RESOURCE: &[u8] = include_bytes!("../../resources/external-chromecast-icon.png");
 const DESCRIPTION: &str =
@@ -31,19 +32,24 @@ const DEFAULT_HEARTBEAT_INTERVAL_MILLIS: u64 = 10 * 1000;
 const MEDIA_CHANNEL_NAMESPACE: &str = "urn:x-cast:com.google.cast.media";
 const SUBTITLE_CONTENT_TYPE: &str = "text/vtt";
 
+/// The type of the factory function used to create the Chromecast client device.
+pub type DeviceFactory<D: FxCastDevice> = Box<dyn Fn(String, u16) -> chromecast::Result<D> + Send + Sync>;
+
+/// The Chromecast player allows the playback of media items on a specific Chromecast device.
 #[derive(Debug, Display)]
 #[display(fmt = "Chromecast player {}", "self.name()")]
-pub struct ChromecastPlayer {
-    inner: Arc<InnerChromecastPlayer>,
+pub struct ChromecastPlayer<D: FxCastDevice + 'static> {
+    inner: Arc<InnerChromecastPlayer<D>>,
 }
 
-impl ChromecastPlayer {
+impl<D: FxCastDevice> ChromecastPlayer<D> {
     pub fn new(
         id: impl Into<String>,
         name: impl Into<String>,
         cast_model: impl Into<String>,
         cast_address: impl Into<String>,
         cast_port: u16,
+        cast_device_factory: DeviceFactory<D>,
         subtitle_server: Arc<SubtitleServer>,
         heartbeat_millis: u64,
         runtime: Arc<Runtime>,
@@ -57,59 +63,51 @@ impl ChromecastPlayer {
             cast_address,
             cast_port
         );
-        match CastDevice::connect_without_host_verification(cast_address.clone(), cast_port) {
-            Ok(cast_device) => {
-                debug!("Connected to Chromecast device {} on {}:{}",
-                    name, cast_address, cast_port
-                );
-                if let Err(e) = cast_device.connection.connect("receiver-0") {
-                    return Err(ChromecastError::Connection(e.to_string()));
-                }
-                if let Err(e) = cast_device.heartbeat.ping() {
-                    return Err(ChromecastError::Connection(e.to_string()));
-                }
-
-                let instance = Arc::new(InnerChromecastPlayer {
-                    id: id.into(),
-                    name,
-                    cast_model: cast_model.into(),
-                    cast_address,
-                    cast_port,
-                    request: Default::default(),
-                    state: Mutex::new(PlayerState::Ready),
-                    cast_device: Mutex::new(cast_device),
-                    cast_app: Default::default(),
-                    cast_media_session_id: Default::default(),
-                    subtitle_server,
-                    callbacks: Default::default(),
-                    runtime,
-                    status_check_token: Default::default(),
-                    shutdown_token: Default::default(),
-                });
-
-                let inner = instance.clone();
-                let cancellation_token = instance.shutdown_token.clone();
-                instance.runtime.spawn(Self::start_heartbeat(
-                    inner,
-                    cancellation_token,
-                    heartbeat_millis,
-                ));
-
-                Ok(Self { inner: instance })
-            }
-            Err(e) => {
-                debug!("Failed to initialize Chromecast {} connection, {}", name, e);
-                Err(ChromecastError::Connection(e.to_string()))
-            }
+        let cast_device = cast_device_factory(cast_address.clone(), cast_port)?;
+        debug!("Connected to Chromecast device {} on {}:{}", name, cast_address, cast_port);
+        if let Err(e) = cast_device.connect("receiver-0") {
+            return Err(ChromecastError::Connection(e.to_string()));
         }
+        if let Err(e) = cast_device.ping() {
+            return Err(ChromecastError::Connection(e.to_string()));
+        }
+
+        let instance = Arc::new(InnerChromecastPlayer {
+            id: id.into(),
+            name,
+            cast_model: cast_model.into(),
+            cast_address,
+            cast_port,
+            request: Default::default(),
+            state: Mutex::new(PlayerState::Ready),
+            cast_device: Mutex::new(cast_device),
+            cast_device_factory,
+            cast_app: Default::default(),
+            cast_media_session_id: Default::default(),
+            subtitle_server,
+            callbacks: Default::default(),
+            runtime,
+            status_check_token: Default::default(),
+            shutdown_token: Default::default(),
+        });
+
+        let inner = instance.clone();
+        let cancellation_token = instance.shutdown_token.clone();
+        instance.runtime.spawn(Self::start_heartbeat(
+            inner,
+            cancellation_token,
+            heartbeat_millis,
+        ));
+
+        Ok(Self { inner: instance })
     }
 
-    pub fn builder() -> ChromecastPlayerBuilder {
+    pub fn builder() -> ChromecastPlayerBuilder<D> {
         ChromecastPlayerBuilder::builder()
     }
 
     async fn start_heartbeat(
-        inner: Arc<InnerChromecastPlayer>,
+        inner: Arc<InnerChromecastPlayer<D>>,
         cancellation_token: CancellationToken,
         heartbeat_millis: u64,
     ) {
@@ -118,12 +116,12 @@ impl ChromecastPlayer {
                 break;
             }
 
-            let ping_result: Result<(), rust_cast::errors::Error>;
+            let ping_result: chromecast::Result<()>;
 
             {
                 let mutex = inner.cast_device.lock().await;
                 trace!("Sending Chromecast {} heartbeat", inner.name);
-                ping_result = mutex.heartbeat.ping();
+                ping_result = mutex.ping();
             }
 
             if let Err(e) = ping_result {
@@ -136,7 +134,7 @@ impl ChromecastPlayer {
     }
 
     async fn start_status_updates(
-        inner: Arc<InnerChromecastPlayer>,
+        inner: Arc<InnerChromecastPlayer<D>>,
         cancellation_token: CancellationToken,
     ) {
         loop {
@@ -158,7 +156,7 @@ impl ChromecastPlayer {
     }
 }
 
-impl Callbacks<PlayerEvent> for ChromecastPlayer {
+impl<D: FxCastDevice> Callbacks<PlayerEvent> for ChromecastPlayer<D> {
     fn add(&self, callback: CoreCallback<PlayerEvent>) -> CallbackHandle {
         self.inner.add(callback)
     }
@@ -169,7 +167,7 @@ impl Callbacks<PlayerEvent> for ChromecastPlayer {
 }
 
 #[async_trait]
-impl Player for ChromecastPlayer {
+impl<D: FxCastDevice + 'static> Player for ChromecastPlayer<D> {
     fn id(&self) -> &str {
         self.inner.id.as_str()
     }
@@ -267,21 +265,31 @@ impl Player for ChromecastPlayer {
     }
 }
 
-#[derive(Default)]
-pub struct ChromecastPlayerBuilder {
+pub struct ChromecastPlayerBuilder<D: FxCastDevice> {
     id: Option<String>,
     name: Option<String>,
     cast_model: Option<String>,
     cast_address: Option<String>,
     cast_port: Option<u16>,
+    cast_device_factory: Option<DeviceFactory<D>>,
     subtitle_server: Option<Arc<SubtitleServer>>,
     heartbeat_millis: Option<u64>,
     runtime: Option<Arc<Runtime>>,
 }
 
-impl ChromecastPlayerBuilder {
+impl<D: FxCastDevice> ChromecastPlayerBuilder<D> {
     pub fn builder() -> Self {
-        Self::default()
+        Self {
+            id: None,
+            name: None,
+            cast_model: None,
+            cast_address: None,
+            cast_port: None,
+            cast_device_factory: None,
+            subtitle_server: None,
+            heartbeat_millis: None,
+            runtime: None,
+        }
     }
 
     pub fn id<S: Into<String>>(mut self, id: S) -> Self {
@@ -309,6 +317,11 @@ impl ChromecastPlayerBuilder {
         self
     }
 
+    pub fn cast_device_factory(mut self, cast_device_factory: DeviceFactory<D>) -> Self {
+        self.cast_device_factory = Some(cast_device_factory);
+        self
+    }
+
     pub fn subtitle_server(mut self, subtitle_server: Arc<SubtitleServer>) -> Self {
         self.subtitle_server = Some(subtitle_server);
         self
@@ -324,7 +337,7 @@ impl ChromecastPlayerBuilder {
         self
     }
 
-    pub fn build(self) -> chromecast::Result<ChromecastPlayer> {
+    pub fn build(self) -> chromecast::Result<ChromecastPlayer<D>> {
         let id = self.id.expect("expected an id to be set");
         let name = self.name.expect("expected a name to be set");
         let cast_model = self.cast_model.expect("expected a cast model to be set");
@@ -332,6 +345,7 @@ impl ChromecastPlayerBuilder {
             .cast_address
             .expect("expected a cast address to be set");
         let cast_port = self.cast_port.expect("expected a cast port to be set");
+        let cast_device_factory = self.cast_device_factory.expect("expected a cast device factory to be set");
         let subtitle_server = self.subtitle_server.expect("expected a subtitle server to have been set");
         let heartbeat_millis = self
             .heartbeat_millis
@@ -353,6 +367,7 @@ impl ChromecastPlayerBuilder {
             cast_model,
             cast_address,
             cast_port,
+            cast_device_factory,
             subtitle_server,
             heartbeat_millis,
             runtime,
@@ -360,7 +375,7 @@ impl ChromecastPlayerBuilder {
     }
 }
 
-struct InnerChromecastPlayer {
+struct InnerChromecastPlayer<D: FxCastDevice> {
     id: String,
     name: String,
     request: Mutex<Option<Arc<Box<dyn PlayRequest>>>>,
@@ -368,7 +383,8 @@ struct InnerChromecastPlayer {
     cast_model: String,
     cast_address: String,
     cast_port: u16,
-    cast_device: Mutex<CastDevice<'static>>,
+    cast_device: Mutex<D>,
+    cast_device_factory: DeviceFactory<D>,
     cast_app: Mutex<Option<Application>>,
     cast_media_session_id: Mutex<Option<i32>>,
     subtitle_server: Arc<SubtitleServer>,
@@ -378,7 +394,7 @@ struct InnerChromecastPlayer {
     shutdown_token: CancellationToken,
 }
 
-impl InnerChromecastPlayer {
+impl<D: FxCastDevice> InnerChromecastPlayer<D> {
     fn state(&self) -> PlayerState {
         let mutex = block_in_place(self.state.lock());
         mutex.clone()
@@ -419,12 +435,12 @@ impl InnerChromecastPlayer {
                     let cast_device = self.cast_device.lock().await;
 
                     trace!("Establishing connection to the device receiver");
-                    if let Err(e) = cast_device.connection.connect("receiver-0") {
+                    if let Err(e) = cast_device.connect("receiver-0") {
                         return Err(ChromecastError::AppInitializationFailed(e.to_string()));
                     }
 
                     trace!("Launching chromecast app {:?}", app);
-                    return match cast_device.receiver.launch_app(&app) {
+                    return match cast_device.launch_app(&app) {
                         Ok(app) => {
                             debug!("Chromecast app {:?} has been launched", app);
                             *mutex = Some(app.clone());
@@ -449,10 +465,7 @@ impl InnerChromecastPlayer {
 
             if let Some(app) = mutex.as_ref() {
                 trace!("Connecting to chromecast app {:?}", app);
-                cast_device
-                    .connection
-                    .connect(app.transport_id.as_str())
-                    .map_err(|e| ChromecastError::AppInitializationFailed(e.to_string()))?;
+                cast_device.connect(app.transport_id.to_string())?;
 
                 debug!("Connected to chromecast app {:?}", app);
                 return Ok(());
@@ -487,14 +500,9 @@ impl InnerChromecastPlayer {
                     .unwrap_or(0f32),
                 active_track_ids,
             };
-            trace!("Parsing load command payload {:?}", load);
-            let load_payload = serde_json::to_string(&load)
-                .map_err(|e| ChromecastError::Parsing(e.to_string()))?;
 
-            trace!("Sending load command {}", load_payload);
-            if let Err(e) = cast_device
-                .receiver
-                .broadcast_message(MEDIA_CHANNEL_NAMESPACE, &load)
+            trace!("Sending load command {:?}", load);
+            if let Err(e) = cast_device.broadcast_message(MEDIA_CHANNEL_NAMESPACE, &load)
             {
                 return Err(ChromecastError::AppInitializationFailed(e.to_string()));
             }
@@ -510,10 +518,7 @@ impl InnerChromecastPlayer {
 
             if let Some(app) = mutex.take() {
                 debug!("Stopping chromecast app {:?}", app);
-                cast_device
-                    .receiver
-                    .stop_app(app.session_id)
-                    .map_err(|e| ChromecastError::AppTerminationFailed(e.to_string()))?;
+                cast_device.stop_app(app.session_id)?;
             }
 
             Ok(())
@@ -524,17 +529,14 @@ impl InnerChromecastPlayer {
     async fn pause(&self) {
         if let Some(app) = self.cast_app.lock().await.as_ref() {
             if let Some(media_session_id) = self.cast_media_session_id.lock().await.as_ref() {
-                if let Err(e) = self
+                match self
                     .try_command(|| async {
                         let cast_device = self.cast_device.lock().await;
-                        cast_device
-                            .media
-                            .pause(app.transport_id.as_str(), media_session_id.clone())
-                            .map_err(|e| ChromecastError::Connection(e.to_string()))
+                        cast_device.pause(app.transport_id.to_string(), media_session_id.clone())
                     })
-                    .await
-                {
-                    error!("Failed to pause Chromecast {} playback, {}", self.name, e);
+                    .await {
+                    Ok(status) => self.on_player_state_changed(&status).await,
+                    Err(e) => error!("Failed to pause Chromecast {}, {}", self.name, e),
                 }
             } else {
                 warn!(
@@ -548,17 +550,18 @@ impl InnerChromecastPlayer {
     async fn resume(&self) {
         if let Some(app) = self.cast_app.lock().await.as_ref() {
             if let Some(media_session_id) = self.cast_media_session_id.lock().await.as_ref() {
-                if let Err(e) = self
+                match self
                     .try_command(|| async {
                         let cast_device = self.cast_device.lock().await;
-                        cast_device
-                            .media
-                            .play(app.transport_id.as_str(), media_session_id.clone())
-                            .map_err(|e| ChromecastError::Connection(e.to_string()))
+                        cast_device.play(app.transport_id.to_string(), media_session_id.clone())
                     })
                     .await
                 {
-                    error!("Failed to resume Chromecast {} playback, {}", self.name, e);
+                    Ok(status) => {
+                        trace!("Received resume status {:?}", status);
+                        self.on_player_state_changed(&status).await;
+                    }
+                    Err(e) => error!("Failed to resume Chromecast {} playback, {}", self.name, e),
                 }
             } else {
                 warn!(
@@ -577,15 +580,12 @@ impl InnerChromecastPlayer {
                         let chromecast_time = Self::parse_to_chromecast_time(time);
                         let cast_device = self.cast_device.lock().await;
 
-                        cast_device
-                            .media
-                            .seek(
-                                app.transport_id.as_str(),
-                                media_session_id.clone(),
-                                Some(chromecast_time),
-                                None,
-                            )
-                            .map_err(|e| ChromecastError::Connection(e.to_string()))
+                        cast_device.seek(
+                            app.transport_id.to_string(),
+                            media_session_id.clone(),
+                            Some(chromecast_time),
+                            None,
+                        )
                     })
                     .await
                 {
@@ -635,14 +635,13 @@ impl InnerChromecastPlayer {
 
     async fn status(&self) -> chromecast::Result<Status> {
         tokio::select! {
-            _ = time::sleep(Duration::from_secs(5)) =>Err(ChromecastError::CommandTimeout("status".to_string())),
+            _ = time::sleep(Duration::from_secs(5)) => Err(ChromecastError::CommandTimeout("status".to_string())),
             status = self.try_command(|| async {
                 if let Some(app) = self.cast_app.lock().await.as_ref() {
                     let mutex = self.cast_device.lock().await;
 
                     trace!("Requesting Chromecast {} status info", self.name);
-                    return mutex.media.get_status(app.transport_id.as_str(), None)
-                        .map_err(|e| ChromecastError::Connection(e.to_string()));
+                    return mutex.status(app.transport_id.to_string(), None);
                 }
 
                 Err(ChromecastError::AppNotInitialized)
@@ -668,20 +667,8 @@ impl InnerChromecastPlayer {
                 }
             }
 
-            match e.player_state {
-                channels::media::PlayerState::Idle => {
-                    self.update_state_async(PlayerState::Ready).await
-                }
-                channels::media::PlayerState::Playing => {
-                    self.update_state_async(PlayerState::Playing).await
-                }
-                channels::media::PlayerState::Buffering => {
-                    self.update_state_async(PlayerState::Buffering).await
-                }
-                channels::media::PlayerState::Paused => {
-                    self.update_state_async(PlayerState::Paused).await
-                }
-            }
+            // update the playback state of the player
+            self.on_player_state_changed(e).await;
 
             if let Some(time) = e.current_time {
                 self.callbacks
@@ -698,6 +685,23 @@ impl InnerChromecastPlayer {
             }
         } else {
             warn!("Received empty status update for Chromecast {}", self.name);
+        }
+    }
+
+    async fn on_player_state_changed(&self, e: &StatusEntry) {
+        match e.player_state {
+            channels::media::PlayerState::Idle => {
+                self.update_state_async(PlayerState::Ready).await
+            }
+            channels::media::PlayerState::Playing => {
+                self.update_state_async(PlayerState::Playing).await
+            }
+            channels::media::PlayerState::Buffering => {
+                self.update_state_async(PlayerState::Buffering).await
+            }
+            channels::media::PlayerState::Paused => {
+                self.update_state_async(PlayerState::Paused).await
+            }
         }
     }
 
@@ -748,8 +752,7 @@ impl InnerChromecastPlayer {
             "Reestablishing connection to the Chromecast device {}",
             self.name
         );
-        let cast_device = CastDevice::connect_without_host_verification(address, port)
-            .map_err(|e| ChromecastError::Connection(e.to_string()))?;
+        let cast_device = (self.cast_device_factory)(address, port)?;
         *mutex = cast_device;
         debug!("Reconnected to the Chromecast device {}", self.name);
 
@@ -831,7 +834,7 @@ impl InnerChromecastPlayer {
     }
 }
 
-impl Callbacks<PlayerEvent> for InnerChromecastPlayer {
+impl<D: FxCastDevice> Callbacks<PlayerEvent> for InnerChromecastPlayer<D> {
     fn add(&self, callback: CoreCallback<PlayerEvent>) -> CallbackHandle {
         self.callbacks.add(callback)
     }
@@ -841,7 +844,7 @@ impl Callbacks<PlayerEvent> for InnerChromecastPlayer {
     }
 }
 
-impl Debug for InnerChromecastPlayer {
+impl<D: FxCastDevice> Debug for InnerChromecastPlayer<D> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("InnerChromecastPlayer")
             .field("id", &self.id)
@@ -859,7 +862,7 @@ impl Debug for InnerChromecastPlayer {
     }
 }
 
-impl Drop for InnerChromecastPlayer {
+impl<D: FxCastDevice> Drop for InnerChromecastPlayer<D> {
     fn drop(&mut self) {
         block_in_place(self.stop());
         self.shutdown_token.cancel();
@@ -870,9 +873,14 @@ impl Drop for InnerChromecastPlayer {
 mod tests {
     use std::sync::mpsc::channel;
 
-    use popcorn_fx_core::core::players::PlayUrlRequest;
+    use rust_cast::channels::media;
+    use rust_cast::channels::media::StatusEntry;
+
+    use popcorn_fx_core::core::media::MovieOverview;
+    use popcorn_fx_core::core::players::{PlayMediaRequest, PlayUrlRequest};
     use popcorn_fx_core::testing::init_logger;
 
+    use crate::chromecast::cast::MockFxCastDevice;
     use crate::chromecast::tests::TestInstance;
 
     use super::*;
@@ -880,7 +888,7 @@ mod tests {
     #[test]
     fn test_player_id() {
         init_logger();
-        let mut test_instance = TestInstance::new_player();
+        let mut test_instance = TestInstance::new_player(Box::new(|| create_default_device()));
         let player = test_instance.player.take().unwrap();
 
         let result = player.id();
@@ -891,7 +899,7 @@ mod tests {
     #[test]
     fn test_player_name() {
         init_logger();
-        let mut test_instance = TestInstance::new_player();
+        let mut test_instance = TestInstance::new_player(Box::new(|| create_default_device()));
         let player = test_instance.player.take().unwrap();
 
         let result = player.name();
@@ -902,7 +910,7 @@ mod tests {
     #[test]
     fn test_player_description() {
         init_logger();
-        let mut test_instance = TestInstance::new_player();
+        let mut test_instance = TestInstance::new_player(Box::new(|| create_default_device()));
         let player = test_instance.player.take().unwrap();
 
         let result = player.description();
@@ -913,7 +921,7 @@ mod tests {
     #[test]
     fn test_player_graphic_resource() {
         init_logger();
-        let mut test_instance = TestInstance::new_player();
+        let mut test_instance = TestInstance::new_player(Box::new(|| create_default_device()));
         let player = test_instance.player.take().unwrap();
 
         let result = player.graphic_resource();
@@ -924,7 +932,7 @@ mod tests {
     #[test]
     fn test_player_state() {
         init_logger();
-        let mut test_instance = TestInstance::new_player();
+        let mut test_instance = TestInstance::new_player(Box::new(|| create_default_device()));
         let player = test_instance.player.take().unwrap();
 
         let result = player.state();
@@ -935,16 +943,61 @@ mod tests {
     #[test]
     fn test_player_play() {
         init_logger();
-        let mut test_instance = TestInstance::new_player();
-        let request = Box::new(PlayUrlRequest {
-            url: "http://localhost:8900/my-video.mkv".to_string(),
-            title: "FooBar".to_string(),
-            caption: None,
-            thumb: None,
-            background: None,
-            auto_resume_timestamp: None,
-            subtitles_enabled: true,
-            subtitle: None,
+        let url = "http://localhost:8900/my-video.mkv";
+        let (tx_command, rx_command) = channel::<LoadCommand>();
+        let mut test_instance = TestInstance::new_player(Box::new(move || {
+            let mut device = MockFxCastDevice::new();
+            default_device_responses(&mut device);
+            device.expect_launch_app()
+                .return_const(Ok(Application {
+                    app_id: "MyAppId".to_string(),
+                    session_id: "MySessionId".to_string(),
+                    transport_id: "MyTransportId".to_string(),
+                    namespaces: vec![],
+                    display_name: "".to_string(),
+                    status_text: "".to_string(),
+                }));
+            let sender = tx_command.clone();
+            device.expect_broadcast_message::<LoadCommand>()
+                .returning(move |_namespace, command| {
+                    sender.send(command.clone()).unwrap();
+                    Ok(())
+                });
+            device.expect_play::<String>()
+                .return_const(Ok(StatusEntry {
+                    media_session_id: 0,
+                    media: None,
+                    playback_rate: 0.0,
+                    player_state: media::PlayerState::Playing,
+                    idle_reason: None,
+                    current_time: None,
+                    supported_media_commands: 0,
+                }));
+            default_device_status_response(&mut device);
+            device
+        }));
+        let movie = MovieOverview {
+            title: "MyMovie".to_string(),
+            imdb_id: "tt011000".to_string(),
+            year: "1028".to_string(),
+            rating: None,
+            images: Default::default(),
+        };
+        let request = Box::new(PlayMediaRequest {
+            base: PlayUrlRequest {
+                url: url.to_string(),
+                title: "FooBar".to_string(),
+                caption: Some("MyCaption".to_string()),
+                thumb: Some("http://localhost/my-thumb.png".to_string()),
+                background: Some("http://localhost/my-background.png".to_string()),
+                auto_resume_timestamp: Some(28000),
+                subtitles_enabled: true,
+                subtitle: None,
+            },
+            parent_media: None,
+            media: Box::new(movie),
+            quality: "720p".to_string(),
+            torrent_stream: Default::default(),
         });
         let (tx, rx) = channel();
         let player = test_instance.player.take().unwrap();
@@ -959,36 +1012,169 @@ mod tests {
         let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
         assert_eq!(PlayerState::Loading, result);
 
-        let result = rx.recv_timeout(Duration::from_millis(1250)).unwrap();
+        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
         assert_eq!(PlayerState::Playing, result);
+
+        let command = rx_command.recv_timeout(Duration::from_millis(200)).unwrap();
+        assert_eq!(url.to_string(), command.media.url);
     }
 
     #[test]
     fn test_player_pause() {
         init_logger();
-        let mut test_instance = TestInstance::new_player();
+        let transport_id = "FooBar";
+        let (tx, rx) = channel();
+        let mut test_instance = TestInstance::new_player(Box::new(move || {
+            let mut device = create_default_device();
+            let sender = tx.clone();
+            device.expect_pause::<String>()
+                .times(1)
+                .returning(move |destination, _| {
+                    sender.send(destination).unwrap();
+                    Ok(status_entry(media::PlayerState::Paused))
+                });
+            device
+        }));
         let player = test_instance.player.take().unwrap();
 
+        *block_in_place(player.inner.cast_app.lock()) = Some(Application {
+            app_id: "MyAppId".to_string(),
+            session_id: "MySessionId".to_string(),
+            transport_id: transport_id.to_string(),
+            namespaces: vec![],
+            display_name: "".to_string(),
+            status_text: "".to_string(),
+        });
+        *block_in_place(player.inner.cast_media_session_id.lock()) = Some(1);
+
         player.pause();
+        assert_eq!(PlayerState::Paused, player.state());
+
+        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        assert_eq!(transport_id.to_string(), result);
     }
 
     #[test]
     fn test_player_resume() {
         init_logger();
-        let mut test_instance = TestInstance::new_player();
+        let mut test_instance = TestInstance::new_player(Box::new(|| create_default_device()));
         let player = test_instance.player.take().unwrap();
 
         player.resume();
     }
 
     #[test]
-    fn test_player_stop() {
+    fn test_player_seek() {
         init_logger();
-        let mut test_instance = TestInstance::new_player();
+        let transport_id = "LoremIpsum";
+        let (tx, rx) = channel();
+        let mut test_instance = TestInstance::new_player(Box::new(move || {
+            let mut device = create_default_device();
+            let sender = tx.clone();
+            device.expect_seek::<String>()
+                .times(1)
+                .returning(move |_, _, time, _| {
+                    sender.send(time).unwrap();
+                    Ok(status_entry(media::PlayerState::Playing))
+                });
+            device
+        }));
         let player = test_instance.player.take().unwrap();
 
-        player.stop();
+        *block_in_place(player.inner.cast_app.lock()) = Some(Application {
+            app_id: "Foo".to_string(),
+            session_id: "Bar".to_string(),
+            transport_id: transport_id.to_string(),
+            namespaces: vec![],
+            display_name: "".to_string(),
+            status_text: "".to_string(),
+        });
+        *block_in_place(player.inner.cast_media_session_id.lock()) = Some(1);
 
+        player.seek(14000);
+
+        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        assert_eq!(Some(14f32), result);
+    }
+
+    #[test]
+    fn test_player_stop() {
+        init_logger();
+        let session_id = "Bar";
+        let (tx, rx) = channel();
+        let mut test_instance = TestInstance::new_player(Box::new(move || {
+            let mut device = create_default_device();
+            let sender = tx.clone();
+            device.expect_stop_app::<String>()
+                .times(1)
+                .returning(move |session_id| {
+                    sender.send(session_id).unwrap();
+                    Ok(())
+                });
+            device
+        }));
+        let player = test_instance.player.take().unwrap();
+
+        *block_in_place(player.inner.cast_app.lock()) = Some(Application {
+            app_id: "Foo".to_string(),
+            session_id: session_id.to_string(),
+            transport_id: "Dolor".to_string(),
+            namespaces: vec![],
+            display_name: "".to_string(),
+            status_text: "".to_string(),
+        });
+        *block_in_place(player.inner.cast_media_session_id.lock()) = Some(1);
+
+        player.stop();
         assert_eq!(PlayerState::Stopped, player.state());
+
+        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        assert_eq!(session_id, result);
+    }
+
+    fn create_default_device() -> MockFxCastDevice {
+        let mut device = MockFxCastDevice::new();
+        default_device_responses(&mut device);
+        device
+    }
+
+    fn default_device_responses(device: &mut MockFxCastDevice) {
+        device.expect_connect::<&str>()
+            .return_const(Ok(()));
+        device.expect_connect::<String>()
+            .return_const(Ok(()));
+        device.expect_ping()
+            .return_const(Ok(()));
+    }
+
+    fn default_device_status_response(device: &mut MockFxCastDevice) {
+        device.expect_status::<String>()
+            .times(1..)
+            .return_const(Ok(Status {
+                request_id: 0,
+                entries: vec![
+                    StatusEntry {
+                        media_session_id: 0,
+                        media: None,
+                        playback_rate: 1.0,
+                        player_state: media::PlayerState::Playing,
+                        idle_reason: None,
+                        current_time: Some(1.0),
+                        supported_media_commands: 0,
+                    }
+                ],
+            }));
+    }
+
+    fn status_entry(state: media::PlayerState) -> StatusEntry {
+        StatusEntry {
+            media_session_id: 0,
+            media: None,
+            playback_rate: 0.0,
+            player_state: state,
+            idle_reason: None,
+            current_time: None,
+            supported_media_commands: 0,
+        }
     }
 }

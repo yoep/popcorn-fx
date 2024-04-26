@@ -41,12 +41,13 @@ xml-rs = { version = "0.8", optional = true }
 popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }
 
 httpmock.workspace = true
+mockall = "0.12.1"
+protobuf = "3.2.0"
 rcgen = "0.13.1"
 socket2 = "0.5.6"
 tempfile.workspace = true
 tokio = { workspace = true, features = ["full"] }
 tokio-rustls = "0.26.0"
-protobuf = "3.2.0"
 
 [features]
 default = ["chromecast", "dlna", "vlc", "transcoder"]

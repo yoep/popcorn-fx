@@ -1,11 +1,8 @@
-#[cfg(feature = "transcoder")]
-use std::env;
 use std::sync::Arc;
 
 use async_trait::async_trait;
 use derive_more::Display;
 use itertools::Itertools;
-use libloading::{Error, Library};
 use log::{debug, info, trace, warn};
 use mdns_sd::{ServiceDaemon, ServiceEvent, ServiceInfo};
 use tokio::runtime::Runtime;
@@ -16,7 +13,9 @@ use popcorn_fx_core::core::players::PlayerManager;
 use popcorn_fx_core::core::subtitles::SubtitleServer;
 
 use crate::{chromecast, Discovery, DiscoveryError, DiscoveryState};
+use crate::chromecast::cast::DefaultCastDevice;
 use crate::chromecast::player::ChromecastPlayer;
+#[cfg(feature = "transcoder")]
 use crate::chromecast::transcode::{
     NoOpTranscoder, Transcoder, VlcTranscoderDiscovery,
 };
@@ -231,7 +230,7 @@ impl InnerChromecastDiscovery {
         let device_name = info.get_property_val_str("fn").unwrap_or(INFO_UNKNOWN);
         let device_model = info.get_property_val_str("md").unwrap_or(INFO_UNKNOWN);
 
-        match ChromecastPlayer::builder()
+        match ChromecastPlayer::<DefaultCastDevice>::builder()
             .id(device_id)
             .name(device_name)
             .cast_model(device_model)
@@ -306,8 +305,9 @@ mod tests {
             .build();
 
         test_instance.runtime.block_on(discovery.start_discovery()).unwrap();
-        let result = rx.recv_timeout(Duration::from_secs(30)).unwrap();
+        let result = rx.recv_timeout(Duration::from_secs(2)).unwrap();
 
+        assert_eq!("Chromecast test device", result.name());
         mdns.shutdown().unwrap();
     }
 

@@ -13,7 +13,7 @@ use popcorn_fx_core::core::utils::network::available_socket;
 
 use crate::chromecast::transcode;
 use crate::chromecast::transcode::{TranscodeError, TranscodeOutput, Transcoder, TranscodeState, TranscodeType};
-use crate::chromecast::transcode::lib_vlc::{LibraryHandle, libvlc_instance_t, libvlc_media_add_option, libvlc_media_new_location, libvlc_media_player_new, libvlc_media_player_play, libvlc_media_player_release, libvlc_media_player_set_media, libvlc_media_player_stop, libvlc_media_player_t, libvlc_media_release, libvlc_media_t, libvlc_new, LibvlcInstanceT};
+use crate::chromecast::transcode::lib_vlc::{LibraryHandle, libvlc_instance_t, libvlc_media_add_option, libvlc_media_new_location, libvlc_media_player_new, libvlc_media_player_play, libvlc_media_player_release, libvlc_media_player_set_media, libvlc_media_player_stop, libvlc_media_player_t, libvlc_media_release, libvlc_media_t, LibvlcInstanceT};
 
 #[cfg(target_family = "unix")]
 const PATH_SEPARATOR: &str = ":";
@@ -426,6 +426,16 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_vlc_transcoder_state() {
+        init_logger();
+        let transcoder = VlcTranscoderDiscovery::discover().unwrap();
+        
+        let result = transcoder.state();
+        
+        assert_eq!(TranscodeState::Unknown, result);
+    }
+
+    #[test]
     fn test_vlc_transcoder_discovery() {
         init_logger();
 
@@ -449,6 +459,7 @@ mod tests {
 
         assert_ne!(String::new(), result.url);
         assert_eq!(TranscodeType::Live, result.output_type);
+        assert_eq!(TranscodeState::Transcoding, transcoder.state());
         runtime.block_on(transcoder.stop());
     }
 }

@@ -444,33 +444,6 @@ impl OpensubtitlesProvider {
             .map_err(|err| SubtitleError::ParseFileError(path.clone(), err.to_string()))
     }
 
-    /// Find the subtitle for the default configured subtitle language.
-    /// This uses the [SubtitleSettings::default_subtitle] setting.
-    fn find_for_default_subtitle_language(
-        &self,
-        subtitles: &[SubtitleInfo],
-    ) -> Option<SubtitleInfo> {
-        let settings = self.settings.user_settings();
-        let subtitle_language = settings.subtitle().default_subtitle();
-
-        subtitles
-            .iter()
-            .find(|e| e.language() == subtitle_language)
-            .map(|e| e.clone())
-    }
-
-    /// Find the subtitle for the interface language.
-    /// This uses the [UiSettings::default_language] setting.
-    fn find_for_interface_language(&self, subtitles: &[SubtitleInfo]) -> Option<SubtitleInfo> {
-        let settings = self.settings.user_settings();
-        let language = settings.ui().default_language();
-
-        subtitles
-            .iter()
-            .find(|e| &e.language().code() == language)
-            .map(|e| e.clone())
-    }
-
     /// Retrieve the subtitle filename from the given file or attributes.
     fn subtitle_file_name(
         file: &OpenSubtitlesFile,
@@ -611,16 +584,6 @@ impl SubtitleProvider for OpensubtitlesProvider {
 
     fn parse(&self, file_path: &Path) -> Result<Subtitle> {
         self.internal_parse(file_path, None)
-    }
-
-    fn select_or_default(&self, subtitles: &[SubtitleInfo]) -> SubtitleInfo {
-        trace!("Selecting subtitle out of {:?}", subtitles);
-        let subtitle = self
-            .find_for_default_subtitle_language(subtitles)
-            .or_else(|| self.find_for_interface_language(subtitles))
-            .unwrap_or(SubtitleInfo::none());
-        debug!("Selected subtitle {:?}", &subtitle);
-        subtitle
     }
 
     fn convert(&self, subtitle: Subtitle, output_type: SubtitleType) -> Result<String> {
@@ -1240,90 +1203,6 @@ mod test {
         let result = service.parse(Path::new(&destination)).unwrap();
 
         assert_eq!(expected_result, result)
-    }
-
-    #[test]
-    fn test_select_or_default_select_for_default_subtitle_language() {
-        init_logger();
-        let temp_dir = tempfile::tempdir().unwrap();
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let popcorn_settings = PopcornSettings {
-            subtitle_settings: SubtitleSettings {
-                directory: temp_path.to_string(),
-                auto_cleaning_enabled: false,
-                default_subtitle: English,
-                font_family: SubtitleFamily::Arial,
-                font_size: 28,
-                decoration: DecorationType::None,
-                bold: false,
-            },
-            ui_settings: UiSettings::default(),
-            server_settings: ServerSettings::default(),
-            torrent_settings: TorrentSettings::default(),
-            playback_settings: Default::default(),
-            tracking_settings: Default::default(),
-        };
-        let settings = Arc::new(
-            ApplicationConfig::builder()
-                .storage(temp_path)
-                .settings(popcorn_settings)
-                .build(),
-        );
-        let service = OpensubtitlesProvider::builder().settings(settings).build();
-        let subtitle_info = SubtitleInfo::builder()
-            .imdb_id("lorem")
-            .language(SubtitleLanguage::English)
-            .build();
-        let subtitles: Vec<SubtitleInfo> = vec![subtitle_info.clone()];
-
-        let result = service.select_or_default(&subtitles);
-
-        assert_eq!(subtitle_info, result)
-    }
-
-    #[test]
-    fn test_select_or_default_select_for_interface_language() {
-        init_logger();
-        let temp_dir = tempfile::tempdir().unwrap();
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let popcorn_settings = PopcornSettings {
-            subtitle_settings: SubtitleSettings {
-                directory: temp_path.to_string(),
-                auto_cleaning_enabled: false,
-                default_subtitle: SubtitleLanguage::Croatian,
-                font_family: SubtitleFamily::Arial,
-                font_size: 28,
-                decoration: DecorationType::None,
-                bold: false,
-            },
-            ui_settings: UiSettings {
-                default_language: "fr".to_string(),
-                ui_scale: UiScale::new(1f32).expect("Expected ui scale to be valid"),
-                start_screen: Category::Movies,
-                maximized: false,
-                native_window_enabled: false,
-            },
-            server_settings: Default::default(),
-            torrent_settings: Default::default(),
-            playback_settings: Default::default(),
-            tracking_settings: Default::default(),
-        };
-        let settings = Arc::new(
-            ApplicationConfig::builder()
-                .storage(temp_path)
-                .settings(popcorn_settings)
-                .build(),
-        );
-        let service = OpensubtitlesProvider::builder().settings(settings).build();
-        let subtitle_info = SubtitleInfo::builder()
-            .imdb_id("ipsum")
-            .language(SubtitleLanguage::French)
-            .build();
-        let subtitles: Vec<SubtitleInfo> = vec![subtitle_info.clone()];
-
-        let result = service.select_or_default(&subtitles);
-
-        assert_eq!(subtitle_info, result)
     }
 
     #[test]

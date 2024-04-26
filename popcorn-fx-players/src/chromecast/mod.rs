@@ -8,31 +8,38 @@ mod errors;
 mod models;
 mod player;
 pub mod transcode;
+mod cast;
 
 #[cfg(test)]
 mod tests {
-    use std::io::{Cursor, Read};
+    use std::borrow::Cow;
     use std::net::SocketAddr;
     use std::sync::Arc;
 
-    use log::{debug, error, info};
+    use log::{debug, error};
     use mdns_sd::{ServiceDaemon, ServiceInfo};
-    use protobuf::CodedInputStream;
-    use tokio::io::{AsyncReadExt, AsyncWriteExt, sink, split};
+    use mockall::mock;
+    use rust_cast::channels::media::{ResumeState, Status, StatusEntry};
+    use rust_cast::channels::receiver::{Application, CastDeviceApp};
+    use serde::Serialize;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::{TcpListener, TcpStream};
     use tokio::runtime::Runtime;
     use tokio_rustls::{rustls, TlsAcceptor};
     use tokio_rustls::rustls::pki_types::PrivateKeyDer;
-    use tokio_rustls::server::TlsStream;
 
+    use popcorn_fx_core::core::subtitles::{MockSubtitleProvider, SubtitleServer};
     use popcorn_fx_core::core::utils::network::available_socket;
+
+    use crate::chromecast;
+    use crate::chromecast::cast::{FxCastDevice, MockFxCastDevice};
 
     use super::*;
 
     pub struct TestInstance {
         pub addr: SocketAddr,
         pub mdns: Option<ServiceDaemon>,
-        pub player: Option<ChromecastPlayer>,
+        pub player: Option<ChromecastPlayer<MockFxCastDevice>>,
         pub runtime: Arc<Runtime>,
     }
 
@@ -55,14 +62,18 @@ mod tests {
             instance
         }
 
-        pub fn new_player() -> Self {
+        pub fn new_player(device: Box<dyn Fn() -> MockFxCastDevice + Send + Sync>) -> Self {
             let mut instance = Self::new();
+            let provider = MockSubtitleProvider::new();
+            let subtitle_server = SubtitleServer::new(&Arc::new(Box::new(provider)));
             let player = ChromecastPlayer::builder()
                 .id("MyChromecastId")
                 .name("MyChromecastName")
                 .cast_model("Chromecast")
                 .cast_address(instance.addr.ip().to_string())
                 .cast_port(instance.addr.port())
+                .subtitle_server(Arc::new(subtitle_server))
+                .cast_device_factory(Box::new(move |_, _| Ok(device())))
                 .heartbeat_millis(500)
                 .build()
                 .unwrap();
@@ -110,7 +121,7 @@ mod tests {
             match acceptor.accept(stream).await {
                 Ok(stream) => {
                     debug!("Client TLS connection stream has been established for {}", socket);
-                    let (mut stream, conn) = stream.into_inner();
+                    let (mut stream, _conn) = stream.into_inner();
                     let (mut reader, mut writer) = stream.split();
 
                     loop {
@@ -122,18 +133,19 @@ mod tests {
                         }
                         let len = u32::from_be_bytes(len_buf) as usize;
 
+                        if len == 0 {
+                            debug!("Stopping TLS connection stream");
+                            break;
+                        }
+
                         // Read the protobuf message
                         let mut buf = vec![0u8; len];
-                        if let Err(e) = reader.read_exact(&mut buf).await {
+                        if let Err(e) = reader.read(&mut buf).await {
                             error!("Failed to read message, {}", e);
                             continue;
                         }
 
-                        // Parse the protobuf message
-                        let mut input_stream = CodedInputStream::from_bytes(&buf);
-                        let mut message = String::new();
-                        input_stream.read_to_string(&mut message);
-                        info!("Received proto message {}", message);
+                        writer.write_all(&[0u8; 0]).await.unwrap();
                     }
                 }
                 Err(e) => error!("Failed to accept client TLS connection, {}", e),

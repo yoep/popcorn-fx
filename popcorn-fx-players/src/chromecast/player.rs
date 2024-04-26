@@ -33,7 +33,7 @@ const MEDIA_CHANNEL_NAMESPACE: &str = "urn:x-cast:com.google.cast.media";
 const SUBTITLE_CONTENT_TYPE: &str = "text/vtt";
 
 /// The type of the factory function used to create the Chromecast client device.
-pub type DeviceFactory<D: FxCastDevice> = Box<dyn Fn(String, u16) -> chromecast::Result<D> + Send + Sync>;
+pub type DeviceFactory<D> = Box<dyn Fn(String, u16) -> chromecast::Result<D> + Send + Sync>;
 
 /// The Chromecast player allows the playback of media items on a specific Chromecast device.
 #[derive(Debug, Display)]

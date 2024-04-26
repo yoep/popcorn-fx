@@ -1,6 +1,6 @@
 use std::ptr;
 
-use log::{info, trace};
+use log::trace;
 
 use popcorn_fx_core::{from_c_vec, into_c_owned};
 use popcorn_fx_core::core::subtitles::model::SubtitleInfo;

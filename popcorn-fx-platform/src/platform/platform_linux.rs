@@ -1,11 +1,11 @@
 use log::{debug, error, info, trace, warn};
+
+use popcorn_fx_core::core::platform;
+use popcorn_fx_core::core::platform::PlatformError;
 use x11rb::connection::RequestConnection;
 use x11rb::protocol::dpms::{ConnectionExt as DpmsConnectionExt, DPMSMode};
 use x11rb::protocol::xproto::{Blanking, ConnectionExt as ScreensaverConnectionExt, Exposures};
 use x11rb::rust_connection::{ConnectionError, RustConnection};
-
-use popcorn_fx_core::core::platform;
-use popcorn_fx_core::core::platform::PlatformError;
 
 use crate::platform::SystemPlatform;
 
@@ -19,15 +19,21 @@ pub struct PlatformLinux {
 impl PlatformLinux {
     fn update_dpms_state(&self, mode: DPMSMode) -> platform::Result<()> {
         let conn = self.conn.as_ref().unwrap();
-        if let None = conn.extension_information(x11rb::protocol::dpms::X11_EXTENSION_NAME).unwrap() {
-            return Err(PlatformError::Screensaver("DPMS extension not found, unable to prevent sleeping mode".to_string()));
+        if let None = conn
+            .extension_information(x11rb::protocol::dpms::X11_EXTENSION_NAME)
+            .unwrap()
+        {
+            return Err(PlatformError::Screensaver(
+                "DPMS extension not found, unable to prevent sleeping mode".to_string(),
+            ));
         }
 
         trace!("Sending DPMS force level to X11 server");
         conn.dpms_force_level(mode)
             .map_err(|e| PlatformError::Screensaver(e.to_string()))
             .map(|cookie| {
-                cookie.check()
+                cookie
+                    .check()
                     .map(|_| {
                         debug!("X11 DPMS mode activated");
                         Ok(())
@@ -43,7 +49,8 @@ impl PlatformLinux {
         conn.set_screen_saver(i16::MAX, 0, Blanking::NOT_PREFERRED, Exposures::NOT_ALLOWED)
             .map_err(|e| PlatformError::Screensaver(format!("X11 connection error, {}", e)))
             .map(|cookie| {
-                cookie.check()
+                cookie
+                    .check()
                     .map(|_| {
                         debug!("Screensaver has been disabled");
                         Ok(())
@@ -61,16 +68,14 @@ impl SystemPlatform for PlatformLinux {
         }
 
         match self.update_dpms_state(DPMSMode::ON) {
-            Ok(_) => {
-                match self.disable_x11_screensaver() {
-                    Ok(_) => {
-                        info!("X11 screensaver mode deactivated");
-                        return true;
-                    }
-                    Err(e) => error!("Screensaver failed, {}", e)
+            Ok(_) => match self.disable_x11_screensaver() {
+                Ok(_) => {
+                    info!("X11 screensaver mode deactivated");
+                    return true;
                 }
-            }
-            Err(e) => error!("Power management failed, {}", e)
+                Err(e) => error!("Screensaver failed, {}", e),
+            },
+            Err(e) => error!("Power management failed, {}", e),
         }
 
         false
@@ -112,9 +117,7 @@ impl Default for PlatformLinux {
             })
             .unwrap();
 
-        Self {
-            conn
-        }
+        Self { conn }
     }
 }
 

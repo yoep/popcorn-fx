@@ -94,7 +94,7 @@ impl TorrentCollection {
                     let _ = cache.insert(e);
                     Ok(())
                 }
-                Err(e) => Err(e)
+                Err(e) => Err(e),
             };
         }
 
@@ -103,26 +103,27 @@ impl TorrentCollection {
     }
 
     fn load_collection_from_storage(&self) -> torrents::Result<Collection> {
-        match self.storage.options()
+        match self
+            .storage
+            .options()
             .serializer(FILENAME)
-            .read::<Collection>() {
+            .read::<Collection>()
+        {
             Ok(e) => Ok(e),
-            Err(e) => {
-                match e {
-                    StorageError::NotFound(file) => {
-                        debug!("Creating new torrent collection file {}", file);
-                        Ok(Collection::default())
-                    }
-                    StorageError::ReadingFailed(_, error) => {
-                        error!("Failed to load torrent collection, {}", error);
-                        Err(TorrentError::TorrentCollectionLoadingFailed(error))
-                    }
-                    _ => {
-                        warn!("Unexpected error returned from storage, {}", e);
-                        Ok(Collection::default())
-                    }
+            Err(e) => match e {
+                StorageError::NotFound(file) => {
+                    debug!("Creating new torrent collection file {}", file);
+                    Ok(Collection::default())
                 }
-            }
+                StorageError::ReadingFailed(_, error) => {
+                    error!("Failed to load torrent collection, {}", error);
+                    Err(TorrentError::TorrentCollectionLoadingFailed(error))
+                }
+                _ => {
+                    warn!("Unexpected error returned from storage, {}", e);
+                    Ok(Collection::default())
+                }
+            },
         }
     }
 
@@ -131,11 +132,15 @@ impl TorrentCollection {
     }
 
     async fn save_async(&self, collection: &Collection) {
-        match self.storage.options()
+        match self
+            .storage
+            .options()
             .serializer(FILENAME)
-            .write_async(collection).await {
+            .write_async(collection)
+            .await
+        {
             Ok(_) => info!("Torrent collection data has been saved"),
-            Err(e) => error!("Failed to save torrent collection, {}", e)
+            Err(e) => error!("Failed to save torrent collection, {}", e),
         }
     }
 }
@@ -192,15 +197,15 @@ mod test {
         let temp_path = temp_dir.path().to_str().unwrap();
         let collection = TorrentCollection::new(temp_path);
         copy_test_file(temp_path, "torrent-collection.json", None);
-        let expected_result = vec![
-            MagnetInfo {
-                name: "MyMagnet2".to_string(),
-                magnet_uri: "magnet:?MyMagnet2MagnetUrl".to_string(),
-            }
-        ];
+        let expected_result = vec![MagnetInfo {
+            name: "MyMagnet2".to_string(),
+            magnet_uri: "magnet:?MyMagnet2MagnetUrl".to_string(),
+        }];
 
         collection.remove(uri);
-        let result = collection.all().expect("expected the magnets to be returned");
+        let result = collection
+            .all()
+            .expect("expected the magnets to be returned");
 
         assert_eq!(expected_result, result)
     }

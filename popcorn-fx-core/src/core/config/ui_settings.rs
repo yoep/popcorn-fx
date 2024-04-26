@@ -9,7 +9,8 @@ use crate::core::media::Category;
 
 const UI_SCALE_SUFFIX: &str = "%";
 const DEFAULT_LANGUAGE: fn() -> String = || "en".to_string();
-const DEFAULT_UI_SCALE: fn() -> UiScale = || UiScale::new(1f32).expect("Expected the ui scale to be valid");
+const DEFAULT_UI_SCALE: fn() -> UiScale =
+    || UiScale::new(1f32).expect("Expected the ui scale to be valid");
 const DEFAULT_START_SCREEN: fn() -> Category = || Category::Movies;
 const DEFAULT_MAXIMIZED: fn() -> bool = || false;
 const DEFAULT_NATIVE_WINDOW: fn() -> bool = || false;
@@ -62,12 +63,13 @@ pub struct UiScale {
 impl UiScale {
     pub fn new(value: f32) -> crate::core::config::Result<Self> {
         if value < 0f32 {
-            return Err(ConfigError::InvalidValue(value.to_string(), "UiScale.value".to_string()));
+            return Err(ConfigError::InvalidValue(
+                value.to_string(),
+                "UiScale.value".to_string(),
+            ));
         }
 
-        Ok(Self {
-            value
-        })
+        Ok(Self { value })
     }
 }
 
@@ -100,9 +102,7 @@ mod test {
 
     #[test]
     fn test_ui_scale_display_text() {
-        let scale = UiScale {
-            value: 1.25f32
-        };
+        let scale = UiScale { value: 1.25f32 };
         let expected_result = "125%".to_string();
 
         let result = scale.to_string();

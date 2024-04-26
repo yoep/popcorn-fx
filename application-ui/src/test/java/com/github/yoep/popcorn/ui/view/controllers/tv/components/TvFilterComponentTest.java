@@ -3,7 +3,7 @@ package com.github.yoep.popcorn.ui.view.controllers.tv.components;
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.lib.StringArray;
+import com.github.yoep.popcorn.backend.lib.FxStringArray;
 import com.github.yoep.popcorn.backend.media.filters.model.Category;
 import com.github.yoep.popcorn.backend.media.filters.model.Genre;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
@@ -82,7 +82,7 @@ class TvFilterComponentTest {
     @Test
     void testOnCategoryChanged_shouldUpdateGenres() {
         var category = Category.MOVIES;
-        var genreValues = mock(StringArray.class);
+        var genreValues = mock(FxStringArray.class);
         component.initialize(url, resourceBundle);
         when(genreValues.values()).thenReturn(Collections.singletonList("lorem"));
         when(fxLib.retrieve_provider_genres(instance, category.getProviderName())).thenReturn(genreValues);

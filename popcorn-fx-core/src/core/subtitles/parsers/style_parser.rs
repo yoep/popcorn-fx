@@ -25,7 +25,7 @@ pub struct StyleParser {
 impl StyleParser {
     pub fn new() -> Self {
         Self {
-            regex: Regex::new(TEXT_PATTERN).unwrap()
+            regex: Regex::new(TEXT_PATTERN).unwrap(),
         }
     }
 
@@ -33,7 +33,8 @@ impl StyleParser {
         let mut texts: Vec<StyledText> = vec![];
 
         for caps in self.regex.captures_iter(line.as_str()) {
-            let text = caps.get(3)
+            let text = caps
+                .get(3)
                 .map(|e| e.as_str())
                 .map(|e| e.replace("\n", ""))
                 .map(|e| e.to_string())
@@ -42,7 +43,12 @@ impl StyleParser {
             let style = self.retrieve_style_indicator(&caps);
 
             if !text.is_empty() {
-                texts.push(StyledText::new(text, style == STYLE_ITALIC, style == STYLE_BOLD, style == STYLE_UNDERLINE));
+                texts.push(StyledText::new(
+                    text,
+                    style == STYLE_ITALIC,
+                    style == STYLE_BOLD,
+                    style == STYLE_UNDERLINE,
+                ));
             }
         }
 
@@ -50,7 +56,8 @@ impl StyleParser {
     }
 
     pub fn to_line_string(&self, line: &SubtitleLine) -> String {
-        line.texts().iter()
+        line.texts()
+            .iter()
             .map(|e| Self::text_to_string(e))
             .join("")
     }

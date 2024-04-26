@@ -4,8 +4,13 @@ use std::os::raw::c_char;
 
 use log::{error, trace};
 
-use popcorn_fx_core::{from_c_into_boxed, from_c_string, from_c_vec, into_c_owned, into_c_string, into_c_vec};
-use popcorn_fx_core::core::media::{Episode, Genre, Images, MediaDetails, MediaError, MediaIdentifier, MediaOverview, MediaType, MovieDetails, MovieOverview, Rating, ShowDetails, ShowOverview, SortBy, TorrentInfo};
+use popcorn_fx_core::{
+    from_c_into_boxed, from_c_string, from_c_vec, into_c_owned, into_c_string, into_c_vec,
+};
+use popcorn_fx_core::core::media::{
+    Episode, Genre, Images, MediaDetails, MediaError, MediaIdentifier, MediaOverview, MediaType,
+    MovieDetails, MovieOverview, Rating, ShowDetails, ShowOverview, SortBy, TorrentInfo,
+};
 use popcorn_fx_core::core::media::favorites::FavoriteEvent;
 use popcorn_fx_core::core::media::watched::WatchedEvent;
 
@@ -77,9 +82,12 @@ pub struct MediaSetC {
 
 impl MediaSetC {
     pub fn from_movies(movies: Vec<MovieOverview>) -> Self {
-        let (movies, movies_len) = into_c_vec(movies.into_iter()
-            .map(|e| MovieOverviewC::from(e))
-            .collect());
+        let (movies, movies_len) = into_c_vec(
+            movies
+                .into_iter()
+                .map(|e| MovieOverviewC::from(e))
+                .collect(),
+        );
 
         Self {
             movies,
@@ -90,9 +98,8 @@ impl MediaSetC {
     }
 
     pub fn from_shows(shows: Vec<ShowOverview>) -> Self {
-        let (shows, shows_len) = into_c_vec(shows.into_iter()
-            .map(|e| ShowOverviewC::from(e))
-            .collect());
+        let (shows, shows_len) =
+            into_c_vec(shows.into_iter().map(|e| ShowOverviewC::from(e)).collect());
 
         Self {
             movies: ptr::null_mut(),
@@ -109,9 +116,7 @@ impl MediaSetC {
 
         let movies: Vec<MovieOverviewC> = from_c_vec(self.movies, self.movies_len);
 
-        movies.into_iter()
-            .map(|e| e.to_struct())
-            .collect()
+        movies.into_iter().map(|e| e.to_struct()).collect()
     }
 
     pub fn shows(&self) -> Vec<ShowOverview> {
@@ -121,9 +126,7 @@ impl MediaSetC {
 
         let shows: Vec<ShowOverviewC> = from_c_vec(self.shows, self.movies_len);
 
-        shows.into_iter()
-            .map(|e| e.to_struct())
-            .collect()
+        shows.into_iter().map(|e| e.to_struct()).collect()
     }
 }
 
@@ -168,7 +171,7 @@ impl MovieOverviewC {
             year: into_c_string(movie.year().clone()),
             rating: match movie.rating() {
                 None => ptr::null_mut(),
-                Some(e) => into_c_owned(RatingC::from(e))
+                Some(e) => into_c_owned(RatingC::from(e)),
             },
             images: ImagesC::from(movie.images()),
         }
@@ -217,12 +220,20 @@ pub struct MovieDetailsC {
 impl MovieDetailsC {
     pub fn from(movie: MovieDetails) -> Self {
         trace!("Converting MovieDetails to C for {{{}}}", movie);
-        let (genres, genres_len) = into_c_vec(movie.genres().iter()
-            .map(|e| into_c_string(e.clone()))
-            .collect());
-        let (torrents, torrents_len) = into_c_vec(movie.torrents().iter()
-            .map(|(k, v)| TorrentEntryC::from(k, v))
-            .collect());
+        let (genres, genres_len) = into_c_vec(
+            movie
+                .genres()
+                .iter()
+                .map(|e| into_c_string(e.clone()))
+                .collect(),
+        );
+        let (torrents, torrents_len) = into_c_vec(
+            movie
+                .torrents()
+                .iter()
+                .map(|(k, v)| TorrentEntryC::from(k, v))
+                .collect(),
+        );
 
         Self {
             title: into_c_string(movie.title()),
@@ -231,7 +242,7 @@ impl MovieDetailsC {
             runtime: movie.runtime().clone(),
             rating: match movie.rating() {
                 None => ptr::null_mut(),
-                Some(e) => into_c_owned(RatingC::from(e))
+                Some(e) => into_c_owned(RatingC::from(e)),
             },
             images: ImagesC::from(movie.images()),
             synopsis: into_c_string(movie.synopsis().clone()),
@@ -250,14 +261,16 @@ impl From<&MovieDetailsC> for MovieDetails {
         let mut rating = None;
         let genres = if !value.genres.is_null() && value.genres_len > 0 {
             trace!("Converting MovieDetails genres {:?}", value.genres);
-            from_c_vec(value.genres, value.genres_len).into_iter()
+            from_c_vec(value.genres, value.genres_len)
+                .into_iter()
                 .map(|e| from_c_string(e))
                 .collect()
         } else {
             trace!("MovieDetails genres is empty, using empty array");
             vec![]
         };
-        let torrents = from_c_vec(value.torrents, value.torrents_len).iter()
+        let torrents = from_c_vec(value.torrents, value.torrents_len)
+            .iter()
             .map(|e| e.torrents())
             .collect();
 
@@ -307,7 +320,7 @@ impl ShowOverviewC {
             images: ImagesC::from(show.images()),
             rating: match show.rating() {
                 None => ptr::null_mut(),
-                Some(e) => into_c_owned(RatingC::from(e))
+                Some(e) => into_c_owned(RatingC::from(e)),
             },
         }
     }
@@ -356,10 +369,15 @@ pub struct ShowDetailsC {
 impl ShowDetailsC {
     pub fn from(show: ShowDetails) -> Self {
         trace!("Converting ShowDetails to C {}", show);
-        let (genres, genres_len) = into_c_vec(show.genres().iter()
-            .map(|e| into_c_string(e.clone()))
-            .collect());
-        let episodes = show.episodes().iter()
+        let (genres, genres_len) = into_c_vec(
+            show.genres()
+                .iter()
+                .map(|e| into_c_string(e.clone()))
+                .collect(),
+        );
+        let episodes = show
+            .episodes()
+            .iter()
             .map(|e| EpisodeC::from(e.clone()))
             .collect();
         let (episodes, episodes_len) = into_c_vec(episodes);
@@ -373,7 +391,7 @@ impl ShowDetailsC {
             images: ImagesC::from(show.images()),
             rating: match show.rating() {
                 None => ptr::null_mut(),
-                Some(e) => into_c_owned(RatingC::from(e))
+                Some(e) => into_c_owned(RatingC::from(e)),
             },
             synopsis: into_c_string(show.synopsis().clone()),
             runtime: show.runtime().clone(),
@@ -425,7 +443,9 @@ pub struct EpisodeC {
 impl From<Episode> for EpisodeC {
     fn from(value: Episode) -> Self {
         trace!("Converting Episode to C {}", value);
-        let torrents = value.torrents().iter()
+        let torrents = value
+            .torrents()
+            .iter()
             .map(|(k, v)| TorrentQualityC::from(k, v))
             .collect();
         let (torrents, len) = into_c_vec(torrents);
@@ -437,7 +457,8 @@ impl From<Episode> for EpisodeC {
             title: into_c_string(value.title().clone()),
             synopsis: into_c_string(value.synopsis()),
             tvdb_id: into_c_string(value.tvdb_id().clone()),
-            thumb: value.thumb()
+            thumb: value
+                .thumb()
                 .map(|e| into_c_string(e.clone()))
                 .or_else(|| Some(ptr::null_mut()))
                 .unwrap(),
@@ -464,7 +485,8 @@ impl From<&EpisodeC> for Episode {
         };
         let torrents = if value.len > 0 {
             trace!("Converting EpisodeC torrents");
-            let mut result: HashMap<String, TorrentInfo> = HashMap::with_capacity(value.len as usize);
+            let mut result: HashMap<String, TorrentInfo> =
+                HashMap::with_capacity(value.len as usize);
 
             for torrent_quality in from_c_vec(value.torrents, value.len) {
                 let quality = from_c_string(torrent_quality.quality);
@@ -702,10 +724,7 @@ impl GenreC {
 
     pub fn to_struct(&self) -> Genre {
         trace!("Converting Genre from C {:?}", self);
-        Genre::new(
-            from_c_string(self.key),
-            from_c_string(self.text),
-        )
+        Genre::new(from_c_string(self.key), from_c_string(self.text))
     }
 }
 
@@ -726,10 +745,7 @@ impl SortByC {
 
     pub fn to_struct(&self) -> SortBy {
         trace!("Converting SortBy from C {:?}", self);
-        SortBy::new(
-            from_c_string(self.key),
-            from_c_string(self.text),
-        )
+        SortBy::new(from_c_string(self.key), from_c_string(self.text))
     }
 }
 
@@ -806,9 +822,12 @@ pub struct TorrentEntryC {
 
 impl TorrentEntryC {
     fn from(language: &String, qualities: &HashMap<String, TorrentInfo>) -> Self {
-        let (qualities, len) = into_c_vec(qualities.iter()
-            .map(|(k, v)| TorrentQualityC::from(k, v))
-            .collect());
+        let (qualities, len) = into_c_vec(
+            qualities
+                .iter()
+                .map(|(k, v)| TorrentQualityC::from(k, v))
+                .collect(),
+        );
 
         Self {
             language: into_c_string(language.clone()),
@@ -819,7 +838,8 @@ impl TorrentEntryC {
 
     pub fn torrents(&self) -> (String, HashMap<String, TorrentInfo>) {
         let language = from_c_string(self.language);
-        let qualities = from_c_vec(self.qualities, self.len).into_iter()
+        let qualities = from_c_vec(self.qualities, self.len)
+            .into_iter()
             .map(|e| (from_c_string(e.quality), TorrentInfo::from(e.torrent)))
             .collect();
 
@@ -881,15 +901,15 @@ impl From<&TorrentInfo> for TorrentMediaInfoC {
             peer: value.peer().clone(),
             size: match value.size() {
                 None => ptr::null_mut(),
-                Some(e) => into_c_string(e.clone())
+                Some(e) => into_c_string(e.clone()),
             },
             filesize: match value.filesize() {
                 None => ptr::null_mut(),
-                Some(e) => into_c_string(e.clone())
+                Some(e) => into_c_string(e.clone()),
             },
             file: match value.file() {
                 None => ptr::null_mut(),
-                Some(e) => into_c_string(e.clone())
+                Some(e) => into_c_string(e.clone()),
             },
         }
     }
@@ -935,14 +955,16 @@ pub enum FavoriteEventC {
     ///
     /// * `*mut c_char`   - The imdb id of the media item that changed.
     /// * `bool`            - The new like state of the media item.
-    LikedStateChanged(*mut c_char, bool)
+    LikedStateChanged(*mut c_char, bool),
 }
 
 impl FavoriteEventC {
     pub fn from(event: FavoriteEvent) -> Self {
         trace!("Converting FavoriteEvent to C {}", &event);
         match event {
-            FavoriteEvent::LikedStateChanged(id, state) => Self::LikedStateChanged(into_c_string(id.clone()), state.clone()),
+            FavoriteEvent::LikedStateChanged(id, state) => {
+                Self::LikedStateChanged(into_c_string(id.clone()), state.clone())
+            }
         }
     }
 }
@@ -954,14 +976,16 @@ pub enum WatchedEventC {
     ///
     /// * `*mut c_char`   - The imdb id of the media item that changed.
     /// * `bool`            - The new watched state of the media item.
-    WatchedStateChanged(*mut c_char, bool)
+    WatchedStateChanged(*mut c_char, bool),
 }
 
 impl WatchedEventC {
     pub fn from(event: WatchedEvent) -> Self {
         trace!("Converting WatchedEvent to C {}", &event);
         match event {
-            WatchedEvent::WatchedStateChanged(id, state) => Self::WatchedStateChanged(into_c_string(id), state)
+            WatchedEvent::WatchedStateChanged(id, state) => {
+                Self::WatchedStateChanged(into_c_string(id), state)
+            }
         }
     }
 }
@@ -1073,7 +1097,11 @@ mod test {
 
         let result = MediaItemC::from(episode);
 
-        assert_ne!(ptr::null_mut(), result.episode, "expected the episode data to be present");
+        assert_ne!(
+            ptr::null_mut(),
+            result.episode,
+            "expected the episode data to be present"
+        );
         let result = from_c_owned(result.episode);
         assert_eq!(title.to_string(), from_c_string(result.title));
         assert_eq!(overview.to_string(), from_c_string(result.synopsis));
@@ -1097,7 +1125,10 @@ mod test {
 
         let result = MediaItemC::from(Box::new(show.clone()) as Box<dyn MediaIdentifier>);
 
-        assert!(!result.show_overview.is_null(), "expected the show overview to have been mapped");
+        assert!(
+            !result.show_overview.is_null(),
+            "expected the show overview to have been mapped"
+        );
         let result = from_c_owned(result.show_overview);
         assert_eq!(imdb_id.to_string(), from_c_string(result.imdb_id));
         assert_eq!(tvdb_id.to_string(), from_c_string(result.tvdb_id));
@@ -1214,15 +1245,24 @@ mod test {
 
         match result {
             MediaResult::Err(e) => assert_eq!(MediaErrorC::NoAvailableProviders, e),
-            _ => assert!(false, "expected MediaResult::Err, got {:?} instead", result)
+            _ => assert!(false, "expected MediaResult::Err, got {:?} instead", result),
         }
     }
 
     #[test]
     fn test_media_error_c_from() {
-        assert_eq!(MediaErrorC::NoAvailableProviders, MediaErrorC::from(MediaError::NoAvailableProviders));
-        assert_eq!(MediaErrorC::NoAvailableProviders, MediaErrorC::from(MediaError::ProviderNotFound(String::new())));
-        assert_eq!(MediaErrorC::Failed, MediaErrorC::from(MediaError::FavoriteNotFound(String::new())));
+        assert_eq!(
+            MediaErrorC::NoAvailableProviders,
+            MediaErrorC::from(MediaError::NoAvailableProviders)
+        );
+        assert_eq!(
+            MediaErrorC::NoAvailableProviders,
+            MediaErrorC::from(MediaError::ProviderNotFound(String::new()))
+        );
+        assert_eq!(
+            MediaErrorC::Failed,
+            MediaErrorC::from(MediaError::FavoriteNotFound(String::new()))
+        );
     }
 
     #[test]

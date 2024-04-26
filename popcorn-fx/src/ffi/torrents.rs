@@ -8,7 +8,10 @@ use popcorn_fx_core::core::Handle;
 use popcorn_fx_core::core::torrents::{DownloadStatus, TorrentInfo, TorrentState, TorrentWrapper};
 use popcorn_fx_torrent::torrent::DefaultTorrentManager;
 
-use crate::ffi::{CancelTorrentCallback, DownloadStatusC, ResolveTorrentCallback, ResolveTorrentInfoCallback, TorrentFileInfoC, TorrentStreamEventC, TorrentStreamEventCallback};
+use crate::ffi::{
+    CancelTorrentCallback, DownloadStatusC, ResolveTorrentCallback, ResolveTorrentInfoCallback,
+    TorrentFileInfoC, TorrentStreamEventC, TorrentStreamEventCallback,
+};
 use crate::PopcornFX;
 
 /// Callback function for handling changes in the state of a torrent.
@@ -19,16 +22,26 @@ use crate::PopcornFX;
 /// * `handle` - The handle to the torrent.
 /// * `state` - The new state of the torrent.
 #[no_mangle]
-pub extern "C" fn torrent_state_changed(popcorn_fx: &mut PopcornFX, handle: *mut c_char, state: TorrentState) {
+pub extern "C" fn torrent_state_changed(
+    popcorn_fx: &mut PopcornFX,
+    handle: *mut c_char,
+    state: TorrentState,
+) {
     let handle = from_c_string(handle);
-    if let Some(torrent) = popcorn_fx.torrent_manager().by_handle(handle.as_str())
-        .and_then(|e| e.upgrade()) {
+    if let Some(torrent) = popcorn_fx
+        .torrent_manager()
+        .by_handle(handle.as_str())
+        .and_then(|e| e.upgrade())
+    {
         if let Some(wrapper) = torrent.downcast_ref::<TorrentWrapper>() {
             trace!("Processing C torrent state changed");
             wrapper.state_changed(state);
         }
     } else {
-        warn!("Unable to process torrent state changed, handle {} not found", handle);
+        warn!(
+            "Unable to process torrent state changed, handle {} not found",
+            handle
+        );
     }
 }
 
@@ -40,15 +53,25 @@ pub extern "C" fn torrent_state_changed(popcorn_fx: &mut PopcornFX, handle: *mut
 /// * `handle` - The handle to the torrent.
 /// * `piece` - The index of the finished piece.
 #[no_mangle]
-pub extern "C" fn torrent_piece_finished(popcorn_fx: &mut PopcornFX, handle: *mut c_char, piece: u32) {
+pub extern "C" fn torrent_piece_finished(
+    popcorn_fx: &mut PopcornFX,
+    handle: *mut c_char,
+    piece: u32,
+) {
     let handle = from_c_string(handle);
-    if let Some(torrent) = popcorn_fx.torrent_manager().by_handle(handle.as_str())
-        .and_then(|e| e.upgrade()) {
+    if let Some(torrent) = popcorn_fx
+        .torrent_manager()
+        .by_handle(handle.as_str())
+        .and_then(|e| e.upgrade())
+    {
         if let Some(wrapper) = torrent.downcast_ref::<TorrentWrapper>() {
             wrapper.piece_finished(piece);
         }
     } else {
-        warn!("Unable to process torrent piece finished, handle {} not found", handle);
+        warn!(
+            "Unable to process torrent piece finished, handle {} not found",
+            handle
+        );
     }
 }
 
@@ -60,16 +83,26 @@ pub extern "C" fn torrent_piece_finished(popcorn_fx: &mut PopcornFX, handle: *mu
 /// * `handle` - The handle to the torrent.
 /// * `download_status` - The new download status of the torrent.
 #[no_mangle]
-pub extern "C" fn torrent_download_status(popcorn_fx: &mut PopcornFX, handle: *mut c_char, download_status: DownloadStatusC) {
+pub extern "C" fn torrent_download_status(
+    popcorn_fx: &mut PopcornFX,
+    handle: *mut c_char,
+    download_status: DownloadStatusC,
+) {
     let handle = from_c_string(handle);
-    if let Some(torrent) = popcorn_fx.torrent_manager().by_handle(handle.as_str())
-        .and_then(|e| e.upgrade()) {
+    if let Some(torrent) = popcorn_fx
+        .torrent_manager()
+        .by_handle(handle.as_str())
+        .and_then(|e| e.upgrade())
+    {
         if let Some(wrapper) = torrent.downcast_ref::<TorrentWrapper>() {
             trace!("Processing C torrent download status {:?}", download_status);
             wrapper.download_status(DownloadStatus::from(download_status));
         }
     } else {
-        warn!("Unable to process torrent download status, handle {} not found", handle);
+        warn!(
+            "Unable to process torrent download status, handle {} not found",
+            handle
+        );
     }
 }
 
@@ -102,9 +135,15 @@ pub extern "C" fn torrent_download_status(popcorn_fx: &mut PopcornFX, handle: *m
 ///
 /// This function performs unsafe operations, as it deals with raw C-compatible function pointers.
 #[no_mangle]
-pub extern "C" fn torrent_resolve_info_callback(popcorn_fx: &mut PopcornFX, callback: ResolveTorrentInfoCallback) {
+pub extern "C" fn torrent_resolve_info_callback(
+    popcorn_fx: &mut PopcornFX,
+    callback: ResolveTorrentInfoCallback,
+) {
     trace!("Registering new C resolve torrent info callback");
-    if let Some(manager) = popcorn_fx.torrent_manager().downcast_ref::<DefaultTorrentManager>() {
+    if let Some(manager) = popcorn_fx
+        .torrent_manager()
+        .downcast_ref::<DefaultTorrentManager>()
+    {
         manager.register_resolve_info_callback(Box::new(move |e| {
             trace!("Executing resolve magnet callback for {}", e);
             let info_c = callback(into_c_string(e));
@@ -132,17 +171,25 @@ pub extern "C" fn torrent_resolve_info_callback(popcorn_fx: &mut PopcornFX, call
 /// * `popcorn_fx` - A mutable reference to the `PopcornFX` instance.
 /// * `callback` - The `ResolveTorrentCallback` function to be registered.
 #[no_mangle]
-pub extern "C" fn register_torrent_resolve_callback(popcorn_fx: &mut PopcornFX, callback: ResolveTorrentCallback) {
+pub extern "C" fn register_torrent_resolve_callback(
+    popcorn_fx: &mut PopcornFX,
+    callback: ResolveTorrentCallback,
+) {
     trace!("Registering new C resolve torrent callback");
-    if let Some(manager) = popcorn_fx.torrent_manager().downcast_ref::<DefaultTorrentManager>() {
-        manager.register_resolve_callback(Box::new(move |file_info, torrent_directory, auto_start| {
-            trace!("Executing resolve torrent callback for {:?}", file_info);
-            let torrent_file_info = TorrentFileInfoC::from(file_info.clone());
-            let torrent_directory = into_c_string(torrent_directory.to_string());
-            let torrent = callback(torrent_file_info, torrent_directory, auto_start);
-            trace!("Received {:?} as resolve torrent callback result", torrent);
-            TorrentWrapper::from(torrent)
-        }));
+    if let Some(manager) = popcorn_fx
+        .torrent_manager()
+        .downcast_ref::<DefaultTorrentManager>()
+    {
+        manager.register_resolve_callback(Box::new(
+            move |file_info, torrent_directory, auto_start| {
+                trace!("Executing resolve torrent callback for {:?}", file_info);
+                let torrent_file_info = TorrentFileInfoC::from(file_info.clone());
+                let torrent_directory = into_c_string(torrent_directory.to_string());
+                let torrent = callback(torrent_file_info, torrent_directory, auto_start);
+                trace!("Received {:?} as resolve torrent callback result", torrent);
+                TorrentWrapper::from(torrent)
+            },
+        ));
     }
 }
 
@@ -162,9 +209,15 @@ pub extern "C" fn register_torrent_resolve_callback(popcorn_fx: &mut PopcornFX, 
 /// * `popcorn_fx` - A mutable reference to the PopcornFX instance.
 /// * `callback` - A `CancelTorrentCallback` function that will be registered to handle cancel torrent events.
 #[no_mangle]
-pub extern "C" fn torrent_cancel_callback(popcorn_fx: &mut PopcornFX, callback: CancelTorrentCallback) {
+pub extern "C" fn torrent_cancel_callback(
+    popcorn_fx: &mut PopcornFX,
+    callback: CancelTorrentCallback,
+) {
     trace!("Registering new C cancel torrent callback");
-    if let Some(manager) = popcorn_fx.torrent_manager().downcast_ref::<DefaultTorrentManager>() {
+    if let Some(manager) = popcorn_fx
+        .torrent_manager()
+        .downcast_ref::<DefaultTorrentManager>()
+    {
         manager.register_cancel_callback(Box::new(move |handle| {
             trace!("Executing cancel torrent callback for {:?}", handle);
             callback(into_c_string(handle));
@@ -186,23 +239,45 @@ pub extern "C" fn torrent_cancel_callback(popcorn_fx: &mut PopcornFX, callback: 
 ///
 /// A pointer to an integer value representing the handle of the registered callback, or a null pointer if registration fails.
 #[no_mangle]
-pub extern "C" fn register_torrent_stream_event_callback(popcorn_fx: &mut PopcornFX, stream_handle: i64, callback: TorrentStreamEventCallback) -> *const i64 {
-    trace!("Registering a new torrent stream event callback for handle {}", stream_handle);
+pub extern "C" fn register_torrent_stream_event_callback(
+    popcorn_fx: &mut PopcornFX,
+    stream_handle: i64,
+    callback: TorrentStreamEventCallback,
+) -> *const i64 {
+    trace!(
+        "Registering a new torrent stream event callback for handle {}",
+        stream_handle
+    );
     let handle = Handle::from(stream_handle);
-    popcorn_fx.torrent_stream_server().subscribe(handle, Box::new(move |event| {
-        trace!("Invoking torrent stream event C callback for {:?}", event);
-        callback(TorrentStreamEventC::from(event))
-    }))
+    popcorn_fx
+        .torrent_stream_server()
+        .subscribe(
+            handle,
+            Box::new(move |event| {
+                trace!("Invoking torrent stream event C callback for {:?}", event);
+                callback(TorrentStreamEventC::from(event))
+            }),
+        )
         .map(|handle| handle.value() as *const i64)
         .unwrap_or(ptr::null())
 }
 
 #[no_mangle]
-pub extern "C" fn remove_torrent_stream_event_callback(popcorn_fx: &mut PopcornFX, stream_handle: *const i64, callback_handle: *const i64) {
-    trace!("Removing torrent event stream callback handle {:?} of {:?}", callback_handle, stream_handle);
+pub extern "C" fn remove_torrent_stream_event_callback(
+    popcorn_fx: &mut PopcornFX,
+    stream_handle: *const i64,
+    callback_handle: *const i64,
+) {
+    trace!(
+        "Removing torrent event stream callback handle {:?} of {:?}",
+        callback_handle,
+        stream_handle
+    );
     let callback_handle = Handle::from(callback_handle as i64);
     let handle = Handle::from(stream_handle as i64);
-    popcorn_fx.torrent_stream_server().unsubscribe(handle, callback_handle);
+    popcorn_fx
+        .torrent_stream_server()
+        .unsubscribe(handle, callback_handle);
 }
 
 /// Clean the torrents directory.
@@ -232,7 +307,9 @@ mod test {
 
     use popcorn_fx_core::{assert_timeout_eq, into_c_string};
     use popcorn_fx_core::core::block_in_place;
-    use popcorn_fx_core::core::torrents::{MockTorrent, Torrent, TorrentEvent, TorrentFileInfo, TorrentManager};
+    use popcorn_fx_core::core::torrents::{
+        MockTorrent, Torrent, TorrentEvent, TorrentFileInfo, TorrentManager,
+    };
     use popcorn_fx_core::testing::{copy_test_file, init_logger};
 
     use crate::ffi::TorrentC;
@@ -275,7 +352,11 @@ mod test {
     }
 
     #[no_mangle]
-    extern "C" fn torrent_resolve_callback(file_info: TorrentFileInfoC, _: *mut c_char, _: bool) -> TorrentC {
+    extern "C" fn torrent_resolve_callback(
+        file_info: TorrentFileInfoC,
+        _: *mut c_char,
+        _: bool,
+    ) -> TorrentC {
         info!("Received torrent resolve callback for {:?}", file_info);
         TorrentC {
             handle: into_c_string("MyHandle"),
@@ -332,14 +413,24 @@ mod test {
             Err(e) => assert!(false, "expected torrent to have been created, got {}", e),
         }
 
-        torrent_manager.by_handle(handle).expect("expected the torrent handle to have been found");
-        torrent_state_changed(&mut instance, into_c_string(handle.to_string()), TorrentState::Starting);
+        torrent_manager
+            .by_handle(handle)
+            .expect("expected the torrent handle to have been found");
+        torrent_state_changed(
+            &mut instance,
+            into_c_string(handle.to_string()),
+            TorrentState::Starting,
+        );
 
         let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
 
         match result {
             TorrentEvent::StateChanged(state) => assert_eq!(TorrentState::Starting, state),
-            _ => assert!(false, "expected TorrentEvent::StateChanged, but got {} instead", result),
+            _ => assert!(
+                false,
+                "expected TorrentEvent::StateChanged, but got {} instead",
+                result
+            ),
         }
     }
 
@@ -348,24 +439,24 @@ mod test {
         init_logger();
         let handle = "MyHandleId654";
         let temp_dir = tempdir().unwrap();
-        let temp_path = temp_dir.path().to_str().unwrap
-        ();
+        let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = new_instance(temp_path);
 
-        let manager = instance.torrent_manager().downcast_ref::<DefaultTorrentManager>().unwrap();
-        manager.register_resolve_callback(Box::new(|_, _, _| {
-            TorrentWrapper {
-                handle: handle.to_string(),
-                filepath: Default::default(),
-                has_bytes: Mutex::new(Box::new(|_| true)),
-                has_piece: Mutex::new(Box::new(|_| true)),
-                total_pieces: Mutex::new(Box::new(|| 10)),
-                prioritize_bytes: Mutex::new(Box::new(|_| {})),
-                prioritize_pieces: Mutex::new(Box::new(|_| {})),
-                sequential_mode: Mutex::new(Box::new(|| {})),
-                torrent_state: Mutex::new(Box::new(|| TorrentState::Downloading)),
-                callbacks: Default::default(),
-            }
+        let manager = instance
+            .torrent_manager()
+            .downcast_ref::<DefaultTorrentManager>()
+            .unwrap();
+        manager.register_resolve_callback(Box::new(|_, _, _| TorrentWrapper {
+            handle: handle.to_string(),
+            filepath: Default::default(),
+            has_bytes: Mutex::new(Box::new(|_| true)),
+            has_piece: Mutex::new(Box::new(|_| true)),
+            total_pieces: Mutex::new(Box::new(|| 10)),
+            prioritize_bytes: Mutex::new(Box::new(|_| {})),
+            prioritize_pieces: Mutex::new(Box::new(|_| {})),
+            sequential_mode: Mutex::new(Box::new(|| {})),
+            torrent_state: Mutex::new(Box::new(|| TorrentState::Downloading)),
+            callbacks: Default::default(),
         }));
 
         torrent_piece_finished(&mut instance, into_c_string(handle), 5);
@@ -390,12 +481,29 @@ mod test {
         let mut torrent_settings = instance.settings().user_settings().torrent_settings;
         torrent_settings.directory = PathBuf::from(temp_path);
         instance.settings().update_torrent(torrent_settings);
-        let filepath = copy_test_file(temp_path, "example.mp4", Some("torrents/subdir/example.mp4"));
+        let filepath = copy_test_file(
+            temp_path,
+            "example.mp4",
+            Some("torrents/subdir/example.mp4"),
+        );
 
         cleanup_torrents_directory(&mut instance);
 
-        assert_timeout_eq!(Duration::from_millis(200), false, PathBuf::from(filepath.clone()).exists());
-        assert_eq!(true, instance.settings().user_settings().torrent_settings.directory.exists(), "expected the torrent directory to still exist");
+        assert_timeout_eq!(
+            Duration::from_millis(200),
+            false,
+            PathBuf::from(filepath.clone()).exists()
+        );
+        assert_eq!(
+            true,
+            instance
+                .settings()
+                .user_settings()
+                .torrent_settings
+                .directory
+                .exists(),
+            "expected the torrent directory to still exist"
+        );
     }
 
     #[test]
@@ -404,26 +512,33 @@ mod test {
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut torrent = MockTorrent::new();
-        torrent.expect_file()
-            .return_const(PathBuf::from(temp_path));
-        torrent.expect_total_pieces()
-            .return_const(10);
-        torrent.expect_subscribe()
-            .return_const(Handle::new());
-        torrent.expect_state()
+        torrent.expect_file().return_const(PathBuf::from(temp_path));
+        torrent.expect_total_pieces().return_const(10);
+        torrent.expect_subscribe().return_const(Handle::new());
+        torrent
+            .expect_state()
             .return_const(TorrentState::Downloading);
-        torrent.expect_prioritize_pieces()
-            .return_const(());
+        torrent.expect_prioritize_pieces().return_const(());
         let torrent = Arc::new(Box::new(torrent) as Box<dyn Torrent>);
         let mut instance = new_instance(temp_path);
 
-        let stream = instance.torrent_stream_server().start_stream(Arc::downgrade(&torrent))
+        let stream = instance
+            .torrent_stream_server()
+            .start_stream(Arc::downgrade(&torrent))
             .expect("expected a stream to have been returned")
             .upgrade()
             .expect("expected the stream instance to still be valid");
 
         let stream_handle_value = stream.stream_handle().value();
-        let callback = register_torrent_stream_event_callback(&mut instance, stream_handle_value, torrent_stream_event_callback) as i64;
-        remove_torrent_stream_event_callback(&mut instance, stream_handle_value as *const i64, callback as *const i64);
+        let callback = register_torrent_stream_event_callback(
+            &mut instance,
+            stream_handle_value,
+            torrent_stream_event_callback,
+        ) as i64;
+        remove_torrent_stream_event_callback(
+            &mut instance,
+            stream_handle_value as *const i64,
+            callback as *const i64,
+        );
     }
 }

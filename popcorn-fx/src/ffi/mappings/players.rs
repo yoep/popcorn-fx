@@ -9,8 +9,13 @@ use log::trace;
 use tokio::sync::Mutex;
 
 use popcorn_fx_core::{from_c_string, from_c_vec, into_c_owned, into_c_string, into_c_vec};
-use popcorn_fx_core::core::{block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks};
-use popcorn_fx_core::core::players::{Player, PlayerEvent, PlayerManagerEvent, PlayerState, PlayMediaRequest, PlayRequest, PlayStreamRequest, PlayUrlRequest};
+use popcorn_fx_core::core::{
+    block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks,
+};
+use popcorn_fx_core::core::players::{
+    Player, PlayerEvent, PlayerManagerEvent, PlayerState, PlayMediaRequest, PlayRequest,
+    PlayStreamRequest, PlayUrlRequest,
+};
 
 use crate::ffi::PlayerChangedEventC;
 
@@ -204,12 +209,15 @@ impl Player for PlayerWrapper {
 
     fn request(&self) -> Option<Weak<Box<dyn PlayRequest>>> {
         let mutex = block_in_place(self.play_request.lock());
-        mutex.as_ref()
-            .map(|e| Arc::downgrade(e))
+        mutex.as_ref().map(|e| Arc::downgrade(e))
     }
 
     async fn play(&self, request: Box<dyn PlayRequest>) {
-        trace!("Invoking play callback on C player for {:?} with {:?}", self, request);
+        trace!(
+            "Invoking play callback on C player for {:?} with {:?}",
+            self,
+            request
+        );
         {
             let callback = self.play_callback.lock().await;
             callback(PlayRequestC::from(&request));
@@ -241,7 +249,6 @@ impl Player for PlayerWrapper {
         }
     }
 
-
     fn stop(&self) {
         {
             let callback = block_in_place(self.stop_callback.lock());
@@ -258,7 +265,10 @@ impl Debug for PlayerWrapper {
             .field("description", &self.description)
             .field("graphic_resource", &self.graphic_resource.len())
             .field("state", &self.state)
-            .field("embedded_playback_supported", &self.embedded_playback_supported)
+            .field(
+                "embedded_playback_supported",
+                &self.embedded_playback_supported,
+            )
             .field("callbacks", &self.callbacks)
             .finish()
     }
@@ -270,20 +280,22 @@ impl From<PlayerRegistrationC> for PlayerWrapper {
         let id = from_c_string(value.id);
         let name = from_c_string(value.name);
         let description = from_c_string(value.description);
-        let graphic_resource : Vec<u8> = if !value.graphic_resource.is_null() {
+        let graphic_resource: Vec<u8> = if !value.graphic_resource.is_null() {
             from_c_vec(value.graphic_resource, value.graphic_resource_len)
         } else {
             Vec::new()
         };
         let play_callback = value.play_callback;
-        let play_callback: Box<dyn Fn(PlayRequestC) + Send + Sync> = Box::new(move |e| play_callback(e));
+        let play_callback: Box<dyn Fn(PlayRequestC) + Send + Sync> =
+            Box::new(move |e| play_callback(e));
         let pause_callback = value.pause_callback;
         let resume_callback = value.resume_callback;
         let seek_callback = value.seek_callback;
         let stop_callback = value.stop_callback;
         let pause_callback: Box<dyn Fn() + Send + Sync> = Box::new(move || pause_callback());
         let resume_callback: Box<dyn Fn() + Send + Sync> = Box::new(move || resume_callback());
-        let seek_callback: Box<dyn Fn(u64) + Send + Sync> = Box::new(move |time| seek_callback(time));
+        let seek_callback: Box<dyn Fn(u64) + Send + Sync> =
+            Box::new(move |time| seek_callback(time));
         let stop_callback: Box<dyn Fn() + Send + Sync> = Box::new(move || stop_callback());
 
         Self {
@@ -324,14 +336,14 @@ impl PlayerWrapperC {
 impl From<Weak<Box<dyn Player>>> for PlayerWrapperC {
     fn from(value: Weak<Box<dyn Player>>) -> Self {
         trace!("Converting PlayerWrapperC from Weak<Box<dyn Player>>");
-        let id = into_c_string(value.upgrade()
-            .map(|e| e.id().to_string())
-            .unwrap_or("unknown".to_string()));
+        let id = into_c_string(
+            value
+                .upgrade()
+                .map(|e| e.id().to_string())
+                .unwrap_or("unknown".to_string()),
+        );
 
-        Self {
-            id,
-            wrapper: value,
-        }
+        Self { id, wrapper: value }
     }
 }
 
@@ -359,10 +371,7 @@ impl From<Vec<PlayerC>> for PlayerSet {
         trace!("Converting C players to PlayerSet");
         let (players, len) = into_c_vec(value);
 
-        Self {
-            players,
-            len,
-        }
+        Self { players, len }
     }
 }
 
@@ -396,14 +405,22 @@ impl From<PlayerManagerEvent> for PlayerManagerEventC {
     /// The equivalent `PlayerManagerEventC` enum.
     fn from(value: PlayerManagerEvent) -> Self {
         match value {
-            PlayerManagerEvent::ActivePlayerChanged(e) => PlayerManagerEventC::ActivePlayerChanged(PlayerChangedEventC::from(e)),
+            PlayerManagerEvent::ActivePlayerChanged(e) => {
+                PlayerManagerEventC::ActivePlayerChanged(PlayerChangedEventC::from(e))
+            }
             PlayerManagerEvent::PlayersChanged => PlayerManagerEventC::PlayersChanged,
-            PlayerManagerEvent::PlayerDurationChanged(e) => PlayerManagerEventC::PlayerDurationChanged(e),
+            PlayerManagerEvent::PlayerDurationChanged(e) => {
+                PlayerManagerEventC::PlayerDurationChanged(e)
+            }
             PlayerManagerEvent::PlayerTimeChanged(e) => PlayerManagerEventC::PlayerTimeChanged(e),
             PlayerManagerEvent::PlayerStateChanged(e) => PlayerManagerEventC::PlayerStateChanged(e),
-            PlayerManagerEvent::PlayerPlaybackChanged(e) => PlayerManagerEventC::PlayerPlaybackChanged(e.upgrade()
-                .map(|e| PlayRequestC::from(e))
-                .expect("expected the play request to still be in scope")),
+            PlayerManagerEvent::PlayerPlaybackChanged(e) => {
+                PlayerManagerEventC::PlayerPlaybackChanged(
+                    e.upgrade()
+                        .map(|e| PlayRequestC::from(e))
+                        .expect("expected the play request to still be in scope"),
+                )
+            }
         }
     }
 }
@@ -478,7 +495,10 @@ impl From<&PlayUrlRequest> for PlayRequestC {
 
 impl From<&PlayStreamRequest> for PlayRequestC {
     fn from(value: &PlayStreamRequest) -> Self {
-        trace!("Converting PlayStreamRequest to PlayRequestC for {:?}", value);
+        trace!(
+            "Converting PlayStreamRequest to PlayRequestC for {:?}",
+            value
+        );
         let caption = if let Some(caption) = value.caption() {
             into_c_string(caption)
         } else {
@@ -526,7 +546,10 @@ impl From<&PlayStreamRequest> for PlayRequestC {
 
 impl From<&PlayMediaRequest> for PlayRequestC {
     fn from(value: &PlayMediaRequest) -> Self {
-        trace!("Converting PlayMediaRequest to PlayRequestC for {:?}", value);
+        trace!(
+            "Converting PlayMediaRequest to PlayRequestC for {:?}",
+            value
+        );
         let caption = if let Some(caption) = value.caption() {
             into_c_string(caption)
         } else {
@@ -654,15 +677,18 @@ mod tests {
         let player_description = "lorem ipsum dolor";
         let graphic_resource = vec![80, 20];
         let mut mock_player = MockPlayer::new();
-        mock_player.expect_id()
-            .return_const(player_id.to_string());
-        mock_player.expect_name()
+        mock_player.expect_id().return_const(player_id.to_string());
+        mock_player
+            .expect_name()
             .return_const(player_name.to_string());
-        mock_player.expect_description()
+        mock_player
+            .expect_description()
             .return_const(player_description.to_string());
-        mock_player.expect_graphic_resource()
+        mock_player
+            .expect_graphic_resource()
             .return_const(graphic_resource.clone());
-        mock_player.expect_state()
+        mock_player
+            .expect_state()
             .return_const(PlayerState::Playing);
         let player = Arc::new(Box::new(mock_player) as Box<dyn Player>);
 
@@ -699,7 +725,10 @@ mod tests {
         let result = PlayerC::from(player);
 
         assert_eq!(state, result.state);
-        assert_eq!(true, result.embedded_playback_supported, "expected the embedded playback value to have been set");
+        assert_eq!(
+            true, result.embedded_playback_supported,
+            "expected the embedded playback value to have been set"
+        );
     }
 
     #[test]
@@ -769,12 +798,23 @@ mod tests {
         if let PlayerManagerEventC::ActivePlayerChanged(e) = result {
             assert_eq!(player_id.to_string(), from_c_string(e.new_player_id));
         } else {
-            assert!(false, "expected PlayerManagerEventC::ActivePlayerChanged, got {:?} instead", result);
+            assert!(
+                false,
+                "expected PlayerManagerEventC::ActivePlayerChanged, got {:?} instead",
+                result
+            );
         }
 
-        let result = crate::ffi::mappings::players::PlayerManagerEventC::from(PlayerManagerEvent::PlayersChanged);
-        if let PlayerManagerEventC::PlayersChanged = result {} else {
-            assert!(false, "expected PlayerManagerEventC::PlayersChanged, got {:?} instead", result);
+        let result = crate::ffi::mappings::players::PlayerManagerEventC::from(
+            PlayerManagerEvent::PlayersChanged,
+        );
+        if let PlayerManagerEventC::PlayersChanged = result {
+        } else {
+            assert!(
+                false,
+                "expected PlayerManagerEventC::PlayersChanged, got {:?} instead",
+                result
+            );
         }
     }
 
@@ -807,7 +847,8 @@ mod tests {
         let background = "MyBackground.png";
         let handle = Handle::new();
         let mut torrent_stream = MockTorrentStream::new();
-        torrent_stream.expect_stream_handle()
+        torrent_stream
+            .expect_stream_handle()
             .times(1)
             .return_const(handle.clone());
         let torrent_stream = Arc::new(Box::new(torrent_stream) as Box<dyn TorrentStream>);
@@ -836,7 +877,8 @@ mod tests {
         let background = "MyBackground.png";
         let handle = Handle::new();
         let mut torrent_stream = MockTorrentStream::new();
-        torrent_stream.expect_stream_handle()
+        torrent_stream
+            .expect_stream_handle()
             .times(1)
             .return_const(handle.clone());
         let torrent_stream = Arc::new(Box::new(torrent_stream) as Box<dyn TorrentStream>);

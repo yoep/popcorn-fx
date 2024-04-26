@@ -9,7 +9,6 @@ import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguag
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfoSet;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
-import com.github.yoep.popcorn.backend.subtitles.model.SubtitleType;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Collections;
@@ -122,14 +121,6 @@ public class SubtitleServiceImpl implements SubtitleService {
             synchronized (mutex) {
                 return fxLib.select_or_default_subtitle(instance, set);
             }
-        }
-    }
-
-    @Override
-    public String serve(SubtitleInfo.ByReference subtitle, SubtitleMatcher.ByValue matcher, SubtitleType type) {
-        Objects.requireNonNull(subtitle, "subtitle cannot be null");
-        synchronized (mutex) {
-            return fxLib.serve_subtitle(instance, subtitle, matcher, type.ordinal());
         }
     }
 

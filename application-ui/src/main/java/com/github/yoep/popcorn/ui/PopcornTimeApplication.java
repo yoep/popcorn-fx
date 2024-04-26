@@ -39,6 +39,8 @@ import com.github.yoep.popcorn.ui.view.controllers.desktop.sections.TorrentColle
 import com.github.yoep.popcorn.ui.view.controllers.tv.components.TvFilterComponent;
 import com.github.yoep.popcorn.ui.view.services.*;
 import javafx.application.Application;
+import com.github.yoep.popcorn.ui.view.services.MaximizeService;
+import com.sun.jna.StringArray;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;

@@ -76,7 +76,13 @@ impl From<i32> for TorrentState {
 
 /// Represents the download status of a torrent.
 #[derive(Debug, Display, Clone, PartialOrd, PartialEq)]
-#[display(fmt = "progress: {}, seeds: {}, peers: {}, download_speed: {}", progress, seeds, peers, download_speed)]
+#[display(
+    fmt = "progress: {}, seeds: {}, peers: {}, download_speed: {}",
+    progress,
+    seeds,
+    peers,
+    download_speed
+)]
 pub struct DownloadStatus {
     /// Progress indication between 0 and 1 that represents the progress of the download.
     pub progress: f32,
@@ -145,7 +151,13 @@ impl Display for MockTorrent {
 
 /// The torrent information
 #[derive(Debug, Display, Clone, PartialEq)]
-#[display(fmt = "uri: {}, name: {}, directory_name: {:?}, total_files: {}", uri, name, directory_name, total_files)]
+#[display(
+    fmt = "uri: {}, name: {}, directory_name: {:?}, total_files: {}",
+    uri,
+    name,
+    directory_name,
+    total_files
+)]
 pub struct TorrentInfo {
     /// The magnet uri of the torrent
     pub uri: String,
@@ -161,7 +173,11 @@ pub struct TorrentInfo {
 
 impl TorrentInfo {
     pub fn by_filename(&self, filename: &str) -> Option<TorrentFileInfo> {
-        trace!("Searching for torrent file {} within {:?}", filename, self.files);
+        trace!(
+            "Searching for torrent file {} within {:?}",
+            filename,
+            self.files
+        );
         self.by_filename_without_directory(filename)
             .or_else(|| {
                 debug!("Torrent file couldn't be found for {} without torrent directory, searching with torrent directory {:?}", filename, self.directory_name);
@@ -184,25 +200,32 @@ impl TorrentInfo {
             index += 1;
         }
 
-        largest_file_index
-            .and_then(|e| self.files.get(e))
-            .cloned()
+        largest_file_index.and_then(|e| self.files.get(e)).cloned()
     }
 
     fn by_filename_without_directory(&self, filename: &str) -> Option<&TorrentFileInfo> {
-        debug!("Searching for torrent file {} without torrent directory", filename);
-        self.files.iter()
-            .find(|e| {
-                let filepath = Self::simplified_filepath(e.file_path.as_str());
-                let expected_filepath = Self::simplified_filepath(filename);
+        debug!(
+            "Searching for torrent file {} without torrent directory",
+            filename
+        );
+        self.files.iter().find(|e| {
+            let filepath = Self::simplified_filepath(e.file_path.as_str());
+            let expected_filepath = Self::simplified_filepath(filename);
 
-                trace!("Checking if filepath \"{}\" matches filename \"{}\" without torrent directory", filepath, expected_filepath);
-                filepath.eq_ignore_ascii_case(expected_filepath.as_str())
-            })
+            trace!(
+                "Checking if filepath \"{}\" matches filename \"{}\" without torrent directory",
+                filepath,
+                expected_filepath
+            );
+            filepath.eq_ignore_ascii_case(expected_filepath.as_str())
+        })
     }
 
     fn by_filename_with_directory(&self, filename: &str) -> Option<&TorrentFileInfo> {
-        debug!("Searching for torrent file {} with torrent directory {:?}", filename, self.directory_name);
+        debug!(
+            "Searching for torrent file {} with torrent directory {:?}",
+            filename, self.directory_name
+        );
         let torrent_directory_name = self.directory_name.clone();
         let expected_filepath = PathBuf::from(torrent_directory_name.unwrap_or("".to_string()))
             .join(filename)
@@ -210,13 +233,16 @@ impl TorrentInfo {
             .map(Self::simplified_filepath)
             .expect("expected a valid filepath to have been created");
 
-        self.files.iter()
-            .find(|e| {
-                let filepath = Self::simplified_filepath(e.file_path.as_str());
-                
-                trace!("Checking if filepath \"{}\" matches filename \"{}\" with torrent directory", filepath, expected_filepath);
-                filepath.eq_ignore_ascii_case(expected_filepath.as_str())
-            })
+        self.files.iter().find(|e| {
+            let filepath = Self::simplified_filepath(e.file_path.as_str());
+
+            trace!(
+                "Checking if filepath \"{}\" matches filename \"{}\" with torrent directory",
+                filepath,
+                expected_filepath
+            );
+            filepath.eq_ignore_ascii_case(expected_filepath.as_str())
+        })
     }
 
     fn simplified_filepath(file_path: &str) -> String {
@@ -230,7 +256,13 @@ impl TorrentInfo {
 
 /// Represents information about a file within a torrent.
 #[derive(Debug, Display, Clone, PartialEq)]
-#[display(fmt = "filename: {}, path: {}, size: {}, index: {}", filename, file_path, file_size, file_index)]
+#[display(
+    fmt = "filename: {}, path: {}, size: {}, index: {}",
+    filename,
+    file_path,
+    file_size,
+    file_index
+)]
 pub struct TorrentFileInfo {
     /// The name of the file.
     pub filename: String,

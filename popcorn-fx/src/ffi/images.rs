@@ -72,9 +72,9 @@ pub extern "C" fn load_fanart(popcorn_fx: &mut PopcornFX, media: &MediaItemC) ->
     popcorn_fx.runtime().block_on(async move {
         match media.as_overview() {
             None => into_c_owned(ByteArray::from(vec![])),
-            Some(media_overview) => {
-                into_c_owned(ByteArray::from(image_loader.load_fanart(&media_overview).await))
-            }
+            Some(media_overview) => into_c_owned(ByteArray::from(
+                image_loader.load_fanart(&media_overview).await,
+            )),
         }
     })
 }
@@ -99,9 +99,9 @@ pub extern "C" fn load_poster(popcorn_fx: &mut PopcornFX, media: &MediaItemC) ->
     popcorn_fx.runtime().block_on(async move {
         match media.as_overview() {
             None => into_c_owned(ByteArray::from(vec![])),
-            Some(media_overview) => {
-                into_c_owned(ByteArray::from(image_loader.load_poster(&media_overview).await))
-            }
+            Some(media_overview) => into_c_owned(ByteArray::from(
+                image_loader.load_poster(&media_overview).await,
+            )),
         }
     })
 }
@@ -130,9 +130,7 @@ pub extern "C" fn load_image(popcorn_fx: &mut PopcornFX, url: *mut c_char) -> *m
                 warn!("Failed to load the image data from url {}", url);
                 ptr::null_mut()
             }
-            Some(data) => {
-                into_c_owned(ByteArray::from(data))
-            }
+            Some(data) => into_c_owned(ByteArray::from(data)),
         }
     })
 }
@@ -172,10 +170,8 @@ mod test {
         let expected_result = read_test_file_to_bytes("image.jpg");
         let server = MockServer::start();
         server.mock(|when, then| {
-            when.method(GET)
-                .path("/fanart.png");
-            then.status(200)
-                .body(expected_result.as_slice());
+            when.method(GET).path("/fanart.png");
+            then.status(200).body(expected_result.as_slice());
         });
         let media = MovieDetails {
             title: "lorem ipsum".to_string(),
@@ -209,10 +205,8 @@ mod test {
         let expected_result = read_test_file_to_bytes("image.jpg");
         let server = MockServer::start();
         server.mock(|when, then| {
-            when.method(GET)
-                .path("/poster.png");
-            then.status(200)
-                .body(expected_result.as_slice());
+            when.method(GET).path("/poster.png");
+            then.status(200).body(expected_result.as_slice());
         });
         let media = ShowDetails {
             imdb_id: "".to_string(),
@@ -250,14 +244,15 @@ mod test {
         let expected_result = read_test_file_to_bytes("image.jpg");
         let server = MockServer::start();
         server.mock(|when, then| {
-            when.method(GET)
-                .path("/image.png");
-            then.status(200)
-                .body(expected_result.as_slice());
+            when.method(GET).path("/image.png");
+            then.status(200).body(expected_result.as_slice());
         });
         let mut instance = PopcornFX::new(default_args(temp_path));
 
-        let array = from_c_owned(load_image(&mut instance, into_c_string(server.url("/image.png"))));
+        let array = from_c_owned(load_image(
+            &mut instance,
+            into_c_string(server.url("/image.png")),
+        ));
         let result = from_c_vec(array.values, array.len);
 
         assert_eq!(expected_result, result)

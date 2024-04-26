@@ -52,10 +52,15 @@ impl CacheFirstStrategy {
     ///     }
     /// }
     /// ```
-    pub async fn execute<E, C, O>(cache_data: C, operation: O) -> Result<Vec<u8>, CacheExecutionError<E>>
-        where E: Error,
-              C: Future<Output=Result<Vec<u8>, CacheError>>,
-              O: Future<Output=Result<Vec<u8>, CacheExecutionError<E>>> {
+    pub async fn execute<E, C, O>(
+        cache_data: C,
+        operation: O,
+    ) -> Result<Vec<u8>, CacheExecutionError<E>>
+    where
+        E: Error,
+        C: Future<Output = Result<Vec<u8>, CacheError>>,
+        O: Future<Output = Result<Vec<u8>, CacheExecutionError<E>>>,
+    {
         trace!("Executing cache first strategy");
         let bytes = cache_data.await;
 
@@ -114,17 +119,25 @@ impl CacheLastStrategy {
     ///     }
     /// }
     /// ```
-    pub async fn execute<E, C, O>(cache_data: C, operation: O) -> Result<Vec<u8>, CacheExecutionError<E>>
-        where E: Error,
-              C: Future<Output=Result<Vec<u8>, CacheError>>,
-              O: Future<Output=Result<Vec<u8>, CacheExecutionError<E>>> {
+    pub async fn execute<E, C, O>(
+        cache_data: C,
+        operation: O,
+    ) -> Result<Vec<u8>, CacheExecutionError<E>>
+    where
+        E: Error,
+        C: Future<Output = Result<Vec<u8>, CacheError>>,
+        O: Future<Output = Result<Vec<u8>, CacheExecutionError<E>>>,
+    {
         trace!("Executing cache last strategy");
         let result = operation.await;
 
         match result {
             Ok(e) => Ok(e),
             Err(e) => {
-                debug!("Cache operation failed, using cache data instead, reason: {}", e);
+                debug!(
+                    "Cache operation failed, using cache data instead, reason: {}",
+                    e
+                );
                 cache_data.await.map_err(|e| CacheExecutionError::Cache(e))
             }
         }
@@ -145,20 +158,46 @@ mod test {
     async fn test_cache_first() {
         init_logger();
 
-        match CacheFirstStrategy::execute(async { Ok(vec![0]) }, async { Err(CacheExecutionError::Operation(MediaError::ProviderNotFound("should not have been invoked".to_string()))) }).await {
+        match CacheFirstStrategy::execute(async { Ok(vec![0]) }, async {
+            Err(CacheExecutionError::Operation(
+                MediaError::ProviderNotFound("should not have been invoked".to_string()),
+            ))
+        })
+        .await
+        {
             Ok(e) => assert_eq!(vec![0], e),
-            Err(e) => assert!(false, "expected OK, but got {:?} instead", e)
+            Err(e) => assert!(false, "expected OK, but got {:?} instead", e),
         };
-        match CacheFirstStrategy::execute(async { Err(CacheError::NotFound("".to_string())) }, async { Ok::<Vec<u8>, CacheExecutionError<MediaError>>(vec![1]) }).await {
+        match CacheFirstStrategy::execute(
+            async { Err(CacheError::NotFound("".to_string())) },
+            async { Ok::<Vec<u8>, CacheExecutionError<MediaError>>(vec![1]) },
+        )
+        .await
+        {
             Ok(e) => assert_eq!(vec![1], e),
-            Err(e) => assert!(false, "expected OK, but got {:?} instead", e)
+            Err(e) => assert!(false, "expected OK, but got {:?} instead", e),
         };
-        match CacheFirstStrategy::execute(async { Err(CacheError::NotFound("".to_string())) }, async { Err(CacheExecutionError::Operation(MediaError::ProviderNotFound("lorem".to_string()))) }).await {
+        match CacheFirstStrategy::execute(
+            async { Err(CacheError::NotFound("".to_string())) },
+            async {
+                Err(CacheExecutionError::Operation(
+                    MediaError::ProviderNotFound("lorem".to_string()),
+                ))
+            },
+        )
+        .await
+        {
             Ok(_) => assert!(false, "expected an error to be returned"),
             Err(cache_error) => match cache_error {
-                CacheExecutionError::Operation(e) => assert_eq!(MediaError::ProviderNotFound("lorem".to_string()), e),
-                _ => assert!(false, "expected CacheExecutionError::Operation but got {:?} instead", cache_error)
-            }
+                CacheExecutionError::Operation(e) => {
+                    assert_eq!(MediaError::ProviderNotFound("lorem".to_string()), e)
+                }
+                _ => assert!(
+                    false,
+                    "expected CacheExecutionError::Operation but got {:?} instead",
+                    cache_error
+                ),
+            },
         };
     }
 
@@ -167,24 +206,51 @@ mod test {
         init_logger();
         let (tx, rx) = channel();
 
-        let _ = CacheLastStrategy::execute(async move {
-            tx.send(true).unwrap();
-            Ok(vec![0])
-        }, async { Ok::<Vec<u8>, CacheExecutionError<MediaError>>(vec![1]) })
-            .await
-            .unwrap();
-        assert!(rx.recv_timeout(Duration::from_millis(50)).is_err(), "the cache data should not have been invoked");
+        let _ = CacheLastStrategy::execute(
+            async move {
+                tx.send(true).unwrap();
+                Ok(vec![0])
+            },
+            async { Ok::<Vec<u8>, CacheExecutionError<MediaError>>(vec![1]) },
+        )
+        .await
+        .unwrap();
+        assert!(
+            rx.recv_timeout(Duration::from_millis(50)).is_err(),
+            "the cache data should not have been invoked"
+        );
 
-        match CacheLastStrategy::execute(async { Ok(vec![0]) }, async { Err(CacheExecutionError::Operation(MediaError::ProviderNotFound("should not have been invoked".to_string()))) }).await {
+        match CacheLastStrategy::execute(async { Ok(vec![0]) }, async {
+            Err(CacheExecutionError::Operation(
+                MediaError::ProviderNotFound("should not have been invoked".to_string()),
+            ))
+        })
+        .await
+        {
             Ok(e) => assert_eq!(vec![0], e),
-            Err(e) => assert!(false, "expected OK, but got {:?} instead", e)
+            Err(e) => assert!(false, "expected OK, but got {:?} instead", e),
         };
-        match CacheLastStrategy::execute(async { Err(CacheError::NotFound("".to_string())) }, async { Err(CacheExecutionError::Operation(MediaError::ProviderNotFound("lorem".to_string()))) }).await {
+        match CacheLastStrategy::execute(
+            async { Err(CacheError::NotFound("".to_string())) },
+            async {
+                Err(CacheExecutionError::Operation(
+                    MediaError::ProviderNotFound("lorem".to_string()),
+                ))
+            },
+        )
+        .await
+        {
             Ok(_) => assert!(false, "expected an error to be returned"),
             Err(cache_error) => match cache_error {
-                CacheExecutionError::Cache(e) => assert_eq!(CacheError::NotFound("".to_string()), e),
-                _ => assert!(false, "expected CacheExecutionError::Cache but got {:?} instead", cache_error)
-            }
+                CacheExecutionError::Cache(e) => {
+                    assert_eq!(CacheError::NotFound("".to_string()), e)
+                }
+                _ => assert!(
+                    false,
+                    "expected CacheExecutionError::Cache but got {:?} instead",
+                    cache_error
+                ),
+            },
         };
     }
 }

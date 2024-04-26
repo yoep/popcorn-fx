@@ -24,13 +24,20 @@ use crate::core::torrents::TorrentInfo;
 #[derive(Debug, Clone, Display, PartialEq)]
 pub enum Event {
     /// Invoked when the active player is changed
-    #[display(fmt = "Active player changed to {} ({})", "_0.new_player_id.as_str()", "_0.new_player_name.as_str()")]
+    #[display(
+        fmt = "Active player changed to {} ({})",
+        "_0.new_player_id.as_str()",
+        "_0.new_player_name.as_str()"
+    )]
     PlayerChanged(PlayerChangedEvent),
     /// Invoked when the player playback has started for a new media item
     #[display(fmt = "Player has started playback of {}", "_0.title.as_str()")]
     PlayerStarted(PlayerStartedEvent),
     /// Invoked when the player playback has stopped
-    #[display(fmt = "Player has been stopped with last known timestamp {:?}", "_0.time()")]
+    #[display(
+        fmt = "Player has been stopped with last known timestamp {:?}",
+        "_0.time()"
+    )]
     PlayerStopped(PlayerStoppedEvent),
     /// Invoked when the player/playback state is changed
     #[display(fmt = "Playback state has changed to {}", "_0")]

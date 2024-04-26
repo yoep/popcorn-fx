@@ -70,9 +70,7 @@ impl Default for Handle {
 
 impl From<i64> for Handle {
     fn from(value: i64) -> Self {
-        Self {
-            handle: value,
-        }
+        Self { handle: value }
     }
 }
 
@@ -84,14 +82,20 @@ mod tests {
     fn test_handle_new() {
         let result = Handle::new();
 
-        assert_ne!(result.handle, 0, "expected a unique id to have been generated");
+        assert_ne!(
+            result.handle, 0,
+            "expected a unique id to have been generated"
+        );
     }
 
     #[test]
     fn test_handle_default() {
         let result = Handle::default();
 
-        assert_ne!(result.handle, 0, "expected a unique id to have been generated");
+        assert_ne!(
+            result.handle, 0,
+            "expected a unique id to have been generated"
+        );
     }
 
     #[test]

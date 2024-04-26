@@ -89,9 +89,7 @@ pub enum SubtitleLanguage {
 impl SubtitleLanguage {
     /// Get the [SubtitleLanguage] for the given code.
     pub fn from_code(code: String) -> Option<Self> {
-        LANGUAGES.iter()
-            .find(|e| e.code() == code)
-            .cloned()
+        LANGUAGES.iter().find(|e| e.code() == code).cloned()
     }
 
     /// The subtitle language identifier code.
@@ -181,7 +179,8 @@ impl SubtitleLanguage {
 
 impl From<i32> for SubtitleLanguage {
     fn from(value: i32) -> Self {
-        LANGUAGES.iter()
+        LANGUAGES
+            .iter()
             .find(|e| ((*e).clone() as i32) == value)
             .cloned()
             .unwrap_or_else(|| panic!("Ordinal {} is out of range for SubtitleLanguage", value))
@@ -205,7 +204,8 @@ impl PartialOrd for SubtitleLanguage {
 
 impl Ord for SubtitleLanguage {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other).expect("expected a Ordering for SubtitleLanguage")
+        self.partial_cmp(other)
+            .expect("expected a Ordering for SubtitleLanguage")
     }
 }
 

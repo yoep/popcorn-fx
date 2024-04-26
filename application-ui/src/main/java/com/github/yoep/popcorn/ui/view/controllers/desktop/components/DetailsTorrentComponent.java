@@ -6,6 +6,7 @@ import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowTorrentDetailsEvent;
 import com.github.yoep.popcorn.backend.loader.LoaderService;
+import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
@@ -53,6 +54,7 @@ public class DetailsTorrentComponent implements Initializable {
     private final SubtitlePickerService subtitlePickerService;
     private final SubtitleService subtitleService;
     private final LoaderService loaderService;
+    private final PlaylistManager playlistManager;
 
     private TorrentInfo torrentInfo;
 
@@ -175,6 +177,7 @@ public class DetailsTorrentComponent implements Initializable {
     }
 
     void onFileInfoClicked(TorrentFileInfo fileInfo) {
+        playlistManager.play(torrentInfo, fileInfo);
         loaderService.load(torrentInfo, fileInfo);
     }
 

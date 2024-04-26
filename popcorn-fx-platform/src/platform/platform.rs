@@ -8,7 +8,9 @@ use souvlaki::{MediaControlEvent, MediaControls, MediaMetadata, MediaPlayback, P
 use tokio::sync::{Mutex, MutexGuard};
 
 use popcorn_fx_core::core::{Callbacks, CoreCallbacks};
-use popcorn_fx_core::core::platform::{Platform, PlatformCallback, PlatformData, PlatformEvent, PlatformInfo, PlatformType};
+use popcorn_fx_core::core::platform::{
+    Platform, PlatformCallback, PlatformData, PlatformEvent, PlatformInfo, PlatformType,
+};
 use popcorn_fx_core::core::playback::{MediaInfo, MediaNotificationEvent};
 
 #[cfg(target_os = "linux")]
@@ -59,9 +61,11 @@ impl DefaultPlatform {
                 debug!("System media controls have been created");
                 // attach the media controls events of the system to our known callbacks
                 let callbacks = self.callbacks.clone();
-                match controls.attach(move |event: MediaControlEvent| Self::handle_media_event(event, &callbacks)) {
+                match controls.attach(move |event: MediaControlEvent| {
+                    Self::handle_media_event(event, &callbacks)
+                }) {
                     Ok(_) => debug!("System media controls attached"),
-                    Err(e) => error!("Failed to attach system media controls, {:?}", e)
+                    Err(e) => error!("Failed to attach system media controls, {:?}", e),
                 };
 
                 Some(controls)
@@ -92,7 +96,7 @@ impl DefaultPlatform {
         trace!("Notifying system of media playback {:?}", metadata);
         match controls.set_metadata(metadata) {
             Ok(_) => info!("System has been notified of the new media playback"),
-            Err(e) => error!("System media notification failed, {:?}", e)
+            Err(e) => error!("System media notification failed, {:?}", e),
         };
     }
 
@@ -102,7 +106,7 @@ impl DefaultPlatform {
         trace!("Updating system media playback state to {}", state_info);
         match controls.set_playback(state) {
             Ok(_) => debug!("System media state has changed {}", state_info),
-            Err(e) => error!("System media state couldn't be updated, {:?}", e)
+            Err(e) => error!("System media state couldn't be updated, {:?}", e),
         }
     }
 
@@ -156,10 +160,20 @@ impl Platform for DefaultPlatform {
 
         if let Some(mut controls) = mutex.as_mut() {
             match &event {
-                MediaNotificationEvent::StateStarting(info) => self.on_media_info_changed(&mut controls, info.clone()),
-                MediaNotificationEvent::StatePlaying => self.on_playback_state_changed(&mut controls, MediaPlayback::Playing { progress: None }),
-                MediaNotificationEvent::StatePaused => self.on_playback_state_changed(&mut controls, MediaPlayback::Paused { progress: None }),
-                MediaNotificationEvent::StateStopped => self.on_playback_state_changed(&mut controls, MediaPlayback::Stopped),
+                MediaNotificationEvent::StateStarting(info) => {
+                    self.on_media_info_changed(&mut controls, info.clone())
+                }
+                MediaNotificationEvent::StatePlaying => self.on_playback_state_changed(
+                    &mut controls,
+                    MediaPlayback::Playing { progress: None },
+                ),
+                MediaNotificationEvent::StatePaused => self.on_playback_state_changed(
+                    &mut controls,
+                    MediaPlayback::Paused { progress: None },
+                ),
+                MediaNotificationEvent::StateStopped => {
+                    self.on_playback_state_changed(&mut controls, MediaPlayback::Stopped)
+                }
             }
         } else {
             warn!("Unable to handle the media playback notification, MediaControls not present")
@@ -181,7 +195,7 @@ impl PlatformData for DefaultPlatform {
         let platform_type = match OS {
             "windows" => PlatformType::Windows,
             "macos" => PlatformType::MacOs,
-            _ => PlatformType::Linux
+            _ => PlatformType::Linux,
         };
         let arch = String::from(ARCH);
 
@@ -195,11 +209,11 @@ impl PlatformData for DefaultPlatform {
 impl Default for DefaultPlatform {
     fn default() -> Self {
         #[cfg(target_os = "windows")]
-            let platform = Box::new(PlatformWin::default());
+        let platform = Box::new(PlatformWin::default());
         #[cfg(target_os = "macos")]
-            let platform = Box::new(PlatformMac::default());
+        let platform = Box::new(PlatformMac::default());
         #[cfg(target_os = "linux")]
-            let platform = Box::new(PlatformLinux::default());
+        let platform = Box::new(PlatformLinux::default());
 
         Self {
             platform: Arc::new(platform),
@@ -237,12 +251,12 @@ mod test {
     mock! {
         #[derive(Debug)]
         pub DummySystemPlatform{}
-    
+
         impl SystemPlatform for DummySystemPlatform {
             fn disable_screensaver(&self) -> bool;
-    
+
             fn enable_screensaver(&self) -> bool;
-    
+
             fn window_handle(&self) -> Option<*mut std::ffi::c_void>;
         }
     }
@@ -251,39 +265,43 @@ mod test {
     fn test_disable_screensaver() {
         init_logger();
         let mut sys_platform = MockDummySystemPlatform::new();
-        sys_platform.expect_disable_screensaver()
-            .returning(|| true);
-        sys_platform.expect_enable_screensaver()
-            .returning(|| false);
+        sys_platform.expect_disable_screensaver().returning(|| true);
+        sys_platform.expect_enable_screensaver().returning(|| false);
         let platform = DefaultPlatform {
             platform: Arc::new(Box::new(sys_platform)),
             controls: Default::default(),
             callbacks: Default::default(),
         };
 
-        assert!(platform.disable_screensaver(), "expected the screensaver to be disabled")
+        assert!(
+            platform.disable_screensaver(),
+            "expected the screensaver to be disabled"
+        )
     }
 
     #[test]
     fn test_enable_screensaver() {
         init_logger();
         let mut sys_platform = MockDummySystemPlatform::new();
-        sys_platform.expect_enable_screensaver()
-            .returning(|| true);
+        sys_platform.expect_enable_screensaver().returning(|| true);
         let platform = DefaultPlatform {
             platform: Arc::new(Box::new(sys_platform)),
             controls: Default::default(),
             callbacks: Default::default(),
         };
 
-        assert!(platform.enable_screensaver(), "expected the screensaver to be enabled")
+        assert!(
+            platform.enable_screensaver(),
+            "expected the screensaver to be enabled"
+        )
     }
 
     #[test]
     fn test_drop_default_platform() {
         init_logger();
         let mut sys_platform = MockDummySystemPlatform::new();
-        sys_platform.expect_enable_screensaver()
+        sys_platform
+            .expect_enable_screensaver()
             .returning(|| true)
             .times(1);
         let platform = DefaultPlatform {
@@ -299,17 +317,17 @@ mod test {
     fn test_platform_info() {
         let platform = DefaultPlatform::default();
         #[cfg(target_os = "windows")]
-            let platform_type = PlatformType::Windows;
+        let platform_type = PlatformType::Windows;
         #[cfg(target_os = "linux")]
-            let platform_type = PlatformType::Linux;
+        let platform_type = PlatformType::Linux;
         #[cfg(target_os = "macos")]
-            let platform_type = PlatformType::MacOs;
+        let platform_type = PlatformType::MacOs;
         #[cfg(target_arch = "x86_64")]
-            let arch = "x86_64";
+        let arch = "x86_64";
         #[cfg(target_arch = "aarch64")]
-            let arch = "aarch64";
+        let arch = "aarch64";
         #[cfg(target_arch = "arm")]
-            let arch = "arm";
+        let arch = "arm";
 
         let result = platform.info();
 

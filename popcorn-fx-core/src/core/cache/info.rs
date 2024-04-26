@@ -29,13 +29,18 @@ impl CacheInfo {
         let key = Self::normalize(key);
 
         if let Some(entries) = self.entries(name) {
-            trace!("Cache {} contains the following entries {:?}", name, entries);
+            trace!(
+                "Cache {} contains the following entries {:?}",
+                name,
+                entries
+            );
             debug!("Retrieving cache entry key {} from {}", key, name);
-            entries.iter()
-                .find(|e| e.key == key)
-                .cloned()
+            entries.iter().find(|e| e.key == key).cloned()
         } else {
-            trace!("Cache name \"{}\" not found, skipping key info retrieval", Self::normalize(name));
+            trace!(
+                "Cache name \"{}\" not found, skipping key info retrieval",
+                Self::normalize(name)
+            );
             None
         }
     }
@@ -53,8 +58,7 @@ impl CacheInfo {
         let name = Self::normalize(name);
 
         trace!("Retrieving cache entries of \"{}\"", name);
-        self.entries.get(name.as_str())
-            .map(|e| &e[..])
+        self.entries.get(name.as_str()).map(|e| &e[..])
     }
 
     /// Add a new entry to the cache.
@@ -83,7 +87,10 @@ impl CacheInfo {
                     entries.push(entry);
                     debug!("Added new cache {} entry {}", name, cloned_key);
                 } else {
-                    debug!("Cache {} entry {} already exists, new entry won't be added", name, entry.key)
+                    debug!(
+                        "Cache {} entry {} already exists, new entry won't be added",
+                        name, entry.key
+                    )
                 }
             }
         }
@@ -101,24 +108,28 @@ impl CacheInfo {
 
         match self.entries.get_mut(name.as_str()) {
             Some(entries) => {
-                let position = entries.iter()
-                    .position(|e| e.key == key);
+                let position = entries.iter().position(|e| e.key == key);
 
                 match position {
-                    None => trace!("Cache {} entry {} doesn't exist, ignoring remove action", name, key),
+                    None => trace!(
+                        "Cache {} entry {} doesn't exist, ignoring remove action",
+                        name,
+                        key
+                    ),
                     Some(e) => {
                         entries.remove(e);
                         debug!("Removed cache {} entry {}", name, key);
                     }
                 }
             }
-            None => trace!("Cache {} entry doesn't exist, ignoring remove action", name)
+            None => trace!("Cache {} entry doesn't exist, ignoring remove action", name),
         }
     }
 
     /// Retrieve a list of expired cache entries.
     pub fn expired(&self) -> Vec<ExpiredCacheEntry> {
-        let expired_entries: Vec<ExpiredCacheEntry> = self.entries
+        let expired_entries: Vec<ExpiredCacheEntry> = self
+            .entries
             .iter()
             .flat_map(|(name, entries)| {
                 entries
@@ -136,9 +147,7 @@ impl CacheInfo {
     }
 
     fn normalize(value: &str) -> String {
-        value
-            .to_lowercase()
-            .replace(' ', "")
+        value.to_lowercase().replace(' ', "")
     }
 }
 
@@ -192,7 +201,8 @@ impl CacheEntry {
 
     /// Get the filename of the cache entry.
     pub fn filename(&self) -> String {
-        self.path().file_name()
+        self.path()
+            .file_name()
             .expect("expected a file and not a directory")
             .to_str()
             .expect("string contains invalid UTF-8 sequence")
@@ -221,11 +231,12 @@ impl CacheEntry {
     pub fn created_on(&self) -> DateTime<Local> {
         trace!("Parsing cache entry creation datetime {}", self.created_on);
         match NaiveDateTime::parse_from_str(self.created_on.as_str(), DATETIME_FORMAT) {
-            Ok(e) => {
-                Local.from_local_datetime(&e).unwrap()
-            }
+            Ok(e) => Local.from_local_datetime(&e).unwrap(),
             Err(e) => {
-                error!("Failed to parse cache entry creation value \"{}\", {}", self.created_on, e);
+                error!(
+                    "Failed to parse cache entry creation value \"{}\", {}",
+                    self.created_on, e
+                );
                 Local.timestamp_opt(0, 0).unwrap()
             }
         }
@@ -250,14 +261,17 @@ mod test {
         let key = "ipsum";
         let filename = "my-filename.cache";
         let cache = CacheInfo {
-            entries: vec![
-                (cache_name.to_string(), vec![CacheEntry {
+            entries: vec![(
+                cache_name.to_string(),
+                vec![CacheEntry {
                     key: key.to_string(),
                     path: filename.to_string(),
                     created_on: "2023-01-01T12:00:00Z".to_string(),
                     expires_after: 200,
-                }])
-            ].into_iter().collect(),
+                }],
+            )]
+            .into_iter()
+            .collect(),
         };
 
         if let Some(entry) = cache.info(cache_name, key) {
@@ -273,9 +287,7 @@ mod test {
         let cache_name = "dolor";
         let key = "ipsum";
         let cache = CacheInfo {
-            entries: vec![
-                (cache_name.to_string(), vec![])
-            ].into_iter().collect(),
+            entries: vec![(cache_name.to_string(), vec![])].into_iter().collect(),
         };
 
         assert_eq!(None, cache.info(cache_name, key))
@@ -304,7 +316,10 @@ mod test {
         let mut info = CacheInfo::default();
 
         info.add(name, entry.clone());
-        assert!(info.info(name, key).is_some(), "expected the entry to have been added");
+        assert!(
+            info.info(name, key).is_some(),
+            "expected the entry to have been added"
+        );
 
         // verify that we cannot add it twice
         info.add(name, entry);
@@ -331,7 +346,10 @@ mod test {
         let mut info = CacheInfo::default();
 
         info.add(name, CacheEntry::new(key, "/tmp/test", &Duration::weeks(1)));
-        assert!(info.info(name, key).is_some(), "expected the entry to have been added");
+        assert!(
+            info.info(name, key).is_some(),
+            "expected the entry to have been added"
+        );
 
         info.remove(name, key);
         assert_eq!(None, info.info(name, key))
@@ -365,24 +383,30 @@ mod test {
         };
         let cache = CacheInfo {
             entries: vec![
-                ("lorem".to_string(), vec![
-                    expired_entry.clone(),
-                    CacheEntry {
-                        key: "dolor".to_string(),
-                        path: "".to_string(),
-                        expires_after: 5,
-                        created_on: CacheEntry::now_as_string(),
-                    },
-                ]),
-                ("ipsum".to_string(), vec![
-                    CacheEntry {
+                (
+                    "lorem".to_string(),
+                    vec![
+                        expired_entry.clone(),
+                        CacheEntry {
+                            key: "dolor".to_string(),
+                            path: "".to_string(),
+                            expires_after: 5,
+                            created_on: CacheEntry::now_as_string(),
+                        },
+                    ],
+                ),
+                (
+                    "ipsum".to_string(),
+                    vec![CacheEntry {
                         key: "amet".to_string(),
                         path: "".to_string(),
                         expires_after: 99999,
                         created_on: CacheEntry::now_as_string(),
-                    }
-                ]),
-            ].into_iter().collect(),
+                    }],
+                ),
+            ]
+            .into_iter()
+            .collect(),
         };
         let expected_result = ExpiredCacheEntry {
             name: "lorem".to_string(),

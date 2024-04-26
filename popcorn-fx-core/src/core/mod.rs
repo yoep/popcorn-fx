@@ -20,5 +20,5 @@ pub mod updater;
 pub mod utils;
 
 mod callback;
-mod runtime;
 mod handle;
+mod runtime;

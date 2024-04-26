@@ -96,9 +96,7 @@ impl DefaultImageLoader {
     /// A new `DefaultImageLoader` instance.
     pub fn new(cache_manager: Arc<CacheManager>) -> Self {
         Self {
-            client: Client::builder()
-                .build()
-                .expect("expected a new client"),
+            client: Client::builder().build().expect("expected a new client"),
             cache_manager,
         }
     }
@@ -113,7 +111,9 @@ impl DefaultImageLoader {
     ///
     /// The image data as a `Vec<u8>`, or `None` if the data could not be retrieved.
     async fn retrieve_image_data(&self, image_url: &str) -> Option<Vec<u8>> {
-        match self.cache_manager.operation()
+        match self
+            .cache_manager
+            .operation()
             .name(CACHE_NAME)
             .key(image_url)
             .options(CacheOptions {
@@ -121,7 +121,8 @@ impl DefaultImageLoader {
                 expires_after: Duration::days(3),
             })
             .execute(self.fetch_remote_image_data(image_url))
-            .await {
+            .await
+        {
             Ok(e) => Some(e),
             Err(e) => {
                 warn!("Failed to retrieve image data, {}", e);
@@ -136,7 +137,9 @@ impl DefaultImageLoader {
             .map_err(|e| ImageError::ParseUrl(image_url.to_string(), e.to_string()))?;
 
         debug!("Retrieving image data from {:?}", url);
-        let response = self.client.get(url)
+        let response = self
+            .client
+            .get(url)
             .send()
             .await
             .map_err(|e| ImageError::Load(e.to_string()))?;
@@ -146,11 +149,21 @@ impl DefaultImageLoader {
             debug!("Retrieved image data from {}", image_url);
             match response.bytes().await {
                 Ok(bytes) => Ok(bytes.to_vec()),
-                Err(e) => Err(ImageError::Load(format!("failed to retrieve the image binary data, {}", e))),
+                Err(e) => Err(ImageError::Load(format!(
+                    "failed to retrieve the image binary data, {}",
+                    e
+                ))),
             }
         } else {
-            warn!("Received invalid response status {} for image url {}", response.status(), image_url);
-            Err(ImageError::Load(format!("received response status {}", response.status())))
+            warn!(
+                "Received invalid response status {} for image url {}",
+                response.status(),
+                image_url
+            );
+            Err(ImageError::Load(format!(
+                "received response status {}",
+                response.status()
+            )))
         }
     }
 }
@@ -169,7 +182,8 @@ impl ImageLoader for DefaultImageLoader {
         trace!("Loading fanart image for {:?}", media);
         let fanart_url = media.images().fanart();
 
-        self.retrieve_image_data(fanart_url).await
+        self.retrieve_image_data(fanart_url)
+            .await
             .or_else(|| Some(BACKGROUND_HOLDER.to_vec()))
             .unwrap()
     }
@@ -178,7 +192,8 @@ impl ImageLoader for DefaultImageLoader {
         trace!("Loading poster image for {:?}", media);
         let poster_url = media.images().poster();
 
-        self.retrieve_image_data(poster_url).await
+        self.retrieve_image_data(poster_url)
+            .await
             .or_else(|| Some(POSTER_PLACEHOLDER.to_vec()))
             .unwrap()
     }
@@ -206,9 +221,7 @@ mod test {
         init_logger();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let cache_manager = Arc::new(CacheManager::builder()
-            .storage_path(temp_path)
-            .build());
+        let cache_manager = Arc::new(CacheManager::builder().storage_path(temp_path).build());
         let loader = DefaultImageLoader::new(cache_manager);
 
         assert_eq!(POSTER_PLACEHOLDER.to_vec(), loader.default_poster())
@@ -222,10 +235,8 @@ mod test {
         let server = MockServer::start();
         let expected_result = read_test_file_to_bytes("image.png");
         server.mock(|when, then| {
-            when.method(GET)
-                .path("/fanart.png");
-            then.status(200)
-                .body(expected_result.as_slice());
+            when.method(GET).path("/fanart.png");
+            then.status(200).body(expected_result.as_slice());
         });
         let media = Box::new(MovieOverview {
             title: "lorem ipsum".to_string(),
@@ -238,15 +249,12 @@ mod test {
                 banner: "".to_string(),
             },
         }) as Box<dyn MediaOverview>;
-        let cache_manager = Arc::new(CacheManager::builder()
-            .storage_path(temp_path)
-            .build());
+        let cache_manager = Arc::new(CacheManager::builder().storage_path(temp_path).build());
         let loader = DefaultImageLoader::new(cache_manager);
         let runtime = Runtime::new().unwrap();
 
-        let (result, _) = runtime.block_on(async move {
-            (loader.load_fanart(&media).await, loader)
-        });
+        let (result, _) =
+            runtime.block_on(async move { (loader.load_fanart(&media).await, loader) });
 
         assert_eq!(expected_result, result)
     }
@@ -267,15 +275,12 @@ mod test {
                 banner: "".to_string(),
             },
         }) as Box<dyn MediaOverview>;
-        let cache_manager = Arc::new(CacheManager::builder()
-            .storage_path(temp_path)
-            .build());
+        let cache_manager = Arc::new(CacheManager::builder().storage_path(temp_path).build());
         let loader = DefaultImageLoader::new(cache_manager);
         let runtime = Runtime::new().unwrap();
 
-        let (result, _) = runtime.block_on(async move {
-            (loader.load_fanart(&media).await, loader)
-        });
+        let (result, _) =
+            runtime.block_on(async move { (loader.load_fanart(&media).await, loader) });
 
         assert_eq!(BACKGROUND_HOLDER, result)
     }
@@ -287,10 +292,8 @@ mod test {
         let temp_path = temp_dir.path().to_str().unwrap();
         let server = MockServer::start();
         server.mock(|when, then| {
-            when.method(GET)
-                .path("/fanart.png");
-            then.status(500)
-                .body("");
+            when.method(GET).path("/fanart.png");
+            then.status(500).body("");
         });
         let media = Box::new(MovieOverview {
             title: "lorem ipsum".to_string(),
@@ -303,15 +306,12 @@ mod test {
                 banner: "".to_string(),
             },
         }) as Box<dyn MediaOverview>;
-        let cache_manager = Arc::new(CacheManager::builder()
-            .storage_path(temp_path)
-            .build());
+        let cache_manager = Arc::new(CacheManager::builder().storage_path(temp_path).build());
         let loader = DefaultImageLoader::new(cache_manager);
         let runtime = Runtime::new().unwrap();
 
-        let (result, _) = runtime.block_on(async move {
-            (loader.load_fanart(&media).await, loader)
-        });
+        let (result, _) =
+            runtime.block_on(async move { (loader.load_fanart(&media).await, loader) });
 
         assert_eq!(BACKGROUND_HOLDER, result)
     }
@@ -324,10 +324,8 @@ mod test {
         let server = MockServer::start();
         let expected_result = read_test_file_to_bytes("image.png");
         server.mock(|when, then| {
-            when.method(GET)
-                .path("/poster.png");
-            then.status(200)
-                .body(expected_result.as_slice());
+            when.method(GET).path("/poster.png");
+            then.status(200).body(expected_result.as_slice());
         });
         let media = Box::new(ShowOverview {
             imdb_id: "".to_string(),
@@ -342,15 +340,12 @@ mod test {
             },
             rating: None,
         }) as Box<dyn MediaOverview>;
-        let cache_manager = Arc::new(CacheManager::builder()
-            .storage_path(temp_path)
-            .build());
+        let cache_manager = Arc::new(CacheManager::builder().storage_path(temp_path).build());
         let loader = DefaultImageLoader::new(cache_manager);
         let runtime = Runtime::new().unwrap();
 
-        let (result, _) = runtime.block_on(async move {
-            (loader.load_poster(&media).await, loader)
-        });
+        let (result, _) =
+            runtime.block_on(async move { (loader.load_poster(&media).await, loader) });
 
         assert_eq!(expected_result, result)
     }
@@ -363,21 +358,16 @@ mod test {
         let server = MockServer::start();
         let expected_result = read_test_file_to_bytes("image.png");
         server.mock(|when, then| {
-            when.method(GET)
-                .path("/my-image.png");
-            then.status(200)
-                .body(expected_result.as_slice());
+            when.method(GET).path("/my-image.png");
+            then.status(200).body(expected_result.as_slice());
         });
         let url = server.url("/my-image.png");
-        let cache_manager = Arc::new(CacheManager::builder()
-            .storage_path(temp_path)
-            .build());
+        let cache_manager = Arc::new(CacheManager::builder().storage_path(temp_path).build());
         let loader = DefaultImageLoader::new(cache_manager);
         let runtime = Runtime::new().unwrap();
 
-        let (result, _) = runtime.block_on(async move {
-            (loader.load(url.as_str()).await, loader)
-        });
+        let (result, _) =
+            runtime.block_on(async move { (loader.load(url.as_str()).await, loader) });
 
         assert_eq!(Some(expected_result), result)
     }

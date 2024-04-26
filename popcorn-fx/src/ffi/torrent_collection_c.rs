@@ -18,14 +18,9 @@ pub struct TorrentCollectionSet {
 
 impl From<Vec<MagnetInfo>> for TorrentCollectionSet {
     fn from(value: Vec<MagnetInfo>) -> Self {
-        let (magnets, len) = into_c_vec(value.into_iter()
-            .map(MagnetInfoC::from)
-            .collect());
+        let (magnets, len) = into_c_vec(value.into_iter().map(MagnetInfoC::from).collect());
 
-        Self {
-            magnets,
-            len,
-        }
+        Self { magnets, len }
     }
 }
 
@@ -66,9 +61,7 @@ mod test {
         let set = TorrentCollectionSet::from(infos.clone());
         assert_eq!(1, set.len);
         let magnet = from_c_vec(set.magnets, set.len);
-        let result = magnet
-            .get(0)
-            .unwrap();
+        let result = magnet.get(0).unwrap();
 
         assert_eq!(name.to_string(), from_c_string(result.name));
         assert_eq!(magnet_uri.to_string(), from_c_string(result.magnet_uri));

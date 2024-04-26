@@ -11,10 +11,14 @@ pub struct SubtitleMatcher {
 impl SubtitleMatcher {
     /// Create a new subtitle matcher for the given name and quality.
     pub fn from_string(name: Option<String>, quality: Option<String>) -> Self {
-        trace!("Creating new subtitle matcher from name: {:?} and quality: {:?}", &name, &quality);
+        trace!(
+            "Creating new subtitle matcher from name: {:?} and quality: {:?}",
+            &name,
+            &quality
+        );
         let parsed_quality = match quality {
             None => None,
-            Some(quality_value) => Self::extract_quality(quality_value.as_str())
+            Some(quality_value) => Self::extract_quality(quality_value.as_str()),
         };
 
         Self {
@@ -25,23 +29,20 @@ impl SubtitleMatcher {
 
     /// Create a new subtitle matcher from the given quality as an integer.
     pub fn from_int(name: Option<String>, quality: Option<i32>) -> Self {
-        Self {
-            name,
-            quality,
-        }
+        Self { name, quality }
     }
 
     pub fn name(&self) -> Option<&str> {
         match &self.name {
             None => None,
-            Some(e) => Some(e.as_str())
+            Some(e) => Some(e.as_str()),
         }
     }
 
     pub fn quality(&self) -> Option<&i32> {
         match &self.quality {
             None => None,
-            Some(e) => Some(e)
+            Some(e) => Some(e),
         }
     }
 
@@ -52,15 +53,16 @@ impl SubtitleMatcher {
                 warn!("Subtitle matcher quality didn't match any quality pattern");
                 None
             }
-            Some(matcher) => {
-                Self::parse_quality_matcher(matcher)
-            }
+            Some(matcher) => Self::parse_quality_matcher(matcher),
         }
     }
 
     /// Parse the given quality matcher to an integer.
     fn parse_quality_matcher(matcher: Captures) -> Option<i32> {
-        let quality_text = matcher.get(1).expect("Quality text should have matched").as_str();
+        let quality_text = matcher
+            .get(1)
+            .expect("Quality text should have matched")
+            .as_str();
 
         trace!("Trying to parse subtitle quality value {}", &quality_text);
         match quality_text.parse::<i32>() {

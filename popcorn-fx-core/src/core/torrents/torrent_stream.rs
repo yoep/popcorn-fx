@@ -82,7 +82,11 @@ pub trait TorrentStream: Torrent {
     /// * `len` - The length of the content to stream (optional).
     ///
     /// Returns the stream of the torrent bytes or the [torrents::TorrentError] that occurred.
-    fn stream_offset(&self, offset: u64, len: Option<u64>) -> torrents::Result<TorrentStreamingResourceWrapper>;
+    fn stream_offset(
+        &self,
+        offset: u64,
+        len: Option<u64>,
+    ) -> torrents::Result<TorrentStreamingResourceWrapper>;
 
     /// Get the current state of the stream.
     fn stream_state(&self) -> TorrentStreamState;
@@ -109,7 +113,7 @@ impl_downcast!(sync TorrentStream);
 
 /// The streaming resource of a [TorrentStream].
 /// It allows a [Torrent] to be streamed over HTTP.
-pub trait TorrentStreamingResource: Stream<Item=StreamBytesResult> + Send + 'static {
+pub trait TorrentStreamingResource: Stream<Item = StreamBytesResult> + Send + 'static {
     /// The starting offset of the stream in regards to the resource bytes.
     /// This will be the initial seek offset within the resource bytes and is 0 index based.
     fn offset(&self) -> u64;
@@ -130,19 +134,21 @@ pub trait TorrentStreamingResource: Stream<Item=StreamBytesResult> + Send + 'sta
 
 /// Wrapper around a dyn [Stream] which allows for a sized return value.
 pub struct TorrentStreamingResourceWrapper {
-    inner: Pin<Box<dyn TorrentStreamingResource<Item=StreamBytesResult>>>,
+    inner: Pin<Box<dyn TorrentStreamingResource<Item = StreamBytesResult>>>,
 }
 
 impl TorrentStreamingResourceWrapper {
     pub fn new<T>(stream: T) -> Self
-        where T: TorrentStreamingResource<Item=StreamBytesResult> {
+    where
+        T: TorrentStreamingResource<Item = StreamBytesResult>,
+    {
         Self {
             inner: Box::pin(stream),
         }
     }
 
     /// Retrieve the wrapped [TorrentStreamingResource] resource.
-    pub fn resource(&self) -> &Pin<Box<dyn TorrentStreamingResource<Item=StreamBytesResult>>> {
+    pub fn resource(&self) -> &Pin<Box<dyn TorrentStreamingResource<Item = StreamBytesResult>>> {
         &self.inner
     }
 }

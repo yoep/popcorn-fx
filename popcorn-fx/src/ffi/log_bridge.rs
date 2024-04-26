@@ -39,10 +39,30 @@ mod test {
     fn test_log() {
         init_logger();
 
-        log(into_c_string("ffi::test1".to_string()),into_c_string("lorem".to_string()), Trace);
-        log(into_c_string("ffi::test2".to_string()),into_c_string("ipsum".to_string()), Debug);
-        log(into_c_string("ffi::test3".to_string()),into_c_string("dolor".to_string()), Info);
-        log(into_c_string("ffi::test4".to_string()),into_c_string("sit".to_string()), Warn);
-        log(into_c_string("ffi::test5".to_string()),into_c_string("amet".to_string()), Error);
+        log(
+            into_c_string("ffi::test1".to_string()),
+            into_c_string("lorem".to_string()),
+            Trace,
+        );
+        log(
+            into_c_string("ffi::test2".to_string()),
+            into_c_string("ipsum".to_string()),
+            Debug,
+        );
+        log(
+            into_c_string("ffi::test3".to_string()),
+            into_c_string("dolor".to_string()),
+            Info,
+        );
+        log(
+            into_c_string("ffi::test4".to_string()),
+            into_c_string("sit".to_string()),
+            Warn,
+        );
+        log(
+            into_c_string("ffi::test5".to_string()),
+            into_c_string("amet".to_string()),
+            Error,
+        );
     }
 }

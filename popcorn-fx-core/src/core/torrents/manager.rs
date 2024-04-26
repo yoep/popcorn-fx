@@ -33,13 +33,15 @@ pub enum TorrentManagerState {
 pub enum TorrentManagerEvent {
     /// Indicates that the state of the torrent manager has changed
     /// * `TorrentManagerState` - The new state of the manager
-    StateChanged(TorrentManagerState)
+    StateChanged(TorrentManagerState),
 }
 
 impl Display for TorrentManagerEvent {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            TorrentManagerEvent::StateChanged(state) => write!(f, "Manager state changed to {}", state),
+            TorrentManagerEvent::StateChanged(state) => {
+                write!(f, "Manager state changed to {}", state)
+            }
         }
     }
 }
@@ -87,7 +89,12 @@ pub trait TorrentManager: Debug + DowncastSync {
     ///
     /// A `Result` containing a weak reference to the created torrent session on success,
     /// or a [torrent::TorrentError] on failure.
-    async fn create(&self, file_info: &TorrentFileInfo, torrent_directory: &str, auto_download: bool) -> torrents::Result<Weak<Box<dyn Torrent>>>;
+    async fn create(
+        &self,
+        file_info: &TorrentFileInfo,
+        torrent_directory: &str,
+        auto_download: bool,
+    ) -> torrents::Result<Weak<Box<dyn Torrent>>>;
 
     /// Retrieve a torrent session by its unique handle.
     ///

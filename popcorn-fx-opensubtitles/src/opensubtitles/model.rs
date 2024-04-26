@@ -99,7 +99,7 @@ impl OpenSubtitlesAttributes {
     pub fn language(&self) -> Option<&String> {
         match &self.language {
             None => None,
-            Some(e) => Some(e)
+            Some(e) => Some(e),
         }
     }
 
@@ -151,7 +151,7 @@ impl OpenSubtitlesFile {
     pub fn file_name(&self) -> Option<&String> {
         match &self.file_name {
             Some(e) => Some(&e),
-            None => None
+            None => None,
         }
     }
 }
@@ -166,7 +166,13 @@ pub struct OpenSubtitlesFeatureDetails {
 }
 
 impl OpenSubtitlesFeatureDetails {
-    pub fn new(feature_id: i32, feature_type: String, year: i32, title: String, imdb_id: i32) -> Self {
+    pub fn new(
+        feature_id: i32,
+        feature_type: String,
+        year: i32,
+        title: String,
+        imdb_id: i32,
+    ) -> Self {
         Self {
             feature_id,
             feature_type,

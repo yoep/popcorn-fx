@@ -2,7 +2,9 @@ use std::os::raw::c_char;
 use std::ptr;
 
 use popcorn_fx_core::{from_c_string, into_c_string};
-use popcorn_fx_core::core::loader::{LoaderEvent, LoadingError, LoadingProgress, LoadingStartedEvent, LoadingState};
+use popcorn_fx_core::core::loader::{
+    LoaderEvent, LoadingError, LoadingProgress, LoadingStartedEvent, LoadingState,
+};
 
 /// A C-compatible callback function type for loader events.
 pub type LoaderEventCallback = extern "C" fn(LoaderEventC);
@@ -26,10 +28,16 @@ pub enum LoaderEventC {
 impl From<LoaderEvent> for LoaderEventC {
     fn from(value: LoaderEvent) -> Self {
         match value {
-            LoaderEvent::LoadingStarted(handle, e) => LoaderEventC::LoadingStarted(handle.value(), LoadingStartedEventC::from(e)),
+            LoaderEvent::LoadingStarted(handle, e) => {
+                LoaderEventC::LoadingStarted(handle.value(), LoadingStartedEventC::from(e))
+            }
             LoaderEvent::StateChanged(handle, e) => LoaderEventC::StateChanged(handle.value(), e),
-            LoaderEvent::LoadingError(handle, e) => LoaderEventC::LoaderError(handle.value(), LoadingErrorC::from(e)),
-            LoaderEvent::ProgressChanged(handle, e) => LoaderEventC::ProgressChanged(handle.value(), LoadingProgressC::from(e)),
+            LoaderEvent::LoadingError(handle, e) => {
+                LoaderEventC::LoaderError(handle.value(), LoadingErrorC::from(e))
+            }
+            LoaderEvent::ProgressChanged(handle, e) => {
+                LoaderEventC::ProgressChanged(handle.value(), LoadingProgressC::from(e))
+            }
         }
     }
 }
@@ -130,7 +138,9 @@ impl From<LoadingError> for LoadingErrorC {
     fn from(value: LoadingError) -> Self {
         match value {
             LoadingError::ParseError(e) => LoadingErrorC::ParseError(into_c_string(e)),
-            LoadingError::TorrentError(e) => LoadingErrorC::TorrentError(into_c_string(e.to_string())),
+            LoadingError::TorrentError(e) => {
+                LoadingErrorC::TorrentError(into_c_string(e.to_string()))
+            }
             LoadingError::MediaError(e) => LoadingErrorC::MediaError(into_c_string(e)),
             LoadingError::TimeoutError(e) => LoadingErrorC::TimeoutError(into_c_string(e)),
             LoadingError::InvalidData(e) => LoadingErrorC::InvalidData(into_c_string(e)),
@@ -188,7 +198,11 @@ mod tests {
         if let LoaderEventC::StateChanged(_, result) = result {
             assert_eq!(state, result);
         } else {
-            assert!(false, "expected LoaderEventC::StateChanged, but got {:?} instead", result)
+            assert!(
+                false,
+                "expected LoaderEventC::StateChanged, but got {:?} instead",
+                result
+            )
         }
     }
 

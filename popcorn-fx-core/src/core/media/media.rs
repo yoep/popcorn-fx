@@ -9,7 +9,9 @@ use log::{error, warn};
 #[cfg(test)]
 use mockall::automock;
 
-use crate::core::media::{Category, Episode, Images, MovieDetails, MovieOverview, Rating, ShowDetails, ShowOverview};
+use crate::core::media::{
+    Category, Episode, Images, MovieDetails, MovieOverview, Rating, ShowDetails, ShowOverview,
+};
 
 /// The media type identifier.
 #[derive(Debug, Copy, Clone, Eq, Display, PartialEq)]
@@ -80,7 +82,10 @@ pub trait MediaIdentifier: Debug + DowncastSync + Display {
         } else if let Some(e) = self.as_any().downcast_ref::<ShowDetails>() {
             Some(Box::new(e.clone()) as Box<dyn MediaIdentifier>)
         } else {
-            error!("Unable to clone MediaIdentifier, unknown type {:?}", self.type_id());
+            error!(
+                "Unable to clone MediaIdentifier, unknown type {:?}",
+                self.type_id()
+            );
             None
         }
     }
@@ -101,7 +106,10 @@ pub trait MediaIdentifier: Debug + DowncastSync + Display {
         } else if let Some(e) = self.as_any().downcast_ref::<ShowDetails>() {
             Some(Box::new(e.clone()) as Box<dyn MediaOverview>)
         } else {
-            warn!("Unable to downcast MediaIdentifier to MediaOverview, unsupported type {:?}", self.type_id());
+            warn!(
+                "Unable to downcast MediaIdentifier to MediaOverview, unsupported type {:?}",
+                self.type_id()
+            );
             None
         }
     }
@@ -166,7 +174,7 @@ mod test {
     #[test]
     fn test_clone_identifier() {
         let imdb_id = "tt123456";
-        let media = MovieOverview{
+        let media = MovieOverview {
             title: "Foo bar".to_string(),
             imdb_id: imdb_id.to_string(),
             year: "2012".to_string(),
@@ -176,8 +184,10 @@ mod test {
 
         let result = media.clone_identifier();
 
-        assert!(result.is_some(), "expected the media identifier to have been cloned");
+        assert!(
+            result.is_some(),
+            "expected the media identifier to have been cloned"
+        );
         assert_eq!(imdb_id, result.unwrap().imdb_id());
     }
 }
-

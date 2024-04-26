@@ -14,8 +14,8 @@ use tokio::runtime::Runtime;
 
 use crate::bootstrapper::{BootstrapError, Bootstrapper};
 
-mod data_installer;
 mod bootstrapper;
+mod data_installer;
 
 const ENV_INSTALLATION_DIR: &str = "INSTALLATION_DIR";
 const DATA_DIR: &str = "DATA_DIR";
@@ -50,21 +50,29 @@ fn main() -> Result<(), BootstrapError> {
     }
 
     // Initialize the `Bootstrapper` instance with environment variables and launch the application.
-    let bootstrapper = Arc::new(Bootstrapper::builder()
-        .path(env::var("PATH")
-            .or_else(|e| {
-                eprintln!("PATH variable is invalid, {}", e);
-                Ok::<String, VarError>("".to_string())
-            })
-            .unwrap())
-        .args(env::args().collect())
-        .data_base_path(env::var(DATA_DIR)
-            .map(|e| Some(PathBuf::from(e)))
-            .unwrap_or(None))
-        .installation_path(env::var(ENV_INSTALLATION_DIR)
-            .map(|e| Some(PathBuf::from(e)))
-            .unwrap_or(None))
-        .build());
+    let bootstrapper = Arc::new(
+        Bootstrapper::builder()
+            .path(
+                env::var("PATH")
+                    .or_else(|e| {
+                        eprintln!("PATH variable is invalid, {}", e);
+                        Ok::<String, VarError>("".to_string())
+                    })
+                    .unwrap(),
+            )
+            .args(env::args().collect())
+            .data_base_path(
+                env::var(DATA_DIR)
+                    .map(|e| Some(PathBuf::from(e)))
+                    .unwrap_or(None),
+            )
+            .installation_path(
+                env::var(ENV_INSTALLATION_DIR)
+                    .map(|e| Some(PathBuf::from(e)))
+                    .unwrap_or(None),
+            )
+            .build(),
+    );
 
     let bootstrapper_shutdown = bootstrapper.clone();
     let term_now_shutdown = term_now.clone();
@@ -76,11 +84,10 @@ fn main() -> Result<(), BootstrapError> {
         bootstrapper_shutdown.shutdown();
     });
 
-    let result = bootstrapper.launch()
-        .map_err(|e| {
-            error!("Bootstrap error: {}", e);
-            e
-        });
+    let result = bootstrapper.launch().map_err(|e| {
+        error!("Bootstrap error: {}", e);
+        e
+    });
     term_now.store(true, Ordering::SeqCst);
     result
 }
@@ -104,7 +111,11 @@ mod test {
         if let Err(e) = result {
             match e {
                 BootstrapError::InitialSetupFailed(_) => {}
-                _ => assert!(false, "expected BootstrapError::InitialSetupFailed, got {:?} instead", e),
+                _ => assert!(
+                    false,
+                    "expected BootstrapError::InitialSetupFailed, got {:?} instead",
+                    e
+                ),
             }
         } else {
             assert!(false, "expected the main fn to failed")

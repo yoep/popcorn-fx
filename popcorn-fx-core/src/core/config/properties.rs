@@ -7,142 +7,156 @@ use std::string::ToString;
 use derive_more::Display;
 use log::{debug, trace, warn};
 use serde::Deserialize;
-use crate::core::config;
 
+use crate::core::config;
 use crate::core::config::{ConfigError, EnhancerProperties, ProviderProperties};
 
 const DEFAULT_SUBTITLE_URL: fn() -> String = || "https://api.opensubtitles.com/api/v1".to_string();
 const DEFAULT_USER_AGENT: fn() -> String = || "Popcorn Time v1".to_string();
 const DEFAULT_API_TOKEN: fn() -> String = || "mjU10F1qmFwv3JHPodNt9T4O4SeQFhCo".to_string();
-const DEFAULT_UPDATE_CHANNEL: fn() -> String = || "https://raw.githubusercontent.com/yoep/popcorn-fx/master/".to_string();
+const DEFAULT_UPDATE_CHANNEL: fn() -> String =
+    || "https://raw.githubusercontent.com/yoep/popcorn-fx/master/".to_string();
 const DEFAULT_PROVIDERS: fn() -> HashMap<String, ProviderProperties> = || {
     vec![
-        ("movies".to_string(), ProviderProperties {
-            uris: vec![
-                "https://shows.cf/".to_string(),
-                "https://fusme.link".to_string(),
-                "https://jfper.link".to_string(),
-                "https://uxert.link".to_string(),
-            ],
-            genres: vec![
-                "all".to_string(),
-                "action".to_string(),
-                "adventure".to_string(),
-                "animation".to_string(),
-                "comedy".to_string(),
-                "crime".to_string(),
-                "disaster".to_string(),
-                "documentary".to_string(),
-                "drama".to_string(),
-                "family".to_string(),
-                "fantasy".to_string(),
-                "history".to_string(),
-                "holiday".to_string(),
-                "horror".to_string(),
-                "music".to_string(),
-                "mystery".to_string(),
-                "romance".to_string(),
-                "science-fiction".to_string(),
-                "short".to_string(),
-                "suspense".to_string(),
-                "thriller".to_string(),
-                "war".to_string(),
-                "western".to_string()],
-            sort_by: vec![
-                "trending".to_string(),
-                "popularity".to_string(),
-                "last added".to_string(),
-                "year".to_string(),
-                "title".to_string(),
-                "rating".to_string(),
-            ],
-        }),
-        ("series".to_string(), ProviderProperties {
-            uris: vec![
-                "https://shows.cf/".to_string(),
-                "https://fusme.link".to_string(),
-                "https://jfper.link".to_string(),
-                "https://uxert.link".to_string(),
-            ],
-            genres: vec![
-                "all".to_string(),
-                "action".to_string(),
-                "adventure".to_string(),
-                "animation".to_string(),
-                "children".to_string(),
-                "comedy".to_string(),
-                "crime".to_string(),
-                "documentary".to_string(),
-                "drama".to_string(),
-                "family".to_string(),
-                "fantasy".to_string(),
-                "horror".to_string(),
-                "mini Series".to_string(),
-                "mystery".to_string(),
-                "news".to_string(),
-                "reality".to_string(),
-                "romance".to_string(),
-                "science-fiction".to_string(),
-                "soap".to_string(),
-                "special Interest".to_string(),
-                "sport".to_string(),
-                "suspense".to_string(),
-                "talk Show".to_string(),
-                "thriller".to_string(),
-                "western".to_string(),
-            ],
-            sort_by: vec![
-                "trending".to_string(),
-                "popularity".to_string(),
-                "updated".to_string(),
-                "year".to_string(),
-                "name".to_string(),
-                "rating".to_string(),
-            ],
-        }),
-        ("favorites".to_string(), ProviderProperties {
-            uris: vec![],
-            genres: vec![
-                "all".to_string(),
-                "movies".to_string(),
-                "tv".to_string(),
-            ],
-            sort_by: vec![
-                "watched".to_string(),
-                "year".to_string(),
-                "title".to_string(),
-                "rating".to_string(),
-            ],
-        }),
-    ].into_iter().collect()
+        (
+            "movies".to_string(),
+            ProviderProperties {
+                uris: vec![
+                    "https://shows.cf/".to_string(),
+                    "https://fusme.link".to_string(),
+                    "https://jfper.link".to_string(),
+                    "https://uxert.link".to_string(),
+                ],
+                genres: vec![
+                    "all".to_string(),
+                    "action".to_string(),
+                    "adventure".to_string(),
+                    "animation".to_string(),
+                    "comedy".to_string(),
+                    "crime".to_string(),
+                    "disaster".to_string(),
+                    "documentary".to_string(),
+                    "drama".to_string(),
+                    "family".to_string(),
+                    "fantasy".to_string(),
+                    "history".to_string(),
+                    "holiday".to_string(),
+                    "horror".to_string(),
+                    "music".to_string(),
+                    "mystery".to_string(),
+                    "romance".to_string(),
+                    "science-fiction".to_string(),
+                    "short".to_string(),
+                    "suspense".to_string(),
+                    "thriller".to_string(),
+                    "war".to_string(),
+                    "western".to_string(),
+                ],
+                sort_by: vec![
+                    "trending".to_string(),
+                    "popularity".to_string(),
+                    "last added".to_string(),
+                    "year".to_string(),
+                    "title".to_string(),
+                    "rating".to_string(),
+                ],
+            },
+        ),
+        (
+            "series".to_string(),
+            ProviderProperties {
+                uris: vec![
+                    "https://shows.cf/".to_string(),
+                    "https://fusme.link".to_string(),
+                    "https://jfper.link".to_string(),
+                    "https://uxert.link".to_string(),
+                ],
+                genres: vec![
+                    "all".to_string(),
+                    "action".to_string(),
+                    "adventure".to_string(),
+                    "animation".to_string(),
+                    "children".to_string(),
+                    "comedy".to_string(),
+                    "crime".to_string(),
+                    "documentary".to_string(),
+                    "drama".to_string(),
+                    "family".to_string(),
+                    "fantasy".to_string(),
+                    "horror".to_string(),
+                    "mini Series".to_string(),
+                    "mystery".to_string(),
+                    "news".to_string(),
+                    "reality".to_string(),
+                    "romance".to_string(),
+                    "science-fiction".to_string(),
+                    "soap".to_string(),
+                    "special Interest".to_string(),
+                    "sport".to_string(),
+                    "suspense".to_string(),
+                    "talk Show".to_string(),
+                    "thriller".to_string(),
+                    "western".to_string(),
+                ],
+                sort_by: vec![
+                    "trending".to_string(),
+                    "popularity".to_string(),
+                    "updated".to_string(),
+                    "year".to_string(),
+                    "name".to_string(),
+                    "rating".to_string(),
+                ],
+            },
+        ),
+        (
+            "favorites".to_string(),
+            ProviderProperties {
+                uris: vec![],
+                genres: vec!["all".to_string(), "movies".to_string(), "tv".to_string()],
+                sort_by: vec![
+                    "watched".to_string(),
+                    "year".to_string(),
+                    "title".to_string(),
+                    "rating".to_string(),
+                ],
+            },
+        ),
+    ]
+    .into_iter()
+    .collect()
 };
 const DEFAULT_ENHANCERS: fn() -> HashMap<String, EnhancerProperties> = || {
-    vec![
-        ("tvdb".to_string(), EnhancerProperties {
+    vec![(
+        "tvdb".to_string(),
+        EnhancerProperties {
             uri: "https://thetvdb.com/series/lorem/episodes".to_string(),
-        })
-    ].into_iter().collect()
+        },
+    )]
+    .into_iter()
+    .collect()
 };
 const DEFAULT_LOGGERS: fn() -> HashMap<String, LoggingProperties> = || HashMap::new();
 const DEFAULT_TRACKING: fn() -> HashMap<String, TrackingProperties> = || {
-    vec![
-        ("trakt".to_string(), TrackingProperties {
+    vec![(
+        "trakt".to_string(),
+        TrackingProperties {
             uri: "https://api.trakt.tv".to_string(),
             client: TrackingClientProperties {
-                client_id: "62a497cb224dc3d4c71a9da940fb9ef1b20ff8ab148c0ffb38b228e0a58ef246".to_string(),
-                client_secret: "5dddda26c750b108990025e2d3a4fb4c0d348eb5c927c99622ca8edd5ca8c202".to_string(),
+                client_id: "62a497cb224dc3d4c71a9da940fb9ef1b20ff8ab148c0ffb38b228e0a58ef246"
+                    .to_string(),
+                client_secret: "5dddda26c750b108990025e2d3a4fb4c0d348eb5c927c99622ca8edd5ca8c202"
+                    .to_string(),
                 user_authorization_uri: "https://trakt.tv/oauth/authorize".to_string(),
-                access_token_uri: "https://api.trakt.tv/oauth/token".to_string()
+                access_token_uri: "https://api.trakt.tv/oauth/token".to_string(),
             },
-        })
-    ].into_iter().collect()
+        },
+    )]
+    .into_iter()
+    .collect()
 };
 
 const DEFAULT_CONFIG_FILENAME: &str = "application";
-const CONFIG_EXTENSIONS: [&str; 2] = [
-    "yml",
-    "yaml"
-];
+const CONFIG_EXTENSIONS: [&str; 2] = ["yml", "yaml"];
 
 /// In-between wrapper for serde to support the backwards compatible mapping.
 #[derive(Debug, Display, Clone, Deserialize, PartialEq)]
@@ -192,7 +206,8 @@ impl PopcornProperties {
         let config_value = Self::find_existing_file(filename)
             .map(|mut e| {
                 let mut data = String::new();
-                e.read_to_string(&mut data).expect("Unable to read the config file");
+                e.read_to_string(&mut data)
+                    .expect("Unable to read the config file");
                 data
             })
             .or_else(|| Some(String::new()))
@@ -215,7 +230,8 @@ impl PopcornProperties {
     /// It returns the properties when found, else the [ConfigError].
     pub fn provider(&self, name: &str) -> config::Result<&ProviderProperties> {
         let name = name.to_string();
-        self.providers.get(&name)
+        self.providers
+            .get(&name)
             .ok_or(ConfigError::UnknownProvider(name))
     }
 
@@ -223,9 +239,10 @@ impl PopcornProperties {
     /// It returns the properties when found, else the [ConfigError].
     pub fn tracker(&self, name: &str) -> config::Result<&TrackingProperties> {
         let name = name.to_string();
-        self.tracking.get(&name)
+        self.tracking
+            .get(&name)
             .ok_or(ConfigError::UnknownTrackingProvider(name))
-    } 
+    }
 
     /// Retrieve the default provider properties.
     pub fn default_providers() -> HashMap<String, ProviderProperties> {
@@ -236,7 +253,7 @@ impl PopcornProperties {
     pub fn default_enhancers() -> HashMap<String, EnhancerProperties> {
         DEFAULT_ENHANCERS()
     }
-    
+
     pub fn default_trackings() -> HashMap<String, TrackingProperties> {
         DEFAULT_TRACKING()
     }
@@ -252,7 +269,7 @@ impl PopcornProperties {
                     result = Some(file);
                     break;
                 }
-                Err(_) => trace!("Config file location {} doesn't exist", &path)
+                Err(_) => trace!("Config file location {} doesn't exist", &path),
             }
         }
 
@@ -276,7 +293,10 @@ impl From<&str> for PopcornProperties {
         let data: PropertiesWrapper = match serde_yaml::from_str(json_value) {
             Ok(properties) => properties,
             Err(err) => {
-                warn!("Failed to parse properties, using defaults instead, {}", err);
+                warn!(
+                    "Failed to parse properties, using defaults instead, {}",
+                    err
+                );
                 serde_yaml::from_str(String::new().as_str()).unwrap()
             }
         };
@@ -398,7 +418,13 @@ mod test {
         init_logger();
         let filename = "lorem";
         let extension = "csv";
-        let expected_result = format!("{}{}{}.{}", env::current_dir().unwrap().to_str().unwrap(), MAIN_SEPARATOR, filename, extension);
+        let expected_result = format!(
+            "{}{}{}.{}",
+            env::current_dir().unwrap().to_str().unwrap(),
+            MAIN_SEPARATOR,
+            filename,
+            extension
+        );
 
         let result = PopcornProperties::config_file_path(filename, extension);
 
@@ -484,7 +510,8 @@ popcorn:
         let provider = "lorem ipsum";
         let properties = PopcornProperties::default();
 
-        let result = properties.provider(provider)
+        let result = properties
+            .provider(provider)
             .err()
             .expect("expected an error");
 

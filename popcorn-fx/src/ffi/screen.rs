@@ -25,11 +25,17 @@ pub type FullscreenCallback = extern "C" fn(bool);
 /// * `instance` - A mutable reference to the `PopcornFX` instance.
 /// * `callback` - The callback function to be registered for checking the fullscreen state.
 #[no_mangle]
-pub extern "C" fn register_is_fullscreen_callback(instance: &mut PopcornFX, callback: IsFullscreenCallback) {
+pub extern "C" fn register_is_fullscreen_callback(
+    instance: &mut PopcornFX,
+    callback: IsFullscreenCallback,
+) {
     trace!("Registering new is fullscreen callback for C");
 
     // Check if the screen service is a DefaultScreenService and register the callback
-    if let Some(screen) = instance.screen_service().downcast_ref::<DefaultScreenService>() {
+    if let Some(screen) = instance
+        .screen_service()
+        .downcast_ref::<DefaultScreenService>()
+    {
         screen.register_is_fullscreen_callback(Box::new(move || {
             trace!("Calling is fullscreen callback");
             callback()
@@ -46,9 +52,15 @@ pub extern "C" fn register_is_fullscreen_callback(instance: &mut PopcornFX, call
 /// * `instance` - A mutable reference to the `PopcornFX` instance.
 /// * `callback` - The fullscreen callback function to be registered.
 #[no_mangle]
-pub extern "C" fn register_fullscreen_callback(instance: &mut PopcornFX, callback: FullscreenCallback) {
+pub extern "C" fn register_fullscreen_callback(
+    instance: &mut PopcornFX,
+    callback: FullscreenCallback,
+) {
     trace!("Registering new fullscreen callback for C");
-    if let Some(screen) = instance.screen_service().downcast_ref::<DefaultScreenService>() {
+    if let Some(screen) = instance
+        .screen_service()
+        .downcast_ref::<DefaultScreenService>()
+    {
         screen.register_fullscreen_callback(Box::new(move |value| {
             trace!("Calling fullscreen callback with {}", value);
             callback(value);

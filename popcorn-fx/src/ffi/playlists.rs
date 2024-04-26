@@ -23,14 +23,20 @@ use crate::PopcornFX;
 /// If the playlist playback is successfully started, a pointer to the internal playlist handle is returned.
 /// Otherwise, if an error occurs or the playlist is empty, a null pointer is returned.
 #[no_mangle]
-pub extern "C" fn play_playlist(popcorn_fx: &mut PopcornFX, playlist: CArray<PlaylistItemC>) -> *const i64 {
+pub extern "C" fn play_playlist(
+    popcorn_fx: &mut PopcornFX,
+    playlist: CArray<PlaylistItemC>,
+) -> *const i64 {
     trace!("Converting playlist from C for {:?}", playlist);
-    let playlist: Playlist = Vec::<PlaylistItemC>::from(playlist).into_iter()
+    let playlist: Playlist = Vec::<PlaylistItemC>::from(playlist)
+        .into_iter()
         .map(|e| PlaylistItem::from(e))
         .collect();
 
     trace!("Starting playlist from C for {:?}", playlist);
-    popcorn_fx.playlist_manager().play(playlist)
+    popcorn_fx
+        .playlist_manager()
+        .play(playlist)
         .map(|e| e.value() as *const i64)
         .unwrap_or(ptr::null())
 }
@@ -51,7 +57,9 @@ pub extern "C" fn play_playlist(popcorn_fx: &mut PopcornFX, playlist: CArray<Pla
 #[no_mangle]
 pub extern "C" fn play_next_playlist_item(popcorn_fx: &mut PopcornFX) -> *const i64 {
     trace!("Playing next item in playlist from C");
-    popcorn_fx.playlist_manager().play_next()
+    popcorn_fx
+        .playlist_manager()
+        .play_next()
         .map(|e| e.value() as *const i64)
         .unwrap_or(ptr::null())
 }
@@ -88,13 +96,18 @@ pub extern "C" fn stop_playlist(popcorn_fx: &mut PopcornFX) {
 /// * `popcorn_fx` - A mutable reference to the `PopcornFX` instance.
 /// * `callback` - The C-compatible callback function to be registered.
 #[no_mangle]
-pub extern "C" fn register_playlist_manager_callback(popcorn_fx: &mut PopcornFX, callback: PlaylistManagerCallbackC) {
+pub extern "C" fn register_playlist_manager_callback(
+    popcorn_fx: &mut PopcornFX,
+    callback: PlaylistManagerCallbackC,
+) {
     trace!("Registering new C callback for playlist manager events");
-    popcorn_fx.playlist_manager().subscribe(Box::new(move |event| {
-        trace!("Invoking playlist manager C event for {:?}", event);
-        let event = PlaylistManagerEventC::from(event);
-        callback(event);
-    }));
+    popcorn_fx
+        .playlist_manager()
+        .subscribe(Box::new(move |event| {
+            trace!("Invoking playlist manager C event for {:?}", event);
+            let event = PlaylistManagerEventC::from(event);
+            callback(event);
+        }));
 }
 
 /// Retrieves the playlist from PopcornFX.
@@ -109,7 +122,11 @@ pub extern "C" fn register_playlist_manager_callback(popcorn_fx: &mut PopcornFX,
 #[no_mangle]
 pub extern "C" fn playlist(popcorn_fx: &mut PopcornFX) -> CArray<PlaylistItemC> {
     trace!("Retrieving playlist from C");
-    let vec: Vec<PlaylistItemC> = popcorn_fx.playlist_manager().playlist().items.into_iter()
+    let vec: Vec<PlaylistItemC> = popcorn_fx
+        .playlist_manager()
+        .playlist()
+        .items
+        .into_iter()
         .map(|e| PlaylistItemC::from(e))
         .collect();
     CArray::from(vec)
@@ -190,20 +207,28 @@ mod test {
         let (tx_state, rx_state) = channel();
         let mut instance = PopcornFX::new(default_args(temp_path));
 
-        instance.playlist_manager().subscribe(Box::new(move |e| {
-            match e {
+        instance
+            .playlist_manager()
+            .subscribe(Box::new(move |e| match e {
                 PlaylistManagerEvent::PlaylistChanged => tx.send(e).unwrap(),
                 PlaylistManagerEvent::StateChanged(state) => tx_state.send(state).unwrap(),
                 _ => {}
-            }
-        }));
+            }));
         play_playlist(&mut instance, playlist);
 
         let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
-        assert_eq!(PlaylistManagerEvent::PlaylistChanged, result, "expected the PlaylistChanged event to have been published");
+        assert_eq!(
+            PlaylistManagerEvent::PlaylistChanged,
+            result,
+            "expected the PlaylistChanged event to have been published"
+        );
 
         let result = rx_state.recv_timeout(Duration::from_millis(200)).unwrap();
-        assert_eq!(PlaylistState::Playing, result, "expected the state to have changed");
+        assert_eq!(
+            PlaylistState::Playing,
+            result,
+            "expected the state to have changed"
+        );
     }
 
     #[test]
@@ -211,36 +236,42 @@ mod test {
         init_logger();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let playlist = CArray::from(vec![PlaylistItemC::from(PlaylistItem {
-            url: None,
-            title: "Item1".to_string(),
-            caption: None,
-            thumb: None,
-            parent_media: None,
-            media: None,
-            torrent_info: None,
-            torrent_file_info: None,
-            quality: None,
-            auto_resume_timestamp: None,
-            subtitles_enabled: false,
-        }), PlaylistItemC::from(PlaylistItem {
-            url: None,
-            title: "Item2".to_string(),
-            caption: None,
-            thumb: None,
-            parent_media: None,
-            media: None,
-            torrent_info: None,
-            torrent_file_info: None,
-            quality: None,
-            auto_resume_timestamp: None,
-            subtitles_enabled: false,
-        })]);
+        let playlist = CArray::from(vec![
+            PlaylistItemC::from(PlaylistItem {
+                url: None,
+                title: "Item1".to_string(),
+                caption: None,
+                thumb: None,
+                parent_media: None,
+                media: None,
+                torrent_info: None,
+                torrent_file_info: None,
+                quality: None,
+                auto_resume_timestamp: None,
+                subtitles_enabled: false,
+            }),
+            PlaylistItemC::from(PlaylistItem {
+                url: None,
+                title: "Item2".to_string(),
+                caption: None,
+                thumb: None,
+                parent_media: None,
+                media: None,
+                torrent_info: None,
+                torrent_file_info: None,
+                quality: None,
+                auto_resume_timestamp: None,
+                subtitles_enabled: false,
+            }),
+        ]);
         let mut instance = PopcornFX::new(default_args(temp_path));
 
         play_playlist(&mut instance, playlist);
         let handle = play_next_playlist_item(&mut instance);
-        assert!(!handle.is_null(), "expected a valid loader handle to have been returned");
+        assert!(
+            !handle.is_null(),
+            "expected a valid loader handle to have been returned"
+        );
     }
 
     #[test]

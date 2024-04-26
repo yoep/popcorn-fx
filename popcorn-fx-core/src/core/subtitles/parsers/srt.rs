@@ -81,55 +81,55 @@ impl SrtParser {
     fn read_time(&self, builder: &mut SubtitleCueBuilder, line: &String, line_index: &i32) {
         match self.time_regex.captures(line) {
             Some(caps) => {
-                let start_time = caps.get(1)
+                let start_time = caps
+                    .get(1)
                     .map(|e| e.as_str())
                     .map(|e| e.replace(",", "."))
                     .map(|e| {
                         trace!("Parsing start time {}", e);
                         NaiveTime::parse_from_str(e.as_str(), TIME_FORMAT)
                     })
-                    .map(|e| {
-                        match e {
-                            Ok(time) => parse_millis_from_time(&time),
-                            Err(err) => {
-                                warn!("Start time is invalid for line {}, {}, value: {}", line_index, err, line);
-                                0
-                            }
+                    .map(|e| match e {
+                        Ok(time) => parse_millis_from_time(&time),
+                        Err(err) => {
+                            warn!(
+                                "Start time is invalid for line {}, {}, value: {}",
+                                line_index, err, line
+                            );
+                            0
                         }
                     })
                     .or_else(|| Some(0))
                     .unwrap();
-                let end_time = caps.get(2)
+                let end_time = caps
+                    .get(2)
                     .map(|e| e.as_str())
                     .map(|e| e.replace(",", "."))
                     .map(|e| {
                         trace!("Parsing end time {}", e);
                         NaiveTime::parse_from_str(e.as_str(), TIME_FORMAT)
                     })
-                    .map(|e| {
-                        match e {
-                            Ok(time) => parse_millis_from_time(&time),
-                            Err(err) => {
-                                warn!("End time is invalid for line {}, {}, value: {}", line_index, err, line);
-                                0
-                            }
+                    .map(|e| match e {
+                        Ok(time) => parse_millis_from_time(&time),
+                        Err(err) => {
+                            warn!(
+                                "End time is invalid for line {}, {}, value: {}",
+                                line_index, err, line
+                            );
+                            0
                         }
                     })
                     .or_else(|| Some(0))
                     .unwrap();
 
-                builder
-                    .start_time(start_time)
-                    .end_time(end_time);
+                builder.start_time(start_time).end_time(end_time);
             }
             None => {}
         };
     }
 
     fn convert_time_to_string(time: NaiveTime) -> String {
-        time.format(TIME_FORMAT)
-            .to_string()
-            .replace(".", ",")
+        time.format(TIME_FORMAT).to_string().replace(".", ",")
     }
 }
 
@@ -154,7 +154,15 @@ impl Parser for SrtParser {
 
             output.push_str(id.as_str());
             output.push_str(NEWLINE);
-            output.push_str(format!("{} {} {}", Self::convert_time_to_string(start_time), TIME_SEPARATOR, Self::convert_time_to_string(end_time)).as_str());
+            output.push_str(
+                format!(
+                    "{} {} {}",
+                    Self::convert_time_to_string(start_time),
+                    TIME_SEPARATOR,
+                    Self::convert_time_to_string(end_time)
+                )
+                .as_str(),
+            );
             output.push_str(NEWLINE);
 
             for line in cue.lines().iter() {
@@ -190,7 +198,7 @@ impl ParserStage {
             ParserStage::IDENTIFIER => ParserStage::TIME,
             ParserStage::TIME => ParserStage::TEXT,
             ParserStage::TEXT => ParserStage::FINISH,
-            _ => ParserStage::IDENTIFIER
+            _ => ParserStage::IDENTIFIER,
         }
     }
 }
@@ -217,13 +225,24 @@ mod test {
     #[test]
     fn test_srt_parser_parse_single_cue() {
         init_logger();
-        let mut reader = BufReader::new(r#"1
+        let mut reader = BufReader::new(
+            r#"1
 00:00:30,296 --> 00:00:34,790
-<i>Drink up, me hearties, yo ho</i>"#.as_bytes());
+<i>Drink up, me hearties, yo ho</i>"#
+                .as_bytes(),
+        );
         let parser = SrtParser::new();
-        let expected_result: SubtitleCue = SubtitleCue::new("1".to_string(), 30296, 34790, vec![
-            SubtitleLine::new(vec![StyledText::new("Drink up, me hearties, yo ho".to_string(), true, false, false)])
-        ]);
+        let expected_result: SubtitleCue = SubtitleCue::new(
+            "1".to_string(),
+            30296,
+            34790,
+            vec![SubtitleLine::new(vec![StyledText::new(
+                "Drink up, me hearties, yo ho".to_string(),
+                true,
+                false,
+                false,
+            )])],
+        );
 
         let result = parser.parse(&mut reader);
 
@@ -233,27 +252,48 @@ mod test {
     #[test]
     fn test_srt_parser_parse_multiple_cues() {
         init_logger();
-        let mut reader = BufReader::new(r#"1526
+        let mut reader = BufReader::new(
+            r#"1526
 02:12:21,051 --> 02:12:22,951
 This is the path
 you've chosen, is it?
 
 1527
 02:12:26,757 --> 02:12:28,952
-The <i>Black Pearl</i> is yours."#.as_bytes());
+The <i>Black Pearl</i> is yours."#
+                .as_bytes(),
+        );
         let parser = SrtParser::new();
         let expected_result: Vec<SubtitleCue> = vec![
-            SubtitleCue::new("1526".to_string(), 7941051, 7942951, vec![
-                SubtitleLine::new(vec![StyledText::new("This is the path".to_string(), false, false, false)]),
-                SubtitleLine::new(vec![StyledText::new("you've chosen, is it?".to_string(), false, false, false)]),
-            ]),
-            SubtitleCue::new("1527".to_string(), 7946757, 7948952, vec![
-                SubtitleLine::new(vec![
+            SubtitleCue::new(
+                "1526".to_string(),
+                7941051,
+                7942951,
+                vec![
+                    SubtitleLine::new(vec![StyledText::new(
+                        "This is the path".to_string(),
+                        false,
+                        false,
+                        false,
+                    )]),
+                    SubtitleLine::new(vec![StyledText::new(
+                        "you've chosen, is it?".to_string(),
+                        false,
+                        false,
+                        false,
+                    )]),
+                ],
+            ),
+            SubtitleCue::new(
+                "1527".to_string(),
+                7946757,
+                7948952,
+                vec![SubtitleLine::new(vec![
                     StyledText::new("The ".to_string(), false, false, false),
                     StyledText::new("Black Pearl".to_string(), true, false, false),
                     StyledText::new(" is yours.".to_string(), false, false, false),
-                ]),
-            ]),
+                ])],
+            ),
         ];
 
         let result = parser.parse(&mut reader);
@@ -295,16 +335,25 @@ The <i>Black Pearl</i> is yours."#.as_bytes());
             "1".to_string(),
             30000,
             48100,
-            vec![SubtitleLine::new(
-                vec![StyledText::new("lorem".to_string(), true, false, false)])])];
+            vec![SubtitleLine::new(vec![StyledText::new(
+                "lorem".to_string(),
+                true,
+                false,
+                false,
+            )])],
+        )];
         let parser = SrtParser::new();
         let expected_result = r#"1
 00:00:30,000 --> 00:00:48,100
 <i>lorem</i>
-"#.to_string();
+"#
+        .to_string();
 
         let result = parser.convert(&cues);
 
-        assert_eq!(expected_result, result.expect("Expected the parse_raw to succeed"))
+        assert_eq!(
+            expected_result,
+            result.expect("Expected the parse_raw to succeed")
+        )
     }
 }

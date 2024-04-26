@@ -12,10 +12,14 @@ use crate::{PopcornFX, PopcornFxArgs};
 /// The caller will become responsible for managing the memory of the struct.
 /// The instance can be safely deleted by using [dispose_popcorn_fx].
 #[no_mangle]
-pub extern "C" fn new_popcorn_fx(args: *mut *mut c_char, len: i32) -> *mut PopcornFX {
-    trace!("Creating new popcorn FX instance from C for args: {:?}", args);
+pub extern "C" fn new_popcorn_fx(len: i32, args: *mut *mut c_char) -> *mut PopcornFX {
+    trace!(
+        "Creating new popcorn FX instance from C for args: {:?}",
+        args
+    );
     let start = Instant::now();
-    let args = from_c_vec(args, len).into_iter()
+    let args = from_c_vec(args, len)
+        .into_iter()
         .map(|e| from_c_string(e))
         .collect::<Vec<String>>();
     let matches = PopcornFxArgs::command()
@@ -26,7 +30,11 @@ pub extern "C" fn new_popcorn_fx(args: *mut *mut c_char, len: i32) -> *mut Popco
     let instance = PopcornFX::new(args);
 
     let time_taken = start.elapsed();
-    info!("Created new Popcorn FX instance in {}.{:03} seconds", time_taken.as_secs(), time_taken.subsec_millis());
+    info!(
+        "Created new Popcorn FX instance in {}.{:03} seconds",
+        time_taken.as_secs(),
+        time_taken.subsec_millis()
+    );
     into_c_owned(instance)
 }
 
@@ -46,7 +54,11 @@ pub extern "C" fn dispose_popcorn_fx(instance: Box<PopcornFX>) {
     let start_time = Instant::now();
     drop(instance);
     let time_taken = start_time.elapsed();
-    info!("Disposed Popcorn FX instance in {}.{:03} seconds", time_taken.as_secs(), time_taken.subsec_millis());
+    info!(
+        "Disposed Popcorn FX instance in {}.{:03} seconds",
+        time_taken.as_secs(),
+        time_taken.subsec_millis()
+    );
 }
 
 /// Retrieve the version of Popcorn FX.
@@ -70,15 +82,18 @@ mod test {
     fn test_new_popcorn_fx() {
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let (args, len) = into_c_vec(vec![
-            "popcorn-fx".to_string(),
-            format!("--app-directory={}", temp_path),
-            "--disable-logger".to_string(),
-        ].into_iter()
+        let (args, len) = into_c_vec(
+            vec![
+                "popcorn-fx".to_string(),
+                format!("--app-directory={}", temp_path),
+                "--disable-logger".to_string(),
+            ]
+            .into_iter()
             .map(|e| into_c_string(e))
-            .collect());
+            .collect(),
+        );
 
-        let result = new_popcorn_fx(args, len);
+        let result = new_popcorn_fx(len, args);
 
         assert!(!result.is_null(), "expected a valid instance pointer")
     }

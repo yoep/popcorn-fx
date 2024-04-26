@@ -4,7 +4,13 @@ use derive_more::Display;
 
 /// A parsed subtitle cue line from a subtitle file.
 #[derive(Debug, Display, Clone, Eq, PartialEq)]
-#[display(fmt = "id: {}, start_time: {}, end_time: {}, lines: {:?}", id, start_time, end_time, lines)]
+#[display(
+    fmt = "id: {}, start_time: {}, end_time: {}, lines: {:?}",
+    id,
+    start_time,
+    end_time,
+    lines
+)]
 pub struct SubtitleCue {
     id: String,
     start_time: u64,
@@ -70,7 +76,12 @@ impl SubtitleCueBuilder {
     }
 
     pub fn build(&self) -> SubtitleCue {
-        SubtitleCue::new(self.id.clone(), self.start_time.clone(), self.end_time.clone(), self.lines.clone())
+        SubtitleCue::new(
+            self.id.clone(),
+            self.start_time.clone(),
+            self.end_time.clone(),
+            self.lines.clone(),
+        )
     }
 
     pub fn id(&mut self, id: String) -> &mut Self {
@@ -103,9 +114,7 @@ pub struct SubtitleLine {
 
 impl SubtitleLine {
     pub fn new(texts: Vec<StyledText>) -> Self {
-        Self {
-            texts
-        }
+        Self { texts }
     }
 
     pub fn texts(&self) -> &Vec<StyledText> {

@@ -360,7 +360,7 @@ impl Player for InnerPlayer {
     async fn play(&self, request: Box<dyn PlayRequest>) {
         trace!("Starting DLNA playback for {:?}", request);
         if request.subtitles_enabled() {
-            // todo
+            // todo: add support for subtitles
         }
 
         let metadata = escape_str_attribute(
@@ -465,14 +465,19 @@ impl Drop for InnerPlayer {
     }
 }
 
+/// Represents the playback state information of a DLNA/UPnP media player.
 #[derive(Debug, Clone, PartialEq)]
 struct PlaybackState {
+    /// The current playback time in millis.
     pub time: u64,
+    /// The total duration of the media being played in millis.
     pub duration: u64,
+    /// The state of the player.
     pub state: PlayerState,
 }
 
 impl Default for PlaybackState {
+    /// Creates a default `PlaybackState` instance with zero time, zero duration, and `PlayerState::Ready`.
     fn default() -> Self {
         Self {
             time: 0,
@@ -573,6 +578,28 @@ mod tests {
         let result = player.description();
 
         assert_eq!(DLNA_PLAYER_DESCRIPTION, result);
+    }
+
+    #[test]
+    fn test_graphic_resource() {
+        init_logger();
+        let instance = new_test_instance();
+        let player = instance.player_instance();
+
+        let result = player.graphic_resource();
+
+        assert_eq!(DLNA_GRAPHIC_RESOURCE.to_vec(), result);
+    }
+
+    #[test]
+    fn test_state() {
+        init_logger();
+        let instance = new_test_instance();
+        let player = instance.player_instance();
+
+        let result = player.state();
+
+        assert_eq!(PlayerState::Ready, result);
     }
 
     #[test]

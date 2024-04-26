@@ -1,10 +1,11 @@
 use std::fmt::{Debug, Formatter};
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::mpsc::Sender;
 
 use async_trait::async_trait;
 use derive_more::Display;
-use log::{debug, trace, warn};
+use log::{debug, error, trace, warn};
 use tokio_util::sync::CancellationToken;
 
 use crate::core::loader::{
@@ -15,7 +16,8 @@ use crate::core::media::{Episode, MediaIdentifier, MovieDetails, ShowDetails};
 use crate::core::subtitles;
 use crate::core::subtitles::{SubtitleError, SubtitleManager, SubtitleProvider};
 use crate::core::subtitles::language::SubtitleLanguage;
-use crate::core::subtitles::model::SubtitleInfo;
+use crate::core::subtitles::matcher::SubtitleMatcher;
+use crate::core::subtitles::model::{Subtitle, SubtitleInfo};
 
 /// Represents a strategy for loading subtitles.
 #[derive(Display)]
@@ -148,6 +150,23 @@ impl SubtitlesLoadingStrategy {
             ))
         };
     }
+
+    async fn download_subtitle(&self, subtitle: &SubtitleInfo, data: &LoadingData) -> Option<Subtitle> {
+        let filename = data.torrent_file_info
+            .clone()
+            .map(|e| e.filename)
+            .or_else(|| data.url.clone()
+                .map(|e| PathBuf::from(e).file_stem().unwrap().to_str().unwrap().to_string()));
+        let matcher = SubtitleMatcher::from_string(filename, data.quality.clone());
+
+        match self.subtitle_provider.download_and_parse(subtitle, &matcher).await {
+            Ok(subtitle) => Some(subtitle),
+            Err(e) => {
+                error!("Failed to download subtitle, {}", e);
+                None
+            }
+        }
+    }
 }
 
 impl Debug for SubtitlesLoadingStrategy {
@@ -163,27 +182,40 @@ impl Debug for SubtitlesLoadingStrategy {
 impl LoadingStrategy for SubtitlesLoadingStrategy {
     async fn process(
         &self,
-        data: LoadingData,
+        mut data: LoadingData,
         event_channel: Sender<LoadingEvent>,
         cancel: CancellationToken,
     ) -> LoadingResult {
         if data.subtitles_enabled.unwrap_or(false) {
             trace!("Subtitle manager state {:?}", self.subtitle_manager);
-
             if cancel.is_cancelled() {
                 return LoadingResult::Err(LoadingError::Cancelled);
             }
+            
             if !self.subtitle_manager.is_disabled_async().await {
                 if self.subtitle_manager.preferred_language() == SubtitleLanguage::None {
-                    trace!("Processing subtitle for {:?}", data);
-                    event_channel
-                        .send(LoadingEvent::StateChanged(
-                            LoadingState::RetrievingSubtitles,
-                        ))
-                        .unwrap();
+                    trace!("Processing subtitle info for {:?}", data);
+                    event_channel.send(LoadingEvent::StateChanged(LoadingState::RetrievingSubtitles)).unwrap();
                     self.update_to_default_subtitle(&data).await;
                 } else {
                     debug!("Subtitle has already been selected for {:?}", data);
+                }
+
+                if let Some(info) = self.subtitle_manager.preferred_subtitle() {
+                    if cancel.is_cancelled() {
+                        return LoadingResult::Err(LoadingError::Cancelled);
+                    }
+                    
+                    event_channel.send(LoadingEvent::StateChanged(LoadingState::DownloadingSubtitle)).unwrap();
+                    trace!("Downloading subtitle for {:?}", data);
+                    if let Some(subtitle) = self.download_subtitle(&info, &data).await {
+                        debug!("Subtitle has been downloaded for {}", info);
+                        data.subtitle = Some(subtitle);
+
+                        if cancel.is_cancelled() {
+                            return LoadingResult::Err(LoadingError::Cancelled);
+                        }
+                    }
                 }
             } else {
                 debug!("Subtitle has been disabled by the user for {:?}", data);

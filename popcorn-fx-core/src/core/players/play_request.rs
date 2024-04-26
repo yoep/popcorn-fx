@@ -10,6 +10,7 @@ use mockall::automock;
 
 use crate::core::loader::LoadingData;
 use crate::core::media::MediaIdentifier;
+use crate::core::subtitles::model::Subtitle;
 use crate::core::torrents::TorrentStream;
 
 /// A trait representing a play request for media playback.
@@ -53,6 +54,11 @@ pub trait PlayRequest: Debug + Display + DowncastSync {
     ///
     /// Returns `true` if subtitles are enabled, `false` otherwise.
     fn subtitles_enabled(&self) -> bool;
+    
+    /// The selected subtitle for the media playback (if available).
+    /// 
+    /// Returns the selected subtitle for the media playback if set, else `None`.
+    fn subtitle<'a>(&'a self) -> Option<&'a Subtitle>;
 }
 impl_downcast!(sync PlayRequest);
 
@@ -81,6 +87,8 @@ pub struct PlayUrlRequest {
     pub auto_resume_timestamp: Option<u64>,
     /// Indicates whether subtitles are enabled for the media playback.
     pub subtitles_enabled: bool,
+    /// The selected subtitle for the media playback (if available).
+    pub subtitle: Option<Subtitle>,
 }
 
 impl PlayUrlRequest {
@@ -122,6 +130,10 @@ impl PlayRequest for PlayUrlRequest {
     fn subtitles_enabled(&self) -> bool {
         self.subtitles_enabled
     }
+
+    fn subtitle(&self) -> Option<&Subtitle> {
+        self.subtitle.as_ref()
+    }
 }
 
 impl<S> From<S> for PlayUrlRequest
@@ -136,6 +148,35 @@ where
     }
 }
 
+impl From<LoadingData> for PlayUrlRequest {
+    fn from(value: LoadingData) -> Self {
+        let subtitles_enabled = value.subtitles_enabled.unwrap_or(false);
+        let mut builder = PlayUrlRequestBuilder::builder()
+            .url(
+                value
+                    .url
+                    .expect("expected an url to have been present")
+                    .as_str(),
+            )
+            .title(value.title.unwrap_or(String::new()).as_str())
+            .subtitles_enabled(subtitles_enabled);
+
+        if let Some(e) = value.thumb {
+            builder = builder.thumb(e.as_str());
+        }
+        if let Some(e) = value.auto_resume_timestamp {
+            builder = builder.auto_resume_timestamp(e);
+        }
+        if subtitles_enabled {
+            if let Some(e) = value.subtitle {
+                builder = builder.subtitle(e);
+            }
+        }
+
+        builder.build()
+    }
+}
+
 /// A builder for constructing a `PlayUrlRequest` with optional parameters.
 #[derive(Debug, Default, Clone)]
 pub struct PlayUrlRequestBuilder {
@@ -146,6 +187,7 @@ pub struct PlayUrlRequestBuilder {
     background: Option<String>,
     auto_resume_timestamp: Option<u64>,
     subtitles_enabled: bool,
+    subtitle: Option<Subtitle>,
 }
 
 impl PlayUrlRequestBuilder {
@@ -198,6 +240,12 @@ impl PlayUrlRequestBuilder {
         self.subtitles_enabled = subtitles_enabled;
         self
     }
+    
+    /// Sets the selected subtitle for the media playback.
+    pub fn subtitle(mut self, subtitle: Subtitle) -> Self {
+        self.subtitle = Some(subtitle);
+        self
+    }
 
     /// Builds and returns a `PlayUrlRequest` based on the provided parameters.
     ///
@@ -213,6 +261,7 @@ impl PlayUrlRequestBuilder {
             background: self.background,
             auto_resume_timestamp: self.auto_resume_timestamp,
             subtitles_enabled: self.subtitles_enabled,
+            subtitle: self.subtitle,
         }
     }
 }
@@ -268,6 +317,10 @@ impl PlayRequest for PlayStreamRequest {
     fn subtitles_enabled(&self) -> bool {
         self.base.subtitles_enabled()
     }
+
+    fn subtitle(&self) -> Option<&Subtitle> {
+        self.base.subtitle()
+    }
 }
 
 impl PartialEq for PlayStreamRequest {
@@ -278,6 +331,7 @@ impl PartialEq for PlayStreamRequest {
 
 impl From<LoadingData> for PlayStreamRequest {
     fn from(value: LoadingData) -> Self {
+        let subtitles_enabled = value.subtitles_enabled.unwrap_or(false);
         let mut builder = Self::builder()
             .url(
                 value
@@ -291,7 +345,7 @@ impl From<LoadingData> for PlayStreamRequest {
                     .expect("expected a title to have been present")
                     .as_str(),
             )
-            .subtitles_enabled(value.subtitles_enabled.unwrap_or(false));
+            .subtitles_enabled(subtitles_enabled);
 
         if let Some(e) = value.caption {
             builder = builder.caption(e);
@@ -308,6 +362,11 @@ impl From<LoadingData> for PlayStreamRequest {
         if let Some(e) = value.torrent_stream {
             builder = builder.torrent_stream(e);
         }
+        if subtitles_enabled {
+            if let Some(e) = value.subtitle {
+                builder = builder.subtitle(e);
+            }
+        }
 
         builder.build()
     }
@@ -323,6 +382,7 @@ pub struct PlayStreamRequestBuilder {
     background: Option<String>,
     auto_resume_timestamp: Option<u64>,
     subtitles_enabled: bool,
+    subtitle: Option<Subtitle>,
     quality: Option<String>,
     torrent_stream: Option<Weak<Box<dyn TorrentStream>>>,
 }
@@ -389,6 +449,12 @@ impl PlayStreamRequestBuilder {
         self.subtitles_enabled = subtitles_enabled;
         self
     }
+    
+    /// Sets the selected subtitle for the media.
+    pub fn subtitle(mut self, subtitle: Subtitle) -> Self {
+        self.subtitle = Some(subtitle);
+        self
+    }
 
     /// Sets the quality information for the media.
     pub fn quality<S>(mut self, quality: S) -> Self
@@ -423,6 +489,7 @@ impl PlayStreamRequestBuilder {
             background: self.background,
             auto_resume_timestamp: self.auto_resume_timestamp,
             subtitles_enabled: self.subtitles_enabled,
+            subtitle: self.subtitle,
         };
 
         PlayStreamRequest {
@@ -499,6 +566,10 @@ impl PlayRequest for PlayMediaRequest {
     fn subtitles_enabled(&self) -> bool {
         self.base.subtitles_enabled()
     }
+
+    fn subtitle(&self) -> Option<&Subtitle> {
+        self.base.subtitle()
+    }
 }
 
 impl Clone for PlayMediaRequest {
@@ -521,6 +592,7 @@ impl Clone for PlayMediaRequest {
 
 impl From<LoadingData> for PlayMediaRequest {
     fn from(value: LoadingData) -> Self {
+        let subtitles_enabled = value.subtitles_enabled.unwrap_or(false);
         let mut builder = Self::builder()
             .url(
                 value
@@ -534,7 +606,7 @@ impl From<LoadingData> for PlayMediaRequest {
                     .expect("expected a title to have been present")
                     .as_str(),
             )
-            .subtitles_enabled(value.subtitles_enabled.unwrap_or(false));
+            .subtitles_enabled(subtitles_enabled);
 
         if let Some(e) = value.caption {
             builder = builder.caption(e);
@@ -563,6 +635,11 @@ impl From<LoadingData> for PlayMediaRequest {
         if let Some(e) = value.torrent_stream {
             builder = builder.torrent_stream(e);
         }
+        if subtitles_enabled {
+            if let Some(e) = value.subtitle {
+                builder = builder.subtitle(e);
+            }
+        }
 
         builder
             .media(
@@ -584,6 +661,7 @@ pub struct PlayMediaRequestBuilder {
     background: Option<String>,
     auto_resume_timestamp: Option<u64>,
     subtitles_enabled: bool,
+    subtitle: Option<Subtitle>,
     media: Option<Box<dyn MediaIdentifier>>,
     parent_media: Option<Box<dyn MediaIdentifier>>,
     quality: Option<String>,
@@ -652,6 +730,12 @@ impl PlayMediaRequestBuilder {
         self.subtitles_enabled = subtitles_enabled;
         self
     }
+    
+    /// Sets the selected subtitle for the media playback.
+    pub fn subtitle(mut self, subtitle: Subtitle) -> Self {
+        self.subtitle = Some(subtitle);
+        self
+    }
 
     /// Sets the media identifier for the requested media.
     pub fn media(mut self, media: Box<dyn MediaIdentifier>) -> Self {
@@ -698,6 +782,7 @@ impl PlayMediaRequestBuilder {
             background: self.background,
             auto_resume_timestamp: self.auto_resume_timestamp,
             subtitles_enabled: self.subtitles_enabled,
+            subtitle: self.subtitle,
         };
 
         PlayMediaRequest {
@@ -738,6 +823,7 @@ mod tests {
             background: Some(background.to_string()),
             auto_resume_timestamp: Some(auto_resume),
             subtitles_enabled: true,
+            subtitle: None,
         };
 
         let result = PlayUrlRequestBuilder::builder()
@@ -770,6 +856,7 @@ mod tests {
             quality: None,
             auto_resume_timestamp: Some(auto_resume.clone()),
             subtitles_enabled: None,
+            subtitle: None,
             media_torrent_info: None,
             torrent: None,
             torrent_stream: None,
@@ -782,6 +869,7 @@ mod tests {
             background: None,
             auto_resume_timestamp: Some(auto_resume),
             subtitles_enabled: false,
+            subtitle: None,
         };
 
         let result = PlayUrlRequest::from(data);
@@ -825,6 +913,7 @@ mod tests {
                 background: None,
                 auto_resume_timestamp: None,
                 subtitles_enabled: false,
+                subtitle: None,
             },
             parent_media: Some(Box::new(show.clone())),
             media: Box::new(episode.clone()),
@@ -888,6 +977,7 @@ mod tests {
                 background: Some(background.to_string()),
                 auto_resume_timestamp: None,
                 subtitles_enabled,
+                subtitle: None,
             },
             parent_media: None,
             media: Box::new(media),
@@ -952,6 +1042,7 @@ mod tests {
                 background: Some(background.to_string()),
                 auto_resume_timestamp: None,
                 subtitles_enabled,
+                subtitle: None,
             },
             parent_media: Some(Box::new(media)),
             media: Box::new(episode),
@@ -962,5 +1053,43 @@ mod tests {
         let result = PlayMediaRequest::from(data);
 
         assert_eq!(expected_result, result)
+    }
+
+    #[test]
+    fn test_from_play_url_request() {
+        let url = "http://localhost:8080/movie.mp4";
+        let title = "FooBar";
+        let thumb = "http://localhost:8080/thumbnail.jpg";
+        let data = LoadingData {
+            url: Some(url.to_string()),
+            title: Some(title.to_string()),
+            caption: None,
+            thumb: Some(thumb.to_string()),
+            parent_media: None,
+            media: None,
+            torrent_info: None,
+            torrent_file_info: None,
+            quality: None,
+            auto_resume_timestamp: None,
+            subtitles_enabled: Some(true),
+            subtitle: None,
+            media_torrent_info: None,
+            torrent: None,
+            torrent_stream: None,
+        };
+        let expected = PlayUrlRequest {
+            url: url.to_string(),
+            title: title.to_string(),
+            caption: None,
+            thumb: Some(thumb.to_string()),
+            background: None,
+            auto_resume_timestamp: None,
+            subtitles_enabled: true,
+            subtitle: None,
+        };
+
+        let result = PlayUrlRequest::from(data);
+
+        assert_eq!(expected, result);
     }
 }

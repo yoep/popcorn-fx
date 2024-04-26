@@ -12,7 +12,7 @@ use popcorn_fx_core::core::block_in_place;
 use popcorn_fx_core::core::utils::network::available_socket;
 
 use crate::chromecast::transcode;
-use crate::chromecast::transcode::{TranscodeError, Transcoder, TranscodeState};
+use crate::chromecast::transcode::{TranscodeError, TranscodeOutput, Transcoder, TranscodeState, TranscodeType};
 use crate::chromecast::transcode::lib_vlc::{LibraryHandle, libvlc_instance_t, libvlc_media_add_option, libvlc_media_new_location, libvlc_media_player_new, libvlc_media_player_play, libvlc_media_player_release, libvlc_media_player_set_media, libvlc_media_player_stop, libvlc_media_player_t, libvlc_media_release, libvlc_media_t, libvlc_new, LibvlcInstanceT};
 
 #[cfg(target_family = "unix")]
@@ -222,7 +222,7 @@ impl Transcoder for VlcTranscoder {
         mutex.clone()
     }
 
-    async fn transcode(&self, url: &str) -> transcode::Result<String> {
+    async fn transcode(&self, url: &str) -> transcode::Result<TranscodeOutput> {
         self.update_state_async(TranscodeState::Preparing).await;
         let filename = PathBuf::from(url)
             .file_name()
@@ -251,7 +251,12 @@ impl Transcoder for VlcTranscoder {
         self.play(media_player)?;
 
         self.update_state_async(TranscodeState::Transcoding).await;
-        Ok(format!("http://{}", destination))
+        Ok(TranscodeOutput {
+            url: format!("http://{}", destination),
+            // VLC transcoding only supports live output
+            // this limits the buffering options as well as the ability to seek within the stream
+            output_type: TranscodeType::Live,
+        })
     }
 
     async fn stop(&self) {
@@ -442,7 +447,8 @@ mod tests {
             .block_on(transcoder.transcode("http://localhost:8900/my-video.mp4"))
             .expect("expected a transcodig stream to be returned");
 
-        assert_ne!(String::new(), result);
+        assert_ne!(String::new(), result.url);
+        assert_eq!(TranscodeType::Live, result.output_type);
         runtime.block_on(transcoder.stop());
     }
 }

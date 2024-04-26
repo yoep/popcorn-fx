@@ -18,17 +18,18 @@ use popcorn_fx_core::core::{
     block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks,
 };
 use popcorn_fx_core::core::players::{Player, PlayerEvent, PlayerState, PlayRequest};
+use popcorn_fx_core::core::subtitles::model::SubtitleType;
+use popcorn_fx_core::core::subtitles::SubtitleServer;
 
 use crate::chromecast;
-use crate::chromecast::{
-    ChromecastError, Image, LoadCommand, Media, Metadata, MovieMetadata, StreamType,
-};
+use crate::chromecast::{ChromecastError, Image, LoadCommand, Media, Metadata, MovieMetadata, StreamType, TextTrackEdgeType, TextTrackStyle, TextTrackType, Track, TrackType};
 
 const GRAPHIC_RESOURCE: &[u8] = include_bytes!("../../resources/external-chromecast-icon.png");
 const DESCRIPTION: &str =
     "Chromecast streaming media device which allows the playback of videos on your TV.";
 const DEFAULT_HEARTBEAT_INTERVAL_MILLIS: u64 = 10 * 1000;
 const MEDIA_CHANNEL_NAMESPACE: &str = "urn:x-cast:com.google.cast.media";
+const SUBTITLE_CONTENT_TYPE: &str = "text/vtt";
 
 #[derive(Debug, Display)]
 #[display(fmt = "Chromecast player {}", "self.name()")]
@@ -43,6 +44,7 @@ impl ChromecastPlayer {
         cast_model: impl Into<String>,
         cast_address: impl Into<String>,
         cast_port: u16,
+        subtitle_server: Arc<SubtitleServer>,
         heartbeat_millis: u64,
         runtime: Arc<Runtime>,
     ) -> chromecast::Result<Self> {
@@ -57,8 +59,7 @@ impl ChromecastPlayer {
         );
         match CastDevice::connect_without_host_verification(cast_address.clone(), cast_port) {
             Ok(cast_device) => {
-                debug!(
-                    "Connected to Chromecast device {} on {}:{}",
+                debug!("Connected to Chromecast device {} on {}:{}",
                     name, cast_address, cast_port
                 );
                 if let Err(e) = cast_device.connection.connect("receiver-0") {
@@ -79,6 +80,7 @@ impl ChromecastPlayer {
                     cast_device: Mutex::new(cast_device),
                     cast_app: Default::default(),
                     cast_media_session_id: Default::default(),
+                    subtitle_server,
                     callbacks: Default::default(),
                     runtime,
                     status_check_token: Default::default(),
@@ -95,7 +97,10 @@ impl ChromecastPlayer {
 
                 Ok(Self { inner: instance })
             }
-            Err(e) => Err(ChromecastError::Connection(e.to_string())),
+            Err(e) => {
+                debug!("Failed to initialize Chromecast {} connection, {}", name, e);
+                Err(ChromecastError::Connection(e.to_string()))
+            }
         }
     }
 
@@ -206,7 +211,20 @@ impl Player for ChromecastPlayer {
                     return;
                 }
 
-                if let Err(e) = self.inner.load(&app, &request).await {
+                // serve the chromecast subtitle if one is present
+                let subtitle_url = request.subtitle()
+                    .map(|e| e.clone())
+                    .and_then(|e| {
+                        match self.inner.subtitle_server.serve(e, SubtitleType::Vtt) {
+                            Ok(e) => Some(e),
+                            Err(e) => {
+                                error!("Failed to serve subtitle, {}", e);
+                                None
+                            }
+                        }
+                    });
+
+                if let Err(e) = self.inner.load(&app, &request, subtitle_url).await {
                     error!("Failed to load Chromecast media, {}", e);
                     self.inner.update_state_async(PlayerState::Error).await;
                     return;
@@ -256,6 +274,7 @@ pub struct ChromecastPlayerBuilder {
     cast_model: Option<String>,
     cast_address: Option<String>,
     cast_port: Option<u16>,
+    subtitle_server: Option<Arc<SubtitleServer>>,
     heartbeat_millis: Option<u64>,
     runtime: Option<Arc<Runtime>>,
 }
@@ -290,6 +309,11 @@ impl ChromecastPlayerBuilder {
         self
     }
 
+    pub fn subtitle_server(mut self, subtitle_server: Arc<SubtitleServer>) -> Self {
+        self.subtitle_server = Some(subtitle_server);
+        self
+    }
+
     pub fn heartbeat_millis(mut self, heartbeat_millis: u64) -> Self {
         self.heartbeat_millis = Some(heartbeat_millis);
         self
@@ -308,6 +332,7 @@ impl ChromecastPlayerBuilder {
             .cast_address
             .expect("expected a cast address to be set");
         let cast_port = self.cast_port.expect("expected a cast port to be set");
+        let subtitle_server = self.subtitle_server.expect("expected a subtitle server to have been set");
         let heartbeat_millis = self
             .heartbeat_millis
             .unwrap_or(DEFAULT_HEARTBEAT_INTERVAL_MILLIS);
@@ -328,6 +353,7 @@ impl ChromecastPlayerBuilder {
             cast_model,
             cast_address,
             cast_port,
+            subtitle_server,
             heartbeat_millis,
             runtime,
         )
@@ -345,6 +371,7 @@ struct InnerChromecastPlayer {
     cast_device: Mutex<CastDevice<'static>>,
     cast_app: Mutex<Option<Application>>,
     cast_media_session_id: Mutex<Option<i32>>,
+    subtitle_server: Arc<SubtitleServer>,
     callbacks: CoreCallbacks<PlayerEvent>,
     runtime: Arc<Runtime>,
     status_check_token: Mutex<CancellationToken>,
@@ -436,44 +463,44 @@ impl InnerChromecastPlayer {
             .await
     }
 
-    async fn load(
-        &self,
-        app: &Application,
-        request: &Box<dyn PlayRequest>,
-    ) -> chromecast::Result<()> {
-        return self
-            .try_command(|| async {
-                {
-                    let cast_device = self.cast_device.lock().await;
-                    let media = Self::request_to_media_payload(request);
-                    let load = LoadCommand {
-                        request_id: 0,
-                        session_id: app.session_id.to_string(),
-                        payload_type: (),
-                        media,
-                        autoplay: true,
-                        current_time: request
-                            .auto_resume_timestamp()
-                            .map(|e| Self::parse_to_chromecast_time(e))
-                            .unwrap_or(0f32),
-                        active_track_ids: None,
-                    };
-                    trace!("Parsing load command payload {:?}", load);
-                    let load_payload = serde_json::to_string(&load)
-                        .map_err(|e| ChromecastError::Parsing(e.to_string()))?;
+    async fn load(&self,
+                  app: &Application,
+                  request: &Box<dyn PlayRequest>,
+                  subtitle_url: Option<String>) -> chromecast::Result<()> {
+        return self.try_command(|| async {
+            let cast_device = self.cast_device.lock().await;
+            let active_track_ids = if subtitle_url.is_some() {
+                Some(vec![0])
+            } else {
+                None
+            };
+            let media = Self::request_to_media_payload(request, subtitle_url.clone());
+            let load = LoadCommand {
+                request_id: 0,
+                session_id: app.session_id.to_string(),
+                payload_type: (),
+                media,
+                autoplay: true,
+                current_time: request
+                    .auto_resume_timestamp()
+                    .map(|e| Self::parse_to_chromecast_time(e))
+                    .unwrap_or(0f32),
+                active_track_ids,
+            };
+            trace!("Parsing load command payload {:?}", load);
+            let load_payload = serde_json::to_string(&load)
+                .map_err(|e| ChromecastError::Parsing(e.to_string()))?;
 
-                    trace!("Sending load command {}", load_payload);
-                    if let Err(e) = cast_device
-                        .receiver
-                        .broadcast_message(MEDIA_CHANNEL_NAMESPACE, &load)
-                    {
-                        return Err(ChromecastError::AppInitializationFailed(e.to_string()));
-                    }
-                }
+            trace!("Sending load command {}", load_payload);
+            if let Err(e) = cast_device
+                .receiver
+                .broadcast_message(MEDIA_CHANNEL_NAMESPACE, &load)
+            {
+                return Err(ChromecastError::AppInitializationFailed(e.to_string()));
+            }
 
-                Ok(())
-            })
-            .await;
+            Ok(())
+        }).await;
     }
 
     async fn stop_app(&self) -> chromecast::Result<()> {
@@ -729,7 +756,7 @@ impl InnerChromecastPlayer {
         Ok(())
     }
 
-    fn request_to_media_payload(request: &Box<dyn PlayRequest>) -> Media {
+    fn request_to_media_payload(request: &Box<dyn PlayRequest>, subtitle_url: Option<String>) -> Media {
         let mut images: Vec<Image> = Vec::new();
         let subtitle = Self::create_media_subtitle(request);
 
@@ -758,7 +785,25 @@ impl InnerChromecastPlayer {
             })),
             custom_data: None,
             duration: None,
-            text_track_style: None,
+            text_track_style: Some(TextTrackStyle {
+                background_color: Some("#00000000".to_string()),
+                custom_data: None,
+                edge_color: Some("#000000FF".to_string()),
+                edge_type: Some(TextTrackEdgeType::Outline),
+                font_family: None,
+                font_scale: None,
+                foreground_color: Some("#FFFFFFFF".to_string()),
+                window_color: None,
+            }),
+            tracks: subtitle_url.map(|e| vec![Track {
+                track_id: 0,
+                track_type: TrackType::Text,
+                track_content_id: e.to_string(),
+                track_content_type: SUBTITLE_CONTENT_TYPE.to_string(),
+                subtype: TextTrackType::Subtitles,
+                language: "en".to_string(),
+                name: "English".to_string(),
+            }]),
         }
     }
 
@@ -823,18 +868,20 @@ impl Drop for InnerChromecastPlayer {
 
 #[cfg(test)]
 mod tests {
-    use httpmock::MockServer;
+    use std::sync::mpsc::channel;
 
+    use popcorn_fx_core::core::players::PlayUrlRequest;
     use popcorn_fx_core::testing::init_logger;
+
+    use crate::chromecast::tests::TestInstance;
 
     use super::*;
 
     #[test]
     fn test_player_id() {
         init_logger();
-        let runtime = Arc::new(Runtime::new().unwrap());
-        let server = MockServer::start();
-        let player = create_player(&server, runtime.clone());
+        let mut test_instance = TestInstance::new_player();
+        let player = test_instance.player.take().unwrap();
 
         let result = player.id();
 
@@ -842,23 +889,106 @@ mod tests {
     }
 
     #[test]
-    fn test_create_subtitle() {
+    fn test_player_name() {
         init_logger();
-        let runtime = Arc::new(Runtime::new().unwrap());
-        let server = MockServer::start();
-        let player = create_player(&server, runtime.clone());
+        let mut test_instance = TestInstance::new_player();
+        let player = test_instance.player.take().unwrap();
+
+        let result = player.name();
+
+        assert_eq!("MyChromecastName", result);
     }
 
-    fn create_player(server: &MockServer, runtime: Arc<Runtime>) -> ChromecastPlayer {
-        ChromecastPlayer::builder()
-            .id("MyChromecastId")
-            .name("MyChromecastName")
-            .cast_model("Chromecast")
-            .cast_address(server.host())
-            .cast_port(server.port())
-            .runtime(runtime)
-            .heartbeat_millis(1000)
-            .build()
-            .unwrap()
+    #[test]
+    fn test_player_description() {
+        init_logger();
+        let mut test_instance = TestInstance::new_player();
+        let player = test_instance.player.take().unwrap();
+
+        let result = player.description();
+
+        assert_eq!(DESCRIPTION, result);
+    }
+
+    #[test]
+    fn test_player_graphic_resource() {
+        init_logger();
+        let mut test_instance = TestInstance::new_player();
+        let player = test_instance.player.take().unwrap();
+
+        let result = player.graphic_resource();
+
+        assert_eq!(GRAPHIC_RESOURCE.to_vec(), result);
+    }
+
+    #[test]
+    fn test_player_state() {
+        init_logger();
+        let mut test_instance = TestInstance::new_player();
+        let player = test_instance.player.take().unwrap();
+
+        let result = player.state();
+
+        assert_eq!(PlayerState::Ready, result);
+    }
+
+    #[test]
+    fn test_player_play() {
+        init_logger();
+        let mut test_instance = TestInstance::new_player();
+        let request = Box::new(PlayUrlRequest {
+            url: "http://localhost:8900/my-video.mkv".to_string(),
+            title: "FooBar".to_string(),
+            caption: None,
+            thumb: None,
+            background: None,
+            auto_resume_timestamp: None,
+            subtitles_enabled: true,
+            subtitle: None,
+        });
+        let (tx, rx) = channel();
+        let player = test_instance.player.take().unwrap();
+
+        player.add(Box::new(move |event| {
+            if let PlayerEvent::StateChanged(state) = event {
+                tx.send(state).unwrap();
+            }
+        }));
+        test_instance.runtime.block_on(player.play(request));
+
+        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        assert_eq!(PlayerState::Loading, result);
+
+        let result = rx.recv_timeout(Duration::from_millis(1250)).unwrap();
+        assert_eq!(PlayerState::Playing, result);
+    }
+
+    #[test]
+    fn test_player_pause() {
+        init_logger();
+        let mut test_instance = TestInstance::new_player();
+        let player = test_instance.player.take().unwrap();
+
+        player.pause();
+    }
+
+    #[test]
+    fn test_player_resume() {
+        init_logger();
+        let mut test_instance = TestInstance::new_player();
+        let player = test_instance.player.take().unwrap();
+
+        player.resume();
+    }
+
+    #[test]
+    fn test_player_stop() {
+        init_logger();
+        let mut test_instance = TestInstance::new_player();
+        let player = test_instance.player.take().unwrap();
+
+        player.stop();
+
+        assert_eq!(PlayerState::Stopped, player.state());
     }
 }

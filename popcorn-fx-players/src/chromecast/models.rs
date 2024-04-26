@@ -45,7 +45,10 @@ pub struct Media {
     /// Additional custom data associated with the media content.
     pub custom_data: Option<HashMap<String, String>>,
     /// The style settings for text tracks.
-    pub text_track_style: Option<HashMap<String, String>>,
+    pub text_track_style: Option<TextTrackStyle>,
+    /// The tracks associated with the media content.
+    /// This can be subtitles associated with the media content.
+    pub tracks: Option<Vec<Track>>,
 }
 
 /// Represents metadata associated with media content.
@@ -106,6 +109,83 @@ pub struct Image {
     pub height: Option<i32>,
     /// The width of the image.
     pub width: Option<i32>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Track {
+    pub track_id: u64,
+    #[serde(rename = "type")]
+    pub track_type: TrackType,
+    pub track_content_id: String,
+    pub track_content_type: String,
+    pub subtype: TextTrackType,
+    pub language: String,
+    pub name: String,
+}
+
+/// Possible track types.
+/// https://developers.google.com/cast/docs/reference/web_sender/chrome.cast.media#.TrackType
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum TrackType {
+    Text,
+    Audio,
+    Video
+}
+
+/// Possible text track types.
+/// https://developers.google.com/cast/docs/reference/web_sender/chrome.cast.media#.TextTrackType
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum TextTrackType {
+    /// Transcription or translation of the dialogue, suitable for when the sound is available but not understood (e.g. because the user does not understand
+    /// the language of the media resource's soundtrack).
+    Subtitles,
+    /// Transcription or translation of the dialogue, sound effects, relevant musical cues, and other relevant audio information, suitable for when the
+    /// soundtrack is unavailable (e.g. because it is muted or because the user is deaf). Displayed over the video; labeled as appropriate for the
+    /// hard-of-hearing.
+    Captions,
+    /// Textual descriptions of the video component of the media resource, intended for audio synthesis when the visual component is unavailable (e.g. because
+    /// the user is interacting with the application without a screen, or because the user is blind). Synthesized as separate audio track.
+    Descriptions,
+    /// Chapter titles, intended to be used for navigating the media resource.
+    Chapters,
+    /// Tracks intended for use from script.
+    Metadata,
+}
+
+/// The style of the subtitle track.
+/// https://developers.google.com/cast/docs/reference/web_sender/chrome.cast.media.TextTrackStyle
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TextTrackStyle {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub background_color: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub custom_data: Option<HashMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub edge_color: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub edge_type: Option<TextTrackEdgeType>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub font_family: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub font_scale: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub foreground_color: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub window_color: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum TextTrackEdgeType {
+    None,
+    Outline,
+    DropShadow,
+    Raised,
+    Depressed,
 }
 
 /// Serializes the payload type for the LoadCommand.

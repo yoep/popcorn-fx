@@ -38,10 +38,13 @@ pub enum TranscodeState {
     Error,
 }
 
+/// The output of a transcoding process.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TranscodeOutput {
+    /// The output URL stream of the transcoded media.
     pub url: String,
-    pub stream_type: TranscodeType,
+    /// The streaming output type of the transcoding process.
+    pub output_type: TranscodeType,
 }
 
 /// A trait representing a media transcoder.
@@ -50,7 +53,7 @@ pub trait Transcoder: Debug + Sync + Send {
     /// Gets the current state of the transcoder.
     fn state(&self) -> TranscodeState;
 
-    /// Transcodes the input media.
+    /// Transcodes the input media stream into a transcoded output stream.
     ///
     /// # Arguments
     ///
@@ -58,8 +61,8 @@ pub trait Transcoder: Debug + Sync + Send {
     ///
     /// # Returns
     ///
-    /// A `Result` containing the URL of the transcoded media if successful, or an error if transcoding fails.
-    async fn transcode(&self, url: &str) -> Result<String>;
+    /// A `Result` containing the output of the transcoded media if successful, or an error if transcoding fails.
+    async fn transcode(&self, url: &str) -> Result<TranscodeOutput>;
 
     /// Stops the current transcoding process.
     async fn stop(&self);

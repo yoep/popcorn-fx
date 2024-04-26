@@ -6,7 +6,6 @@ import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
-import com.github.yoep.popcorn.backend.subtitles.model.SubtitleType;
 import org.springframework.lang.Nullable;
 import org.springframework.scheduling.annotation.Async;
 
@@ -80,9 +79,6 @@ public interface SubtitleService {
      * @return Returns the subtitle that needs to be selected by default.
      */
     SubtitleInfo getDefaultOrInterfaceLanguage(List<SubtitleInfo> subtitles);
-
-
-    String serve(SubtitleInfo.ByReference subtitle, SubtitleMatcher.ByValue matcher, SubtitleType type);
 
     /**
      * Get the preferred subtitle for the next media item playback.

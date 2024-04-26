@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 
 use crate::chromecast::transcode;
-use crate::chromecast::transcode::{TranscodeError, Transcoder, TranscodeState};
+use crate::chromecast::transcode::{TranscodeError, TranscodeOutput, Transcoder, TranscodeState};
 
 /// A no-operation transcoder implementation.
 #[derive(Debug)]
@@ -25,7 +25,7 @@ impl Transcoder for NoOpTranscoder {
     /// # Returns
     ///
     /// An error indicating that transcoding is unsupported.
-    async fn transcode(&self, _input: &str) -> transcode::Result<String> {
+    async fn transcode(&self, _input: &str) -> transcode::Result<TranscodeOutput> {
         Err(TranscodeError::Unsupported)
     }
 

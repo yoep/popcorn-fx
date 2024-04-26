@@ -127,10 +127,7 @@ impl LoadingStrategy for TorrentInfoLoadingStrategy {
         let mut url: Option<String> = None;
 
         if data.torrent_info.is_none() {
-            trace!(
-                "Processing item url {:?} for torrent loading strategy",
-                data.url
-            );
+            trace!("Processing item url {:?} for torrent loading strategy", data.url);
             if let Some(item_url) = data
                 .url
                 .as_ref()
@@ -291,8 +288,8 @@ mod tests {
                     .file("MySecondFile")
                     .build(),
             )]
-            .into_iter()
-            .collect(),
+                .into_iter()
+                .collect(),
         };
         let item = PlaylistItem {
             url: Some(magnet_url.to_string()),

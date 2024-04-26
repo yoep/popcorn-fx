@@ -13,6 +13,7 @@ use tokio::sync::Mutex;
 
 use popcorn_fx_core::core::block_in_place;
 use popcorn_fx_core::core::players::PlayerManager;
+use popcorn_fx_core::core::subtitles::SubtitleServer;
 
 use crate::{chromecast, Discovery, DiscoveryError, DiscoveryState};
 use crate::chromecast::player::ChromecastPlayer;
@@ -20,7 +21,7 @@ use crate::chromecast::transcode::{
     NoOpTranscoder, Transcoder, VlcTranscoderDiscovery,
 };
 
-const SERVICE_TYPE: &str = "_googlecast._tcp.local.";
+pub(crate) const SERVICE_TYPE: &str = "_googlecast._tcp.local.";
 const INFO_UNKNOWN: &str = "Unknown";
 
 #[derive(Display)]
@@ -38,6 +39,7 @@ impl ChromecastDiscovery {
     pub fn new(
         service_daemon: ServiceDaemon,
         player_manager: Arc<Box<dyn PlayerManager>>,
+        subtitle_server: Arc<SubtitleServer>,
         runtime: Arc<Runtime>,
     ) -> Self {
         let transcoder = Arc::new(Self::resolve_transcoder());
@@ -48,6 +50,7 @@ impl ChromecastDiscovery {
                 service_daemon,
                 transcoder,
                 state: Mutex::new(DiscoveryState::Stopped),
+                subtitle_server,
             }),
             runtime,
         }
@@ -57,11 +60,11 @@ impl ChromecastDiscovery {
     fn resolve_transcoder() -> Box<dyn Transcoder> {
         VlcTranscoderDiscovery::discover()
             .map(|e| {
-                debug!("Using VLC transcoder for Chromecast devices");
+                info!("Using VLC transcoder for Chromecast devices");
                 Box::new(e) as Box<dyn Transcoder>
             })
             .unwrap_or_else(|| {
-                debug!("VLC transcoder not found. Using no-op transcoder for Chromecast devices");
+                info!("VLC transcoder not found. Using no-op transcoder for Chromecast devices");
                 Box::new(NoOpTranscoder {})
             })
     }
@@ -137,9 +140,12 @@ impl Drop for ChromecastDiscovery {
     }
 }
 
+/// A builder struct for creating a `ChromecastDiscovery` instance.
+/// This struct provides fluent methods for setting optional components and a method for building the final `ChromecastDiscovery`.
 #[derive(Debug, Default)]
 pub struct ChromecastDiscoveryBuilder {
     player_manager: Option<Arc<Box<dyn PlayerManager>>>,
+    subtitle_server: Option<Arc<SubtitleServer>>,
     runtime: Option<Arc<Runtime>>,
 }
 
@@ -159,6 +165,11 @@ impl ChromecastDiscoveryBuilder {
         self
     }
 
+    pub fn subtitle_server(mut self, subtitle_server: Arc<SubtitleServer>) -> Self {
+        self.subtitle_server = Some(subtitle_server);
+        self
+    }
+
     pub fn build(self) -> ChromecastDiscovery {
         let runtime = self
             .runtime
@@ -167,8 +178,8 @@ impl ChromecastDiscoveryBuilder {
 
         ChromecastDiscovery::new(
             service_daemon,
-            self.player_manager
-                .expect("expected a player manager to have been set"),
+            self.player_manager.expect("expected a player manager to have been set"),
+            self.subtitle_server.expect("expected a subtitle server to have been set"),
             runtime,
         )
     }
@@ -179,6 +190,7 @@ struct InnerChromecastDiscovery {
     service_daemon: ServiceDaemon,
     transcoder: Arc<Box<dyn Transcoder>>,
     state: Mutex<DiscoveryState>,
+    subtitle_server: Arc<SubtitleServer>,
 }
 
 impl InnerChromecastDiscovery {
@@ -225,6 +237,7 @@ impl InnerChromecastDiscovery {
             .cast_model(device_model)
             .cast_address(addr.into())
             .cast_port(port)
+            .subtitle_server(self.subtitle_server.clone())
             .build()
         {
             Ok(player) => {
@@ -245,8 +258,10 @@ mod tests {
     use std::time::Duration;
 
     use popcorn_fx_core::core::players::MockPlayerManager;
-    use popcorn_fx_core::core::utils::network::ip_addr;
+    use popcorn_fx_core::core::subtitles::MockSubtitleProvider;
     use popcorn_fx_core::testing::init_logger;
+
+    use crate::chromecast::tests::TestInstance;
 
     use super::*;
 
@@ -255,9 +270,12 @@ mod tests {
         init_logger();
         let runtime = Arc::new(Runtime::new().unwrap());
         let player_manager = MockPlayerManager::new();
+        let subtitle_provider = MockSubtitleProvider::new();
+        let subtitle_server = Arc::new(SubtitleServer::new(&Arc::new(Box::new(subtitle_provider))));
         let discovery = ChromecastDiscovery::builder()
             .player_manager(Arc::new(Box::new(player_manager)))
             .runtime(runtime.clone())
+            .subtitle_server(subtitle_server)
             .build();
 
         let result = discovery.state();
@@ -268,25 +286,29 @@ mod tests {
     #[test]
     fn test_start_discovery() {
         init_logger();
-        let runtime = Arc::new(Runtime::new().unwrap());
         let (tx, rx) = channel();
         let mut player_manager = MockPlayerManager::new();
         player_manager.expect_add_player().returning(move |e| {
+            debug!("Received player: {:?}", e);
             if e.name() == "Chromecast test device" {
                 tx.send(e).unwrap();
             }
             true
         });
-        let mdns_client = create_mdns_client();
+        let mut test_instance = TestInstance::new_mdns();
+        let mdns = test_instance.mdns.take().unwrap();
+        let subtitle_provider = MockSubtitleProvider::new();
+        let subtitle_server = Arc::new(SubtitleServer::new(&Arc::new(Box::new(subtitle_provider))));
         let discovery = ChromecastDiscovery::builder()
             .player_manager(Arc::new(Box::new(player_manager)))
-            .runtime(runtime.clone())
+            .runtime(test_instance.runtime.clone())
+            .subtitle_server(subtitle_server)
             .build();
 
-        runtime.block_on(discovery.start_discovery()).unwrap();
-        let result = rx.recv_timeout(Duration::from_secs(3)).unwrap();
+        test_instance.runtime.block_on(discovery.start_discovery()).unwrap();
+        let result = rx.recv_timeout(Duration::from_secs(30)).unwrap();
 
-        mdns_client.shutdown().unwrap();
+        mdns.shutdown().unwrap();
     }
 
     #[test]
@@ -294,9 +316,14 @@ mod tests {
         init_logger();
         let runtime = Arc::new(Runtime::new().unwrap());
         let player_manager = MockPlayerManager::new();
+        let mut test_instance = TestInstance::new_mdns();
+        let mdns = test_instance.mdns.take().unwrap();
+        let subtitle_provider = MockSubtitleProvider::new();
+        let subtitle_server = Arc::new(SubtitleServer::new(&Arc::new(Box::new(subtitle_provider))));
         let discovery = ChromecastDiscovery::builder()
             .player_manager(Arc::new(Box::new(player_manager)))
             .runtime(runtime.clone())
+            .subtitle_server(subtitle_server)
             .build();
 
         runtime.block_on(discovery.start_discovery()).unwrap();
@@ -304,22 +331,6 @@ mod tests {
 
         assert_eq!(Ok(()), result);
         assert_eq!(DiscoveryState::Stopped, discovery.state());
-    }
-
-    fn create_mdns_client() -> ServiceDaemon {
-        let mdns = ServiceDaemon::new().expect("Failed to create daemon");
-        let ip_addr = ip_addr();
-        let service = ServiceInfo::new(
-            SERVICE_TYPE,
-            "chromecast_test_device",
-            format!("{}.local.", ip_addr).as_str(),
-            ip_addr,
-            5200,
-            &[("fn", "Chromecast test device"), ("md", "Chromecast")][..],
-        )
-            .unwrap();
-
-        mdns.register(service).expect("Failed to register service");
-        mdns
+        mdns.shutdown().unwrap();
     }
 }

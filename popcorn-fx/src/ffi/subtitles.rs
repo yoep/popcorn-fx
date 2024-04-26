@@ -145,47 +145,6 @@ pub extern "C" fn register_subtitle_callback(
     popcorn_fx.subtitle_manager().add(wrapper);
 }
 
-#[no_mangle]
-pub extern "C" fn serve_subtitle(
-    popcorn_fx: &mut PopcornFX,
-    subtitle_info: &SubtitleInfoC,
-    matcher: SubtitleMatcherC,
-    subtitle_type: SubtitleType,
-) -> *mut c_char {
-    trace!(
-        "Serving subtitle from C for {:?} with quality {:?}",
-        subtitle_info,
-        matcher
-    );
-    let subtitle_provider = popcorn_fx.subtitle_provider().clone();
-    let subtitle_server = popcorn_fx.subtitle_server().clone();
-
-    block_in_place(async move {
-        let subtitle_info = SubtitleInfo::from(subtitle_info);
-        let matcher = SubtitleMatcher::from(matcher);
-
-        match subtitle_provider
-            .download_and_parse(&subtitle_info, &matcher)
-            .await
-        {
-            Ok(subtitle) => match subtitle_server.serve(subtitle, subtitle_type) {
-                Ok(e) => {
-                    info!("Serving subtitle at {}", &e);
-                    into_c_string(e)
-                }
-                Err(e) => {
-                    error!("Failed to serve subtitle, {}", e);
-                    ptr::null_mut()
-                }
-            },
-            Err(e) => {
-                error!("Failed to serve subtitle, {}", e);
-                ptr::null_mut()
-            }
-        }
-    })
-}
-
 /// Clean the subtitles directory.
 ///
 /// # Safety

@@ -130,8 +130,6 @@ public interface FxLib extends Library {
 
     void register_favorites_event_callback(PopcornFx instance, FavoriteEventCallback callback);
 
-    String serve_subtitle(PopcornFx instance, SubtitleInfo.ByReference subtitleInfo, SubtitleMatcher.ByValue matcher, int type);
-
     byte is_media_watched(PopcornFx instance, MediaItem media);
 
     FxStringArray.ByReference retrieve_watched_movies(PopcornFx instance);

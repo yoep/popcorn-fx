@@ -250,6 +250,7 @@ pub trait MediaLoader: Debug + Send + Sync {
     /// Returns a `CallbackHandle` representing the subscription to loader events.
     fn subscribe(&self, callback: LoaderCallback) -> CallbackHandle;
 
+    /// Load a torrent magnet url.
     fn load_url(&self, url: &str) -> LoadingHandle;
 
     /// Load a media item in the playlist using the media loader.
@@ -536,6 +537,7 @@ mod tests {
             torrent: None,
             torrent_stream: None,
             subtitles_enabled: None,
+            subtitle: None,
         };
 
         let result = LoadingData::from(url);
@@ -571,6 +573,7 @@ mod tests {
             quality: None,
             auto_resume_timestamp: None,
             subtitles_enabled: Some(false),
+            subtitle: None,
             media_torrent_info: None,
             torrent: None,
             torrent_stream: None,

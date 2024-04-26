@@ -1,8 +1,8 @@
 use std::sync::Weak;
 
 use crate::core::media::{MediaIdentifier, TorrentInfo};
-use crate::core::players::{PlayUrlRequest, PlayUrlRequestBuilder};
 use crate::core::playlists::PlaylistItem;
+use crate::core::subtitles::model::Subtitle;
 use crate::core::torrents::{Torrent, TorrentFileInfo, TorrentStream};
 
 /// A structure representing loading data for a media item.
@@ -23,6 +23,7 @@ pub struct LoadingData {
     pub quality: Option<String>,
     pub auto_resume_timestamp: Option<u64>,
     pub subtitles_enabled: Option<bool>,
+    pub subtitle: Option<Subtitle>,
     pub media_torrent_info: Option<TorrentInfo>,
     pub torrent: Option<Weak<Box<dyn Torrent>>>,
     pub torrent_stream: Option<Weak<Box<dyn TorrentStream>>>,
@@ -72,6 +73,7 @@ impl Clone for LoadingData {
             quality: self.quality.clone(),
             auto_resume_timestamp: self.auto_resume_timestamp,
             subtitles_enabled: self.subtitles_enabled,
+            subtitle: self.subtitle.clone(),
             media_torrent_info: self.media_torrent_info.clone(),
             torrent: self.torrent.clone(),
             torrent_stream: self.torrent_stream.clone(),
@@ -93,6 +95,7 @@ impl From<&str> for LoadingData {
             quality: None,
             auto_resume_timestamp: None,
             subtitles_enabled: None,
+            subtitle: None,
             media_torrent_info: None,
             torrent: None,
             torrent_stream: None,
@@ -114,33 +117,11 @@ impl From<PlaylistItem> for LoadingData {
             quality: value.quality,
             auto_resume_timestamp: value.auto_resume_timestamp,
             subtitles_enabled: Some(value.subtitles_enabled),
+            subtitle: None,
             media_torrent_info: None,
             torrent: None,
             torrent_stream: None,
         }
-    }
-}
-
-impl From<LoadingData> for PlayUrlRequest {
-    fn from(value: LoadingData) -> Self {
-        let mut builder = PlayUrlRequestBuilder::builder()
-            .url(
-                value
-                    .url
-                    .expect("expected an url to have been present")
-                    .as_str(),
-            )
-            .title(value.title.unwrap_or(String::new()).as_str())
-            .subtitles_enabled(value.subtitles_enabled.unwrap_or(false));
-
-        if let Some(e) = value.thumb {
-            builder = builder.thumb(e.as_str());
-        }
-        if let Some(e) = value.auto_resume_timestamp {
-            builder = builder.auto_resume_timestamp(e);
-        }
-
-        builder.build()
     }
 }
 
@@ -183,41 +164,5 @@ mod tests {
         assert_eq!(Some(caption.to_string()), result.caption);
         assert_eq!(Some(thumb.to_string()), result.thumb);
         assert_eq!(Some(quality.to_string()), result.quality);
-    }
-
-    #[test]
-    fn test_from_play_url_request() {
-        let url = "http://localhost:8080/movie.mp4";
-        let title = "FooBar";
-        let thumb = "http://localhost:8080/thumbnail.jpg";
-        let data = LoadingData {
-            url: Some(url.to_string()),
-            title: Some(title.to_string()),
-            caption: None,
-            thumb: Some(thumb.to_string()),
-            parent_media: None,
-            media: None,
-            torrent_info: None,
-            torrent_file_info: None,
-            quality: None,
-            auto_resume_timestamp: None,
-            subtitles_enabled: Some(true),
-            media_torrent_info: None,
-            torrent: None,
-            torrent_stream: None,
-        };
-        let expected = PlayUrlRequest {
-            url: url.to_string(),
-            title: title.to_string(),
-            caption: None,
-            thumb: Some(thumb.to_string()),
-            background: None,
-            auto_resume_timestamp: None,
-            subtitles_enabled: true,
-        };
-
-        let result = PlayUrlRequest::from(data);
-
-        assert_eq!(expected, result);
     }
 }

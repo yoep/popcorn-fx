@@ -31,6 +31,7 @@ pub enum ServerState {
 }
 
 /// The subtitle server is responsible for serving [Subtitle]'s over http.
+#[derive(Debug)]
 pub struct SubtitleServer {
     runtime: tokio::runtime::Runtime,
     socket: Arc<SocketAddr>,
@@ -244,6 +245,7 @@ unsafe impl Send for SubtitleServer {}
 unsafe impl Sync for SubtitleServer {}
 
 /// Holds the raw format data of a [Subtitle] with additional information.
+#[derive(Debug)]
 pub struct DataHolder {
     data: String,
     data_type: SubtitleType,

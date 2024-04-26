@@ -2,6 +2,8 @@ package com.github.yoep.popcorn.backend.playlists;
 
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentFileInfo;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
 import com.github.yoep.popcorn.backend.media.MediaItem;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
@@ -14,6 +16,7 @@ import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
+import java.util.Objects;
 
 @Slf4j
 @ToString
@@ -40,12 +43,15 @@ public class PlaylistManager extends AbstractListenerService<PlaylistManagerList
     }
 
     public void play(MovieDetails movie, String quality) {
+        Objects.requireNonNull(movie, "movie cannot be null");
         var items = new ArrayList<PlaylistItem>();
         items.add(itemFrom(movie, quality));
         play(new Playlist.ByValue(items));
     }
 
     public void play(ShowDetails show, Episode episode, String quality) {
+        Objects.requireNonNull(show, "show cannot be null");
+        Objects.requireNonNull(episode, "episode cannot be null");
         var items = new ArrayList<PlaylistItem>();
 
         items.add(itemFrom(show, episode, quality));
@@ -62,6 +68,11 @@ public class PlaylistManager extends AbstractListenerService<PlaylistManagerList
         }
 
         play(new Playlist.ByValue(items));
+    }
+
+    public void play(TorrentInfo torrentInfo, TorrentFileInfo fileInfo) {
+        Objects.requireNonNull(torrentInfo, "torrentInfo cannot be null");
+        Objects.requireNonNull(fileInfo, "fileInfo cannot be null");
     }
 
     public void playNext() {

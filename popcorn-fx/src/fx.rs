@@ -341,6 +341,7 @@ impl PopcornFX {
                 ChromecastDiscovery::builder()
                     .runtime(runtime.clone())
                     .player_manager(player_manager.clone())
+                    .subtitle_server(subtitle_server.clone())
                     .build(),
             )),
             Arc::new(Box::new(

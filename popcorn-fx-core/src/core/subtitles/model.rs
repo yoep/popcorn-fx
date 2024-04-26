@@ -19,10 +19,7 @@ const SRT_EXTENSION: &str = "srt";
 const VTT_EXTENSION: &str = "vtt";
 const NORMALIZATION_PATTERN: &str = "[\\.\\[\\]\\(\\)_\\-+]";
 
-const SUBTITLE_TYPES: [SubtitleType; 2] = [
-    SubtitleType::Srt,
-    SubtitleType::Vtt
-];
+const SUBTITLE_TYPES: [SubtitleType; 2] = [SubtitleType::Srt, SubtitleType::Vtt];
 
 /// The type of a subtitle, indicating its format.
 #[repr(i32)]
@@ -75,7 +72,7 @@ impl SubtitleType {
     pub fn extension(&self) -> String {
         match self {
             SubtitleType::Srt => SRT_EXTENSION.to_string(),
-            SubtitleType::Vtt => VTT_EXTENSION.to_string()
+            SubtitleType::Vtt => VTT_EXTENSION.to_string(),
         }
     }
 
@@ -87,7 +84,7 @@ impl SubtitleType {
     pub fn content_type(&self) -> &str {
         match self {
             SubtitleType::Srt => "text/srt",
-            SubtitleType::Vtt => "text/vtt"
+            SubtitleType::Vtt => "text/vtt",
         }
     }
 }
@@ -138,16 +135,12 @@ impl SubtitleInfo {
 
     /// The special _none_ subtitle instance.
     pub fn none() -> Self {
-        Self::builder()
-            .language(SubtitleLanguage::None)
-            .build()
+        Self::builder().language(SubtitleLanguage::None).build()
     }
 
     /// The special _custom_ subtitle instance.
     pub fn custom() -> Self {
-        Self::builder()
-            .language(SubtitleLanguage::Custom)
-            .build()
+        Self::builder().language(SubtitleLanguage::Custom).build()
     }
 
     /// Verify if the subtitle info is a special type
@@ -160,7 +153,7 @@ impl SubtitleInfo {
     pub fn imdb_id(&self) -> Option<&String> {
         match &self.imdb_id {
             None => None,
-            Some(e) => Some(e)
+            Some(e) => Some(e),
         }
     }
 
@@ -173,7 +166,7 @@ impl SubtitleInfo {
     pub fn files(&self) -> Option<&Vec<SubtitleFile>> {
         match &self.files {
             None => None,
-            Some(e) => Some(e)
+            Some(e) => Some(e),
         }
     }
 
@@ -191,7 +184,12 @@ impl SubtitleInfo {
     pub fn best_matching_file(&self, matcher: &SubtitleMatcher) -> subtitles::Result<SubtitleFile> {
         let name = matcher.name();
         let mut files = self.filter_and_sort_by_quality(matcher.quality())?;
-        trace!("Searching matching subtitle for name: {:?}, quality: {:?} within files: {:?}", &name, &matcher.quality(), &files);
+        trace!(
+            "Searching matching subtitle for name: {:?}, quality: {:?} within files: {:?}",
+            &name,
+            &matcher.quality(),
+            &files
+        );
 
         // verify if a name is present to match
         // this will try to find a file matching the name in a normalized way
@@ -202,15 +200,16 @@ impl SubtitleInfo {
 
             return match files.into_iter().next() {
                 None => {
-                    warn!("No subtitle file found matching {}, using best matching item instead", name);
-                    match self.files().unwrap().iter()
-                        .sorted()
-                        .next() {
+                    warn!(
+                        "No subtitle file found matching {}, using best matching item instead",
+                        name
+                    );
+                    match self.files().unwrap().iter().sorted().next() {
                         None => Err(SubtitleError::NoFilesFound),
-                        Some(e) => Ok(e.clone())
+                        Some(e) => Ok(e.clone()),
                     }
                 }
-                Some(e) => Ok(e)
+                Some(e) => Ok(e),
             };
         }
 
@@ -223,31 +222,44 @@ impl SubtitleInfo {
         }
     }
 
-    fn filter_and_sort_by_quality(&self, quality: Option<&i32>) -> subtitles::Result<Vec<SubtitleFile>> {
-        trace!("Initial filter of subtitles files for quality {:?} for {:?}", &quality, &self.files);
+    fn filter_and_sort_by_quality(
+        &self,
+        quality: Option<&i32>,
+    ) -> subtitles::Result<Vec<SubtitleFile>> {
+        trace!(
+            "Initial filter of subtitles files for quality {:?} for {:?}",
+            &quality,
+            &self.files
+        );
         match &self.files {
             None => Err(SubtitleError::NoFilesFound),
-            Some(files) => {
-                match quality {
-                    None => Ok(files.clone()),
-                    Some(quality) => {
-                        Ok(files.iter()
-                            .filter(|e| Self::matches_quality(quality, e))
-                            .cloned()
-                            .sorted()
-                            .collect())
-                    }
-                }
-            }
+            Some(files) => match quality {
+                None => Ok(files.clone()),
+                Some(quality) => Ok(files
+                    .iter()
+                    .filter(|e| Self::matches_quality(quality, e))
+                    .cloned()
+                    .sorted()
+                    .collect()),
+            },
         }
     }
 
-    fn filter_by_filename<S: AsRef<str>>(&self, name: S, files: Vec<SubtitleFile>) -> Vec<SubtitleFile> {
+    fn filter_by_filename<S: AsRef<str>>(
+        &self,
+        name: S,
+        files: Vec<SubtitleFile>,
+    ) -> Vec<SubtitleFile> {
         let name = name.as_ref().to_string();
-        files.into_iter()
+        files
+            .into_iter()
             .filter(|e| {
                 let normalized_filename = self.normalize(e.name());
-                trace!("Matching subtitle filename {} against expected filename {}", normalized_filename, name);
+                trace!(
+                    "Matching subtitle filename {} against expected filename {}",
+                    normalized_filename,
+                    name
+                );
                 normalized_filename == name
             })
             .collect()
@@ -262,11 +274,11 @@ impl SubtitleInfo {
                 name.to_lowercase()
             }
             Some(e) => {
-                let name = e.to_str()
-                    .expect("expected a valid str")
-                    .to_lowercase();
+                let name = e.to_str().expect("expected a valid str").to_lowercase();
 
-                self.normalize_regex.replace_all(name.as_str(), "").to_string()
+                self.normalize_regex
+                    .replace_all(name.as_str(), "")
+                    .to_string()
             }
         }
     }
@@ -274,19 +286,19 @@ impl SubtitleInfo {
     fn matches_quality(quality: &i32, file: &&SubtitleFile) -> bool {
         match file.quality() {
             None => true,
-            Some(e) => e == quality
+            Some(e) => e == quality,
         }
     }
 }
 
 impl PartialEq for SubtitleInfo {
     fn eq(&self, other: &Self) -> bool {
-        self.imdb_id == other.imdb_id && self.language == other.language && self.files.iter()
-            .all(|file| {
-                other.files.iter().any(|e| {
-                    e == file
-                })
-            })
+        self.imdb_id == other.imdb_id
+            && self.language == other.language
+            && self
+                .files
+                .iter()
+                .all(|file| other.files.iter().any(|e| e == file))
     }
 }
 
@@ -300,7 +312,8 @@ impl PartialOrd for SubtitleInfo {
 
 impl Ord for SubtitleInfo {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other).expect("expected a ordering for SubtitleInfo")
+        self.partial_cmp(other)
+            .expect("expected a ordering for SubtitleInfo")
     }
 }
 
@@ -353,7 +366,12 @@ impl SubtitleInfoBuilder {
 
 /// The parsed [SubtitleInfo] which has downloaded and parsed the .srt file.
 #[derive(Debug, Clone, Display)]
-#[display(fmt = "file: {:?}, info: {:?}, total cues: {}", file, info, "cues.len()")]
+#[display(
+    fmt = "file: {:?}, info: {:?}, total cues: {}",
+    file,
+    info,
+    "cues.len()"
+)]
 pub struct Subtitle {
     /// The parsed cues within the subtitle file.
     cues: Vec<SubtitleCue>,
@@ -365,11 +383,7 @@ pub struct Subtitle {
 
 impl Subtitle {
     pub fn new(cues: Vec<SubtitleCue>, info: Option<SubtitleInfo>, file: String) -> Self {
-        Self {
-            cues,
-            info,
-            file,
-        }
+        Self { cues, info, file }
     }
 
     pub fn cues(&self) -> &Vec<SubtitleCue> {
@@ -379,7 +393,7 @@ impl Subtitle {
     pub fn info(&self) -> Option<&SubtitleInfo> {
         match &self.info {
             Some(e) => Some(e),
-            None => None
+            None => None,
         }
     }
 
@@ -521,7 +535,10 @@ mod test {
         let result = SubtitleType::from_extension(&extension);
 
         assert!(result.is_err(), "Expected no extension to have been found");
-        assert_eq!(result.err().unwrap(), SubtitleParseError::ExtensionNotSupported(extension.clone()))
+        assert_eq!(
+            result.err().unwrap(),
+            SubtitleParseError::ExtensionNotSupported(extension.clone())
+        )
     }
 
     #[test]
@@ -539,7 +556,10 @@ mod test {
             .downloads(19546)
             .build();
 
-        assert!(result.quality().is_some(), "Expected a quality to have been found");
+        assert!(
+            result.quality().is_some(),
+            "Expected a quality to have been found"
+        );
         assert_eq!(&expected_result, result.quality().unwrap())
     }
 
@@ -557,7 +577,10 @@ mod test {
             .downloads(19546)
             .build();
 
-        assert!(result.quality().is_none(), "Expected no quality to have been found");
+        assert!(
+            result.quality().is_none(),
+            "Expected no quality to have been found"
+        );
     }
 
     #[test]
@@ -640,11 +663,15 @@ mod test {
                     .url("")
                     .score(0.0)
                     .downloads(5735)
-                    .build()
+                    .build(),
             ])
             .build();
 
-        let result = subtitle_info.best_matching_file(&SubtitleMatcher::from_int(Some(filename.to_string()), quality))
+        let result = subtitle_info
+            .best_matching_file(&SubtitleMatcher::from_int(
+                Some(filename.to_string()),
+                quality,
+            ))
             .expect("expected a file to be found");
 
         assert_eq!(expected_file, result)

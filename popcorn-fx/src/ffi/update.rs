@@ -98,9 +98,9 @@ pub extern "C" fn install_update(popcorn_fx: &mut PopcornFX) {
 #[no_mangle]
 pub extern "C" fn register_update_callback(popcorn_fx: &mut PopcornFX, callback: UpdateCallbackC) {
     trace!("Registering new update callback from C");
-    popcorn_fx.updater().register(Box::new(move |event| {
-        callback(UpdateEventC::from(event))
-    }))
+    popcorn_fx
+        .updater()
+        .register(Box::new(move |event| callback(UpdateEventC::from(event))))
 }
 
 #[cfg(test)]
@@ -123,10 +123,9 @@ mod test {
         let temp_path = temp_dir.path().to_str().unwrap();
         let server = MockServer::start();
         server.mock(|mock, then| {
-            mock.method(GET)
-                .path("/update/versions.json");
-            then.status(200)
-                .body(r#"{
+            mock.method(GET).path("/update/versions.json");
+            then.status(200).body(
+                r#"{
   "application": {
     "version": "0.2.0",
     "platforms": {
@@ -144,7 +143,8 @@ mod test {
       "windows.x86_64": "http://localhost/update/download/runtime_windows.tar.gz"
     }
   }
-}"#);
+}"#,
+            );
         });
         let mut popcorn_fx_args = default_args(temp_path);
         popcorn_fx_args.properties.update_channel = server.url("/update/");
@@ -152,7 +152,10 @@ mod test {
 
         let result = from_c_owned(version_info(&mut instance));
 
-        assert_eq!("0.2.0".to_string(), from_c_string(result.application.version));
+        assert_eq!(
+            "0.2.0".to_string(),
+            from_c_string(result.application.version)
+        );
         assert_eq!("17.0.6".to_string(), from_c_string(result.runtime.version));
     }
 

@@ -7,12 +7,15 @@ use serde::{Deserialize, Serialize};
 use crate::core::config::DEFAULT_HOME_DIRECTORY;
 
 const DEFAULT_TORRENT_DIRECTORY_NAME: &str = "torrents";
-const DEFAULT_DIRECTORY: fn() -> PathBuf = || UserDirs::new()
-    .map(|e| PathBuf::from(e.home_dir()))
-    .map(|e| e
-        .join(DEFAULT_HOME_DIRECTORY)
-        .join(DEFAULT_TORRENT_DIRECTORY_NAME))
-    .expect("expected a home directory to exist");
+const DEFAULT_DIRECTORY: fn() -> PathBuf = || {
+    UserDirs::new()
+        .map(|e| PathBuf::from(e.home_dir()))
+        .map(|e| {
+            e.join(DEFAULT_HOME_DIRECTORY)
+                .join(DEFAULT_TORRENT_DIRECTORY_NAME)
+        })
+        .expect("expected a home directory to exist")
+};
 const DEFAULT_CLEANING_MODE: fn() -> CleaningMode = || CleaningMode::OnShutdown;
 const DEFAULT_CONNECTIONS_LIMIT: fn() -> u32 = || 300;
 const DEFAULT_DOWNLOAD_RATE_LIMIT: fn() -> u32 = || 0;

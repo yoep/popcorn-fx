@@ -98,7 +98,7 @@ pub trait TrackingProvider: Debug + Callbacks<TrackingEvent> + Send + Sync {
 mock! {
     #[derive(Debug)]
     pub TrackingProvider {}
-    
+
     #[async_trait]
     impl TrackingProvider for TrackingProvider {
         fn register_open_authorization(&self, open_callback: OpenAuthorization);
@@ -108,9 +108,9 @@ mock! {
         async fn add_watched_movies(&self, movie_ids: Vec<String>) -> Result<(), TrackingError>;
         async fn watched_movies(&self) -> Result<Vec<Box<dyn MediaIdentifier>>, TrackingError>;
     }
-    
+
     impl Callbacks<TrackingEvent> for TrackingProvider {
         fn add(&self, callback: CoreCallback<TrackingEvent>) -> CallbackHandle;
         fn remove(&self, handle: CallbackHandle);
-    }    
+    }
 }

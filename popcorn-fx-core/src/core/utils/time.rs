@@ -49,11 +49,10 @@ pub fn parse_time_from_millis(time: u64) -> NaiveTime {
 ///
 /// Returns a `NaiveTime` instance if parsing is successful, or a `ParseTimeError` if parsing fails.
 pub fn parse_time_from_str(time: &str) -> Result<NaiveTime, ParseTimeError> {
-    NaiveTime::parse_from_str(time, "%H:%M:%S")
-        .map_err(|e| {
-            error!("Failed to parse time: {}", e);
-            ParseTimeError {}
-        })
+    NaiveTime::parse_from_str(time, "%H:%M:%S").map_err(|e| {
+        error!("Failed to parse time: {}", e);
+        ParseTimeError {}
+    })
 }
 
 /// Converts a `NaiveTime` into a string representation in the format "HH:MM:SS".
@@ -105,16 +104,16 @@ mod tests {
     fn test_parse_time_invalid() {
         let result = parse_time_from_str("00:19");
 
-        assert_eq!(Err(ParseTimeError{}), result);
+        assert_eq!(Err(ParseTimeError {}), result);
     }
-    
+
     #[test]
     fn test_parse_str_from_time() {
         let time = NaiveTime::from_hms_opt(1, 20, 45).unwrap();
         let expected_result = "01:20:45";
-        
+
         let result = parse_str_from_time(&time);
-        
+
         assert_eq!(expected_result, result.as_str());
     }
 }

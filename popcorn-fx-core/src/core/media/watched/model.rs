@@ -9,10 +9,7 @@ pub struct Watched {
 
 impl Watched {
     pub fn new(movies: Vec<String>, shows: Vec<String>) -> Self {
-        Self {
-            movies,
-            shows,
-        }
+        Self { movies, shows }
     }
 
     pub fn empty() -> Self {
@@ -23,8 +20,7 @@ impl Watched {
     }
 
     pub fn contains(&self, id: &str) -> bool {
-        self.movies.iter().any(|e| e.eq(id))
-            || self.shows.iter().any(|e| e.eq(id))
+        self.movies.iter().any(|e| e.eq(id)) || self.shows.iter().any(|e| e.eq(id))
     }
 
     pub fn movies(&self) -> &Vec<String> {
@@ -62,10 +58,8 @@ impl Watched {
     /// Remove the given watched item ID from the list.
     /// Unknown ID's which are not within the watched items are auto ignored.
     pub fn remove(&mut self, id: &str) {
-        let movie_index = self.movies.iter()
-            .position(|e| e.as_str() == id);
-        let show_index = self.shows.iter()
-            .position(|e| e.as_str() == id);
+        let movie_index = self.movies.iter().position(|e| e.as_str() == id);
+        let show_index = self.shows.iter().position(|e| e.as_str() == id);
 
         if movie_index.is_some() {
             trace!("Removing movie {} from the watched items", &id);
@@ -85,10 +79,7 @@ mod test {
     #[test]
     fn test_contains_id_is_watched() {
         let id = "tt457896".to_string();
-        let watched = Watched::new(
-            vec![id.clone()],
-            vec![],
-        );
+        let watched = Watched::new(vec![id.clone()], vec![]);
 
         let result = watched.contains(id.as_str());
 

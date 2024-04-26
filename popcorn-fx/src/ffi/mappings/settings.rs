@@ -5,7 +5,11 @@ use std::ptr;
 use log::trace;
 
 use popcorn_fx_core::{from_c_owned, from_c_string, into_c_owned, into_c_string};
-use popcorn_fx_core::core::config::{ApplicationConfigEvent, CleaningMode, DecorationType, LastSync, MediaTrackingSyncState, PlaybackSettings, PopcornSettings, Quality, ServerSettings, SubtitleFamily, SubtitleSettings, TorrentSettings, TrackingSettings, UiScale, UiSettings};
+use popcorn_fx_core::core::config::{
+    ApplicationConfigEvent, CleaningMode, DecorationType, LastSync, MediaTrackingSyncState,
+    PlaybackSettings, PopcornSettings, Quality, ServerSettings, SubtitleFamily, SubtitleSettings,
+    TorrentSettings, TrackingSettings, UiScale, UiSettings,
+};
 use popcorn_fx_core::core::media::Category;
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
 
@@ -36,12 +40,24 @@ impl From<ApplicationConfigEvent> for ApplicationConfigEventC {
     fn from(value: ApplicationConfigEvent) -> Self {
         match value {
             ApplicationConfigEvent::SettingsLoaded => ApplicationConfigEventC::SettingsLoaded,
-            ApplicationConfigEvent::SubtitleSettingsChanged(e) => ApplicationConfigEventC::SubtitleSettingsChanged(SubtitleSettingsC::from(&e)),
-            ApplicationConfigEvent::TorrentSettingsChanged(e) => ApplicationConfigEventC::TorrentSettingsChanged(TorrentSettingsC::from(&e)),
-            ApplicationConfigEvent::UiSettingsChanged(e) => ApplicationConfigEventC::UiSettingsChanged(UiSettingsC::from(&e)),
-            ApplicationConfigEvent::ServerSettingsChanged(e) => ApplicationConfigEventC::ServerSettingsChanged(ServerSettingsC::from(&e)),
-            ApplicationConfigEvent::PlaybackSettingsChanged(e) => ApplicationConfigEventC::PlaybackSettingsChanged(PlaybackSettingsC::from(&e)),
-            ApplicationConfigEvent::TrackingSettingsChanged(e) => ApplicationConfigEventC::TrackingSettingsChanged(TrackingSettingsC::from(&e)),
+            ApplicationConfigEvent::SubtitleSettingsChanged(e) => {
+                ApplicationConfigEventC::SubtitleSettingsChanged(SubtitleSettingsC::from(&e))
+            }
+            ApplicationConfigEvent::TorrentSettingsChanged(e) => {
+                ApplicationConfigEventC::TorrentSettingsChanged(TorrentSettingsC::from(&e))
+            }
+            ApplicationConfigEvent::UiSettingsChanged(e) => {
+                ApplicationConfigEventC::UiSettingsChanged(UiSettingsC::from(&e))
+            }
+            ApplicationConfigEvent::ServerSettingsChanged(e) => {
+                ApplicationConfigEventC::ServerSettingsChanged(ServerSettingsC::from(&e))
+            }
+            ApplicationConfigEvent::PlaybackSettingsChanged(e) => {
+                ApplicationConfigEventC::PlaybackSettingsChanged(PlaybackSettingsC::from(&e))
+            }
+            ApplicationConfigEvent::TrackingSettingsChanged(e) => {
+                ApplicationConfigEventC::TrackingSettingsChanged(TrackingSettingsC::from(&e))
+            }
         }
     }
 }
@@ -220,7 +236,7 @@ impl From<&ServerSettings> for ServerSettingsC {
         Self {
             api_server: match value.api_server() {
                 None => ptr::null_mut(),
-                Some(e) => into_c_string(e.clone())
+                Some(e) => into_c_string(e.clone()),
             },
         }
     }
@@ -234,9 +250,7 @@ impl From<ServerSettingsC> for ServerSettings {
             None
         };
 
-        Self {
-            api_server,
-        }
+        Self { api_server }
     }
 }
 
@@ -256,7 +270,7 @@ impl From<&PlaybackSettings> for PlaybackSettingsC {
     fn from(value: &PlaybackSettings) -> Self {
         let quality = match &value.quality {
             None => ptr::null_mut(),
-            Some(e) => into_c_owned(e.clone())
+            Some(e) => into_c_owned(e.clone()),
         };
 
         Self {
@@ -308,9 +322,7 @@ impl From<&TrackingSettings> for TrackingSettingsC {
             ptr::null_mut()
         };
 
-        Self {
-            last_sync,
-        }
+        Self { last_sync }
     }
 }
 
@@ -379,7 +391,10 @@ mod test {
                 let subtitle_result = SubtitleSettings::from(result);
                 assert_eq!(subtitle, subtitle_result)
             }
-            _ => assert!(false, "expected ApplicationConfigEventC::SubtitleSettingsChanged")
+            _ => assert!(
+                false,
+                "expected ApplicationConfigEventC::SubtitleSettingsChanged"
+            ),
         }
     }
 
@@ -537,9 +552,7 @@ mod test {
 
     #[test]
     fn test_from_server_settings_none_api_server() {
-        let settings = ServerSettings {
-            api_server: None,
-        };
+        let settings = ServerSettings { api_server: None };
 
         let result = ServerSettingsC::from(&settings);
 
@@ -607,7 +620,7 @@ mod test {
 
         let result = TrackingSettingsC::from(&settings);
         let last_sync = from_c_owned(result.last_sync);
-        
+
         assert_eq!(timestamp, last_sync.time);
         assert_eq!(MediaTrackingSyncState::Success, last_sync.state);
     }

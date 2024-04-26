@@ -104,11 +104,10 @@ impl Magnet {
                     builder.display_name(value);
                 }
                 "xl" => {
-                    builder.exact_length(u64::from_str(value.as_ref())
-                        .map_err(|_| {
-                            trace!("Value {} is not a valid number", value);
-                            MagnetError::Parse("xl is invalid".to_string())
-                        })?);
+                    builder.exact_length(u64::from_str(value.as_ref()).map_err(|_| {
+                        trace!("Value {} is not a valid number", value);
+                        MagnetError::Parse("xl is invalid".to_string())
+                    })?);
                 }
                 "tr" => {
                     builder.address_tracker(value);
@@ -166,8 +165,8 @@ impl MagnetBuilder {
 
     /// Sets the exact topic for the magnet link.
     pub fn exact_topic<S>(&mut self, exact_topic: S) -> &mut Self
-        where
-            S: Into<String>,
+    where
+        S: Into<String>,
     {
         self.exact_topic = Some(exact_topic.into());
         self
@@ -175,8 +174,8 @@ impl MagnetBuilder {
 
     /// Sets the display name for the magnet link.
     pub fn display_name<S>(&mut self, display_name: S) -> &mut Self
-        where
-            S: Into<String>,
+    where
+        S: Into<String>,
     {
         self.display_name = Some(display_name.into());
         self
@@ -190,8 +189,8 @@ impl MagnetBuilder {
 
     /// Adds an address tracker to the magnet link.
     pub fn address_tracker<S>(&mut self, address_tracker: S) -> &mut Self
-        where
-            S: Into<String>,
+    where
+        S: Into<String>,
     {
         self.address_tracker.push(address_tracker.into());
         self
@@ -199,8 +198,8 @@ impl MagnetBuilder {
 
     /// Adds a web seed to the magnet link.
     pub fn web_seed<S>(&mut self, web_seed: S) -> &mut Self
-        where
-            S: Into<String>,
+    where
+        S: Into<String>,
     {
         self.web_seed.push(web_seed.into());
         self
@@ -208,8 +207,8 @@ impl MagnetBuilder {
 
     /// Adds an acceptable source to the magnet link.
     pub fn acceptable_source<S>(&mut self, acceptable_source: S) -> &mut Self
-        where
-            S: Into<String>,
+    where
+        S: Into<String>,
     {
         self.acceptable_source.push(acceptable_source.into());
         self
@@ -217,8 +216,8 @@ impl MagnetBuilder {
 
     /// Sets the exact source for the magnet link.
     pub fn exact_source<S>(&mut self, exact_source: S) -> &mut Self
-        where
-            S: Into<String>,
+    where
+        S: Into<String>,
     {
         self.exact_source = Some(exact_source.into());
         self
@@ -226,8 +225,8 @@ impl MagnetBuilder {
 
     /// Sets the keyword topic for the magnet link.
     pub fn keyword_topic<S>(&mut self, keyword_topic: S) -> &mut Self
-        where
-            S: Into<String>,
+    where
+        S: Into<String>,
     {
         self.keyword_topic = Some(keyword_topic.into());
         self
@@ -235,8 +234,8 @@ impl MagnetBuilder {
 
     /// Sets the manifest topic for the magnet link.
     pub fn manifest_topic<S>(&mut self, manifest_topic: S) -> &mut Self
-        where
-            S: Into<String>,
+    where
+        S: Into<String>,
     {
         self.manifest_topic = Some(manifest_topic.into());
         self
@@ -244,8 +243,8 @@ impl MagnetBuilder {
 
     /// Sets the select only for the magnet link.
     pub fn select_only<S>(&mut self, select_only: S) -> &mut Self
-        where
-            S: Into<String>,
+    where
+        S: Into<String>,
     {
         self.select_only = Some(select_only.into());
         self
@@ -253,8 +252,8 @@ impl MagnetBuilder {
 
     /// Sets the peer for the magnet link.
     pub fn peer<S>(&mut self, peer: S) -> &mut Self
-        where
-            S: Into<String>,
+    where
+        S: Into<String>,
     {
         self.peer = Some(peer.into());
         self
@@ -340,7 +339,11 @@ mod tests {
         if let Ok(magnet) = result {
             assert_eq!(expected_result, magnet);
         } else {
-            assert!(false, "expected a magnet to have been returned, got {:?} instead", result);
+            assert!(
+                false,
+                "expected a magnet to have been returned, got {:?} instead",
+                result
+            );
         }
     }
 }

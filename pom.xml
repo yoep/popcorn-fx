@@ -19,7 +19,6 @@
         <module>application-backend</module>
         <module>application-ui</module>
         <module>application</module>
-        <module>player-chromecast</module>
         <module>player-popcorn</module>
         <module>shared-vlc</module>
         <module>torrent-frostwire</module>

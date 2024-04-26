@@ -130,12 +130,12 @@ impl Storage {
             return Err(StorageError::NotFound(path_value));
         }
 
-        let dir_entry = fs::read_dir(path)
-            .map_err(|e| StorageError::IO(path_value, e.to_string()))?;
+        let dir_entry =
+            fs::read_dir(path).map_err(|e| StorageError::IO(path_value, e.to_string()))?;
         for entry in dir_entry {
             match entry {
                 Ok(path) => Self::delete(path.path())?,
-                Err(e) => warn!("Unable to read directory entry, {}", e)
+                Err(e) => warn!("Unable to read directory entry, {}", e),
             }
         }
 
@@ -262,7 +262,7 @@ impl StorageOptions {
                 path: self.path.join(filename.as_ref()),
                 create: self.create,
                 make_dirs: self.make_dirs,
-            }
+            },
         }
     }
 
@@ -376,12 +376,18 @@ impl BaseStorage {
 
     fn create_parent_directories_if_needed(&self) -> storage::Result<()> {
         if self.make_dirs {
-            let parent = self.path.parent().expect("expected a parent directory to have been present for the file");
+            let parent = self
+                .path
+                .parent()
+                .expect("expected a parent directory to have been present for the file");
             let parent_absolute_path = parent.to_str().unwrap();
             trace!("Creating parent directories {}", parent_absolute_path);
             if let Err(e) = fs::create_dir_all(parent) {
                 warn!("Failed to create parent directories, {}", e);
-                return Err(StorageError::IO(parent_absolute_path.to_string(), e.to_string()));
+                return Err(StorageError::IO(
+                    parent_absolute_path.to_string(),
+                    e.to_string(),
+                ));
             }
         }
 
@@ -430,13 +436,16 @@ impl SerializerStorage {
     ///
     /// This example demonstrates how to use the `read` method to deserialize and read the stored data from the storage file. If the operation is successful, the deserialized data is printed; otherwise, an error message is printed.
     pub fn read<T>(self) -> storage::Result<T>
-        where T: Serialize + DeserializeOwned {
+    where
+        T: Serialize + DeserializeOwned,
+    {
         let mut file = self.base.read_open()?;
 
         trace!("Application file {:?} exists", &self.base.absolute_path());
         let mut data = String::new();
-        file.read_to_string(&mut data)
-            .map_err(|e| StorageError::ReadingFailed(self.base.absolute_path().to_string(), e.to_string()))?;
+        file.read_to_string(&mut data).map_err(|e| {
+            StorageError::ReadingFailed(self.base.absolute_path().to_string(), e.to_string())
+        })?;
 
         match serde_json::from_str::<T>(data.as_str()) {
             Ok(e) => {
@@ -445,7 +454,10 @@ impl SerializerStorage {
             }
             Err(e) => {
                 debug!("File {} is invalid, {}", self.base.absolute_path(), &e);
-                Err(StorageError::ReadingFailed(self.base.absolute_path().to_string(), e.to_string()))
+                Err(StorageError::ReadingFailed(
+                    self.base.absolute_path().to_string(),
+                    e.to_string(),
+                ))
             }
         }
     }
@@ -486,10 +498,10 @@ impl SerializerStorage {
     ///
     /// This example demonstrates how to use the `write` method to serialize and write data to the storage file. If the operation is successful, the path of the storage file is printed; otherwise, an error message is printed.
     pub fn write<T>(self, value: &T) -> storage::Result<PathBuf>
-        where T: Serialize + DeserializeOwned {
-        block_in_place(async {
-            self.write_async(value).await
-        })
+    where
+        T: Serialize + DeserializeOwned,
+    {
+        block_in_place(async { self.write_async(value).await })
     }
 
     /// Writes the given value to the storage file asynchronously.
@@ -532,7 +544,9 @@ impl SerializerStorage {
     ///
     /// This example demonstrates how to use the `write_async` method to serialize and write data to the storage file asynchronously using the Tokio runtime. The `block_on` function is used to await the asynchronous operation and obtain the result. If the operation is successful, the path of the storage file is printed; otherwise, an error message is printed.
     pub async fn write_async<T>(self, value: &T) -> storage::Result<PathBuf>
-        where T: Serialize + DeserializeOwned {
+    where
+        T: Serialize + DeserializeOwned,
+    {
         let path_string = self.base.absolute_path();
 
         trace!("Opening storage file {}", path_string);
@@ -541,20 +555,25 @@ impl SerializerStorage {
     }
 
     async fn write_to<T>(self, file: &mut tokio::fs::File, value: &T) -> storage::Result<PathBuf>
-        where T: Serialize + DeserializeOwned {
+    where
+        T: Serialize + DeserializeOwned,
+    {
         let display_path = self.base.absolute_path();
 
         trace!("Serializing storage data to {}", display_path);
         match serde_json::to_string(value) {
             Ok(e) => {
                 trace!("Writing to storage {:?}, {}", &display_path, &e);
-                file.write_all(e.as_bytes())
-                    .await
-                    .map_err(|e| StorageError::WritingFailed(display_path.to_string(), e.to_string()))?;
+                file.write_all(e.as_bytes()).await.map_err(|e| {
+                    StorageError::WritingFailed(display_path.to_string(), e.to_string())
+                })?;
                 debug!("Storage file {} has been saved", display_path);
                 Ok(self.base.path.clone())
             }
-            Err(e) => Err(StorageError::WritingFailed(display_path.to_string(), e.to_string()))
+            Err(e) => Err(StorageError::WritingFailed(
+                display_path.to_string(),
+                e.to_string(),
+            )),
         }
     }
 }
@@ -623,17 +642,16 @@ impl BinaryStorage {
         let mut buffer = vec![];
         let mut file = self.base.read_open()?;
 
-        file.read_to_end(&mut buffer)
-            .map_err(|e| {
-                let absolute_path = self.base.absolute_path();
-                error!("Failed to read file {}, {}", absolute_path, e);
+        file.read_to_end(&mut buffer).map_err(|e| {
+            let absolute_path = self.base.absolute_path();
+            error!("Failed to read file {}, {}", absolute_path, e);
 
-                if e.kind() == ErrorKind::NotFound {
-                    StorageError::NotFound(absolute_path.to_string())
-                } else {
-                    StorageError::ReadingFailed(absolute_path.to_string(), e.to_string())
-                }
-            })?;
+            if e.kind() == ErrorKind::NotFound {
+                StorageError::NotFound(absolute_path.to_string())
+            } else {
+                StorageError::ReadingFailed(absolute_path.to_string(), e.to_string())
+            }
+        })?;
 
         Ok(buffer)
     }
@@ -667,13 +685,20 @@ impl BinaryStorage {
     pub fn write<V: AsRef<[u8]>>(self, value: V) -> storage::Result<PathBuf> {
         let mut file = self.base.write_open()?;
 
-        debug!("Writing {} bytes to file {}", value.as_ref().len(), self.base.absolute_path());
-        file.write_all(value.as_ref())
-            .map_err(|e| {
-                let absolute_path = self.base.absolute_path();
-                error!("Failed to write to file {}, {}", absolute_path, e.to_string());
-                StorageError::WritingFailed(absolute_path.to_string(), e.to_string())
-            })?;
+        debug!(
+            "Writing {} bytes to file {}",
+            value.as_ref().len(),
+            self.base.absolute_path()
+        );
+        file.write_all(value.as_ref()).map_err(|e| {
+            let absolute_path = self.base.absolute_path();
+            error!(
+                "Failed to write to file {}, {}",
+                absolute_path,
+                e.to_string()
+            );
+            StorageError::WritingFailed(absolute_path.to_string(), e.to_string())
+        })?;
 
         Ok(self.base.path)
     }
@@ -685,7 +710,10 @@ mod test {
     use tokio::runtime::Runtime;
 
     use crate::core::config::{PopcornSettings, SubtitleSettings, UiSettings};
-    use crate::testing::{copy_test_file, init_logger, read_temp_dir_file_as_bytes, read_temp_dir_file_as_string, read_test_file_to_bytes};
+    use crate::testing::{
+        copy_test_file, init_logger, read_temp_dir_file_as_bytes, read_temp_dir_file_as_string,
+        read_test_file_to_bytes,
+    };
 
     use super::*;
 
@@ -707,15 +735,17 @@ mod test {
         let temp_path = temp_dir.path().to_str().unwrap();
         copy_test_file(temp_path, "settings.json", None);
         let path = PathBuf::from(temp_path);
-        let storage = Storage {
-            base_path: path
-        };
+        let storage = Storage { base_path: path };
 
-        let result = storage.options()
+        let result = storage
+            .options()
             .serializer("settings.json")
             .read::<PopcornSettings>();
 
-        assert!(result.is_ok(), "Expected the storage reading to have succeeded")
+        assert!(
+            result.is_ok(),
+            "Expected the storage reading to have succeeded"
+        )
     }
 
     #[test]
@@ -730,9 +760,7 @@ mod test {
         let settings = UiSettings::default();
         let expected_result = "{\"default_language\":\"en\",\"ui_scale\":{\"value\":1.0},\"start_screen\":\"MOVIES\",\"maximized\":false,\"native_window_enabled\":false}".to_string();
 
-        let result = storage.options()
-            .serializer(filename)
-            .write(&settings);
+        let result = storage.options().serializer(filename).write(&settings);
         assert!(result.is_ok(), "expected no error to have occurred");
         let contents = read_temp_dir_file_as_string(&temp_dir, filename);
 
@@ -751,9 +779,13 @@ mod test {
         let settings = UiSettings::default();
         let runtime = Runtime::new().unwrap();
 
-        let _ = runtime.block_on(storage.options()
-            .serializer(filename)
-            .write_async(&settings))
+        let _ = runtime
+            .block_on(
+                storage
+                    .options()
+                    .serializer(filename)
+                    .write_async(&settings),
+            )
             .expect("expected no error to have been returned");
         let path = temp_dir.path().join(filename);
 
@@ -768,14 +800,15 @@ mod test {
         };
         let settings = SubtitleSettings::default();
 
-        let result = storage.options()
+        let result = storage
+            .options()
             .serializer("my-random-filename.txt")
             .write(&settings);
 
         assert_eq!(true, result.is_err(), "expected an error to be returned");
         match result.err().unwrap() {
             StorageError::WritingFailed(_, _) => {}
-            _ => assert!(false, "expected StorageError::WritingFailed to be returned")
+            _ => assert!(false, "expected StorageError::WritingFailed to be returned"),
         }
     }
 
@@ -799,11 +832,12 @@ mod test {
         let temp_path = temp_dir.path().to_str().unwrap();
 
         let result = Storage::clean_directory(PathBuf::from(temp_path).join("lorem"))
-            .err().expect("expected an error to be returned");
+            .err()
+            .expect("expected an error to be returned");
 
         match result {
             StorageError::NotFound(_) => {}
-            _ => assert!(false, "expected StorageError::NotFound")
+            _ => assert!(false, "expected StorageError::NotFound"),
         }
     }
 
@@ -819,7 +853,10 @@ mod test {
         copy_test_file(temp_path, filename, None);
 
         assert_eq!(true, storage.options().serializer(filename).exists());
-        assert_eq!(false, storage.options().serializer("lorem-ipsum.dolor").exists());
+        assert_eq!(
+            false,
+            storage.options().serializer("lorem-ipsum.dolor").exists()
+        );
     }
 
     #[test]
@@ -834,9 +871,7 @@ mod test {
             base_path: PathBuf::from(temp_path),
         };
 
-        match storage.options()
-            .binary(filename)
-            .read() {
+        match storage.options().binary(filename).read() {
             Ok(result) => assert_eq!(bytes, result),
             Err(e) => assert!(false, "expected the read operation to succeed, {}", e),
         }
@@ -853,9 +888,7 @@ mod test {
             base_path: PathBuf::from(temp_path),
         };
 
-        if let Err(e) = storage.options()
-            .binary(filename)
-            .write(&bytes) {
+        if let Err(e) = storage.options().binary(filename).write(&bytes) {
             assert!(false, "expected the write operation to succeed, {}", e)
         }
         let result = read_temp_dir_file_as_bytes(&temp_dir, filename);
@@ -885,9 +918,17 @@ mod test {
         let directory_path = copy_test_file(temp_path, "image.png", Some("lorem/image.png"));
 
         Storage::delete(directory_path.as_str()).unwrap();
-        assert_eq!(false, PathBuf::from(directory_path).exists(), "expected the directory to have been removed");
+        assert_eq!(
+            false,
+            PathBuf::from(directory_path).exists(),
+            "expected the directory to have been removed"
+        );
 
         Storage::delete(filepath.as_str()).unwrap();
-        assert_eq!(false, PathBuf::from(filepath).exists(), "expected the file to have been removed");
+        assert_eq!(
+            false,
+            PathBuf::from(filepath).exists(),
+            "expected the file to have been removed"
+        );
     }
 }

@@ -111,8 +111,8 @@ impl ImagesBuilder {
     ///
     /// A mutable reference to the `ImagesBuilder` instance.
     pub fn poster<S>(&mut self, poster: S) -> &mut Self
-        where
-            S: Into<String>,
+    where
+        S: Into<String>,
     {
         self.poster = Some(poster.into());
         self
@@ -128,8 +128,8 @@ impl ImagesBuilder {
     ///
     /// A mutable reference to the `ImagesBuilder` instance.
     pub fn fanart<S>(&mut self, fanart: S) -> &mut Self
-        where
-            S: Into<String>,
+    where
+        S: Into<String>,
     {
         self.fanart = Some(fanart.into());
         self
@@ -145,8 +145,8 @@ impl ImagesBuilder {
     ///
     /// A mutable reference to the `ImagesBuilder` instance.
     pub fn banner<S>(&mut self, banner: S) -> &mut Self
-        where
-            S: Into<String>,
+    where
+        S: Into<String>,
     {
         self.banner = Some(banner.into());
         self
@@ -165,7 +165,6 @@ impl ImagesBuilder {
         }
     }
 }
-
 
 #[cfg(test)]
 mod test {

@@ -10,7 +10,13 @@ const QUALITY_PATTERN: &str = "([0-9]{3,4})p";
 /// It describes all available metadata of the subtitle which can be used to make
 /// a decision of which subtitle file should be used for a media item playback.
 #[derive(Debug, Clone, PartialEq, Display)]
-#[display(fmt = "name: {}, url: {}, quality: {:?}, downloads: {}", name, url, quality, downloads)]
+#[display(
+    fmt = "name: {}, url: {}, quality: {:?}, downloads: {}",
+    name,
+    url,
+    quality,
+    downloads
+)]
 pub struct SubtitleFile {
     /// The ID of the subtitle file.
     file_id: i32,
@@ -101,7 +107,8 @@ impl SubtitleFile {
     /// An option containing the parsed quality of the subtitle file, if successful.
     fn try_parse_subtitle_quality(name: &str) -> Option<i32> {
         let regex = Regex::new(QUALITY_PATTERN).unwrap();
-        regex.captures(name)
+        regex
+            .captures(name)
             .map(|e| e.get(1).unwrap())
             .map(|e| String::from(e.as_str()))
             .map(|e| e.parse::<i32>().unwrap())
@@ -158,8 +165,7 @@ impl PartialOrd<Self> for SubtitleFile {
             return Some(quality_cmp);
         }
 
-        self.score.partial_cmp(other.score())
-            .map(|e| e.reverse())
+        self.score.partial_cmp(other.score()).map(|e| e.reverse())
     }
 }
 
@@ -233,7 +239,8 @@ impl SubtitleFileBuilder {
     pub fn build(self) -> SubtitleFile {
         trace!("Building SubtitleFile from {:?}", self);
         let name = self.name.expect("name is not set");
-        let quality = self.quality
+        let quality = self
+            .quality
             .or_else(|| SubtitleFile::try_parse_subtitle_quality(name.as_str()));
 
         SubtitleFile {

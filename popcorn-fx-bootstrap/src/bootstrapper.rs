@@ -9,8 +9,8 @@ use std::time::Duration;
 use directories::BaseDirs;
 use log::{debug, error, LevelFilter, trace, warn};
 use log4rs::append::console::ConsoleAppender;
-use log4rs::Config;
 use log4rs::config::{Appender, Root};
+use log4rs::Config;
 use log4rs::encode::pattern::PatternEncoder;
 use thiserror::Error;
 
@@ -90,7 +90,8 @@ impl Bootstrapper {
     /// The application will be automatically restarted when needed.
     pub fn launch(&self) -> Result<()> {
         // prepare the user's data system with the initial installation of the application if needed
-        self.data_installer.prepare()
+        self.data_installer
+            .prepare()
             .map_err(|e| BootstrapError::InitialSetupFailed(e.to_string()))?;
 
         loop {
@@ -147,29 +148,47 @@ impl Bootstrapper {
     /// Build the application command that will be bootstrapped.
     fn command(&self) -> Command {
         let options = Self::get_launcher_options(&self.data_path);
-        let data_version_path = self.data_path
-            .join(options.version.as_str());
-        let data_version_path_value = data_version_path
-            .to_str()
-            .unwrap();
-        let process_path = self.process_path.as_ref()
+        let data_version_path = self.data_path.join(options.version.as_str());
+        let data_version_path_value = data_version_path.to_str().unwrap();
+        let process_path = self
+            .process_path
+            .as_ref()
             .map(PathBuf::from)
             .unwrap_or_else(|| Self::build_process_path(&self.data_path, &options));
-        let jar_path = self.data_path
-            .join(options.version.as_str())
-            .join(JAR_NAME);
+        let jar_path = self.data_path.join(options.version.as_str()).join(JAR_NAME);
 
-        trace!("Creating process command for {:?} with {:?}", process_path, self.args);
+        trace!(
+            "Creating process command for {:?} with {:?}",
+            process_path,
+            self.args
+        );
         let mut command = Command::new(process_path);
         command
-            .arg(format!("-Djna.library.path={}{}{}", data_version_path_value, PATH_SEPARATOR, self.path.as_str()).as_str())
-            .arg(format!("-Djava.library.path={}{}{}", data_version_path_value, PATH_SEPARATOR, self.path.as_str()).as_str());
+            .arg(
+                format!(
+                    "-Djna.library.path={}{}{}",
+                    data_version_path_value,
+                    PATH_SEPARATOR,
+                    self.path.as_str()
+                )
+                .as_str(),
+            )
+            .arg(
+                format!(
+                    "-Djava.library.path={}{}{}",
+                    data_version_path_value,
+                    PATH_SEPARATOR,
+                    self.path.as_str()
+                )
+                .as_str(),
+            );
 
         for vm_arg in options.vm_args.iter() {
             command.arg(vm_arg.as_str());
         }
 
-        command.arg("-jar")
+        command
+            .arg("-jar")
             .arg(jar_path.to_str().unwrap())
             .args(self.args.clone());
 
@@ -177,7 +196,10 @@ impl Bootstrapper {
     }
 
     fn build_process_path(data_path: &Path, options: &LauncherOptions) -> PathBuf {
-        trace!("Creating process path with runtime {}", options.runtime_version);
+        trace!(
+            "Creating process path with runtime {}",
+            options.runtime_version
+        );
         data_path
             .join(RUNTIMES_DIRECTORY_NAME)
             .join(options.runtime_version.as_str())
@@ -187,13 +209,16 @@ impl Bootstrapper {
     }
 
     fn handle_exit_status(exit_status: ExitStatus) -> Action {
-        exit_status.code()
-            .map(|e| if e == 0 {
-                trace!("Application process exited with {}", exit_status);
-                Action::Shutdown
-            } else {
-                warn!("Application process exited with {}", exit_status);
-                Action::Restart
+        exit_status
+            .code()
+            .map(|e| {
+                if e == 0 {
+                    trace!("Application process exited with {}", exit_status);
+                    Action::Shutdown
+                } else {
+                    warn!("Application process exited with {}", exit_status);
+                    Action::Restart
+                }
             })
             .unwrap_or(Action::Restart)
     }
@@ -201,12 +226,21 @@ impl Bootstrapper {
     fn initialize_logger() {
         let root_level = env::var("LOG_LEVEL").unwrap_or("Info".to_string());
         let config = Config::builder()
-            .appender(Appender::builder().build(CONSOLE_APPENDER, Box::new(ConsoleAppender::builder()
-                .encoder(Box::new(PatternEncoder::new(LOG_FORMAT_CONSOLE)))
-                .build())))
-            .build(Root::builder()
-                .appender(CONSOLE_APPENDER)
-                .build(LevelFilter::from_str(root_level.as_str()).unwrap()))
+            .appender(
+                Appender::builder().build(
+                    CONSOLE_APPENDER,
+                    Box::new(
+                        ConsoleAppender::builder()
+                            .encoder(Box::new(PatternEncoder::new(LOG_FORMAT_CONSOLE)))
+                            .build(),
+                    ),
+                ),
+            )
+            .build(
+                Root::builder()
+                    .appender(CONSOLE_APPENDER)
+                    .build(LevelFilter::from_str(root_level.as_str()).unwrap()),
+            )
             .unwrap();
 
         match log4rs::init_config(config) {
@@ -340,9 +374,11 @@ impl BootstrapperBuilder {
         }
         let mut args = self.args.expect("Args are not set").into_iter();
         let _program_name = args.next().unwrap();
-        let data_base_path = self.data_base_path.unwrap_or_else(|| BaseDirs::new()
-            .map(|e| PathBuf::from(e.data_dir()))
-            .expect("expected a system data directory"));
+        let data_base_path = self.data_base_path.unwrap_or_else(|| {
+            BaseDirs::new()
+                .map(|e| PathBuf::from(e.data_dir()))
+                .expect("expected a system data directory")
+        });
         let data_path = data_base_path.join(DATA_DIRECTORY_NAME);
 
         Bootstrapper {
@@ -350,11 +386,13 @@ impl BootstrapperBuilder {
             args: args.collect(),
             data_installer: Box::new(DefaultDataInstaller {
                 data_path: data_path.clone(),
-                installation_path: self.installation_path.unwrap_or_else(|| env::current_exe()
-                    .expect("expected an exe directory")
-                    .parent()
-                    .expect("expected exe to reside in a parent directory")
-                    .to_path_buf()),
+                installation_path: self.installation_path.unwrap_or_else(|| {
+                    env::current_exe()
+                        .expect("expected an exe directory")
+                        .parent()
+                        .expect("expected exe to reside in a parent directory")
+                        .to_path_buf()
+                }),
             }),
             data_path,
             data_base_path,
@@ -406,8 +444,7 @@ mod test {
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut data_installer = MockDataInstaller::new();
-        data_installer.expect_prepare()
-            .returning(|| Ok(()));
+        data_installer.expect_prepare().returning(|| Ok(()));
         let bootstrap = Bootstrapper {
             path: "".to_string(),
             args: vec!["popcorn-fx".to_string()],
@@ -420,7 +457,10 @@ mod test {
 
         let result = bootstrap.launch();
 
-        assert!(result.is_ok(), "expected the process to be completed with success")
+        assert!(
+            result.is_ok(),
+            "expected the process to be completed with success"
+        )
     }
 
     #[test]
@@ -429,7 +469,8 @@ mod test {
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut data_installer = MockDataInstaller::new();
-        data_installer.expect_prepare()
+        data_installer
+            .expect_prepare()
             .returning(|| Err(DataInstallerError::MissingAppData(PathBuf::from("."))));
         let bootstrap = Bootstrapper {
             path: "".to_string(),
@@ -446,7 +487,7 @@ mod test {
         if let Err(e) = result {
             match e {
                 BootstrapError::InitialSetupFailed(_) => {}
-                _ => assert!(false, "expected BootstrapError::InitialSetupFailed")
+                _ => assert!(false, "expected BootstrapError::InitialSetupFailed"),
             }
         } else {
             assert!(false, "expected an error to be returned");
@@ -459,8 +500,7 @@ mod test {
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut data_installer = MockDataInstaller::new();
-        data_installer.expect_prepare()
-            .returning(|| Ok(()));
+        data_installer.expect_prepare().returning(|| Ok(()));
         let bootstrap = Bootstrapper {
             path: "".to_string(),
             args: vec![],
@@ -476,7 +516,7 @@ mod test {
         if let Err(error) = result {
             match error {
                 BootstrapError::ExecuteFailed(_command, _message) => {}
-                _ => assert!(false, "expected BootstrapError::ExecuteFailed")
+                _ => assert!(false, "expected BootstrapError::ExecuteFailed"),
             }
         } else {
             assert!(false, "expected an error to have been returned")
@@ -496,11 +536,14 @@ mod test {
             .join("bin")
             .join(EXECUTABLE_NAME);
 
-        let result = Bootstrapper::build_process_path(data_path.as_path(), &LauncherOptions {
-            version: "1.0.0".to_string(),
-            runtime_version: "10.0.3".to_string(),
-            vm_args: vec![],
-        });
+        let result = Bootstrapper::build_process_path(
+            data_path.as_path(),
+            &LauncherOptions {
+                version: "1.0.0".to_string(),
+                runtime_version: "10.0.3".to_string(),
+                vm_args: vec![],
+            },
+        );
 
         assert_eq!(expected_result.to_str().unwrap(), result.to_str().unwrap())
     }

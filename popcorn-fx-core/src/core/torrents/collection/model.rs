@@ -12,8 +12,7 @@ pub struct Collection {
 impl Collection {
     /// Verify if the collection contains the given uri.
     pub fn contains(&self, uri: &str) -> bool {
-        self.torrents.iter()
-            .any(|e| e.magnet_uri.as_str() == uri)
+        self.torrents.iter().any(|e| e.magnet_uri.as_str() == uri)
     }
 
     /// Insert the given magnet info into the collection.
@@ -33,7 +32,9 @@ impl Collection {
     /// Remove the given magnet uri from this collection.
     /// If the magnet is unknown to this collection, the action will be ignored.
     pub fn remove(&mut self, magnet_uri: &str) {
-        let position = self.torrents.iter()
+        let position = self
+            .torrents
+            .iter()
             .position(|e| e.magnet_uri.as_str() == magnet_uri);
 
         if let Some(index) = position {
@@ -60,12 +61,10 @@ mod test {
     fn test_contains_uri_known() {
         let uri = "magnet:?my-magnet-uri";
         let collection = Collection {
-            torrents: vec![
-                MagnetInfo {
-                    name: "lorem".to_string(),
-                    magnet_uri: uri.to_string(),
-                }
-            ]
+            torrents: vec![MagnetInfo {
+                name: "lorem".to_string(),
+                magnet_uri: uri.to_string(),
+            }],
         };
 
         let result = collection.contains(uri);
@@ -76,9 +75,7 @@ mod test {
     #[test]
     fn test_contains_uri_unknown() {
         let uri = "magnet:?my-magnet-uri";
-        let collection = Collection {
-            torrents: vec![]
-        };
+        let collection = Collection { torrents: vec![] };
 
         let result = collection.contains(uri);
 
@@ -89,9 +86,7 @@ mod test {
     fn test_insert_new_item() {
         let name = "my-info";
         let uri = "magnet:?something-random";
-        let mut collection = Collection {
-            torrents: vec![]
-        };
+        let mut collection = Collection { torrents: vec![] };
 
         collection.insert(name, uri);
         let result = collection.contains(uri);
@@ -103,13 +98,13 @@ mod test {
     fn test_insert_duplicate_item() {
         let name = "loremIpsum";
         let uri = "magnet:?estla-dolorSummit";
-        let mut collection = Collection {
-            torrents: vec![]
-        };
+        let mut collection = Collection { torrents: vec![] };
 
         collection.insert(name, uri);
         collection.insert(name, uri);
-        let result = collection.torrents.iter()
+        let result = collection
+            .torrents
+            .iter()
             .filter(|e| e.name.as_str() == name)
             .count();
 
@@ -120,9 +115,7 @@ mod test {
     fn test_remove_existing_item() {
         let name = "toBeRemoved";
         let uri = "magnet:?ishaOfEstla";
-        let mut collection = Collection {
-            torrents: vec![]
-        };
+        let mut collection = Collection { torrents: vec![] };
 
         collection.insert(name, uri);
         assert_eq!(false, collection.torrents.is_empty());
@@ -139,7 +132,7 @@ mod test {
             magnet_uri: "magnet:?alreadyExistingItemUrl".to_string(),
         };
         let mut collection = Collection {
-            torrents: vec![info.clone()]
+            torrents: vec![info.clone()],
         };
 
         collection.remove(uri);

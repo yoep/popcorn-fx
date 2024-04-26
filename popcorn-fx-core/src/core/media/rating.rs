@@ -23,7 +23,13 @@ impl Rating {
         }
     }
 
-    pub fn new_with_metadata(percentage: u16, watching: u32, votes: u32, loved: u32, hated: u32) -> Self {
+    pub fn new_with_metadata(
+        percentage: u16,
+        watching: u32,
+        votes: u32,
+        loved: u32,
+        hated: u32,
+    ) -> Self {
         Self {
             percentage,
             watching,

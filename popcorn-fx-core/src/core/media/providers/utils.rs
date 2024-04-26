@@ -14,14 +14,12 @@ use crate::core::config::ApplicationConfig;
 /// Returns a vector of URIs representing the available endpoints for the specified provider.
 pub fn available_uris(config: &ApplicationConfig, provider_name: &str) -> Vec<String> {
     let settings = config.user_settings();
-    let api_server = settings.server()
-        .api_server()
-        .filter(|e| !e.is_empty());
+    let api_server = settings.server().api_server().filter(|e| !e.is_empty());
     let mut uris: Vec<String> = vec![];
 
     match api_server {
         None => {}
-        Some(e) => uris.push(e.clone())
+        Some(e) => uris.push(e.clone()),
     }
 
     let properties = config.properties();
@@ -31,7 +29,7 @@ pub fn available_uris(config: &ApplicationConfig, provider_name: &str) -> Vec<St
                 uris.push(uri.clone());
             }
         }
-        Err(err) => error!("Failed to retrieve provider info, {}", err)
+        Err(err) => error!("Failed to retrieve provider info, {}", err),
     };
 
     uris
@@ -41,7 +39,9 @@ pub fn available_uris(config: &ApplicationConfig, provider_name: &str) -> Vec<St
 mod test {
     use std::collections::HashMap;
 
-    use crate::core::config::{PopcornProperties, PopcornSettings, ProviderProperties, ServerSettings};
+    use crate::core::config::{
+        PopcornProperties, PopcornSettings, ProviderProperties, ServerSettings,
+    };
     use crate::testing::init_logger;
 
     use super::*;
@@ -59,14 +59,14 @@ mod test {
             .properties(PopcornProperties {
                 loggers: Default::default(),
                 update_channel: String::new(),
-                providers: HashMap::from([
-                    (provider_name.clone(),
-                     ProviderProperties {
-                         uris: vec![provider.clone()],
-                         genres: vec![],
-                         sort_by: vec![],
-                     })
-                ]),
+                providers: HashMap::from([(
+                    provider_name.clone(),
+                    ProviderProperties {
+                        uris: vec![provider.clone()],
+                        genres: vec![],
+                        sort_by: vec![],
+                    },
+                )]),
                 enhancers: Default::default(),
                 subtitle: Default::default(),
                 tracking: Default::default(),
@@ -82,10 +82,7 @@ mod test {
                 tracking_settings: Default::default(),
             })
             .build();
-        let expected_result = vec![
-            api_server,
-            provider,
-        ];
+        let expected_result = vec![api_server, provider];
 
         let result = available_uris(&settings, provider_name.as_str());
 
@@ -119,9 +116,7 @@ mod test {
                 tracking_settings: Default::default(),
             })
             .build();
-        let expected_result = vec![
-            api_server,
-        ];
+        let expected_result = vec![api_server];
 
         let result = available_uris(&settings, "lorem");
 

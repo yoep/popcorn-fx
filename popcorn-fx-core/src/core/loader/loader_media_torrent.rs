@@ -6,7 +6,9 @@ use derive_more::Display;
 use log::{debug, info, trace};
 use tokio_util::sync::CancellationToken;
 
-use crate::core::loader::{CancellationResult, LoadingData, LoadingError, LoadingEvent, LoadingResult, LoadingStrategy};
+use crate::core::loader::{
+    CancellationResult, LoadingData, LoadingError, LoadingEvent, LoadingResult, LoadingStrategy,
+};
 use crate::core::media::{DEFAULT_AUDIO_LANGUAGE, Episode, MediaType, MovieDetails, TorrentInfo};
 
 /// Represents a strategy for loading media torrent URLs.
@@ -36,17 +38,24 @@ impl Debug for MediaTorrentUrlLoadingStrategy {
     ///
     /// A result containing the formatted output.
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("MediaTorrentUrlLoadingStrategy")
-            .finish()
+        f.debug_struct("MediaTorrentUrlLoadingStrategy").finish()
     }
 }
 
 #[async_trait]
 impl LoadingStrategy for MediaTorrentUrlLoadingStrategy {
-    async fn process(&self, mut data: LoadingData, _: Sender<LoadingEvent>, cancel: CancellationToken) -> LoadingResult {
+    async fn process(
+        &self,
+        mut data: LoadingData,
+        _: Sender<LoadingEvent>,
+        cancel: CancellationToken,
+    ) -> LoadingResult {
         if let Some(media) = data.media.as_ref() {
             if let Some(quality) = data.quality.as_ref() {
-                debug!("Processing media torrent url for {} and quality {}", media, quality);
+                debug!(
+                    "Processing media torrent url for {} and quality {}",
+                    media, quality
+                );
                 let media_torrent_info: Option<TorrentInfo>;
 
                 if cancel.is_cancelled() {
@@ -54,24 +63,38 @@ impl LoadingStrategy for MediaTorrentUrlLoadingStrategy {
                 }
                 match media.media_type() {
                     MediaType::Movie => {
-                        trace!("Processing movie details for torrent information of {:?}", media);
-                        media_torrent_info = media.downcast_ref::<MovieDetails>()
-                            .and_then(|movie| movie.torrents().get(&DEFAULT_AUDIO_LANGUAGE.to_string()))
+                        trace!(
+                            "Processing movie details for torrent information of {:?}",
+                            media
+                        );
+                        media_torrent_info = media
+                            .downcast_ref::<MovieDetails>()
+                            .and_then(|movie| {
+                                movie.torrents().get(&DEFAULT_AUDIO_LANGUAGE.to_string())
+                            })
                             .and_then(|media_torrents| media_torrents.get(&quality.to_string()))
                             .cloned();
                     }
                     MediaType::Episode => {
                         trace!("Processing episode for torrent information");
-                        media_torrent_info = media.downcast_ref::<Episode>()
+                        media_torrent_info = media
+                            .downcast_ref::<Episode>()
                             .and_then(|episode| {
                                 let episode_torrents = episode.torrents();
-                                trace!("Retrieving {} from episode torrents {:?}", quality, episode_torrents);
+                                trace!(
+                                    "Retrieving {} from episode torrents {:?}",
+                                    quality,
+                                    episode_torrents
+                                );
                                 episode_torrents.get(&quality.to_string())
                             })
                             .cloned();
                     }
                     _ => {
-                        return LoadingResult::Err(LoadingError::MediaError(format!("media type {} is not supported", media.media_type())));
+                        return LoadingResult::Err(LoadingError::MediaError(format!(
+                            "media type {} is not supported",
+                            media.media_type()
+                        )));
                     }
                 }
 
@@ -85,7 +108,10 @@ impl LoadingStrategy for MediaTorrentUrlLoadingStrategy {
                     data.media_torrent_info = Some(torrent_info);
                     info!("Loading media url {}", url);
                 } else {
-                    return LoadingResult::Err(LoadingError::MediaError(format!("failed to resolve media torrent url for {}", media)));
+                    return LoadingResult::Err(LoadingError::MediaError(format!(
+                        "failed to resolve media torrent url for {}",
+                        media
+                    )));
                 }
             }
         }
@@ -142,11 +168,10 @@ mod tests {
                 rating: None,
                 images: Default::default(),
                 trailer: "".to_string(),
-                torrents: HashMap::from([
-                    (DEFAULT_AUDIO_LANGUAGE.to_string(), HashMap::from([
-                        (quality.to_string(), torrent_info.clone()),
-                    ])),
-                ]),
+                torrents: HashMap::from([(
+                    DEFAULT_AUDIO_LANGUAGE.to_string(),
+                    HashMap::from([(quality.to_string(), torrent_info.clone())]),
+                )]),
             })),
             torrent_info: None,
             torrent_file_info: None,
@@ -164,7 +189,11 @@ mod tests {
             assert_eq!(Some(torrent_url.to_string()), result.url);
             assert_eq!(Some(torrent_info), result.media_torrent_info);
         } else {
-            assert!(false, "expected LoadingResult::Ok, but got {:?} instead", result);
+            assert!(
+                false,
+                "expected LoadingResult::Ok, but got {:?} instead",
+                result
+            );
         }
     }
 

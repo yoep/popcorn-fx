@@ -232,11 +232,11 @@ mod tests {
             "Source Name".to_string(),
             "Torrent Title".to_string(),
             "High Quality".to_string(),
-            100,  // Seed count
-            50,   // Peer count
-            Some("100 MB".to_string()),  // Size (Optional)
-            Some("500 MB".to_string()),  // Filesize (Optional)
-            Some("sample.torrent".to_string()),  // File (Optional)
+            100,                                // Seed count
+            50,                                 // Peer count
+            Some("100 MB".to_string()),         // Size (Optional)
+            Some("500 MB".to_string()),         // Filesize (Optional)
+            Some("sample.torrent".to_string()), // File (Optional)
         );
 
         assert_eq!(torrent_info.url, "https://example.com/torrent");
@@ -250,7 +250,7 @@ mod tests {
         assert_eq!(torrent_info.filesize, Some("500 MB".to_string()));
         assert_eq!(torrent_info.file, Some("sample.torrent".to_string()));
     }
-    
+
     #[test]
     fn test_builder() {
         let expected_result = TorrentInfo {
@@ -265,7 +265,7 @@ mod tests {
             filesize: None,
             file: None,
         };
-        
+
         let result = TorrentInfo::builder()
             .url("MyUrl")
             .provider("MyProvider")
@@ -275,7 +275,7 @@ mod tests {
             .seed(18)
             .peer(5)
             .build();
-        
+
         assert_eq!(expected_result, result)
     }
 }

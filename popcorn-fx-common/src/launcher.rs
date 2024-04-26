@@ -11,18 +11,17 @@ use thiserror::Error;
 use crate::VERSION;
 
 const FILENAME: &str = "launcher";
-const EXTENSIONS: [&str; 2] = [
-    "yml",
-    "yaml"
-];
+const EXTENSIONS: [&str; 2] = ["yml", "yaml"];
 const DEFAULT_VERSION: fn() -> String = || VERSION.to_string();
 const DEFAULT_RUNTIME_VERSION: fn() -> String = || "17.0.6".to_string();
-const DEFAULT_VM_ARGS: fn() -> Vec<String> = || vec![
-    "-Dsun.awt.disablegrab=true".to_string(),
-    "-Dprism.dirtyopts=false".to_string(),
-    "-Xms100M".to_string(),
-    "-XX:+UseG1GC".to_string(),
-];
+const DEFAULT_VM_ARGS: fn() -> Vec<String> = || {
+    vec![
+        "-Dsun.awt.disablegrab=true".to_string(),
+        "-Dprism.dirtyopts=false".to_string(),
+        "-Xms100M".to_string(),
+        "-XX:+UseG1GC".to_string(),
+    ]
+};
 
 /// The launcher specific result type.
 pub type Result<T> = std::result::Result<T, LauncherError>;
@@ -78,11 +77,16 @@ impl LauncherOptions {
     ///
     /// This method will panic if the configuration file exists but cannot be read.
     pub fn new<P: AsRef<Path>>(path: P) -> Self {
-        debug!("Loading launcher options with name {} from {:?}", FILENAME, path.as_ref());
+        debug!(
+            "Loading launcher options with name {} from {:?}",
+            FILENAME,
+            path.as_ref()
+        );
         let config_value = Self::find_existing_file(path.as_ref(), FILENAME)
             .map(|mut e| {
                 let mut data = String::new();
-                e.read_to_string(&mut data).expect("Unable to read the config file");
+                e.read_to_string(&mut data)
+                    .expect("Unable to read the config file");
                 data
             })
             .or_else(|| Some(String::new()))
@@ -101,8 +105,8 @@ impl LauncherOptions {
     ///
     /// An empty `Result` indicating success, or an `Err` value if an error occurred.
     pub fn write<P: AsRef<Path>>(&self, filepath: P) -> Result<()> {
-        let value = serde_yaml::to_string(self)
-            .map_err(|e| LauncherError::ParsingError(e.to_string()))?;
+        let value =
+            serde_yaml::to_string(self).map_err(|e| LauncherError::ParsingError(e.to_string()))?;
         let mut file = fs::OpenOptions::new()
             .create(true)
             .write(true)
@@ -133,16 +137,14 @@ impl LauncherOptions {
         let mut result: Option<File> = None;
 
         for extension in EXTENSIONS {
-            let path = PathBuf::from(path)
-                .join(filename)
-                .with_extension(extension);
+            let path = PathBuf::from(path).join(filename).with_extension(extension);
             match File::open(&path) {
                 Ok(file) => {
                     debug!("Found config file {:?}", &path);
                     result = Some(file);
                     break;
                 }
-                Err(_) => trace!("Config file location {:?} doesn't exist", &path)
+                Err(_) => trace!("Config file location {:?} doesn't exist", &path),
             }
         }
 
@@ -166,7 +168,10 @@ impl From<&str> for LauncherOptions {
         let options: LauncherOptions = match serde_yaml::from_str(value) {
             Ok(properties) => properties,
             Err(err) => {
-                warn!("Failed to parse launcher options, using defaults instead, {}", err);
+                warn!(
+                    "Failed to parse launcher options, using defaults instead, {}",
+                    err
+                );
                 serde_yaml::from_str(String::new().as_str()).unwrap()
             }
         };
@@ -193,12 +198,14 @@ mod test {
             vm_args: vec!["test".to_string()],
         };
 
-        let options = LauncherOptions::from(r#"
+        let options = LauncherOptions::from(
+            r#"
 version: 0.1.0
 runtime_version: 17.0.0
 vm_args:
     - test
-        "#);
+        "#,
+        );
 
         assert_eq!(expected_result, options)
     }
@@ -212,10 +219,7 @@ vm_args:
         let expected_result = LauncherOptions {
             version: "99.0.0".to_string(),
             runtime_version: "101.0.0".to_string(),
-            vm_args: vec![
-                "lorem".to_string(),
-                "ipsum".to_string(),
-            ],
+            vm_args: vec!["lorem".to_string(), "ipsum".to_string()],
         };
 
         let result = LauncherOptions::new(Path::new(temp_path));
@@ -239,9 +243,7 @@ vm_args:
     #[test]
     fn test_filename() {
         init_logger();
-        let expected_result = PathBuf::new()
-            .join(FILENAME)
-            .with_extension(EXTENSIONS[0]);
+        let expected_result = PathBuf::new().join(FILENAME).with_extension(EXTENSIONS[0]);
 
         let result = LauncherOptions::filename();
 

@@ -2,11 +2,18 @@ use derive_more::Display;
 use log::warn;
 use serde::{Deserialize, Serialize};
 
-use crate::core::media::{Episode, Images, MediaDetails, MediaIdentifier, MediaOverview, MediaType, Rating};
+use crate::core::media::{
+    Episode, Images, MediaDetails, MediaIdentifier, MediaOverview, MediaType, Rating,
+};
 
 /// The show media information of a specific serie.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Display)]
-#[display(fmt = "{{ShowOverview: imdb_id: {}, tvdb_id: {}, title: {}}}", imdb_id, tvdb_id, title)]
+#[display(
+    fmt = "{{ShowOverview: imdb_id: {}, tvdb_id: {}, title: {}}}",
+    imdb_id,
+    tvdb_id,
+    title
+)]
 pub struct ShowOverview {
     pub imdb_id: String,
     pub tvdb_id: String,
@@ -18,8 +25,15 @@ pub struct ShowOverview {
 }
 
 impl ShowOverview {
-    pub fn new(imdb_id: String, tvdb_id: String, title: String, year: String,
-               num_seasons: i32, images: Images, rating: Option<Rating>) -> Self {
+    pub fn new(
+        imdb_id: String,
+        tvdb_id: String,
+        title: String,
+        year: String,
+        num_seasons: i32,
+        images: Images,
+        rating: Option<Rating>,
+    ) -> Self {
         if imdb_id.is_empty() {
             panic!("Show IMDB ID cannot be empty")
         }
@@ -63,7 +77,7 @@ impl MediaOverview for ShowOverview {
     fn rating(&self) -> Option<&Rating> {
         match &self.rating {
             None => None,
-            Some(e) => Some(e)
+            Some(e) => Some(e),
         }
     }
 
@@ -78,7 +92,12 @@ impl MediaOverview for ShowOverview {
 
 /// The details of a show/serie which contains one or more [Episode] items.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Display)]
-#[display(fmt = "{{ShowDetails: imdb_id: {}, tvdb_id: {}, title: {}}}", imdb_id, tvdb_id, title)]
+#[display(
+    fmt = "{{ShowDetails: imdb_id: {}, tvdb_id: {}, title: {}}}",
+    imdb_id,
+    tvdb_id,
+    title
+)]
 pub struct ShowDetails {
     pub imdb_id: String,
     pub tvdb_id: String,
@@ -99,8 +118,15 @@ pub struct ShowDetails {
 }
 
 impl ShowDetails {
-    pub fn new(imdb_id: String, tvdb_id: String, title: String, year: String, num_seasons: i32,
-               images: Images, rating: Option<Rating>) -> Self {
+    pub fn new(
+        imdb_id: String,
+        tvdb_id: String,
+        title: String,
+        year: String,
+        num_seasons: i32,
+        images: Images,
+        rating: Option<Rating>,
+    ) -> Self {
         Self {
             tvdb_id,
             title,
@@ -171,7 +197,7 @@ impl MediaOverview for ShowDetails {
     fn rating(&self) -> Option<&Rating> {
         match &self.rating {
             None => None,
-            Some(e) => Some(e)
+            Some(e) => Some(e),
         }
     }
 

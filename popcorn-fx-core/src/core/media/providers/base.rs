@@ -58,9 +58,7 @@ impl BaseProvider {
                 .danger_accept_invalid_certs(insecure)
                 .build()
                 .expect("Client should have been created"),
-            uri_providers: uris.into_iter()
-                .map(UriProvider::new)
-                .collect(),
+            uri_providers: uris.into_iter().map(UriProvider::new).collect(),
         }
     }
 
@@ -85,8 +83,17 @@ impl BaseProvider {
     /// # Returns
     ///
     /// An array of `[T]` items on success, or a `providers::ProviderError` if there was an error.
-    pub async fn retrieve_provider_page<T>(&mut self, resource: &str, genre: &Genre, sort: &SortBy, keywords: &String, page: u32) -> crate::core::media::Result<Vec<T>>
-        where T: DeserializeOwned {
+    pub async fn retrieve_provider_page<T>(
+        &mut self,
+        resource: &str,
+        genre: &Genre,
+        sort: &SortBy,
+        keywords: &String,
+        page: u32,
+    ) -> crate::core::media::Result<Vec<T>>
+    where
+        T: DeserializeOwned,
+    {
         let client = self.client.clone();
         let available_providers: Vec<&mut UriProvider> = self.available_providers();
 
@@ -125,8 +132,14 @@ impl BaseProvider {
     /// # Returns
     ///
     /// The details of the resource, or a `providers::ProviderError` if there was an error.
-    pub async fn retrieve_details<T>(&mut self, resource: &str, id: &str) -> crate::core::media::Result<T>
-        where T: DeserializeOwned {
+    pub async fn retrieve_details<T>(
+        &mut self,
+        resource: &str,
+        id: &str,
+    ) -> crate::core::media::Result<T>
+    where
+        T: DeserializeOwned,
+    {
         let client = self.client.clone();
         let available_providers: Vec<&mut UriProvider> = self.available_providers();
 
@@ -167,8 +180,14 @@ impl BaseProvider {
         }
     }
 
-    async fn send_request_with_provider<T>(client: &Client, url: &Url, provider: &mut UriProvider) -> Option<crate::core::media::Result<T>>
-        where T: DeserializeOwned {
+    async fn send_request_with_provider<T>(
+        client: &Client,
+        url: &Url,
+        provider: &mut UriProvider,
+    ) -> Option<crate::core::media::Result<T>>
+    where
+        T: DeserializeOwned,
+    {
         while !provider.disabled {
             match Self::send_request::<T>(&client, &url).await {
                 // if we got an OK, return instantly the result
@@ -183,7 +202,10 @@ impl BaseProvider {
                         // so we increase the failed attempts and try again
                         _ => {
                             let delay = std::time::Duration::from_millis(500);
-                            trace!("Request was unsuccessful, retrying in {} millis", delay.as_millis());
+                            trace!(
+                                "Request was unsuccessful, retrying in {} millis",
+                                delay.as_millis()
+                            );
                             thread::sleep(delay);
                             provider.increase_failure()
                         }
@@ -196,11 +218,11 @@ impl BaseProvider {
     }
 
     async fn send_request<T>(client: &Client, url: &Url) -> crate::core::media::Result<T>
-        where T: DeserializeOwned {
+    where
+        T: DeserializeOwned,
+    {
         match client.get(url.clone()).send().await {
-            Ok(response) => {
-                Self::handle_response::<T>(response, url).await
-            }
+            Ok(response) => Self::handle_response::<T>(response, url).await,
             Err(err) => {
                 warn!("Failed to retrieve media details, {}", err);
                 Err(MediaError::ProviderConnectionFailed)
@@ -209,27 +231,48 @@ impl BaseProvider {
     }
 
     async fn handle_response<T>(response: Response, url: &Url) -> crate::core::media::Result<T>
-        where T: DeserializeOwned {
+    where
+        T: DeserializeOwned,
+    {
         let status_code = &response.status();
 
         if status_code.is_success() {
             match response.json::<T>().await {
                 Ok(e) => Ok(e),
-                Err(e) => Err(MediaError::ProviderParsingFailed(e.to_string()))
+                Err(e) => Err(MediaError::ProviderParsingFailed(e.to_string())),
             }
         } else {
-            warn!("Request {} failed with status {}, {}", url.as_str(), response.status(), response.text().await.expect("expected the response body to be returned"));
-            Err(MediaError::ProviderRequestFailed(url.to_string(), status_code.as_u16()))
+            warn!(
+                "Request {} failed with status {}, {}",
+                url.as_str(),
+                response.status(),
+                response
+                    .text()
+                    .await
+                    .expect("expected the response body to be returned")
+            );
+            Err(MediaError::ProviderRequestFailed(
+                url.to_string(),
+                status_code.as_u16(),
+            ))
         }
     }
 
     fn available_providers(&mut self) -> Vec<&mut UriProvider> {
-        self.uri_providers.iter_mut()
+        self.uri_providers
+            .iter_mut()
             .filter(|e| !e.disabled)
             .collect()
     }
 
-    fn create_search_uri(host: &String, resource: &str, genre: &Genre, sort: &SortBy, keywords: &str, page: u32) -> Option<Url> {
+    fn create_search_uri(
+        host: &String,
+        resource: &str,
+        genre: &Genre,
+        sort: &SortBy,
+        keywords: &str,
+        page: u32,
+    ) -> Option<Url> {
         let mut query_params: Vec<(&str, &str)> = vec![];
 
         query_params.push((ORDER_QUERY, ORDER_QUERY_VALUE));
@@ -239,8 +282,14 @@ impl BaseProvider {
 
         match Url::parse_with_params(host.as_str(), &query_params) {
             Ok(mut e) => {
-                trace!("Creating search url for host: {}, resource: {}, page: {}", host, resource, page);
-                e.path_segments_mut().expect("segments should be mutable")
+                trace!(
+                    "Creating search url for host: {}, resource: {}, page: {}",
+                    host,
+                    resource,
+                    page
+                );
+                e.path_segments_mut()
+                    .expect("segments should be mutable")
                     .pop_if_empty()
                     .push(resource)
                     .push(&page.to_string());
@@ -257,8 +306,14 @@ impl BaseProvider {
     fn create_details_uri(host: &String, resource: &str, id: &str) -> Option<Url> {
         match Url::parse(host.as_str()) {
             Ok(mut e) => {
-                trace!("Creating details url for host: {}, resource: {}, id: {}", host, resource, id);
-                e.path_segments_mut().expect("segments should be mutable")
+                trace!(
+                    "Creating details url for host: {}, resource: {}, id: {}",
+                    host,
+                    resource,
+                    id
+                );
+                e.path_segments_mut()
+                    .expect("segments should be mutable")
                     .pop_if_empty()
                     .push(resource)
                     .push(id);
@@ -274,7 +329,12 @@ impl BaseProvider {
 }
 
 #[derive(Debug, Clone, Display)]
-#[display(fmt = "uri: {}, disabled: {}, failed_attempts: {}", uri, disabled, failed_attempts)]
+#[display(
+    fmt = "uri: {}, disabled: {}, failed_attempts: {}",
+    uri,
+    disabled,
+    failed_attempts
+)]
 struct UriProvider {
     uri: String,
     disabled: bool,
@@ -292,7 +352,11 @@ impl UriProvider {
 
     fn increase_failure(&mut self) {
         self.failed_attempts += 1;
-        trace!("Provider {} failures increased to {}", self.uri, self.failed_attempts);
+        trace!(
+            "Provider {} failures increased to {}",
+            self.uri,
+            self.failed_attempts
+        );
         if self.failed_attempts == 3 {
             self.disable()
         }
@@ -332,10 +396,12 @@ mod test {
         let sort_by = SortBy::new("trending".to_string(), String::new());
         let keywords = "pirates".to_string();
         let page = 2;
-        let expected_result = "https://lorem.com/api/v1/movies/2?order=-1&genre=all&sort=trending&keywords=pirates";
+        let expected_result =
+            "https://lorem.com/api/v1/movies/2?order=-1&genre=all&sort=trending&keywords=pirates";
 
-        let result = BaseProvider::create_search_uri(&host, resource, &genre, &sort_by, &keywords, page)
-            .expect("Expected the created url to be valid");
+        let result =
+            BaseProvider::create_search_uri(&host, resource, &genre, &sort_by, &keywords, page)
+                .expect("Expected the created url to be valid");
 
         assert_eq!(expected_result, result.as_str())
     }
@@ -361,22 +427,21 @@ mod test {
         let status_code = 503;
         let server = MockServer::start();
         server.mock(|mock, then| {
-            mock.method(GET)
-                .path(path);
+            mock.method(GET).path(path);
             then.status(status_code);
         });
         let url = Url::parse(server.url(path).as_str()).unwrap();
         let provider = BaseProvider::new(vec![server.url("")], false);
 
-        let response = provider.client.get(url.clone())
-            .send()
-            .await
-            .unwrap();
+        let response = provider.client.get(url.clone()).send().await.unwrap();
 
         let result = BaseProvider::handle_response::<()>(response, &url).await;
 
         if let Err(e) = result {
-            assert_eq!(MediaError::ProviderRequestFailed(url.to_string(), status_code), e);
+            assert_eq!(
+                MediaError::ProviderRequestFailed(url.to_string(), status_code),
+                e
+            );
         } else {
             assert!(false, "expected a MediaError to be returned");
         }

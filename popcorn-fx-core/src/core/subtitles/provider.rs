@@ -24,7 +24,11 @@ pub trait SubtitleProvider: Debug + Send + Sync {
     async fn movie_subtitles(&self, media: &MovieDetails) -> subtitles::Result<Vec<SubtitleInfo>>;
 
     /// Retrieve the available subtitles for the given episode.
-    async fn episode_subtitles(&self, media: &ShowDetails, episode: &Episode) -> subtitles::Result<Vec<SubtitleInfo>>;
+    async fn episode_subtitles(
+        &self,
+        media: &ShowDetails,
+        episode: &Episode,
+    ) -> subtitles::Result<Vec<SubtitleInfo>>;
 
     /// Retrieve the available subtitles for the given filename.
     async fn file_subtitles(&self, filename: &str) -> subtitles::Result<Vec<SubtitleInfo>>;
@@ -32,25 +36,26 @@ pub trait SubtitleProvider: Debug + Send + Sync {
     /// Download the subtitle for the given [SubtitleInfo].
     ///
     /// It returns the location the downloaded subtitle file on success, else the [subtitles::SubtitleError].
-    async fn download(&self, subtitle_info: &SubtitleInfo, matcher: &SubtitleMatcher) -> subtitles::Result<String>;
+    async fn download(
+        &self,
+        subtitle_info: &SubtitleInfo,
+        matcher: &SubtitleMatcher,
+    ) -> subtitles::Result<String>;
 
     /// Download the subtitle for the given [SubtitleInfo].
     /// This method automatically parses the downloaded file.
     ///
     /// It returns the parsed [Subtitle] on success, else the [subtitles::SubtitleError].
-    async fn download_and_parse(&self, subtitle_info: &SubtitleInfo, matcher: &SubtitleMatcher) -> subtitles::Result<Subtitle>;
+    async fn download_and_parse(
+        &self,
+        subtitle_info: &SubtitleInfo,
+        matcher: &SubtitleMatcher,
+    ) -> subtitles::Result<Subtitle>;
 
     /// Parse the given file path to a subtitle struct.
     ///
     /// It returns a [SubtitleError] when the path doesn't exist of the file failed to be parsed.
     fn parse(&self, file_path: &Path) -> subtitles::Result<Subtitle>;
-
-    /// Select one of the available subtitles.
-    ///
-    /// * `subtitles` - The available subtitle slice to pick from.
-    ///
-    /// It returns the default [SubtitleInfo::none] when the preferred subtitle is not present.
-    fn select_or_default(&self, subtitles: &[SubtitleInfo]) -> SubtitleInfo;
 
     /// Convert the given [Subtitle] back to a raw format of [SubtitleType].
     /// It returns the raw format string for the given type on success, else the error.

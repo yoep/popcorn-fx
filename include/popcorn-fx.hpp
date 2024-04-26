@@ -182,14 +182,6 @@ enum class SubtitleLanguage : int32_t {
   Vietnamese = 35,
 };
 
-/// The type of a subtitle, indicating its format.
-enum class SubtitleType : int32_t {
-  /// SubRip subtitle format.
-  Srt = 0,
-  /// WebVTT subtitle format.
-  Vtt = 1,
-};
-
 /// The state of a [Torrent] which is represented as a [i32].
 /// This state is abi compatible to be used over [std::ffi].
 enum class TorrentState : int32_t {
@@ -1931,7 +1923,7 @@ SubtitleInfoSet *movie_subtitles(PopcornFX *popcorn_fx, const MovieDetailsC *mov
 /// Create a new PopcornFX instance.
 /// The caller will become responsible for managing the memory of the struct.
 /// The instance can be safely deleted by using [dispose_popcorn_fx].
-PopcornFX *new_popcorn_fx(char **args, int32_t len);
+PopcornFX *new_popcorn_fx(int32_t len, char **args);
 
 /// Play the next item in the playlist from C.
 ///
@@ -2422,8 +2414,6 @@ StringArray *retrieve_watched_shows(PopcornFX *popcorn_fx);
 ///
 /// A pointer to the selected default subtitle in C-compatible form.
 SubtitleInfoC *select_or_default_subtitle(PopcornFX *popcorn_fx, SubtitleInfoSet *set);
-
-char *serve_subtitle(PopcornFX *popcorn_fx, const SubtitleInfoC *subtitle_info, SubtitleMatcherC matcher, SubtitleType subtitle_type);
 
 /// Set the active player in the PopcornFX player manager.
 ///

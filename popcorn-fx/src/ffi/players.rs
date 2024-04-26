@@ -6,7 +6,10 @@ use log::{debug, error, info, trace, warn};
 use popcorn_fx_core::{from_c_string, into_c_owned};
 use popcorn_fx_core::core::players::{Player, PlayerEvent};
 
-use crate::ffi::{PlayerC, PlayerEventC, PlayerManagerEventC, PlayerManagerEventCallback, PlayerRegistrationC, PlayerSet, PlayerWrapper, PlayerWrapperC};
+use crate::ffi::{
+    PlayerC, PlayerEventC, PlayerManagerEventC, PlayerManagerEventCallback, PlayerRegistrationC,
+    PlayerSet, PlayerWrapper, PlayerWrapperC,
+};
 use crate::PopcornFX;
 
 /// Retrieve a pointer to the active player as a `PlayerC` instance from the PopcornFX player manager.
@@ -28,12 +31,11 @@ pub extern "C" fn active_player(popcorn_fx: &mut PopcornFX) -> *mut PlayerC {
     trace!("Retrieving C active player");
     match popcorn_fx.player_manager().active_player() {
         None => ptr::null_mut(),
-        Some(e) => {
-            e.upgrade()
-                .map(|e| PlayerC::from(e))
-                .map(|e| into_c_owned(e))
-                .unwrap_or(ptr::null_mut())
-        }
+        Some(e) => e
+            .upgrade()
+            .map(|e| PlayerC::from(e))
+            .map(|e| into_c_owned(e))
+            .unwrap_or(ptr::null_mut()),
     }
 }
 
@@ -53,7 +55,9 @@ pub extern "C" fn set_active_player(popcorn_fx: &mut PopcornFX, player_id: *mut 
     let player_id = from_c_string(player_id);
     trace!("Updating active player from C to {}", player_id);
 
-    popcorn_fx.player_manager().set_active_player(player_id.as_str());
+    popcorn_fx
+        .player_manager()
+        .set_active_player(player_id.as_str());
 }
 
 /// Retrieve a pointer to a `PlayerSet` containing information about all players managed by PopcornFX.
@@ -73,7 +77,10 @@ pub extern "C" fn set_active_player(popcorn_fx: &mut PopcornFX, player_id: *mut 
 #[no_mangle]
 pub extern "C" fn players(popcorn_fx: &mut PopcornFX) -> *mut PlayerSet {
     trace!("Retrieving players from C");
-    let players = popcorn_fx.player_manager().players().into_iter()
+    let players = popcorn_fx
+        .player_manager()
+        .players()
+        .into_iter()
         .filter_map(|e| e.upgrade())
         .map(|e| PlayerC::from(e))
         .collect::<Vec<PlayerC>>();
@@ -102,7 +109,8 @@ pub extern "C" fn player_by_id(popcorn_fx: &mut PopcornFX, player_id: *mut c_cha
     let player_id = from_c_string(player_id);
     trace!("Retrieving C player by id {}", player_id);
 
-    popcorn_fx.player_manager()
+    popcorn_fx
+        .player_manager()
         .by_id(player_id.as_str())
         .and_then(|e| e.upgrade())
         .map(|e| PlayerC::from(e))
@@ -126,10 +134,15 @@ pub extern "C" fn player_by_id(popcorn_fx: &mut PopcornFX, player_id: *mut c_cha
 ///
 /// Returns a pointer to a `PlayerWrapperC` instance representing the player if found, or a null pointer if no player with the given ID exists.
 #[no_mangle]
-pub extern "C" fn player_pointer_by_id(popcorn_fx: &mut PopcornFX, player_id: *mut c_char) -> *mut PlayerWrapperC {
+pub extern "C" fn player_pointer_by_id(
+    popcorn_fx: &mut PopcornFX,
+    player_id: *mut c_char,
+) -> *mut PlayerWrapperC {
     let player_id = from_c_string(player_id);
     trace!("Retrieving C player wrapper for {}", player_id);
-    popcorn_fx.player_manager().by_id(player_id.as_str())
+    popcorn_fx
+        .player_manager()
+        .by_id(player_id.as_str())
         .map(|e| PlayerWrapperC::from(e))
         .map(|e| into_c_owned(e))
         .unwrap_or(ptr::null_mut())
@@ -147,11 +160,16 @@ pub extern "C" fn player_pointer_by_id(popcorn_fx: &mut PopcornFX, player_id: *m
 /// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
 /// * `callback` - A C-compatible callback function that will be invoked when player manager events occur.
 #[no_mangle]
-pub extern "C" fn register_player_callback(popcorn_fx: &mut PopcornFX, callback: PlayerManagerEventCallback) {
+pub extern "C" fn register_player_callback(
+    popcorn_fx: &mut PopcornFX,
+    callback: PlayerManagerEventCallback,
+) {
     trace!("Registering new player manager callback");
-    popcorn_fx.player_manager().subscribe(Box::new(move |event| {
-        callback(PlayerManagerEventC::from(event.clone()))
-    }));
+    popcorn_fx
+        .player_manager()
+        .subscribe(Box::new(move |event| {
+            callback(PlayerManagerEventC::from(event.clone()))
+        }));
 }
 
 /// Register a player with the PopcornFX player manager.
@@ -225,7 +243,11 @@ pub extern "C" fn remove_player(popcorn_fx: &mut PopcornFX, player_id: *mut c_ch
 /// If the conditions are met, it invokes the specified player event on the wrapped player.
 #[no_mangle]
 pub extern "C" fn invoke_player_event(player: &mut PlayerWrapperC, event: PlayerEventC) {
-    trace!("Received player event from C {:?} for player {}", event, player.id());
+    trace!(
+        "Received player event from C {:?} for player {}",
+        event,
+        player.id()
+    );
     match player.instance() {
         Some(player) => {
             player.downcast_ref::<PlayerWrapper>().map(|wrapper| {
@@ -237,7 +259,10 @@ pub extern "C" fn invoke_player_event(player: &mut PlayerWrapperC, event: Player
             });
         }
         None => {
-            warn!("Unable to process C player event, player {} has been disposed", player.id());
+            warn!(
+                "Unable to process C player event, player {} has been disposed",
+                player.id()
+            );
         }
     }
 }
@@ -521,7 +546,10 @@ mod tests {
         };
 
         register_player(&mut instance, player);
-        let player = from_c_owned(player_by_id(&mut instance, into_c_string(player_id.to_string())));
+        let player = from_c_owned(player_by_id(
+            &mut instance,
+            into_c_string(player_id.to_string()),
+        ));
 
         let bytes = from_c_vec(player.graphic_resource, player.graphic_resource_len);
         assert_eq!(player_id.to_string(), from_c_string(player.id));
@@ -586,7 +614,11 @@ mod tests {
         register_player(&mut instance, player);
         assert_eq!(1, instance.player_manager().players().len());
         remove_player(&mut instance, into_c_string(player_id.to_string()));
-        assert_eq!(0, instance.player_manager().players().len(), "expected the player to have been removed from the player manager");
+        assert_eq!(
+            0,
+            instance.player_manager().players().len(),
+            "expected the player to have been removed from the player manager"
+        );
     }
 
     #[test]
@@ -621,7 +653,11 @@ mod tests {
         if let PlayerEvent::DurationChanged(e) = result {
             assert_eq!(expected_result, e);
         } else {
-            assert!(false, "expected PlayerEvent::DurationChanged, but got {} instead", result);
+            assert!(
+                false,
+                "expected PlayerEvent::DurationChanged, but got {} instead",
+                result
+            );
         }
     }
 
@@ -632,15 +668,15 @@ mod tests {
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut player = MockPlayer::new();
-        player.expect_id()
-            .return_const(player_id.to_string());
-        player.expect_pause()
-            .times(1)
-            .return_const(());
+        player.expect_id().return_const(player_id.to_string());
+        player.expect_pause().times(1).return_const(());
         let mut instance = PopcornFX::new(default_args(temp_path));
 
         instance.player_manager().add_player(Box::new(player));
-        let mut ptr = from_c_owned(player_pointer_by_id(&mut instance, into_c_string(player_id.to_string())));
+        let mut ptr = from_c_owned(player_pointer_by_id(
+            &mut instance,
+            into_c_string(player_id.to_string()),
+        ));
 
         player_pause(&mut ptr);
     }
@@ -652,15 +688,15 @@ mod tests {
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut player = MockPlayer::new();
-        player.expect_id()
-            .return_const(player_id.to_string());
-        player.expect_resume()
-            .times(1)
-            .return_const(());
+        player.expect_id().return_const(player_id.to_string());
+        player.expect_resume().times(1).return_const(());
         let mut instance = PopcornFX::new(default_args(temp_path));
 
         instance.player_manager().add_player(Box::new(player));
-        let mut ptr = from_c_owned(player_pointer_by_id(&mut instance, into_c_string(player_id.to_string())));
+        let mut ptr = from_c_owned(player_pointer_by_id(
+            &mut instance,
+            into_c_string(player_id.to_string()),
+        ));
 
         player_resume(&mut ptr);
     }
@@ -672,15 +708,15 @@ mod tests {
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut player = MockPlayer::new();
-        player.expect_id()
-            .return_const(player_id.to_string());
-        player.expect_seek()
-            .times(1)
-            .return_const(());
+        player.expect_id().return_const(player_id.to_string());
+        player.expect_seek().times(1).return_const(());
         let mut instance = PopcornFX::new(default_args(temp_path));
 
         instance.player_manager().add_player(Box::new(player));
-        let mut ptr = from_c_owned(player_pointer_by_id(&mut instance, into_c_string(player_id.to_string())));
+        let mut ptr = from_c_owned(player_pointer_by_id(
+            &mut instance,
+            into_c_string(player_id.to_string()),
+        ));
 
         player_seek(&mut ptr, 28000);
     }
@@ -692,15 +728,15 @@ mod tests {
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut player = MockPlayer::new();
-        player.expect_id()
-            .return_const(player_id.to_string());
-        player.expect_stop()
-            .times(1)
-            .return_const(());
+        player.expect_id().return_const(player_id.to_string());
+        player.expect_stop().times(1).return_const(());
         let mut instance = PopcornFX::new(default_args(temp_path));
 
         instance.player_manager().add_player(Box::new(player));
-        let mut ptr = from_c_owned(player_pointer_by_id(&mut instance, into_c_string(player_id.to_string())));
+        let mut ptr = from_c_owned(player_pointer_by_id(
+            &mut instance,
+            into_c_string(player_id.to_string()),
+        ));
 
         player_stop(&mut ptr);
     }
@@ -728,15 +764,15 @@ mod tests {
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut player = MockPlayer::new();
-        player.expect_id()
-            .return_const(player_id.to_string());
-        player.expect_resume()
-            .times(1)
-            .return_const(());
+        player.expect_id().return_const(player_id.to_string());
+        player.expect_resume().times(1).return_const(());
         let mut instance = PopcornFX::new(default_args(temp_path));
 
         instance.player_manager().add_player(Box::new(player));
-        let ptr = from_c_owned(player_pointer_by_id(&mut instance, into_c_string(player_id.to_string())));
+        let ptr = from_c_owned(player_pointer_by_id(
+            &mut instance,
+            into_c_string(player_id.to_string()),
+        ));
 
         dispose_player_pointer(Box::new(ptr));
     }
@@ -745,16 +781,13 @@ mod tests {
     fn test_dispose_player() {
         init_logger();
         let mut player = MockPlayer::new();
-        player.expect_id()
-            .return_const("MyPlayerId".to_string());
-        player.expect_name()
-            .return_const("MyPlayer".to_string());
-        player.expect_description()
+        player.expect_id().return_const("MyPlayerId".to_string());
+        player.expect_name().return_const("MyPlayer".to_string());
+        player
+            .expect_description()
             .return_const("SomeRandomDescription".to_string());
-        player.expect_graphic_resource()
-            .return_const(vec![]);
-        player.expect_state()
-            .return_const(PlayerState::Playing);
+        player.expect_graphic_resource().return_const(vec![]);
+        player.expect_state().return_const(PlayerState::Playing);
         let player_c = PlayerC::from(Arc::new(Box::new(player) as Box<dyn Player>));
 
         dispose_player(Box::new(player_c));

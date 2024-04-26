@@ -57,8 +57,17 @@ mod test {
 
     #[test]
     fn test_subtitle_parse_error_display() {
-        assert_eq!("Parsing failed with lorem".to_string(), SubtitleParseError::Failed("lorem".to_string()).to_string());
-        assert_eq!("Extension lol is not supported".to_string(), SubtitleParseError::ExtensionNotSupported("lol".to_string()).to_string());
-        assert_eq!("File contains invalid time, 13".to_string(), SubtitleParseError::InvalidTime("13".to_string()).to_string());
+        assert_eq!(
+            "Parsing failed with lorem".to_string(),
+            SubtitleParseError::Failed("lorem".to_string()).to_string()
+        );
+        assert_eq!(
+            "Extension lol is not supported".to_string(),
+            SubtitleParseError::ExtensionNotSupported("lol".to_string()).to_string()
+        );
+        assert_eq!(
+            "File contains invalid time, 13".to_string(),
+            SubtitleParseError::InvalidTime("13".to_string()).to_string()
+        );
     }
 }

@@ -15,9 +15,7 @@ import com.github.yoep.popcorn.backend.lib.PopcornFxInstance;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.ui.stage.BorderlessStageHolder;
 import com.github.yoep.popcorn.ui.view.services.MaximizeService;
-import com.sun.jna.Memory;
-import com.sun.jna.Native;
-import com.sun.jna.Pointer;
+import com.sun.jna.StringArray;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
@@ -44,7 +42,7 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
         System.setProperty("jna.encoding", StandardCharsets.UTF_8.name());
 
         var libArgs = createLibraryArguments(args);
-        PopcornFxInstance.INSTANCE.set(FxLibInstance.INSTANCE.get().new_popcorn_fx(libArgs.ptr, libArgs.length));
+        PopcornFxInstance.INSTANCE.set(FxLibInstance.INSTANCE.get().new_popcorn_fx(libArgs.length, libArgs.args));
 
         launch(PopcornTimeApplication.class, PopcornTimePreloader.class, args);
     }
@@ -144,18 +142,10 @@ public class PopcornTimeApplication extends SpringJavaFXApplication {
         var libArgs = new String[length];
         libArgs[0] = "popcorn-fx";
         System.arraycopy(args, 0, libArgs, 1, args.length);
-        var pointer = new Memory((long) length * Native.POINTER_SIZE);
-        var stringPointers =  new Pointer[length];
 
-        for (int i = 0; i < length; i++) {
-            stringPointers[i] = new Memory(libArgs[i].length() + 1);
-            stringPointers[i].setString(0, libArgs[i]);
-            pointer.setPointer((long) i * Native.POINTER_SIZE, stringPointers[i]);
-        }
-
-        return new Args(pointer, length);
+        return new Args(new StringArray(libArgs), length);
     }
 
-    private record Args(Pointer ptr, int length) {
+    private record Args(StringArray args, int length) {
     }
 }

@@ -44,7 +44,10 @@ impl FavoritesProvider {
     /// This example demonstrates how to create a new `FavoritesProvider` instance by providing the necessary shared favorites and watched services.
     /// The `favorites` and `watched_service` parameters are of type `Arc<Box<dyn FavoriteService>>` and `Arc<Box<dyn WatchedService>>`, respectively.
     /// Ensure that you clone these services if they are used in other parts of your application.
-    pub fn new(favorites: Arc<Box<dyn FavoriteService>>, watched_service: Arc<Box<dyn WatchedService>>) -> Self {
+    pub fn new(
+        favorites: Arc<Box<dyn FavoriteService>>,
+        watched_service: Arc<Box<dyn WatchedService>>,
+    ) -> Self {
         Self {
             favorites,
             watched_service,
@@ -69,7 +72,12 @@ impl FavoritesProvider {
         }
     }
 
-    fn sort_by(&self, sort_by: &SortBy, a: &Box<dyn MediaOverview>, b: &Box<dyn MediaOverview>) -> Ordering {
+    fn sort_by(
+        &self,
+        sort_by: &SortBy,
+        a: &Box<dyn MediaOverview>,
+        b: &Box<dyn MediaOverview>,
+    ) -> Ordering {
         let initial_ord = a.media_type().cmp(&b.media_type());
 
         if initial_ord != Ordering::Equal {
@@ -87,7 +95,11 @@ impl FavoritesProvider {
     /// Sort the given items based on the watched state.
     /// Items not seen will be put in front of the list, items seen at the back of the list.
     fn sort_by_watched(&self, a: &Box<dyn MediaOverview>, b: &Box<dyn MediaOverview>) -> Ordering {
-        trace!("Sorting media item based on watched state for {} & {}", a, b);
+        trace!(
+            "Sorting media item based on watched state for {} & {}",
+            a,
+            b
+        );
         let a_watched = self.watched_service.is_watched(a.imdb_id());
         let b_watched = self.watched_service.is_watched(b.imdb_id());
 
@@ -109,7 +121,8 @@ impl FavoritesProvider {
         let b_rating = b.rating();
 
         if a_rating.is_some() && b_rating.is_some() {
-            return a_rating.expect("rating should be present")
+            return a_rating
+                .expect("rating should be present")
                 .cmp(b_rating.expect("rating should be present"))
                 .reverse();
         } else if a_rating.is_some() {
@@ -142,7 +155,13 @@ impl MediaProvider for FavoritesProvider {
         // no-op
     }
 
-    async fn retrieve(&self, genre: &Genre, sort_by: &SortBy, keywords: &String, page: u32) -> crate::core::media::Result<Vec<Box<dyn MediaOverview>>> {
+    async fn retrieve(
+        &self,
+        genre: &Genre,
+        sort_by: &SortBy,
+        keywords: &String,
+        page: u32,
+    ) -> crate::core::media::Result<Vec<Box<dyn MediaOverview>>> {
         // only return one page with all favorites
         if page > 1 {
             return Ok(vec![]);
@@ -152,16 +171,21 @@ impl MediaProvider for FavoritesProvider {
             Ok(favorites) => {
                 let total_favorites = favorites.len();
                 trace!("Filtering a total of {} favorites", total_favorites);
-                let filtered : Vec<Box<dyn MediaOverview>> = favorites.into_iter()
+                let filtered: Vec<Box<dyn MediaOverview>> = favorites
+                    .into_iter()
                     .filter(|e| Self::filter_movies(e, genre))
                     .filter(|e| Self::filter_shows(e, genre))
                     .filter(|e| Self::filter_keywords(e, keywords))
                     .sorted_by(|a, b| self.sort_by(sort_by, a, b))
                     .collect();
-                debug!("Retrieved a total of {} favorites out of {}", filtered.len(), total_favorites);
+                debug!(
+                    "Retrieved a total of {} favorites out of {}",
+                    filtered.len(),
+                    total_favorites
+                );
                 Ok(filtered)
             }
-            Err(e) => Err(e)
+            Err(e) => Err(e),
         }
     }
 }
@@ -188,22 +212,23 @@ mod test {
         let sort_by = SortBy::new("watched".to_string(), String::new());
         let keywords = "".to_string();
         let mut favorites = MockFavoriteService::new();
-        favorites.expect_all()
+        favorites
+            .expect_all()
             .returning(|| -> media::Result<Vec<Box<dyn MediaOverview>>> {
-                Ok(vec![Box::new(
-                    MovieOverview::new(
-                        String::new(),
-                        imdb_id.to_string(),
-                        String::new(),
-                    )
-                )])
+                Ok(vec![Box::new(MovieOverview::new(
+                    String::new(),
+                    imdb_id.to_string(),
+                    String::new(),
+                ))])
             });
         let provider = FavoritesProvider::new(
             Arc::new(Box::new(favorites)),
-            Arc::new(Box::new(MockWatchedService::new())));
+            Arc::new(Box::new(MockWatchedService::new())),
+        );
         let runtime = tokio::runtime::Runtime::new().expect("expected a new runtime");
 
-        let result = runtime.block_on(provider.retrieve(&genre, &sort_by, &keywords, 1))
+        let result = runtime
+            .block_on(provider.retrieve(&genre, &sort_by, &keywords, 1))
             .expect("expected the favorites to have been returned");
 
         assert_eq!(1, result.len())
@@ -220,14 +245,15 @@ mod test {
         copy_test_file(temp_path, "favorites2.json", Some("favorites.json"));
         let favorites = DefaultFavoriteService::new(temp_path);
         let mut watched_service = MockWatchedService::new();
-        watched_service.expect_is_watched()
-            .return_const(false);
+        watched_service.expect_is_watched().return_const(false);
         let provider = FavoritesProvider::new(
             Arc::new(Box::new(favorites)),
-            Arc::new(Box::new(watched_service)));
+            Arc::new(Box::new(watched_service)),
+        );
         let runtime = tokio::runtime::Runtime::new().expect("expected a new runtime");
 
-        let result = runtime.block_on(provider.retrieve(&genre, &sort_by, &keywords, 1))
+        let result = runtime
+            .block_on(provider.retrieve(&genre, &sort_by, &keywords, 1))
             .expect("expected the favorites to have been returned");
 
         assert_eq!(21, result.len())
@@ -315,7 +341,11 @@ mod test {
         let favorites = MockFavoriteService::new();
         let service = FavoritesProvider::new(
             Arc::new(Box::new(favorites)),
-            Arc::new(Box::new(DefaultWatchedService::new(resource_path, Arc::new(EventPublisher::default())))));
+            Arc::new(Box::new(DefaultWatchedService::new(
+                resource_path,
+                Arc::new(EventPublisher::default()),
+            ))),
+        );
         let sort_by = SortBy::new(SORT_TITLE_KEY.to_string(), String::new());
         let movie = Box::new(MovieOverview::new(
             String::new(),
@@ -353,13 +383,11 @@ mod test {
         )) as Box<dyn MediaOverview>;
         let favorites = MockFavoriteService::new();
         let mut watched = MockWatchedService::new();
-        watched.expect_is_watched()
-            .returning(move |id: &str| -> bool {
-                id == watched_id
-            });
-        let service = FavoritesProvider::new(
-            Arc::new(Box::new(favorites)),
-            Arc::new(Box::new(watched)));
+        watched
+            .expect_is_watched()
+            .returning(move |id: &str| -> bool { id == watched_id });
+        let service =
+            FavoritesProvider::new(Arc::new(Box::new(favorites)), Arc::new(Box::new(watched)));
         let sort_by = SortBy::new("watched".to_string(), String::new());
 
         let result = service.sort_by(&sort_by, &movie_watched, &movie_unwatched);

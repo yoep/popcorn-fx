@@ -7,10 +7,10 @@ pub use torrents::*;
 pub use wrapper::*;
 
 pub mod collection;
-pub mod stream;
 mod error;
 mod magnet;
 mod manager;
+pub mod stream;
 mod stream_server;
 mod torrent_stream;
 mod torrents;

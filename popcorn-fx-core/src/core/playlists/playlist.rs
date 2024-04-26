@@ -30,14 +30,16 @@ impl Playlist {
     ///
     /// * `media` - A reference to a boxed trait object implementing `MediaOverview` to be removed from the playlist.
     pub fn remove(&mut self, item: &PlaylistItem) {
-        let position = self.items.iter()
-            .position(|e| e == item);
+        let position = self.items.iter().position(|e| e == item);
 
         if let Some(index) = position {
             debug!("Removing media item {} from playlist", item);
             self.items.remove(index);
         } else {
-            debug!("Unable to remove media {} from the playlist, item not found", item);
+            debug!(
+                "Unable to remove media {} from the playlist, item not found",
+                item
+            );
         }
     }
 
@@ -86,7 +88,7 @@ impl From<PlaylistItem> for Playlist {
 }
 
 impl FromIterator<PlaylistItem> for Playlist {
-    fn from_iter<T: IntoIterator<Item=PlaylistItem>>(iter: T) -> Self {
+    fn from_iter<T: IntoIterator<Item = PlaylistItem>>(iter: T) -> Self {
         let mut playlist = Self::default();
         for item in iter {
             playlist.add(item);
@@ -97,7 +99,13 @@ impl FromIterator<PlaylistItem> for Playlist {
 
 /// Represents an item in a playlist, which can be a media file, a stream URL, or other media content.
 #[derive(Debug, Display)]
-#[display(fmt = "url: {:?}, title: {}, quality: {:?}, subtitles_enabled: {}", url, title, quality, subtitles_enabled)]
+#[display(
+    fmt = "url: {:?}, title: {}, quality: {:?}, subtitles_enabled: {}",
+    url,
+    title,
+    quality,
+    subtitles_enabled
+)]
 pub struct PlaylistItem {
     /// The URL of the playlist item, if available.
     pub url: Option<String>,
@@ -134,15 +142,11 @@ impl Clone for PlaylistItem {
     fn clone(&self) -> Self {
         let cloned_parent_media = match &self.parent_media {
             None => None,
-            Some(media) => {
-                media.clone_identifier()
-            }
+            Some(media) => media.clone_identifier(),
         };
         let cloned_media = match &self.media {
             None => None,
-            Some(media) => {
-                media.clone_identifier()
-            }
+            Some(media) => media.clone_identifier(),
         };
 
         Self {
@@ -181,11 +185,11 @@ impl PartialEq for PlaylistItem {
             }
         }
 
-        self.url == other.url &&
-            self.title.as_str() == other.title.as_str() &&
-            thumb_equal &&
-            media_equal &&
-            self.quality == other.quality
+        self.url == other.url
+            && self.title.as_str() == other.title.as_str()
+            && thumb_equal
+            && media_equal
+            && self.quality == other.quality
     }
 }
 
@@ -315,7 +319,8 @@ mod test {
         let media = Box::new(MovieOverview::new(
             "lorem".to_string(),
             imdb_id.to_string(),
-            "2019".to_string()));
+            "2019".to_string(),
+        ));
 
         playlist.add(PlaylistItem {
             url: None,
@@ -331,7 +336,14 @@ mod test {
             subtitles_enabled: false,
         });
 
-        assert!(playlist.items.iter().position(|e| e.media.as_ref().unwrap().imdb_id() == imdb_id).is_some(), "expected the media item to have been added");
+        assert!(
+            playlist
+                .items
+                .iter()
+                .position(|e| e.media.as_ref().unwrap().imdb_id() == imdb_id)
+                .is_some(),
+            "expected the media item to have been added"
+        );
     }
 
     #[test]
@@ -347,7 +359,8 @@ mod test {
             media: Some(Box::new(MovieOverview::new(
                 "ipsum".to_string(),
                 imdb_id.to_string(),
-                "2015".to_string()))),
+                "2015".to_string(),
+            ))),
             torrent_info: None,
             torrent_file_info: None,
             quality: None,
@@ -358,7 +371,14 @@ mod test {
         playlist.add(playlist_item.clone());
         playlist.remove(&playlist_item);
 
-        assert!(playlist.items.iter().position(|e| e.media.as_ref().unwrap().imdb_id() == imdb_id).is_none(), "expected the media item to have been removed");
+        assert!(
+            playlist
+                .items
+                .iter()
+                .position(|e| e.media.as_ref().unwrap().imdb_id() == imdb_id)
+                .is_none(),
+            "expected the media item to have been removed"
+        );
     }
 
     #[test]
@@ -368,7 +388,8 @@ mod test {
         let media = Box::new(MovieOverview::new(
             "lorem".to_string(),
             imdb_id.to_string(),
-            "2019".to_string()));
+            "2019".to_string(),
+        ));
 
         playlist.add(PlaylistItem {
             url: None,
@@ -383,11 +404,22 @@ mod test {
             auto_resume_timestamp: None,
             subtitles_enabled: false,
         });
-        assert!(playlist.items.iter().position(|e| e.media.as_ref().unwrap().imdb_id() == imdb_id).is_some(), "expected the added item to have been returned");
+        assert!(
+            playlist
+                .items
+                .iter()
+                .position(|e| e.media.as_ref().unwrap().imdb_id() == imdb_id)
+                .is_some(),
+            "expected the added item to have been returned"
+        );
 
         playlist.clear();
         let result = playlist.items;
-        assert_eq!(0, result.len(), "expected the playlist to have been cleared")
+        assert_eq!(
+            0,
+            result.len(),
+            "expected the playlist to have been cleared"
+        )
     }
 
     #[test]
@@ -397,7 +429,8 @@ mod test {
         let media = Box::new(MovieOverview::new(
             "lorem".to_string(),
             imdb_id.to_string(),
-            "2019".to_string()));
+            "2019".to_string(),
+        ));
 
         playlist.add(PlaylistItem {
             url: None,
@@ -412,10 +445,16 @@ mod test {
             auto_resume_timestamp: None,
             subtitles_enabled: false,
         });
-        assert!(playlist.has_next(), "expected a next item to have been available");
+        assert!(
+            playlist.has_next(),
+            "expected a next item to have been available"
+        );
 
         playlist.clear();
-        assert!(!playlist.has_next(), "expected no next item to have been available")
+        assert!(
+            !playlist.has_next(),
+            "expected no next item to have been available"
+        )
     }
 
     #[test]
@@ -425,7 +464,8 @@ mod test {
         let media = Box::new(MovieOverview::new(
             "lorem".to_string(),
             imdb_id.to_string(),
-            "2019".to_string()));
+            "2019".to_string(),
+        ));
 
         playlist.add(PlaylistItem {
             url: None,
@@ -441,8 +481,14 @@ mod test {
             subtitles_enabled: false,
         });
         let result = playlist.next();
-        assert!(result.is_some(), "expected a next item to have been returned");
-        assert!(!playlist.has_next(), "expected no next item to have been available")
+        assert!(
+            result.is_some(),
+            "expected a next item to have been returned"
+        );
+        assert!(
+            !playlist.has_next(),
+            "expected no next item to have been available"
+        )
     }
 
     #[test]
@@ -509,8 +555,8 @@ mod test {
             auto_resume_timestamp: None,
             subtitles_enabled: false,
         }]
-            .into_iter()
-            .collect();
+        .into_iter()
+        .collect();
 
         assert_eq!(1, result.items.len());
         assert_eq!(title, result.items.get(0).unwrap().title.as_str());

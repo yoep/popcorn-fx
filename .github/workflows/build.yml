@@ -47,6 +47,7 @@ jobs:
       - name: Test
         run: |
           sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config vlc
+          find /usr | grep libvlc
           make test-cargo
       - name: 'Upload Coverage'
         uses: actions/upload-artifact@v4

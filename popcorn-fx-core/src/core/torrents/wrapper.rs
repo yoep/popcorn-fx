@@ -76,10 +76,17 @@ impl TorrentWrapper {
     /// # Returns
     ///
     /// A new `TorrentWrapper` instance.
-    pub fn new(handle: String, filepath: String, has_byte: HasBytesCallback, has_piece: HasPieceCallback,
-               total_pieces: TotalPiecesCallback, prioritize_bytes: PrioritizeBytesCallback,
-               prioritize_pieces: PrioritizePiecesCallback, sequential_mode: SequentialModeCallback,
-               torrent_state: TorrentStateCallback) -> Self {
+    pub fn new(
+        handle: String,
+        filepath: String,
+        has_byte: HasBytesCallback,
+        has_piece: HasPieceCallback,
+        total_pieces: TotalPiecesCallback,
+        prioritize_bytes: PrioritizeBytesCallback,
+        prioritize_pieces: PrioritizePiecesCallback,
+        sequential_mode: SequentialModeCallback,
+        torrent_state: TorrentStateCallback,
+    ) -> Self {
         Self {
             handle,
             filepath: PathBuf::from(filepath),
@@ -118,7 +125,8 @@ impl TorrentWrapper {
     ///
     /// * `download_status` - The download status of the torrent.
     pub fn download_status(&self, download_status: DownloadStatus) {
-        self.callbacks.invoke(TorrentEvent::DownloadStatus(download_status))
+        self.callbacks
+            .invoke(TorrentEvent::DownloadStatus(download_status))
     }
 }
 
@@ -177,15 +185,11 @@ impl Torrent for TorrentWrapper {
     }
 
     fn sequential_mode(&self) {
-        tokio::task::block_in_place(move || {
-            (self.sequential_mode.blocking_lock())()
-        })
+        tokio::task::block_in_place(move || (self.sequential_mode.blocking_lock())())
     }
 
     fn state(&self) -> TorrentState {
-        tokio::task::block_in_place(move || {
-            (self.torrent_state.blocking_lock())()
-        })
+        tokio::task::block_in_place(move || (self.torrent_state.blocking_lock())())
     }
 
     fn subscribe(&self, callback: TorrentCallback) -> CallbackHandle {
@@ -222,7 +226,8 @@ mod test {
             prioritize_bytes,
             prioritize_pieces,
             sequential_mode,
-            torrent_state);
+            torrent_state,
+        );
         let bytes = vec![2, 3];
 
         let result = wrapper.has_bytes(&bytes[..]);
@@ -250,7 +255,7 @@ mod test {
             prioritize_bytes,
             prioritize_pieces,
             sequential_mode,
-            torrent_state
+            torrent_state,
         );
 
         let result = wrapper.state();

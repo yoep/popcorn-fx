@@ -1,7 +1,7 @@
 pub use error::*;
 pub use manager::*;
 
-mod manager;
-mod info;
 mod error;
+mod info;
+mod manager;
 mod strategies;

@@ -8,7 +8,9 @@ use log::{debug, trace};
 use tokio_util::sync::CancellationToken;
 
 use crate::core::events::{Event, EventPublisher};
-use crate::core::loader::{CancellationResult, LoadingData, LoadingEvent, LoadingResult, LoadingStrategy};
+use crate::core::loader::{
+    CancellationResult, LoadingData, LoadingEvent, LoadingResult, LoadingStrategy,
+};
 
 /// Represents a loading strategy for handling torrent details.
 ///
@@ -26,9 +28,7 @@ impl TorrentDetailsLoadingStrategy {
     ///
     /// * `event_publisher` - An `EventPublisher` for publishing events related to torrent details.
     pub fn new(event_publisher: Arc<EventPublisher>) -> Self {
-        Self {
-            event_publisher,
-        }
+        Self { event_publisher }
     }
 }
 
@@ -42,11 +42,17 @@ impl Debug for TorrentDetailsLoadingStrategy {
 
 #[async_trait]
 impl LoadingStrategy for TorrentDetailsLoadingStrategy {
-    async fn process(&self, data: LoadingData, _: Sender<LoadingEvent>, _: CancellationToken) -> LoadingResult {
+    async fn process(
+        &self,
+        data: LoadingData,
+        _: Sender<LoadingEvent>,
+        _: CancellationToken,
+    ) -> LoadingResult {
         trace!("Processing torrent details strategy for {:?}", data);
         if let Some(torrent_info) = data.torrent_info.as_ref() {
             if let None = data.torrent_file_info.as_ref() {
-                self.event_publisher.publish(Event::TorrentDetailsLoaded(torrent_info.clone()));
+                self.event_publisher
+                    .publish(Event::TorrentDetailsLoaded(torrent_info.clone()));
                 return LoadingResult::Completed;
             } else {
                 debug!("Torrent file info present, torrent details won't be shown");
@@ -97,6 +103,7 @@ mod tests {
             quality: None,
             auto_resume_timestamp: None,
             subtitles_enabled: None,
+            subtitle: None,
             media_torrent_info: None,
             torrent: None,
             torrent_stream: None,
@@ -106,10 +113,13 @@ mod tests {
         let event_publisher = Arc::new(EventPublisher::default());
         let strategy = TorrentDetailsLoadingStrategy::new(event_publisher.clone());
 
-        event_publisher.register(Box::new(move |event| {
-            tx.send(event).unwrap();
-            None
-        }), DEFAULT_ORDER);
+        event_publisher.register(
+            Box::new(move |event| {
+                tx.send(event).unwrap();
+                None
+            }),
+            DEFAULT_ORDER,
+        );
 
         let result = block_in_place(strategy.process(data, tx_event, CancellationToken::new()));
         assert_eq!(LoadingResult::Completed, result);
@@ -118,7 +128,11 @@ mod tests {
         if let Event::TorrentDetailsLoaded(result) = result {
             assert_eq!(torrent_info, result);
         } else {
-            assert!(false, "expected Event::TorrentDetailsLoaded, but got {:?} instead", result)
+            assert!(
+                false,
+                "expected Event::TorrentDetailsLoaded, but got {:?} instead",
+                result
+            )
         }
     }
 
@@ -136,6 +150,7 @@ mod tests {
             quality: None,
             auto_resume_timestamp: None,
             subtitles_enabled: None,
+            subtitle: None,
             media_torrent_info: None,
             torrent: None,
             torrent_stream: None,

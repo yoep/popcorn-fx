@@ -8,10 +8,7 @@ use downcast_rs::{DowncastSync, impl_downcast};
 use crate::core::Callbacks;
 use crate::core::players::PlayRequest;
 
-/// A trait representing a player for media playback.
-///
-/// This trait extends `PlayerIdentifier` and includes additional methods related to the player's
-/// description, graphic resource, and current state.
+/// A trait representing a Popcorn FX supported media player for media playback.
 #[async_trait]
 pub trait Player: Debug + Display + DowncastSync + Callbacks<PlayerEvent> {
     /// Get the unique identifier of the player.
@@ -137,11 +134,9 @@ mod tests {
     fn test_player_identifier_eq() {
         let player_id = "ID123456";
         let mut m_player1 = MockPlayer::new();
-        m_player1.expect_id()
-            .return_const(player_id.to_string());
+        m_player1.expect_id().return_const(player_id.to_string());
         let mut m_player2 = MockPlayer::new();
-        m_player2.expect_id()
-            .return_const(player_id.to_string());
+        m_player2.expect_id().return_const(player_id.to_string());
         let player = Box::new(m_player1) as Box<dyn Player>;
         let other_player = Box::new(m_player2) as Box<dyn Player>;
 

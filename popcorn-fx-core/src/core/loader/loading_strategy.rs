@@ -22,6 +22,7 @@ pub enum LoadingEvent {
     /// The loading progress of a media item has changed.
     #[display(fmt = "Loading progress changed to {:?}", _0)]
     ProgressChanged(LoadingProgress),
+    /// An error has occurred during the loading process.
     #[display(fmt = "Loading failed, {:?}", _0)]
     LoadingError(LoadingError),
 }

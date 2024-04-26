@@ -16,12 +16,17 @@ use crate::PopcornFX;
 /// The `callback` function pointer should point to a valid C function that can receive a `PlaybackControlsEventC` parameter and return nothing.
 /// The callback function will be invoked whenever a playback control event occurs in the system.
 #[no_mangle]
-pub extern "C" fn register_playback_controls(popcorn_fx: &mut PopcornFX, callback: PlaybackControlsCallbackC) {
+pub extern "C" fn register_playback_controls(
+    popcorn_fx: &mut PopcornFX,
+    callback: PlaybackControlsCallbackC,
+) {
     trace!("Registering new playback controls callback from C");
-    popcorn_fx.playback_controls().register(Box::new(move |event| {
-        trace!("Invoking C PlaybackControlsCallbackC for {:?}", event);
-        callback(event)
-    }))
+    popcorn_fx
+        .playback_controls()
+        .register(Box::new(move |event| {
+            trace!("Invoking C PlaybackControlsCallbackC for {:?}", event);
+            callback(event)
+        }))
 }
 
 #[cfg(test)]

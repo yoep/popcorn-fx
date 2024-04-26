@@ -52,10 +52,8 @@ mod tests {
         let expected_result = read_test_file_to_bytes("image.jpg");
         let server = MockServer::start();
         server.mock(|when, then| {
-            when.method(GET)
-                .path("/fanart.png");
-            then.status(200)
-                .body(expected_result.as_slice());
+            when.method(GET).path("/fanart.png");
+            then.status(200).body(expected_result.as_slice());
         });
         let media = ShowOverview {
             imdb_id: "tt212121".to_string(),
@@ -79,10 +77,7 @@ mod tests {
     #[test]
     fn test_dispose_string_array() {
         init_logger();
-        let values = vec![
-            "Foo".to_string(),
-            "Bar".to_string()
-        ];
+        let values = vec!["Foo".to_string(), "Bar".to_string()];
         let array = StringArray::from(values);
 
         dispose_string_array(Box::new(array));

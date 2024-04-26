@@ -3,7 +3,8 @@ use std::future::Future;
 /// Run the given future on the current thread or spawn a new runtime if needed.
 pub fn block_in_place<F: Future>(closure: F) -> F::Output {
     tokio::task::block_in_place(|| {
-        let runtime = tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
+        let runtime =
+            tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
         runtime.block_on(closure)
     })
 }

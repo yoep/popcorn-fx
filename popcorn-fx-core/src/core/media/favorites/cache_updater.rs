@@ -32,9 +32,15 @@ impl FavoriteCacheUpdater {
                 Some(cache) => {
                     let last_update_diff = Local::now() - cache.last_update();
 
-                    trace!("Favorite cache last updated {} hours ago", last_update_diff.num_hours());
+                    trace!(
+                        "Favorite cache last updated {} hours ago",
+                        last_update_diff.num_hours()
+                    );
                     if last_update_diff >= UPDATE_CACHE_INTERVAL() {
-                        debug!("Starting favorite cache update, last updated {} hours ago", last_update_diff.num_hours());
+                        debug!(
+                            "Starting favorite cache update, last updated {} hours ago",
+                            last_update_diff.num_hours()
+                        );
                         let updated_items = inner.update_media_items(cache).await;
                         let total_items = updated_items.len();
                         debug!("Retrieved a total of {} updated media items", total_items);
@@ -126,7 +132,8 @@ impl FavoriteCacheUpdaterBuilder {
     ///
     /// This example demonstrates how to use the `FavoriteCacheUpdaterBuilder` to create a new `FavoriteCacheUpdater` instance. The `runtime`, `favorite_service`, and `provider_manager` fields are set using the builder methods. After calling `build()`, the builder creates and returns the `FavoriteCacheUpdater` instance.
     pub fn build(self) -> FavoriteCacheUpdater {
-        let runtime = self.runtime
+        let runtime = self
+            .runtime
             .or_else(|| Some(Arc::new(Runtime::new().unwrap())))
             .unwrap();
         let favorite_service = self.favorite_service.expect("Favorite service is not set");
@@ -162,41 +169,56 @@ impl InnerCacheUpdater {
     async fn update_media_items(&self, cache: Favorites) -> Vec<Box<dyn MediaIdentifier>> {
         trace!("Merging all favorites into one MediaIdentifier array");
         let mut media_items: Vec<Box<dyn MediaIdentifier>> = vec![];
-        media_items.append(&mut cache.movies.into_iter()
-            .map(|e| Box::new(e) as Box<dyn MediaIdentifier>)
-            .collect_vec());
-        media_items.append(&mut cache.shows.into_iter()
-            .map(|e| Box::new(e) as Box<dyn MediaIdentifier>)
-            .collect_vec());
+        media_items.append(
+            &mut cache
+                .movies
+                .into_iter()
+                .map(|e| Box::new(e) as Box<dyn MediaIdentifier>)
+                .collect_vec(),
+        );
+        media_items.append(
+            &mut cache
+                .shows
+                .into_iter()
+                .map(|e| Box::new(e) as Box<dyn MediaIdentifier>)
+                .collect_vec(),
+        );
 
         debug!("Updating a total of {} favorite items", media_items.len());
-        futures::future::join_all(media_items.into_iter()
-            .map(|media| async {
-                match self.providers.retrieve_details(&media).await {
-                    Ok(e) => {
-                        trace!("Retrieved updated media item {}", e);
-                        match e.media_type() {
-                            MediaType::Movie => Box::new(e.into_any()
+        futures::future::join_all(media_items.into_iter().map(|media| async {
+            match self.providers.retrieve_details(&media).await {
+                Ok(e) => {
+                    trace!("Retrieved updated media item {}", e);
+                    match e.media_type() {
+                        MediaType::Movie => Box::new(
+                            e.into_any()
                                 .downcast::<MovieDetails>()
                                 .expect("expected a MovieDetails item")
-                                .to_overview()) as Box<dyn MediaIdentifier>,
-                            MediaType::Show => Box::new(e.into_any()
+                                .to_overview(),
+                        ) as Box<dyn MediaIdentifier>,
+                        MediaType::Show => Box::new(
+                            e.into_any()
                                 .downcast::<ShowDetails>()
                                 .expect("expected a ShowDetails item")
-                                .to_overview()) as Box<dyn MediaIdentifier>,
-                            _ => {
-                                warn!("Received unknown media type {}, ignoring update for {}", e.media_type(), media.imdb_id());
-                                media
-                            }
+                                .to_overview(),
+                        ) as Box<dyn MediaIdentifier>,
+                        _ => {
+                            warn!(
+                                "Received unknown media type {}, ignoring update for {}",
+                                e.media_type(),
+                                media.imdb_id()
+                            );
+                            media
                         }
                     }
-                    Err(e) => {
-                        warn!("Failed to update media item {}, {}", media.imdb_id(), e);
-                        media
-                    }
                 }
-            }))
-            .await
+                Err(e) => {
+                    warn!("Failed to update media item {}, {}", media.imdb_id(), e);
+                    media
+                }
+            }
+        }))
+        .await
     }
 }
 
@@ -218,56 +240,58 @@ mod test {
         let title = "Lorem ipsum";
         let year = "2010";
         let mut movie_provider = MockMediaDetailsProvider::new();
-        movie_provider.expect_supports()
+        movie_provider
+            .expect_supports()
             .returning(|e: &MediaType| e == &MediaType::Movie);
-        movie_provider.expect_retrieve_details()
-            .returning(|_: &str| Ok(Box::new(MovieDetails {
-                imdb_id: movie_id.to_string(),
-                title: title.to_string(),
-                year: year.to_string(),
-                runtime: "".to_string(),
-                genres: vec![],
-                synopsis: "".to_string(),
-                rating: None,
-                images: Default::default(),
-                trailer: "".to_string(),
-                torrents: Default::default(),
-            })));
+        movie_provider
+            .expect_retrieve_details()
+            .returning(|_: &str| {
+                Ok(Box::new(MovieDetails {
+                    imdb_id: movie_id.to_string(),
+                    title: title.to_string(),
+                    year: year.to_string(),
+                    runtime: "".to_string(),
+                    genres: vec![],
+                    synopsis: "".to_string(),
+                    rating: None,
+                    images: Default::default(),
+                    trailer: "".to_string(),
+                    torrents: Default::default(),
+                }))
+            });
         let (tx, rx) = channel();
         let mut favorites = MockFavoriteService::new();
-        favorites.expect_favorites()
-            .returning(|| Some(Favorites {
-                movies: vec![
-                    MovieOverview {
-                        title: "".to_string(),
-                        imdb_id: movie_id.to_string(),
-                        year: "".to_string(),
-                        rating: None,
-                        images: Default::default(),
-                    }
-                ],
+        favorites.expect_favorites().returning(|| {
+            Some(Favorites {
+                movies: vec![MovieOverview {
+                    title: "".to_string(),
+                    imdb_id: movie_id.to_string(),
+                    year: "".to_string(),
+                    rating: None,
+                    images: Default::default(),
+                }],
                 shows: vec![],
                 last_cache_update: "2020-01-01T10:15:00.000000".to_string(),
-            }));
-        favorites.expect_update()
-            .returning(move |items: Vec<Box<dyn MediaIdentifier>>| {
-                tx.send(items).unwrap()
-            });
+            })
+        });
+        favorites
+            .expect_update()
+            .returning(move |items: Vec<Box<dyn MediaIdentifier>>| tx.send(items).unwrap());
         let _updater = FavoriteCacheUpdater::builder()
             .favorite_service(Arc::new(Box::new(favorites)))
-            .provider_manager(Arc::new(ProviderManager::builder()
-                .with_details_provider(Box::new(movie_provider))
-                .build()))
+            .provider_manager(Arc::new(
+                ProviderManager::builder()
+                    .with_details_provider(Box::new(movie_provider))
+                    .build(),
+            ))
             .build();
 
-        let updated_items = rx.recv_timeout(core::time::Duration::from_millis(200))
+        let updated_items = rx
+            .recv_timeout(core::time::Duration::from_millis(200))
             .expect("expected to receive updated media items");
-        let movies = updated_items.into_iter()
-            .map(|e| {
-                e.into_any()
-                    .downcast::<MovieOverview>()
-                    .unwrap()
-            })
+        let movies = updated_items
+            .into_iter()
+            .map(|e| e.into_any().downcast::<MovieOverview>().unwrap())
             .collect_vec();
         let movie = movies.get(0).unwrap();
 

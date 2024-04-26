@@ -3,7 +3,10 @@ use log::{debug, error, info, trace, warn};
 use tokio::sync::{Mutex, MutexGuard};
 
 use crate::core::{block_in_place, Callbacks, CoreCallback, CoreCallbacks};
-use crate::core::config::{ConfigError, PlaybackSettings, PopcornProperties, PopcornSettings, ServerSettings, SubtitleSettings, TorrentSettings, Tracker, TrackingSettings, UiSettings};
+use crate::core::config::{
+    ConfigError, PlaybackSettings, PopcornProperties, PopcornSettings, ServerSettings,
+    SubtitleSettings, TorrentSettings, Tracker, TrackingSettings, UiSettings,
+};
 use crate::core::storage::Storage;
 
 const DEFAULT_SETTINGS_FILENAME: &str = "settings.json";
@@ -117,7 +120,8 @@ impl ApplicationConfig {
         }
 
         if let Some(settings) = subtitle_settings {
-            self.callbacks.invoke(ApplicationConfigEvent::SubtitleSettingsChanged(settings));
+            self.callbacks
+                .invoke(ApplicationConfigEvent::SubtitleSettingsChanged(settings));
             self.save();
         }
     }
@@ -136,7 +140,8 @@ impl ApplicationConfig {
         }
 
         if let Some(settings) = torrent_settings {
-            self.callbacks.invoke(ApplicationConfigEvent::TorrentSettingsChanged(settings));
+            self.callbacks
+                .invoke(ApplicationConfigEvent::TorrentSettingsChanged(settings));
             self.save();
         }
     }
@@ -155,7 +160,8 @@ impl ApplicationConfig {
         }
 
         if let Some(settings) = ui_settings {
-            self.callbacks.invoke(ApplicationConfigEvent::UiSettingsChanged(settings));
+            self.callbacks
+                .invoke(ApplicationConfigEvent::UiSettingsChanged(settings));
             self.save();
         }
     }
@@ -174,7 +180,8 @@ impl ApplicationConfig {
         }
 
         if let Some(settings) = server_settings {
-            self.callbacks.invoke(ApplicationConfigEvent::ServerSettingsChanged(settings));
+            self.callbacks
+                .invoke(ApplicationConfigEvent::ServerSettingsChanged(settings));
             self.save();
         }
     }
@@ -194,7 +201,8 @@ impl ApplicationConfig {
         }
 
         if let Some(settings) = playback_settings {
-            self.callbacks.invoke(ApplicationConfigEvent::PlaybackSettingsChanged(settings));
+            self.callbacks
+                .invoke(ApplicationConfigEvent::PlaybackSettingsChanged(settings));
             self.save();
         }
     }
@@ -211,7 +219,8 @@ impl ApplicationConfig {
         }
         debug!("Tracking settings of {} have been updated", name);
 
-        self.callbacks.invoke(ApplicationConfigEvent::TrackingSettingsChanged(settings));
+        self.callbacks
+            .invoke(ApplicationConfigEvent::TrackingSettingsChanged(settings));
         self.save();
     }
 
@@ -229,20 +238,26 @@ impl ApplicationConfig {
         debug!("Tracking settings of {} have been updated", name);
 
         if let Some(settings) = settings {
-            self.callbacks.invoke(ApplicationConfigEvent::TrackingSettingsChanged(settings));
+            self.callbacks
+                .invoke(ApplicationConfigEvent::TrackingSettingsChanged(settings));
             self.save();
         } else {
-            trace!("Tracker {} wasn't found, not triggering TrackingSettingsChanged callback", name);
+            trace!(
+                "Tracker {} wasn't found, not triggering TrackingSettingsChanged callback",
+                name
+            );
         }
     }
 
     /// Reload the application config.
     pub fn reload(&self) {
         trace!("Reloading application settings");
-        match self.storage
+        match self
+            .storage
             .options()
             .serializer(DEFAULT_SETTINGS_FILENAME)
-            .read::<PopcornSettings>() {
+            .read::<PopcornSettings>()
+        {
             Ok(e) => {
                 debug!("Application settings have been read from storage");
                 let old_settings: PopcornSettings;
@@ -258,25 +273,41 @@ impl ApplicationConfig {
                 }
 
                 // start invoking events
-                self.callbacks.invoke(ApplicationConfigEvent::SettingsLoaded);
+                self.callbacks
+                    .invoke(ApplicationConfigEvent::SettingsLoaded);
 
                 if old_settings.subtitle_settings != new_settings.subtitle_settings {
-                    self.callbacks.invoke(ApplicationConfigEvent::SubtitleSettingsChanged(new_settings.subtitle().clone()));
+                    self.callbacks
+                        .invoke(ApplicationConfigEvent::SubtitleSettingsChanged(
+                            new_settings.subtitle().clone(),
+                        ));
                 }
                 if old_settings.torrent_settings != new_settings.torrent_settings {
-                    self.callbacks.invoke(ApplicationConfigEvent::TorrentSettingsChanged(new_settings.torrent().clone()))
+                    self.callbacks
+                        .invoke(ApplicationConfigEvent::TorrentSettingsChanged(
+                            new_settings.torrent().clone(),
+                        ))
                 }
                 if old_settings.ui_settings != new_settings.ui_settings {
-                    self.callbacks.invoke(ApplicationConfigEvent::UiSettingsChanged(new_settings.ui().clone()))
+                    self.callbacks
+                        .invoke(ApplicationConfigEvent::UiSettingsChanged(
+                            new_settings.ui().clone(),
+                        ))
                 }
                 if old_settings.server_settings != new_settings.server_settings {
-                    self.callbacks.invoke(ApplicationConfigEvent::ServerSettingsChanged(new_settings.server().clone()))
+                    self.callbacks
+                        .invoke(ApplicationConfigEvent::ServerSettingsChanged(
+                            new_settings.server().clone(),
+                        ))
                 }
                 if old_settings.playback_settings != new_settings.playback_settings {
-                    self.callbacks.invoke(ApplicationConfigEvent::PlaybackSettingsChanged(new_settings.playback().clone()))
+                    self.callbacks
+                        .invoke(ApplicationConfigEvent::PlaybackSettingsChanged(
+                            new_settings.playback().clone(),
+                        ))
                 }
             }
-            Err(e) => warn!("Failed to reload settings from storage, {}", e)
+            Err(e) => warn!("Failed to reload settings from storage, {}", e),
         }
     }
 
@@ -289,7 +320,7 @@ impl ApplicationConfig {
     pub fn save(&self) {
         block_in_place(self.save_async())
     }
-    
+
     pub async fn save_async(&self) {
         let settings = self.user_settings();
         self.internal_save(&settings).await
@@ -297,11 +328,15 @@ impl ApplicationConfig {
 
     async fn internal_save(&self, settings: &PopcornSettings) {
         trace!("Saving application settings {:?}", settings);
-        match self.storage.options()
+        match self
+            .storage
+            .options()
             .serializer(DEFAULT_SETTINGS_FILENAME)
-            .write_async(settings).await {
+            .write_async(settings)
+            .await
+        {
             Ok(_) => info!("Settings have been saved"),
-            Err(e) => error!("Failed to save settings, {}", e)
+            Err(e) => error!("Failed to save settings, {}", e),
         }
     }
 }
@@ -313,8 +348,7 @@ impl PartialEq for ApplicationConfig {
         let settings = self.user_settings_ref();
         let other_settings = other.user_settings_ref();
 
-        *properties == *other_properties &&
-            *settings == *other_settings
+        *properties == *other_properties && *settings == *other_settings
     }
 }
 
@@ -334,7 +368,7 @@ pub struct ApplicationConfigBuilder {
     callbacks: CoreCallbacks<ApplicationConfigEvent>,
 }
 
-impl ApplicationConfigBuilder {    
+impl ApplicationConfigBuilder {
     /// Sets the storage to use for reading the settings.
     ///
     /// # Examples
@@ -435,7 +469,8 @@ impl ApplicationConfigBuilder {
                 }
             })
             .unwrap();
-        let properties = self.properties
+        let properties = self
+            .properties
             .or_else(|| Some(PopcornProperties::new_auto()))
             .unwrap();
 
@@ -456,7 +491,9 @@ mod test {
 
     use tempfile::tempdir;
 
-    use crate::core::config::{CleaningMode, DecorationType, Quality, SubtitleFamily, SubtitleSettings, UiScale};
+    use crate::core::config::{
+        CleaningMode, DecorationType, Quality, SubtitleFamily, SubtitleSettings, UiScale,
+    };
     use crate::core::media::Category;
     use crate::core::subtitles::language::SubtitleLanguage;
     use crate::testing::{copy_test_file, init_logger, read_temp_dir_file_as_string};
@@ -468,9 +505,7 @@ mod test {
         init_logger();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let result = ApplicationConfig::builder()
-            .storage(temp_path)
-            .build();
+        let result = ApplicationConfig::builder().storage(temp_path).build();
         let expected_result = "https://api.opensubtitles.com/api/v1".to_string();
 
         assert_eq!(&expected_result, result.properties().subtitle().url())
@@ -482,9 +517,7 @@ mod test {
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         copy_test_file(temp_path, "settings.json", None);
-        let application = ApplicationConfig::builder()
-            .storage(temp_path)
-            .build();
+        let application = ApplicationConfig::builder().storage(temp_path).build();
         let expected_result = PopcornSettings {
             subtitle_settings: SubtitleSettings::new(
                 None,
@@ -512,9 +545,7 @@ mod test {
         init_logger();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let application = ApplicationConfig::builder()
-            .storage(temp_path)
-            .build();
+        let application = ApplicationConfig::builder().storage(temp_path).build();
         let expected_result = PopcornSettings::default();
 
         let result = application.user_settings();
@@ -534,7 +565,8 @@ mod test {
             settings: Default::default(),
             callbacks: Default::default(),
         };
-        application.storage
+        application
+            .storage
             .options()
             .serializer(DEFAULT_SETTINGS_FILENAME)
             .write(&PopcornSettings::default())
@@ -548,7 +580,10 @@ mod test {
 
         match result {
             ApplicationConfigEvent::SettingsLoaded => {}
-            _ => assert!(false, "expected ApplicationConfigEvent::SettingsLoaded event")
+            _ => assert!(
+                false,
+                "expected ApplicationConfigEvent::SettingsLoaded event"
+            ),
         }
     }
 
@@ -573,7 +608,9 @@ mod test {
             decoration: DecorationType::None,
             bold: true,
         };
-        application.storage.options()
+        application
+            .storage
+            .options()
             .serializer(DEFAULT_SETTINGS_FILENAME)
             .write(&PopcornSettings {
                 subtitle_settings: expected_result.clone(),
@@ -585,18 +622,21 @@ mod test {
             })
             .expect("expected the test file to have been written");
 
-        application.register(Box::new(move |event| {
-            match event {
-                ApplicationConfigEvent::SubtitleSettingsChanged(_) => tx.send(event).unwrap(),
-                _ => {}
-            }
+        application.register(Box::new(move |event| match event {
+            ApplicationConfigEvent::SubtitleSettingsChanged(_) => tx.send(event).unwrap(),
+            _ => {}
         }));
         application.reload();
         let result = rx.recv_timeout(Duration::from_millis(100)).unwrap();
 
         match result {
-            ApplicationConfigEvent::SubtitleSettingsChanged(settings) => assert_eq!(expected_result, settings),
-            _ => assert!(false, "expected ApplicationConfigEvent::SettingsLoaded event")
+            ApplicationConfigEvent::SubtitleSettingsChanged(settings) => {
+                assert_eq!(expected_result, settings)
+            }
+            _ => assert!(
+                false,
+                "expected ApplicationConfigEvent::SettingsLoaded event"
+            ),
         }
     }
 
@@ -623,9 +663,7 @@ mod test {
         };
         let (tx, rx) = channel();
 
-        application.register(Box::new(move |event| {
-            tx.send(event).unwrap()
-        }));
+        application.register(Box::new(move |event| tx.send(event).unwrap()));
         application.update_subtitle(settings.clone());
         let result = rx.recv_timeout(Duration::from_millis(100)).unwrap();
 
@@ -634,7 +672,10 @@ mod test {
                 assert_eq!(settings, result);
                 assert_eq!(settings, application.user_settings().subtitle_settings);
             }
-            _ => assert!(false, "expected ApplicationConfigEvent::SubtitleSettingsChanged")
+            _ => assert!(
+                false,
+                "expected ApplicationConfigEvent::SubtitleSettingsChanged"
+            ),
         }
     }
 
@@ -659,9 +700,7 @@ mod test {
         };
         let (tx, rx) = channel();
 
-        application.register(Box::new(move |event| {
-            tx.send(event).unwrap()
-        }));
+        application.register(Box::new(move |event| tx.send(event).unwrap()));
         application.update_torrent(settings.clone());
         let result = rx.recv_timeout(Duration::from_millis(100)).unwrap();
 
@@ -670,7 +709,10 @@ mod test {
                 assert_eq!(settings, result);
                 assert_eq!(settings, application.user_settings().torrent_settings);
             }
-            _ => assert!(false, "expected ApplicationConfigEvent::TorrentSettingsChanged")
+            _ => assert!(
+                false,
+                "expected ApplicationConfigEvent::TorrentSettingsChanged"
+            ),
         }
     }
 
@@ -694,9 +736,7 @@ mod test {
         };
         let (tx, rx) = channel();
 
-        application.register(Box::new(move |event| {
-            tx.send(event).unwrap()
-        }));
+        application.register(Box::new(move |event| tx.send(event).unwrap()));
         application.update_ui(settings.clone());
         let result = rx.recv_timeout(Duration::from_millis(100)).unwrap();
 
@@ -705,7 +745,7 @@ mod test {
                 assert_eq!(settings, result);
                 assert_eq!(settings, application.user_settings().ui_settings);
             }
-            _ => assert!(false, "expected ApplicationConfigEvent::UiSettingsChanged")
+            _ => assert!(false, "expected ApplicationConfigEvent::UiSettingsChanged"),
         }
     }
 
@@ -725,9 +765,7 @@ mod test {
         };
         let (tx, rx) = channel();
 
-        application.register(Box::new(move |event| {
-            tx.send(event).unwrap()
-        }));
+        application.register(Box::new(move |event| tx.send(event).unwrap()));
         application.update_server(settings.clone());
         let result = rx.recv_timeout(Duration::from_millis(100)).unwrap();
 
@@ -736,7 +774,10 @@ mod test {
                 assert_eq!(settings, result);
                 assert_eq!(settings, application.user_settings().server_settings);
             }
-            _ => assert!(false, "expected ApplicationConfigEvent::ServerSettingsChanged")
+            _ => assert!(
+                false,
+                "expected ApplicationConfigEvent::ServerSettingsChanged"
+            ),
         }
     }
 

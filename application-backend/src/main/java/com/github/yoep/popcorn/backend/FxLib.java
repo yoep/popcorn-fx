@@ -10,7 +10,7 @@ import com.github.yoep.popcorn.backend.events.EventBridgeCallback;
 import com.github.yoep.popcorn.backend.events.EventC;
 import com.github.yoep.popcorn.backend.lib.ByteArray;
 import com.github.yoep.popcorn.backend.lib.FxLibInstance;
-import com.github.yoep.popcorn.backend.lib.StringArray;
+import com.github.yoep.popcorn.backend.lib.FxStringArray;
 import com.github.yoep.popcorn.backend.loader.LoaderEventC;
 import com.github.yoep.popcorn.backend.loader.LoaderEventCallback;
 import com.github.yoep.popcorn.backend.logging.LogLevel;
@@ -43,7 +43,7 @@ import com.github.yoep.popcorn.backend.updater.UpdateCallback;
 import com.github.yoep.popcorn.backend.updater.UpdateState;
 import com.github.yoep.popcorn.backend.updater.VersionInfo;
 import com.sun.jna.Library;
-import com.sun.jna.Pointer;
+import com.sun.jna.StringArray;
 
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -70,7 +70,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public interface FxLib extends Library {
     AtomicReference<FxLib> INSTANCE = new AtomicReference<>();
 
-    PopcornFx new_popcorn_fx(Pointer args, int len);
+    PopcornFx new_popcorn_fx(int len, StringArray args);
 
     SubtitleInfoSet.ByReference default_subtitle_options(PopcornFx instance);
 
@@ -130,13 +130,11 @@ public interface FxLib extends Library {
 
     void register_favorites_event_callback(PopcornFx instance, FavoriteEventCallback callback);
 
-    String serve_subtitle(PopcornFx instance, SubtitleInfo.ByReference subtitleInfo, SubtitleMatcher.ByValue matcher, int type);
-
     byte is_media_watched(PopcornFx instance, MediaItem media);
 
-    StringArray.ByReference retrieve_watched_movies(PopcornFx instance);
+    FxStringArray.ByReference retrieve_watched_movies(PopcornFx instance);
 
-    StringArray.ByReference retrieve_watched_shows(PopcornFx instance);
+    FxStringArray.ByReference retrieve_watched_shows(PopcornFx instance);
 
     void add_to_watched(PopcornFx instance, MediaItem media);
 
@@ -216,9 +214,9 @@ public interface FxLib extends Library {
 
     void register_update_callback(PopcornFx instance, UpdateCallback callback);
 
-    StringArray retrieve_provider_genres(PopcornFx instance, String name);
+    FxStringArray retrieve_provider_genres(PopcornFx instance, String name);
 
-    StringArray retrieve_provider_sort_by(PopcornFx instance, String name);
+    FxStringArray retrieve_provider_sort_by(PopcornFx instance, String name);
 
     void register_playback_controls(PopcornFx instance, PlaybackControlCallback callback);
 
@@ -310,7 +308,7 @@ public interface FxLib extends Library {
 
     void dispose_byte_array(ByteArray byteArray);
 
-    void dispose_string_array(StringArray array);
+    void dispose_string_array(FxStringArray array);
 
     void dispose_event_value(EventC.ByValue event);
 

@@ -4,7 +4,10 @@ use std::ptr;
 use log::trace;
 
 use popcorn_fx_core::{from_c_string, into_c_string, into_c_vec};
-use popcorn_fx_core::core::torrents::{DownloadStatus, TorrentFileInfo, TorrentInfo, TorrentState, TorrentStreamEvent, TorrentStreamState, TorrentWrapper};
+use popcorn_fx_core::core::torrents::{
+    DownloadStatus, TorrentFileInfo, TorrentInfo, TorrentState, TorrentStreamEvent,
+    TorrentStreamState, TorrentWrapper,
+};
 
 use crate::ffi::CArray;
 
@@ -33,7 +36,11 @@ pub type TorrentStateCallbackC = extern "C" fn() -> TorrentState;
 pub type ResolveTorrentInfoCallback = extern "C" fn(url: *mut c_char) -> TorrentInfoC;
 
 /// Type alias for a callback that resolves torrent information and starts a download.
-pub type ResolveTorrentCallback = extern "C" fn(file_info: TorrentFileInfoC, torrent_directory: *mut c_char, auto_start_download: bool) -> TorrentC;
+pub type ResolveTorrentCallback = extern "C" fn(
+    file_info: TorrentFileInfoC,
+    torrent_directory: *mut c_char,
+    auto_start_download: bool,
+) -> TorrentC;
 
 /// Type alias for a callback that cancels a torrent download.
 pub type CancelTorrentCallback = extern "C" fn(*mut c_char);
@@ -68,9 +75,7 @@ impl From<TorrentC> for TorrentWrapper {
                 let (bytes, len) = into_c_vec(bytes.to_vec());
                 (value.has_byte_callback)(len, bytes)
             }),
-            Box::new(move |piece| {
-                (value.has_piece_callback)(piece)
-            }),
+            Box::new(move |piece| (value.has_piece_callback)(piece)),
             Box::new(move || (value.total_pieces)()),
             Box::new(move |bytes| {
                 let (bytes, len) = into_c_vec(bytes.to_vec());
@@ -109,7 +114,9 @@ impl From<TorrentInfo> for TorrentInfoC {
         } else {
             ptr::null_mut()
         };
-        let torrent_info_files: Vec<TorrentFileInfoC> = value.files.into_iter()
+        let torrent_info_files: Vec<TorrentFileInfoC> = value
+            .files
+            .into_iter()
             .map(|e| TorrentFileInfoC::from(e))
             .collect();
 
@@ -126,7 +133,8 @@ impl From<TorrentInfo> for TorrentInfoC {
 impl From<TorrentInfoC> for TorrentInfo {
     fn from(value: TorrentInfoC) -> Self {
         trace!("Converting TorrentInfoC to TorrentInfo for {:?}", value);
-        let files = Vec::<TorrentFileInfoC>::from(value.files).into_iter()
+        let files = Vec::<TorrentFileInfoC>::from(value.files)
+            .into_iter()
             .map(|e| TorrentFileInfo::from(e))
             .collect();
         let directory_name = if !value.directory_name.is_null() {
@@ -244,7 +252,9 @@ impl From<TorrentStreamEvent> for TorrentStreamEventC {
     fn from(value: TorrentStreamEvent) -> Self {
         match value {
             TorrentStreamEvent::StateChanged(e) => TorrentStreamEventC::StateChanged(e),
-            TorrentStreamEvent::DownloadStatus(e) => TorrentStreamEventC::DownloadStatus(DownloadStatusC::from(e)),
+            TorrentStreamEvent::DownloadStatus(e) => {
+                TorrentStreamEventC::DownloadStatus(DownloadStatusC::from(e))
+            }
         }
     }
 }
@@ -389,7 +399,11 @@ mod tests {
         if let TorrentStreamEventC::StateChanged(result) = result {
             assert_eq!(state, result)
         } else {
-            assert!(false, "expected TorrentStreamEventC::StateChanged, but got {:?} instead", result)
+            assert!(
+                false,
+                "expected TorrentStreamEventC::StateChanged, but got {:?} instead",
+                result
+            )
         }
 
         let status = DownloadStatus {
@@ -417,7 +431,11 @@ mod tests {
         if let TorrentStreamEventC::DownloadStatus(result) = result {
             assert_eq!(expected_result, result)
         } else {
-            assert!(false, "expected TorrentStreamEventC::DownloadStatus, but got {:?} instead", result)
+            assert!(
+                false,
+                "expected TorrentStreamEventC::DownloadStatus, but got {:?} instead",
+                result
+            )
         }
     }
 }

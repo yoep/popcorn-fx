@@ -4,8 +4,12 @@ use tokio::sync::Mutex;
 use windows::core::{PCWSTR, PWSTR};
 use windows::core::Result;
 use windows::Win32::Foundation::HANDLE;
-use windows::Win32::System::Power::{PowerClearRequest, PowerCreateRequest, PowerRequestDisplayRequired, PowerSetRequest};
-use windows::Win32::System::Threading::{POWER_REQUEST_CONTEXT_SIMPLE_STRING, REASON_CONTEXT, REASON_CONTEXT_0};
+use windows::Win32::System::Power::{
+    PowerClearRequest, PowerCreateRequest, PowerRequestDisplayRequired, PowerSetRequest,
+};
+use windows::Win32::System::Threading::{
+    POWER_REQUEST_CONTEXT_SIMPLE_STRING, REASON_CONTEXT, REASON_CONTEXT_0,
+};
 
 use crate::platform::SystemPlatform;
 
@@ -85,10 +89,18 @@ impl SystemPlatform for PlatformWin {
             .collect::<Vec<u16>>();
 
         trace!("Retrieving window handle");
-        let handle = unsafe { windows::Win32::UI::WindowsAndMessaging::FindWindowW(PCWSTR::null(), PCWSTR(encoded_name.as_mut_ptr())) };
+        let handle = unsafe {
+            windows::Win32::UI::WindowsAndMessaging::FindWindowW(
+                PCWSTR::null(),
+                PCWSTR(encoded_name.as_mut_ptr()),
+            )
+        };
 
         if handle.0 == 0 {
-            warn!("Windows window handle for \"{}\" couldn't be found", WINDOW_NAME);
+            warn!(
+                "Windows window handle for \"{}\" couldn't be found",
+                WINDOW_NAME
+            );
             None
         } else {
             trace!("Converting window handle {:?} to std::ffi::c_void", handle);
@@ -100,7 +112,7 @@ impl SystemPlatform for PlatformWin {
 impl Default for PlatformWin {
     fn default() -> Self {
         Self {
-            screensaver_request: Mutex::new(None)
+            screensaver_request: Mutex::new(None),
         }
     }
 }
@@ -115,15 +127,27 @@ mod test {
     fn test_windows_disable_screensaver() {
         let platform = PlatformWin::default();
 
-        assert_eq!(platform.disable_screensaver(), true, "Expected the screensaver to have been disabled");
+        assert_eq!(
+            platform.disable_screensaver(),
+            true,
+            "Expected the screensaver to have been disabled"
+        );
     }
 
     #[test]
     fn test_windows_enable_screensaver() {
         let platform = PlatformWin::default();
 
-        assert_eq!(platform.disable_screensaver(), true, "Expected the screensaver to have been disabled");
-        assert_eq!(platform.enable_screensaver(), true, "Expected the screensaver to have been enabled");
+        assert_eq!(
+            platform.disable_screensaver(),
+            true,
+            "Expected the screensaver to have been disabled"
+        );
+        assert_eq!(
+            platform.enable_screensaver(),
+            true,
+            "Expected the screensaver to have been enabled"
+        );
     }
 
     #[test]

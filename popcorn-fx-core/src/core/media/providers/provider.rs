@@ -42,7 +42,13 @@ pub trait MediaProvider: Debug + Display + Send + Sync {
     /// # Returns
     ///
     /// A `Result` containing the retrieved page of `MediaOverview` items on success, or a `ProviderError` on failure.
-    async fn retrieve(&self, genre: &Genre, sort_by: &SortBy, keywords: &String, page: u32) -> media::Result<Vec<Box<dyn MediaOverview>>>;
+    async fn retrieve(
+        &self,
+        genre: &Genre,
+        sort_by: &SortBy,
+        keywords: &String,
+        page: u32,
+    ) -> media::Result<Vec<Box<dyn MediaOverview>>>;
 }
 
 #[cfg_attr(any(test, feature = "testing"), automock)]

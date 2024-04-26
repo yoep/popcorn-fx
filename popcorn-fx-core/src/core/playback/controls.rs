@@ -5,7 +5,9 @@ use log::{debug, trace, warn};
 use crate::core::{Callbacks, CoreCallbacks};
 use crate::core::events::{DEFAULT_ORDER, Event, EventPublisher, PlayerStartedEvent};
 use crate::core::platform::{PlatformData, PlatformEvent};
-use crate::core::playback::{MediaInfo, MediaNotificationEvent, PlaybackControlCallback, PlaybackControlEvent, PlaybackState};
+use crate::core::playback::{
+    MediaInfo, MediaNotificationEvent, PlaybackControlCallback, PlaybackControlEvent, PlaybackState,
+};
 
 /// Manages media playback state and communication with the operating system's media control system for
 /// the application.
@@ -117,25 +119,29 @@ impl PlaybackControlsBuilder {
         };
 
         let inner = instance.inner.clone();
-        instance.inner.platform.register(Box::new(move |event| {
-            inner.handle_event(event)
-        }));
+        instance
+            .inner
+            .platform
+            .register(Box::new(move |event| inner.handle_event(event)));
 
         let inner = instance.inner.clone();
         if let Some(event_publisher) = self.event_publisher {
-            event_publisher.register(Box::new(move |event| {
-                match &event {
-                    Event::PlayerStarted(play_event) => {
-                        inner.notify_media_playback(play_event.clone());
+            event_publisher.register(
+                Box::new(move |event| {
+                    match &event {
+                        Event::PlayerStarted(play_event) => {
+                            inner.notify_media_playback(play_event.clone());
+                        }
+                        Event::PlaybackStateChanged(new_state) => {
+                            inner.notify_media_state_changed(new_state.clone())
+                        }
+                        Event::PlayerStopped(_) => inner.notify_media_stopped(),
+                        _ => {}
                     }
-                    Event::PlaybackStateChanged(new_state) => {
-                        inner.notify_media_state_changed(new_state.clone())
-                    }
-                    Event::PlayerStopped(_) => inner.notify_media_stopped(),
-                    _ => {}
-                }
-                Some(event)
-            }), DEFAULT_ORDER);
+                    Some(event)
+                }),
+                DEFAULT_ORDER,
+            );
         } else {
             warn!("Unable to handle control events for PlaybackControls, EventPublisher has not been set");
         }
@@ -153,25 +159,34 @@ struct InnerPlaybackControls {
 impl InnerPlaybackControls {
     fn notify_media_playback(&self, event: PlayerStartedEvent) {
         debug!("Notifying system that a new media playback is being started");
-        self.platform.notify_media_event(MediaNotificationEvent::StateStarting(MediaInfo {
-            title: event.title,
-            subtitle: event.quality,
-            thumb: event.thumbnail,
-        }))
+        self.platform
+            .notify_media_event(MediaNotificationEvent::StateStarting(MediaInfo {
+                title: event.title,
+                subtitle: event.quality,
+                thumb: event.thumbnail,
+            }))
     }
 
     fn notify_media_state_changed(&self, state: PlaybackState) {
-        debug!("Notifying system that the media playback state has changed to {}", state);
+        debug!(
+            "Notifying system that the media playback state has changed to {}",
+            state
+        );
         match state {
-            PlaybackState::PLAYING => self.platform.notify_media_event(MediaNotificationEvent::StatePlaying),
-            PlaybackState::PAUSED => self.platform.notify_media_event(MediaNotificationEvent::StatePaused),
+            PlaybackState::PLAYING => self
+                .platform
+                .notify_media_event(MediaNotificationEvent::StatePlaying),
+            PlaybackState::PAUSED => self
+                .platform
+                .notify_media_event(MediaNotificationEvent::StatePaused),
             _ => {}
         }
     }
 
     fn notify_media_stopped(&self) {
         debug!("Notifying system that the media playback has stopped");
-        self.platform.notify_media_event(MediaNotificationEvent::StateStopped)
+        self.platform
+            .notify_media_event(MediaNotificationEvent::StateStopped)
     }
 
     fn register(&self, callback: PlaybackControlCallback) {
@@ -181,7 +196,9 @@ impl InnerPlaybackControls {
     fn handle_event(&self, event: PlatformEvent) {
         trace!("Handling platform event {:?}", event);
         match event {
-            PlatformEvent::TogglePlaybackState => self.callbacks.invoke(PlaybackControlEvent::TogglePlaybackState),
+            PlatformEvent::TogglePlaybackState => self
+                .callbacks
+                .invoke(PlaybackControlEvent::TogglePlaybackState),
             PlatformEvent::ForwardMedia => self.callbacks.invoke(PlaybackControlEvent::Forward),
             PlatformEvent::RewindMedia => self.callbacks.invoke(PlaybackControlEvent::Rewind),
         }
@@ -204,7 +221,8 @@ mod test {
         let (tx, rx) = channel();
         let (tx_ce, rx_ce) = channel();
         let mut platform = MockDummyPlatformData::new();
-        platform.expect_register()
+        platform
+            .expect_register()
             .returning(move |callback| tx.send(callback).unwrap());
         let event_publisher = Arc::new(EventPublisher::default());
         let controls = PlaybackControls::builder()
@@ -222,7 +240,7 @@ mod test {
         let result = rx_ce.recv_timeout(Duration::from_millis(100)).unwrap();
         match result {
             PlaybackControlEvent::TogglePlaybackState => {}
-            _ => panic!("Expected PlaybackControlEvent::TogglePlaybackState")
+            _ => panic!("Expected PlaybackControlEvent::TogglePlaybackState"),
         }
     }
 
@@ -232,7 +250,8 @@ mod test {
         let (tx, rx) = channel();
         let (tx_ce, rx_ce) = channel();
         let mut platform = MockDummyPlatformData::new();
-        platform.expect_register()
+        platform
+            .expect_register()
             .returning(move |callback| tx.send(callback).unwrap());
         let event_publisher = Arc::new(EventPublisher::default());
         let controls = PlaybackControls::builder()
@@ -250,7 +269,7 @@ mod test {
         let result = rx_ce.recv_timeout(Duration::from_millis(100)).unwrap();
         match result {
             PlaybackControlEvent::Forward => {}
-            _ => panic!("Expected PlaybackControlEvent::Forward")
+            _ => panic!("Expected PlaybackControlEvent::Forward"),
         }
     }
 
@@ -259,9 +278,9 @@ mod test {
         init_logger();
         let (tx, rx) = channel();
         let mut platform = MockDummyPlatformData::new();
-        platform.expect_register()
-            .returning(|_| {});
-        platform.expect_notify_media_event()
+        platform.expect_register().returning(|_| {});
+        platform
+            .expect_notify_media_event()
             .returning(move |notification: MediaNotificationEvent| tx.send(notification).unwrap());
         let event_publisher = Arc::new(EventPublisher::default());
         let _controls = PlaybackControls::builder()
@@ -281,12 +300,15 @@ mod test {
 
         let result = rx.recv_timeout(Duration::from_millis(100)).unwrap();
         match result {
-            MediaNotificationEvent::StateStarting(info) => assert_eq!(info, MediaInfo {
-                title: "Lorem ipsum".to_string(),
-                subtitle: Some("My showname".to_string()),
-                thumb: Some("MyThumb".to_string()),
-            }),
-            _ => panic!("Expected MediaNotificationEvent::PlaybackStarted")
+            MediaNotificationEvent::StateStarting(info) => assert_eq!(
+                info,
+                MediaInfo {
+                    title: "Lorem ipsum".to_string(),
+                    subtitle: Some("My showname".to_string()),
+                    thumb: Some("MyThumb".to_string()),
+                }
+            ),
+            _ => panic!("Expected MediaNotificationEvent::PlaybackStarted"),
         }
     }
 
@@ -295,9 +317,9 @@ mod test {
         init_logger();
         let (tx, rx) = channel();
         let mut platform = MockDummyPlatformData::new();
-        platform.expect_register()
-            .returning(|_| {});
-        platform.expect_notify_media_event()
+        platform.expect_register().returning(|_| {});
+        platform
+            .expect_notify_media_event()
             .returning(move |notification: MediaNotificationEvent| tx.send(notification).unwrap());
         let event_publisher = Arc::new(EventPublisher::default());
         let _controls = PlaybackControls::builder()
@@ -321,9 +343,9 @@ mod test {
         init_logger();
         let (tx, rx) = channel();
         let mut platform = MockDummyPlatformData::new();
-        platform.expect_register()
-            .returning(|_| {});
-        platform.expect_notify_media_event()
+        platform.expect_register().returning(|_| {});
+        platform
+            .expect_notify_media_event()
             .returning(move |notification: MediaNotificationEvent| tx.send(notification).unwrap());
         let event_publisher = Arc::new(EventPublisher::default());
         let _controls = PlaybackControls::builder()

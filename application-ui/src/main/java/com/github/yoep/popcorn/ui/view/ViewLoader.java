@@ -57,7 +57,7 @@ public interface ViewLoader {
 
     /**
      * Load the given FXML view file from the classpath.
-     * Spring will inject the correct controller based on the {@code fx:controller} attribute in the view.
+     * {@link com.github.yoep.popcorn.ui.IoC} will inject the correct controller based on the {@code fx:controller} attribute in the view.
      *
      * @param view  The FXML file to load.
      * @param <T>   The root node of the view file.

@@ -1,23 +1,17 @@
 package com.github.yoep.popcorn.ui.view.services;
 
-import com.github.spring.boot.javafx.view.ViewManager;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.UISettings;
+import com.github.yoep.popcorn.ui.view.ViewManager;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-
-import javax.annotation.PostConstruct;
 
 @Slf4j
-@Service
-@RequiredArgsConstructor
 public class MaximizeService {
     public static final String MAXIMIZED_PROPERTY = "maximized";
 
@@ -30,6 +24,12 @@ public class MaximizeService {
     private double originY;
     private double originWidth;
     private double originHeight;
+
+    public MaximizeService(ViewManager viewManager, ApplicationConfig applicationConfig) {
+        this.viewManager = viewManager;
+        this.applicationConfig = applicationConfig;
+        init();
+    }
 
     //region Properties
 
@@ -76,8 +76,7 @@ public class MaximizeService {
 
     //region PostConstruct
 
-    @PostConstruct
-    void init() {
+    private void init() {
         log.trace("Initializing maximize service");
         initializeStageListeners();
         initializeMaximizedListener();
@@ -129,21 +128,23 @@ public class MaximizeService {
     }
 
     private void toMaximizedStage() {
-        viewManager.getPrimaryStage().ifPresent(stage -> Platform.runLater(() -> {
-            var screen = detectCurrentScreen(stage);
+        viewManager.getPrimaryStage().ifPresentOrElse(
+                stage -> Platform.runLater(() -> {
+                    var screen = detectCurrentScreen(stage);
 
-            // store the current windowed stage information
-            originX = stage.getX();
-            originY = stage.getY();
-            originWidth = stage.getWidth();
-            originHeight = stage.getHeight();
+                    // store the current windowed stage information
+                    originX = stage.getX();
+                    originY = stage.getY();
+                    originWidth = stage.getWidth();
+                    originHeight = stage.getHeight();
 
-            // maximize the stage
-            stage.setX(screen.getVisualBounds().getMinX());
-            stage.setY(screen.getVisualBounds().getMinY());
-            stage.setWidth(screen.getVisualBounds().getWidth());
-            stage.setHeight(screen.getVisualBounds().getHeight());
-        }));
+                    // maximize the stage
+                    stage.setX(screen.getVisualBounds().getMinX());
+                    stage.setY(screen.getVisualBounds().getMinY());
+                    stage.setWidth(screen.getVisualBounds().getWidth());
+                    stage.setHeight(screen.getVisualBounds().getHeight());
+                }),
+                () -> log.error("Unable to update maximize state, primary stage not found"));
     }
 
     private UISettings getUiSettings() {

@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controls;
 
-import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
+import com.github.yoep.popcorn.ui.font.controls.Icon;
 import javafx.collections.ObservableList;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -17,7 +17,6 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 
-import java.io.IOException;
 import java.util.Optional;
 
 @Slf4j
@@ -34,14 +33,6 @@ public class LanguageFlagCell extends Control {
             setText(item.getLanguage().getNativeName());
 
             Optional.ofNullable(item.getFlagResource())
-                    .map(e -> {
-                        try {
-                            return e.getInputStream();
-                        } catch (IOException ex) {
-                            log.error(ex.getMessage(), ex);
-                            return null;
-                        }
-                    })
                     .map(Image::new)
                     .map(ImageView::new)
                     .ifPresent(this::setGraphic);

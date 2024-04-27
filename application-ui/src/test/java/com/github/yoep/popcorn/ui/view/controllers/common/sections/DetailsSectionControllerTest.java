@@ -1,8 +1,9 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
-import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
+import com.github.yoep.popcorn.ui.view.ViewLoader;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
@@ -11,12 +12,12 @@ import javafx.scene.layout.Pane;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.core.task.TaskExecutor;
 import org.testfx.framework.junit5.ApplicationExtension;
+
+import java.util.concurrent.ExecutorService;
 
 import static org.mockito.Mockito.*;
 
@@ -27,15 +28,17 @@ class DetailsSectionControllerTest {
     @Mock
     private ViewLoader viewLoader;
     @Mock
-    private TaskExecutor taskExecutor;
-    @InjectMocks
-    private DetailsSectionController controller;
+    private ExecutorService executorService;
+    @Mock
+    private ApplicationConfig applicationConfig;
 
     @BeforeEach
     void setUp() {
-        controller.detailPane = new Pane();
-        controller.detailPane.setOnKeyPressed(controller::onDetailsPressed);
-        controller.detailPane.setOnMousePressed(controller::onDetailsPressed);
+        lenient().doAnswer(invocation -> {
+            var runnable = invocation.getArgument(0, Runnable.class);
+            runnable.run();
+            return null;
+        }).when(executorService).execute(any(Runnable.class));
     }
 
     @Test
@@ -44,7 +47,8 @@ class DetailsSectionControllerTest {
         when(escEvent.getCode()).thenReturn(KeyCode.ESCAPE);
         var backspaceEvent = mock(KeyEvent.class);
         when(backspaceEvent.getCode()).thenReturn(KeyCode.BACK_SPACE);
-        controller.init();
+        when(viewLoader.load(isA(String.class))).thenReturn(new Pane());
+        var controller = createController();
 
         controller.detailPane.getOnKeyPressed().handle(escEvent);
         verify(escEvent).consume();
@@ -60,11 +64,20 @@ class DetailsSectionControllerTest {
     void testOnDetailsPressed_whenMouseBackEvent_shouldCloseTheDetails() {
         var event = mock(MouseEvent.class);
         when(event.getButton()).thenReturn(MouseButton.BACK);
-        controller.init();
+        when(viewLoader.load(isA(String.class))).thenReturn(new Pane());
+        var controller = createController();
 
         controller.detailPane.getOnMousePressed().handle(event);
 
         verify(event).consume();
         verify(eventPublisher).publishEvent(new CloseDetailsEvent(controller));
+    }
+
+    private DetailsSectionController createController() {
+        var controller = new DetailsSectionController(eventPublisher, viewLoader, executorService, applicationConfig);
+        controller.detailPane = new Pane();
+        controller.detailPane.setOnKeyPressed(controller::onDetailsPressed);
+        controller.detailPane.setOnMousePressed(controller::onDetailsPressed);
+        return controller;
     }
 }

@@ -2,8 +2,6 @@ package com.github.yoep.player.popcorn.listeners;
 
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 
-import javax.validation.constraints.NotNull;
-
 public interface PlayerHeaderListener {
     void onTitleChanged(String title);
 
@@ -23,5 +21,5 @@ public interface PlayerHeaderListener {
      *
      * @param progress The last known progress update.
      */
-    void onDownloadStatusChanged(@NotNull DownloadStatus progress);
+    void onDownloadStatusChanged( DownloadStatus progress);
 }

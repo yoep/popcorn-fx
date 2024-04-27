@@ -1,16 +1,13 @@
 package com.github.yoep.popcorn.ui.view.services;
 
-import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.media.filters.model.Season;
 import com.github.yoep.popcorn.backend.media.providers.models.Episode;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
+import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.util.Assert;
-import org.springframework.util.CollectionUtils;
 
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -20,7 +17,6 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Slf4j
-@Service
 @RequiredArgsConstructor
 public class ShowHelperService {
     public static final DateTimeFormatter AIRED_DATE_PATTERN = DateTimeFormatter.ofPattern("EEEE, MMMM dd, yyyy hh:mm a");
@@ -37,7 +33,7 @@ public class ShowHelperService {
      * @return Returns the list of season for the media.
      */
     public List<Season> getSeasons(ShowDetails media) {
-        Assert.notNull(media, "media cannot be null");
+        Objects.requireNonNull(media, "media cannot be null");
         var seasons = new ArrayList<Season>();
 
         for (int i = 1; i <= media.getNumberOfSeasons(); i++) {
@@ -55,8 +51,8 @@ public class ShowHelperService {
      * @return Returns the list of episodes for the season.
      */
     public List<Episode> getSeasonEpisodes(Season season, ShowDetails media) {
-        Assert.notNull(season, "season cannot be null");
-        Assert.notNull(media, "media cannot be null");
+        Objects.requireNonNull(season, "season cannot be null");
+        Objects.requireNonNull(media, "media cannot be null");
 
         return media.getEpisodes().stream()
                 .filter(Objects::nonNull)
@@ -80,18 +76,18 @@ public class ShowHelperService {
                 .sorted()
                 .filter(e -> !isSeasonWatched(e, media))
                 .findFirst()
-                .orElseGet(() -> CollectionUtils.lastElement(seasons));
+                .orElseGet(() -> seasons.get(seasons.size() - 1));
     }
 
     /**
      * Get the first unwatched episode from the episodes list.
      *
-     * @param episodes  The episodes list to select from.
+     * @param episodes The episodes list to select from.
      * @param season
      * @return Returns the first unwatched episode, or the last episode if all episodes have been watched.
      */
     public Episode getUnwatchedEpisode(List<Episode> episodes, Season season) {
-        Assert.notNull(episodes, "episodes cannot be null");
+        Objects.requireNonNull(episodes, "episodes cannot be null");
 
         return episodes.stream()
                 .sorted()
@@ -99,7 +95,7 @@ public class ShowHelperService {
                 .filter(e -> e.getSeason() == season.getSeason())
                 .filter(e -> !watchedService.isWatched(e))
                 .findFirst()
-                .orElseGet(() -> CollectionUtils.firstElement(episodes));
+                .orElseGet(() -> episodes.get(0));
     }
 
     //endregion

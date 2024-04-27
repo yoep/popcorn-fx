@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controls;
 
-import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.yoep.popcorn.backend.playlists.PlaylistItem;
+import com.github.yoep.popcorn.ui.font.controls.Icon;
 import javafx.collections.MapChangeListener;
 import javafx.scene.Cursor;
 import javafx.scene.Node;

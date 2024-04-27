@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.ui.screen;
 
-import com.github.spring.boot.javafx.view.ViewManager;
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.adapters.screen.FullscreenCallback;
@@ -9,6 +8,7 @@ import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
+import com.github.yoep.popcorn.ui.view.ViewManager;
 import com.github.yoep.popcorn.ui.view.services.MaximizeService;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
@@ -17,15 +17,9 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCombination;
 import javafx.stage.Stage;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-
-import javax.annotation.PostConstruct;
 
 @Slf4j
-@Service
-@RequiredArgsConstructor
 public class ScreenServiceImpl implements ScreenService {
     public static final String FULLSCREEN_PROPERTY = "fullscreen";
 
@@ -42,6 +36,16 @@ public class ScreenServiceImpl implements ScreenService {
 
     private Stage primaryStage;
     private long lastChange;
+
+    public ScreenServiceImpl(ViewManager viewManager, ApplicationConfig applicationConfig, EventPublisher eventPublisher, MaximizeService maximizeService, FxLib fxLib, PopcornFx instance) {
+        this.viewManager = viewManager;
+        this.applicationConfig = applicationConfig;
+        this.eventPublisher = eventPublisher;
+        this.maximizeService = maximizeService;
+        this.fxLib = fxLib;
+        this.instance = instance;
+        init();
+    }
 
     //region Properties
 
@@ -83,8 +87,7 @@ public class ScreenServiceImpl implements ScreenService {
 
     //region PostConstruct
 
-    @PostConstruct
-    void init() {
+    private void init() {
         initializeViewManagerListeners();
         eventPublisher.register(PlayerStoppedEvent.class, event -> {
             if (!applicationConfig.isKioskMode()) {

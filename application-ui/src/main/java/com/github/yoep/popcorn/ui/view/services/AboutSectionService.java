@@ -5,19 +5,23 @@ import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import com.github.yoep.popcorn.ui.info.PlayerInfoService;
 import com.github.yoep.popcorn.ui.info.VideoInfoService;
 import com.github.yoep.popcorn.ui.view.listeners.AboutSectionListener;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 
-import javax.annotation.PostConstruct;
 import java.util.List;
+import java.util.Objects;
 
 @Slf4j
-@Service
-@RequiredArgsConstructor
 public class AboutSectionService extends AbstractListenerService<AboutSectionListener> {
     private final PlayerInfoService playerInfoService;
     private final VideoInfoService videoInfoService;
+
+    public AboutSectionService(PlayerInfoService playerInfoService, VideoInfoService videoInfoService) {
+        Objects.requireNonNull(playerInfoService, "playerInfoService cannot be null");
+        Objects.requireNonNull(videoInfoService, "videoInfoService cannot be null");
+        this.playerInfoService = playerInfoService;
+        this.videoInfoService = videoInfoService;
+        init();
+    }
 
     /**
      * Update all information.
@@ -28,8 +32,7 @@ public class AboutSectionService extends AbstractListenerService<AboutSectionLis
         onVideoPlayersChanged(videoInfoService.getComponentDetails());
     }
 
-    @PostConstruct
-    void init() {
+    private void init() {
         initializeListeners();
     }
 
@@ -44,5 +47,5 @@ public class AboutSectionService extends AbstractListenerService<AboutSectionLis
 
     private void onPlayersChanged(List<ComponentInfo> players) {
         invokeListeners(e -> e.onPlayersChanged(players));
-   }
+    }
 }

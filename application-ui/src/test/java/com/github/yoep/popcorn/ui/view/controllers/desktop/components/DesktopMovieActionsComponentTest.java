@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
-import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
@@ -12,6 +11,7 @@ import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
+import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.view.controls.LanguageFlagSelection;
 import com.github.yoep.popcorn.ui.view.controls.PlayerDropDownButton;
 import com.github.yoep.popcorn.ui.view.services.DetailsComponentService;
@@ -26,10 +26,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.core.io.Resource;
 import org.testfx.framework.junit5.ApplicationExtension;
 import org.testfx.util.WaitForAsyncUtils;
 
+import java.io.ByteArrayInputStream;
 import java.net.URL;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
@@ -68,7 +68,7 @@ class DesktopMovieActionsComponentTest {
         lenient().when(subtitleService.none()).thenReturn(subtitleNone);
         lenient().when(subtitleService.custom()).thenReturn(mock(SubtitleInfo.class));
         lenient().when(subtitleNone.getLanguage()).thenReturn(SubtitleLanguage.NONE);
-        lenient().when(subtitleNone.getFlagResource()).thenReturn(mock(Resource.class));
+        lenient().when(subtitleNone.getFlagResource()).thenReturn(new ByteArrayInputStream(new byte[0]));
 
         component.watchNowButton = new PlayerDropDownButton();
         component.watchTrailerButton = new Button();

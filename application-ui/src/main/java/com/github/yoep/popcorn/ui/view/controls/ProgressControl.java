@@ -7,7 +7,6 @@ import javafx.beans.property.SimpleLongProperty;
 import javafx.geometry.Pos;
 import javafx.scene.layout.StackPane;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.util.Assert;
 
 import java.util.Objects;
 
@@ -89,14 +88,17 @@ public class ProgressControl extends StackPane {
      * @throws IllegalArgumentException Is thrown when the progress value is invalid.
      */
     public void setLoadProgress(double loadProgress) {
-        Assert.isTrue(loadProgress >= 0 && loadProgress <= 1, "progress must be between 0 and 1");
+        if (loadProgress < 0 || loadProgress > 1) {
+            throw new IllegalArgumentException("loadProgress must be between 0 and 1 (inclusive)");
+        }
+
         this.loadProgress.set(loadProgress);
     }
 
     /**
      * Sets the error state of the element based on the given boolean value.
      *
-     * @param  isError  true if the element should be in error state, false otherwise
+     * @param isError true if the element should be in error state, false otherwise
      */
     public void setError(boolean isError) {
         if (isError) {

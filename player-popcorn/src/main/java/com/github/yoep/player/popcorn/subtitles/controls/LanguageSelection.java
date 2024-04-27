@@ -1,8 +1,8 @@
 package com.github.yoep.player.popcorn.subtitles.controls;
 
-import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.yoep.popcorn.backend.subtitles.listeners.LanguageSelectionListener;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
+import com.github.yoep.popcorn.ui.font.controls.Icon;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -13,10 +13,10 @@ import javafx.scene.control.ListView;
 import javafx.scene.control.PopupControl;
 import javafx.scene.control.Skin;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.util.Assert;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Control for selecting the language through a list of text as a popup above the control.
@@ -67,14 +67,14 @@ public class LanguageSelection extends Icon {
     }
 
     public void addListener(LanguageSelectionListener listener) {
-        Assert.notNull(listener, "listener cannot be null");
+        Objects.requireNonNull(listener, "listener cannot be null");
         synchronized (listeners) {
             listeners.add(listener);
         }
     }
 
     public void removeListener(LanguageSelectionListener listener) {
-        Assert.notNull(listener, "listener cannot be null");
+        Objects.requireNonNull(listener, "listener cannot be null");
         synchronized (listeners) {
             listeners.remove(listener);
         }

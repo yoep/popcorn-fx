@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.backend.media.providers.models;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.sun.jna.Structure;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -61,7 +60,6 @@ public class ShowOverview extends Structure implements Media, Closeable {
     }
 
     @Override
-    @JsonIgnore
     public List<String> getGenres() {
         return new ArrayList<>();
     }

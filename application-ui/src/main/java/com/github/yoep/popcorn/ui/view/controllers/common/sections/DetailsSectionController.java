@@ -1,31 +1,31 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
-import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
 import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
 import com.github.yoep.popcorn.backend.events.ShowTorrentDetailsEvent;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
 import com.github.yoep.popcorn.ui.events.CloseTorrentDetailsEvent;
+import com.github.yoep.popcorn.ui.view.ViewLoader;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
 import javafx.scene.input.*;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.task.TaskExecutor;
 
-import javax.annotation.PostConstruct;
+import java.util.Objects;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
-@RequiredArgsConstructor
 public class DetailsSectionController {
     private final EventPublisher eventPublisher;
     private final ViewLoader viewLoader;
-    private final TaskExecutor taskExecutor;
+    private final ExecutorService executorService;
+    private final ApplicationConfig applicationConfig;
 
     private Pane movieDetailsPane;
     private Pane showDetailsPane;
@@ -35,10 +35,24 @@ public class DetailsSectionController {
     @FXML
     Pane detailPane;
 
+    public DetailsSectionController(EventPublisher eventPublisher,
+                                    ViewLoader viewLoader,
+                                    ExecutorService executorService,
+                                    ApplicationConfig applicationConfig) {
+        Objects.requireNonNull(eventPublisher, "eventPublisher cannot be null");
+        Objects.requireNonNull(viewLoader, "viewLoader cannot be null");
+        Objects.requireNonNull(executorService, "executorService cannot be null");
+        Objects.requireNonNull(applicationConfig, "applicationConfig cannot be null");
+        this.eventPublisher = eventPublisher;
+        this.viewLoader = viewLoader;
+        this.executorService = executorService;
+        this.applicationConfig = applicationConfig;
+        init();
+    }
+
     //region PostConstruct
 
-    @PostConstruct
-    void init() {
+    private void init() {
         initializePanes();
         eventPublisher.register(ShowMovieDetailsEvent.class, event -> {
             switchContent(DetailsType.MOVIE_DETAILS);
@@ -63,14 +77,17 @@ public class DetailsSectionController {
     }
 
     private void initializePanes() {
-        taskExecutor.execute(() -> {
+        executorService.execute(() -> {
             movieDetailsPane = viewLoader.load("common/components/details-movie.component.fxml");
             showDetailsPane = viewLoader.load("common/components/details-show.component.fxml");
-            torrentDetailsPane = viewLoader.load("common/components/details-torrent.component.fxml");
 
             anchor(movieDetailsPane);
             anchor(showDetailsPane);
-            anchor(torrentDetailsPane);
+
+            if (!applicationConfig.isTvMode()) {
+                torrentDetailsPane = viewLoader.load("common/components/details-torrent.component.fxml");
+                anchor(torrentDetailsPane);
+            }
         });
     }
 

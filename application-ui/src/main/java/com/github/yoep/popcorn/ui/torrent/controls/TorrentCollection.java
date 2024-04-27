@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.torrent.controls;
 
-import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.yoep.popcorn.backend.torrent.collection.StoredTorrent;
+import com.github.yoep.popcorn.ui.font.controls.Icon;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
@@ -9,7 +9,6 @@ import javafx.scene.control.TableView;
 import javafx.scene.input.MouseEvent;
 
 import java.util.function.Consumer;
-
 
 public class TorrentCollection extends TableView<StoredTorrent> {
     private static final String ICON_CELL_STYLE_CLASS = "icon-cell";

@@ -1,12 +1,13 @@
 package com.github.yoep.popcorn.ui.view.controls;
 
-import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.yoep.popcorn.backend.media.providers.models.Rating;
+import com.github.yoep.popcorn.ui.font.controls.Icon;
 import javafx.geometry.Pos;
 import javafx.scene.control.OverrunStyle;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
-import org.springframework.util.Assert;
+
+import java.util.Objects;
 
 public class Stars extends HBox {
     private static final String STARS_STYLE_CLASS = "stars";
@@ -21,7 +22,7 @@ public class Stars extends HBox {
     }
 
     public Stars(Rating rating) {
-        Assert.notNull(rating, "rating cannot be null");
+        Objects.requireNonNull(rating, "rating cannot be null");
         this.rating = rating;
         init();
     }
@@ -36,7 +37,7 @@ public class Stars extends HBox {
      * @param rating The rating to represent.
      */
     public void setRating(Rating rating) {
-        Assert.notNull(rating, "rating cannot be null");
+        Objects.requireNonNull(rating, "rating cannot be null");
         this.rating = rating;
         initializeStars();
     }

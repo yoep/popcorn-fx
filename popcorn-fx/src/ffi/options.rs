@@ -1,21 +1,9 @@
 use crate::PopcornFX;
 
-/// Verify if the youtube video player has been disabled.
-#[no_mangle]
-pub extern "C" fn is_youtube_video_player_disabled(popcorn_fx: &mut PopcornFX) -> bool {
-    popcorn_fx.opts().disable_youtube_video_player
-}
-
 /// Verify if the FX embedded video player has been disabled.
 #[no_mangle]
 pub extern "C" fn is_fx_video_player_disabled(popcorn_fx: &mut PopcornFX) -> bool {
     popcorn_fx.opts().disable_fx_video_player
-}
-
-/// Verify if the vlc video player has been disabled.
-#[no_mangle]
-pub extern "C" fn is_vlc_video_player_disabled(popcorn_fx: &mut PopcornFX) -> bool {
-    popcorn_fx.opts().disable_vlc_video_player
 }
 
 /// Verify if the application mouse should be disabled.
@@ -45,6 +33,34 @@ pub extern "C" fn is_kiosk_mode(popcorn_fx: &mut PopcornFX) -> bool {
     popcorn_fx.opts().kiosk
 }
 
+/// Checks if the YouTube video player is enabled in the PopcornFX options.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to the PopcornFX instance.
+///
+/// # Returns
+///
+/// `true` if the YouTube video player is enabled, otherwise `false`.
+#[no_mangle]
+pub extern "C" fn is_youtube_video_player_enabled(popcorn_fx: &mut PopcornFX) -> bool {
+    popcorn_fx.opts().enable_youtube_video_player
+}
+
+/// Checks if the VLC video player is enabled in the PopcornFX options.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to the PopcornFX instance.
+///
+/// # Returns
+///
+/// `true` if the VLC video player is enabled, otherwise `false`.
+#[no_mangle]
+pub extern "C" fn is_vlc_video_player_enabled(popcorn_fx: &mut PopcornFX) -> bool {
+    popcorn_fx.opts().enable_vlc_video_player
+}
+
 #[cfg(test)]
 mod test {
     use tempfile::tempdir;
@@ -56,16 +72,16 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_is_youtube_video_player_disabled() {
+    fn test_is_youtube_video_player_enabled() {
         init_logger();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(PopcornFxArgs {
             disable_logger: true,
             disable_mouse: false,
-            disable_youtube_video_player: true,
+            enable_youtube_video_player: true,
             disable_fx_video_player: false,
-            disable_vlc_video_player: false,
+            enable_vlc_video_player: false,
             tv: false,
             maximized: false,
             kiosk: false,
@@ -75,7 +91,7 @@ mod test {
             properties: Default::default(),
         });
 
-        let result = is_youtube_video_player_disabled(&mut instance);
+        let result = is_youtube_video_player_enabled(&mut instance);
 
         assert_eq!(true, result)
     }
@@ -88,9 +104,9 @@ mod test {
         let mut instance = PopcornFX::new(PopcornFxArgs {
             disable_logger: true,
             disable_mouse: false,
-            disable_youtube_video_player: false,
+            enable_youtube_video_player: false,
             disable_fx_video_player: true,
-            disable_vlc_video_player: false,
+            enable_vlc_video_player: false,
             tv: false,
             maximized: false,
             kiosk: false,
@@ -106,16 +122,16 @@ mod test {
     }
 
     #[test]
-    fn test_is_vlc_video_player_disabled() {
+    fn test_is_vlc_video_player_enabled() {
         init_logger();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(PopcornFxArgs {
             disable_logger: true,
             disable_mouse: false,
-            disable_youtube_video_player: false,
+            enable_youtube_video_player: false,
             disable_fx_video_player: false,
-            disable_vlc_video_player: true,
+            enable_vlc_video_player: true,
             tv: false,
             maximized: false,
             kiosk: false,
@@ -125,7 +141,7 @@ mod test {
             properties: Default::default(),
         });
 
-        let result = is_vlc_video_player_disabled(&mut instance);
+        let result = is_vlc_video_player_enabled(&mut instance);
 
         assert_eq!(true, result)
     }
@@ -138,9 +154,9 @@ mod test {
         let mut instance = PopcornFX::new(PopcornFxArgs {
             disable_logger: true,
             disable_mouse: true,
-            disable_youtube_video_player: false,
+            enable_youtube_video_player: false,
             disable_fx_video_player: false,
-            disable_vlc_video_player: false,
+            enable_vlc_video_player: false,
             tv: false,
             maximized: false,
             kiosk: false,
@@ -163,9 +179,9 @@ mod test {
         let mut instance = PopcornFX::new(PopcornFxArgs {
             disable_logger: true,
             disable_mouse: false,
-            disable_youtube_video_player: false,
+            enable_youtube_video_player: false,
             disable_fx_video_player: false,
-            disable_vlc_video_player: false,
+            enable_vlc_video_player: false,
             tv: true,
             maximized: false,
             kiosk: false,
@@ -188,9 +204,9 @@ mod test {
         let mut instance = PopcornFX::new(PopcornFxArgs {
             disable_logger: true,
             disable_mouse: false,
-            disable_youtube_video_player: false,
+            enable_youtube_video_player: false,
             disable_fx_video_player: false,
-            disable_vlc_video_player: false,
+            enable_vlc_video_player: false,
             tv: false,
             maximized: true,
             kiosk: false,
@@ -213,9 +229,9 @@ mod test {
         let mut instance = PopcornFX::new(PopcornFxArgs {
             disable_logger: true,
             disable_mouse: false,
-            disable_youtube_video_player: false,
+            enable_youtube_video_player: false,
             disable_fx_video_player: false,
-            disable_vlc_video_player: false,
+            enable_vlc_video_player: false,
             tv: false,
             maximized: true,
             kiosk: true,

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import com.github.spring.boot.javafx.font.controls.Icon?>
+<?import com.github.yoep.popcorn.ui.font.controls.Icon?>
 <?import com.github.yoep.popcorn.ui.view.controls.PlaylistControl?>
 <?import javafx.scene.control.Tooltip?>
 <?import javafx.scene.layout.HBox?>

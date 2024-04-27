@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui.messages;
 
-import com.github.spring.boot.javafx.text.Message;
+import com.github.yoep.popcorn.backend.utils.Message;
 import lombok.Getter;
 
 @Getter

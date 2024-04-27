@@ -1,18 +1,17 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
-import com.github.spring.boot.javafx.stereotype.ViewController;
-import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
-import com.github.yoep.popcorn.backend.subtitles.SubtitlePickerService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
+import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.MediaQualityChangedEvent;
+import com.github.yoep.popcorn.ui.view.ViewLoader;
 import com.github.yoep.popcorn.ui.view.services.DetailsComponentService;
 import com.github.yoep.popcorn.ui.view.services.HealthService;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
+import com.github.yoep.popcorn.ui.view.services.SubtitlePickerService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
@@ -27,7 +26,6 @@ import java.net.URL;
 import java.util.ResourceBundle;
 
 @Slf4j
-@ViewController
 public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<MovieDetails> {
     private static final String DEFAULT_TORRENT_AUDIO = "en";
 
@@ -69,7 +67,6 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
                 imageService,
                 settingsService,
                 service);
-
         this.viewLoader = viewLoader;
     }
 

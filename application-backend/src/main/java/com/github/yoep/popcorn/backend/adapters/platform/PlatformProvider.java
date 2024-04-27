@@ -1,7 +1,5 @@
 package com.github.yoep.popcorn.backend.adapters.platform;
 
-import javax.validation.constraints.NotNull;
-
 /**
  * Provider which supplies/checks certain aspects of the current platform/environment.
  * This is mainly a wrapper class around the {@link javafx.application.Platform}.
@@ -30,7 +28,7 @@ public interface PlatformProvider {
      * @param command The process command that needs to be started.
      * @return Returns true if the command was launched with success, else false.
      */
-    boolean launch(@NotNull String command);
+    boolean launch( String command);
 
     /**
      * Verify if the current platform is a MacOS system.

@@ -11,7 +11,6 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEvent;
 
 import java.io.Closeable;
 import java.util.Arrays;

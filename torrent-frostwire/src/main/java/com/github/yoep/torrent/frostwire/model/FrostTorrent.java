@@ -14,11 +14,11 @@ import javafx.beans.property.ReadOnlyObjectWrapper;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.util.Assert;
 
 import java.io.File;
 import java.text.MessageFormat;
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -42,8 +42,7 @@ public class FrostTorrent implements Torrent, AlertListener {
     //region Constructors
 
     public FrostTorrent(TorrentHandle handle, int fileIndex, boolean autoStartDownload) {
-        Assert.notNull(handle, "handle cannot be null");
-        Assert.isTrue(fileIndex >= 0, "fileIndex cannot be smaller than 0");
+        Objects.requireNonNull(handle, "handle cannot be null");
         this.handle = handle;
         this.fileIndex = fileIndex;
         this.filename = handle.torrentFile().files().fileName(fileIndex);
@@ -156,7 +155,7 @@ public class FrostTorrent implements Torrent, AlertListener {
 
     @Override
     public void addListener(TorrentListener listener) {
-        Assert.notNull(listener, "listener cannot be null");
+        Objects.requireNonNull(listener, "listener cannot be null");
         synchronized (listeners) {
             listeners.add(listener);
         }

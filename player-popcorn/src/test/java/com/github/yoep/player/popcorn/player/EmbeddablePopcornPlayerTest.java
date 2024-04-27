@@ -1,5 +1,7 @@
 package com.github.yoep.player.popcorn.player;
 
+import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
+import com.github.yoep.popcorn.ui.view.ViewLoader;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -14,6 +16,10 @@ import static org.mockito.Mockito.when;
 class EmbeddablePopcornPlayerTest {
     @Mock
     private PopcornPlayer popcornPlayer;
+    @Mock
+    private ViewLoader viewLoader;
+    @Mock
+    private PlayerManagerService playerManagerService;
     @InjectMocks
     private EmbeddablePopcornPlayer player;
 

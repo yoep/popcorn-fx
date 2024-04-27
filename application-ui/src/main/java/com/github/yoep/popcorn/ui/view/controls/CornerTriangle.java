@@ -6,7 +6,8 @@ import javafx.beans.value.ChangeListener;
 import javafx.scene.Parent;
 import javafx.scene.layout.Pane;
 import javafx.scene.shape.Polygon;
-import org.springframework.util.Assert;
+
+import java.util.Objects;
 
 public class CornerTriangle extends Polygon {
     public static final String STYLE_CLASS = "corner";
@@ -49,7 +50,7 @@ public class CornerTriangle extends Polygon {
      * @param position The new position.
      */
     public void setPosition(Position position) {
-        Assert.notNull(position, "position cannot be null");
+        Objects.requireNonNull(position, "position cannot be null");
         this.position.set(position);
     }
 

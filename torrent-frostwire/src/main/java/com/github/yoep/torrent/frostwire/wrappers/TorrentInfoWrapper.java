@@ -4,10 +4,10 @@ import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentFileInfo;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
-import org.springframework.util.Assert;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 import static java.util.Arrays.asList;
@@ -26,7 +26,7 @@ public class TorrentInfoWrapper implements TorrentInfo {
     //region Constructors
 
     public TorrentInfoWrapper(com.frostwire.jlibtorrent.TorrentInfo nativeInfo) {
-        Assert.notNull(nativeInfo, "nativeInfo cannot be null");
+        Objects.requireNonNull(nativeInfo, "nativeInfo cannot be null");
         this.nativeInfo = nativeInfo;
         this.torrentDirectoryName = nativeInfo.files().name();
     }

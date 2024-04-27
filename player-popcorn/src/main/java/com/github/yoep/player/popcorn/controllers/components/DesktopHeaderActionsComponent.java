@@ -1,6 +1,5 @@
 package com.github.yoep.player.popcorn.controllers.components;
 
-import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.player.popcorn.controls.StreamInfo;
 import com.github.yoep.player.popcorn.controls.StreamInfoCell;
 import com.github.yoep.player.popcorn.listeners.PlayerHeaderListener;
@@ -9,6 +8,7 @@ import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
+import com.github.yoep.popcorn.backend.utils.LocaleText;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;

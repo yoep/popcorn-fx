@@ -23,7 +23,6 @@ import javafx.scene.input.MouseEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import java.io.IOException;
 import java.net.URL;
 import java.util.List;
 import java.util.ResourceBundle;
@@ -85,16 +84,12 @@ public class DesktopSerieActionsComponent implements Initializable, SerieActions
                     return;
 
                 setText(item.getLanguage().getNativeName());
-                try {
-                    var image = new ImageView(new Image(item.getFlagResource().getInputStream()));
+                var image = new ImageView(new Image(item.getFlagResource()));
 
-                    image.setFitHeight(15);
-                    image.setPreserveRatio(true);
+                image.setFitHeight(15);
+                image.setPreserveRatio(true);
 
-                    setGraphic(image);
-                } catch (IOException ex) {
-                    log.error(ex.getMessage(), ex);
-                }
+                setGraphic(image);
             }
         });
     }

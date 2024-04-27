@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.backend.media.providers.models;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.sun.jna.Structure;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -14,7 +13,6 @@ import java.io.Serializable;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@JsonIgnoreProperties({"autoAllocate", "stringEncoding", "typeMapper", "fields", "pointer"})
 @Structure.FieldOrder({"poster", "fanart", "banner"})
 public class Images extends Structure implements Serializable, Closeable {
     public static class ByValue extends Images implements Structure.ByValue {

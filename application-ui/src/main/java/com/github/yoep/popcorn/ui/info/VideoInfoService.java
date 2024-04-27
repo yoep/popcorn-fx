@@ -6,22 +6,23 @@ import com.github.yoep.popcorn.backend.adapters.video.state.VideoState;
 import com.github.yoep.popcorn.backend.info.ComponentInfo;
 import com.github.yoep.popcorn.backend.info.ComponentState;
 import com.github.yoep.popcorn.backend.info.SimpleComponentDetails;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 
-import javax.annotation.PostConstruct;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Slf4j
-@Service
-@RequiredArgsConstructor
 public class VideoInfoService extends AbstractInfoService {
     private final List<VideoPlayback> videoPlaybacks;
 
-    @PostConstruct
-    void init() {
+    public VideoInfoService(List<VideoPlayback> videoPlaybacks) {
+        Objects.requireNonNull(videoPlaybacks, "videoPlaybacks cannot be null");
+        this.videoPlaybacks = videoPlaybacks;
+        init();
+    }
+
+    private void init() {
         updateComponents(videoPlaybacks.stream()
                 .map(this::createComponentDetail)
                 .collect(Collectors.toList()));

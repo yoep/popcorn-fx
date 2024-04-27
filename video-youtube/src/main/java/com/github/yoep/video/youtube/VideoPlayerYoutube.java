@@ -17,15 +17,13 @@ import lombok.extern.slf4j.Slf4j;
 import netscape.javascript.JSException;
 import netscape.javascript.JSObject;
 import org.apache.commons.io.IOUtils;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.util.Assert;
-import org.springframework.util.StringUtils;
 
 import javax.annotation.PostConstruct;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.text.MessageFormat;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -66,7 +64,7 @@ public class VideoPlayerYoutube extends AbstractVideoPlayer implements VideoPlay
 
     @Override
     public boolean supports(String url) {
-        if (!StringUtils.hasText(url))
+        if (url == null || url.isBlank())
             return false;
 
         return url.toLowerCase().contains(YOUTUBE_URL_INDICATOR);
@@ -100,7 +98,7 @@ public class VideoPlayerYoutube extends AbstractVideoPlayer implements VideoPlay
 
     @Override
     public void addListener(VideoListener listener) {
-        Assert.notNull(listener, "listener cannot be null");
+        Objects.requireNonNull(listener, "listener cannot be null");
         listeners.add(listener);
     }
 
@@ -237,22 +235,20 @@ public class VideoPlayerYoutube extends AbstractVideoPlayer implements VideoPlay
 
     private void initializeWebviewEvents() {
         var engine = getEngine();
-        var resource = new ClassPathResource("embed_youtube.html");
 
-        engine.setJavaScriptEnabled(true);
-        engine.getLoadWorker().stateProperty().addListener((observable, oldValue, newValue) -> {
-            if (newValue == Worker.State.RUNNING) {
-                JSObject window = (JSObject) engine.executeScript("window");
-                window.setMember("VPY", playerBridge);
-            } else if (newValue == Worker.State.SUCCEEDED) {
-                JSObject window = (JSObject) engine.executeScript("window");
-                window.setMember("VPY", playerBridge);
-            }
-        });
+        try (var resource = VideoPlayerYoutube.class.getResourceAsStream("/embed_youtube.html")) {
+            engine.setJavaScriptEnabled(true);
+            engine.getLoadWorker().stateProperty().addListener((observable, oldValue, newValue) -> {
+                if (newValue == Worker.State.RUNNING) {
+                    JSObject window = (JSObject) engine.executeScript("window");
+                    window.setMember("VPY", playerBridge);
+                } else if (newValue == Worker.State.SUCCEEDED) {
+                    JSObject window = (JSObject) engine.executeScript("window");
+                    window.setMember("VPY", playerBridge);
+                }
+            });
 
-        try {
-            String content = IOUtils.toString(resource.getInputStream(), Charset.defaultCharset());
-
+            var content = IOUtils.toString(resource, Charset.defaultCharset());
             Platform.runLater(() -> getEngine().loadContent(content));
         } catch (IOException e) {
             throw new VideoPlayerException(e.getMessage(), e);

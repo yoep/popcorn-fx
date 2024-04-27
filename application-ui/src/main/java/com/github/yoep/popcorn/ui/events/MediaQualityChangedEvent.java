@@ -1,9 +1,9 @@
 package com.github.yoep.popcorn.ui.events;
 
+import com.github.yoep.popcorn.backend.events.ApplicationEvent;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import org.springframework.context.ApplicationEvent;
 
 import java.util.Objects;
 

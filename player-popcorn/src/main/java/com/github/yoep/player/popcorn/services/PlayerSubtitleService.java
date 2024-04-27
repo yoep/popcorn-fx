@@ -12,14 +12,13 @@ import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
-import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import java.util.Collections;
 import java.util.List;
 
 @Slf4j
-@Service
+
 @RequiredArgsConstructor
 public class PlayerSubtitleService extends AbstractListenerService<PlayerSubtitleListener> {
     private final VideoService videoService;

@@ -1,9 +1,10 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
-import com.github.spring.boot.javafx.font.controls.Icon;
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.player.PlayerAction;
+import com.github.yoep.popcorn.ui.font.controls.Icon;
+import com.github.yoep.popcorn.ui.view.ViewLoader;
 import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
 import com.github.yoep.popcorn.ui.view.controls.ProgressControl;
 import com.github.yoep.popcorn.ui.view.listeners.PlayerExternalListener;
@@ -20,12 +21,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.core.io.ClassPathResource;
 import org.testfx.framework.junit5.ApplicationExtension;
 import org.testfx.util.WaitForAsyncUtils;
 
-import java.io.IOException;
+import java.net.URL;
 import java.util.Optional;
+import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -43,7 +44,13 @@ class PlayerExternalComponentTest {
     @Mock
     private PlayerExternalComponentService playerExternalService;
     @Mock
+    private ViewLoader viewLoader;
+    @Mock
     private MouseEvent event;
+    @Mock
+    private URL url;
+    @Mock
+    private ResourceBundle resourceBundle;
     @InjectMocks
     private PlayerExternalComponent controller;
 
@@ -55,7 +62,9 @@ class PlayerExternalComponentTest {
             externalListenerHolder.set(invocation.getArgument(0, PlayerExternalListener.class));
             return null;
         }).when(playerExternalService).addListener(isA(PlayerExternalListener.class));
+        lenient().when(viewLoader.load(isA(String.class), isA(Object.class))).thenReturn(new Pane());
 
+        controller.playerExternalPane = new Pane();
         controller.backgroundImage = new BackgroundImageCover();
         controller.titleText = new Label();
         controller.captionText = new Label();
@@ -63,16 +72,17 @@ class PlayerExternalComponentTest {
         controller.playPauseIcon = new Icon();
         controller.infoComponent.progressPercentage = new Label();
         controller.progressInfoPane = new Pane();
+        controller.dataPane = new Pane();
     }
 
     @Test
-    void testListener_whenMediaItemIsChanged_shouldLoadBackgroundImage() throws IOException {
+    void testListener_whenMediaItemIsChanged_shouldLoadBackgroundImage() {
         var background = "MyBackgroundUri.jpg";
         var request = mock(PlayRequest.class);
-        var holder = new ClassPathResource("posterholder.png");
+        var holder = PlayerExternalComponentTest.class.getResourceAsStream("/posterholder.png");
         when(request.getBackground()).thenReturn(Optional.of(background));
-        when(imageService.load(isA(String.class))).thenReturn(CompletableFuture.completedFuture(new Image(holder.getInputStream())));
-        controller.init();
+        when(imageService.load(isA(String.class))).thenReturn(CompletableFuture.completedFuture(new Image(holder)));
+        controller.initialize(url, resourceBundle);
 
         var listener = externalListenerHolder.get();
         listener.onRequestChanged(request);
@@ -85,7 +95,7 @@ class PlayerExternalComponentTest {
         var title = "Lorem ipsum dolor";
         var request = mock(PlayRequest.class);
         when(request.getTitle()).thenReturn(title);
-        controller.init();
+        controller.initialize(url, resourceBundle);
 
         var listener = externalListenerHolder.get();
         listener.onRequestChanged(request);
@@ -95,8 +105,7 @@ class PlayerExternalComponentTest {
 
     @Test
     void testListener_whenPlayerStateIsChanged() {
-        controller.init();
-
+        controller.initialize(url, resourceBundle);
         var listener = externalListenerHolder.get();
 
         listener.onStateChanged(PlayerState.PLAYING);

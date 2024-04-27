@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.events;
 
+import com.github.yoep.popcorn.backend.events.ApplicationEvent;
 import lombok.EqualsAndHashCode;
-import org.springframework.context.ApplicationEvent;
 
 /**
  * Invokes when a request is being made to focus the search input.

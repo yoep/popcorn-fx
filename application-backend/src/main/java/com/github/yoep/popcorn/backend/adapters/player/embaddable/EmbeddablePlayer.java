@@ -2,7 +2,6 @@ package com.github.yoep.popcorn.backend.adapters.player.embaddable;
 
 import com.github.yoep.popcorn.backend.adapters.player.Player;
 import javafx.scene.Node;
-import org.springframework.lang.NonNull;
 
 /**
  * The embeddable player extends upon the normal {@link Player} for retrieving the graphical node which
@@ -15,7 +14,6 @@ public interface EmbeddablePlayer extends Player {
      *
      * @return Returns the embeddable node for the player playback.
      */
-    @NonNull
     Node getEmbeddedPlayer();
 
     /**

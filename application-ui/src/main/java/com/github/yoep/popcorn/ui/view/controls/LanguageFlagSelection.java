@@ -22,12 +22,11 @@ import javafx.scene.layout.StackPane;
 import javafx.util.Duration;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.io.Resource;
-import org.springframework.util.Assert;
 
-import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -142,7 +141,7 @@ public class LanguageFlagSelection extends StackPane {
      * @param factory The factory to use.
      */
     public void setFactory(LanguageFlagCell factory) {
-        Assert.notNull(factory, "factory cannot be null");
+        Objects.requireNonNull(factory, "factory cannot be null");
         this.factory.set(factory);
     }
 
@@ -163,14 +162,14 @@ public class LanguageFlagSelection extends StackPane {
     //region Methods
 
     public void addListener(LanguageSelectionListener listener) {
-        Assert.notNull(listener, "listener cannot be null");
+        Objects.requireNonNull(listener, "listener cannot be null");
         synchronized (listeners) {
             listeners.add(listener);
         }
     }
 
     public void removeListener(LanguageSelectionListener listener) {
-        Assert.notNull(listener, "listener cannot be null");
+        Objects.requireNonNull(listener, "listener cannot be null");
         synchronized (listeners) {
             listeners.remove(listener);
         }
@@ -306,7 +305,7 @@ public class LanguageFlagSelection extends StackPane {
     }
 
     private void addNewFlag(final SubtitleInfo subtitle) {
-        Resource flagResource = subtitle.getFlagResource();
+        var flagResource = subtitle.getFlagResource();
         Flag flag = new Flag(subtitle);
 
         flag.getStyleClass().add(POPUP_IMAGE_STYLE_CLASS);
@@ -324,16 +323,8 @@ public class LanguageFlagSelection extends StackPane {
         popup.getContent().removeIf(e -> ((Flag) e).getSubtitle() == subtitle);
     }
 
-    private void loadImage(ImageView imageView, Resource imageResource) {
+    private void loadImage(ImageView imageView, InputStream imageResource) {
         Optional.ofNullable(imageResource)
-                .map(e -> {
-                    try {
-                        return e.getInputStream();
-                    } catch (IOException ex) {
-                        log.error(ex.getMessage(), ex);
-                        return null;
-                    }
-                })
                 .map(Image::new)
                 .ifPresent(imageView::setImage);
     }

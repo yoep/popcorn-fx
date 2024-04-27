@@ -12,7 +12,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.core.io.ClassPathResource;
 import org.testfx.framework.junit5.ApplicationExtension;
 import org.testfx.util.WaitForAsyncUtils;
 
@@ -54,7 +53,7 @@ class PlaylistItemComponentTest {
         var thumbUrl = "http://myimage";
         var title = "Foo";
         var caption = "Bar";
-        var image = new Image(new ClassPathResource("posterholder.png").getInputStream());
+        var image = new Image(PlaylistItemComponentTest.class.getResourceAsStream("/posterholder.png"));
         when(item.getThumb()).thenReturn(Optional.of(thumbUrl));
         when(item.getTitle()).thenReturn(title);
         when(item.getCaption()).thenReturn(Optional.of(caption));

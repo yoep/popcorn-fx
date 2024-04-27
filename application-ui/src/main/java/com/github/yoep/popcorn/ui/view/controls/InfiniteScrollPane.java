@@ -15,7 +15,6 @@ import javafx.scene.layout.Pane;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.util.Assert;
 
 import java.util.List;
 import java.util.Objects;
@@ -124,7 +123,7 @@ public class InfiniteScrollPane<T> extends ManageableScrollPane {
      * @param itemFactory The new item factory for this infinite scroll pane.
      */
     public void setItemFactory(InfiniteScrollItemFactory<T> itemFactory) {
-        Assert.notNull(itemFactory, "itemFactory cannot be null");
+        Objects.requireNonNull(itemFactory, "itemFactory cannot be null");
         this.itemFactory.set(itemFactory);
     }
 

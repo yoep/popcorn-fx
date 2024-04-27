@@ -4,7 +4,6 @@ import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.validation.constraints.NotNull;
 import java.util.Objects;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -17,7 +16,7 @@ public abstract class AbstractListenerService<T> implements ListenerService<T> {
     protected final Queue<T> listeners = new ConcurrentLinkedQueue<>();
 
     @Override
-    public void addListener(@NotNull T listener) {
+    public void addListener(T listener) {
         Objects.requireNonNull(listener, "listener cannot be null");
         listeners.add(listener);
     }

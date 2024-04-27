@@ -7,23 +7,25 @@ import com.github.yoep.popcorn.backend.events.LoadingStartedEvent;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.TorrentSettings;
 import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 
-import javax.annotation.PostConstruct;
 import java.io.File;
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
-@Service
-@RequiredArgsConstructor
 public class HealthService {
     private final TorrentService torrentService;
     private final ApplicationConfig settingsService;
     private final EventPublisher eventPublisher;
 
     private CompletableFuture<TorrentHealth> healthFuture;
+
+    public HealthService(TorrentService torrentService, ApplicationConfig settingsService, EventPublisher eventPublisher) {
+        this.torrentService = torrentService;
+        this.settingsService = settingsService;
+        this.eventPublisher = eventPublisher;
+        init();
+    }
 
     //region Methods
 
@@ -50,8 +52,7 @@ public class HealthService {
 
     //region Functions
 
-    @PostConstruct
-    void init() {
+    private void init() {
         eventPublisher.register(LoadingStartedEvent.class, event -> {
             cancelPreviousFutureIfNeeded();
             return event;

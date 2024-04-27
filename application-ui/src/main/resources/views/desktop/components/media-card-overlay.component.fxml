@@ -4,7 +4,7 @@
 Media card containing additional details in an overlay.
 -->
 
-<?import com.github.spring.boot.javafx.font.controls.Icon?>
+<?import com.github.yoep.popcorn.ui.font.controls.Icon?>
 <?import com.github.yoep.popcorn.ui.view.controls.Stars?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Label?>

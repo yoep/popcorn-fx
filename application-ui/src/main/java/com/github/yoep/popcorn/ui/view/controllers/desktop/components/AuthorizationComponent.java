@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
-import com.github.spring.boot.javafx.ui.scale.ScaleAwareImpl;
+import com.github.yoep.popcorn.ui.scale.PopcornScaleAware;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.web.WebEngine;
@@ -15,7 +15,7 @@ import java.util.Objects;
 import java.util.ResourceBundle;
 
 @Slf4j
-public class AuthorizationComponent extends ScaleAwareImpl implements Initializable {
+public class AuthorizationComponent extends PopcornScaleAware implements Initializable {
     static final String CALLBACK_HOST = "http://localhost";
 
     private final String authorizationUri;

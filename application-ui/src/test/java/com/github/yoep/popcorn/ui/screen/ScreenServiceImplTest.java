@@ -1,11 +1,13 @@
 package com.github.yoep.popcorn.ui.screen;
 
-import com.github.spring.boot.javafx.view.ViewManager;
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.adapters.screen.FullscreenCallback;
+import com.github.yoep.popcorn.backend.adapters.screen.IsFullscreenCallback;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
+import com.github.yoep.popcorn.ui.view.ViewManager;
 import com.github.yoep.popcorn.ui.view.services.MaximizeService;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyProperty;
@@ -16,7 +18,6 @@ import javafx.stage.Stage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -24,6 +25,7 @@ import org.testfx.framework.junit5.ApplicationExtension;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -46,8 +48,6 @@ class ScreenServiceImplTest {
     private EventPublisher eventPublisher = new EventPublisher(false);
     @Mock
     private ReadOnlyProperty<Stage> primaryStageProperty;
-    @InjectMocks
-    private ScreenServiceImpl screenService;
 
     private final AtomicReference<ChangeListener<Stage>> primaryStageListener = new AtomicReference<>();
     private final BooleanProperty fullscreenProperty = new SimpleBooleanProperty();
@@ -63,9 +63,11 @@ class ScreenServiceImplTest {
 
     @Test
     void testInit() {
-        screenService.init();
+        var service = new ScreenServiceImpl(viewManager, applicationConfig, eventPublisher, maximizeService, fxLib, instance);
 
         verify(fxLib).register_fullscreen_callback(eq(instance), isA(FullscreenCallback.class));
+        verify(fxLib).register_is_fullscreen_callback(eq(instance), isA(IsFullscreenCallback.class));
+        verify(eventPublisher).register(eq(PlayerStoppedEvent.class), isA(Function.class));
     }
 
     @Test
@@ -79,8 +81,8 @@ class ScreenServiceImplTest {
         when(viewManager.primaryStageProperty()).thenReturn(primaryStageProperty);
         when(primaryStage.fullScreenProperty()).thenReturn(fullscreenProperty);
         when(applicationConfig.isKioskMode()).thenReturn(false);
+        var screenService = new ScreenServiceImpl(viewManager, applicationConfig, eventPublisher, maximizeService, fxLib, instance);
         screenService.fullscreenProperty().addListener((observable, oldValue, newValue) -> future.complete(newValue));
-        screenService.init();
 
         primaryStageListener.get().changed(null, null, primaryStage);
         screenService.toggleFullscreen();
@@ -95,7 +97,7 @@ class ScreenServiceImplTest {
         when(viewManager.primaryStageProperty()).thenReturn(primaryStageProperty);
         when(primaryStage.fullScreenProperty()).thenReturn(fullscreenProperty);
         when(applicationConfig.isKioskMode()).thenReturn(true);
-        screenService.init();
+        var screenService = new ScreenServiceImpl(viewManager, applicationConfig, eventPublisher, maximizeService, fxLib, instance);
 
         primaryStageListener.get().changed(null, null, primaryStage);
 

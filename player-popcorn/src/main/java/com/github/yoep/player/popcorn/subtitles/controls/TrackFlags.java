@@ -5,9 +5,9 @@ import com.github.yoep.popcorn.backend.subtitles.model.SubtitleText;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
-import org.springframework.util.Assert;
 
 import java.util.Arrays;
+import java.util.Objects;
 
 @Getter
 @ToString
@@ -79,7 +79,7 @@ public class TrackFlags {
      * @param flags The flags to add to this track.
      */
     public void addFlags(TrackFlags[] flags) {
-        Assert.notNull(flags, "flags cannot be null");
+        Objects.requireNonNull(flags, "flags cannot be null");
         Arrays.stream(flags).forEach(this::addFlag);
     }
 

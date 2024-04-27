@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
-import com.github.spring.boot.javafx.stereotype.ViewController;
 import com.github.yoep.popcorn.backend.playlists.PlaylistItem;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManagerListener;
@@ -24,7 +23,7 @@ import java.util.Optional;
 import java.util.ResourceBundle;
 
 @Slf4j
-@ViewController
+
 @RequiredArgsConstructor
 public class PlayingNextInComponent implements Initializable {
     private final ImageService imageService;
@@ -174,7 +173,7 @@ public class PlayingNextInComponent implements Initializable {
 
     @FXML
     void onPlayNextStopPressed(KeyEvent event) {
-        if(event.getCode() == KeyCode.ENTER) {
+        if (event.getCode() == KeyCode.ENTER) {
             event.consume();
             onPlayNextStop();
         }

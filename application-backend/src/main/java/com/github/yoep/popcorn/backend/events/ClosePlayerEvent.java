@@ -3,7 +3,6 @@ package com.github.yoep.popcorn.backend.events;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
-import org.springframework.context.ApplicationEvent;
 
 /**
  * Event indicating that the player is being closed.

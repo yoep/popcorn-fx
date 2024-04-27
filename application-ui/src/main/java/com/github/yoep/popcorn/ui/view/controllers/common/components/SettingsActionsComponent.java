@@ -1,10 +1,9 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
-import com.github.spring.boot.javafx.stereotype.ViewController;
-import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
+import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.SuccessNotificationEvent;
 import javafx.fxml.FXML;
 import javafx.scene.input.KeyCode;
@@ -14,7 +13,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-@ViewController
+
 @RequiredArgsConstructor
 public class SettingsActionsComponent {
     static final String SUBTITLES_CLEANED_MESSAGE = "subtitles_cleaned";

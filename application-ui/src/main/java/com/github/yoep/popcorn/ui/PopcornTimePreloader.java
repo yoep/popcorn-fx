@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.ui;
 
-import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.lib.FxLibInstance;
@@ -18,13 +17,16 @@ import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.io.ClassPathResource;
 
 import java.awt.*;
 import java.io.File;
+import java.io.InputStream;
+import java.net.URL;
 
 @Slf4j
 public class PopcornTimePreloader extends Preloader {
+    public static final String IMAGES_DIRECTORY = "/images";
+
     private final FxLib fxLib;
     private final PopcornFx instance;
 
@@ -44,8 +46,8 @@ public class PopcornTimePreloader extends Preloader {
 
     @Override
     public void start(Stage primaryStage) throws Exception {
-        var icon = new Image(getIconResource().getInputStream());
-        var parent = new FXMLLoader(getPreloaderResource().getURL()).<Parent>load();
+        var icon = new Image(getIconResource());
+        var parent = new FXMLLoader(getPreloaderResource()).<Parent>load();
         var scene = new Scene(parent);
         var mouse = MouseInfo.getPointerInfo().getLocation();
 
@@ -113,12 +115,14 @@ public class PopcornTimePreloader extends Preloader {
         }
     }
 
-    private ClassPathResource getIconResource() {
-        return new ClassPathResource(ViewLoader.IMAGE_DIRECTORY + File.separator + PopcornTimeApplication.ICON_NAME);
+    private InputStream getIconResource() {
+        return PopcornTimePreloader.class
+                .getResourceAsStream(IMAGES_DIRECTORY + File.separator + PopcornTimeApplication.ICON_NAME);
     }
 
-    private ClassPathResource getPreloaderResource() {
-        return new ClassPathResource(ViewLoader.VIEW_DIRECTORY + "/preloader.fxml");
+    private URL getPreloaderResource() {
+        return PopcornTimePreloader.class
+                .getResource("/views" + File.separator + "preloader.fxml");
     }
 
     /**

@@ -5,9 +5,9 @@ import com.github.yoep.popcorn.backend.adapters.torrent.TorrentException;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
-import org.springframework.util.Assert;
 
 import java.util.Arrays;
+import java.util.Objects;
 
 @Getter
 @ToString
@@ -44,7 +44,7 @@ class TorrentPieces {
      * @param priorities The torrent priorities.
      */
     public void determineDownloadPieceIndexes(Priority[] priorities) {
-        Assert.notNull(priorities, "priorities cannot be null");
+        Objects.requireNonNull(priorities, "priorities cannot be null");
         // verify if not all files are ignored
         // if so, it means that the file priorities have not been set correctly
         if (isEverythingIgnored(priorities)) {

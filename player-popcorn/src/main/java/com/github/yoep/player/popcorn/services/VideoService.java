@@ -14,18 +14,17 @@ import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.util.Assert;
 
 import javax.annotation.PreDestroy;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
  * The video service is responsible for handling the active video player and surface.
  */
 @Slf4j
-@Service
+
 @RequiredArgsConstructor
 public class VideoService extends AbstractListenerService<PlaybackListener> {
     public static final String VIDEO_PLAYER_PROPERTY = "videoPlayer";
@@ -59,7 +58,7 @@ public class VideoService extends AbstractListenerService<PlaybackListener> {
     //region Methods
 
     public void onPlay(PlayRequest request) {
-        Assert.notNull(request, "request cannot be null");
+        Objects.requireNonNull(request, "request cannot be null");
         var url = request.getUrl();
 
         try {
@@ -143,7 +142,7 @@ public class VideoService extends AbstractListenerService<PlaybackListener> {
      * @throws VideoPlayerException Is thrown when no video player could be found that supports the given url.
      */
     private VideoPlayback switchSupportedVideoPlayer(String url) {
-        Assert.notNull(url, "url cannot be null");
+        Objects.requireNonNull(url, "url cannot be null");
         var videoPlayer = videoPlaybacks.stream()
                 .filter(e -> e.supports(url))
                 .findFirst()

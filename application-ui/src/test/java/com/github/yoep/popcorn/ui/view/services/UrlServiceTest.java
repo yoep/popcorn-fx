@@ -1,8 +1,8 @@
 package com.github.yoep.popcorn.ui.view.services;
 
-import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.loader.LoaderService;
+import com.github.yoep.popcorn.backend.utils.LocaleText;
 import javafx.application.Application;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,7 +29,7 @@ class UrlServiceTest {
 
     @Test
     void testOpen_whenUrlIsNull_shouldThrowIllegalArgumentException() {
-        assertThrows(IllegalArgumentException.class, () -> urlService.open((String) null), "url cannot be null");
+        assertThrows(NullPointerException.class, () -> urlService.open(null), "url cannot be null");
     }
 
     @Test

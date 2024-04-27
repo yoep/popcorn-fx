@@ -13,13 +13,16 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Collections;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -29,6 +32,8 @@ class ShowProviderServiceTest {
     private FxLib fxLib;
     @Mock
     private PopcornFx instance;
+    @Spy
+    private ExecutorService executorService = Executors.newSingleThreadExecutor();
     @InjectMocks
     private ShowProviderService provider;
 
@@ -53,7 +58,7 @@ class ShowProviderServiceTest {
 
         var result = provider.getPage(genre, sortBy, 1).get();
 
-        assertEquals(expectedResult, result.getContent());
+        assertEquals(expectedResult, result);
     }
 
     @Test
@@ -67,7 +72,12 @@ class ShowProviderServiceTest {
         mediaResult.union.err.mediaError = MediaError.NoAvailableProviders;
         when(fxLib.retrieve_available_shows(instance, genre, sortBy, "", 1)).thenReturn(mediaResult);
 
-        assertThrows(MediaRetrievalException.class, () -> provider.getPage(genre, sortBy, 1));
+        try {
+            provider.getPage(genre, sortBy, 1).get();
+            fail("expected an exception");
+        } catch (Exception e) {
+            assertEquals(MediaRetrievalException.class, e.getCause().getClass());
+        }
     }
 
     @Test
@@ -83,7 +93,7 @@ class ShowProviderServiceTest {
 
         var result = provider.getPage(genre, sortBy, 1).get();
 
-        assertEquals(Collections.emptyList(), result.getContent());
+        assertEquals(Collections.emptyList(), result);
     }
 
     @Test
@@ -97,6 +107,11 @@ class ShowProviderServiceTest {
         mediaResult.union.err.mediaError = MediaError.Failed;
         when(fxLib.retrieve_available_shows(instance, genre, sortBy, "", 1)).thenReturn(mediaResult);
 
-        assertThrows(MediaException.class, () -> provider.getPage(genre, sortBy, 1));
+        try {
+            provider.getPage(genre, sortBy, 1).get();
+            fail("expected an exception");
+        } catch (Exception e) {
+            assertEquals(MediaException.class, e.getCause().getClass());
+        }
     }
 }

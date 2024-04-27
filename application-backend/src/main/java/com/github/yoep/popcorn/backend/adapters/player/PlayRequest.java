@@ -2,7 +2,6 @@ package com.github.yoep.popcorn.backend.adapters.player;
 
 import com.github.yoep.popcorn.backend.lib.Handle;
 
-import javax.validation.constraints.NotNull;
 import java.util.Optional;
 
 /**
@@ -16,7 +15,7 @@ public interface PlayRequest {
      *
      * @return The playback URL.
      */
-    @NotNull
+    
     String getUrl();
 
     /**

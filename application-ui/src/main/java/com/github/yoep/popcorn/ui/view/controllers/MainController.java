@@ -1,15 +1,16 @@
 package com.github.yoep.popcorn.ui.view.controllers;
 
-import com.github.spring.boot.javafx.ui.scale.ScaleAwareImpl;
-import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.events.*;
 import com.github.yoep.popcorn.backend.playlists.Playlist;
 import com.github.yoep.popcorn.backend.playlists.PlaylistItem;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
+import com.github.yoep.popcorn.ui.ApplicationArgs;
 import com.github.yoep.popcorn.ui.events.CloseLoadEvent;
+import com.github.yoep.popcorn.ui.scale.PopcornScaleAware;
 import com.github.yoep.popcorn.ui.stage.BorderlessStageHolder;
+import com.github.yoep.popcorn.ui.view.ViewLoader;
 import com.github.yoep.popcorn.ui.view.services.UrlService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -20,12 +21,10 @@ import javafx.scene.Scene;
 import javafx.scene.input.*;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.boot.ApplicationArguments;
 
 import java.io.File;
 import java.io.IOException;
@@ -36,9 +35,10 @@ import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static java.util.Arrays.asList;
+
 @Slf4j
-@RequiredArgsConstructor
-public class MainController extends ScaleAwareImpl implements Initializable {
+public class MainController extends PopcornScaleAware implements Initializable {
     static final String TV_STYLESHEET = "/styles/tv.css";
     static final String MOUSE_DISABLED_STYLE_CLASS = "mouse-disabled";
 
@@ -53,11 +53,11 @@ public class MainController extends ScaleAwareImpl implements Initializable {
 
     private final EventPublisher eventPublisher;
     private final ViewLoader viewLoader;
-    private final ApplicationArguments arguments;
     private final UrlService urlService;
     private final ApplicationConfig applicationConfig;
     private final PlatformProvider platformProvider;
     private final PlaylistManager playlistManager;
+    private final ApplicationArgs applicationArgs;
 
     @FXML
     AnchorPane root;
@@ -66,6 +66,22 @@ public class MainController extends ScaleAwareImpl implements Initializable {
     Pane loaderPane;
     Pane notificationPane;
     SectionType currentSection;
+
+    public MainController(EventPublisher eventPublisher,
+                          ViewLoader viewLoader,
+                          UrlService urlService,
+                          ApplicationConfig applicationConfig,
+                          PlatformProvider platformProvider,
+                          PlaylistManager playlistManager,
+                          ApplicationArgs applicationArgs) {
+        this.eventPublisher = eventPublisher;
+        this.viewLoader = viewLoader;
+        this.urlService = urlService;
+        this.applicationConfig = applicationConfig;
+        this.platformProvider = platformProvider;
+        this.playlistManager = playlistManager;
+        this.applicationArgs = applicationArgs;
+    }
 
     //region Initializable
 
@@ -97,8 +113,11 @@ public class MainController extends ScaleAwareImpl implements Initializable {
     }
 
     private void initializeSection() {
-        if (!processApplicationArguments())
+        if (processApplicationArguments()) {
+            switchSection(SectionType.PLAYER);
+        } else {
             switchSection(SectionType.CONTENT);
+        }
     }
 
     private void initializeOptions() {
@@ -154,21 +173,14 @@ public class MainController extends ScaleAwareImpl implements Initializable {
      * Initializes/loads the panes required for this controller.
      */
     private void initializePanes() {
-        // load the content & notification pane on the main thread
-        // this blocks Spring from completing the startup stage while these panes are being loaded
         contentPane = viewLoader.load("common/sections/content.section.fxml");
+        playerPane = viewLoader.load("common/sections/player.section.fxml");
+        loaderPane = viewLoader.load("common/sections/loader.section.fxml");
         notificationPane = viewLoader.load("common/sections/notification.section.fxml");
 
         anchor(contentPane);
-
-        // load the other panes on a different thread
-        new Thread(() -> {
-            playerPane = viewLoader.load("common/sections/player.section.fxml");
-            loaderPane = viewLoader.load("common/sections/loader.section.fxml");
-
-            anchor(playerPane);
-            anchor(loaderPane);
-        }, "MainController.loader").start();
+        anchor(playerPane);
+        anchor(loaderPane);
     }
 
     private void onContentPasted() {
@@ -244,15 +256,13 @@ public class MainController extends ScaleAwareImpl implements Initializable {
     }
 
     protected boolean processApplicationArguments() {
-        var nonOptionArgs = arguments.getNonOptionArgs();
-
-        if (nonOptionArgs.size() > 0) {
-            log.debug("Retrieved the following non-option argument: {}", nonOptionArgs);
+        if (applicationArgs.args().length > 0) {
+            log.debug("Retrieved the following non-option argument: {}", asList(applicationArgs));
 
             // try to process the url that has been passed along the application during startup
             // if the url is processed with success, wait for the activity event to change the section
             // otherwise, we still show the content section
-            return urlService.process(nonOptionArgs.get(0));
+            return urlService.process(applicationArgs.args()[0]);
         }
 
         return false;
@@ -276,7 +286,8 @@ public class MainController extends ScaleAwareImpl implements Initializable {
 
         Platform.runLater(() -> {
             root.getChildren().removeIf(e -> e != notificationPane);
-            root.getChildren().add(0, content.get());
+            Optional.ofNullable(content.get())
+                    .ifPresent(e -> root.getChildren().add(0, e));
         });
     }
 

@@ -4,9 +4,8 @@ import com.github.yoep.popcorn.backend.media.filters.model.Category;
 import com.github.yoep.popcorn.backend.media.filters.model.Genre;
 import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
 import com.github.yoep.popcorn.backend.media.providers.models.Media;
-import org.springframework.data.domain.Page;
-import org.springframework.scheduling.annotation.Async;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 public interface ProviderService<T extends Media> {
@@ -26,8 +25,7 @@ public interface ProviderService<T extends Media> {
      * @param page   The page to retrieve.
      * @return Returns the list of {@link Media} items for the given page.
      */
-    @Async
-    CompletableFuture<Page<T>> getPage(Genre genre, SortBy sortBy, int page);
+    CompletableFuture<List<T>> getPage(Genre genre, SortBy sortBy, int page);
 
     /**
      * Get the given page with search criteria for this media provider service.
@@ -38,8 +36,7 @@ public interface ProviderService<T extends Media> {
      * @param keywords The search keywords to search on.
      * @return Returns the list of {@link Media} items for the given page.
      */
-    @Async
-    CompletableFuture<Page<T>> getPage(Genre genre, SortBy sortBy, int page, String keywords);
+    CompletableFuture<List<T>> getPage(Genre genre, SortBy sortBy, int page, String keywords);
 
     /**
      * Retrieve the full details of the {@link Media} item.
@@ -48,7 +45,6 @@ public interface ProviderService<T extends Media> {
      * @param media The media item to retrieve the details of.
      * @return Returns the retrieved media details.
      */
-    @Async
     CompletableFuture<Media> retrieveDetails(Media media);
 
     /**

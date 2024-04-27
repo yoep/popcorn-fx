@@ -65,7 +65,7 @@
 }
 
 .root .muted {
-    -fx-text-fill: #999999;
+    -fx-text-fill: #999999 !important;
 }
 
 .root .tooltip {
@@ -852,11 +852,6 @@
 .root .player .player-header .title {
     -fx-font-family: "Open Sans Bold";
     -fx-text-fill: #fff;
-    -fx-font-size: 1.8em;
-}
-
-.root .player .player-header .caption {
-    -fx-font-family: "Open Sans";
     -fx-font-size: 1.8em;
 }
 

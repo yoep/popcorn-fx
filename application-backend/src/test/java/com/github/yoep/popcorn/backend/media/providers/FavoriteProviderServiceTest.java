@@ -11,9 +11,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -24,6 +27,8 @@ class FavoriteProviderServiceTest {
     private FxLib fxLib;
     @Mock
     private PopcornFx instance;
+    @Spy
+    private ExecutorService executorService = Executors.newSingleThreadExecutor();
     @InjectMocks
     private FavoriteProviderService service;
 

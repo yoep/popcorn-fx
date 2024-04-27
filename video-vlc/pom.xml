@@ -17,11 +17,6 @@
             <artifactId>application-backend</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <dependency>
-            <groupId>com.github.yoep</groupId>
-            <artifactId>shared-vlc</artifactId>
-            <version>${project.version}</version>
-        </dependency>
 
         <!-- JavaFX -->
         <dependency>

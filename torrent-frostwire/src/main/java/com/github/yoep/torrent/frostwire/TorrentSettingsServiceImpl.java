@@ -6,7 +6,6 @@ import com.github.yoep.popcorn.backend.adapters.torrent.state.SessionState;
 import javafx.beans.value.ChangeListener;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
 
@@ -21,7 +20,6 @@ public class TorrentSettingsServiceImpl implements TorrentSettingsService {
 
     @Override
     public TorrentSettingsService connectionsLimit(int connectionsLimit) {
-        Assert.state(connectionsLimit >= 0, "connectionsLimit cannot be smaller than 0");
         settings.connectionsLimit(connectionsLimit);
         applySettings();
         return this;
@@ -29,7 +27,6 @@ public class TorrentSettingsServiceImpl implements TorrentSettingsService {
 
     @Override
     public TorrentSettingsService downloadRateLimit(int downloadRateLimit) {
-        Assert.state(downloadRateLimit >= 0, "downloadRateLimit cannot be smaller than 0");
         settings.downloadRateLimit(downloadRateLimit);
         applySettings();
         return this;
@@ -37,7 +34,6 @@ public class TorrentSettingsServiceImpl implements TorrentSettingsService {
 
     @Override
     public TorrentSettingsService uploadRateLimit(int uploadRateLimit) {
-        Assert.state(uploadRateLimit >= 0, "uploadRateLimit cannot be smaller than 0");
         settings.uploadRateLimit(uploadRateLimit);
         applySettings();
         return this;

@@ -1,6 +1,6 @@
 package com.github.yoep.player.popcorn.controls;
 
-import com.github.spring.boot.javafx.font.controls.IconSolid;
+import com.github.yoep.popcorn.ui.font.controls.IconSolid;
 import javafx.application.Platform;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;

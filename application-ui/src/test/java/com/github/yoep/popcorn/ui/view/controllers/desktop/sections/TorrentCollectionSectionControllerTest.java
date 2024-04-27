@@ -1,9 +1,9 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.sections;
 
-import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.loader.LoaderService;
 import com.github.yoep.popcorn.backend.torrent.collection.StoredTorrent;
+import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.ShowTorrentCollectionEvent;
 import com.github.yoep.popcorn.ui.torrent.TorrentCollectionService;
 import com.github.yoep.popcorn.ui.torrent.controls.TorrentCollection;

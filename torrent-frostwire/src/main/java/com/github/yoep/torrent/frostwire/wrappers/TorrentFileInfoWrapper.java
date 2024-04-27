@@ -5,7 +5,8 @@ import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentFileInfo;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
-import org.springframework.util.Assert;
+
+import java.util.Objects;
 
 @ToString(exclude = "torrentInfo")
 @EqualsAndHashCode(exclude = "torrentInfo")
@@ -17,7 +18,7 @@ public class TorrentFileInfoWrapper implements TorrentFileInfo {
     //region Constructors
 
     TorrentFileInfoWrapper(TorrentInfoWrapper infoWrapper, int index) {
-        Assert.notNull(infoWrapper, "torrentInfo cannot be null");
+        Objects.requireNonNull(infoWrapper, "torrentInfo cannot be null");
         this.torrentInfo = infoWrapper;
         this.fileStorage = infoWrapper.getNative().files();
         this.index = index;

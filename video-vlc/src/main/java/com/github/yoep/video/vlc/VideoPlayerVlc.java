@@ -12,15 +12,12 @@ import javafx.scene.layout.Pane;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.util.Assert;
-import org.springframework.util.StringUtils;
 import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
 import uk.co.caprica.vlcj.javafx.videosurface.ImageViewVideoSurface;
 import uk.co.caprica.vlcj.player.base.MediaPlayer;
 import uk.co.caprica.vlcj.player.base.MediaPlayerEventAdapter;
 import uk.co.caprica.vlcj.player.embedded.EmbeddedMediaPlayer;
 
-import javax.annotation.PostConstruct;
 import java.io.File;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -74,7 +71,7 @@ public class VideoPlayerVlc extends AbstractVideoPlayer implements VideoPlayback
 
     @Override
     public boolean supports(String url) {
-        return isInitialized() && StringUtils.hasText(url);
+        return isInitialized() && url != null && !url.isBlank();
     }
 
     @Override
@@ -105,7 +102,7 @@ public class VideoPlayerVlc extends AbstractVideoPlayer implements VideoPlayback
 
     @Override
     public void addListener(VideoListener listener) {
-        Assert.notNull(listener, "listener cannot be null");
+        Objects.requireNonNull(listener, "listener cannot be null");
         listeners.add(listener);
     }
 
@@ -191,25 +188,6 @@ public class VideoPlayerVlc extends AbstractVideoPlayer implements VideoPlayback
 
     //endregion
 
-    //region PostConstruct
-
-    @PostConstruct
-    void init() {
-        log.trace("Initializing VLC player");
-
-        try {
-            this.mediaPlayer.videoSurface().set(new ImageViewVideoSurface(videoSurface));
-
-            initialized = true;
-            log.trace("VLC player initialization done");
-        } catch (Exception ex) {
-            log.error("Failed to initialize VLC player, " + ex.getMessage(), ex);
-            setError(new VideoPlayerException(ex.getMessage(), ex));
-        }
-    }
-
-    //endregion
-
     //region Functions
 
     private void initialize() {
@@ -220,6 +198,8 @@ public class VideoPlayerVlc extends AbstractVideoPlayer implements VideoPlayback
     }
 
     private void initializeListeners() {
+        log.trace("Initializing VLC player");
+        createVideoSurface();
         videoSurface.parentProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue != null && !bound) {
                 var parent = (Pane) newValue;
@@ -227,6 +207,18 @@ public class VideoPlayerVlc extends AbstractVideoPlayer implements VideoPlayback
                 bindToParent(parent);
             }
         });
+    }
+
+    private void createVideoSurface() {
+        try {
+            this.mediaPlayer.videoSurface().set(new ImageViewVideoSurface(videoSurface));
+
+            initialized = true;
+            log.trace("VLC player initialization done");
+        } catch (Exception ex) {
+            log.error("Failed to initialize VLC player, " + ex.getMessage(), ex);
+            setError(new VideoPlayerException(ex.getMessage(), ex));
+        }
     }
 
     private void initializeEvents() {

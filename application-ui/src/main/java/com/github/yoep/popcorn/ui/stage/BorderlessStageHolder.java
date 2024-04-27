@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.ui.stage;
 
-import com.github.spring.boot.javafx.stage.BorderlessStageWrapper;
 import lombok.Data;
 import lombok.Setter;
 

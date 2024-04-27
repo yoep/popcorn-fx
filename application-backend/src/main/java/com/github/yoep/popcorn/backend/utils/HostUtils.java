@@ -4,7 +4,6 @@ import com.github.yoep.popcorn.backend.PopcornException;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
-import javax.validation.constraints.NotNull;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
@@ -18,7 +17,7 @@ public class HostUtils {
      * @return Returns the host address.
      * @throws PopcornException Is thrown when the host address couldn't be retrieved.
      */
-    @NotNull
+    
     public static String hostAddress() {
         try {
             return InetAddress.getLocalHost().getHostAddress();

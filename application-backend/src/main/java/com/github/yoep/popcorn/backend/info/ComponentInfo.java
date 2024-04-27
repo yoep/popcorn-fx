@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.backend.info;
 
-import javax.validation.constraints.NotNull;
 import java.beans.PropertyChangeListener;
 import java.util.Optional;
 
@@ -13,7 +12,7 @@ public interface ComponentInfo {
      *
      * @return Returns the name of the component.
      */
-    @NotNull
+    
     String getName();
 
     /**
@@ -35,5 +34,5 @@ public interface ComponentInfo {
      *
      * @param listener The listener to register.
      */
-    void addChangeListener(@NotNull PropertyChangeListener listener);
+    void addChangeListener( PropertyChangeListener listener);
 }

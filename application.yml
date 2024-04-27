@@ -1,6 +1,5 @@
 logging:
   level:
-    com.github.yoep.player.chromecast: INFO
     com.github.yoep.popcorn.backend.events: INFO
     com.github.yoep.popcorn.backend.media.favorites: INFO
     com.github.yoep.popcorn.backend.media.providers: INFO
@@ -10,14 +9,18 @@ logging:
     com.github.yoep.popcorn.backend.subtitles: INFO
     com.github.yoep.popcorn.backend.torrent: INFO
     com.github.yoep.popcorn.media: INFO
-    com.github.yoep.popcorn.ui: INFO
-    com.github.yoep.popcorn.view: INFO
+    com.github.yoep.popcorn.ui.events: INFO
+    com.github.yoep.popcorn.ui.font: INFO
+    com.github.yoep.popcorn.ui.info: INFO
+    com.github.yoep.popcorn.ui.messages: INFO
+    com.github.yoep.popcorn.ui.platform: INFO
+    com.github.yoep.popcorn.ui.view: INFO
+    com.github.yoep.popcorn.ui: DEBUG
     com.github.yoep.popcorn: INFO
     com.github.yoep.torrent.frostwire: INFO
     com.github.yoep.video.vlc: INFO
     com.github.yoep.video.youtube: INFO
     com.github.yoep.video: INFO
-    org.springframework: INFO
 
 popcorn:
   loggers:
@@ -66,7 +69,7 @@ popcorn:
     popcorn_fx_platform:
       level: info
     popcorn_fx_players::chromecast:
-      level: trace
+      level: info
     popcorn_fx_players::dlna:
       level: info
     popcorn_fx_players::vlc:

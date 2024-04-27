@@ -1,8 +1,5 @@
 package com.github.yoep.player.popcorn.controllers.sections;
 
-import com.github.spring.boot.javafx.stereotype.ViewController;
-import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.player.popcorn.listeners.PopcornPlayerSectionListener;
 import com.github.yoep.player.popcorn.messages.VideoMessage;
 import com.github.yoep.player.popcorn.services.PopcornPlayerSectionService;
@@ -16,7 +13,9 @@ import com.github.yoep.popcorn.backend.player.PlayerAction;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.DecorationType;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
+import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.SubtitleOffsetEvent;
+import com.github.yoep.popcorn.ui.view.ViewLoader;
 import javafx.animation.FadeTransition;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
@@ -42,7 +41,7 @@ import java.net.URL;
 import java.util.ResourceBundle;
 
 @Slf4j
-@ViewController
+
 @RequiredArgsConstructor
 public class PopcornPlayerSectionController implements Initializable {
     static final int OVERLAY_FADE_DURATION = 1500;

@@ -27,7 +27,7 @@ public class ProgressInfoComponent {
     /**
      * Updates the UI components based on the provided download status.
      *
-     * @param  status   the download status to update the UI with
+     * @param status the download status to update the UI with
      */
     public void update(DownloadStatus status) {
         Objects.requireNonNull(status, "status cannot be null");

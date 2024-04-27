@@ -8,25 +8,24 @@ import com.github.yoep.popcorn.backend.media.providers.models.Media;
 import javafx.scene.image.Image;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Async;
-import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 
 /**
  * Image service for loading external images over HTTP/HTTPS.
  * This image service selects the correct image from the {@link Media} items and will handle redirects automatically.
  */
 @Slf4j
-@Service
 @RequiredArgsConstructor
 public class ImageService {
     private final FxLib fxLib;
     private final PopcornFx instance;
+    private final ExecutorService executorService;
 
     //region Methods
 
@@ -68,19 +67,20 @@ public class ImageService {
      * @return Returns the fanart image if available, else {@link Optional#empty()}.
      * @throws ImageException Is thrown when the image data failed to load.
      */
-    @Async
     public CompletableFuture<Optional<Image>> loadFanart(Media media) {
         Objects.requireNonNull(media, "media cannot be null");
-        log.debug("Loading fanart image for {}", media);
-        try (var bytes = fxLib.load_fanart(instance, MediaItem.from(media))) {
-            return CompletableFuture.completedFuture(Optional.of(bytes)
-                    .map(ByteArray::getBytes)
-                    .map(ByteArrayInputStream::new)
-                    .map(Image::new));
-        } catch (Exception ex) {
-            log.error("Failed to load image, {}", ex.getMessage(), ex);
-            return CompletableFuture.completedFuture(Optional.empty());
-        }
+        return CompletableFuture.supplyAsync(() -> {
+            log.debug("Loading fanart image for {}", media);
+            try (var bytes = fxLib.load_fanart(instance, MediaItem.from(media))) {
+                return Optional.of(bytes)
+                        .map(ByteArray::getBytes)
+                        .map(ByteArrayInputStream::new)
+                        .map(Image::new);
+            } catch (Exception ex) {
+                log.error("Failed to load image, {}", ex.getMessage(), ex);
+                return Optional.empty();
+            }
+        }, executorService);
     }
 
     /**
@@ -90,7 +90,6 @@ public class ImageService {
      * @return Returns the poster image if available, else {@link Optional#empty()}.
      * @throws ImageException Is thrown when the image data failed to load.
      */
-    @Async
     public CompletableFuture<Optional<Image>> loadPoster(Media media) {
         return loadPoster(media, 0, 0);
     }
@@ -105,19 +104,20 @@ public class ImageService {
      * @return Returns the poster image if available, else {@link Optional#empty()}.
      * @throws ImageException Is thrown when the image data failed to load.
      */
-    @Async
     public CompletableFuture<Optional<Image>> loadPoster(final Media media, final double width, final double height) {
         Objects.requireNonNull(media, "media cannot be null");
-        log.debug("Loading the poster holder for {}", media);
-        try (var bytes = fxLib.load_poster(instance, MediaItem.from(media))) {
-            return CompletableFuture.completedFuture(Optional.of(bytes)
-                    .map(ByteArray::getBytes)
-                    .map(ByteArrayInputStream::new)
-                    .map(e -> new Image(e, width, height, true, true)));
-        } catch (Exception ex) {
-            log.error("Failed to load image, {}", ex.getMessage(), ex);
-            return CompletableFuture.completedFuture(Optional.empty());
-        }
+        return CompletableFuture.supplyAsync(() -> {
+            log.debug("Loading the poster holder for {}", media);
+            try (var bytes = fxLib.load_poster(instance, MediaItem.from(media))) {
+                return Optional.of(bytes)
+                        .map(ByteArray::getBytes)
+                        .map(ByteArrayInputStream::new)
+                        .map(e -> new Image(e, width, height, true, true));
+            } catch (Exception ex) {
+                log.error("Failed to load image, {}", ex.getMessage(), ex);
+                return Optional.empty();
+            }
+        }, executorService);
     }
 
     /**
@@ -127,16 +127,17 @@ public class ImageService {
      * @return Returns the image data.
      * @throws ImageException Is thrown when the image data failed to load.
      */
-    @Async
     public CompletableFuture<Image> load(String url) {
         Objects.requireNonNull(url, "url cannot be null");
-        try (var bytes = fxLib.load_image(instance, url)) {
-            return CompletableFuture.completedFuture(Optional.ofNullable(bytes)
-                    .map(ByteArray::getBytes)
-                    .map(ByteArrayInputStream::new)
-                    .map(Image::new)
-                    .orElseThrow(() -> new ImageException(url, "Failed to load image data")));
-        }
+        return CompletableFuture.supplyAsync(() -> {
+            try (var bytes = fxLib.load_image(instance, url)) {
+                return Optional.ofNullable(bytes)
+                        .map(ByteArray::getBytes)
+                        .map(ByteArrayInputStream::new)
+                        .map(Image::new)
+                        .orElseThrow(() -> new ImageException(url, "Failed to load image data"));
+            }
+        }, executorService);
     }
 
     /**
@@ -146,16 +147,17 @@ public class ImageService {
      * @return Returns the loaded image resource.
      * @throws ImageException Is thrown when the resource image failed to load.
      */
-    @Async
     public CompletableFuture<Image> loadResource(String url) {
         Objects.requireNonNull(url, "url cannot be empty");
-        var classpathUrl = "/images/" + url;
+        return CompletableFuture.supplyAsync(() -> {
+            var classpathUrl = "/images/" + url;
 
-        try (var resource = getClass().getResource(classpathUrl).openStream()) {
-            return CompletableFuture.completedFuture(new Image(resource));
-        } catch (IOException ex) {
-            throw new ImageException(classpathUrl, ex.getMessage(), ex);
-        }
+            try (var resource = ImageService.class.getResourceAsStream(classpathUrl)) {
+                return new Image(resource);
+            } catch (IOException ex) {
+                throw new ImageException(classpathUrl, ex.getMessage(), ex);
+            }
+        }, executorService);
     }
 
     //endregion

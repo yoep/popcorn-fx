@@ -23,10 +23,10 @@
         </Label>
         <Label fx:id="separator" styleClass="title" cache="true">
             <padding>
-                <Insets left="3" right="3"/>
+                <Insets left="5" right="5"/>
             </padding>
             -
         </Label>
-        <Label fx:id="caption" styleClass="caption, muted" cache="true" />
+        <Label fx:id="caption" styleClass="title, muted" cache="true" />
     </HBox>
 </GridPane>

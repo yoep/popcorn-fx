@@ -1,12 +1,12 @@
 package com.github.yoep.popcorn.ui.view.controllers;
 
-import com.github.spring.boot.javafx.text.LocaleText;
-import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowAboutEvent;
 import com.github.yoep.popcorn.backend.media.filters.model.Category;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
+import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.*;
+import com.github.yoep.popcorn.ui.view.ViewLoader;
 import com.github.yoep.popcorn.ui.view.services.MaximizeService;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -25,6 +25,7 @@ import org.testfx.util.WaitForAsyncUtils;
 
 import java.net.URL;
 import java.util.ResourceBundle;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -44,6 +45,8 @@ class ContentSectionControllerTest {
     @Mock
     private ApplicationConfig applicationConfig;
     @Mock
+    private ExecutorService executorService;
+    @Mock
     private URL url;
     @Mock
     private ResourceBundle resourceBundle;
@@ -52,6 +55,11 @@ class ContentSectionControllerTest {
 
     @BeforeEach
     void setUp() {
+        lenient().doAnswer(invocation -> {
+            var runnable = invocation.getArgument(0, Runnable.class);
+            runnable.run();
+            return null;
+        }).when(executorService).execute(any(Runnable.class));
         lenient().when(viewLoader.load(isA(String.class))).thenReturn(new Pane());
         controller.contentPane = new Pane();
         controller.listPane = new Pane();

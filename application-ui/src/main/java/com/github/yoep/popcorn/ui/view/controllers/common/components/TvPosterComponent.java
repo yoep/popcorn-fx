@@ -8,15 +8,12 @@ import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.layout.Pane;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.annotation.PostConstruct;
 import java.util.Objects;
 import java.util.Optional;
 
 @Slf4j
-@RequiredArgsConstructor
 public class TvPosterComponent {
     private final EventPublisher eventPublisher;
     private final ImageService imageService;
@@ -28,16 +25,23 @@ public class TvPosterComponent {
     @FXML
     ImageCover poster;
 
-    @PostConstruct
-    void init() {
+    public TvPosterComponent(EventPublisher eventPublisher, ImageService imageService) {
+        Objects.requireNonNull(eventPublisher, "eventPublisher cannot be null");
+        Objects.requireNonNull(imageService, "imageService cannot be null");
+        this.eventPublisher = eventPublisher;
+        this.imageService = imageService;
+        init();
+    }
+
+    private void init() {
         eventPublisher.register(ShowDetailsEvent.class, e -> {
             Optional.ofNullable(e.getMedia())
-                    .ifPresent(this::onPlayEvent);
+                    .ifPresent(this::onShowDetailsEvent);
             return e;
         });
     }
 
-    void onPlayEvent(Media media) {
+    void onShowDetailsEvent(Media media) {
         if (Objects.equals(media, this.media))
             return;
 
@@ -50,9 +54,11 @@ public class TvPosterComponent {
 
         imageService.loadPoster(media).whenComplete((image, throwable) -> {
             if (throwable == null) {
-                Platform.runLater(() -> image.ifPresent(poster::setImage));
+                Platform.runLater(() -> image
+                        .filter(e -> !e.isError())
+                        .ifPresent(poster::setImage));
             } else {
-                log.error(throwable.getMessage(), throwable);
+                log.error("Failed to load poster image, {}", throwable.getMessage(), throwable);
             }
         });
     }

@@ -1801,11 +1801,27 @@ bool is_subtitle_disabled(PopcornFX *popcorn_fx);
 /// Verify if the TV mode is activated for the application.
 bool is_tv_mode(PopcornFX *popcorn_fx);
 
-/// Verify if the vlc video player has been disabled.
-bool is_vlc_video_player_disabled(PopcornFX *popcorn_fx);
+/// Checks if the VLC video player is enabled in the PopcornFX options.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to the PopcornFX instance.
+///
+/// # Returns
+///
+/// `true` if the VLC video player is enabled, otherwise `false`.
+bool is_vlc_video_player_enabled(PopcornFX *popcorn_fx);
 
-/// Verify if the youtube video player has been disabled.
-bool is_youtube_video_player_disabled(PopcornFX *popcorn_fx);
+/// Checks if the YouTube video player is enabled in the PopcornFX options.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to the PopcornFX instance.
+///
+/// # Returns
+///
+/// `true` if the YouTube video player is enabled, otherwise `false`.
+bool is_youtube_video_player_enabled(PopcornFX *popcorn_fx);
 
 /// Loads the fanart image data for the given media item.
 ///

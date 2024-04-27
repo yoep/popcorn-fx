@@ -17,11 +17,9 @@ import javafx.util.Duration;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.util.Assert;
-import org.springframework.util.StringUtils;
 
-import javax.annotation.PostConstruct;
 import java.io.File;
+import java.util.Objects;
 
 @Slf4j
 @ToString
@@ -37,6 +35,10 @@ public class VideoPlayerFX extends AbstractVideoPlayer implements VideoPlayback 
     private Throwable error;
     private boolean initialized;
 
+    public VideoPlayerFX() {
+        init();
+    }
+
     //region Getters
 
     @Override
@@ -51,7 +53,7 @@ public class VideoPlayerFX extends AbstractVideoPlayer implements VideoPlayback 
 
     @Override
     public boolean supports(String url) {
-        return StringUtils.hasText(url);
+        return url != null && !url.isBlank();
     }
 
     @Override
@@ -84,7 +86,7 @@ public class VideoPlayerFX extends AbstractVideoPlayer implements VideoPlayback 
 
     @Override
     public void addListener(VideoListener listener) {
-        Assert.notNull(listener, "listener cannot be null");
+        Objects.requireNonNull(listener, "listener cannot be null");
         listeners.add(listener);
     }
 
@@ -170,7 +172,6 @@ public class VideoPlayerFX extends AbstractVideoPlayer implements VideoPlayback 
 
     //region PostConstruct
 
-    @PostConstruct
     private void init() {
         log.trace("Initializing JavaFX player");
         Platform.runLater(() -> {

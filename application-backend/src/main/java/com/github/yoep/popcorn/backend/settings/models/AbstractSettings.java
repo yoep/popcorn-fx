@@ -1,7 +1,5 @@
 package com.github.yoep.popcorn.backend.settings.models;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
 import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
 import java.util.Objects;
@@ -11,7 +9,6 @@ import java.util.Objects;
  * This includes handling of defaults and changes to the settings.
  */
 public abstract class AbstractSettings implements Settings {
-    @JsonIgnore
     protected final PropertyChangeSupport changes = new PropertyChangeSupport(this);
 
     @Override

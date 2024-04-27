@@ -17,13 +17,11 @@ import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import com.github.yoep.popcorn.ui.view.listeners.PlayerExternalListener;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import java.util.Optional;
 
 @Slf4j
-@Service
 @RequiredArgsConstructor
 public class PlayerExternalComponentService extends AbstractListenerService<PlayerExternalListener> {
     static final int TIME_STEP_OFFSET = 10000;

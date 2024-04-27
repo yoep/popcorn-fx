@@ -7,7 +7,6 @@ import javafx.scene.image.Image;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.StackPane;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.io.ClassPathResource;
 
 import java.text.MessageFormat;
 
@@ -101,8 +100,8 @@ public class BackgroundImageCover extends AnchorPane {
 
     private static Image loadPlaceholder() {
         try {
-            var resource = new ClassPathResource("/images/placeholder-background.jpg");
-            var image = new Image(resource.getInputStream());
+            var resource = BackgroundImageCover.class.getResourceAsStream("/images/placeholder-background.jpg");
+            var image = new Image(resource);
 
             if (!image.isError()) {
                 return image;

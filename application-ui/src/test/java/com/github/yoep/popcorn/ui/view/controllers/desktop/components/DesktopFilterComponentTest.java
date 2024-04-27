@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
-import com.github.spring.boot.javafx.text.LocaleText;
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
@@ -8,6 +7,7 @@ import com.github.yoep.popcorn.backend.lib.FxStringArray;
 import com.github.yoep.popcorn.backend.media.filters.model.Category;
 import com.github.yoep.popcorn.backend.media.filters.model.Genre;
 import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
+import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.CategoryChangedEvent;
 import com.github.yoep.popcorn.ui.events.GenreChangeEvent;
 import com.github.yoep.popcorn.ui.events.SortByChangeEvent;
@@ -73,7 +73,6 @@ class DesktopFilterComponentTest {
         when(sortBy.values()).thenReturn(Collections.singletonList("ipsum"));
         when(localeText.get("genre_lorem")).thenReturn(displayText);
         when(localeText.get("sort-by_ipsum")).thenReturn(displayText);
-        component.init();
         component.initialize(location, resources);
 
         listener.get().apply(event);

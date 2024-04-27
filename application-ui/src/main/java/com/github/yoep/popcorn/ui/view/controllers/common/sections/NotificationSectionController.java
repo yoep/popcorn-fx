@@ -1,9 +1,8 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
-import com.github.spring.boot.javafx.stereotype.ViewController;
-import com.github.spring.boot.javafx.view.ViewLoader;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.NotificationEvent;
+import com.github.yoep.popcorn.ui.view.ViewLoader;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.NotificationComponent;
 import javafx.animation.Animation;
 import javafx.animation.TranslateTransition;
@@ -13,16 +12,15 @@ import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.layout.Pane;
 import javafx.util.Duration;
-import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
-import javax.annotation.PostConstruct;
 import java.net.URL;
+import java.util.Objects;
 import java.util.Queue;
 import java.util.ResourceBundle;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-@ViewController
-@RequiredArgsConstructor
+@Slf4j
 public class NotificationSectionController implements Initializable {
     static final String NOTIFICATION_VIEW = "common/components/notification.component.fxml";
     private static final int SAFETY_OFFSET = 20;
@@ -34,6 +32,14 @@ public class NotificationSectionController implements Initializable {
     @FXML
     Pane rootPane;
 
+    public NotificationSectionController(ViewLoader viewLoader, EventPublisher eventPublisher) {
+        Objects.requireNonNull(viewLoader, "viewLoader cannot be null");
+        Objects.requireNonNull(eventPublisher, "eventPublisher cannot be null");
+        this.viewLoader = viewLoader;
+        this.eventPublisher = eventPublisher;
+        init();
+    }
+
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         processQueue();
@@ -42,8 +48,7 @@ public class NotificationSectionController implements Initializable {
 
     //region Functions
 
-    @PostConstruct
-    void init() {
+    private void init() {
         eventPublisher.register(NotificationEvent.class, event -> {
             queue.add(event);
             processQueue();

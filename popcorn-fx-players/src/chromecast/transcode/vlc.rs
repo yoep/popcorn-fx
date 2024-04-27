@@ -415,20 +415,17 @@ impl VlcTranscoderDiscovery {
     fn find_filename_pattern(lib_path: &str, filename_pattern: &str) -> Option<String> {
         let regex = Regex::new(filename_pattern).expect("expected the filename regex pattern to be valid");
 
-        match fs::read_dir(lib_path) {
-            Ok(read) => {
-                for entry in read {
-                    if let Ok(entry) = entry {
-                        let filename = entry.file_name();
-                        let filename = filename.to_str().unwrap();
+        if let Ok(read) = fs::read_dir(lib_path) {
+            for entry in read {
+                if let Ok(entry) = entry {
+                    let filename = entry.file_name();
+                    let filename = filename.to_str().unwrap();
 
-                        if regex.is_match(filename) {
-                            return Some(filename.to_string());
-                        }
+                    if regex.is_match(filename) {
+                        return Some(filename.to_string());
                     }
                 }
-            }
-            Err(e) => warn!("Failed to read library directory, {}", e),
+            }   
         }
 
         None

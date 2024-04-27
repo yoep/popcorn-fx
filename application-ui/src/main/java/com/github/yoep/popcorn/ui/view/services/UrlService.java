@@ -9,11 +9,10 @@ import com.github.yoep.popcorn.ui.events.OpenMagnetLinkEvent;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
 import com.github.yoep.popcorn.ui.messages.MediaMessage;
 import javafx.application.Application;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
 
-import javax.annotation.PostConstruct;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -21,7 +20,6 @@ import java.util.Objects;
 import java.util.regex.Pattern;
 
 @Slf4j
-@RequiredArgsConstructor
 public class UrlService {
     private static final Pattern URL_TYPE_PATTERN = Pattern.compile("([a-zA-Z]*):?(.*)");
 
@@ -29,6 +27,14 @@ public class UrlService {
     private final Application application;
     private final LocaleText localeText;
     private final LoaderService loaderService;
+
+    public UrlService(EventPublisher eventPublisher, Application application, LocaleText localeText, LoaderService loaderService) {
+        this.eventPublisher = eventPublisher;
+        this.application = application;
+        this.localeText = localeText;
+        this.loaderService = loaderService;
+        init();
+    }
 
     //region Methods
 
@@ -122,7 +128,8 @@ public class UrlService {
             var format = contentType.split("/")[0];
             return format.equalsIgnoreCase("video");
         } else {
-            return false;
+            var extension = FilenameUtils.getExtension(file.getName());
+            return "mkv".equalsIgnoreCase(extension);
         }
     }
 
@@ -130,8 +137,7 @@ public class UrlService {
 
     //region Functions
 
-    @PostConstruct
-    void init() {
+    private void init() {
         eventPublisher.register(OpenMagnetLinkEvent.class, event -> {
             open(event.getUrl());
             return event;

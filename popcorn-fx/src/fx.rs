@@ -357,10 +357,17 @@ impl PopcornFX {
             ))),
         ];
 
-        // disable the screensaver
-        if platform.disable_screensaver() {
-            info!("Screensaver has been disabled");
-        }
+        // Try to disable the OS screensaver while the application is running without blocking
+        // the application instance creation.
+        // The screensaver will be automatically enabled when the platform instance is dropped
+        let platform_async = platform.clone();
+        runtime.spawn(async move {
+            if platform_async.disable_screensaver() {
+                info!("Operating System screensaver has been disabled");
+            } else {
+                error!("Failed to disable Operating System screensaver");
+            }
+        });
 
         Self {
             auto_resume_service,

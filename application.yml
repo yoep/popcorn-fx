@@ -1,6 +1,5 @@
 logging:
   level:
-    com.github.yoep.player.chromecast: INFO
     com.github.yoep.popcorn.backend.events: INFO
     com.github.yoep.popcorn.backend.media.favorites: INFO
     com.github.yoep.popcorn.backend.media.providers: INFO
@@ -70,7 +69,7 @@ popcorn:
     popcorn_fx_platform:
       level: info
     popcorn_fx_players::chromecast:
-      level: trace
+      level: info
     popcorn_fx_players::dlna:
       level: info
     popcorn_fx_players::vlc:

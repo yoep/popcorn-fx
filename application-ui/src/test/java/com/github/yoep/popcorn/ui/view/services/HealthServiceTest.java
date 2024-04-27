@@ -84,7 +84,6 @@ class HealthServiceTest {
             wait.complete(null);
             return null;
         }, EventPublisher.LOWEST_ORDER);
-        healthService.init();
 
         healthService.getTorrentHealth(firstUrl);
         eventPublisher.publish(new CloseDetailsEvent(this));

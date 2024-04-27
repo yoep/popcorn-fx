@@ -17,7 +17,7 @@ class TorrentPiecesTest {
 
     @Test
     void testDetermineDownloadPieceIndexes_whenArgumentIsNull_shouldThrowIllegalArgumentException() {
-        assertThrows(IllegalArgumentException.class, () -> torrentPieces.determineDownloadPieceIndexes(null), "priorities cannot be null");
+        assertThrows(NullPointerException.class, () -> torrentPieces.determineDownloadPieceIndexes(null), "priorities cannot be null");
     }
 
     @Test

@@ -3,6 +3,7 @@ package com.github.yoep.popcorn.ui;
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.*;
 import com.github.yoep.popcorn.ui.view.ViewLoader;
 import com.github.yoep.popcorn.ui.view.ViewManager;
@@ -24,6 +25,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.testfx.framework.junit5.ApplicationExtension;
 import org.testfx.util.WaitForAsyncUtils;
 
+import java.util.concurrent.ExecutorService;
+
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.*;
@@ -40,6 +43,10 @@ class PopcornTimeApplicationTest {
     private ViewLoader viewLoader;
     @Mock
     private ViewManager viewManager;
+    @Mock
+    private ApplicationConfig applicationConfig;
+    @Mock
+    private ExecutorService executorService;
     @Mock
     private FxLib fxLib;
     @Mock
@@ -72,13 +79,13 @@ class PopcornTimeApplicationTest {
         var application = new PopcornTimeApplication();
         application.init();
 
-        var result = application.IOC.getInstance(MainController.class);
+        var result = PopcornTimeApplication.IOC.getInstance(MainController.class);
 
         assertNotNull(result);
     }
 
     @Test
-    void testStart_whenNativeUiIsDisabled_shouldRegisterBorderlessStage() throws Exception {
+    void testStart_whenNativeUiIsDisabled_shouldRegisterBorderlessStage() {
         var settings = ApplicationSettings.builder()
                 .uiSettings(UISettings.builder()
                         .defaultLanguage("en/US")
@@ -91,10 +98,15 @@ class PopcornTimeApplicationTest {
                 .playbackSettings(mock(PlaybackSettings.class))
                 .trackingSettings(mock(TrackingSettings.class))
                 .build();
-        when(fxLib.application_settings(popcornFx)).thenReturn(settings);
+        PopcornTimeApplication.IOC.registerInstance(applicationConfig);
+        PopcornTimeApplication.IOC.registerInstance(executorService);
+        PopcornTimeApplication.IOC.registerInstance(maximizeService);
+        PopcornTimeApplication.IOC.registerInstance(platformProvider);
+        PopcornTimeApplication.IOC.registerInstance(viewManager);
+        PopcornTimeApplication.IOC.registerInstance(viewLoader);
+        when(applicationConfig.getSettings()).thenReturn(settings);
         when(stage.isShowing()).thenReturn(false);
         var application = new PopcornTimeApplication();
-        application.init();
 
         Platform.runLater(() -> {
             try {
@@ -123,11 +135,23 @@ class PopcornTimeApplicationTest {
                 .playbackSettings(mock(PlaybackSettings.class))
                 .trackingSettings(mock(TrackingSettings.class))
                 .build();
-        when(fxLib.application_settings(popcornFx)).thenReturn(settings);
+        PopcornTimeApplication.IOC.registerInstance(applicationConfig);
+        PopcornTimeApplication.IOC.registerInstance(executorService);
+        PopcornTimeApplication.IOC.registerInstance(maximizeService);
+        PopcornTimeApplication.IOC.registerInstance(platformProvider);
+        PopcornTimeApplication.IOC.registerInstance(viewManager);
+        PopcornTimeApplication.IOC.registerInstance(viewLoader);
+        when(applicationConfig.getSettings()).thenReturn(settings);
         var application = new PopcornTimeApplication();
-        application.init();
 
-        application.start(stage);
+        Platform.runLater(() -> {
+            try {
+                application.start(stage);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+        WaitForAsyncUtils.waitForFxEvents();
 
         verify(viewManager).registerPrimaryStage(isA(Stage.class));
         verify(stage, times(0)).initStyle(StageStyle.UNDECORATED);
@@ -147,10 +171,24 @@ class PopcornTimeApplicationTest {
                 .playbackSettings(mock(PlaybackSettings.class))
                 .trackingSettings(mock(TrackingSettings.class))
                 .build();
-        when(fxLib.application_settings(popcornFx)).thenReturn(settings);
+        PopcornTimeApplication.IOC.registerInstance(applicationConfig);
+        PopcornTimeApplication.IOC.registerInstance(executorService);
+        PopcornTimeApplication.IOC.registerInstance(maximizeService);
+        PopcornTimeApplication.IOC.registerInstance(platformProvider);
+        PopcornTimeApplication.IOC.registerInstance(viewManager);
+        PopcornTimeApplication.IOC.registerInstance(viewLoader);
+        when(applicationConfig.getSettings()).thenReturn(settings);
+        when(applicationConfig.isTvMode()).thenReturn(true);
         var application = new PopcornTimeApplication();
 
-        application.start(stage);
+        Platform.runLater(() -> {
+            try {
+                application.start(stage);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+        WaitForAsyncUtils.waitForFxEvents();
 
         verify(maximizeService).setMaximized(true);
     }
@@ -177,27 +215,53 @@ class PopcornTimeApplicationTest {
                 .centerOnScreen(false)
                 .background(Color.BLACK)
                 .build();
-        when(fxLib.application_settings(popcornFx)).thenReturn(settings);
+        PopcornTimeApplication.IOC.registerInstance(applicationConfig);
+        PopcornTimeApplication.IOC.registerInstance(executorService);
+        PopcornTimeApplication.IOC.registerInstance(maximizeService);
+        PopcornTimeApplication.IOC.registerInstance(platformProvider);
+        PopcornTimeApplication.IOC.registerInstance(viewManager);
+        PopcornTimeApplication.IOC.registerInstance(viewLoader);
+        when(applicationConfig.getSettings()).thenReturn(settings);
+        when(applicationConfig.isKioskMode()).thenReturn(true);
         when(platformProvider.isTransparentWindowSupported()).thenReturn(false);
         var application = new PopcornTimeApplication();
-        application.init();
 
-        application.start(stage);
+        Platform.runLater(() -> {
+            try {
+                application.start(stage);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+        WaitForAsyncUtils.waitForFxEvents();
 
         verify(viewLoader).show(stage, PopcornTimeApplication.STAGE_VIEW, expectedProperties);
     }
 
     @Test
-    void testStart_shouldStartExternalPlayerDiscovery() throws Exception {
+    void testStart_shouldStartExternalPlayerDiscovery() {
         var settings = ApplicationSettings.builder()
                 .uiSettings(UISettings.builder()
                         .nativeWindowEnabled((byte) 1)
                         .build())
                 .build();
-        when(fxLib.application_settings(popcornFx)).thenReturn(settings);
+        PopcornTimeApplication.IOC.registerInstance(applicationConfig);
+        PopcornTimeApplication.IOC.registerInstance(executorService);
+        PopcornTimeApplication.IOC.registerInstance(maximizeService);
+        PopcornTimeApplication.IOC.registerInstance(platformProvider);
+        PopcornTimeApplication.IOC.registerInstance(viewManager);
+        PopcornTimeApplication.IOC.registerInstance(viewLoader);
+        when(applicationConfig.getSettings()).thenReturn(settings);
         var application = new PopcornTimeApplication();
 
-        application.start(stage);
+        Platform.runLater(() -> {
+            try {
+                application.start(stage);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+        WaitForAsyncUtils.waitForFxEvents();
 
         verify(fxLib).discover_external_players(popcornFx);
     }

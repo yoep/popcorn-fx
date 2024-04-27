@@ -2347,6 +2347,11 @@ void reset_show_apis(PopcornFX *popcorn_fx);
 /// This will remove any selected [SubtitleInfo] or custom subtitle file.
 void reset_subtitle(PopcornFX *popcorn_fx);
 
+/// Retrieve all favorites of the user.
+///
+/// It will return an array of favorites on success, else [ptr::null_mut].
+VecFavoritesC *retrieve_all_favorites(PopcornFX *popcorn_fx);
+
 /// Retrieve all watched media item id's.
 ///
 /// It returns an array of watched id's.

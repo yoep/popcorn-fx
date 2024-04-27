@@ -29,7 +29,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.testfx.framework.junit5.ApplicationExtension;
 import org.testfx.util.WaitForAsyncUtils;
 
-import java.io.InputStream;
+import java.io.ByteArrayInputStream;
 import java.net.URL;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
@@ -68,7 +68,7 @@ class DesktopMovieActionsComponentTest {
         lenient().when(subtitleService.none()).thenReturn(subtitleNone);
         lenient().when(subtitleService.custom()).thenReturn(mock(SubtitleInfo.class));
         lenient().when(subtitleNone.getLanguage()).thenReturn(SubtitleLanguage.NONE);
-        lenient().when(subtitleNone.getFlagResource()).thenReturn(mock(InputStream.class));
+        lenient().when(subtitleNone.getFlagResource()).thenReturn(new ByteArrayInputStream(new byte[0]));
 
         component.watchNowButton = new PlayerDropDownButton();
         component.watchTrailerButton = new Button();

@@ -8,6 +8,7 @@ import com.github.yoep.popcorn.backend.media.providers.models.Images;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.MovieOverview;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -16,12 +17,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isA;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class ImageServiceTest {
@@ -29,8 +30,19 @@ class ImageServiceTest {
     private FxLib fxLib;
     @Mock
     private PopcornFx instance;
+    @Mock
+    private ExecutorService executorService;
     @InjectMocks
     private ImageService imageService;
+
+    @BeforeEach
+    void setUp() {
+        lenient().doAnswer(invocation -> {
+            var runnable = invocation.getArgument(0, Runnable.class);
+            runnable.run();
+            return null;
+        }).when(executorService).execute(isA(Runnable.class));
+    }
 
     @Test
     void testGetPosterPlaceholder() {
@@ -42,6 +54,7 @@ class ImageServiceTest {
 
         assertNotNull(result);
     }
+
     @Test
     void testGetArtworkPlaceholder() {
         var byteArray = mock(ByteArray.class);

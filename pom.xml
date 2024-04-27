@@ -14,7 +14,6 @@
         <module>application-ui</module>
         <module>application</module>
         <module>player-popcorn</module>
-        <module>shared-vlc</module>
         <module>torrent-frostwire</module>
         <module>video-javafx</module>
         <module>video-vlc</module>
@@ -70,6 +69,8 @@
         <junit-jupiter.version>5.10.1</junit-jupiter.version>
         <log4j-to-slf4j.version>2.23.1</log4j-to-slf4j.version>
         <logback-classic.version>1.5.5</logback-classic.version>
+        <lombok.version>1.18.30</lombok.version>
+        <mockito.version>5.7.0</mockito.version>
         <slf4j-api.version>2.0.13</slf4j-api.version>
         <spring-boot-starter-javafx.version>2.0.0</spring-boot-starter-javafx.version>
         <testfx.version>4.0.16-alpha</testfx.version>
@@ -211,7 +212,7 @@
             <dependency>
                 <groupId>org.projectlombok</groupId>
                 <artifactId>lombok</artifactId>
-                <version>1.18.30</version>
+                <version>${lombok.version}</version>
                 <scope>provided</scope>
             </dependency>
 
@@ -237,7 +238,13 @@
             <dependency>
                 <groupId>org.mockito</groupId>
                 <artifactId>mockito-junit-jupiter</artifactId>
-                <version>5.7.0</version>
+                <version>${mockito.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-core</artifactId>
+                <version>${mockito.version}</version>
                 <scope>test</scope>
             </dependency>
             <dependency>

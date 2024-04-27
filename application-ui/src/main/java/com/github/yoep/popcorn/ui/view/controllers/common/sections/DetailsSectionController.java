@@ -4,6 +4,7 @@ import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
 import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
 import com.github.yoep.popcorn.backend.events.ShowTorrentDetailsEvent;
+import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
 import com.github.yoep.popcorn.ui.events.CloseTorrentDetailsEvent;
 import com.github.yoep.popcorn.ui.view.ViewLoader;
@@ -15,12 +16,16 @@ import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.Objects;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
 public class DetailsSectionController {
     private final EventPublisher eventPublisher;
     private final ViewLoader viewLoader;
+    private final ExecutorService executorService;
+    private final ApplicationConfig applicationConfig;
 
     private Pane movieDetailsPane;
     private Pane showDetailsPane;
@@ -30,9 +35,18 @@ public class DetailsSectionController {
     @FXML
     Pane detailPane;
 
-    public DetailsSectionController(EventPublisher eventPublisher, ViewLoader viewLoader) {
+    public DetailsSectionController(EventPublisher eventPublisher,
+                                    ViewLoader viewLoader,
+                                    ExecutorService executorService,
+                                    ApplicationConfig applicationConfig) {
+        Objects.requireNonNull(eventPublisher, "eventPublisher cannot be null");
+        Objects.requireNonNull(viewLoader, "viewLoader cannot be null");
+        Objects.requireNonNull(executorService, "executorService cannot be null");
+        Objects.requireNonNull(applicationConfig, "applicationConfig cannot be null");
         this.eventPublisher = eventPublisher;
         this.viewLoader = viewLoader;
+        this.executorService = executorService;
+        this.applicationConfig = applicationConfig;
         init();
     }
 
@@ -63,15 +77,18 @@ public class DetailsSectionController {
     }
 
     private void initializePanes() {
-        new Thread(() -> {
+        executorService.execute(() -> {
             movieDetailsPane = viewLoader.load("common/components/details-movie.component.fxml");
             showDetailsPane = viewLoader.load("common/components/details-show.component.fxml");
-            torrentDetailsPane = viewLoader.load("common/components/details-torrent.component.fxml");
 
             anchor(movieDetailsPane);
             anchor(showDetailsPane);
-            anchor(torrentDetailsPane);
-        }, "DetailsSectionController.initializePanes").start();
+
+            if (!applicationConfig.isTvMode()) {
+                torrentDetailsPane = viewLoader.load("common/components/details-torrent.component.fxml");
+                anchor(torrentDetailsPane);
+            }
+        });
     }
 
     //endregion

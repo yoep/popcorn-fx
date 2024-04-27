@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.backend;
 
-import com.github.yoep.popcorn.backend.lib.FxLibInstance;
 import com.sun.jna.PointerType;
 import lombok.extern.slf4j.Slf4j;
 
@@ -11,6 +10,6 @@ import lombok.extern.slf4j.Slf4j;
 public class PopcornFx extends PointerType {
     public void dispose() {
         log.debug("Disposing native Popcorn FX instance");
-        FxLibInstance.INSTANCE.get().dispose_popcorn_fx(this);
+        FxLib.INSTANCE.get().dispose_popcorn_fx(this);
     }
 }

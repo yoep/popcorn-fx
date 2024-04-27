@@ -19,16 +19,15 @@ import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
 import java.util.Optional;
 import java.util.ResourceBundle;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
-@RequiredArgsConstructor
 public class ContentSectionController implements Initializable {
     static final String SYSTEM_TIME_COMPONENT = "components/system-time.component.fxml";
     static final String WINDOW_COMPONENT = "components/window.component.fxml";
@@ -39,6 +38,7 @@ public class ContentSectionController implements Initializable {
     private final EventPublisher eventPublisher;
     private final MaximizeService maximizeService;
     private final ApplicationConfig applicationConfig;
+    private final ExecutorService executorService;
 
     Pane detailsPane;
     Pane torrentCollectionPane;
@@ -53,6 +53,15 @@ public class ContentSectionController implements Initializable {
     @FXML
     Pane listPane;
 
+    public ContentSectionController(ViewLoader viewLoader, LocaleText localeText, EventPublisher eventPublisher, MaximizeService maximizeService, ApplicationConfig applicationConfig, ExecutorService executorService) {
+        this.viewLoader = viewLoader;
+        this.localeText = localeText;
+        this.eventPublisher = eventPublisher;
+        this.maximizeService = maximizeService;
+        this.applicationConfig = applicationConfig;
+        this.executorService = executorService;
+    }
+
     //region Initializable
 
     @Override
@@ -66,20 +75,23 @@ public class ContentSectionController implements Initializable {
 
     private void initializePanes() {
         // load the details pane on a different thread
-        new Thread(() -> {
+        executorService.execute(() -> {
             log.debug("Loading content panes");
             detailsPane = viewLoader.load("common/sections/details.section.fxml");
-            torrentCollectionPane = viewLoader.load("common/sections/torrent-collection.section.fxml");
             settingsPane = viewLoader.load(SETTINGS_SECTION);
             aboutPane = viewLoader.load("common/sections/about.section.fxml");
             updatePane = viewLoader.load("common/sections/update.section.fxml");
 
             setAnchor(detailsPane);
-            setAnchor(torrentCollectionPane);
             setAnchor(settingsPane);
             setAnchor(aboutPane);
             setAnchor(updatePane);
-        }, "content-loader").start();
+
+            if (!applicationConfig.isTvMode()) {
+                torrentCollectionPane = viewLoader.load("common/sections/torrent-collection.section.fxml");
+                setAnchor(torrentCollectionPane);
+            }
+        });
     }
 
     private void initializeEventListeners() {

@@ -1,17 +1,11 @@
 package com.github.yoep.popcorn;
 
-import com.github.yoep.player.chromecast.discovery.DiscoveryService;
-import com.github.yoep.player.chromecast.discovery.FfmpegDiscovery;
-import com.github.yoep.player.chromecast.services.ChromecastService;
-import com.github.yoep.player.chromecast.services.MetaDataService;
-import com.github.yoep.player.chromecast.transcode.NoOpTranscodeService;
-import com.github.yoep.player.chromecast.transcode.VlcTranscodeService;
 import com.github.yoep.player.popcorn.controllers.components.*;
 import com.github.yoep.player.popcorn.controllers.sections.PopcornPlayerSectionController;
 import com.github.yoep.player.popcorn.player.EmbeddablePopcornPlayer;
 import com.github.yoep.player.popcorn.player.PopcornPlayer;
 import com.github.yoep.player.popcorn.services.*;
-import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
+import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.lib.FxLibInstance;
 import com.github.yoep.popcorn.backend.lib.PopcornFxInstance;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
@@ -22,13 +16,11 @@ import com.github.yoep.popcorn.ui.PopcornTimePreloader;
 import com.github.yoep.torrent.frostwire.*;
 import com.github.yoep.video.javafx.VideoPlayerFX;
 import com.github.yoep.video.vlc.VideoPlayerVlc;
+import com.github.yoep.video.vlc.discovery.LinuxNativeDiscoveryStrategy;
+import com.github.yoep.video.vlc.discovery.OsxNativeDiscoveryStrategy;
+import com.github.yoep.video.vlc.discovery.WindowsNativeDiscoveryStrategy;
 import com.github.yoep.video.youtube.VideoPlayerYoutube;
-import com.github.yoep.vlc.discovery.LinuxNativeDiscoveryStrategy;
-import com.github.yoep.vlc.discovery.OsxNativeDiscoveryStrategy;
-import com.github.yoep.vlc.discovery.WindowsNativeDiscoveryStrategy;
-import com.sun.jna.Memory;
-import com.sun.jna.Native;
-import com.sun.jna.Pointer;
+import com.sun.jna.StringArray;
 import javafx.application.Application;
 import javafx.application.ConditionalFeature;
 import javafx.application.Platform;
@@ -41,16 +33,20 @@ import uk.co.caprica.vlcj.factory.discovery.strategy.NativeDiscoveryStrategy;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class PopcornTimeStarter {
+    static final AtomicBoolean INIT_TORRENT_SERVICES = new AtomicBoolean(true);
+
     public static void main(String[] args) {
         System.setProperty("jna.encoding", StandardCharsets.UTF_8.name());
         var ioc = PopcornTimeApplication.getIOC();
-        ioc.registerInstance(new ApplicationArgs(args));
+        ioc.registerInstance(createApplicationArguments(args));
 
         var libArgs = createLibraryArguments(args);
         var fxLib = ioc.registerInstance(FxLibInstance.INSTANCE.get());
-        var popcornFx = ioc.registerInstance(fxLib.new_popcorn_fx(libArgs.ptr, libArgs.length));
+        var popcornFx = ioc.registerInstance(fxLib.new_popcorn_fx(libArgs.length, libArgs.args));
+        FxLib.INSTANCE.set(fxLib);
         PopcornFxInstance.INSTANCE.set(popcornFx);
 
         PopcornTimeApplication.getON_INIT().set(PopcornTimeStarter::onInit);
@@ -62,28 +58,23 @@ public class PopcornTimeStarter {
         Application.launch(appClass, args);
     }
 
-    static Args createLibraryArguments(String[] args) {
+    static ApplicationArgs createApplicationArguments(String[] args) {
+        return new ApplicationArgs(Arrays.stream(args)
+                .filter(e -> !e.startsWith("--"))
+                .toArray(String[]::new));
+    }
+
+    static ProgramArgs createLibraryArguments(String[] args) {
         var length = args.length + 1;
         var libArgs = new String[length];
         libArgs[0] = "popcorn-fx";
         System.arraycopy(args, 0, libArgs, 1, args.length);
-        var pointer = new Memory((long) length * Native.POINTER_SIZE);
-        var stringPointers = new Pointer[length];
 
-        for (int i = 0; i < length; i++) {
-            stringPointers[i] = new Memory(libArgs[i].length() + 1);
-            stringPointers[i].setString(0, libArgs[i]);
-            pointer.setPointer((long) i * Native.POINTER_SIZE, stringPointers[i]);
-        }
-
-        return new Args(pointer, length);
+        return new ProgramArgs(new StringArray(libArgs), length);
     }
 
     static void onInit(IoC ioC) {
         var applicationConfig = ioC.getInstance(ApplicationConfig.class);
-        var client = HttpClientBuilder.create()
-                .setRedirectStrategy(new DefaultRedirectStrategy())
-                .build();
         var discoveryStrategies = Arrays.<NativeDiscoveryStrategy>asList(
                 new LinuxNativeDiscoveryStrategy(),
                 new OsxNativeDiscoveryStrategy(),
@@ -91,10 +82,9 @@ public class PopcornTimeStarter {
         );
 
         // torrent services
-        ioC.register(TorrentServiceImpl.class);
-        ioC.register(TorrentSessionManagerImpl.class);
-        ioC.register(TorrentSettingsServiceImpl.class);
-        ioC.registerInstance(new TorrentResolverService(ioC.getInstance(TorrentSessionManager.class), client));
+        if (INIT_TORRENT_SERVICES.get()) {
+            initializeTorrentSession(ioC);
+        }
 
         // youtube video player
         if (applicationConfig.isYoutubeVideoPlayerEnabled() && Platform.isSupported(ConditionalFeature.WEB)) {
@@ -108,9 +98,6 @@ public class PopcornTimeStarter {
                 ioC.registerInstance(discovery);
                 ioC.register(MediaPlayerFactory.class);
                 ioC.register(VideoPlayerVlc.class);
-                ioC.register(VlcTranscodeService.class);
-            } else {
-                ioC.register(NoOpTranscodeService.class);
             }
         }
 
@@ -129,17 +116,22 @@ public class PopcornTimeStarter {
         ioC.register(VideoPlayerFX.class);
         ioC.register(VideoService.class);
 
-        // chromecast
-        ioC.register(ChromecastService.class);
-        ioC.registerInstance(new MetaDataService(client));
-        ioC.registerInstance(FfmpegDiscovery.discoverProbe());
-        ioC.registerInstance(new DiscoveryService(ioC.getInstance(PlayerManagerService.class), ioC.getInstance(ChromecastService.class)));
-
         if (isDesktopMode(ioC)) {
             onInitDesktop(ioC);
         } else {
             onInitTv(ioC);
         }
+    }
+
+    private static void initializeTorrentSession(IoC ioC) {
+        var client = HttpClientBuilder.create()
+                .setRedirectStrategy(new DefaultRedirectStrategy())
+                .build();
+
+        ioC.register(TorrentServiceImpl.class);
+        ioC.register(TorrentSessionManagerImpl.class);
+        ioC.register(TorrentSettingsServiceImpl.class);
+        ioC.registerInstance(new TorrentResolverService(ioC.getInstance(TorrentSessionManager.class), client));
     }
 
     private static void onInitDesktop(IoC ioC) {
@@ -157,6 +149,6 @@ public class PopcornTimeStarter {
         return !ioC.getInstance(ApplicationConfig.class).isTvMode();
     }
 
-    private record Args(Pointer ptr, int length) {
+    record ProgramArgs(StringArray args, int length) {
     }
 }

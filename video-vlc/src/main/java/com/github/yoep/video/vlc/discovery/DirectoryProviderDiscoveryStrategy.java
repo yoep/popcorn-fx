@@ -1,4 +1,4 @@
-package com.github.yoep.vlc.discovery;
+package com.github.yoep.video.vlc.discovery;
 
 import lombok.extern.slf4j.Slf4j;
 import uk.co.caprica.vlcj.factory.discovery.provider.DiscoveryDirectoryProvider;

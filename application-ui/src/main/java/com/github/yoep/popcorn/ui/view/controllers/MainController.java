@@ -113,8 +113,11 @@ public class MainController extends PopcornScaleAware implements Initializable {
     }
 
     private void initializeSection() {
-        if (!processApplicationArguments())
+        if (processApplicationArguments()) {
+            switchSection(SectionType.PLAYER);
+        } else {
             switchSection(SectionType.CONTENT);
+        }
     }
 
     private void initializeOptions() {
@@ -170,21 +173,14 @@ public class MainController extends PopcornScaleAware implements Initializable {
      * Initializes/loads the panes required for this controller.
      */
     private void initializePanes() {
-        // load the content & notification pane on the main thread
-        // this blocks Spring from completing the startup stage while these panes are being loaded
         contentPane = viewLoader.load("common/sections/content.section.fxml");
+        playerPane = viewLoader.load("common/sections/player.section.fxml");
+        loaderPane = viewLoader.load("common/sections/loader.section.fxml");
         notificationPane = viewLoader.load("common/sections/notification.section.fxml");
 
         anchor(contentPane);
-
-        // load the other panes on a different thread
-        new Thread(() -> {
-            playerPane = viewLoader.load("common/sections/player.section.fxml");
-            loaderPane = viewLoader.load("common/sections/loader.section.fxml");
-
-            anchor(playerPane);
-            anchor(loaderPane);
-        }, "MainController.loader").start();
+        anchor(playerPane);
+        anchor(loaderPane);
     }
 
     private void onContentPasted() {
@@ -290,7 +286,8 @@ public class MainController extends PopcornScaleAware implements Initializable {
 
         Platform.runLater(() -> {
             root.getChildren().removeIf(e -> e != notificationPane);
-            root.getChildren().add(0, content.get());
+            Optional.ofNullable(content.get())
+                    .ifPresent(e -> root.getChildren().add(0, e));
         });
     }
 

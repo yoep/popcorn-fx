@@ -1,11 +1,17 @@
 package com.github.yoep.popcorn.backend.utils;
 
+import lombok.ToString;
+import lombok.extern.slf4j.Slf4j;
+
 import java.text.MessageFormat;
 import java.util.Locale;
+import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 
+@Slf4j
+@ToString
 public class PopcornLocaleText implements LocaleText {
-    private ResourceBundleMessageSource resourceBundle;
+    private final ResourceBundleMessageSource resourceBundle;
 
     public PopcornLocaleText(ResourceBundleMessageSource resourceBundle) {
         this.resourceBundle = resourceBundle;
@@ -28,7 +34,13 @@ public class PopcornLocaleText implements LocaleText {
 
     @Override
     public String get(String message, Object... args) {
-        return MessageFormat.format(resourceBundle.getString(message), args);
+        try {
+            var messageFormat = resourceBundle.getString(message);
+            return MessageFormat.format(messageFormat, args);
+        } catch (MissingResourceException ex) {
+            log.error(ex.getMessage(), ex);
+            return message;
+        }
     }
 
     @Override

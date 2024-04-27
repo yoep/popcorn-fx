@@ -12,6 +12,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.io.IOException;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.*;
@@ -56,13 +58,14 @@ class PopcornPlayerTest {
     }
 
     @Test
-    void testGetGraphicResource_whenInvokedShouldReturnTheGraphicsNode() {
+    void testGetGraphicResource_whenInvokedShouldReturnTheGraphicsNode() throws IOException {
         var popcornPlayer = new PopcornPlayer(videoService);
 
         var result = popcornPlayer.getGraphicResource();
 
         assertTrue(result.isPresent(), "Expected the graphics node to be present");
-        assertEquals(PopcornPlayer.GRAPHIC_RESOURCE, result.get());
+        var bytes = result.get().readAllBytes();
+        assertTrue(bytes.length > 0);
     }
 
     @Test

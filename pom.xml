@@ -64,7 +64,7 @@
         <commons-text.version>1.10.0</commons-text.version>
         <guava.version>32.0.0-jre</guava.version>
         <jaffree.version>2021.12.30</jaffree.version>
-        <javafx.version>19</javafx.version>
+        <javafx.version>21.0.2</javafx.version>
         <jna.version>5.13.0</jna.version>
         <junit-jupiter.version>5.10.1</junit-jupiter.version>
         <log4j-to-slf4j.version>2.23.1</log4j-to-slf4j.version>

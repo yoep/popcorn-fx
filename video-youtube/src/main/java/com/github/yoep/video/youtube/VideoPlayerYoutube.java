@@ -18,7 +18,6 @@ import netscape.javascript.JSException;
 import netscape.javascript.JSObject;
 import org.apache.commons.io.IOUtils;
 
-import javax.annotation.PostConstruct;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -49,6 +48,10 @@ public class VideoPlayerYoutube extends AbstractVideoPlayer implements VideoPlay
     private boolean playerReady;
 
     private Throwable error;
+
+    public VideoPlayerYoutube() {
+        init();
+    }
 
     //region Getters
 
@@ -192,8 +195,7 @@ public class VideoPlayerYoutube extends AbstractVideoPlayer implements VideoPlay
 
     //region PostConstruct
 
-    @PostConstruct
-    void init() {
+    private void init() {
         log.trace("Initializing youtube player");
         Platform.runLater(() -> {
             try {

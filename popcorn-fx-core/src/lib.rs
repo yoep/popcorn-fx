@@ -4,7 +4,8 @@ use std::os::raw::c_char;
 
 use log::{error, trace, warn};
 
-pub use popcorn_fx_common::VERSION;
+/// The current application version of Popcorn FX.
+pub const VERSION: &str = "0.8.2";
 
 pub mod core;
 

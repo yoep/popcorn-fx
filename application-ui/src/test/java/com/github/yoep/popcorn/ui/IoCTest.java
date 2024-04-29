@@ -32,6 +32,7 @@ class IoCTest {
         ioc.register(SubtitleServiceImpl.class);
         ioc.registerInstance(fxLib);
         ioc.registerInstance(instance);
+        ioc.registerInstance(Executors.newCachedThreadPool());
 
         var result = ioc.getInstance(SubtitleServiceImpl.class);
 
@@ -44,6 +45,7 @@ class IoCTest {
         ioc.register(SubtitleServiceImpl.class);
         ioc.registerInstance(fxLib);
         ioc.registerInstance(instance);
+        ioc.registerInstance(Executors.newCachedThreadPool());
 
         var expectedResult = ioc.getInstance(SubtitleServiceImpl.class);
         var result = ioc.getInstance(SubtitleServiceImpl.class);

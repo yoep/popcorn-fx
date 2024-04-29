@@ -23,14 +23,6 @@ public interface PlatformProvider {
     void runOnRenderer(Runnable runnable);
 
     /**
-     * Launch the given command on the current platform.
-     *
-     * @param command The process command that needs to be started.
-     * @return Returns true if the command was launched with success, else false.
-     */
-    boolean launch( String command);
-
-    /**
      * Verify if the current platform is a MacOS system.
      * @return Returns true when the current platform is Mac, else false.
      */

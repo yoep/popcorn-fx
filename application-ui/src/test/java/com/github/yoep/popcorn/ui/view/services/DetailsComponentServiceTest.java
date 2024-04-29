@@ -79,7 +79,6 @@ class DetailsComponentServiceTest {
         var movie = MovieDetails.builder()
                 .images(new Images())
                 .build();
-        service.init();
 
         service.toggleWatchedState(movie);
 
@@ -90,7 +89,6 @@ class DetailsComponentServiceTest {
     void testToggleLikedState_whenLastItemIsKnownAndStateIsUnliked_shouldAddToFavorites() {
         var show = mock(ShowDetails.class);
         when(favoriteService.isLiked(show)).thenReturn(false);
-        service.init();
 
         service.toggleLikedState(show);
 
@@ -101,7 +99,6 @@ class DetailsComponentServiceTest {
     void testToggleLikedState_whenLastItemIsKnownAndStateIsLiked_shouldRemoveFromFavorites() {
         var show = mock(ShowDetails.class);
         when(favoriteService.isLiked(show)).thenReturn(true);
-        service.init();
 
         service.toggleLikedState(show);
 

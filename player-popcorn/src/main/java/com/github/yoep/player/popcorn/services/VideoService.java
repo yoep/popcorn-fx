@@ -12,10 +12,10 @@ import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.annotation.PreDestroy;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -24,14 +24,15 @@ import java.util.Optional;
  * The video service is responsible for handling the active video player and surface.
  */
 @Slf4j
-
-@RequiredArgsConstructor
 public class VideoService extends AbstractListenerService<PlaybackListener> {
+    public static final int HIGHEST_ORDER = Integer.MIN_VALUE;
+    public static final int DEFAULT_ORDER = 0;
+    public static final int LOWEST_ORDER = Integer.MAX_VALUE;
     public static final String VIDEO_PLAYER_PROPERTY = "videoPlayer";
-    private final List<VideoPlayback> videoPlaybacks;
 
-    private final ObjectProperty<VideoPlayback> videoPlayer = new SimpleObjectProperty<>(this, VIDEO_PLAYER_PROPERTY);
-    private final VideoListener videoListener = createVideoListener();
+    final List<PlaybackOrder> videoPlaybacks = new ArrayList<>();
+    final ObjectProperty<VideoPlayback> videoPlayer = new SimpleObjectProperty<>(this, VIDEO_PLAYER_PROPERTY);
+    final VideoListener videoListener = createVideoListener();
 
     //region Properties
 
@@ -56,6 +57,12 @@ public class VideoService extends AbstractListenerService<PlaybackListener> {
     //endregion
 
     //region Methods
+
+    public void addVideoPlayback(VideoPlayback videoPlayback, int order) {
+        Objects.requireNonNull(videoPlayback, "videoPlayback cannot be null");
+        videoPlaybacks.add(new PlaybackOrder(videoPlayback, order));
+        videoPlaybacks.sort(PlaybackOrder::compareTo);
+    }
 
     public void onPlay(PlayRequest request) {
         Objects.requireNonNull(request, "request cannot be null");
@@ -127,7 +134,7 @@ public class VideoService extends AbstractListenerService<PlaybackListener> {
     @PreDestroy
     void dispose() {
         log.trace("Disposing the video players");
-        videoPlaybacks.forEach(VideoPlayback::dispose);
+        videoPlaybacks.forEach(e -> e.videoPlayback.dispose());
     }
 
     //endregion
@@ -144,6 +151,7 @@ public class VideoService extends AbstractListenerService<PlaybackListener> {
     private VideoPlayback switchSupportedVideoPlayer(String url) {
         Objects.requireNonNull(url, "url cannot be null");
         var videoPlayer = videoPlaybacks.stream()
+                .map(e -> e.videoPlayback)
                 .filter(e -> e.supports(url))
                 .findFirst()
                 .orElseThrow(() -> new VideoPlayerException("No compatible video player found for " + url));
@@ -199,4 +207,11 @@ public class VideoService extends AbstractListenerService<PlaybackListener> {
     }
 
     //endregion
+
+    record PlaybackOrder(VideoPlayback videoPlayback, int order) implements Comparable<PlaybackOrder> {
+        @Override
+        public int compareTo(PlaybackOrder o) {
+            return Integer.compare(order, o.order);
+        }
+    }
 }

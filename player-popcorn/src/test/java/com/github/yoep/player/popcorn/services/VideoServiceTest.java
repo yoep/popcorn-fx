@@ -14,7 +14,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
@@ -25,6 +24,8 @@ class VideoServiceTest {
     private VideoPlayback videoPlayback1;
     @Mock
     private VideoPlayback videoPlayback2;
+    @Mock
+    private VideoPlayback videoPlayback3;
     @Mock
     private PlaybackListener listener;
 
@@ -38,7 +39,40 @@ class VideoServiceTest {
             videoListener.set(invocation.getArgument(0, VideoListener.class));
             return null;
         }).when(videoPlayback1).addListener(isA(VideoListener.class));
-        service = new VideoService(asList(videoPlayback1, videoPlayback2));
+        service = new VideoService();
+        service.addVideoPlayback(videoPlayback1, 0);
+        service.addVideoPlayback(videoPlayback2, 0);
+    }
+
+    @Test
+    void testAddVideoPlayback_shouldOrderPlaybacks() {
+        var service = new VideoService();
+
+        service.addVideoPlayback(videoPlayback2, VideoService.LOWEST_ORDER);
+        service.addVideoPlayback(videoPlayback3, VideoService.HIGHEST_ORDER);
+        service.addVideoPlayback(videoPlayback1, 0);
+
+        assertEquals(videoPlayback3, service.videoPlaybacks.get(0).videoPlayback());
+        assertEquals(videoPlayback1, service.videoPlaybacks.get(1).videoPlayback());
+        assertEquals(videoPlayback2, service.videoPlaybacks.get(2).videoPlayback());
+    }
+
+    @Test
+    void testAddVideoPlayback_shouldInvokeCorrectVideoPlayback() {
+        var url = "https://ipsum.com/test.mp4";
+        var request = mock(PlayRequest.class);
+        var service = new VideoService();
+        when(request.getUrl()).thenReturn(url);
+        lenient().when(videoPlayback3.supports(url)).thenReturn(true);
+        lenient().when(videoPlayback1.supports(url)).thenReturn(true);
+
+        service.addVideoPlayback(videoPlayback2, VideoService.LOWEST_ORDER);
+        service.addVideoPlayback(videoPlayback1, 0);
+        service.addVideoPlayback(videoPlayback3, VideoService.HIGHEST_ORDER);
+
+        service.onPlay(request);
+
+        verify(videoPlayback3).play(url);
     }
 
     @Test

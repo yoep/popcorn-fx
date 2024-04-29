@@ -2635,7 +2635,6 @@ dependencies = [
  "log",
  "log4rs",
  "mockall",
- "popcorn-fx-common",
  "popcorn-fx-core",
  "serde",
  "serde_yaml",
@@ -2644,18 +2643,6 @@ dependencies = [
  "thiserror",
  "tokio",
  "winres",
-]
-
-[[package]]
-name = "popcorn-fx-common"
-version = "0.8.2"
-dependencies = [
- "log",
- "popcorn-fx-core",
- "serde",
- "serde_yaml",
- "tempfile",
- "thiserror",
 ]
 
 [[package]]
@@ -2678,7 +2665,6 @@ dependencies = [
  "log4rs",
  "mockall",
  "percent-encoding",
- "popcorn-fx-common",
  "popcorn-fx-core",
  "rand",
  "regex",

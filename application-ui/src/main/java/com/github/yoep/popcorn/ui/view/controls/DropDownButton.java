@@ -22,11 +22,10 @@ public class DropDownButton<T> extends SplitMenuButton {
     public static final String SELECTED_ITEM_PROPERTY = "selectedItem";
 
     static final String ACTIVE_PLAYER_STYLE_CLASS = "active";
-
     static final String STYLE_CLASS = "dropdown-button";
 
-    private final ObjectProperty<T> selectedItem = new SimpleObjectProperty<>(this, SELECTED_ITEM_PROPERTY);
-    private final Map<Integer, ItemHolder<T>> items = new ConcurrentHashMap<>();
+    final ObjectProperty<T> selectedItem = new SimpleObjectProperty<>(this, SELECTED_ITEM_PROPERTY);
+    final Map<String, ItemHolder<T>> items = new ConcurrentHashMap<>();
 
     private DropDownButtonFactory<T> itemFactory;
 
@@ -35,6 +34,7 @@ public class DropDownButton<T> extends SplitMenuButton {
     }
 
     public DropDownButton(DropDownButtonFactory<T> itemFactory) {
+        Objects.requireNonNull(itemFactory, "itemFactory cannot be null");
         this.itemFactory = itemFactory;
         init();
     }
@@ -102,7 +102,7 @@ public class DropDownButton<T> extends SplitMenuButton {
     public void addDropDownItems(Collection<T> items) {
         Objects.requireNonNull(items, "items cannot be null");
         for (T item : items) {
-            this.addPlayer(item);
+            this.addItem(item);
         }
     }
 
@@ -127,11 +127,13 @@ public class DropDownButton<T> extends SplitMenuButton {
             return;
         }
 
-        var id = item.hashCode();
-
-        if (!isIdActive(id)) {
-            updateActivePlayer(id);
-        }
+        items.values().stream()
+                .filter(e -> e.item == item)
+                .findFirst()
+                .ifPresentOrElse(
+                        e -> updateActiveItem(e.control.getIdentifier()),
+                        () -> log.warn("Unable to select item {}, item doesn't exist within dropdown list", item)
+                );
     }
 
     //endregion
@@ -150,18 +152,19 @@ public class DropDownButton<T> extends SplitMenuButton {
         return activeId.equals(id);
     }
 
-    private void addPlayer(T player) {
-        var id = player.hashCode();
-        var control = itemToMenuControlItem(player);
-        var holder = new ItemHolder<>(player, control);
+    private void addItem(T item) {
+        Objects.requireNonNull(item, "item cannot be null");
+        var control = itemToMenuControlItem(item);
+        var controlId = control.getId();
+        var holder = new ItemHolder<>(item, control);
 
-        items.put(id, holder);
+        items.put(controlId, holder);
         getItems().add(control);
     }
 
     private DropDownMenuItem<T> itemToMenuControlItem(T item) {
         var menuItem = new DropDownMenuItem<>(item, itemFactory);
-        menuItem.setOnAction(e -> onPlayerMenuItemSelected(menuItem));
+        menuItem.setOnAction(e -> onMenuItemSelected(menuItem));
         return menuItem;
     }
 
@@ -174,13 +177,16 @@ public class DropDownButton<T> extends SplitMenuButton {
                 .ifPresent(this::setGraphic);
     }
 
-    private void onPlayerMenuItemSelected(MenuItem item) {
-        var playerMenuItem = (DropDownMenuItem<T>) item;
-
-        updateActivePlayer(Integer.parseInt(playerMenuItem.getId()));
+    private void onMenuItemSelected(MenuItem item) {
+        if (item instanceof DropDownMenuItem dropDownMenuItem) {
+            var itemId = dropDownMenuItem.getIdentifier();
+            updateActiveItem(itemId);
+        } else {
+            log.warn("Unable to update active drop down item, item \"{}\" is not a DropDownMenuItem", item);
+        }
     }
 
-    private void updateActivePlayer(int id) {
+    private void updateActiveItem(String id) {
         if (items.containsKey(id)) {
             var holder = items.get(id);
 
@@ -193,6 +199,6 @@ public class DropDownButton<T> extends SplitMenuButton {
 
     //endregion
 
-    private record ItemHolder<T>(T item, DropDownMenuItem<T> control) {
+    record ItemHolder<T>(T item, DropDownMenuItem<T> control) {
     }
 }

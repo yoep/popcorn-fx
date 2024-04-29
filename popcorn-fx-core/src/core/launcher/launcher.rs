@@ -2,7 +2,6 @@ use std::fs;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use std::string::ToString;
 
 use log::{debug, trace, warn};
 use serde::{Deserialize, Serialize};
@@ -43,7 +42,7 @@ pub enum LauncherError {
 /// # Examples
 ///
 /// ```no_run
-/// use popcorn_fx_common::LauncherOptions;
+/// use popcorn_fx_core::core::launcher::LauncherOptions;
 ///
 /// let options = LauncherOptions {
 ///     version: "1.0.0".to_string(),

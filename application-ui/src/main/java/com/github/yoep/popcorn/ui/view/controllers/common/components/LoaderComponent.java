@@ -18,16 +18,12 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.annotation.PostConstruct;
 import java.net.URL;
 import java.util.ResourceBundle;
 
 @Slf4j
-
-@RequiredArgsConstructor
 public class LoaderComponent implements Initializable {
     static final String PROGRESS_ERROR_STYLE_CLASS = "error";
     static final String PROGRESS_INFO_VIEW = "common/components/progress-info.component.fxml";
@@ -53,6 +49,15 @@ public class LoaderComponent implements Initializable {
     ProgressBar progressBar;
     @FXML
     Button loadRetryButton;
+
+    public LoaderComponent(LocaleText localeText, ImageService imageService, LoaderService loaderService, EventPublisher eventPublisher, ViewLoader viewLoader) {
+        this.localeText = localeText;
+        this.imageService = imageService;
+        this.loaderService = loaderService;
+        this.eventPublisher = eventPublisher;
+        this.viewLoader = viewLoader;
+        init();
+    }
 
     //region Initializable
 
@@ -82,8 +87,7 @@ public class LoaderComponent implements Initializable {
 
     //region Init
 
-    @PostConstruct
-    void init() {
+    private void init() {
         loaderService.addListener(new LoaderListener() {
             @Override
             public void onLoadingStarted(LoadingStartedEventC loadingStartedEvent) {

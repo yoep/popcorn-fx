@@ -15,14 +15,11 @@ import com.github.yoep.popcorn.backend.player.PlayerChanged;
 import com.github.yoep.popcorn.backend.player.PlayerManagerListener;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import com.github.yoep.popcorn.ui.view.listeners.PlayerExternalListener;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.annotation.PostConstruct;
 import java.util.Optional;
 
 @Slf4j
-@RequiredArgsConstructor
 public class PlayerExternalComponentService extends AbstractListenerService<PlayerExternalListener> {
     static final int TIME_STEP_OFFSET = 10000;
 
@@ -33,6 +30,13 @@ public class PlayerExternalComponentService extends AbstractListenerService<Play
 
     private long time;
     Handle lastKnownStreamCallback;
+
+    public PlayerExternalComponentService(PlayerManagerService playerManagerService, EventPublisher eventPublisher, TorrentService torrentService) {
+        this.playerManagerService = playerManagerService;
+        this.eventPublisher = eventPublisher;
+        this.torrentService = torrentService;
+        init();
+    }
 
     public void togglePlaybackState() {
         playerManagerService.getActivePlayer()
@@ -53,8 +57,7 @@ public class PlayerExternalComponentService extends AbstractListenerService<Play
                 .ifPresent(e -> e.seek(time + TIME_STEP_OFFSET));
     }
 
-    @PostConstruct
-    void init() {
+    private void init() {
         playerManagerService.addListener(new PlayerManagerListener() {
             @Override
             public void activePlayerChanged(PlayerChanged playerChange) {

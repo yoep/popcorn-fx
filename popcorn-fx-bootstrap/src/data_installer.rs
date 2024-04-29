@@ -6,7 +6,7 @@ use log::{debug, trace};
 use mockall::automock;
 use thiserror::Error;
 
-use popcorn_fx_common::{LauncherError, LauncherOptions};
+use popcorn_fx_core::core::launcher::{LauncherError, LauncherOptions};
 
 #[cfg(not(target_os = "macos"))]
 const INITIAL_INSTALL_DIRECTORY: &str = "main";

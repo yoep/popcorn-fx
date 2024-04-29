@@ -2,13 +2,20 @@ pub use callback::*;
 pub use handle::*;
 pub use runtime::*;
 
+#[cfg(feature = "cache")]
 pub mod cache;
 pub mod config;
 pub mod events;
 pub mod images;
+#[cfg(feature = "launcher")]
+pub mod launcher;
+#[cfg(feature = "loader")]
 pub mod loader;
+#[cfg(feature = "media")]
 pub mod media;
+#[cfg(feature = "platform")]
 pub mod platform;
+#[cfg(feature = "playback")]
 pub mod playback;
 pub mod players;
 pub mod playlists;

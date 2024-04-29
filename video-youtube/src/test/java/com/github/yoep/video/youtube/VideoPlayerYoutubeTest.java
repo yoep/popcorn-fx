@@ -50,7 +50,7 @@ class VideoPlayerYoutubeTest {
 
     @Test
     void testInitialized_shouldReturnTrue() {
-        player.init();
+        var player = new VideoPlayerYoutube();
         WaitForAsyncUtils.waitForFxEvents(10);
 
         var result = player.isInitialized();

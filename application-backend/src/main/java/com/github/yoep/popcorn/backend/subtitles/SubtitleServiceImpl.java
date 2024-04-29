@@ -17,6 +17,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -24,14 +25,16 @@ import java.util.stream.Stream;
 public class SubtitleServiceImpl implements SubtitleService {
     private final FxLib fxLib;
     private final PopcornFx instance;
+    private final ExecutorService executorService;
 
     private final SubtitleEventCallback callback = createCallback();
     private final ConcurrentLinkedDeque<SubtitleEventCallback> listeners = new ConcurrentLinkedDeque<>();
     private final Object mutex = new Object();
 
-    public SubtitleServiceImpl(FxLib fxLib, PopcornFx instance) {
+    public SubtitleServiceImpl(FxLib fxLib, PopcornFx instance, ExecutorService executorService) {
         this.fxLib = fxLib;
         this.instance = instance;
+        this.executorService = executorService;
         init();
     }
 
@@ -65,8 +68,8 @@ public class SubtitleServiceImpl implements SubtitleService {
                     .orElse(Collections.emptyList());
 
             log.debug("Retrieved movie subtitles {}", subtitles);
-            return CompletableFuture.completedFuture(
-                    Stream.concat(defaultOptions().stream(), subtitles.stream()).toList());
+            return CompletableFuture.supplyAsync(() ->
+                    Stream.concat(defaultOptions().stream(), subtitles.stream()).toList(), executorService);
         }
     }
 
@@ -79,8 +82,8 @@ public class SubtitleServiceImpl implements SubtitleService {
                 .orElse(Collections.emptyList());
 
         log.debug("Retrieved episode subtitle {}", subtitles);
-        return CompletableFuture.completedFuture(
-                Stream.concat(defaultOptions().stream(), subtitles.stream()).toList());
+        return CompletableFuture.supplyAsync(() ->
+                Stream.concat(defaultOptions().stream(), subtitles.stream()).toList(), executorService);
     }
 
     @Override
@@ -90,20 +93,23 @@ public class SubtitleServiceImpl implements SubtitleService {
                 .map(SubtitleInfoSet::getSubtitles)
                 .orElse(Collections.emptyList());
 
-        return CompletableFuture.completedFuture(
-                Stream.concat(defaultOptions().stream(), subtitles.stream()).toList());
+        return CompletableFuture.supplyAsync(() ->
+                Stream.concat(defaultOptions().stream(), subtitles.stream()).toList(), executorService);
     }
 
     @Override
     public CompletableFuture<Subtitle> downloadAndParse(SubtitleInfo subtitleInfo, SubtitleMatcher.ByValue matcher) {
         Objects.requireNonNull(subtitleInfo, "subtitleInfo cannot be null");
         Objects.requireNonNull(matcher, "matcher cannot be null");
-        synchronized (mutex) {
-            log.debug("Starting subtitle download subtitleInfo: {}, matcher: {}", subtitleInfo, matcher);
-            var subtitle = fxLib.download_and_parse_subtitle(instance, subtitleInfo, matcher);
-            log.info("Downloaded and parsed subtitle info {} to {}", subtitleInfo, subtitle.getFilepath());
-            return CompletableFuture.completedFuture(subtitle);
-        }
+
+        return CompletableFuture.supplyAsync(() -> {
+            synchronized (mutex) {
+                log.debug("Starting subtitle download subtitleInfo: {}, matcher: {}", subtitleInfo, matcher);
+                var subtitle = fxLib.download_and_parse_subtitle(instance, subtitleInfo, matcher);
+                log.info("Downloaded and parsed subtitle info {} to {}", subtitleInfo, subtitle.getFilepath());
+                return subtitle;
+            }
+        }, executorService);
     }
 
     @Override

@@ -4,7 +4,6 @@ resolver = "2"
 members = [
     "popcorn-fx",
     "popcorn-fx-bootstrap",
-    "popcorn-fx-common",
     "popcorn-fx-core",
     "popcorn-fx-players",
     "popcorn-fx-opensubtitles",

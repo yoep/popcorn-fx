@@ -73,6 +73,18 @@ public class IoC {
     }
 
     /**
+     * Retrieves a singleton instance of the specified class from the IoC container.
+     *
+     * @param clazz the class of the instance to retrieve
+     * @param <T>   the type of the instance
+     * @return the singleton instance if found, else {@link Optional#empty()}
+     */
+    public <T> Optional<T> getOptionalInstance(Class<T> clazz) {
+        var result = doInternalGet(clazz);
+        return result.stream().findFirst();
+    }
+
+    /**
      * Retrieves all instances of the specified class from the IoC container.
      *
      * @param clazz the class of the instances to retrieve

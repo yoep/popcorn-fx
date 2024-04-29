@@ -79,7 +79,7 @@ public class PopcornTimeApplication extends Application {
         var loaderService = IOC.registerInstance(new LoaderService(fxLib, popcornFx, eventPublisher));
         var playerManagerService = IOC.registerInstance(new PlayerManagerServiceImpl(fxLib, popcornFx, eventPublisher));
         var watchedService = IOC.registerInstance(new WatchedService(fxLib, popcornFx));
-        var subtitleService = IOC.registerInstance(new SubtitleServiceImpl(fxLib, popcornFx));
+        var subtitleService = IOC.registerInstance(new SubtitleServiceImpl(fxLib, popcornFx, executorService));
         IOC.registerInstance(new MaximizeService(viewManager, applicationConfig));
         IOC.registerInstance(new PlatformFX());
         IOC.registerInstance(new PlaylistManager(fxLib, popcornFx, applicationConfig));

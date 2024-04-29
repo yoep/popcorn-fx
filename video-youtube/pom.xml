@@ -30,13 +30,6 @@
             <artifactId>commons-io</artifactId>
         </dependency>
 
-        <!-- Javax -->
-        <dependency>
-            <groupId>javax.annotation</groupId>
-            <artifactId>javax.annotation-api</artifactId>
-            <scope>provided</scope>
-        </dependency>
-
         <!-- Compilation -->
         <dependency>
             <groupId>org.projectlombok</groupId>

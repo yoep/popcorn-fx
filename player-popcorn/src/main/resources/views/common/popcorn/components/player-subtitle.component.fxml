@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import com.github.yoep.player.popcorn.subtitles.controls.LanguageSelection?>
+<?import com.github.yoep.player.popcorn.controls.LanguageSelection?>
 <?import com.github.yoep.popcorn.ui.font.controls.*?>
 <?import javafx.scene.control.Tooltip?>
 <?import javafx.scene.layout.HBox?>

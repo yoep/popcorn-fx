@@ -1,4 +1,5 @@
 use std::{mem, ptr};
+use std::backtrace::Backtrace;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
@@ -60,7 +61,7 @@ pub fn from_c_string(ptr: *const c_char) -> String {
                 String::new()
             })
     } else {
-        error!("Unable to read C string, pointer is null");
+        error!("Unable to read C string, pointer is null {}", Backtrace::capture());
         String::new()
     }
 }

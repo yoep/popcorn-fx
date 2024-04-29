@@ -38,7 +38,6 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 
 import java.net.URL;
 import java.util.Arrays;
@@ -290,7 +289,7 @@ public class ListSectionController extends AbstractListSectionController impleme
     }
 
     private CompletableFuture<Media[]> retrieveMediaPage(ProviderService<? extends Media> provider, int page) {
-        if (StringUtils.isEmpty(search)) {
+        if (search == null || search.isBlank()) {
             currentLoadRequest = provider.getPage(genre, sortBy, page);
         } else {
             currentLoadRequest = provider.getPage(genre, sortBy, page, search);

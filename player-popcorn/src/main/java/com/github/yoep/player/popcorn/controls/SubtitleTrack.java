@@ -1,4 +1,4 @@
-package com.github.yoep.player.popcorn.subtitles.controls;
+package com.github.yoep.player.popcorn.controls;
 
 import com.github.yoep.popcorn.backend.settings.models.subtitles.DecorationType;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;

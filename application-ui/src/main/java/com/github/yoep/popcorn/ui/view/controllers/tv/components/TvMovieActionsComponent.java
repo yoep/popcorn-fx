@@ -23,7 +23,6 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 
 import java.net.URL;
 import java.util.Collections;
@@ -106,11 +105,13 @@ public class TvMovieActionsComponent extends AbstractActionsComponent {
 
     private void onShowMovieDetailsEvent(ShowMovieDetailsEvent event) {
         this.media = event.getMedia();
+        var trailer = media.getTrailer();
+
         Platform.runLater(() -> {
             updateQualities();
             updateFavoriteState();
 
-            watchTrailerButton.setVisible(StringUtils.isNotEmpty(media.getTrailer()));
+            watchTrailerButton.setVisible(trailer != null && !trailer.isBlank());
             watchNowButton.requestFocus();
         });
     }

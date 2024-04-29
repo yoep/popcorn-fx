@@ -25,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
 import java.util.List;
+import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 
@@ -84,7 +85,10 @@ public class DesktopSerieActionsComponent implements Initializable, SerieActions
                     return;
 
                 setText(item.getLanguage().getNativeName());
-                var image = new ImageView(new Image(item.getFlagResource()));
+                var image = new ImageView(Optional.ofNullable(item.getFlagResource())
+                        .map(DesktopSerieActionsComponent.class::getResourceAsStream)
+                        .map(Image::new)
+                        .orElse(null));
 
                 image.setFitHeight(15);
                 image.setPreserveRatio(true);

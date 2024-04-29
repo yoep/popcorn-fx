@@ -11,7 +11,6 @@ import com.github.yoep.popcorn.ui.messages.MediaMessage;
 import javafx.application.Application;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
-import org.apache.commons.lang3.StringUtils;
 
 import java.io.File;
 import java.io.IOException;
@@ -65,7 +64,7 @@ public class UrlService {
     public boolean process(String url) {
         // check if the url is empty
         // if so, ignore this process action
-        if (StringUtils.isBlank(url))
+        if (url == null || url.isBlank())
             return false;
 
         var matcher = URL_TYPE_PATTERN.matcher(url);

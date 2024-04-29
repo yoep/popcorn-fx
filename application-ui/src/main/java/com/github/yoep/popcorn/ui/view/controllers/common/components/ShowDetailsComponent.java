@@ -27,7 +27,6 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.GridPane;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 
 import java.net.URL;
 import java.util.List;
@@ -127,12 +126,12 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
     @Override
     protected void reset() {
         super.reset();
-        title.setText(StringUtils.EMPTY);
-        overview.setText(StringUtils.EMPTY);
-        year.setText(StringUtils.EMPTY);
-        duration.setText(StringUtils.EMPTY);
-        status.setText(StringUtils.EMPTY);
-        genres.setText(StringUtils.EMPTY);
+        title.setText(null);
+        overview.setText(null);
+        year.setText(null);
+        duration.setText(null);
+        status.setText(null);
+        genres.setText(null);
         seasons.setItems();
         seasons.setItems();
     }

@@ -9,17 +9,13 @@ import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
 
-import javax.annotation.PostConstruct;
 import java.util.Collections;
 import java.util.List;
 
 @Slf4j
-
-@RequiredArgsConstructor
 public class PlayerSubtitleService extends AbstractListenerService<PlayerSubtitleListener> {
     private final VideoService videoService;
     private final SubtitleService subtitleService;
@@ -27,6 +23,14 @@ public class PlayerSubtitleService extends AbstractListenerService<PlayerSubtitl
     private final FxLib fxLib;
 
     private final PlaybackListener listener = createListener();
+
+    public PlayerSubtitleService(VideoService videoService, SubtitleService subtitleService, SubtitleManagerService subtitleManagerService, FxLib fxLib) {
+        this.videoService = videoService;
+        this.subtitleService = subtitleService;
+        this.subtitleManagerService = subtitleManagerService;
+        this.fxLib = fxLib;
+        init();
+    }
 
     //region Methods
 
@@ -50,8 +54,7 @@ public class PlayerSubtitleService extends AbstractListenerService<PlayerSubtitl
 
     //region PostConstruct
 
-    @PostConstruct
-    void init() {
+    private void init() {
         videoService.addListener(listener);
     }
 

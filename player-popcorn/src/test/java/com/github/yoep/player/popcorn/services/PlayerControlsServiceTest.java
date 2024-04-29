@@ -16,7 +16,6 @@ import javafx.beans.property.SimpleBooleanProperty;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -37,7 +36,7 @@ class PlayerControlsServiceTest {
     private PlayerControlsListener listener;
     @Mock
     private TorrentService torrentService;
-    @InjectMocks
+
     private PlayerControlsService service;
 
     private final AtomicReference<PlayerListener> playerListenerHolder = new AtomicReference<>();
@@ -56,6 +55,7 @@ class PlayerControlsServiceTest {
             return null;
         }).when(videoService).addListener(isA(PlaybackListener.class));
 
+        service = new PlayerControlsService(player, screenService, videoService, torrentService);
         service.addListener(listener);
     }
 
@@ -110,7 +110,6 @@ class PlayerControlsServiceTest {
     @Test
     void testOnFullScreenProperty_whenFullscreenIsChanged_shouldInvokedListeners() {
         var expectedState = true;
-        service.init();
 
         fullscreenProperty.set(expectedState);
 
@@ -120,7 +119,6 @@ class PlayerControlsServiceTest {
     @Test
     void testPlayerListener_whenPlayerStateChanged_shouldInvokeListeners() {
         var state = PlayerState.STOPPED;
-        service.init();
 
         playerListenerHolder.get().onStateChanged(state);
 
@@ -130,7 +128,6 @@ class PlayerControlsServiceTest {
     @Test
     void testPlayerListener_whenPlayerTimeChanged_shouldInvokeListeners() {
         var value = 123987777;
-        service.init();
 
         playerListenerHolder.get().onTimeChanged(value);
 
@@ -140,7 +137,6 @@ class PlayerControlsServiceTest {
     @Test
     void testPlayerListener_whenPlayerDurationChanged_shouldInvokeListeners() {
         var value = 160000;
-        service.init();
 
         playerListenerHolder.get().onDurationChanged(value);
 
@@ -151,7 +147,6 @@ class PlayerControlsServiceTest {
     void testPlaybackListener_whenRequestIsMediaPlayback_shouldEnableSubtitles() {
         var request = mock(PlayRequest.class);
         when(request.isSubtitlesEnabled()).thenReturn(true);
-        service.init();
 
         playbackListenerHolder.get().onPlay(request);
 
@@ -161,7 +156,6 @@ class PlayerControlsServiceTest {
     @Test
     void testPlaybackListener_whenRequestIsSimplePlayback_shouldDisableSubtitles() {
         var request = mock(PlayRequest.class);
-        service.init();
 
         playbackListenerHolder.get().onPlay(request);
 
@@ -178,7 +172,6 @@ class PlayerControlsServiceTest {
             listenerHolder.set(invocation.getArgument(1, TorrentStreamListener.class));
             return new Handle(123L);
         });
-        service.init();
 
         when(request.getStreamHandle()).thenReturn(Optional.of(new Handle(24L)));
 

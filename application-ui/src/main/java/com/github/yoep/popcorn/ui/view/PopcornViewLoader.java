@@ -19,10 +19,10 @@ import javafx.stage.Modality;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -150,13 +150,26 @@ public class PopcornViewLoader implements ViewLoader {
     private FXMLLoader doLoadResource(String view) {
         Objects.requireNonNull(view, "view cannot be null");
         var fxmlFilePath = VIEW_DIRECTORY + File.separator + view;
-        var componentResource = PopcornViewLoader.class.getResource(fxmlFilePath);
+        var loader = loadResourceWithClass(fxmlFilePath, PopcornViewLoader.class);
 
-        if (componentResource == null) {
-            throw new ViewNotFoundException(fxmlFilePath);
+        if (loader.isEmpty()) {
+            var classLoaderName = Arrays.stream(Thread.currentThread().getStackTrace())
+                    .filter(e -> isNotOfType(e, Thread.class))
+                    .filter(e -> isNotOfType(e, PopcornViewLoader.class))
+                    .findFirst()
+                    .map(StackTraceElement::getClassName);
+
+            if (classLoaderName.isPresent()) {
+                try {
+                    var asClazz = Class.forName(classLoaderName.get());
+                    loader = loadResourceWithClass(fxmlFilePath, asClazz);
+                } catch (Exception ex) {
+                    log.error("Failed to retrieve caller class, {}", ex.getMessage(), ex);
+                }
+            }
         }
 
-        return new FXMLLoader(componentResource);
+        return loader.orElseThrow(() -> new ViewNotFoundException(fxmlFilePath));
     }
 
     private SceneInfo loadView(String view, ViewProperties properties) throws ViewNotFoundException {
@@ -241,7 +254,7 @@ public class PopcornViewLoader implements ViewLoader {
             window.setResizable(properties.isResizable());
 
         Optional.ofNullable(properties.getIcon())
-                .filter(StringUtils::isNotBlank)
+                .filter(e -> e != null && !e.isBlank())
                 .ifPresent(icon -> window.getIcons().add(loadWindowIcon(icon)));
 
         if (properties.isCenterOnScreen()) {
@@ -308,6 +321,20 @@ public class PopcornViewLoader implements ViewLoader {
                 log.error("Failed to invoke scale awareness with error {}", ex.getMessage(), ex);
             }
         }
+    }
+
+    private static Optional<FXMLLoader> loadResourceWithClass(String fxmlFilepath, Class<?> clazz) {
+        var resource = clazz.getResource(fxmlFilepath);
+
+        if (resource != null) {
+            return Optional.of(new FXMLLoader(resource));
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    private static boolean isNotOfType(StackTraceElement e, Class<?> clazz) {
+        return !e.getClassName().equals(clazz.getName());
     }
 
     //endregion

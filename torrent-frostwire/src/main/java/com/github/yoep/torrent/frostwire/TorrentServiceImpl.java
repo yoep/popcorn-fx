@@ -21,10 +21,8 @@ import com.github.yoep.torrent.frostwire.model.FrostTorrentHealth;
 import com.github.yoep.torrent.frostwire.model.TorrentHealthImpl;
 import com.github.yoep.torrent.frostwire.wrappers.TorrentInfoWrapper;
 import javafx.beans.property.ReadOnlyObjectProperty;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.annotation.PostConstruct;
 import java.io.File;
 import java.text.MessageFormat;
 import java.util.*;
@@ -34,7 +32,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
-@RequiredArgsConstructor
 public class TorrentServiceImpl implements TorrentService {
     private final TorrentSessionManager sessionManager;
     private final TorrentResolverService torrentResolverService;
@@ -48,6 +45,15 @@ public class TorrentServiceImpl implements TorrentService {
     private final List<com.github.yoep.popcorn.backend.adapters.torrent.TorrentInfoWrapper> torrentInfos = new ArrayList<>();
     private final List<TorrentWrapper> torrentWrappers = new ArrayList<>();
     private final Map<Handle, StreamListenerHolder> torrentStreamCallbacks = new HashMap<>();
+
+    public TorrentServiceImpl(TorrentSessionManager sessionManager, TorrentResolverService torrentResolverService, FxLib fxLib, PopcornFx instance, ExecutorService executorService) {
+        this.sessionManager = sessionManager;
+        this.torrentResolverService = torrentResolverService;
+        this.fxLib = fxLib;
+        this.instance = instance;
+        this.executorService = executorService;
+        init();
+    }
 
     //region Getters
 
@@ -221,8 +227,7 @@ public class TorrentServiceImpl implements TorrentService {
 
     //region Functions
 
-    @PostConstruct
-    void init() {
+    private void init() {
         fxLib.torrent_resolve_info_callback(instance, resolveTorrentInfoCallback);
         fxLib.register_torrent_resolve_callback(instance, resolveTorrentCallback);
         fxLib.torrent_cancel_callback(instance, cancelTorrentCallback);

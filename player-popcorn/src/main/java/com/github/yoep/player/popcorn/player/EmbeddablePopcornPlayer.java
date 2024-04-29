@@ -3,7 +3,6 @@ package com.github.yoep.player.popcorn.player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.adapters.player.embaddable.EmbeddablePlayer;
-import com.github.yoep.popcorn.backend.adapters.player.embaddable.LayoutMode;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.ui.view.ViewLoader;
@@ -19,7 +18,7 @@ import java.util.Optional;
 @EqualsAndHashCode(exclude = "embeddablePlayer", callSuper = false)
 @ToString(exclude = "embeddablePlayer")
 public class EmbeddablePopcornPlayer implements EmbeddablePlayer {
-    static final String PLAYER_SECTION_VIEW = "common/sections/popcorn-player.section.fxml";
+    static final String PLAYER_SECTION_VIEW = "common/popcorn/sections/popcorn-player.section.fxml";
 
     private final PlayerManagerService playerService;
     private final ViewLoader viewLoader;
@@ -119,11 +118,6 @@ public class EmbeddablePopcornPlayer implements EmbeddablePlayer {
     @Override
     public Node getEmbeddedPlayer() {
         return embeddablePlayer;
-    }
-
-    @Override
-    public void setLayoutMode(LayoutMode mode) {
-        //TODO: implement
     }
 
     //endregion

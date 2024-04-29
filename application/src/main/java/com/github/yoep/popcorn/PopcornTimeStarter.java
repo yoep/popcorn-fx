@@ -90,7 +90,7 @@ public class PopcornTimeStarter {
             var discovery = new NativeDiscovery(discoveryStrategies.toArray(NativeDiscoveryStrategy[]::new));
             if (discovery.discover()) {
                 ioC.registerInstance(discovery);
-                ioC.register(MediaPlayerFactory.class);
+                ioC.registerInstance(new MediaPlayerFactory(discovery));
             }
         }
 

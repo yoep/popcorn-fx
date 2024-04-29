@@ -66,11 +66,11 @@ public class ApplicationConfig {
     public boolean isMouseDisabled() {
         return fxLib.is_mouse_disabled(instance) == 1;
     }
-    
+
     public boolean isYoutubeVideoPlayerEnabled() {
         return fxLib.is_youtube_video_player_enabled(instance) == 1;
     }
-    
+
     public boolean isVlcVideoPlayerEnabled() {
         return fxLib.is_vlc_video_player_enabled(instance) == 1;
     }
@@ -196,8 +196,13 @@ public class ApplicationConfig {
 
     private void initializeSettings() {
         var uiSettings = getSettings().getUiSettings();
+        var locale = UISettings.supportedLanguages().stream()
+                .filter(e -> e.getDisplayLanguage().equalsIgnoreCase(uiSettings.getDefaultLanguage()))
+                .findFirst()
+                .orElse(Locale.ENGLISH);
+
         updateUIScale(uiSettings.getUiScale().getValue());
-        localeText.updateLocale(Locale.forLanguageTag(uiSettings.getDefaultLanguage()));
+        localeText.updateLocale(locale);
     }
 
     //endregion

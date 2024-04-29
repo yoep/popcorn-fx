@@ -9,9 +9,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.testfx.framework.junit5.ApplicationExtension;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -32,14 +29,5 @@ class PlatformFXTest {
         });
 
         assertTrue(future.join());
-    }
-
-    @Test
-    void testRunOnRenderer() throws ExecutionException, InterruptedException, TimeoutException {
-        var future = new CompletableFuture<>();
-
-        platform.runOnRenderer(() -> future.complete(null));
-
-        future.get(1, TimeUnit.SECONDS);
     }
 }

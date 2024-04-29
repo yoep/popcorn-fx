@@ -15,15 +15,6 @@ public class PlatformFX implements PlatformProvider {
     }
 
     @Override
-    public void runOnRenderer(Runnable runnable) {
-        if (Platform.isFxApplicationThread()) {
-            runnable.run();
-        } else {
-            Platform.runLater(runnable);
-        }
-    }
-
-    @Override
     public boolean isMac() {
         return com.sun.jna.Platform.isMac();
     }

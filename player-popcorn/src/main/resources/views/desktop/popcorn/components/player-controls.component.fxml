@@ -42,11 +42,11 @@
            GridPane.columnIndex="3" GridPane.rowIndex="0"/>
 
     <!-- Subtitle -->
-    <fx:include fx:id="subtitleSection" source="../../common/components/player-subtitle.component.fxml"
+    <fx:include fx:id="subtitleSection" source="/views/common/popcorn/components/player-subtitle.component.fxml"
                 GridPane.columnIndex="4" GridPane.rowIndex="0"/>
 
     <!-- Playlist -->
-    <fx:include fx:id="playlistSection" source="../../common/components/player-playlist.component.fxml"
+    <fx:include fx:id="playlistSection" source="/views/common/popcorn/components/player-playlist.component.fxml"
                 GridPane.columnIndex="5" GridPane.rowIndex="0"/>
 
     <!-- Volume -->

@@ -10,25 +10,8 @@
     </parent>
 
     <artifactId>application-backend</artifactId>
-    <properties>
-        <jakarta.validation-api.version>3.0.2</jakarta.validation-api.version>
-    </properties>
 
     <dependencies>
-        <!-- Apache -->
-        <dependency>
-            <groupId>commons-io</groupId>
-            <artifactId>commons-io</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-text</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-lang3</artifactId>
-        </dependency>
-
         <!-- JavaFX -->
         <dependency>
             <groupId>org.openjfx</groupId>
@@ -43,7 +26,6 @@
         <dependency>
             <groupId>jakarta.validation</groupId>
             <artifactId>jakarta.validation-api</artifactId>
-            <version>${jakarta.validation-api.version}</version>
         </dependency>
 
         <!-- JNA -->
@@ -69,7 +51,6 @@
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
         </dependency>
-
 
         <!-- Compilation -->
         <dependency>

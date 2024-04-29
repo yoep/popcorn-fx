@@ -22,9 +22,7 @@ import javafx.scene.input.*;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.io.FilenameUtils;
-import org.apache.commons.lang3.StringUtils;
 
 import java.io.File;
 import java.io.IOException;
@@ -188,13 +186,13 @@ public class MainController extends PopcornScaleAware implements Initializable {
         var url = clipboard.getUrl();
         var files = clipboard.getFiles();
 
-        if (CollectionUtils.isNotEmpty(files)) {
+        if (isNotEmpty(files)) {
             log.trace("Processing clipboard files");
             processFiles(files);
-        } else if (StringUtils.isNotEmpty(url)) {
+        } else if (isNotEmpty(url)) {
             log.trace("Processing clipboard url");
             urlService.process(url);
-        } else if (StringUtils.isNotEmpty(clipboard.getString())) {
+        } else if (isNotEmpty(clipboard.getString())) {
             log.trace("Processing clipboard string");
             urlService.process(clipboard.getString());
         } else {
@@ -203,9 +201,9 @@ public class MainController extends PopcornScaleAware implements Initializable {
     }
 
     private void onDragOver(DragEvent event) {
-        List<File> files = event.getDragboard().getFiles();
+        var files = event.getDragboard().getFiles();
 
-        if (CollectionUtils.isNotEmpty(files)) {
+        if (isNotEmpty(files)) {
             log.trace("Processing drag content");
             File file = files.get(0);
 
@@ -219,9 +217,9 @@ public class MainController extends PopcornScaleAware implements Initializable {
     }
 
     private void onDragDropped(DragEvent event) {
-        List<File> files = event.getDragboard().getFiles();
+        var files = event.getDragboard().getFiles();
 
-        if (CollectionUtils.isNotEmpty(files)) {
+        if (isNotEmpty(files)) {
             processFiles(files);
         }
     }
@@ -350,6 +348,14 @@ public class MainController extends PopcornScaleAware implements Initializable {
         }
 
         return PASTE_KEY_COMBINATION.match(event);
+    }
+
+    private static boolean isNotEmpty(List<File> files) {
+        return files != null && !files.isEmpty();
+    }
+
+    private static boolean isNotEmpty(String value) {
+        return value != null && !value.isBlank();
     }
 
     //endregion

@@ -19,7 +19,7 @@ import java.util.ResourceBundle;
 @Slf4j
 @RequiredArgsConstructor
 public class PlayerHeaderComponent implements Initializable {
-    static final String VIEW_HEADER_ACTIONS = "components/header-actions.component.fxml";
+    static final String VIEW_HEADER_ACTIONS = "popcorn/components/header-actions.component.fxml";
 
     private final PlayerHeaderService playerHeaderService;
     private final ViewLoader viewLoader;

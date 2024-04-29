@@ -1,4 +1,4 @@
-package com.github.yoep.player.popcorn.subtitles.controls;
+package com.github.yoep.player.popcorn.controls;
 
 import com.github.yoep.popcorn.backend.subtitles.listeners.LanguageSelectionListener;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;

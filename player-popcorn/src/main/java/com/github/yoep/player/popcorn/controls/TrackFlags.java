@@ -1,4 +1,4 @@
-package com.github.yoep.player.popcorn.subtitles.controls;
+package com.github.yoep.player.popcorn.controls;
 
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleLine;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleText;

@@ -14,15 +14,6 @@ public interface PlatformProvider {
     boolean isTransparentWindowSupported();
 
     /**
-     * Run the given action on the rendering thread of the platform.
-     *
-     * @param runnable The action to execute on the rendering thread.
-     * @deprecated Use {@link javafx.application.Platform#runLater(Runnable)} instead
-     */
-    @Deprecated
-    void runOnRenderer(Runnable runnable);
-
-    /**
      * Verify if the current platform is a MacOS system.
      * @return Returns true when the current platform is Mac, else false.
      */

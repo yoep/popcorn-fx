@@ -2,7 +2,6 @@ package com.github.yoep.popcorn.ui.view.controls;
 
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.ui.font.controls.Icon;
-import javafx.collections.ObservableList;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Control;
@@ -15,7 +14,6 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 
 import java.util.Optional;
 
@@ -33,6 +31,7 @@ public class LanguageFlagCell extends Control {
             setText(item.getLanguage().getNativeName());
 
             Optional.ofNullable(item.getFlagResource())
+                    .map(LanguageFlagCell.class::getResourceAsStream)
                     .map(Image::new)
                     .map(ImageView::new)
                     .ifPresent(this::setGraphic);
@@ -53,12 +52,12 @@ public class LanguageFlagCell extends Control {
      * @param text The text to use in the skin.
      */
     protected void setText(String text) {
-        Label label = skin.getLabel();
-        ObservableList<Node> children = skin.getSkinNode().getChildren();
+        var label = skin.getLabel();
+        var children = skin.getSkinNode().getChildren();
 
         label.setText(text);
 
-        if (StringUtils.isEmpty(text)) {
+        if (text != null && !text.isBlank()) {
             children.remove(label);
         } else if (!children.contains(label)) {
             children.add(1, label);

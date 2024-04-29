@@ -15,13 +15,4 @@ public interface EmbeddablePlayer extends Player {
      * @return Returns the embeddable node for the player playback.
      */
     Node getEmbeddedPlayer();
-
-    /**
-     * Set the display/layout mode of the {@link EmbeddablePlayer}.
-     * This can be optionally (if supported) be used by the player to change the layout based
-     * on the current user preferences.
-     *
-     * @param mode The display/layout mode to use.
-     */
-    void setLayoutMode(LayoutMode mode);
 }

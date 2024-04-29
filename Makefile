@@ -96,8 +96,7 @@ build-cargo-release:  ## Build the rust part of the application in release profi
 	$(info Building cargo packages)
 	@cargo build --release --features ffi
 
-## Copy the cargo libraries to the java resources
-lib-copy-%: build-cargo-% $(RESOURCE_DIRECTORIES)
+lib-copy-%: build-cargo-% $(RESOURCE_DIRECTORIES) ## Copy the cargo libraries to the assets resources
 	@cp -v ./target/$*/*.$(LIBRARY_EXTENSION) ./assets/$(ASSETS)/
 	@cp -v "./target/$*/$(EXECUTABLE)" "./assets/$(ASSETS)/"
 
@@ -134,10 +133,14 @@ package-java:
 	@echo Packaging Java
 	@mvn -B package -DskipTests -DskipITsQ
 
-package: package-clean build-release package-java ## Package the application for distribution
+package-jre: ## Package the JRE runtime for distribution
 	@echo Creating JRE bundle
-	@"${JAVA_HOME}/bin/jlink" --module-path="${JAVA_HOME}/jmods" --add-modules="ALL-MODULE-PATH" --output "./target/package/runtimes/${RUNTIME_VERSION}/jre" --no-header-files --no-man-pages --strip-debug --compress=2
+	@rm -rf ./target/package/runtimes/*
+	@APP_MODULES=$$(jdeps -q --ignore-missing-deps --print-module-deps --module-path "${JAVA_HOME}/jmods" application/target/popcorn-time.jar) &&\
+		echo "Bundling modules $${APP_MODULES}" &&\
+		"${JAVA_HOME}/bin/jlink" --module-path="${JAVA_HOME}/jmods" --add-modules "$${APP_MODULES}" --output "./target/package/runtimes/${RUNTIME_VERSION}/jre" --no-header-files --no-man-pages --strip-debug --compress=2
 
+package: package-clean build-release package-java package-jre ## Package the application for distribution
 	@echo Copying exeutable and libraries
 	@cp -v ./assets/${ASSETS}/*.${LIBRARY_EXTENSION} ./target/package/
 	@cp -v ./target/release/${EXECUTABLE} ./target/package/

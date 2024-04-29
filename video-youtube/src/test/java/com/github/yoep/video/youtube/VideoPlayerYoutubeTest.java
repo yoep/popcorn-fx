@@ -1,9 +1,8 @@
 package com.github.yoep.video.youtube;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.junit.jupiter.MockitoExtension;
 import org.testfx.framework.junit5.ApplicationExtension;
 import org.testfx.util.WaitForAsyncUtils;
 
@@ -11,10 +10,14 @@ import java.text.MessageFormat;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@ExtendWith({MockitoExtension.class, ApplicationExtension.class})
+@ExtendWith({ApplicationExtension.class})
 class VideoPlayerYoutubeTest {
-    @InjectMocks
     private VideoPlayerYoutube player;
+
+    @BeforeEach
+    void setUp() {
+        player = new VideoPlayerYoutube();
+    }
 
     @Test
     void testSupports_whenUrlDoesnNotContainIndicator_shouldReturnFalse() {

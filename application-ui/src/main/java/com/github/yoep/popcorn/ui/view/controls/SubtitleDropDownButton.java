@@ -34,7 +34,7 @@ public class SubtitleDropDownButton extends DropDownButton<SubtitleInfo> {
 
             @Override
             public Image graphicResource(SubtitleInfo item) {
-                return resourceToImage(item.getFlagResource());
+                return resourceToImage(SubtitleDropDownButton.class.getResourceAsStream(item.getFlagResource()));
             }
         };
     }

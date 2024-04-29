@@ -14,7 +14,6 @@ import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
 import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 
 import java.util.Collections;
 import java.util.List;
@@ -38,7 +37,7 @@ public class ShowProviderService implements ProviderService<ShowOverview> {
 
     @Override
     public CompletableFuture<List<ShowOverview>> getPage(Genre genre, SortBy sortBy, int page) {
-        return CompletableFuture.supplyAsync(() -> getPage(genre, sortBy, StringUtils.EMPTY, page), executorService);
+        return CompletableFuture.supplyAsync(() -> getPage(genre, sortBy, "", page), executorService);
     }
 
     @Override

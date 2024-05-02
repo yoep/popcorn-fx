@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.backend.media.watched.models;
 
-import com.github.yoep.popcorn.backend.media.providers.models.Media;
-import com.github.yoep.popcorn.backend.media.providers.models.MediaType;
+import com.github.yoep.popcorn.backend.media.providers.Media;
+import com.github.yoep.popcorn.backend.media.providers.MediaType;
 import javafx.beans.property.BooleanProperty;
 
 public interface Watchable {

@@ -3,7 +3,7 @@ package com.github.yoep.popcorn.ui.view.controllers.common.components;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteEvent;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
-import com.github.yoep.popcorn.backend.media.providers.models.Media;
+import com.github.yoep.popcorn.backend.media.providers.Media;
 import com.github.yoep.popcorn.backend.media.watched.WatchedEvent;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.utils.LocaleText;

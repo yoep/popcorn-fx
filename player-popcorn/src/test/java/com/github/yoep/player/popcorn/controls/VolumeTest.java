@@ -4,14 +4,13 @@ import com.github.yoep.popcorn.ui.font.controls.IconSolid;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.junit.jupiter.MockitoExtension;
 import org.testfx.framework.junit5.ApplicationExtension;
 import org.testfx.util.WaitForAsyncUtils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@ExtendWith({MockitoExtension.class, ApplicationExtension.class})
-class VolumeIT {
+@ExtendWith({ApplicationExtension.class})
+class VolumeTest {
     private Volume volume;
 
     @BeforeEach

@@ -34,7 +34,6 @@ public class FrostTorrentHealth implements AlertListener {
     private FrostTorrentHealth(TorrentHandle handle) {
         Objects.requireNonNull(handle, "handle cannot be null");
         this.handle = handle;
-
         init();
     }
 

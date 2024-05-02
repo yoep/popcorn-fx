@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.backend.events;
 
-import com.github.yoep.popcorn.backend.media.providers.models.Media;
+import com.github.yoep.popcorn.backend.media.providers.Media;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;

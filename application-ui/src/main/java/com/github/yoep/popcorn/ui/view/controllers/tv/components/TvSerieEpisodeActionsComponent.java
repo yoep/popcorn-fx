@@ -1,10 +1,10 @@
 package com.github.yoep.popcorn.ui.view.controllers.tv.components;
 
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.media.providers.models.Episode;
-import com.github.yoep.popcorn.backend.media.providers.models.Media;
-import com.github.yoep.popcorn.backend.media.providers.models.MediaTorrentInfo;
-import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
+import com.github.yoep.popcorn.backend.media.providers.Episode;
+import com.github.yoep.popcorn.backend.media.providers.Media;
+import com.github.yoep.popcorn.backend.media.providers.MediaTorrentInfo;
+import com.github.yoep.popcorn.backend.media.providers.ShowDetails;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;

@@ -13,12 +13,11 @@ use popcorn_fx_core::core::players::PlayerManager;
 use popcorn_fx_core::core::subtitles::SubtitleServer;
 
 use crate::{chromecast, Discovery, DiscoveryError, DiscoveryState};
-use crate::chromecast::cast::DefaultCastDevice;
+use crate::chromecast::device::DefaultCastDevice;
 use crate::chromecast::player::ChromecastPlayer;
+use crate::chromecast::transcode::{NoOpTranscoder, Transcoder};
 #[cfg(feature = "transcoder")]
-use crate::chromecast::transcode::{
-    NoOpTranscoder, Transcoder, VlcTranscoderDiscovery,
-};
+use crate::chromecast::transcode::VlcTranscoderDiscovery;
 
 pub(crate) const SERVICE_TYPE: &str = "_googlecast._tcp.local.";
 const INFO_UNKNOWN: &str = "Unknown";
@@ -27,7 +26,6 @@ const INFO_UNKNOWN: &str = "Unknown";
 #[display(fmt = "Chromecast device discovery")]
 pub struct ChromecastDiscovery {
     inner: Arc<InnerChromecastDiscovery>,
-    runtime: Arc<Runtime>,
 }
 
 impl ChromecastDiscovery {
@@ -51,8 +49,8 @@ impl ChromecastDiscovery {
                 subtitle_server,
                 discovered_devices: Default::default(),
                 state: Mutex::new(DiscoveryState::Stopped),
+                runtime,
             }),
-            runtime,
         }
     }
 
@@ -100,7 +98,7 @@ impl Discovery for ChromecastDiscovery {
 
             self.inner.update_state_async(DiscoveryState::Running).await;
             let inner = self.inner.clone();
-            self.runtime.spawn(async move {
+            self.inner.runtime.spawn(async move {
                 while let Ok(event) = receiver.recv() {
                     inner.handle_event(event).await;
                 }
@@ -173,7 +171,11 @@ impl ChromecastDiscoveryBuilder {
     pub fn build(self) -> ChromecastDiscovery {
         let runtime = self
             .runtime
-            .unwrap_or_else(|| Arc::new(Runtime::new().expect("expected a valid runtime")));
+            .unwrap_or_else(|| Arc::new(tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .thread_name("chromecast-discovery")
+                .build()
+                .expect("expected a new runtime")));
         let service_daemon = ServiceDaemon::new().expect("Failed to create daemon");
 
         ChromecastDiscovery::new(
@@ -192,6 +194,7 @@ struct InnerChromecastDiscovery {
     subtitle_server: Arc<SubtitleServer>,
     discovered_devices: Mutex<Vec<String>>,
     state: Mutex<DiscoveryState>,
+    runtime: Arc<Runtime>,
 }
 
 impl InnerChromecastDiscovery {
@@ -246,8 +249,8 @@ impl InnerChromecastDiscovery {
             .cast_address(addr.into())
             .cast_port(port)
             .subtitle_server(self.subtitle_server.clone())
-            .cast_device_factory(Box::new(|addr, port| DefaultCastDevice::new(addr, port)))
-            .build()
+            .transcoder(self.transcoder.clone())
+            .build().await
         {
             Ok(player) => {
                 if !self.player_manager.add_player(Box::new(player)) {

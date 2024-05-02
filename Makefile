@@ -2,7 +2,7 @@
 
 ## Set global variables
 VERSION = 0.8.2
-RUNTIME_VERSION = 17.0.6
+RUNTIME_VERSION = 21.0.3
 
 ifeq ($(shell command -v jenv >/dev/null 2>&1 && echo "found"),found)
 	JAVA_HOME = $(shell dirname $(shell dirname $(shell readlink -f $(shell jenv which jlink))))
@@ -20,6 +20,8 @@ $(info Detected OS: $(SYSTEM))
 $(info Detected ARCH: $(ARCH))
 $(info Detected JAVA_HOME: $(JAVA_HOME))
 $(info Detected JAVA version: $(shell java -version 2>&1 | awk -F '"' '/version/ {print $2}'))
+$(info Detected Cargo version: $(shell cargo --version))
+$(info Detected Rust version: $(shell rustc --version))
 
 ## Set the system information
 ifeq ($(SYSTEM),Windows)

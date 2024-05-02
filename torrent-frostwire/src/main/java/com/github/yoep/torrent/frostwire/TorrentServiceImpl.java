@@ -102,10 +102,11 @@ public class TorrentServiceImpl implements TorrentService {
             try {
                 session.addListener(torrentHealth);
                 var health = torrentHealth.healthFuture().get(10, TimeUnit.SECONDS);
-                session.removeListener(torrentHealth);
                 return calculateHealth(health.getSeeds(), health.getPeers());
             } catch (Exception ex) {
                 throw new TorrentException("Failed to get torrent health", ex);
+            } finally {
+                session.removeListener(torrentHealth);
             }
         }, executorService);
     }

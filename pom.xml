@@ -54,17 +54,18 @@
     </scm>
 
     <properties>
-        <java.version>17</java.version>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
+        <java.version>21</java.version>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
 
         <commons-io.version>2.11.0</commons-io.version>
         <guava.version>32.0.0-jre</guava.version>
         <hamcrest.version>2.2</hamcrest.version>
         <httpclient.version>4.5.14</httpclient.version>
+        <jacoco.version>0.8.12</jacoco.version>
         <jaffree.version>2021.12.30</jaffree.version>
         <jakarta.validation-api.version>3.0.2</jakarta.validation-api.version>
-        <javafx.version>22.0.1</javafx.version>
+        <javafx.version>21.0.3</javafx.version>
         <jna.version>5.13.0</jna.version>
         <junit-jupiter.version>5.10.1</junit-jupiter.version>
         <log4j-to-slf4j.version>2.23.1</log4j-to-slf4j.version>
@@ -291,7 +292,7 @@
                 <plugin>
                     <groupId>org.jacoco</groupId>
                     <artifactId>jacoco-maven-plugin</artifactId>
-                    <version>0.8.7</version>
+                    <version>${jacoco.version}</version>
                 </plugin>
                 <plugin>
                     <groupId>org.sonarsource.jacoco</groupId>
@@ -357,7 +358,66 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
-                    <argLine>@{argLine}</argLine>
+                    <argLine>
+                        @{argLine}
+                        --add-opens javafx.graphics/com.sun.javafx.application=ALL-UNNAMED
+                        --add-opens javafx.base/com.sun.javafx.beans=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.adapters.torrent=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.controls=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.events=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.info=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.lib=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.loader=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.logging=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.media.favorites=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.media.providers=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.media.tracking=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.media.watched=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.media=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.player=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.playlists=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.services=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.settings.models=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.settings=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.subtitles.model=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.subtitles=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.updater=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.utils=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend=ALL-UNNAMED
+                        --add-opens application.ui/com.github.yoep.popcorn.ui.font.controls=ALL-UNNAMED
+                        --add-opens application.ui/com.github.yoep.popcorn.ui.font=ALL-UNNAMED
+                        --add-opens application.ui/com.github.yoep.popcorn.ui.info=ALL-UNNAMED
+                        --add-opens application.ui/com.github.yoep.popcorn.ui.platform=ALL-UNNAMED
+                        --add-opens application.ui/com.github.yoep.popcorn.ui.scale=ALL-UNNAMED
+                        --add-opens application.ui/com.github.yoep.popcorn.ui.screen=ALL-UNNAMED
+                        --add-opens application.ui/com.github.yoep.popcorn.ui.torrent=ALL-UNNAMED
+                        --add-opens application.ui/com.github.yoep.popcorn.ui.utils=ALL-UNNAMED
+                        --add-opens application.ui/com.github.yoep.popcorn.ui.view.controllers.common.components=ALL-UNNAMED
+                        --add-opens application.ui/com.github.yoep.popcorn.ui.view.controllers.common.sections=ALL-UNNAMED
+                        --add-opens application.ui/com.github.yoep.popcorn.ui.view.controllers.common=ALL-UNNAMED
+                        --add-opens application.ui/com.github.yoep.popcorn.ui.view.controllers.desktop.components=ALL-UNNAMED
+                        --add-opens application.ui/com.github.yoep.popcorn.ui.view.controllers.desktop.sections=ALL-UNNAMED
+                        --add-opens application.ui/com.github.yoep.popcorn.ui.view.controllers.tv.components=ALL-UNNAMED
+                        --add-opens application.ui/com.github.yoep.popcorn.ui.view.controllers=ALL-UNNAMED
+                        --add-opens application.ui/com.github.yoep.popcorn.ui.view.controls=ALL-UNNAMED
+                        --add-opens application.ui/com.github.yoep.popcorn.ui.view.services=ALL-UNNAMED
+                        --add-opens application.ui/com.github.yoep.popcorn.ui.view=ALL-UNNAMED
+                        --add-opens application.ui/com.github.yoep.popcorn.ui=ALL-UNNAMED
+                        --add-opens application/com.github.yoep.popcorn=ALL-UNNAMED
+                        --add-opens player.popcorn/com.github.yoep.player.popcorn.controllers.components=ALL-UNNAMED
+                        --add-opens player.popcorn/com.github.yoep.player.popcorn.controllers.sections=ALL-UNNAMED
+                        --add-opens player.popcorn/com.github.yoep.player.popcorn.controls=ALL-UNNAMED
+                        --add-opens player.popcorn/com.github.yoep.player.popcorn.player=ALL-UNNAMED
+                        --add-opens player.popcorn/com.github.yoep.player.popcorn.services=ALL-UNNAMED
+                        --add-opens player.popcorn/com.github.yoep.player.popcorn.utils=ALL-UNNAMED
+                        --add-opens torrent.frostwire/com.github.yoep.torrent.frostwire.model=ALL-UNNAMED
+                        --add-opens torrent.frostwire/com.github.yoep.torrent.frostwire.wrappers=ALL-UNNAMED
+                        --add-opens torrent.frostwire/com.github.yoep.torrent.frostwire=ALL-UNNAMED
+                        --add-opens video.javafx/com.github.yoep.video.javafx=ALL-UNNAMED
+                        --add-opens video.vlc/com.github.yoep.video.vlc.discovery=ALL-UNNAMED
+                        --add-opens video.vlc/com.github.yoep.video.vlc=ALL-UNNAMED
+                        --add-opens video.youtube/com.github.yoep.video.youtube=ALL-UNNAMED
+                    </argLine>
                 </configuration>
             </plugin>
             <plugin>
@@ -378,6 +438,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
                 <configuration>
                     <annotationProcessorPaths>
                         <path>

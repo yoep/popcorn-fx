@@ -29,7 +29,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.testfx.framework.junit5.ApplicationExtension;
 import org.testfx.util.WaitForAsyncUtils;
 
-import java.io.ByteArrayInputStream;
 import java.net.URL;
 import java.util.Collections;
 import java.util.ResourceBundle;
@@ -80,9 +79,9 @@ class DetailsTorrentComponentTest {
         var subtitleNone = mock(SubtitleInfo.class);
         var subtitleCustom = mock(SubtitleInfo.class);
         when(subtitleNone.getLanguage()).thenReturn(SubtitleLanguage.NONE);
-        when(subtitleNone.getFlagResource()).thenReturn(new ByteArrayInputStream(new byte[0]));
+        when(subtitleNone.getFlagResource()).thenReturn("");
         when(subtitleCustom.getLanguage()).thenReturn(SubtitleLanguage.CUSTOM);
-        when(subtitleCustom.getFlagResource()).thenReturn(new ByteArrayInputStream(new byte[0]));
+        when(subtitleCustom.getFlagResource()).thenReturn("");
         when(subtitleService.none()).thenReturn(subtitleNone);
         when(subtitleService.custom()).thenReturn(subtitleCustom);
 
@@ -101,9 +100,9 @@ class DetailsTorrentComponentTest {
         var subtitleNone = mock(SubtitleInfo.class);
         var subtitleCustom = mock(SubtitleInfo.class);
         when(subtitleNone.getLanguage()).thenReturn(SubtitleLanguage.NONE);
-        when(subtitleNone.getFlagResource()).thenReturn(new ByteArrayInputStream(new byte[0]));
+        when(subtitleNone.getFlagResource()).thenReturn("");
         when(subtitleCustom.getLanguage()).thenReturn(SubtitleLanguage.CUSTOM);
-        when(subtitleCustom.getFlagResource()).thenReturn(new ByteArrayInputStream(new byte[0]));
+        when(subtitleCustom.getFlagResource()).thenReturn("");
         when(subtitleService.none()).thenReturn(subtitleNone);
         when(subtitleService.custom()).thenReturn(subtitleCustom);
         when(torrent.getFiles()).thenReturn(Collections.singletonList(fileInfo));
@@ -123,9 +122,9 @@ class DetailsTorrentComponentTest {
         var subtitleNone = mock(SubtitleInfo.class);
         var subtitleCustom = mock(SubtitleInfo.class);
         when(subtitleNone.getLanguage()).thenReturn(SubtitleLanguage.NONE);
-        when(subtitleNone.getFlagResource()).thenReturn(new ByteArrayInputStream(new byte[0]));
+        when(subtitleNone.getFlagResource()).thenReturn("");
         when(subtitleCustom.getLanguage()).thenReturn(SubtitleLanguage.CUSTOM);
-        when(subtitleCustom.getFlagResource()).thenReturn(new ByteArrayInputStream(new byte[0]));
+        when(subtitleCustom.getFlagResource()).thenReturn("");
         when(subtitleService.none()).thenReturn(subtitleNone);
         when(subtitleService.custom()).thenReturn(subtitleCustom);
         component.initialize(url, resourceBundle);

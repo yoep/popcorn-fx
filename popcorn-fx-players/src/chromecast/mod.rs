@@ -8,31 +8,26 @@ mod errors;
 mod models;
 mod player;
 pub mod transcode;
-mod cast;
+mod device;
 
 #[cfg(test)]
 mod tests {
-    use std::borrow::Cow;
     use std::net::SocketAddr;
     use std::sync::Arc;
 
     use log::{debug, error};
     use mdns_sd::{ServiceDaemon, ServiceInfo};
-    use mockall::mock;
-    use rust_cast::channels::media::{ResumeState, Status, StatusEntry};
-    use rust_cast::channels::receiver::{Application, CastDeviceApp};
-    use serde::Serialize;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::{TcpListener, TcpStream};
     use tokio::runtime::Runtime;
     use tokio_rustls::{rustls, TlsAcceptor};
     use tokio_rustls::rustls::pki_types::PrivateKeyDer;
 
-    use popcorn_fx_core::core::subtitles::{MockSubtitleProvider, SubtitleServer};
+    use popcorn_fx_core::core::subtitles::{MockSubtitleProvider, SubtitleProvider, SubtitleServer};
     use popcorn_fx_core::core::utils::network::available_socket;
 
-    use crate::chromecast;
-    use crate::chromecast::cast::{FxCastDevice, MockFxCastDevice};
+    use crate::chromecast::device::MockFxCastDevice;
+    use crate::chromecast::transcode::{MockTranscoder, Transcoder};
 
     use super::*;
 
@@ -63,20 +58,30 @@ mod tests {
         }
 
         pub fn new_player(device: Box<dyn Fn() -> MockFxCastDevice + Send + Sync>) -> Self {
+            let mut transcoder = MockTranscoder::new();
+            transcoder.expect_stop()
+                .return_const(());
+            Self::new_player_with_additions(device, Box::new(MockSubtitleProvider::new()), Box::new(transcoder))
+        }
+
+        pub fn new_player_with_additions(
+            device: Box<dyn Fn() -> MockFxCastDevice + Send + Sync>,
+            subtitle_provider: Box<dyn SubtitleProvider>,
+            transcoder: Box<dyn Transcoder>,
+        ) -> Self {
             let mut instance = Self::new();
-            let provider = MockSubtitleProvider::new();
-            let subtitle_server = SubtitleServer::new(&Arc::new(Box::new(provider)));
-            let player = ChromecastPlayer::builder()
-                .id("MyChromecastId")
-                .name("MyChromecastName")
-                .cast_model("Chromecast")
-                .cast_address(instance.addr.ip().to_string())
-                .cast_port(instance.addr.port())
-                .subtitle_server(Arc::new(subtitle_server))
-                .cast_device_factory(Box::new(move |_, _| Ok(device())))
-                .heartbeat_millis(500)
-                .build()
-                .unwrap();
+            let subtitle_server = SubtitleServer::new(&Arc::new(subtitle_provider));
+            let player = ChromecastPlayer::new_with_device(
+                "MyChromecastId",
+                "MyChromecastName",
+                "Chromecast",
+                instance.addr.ip().to_string(),
+                instance.addr.port(),
+                device(),
+                Arc::new(subtitle_server),
+                Arc::new(transcoder),
+                Runtime::new().unwrap()
+            ).unwrap();
 
             instance.player = Some(player);
             instance
@@ -129,7 +134,7 @@ mod tests {
                         let mut len_buf = [0u8; 4];
                         if let Err(e) = reader.read_exact(&mut len_buf).await {
                             error!("Failed to read message length, {}", e);
-                            continue;
+                            break;
                         }
                         let len = u32::from_be_bytes(len_buf) as usize;
 
@@ -145,7 +150,15 @@ mod tests {
                             continue;
                         }
 
-                        writer.write_all(&[0u8; 0]).await.unwrap();
+                        let response = "receiver-0 {\"Status\": \"OK\"}".as_bytes();
+                        let mut response_len = vec![];
+                        let _ = response_len.write_u32(response.len() as u32).await;
+                        match writer.write_all(response_len.as_slice()).await {
+                            Ok(()) => {
+                                writer.write_all(response).await.unwrap();
+                            }
+                            Err(e) => error!("Failed to write length message, {}", e),
+                        }
                     }
                 }
                 Err(e) => error!("Failed to accept client TLS connection, {}", e),

@@ -213,6 +213,7 @@ impl VlcTranscoder {
 
     async fn stop_player(&self) -> transcode::Result<()> {
         if let Some(media_player) = self.media_player.lock().await.clone() {
+            trace!("Stopping the transcoding media player");
             let native_fn = self.library.get::<libvlc_media_player_stop>(b"libvlc_media_player_stop\0")
                 .map_err(|e| TranscodeError::Initialization(e.to_string()))?;
             native_fn(media_player.0);

@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
-import com.github.yoep.popcorn.backend.media.providers.models.Episode;
+import com.github.yoep.popcorn.backend.media.providers.Episode;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.font.controls.Icon;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;

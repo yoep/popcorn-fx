@@ -15,7 +15,7 @@ public class ResourceBundleMessageSource extends ResourceBundle {
     private final ResourceBundleProvider resourceBundleProvider;
 
     private Locale currentLocale = Locale.ENGLISH;
-    private String[] basenames;
+    private final String[] basenames;
 
     public ResourceBundleMessageSource(ResourceBundleProvider resourceBundleProvider, String... basenames) {
         Objects.requireNonNull(resourceBundleProvider, "resourceBundleProvider cannot be null");
@@ -82,7 +82,14 @@ public class ResourceBundleMessageSource extends ResourceBundle {
             var bundles = new ArrayList<ResourceBundle>();
 
             for (String basename : this.basenames) {
-                bundles.add(resourceBundleProvider.getBundle(RESOURCE_DIRECTORY + basename, locale));
+                var bundle = resourceBundleProvider.getBundle(RESOURCE_DIRECTORY + basename, locale);
+
+                if (bundle != null) {
+                    log.trace("Loaded bundle {} for locale {}", basename, locale);
+                    bundles.add(bundle);
+                } else {
+                    log.error("Failed to load bundle {} for locale {}", basename, locale);
+                }
             }
 
             resourceBundles.put(locale, bundles);

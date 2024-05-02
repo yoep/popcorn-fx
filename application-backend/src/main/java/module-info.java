@@ -31,7 +31,6 @@ module application.backend {
     exports com.github.yoep.popcorn.backend.logging;
     exports com.github.yoep.popcorn.backend.media.favorites;
     exports com.github.yoep.popcorn.backend.media.filters.model;
-    exports com.github.yoep.popcorn.backend.media.providers.models;
     exports com.github.yoep.popcorn.backend.media.providers;
     exports com.github.yoep.popcorn.backend.media.tracking;
     exports com.github.yoep.popcorn.backend.media.watched;

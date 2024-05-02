@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.backend.events;
 
-import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
+import com.github.yoep.popcorn.backend.media.providers.ShowDetails;
 import lombok.Builder;
 import lombok.Getter;
 

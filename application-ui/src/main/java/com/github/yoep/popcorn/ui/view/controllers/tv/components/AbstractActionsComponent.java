@@ -2,7 +2,7 @@ package com.github.yoep.popcorn.ui.view.controllers.tv.components;
 
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowDetailsEvent;
-import com.github.yoep.popcorn.backend.media.providers.models.*;
+import com.github.yoep.popcorn.backend.media.providers.*;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;

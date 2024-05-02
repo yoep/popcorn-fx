@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
-use serde::{Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use thiserror::Error;
 
 const PAYLOAD_TYPE_LOAD: &str = "LOAD";
 const METADATA_TYPE_MOVIE: i16 = 1;
@@ -131,7 +132,7 @@ pub struct Track {
 pub enum TrackType {
     Text,
     Audio,
-    Video
+    Video,
 }
 
 /// Possible text track types.
@@ -188,6 +189,170 @@ pub enum TextTrackEdgeType {
     Depressed,
 }
 
+/// Represents errors that occur during media parsing.
+#[derive(Debug, Clone, Error)]
+pub enum MediaParseError {
+    /// Indicates that a media error code is not supported.
+    #[error("media error code {0} is not supported")]
+    UnsupportedErrorCode(i32),
+}
+
+/// Represents an error encountered during media operations.
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct MediaError {
+    /// The detailed error code associated with the media error.
+    pub detailed_error_code: MediaDetailedErrorCode,
+    /// The type of the error message.
+    #[serde(rename = "type")]
+    pub message_type: String,
+}
+
+/// The detailed media error codes.
+/// https://developers.google.com/android/reference/com/google/android/gms/cast/MediaError.DetailedErrorCode#constants
+#[derive(Debug, Clone, PartialEq)]
+pub enum MediaDetailedErrorCode {
+    /// An error occurs outside of the framework (e.g., if an event handler throws an error).
+    App = 900,
+    /// Break clip load interceptor fails.
+    BreakClipLoadingError = 901,
+    /// Break seek interceptor fails.
+    BreakSeekInterceptorError = 902,
+    /// A DASH manifest contains invalid segment info.
+    DashInvalidSegmentInfo = 423,
+    /// A DASH manifest is missing a MimeType.
+    DashManifestNoMimeType = 422,
+    /// A DASH manifest is missing periods.
+    DashManifestNoPeriods = 421,
+    /// An unknown error occurs while parsing a DASH manifest.
+    DashManifestUnknown = 420,
+    /// An unknown network error occurs while handling a DASH stream.
+    DashNetwork = 321,
+    /// A DASH stream is missing an init.
+    DashNoInit = 322,
+    /// Returned when an unknown error occurs.
+    Generic = 999,
+    /// An error occurs while parsing an HLS master manifest.
+    HlsManifestMaster = 411,
+    /// An error occurs while parsing an HLS playlist.
+    HlsManifestPlaylist = 412,
+    /// An HLS segment is invalid.
+    HlsNetworkInvalidSegment = 315,
+    /// A request for an HLS key fails before it is sent.
+    HlsNetworkKeyLoad = 314,
+    /// An HLS master playlist fails to download.
+    HlsNetworkMasterPlaylist = 311,
+    /// An HLS key fails to download.
+    HlsNetworkNoKeyResponse = 313,
+    /// An HLS playlist fails to download.
+    HlsNetworkPlaylist = 312,
+    /// An HLS segment fails to parse.
+    HlsSegmentParsing = 316,
+    /// When an image fails to load.
+    ImageError = 903,
+    /// A load command failed.
+    LoadFailed = 905,
+    /// A load was interrupted by an unload, or by another load.
+    LoadInterrupted = 904,
+    /// An unknown error occurs while parsing a manifest.
+    ManifestUnknown = 400,
+    /// There is a media keys failure due to a network issue.
+    MediakeysNetwork = 201,
+    /// There is an unknown error with media keys.
+    MediakeysUnknown = 200,
+    /// A MediaKeySession object cannot be created.
+    MediakeysUnsupported = 202,
+    /// Crypto failed.
+    MediakeysWebcrypto = 203,
+    /// The fetching process for the media resource was aborted by the user agent at the user's request.
+    MediaAborted = 101,
+    /// An error occurred while decoding the media resource, after the resource was established to be usable.
+    MediaDecode = 102,
+    /// An error message was sent to the sender.
+    MediaErrorMessage = 906,
+    /// A network error caused the user agent to stop fetching the media resource, after the resource was established to be usable.
+    MediaNetwork = 103,
+    /// The media resource indicated by the src attribute was not suitable.
+    MediaSrcNotSupported = 104,
+    /// The HTMLMediaElement throws an error, but CAF does not recognize the specific error.
+    MediaUnknown = 100,
+    /// There was an unknown network issue.
+    NetworkUnknown = 300,
+    /// A segment fails to download.
+    SegmentNetwork = 301,
+    /// An unknown segment error occurs.
+    SegmentUnknown = 500,
+    /// An error occurs while parsing a Smooth manifest.
+    SmoothManifest = 431,
+    /// An unknown network error occurs while handling a Smooth stream.
+    SmoothNetwork = 331,
+    /// A Smooth stream is missing media data.
+    SmoothNoMediaData = 332,
+    /// A source buffer cannot be added to the MediaSource.
+    SourceBufferFailure = 110,
+    /// An unknown error occurred with a text stream.
+    TextUnknown = 600,
+}
+
+impl TryFrom<i32> for MediaDetailedErrorCode {
+    type Error = MediaParseError;
+
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        match value {
+            900 => Ok(MediaDetailedErrorCode::App),
+            901 => Ok(MediaDetailedErrorCode::BreakClipLoadingError),
+            902 => Ok(MediaDetailedErrorCode::BreakSeekInterceptorError),
+            423 => Ok(MediaDetailedErrorCode::DashInvalidSegmentInfo),
+            422 => Ok(MediaDetailedErrorCode::DashManifestNoMimeType),
+            421 => Ok(MediaDetailedErrorCode::DashManifestNoPeriods),
+            420 => Ok(MediaDetailedErrorCode::DashManifestUnknown),
+            321 => Ok(MediaDetailedErrorCode::DashNetwork),
+            322 => Ok(MediaDetailedErrorCode::DashNoInit),
+            999 => Ok(MediaDetailedErrorCode::Generic),
+            411 => Ok(MediaDetailedErrorCode::HlsManifestMaster),
+            412 => Ok(MediaDetailedErrorCode::HlsManifestPlaylist),
+            315 => Ok(MediaDetailedErrorCode::HlsNetworkInvalidSegment),
+            314 => Ok(MediaDetailedErrorCode::HlsNetworkKeyLoad),
+            311 => Ok(MediaDetailedErrorCode::HlsNetworkMasterPlaylist),
+            313 => Ok(MediaDetailedErrorCode::HlsNetworkNoKeyResponse),
+            312 => Ok(MediaDetailedErrorCode::HlsNetworkPlaylist),
+            316 => Ok(MediaDetailedErrorCode::HlsSegmentParsing),
+            903 => Ok(MediaDetailedErrorCode::ImageError),
+            905 => Ok(MediaDetailedErrorCode::LoadFailed),
+            904 => Ok(MediaDetailedErrorCode::LoadInterrupted),
+            400 => Ok(MediaDetailedErrorCode::ManifestUnknown),
+            201 => Ok(MediaDetailedErrorCode::MediakeysNetwork),
+            200 => Ok(MediaDetailedErrorCode::MediakeysUnknown),
+            202 => Ok(MediaDetailedErrorCode::MediakeysUnsupported),
+            203 => Ok(MediaDetailedErrorCode::MediakeysWebcrypto),
+            101 => Ok(MediaDetailedErrorCode::MediaAborted),
+            102 => Ok(MediaDetailedErrorCode::MediaDecode),
+            906 => Ok(MediaDetailedErrorCode::MediaErrorMessage),
+            103 => Ok(MediaDetailedErrorCode::MediaNetwork),
+            104 => Ok(MediaDetailedErrorCode::MediaSrcNotSupported),
+            100 => Ok(MediaDetailedErrorCode::MediaUnknown),
+            300 => Ok(MediaDetailedErrorCode::NetworkUnknown),
+            301 => Ok(MediaDetailedErrorCode::SegmentNetwork),
+            500 => Ok(MediaDetailedErrorCode::SegmentUnknown),
+            431 => Ok(MediaDetailedErrorCode::SmoothManifest),
+            331 => Ok(MediaDetailedErrorCode::SmoothNetwork),
+            332 => Ok(MediaDetailedErrorCode::SmoothNoMediaData),
+            110 => Ok(MediaDetailedErrorCode::SourceBufferFailure),
+            600 => Ok(MediaDetailedErrorCode::TextUnknown),
+            _ => Err(MediaParseError::UnsupportedErrorCode(value)),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for MediaDetailedErrorCode {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where D: Deserializer<'de> {
+        let value: i32 = Deserialize::deserialize(deserializer)?;
+        MediaDetailedErrorCode::try_from(value)
+            .map_err(|e| serde::de::Error::custom(e))
+    }
+}
+
 /// Serializes the payload type for the LoadCommand.
 fn serialize_payload_type<S: Serializer>(_: &(), serializer: S) -> Result<S::Ok, S::Error> {
     serializer.serialize_str(PAYLOAD_TYPE_LOAD)
@@ -196,4 +361,21 @@ fn serialize_payload_type<S: Serializer>(_: &(), serializer: S) -> Result<S::Ok,
 /// Serializes the metadata type for movie metadata.
 fn serialize_movie_metadata_type<S: Serializer>(_: &(), serializer: S) -> Result<S::Ok, S::Error> {
     serializer.serialize_i16(METADATA_TYPE_MOVIE)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_deserialize_media_error() {
+        let expected_result = MediaError {
+            message_type: "ERROR".to_string(),
+            detailed_error_code: MediaDetailedErrorCode::MediaSrcNotSupported,
+        };
+        
+        let result = serde_json::from_str::<MediaError>("{\"type\":\"ERROR\",\"detailedErrorCode\":104,\"itemId\":1}").unwrap();
+        
+        assert_eq!(expected_result, result);
+    }
 }

@@ -1,9 +1,9 @@
 package com.github.yoep.popcorn.backend.media.filters.model;
 
-import com.github.yoep.popcorn.backend.media.providers.models.Images;
-import com.github.yoep.popcorn.backend.media.providers.models.Media;
-import com.github.yoep.popcorn.backend.media.providers.models.MediaType;
-import com.github.yoep.popcorn.backend.media.providers.models.Rating;
+import com.github.yoep.popcorn.backend.media.providers.Images;
+import com.github.yoep.popcorn.backend.media.providers.Media;
+import com.github.yoep.popcorn.backend.media.providers.MediaType;
+import com.github.yoep.popcorn.backend.media.providers.Rating;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;

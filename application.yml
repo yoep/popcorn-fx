@@ -69,7 +69,7 @@ popcorn:
     popcorn_fx_platform:
       level: info
     popcorn_fx_players::chromecast:
-      level: info
+      level: trace
     popcorn_fx_players::dlna:
       level: info
     popcorn_fx_players::vlc:

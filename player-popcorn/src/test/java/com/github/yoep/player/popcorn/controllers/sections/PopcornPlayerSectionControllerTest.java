@@ -133,7 +133,7 @@ class PopcornPlayerSectionControllerTest {
 
         WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> {
             var text = controller.errorText.getText();
-            return text != null && !text.isBlank();
+            return text == null || text.isBlank();
         });
     }
 

@@ -4,7 +4,6 @@ import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.IoC;
 import com.github.yoep.popcorn.ui.scale.ScaleAware;
-import com.github.yoep.popcorn.ui.size.SizeAware;
 import com.github.yoep.popcorn.ui.stage.StageAware;
 import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
@@ -228,9 +227,6 @@ public class PopcornViewLoader implements ViewLoader {
         if (controller instanceof ScaleAware) {
             initWindowScale(sceneInfo);
         }
-        if (controller instanceof SizeAware) {
-            initWindowSize(scene, (SizeAware) controller);
-        }
         if (controller instanceof StageAware) {
             initWindowEvents(scene, (StageAware) controller);
         }
@@ -281,29 +277,9 @@ public class PopcornViewLoader implements ViewLoader {
     }
 
     private void initWindowScale(SceneInfo sceneInfo) {
-        ScaleAware controller = (ScaleAware) sceneInfo.controller();
+        var controller = (ScaleAware) sceneInfo.controller();
 
         controller.scale(sceneInfo.scene(), sceneInfo.root(), scale);
-    }
-
-    private void initWindowSize(Scene scene, SizeAware controller) {
-        Stage window = (Stage) scene.getWindow();
-        controller.setInitialSize(window);
-        window.widthProperty().addListener((observable, oldValue, newValue) -> {
-            if (window.isShowing()) {
-                controller.onSizeChange(newValue, window.getHeight(), window.isMaximized());
-            }
-        });
-        window.heightProperty().addListener((observable, oldValue, newValue) -> {
-            if (window.isShowing()) {
-                controller.onSizeChange(window.getWidth(), newValue, window.isMaximized());
-            }
-        });
-        window.maximizedProperty().addListener(((observable, oldValue, newValue) -> {
-            if (window.isShowing()) {
-                controller.onSizeChange(window.getWidth(), window.getHeight(), newValue);
-            }
-        }));
     }
 
     private void initWindowEvents(Scene scene, StageAware controller) {

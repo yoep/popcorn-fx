@@ -25,7 +25,8 @@ import java.util.Objects;
 @ToString
 @EqualsAndHashCode(callSuper = true)
 public class VideoPlayerFX extends AbstractVideoPlayer implements VideoPlayback {
-    private static final String NAME = "FX";
+    static final String NAME = "FX";
+    static final String DESCRIPTION = "Video playback which uses the JavaFX video playback device. This is in most cases used as a fallback backend.";
 
     private MediaView mediaView;
     private MediaPlayer mediaPlayer;
@@ -48,7 +49,7 @@ public class VideoPlayerFX extends AbstractVideoPlayer implements VideoPlayback 
 
     @Override
     public String getDescription() {
-        return "Video playback which uses the JavaFX video playback device. This is in most cases used as a fallback backend.";
+        return DESCRIPTION;
     }
 
     @Override

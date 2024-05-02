@@ -12,7 +12,7 @@ use crate::VERSION;
 const FILENAME: &str = "launcher";
 const EXTENSIONS: [&str; 2] = ["yml", "yaml"];
 const DEFAULT_VERSION: fn() -> String = || VERSION.to_string();
-const DEFAULT_RUNTIME_VERSION: fn() -> String = || "17.0.6".to_string();
+const DEFAULT_RUNTIME_VERSION: fn() -> String = || "21.0.3".to_string();
 const DEFAULT_VM_ARGS: fn() -> Vec<String> = || {
     vec![
         "-Dsun.awt.disablegrab=true".to_string(),

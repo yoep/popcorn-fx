@@ -77,23 +77,18 @@ class PlayerHeaderServiceTest {
 
     @Test
     void testPlaybackListener_whenRequestIsStreamingRequest_shouldInvokeDownloadStatusChangedOnListeners() {
-        var listenerHolder = new AtomicReference<TorrentStreamListener>();
-        var playbackHolder = new AtomicReference<PlaybackListener>();
+        var streamListener = new AtomicReference<TorrentStreamListener>();
         var progress = mock(DownloadStatus.class);
         var request = mock(PlayRequest.class);
         var streamHandle = new Handle(123L);
         when(request.getStreamHandle()).thenReturn(Optional.of(streamHandle));
         when(torrentService.addListener(isA(Handle.class), isA(TorrentStreamListener.class))).thenAnswer(invocation -> {
-            listenerHolder.set(invocation.getArgument(1, TorrentStreamListener.class));
+            streamListener.set(invocation.getArgument(1, TorrentStreamListener.class));
             return new Handle(222L);
         });
-        doAnswer(invocation -> {
-            playbackHolder.set(invocation.getArgument(0, PlaybackListener.class));
-            return null;
-        }).when(videoService).addListener(isA(PlaybackListener.class));
 
-        playbackHolder.get().onPlay(request);
-        listenerHolder.get().onDownloadStatus(progress);
+        listenerHolder.get().onPlay(request);
+        streamListener.get().onDownloadStatus(progress);
 
         verify(listener).onDownloadStatusChanged(progress);
     }

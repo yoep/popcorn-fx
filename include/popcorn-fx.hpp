@@ -1768,7 +1768,7 @@ void install_update(PopcornFX *popcorn_fx);
 void invoke_player_event(PlayerWrapperC *player, PlayerEventC event);
 
 /// Verify if the FX embedded video player has been disabled.
-bool is_fx_video_player_disabled(PopcornFX *popcorn_fx);
+bool is_fx_video_player_enabled(PopcornFX *popcorn_fx);
 
 /// Verify if the application should started in kiosk mode.
 /// The behavior of kiosk mode is dependant on the UI implementation and not delegated by the backend.

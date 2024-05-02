@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteEventCallback;
-import com.github.yoep.popcorn.backend.media.providers.models.Media;
+import com.github.yoep.popcorn.backend.media.providers.Media;
 import com.github.yoep.popcorn.backend.media.watched.WatchedEventCallback;
 
 public interface OverlayItemMetadataProvider {

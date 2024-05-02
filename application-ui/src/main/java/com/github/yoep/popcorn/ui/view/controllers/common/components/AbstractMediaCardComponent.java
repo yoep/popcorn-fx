@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
-import com.github.yoep.popcorn.backend.media.providers.models.Media;
-import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
+import com.github.yoep.popcorn.backend.media.providers.Media;
+import com.github.yoep.popcorn.backend.media.providers.ShowOverview;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.messages.MediaMessage;
 import com.github.yoep.popcorn.ui.view.services.ImageService;

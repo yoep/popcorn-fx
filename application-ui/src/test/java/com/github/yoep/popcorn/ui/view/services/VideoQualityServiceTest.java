@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui.view.services;
 
-import com.github.yoep.popcorn.backend.media.providers.models.MediaTorrentInfo;
+import com.github.yoep.popcorn.backend.media.providers.MediaTorrentInfo;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.models.PlaybackSettings;

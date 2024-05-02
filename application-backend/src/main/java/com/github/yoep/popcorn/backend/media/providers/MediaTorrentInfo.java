@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.backend.media.providers.models;
+package com.github.yoep.popcorn.backend.media.providers;
 
 import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
 import com.sun.jna.Structure;

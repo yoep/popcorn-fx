@@ -1,7 +1,6 @@
 package com.github.yoep.popcorn.backend.media;
 
-import com.github.yoep.popcorn.backend.media.providers.MediaException;
-import com.github.yoep.popcorn.backend.media.providers.models.*;
+import com.github.yoep.popcorn.backend.media.providers.*;
 import com.sun.jna.Structure;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;

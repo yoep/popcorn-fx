@@ -148,7 +148,11 @@ public class PopcornTimeStarter {
 
         ioC.getOptionalInstance(MediaPlayerFactory.class)
                 .ifPresent(e -> videoService.addVideoPlayback(new VideoPlayerVlc(e), VideoService.DEFAULT_ORDER));
-        videoService.addVideoPlayback(new VideoPlayerFX(), VideoService.LOWEST_ORDER);
+
+        // fx video player
+        if (applicationConfig.isFxPlayerEnabled()) {
+            videoService.addVideoPlayback(new VideoPlayerFX(), VideoService.LOWEST_ORDER);
+        }
     }
 
     private static boolean isDesktopMode(IoC ioC) {

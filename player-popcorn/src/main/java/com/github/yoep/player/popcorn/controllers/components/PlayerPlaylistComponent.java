@@ -19,7 +19,7 @@ import java.util.ResourceBundle;
 @Slf4j
 @RequiredArgsConstructor
 public class PlayerPlaylistComponent implements Initializable {
-    public static final String PLAYLIST_ITEM_COMPONENT = "common/popcorn/components/playlist-item.component.fxml";
+    public static final String PLAYLIST_ITEM_COMPONENT = "common/components/playlist-item.component.fxml";
 
     private final PlaylistManager playlistManager;
     private final ViewLoader viewLoader;

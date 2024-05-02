@@ -3,7 +3,7 @@ package com.github.yoep.popcorn.backend.media.favorites;
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.media.MediaItem;
-import com.github.yoep.popcorn.backend.media.providers.models.Media;
+import com.github.yoep.popcorn.backend.media.providers.Media;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Objects;

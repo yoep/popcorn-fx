@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.backend.media.providers.models;
+package com.github.yoep.popcorn.backend.media.providers;
 
 import com.sun.jna.Structure;
 import lombok.Getter;

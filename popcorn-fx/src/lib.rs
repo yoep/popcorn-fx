@@ -757,7 +757,7 @@ mod test {
             disable_logger: true,
             disable_mouse: false,
             enable_youtube_video_player: false,
-            disable_fx_video_player: false,
+            enable_fx_video_player: false,
             enable_vlc_video_player: false,
             tv: false,
             maximized: false,

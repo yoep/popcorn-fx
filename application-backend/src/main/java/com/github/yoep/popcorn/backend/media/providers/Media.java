@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.backend.media.providers.models;
+package com.github.yoep.popcorn.backend.media.providers;
 
 import java.util.List;
 import java.util.Optional;

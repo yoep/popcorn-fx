@@ -3,7 +3,7 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
-import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
+import com.github.yoep.popcorn.backend.media.providers.MovieDetails;
 import com.github.yoep.popcorn.backend.messages.SubtitleMessage;
 import com.github.yoep.popcorn.backend.playlists.Playlist;
 import com.github.yoep.popcorn.backend.playlists.PlaylistItem;

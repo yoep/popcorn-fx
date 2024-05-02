@@ -314,6 +314,7 @@ impl BaseStorage {
     /// # Returns
     ///
     /// The path of the file as a `Path` reference.
+    #[allow(dead_code)]
     pub fn as_path(&self) -> &Path {
         self.path.as_path()
     }

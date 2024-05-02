@@ -87,7 +87,7 @@ pub fn from_c_string_owned(ptr: *mut c_char) -> String {
             String::new()
         })
     } else {
-        error!("Unable to read C string, pointer is null");
+        error!("Unable to read C string, pointer is null {}", Backtrace::capture());
         String::new()
     }
 }

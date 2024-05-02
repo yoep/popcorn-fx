@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
-import com.github.yoep.popcorn.backend.media.providers.models.Media;
+import com.github.yoep.popcorn.backend.media.providers.Media;
 import com.github.yoep.popcorn.backend.media.watched.WatchedEventCallback;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.OverlayItemListener;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.OverlayItemMetadataProvider;

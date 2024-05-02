@@ -1,8 +1,8 @@
 package com.github.yoep.popcorn.backend.media;
 
 import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.media.providers.models.MovieOverview;
-import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
+import com.github.yoep.popcorn.backend.media.providers.MovieOverview;
+import com.github.yoep.popcorn.backend.media.providers.ShowOverview;
 import com.sun.jna.Structure;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;

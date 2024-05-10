@@ -1088,7 +1088,7 @@ mod tests {
             "127.0.0.1",
             9870,
             device,
-            Arc::new(SubtitleServer::new(&Arc::new(Box::new(subtitle_provider)))),
+            Arc::new(SubtitleServer::new(Arc::new(Box::new(subtitle_provider)))),
             Arc::new(Box::new(transcoder)),
             runtime,
         );

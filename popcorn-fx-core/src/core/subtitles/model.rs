@@ -397,8 +397,8 @@ impl Subtitle {
         }
     }
 
-    pub fn file(&self) -> &String {
-        &self.file
+    pub fn file(&self) -> &str {
+        self.file.as_str()
     }
 }
 

@@ -169,6 +169,9 @@ impl Parser for SrtParser {
                 output.push_str(self.style_parser.to_line_string(line).as_str());
                 output.push_str(NEWLINE);
             }
+            
+            // always add an empty line at the end
+            output.push_str(NEWLINE);
         }
 
         Ok(output)
@@ -346,6 +349,7 @@ The <i>Black Pearl</i> is yours."#
         let expected_result = r#"1
 00:00:30,000 --> 00:00:48,100
 <i>lorem</i>
+
 "#
         .to_string();
 

@@ -70,7 +70,7 @@ mod tests {
             transcoder: Box<dyn Transcoder>,
         ) -> Self {
             let mut instance = Self::new();
-            let subtitle_server = SubtitleServer::new(&Arc::new(subtitle_provider));
+            let subtitle_server = SubtitleServer::new(Arc::new(subtitle_provider));
             let player = ChromecastPlayer::new_with_device(
                 "MyChromecastId",
                 "MyChromecastName",

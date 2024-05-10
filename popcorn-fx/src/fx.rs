@@ -232,7 +232,7 @@ impl PopcornFX {
                 .insecure(args.insecure)
                 .build(),
         ));
-        let subtitle_server = Arc::new(SubtitleServer::new(&subtitle_provider));
+        let subtitle_server = Arc::new(SubtitleServer::new(subtitle_provider.clone()));
         let subtitle_manager = Arc::new(Box::new(DefaultSubtitleManager::new(
             settings.clone(),
             event_publisher.clone(),
@@ -348,6 +348,7 @@ impl PopcornFX {
                 DlnaDiscovery::builder()
                     .runtime(runtime.clone())
                     .player_manager(player_manager.clone())
+                    .subtitle_server(subtitle_server.clone())
                     .build(),
             )),
             Arc::new(Box::new(VlcDiscovery::new(

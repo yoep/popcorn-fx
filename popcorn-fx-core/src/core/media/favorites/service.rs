@@ -6,12 +6,12 @@ use log::{debug, error, info, trace, warn};
 use mockall::automock;
 use tokio::sync::Mutex;
 
-use crate::core::{block_in_place, Callbacks, CoreCallback, CoreCallbacks, media};
+use crate::core::media::favorites::model::Favorites;
 use crate::core::media::{
     MediaError, MediaIdentifier, MediaOverview, MediaType, MovieOverview, ShowOverview,
 };
-use crate::core::media::favorites::model::Favorites;
 use crate::core::storage::{Storage, StorageError};
+use crate::core::{block_in_place, media, Callbacks, CoreCallback, CoreCallbacks};
 
 const FILENAME: &str = "favorites.json";
 
@@ -149,7 +149,7 @@ impl FavoriteService for DefaultFavoriteService {
 
     fn all(&self) -> media::Result<Vec<Box<dyn MediaOverview>>> {
         trace!("Retrieving all favorite media items");
-        let favorites = futures::executor::block_on(self.favorites.lock());
+        let favorites = block_in_place(self.favorites.lock());
         let mut all: Vec<Box<dyn MediaOverview>> = vec![];
         trace!(
             "Cloning a total of {} movie items",

@@ -3,6 +3,7 @@ package com.github.yoep.popcorn.ui.view.services;
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.lib.ByteArray;
+import com.github.yoep.popcorn.backend.lib.NativeString;
 import com.github.yoep.popcorn.backend.media.MediaItem;
 import com.github.yoep.popcorn.backend.media.providers.Images;
 import com.github.yoep.popcorn.backend.media.providers.MovieDetails;
@@ -70,7 +71,7 @@ class ImageServiceTest {
     void testLoadFanartException() throws ExecutionException, InterruptedException {
         var url = "http://my-fanart-url.com";
         var images = Images.builder()
-                .fanart(url)
+                .fanart(new NativeString(url).getPointer())
                 .build();
         var media = createMovie(images);
         when(fxLib.load_fanart(eq(instance), isA(MediaItem.class))).thenThrow(new RuntimeException("my exception"));

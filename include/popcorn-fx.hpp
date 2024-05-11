@@ -2357,9 +2357,28 @@ VecFavoritesC *retrieve_all_favorites(PopcornFX *popcorn_fx);
 /// It returns an array of watched id's.
 StringArray retrieve_all_watched(PopcornFX *popcorn_fx);
 
-/// Retrieve all liked favorite media items.
+/// Retrieves available favorites from a PopcornFX instance.
 ///
-/// It returns the [VecFavoritesC] holder for the array on success, else [ptr::null_mut].
+/// This function retrieves favorites from the provided `popcorn_fx` instance,
+/// filtering them based on the specified `genre`, `sort_by`, `keywords`, and `page`.
+///
+/// # Safety
+///
+/// This function is marked as unsafe due to potential undefined behavior caused by
+/// invalid pointers or memory access when interacting with C code.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to a PopcornFX instance.
+/// * `genre` - A pointer to a GenreC struct, representing the genre filter.
+/// * `sort_by` - A pointer to a SortByC struct, representing the sorting criteria.
+/// * `keywords` - A pointer to a C-style string containing search keywords.
+/// * `page` - The page number for pagination.
+///
+/// # Returns
+///
+/// If successful, returns a pointer to a VecFavoritesC struct containing the retrieved favorites.
+/// Returns a null pointer if an error occurs during the retrieval process.
 VecFavoritesC *retrieve_available_favorites(PopcornFX *popcorn_fx, const GenreC *genre, const SortByC *sort_by, char *keywords, uint32_t page);
 
 /// Retrieve the available movies for the given criteria.

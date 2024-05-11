@@ -26,6 +26,8 @@ popcorn:
   loggers:
     popcorn_fx:
       level: info
+    popcorn_fx::ffi::favorites:
+      level: info
     popcorn_fx::ffi::mappings::subtitle:
       level: info
     popcorn_fx_core:
@@ -69,7 +71,7 @@ popcorn:
     popcorn_fx_platform:
       level: info
     popcorn_fx_players::chromecast:
-      level: trace
+      level: info
     popcorn_fx_players::dlna:
       level: info
     popcorn_fx_players::vlc:

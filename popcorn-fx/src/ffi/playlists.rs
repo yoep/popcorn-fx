@@ -176,9 +176,9 @@ mod test {
 
     use tempfile::tempdir;
 
-    use popcorn_fx_core::{into_c_owned, into_c_string};
     use popcorn_fx_core::core::playlists::{PlaylistManagerEvent, PlaylistState};
     use popcorn_fx_core::testing::init_logger;
+    use popcorn_fx_core::{into_c_owned, into_c_string};
 
     use crate::test::default_args;
 
@@ -190,10 +190,10 @@ mod test {
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let item = PlaylistItemC::from(PlaylistItem {
-            url: None,
-            title: "".to_string(),
-            caption: None,
-            thumb: None,
+            url: Some("http://localhost:9870/my-video.mkv".to_string()),
+            title: "MyPlaylistItem".to_string(),
+            caption: Some("MyCaption".to_string()),
+            thumb: Some("http://localhost:9870/my-thumb.png".to_string()),
             parent_media: None,
             media: None,
             torrent_info: None,
@@ -281,7 +281,39 @@ mod test {
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(default_args(temp_path));
 
+        instance.playlist_manager().play(Playlist::from_iter(vec![
+            PlaylistItem {
+                url: None,
+                title: "Item1".to_string(),
+                caption: None,
+                thumb: None,
+                parent_media: None,
+                media: None,
+                torrent_info: None,
+                torrent_file_info: None,
+                quality: None,
+                auto_resume_timestamp: None,
+                subtitles_enabled: false,
+            },
+            PlaylistItem {
+                url: None,
+                title: "Item2".to_string(),
+                caption: None,
+                thumb: None,
+                parent_media: None,
+                media: None,
+                torrent_info: None,
+                torrent_file_info: None,
+                quality: None,
+                auto_resume_timestamp: None,
+                subtitles_enabled: false,
+            },
+        ]));
+
         stop_playlist(&mut instance);
+
+        let result = instance.playlist_manager().has_next();
+        assert_eq!(false, result, "expected the playlist to be empty");
     }
 
     #[test]

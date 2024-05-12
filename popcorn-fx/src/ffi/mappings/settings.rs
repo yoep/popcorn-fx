@@ -4,7 +4,6 @@ use std::ptr;
 
 use log::trace;
 
-use popcorn_fx_core::{from_c_owned, from_c_string, into_c_owned, into_c_string};
 use popcorn_fx_core::core::config::{
     ApplicationConfigEvent, CleaningMode, DecorationType, LastSync, MediaTrackingSyncState,
     PlaybackSettings, PopcornSettings, Quality, ServerSettings, SubtitleFamily, SubtitleSettings,
@@ -12,6 +11,7 @@ use popcorn_fx_core::core::config::{
 };
 use popcorn_fx_core::core::media::Category;
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
+use popcorn_fx_core::{from_c_owned, from_c_string, into_c_owned, into_c_string};
 
 /// The C callback for the setting events.
 pub type ApplicationConfigCallbackC = extern "C" fn(ApplicationConfigEventC);
@@ -245,7 +245,13 @@ impl From<&ServerSettings> for ServerSettingsC {
 impl From<ServerSettingsC> for ServerSettings {
     fn from(value: ServerSettingsC) -> Self {
         let api_server = if !value.api_server.is_null() {
-            Some(from_c_string(value.api_server))
+            let api_server = from_c_string(value.api_server);
+
+            if !api_server.is_empty() {
+                Some(api_server)
+            } else {
+                None
+            }
         } else {
             None
         };

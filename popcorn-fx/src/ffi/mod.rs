@@ -1,6 +1,7 @@
 pub use arrays::*;
 pub use controls::*;
 pub use events::*;
+pub use favorites::*;
 pub use images::*;
 pub use loader::*;
 pub use log_bridge::*;
@@ -21,6 +22,7 @@ pub use update::*;
 mod arrays;
 mod controls;
 mod events;
+mod favorites;
 mod images;
 mod loader;
 mod log_bridge;

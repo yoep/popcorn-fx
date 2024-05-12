@@ -1,7 +1,7 @@
 use std::fmt::{Debug, Formatter};
-use std::path::PathBuf;
-use std::sync::Arc;
+use std::path::Path;
 use std::sync::mpsc::Sender;
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use derive_more::Display;
@@ -14,10 +14,10 @@ use crate::core::loader::{
 };
 use crate::core::media::{Episode, MediaIdentifier, MovieDetails, ShowDetails};
 use crate::core::subtitles;
-use crate::core::subtitles::{SubtitleError, SubtitleManager, SubtitleProvider};
 use crate::core::subtitles::language::SubtitleLanguage;
 use crate::core::subtitles::matcher::SubtitleMatcher;
 use crate::core::subtitles::model::{Subtitle, SubtitleInfo};
+use crate::core::subtitles::{SubtitleError, SubtitleManager, SubtitleProvider};
 
 /// Represents a strategy for loading subtitles.
 #[derive(Display)]
@@ -162,11 +162,14 @@ impl SubtitlesLoadingStrategy {
             .map(|e| e.filename)
             .or_else(|| {
                 data.url.clone().map(|e| {
-                    PathBuf::from(e)
+                    debug!("Retrieving filename from url {}", e);
+                    Path::new(e.as_str())
                         .file_stem()
-                        .unwrap()
-                        .to_str()
-                        .unwrap()
+                        .and_then(|e| e.to_str())
+                        .unwrap_or_else(|| {
+                            warn!("Unable to retrieve filename from {}", e);
+                            ""
+                        })
                         .to_string()
                 })
             });
@@ -238,7 +241,7 @@ impl LoadingStrategy for SubtitlesLoadingStrategy {
                         data.subtitle = Some(subtitle);
                         info!(
                             "Subtitle {} has been downloaded for {:?}",
-                            subtitle_filename, data
+                            subtitle_filename, data.url
                         );
 
                         if cancel.is_cancelled() {

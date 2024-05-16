@@ -36,8 +36,11 @@ class WatchNowUtilsTest {
     @Test
     void testSynchronize_whenPlayersAreChanged_shouldUpdatePlayers() throws TimeoutException {
         var player = mock(Player.class);
-        var players = asList(mock(Player.class), player);
+        var player2 = mock(Player.class);
+        var players = asList(player2, player);
         when(playerManagerService.getPlayers()).thenReturn(players);
+        when(player.getId()).thenReturn("Player001");
+        when(player2.getId()).thenReturn("Player002");
         WatchNowUtils.syncPlayerManagerAndWatchNowButton(playerManagerService, watchNowButton);
         WaitForAsyncUtils.waitForFxEvents();
 
@@ -52,6 +55,8 @@ class WatchNowUtilsTest {
         var player2 = mock(Player.class);
         var players = asList(player2, player);
         when(playerManagerService.getPlayers()).thenReturn(players);
+        when(player.getId()).thenReturn("Player001");
+        when(player2.getId()).thenReturn("Player002");
         WatchNowUtils.syncPlayerManagerAndWatchNowButton(playerManagerService, watchNowButton);
         WaitForAsyncUtils.waitForFxEvents();
 

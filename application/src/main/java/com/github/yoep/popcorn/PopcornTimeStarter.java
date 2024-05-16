@@ -24,7 +24,6 @@ import com.sun.jna.StringArray;
 import javafx.application.Application;
 import javafx.application.ConditionalFeature;
 import javafx.application.Platform;
-import javafx.application.Preloader;
 import org.apache.http.impl.client.DefaultRedirectStrategy;
 import org.apache.http.impl.client.HttpClientBuilder;
 import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
@@ -50,12 +49,12 @@ public class PopcornTimeStarter {
         PopcornFxInstance.INSTANCE.set(popcornFx);
 
         PopcornTimeApplication.getON_INIT().set(PopcornTimeStarter::onInit);
-        launch(PopcornTimeApplication.class, PopcornTimePreloader.class, args);
+        launch(args);
     }
 
-    static void launch(Class<? extends Application> appClass, Class<? extends Preloader> preloaderClass, String... args) {
-        System.setProperty("javafx.preloader", preloaderClass.getName());
-        Application.launch(appClass, args);
+    static void launch(String... args) {
+        System.setProperty("javafx.preloader", PopcornTimePreloader.class.getName());
+        Application.launch(PopcornTimeApplication.class, args);
     }
 
     static ApplicationArgs createApplicationArguments(String[] args) {
@@ -86,18 +85,12 @@ public class PopcornTimeStarter {
             initializeTorrentSession(ioC);
         }
 
-        // youtube video player
-        if (applicationConfig.isYoutubeVideoPlayerEnabled() && Platform.isSupported(ConditionalFeature.WEB)) {
-            ioC.register(VideoPlayerYoutube.class);
-        }
-
         // vlc video player
         if (applicationConfig.isVlcVideoPlayerEnabled()) {
             var discovery = new NativeDiscovery(discoveryStrategies.toArray(NativeDiscoveryStrategy[]::new));
             if (discovery.discover()) {
                 ioC.registerInstance(discovery);
-                ioC.register(MediaPlayerFactory.class);
-                ioC.register(VideoPlayerVlc.class);
+                ioC.registerInstance(new MediaPlayerFactory(discovery));
             }
         }
 
@@ -113,8 +106,8 @@ public class PopcornTimeStarter {
         ioC.register(PopcornPlayerSectionController.class);
         ioC.register(PopcornPlayerSectionService.class);
         ioC.register(SubtitleManagerService.class);
-        ioC.register(VideoPlayerFX.class);
-        ioC.register(VideoService.class);
+
+        onInitVideoPlaybacks(ioC, applicationConfig);
 
         if (isDesktopMode(ioC)) {
             onInitDesktop(ioC);
@@ -143,6 +136,23 @@ public class PopcornTimeStarter {
     private static void onInitTv(IoC ioC) {
         // popcorn fx player
         ioC.register(TvPlayerControlsComponent.class);
+    }
+
+    private static void onInitVideoPlaybacks(IoC ioC, ApplicationConfig applicationConfig) {
+        var videoService = ioC.registerInstance(new VideoService());
+
+        // youtube video player
+        if (applicationConfig.isYoutubeVideoPlayerEnabled() && Platform.isSupported(ConditionalFeature.WEB)) {
+            videoService.addVideoPlayback(new VideoPlayerYoutube(), VideoService.HIGHEST_ORDER);
+        }
+
+        ioC.getOptionalInstance(MediaPlayerFactory.class)
+                .ifPresent(e -> videoService.addVideoPlayback(new VideoPlayerVlc(e), VideoService.DEFAULT_ORDER));
+
+        // fx video player
+        if (applicationConfig.isFxPlayerEnabled()) {
+            videoService.addVideoPlayback(new VideoPlayerFX(), VideoService.LOWEST_ORDER);
+        }
     }
 
     private static boolean isDesktopMode(IoC ioC) {

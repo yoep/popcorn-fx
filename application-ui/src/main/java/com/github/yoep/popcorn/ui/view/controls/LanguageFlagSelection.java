@@ -305,7 +305,7 @@ public class LanguageFlagSelection extends StackPane {
     }
 
     private void addNewFlag(final SubtitleInfo subtitle) {
-        var flagResource = subtitle.getFlagResource();
+        var flagResource = LanguageFlagSelection.class.getResourceAsStream(subtitle.getFlagResource());
         Flag flag = new Flag(subtitle);
 
         flag.getStyleClass().add(POPUP_IMAGE_STYLE_CLASS);

@@ -3,8 +3,8 @@ use std::thread;
 use chrono::Duration;
 use derive_more::Display;
 use log::{debug, error, trace, warn};
-use reqwest::{Client, Response, Url};
 use reqwest::redirect::Policy;
+use reqwest::{Client, Response, Url};
 use serde::de::DeserializeOwned;
 
 use crate::core::cache::{CacheOptions, CacheType};
@@ -110,7 +110,7 @@ impl BaseProvider {
                     provider.disable();
                 }
                 Some(url) => {
-                    debug!("Searching media at {}", &url);
+                    debug!("Retrieving media items from {}", &url);
                     match Self::send_request_with_provider(&client, &url, provider).await {
                         None => {}
                         Some(e) => return e,

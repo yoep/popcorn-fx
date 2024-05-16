@@ -15,7 +15,6 @@ import com.github.yoep.popcorn.ui.view.listeners.PlayerExternalListener;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -33,7 +32,6 @@ class PlayerExternalComponentServiceTest {
     private TorrentService torrentService;
     @Spy
     private EventPublisher eventPublisher = new EventPublisher(false);
-    @InjectMocks
     private PlayerExternalComponentService service;
 
     private final AtomicReference<PlayerManagerListener> playerListenerHolder = new AtomicReference<>();
@@ -44,13 +42,14 @@ class PlayerExternalComponentServiceTest {
             playerListenerHolder.set(invocation.getArgument(0, PlayerManagerListener.class));
             return null;
         }).when(playerManagerService).addListener(isA(PlayerManagerListener.class));
+
+        service = new PlayerExternalComponentService(playerManagerService, eventPublisher, torrentService);
     }
 
     @Test
     void testListener_whenDurationIsChanged_shouldInvokeListeners() {
         var duration = 840000L;
         var playerListener = mock(PlayerExternalListener.class);
-        service.init();
         service.addListener(playerListener);
 
         var listener = playerListenerHolder.get();
@@ -63,7 +62,6 @@ class PlayerExternalComponentServiceTest {
     void testListener_whenTimeIsChanged_shouldInvokeListeners() {
         var time = 10000L;
         var playerListener = mock(PlayerExternalListener.class);
-        service.init();
         service.addListener(playerListener);
 
         var listener = playerListenerHolder.get();
@@ -76,7 +74,6 @@ class PlayerExternalComponentServiceTest {
     void testListener_whenStateIsChanged_shouldInvokeListeners() {
         var state = PlayerState.PLAYING;
         var playerListener = mock(PlayerExternalListener.class);
-        service.init();
         service.addListener(playerListener);
 
         var listener = playerListenerHolder.get();
@@ -120,7 +117,6 @@ class PlayerExternalComponentServiceTest {
         var player = mock(Player.class);
         var expectedTime = time - PlayerExternalComponentService.TIME_STEP_OFFSET;
         when(playerManagerService.getActivePlayer()).thenReturn(Optional.of(player));
-        service.init();
         var listener = playerListenerHolder.get();
         listener.onPlayerTimeChanged(time);
 
@@ -135,7 +131,6 @@ class PlayerExternalComponentServiceTest {
         var player = mock(Player.class);
         var expectedTime = time + PlayerExternalComponentService.TIME_STEP_OFFSET;
         when(playerManagerService.getActivePlayer()).thenReturn(Optional.of(player));
-        service.init();
         var listener = playerListenerHolder.get();
         listener.onPlayerTimeChanged(time);
 
@@ -156,7 +151,6 @@ class PlayerExternalComponentServiceTest {
             return null;
         }).when(torrentService).addListener(isA(Handle.class), isA(TorrentStreamListener.class));
         when(request.getStreamHandle()).thenReturn(Optional.of(streamHandle));
-        service.init();
         service.addListener(playerListener);
 
         var listener = playerListenerHolder.get();
@@ -175,7 +169,6 @@ class PlayerExternalComponentServiceTest {
         var playerListener = mock(PlayerExternalListener.class);
         var request = mock(PlayRequest.class);
         when(request.getStreamHandle()).thenReturn(Optional.of(streamHandle));
-        service.init();
         service.addListener(playerListener);
 
         var listener = playerListenerHolder.get();

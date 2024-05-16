@@ -7,7 +7,6 @@ import com.github.yoep.popcorn.backend.media.MediaSet;
 import com.github.yoep.popcorn.backend.media.MediaSetResult;
 import com.github.yoep.popcorn.backend.media.filters.model.Genre;
 import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
-import com.github.yoep.popcorn.backend.media.providers.models.MovieOverview;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

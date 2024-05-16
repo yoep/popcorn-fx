@@ -4,17 +4,21 @@ import com.frostwire.jlibtorrent.SettingsPack;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentSettingsService;
 import com.github.yoep.popcorn.backend.adapters.torrent.state.SessionState;
 import javafx.beans.value.ChangeListener;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.annotation.PostConstruct;
+import java.util.Objects;
 
 @Slf4j
-@RequiredArgsConstructor
 public class TorrentSettingsServiceImpl implements TorrentSettingsService {
     private final SettingsPack settings = defaultSettings();
     private final ChangeListener<SessionState> sessionListener = createSessionListener();
     private final TorrentSessionManager sessionManager;
+
+    public TorrentSettingsServiceImpl(TorrentSessionManager sessionManager) {
+        Objects.requireNonNull(sessionManager, "sessionManager cannot be null");
+        this.sessionManager = sessionManager;
+        init();
+    }
 
     //region TorrentSettingsService
 
@@ -43,7 +47,6 @@ public class TorrentSettingsServiceImpl implements TorrentSettingsService {
 
     //region PostConstruct
 
-    @PostConstruct
     private void init() {
         sessionManager.stateProperty().addListener(sessionListener);
     }

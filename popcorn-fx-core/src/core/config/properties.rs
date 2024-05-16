@@ -45,7 +45,7 @@ const DEFAULT_PROVIDERS: fn() -> HashMap<String, ProviderProperties> = || {
                     "music".to_string(),
                     "mystery".to_string(),
                     "romance".to_string(),
-                    "science-fiction".to_string(),
+                    "science fiction".to_string(),
                     "short".to_string(),
                     "suspense".to_string(),
                     "thriller".to_string(),

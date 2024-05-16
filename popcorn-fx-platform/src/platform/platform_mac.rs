@@ -2,7 +2,7 @@ use std::ffi::c_int;
 
 use core_foundation::base::TCFType;
 use core_foundation::string::{CFString, CFStringRef};
-use log::{debug, info, warn};
+use log::{debug, warn};
 
 use crate::platform::SystemPlatform;
 
@@ -28,7 +28,7 @@ impl PlatformMac {
         let prevent_sleep = CFString::new("PreventUserIdleSystemSleep");
         let reason = CFString::new("Media playback application is active");
         #[allow(unused_mut)]
-        let mut id = Box::new(u32::MIN);
+            let mut id = Box::new(u32::MIN);
 
         unsafe {
             debug!(

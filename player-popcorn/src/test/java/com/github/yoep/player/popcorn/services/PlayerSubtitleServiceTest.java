@@ -9,7 +9,6 @@ import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -36,7 +35,7 @@ class PlayerSubtitleServiceTest {
     private FxLib fxLib;
     @Mock
     private SubtitleInfo.ByReference subtitleNone;
-    @InjectMocks
+
     private PlayerSubtitleService service;
 
     private final AtomicReference<PlaybackListener> listenerHolder = new AtomicReference<>();
@@ -49,6 +48,7 @@ class PlayerSubtitleServiceTest {
         }).when(videoService).addListener(isA(PlaybackListener.class));
         lenient().when(fxLib.subtitle_none()).thenReturn(subtitleNone);
 
+        service = new PlayerSubtitleService(videoService, subtitleService, subtitleManagerService, fxLib);
         service.addListener(listener);
     }
 
@@ -94,7 +94,6 @@ class PlayerSubtitleServiceTest {
         when(request.isSubtitlesEnabled()).thenReturn(true);
         when(subtitleService.retrieveSubtitles(isA(String.class))).thenReturn(CompletableFuture.completedFuture(availableSubtitles));
         when(subtitleService.preferredSubtitle()).thenReturn(Optional.of(activeSubtitle));
-        service.init();
 
         listenerHolder.get().onPlay(request);
 
@@ -105,7 +104,6 @@ class PlayerSubtitleServiceTest {
     @Test
     void testPlaybackListener_whenRequestIsSimplePlayRequestAndSubtitlesIsDisabled_shouldNotRetrieveSubtitles() {
         var request = mock(PlayRequest.class);
-        service.init();
 
         listenerHolder.get().onPlay(request);
 
@@ -120,7 +118,6 @@ class PlayerSubtitleServiceTest {
         when(request.isSubtitlesEnabled()).thenReturn(true);
         when(request.getUrl()).thenReturn(filename);
         when(subtitleService.retrieveSubtitles(filename)).thenReturn(CompletableFuture.completedFuture(availableSubtitles));
-        service.init();
 
         listenerHolder.get().onPlay(request);
 

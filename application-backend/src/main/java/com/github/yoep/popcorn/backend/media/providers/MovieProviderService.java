@@ -9,9 +9,6 @@ import com.github.yoep.popcorn.backend.media.MediaSetResult;
 import com.github.yoep.popcorn.backend.media.filters.model.Category;
 import com.github.yoep.popcorn.backend.media.filters.model.Genre;
 import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
-import com.github.yoep.popcorn.backend.media.providers.models.Media;
-import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
-import com.github.yoep.popcorn.backend.media.providers.models.MovieOverview;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 

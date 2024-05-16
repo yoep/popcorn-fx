@@ -6,15 +6,6 @@ import javafx.stage.Stage;
 
 public interface ViewLoader {
     /**
-     * The directory containing the FXML files.
-     */
-    String VIEW_DIRECTORY = "/views";
-    /**
-     * The directory contain
-     */
-    String IMAGE_DIRECTORY = "/images";
-
-    /**
      * Set the UI scale of the views.
      *
      * @param scale The scale value of the ui.

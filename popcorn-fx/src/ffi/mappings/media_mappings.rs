@@ -192,7 +192,7 @@ impl MovieOverviewC {
             from_c_string(self.imdb_id),
             from_c_string(self.year),
             rating,
-            self.images.to_struct(),
+            Images::from(self.images.clone()),
         )
     }
 }
@@ -289,7 +289,7 @@ impl From<&MovieDetailsC> for MovieDetails {
             genres,
             synopsis: from_c_string(value.synopsis.clone()),
             rating,
-            images: value.images.to_struct(),
+            images: Images::from(value.images.clone()),
             trailer: from_c_string(value.trailer.clone()),
             torrents,
         }
@@ -341,7 +341,7 @@ impl ShowOverviewC {
             from_c_string(self.title),
             from_c_string(self.year),
             self.num_seasons.clone(),
-            self.images.to_struct(),
+            Images::from(self.images.clone()),
             rating,
         )
     }
@@ -419,7 +419,7 @@ impl ShowDetailsC {
             from_c_string(self.title),
             from_c_string(self.year),
             self.num_seasons.clone(),
-            self.images.to_struct(),
+            Images::from(self.images.clone()),
             rating,
         )
     }
@@ -801,14 +801,32 @@ impl ImagesC {
             banner: into_c_string(images.banner().to_string()),
         }
     }
+}
 
-    fn to_struct(&self) -> Images {
-        trace!("Converting Images from C {:?}", self);
-        Images::new(
-            from_c_string(self.poster),
-            from_c_string(self.fanart),
-            from_c_string(self.banner),
-        )
+impl From<ImagesC> for Images {
+    fn from(value: ImagesC) -> Self {
+        trace!("Converting Images from C {:?}", value);
+        let poster = if !value.poster.is_null() {
+            from_c_string(value.poster)
+        } else {
+            String::new()
+        };
+        let fanart = if !value.fanart.is_null() {
+            from_c_string(value.fanart)
+        } else {
+            String::new()
+        };
+        let banner = if !value.banner.is_null() {
+            from_c_string(value.banner)
+        } else {
+            String::new()
+        };
+
+        Self {
+            poster,
+            fanart,
+            banner,
+        }
     }
 }
 
@@ -917,6 +935,11 @@ impl From<&TorrentInfo> for TorrentMediaInfoC {
 
 impl From<TorrentMediaInfoC> for TorrentInfo {
     fn from(value: TorrentMediaInfoC) -> Self {
+        let source = if !value.source.is_null() {
+            from_c_string(value.source)
+        } else {
+            "unknown".to_string()
+        };
         let size = if !value.size.is_null() {
             Some(from_c_string(value.size))
         } else {
@@ -936,7 +959,7 @@ impl From<TorrentMediaInfoC> for TorrentInfo {
         Self::new(
             from_c_string(value.url),
             from_c_string(value.provider),
-            from_c_string(value.source),
+            source,
             from_c_string(value.title),
             from_c_string(value.quality),
             value.seed,
@@ -1329,5 +1352,86 @@ mod test {
         assert_eq!(torrent_info.size().unwrap(), "12345 bytes");
         assert_eq!(torrent_info.filesize().unwrap(), "12.34 GB");
         assert_eq!(torrent_info.file().unwrap(), "example_file.mkv");
+    }
+
+    #[test]
+    fn test_images_from_images_c() {
+        init_logger();
+        let poster = "Poster";
+        let fanart = "Fanart";
+        let banner = "Banner";
+        let images = ImagesC {
+            poster: into_c_string(poster.to_string()),
+            fanart: into_c_string(fanart.to_string()),
+            banner: into_c_string(banner.to_string()),
+        };
+        let expected_result = Images {
+            poster: poster.to_string(),
+            fanart: fanart.to_string(),
+            banner: banner.to_string(),
+        };
+
+        let result = Images::from(images);
+
+        assert_eq!(expected_result, result);
+    }
+
+    #[test]
+    fn test_images_from_images_c_missing_field() {
+        init_logger();
+        let fanart = "FooBar";
+        let images = ImagesC {
+            poster: ptr::null_mut(),
+            fanart: into_c_string(fanart.to_string()),
+            banner: ptr::null_mut(),
+        };
+        let expected_result = Images {
+            poster: String::new(),
+            fanart: fanart.to_string(),
+            banner: String::new(),
+        };
+
+        let result = Images::from(images);
+
+        assert_eq!(expected_result, result);
+    }
+    
+    #[test]
+    fn test_torrent_info_from_torrent_media_info_c() {
+        init_logger();
+        let url = "https://example.com";
+        let provider = "Provider";
+        let source = "Source";
+        let title = "Title";
+        let quality = "720p";
+        let filesize = "500 MB";
+        let file = "sample.torrent";
+        let info = TorrentMediaInfoC {
+            url: into_c_string(url.to_string()),
+            provider: into_c_string(provider.to_string()),
+            source: into_c_string(source.to_string()),
+            title: into_c_string(title.to_string()),
+            quality: into_c_string(quality.to_string()),
+            seed: 10,
+            peer: 99,
+            size: ptr::null_mut(),
+            filesize: into_c_string(filesize.to_string()),
+            file: into_c_string(file.to_string()),
+        };
+        let expected_result = TorrentInfo::builder()
+            .url(url)
+            .provider(provider)
+            .source(source)
+            .title(title)
+            .quality(quality)
+            .seed(10)
+            .peer(99)
+            .filesize(filesize)
+            .file(file)
+            .build();
+        
+        let result = TorrentInfo::from(info);
+        
+        assert_eq!(expected_result, result)
     }
 }

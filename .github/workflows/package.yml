@@ -15,11 +15,11 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
           distribution: 'adopt'
-          java-version: 17
+          java-version: 21
           cache: 'maven'
       - uses: Swatinem/rust-cache@v2
         with:
@@ -45,11 +45,11 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
           distribution: 'adopt'
-          java-version: 17
+          java-version: 21
           cache: 'maven'
       - uses: Swatinem/rust-cache@v2
         with:
@@ -75,11 +75,11 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v3
         with:
           distribution: 'adopt'
-          java-version: 17
+          java-version: 21
           cache: 'maven'
       - uses: Swatinem/rust-cache@v2
         with:

@@ -7,17 +7,17 @@ use std::sync::Arc;
 use log::{debug, error, info, trace, warn};
 use reqwest::Url;
 use tokio::sync::{Mutex, MutexGuard};
-use warp::{Filter, Rejection};
-use warp::http::{HeaderValue, Response};
 use warp::http::header::{
     ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_METHODS, ACCESS_CONTROL_ALLOW_ORIGIN,
     CONTENT_DISPOSITION, CONTENT_TYPE,
 };
+use warp::http::{HeaderValue, Response};
+use warp::{Filter, Rejection};
 
-use crate::core::{block_in_place, subtitles};
-use crate::core::subtitles::{SubtitleError, SubtitleProvider};
 use crate::core::subtitles::model::{Subtitle, SubtitleType};
+use crate::core::subtitles::{SubtitleError, SubtitleProvider};
 use crate::core::utils::network::available_socket;
+use crate::core::{block_in_place, subtitles};
 
 const SERVER_PROTOCOL: &str = "http";
 const SERVER_SUBTITLE_PATH: &str = "subtitle";
@@ -41,7 +41,7 @@ pub struct SubtitleServer {
 }
 
 impl SubtitleServer {
-    pub fn new(provider: &Arc<Box<dyn SubtitleProvider>>) -> Self {
+    pub fn new(provider: Arc<Box<dyn SubtitleProvider>>) -> Self {
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .worker_threads(1)
@@ -54,7 +54,7 @@ impl SubtitleServer {
             runtime,
             socket: Arc::new(socket),
             subtitles: Arc::new(Mutex::new(HashMap::new())),
-            provider: provider.clone(),
+            provider: provider,
             state: Arc::new(Mutex::new(Some(ServerState::Stopped))),
         };
 
@@ -82,7 +82,7 @@ impl SubtitleServer {
 
         match filename {
             None => Err(SubtitleError::InvalidFile(
-                subtitle.file().clone(),
+                subtitle.file().to_string(),
                 "no extension".to_string(),
             )),
             Some(base_name) => self.subtitle_to_serving_url(base_name, subtitle, serving_type),
@@ -267,8 +267,8 @@ mod test {
     use std::thread;
     use std::time::Duration;
 
-    use reqwest::{Client, Url};
     use reqwest::header::CONTENT_TYPE;
+    use reqwest::{Client, Url};
 
     use crate::core::subtitles::MockSubtitleProvider;
     use crate::testing::init_logger;
@@ -279,8 +279,7 @@ mod test {
     fn test_state() {
         init_logger();
         let provider: Box<MockSubtitleProvider> = Box::new(MockSubtitleProvider::new());
-        let arc = Arc::new(provider as Box<dyn SubtitleProvider>);
-        let server = SubtitleServer::new(&arc);
+        let server = SubtitleServer::new(Arc::new(provider as Box<dyn SubtitleProvider>));
 
         let result = server.state();
 
@@ -301,8 +300,7 @@ mod test {
                 Ok("lorem ipsum".to_string())
             },
         );
-        let arc = Arc::new(provider as Box<dyn SubtitleProvider>);
-        let server = SubtitleServer::new(&arc);
+        let server = SubtitleServer::new(Arc::new(provider as Box<dyn SubtitleProvider>));
 
         wait_for_server(&server);
         let serving_url = server
@@ -345,8 +343,7 @@ mod test {
         let client = Client::builder()
             .build()
             .expect("Client should have been created");
-        let arc = Arc::new(provider as Box<dyn SubtitleProvider>);
-        let server = SubtitleServer::new(&arc);
+        let server = SubtitleServer::new(Arc::new(provider as Box<dyn SubtitleProvider>));
 
         wait_for_server(&server);
         let serving_url = server.build_url(filename).unwrap();
@@ -371,8 +368,7 @@ mod test {
     fn test_build_url_escape_characters() {
         init_logger();
         let provider: Box<MockSubtitleProvider> = Box::new(MockSubtitleProvider::new());
-        let arc = Arc::new(provider as Box<dyn SubtitleProvider>);
-        let server = SubtitleServer::new(&arc);
+        let server = SubtitleServer::new(Arc::new(provider as Box<dyn SubtitleProvider>));
         let expected_result = format!(
             "{}://{}/{}/Lorem.S01E16%20720p%20-%20Heavy.vtt",
             SERVER_PROTOCOL,

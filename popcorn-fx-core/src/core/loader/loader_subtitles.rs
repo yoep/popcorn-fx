@@ -1,11 +1,11 @@
 use std::fmt::{Debug, Formatter};
-use std::path::PathBuf;
-use std::sync::Arc;
+use std::path::Path;
 use std::sync::mpsc::Sender;
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use derive_more::Display;
-use log::{debug, error, trace, warn};
+use log::{debug, error, info, trace, warn};
 use tokio_util::sync::CancellationToken;
 
 use crate::core::loader::{
@@ -14,10 +14,10 @@ use crate::core::loader::{
 };
 use crate::core::media::{Episode, MediaIdentifier, MovieDetails, ShowDetails};
 use crate::core::subtitles;
-use crate::core::subtitles::{SubtitleError, SubtitleManager, SubtitleProvider};
 use crate::core::subtitles::language::SubtitleLanguage;
 use crate::core::subtitles::matcher::SubtitleMatcher;
 use crate::core::subtitles::model::{Subtitle, SubtitleInfo};
+use crate::core::subtitles::{SubtitleError, SubtitleManager, SubtitleProvider};
 
 /// Represents a strategy for loading subtitles.
 #[derive(Display)]
@@ -151,15 +151,35 @@ impl SubtitlesLoadingStrategy {
         };
     }
 
-    async fn download_subtitle(&self, subtitle: &SubtitleInfo, data: &LoadingData) -> Option<Subtitle> {
-        let filename = data.torrent_file_info
+    async fn download_subtitle(
+        &self,
+        subtitle: &SubtitleInfo,
+        data: &LoadingData,
+    ) -> Option<Subtitle> {
+        let filename = data
+            .torrent_file_info
             .clone()
             .map(|e| e.filename)
-            .or_else(|| data.url.clone()
-                .map(|e| PathBuf::from(e).file_stem().unwrap().to_str().unwrap().to_string()));
+            .or_else(|| {
+                data.url.clone().map(|e| {
+                    debug!("Retrieving filename from url {}", e);
+                    Path::new(e.as_str())
+                        .file_stem()
+                        .and_then(|e| e.to_str())
+                        .unwrap_or_else(|| {
+                            warn!("Unable to retrieve filename from {}", e);
+                            ""
+                        })
+                        .to_string()
+                })
+            });
         let matcher = SubtitleMatcher::from_string(filename, data.quality.clone());
 
-        match self.subtitle_provider.download_and_parse(subtitle, &matcher).await {
+        match self
+            .subtitle_provider
+            .download_and_parse(subtitle, &matcher)
+            .await
+        {
             Ok(subtitle) => Some(subtitle),
             Err(e) => {
                 error!("Failed to download subtitle, {}", e);
@@ -191,11 +211,15 @@ impl LoadingStrategy for SubtitlesLoadingStrategy {
             if cancel.is_cancelled() {
                 return LoadingResult::Err(LoadingError::Cancelled);
             }
-            
+
             if !self.subtitle_manager.is_disabled_async().await {
                 if self.subtitle_manager.preferred_language() == SubtitleLanguage::None {
                     trace!("Processing subtitle info for {:?}", data);
-                    event_channel.send(LoadingEvent::StateChanged(LoadingState::RetrievingSubtitles)).unwrap();
+                    event_channel
+                        .send(LoadingEvent::StateChanged(
+                            LoadingState::RetrievingSubtitles,
+                        ))
+                        .unwrap();
                     self.update_to_default_subtitle(&data).await;
                 } else {
                     debug!("Subtitle has already been selected for {:?}", data);
@@ -205,12 +229,20 @@ impl LoadingStrategy for SubtitlesLoadingStrategy {
                     if cancel.is_cancelled() {
                         return LoadingResult::Err(LoadingError::Cancelled);
                     }
-                    
-                    event_channel.send(LoadingEvent::StateChanged(LoadingState::DownloadingSubtitle)).unwrap();
+
+                    event_channel
+                        .send(LoadingEvent::StateChanged(
+                            LoadingState::DownloadingSubtitle,
+                        ))
+                        .unwrap();
                     trace!("Downloading subtitle for {:?}", data);
                     if let Some(subtitle) = self.download_subtitle(&info, &data).await {
-                        debug!("Subtitle has been downloaded for {}", info);
+                        let subtitle_filename = subtitle.file().to_string();
                         data.subtitle = Some(subtitle);
+                        info!(
+                            "Subtitle {} has been downloaded for {:?}",
+                            subtitle_filename, data.url
+                        );
 
                         if cancel.is_cancelled() {
                             return LoadingResult::Err(LoadingError::Cancelled);
@@ -231,7 +263,7 @@ impl LoadingStrategy for SubtitlesLoadingStrategy {
     }
 
     async fn cancel(&self, data: LoadingData) -> CancellationResult {
-        debug!("Cancelling the subtitle load");
+        debug!("Cancelling the subtitle loader");
         self.subtitle_manager.reset();
         Ok(data)
     }
@@ -294,12 +326,13 @@ mod tests {
             .expect_file_subtitles()
             .times(0)
             .return_const(Ok(Vec::new()));
-        provider.expect_download_and_parse()
+        provider
+            .expect_download_and_parse()
             .times(1)
             .return_const(Ok(Subtitle::new(
                 vec![],
                 None,
-                "MySubtitleFile".to_string()
+                "MySubtitleFile".to_string(),
             )));
         let mut manager = MockSubtitleManager::new();
         manager
@@ -310,7 +343,8 @@ mod tests {
             .expect_preferred_language()
             .times(1)
             .return_const(SubtitleLanguage::None);
-        manager.expect_preferred_subtitle()
+        manager
+            .expect_preferred_subtitle()
             .times(..2)
             .returning(|| Some(SubtitleInfo::none()));
         manager
@@ -369,12 +403,13 @@ mod tests {
                 tx.send(e.to_string()).unwrap();
                 Ok(Vec::new())
             });
-        provider.expect_download_and_parse()
+        provider
+            .expect_download_and_parse()
             .times(1)
             .return_const(Ok(Subtitle::new(
                 vec![],
                 None,
-                "MySubtitleFile".to_string()
+                "MySubtitleFile".to_string(),
             )));
         let mut manager = MockSubtitleManager::new();
         manager
@@ -385,7 +420,8 @@ mod tests {
             .expect_preferred_language()
             .times(1)
             .return_const(SubtitleLanguage::None);
-        manager.expect_preferred_subtitle()
+        manager
+            .expect_preferred_subtitle()
             .times(..2)
             .returning(|| Some(SubtitleInfo::none()));
         manager

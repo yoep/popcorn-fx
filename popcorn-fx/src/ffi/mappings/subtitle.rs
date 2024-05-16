@@ -322,7 +322,7 @@ impl From<Subtitle> for SubtitleC {
         };
 
         Self {
-            file: into_c_string(value.file().clone()),
+            file: into_c_string(value.file()),
             info,
             cues: cues_ptr,
             len: number_of_cues,

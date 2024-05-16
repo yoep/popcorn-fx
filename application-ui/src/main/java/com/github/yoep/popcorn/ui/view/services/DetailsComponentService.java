@@ -2,21 +2,18 @@ package com.github.yoep.popcorn.ui.view.services;
 
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteEventCallback;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
-import com.github.yoep.popcorn.backend.media.providers.models.Media;
+import com.github.yoep.popcorn.backend.media.providers.Media;
 import com.github.yoep.popcorn.backend.media.watched.WatchedEventCallback;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.ui.view.listeners.DetailsComponentListener;
 import javafx.application.Platform;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.annotation.PostConstruct;
 import java.util.Objects;
 
 @Slf4j
-@RequiredArgsConstructor
 public class DetailsComponentService extends AbstractListenerService<DetailsComponentListener> {
     private final FavoriteService favoriteService;
     private final WatchedService watchedService;
@@ -25,6 +22,14 @@ public class DetailsComponentService extends AbstractListenerService<DetailsComp
 
     private final FavoriteEventCallback favoriteEventCallback = createFavoriteCallback();
     private final WatchedEventCallback watchedEventCallback = createWatchedCallback();
+
+    public DetailsComponentService(FavoriteService favoriteService, WatchedService watchedService, ApplicationConfig applicationConfig, SubtitlePickerService subtitlePickerService) {
+        this.favoriteService = favoriteService;
+        this.watchedService = watchedService;
+        this.applicationConfig = applicationConfig;
+        this.subtitlePickerService = subtitlePickerService;
+        init();
+    }
 
     public boolean isWatched(Media media) {
         return watchedService.isWatched(media);
@@ -74,8 +79,7 @@ public class DetailsComponentService extends AbstractListenerService<DetailsComp
         });
     }
 
-    @PostConstruct
-    void init() {
+    private void init() {
         favoriteService.registerListener(favoriteEventCallback);
         watchedService.registerListener(watchedEventCallback);
     }

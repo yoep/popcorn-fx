@@ -1,9 +1,9 @@
 package com.github.yoep.popcorn.backend.media;
 
 import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.media.providers.models.Media;
-import com.github.yoep.popcorn.backend.media.providers.models.MovieOverview;
-import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
+import com.github.yoep.popcorn.backend.media.providers.Media;
+import com.github.yoep.popcorn.backend.media.providers.MovieOverview;
+import com.github.yoep.popcorn.backend.media.providers.ShowOverview;
 import com.sun.jna.Structure;
 import lombok.ToString;
 
@@ -23,22 +23,32 @@ public class FavoritesSet extends Structure implements Closeable {
     public ShowOverview.ByReference shows;
     public int showsLen;
 
+    private List<Media> cachedMovies;
+    private List<Media> cachedShows;
+
     public <T extends Media> List<T> getAll() {
-        return Stream.concat(getMovies().stream(), getShows().stream())
+        return Stream.concat(cachedMovies.stream(), cachedShows.stream())
                 .map(e -> (T) e)
                 .collect(Collectors.toList());
     }
 
     public List<Media> getMovies() {
-        return Optional.ofNullable(movies)
+        return cachedMovies;
+    }
+
+    public List<Media> getShows() {
+        return cachedShows;
+    }
+
+    @Override
+    public void read() {
+        super.read();
+        this.cachedMovies = Optional.ofNullable(movies)
                 .map(e -> e.toArray(moviesLen))
                 .map(e -> (Media[]) e)
                 .map(Arrays::asList)
                 .orElse(Collections.emptyList());
-    }
-
-    public List<Media> getShows() {
-        return Optional.ofNullable(shows)
+        this.cachedShows = Optional.ofNullable(shows)
                 .map(e -> e.toArray(showsLen))
                 .map(e -> (Media[]) e)
                 .map(Arrays::asList)

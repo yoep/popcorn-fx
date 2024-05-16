@@ -7,21 +7,21 @@ use itertools::Itertools;
 use log::{debug, error, info, trace, warn};
 use tokio::sync::{Mutex, MutexGuard};
 use url::Url;
-use warp::{Filter, hyper, Rejection};
-use warp::http::{HeaderValue, Response, StatusCode};
 use warp::http::header::{
     ACCEPT_RANGES, CONNECTION, CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE, RANGE, USER_AGENT,
 };
+use warp::http::{HeaderValue, Response, StatusCode};
 use warp::hyper::HeaderMap;
+use warp::{hyper, Filter, Rejection};
 
-use crate::core::{block_in_place, CallbackHandle, Handle, torrents};
+use crate::core::torrents::stream::torrent_stream::DefaultTorrentStream;
+use crate::core::torrents::stream::{MediaType, MediaTypeFactory, Range};
 use crate::core::torrents::{
     Torrent, TorrentError, TorrentStream, TorrentStreamCallback, TorrentStreamServer,
     TorrentStreamServerState,
 };
-use crate::core::torrents::stream::{MediaType, MediaTypeFactory, Range};
-use crate::core::torrents::stream::torrent_stream::DefaultTorrentStream;
 use crate::core::utils::network::available_socket;
+use crate::core::{block_in_place, torrents, CallbackHandle, Handle};
 
 const SERVER_PROTOCOL: &str = "http";
 const SERVER_VIDEO_PATH: &str = "video";
@@ -34,7 +34,7 @@ const HEADER_DLNA_CONTENT_FEATURES: &str = "contentFeatures.dlna.org";
 const DLNA_TRANSFER_MODE_TYPE: &str = "Streaming";
 const DLNA_REAL_TIME_TYPE: &str = "DLNA.ORG_TLAG=*";
 const DLNA_CONTENT_FEATURES: &str =
-    "DLNA.ORG_OP=01;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01700000000000000000000000000000";
+    "DLNA.ORG_OP=01;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01100000000000000000000000000000";
 const PLAIN_TEXT_TYPE: &str = "text/plain";
 
 /// The stream mutex type used within the server.

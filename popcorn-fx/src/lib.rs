@@ -1,24 +1,23 @@
 extern crate core;
 
-use std::{mem, ptr};
 use std::os::raw::c_char;
+use std::{mem, ptr};
 
 use log::{debug, error, info, trace, warn};
 
 pub use fx::*;
-use popcorn_fx_core::{
-    from_c_into_boxed, from_c_owned, from_c_string, from_c_vec, into_c_owned, into_c_string,
-};
-use popcorn_fx_core::core::block_in_place;
 use popcorn_fx_core::core::config::{
     PlaybackSettings, ServerSettings, SubtitleSettings, TorrentSettings, UiSettings,
 };
-use popcorn_fx_core::core::media::*;
 use popcorn_fx_core::core::media::favorites::FavoriteCallback;
 use popcorn_fx_core::core::media::watched::WatchedCallback;
+use popcorn_fx_core::core::media::*;
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
 use popcorn_fx_core::core::subtitles::matcher::SubtitleMatcher;
 use popcorn_fx_core::core::subtitles::model::SubtitleInfo;
+use popcorn_fx_core::{
+    from_c_into_boxed, from_c_owned, from_c_string, from_c_vec, into_c_owned, into_c_string,
+};
 
 #[cfg(feature = "ffi")]
 use crate::ffi::*;
@@ -268,52 +267,6 @@ pub extern "C" fn download_and_parse_subtitle(
 #[no_mangle]
 pub extern "C" fn reset_show_apis(popcorn_fx: &mut PopcornFX) {
     popcorn_fx.providers().reset_api(&Category::Series)
-}
-
-/// Retrieve all liked favorite media items.
-///
-/// It returns the [VecFavoritesC] holder for the array on success, else [ptr::null_mut].
-#[no_mangle]
-pub extern "C" fn retrieve_available_favorites(
-    popcorn_fx: &mut PopcornFX,
-    genre: &GenreC,
-    sort_by: &SortByC,
-    keywords: *mut c_char,
-    page: u32,
-) -> *mut VecFavoritesC {
-    trace!(
-        "Retrieving favorites from C for genre: {:?}, sort_by: {:?}, keywords: {:?}, page: {}",
-        genre,
-        sort_by,
-        keywords,
-        page
-    );
-    let genre = genre.to_struct();
-    let sort_by = sort_by.to_struct();
-    let keywords = from_c_string(keywords);
-
-    trace!(
-        "Retrieving favorites for genre: {:?}, sort_by: {:?}, page: {}",
-        genre,
-        sort_by,
-        page
-    );
-    match block_in_place(popcorn_fx.providers().retrieve(
-        &Category::Favorites,
-        &genre,
-        &sort_by,
-        &keywords,
-        page,
-    )) {
-        Ok(e) => {
-            info!("Retrieved a total of {} favorites, {:?}", e.len(), &e);
-            favorites_to_c(e)
-        }
-        Err(e) => {
-            error!("Failed to retrieve favorites, {}", e);
-            ptr::null_mut()
-        }
-    }
 }
 
 /// Verify if the given media item is liked/favorite of the user.
@@ -757,7 +710,7 @@ mod test {
             disable_logger: true,
             disable_mouse: false,
             enable_youtube_video_player: false,
-            disable_fx_video_player: false,
+            enable_fx_video_player: false,
             enable_vlc_video_player: false,
             tv: false,
             maximized: false,

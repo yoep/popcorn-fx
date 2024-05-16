@@ -8,7 +8,7 @@
           fx:id="itemPane" styleClass="playlist-item">
     <columnConstraints>
         <ColumnConstraints minWidth="50"/>
-        <ColumnConstraints minWidth="100"/>
+        <ColumnConstraints minWidth="200"/>
     </columnConstraints>
     <rowConstraints>
         <RowConstraints/>

@@ -136,11 +136,29 @@ class ApplicationConfigTest {
         when(settings.getUiSettings()).thenReturn(uiSettings);
         when(uiSettings.getUiScale()).thenReturn(mock(UIScale.class));
         when(uiSettings.getDefaultLanguage()).thenReturn("en-US");
-        when(fxLib.is_kiosk_mode(instance)).thenReturn((byte) 1);
+        when(fxLib.is_kiosk_mode(isA(PopcornFx.class))).thenReturn((byte) 1);
         var config = new ApplicationConfig(fxLib, instance, localeText);
 
         var result = config.isKioskMode();
 
         assertTrue(result);
+        verify(fxLib).is_kiosk_mode(instance);
+    }
+
+    @Test
+    void testIsFxPlayerEnabled() {
+        var settings = mock(ApplicationSettings.class);
+        var uiSettings = mock(UISettings.class);
+        when(fxLib.application_settings(instance)).thenReturn(settings);
+        when(settings.getUiSettings()).thenReturn(uiSettings);
+        when(uiSettings.getUiScale()).thenReturn(mock(UIScale.class));
+        when(uiSettings.getDefaultLanguage()).thenReturn("en-US");
+        when(fxLib.is_fx_video_player_enabled(isA(PopcornFx.class))).thenReturn((byte) 1);
+        var config = new ApplicationConfig(fxLib, instance, localeText);
+
+        var result = config.isFxPlayerEnabled();
+
+        assertTrue(result);
+        verify(fxLib).is_fx_video_player_enabled(instance);
     }
 }

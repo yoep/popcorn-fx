@@ -5,7 +5,7 @@ import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteEvent;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteEventCallback;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
-import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
+import com.github.yoep.popcorn.backend.media.providers.MovieDetails;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.font.controls.Icon;

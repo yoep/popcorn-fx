@@ -1,6 +1,17 @@
 use std::future::Future;
 
-/// Run the given future on the current thread or spawn a new runtime if needed.
+/// Blocks the current thread to execute the provided future synchronously.
+///
+/// This function blocks the current thread to execute the provided future synchronously,
+/// ensuring that any asynchronous tasks within the future are executed within a Tokio runtime.
+///
+/// # Arguments
+///
+/// * `closure` - The future to be executed synchronously.
+///
+/// # Returns
+///
+/// The output of the provided future.
 pub fn block_in_place<F: Future>(closure: F) -> F::Output {
     tokio::task::block_in_place(|| {
         let runtime =

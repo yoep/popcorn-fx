@@ -108,13 +108,13 @@ pub struct PopcornFxArgs {
     /// Disable the mouse within the application.
     #[arg(long, default_value_t = false)]
     pub disable_mouse: bool,
-    /// Disable the youtube video player.
+    /// Enable the youtube video player.
     #[arg(long, default_value_t = true)]
     pub enable_youtube_video_player: bool,
-    /// Disable the FX embedded video player.
-    #[arg(long, default_value_t = false)]
-    pub disable_fx_video_player: bool,
-    /// Disable the VLC video player.
+    /// Enable the FX embedded video player.
+    #[arg(long, default_value_t = true)]
+    pub enable_fx_video_player: bool,
+    /// Enable the VLC video player.
     #[arg(long, default_value_t = true)]
     pub enable_vlc_video_player: bool,
     /// Indicates if the TV mode is enabled of the application.
@@ -142,7 +142,7 @@ impl Default for PopcornFxArgs {
             disable_logger: false,
             disable_mouse: false,
             enable_youtube_video_player: false,
-            disable_fx_video_player: false,
+            enable_fx_video_player: false,
             enable_vlc_video_player: false,
             tv: false,
             maximized: false,
@@ -232,7 +232,7 @@ impl PopcornFX {
                 .insecure(args.insecure)
                 .build(),
         ));
-        let subtitle_server = Arc::new(SubtitleServer::new(&subtitle_provider));
+        let subtitle_server = Arc::new(SubtitleServer::new(subtitle_provider.clone()));
         let subtitle_manager = Arc::new(Box::new(DefaultSubtitleManager::new(
             settings.clone(),
             event_publisher.clone(),
@@ -348,6 +348,7 @@ impl PopcornFX {
                 DlnaDiscovery::builder()
                     .runtime(runtime.clone())
                     .player_manager(player_manager.clone())
+                    .subtitle_server(subtitle_server.clone())
                     .build(),
             )),
             Arc::new(Box::new(VlcDiscovery::new(
@@ -793,7 +794,7 @@ mod test {
             disable_logger: false,
             disable_mouse: false,
             enable_youtube_video_player: false,
-            disable_fx_video_player: false,
+            enable_fx_video_player: false,
             enable_vlc_video_player: false,
             tv: false,
             maximized: false,

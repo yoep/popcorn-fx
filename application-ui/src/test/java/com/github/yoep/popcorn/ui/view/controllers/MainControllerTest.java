@@ -4,7 +4,7 @@ import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayerStartedEvent;
 import com.github.yoep.popcorn.backend.events.ShowDetailsEvent;
-import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
+import com.github.yoep.popcorn.backend.media.providers.MovieDetails;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.ui.ApplicationArgs;
 import com.github.yoep.popcorn.ui.font.controls.Icon;

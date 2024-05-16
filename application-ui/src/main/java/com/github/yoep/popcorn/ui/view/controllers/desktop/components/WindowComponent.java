@@ -7,24 +7,32 @@ import javafx.fxml.Initializable;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.annotation.PostConstruct;
 import java.net.URL;
+import java.util.Objects;
 import java.util.ResourceBundle;
 
 @Slf4j
-@RequiredArgsConstructor
 public class WindowComponent implements Initializable {
     private final MaximizeService maximizeService;
     private final PlatformProvider platformProvider;
 
-    private Image restoreImage;
-    private Image maximizeImage;
+    final Image restoreImage;
+    final Image maximizeImage;
 
     @FXML
     ImageView maximizeImageView;
+
+    public WindowComponent(MaximizeService maximizeService, PlatformProvider platformProvider) {
+        Objects.requireNonNull(maximizeService, "maximizeService cannot be null");
+        Objects.requireNonNull(platformProvider, "platformProvider cannot be null");
+        this.maximizeService = maximizeService;
+        this.platformProvider = platformProvider;
+        this.restoreImage = new Image(WindowComponent.class.getResourceAsStream("/images/windows/restore.png"));
+        this.maximizeImage = new Image(WindowComponent.class.getResourceAsStream("/images/windows/maximize.png"));
+        init();
+    }
 
     //region Initializable
 
@@ -41,22 +49,12 @@ public class WindowComponent implements Initializable {
 
     //region PostConstruct
 
-    @PostConstruct
-    void init() {
+    private void init() {
         initializeListeners();
-        initializeImages();
     }
 
     private void initializeListeners() {
         maximizeService.maximizedProperty().addListener((observable, oldValue, newValue) -> onMaximizedStateChanged(newValue));
-    }
-
-    private void initializeImages() {
-        var restore = WindowComponent.class.getResourceAsStream("/images/windows/restore.png");
-        var maximize = WindowComponent.class.getResourceAsStream("/images/windows/maximize.png");
-
-        restoreImage = new Image(restore);
-        maximizeImage = new Image(maximize);
     }
 
     //endregion

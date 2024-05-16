@@ -10,7 +10,6 @@ import com.github.yoep.popcorn.backend.lib.Handle;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -28,7 +27,7 @@ class PlayerHeaderServiceTest {
     private TorrentService torrentService;
     @Mock
     private PlayerHeaderListener listener;
-    @InjectMocks
+
     private PlayerHeaderService service;
 
     private final AtomicReference<PlaybackListener> listenerHolder = new AtomicReference<>();
@@ -40,6 +39,7 @@ class PlayerHeaderServiceTest {
             return null;
         }).when(videoService).addListener(isA(PlaybackListener.class));
 
+        service = new PlayerHeaderService(videoService, torrentService);
         service.addListener(listener);
     }
 
@@ -48,7 +48,6 @@ class PlayerHeaderServiceTest {
         var expectedTitle = "lorem ipsum dolor";
         var request = mock(PlayRequest.class);
         when(request.getTitle()).thenReturn(expectedTitle);
-        service.init();
 
         listenerHolder.get().onPlay(request);
 
@@ -60,7 +59,6 @@ class PlayerHeaderServiceTest {
         var expectedQuality = "1080p";
         var request = mock(PlayRequest.class);
         when(request.getQuality()).thenReturn(Optional.of(expectedQuality));
-        service.init();
 
         listenerHolder.get().onPlay(request);
 
@@ -71,7 +69,6 @@ class PlayerHeaderServiceTest {
     void testPlaybackListener_whenRequestIsStreamingRequest_shouldSetStreamStateToTrue() {
         var request = mock(PlayRequest.class);
         when(request.getStreamHandle()).thenReturn(Optional.of(new Handle(111L)));
-        service.init();
 
         listenerHolder.get().onPlay(request);
 
@@ -80,24 +77,18 @@ class PlayerHeaderServiceTest {
 
     @Test
     void testPlaybackListener_whenRequestIsStreamingRequest_shouldInvokeDownloadStatusChangedOnListeners() {
-        var listenerHolder = new AtomicReference<TorrentStreamListener>();
-        var playbackHolder = new AtomicReference<PlaybackListener>();
+        var streamListener = new AtomicReference<TorrentStreamListener>();
         var progress = mock(DownloadStatus.class);
         var request = mock(PlayRequest.class);
         var streamHandle = new Handle(123L);
         when(request.getStreamHandle()).thenReturn(Optional.of(streamHandle));
         when(torrentService.addListener(isA(Handle.class), isA(TorrentStreamListener.class))).thenAnswer(invocation -> {
-            listenerHolder.set(invocation.getArgument(1, TorrentStreamListener.class));
+            streamListener.set(invocation.getArgument(1, TorrentStreamListener.class));
             return new Handle(222L);
         });
-        doAnswer(invocation -> {
-            playbackHolder.set(invocation.getArgument(0, PlaybackListener.class));
-            return null;
-        }).when(videoService).addListener(isA(PlaybackListener.class));
-        service.init();
 
-        playbackHolder.get().onPlay(request);
-        listenerHolder.get().onDownloadStatus(progress);
+        listenerHolder.get().onPlay(request);
+        streamListener.get().onDownloadStatus(progress);
 
         verify(listener).onDownloadStatusChanged(progress);
     }

@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.backend.media;
 
-import com.github.yoep.popcorn.backend.media.providers.models.Episode;
-import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
+import com.github.yoep.popcorn.backend.media.providers.Episode;
+import com.github.yoep.popcorn.backend.media.providers.ShowOverview;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;

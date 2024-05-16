@@ -1,8 +1,8 @@
 package com.github.yoep.popcorn.backend.playlists;
 
 import com.github.yoep.popcorn.backend.media.MediaItem;
-import com.github.yoep.popcorn.backend.media.providers.models.Media;
-import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
+import com.github.yoep.popcorn.backend.media.providers.Media;
+import com.github.yoep.popcorn.backend.media.providers.MovieDetails;
 import com.sun.jna.Structure;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -90,6 +90,7 @@ public class PlaylistItem extends Structure implements Closeable {
         var item = new PlaylistItem();
         item.url = media.getTrailer();
         item.title = media.getTitle();
+        item.caption = "Trailer";
         item.thumb = media.getImages().getPoster();
         item.setSubtitlesEnabled(false);
         return item;

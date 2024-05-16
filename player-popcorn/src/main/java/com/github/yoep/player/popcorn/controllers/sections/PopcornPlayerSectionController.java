@@ -1,10 +1,10 @@
 package com.github.yoep.player.popcorn.controllers.sections;
 
+import com.github.yoep.player.popcorn.controls.SubtitleTrack;
 import com.github.yoep.player.popcorn.listeners.PopcornPlayerSectionListener;
 import com.github.yoep.player.popcorn.messages.VideoMessage;
 import com.github.yoep.player.popcorn.services.PopcornPlayerSectionService;
 import com.github.yoep.player.popcorn.services.SubtitleManagerService;
-import com.github.yoep.player.popcorn.subtitles.controls.SubtitleTrack;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayerStartedEvent;
@@ -41,7 +41,6 @@ import java.net.URL;
 import java.util.ResourceBundle;
 
 @Slf4j
-
 @RequiredArgsConstructor
 public class PopcornPlayerSectionController implements Initializable {
     static final int OVERLAY_FADE_DURATION = 1500;
@@ -49,7 +48,7 @@ public class PopcornPlayerSectionController implements Initializable {
     static final int VOLUME_INCREASE_AMOUNT = 5;
     static final double INFO_TOP_TV_MODE = 100d;
     static final String BUFFER_STYLE_CLASS = "buffer";
-    static final String VIEW_CONTROLS = "components/player-controls.component.fxml";
+    static final String VIEW_CONTROLS = "popcorn/components/player-controls.component.fxml";
 
     private final PopcornPlayerSectionService sectionService;
     private final SubtitleManagerService subtitleManagerService;

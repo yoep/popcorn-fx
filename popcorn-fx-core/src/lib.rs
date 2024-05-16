@@ -1,10 +1,12 @@
-use std::{mem, ptr};
+use std::backtrace::Backtrace;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
+use std::{mem, ptr};
 
 use log::{error, trace, warn};
 
-pub use popcorn_fx_common::VERSION;
+/// The current application version of Popcorn FX.
+pub const VERSION: &str = "0.8.2";
 
 pub mod core;
 
@@ -27,7 +29,10 @@ pub fn into_c_string<S: Into<String>>(value: S) -> *mut c_char {
         let c_string = CString::new(value).expect("expected valid C string");
         c_string.into_raw()
     } else {
-        warn!("Unable to create C string from empty string");
+        warn!(
+            "Unable to create C string from empty string\n{}",
+            Backtrace::capture()
+        );
         ptr::null_mut()
     }
 }
@@ -59,7 +64,10 @@ pub fn from_c_string(ptr: *const c_char) -> String {
                 String::new()
             })
     } else {
-        error!("Unable to read C string, pointer is null");
+        error!(
+            "Unable to read C string, pointer is null\n{}",
+            Backtrace::capture()
+        );
         String::new()
     }
 }
@@ -85,7 +93,10 @@ pub fn from_c_string_owned(ptr: *mut c_char) -> String {
             String::new()
         })
     } else {
-        error!("Unable to read C string, pointer is null");
+        error!(
+            "Unable to read C string, pointer is null\n{}",
+            Backtrace::capture()
+        );
         String::new()
     }
 }
@@ -235,34 +246,34 @@ pub fn from_c_vec_owned<T>(ptr: *mut T, len: i32) -> Vec<T> {
 
 #[cfg(feature = "testing")]
 pub mod testing {
-    use std::{env, fs};
     use std::fmt::{Display, Formatter};
     use std::fs::OpenOptions;
     use std::io::Read;
     use std::path::PathBuf;
     use std::sync::{Once, Weak};
+    use std::{env, fs};
 
     use async_trait::async_trait;
-    use log::{debug, LevelFilter, trace};
+    use log::{debug, trace, LevelFilter};
     use log4rs::append::console::ConsoleAppender;
     use log4rs::config::{Appender, Logger, Root};
-    use log4rs::Config;
     use log4rs::encode::pattern::PatternEncoder;
+    use log4rs::Config;
     use mockall::mock;
     use tempfile::TempDir;
     use url::Url;
 
-    use crate::core::{CallbackHandle, Callbacks, CoreCallback, Handle, torrents};
     use crate::core::platform::{Platform, PlatformCallback, PlatformData, PlatformInfo};
     use crate::core::playback::MediaNotificationEvent;
-    use crate::core::players::{Player, PlayerEvent, PlayerState, PlayRequest};
-    use crate::core::subtitles::{SubtitleEvent, SubtitleManager};
+    use crate::core::players::{PlayRequest, Player, PlayerEvent, PlayerState};
     use crate::core::subtitles::language::SubtitleLanguage;
     use crate::core::subtitles::model::SubtitleInfo;
+    use crate::core::subtitles::{SubtitleEvent, SubtitleManager};
     use crate::core::torrents::{
         Torrent, TorrentCallback, TorrentState, TorrentStream, TorrentStreamCallback,
-        TorrentStreamingResourceWrapper, TorrentStreamState,
+        TorrentStreamState, TorrentStreamingResourceWrapper,
     };
+    use crate::core::{torrents, CallbackHandle, Callbacks, CoreCallback, Handle};
 
     static INIT: Once = Once::new();
 
@@ -388,12 +399,12 @@ pub mod testing {
             panic!("Temp filepath {:?} does not exist", path)
         }
     }
-    
+
     pub fn write_tmp_dir_file(temp_dir: &TempDir, filename: &str, contents: impl AsRef<[u8]>) {
         let path = temp_dir.path().join(filename);
         trace!("Writing test file {:?}", path);
         fs::write(path, contents).unwrap();
-    } 
+    }
 
     mock! {
         #[derive(Debug)]

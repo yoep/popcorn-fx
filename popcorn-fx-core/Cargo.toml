@@ -12,8 +12,6 @@ crate-type = ["rlib"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-popcorn-fx-common = { path = "../popcorn-fx-common" }
-
 async-trait.workspace = true
 bytes.workspace = true
 chrono = { workspace = true, features = ["serde"] }
@@ -55,4 +53,23 @@ tempfile.workspace = true
 tokio = { workspace = true, features = ["test-util"] }
 
 [features]
-testing = ["dep:log4rs", "dep:tempfile", "dep:mockall"]
+default = [
+    "cache",
+    "launcher",
+    "loader",
+    "media",
+    "platform",
+    "playback",
+]
+
+cache = []
+launcher = []
+loader = []
+media = []
+platform = []
+playback = []
+testing = [
+    "log4rs",
+    "tempfile",
+    "mockall"
+]

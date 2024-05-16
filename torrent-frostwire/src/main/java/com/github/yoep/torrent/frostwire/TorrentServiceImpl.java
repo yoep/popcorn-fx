@@ -21,23 +21,23 @@ import com.github.yoep.torrent.frostwire.model.FrostTorrentHealth;
 import com.github.yoep.torrent.frostwire.model.TorrentHealthImpl;
 import com.github.yoep.torrent.frostwire.wrappers.TorrentInfoWrapper;
 import javafx.beans.property.ReadOnlyObjectProperty;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.annotation.PostConstruct;
 import java.io.File;
 import java.text.MessageFormat;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
-@RequiredArgsConstructor
 public class TorrentServiceImpl implements TorrentService {
     private final TorrentSessionManager sessionManager;
     private final TorrentResolverService torrentResolverService;
     private final FxLib fxLib;
     private final PopcornFx instance;
+    private final ExecutorService executorService;
     private final ResolveTorrentInfoCallback resolveTorrentInfoCallback = createResolveTorrentInfoCallback();
     private final ResolveTorrentCallback resolveTorrentCallback = createResolveTorrentCallback();
     private final CancelTorrentCallback cancelTorrentCallback = createCancelTorrentCallback();
@@ -45,6 +45,15 @@ public class TorrentServiceImpl implements TorrentService {
     private final List<com.github.yoep.popcorn.backend.adapters.torrent.TorrentInfoWrapper> torrentInfos = new ArrayList<>();
     private final List<TorrentWrapper> torrentWrappers = new ArrayList<>();
     private final Map<Handle, StreamListenerHolder> torrentStreamCallbacks = new HashMap<>();
+
+    public TorrentServiceImpl(TorrentSessionManager sessionManager, TorrentResolverService torrentResolverService, FxLib fxLib, PopcornFx instance, ExecutorService executorService) {
+        this.sessionManager = sessionManager;
+        this.torrentResolverService = torrentResolverService;
+        this.fxLib = fxLib;
+        this.instance = instance;
+        this.executorService = executorService;
+        init();
+    }
 
     //region Getters
 
@@ -69,39 +78,37 @@ public class TorrentServiceImpl implements TorrentService {
 
     @Override
     public CompletableFuture<TorrentInfo> getTorrentInfo(String torrentUrl) {
-        return CompletableFuture.completedFuture(torrentResolverService.resolveUrl(torrentUrl));
+        return CompletableFuture.supplyAsync(() -> torrentResolverService.resolveUrl(torrentUrl), executorService);
     }
 
     @Override
     public CompletableFuture<TorrentHealth> getTorrentHealth(String url, File torrentDirectory) {
         Objects.requireNonNull(url, "url cannot be empty");
-        var torrentInfo = torrentResolverService.resolveUrl(url);
-
-        return getTorrentHealth(torrentInfo.getLargestFile(), torrentDirectory);
+        return CompletableFuture.supplyAsync(() -> {
+            var torrentInfo = torrentResolverService.resolveUrl(url);
+            return getTorrentHealth(torrentInfo.getLargestFile(), torrentDirectory).join();
+        }, executorService);
     }
 
     @Override
     public CompletableFuture<TorrentHealth> getTorrentHealth(TorrentFileInfo torrentFile, File torrentDirectory) {
         Objects.requireNonNull(torrentFile, "torrentFile cannot be null");
         Objects.requireNonNull(torrentDirectory, "torrentDirectory cannot be null");
-        var session = sessionManager.getSession();
-        var completableFuture = new CompletableFuture<TorrentHealth>();
-        var handle = internalCreateTorrentHandle(torrentFile, torrentDirectory);
-        var torrentHealth = FrostTorrentHealth.create(handle);
+        return CompletableFuture.supplyAsync(() -> {
+            var session = sessionManager.getSession();
+            var handle = internalCreateTorrentHandle(torrentFile, torrentDirectory);
+            var torrentHealth = FrostTorrentHealth.create(handle);
 
-        torrentHealth.healthFuture()
-                .whenComplete((health, throwable) -> {
-                    session.removeListener(torrentHealth);
-
-                    if (throwable == null) {
-                        completableFuture.complete(calculateHealth(health.getSeeds(), health.getPeers()));
-                    } else {
-                        completableFuture.completeExceptionally(throwable);
-                    }
-                });
-        session.addListener(torrentHealth);
-
-        return completableFuture;
+            try {
+                session.addListener(torrentHealth);
+                var health = torrentHealth.healthFuture().get(10, TimeUnit.SECONDS);
+                return calculateHealth(health.getSeeds(), health.getPeers());
+            } catch (Exception ex) {
+                throw new TorrentException("Failed to get torrent health", ex);
+            } finally {
+                session.removeListener(torrentHealth);
+            }
+        }, executorService);
     }
 
     @Override
@@ -113,16 +120,18 @@ public class TorrentServiceImpl implements TorrentService {
     public CompletableFuture<Torrent> create(TorrentFileInfo torrentFile, File torrentDirectory, boolean autoStartDownload) {
         Objects.requireNonNull(torrentFile, "torrentFile cannot be null");
         Objects.requireNonNull(torrentDirectory, "torrentDirectory cannot be null");
-        var session = sessionManager.getSession();
-        var handle = internalCreateTorrentHandle(torrentFile, torrentDirectory);
-        var torrent = new FrostTorrent(handle, torrentFile.getFileIndex(), autoStartDownload);
+        return CompletableFuture.supplyAsync(() -> {
+            var session = sessionManager.getSession();
+            var handle = internalCreateTorrentHandle(torrentFile, torrentDirectory);
+            var torrent = new FrostTorrent(handle, torrentFile.getFileIndex(), autoStartDownload);
 
-        // register the torrent in the session
-        log.trace("Adding torrent \"{}\" as a listener to the torrent session", torrentFile.getFilename());
-        session.addListener(torrent);
+            // register the torrent in the session
+            log.trace("Adding torrent \"{}\" as a listener to the torrent session", torrentFile.getFilename());
+            session.addListener(torrent);
 
-        log.debug("Torrent has been created for \"{}\"", torrentFile.getFilename());
-        return CompletableFuture.completedFuture(torrent);
+            log.debug("Torrent has been created for \"{}\"", torrentFile.getFilename());
+            return torrent;
+        }, executorService);
     }
 
     @Override
@@ -219,8 +228,7 @@ public class TorrentServiceImpl implements TorrentService {
 
     //region Functions
 
-    @PostConstruct
-    void init() {
+    private void init() {
         fxLib.torrent_resolve_info_callback(instance, resolveTorrentInfoCallback);
         fxLib.register_torrent_resolve_callback(instance, resolveTorrentCallback);
         fxLib.torrent_cancel_callback(instance, cancelTorrentCallback);

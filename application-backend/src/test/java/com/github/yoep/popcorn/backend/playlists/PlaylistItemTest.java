@@ -1,8 +1,8 @@
 package com.github.yoep.popcorn.backend.playlists;
 
 import com.github.yoep.popcorn.backend.media.MediaItem;
-import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
-import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
+import com.github.yoep.popcorn.backend.media.providers.MovieDetails;
+import com.github.yoep.popcorn.backend.media.providers.ShowOverview;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;

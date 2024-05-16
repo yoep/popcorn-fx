@@ -5,8 +5,6 @@ import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.media.MediaItem;
 import com.github.yoep.popcorn.backend.media.MediaResult;
 import com.github.yoep.popcorn.backend.media.filters.model.Category;
-import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
-import com.github.yoep.popcorn.backend.media.providers.models.ShowOverview;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

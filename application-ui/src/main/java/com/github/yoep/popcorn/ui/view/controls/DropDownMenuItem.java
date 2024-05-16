@@ -5,6 +5,7 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Optional;
@@ -12,7 +13,9 @@ import java.util.Optional;
 @Slf4j
 @EqualsAndHashCode(callSuper = false)
 public class DropDownMenuItem<T> extends MenuItem {
+    @Getter
     private final T item;
+    @Getter
     private final Image image;
     private final DropDownButtonFactory<T> itemFactory;
 
@@ -22,12 +25,19 @@ public class DropDownMenuItem<T> extends MenuItem {
         this.itemFactory = itemFactory;
         this.image = createImageFromGraphicResource();
 
-        setId(String.valueOf(item.hashCode()));
+        setId(itemFactory.getId(item));
         setGraphic(createGraphicNode());
     }
 
-    public Image getImage() {
-        return image;
+    /**
+     * Get the <b>guaranteed</b> correct identifier of the item.
+     * While {@link MenuItem.getId()} is <b>not</b> guaranteed to be correct as it might be changed through other
+     * programmatic input, this method will always guarantee the correct identifier.
+     *
+     * @return Returns the unique identifier of the item.
+     */
+    public String getIdentifier() {
+        return itemFactory.getId(item);
     }
 
     private Image createImageFromGraphicResource() {

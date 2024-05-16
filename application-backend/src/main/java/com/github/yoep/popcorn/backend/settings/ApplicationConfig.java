@@ -66,13 +66,17 @@ public class ApplicationConfig {
     public boolean isMouseDisabled() {
         return fxLib.is_mouse_disabled(instance) == 1;
     }
-    
+
     public boolean isYoutubeVideoPlayerEnabled() {
         return fxLib.is_youtube_video_player_enabled(instance) == 1;
     }
-    
+
     public boolean isVlcVideoPlayerEnabled() {
         return fxLib.is_vlc_video_player_enabled(instance) == 1;
+    }
+
+    public boolean isFxPlayerEnabled() {
+        return fxLib.is_fx_video_player_enabled(instance) == 1;
     }
 
     public void setOnUiScaleChanged(Consumer<Float> onUiScaleChanged) {
@@ -196,8 +200,13 @@ public class ApplicationConfig {
 
     private void initializeSettings() {
         var uiSettings = getSettings().getUiSettings();
+        var locale = UISettings.supportedLanguages().stream()
+                .filter(e -> e.getDisplayLanguage().equalsIgnoreCase(uiSettings.getDefaultLanguage()))
+                .findFirst()
+                .orElse(Locale.ENGLISH);
+
         updateUIScale(uiSettings.getUiScale().getValue());
-        localeText.updateLocale(Locale.forLanguageTag(uiSettings.getDefaultLanguage()));
+        localeText.updateLocale(locale);
     }
 
     //endregion
@@ -229,7 +238,13 @@ public class ApplicationConfig {
         if (event.tag == ApplicationConfigEvent.Tag.UI_SETTINGS_CHANGED) {
             var settings = event.getUnion().getUiSettingsChanged_body().getSettings();
             updateUIScale(settings.getUiScale().getValue());
-            localeText.updateLocale(Locale.forLanguageTag(settings.getDefaultLanguage()));
+
+            var language = settings.getDefaultLanguage();
+            UISettings.supportedLanguages()
+                    .stream()
+                    .filter(e -> e.getDisplayLanguage().equalsIgnoreCase(language))
+                    .findFirst()
+                    .ifPresent(localeText::updateLocale);
         }
     }
 

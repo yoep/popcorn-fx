@@ -1,7 +1,6 @@
 package com.github.yoep.popcorn.ui.view.services;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 
 import java.text.DecimalFormat;
 import java.util.Objects;
@@ -40,7 +39,7 @@ public class TorrentSettingService {
         Objects.requireNonNull(displayValue, "displayValue cannot be null");
         // check if the display value is empty
         // if so, return zero
-        if (StringUtils.isEmpty(displayValue))
+        if (displayValue.isBlank())
             return 0;
 
         var kb = Double.parseDouble(displayValue);

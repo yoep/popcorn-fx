@@ -15,10 +15,9 @@ use tokio::runtime::Runtime;
 use tokio::sync::Mutex;
 use url::Url;
 
-use popcorn_fx_common::LauncherOptions;
-
 use crate::core::{Callbacks, CoreCallback, CoreCallbacks, updater};
 use crate::core::config::ApplicationConfig;
+use crate::core::launcher::LauncherOptions;
 use crate::core::platform::PlatformData;
 use crate::core::storage::Storage;
 use crate::core::updater::{UpdateError, VersionInfo};
@@ -307,9 +306,13 @@ impl Debug for UpdaterBuilder {
     }
 }
 
+/// Manages the update process by handling configurations, platform-specific data,
+/// state management, callbacks, and update tasks.
 #[derive(Debug)]
 struct InnerUpdater {
+    /// The application configuration.
     settings: Arc<ApplicationConfig>,
+    /// The Operating System specific data used for updates.
     platform: Arc<Box<dyn PlatformData>>,
     /// The client used for polling the information
     client: Client,

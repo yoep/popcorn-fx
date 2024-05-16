@@ -15,15 +15,11 @@ import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentStreamState;
 import com.github.yoep.popcorn.backend.lib.Handle;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.annotation.PostConstruct;
 import java.util.Optional;
 
 @Slf4j
-
-@RequiredArgsConstructor
 public class PlayerControlsService extends AbstractListenerService<PlayerControlsListener> {
     private final PopcornPlayer player;
     private final ScreenService screenService;
@@ -35,6 +31,14 @@ public class PlayerControlsService extends AbstractListenerService<PlayerControl
     private final TorrentStreamListener torrentStreamListener = createStreamListener();
 
     private Handle lastKnownCallbackHandle;
+
+    public PlayerControlsService(PopcornPlayer player, ScreenService screenService, VideoService videoService, TorrentService torrentService) {
+        this.player = player;
+        this.screenService = screenService;
+        this.videoService = videoService;
+        this.torrentService = torrentService;
+        init();
+    }
 
     //region Methods
 
@@ -89,8 +93,7 @@ public class PlayerControlsService extends AbstractListenerService<PlayerControl
 
     //region PostConstruct
 
-    @PostConstruct
-    void init() {
+    private void init() {
         screenService.fullscreenProperty().addListener((observableValue, oldValue, newValue) -> invokeListeners(e -> e.onFullscreenStateChanged(newValue)));
         videoService.addListener(playbackListener);
         player.addListener(playerListener);

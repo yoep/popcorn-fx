@@ -10,15 +10,12 @@ import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentStreamState;
 import com.github.yoep.popcorn.backend.lib.Handle;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.annotation.PostConstruct;
+import java.util.Objects;
 import java.util.Optional;
 
 @Slf4j
-
-@RequiredArgsConstructor
 public class PlayerHeaderService extends AbstractListenerService<PlayerHeaderListener> {
     private final VideoService videoService;
     private final TorrentService torrentService;
@@ -28,8 +25,15 @@ public class PlayerHeaderService extends AbstractListenerService<PlayerHeaderLis
 
     private Handle lastKnownCallbackHandle;
 
-    @PostConstruct
-    void init() {
+    public PlayerHeaderService(VideoService videoService, TorrentService torrentService) {
+        Objects.requireNonNull(videoService, "videoService cannot be null");
+        Objects.requireNonNull(torrentService, "torrentService cannot be null");
+        this.videoService = videoService;
+        this.torrentService = torrentService;
+        init();
+    }
+
+    private void init() {
         videoService.addListener(listener);
     }
 

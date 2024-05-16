@@ -3,7 +3,7 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
-import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
+import com.github.yoep.popcorn.backend.media.providers.MovieDetails;
 import com.github.yoep.popcorn.backend.messages.SubtitleMessage;
 import com.github.yoep.popcorn.backend.playlists.Playlist;
 import com.github.yoep.popcorn.backend.playlists.PlaylistItem;
@@ -30,7 +30,6 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 
 import java.net.URL;
 import java.util.Collections;
@@ -86,6 +85,7 @@ public class DesktopMovieActionsComponent implements Initializable {
 
                 var language = item.getLanguage().getNativeName();
                 var image = Optional.ofNullable(item.getFlagResource())
+                        .map(DesktopMovieActionsComponent.class::getResourceAsStream)
                         .map(Image::new)
                         .map(ImageView::new)
                         .orElseGet(ImageView::new);
@@ -119,9 +119,11 @@ public class DesktopMovieActionsComponent implements Initializable {
     }
 
     private void onShowMovieDetails() {
+        var trailer = media.getTrailer();
+
         Platform.runLater(() -> {
             watchNowButton.select(playerService.getActivePlayer().orElse(null));
-            watchTrailerButton.setVisible(StringUtils.isNotEmpty(media.getTrailer()));
+            watchTrailerButton.setVisible(trailer != null && !trailer.isBlank());
             watchNowButton.requestFocus();
 
             updateSubtitles();

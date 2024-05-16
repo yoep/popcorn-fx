@@ -223,6 +223,7 @@ public class SubtitleManagerService {
 
         final var imdbId = subtitleInfo.getImdbId();
         final var language = subtitleInfo.getLanguage();
+        final var name = FilenameUtils.getBaseName(url);
 
         // check if the subtitle is a custom subtitle and doesn't contain any files yet
         // if so, pause the playback and let the user pick a custom subtitle file
@@ -234,24 +235,26 @@ public class SubtitleManagerService {
                 return;
         }
 
-        log.debug("Downloading subtitle \"{}\" for video playback", subtitleInfo);
-        var matcher = SubtitleMatcher.from(FilenameUtils.getBaseName(url), quality);
+        if (name != null && !name.isBlank()) {
+            log.debug("Downloading subtitle \"{}\" for video playback", subtitleInfo);
+            var matcher = SubtitleMatcher.from(name, quality);
 
-        subtitleService.preferredSubtitle()
-                .ifPresent(preferredSubtitle -> subtitleService.downloadAndParse(preferredSubtitle, matcher).whenComplete((subtitle, throwable) -> {
-                    if (throwable == null) {
-                        log.debug("Subtitle (imdbId: {}, language: {}) has been downloaded with success", imdbId, language);
-                        // auto-clean the subtitle
-                        try (subtitle) {
-                            onSubtitleDownloaded(subtitle);
+            subtitleService.preferredSubtitle()
+                    .ifPresent(preferredSubtitle -> subtitleService.downloadAndParse(preferredSubtitle, matcher).whenComplete((subtitle, throwable) -> {
+                        if (throwable == null) {
+                            log.debug("Subtitle (imdbId: {}, language: {}) has been downloaded with success", imdbId, language);
+                            // auto-clean the subtitle
+                            try (subtitle) {
+                                onSubtitleDownloaded(subtitle);
+                            }
+                        } else {
+                            log.error("Video subtitle failed, " + throwable.getMessage(), throwable);
+                            eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(VideoMessage.SUBTITLE_DOWNLOAD_FILED)));
                         }
-                    } else {
-                        log.error("Video subtitle failed, " + throwable.getMessage(), throwable);
-                        eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(VideoMessage.SUBTITLE_DOWNLOAD_FILED)));
-                    }
 
-                    preferredSubtitle.close();
-                }));
+                        preferredSubtitle.close();
+                    }));
+        }
     }
 
     private SubtitleInfo pickCustomSubtitleTrack() {

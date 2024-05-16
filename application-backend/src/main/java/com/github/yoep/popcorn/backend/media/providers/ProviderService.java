@@ -3,7 +3,6 @@ package com.github.yoep.popcorn.backend.media.providers;
 import com.github.yoep.popcorn.backend.media.filters.model.Category;
 import com.github.yoep.popcorn.backend.media.filters.model.Genre;
 import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
-import com.github.yoep.popcorn.backend.media.providers.models.Media;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;

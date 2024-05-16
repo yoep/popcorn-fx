@@ -1,10 +1,10 @@
 package com.github.yoep.popcorn.ui.view.services;
 
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
-import com.github.yoep.popcorn.backend.media.providers.models.Images;
-import com.github.yoep.popcorn.backend.media.providers.models.Media;
-import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
-import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
+import com.github.yoep.popcorn.backend.media.providers.Images;
+import com.github.yoep.popcorn.backend.media.providers.Media;
+import com.github.yoep.popcorn.backend.media.providers.MovieDetails;
+import com.github.yoep.popcorn.backend.media.providers.ShowDetails;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import org.junit.jupiter.api.Test;
@@ -79,7 +79,6 @@ class DetailsComponentServiceTest {
         var movie = MovieDetails.builder()
                 .images(new Images())
                 .build();
-        service.init();
 
         service.toggleWatchedState(movie);
 
@@ -90,7 +89,6 @@ class DetailsComponentServiceTest {
     void testToggleLikedState_whenLastItemIsKnownAndStateIsUnliked_shouldAddToFavorites() {
         var show = mock(ShowDetails.class);
         when(favoriteService.isLiked(show)).thenReturn(false);
-        service.init();
 
         service.toggleLikedState(show);
 
@@ -101,7 +99,6 @@ class DetailsComponentServiceTest {
     void testToggleLikedState_whenLastItemIsKnownAndStateIsLiked_shouldRemoveFromFavorites() {
         var show = mock(ShowDetails.class);
         when(favoriteService.isLiked(show)).thenReturn(true);
-        service.init();
 
         service.toggleLikedState(show);
 

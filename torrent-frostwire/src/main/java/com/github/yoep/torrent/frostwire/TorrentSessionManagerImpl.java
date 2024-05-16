@@ -6,14 +6,11 @@ import com.github.yoep.popcorn.backend.adapters.torrent.TorrentException;
 import com.github.yoep.popcorn.backend.adapters.torrent.state.SessionState;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 
 @Slf4j
-@RequiredArgsConstructor
 public class TorrentSessionManagerImpl implements TorrentSessionManager {
     public static final String STATE_PROPERTY = "state";
 
@@ -21,6 +18,10 @@ public class TorrentSessionManagerImpl implements TorrentSessionManager {
 
     private SessionManager session;
     private TorrentException error;
+
+    public TorrentSessionManagerImpl() {
+        init();
+    }
 
     //region TorrentSessionManager
 
@@ -67,8 +68,7 @@ public class TorrentSessionManagerImpl implements TorrentSessionManager {
 
     //region PostConstruct
 
-    @PostConstruct
-    void init() {
+    private void init() {
         try {
             var startTime = System.currentTimeMillis();
             initializeSession();

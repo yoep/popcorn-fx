@@ -15,6 +15,7 @@ use tokio_util::sync::CancellationToken;
 
 use popcorn_fx_core::core::block_in_place;
 use popcorn_fx_core::core::players::PlayerManager;
+use popcorn_fx_core::core::subtitles::SubtitleServer;
 
 use crate::{Discovery, DiscoveryState};
 use crate::dlna::{DlnaError, DlnaPlayer, errors};
@@ -97,6 +98,7 @@ impl Drop for DlnaDiscovery {
 #[derive(Debug, Default)]
 pub struct DlnaDiscoveryBuilder {
     player_manager: Option<Arc<Box<dyn PlayerManager>>>,
+    subtitle_server: Option<Arc<SubtitleServer>>,
     runtime: Option<Arc<Runtime>>,
     interval_seconds: Option<u64>,
 }
@@ -125,6 +127,12 @@ impl DlnaDiscoveryBuilder {
         self
     }
 
+    /// Sets the subtitle server for the DLNA discovery.
+    pub fn subtitle_server(mut self, subtitle_server: Arc<SubtitleServer>) -> Self {
+        self.subtitle_server = Some(subtitle_server);
+        self
+    }
+
     /// Builds the DLNA discovery instance.
     ///
     /// # Panics
@@ -143,6 +151,9 @@ impl DlnaDiscoveryBuilder {
                     .expect("expected a player manager to have been set"),
                 interval_seconds,
                 discovered_devices: Default::default(),
+                subtitle_server: self
+                    .subtitle_server
+                    .expect("expected a subtitle server to have been set"),
                 state: Mutex::new(DiscoveryState::Stopped),
                 cancel_token: Default::default(),
             }),
@@ -155,6 +166,7 @@ struct InnerDlnaDiscovery {
     interval_seconds: u64,
     player_manager: Arc<Box<dyn PlayerManager>>,
     discovered_devices: Mutex<Vec<String>>,
+    subtitle_server: Arc<SubtitleServer>,
     state: Mutex<DiscoveryState>,
     cancel_token: CancellationToken,
 }
@@ -235,7 +247,7 @@ impl InnerDlnaDiscovery {
 
         if let Some(service) = device.find_service(&AV_TRANSPORT).cloned() {
             trace!("Creating new player from {:?}", device);
-            let player = DlnaPlayer::new(device, service);
+            let player = DlnaPlayer::new(device, service, self.subtitle_server.clone());
 
             trace!("Adding new DLNA player {:?}", player);
             self.player_manager.add_player(Box::new(player));
@@ -258,6 +270,7 @@ mod tests {
 
     use popcorn_fx_core::assert_timeout;
     use popcorn_fx_core::core::players::{MockPlayerManager, Player};
+    use popcorn_fx_core::core::subtitles::MockSubtitleProvider;
     use popcorn_fx_core::testing::init_logger;
 
     use crate::dlna::tests::{DEFAULT_SSDP_DESCRIPTION_RESPONSE, MockUdpServer};
@@ -269,10 +282,13 @@ mod tests {
         init_logger();
         let runtime = Arc::new(Runtime::new().unwrap());
         let player_manager = MockPlayerManager::new();
+        let subtitle_provider = MockSubtitleProvider::new();
+        let subtitle_server = Arc::new(SubtitleServer::new(Arc::new(Box::new(subtitle_provider))));
         let server = DlnaDiscovery::builder()
             .runtime(runtime.clone())
             .interval_seconds(1)
             .player_manager(Arc::new(Box::new(player_manager)))
+            .subtitle_server(subtitle_server)
             .build();
 
         let result = server.state();
@@ -302,6 +318,8 @@ mod tests {
 
             true
         });
+        let subtitle_provider = MockSubtitleProvider::new();
+        let subtitle_server = Arc::new(SubtitleServer::new(Arc::new(Box::new(subtitle_provider))));
         let _dlna_server = MockUdpServer::new()
             .runtime(runtime.clone())
             .device_name("test")
@@ -311,6 +329,7 @@ mod tests {
             .runtime(runtime.clone())
             .interval_seconds(1)
             .player_manager(Arc::new(Box::new(player_manager)))
+            .subtitle_server(subtitle_server)
             .build();
 
         let result = runtime.block_on(server.inner.execute_search());
@@ -326,10 +345,13 @@ mod tests {
         let runtime = Arc::new(Runtime::new().unwrap());
         let mut player_manager = MockPlayerManager::new();
         player_manager.expect_add_player().return_const(true);
+        let subtitle_provider = MockSubtitleProvider::new();
+        let subtitle_server = Arc::new(SubtitleServer::new(Arc::new(Box::new(subtitle_provider))));
         let server = DlnaDiscovery::builder()
             .runtime(runtime.clone())
             .interval_seconds(1)
             .player_manager(Arc::new(Box::new(player_manager)))
+            .subtitle_server(subtitle_server)
             .build();
 
         let result = runtime.block_on(server.start_discovery());

@@ -9,7 +9,6 @@ import com.github.yoep.popcorn.ui.view.controls.DelayedTextField;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 
 import java.net.URL;
 import java.util.ResourceBundle;
@@ -49,7 +48,7 @@ public class SettingsServerComponent extends AbstractSettingsUiComponent impleme
         var settings = getSettings();
 
         try {
-            if (StringUtils.isNotEmpty(newValue)) {
+            if (newValue != null && !newValue.isBlank()) {
                 settings.setApiServer(newValue);
             } else {
                 settings.setApiServer(null);

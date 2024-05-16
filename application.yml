@@ -26,6 +26,8 @@ popcorn:
   loggers:
     popcorn_fx:
       level: info
+    popcorn_fx::ffi::favorites:
+      level: info
     popcorn_fx::ffi::mappings::subtitle:
       level: info
     popcorn_fx_core:

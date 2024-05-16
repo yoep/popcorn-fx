@@ -19,14 +19,11 @@ import javafx.stage.StageStyle;
 import lombok.extern.slf4j.Slf4j;
 
 import java.awt.*;
-import java.io.File;
 import java.io.InputStream;
-import java.net.URL;
+import java.nio.charset.StandardCharsets;
 
 @Slf4j
 public class PopcornTimePreloader extends Preloader {
-    public static final String IMAGES_DIRECTORY = "/images";
-
     private final FxLib fxLib;
     private final PopcornFx instance;
 
@@ -46,8 +43,9 @@ public class PopcornTimePreloader extends Preloader {
 
     @Override
     public void start(Stage primaryStage) throws Exception {
+        var loader = new FXMLLoader(StandardCharsets.UTF_8);
         var icon = new Image(getIconResource());
-        var parent = new FXMLLoader(getPreloaderResource()).<Parent>load();
+        var parent = loader.<Parent>load(getPreloaderResource());
         var scene = new Scene(parent);
         var mouse = MouseInfo.getPointerInfo().getLocation();
 
@@ -117,12 +115,12 @@ public class PopcornTimePreloader extends Preloader {
 
     private InputStream getIconResource() {
         return PopcornTimePreloader.class
-                .getResourceAsStream(IMAGES_DIRECTORY + File.separator + PopcornTimeApplication.ICON_NAME);
+                .getResourceAsStream("/images/" + PopcornTimeApplication.ICON_NAME);
     }
 
-    private URL getPreloaderResource() {
+    private InputStream getPreloaderResource() {
         return PopcornTimePreloader.class
-                .getResource("/views" + File.separator + "preloader.fxml");
+                .getResourceAsStream("/views/preloader.fxml");
     }
 
     /**

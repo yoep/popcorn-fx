@@ -13,6 +13,11 @@ public class PlayerDropDownButton extends DropDownButton<Player> {
     private static DropDownButtonFactory<Player> createDropDownButtonFactory() {
         return new DropDownButtonFactory<>() {
             @Override
+            public String getId(Player item) {
+                return item.getId();
+            }
+
+            @Override
             public String displayName(Player item) {
                 return item.getName();
             }

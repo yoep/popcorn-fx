@@ -10,7 +10,6 @@ import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.Closeable;
-import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -97,8 +96,8 @@ public class SubtitleInfo extends Structure implements Closeable {
      *
      * @return Returns the flag class path resource.
      */
-    public InputStream getFlagResource() {
-        return SubtitleInfo.class.getResourceAsStream( "/images/flags/" + language.getCode() + ".png");
+    public String getFlagResource() {
+        return "/images/flags/" + language.getCode() + ".png";
     }
 
     public List<SubtitleFile> getFiles() {

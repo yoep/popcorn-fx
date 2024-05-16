@@ -4,11 +4,11 @@ use derive_more::Display;
 use log::{debug, info, trace};
 use tokio::sync::Mutex;
 
-use crate::core::{block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks, Handle};
 use crate::core::events::{Event, EventPublisher, HIGHEST_ORDER};
 use crate::core::loader::{LoadingHandle, MediaLoader};
 use crate::core::players::{PlayerManager, PlayerManagerEvent, PlayerState};
 use crate::core::playlists::{Playlist, PlaylistItem};
+use crate::core::{block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks, Handle};
 
 const PLAYING_NEXT_IN_THRESHOLD_SECONDS: u64 = 60;
 
@@ -377,6 +377,7 @@ impl InnerPlaylistManager {
         {
             let mut mutex = block_in_place(self.playlist.lock());
             mutex.clear();
+            debug!("Active playlist has been cleared");
         }
         self.event_publisher.publish(Event::ClosePlayer);
     }
@@ -415,9 +416,9 @@ mod test {
     use std::time::Duration;
 
     use crate::core::events::{DEFAULT_ORDER, LOWEST_ORDER};
-    use crate::core::Handle;
     use crate::core::loader::MockMediaLoader;
     use crate::core::players::MockPlayerManager;
+    use crate::core::Handle;
     use crate::testing::init_logger;
 
     use super::*;

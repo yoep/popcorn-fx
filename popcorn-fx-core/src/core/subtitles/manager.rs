@@ -638,7 +638,7 @@ mod test {
         init_logger();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let mut settings = default_settings(temp_path, true);
+        let settings = default_settings(temp_path, true);
         settings.update_ui(UiSettings {
             default_language: "fr".to_string(),
             ui_scale: UiScale::new(1.0).unwrap(),

@@ -4,7 +4,6 @@ import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.IoC;
 import com.github.yoep.popcorn.ui.scale.ScaleAware;
-import com.github.yoep.popcorn.ui.size.SizeAware;
 import com.github.yoep.popcorn.ui.stage.StageAware;
 import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
@@ -19,10 +18,10 @@ import javafx.stage.Modality;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -150,13 +149,26 @@ public class PopcornViewLoader implements ViewLoader {
     private FXMLLoader doLoadResource(String view) {
         Objects.requireNonNull(view, "view cannot be null");
         var fxmlFilePath = VIEW_DIRECTORY + File.separator + view;
-        var componentResource = PopcornViewLoader.class.getResource(fxmlFilePath);
+        var loader = loadResourceWithClass(fxmlFilePath, PopcornViewLoader.class);
 
-        if (componentResource == null) {
-            throw new ViewNotFoundException(fxmlFilePath);
+        if (loader.isEmpty()) {
+            var classLoaderName = Arrays.stream(Thread.currentThread().getStackTrace())
+                    .filter(e -> isNotOfType(e, Thread.class))
+                    .filter(e -> isNotOfType(e, PopcornViewLoader.class))
+                    .findFirst()
+                    .map(StackTraceElement::getClassName);
+
+            if (classLoaderName.isPresent()) {
+                try {
+                    var asClazz = Class.forName(classLoaderName.get());
+                    loader = loadResourceWithClass(fxmlFilePath, asClazz);
+                } catch (Exception ex) {
+                    log.error("Failed to retrieve caller class, {}", ex.getMessage(), ex);
+                }
+            }
         }
 
-        return new FXMLLoader(componentResource);
+        return loader.orElseThrow(() -> new ViewNotFoundException(fxmlFilePath));
     }
 
     private SceneInfo loadView(String view, ViewProperties properties) throws ViewNotFoundException {
@@ -215,9 +227,6 @@ public class PopcornViewLoader implements ViewLoader {
         if (controller instanceof ScaleAware) {
             initWindowScale(sceneInfo);
         }
-        if (controller instanceof SizeAware) {
-            initWindowSize(scene, (SizeAware) controller);
-        }
         if (controller instanceof StageAware) {
             initWindowEvents(scene, (StageAware) controller);
         }
@@ -241,7 +250,7 @@ public class PopcornViewLoader implements ViewLoader {
             window.setResizable(properties.isResizable());
 
         Optional.ofNullable(properties.getIcon())
-                .filter(StringUtils::isNotBlank)
+                .filter(e -> e != null && !e.isBlank())
                 .ifPresent(icon -> window.getIcons().add(loadWindowIcon(icon)));
 
         if (properties.isCenterOnScreen()) {
@@ -268,29 +277,9 @@ public class PopcornViewLoader implements ViewLoader {
     }
 
     private void initWindowScale(SceneInfo sceneInfo) {
-        ScaleAware controller = (ScaleAware) sceneInfo.controller();
+        var controller = (ScaleAware) sceneInfo.controller();
 
         controller.scale(sceneInfo.scene(), sceneInfo.root(), scale);
-    }
-
-    private void initWindowSize(Scene scene, SizeAware controller) {
-        Stage window = (Stage) scene.getWindow();
-        controller.setInitialSize(window);
-        window.widthProperty().addListener((observable, oldValue, newValue) -> {
-            if (window.isShowing()) {
-                controller.onSizeChange(newValue, window.getHeight(), window.isMaximized());
-            }
-        });
-        window.heightProperty().addListener((observable, oldValue, newValue) -> {
-            if (window.isShowing()) {
-                controller.onSizeChange(window.getWidth(), newValue, window.isMaximized());
-            }
-        });
-        window.maximizedProperty().addListener(((observable, oldValue, newValue) -> {
-            if (window.isShowing()) {
-                controller.onSizeChange(window.getWidth(), window.getHeight(), newValue);
-            }
-        }));
     }
 
     private void initWindowEvents(Scene scene, StageAware controller) {
@@ -308,6 +297,20 @@ public class PopcornViewLoader implements ViewLoader {
                 log.error("Failed to invoke scale awareness with error {}", ex.getMessage(), ex);
             }
         }
+    }
+
+    private static Optional<FXMLLoader> loadResourceWithClass(String fxmlFilepath, Class<?> clazz) {
+        var resource = clazz.getResource(fxmlFilepath);
+
+        if (resource != null) {
+            return Optional.of(new FXMLLoader(resource));
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    private static boolean isNotOfType(StackTraceElement e, Class<?> clazz) {
+        return !e.getClassName().equals(clazz.getName());
     }
 
     //endregion

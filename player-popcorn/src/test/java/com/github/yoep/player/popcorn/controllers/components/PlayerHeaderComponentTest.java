@@ -6,7 +6,6 @@ import com.github.yoep.popcorn.ui.view.ViewLoader;
 import javafx.scene.control.Label;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
-import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -74,7 +73,10 @@ class PlayerHeaderComponentTest {
         var listener = headerListener.get();
         listener.onTitleChanged(title);
 
-        WaitForAsyncUtils.waitFor(250, TimeUnit.MILLISECONDS, () -> StringUtils.isNotEmpty(component.title.getText()));
+        WaitForAsyncUtils.waitFor(250, TimeUnit.MILLISECONDS, () -> {
+            var text = component.title.getText();
+            return text != null && !text.isBlank();
+        });
         assertEquals(title, component.title.getText());
     }
 
@@ -87,7 +89,10 @@ class PlayerHeaderComponentTest {
         var listener = headerListener.get();
         listener.onCaptionChanged(caption);
 
-        WaitForAsyncUtils.waitFor(250, TimeUnit.MILLISECONDS, () -> StringUtils.isNotEmpty(component.caption.getText()));
+        WaitForAsyncUtils.waitFor(250, TimeUnit.MILLISECONDS, () -> {
+            var text = component.caption.getText();
+            return text != null && !text.isBlank();
+        });
         assertEquals(caption, component.caption.getText());
         assertTrue(component.separator.isVisible());
     }

@@ -2,10 +2,11 @@ package com.github.yoep.popcorn.backend.playlists;
 
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
-import com.github.yoep.popcorn.backend.media.providers.models.Episode;
-import com.github.yoep.popcorn.backend.media.providers.models.Images;
-import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
-import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
+import com.github.yoep.popcorn.backend.lib.NativeString;
+import com.github.yoep.popcorn.backend.media.providers.Episode;
+import com.github.yoep.popcorn.backend.media.providers.Images;
+import com.github.yoep.popcorn.backend.media.providers.MovieDetails;
+import com.github.yoep.popcorn.backend.media.providers.ShowDetails;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.models.PlaybackSettings;
@@ -80,7 +81,7 @@ class PlaylistManagerTest {
         var show = ShowDetails.builder()
                 .title(showTitle)
                 .images(Images.builder()
-                        .poster(thumbnail)
+                        .poster(new NativeString(thumbnail).getPointer())
                         .build())
                 .build();
         var episode = Episode.builder()
@@ -105,7 +106,7 @@ class PlaylistManagerTest {
         assertEquals(1, playlistItems.size());
         assertEquals(showTitle, playlistItems.get(0).getTitle());
         assertEquals(Optional.of(episodeTitle), playlistItems.get(0).getCaption());
-        assertEquals(thumbnail, playlistItems.get(0).thumb);
+        assertEquals(Optional.of(thumbnail), playlistItems.get(0).getThumb());
         assertEquals(quality, playlistItems.get(0).quality);
     }
 

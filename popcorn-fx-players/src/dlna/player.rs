@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
@@ -7,19 +8,21 @@ use derive_more::Display;
 use log::{debug, error, trace};
 use rupnp::{Device, Service};
 use tokio::runtime::Runtime;
-use tokio::sync::mpsc::{channel, Sender};
 use tokio::sync::mpsc::error::SendError;
+use tokio::sync::mpsc::{channel, Sender};
 use tokio::sync::Mutex;
 use tokio::time;
 use tokio_util::sync::CancellationToken;
 use xml::escape::escape_str_attribute;
 
-use popcorn_fx_core::core::{
-    block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks,
-};
-use popcorn_fx_core::core::players::{Player, PlayerEvent, PlayerState, PlayRequest};
+use popcorn_fx_core::core::players::{PlayRequest, Player, PlayerEvent, PlayerState};
+use popcorn_fx_core::core::subtitles::model::SubtitleType;
+use popcorn_fx_core::core::subtitles::SubtitleServer;
 use popcorn_fx_core::core::utils::time::{
     parse_millis_from_time, parse_str_from_time, parse_time_from_millis, parse_time_from_str,
+};
+use popcorn_fx_core::core::{
+    block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks,
 };
 
 use crate::dlna;
@@ -27,6 +30,8 @@ use crate::dlna::models::{PositionInfo, TransportInfo, UpnpEvent};
 
 const DLNA_GRAPHIC_RESOURCE: &[u8] = include_bytes!("../../resources/external-dlna-icon.png");
 const DLNA_PLAYER_DESCRIPTION: &str = "DLNA Player";
+const UPNP_PLAYER_SUBTITLE_TYPE: &str = "srt";
+const UPNP_PLAYER_SUBTITLE_FORMAT: SubtitleType = SubtitleType::Srt;
 const UPNP_PLAYER_PLAY_PAYLOAD: &str = r#"
     <InstanceID>0</InstanceID>
     <Speed>1</Speed>
@@ -58,6 +63,7 @@ impl DlnaPlayer {
     /// use rupnp::Device;
     /// use ssdp_client::SearchTarget::URN;
     /// use popcorn_fx_players::dlna::DlnaPlayer;
+    /// use std::sync::Arc;
     ///
     /// #[tokio::main]
     /// async fn main() {
@@ -69,7 +75,7 @@ impl DlnaPlayer {
     ///     let player = DlnaPlayer::new(device, service);
     /// }
     /// ```
-    pub fn new(device: Device, service: Service) -> Self {
+    pub fn new(device: Device, service: Service, subtitle_server: Arc<SubtitleServer>) -> Self {
         let name = device.friendly_name().to_string();
         let id = format!("[{}]{}", device.device_type(), name);
         let (tx, mut rx) = channel(10);
@@ -86,6 +92,7 @@ impl DlnaPlayer {
             event_sender: tx,
             request: Default::default(),
             playback_state: Default::default(),
+            subtitle_server,
             callbacks: Default::default(),
             event_poller_activated: Default::default(),
             cancellation_token: Default::default(),
@@ -198,6 +205,7 @@ struct InnerPlayer {
     event_sender: Sender<UpnpEvent>,
     request: Mutex<Option<Arc<Box<dyn PlayRequest>>>>,
     playback_state: Mutex<PlaybackState>,
+    subtitle_server: Arc<SubtitleServer>,
     callbacks: CoreCallbacks<PlayerEvent>,
     event_poller_activated: Mutex<bool>,
     cancellation_token: CancellationToken,
@@ -205,6 +213,39 @@ struct InnerPlayer {
 }
 
 impl InnerPlayer {
+    fn handle_subtitle(&self, request: &Box<dyn PlayRequest>) -> (String, String) {
+        let mut subtitle_attributes = String::new();
+        let mut video_resource_attributes = String::new();
+
+        if let Some(subtitle) = request.subtitle() {
+            trace!("Trying to serve DLNA subtitle {} for {}", subtitle.file(), request.url());
+            match self
+                .subtitle_server
+                .serve(subtitle.clone(), UPNP_PLAYER_SUBTITLE_FORMAT)
+            {
+                Ok(subtitle_url) => {
+                    debug!("Serving DLNA subtitle at {}", subtitle_url);
+                    subtitle_attributes = format!(
+                        r#"<res protocolInfo="http-get:*:text/{subtitle_type}:*">{subtitle_uri}</res>
+                           <res protocolInfo="http-get:*:smi/caption:*">{subtitle_uri}</res>
+                           <sec:CaptionInfoEx sec:type="{subtitle_type}">{subtitle_uri}</sec:CaptionInfoEx>
+                           <sec:CaptionInfo sec:type="{subtitle_type}">{subtitle_uri}</sec:CaptionInfo>"#,
+                        subtitle_type = UPNP_PLAYER_SUBTITLE_TYPE,
+                        subtitle_uri = subtitle_url,
+                    );
+                    video_resource_attributes = format!(
+                        r#"xmlns:pv="http://www.pv.com/pvns/" pv:subtitleFileUri="{uri_sub}" pv:subtitleFileType="{subtitle_type}""#,
+                        subtitle_type = UPNP_PLAYER_SUBTITLE_TYPE,
+                        uri_sub = subtitle_url,
+                    )
+                }
+                Err(e) => error!("Failed to serve DLNA subtitle, {}", e),
+            }
+        }
+
+        return (subtitle_attributes, video_resource_attributes);
+    }
+
     fn update_state(&self, state: PlayerState) {
         block_in_place(self.update_state_async(state))
     }
@@ -359,10 +400,20 @@ impl Player for InnerPlayer {
 
     async fn play(&self, request: Box<dyn PlayRequest>) {
         trace!("Starting DLNA playback for {:?}", request);
-        if request.subtitles_enabled() {
-            // todo: add support for subtitles
-        }
+        let extension = PathBuf::from(request.url())
+            .extension()
+            .map(|e| e.to_string_lossy().to_string())
+            .unwrap_or("mpeg".to_string());
 
+        // process the playback subtitle information
+        let (subtitle_attributes, video_resource_attributes) = self.handle_subtitle(&request);
+
+        let video_resource = format!(
+            r#"<res protocolInfo="http-get:*:video/{video_type}:DLNA.ORG_OP=01;DLNA.ORG_FLAGS=01100000000000000000000000000000" {video_attributes}>{video_uri}</res>"#,
+            video_type = extension,
+            video_uri = request.url(),
+            video_attributes = video_resource_attributes,
+        );
         let metadata = escape_str_attribute(
             format!(
                 r#"<DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"
@@ -371,12 +422,14 @@ impl Player for InnerPlayer {
                xmlns:dlna="urn:schemas-dlna-org:device-1-0">
             <item id="0" parentID="-1" restricted="0">
                 <dc:title>{title}</dc:title>
-                <res>{video_uri}</res>
+                {video_resource}
+                {subtitle_attributes}
                 <upnp:class>object.item.videoItem.movie</upnp:class>
             </item>
         </DIDL-Lite>"#,
                 title = request.title(),
-                video_uri = request.url()
+                video_resource = video_resource,
+                subtitle_attributes = subtitle_attributes,
             )
             .as_str(),
         )
@@ -389,7 +442,7 @@ impl Player for InnerPlayer {
         "#,
             request.url(),
             metadata
-        );
+        ).trim().to_string();
 
         trace!("Initializing DLNA playback with {:?}", initialize_payload);
         if let Err(e) = self
@@ -408,6 +461,11 @@ impl Player for InnerPlayer {
 
         debug!("DLNA playback has been started for {:?}", request);
         self.update_state_async(PlayerState::Buffering).await;
+
+        if let Some(auto_resume) = request.auto_resume_timestamp() {
+            trace!("Auto resuming DLNA playback at {}", auto_resume);
+            self.seek(auto_resume);
+        }
 
         {
             trace!("Updating DLNA player request to {:?}", request);
@@ -492,15 +550,16 @@ mod tests {
     use std::sync::mpsc::channel;
     use std::time::Duration;
 
-    use httpmock::{Mock, MockServer};
     use httpmock::Method::{GET, POST};
+    use httpmock::{Mock, MockServer};
     use tokio::runtime::Runtime;
 
     use popcorn_fx_core::core::players::PlayUrlRequestBuilder;
+    use popcorn_fx_core::core::subtitles::MockSubtitleProvider;
     use popcorn_fx_core::testing::init_logger;
 
-    use crate::dlna::AV_TRANSPORT;
     use crate::dlna::tests::DEFAULT_SSDP_DESCRIPTION_RESPONSE;
+    use crate::dlna::AV_TRANSPORT;
 
     use super::*;
 
@@ -894,7 +953,9 @@ mod tests {
             .block_on(Device::from_url(addr.parse().unwrap()))
             .unwrap();
         let service = device.find_service(&AV_TRANSPORT).cloned().unwrap();
-        let player = Arc::new(DlnaPlayer::new(device, service));
+        let subtitle_provider = MockSubtitleProvider::new();
+        let subtitle_server = Arc::new(SubtitleServer::new(Arc::new(Box::new(subtitle_provider))));
+        let player = Arc::new(DlnaPlayer::new(device, service, subtitle_server));
 
         TestInstance {
             runtime,

@@ -4,9 +4,17 @@ import javafx.scene.image.Image;
 
 
 /**
- * The item factory for the drop down button.
+ * The item factory for the drop-down button.
  */
 public interface DropDownButtonFactory<T> {
+    /**
+     * Get the unique identifier of the item.
+     *
+     * @param item The item of the drop down button.
+     * @return Returns the unique identifier of the item.
+     */
+    String getId(T item);
+
     /**
      * Retrieve the display name of the item.
      *

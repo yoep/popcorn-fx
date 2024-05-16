@@ -54,17 +54,18 @@
     </scm>
 
     <properties>
-        <java.version>17</java.version>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
+        <java.version>21</java.version>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
 
-        <commons-cli.version>1.6.0</commons-cli.version>
-        <commons-collections.version>4.4</commons-collections.version>
         <commons-io.version>2.11.0</commons-io.version>
-        <commons-text.version>1.10.0</commons-text.version>
         <guava.version>32.0.0-jre</guava.version>
+        <hamcrest.version>2.2</hamcrest.version>
+        <httpclient.version>4.5.14</httpclient.version>
+        <jacoco.version>0.8.12</jacoco.version>
         <jaffree.version>2021.12.30</jaffree.version>
-        <javafx.version>19</javafx.version>
+        <jakarta.validation-api.version>3.0.2</jakarta.validation-api.version>
+        <javafx.version>21.0.3</javafx.version>
         <jna.version>5.13.0</jna.version>
         <junit-jupiter.version>5.10.1</junit-jupiter.version>
         <log4j-to-slf4j.version>2.23.1</log4j-to-slf4j.version>
@@ -72,7 +73,7 @@
         <lombok.version>1.18.30</lombok.version>
         <mockito.version>5.7.0</mockito.version>
         <slf4j-api.version>2.0.13</slf4j-api.version>
-        <testfx.version>4.0.16-alpha</testfx.version>
+        <testfx.version>4.0.18</testfx.version>
         <vlcj-javafx.version>1.1.0</vlcj-javafx.version>
         <vlcj.version>4.7.3</vlcj.version>
     </properties>
@@ -113,34 +114,14 @@
 
             <!-- Apache -->
             <dependency>
-                <groupId>org.apache.commons</groupId>
-                <artifactId>commons-lang3</artifactId>
-                <version>3.13.0</version>
-            </dependency>
-            <dependency>
                 <groupId>commons-io</groupId>
                 <artifactId>commons-io</artifactId>
                 <version>${commons-io.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.apache.commons</groupId>
-                <artifactId>commons-collections4</artifactId>
-                <version>${commons-collections.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.commons</groupId>
-                <artifactId>commons-text</artifactId>
-                <version>${commons-text.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>commons-cli</groupId>
-                <artifactId>commons-cli</artifactId>
-                <version>${commons-cli.version}</version>
-            </dependency>
-            <dependency>
                 <groupId>org.apache.httpcomponents</groupId>
                 <artifactId>httpclient</artifactId>
-                <version>4.5.14</version>
+                <version>${httpclient.version}</version>
             </dependency>
 
             <!-- JNA -->
@@ -206,6 +187,11 @@
                 <artifactId>javax.annotation-api</artifactId>
                 <version>1.3.2</version>
             </dependency>
+            <dependency>
+                <groupId>jakarta.validation</groupId>
+                <artifactId>jakarta.validation-api</artifactId>
+                <version>${jakarta.validation-api.version}</version>
+            </dependency>
 
             <!-- Lombok -->
             <dependency>
@@ -261,7 +247,13 @@
             <dependency>
                 <groupId>org.hamcrest</groupId>
                 <artifactId>hamcrest-core</artifactId>
-                <version>2.2</version>
+                <version>${hamcrest.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.hamcrest</groupId>
+                <artifactId>hamcrest</artifactId>
+                <version>${hamcrest.version}</version>
                 <scope>test</scope>
             </dependency>
             <dependency>
@@ -300,7 +292,7 @@
                 <plugin>
                     <groupId>org.jacoco</groupId>
                     <artifactId>jacoco-maven-plugin</artifactId>
-                    <version>0.8.7</version>
+                    <version>${jacoco.version}</version>
                 </plugin>
                 <plugin>
                     <groupId>org.sonarsource.jacoco</groupId>
@@ -366,7 +358,66 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
-                    <argLine>@{argLine}</argLine>
+                    <argLine>
+                        @{argLine}
+                        --add-opens javafx.graphics/com.sun.javafx.application=ALL-UNNAMED
+                        --add-opens javafx.base/com.sun.javafx.beans=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.adapters.torrent=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.controls=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.events=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.info=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.lib=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.loader=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.logging=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.media.favorites=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.media.providers=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.media.tracking=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.media.watched=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.media=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.player=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.playlists=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.services=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.settings.models=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.settings=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.subtitles.model=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.subtitles=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.updater=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.utils=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend=ALL-UNNAMED
+                        --add-opens application.ui/com.github.yoep.popcorn.ui.font.controls=ALL-UNNAMED
+                        --add-opens application.ui/com.github.yoep.popcorn.ui.font=ALL-UNNAMED
+                        --add-opens application.ui/com.github.yoep.popcorn.ui.info=ALL-UNNAMED
+                        --add-opens application.ui/com.github.yoep.popcorn.ui.platform=ALL-UNNAMED
+                        --add-opens application.ui/com.github.yoep.popcorn.ui.scale=ALL-UNNAMED
+                        --add-opens application.ui/com.github.yoep.popcorn.ui.screen=ALL-UNNAMED
+                        --add-opens application.ui/com.github.yoep.popcorn.ui.torrent=ALL-UNNAMED
+                        --add-opens application.ui/com.github.yoep.popcorn.ui.utils=ALL-UNNAMED
+                        --add-opens application.ui/com.github.yoep.popcorn.ui.view.controllers.common.components=ALL-UNNAMED
+                        --add-opens application.ui/com.github.yoep.popcorn.ui.view.controllers.common.sections=ALL-UNNAMED
+                        --add-opens application.ui/com.github.yoep.popcorn.ui.view.controllers.common=ALL-UNNAMED
+                        --add-opens application.ui/com.github.yoep.popcorn.ui.view.controllers.desktop.components=ALL-UNNAMED
+                        --add-opens application.ui/com.github.yoep.popcorn.ui.view.controllers.desktop.sections=ALL-UNNAMED
+                        --add-opens application.ui/com.github.yoep.popcorn.ui.view.controllers.tv.components=ALL-UNNAMED
+                        --add-opens application.ui/com.github.yoep.popcorn.ui.view.controllers=ALL-UNNAMED
+                        --add-opens application.ui/com.github.yoep.popcorn.ui.view.controls=ALL-UNNAMED
+                        --add-opens application.ui/com.github.yoep.popcorn.ui.view.services=ALL-UNNAMED
+                        --add-opens application.ui/com.github.yoep.popcorn.ui.view=ALL-UNNAMED
+                        --add-opens application.ui/com.github.yoep.popcorn.ui=ALL-UNNAMED
+                        --add-opens application/com.github.yoep.popcorn=ALL-UNNAMED
+                        --add-opens player.popcorn/com.github.yoep.player.popcorn.controllers.components=ALL-UNNAMED
+                        --add-opens player.popcorn/com.github.yoep.player.popcorn.controllers.sections=ALL-UNNAMED
+                        --add-opens player.popcorn/com.github.yoep.player.popcorn.controls=ALL-UNNAMED
+                        --add-opens player.popcorn/com.github.yoep.player.popcorn.player=ALL-UNNAMED
+                        --add-opens player.popcorn/com.github.yoep.player.popcorn.services=ALL-UNNAMED
+                        --add-opens player.popcorn/com.github.yoep.player.popcorn.utils=ALL-UNNAMED
+                        --add-opens torrent.frostwire/com.github.yoep.torrent.frostwire.model=ALL-UNNAMED
+                        --add-opens torrent.frostwire/com.github.yoep.torrent.frostwire.wrappers=ALL-UNNAMED
+                        --add-opens torrent.frostwire/com.github.yoep.torrent.frostwire=ALL-UNNAMED
+                        --add-opens video.javafx/com.github.yoep.video.javafx=ALL-UNNAMED
+                        --add-opens video.vlc/com.github.yoep.video.vlc.discovery=ALL-UNNAMED
+                        --add-opens video.vlc/com.github.yoep.video.vlc=ALL-UNNAMED
+                        --add-opens video.youtube/com.github.yoep.video.youtube=ALL-UNNAMED
+                    </argLine>
                 </configuration>
             </plugin>
             <plugin>
@@ -383,6 +434,20 @@
                         </goals>
                     </execution>
                 </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
             </plugin>
         </plugins>
     </build>

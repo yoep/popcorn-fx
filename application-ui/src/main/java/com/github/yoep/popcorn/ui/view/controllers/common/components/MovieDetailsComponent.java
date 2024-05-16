@@ -2,7 +2,7 @@ package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
-import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
+import com.github.yoep.popcorn.backend.media.providers.MovieDetails;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
@@ -20,7 +20,6 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.GridPane;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 
 import java.net.URL;
 import java.util.ResourceBundle;
@@ -122,11 +121,11 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
     @Override
     protected void reset() {
         super.reset();
-        title.setText(StringUtils.EMPTY);
-        overview.setText(StringUtils.EMPTY);
-        year.setText(StringUtils.EMPTY);
-        duration.setText(StringUtils.EMPTY);
-        genres.setText(StringUtils.EMPTY);
+        title.setText(null);
+        overview.setText(null);
+        year.setText(null);
+        duration.setText(null);
+        genres.setText(null);
     }
 
     //endregion

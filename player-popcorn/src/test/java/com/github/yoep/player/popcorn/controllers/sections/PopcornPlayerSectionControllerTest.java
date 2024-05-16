@@ -1,10 +1,10 @@
 package com.github.yoep.player.popcorn.controllers.sections;
 
+import com.github.yoep.player.popcorn.controls.SubtitleTrack;
 import com.github.yoep.player.popcorn.listeners.PopcornPlayerSectionListener;
 import com.github.yoep.player.popcorn.messages.VideoMessage;
 import com.github.yoep.player.popcorn.services.PopcornPlayerSectionService;
 import com.github.yoep.player.popcorn.services.SubtitleManagerService;
-import com.github.yoep.player.popcorn.subtitles.controls.SubtitleTrack;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayerStartedEvent;
@@ -19,7 +19,6 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
-import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -132,7 +131,10 @@ class PopcornPlayerSectionControllerTest {
                 .build());
         WaitForAsyncUtils.waitForFxEvents();
 
-        WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> StringUtils.isEmpty(controller.errorText.getText()));
+        WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> {
+            var text = controller.errorText.getText();
+            return text == null || text.isBlank();
+        });
     }
 
     @Test

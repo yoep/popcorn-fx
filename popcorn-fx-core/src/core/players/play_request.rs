@@ -1,5 +1,4 @@
 use std::fmt::{Debug, Display};
-#[cfg(any(test, feature = "testing"))]
 use std::fmt::Formatter;
 use std::sync::Weak;
 
@@ -54,9 +53,9 @@ pub trait PlayRequest: Debug + Display + DowncastSync {
     ///
     /// Returns `true` if subtitles are enabled, `false` otherwise.
     fn subtitles_enabled(&self) -> bool;
-    
+
     /// The selected subtitle for the media playback (if available).
-    /// 
+    ///
     /// Returns the selected subtitle for the media playback if set, else `None`.
     fn subtitle<'a>(&'a self) -> Option<&'a Subtitle>;
 }
@@ -70,7 +69,7 @@ impl Display for MockPlayRequest {
 }
 
 /// A struct representing a play request for a URL-based media.
-#[derive(Debug, Display, Clone, PartialEq)]
+#[derive(Display, Clone, PartialEq)]
 #[display(fmt = "{}", title)]
 pub struct PlayUrlRequest {
     /// The URL of the media to be played.
@@ -136,9 +135,24 @@ impl PlayRequest for PlayUrlRequest {
     }
 }
 
+impl Debug for PlayUrlRequest {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PlayUrlRequest")
+            .field("url", &self.url)
+            .field("title", &self.title)
+            .field("caption", &self.caption)
+            .field("thumb", &self.thumb)
+            .field("background", &self.background)
+            .field("auto_resume_timestamp", &self.auto_resume_timestamp)
+            .field("subtitles_enabled", &self.subtitles_enabled)
+            .field("subtitle", &self.subtitle.is_some())
+            .finish()
+    }
+}
+
 impl<S> From<S> for PlayUrlRequest
-where
-    S: Into<String>,
+    where
+        S: Into<String>,
 {
     fn from(value: S) -> Self {
         PlayUrlRequestBuilder::builder()
@@ -210,8 +224,8 @@ impl PlayUrlRequestBuilder {
 
     /// Sets the caption of the associated media.
     pub fn caption<S: Into<String>>(mut self, caption: S) -> Self
-    where
-        S: Into<String>,
+        where
+            S: Into<String>,
     {
         self.caption = Some(caption.into());
         self
@@ -240,7 +254,7 @@ impl PlayUrlRequestBuilder {
         self.subtitles_enabled = subtitles_enabled;
         self
     }
-    
+
     /// Sets the selected subtitle for the media playback.
     pub fn subtitle(mut self, subtitle: Subtitle) -> Self {
         self.subtitle = Some(subtitle);
@@ -395,8 +409,8 @@ impl PlayStreamRequestBuilder {
 
     /// Sets the URL for the media to be played.
     pub fn url<S>(mut self, url: S) -> Self
-    where
-        S: Into<String>,
+        where
+            S: Into<String>,
     {
         self.url = Some(url.into());
         self
@@ -404,8 +418,8 @@ impl PlayStreamRequestBuilder {
 
     /// Sets the title of the media.
     pub fn title<S>(mut self, title: S) -> Self
-    where
-        S: Into<String>,
+        where
+            S: Into<String>,
     {
         self.title = Some(title.into());
         self
@@ -413,8 +427,8 @@ impl PlayStreamRequestBuilder {
 
     /// Sets the caption of the media.
     pub fn caption<S>(mut self, caption: S) -> Self
-    where
-        S: Into<String>,
+        where
+            S: Into<String>,
     {
         self.caption = Some(caption.into());
         self
@@ -422,8 +436,8 @@ impl PlayStreamRequestBuilder {
 
     /// Sets the URL of the thumbnail associated with the media.
     pub fn thumb<S>(mut self, thumb: S) -> Self
-    where
-        S: Into<String>,
+        where
+            S: Into<String>,
     {
         self.thumb = Some(thumb.into());
         self
@@ -431,8 +445,8 @@ impl PlayStreamRequestBuilder {
 
     /// Sets the URL of the background associated with the media.
     pub fn background<S>(mut self, background: S) -> Self
-    where
-        S: Into<String>,
+        where
+            S: Into<String>,
     {
         self.background = Some(background.into());
         self
@@ -449,7 +463,7 @@ impl PlayStreamRequestBuilder {
         self.subtitles_enabled = subtitles_enabled;
         self
     }
-    
+
     /// Sets the selected subtitle for the media.
     pub fn subtitle(mut self, subtitle: Subtitle) -> Self {
         self.subtitle = Some(subtitle);
@@ -458,8 +472,8 @@ impl PlayStreamRequestBuilder {
 
     /// Sets the quality information for the media.
     pub fn quality<S>(mut self, quality: S) -> Self
-    where
-        S: Into<String>,
+        where
+            S: Into<String>,
     {
         self.quality = Some(quality.into());
         self
@@ -676,8 +690,8 @@ impl PlayMediaRequestBuilder {
 
     /// Sets the URL for the media to be played.
     pub fn url<S>(mut self, url: S) -> Self
-    where
-        S: Into<String>,
+        where
+            S: Into<String>,
     {
         self.url = Some(url.into());
         self
@@ -685,8 +699,8 @@ impl PlayMediaRequestBuilder {
 
     /// Sets the title of the media.
     pub fn title<S>(mut self, title: S) -> Self
-    where
-        S: Into<String>,
+        where
+            S: Into<String>,
     {
         self.title = Some(title.into());
         self
@@ -694,8 +708,8 @@ impl PlayMediaRequestBuilder {
 
     /// Sets the caption of the media.
     pub fn caption<S>(mut self, caption: S) -> Self
-    where
-        S: Into<String>,
+        where
+            S: Into<String>,
     {
         self.caption = Some(caption.into());
         self
@@ -703,8 +717,8 @@ impl PlayMediaRequestBuilder {
 
     /// Sets the URL of the thumbnail associated with the media.
     pub fn thumb<S>(mut self, thumb: S) -> Self
-    where
-        S: Into<String>,
+        where
+            S: Into<String>,
     {
         self.thumb = Some(thumb.into());
         self
@@ -712,8 +726,8 @@ impl PlayMediaRequestBuilder {
 
     /// Sets the URL of the background associated with the media.
     pub fn background<S>(mut self, background: S) -> Self
-    where
-        S: Into<String>,
+        where
+            S: Into<String>,
     {
         self.background = Some(background.into());
         self
@@ -730,7 +744,7 @@ impl PlayMediaRequestBuilder {
         self.subtitles_enabled = subtitles_enabled;
         self
     }
-    
+
     /// Sets the selected subtitle for the media playback.
     pub fn subtitle(mut self, subtitle: Subtitle) -> Self {
         self.subtitle = Some(subtitle);
@@ -751,8 +765,8 @@ impl PlayMediaRequestBuilder {
 
     /// Sets the quality information for the media.
     pub fn quality<S>(mut self, quality: S) -> Self
-    where
-        S: Into<String>,
+        where
+            S: Into<String>,
     {
         self.quality = Some(quality.into());
         self

@@ -6,12 +6,7 @@ import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
 import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteEventCallback;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
-import com.github.yoep.popcorn.backend.media.providers.MediaParsingException;
-import com.github.yoep.popcorn.backend.media.providers.MediaRetrievalException;
-import com.github.yoep.popcorn.backend.media.providers.ProviderService;
-import com.github.yoep.popcorn.backend.media.providers.models.Media;
-import com.github.yoep.popcorn.backend.media.providers.models.MovieDetails;
-import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
+import com.github.yoep.popcorn.backend.media.providers.*;
 import com.github.yoep.popcorn.backend.media.watched.WatchedEventCallback;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
@@ -38,7 +33,6 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 
 import java.net.URL;
 import java.util.Arrays;
@@ -290,7 +284,7 @@ public class ListSectionController extends AbstractListSectionController impleme
     }
 
     private CompletableFuture<Media[]> retrieveMediaPage(ProviderService<? extends Media> provider, int page) {
-        if (StringUtils.isEmpty(search)) {
+        if (search == null || search.isBlank()) {
             currentLoadRequest = provider.getPage(genre, sortBy, page);
         } else {
             currentLoadRequest = provider.getPage(genre, sortBy, page, search);

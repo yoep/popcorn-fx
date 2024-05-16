@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
-import com.github.yoep.popcorn.backend.media.providers.models.Episode;
+import com.github.yoep.popcorn.backend.media.providers.Episode;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.font.controls.Icon;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
@@ -13,6 +13,7 @@ import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
@@ -28,7 +29,16 @@ public class EpisodeComponent implements Initializable {
     private final ImageService imageService;
 
     private boolean watched;
+    /**
+     *  The action which needs to be invoked when the watched icon is clicked.
+     *  It invoked the consumer with the new expected value for the watched state.
+     */
+    @Setter
     private Consumer<Boolean> onWatchClicked;
+    /**
+     *  The action to invoke when the episode component is being destroyed.
+     */
+    @Setter
     private Runnable onDestroy;
 
     @FXML
@@ -85,21 +95,6 @@ public class EpisodeComponent implements Initializable {
                 watchedIcon.setText(newValue ? Icon.EYE_UNICODE : Icon.EYE_SLASH_UNICODE);
             });
         }
-    }
-
-    /**
-     * Set the action which needs to be invoked when the watched icon is clicked.
-     * It invoked the consumer with the new expected value for the watched state.
-     */
-    public void setOnWatchClicked(Consumer<Boolean> onWatchClicked) {
-        this.onWatchClicked = onWatchClicked;
-    }
-
-    /**
-     * Set the action to invoke when the episode component is being destroyed.
-     */
-    public void setOnDestroy(Runnable onDestroy) {
-        this.onDestroy = onDestroy;
     }
 
     private void loadAndUpdateImageArt() {

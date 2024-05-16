@@ -5,6 +5,7 @@ import javafx.scene.image.Image;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.InputStream;
+import java.util.Optional;
 
 @Slf4j
 public class SubtitleDropDownButton extends DropDownButton<SubtitleInfo> {
@@ -19,6 +20,12 @@ public class SubtitleDropDownButton extends DropDownButton<SubtitleInfo> {
     private static DropDownButtonFactory<SubtitleInfo> createItemFactory() {
         return new DropDownButtonFactory<>() {
             @Override
+            public String getId(SubtitleInfo item) {
+                return Optional.ofNullable(item.getImdbId())
+                        .orElseGet(() -> item.getLanguage().getCode());
+            }
+
+            @Override
             public String displayName(SubtitleInfo item) {
                 return item
                         .getLanguage()
@@ -27,7 +34,7 @@ public class SubtitleDropDownButton extends DropDownButton<SubtitleInfo> {
 
             @Override
             public Image graphicResource(SubtitleInfo item) {
-                return resourceToImage(item.getFlagResource());
+                return resourceToImage(SubtitleDropDownButton.class.getResourceAsStream(item.getFlagResource()));
             }
         };
     }

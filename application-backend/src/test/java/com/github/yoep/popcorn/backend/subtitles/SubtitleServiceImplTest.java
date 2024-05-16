@@ -14,10 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -29,6 +26,8 @@ class SubtitleServiceImplTest {
     private FxLib fxLib;
     @Mock
     private PopcornFx instance;
+    @Mock
+    private ExecutorService executorService;
     @InjectMocks
     private SubtitleServiceImpl service;
 
@@ -88,7 +87,7 @@ class SubtitleServiceImplTest {
             callbackHolder.set(invocation.getArgument(1));
             return null;
         }).when(fxLib).register_subtitle_callback(eq(instance), isA(SubtitleEventCallback.class));
-        var service = new SubtitleServiceImpl(fxLib, instance);
+        var service = new SubtitleServiceImpl(fxLib, instance, executorService);
         service.register(eventFuture::complete);
 
         var callback = callbackHolder.get();

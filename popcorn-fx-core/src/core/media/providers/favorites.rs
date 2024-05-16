@@ -6,10 +6,10 @@ use async_trait::async_trait;
 use itertools::Itertools;
 use log::{debug, trace};
 
-use crate::core::media::{Category, Genre, MediaOverview, MediaType, SortBy};
 use crate::core::media::favorites::FavoriteService;
 use crate::core::media::providers::MediaProvider;
 use crate::core::media::watched::WatchedService;
+use crate::core::media::{Category, Genre, MediaOverview, MediaType, SortBy};
 
 const FILTER_MOVIES_KEY: &str = "movies";
 const FILTER_SHOWS_KEY: &str = "tv";
@@ -164,6 +164,7 @@ impl MediaProvider for FavoritesProvider {
     ) -> crate::core::media::Result<Vec<Box<dyn MediaOverview>>> {
         // only return one page with all favorites
         if page > 1 {
+            trace!("Favorites provider returns all favorites on page 1, additional pages will always return an empty list");
             return Ok(vec![]);
         }
 
@@ -196,10 +197,10 @@ mod test {
 
     use crate::core::events::EventPublisher;
     use crate::core::media;
-    use crate::core::media::{Images, MovieOverview, ShowOverview};
     use crate::core::media::favorites::{DefaultFavoriteService, MockFavoriteService};
     use crate::core::media::watched::DefaultWatchedService;
     use crate::core::media::watched::MockWatchedService;
+    use crate::core::media::{Images, MovieOverview, ShowOverview};
     use crate::testing::{copy_test_file, init_logger};
 
     use super::*;

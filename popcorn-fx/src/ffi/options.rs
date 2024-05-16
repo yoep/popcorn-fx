@@ -2,8 +2,8 @@ use crate::PopcornFX;
 
 /// Verify if the FX embedded video player has been disabled.
 #[no_mangle]
-pub extern "C" fn is_fx_video_player_disabled(popcorn_fx: &mut PopcornFX) -> bool {
-    popcorn_fx.opts().disable_fx_video_player
+pub extern "C" fn is_fx_video_player_enabled(popcorn_fx: &mut PopcornFX) -> bool {
+    popcorn_fx.opts().enable_fx_video_player
 }
 
 /// Verify if the application mouse should be disabled.
@@ -80,7 +80,7 @@ mod test {
             disable_logger: true,
             disable_mouse: false,
             enable_youtube_video_player: true,
-            disable_fx_video_player: false,
+            enable_fx_video_player: false,
             enable_vlc_video_player: false,
             tv: false,
             maximized: false,
@@ -97,7 +97,7 @@ mod test {
     }
 
     #[test]
-    fn test_is_fx_video_player_disabled() {
+    fn test_is_fx_video_player_enabled() {
         init_logger();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -105,7 +105,7 @@ mod test {
             disable_logger: true,
             disable_mouse: false,
             enable_youtube_video_player: false,
-            disable_fx_video_player: true,
+            enable_fx_video_player: true,
             enable_vlc_video_player: false,
             tv: false,
             maximized: false,
@@ -116,9 +116,9 @@ mod test {
             properties: Default::default(),
         });
 
-        let result = is_fx_video_player_disabled(&mut instance);
+        let result = is_fx_video_player_enabled(&mut instance);
 
-        assert_eq!(true, result)
+        assert_eq!(true, result, "expected FX video player to be enabled");
     }
 
     #[test]
@@ -130,7 +130,7 @@ mod test {
             disable_logger: true,
             disable_mouse: false,
             enable_youtube_video_player: false,
-            disable_fx_video_player: false,
+            enable_fx_video_player: false,
             enable_vlc_video_player: true,
             tv: false,
             maximized: false,
@@ -155,7 +155,7 @@ mod test {
             disable_logger: true,
             disable_mouse: true,
             enable_youtube_video_player: false,
-            disable_fx_video_player: false,
+            enable_fx_video_player: false,
             enable_vlc_video_player: false,
             tv: false,
             maximized: false,
@@ -180,7 +180,7 @@ mod test {
             disable_logger: true,
             disable_mouse: false,
             enable_youtube_video_player: false,
-            disable_fx_video_player: false,
+            enable_fx_video_player: false,
             enable_vlc_video_player: false,
             tv: true,
             maximized: false,
@@ -205,7 +205,7 @@ mod test {
             disable_logger: true,
             disable_mouse: false,
             enable_youtube_video_player: false,
-            disable_fx_video_player: false,
+            enable_fx_video_player: false,
             enable_vlc_video_player: false,
             tv: false,
             maximized: true,
@@ -230,7 +230,7 @@ mod test {
             disable_logger: true,
             disable_mouse: false,
             enable_youtube_video_player: false,
-            disable_fx_video_player: false,
+            enable_fx_video_player: false,
             enable_vlc_video_player: false,
             tv: false,
             maximized: true,

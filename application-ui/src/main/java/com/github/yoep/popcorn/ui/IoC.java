@@ -5,8 +5,9 @@ import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.annotation.PostConstruct;
-import java.lang.reflect.*;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Modifier;
+import java.lang.reflect.ParameterizedType;
 import java.text.MessageFormat;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
@@ -70,6 +71,18 @@ public class IoC {
         }
 
         return result.get(0);
+    }
+
+    /**
+     * Retrieves a singleton instance of the specified class from the IoC container.
+     *
+     * @param clazz the class of the instance to retrieve
+     * @param <T>   the type of the instance
+     * @return the singleton instance if found, else {@link Optional#empty()}
+     */
+    public <T> Optional<T> getOptionalInstance(Class<T> clazz) {
+        var result = doInternalGet(clazz);
+        return result.stream().findFirst();
     }
 
     /**
@@ -147,8 +160,6 @@ public class IoC {
                         }
                     }
 
-                    initializePostConstructMethods(definition, instance);
-
                     return instance;
                 } catch (Exception ex) {
                     throw new IoCException(definition.getType(), ex.getMessage(), ex);
@@ -157,27 +168,6 @@ public class IoC {
         }
 
         throw new IoCException(definition.getType(), "Failed to initialize type instance");
-    }
-
-    @Deprecated
-    private static void initializePostConstructMethods(ComponentDefinition definition, Object instance) throws IllegalAccessException, InvocationTargetException {
-        var postConstructMethods = Arrays.stream(definition.getType().getDeclaredMethods())
-                .filter(e -> Arrays.stream(e.getDeclaredAnnotations())
-                        .anyMatch(a -> a.annotationType() == PostConstruct.class))
-                .toArray(Method[]::new);
-
-        for (var method : postConstructMethods) {
-            log.debug("Initializing type post construct method {} for {}", method, instance.getClass());
-            if (!method.canAccess(instance)) {
-                method.setAccessible(true);
-            }
-
-            try {
-                method.invoke(instance);
-            } catch (InvocationTargetException ex) {
-                throw new IoCException(definition.getType(), MessageFormat.format("Failed to invoke post construct method {0}", method), ex);
-            }
-        }
     }
 
     private static Class<?> getGenericType(ParameterizedType parameterizedType) {

@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui.view;
 
-import com.github.yoep.popcorn.backend.media.providers.models.MediaTorrentInfo;
+import com.github.yoep.popcorn.backend.media.providers.MediaTorrentInfo;
 import javafx.scene.control.Tooltip;
 import javafx.util.Duration;
 import lombok.AccessLevel;

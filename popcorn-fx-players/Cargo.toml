@@ -20,14 +20,15 @@ chrono.workspace = true
 derive_more.workspace = true
 futures.workspace = true
 itertools.workspace = true
-libc = { version = "0.2.153", optional = true }
+libc = { version = "0.2.154", optional = true }
 libloading = { version = "0.8.3", optional = true }
 log.workspace = true
 mdns-sd = { version = "0.11.0", optional = true }
+rand = { workspace = true, optional = true }
 regex = { workspace = true, optional = true }
 reqwest = { workspace = true, optional = true }
 rupnp = { version = "2.0.0", optional = true }
-rust_cast = { version = "0.18.1", optional = true, features = ["thread_safe"] }
+rust_cast = { git = "https://github.com/yoep/rust-cast", branch = "feature/cast-package-export", optional = true, features = ["thread_safe"] }
 serde = { workspace = true, optional = true }
 serde-xml-rs = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
@@ -43,9 +44,10 @@ popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }
 
 httpmock.workspace = true
 mockall = "0.12.1"
-protobuf = "3.2.0"
+protobuf = "3.4.0"
 rcgen = "0.13.1"
-socket2 = "0.5.6"
+rust_cast = { git = "https://github.com/yoep/rust-cast", branch = "feature/cast-package-export", features = ["thread_safe", "cast"] }
+socket2 = "0.5.7"
 tempfile.workspace = true
 tokio = { workspace = true, features = ["full"] }
 tokio-rustls = "0.26.0"
@@ -57,6 +59,7 @@ chromecast = [
     "libc",
     "libloading",
     "mdns-sd",
+    "rand",
     "regex",
     "rust_cast",
     "serde",

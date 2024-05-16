@@ -2,6 +2,8 @@ use std::fmt::Debug;
 
 use async_trait::async_trait;
 use derive_more::Display;
+#[cfg(test)]
+use mockall::automock;
 
 pub use errors::*;
 pub use none::*;
@@ -48,6 +50,7 @@ pub struct TranscodeOutput {
 }
 
 /// A trait representing a media transcoder.
+#[cfg_attr(test, automock)]
 #[async_trait]
 pub trait Transcoder: Debug + Sync + Send {
     /// Gets the current state of the transcoder.

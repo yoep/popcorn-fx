@@ -1,8 +1,8 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
-import com.github.yoep.popcorn.backend.media.providers.models.Episode;
-import com.github.yoep.popcorn.backend.media.providers.models.ShowDetails;
+import com.github.yoep.popcorn.backend.media.providers.Episode;
+import com.github.yoep.popcorn.backend.media.providers.ShowDetails;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
@@ -25,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
 import java.util.List;
+import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 
@@ -84,7 +85,10 @@ public class DesktopSerieActionsComponent implements Initializable, SerieActions
                     return;
 
                 setText(item.getLanguage().getNativeName());
-                var image = new ImageView(new Image(item.getFlagResource()));
+                var image = new ImageView(Optional.ofNullable(item.getFlagResource())
+                        .map(DesktopSerieActionsComponent.class::getResourceAsStream)
+                        .map(Image::new)
+                        .orElse(null));
 
                 image.setFitHeight(15);
                 image.setPreserveRatio(true);

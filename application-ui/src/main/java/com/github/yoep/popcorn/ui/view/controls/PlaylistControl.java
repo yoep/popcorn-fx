@@ -109,14 +109,15 @@ public class PlaylistControl extends Icon {
         private void init() {
             getStyleClass().add(POPUP_STYLE_CLASS);
             playlistView.setSpacing(1.5);
-            playlistView.setVbarPolicy(ScrollPane.ScrollBarPolicy.ALWAYS);
+            playlistView.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+            playlistView.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
             playlistView.getObservableItems().addListener((MapChangeListener<? super PlaylistItem, ? super Node>) c -> {
                 int height;
 
                 if (playlistView.getItems().size() > 1) {
-                    height = 175;
+                    height = 275;
                 } else {
-                    height = 75;
+                    height = 100;
                 }
 
                 playlistView.setPrefHeight(height);

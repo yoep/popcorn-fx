@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controls;
 
-import com.github.yoep.popcorn.backend.media.providers.models.Rating;
+import com.github.yoep.popcorn.backend.media.providers.Rating;
 import com.github.yoep.popcorn.ui.font.controls.Icon;
 import javafx.geometry.Pos;
 import javafx.scene.control.OverrunStyle;

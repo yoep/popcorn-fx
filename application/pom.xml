@@ -13,6 +13,8 @@
 
     <properties>
         <start-class>com.github.yoep.popcorn.PopcornTimeStarter</start-class>
+
+        <gluonhq-plugin.version>0.1.42</gluonhq-plugin.version>
     </properties>
 
     <dependencies>
@@ -88,25 +90,12 @@
                 <plugin>
                     <groupId>com.gluonhq</groupId>
                     <artifactId>client-maven-plugin</artifactId>
-                    <version>0.1.31</version>
+                    <version>${gluonhq-plugin.version}</version>
                 </plugin>
             </plugins>
         </pluginManagement>
 
         <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <configuration>
-                    <annotationProcessorPaths>
-                        <path>
-                            <groupId>org.projectlombok</groupId>
-                            <artifactId>lombok</artifactId>
-                            <version>${lombok.version}</version>
-                        </path>
-                    </annotationProcessorPaths>
-                </configuration>
-            </plugin>
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
@@ -130,6 +119,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
+                <version>3.5.3</version>
                 <configuration>
                     <finalName>popcorn-time</finalName>
                     <keepDependenciesWithProvidedScope>false</keepDependenciesWithProvidedScope>

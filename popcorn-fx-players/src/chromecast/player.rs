@@ -6,34 +6,36 @@ use std::time::Duration;
 use async_trait::async_trait;
 use derive_more::Display;
 use log::{debug, error, trace, warn};
-use rust_cast::channels;
-use rust_cast::channels::media::{Status, StatusEntry};
+use rust_cast::channels::media::{MediaResponse, Status, StatusEntry};
 use rust_cast::channels::receiver::{Application, CastDeviceApp};
+use rust_cast::{channels, ChannelMessage};
 use tokio::runtime::Runtime;
 use tokio::sync::Mutex;
 use tokio::{runtime, time};
 use tokio_util::sync::CancellationToken;
 
 use popcorn_fx_core::core::players::{PlayRequest, Player, PlayerEvent, PlayerState};
-use popcorn_fx_core::core::subtitles::model::SubtitleType;
+use popcorn_fx_core::core::subtitles::model::{Subtitle, SubtitleType};
 use popcorn_fx_core::core::subtitles::SubtitleServer;
 use popcorn_fx_core::core::{
     block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks,
 };
 
 use crate::chromecast;
-use crate::chromecast::device::FxCastDevice;
+use crate::chromecast::device::{CastDeviceEvent, FxCastDevice};
+use crate::chromecast::transcode::{NoOpTranscoder, Transcoder};
 use crate::chromecast::{
-    ChromecastError, Image, LoadCommand, Media, Metadata, MovieMetadata, StreamType,
-    TextTrackEdgeType, TextTrackStyle, TextTrackType, Track, TrackType,
+    ChromecastError, Image, LoadCommand, Media, MediaDetailedErrorCode, MediaError, Metadata,
+    MovieMetadata, StreamType, TextTrackEdgeType, TextTrackStyle, TextTrackType, Track, TrackType,
 };
 
 const GRAPHIC_RESOURCE: &[u8] = include_bytes!("../../resources/external-chromecast-icon.png");
 const DESCRIPTION: &str =
     "Chromecast streaming media device which allows the playback of videos on your TV.";
-const DEFAULT_HEARTBEAT_INTERVAL_MILLIS: u64 = 10 * 1000;
+const DEFAULT_HEARTBEAT_INTERVAL_SECONDS: u64 = 30;
 const MEDIA_CHANNEL_NAMESPACE: &str = "urn:x-cast:com.google.cast.media";
 const SUBTITLE_CONTENT_TYPE: &str = "text/vtt";
+const MESSAGE_TYPE_ERROR: &str = "ERROR";
 
 /// The type of the factory function used to create the Chromecast client device.
 pub type DeviceFactory<D> = Box<dyn Fn(String, u16) -> chromecast::Result<D> + Send + Sync>;
@@ -54,7 +56,8 @@ impl<D: FxCastDevice> ChromecastPlayer<D> {
         cast_port: u16,
         cast_device_factory: DeviceFactory<D>,
         subtitle_server: Arc<SubtitleServer>,
-        heartbeat_millis: u64,
+        transcoder: Arc<Box<dyn Transcoder>>,
+        heartbeat_seconds: u64,
         runtime: Arc<Runtime>,
     ) -> chromecast::Result<Self> {
         let name = name.into();
@@ -91,6 +94,7 @@ impl<D: FxCastDevice> ChromecastPlayer<D> {
             cast_app: Default::default(),
             cast_media_session_id: Default::default(),
             subtitle_server,
+            transcoder,
             callbacks: Default::default(),
             runtime,
             status_check_token: Default::default(),
@@ -102,7 +106,7 @@ impl<D: FxCastDevice> ChromecastPlayer<D> {
         instance.runtime.spawn(Self::start_heartbeat(
             inner,
             cancellation_token,
-            heartbeat_millis,
+            heartbeat_seconds,
         ));
 
         Ok(Self { inner: instance })
@@ -115,7 +119,7 @@ impl<D: FxCastDevice> ChromecastPlayer<D> {
     async fn start_heartbeat(
         inner: Arc<InnerChromecastPlayer<D>>,
         cancellation_token: CancellationToken,
-        heartbeat_millis: u64,
+        heartbeat_seconds: u64,
     ) {
         loop {
             if cancellation_token.is_cancelled() {
@@ -133,7 +137,7 @@ impl<D: FxCastDevice> ChromecastPlayer<D> {
             if let Err(e) = ping_result {
                 warn!("Failed to ping Chromecast {}, {}", inner.name, e);
             }
-            time::sleep(Duration::from_millis(heartbeat_millis)).await;
+            time::sleep(Duration::from_secs(heartbeat_seconds)).await;
         }
 
         debug!("Chromecast {} heartbeat has been stopped", inner.name);
@@ -277,7 +281,8 @@ pub struct ChromecastPlayerBuilder<D: FxCastDevice> {
     cast_port: Option<u16>,
     cast_device_factory: Option<DeviceFactory<D>>,
     subtitle_server: Option<Arc<SubtitleServer>>,
-    heartbeat_millis: Option<u64>,
+    transcoder: Option<Arc<Box<dyn Transcoder>>>,
+    heartbeat_seconds: Option<u64>,
     runtime: Option<Arc<Runtime>>,
 }
 
@@ -291,7 +296,8 @@ impl<D: FxCastDevice> ChromecastPlayerBuilder<D> {
             cast_port: None,
             cast_device_factory: None,
             subtitle_server: None,
-            heartbeat_millis: None,
+            transcoder: None,
+            heartbeat_seconds: None,
             runtime: None,
         }
     }
@@ -331,8 +337,13 @@ impl<D: FxCastDevice> ChromecastPlayerBuilder<D> {
         self
     }
 
-    pub fn heartbeat_millis(mut self, heartbeat_millis: u64) -> Self {
-        self.heartbeat_millis = Some(heartbeat_millis);
+    pub fn transcoder(mut self, transcoder: Arc<Box<dyn Transcoder>>) -> Self {
+        self.transcoder = Some(transcoder);
+        self
+    }
+
+    pub fn heartbeat_seconds(mut self, heartbeat_seconds: u64) -> Self {
+        self.heartbeat_seconds = Some(heartbeat_seconds);
         self
     }
 
@@ -355,9 +366,13 @@ impl<D: FxCastDevice> ChromecastPlayerBuilder<D> {
         let subtitle_server = self
             .subtitle_server
             .expect("expected a subtitle server to have been set");
-        let heartbeat_millis = self
-            .heartbeat_millis
-            .unwrap_or(DEFAULT_HEARTBEAT_INTERVAL_MILLIS);
+        let heartbeat_seconds = self
+            .heartbeat_seconds
+            .unwrap_or(DEFAULT_HEARTBEAT_INTERVAL_SECONDS);
+        let transcoder = self.transcoder.unwrap_or_else(|| {
+            warn!("No transcoder set, using no-op transcoder");
+            Arc::new(Box::new(NoOpTranscoder {}))
+        });
         let runtime = self.runtime.unwrap_or_else(|| {
             Arc::new(
                 runtime::Builder::new_multi_thread()
@@ -377,7 +392,8 @@ impl<D: FxCastDevice> ChromecastPlayerBuilder<D> {
             cast_port,
             cast_device_factory,
             subtitle_server,
-            heartbeat_millis,
+            transcoder,
+            heartbeat_seconds,
             runtime,
         )
     }
@@ -396,6 +412,7 @@ struct InnerChromecastPlayer<D: FxCastDevice> {
     cast_app: Mutex<Option<Application>>,
     cast_media_session_id: Mutex<Option<i32>>,
     subtitle_server: Arc<SubtitleServer>,
+    transcoder: Arc<Box<dyn Transcoder>>,
     callbacks: CoreCallbacks<PlayerEvent>,
     runtime: Arc<Runtime>,
     status_check_token: Mutex<CancellationToken>,
@@ -406,10 +423,6 @@ impl<D: FxCastDevice> InnerChromecastPlayer<D> {
     fn state(&self) -> PlayerState {
         let mutex = block_in_place(self.state.lock());
         mutex.clone()
-    }
-
-    fn update_state(&self, state: PlayerState) {
-        block_in_place(self.update_state_async(state))
     }
 
     async fn update_state_async(&self, state: PlayerState) {
@@ -442,6 +455,27 @@ impl<D: FxCastDevice> InnerChromecastPlayer<D> {
                 None => {
                     let cast_device = self.cast_device.lock().await;
 
+                    // verify if the default app is already running
+                    // if so, we use the existing app information instead of launching a new app
+                    trace!("Retrieving Chromecast {} device status", self.name);
+                    match cast_device.device_status() {
+                        Ok(status) => {
+                            if let Some(app) = status.applications.into_iter().find(|e| {
+                                e.app_id == CastDeviceApp::DefaultMediaReceiver.to_string()
+                            }) {
+                                debug!("Chromecast default media receiver app is already running");
+                                *mutex = Some(app.clone());
+                                return Ok(app);
+                            } else {
+                                trace!("Chromecast default media receiver app is not yet running");
+                            }
+                        }
+                        Err(e) => error!(
+                            "Failed to retrieve Chromecast {} device status, {}",
+                            self.name, e
+                        ),
+                    }
+
                     trace!("Establishing connection to the device receiver");
                     if let Err(e) = cast_device.connect("receiver-0") {
                         return Err(ChromecastError::AppInitializationFailed(e.to_string()));
@@ -464,6 +498,59 @@ impl<D: FxCastDevice> InnerChromecastPlayer<D> {
             }
         })
         .await
+    }
+
+    async fn start_transcoding(&self) {
+        let mut mutex = self.request.lock().await;
+        // don't keep the cast_app lock as it will cause issues when trying to resume the media playback
+        let app = self.cast_app.lock().await.clone();
+
+        if let Some(app) = app.as_ref() {
+            if let Some(request) = mutex.take() {
+                trace!("Starting transcoding process for {:?}", request);
+                let request_url = request.url();
+                match self.transcoder.transcode(request_url).await {
+                    Ok(output) => {
+                        debug!("Received transcoding output {:?}", output);
+                        let request = Arc::new(Box::new(TranscodingPlayRequest {
+                            url: output.url,
+                            request,
+                        }) as Box<dyn PlayRequest>);
+
+                        // serve the chromecast subtitle if one is present
+                        let subtitle_url: Option<String>;
+                        if request.subtitles_enabled() {
+                            subtitle_url = self.subtitle_url(&request);
+                        } else {
+                            subtitle_url = None;
+                        }
+
+                        match self.load(app, &request, subtitle_url).await {
+                            Ok(_) => {
+                                *mutex = Some(request);
+                                drop(mutex);
+
+                                let _ = self.resume().await;
+                            }
+                            Err(e) => {
+                                error!("Failed to start media transcoding, {}", e);
+                                self.update_state_async(PlayerState::Error).await
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        error!("Failed to start media transcoding, {}", e);
+                        self.update_state_async(PlayerState::Error).await
+                    }
+                }
+            } else {
+                error!("Failed to start media transcoding, no request available");
+                self.update_state_async(PlayerState::Error).await
+            }
+        } else {
+            error!("Failed to start media transcoding, no app is running");
+            self.update_state_async(PlayerState::Error).await
+        }
     }
 
     async fn connect(&self) -> chromecast::Result<()> {
@@ -653,7 +740,7 @@ impl<D: FxCastDevice> InnerChromecastPlayer<D> {
                     let mutex = self.cast_device.lock().await;
 
                     trace!("Requesting Chromecast {} status info", self.name);
-                    return mutex.status(app.transport_id.to_string(), None);
+                    return mutex.media_status(app.transport_id.to_string(), None);
                 }
 
                 Err(ChromecastError::AppNotInitialized)
@@ -712,6 +799,95 @@ impl<D: FxCastDevice> InnerChromecastPlayer<D> {
             channels::media::PlayerState::Paused => {
                 self.update_state_async(PlayerState::Paused).await
             }
+        }
+    }
+
+    /// Tries to serve the subtitle URL for the given request.
+    ///
+    /// This function converts the given subtitle to the expected Chromecast subtitle format.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - The request which might hold the subtitle information to serve.
+    ///
+    /// # Returns
+    ///
+    /// The subtitle URL if available, or `None` if the subtitle is not present or could not be served.
+    fn subtitle_url(&self, request: &Box<dyn PlayRequest>) -> Option<String> {
+        request.subtitle().map(|e| e.clone()).and_then(|e| {
+            match self.subtitle_server.serve(e, SubtitleType::Vtt) {
+                Ok(e) => Some(e),
+                Err(e) => {
+                    error!("Failed to serve subtitle, {}", e);
+                    None
+                }
+            }
+        })
+    }
+
+    // TODO: make sure CastDeviceEvent's are handled once the library is able to broadcast messages
+    #[allow(dead_code)]
+    async fn handle_event(&self, event: CastDeviceEvent) {
+        trace!("Handling Chromecast {} event {:?}", self.name, event);
+        match event {
+            CastDeviceEvent::Message(e) => match e {
+                ChannelMessage::Media(response) => self.handle_media_event(response).await,
+                _ => {}
+            },
+            CastDeviceEvent::Error(e) => {
+                error!("Chromecast message error: {}", e);
+                self.update_state_async(PlayerState::Error).await
+            }
+        }
+    }
+
+    async fn handle_media_event(&self, event: MediaResponse) {
+        trace!("Handling media response event {:?}", event);
+        match event {
+            MediaResponse::Status(status) => {
+                self.handle_status_update(status).await;
+            }
+            MediaResponse::NotImplemented(code, value) => {
+                if code == MESSAGE_TYPE_ERROR {
+                    match serde_json::from_value::<MediaError>(value) {
+                        Ok(e) => self.handle_media_error(e).await,
+                        Err(e) => error!("Failed to deserialize MediaError: {}", e),
+                    }
+                } else {
+                    debug!("Received unknown media message type {}", code);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    async fn handle_media_error(&self, error: MediaError) {
+        debug!("Handling media error {:?}", error);
+        if error.detailed_error_code == MediaDetailedErrorCode::MediaSrcNotSupported {
+            let mut is_transcoding_request: Option<bool> = None;
+
+            {
+                let mutex = self.request.lock().await;
+                if let Some(request) = mutex.as_ref() {
+                    is_transcoding_request =
+                        Some(request.downcast_ref::<TranscodingPlayRequest>().is_some());
+                }
+            }
+
+            // verify if we have some information known about the play request
+            // if not, the error that occurred was no longer related to this Chromecast playback
+            if let Some(is_transcoding) = is_transcoding_request {
+                // prevent that we transcode the already transcoding media
+                if !is_transcoding {
+                    warn!("Media source is not supported by the Chromecast device, starting transcoding of the media");
+                    self.start_transcoding().await;
+                } else {
+                    warn!("Chromecast device failed to play transcoding media");
+                }
+            }
+        } else {
+            error!("Received media error {:?}", error);
+            self.update_state_async(PlayerState::Error).await
         }
     }
 
@@ -884,20 +1060,75 @@ impl<D: FxCastDevice> Drop for InnerChromecastPlayer<D> {
     }
 }
 
+#[derive(Debug, Display)]
+#[display(fmt = "Transcoding play request for {}", url)]
+struct TranscodingPlayRequest {
+    pub url: String,
+    pub request: Arc<Box<dyn PlayRequest>>,
+}
+
+impl PlayRequest for TranscodingPlayRequest {
+    fn url(&self) -> &str {
+        self.url.as_str()
+    }
+
+    fn title(&self) -> &str {
+        self.request.title()
+    }
+
+    fn caption(&self) -> Option<String> {
+        self.request.caption()
+    }
+
+    fn thumbnail(&self) -> Option<String> {
+        self.request.thumbnail()
+    }
+
+    fn background(&self) -> Option<String> {
+        self.request.background()
+    }
+
+    fn quality(&self) -> Option<String> {
+        self.request.quality()
+    }
+
+    fn auto_resume_timestamp(&self) -> Option<u64> {
+        if let Some(_) = self.request.auto_resume_timestamp() {
+            warn!("Auto resume timestamps are not supported for live transcoding media playbacks");
+        }
+
+        // the auto resume timestamp is not supported for media when it's being transcoded
+        // this will otherwise require us to support seeking within live transcodings
+        None
+    }
+
+    fn subtitles_enabled(&self) -> bool {
+        self.request.subtitles_enabled()
+    }
+
+    fn subtitle(&self) -> Option<&Subtitle> {
+        self.request.subtitle()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::mpsc::channel;
 
-    use rust_cast::channels::media;
-    use rust_cast::channels::media::StatusEntry;
-
     use popcorn_fx_core::core::media::MovieOverview;
     use popcorn_fx_core::core::players::{PlayMediaRequest, PlayUrlRequest};
+    use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
+    use popcorn_fx_core::core::subtitles::model::SubtitleInfo;
     use popcorn_fx_core::core::subtitles::MockSubtitleProvider;
     use popcorn_fx_core::testing::init_logger;
+    use rust_cast::channels::media::StatusEntry;
+    use rust_cast::channels::receiver::Volume;
+    use rust_cast::channels::{media, receiver};
+    use serde_json::Number;
 
     use crate::chromecast::device::MockFxCastDevice;
     use crate::chromecast::tests::TestInstance;
+    use crate::chromecast::transcode::{MockTranscoder, TranscodeOutput, TranscodeType};
 
     use super::*;
 
@@ -905,6 +1136,7 @@ mod tests {
     fn test_player_new() {
         init_logger();
         let subtitle_provider = MockSubtitleProvider::new();
+        let transcoder = MockTranscoder::new();
         let runtime = Runtime::new().unwrap();
 
         let result = ChromecastPlayer::new(
@@ -915,6 +1147,7 @@ mod tests {
             9870,
             Box::new(|_, _| Ok(create_default_device())),
             Arc::new(SubtitleServer::new(Arc::new(Box::new(subtitle_provider)))),
+            Arc::new(Box::new(transcoder)),
             500,
             Arc::new(runtime),
         );
@@ -988,6 +1221,18 @@ mod tests {
         let mut test_instance = TestInstance::new_player(Box::new(move || {
             let mut device = MockFxCastDevice::new();
             default_device_responses(&mut device);
+            device
+                .expect_device_status()
+                .return_const(Ok(receiver::Status {
+                    request_id: 1,
+                    applications: vec![],
+                    is_active_input: false,
+                    is_stand_by: true,
+                    volume: Volume {
+                        level: None,
+                        muted: None,
+                    },
+                }));
             device.expect_launch_app().return_const(Ok(Application {
                 app_id: "MyAppId".to_string(),
                 session_id: "MySessionId".to_string(),
@@ -1178,6 +1423,214 @@ mod tests {
         assert_eq!(session_id, result);
     }
 
+    #[test]
+    fn test_player_handle_event_message() {
+        init_logger();
+        let original_url = "http://localhost:9876/my-video.mp4";
+        let transcoding_url = "http://localhost:9875/my-transcoded-video.mp4";
+        let subtitle_url = "http://localhost:9876/my-subtitle.srt";
+        let request = Box::new(
+            PlayUrlRequest::builder()
+                .url(original_url)
+                .title("My Video")
+                .subtitles_enabled(true)
+                .subtitle(Subtitle::new(
+                    vec![],
+                    Some(
+                        SubtitleInfo::builder()
+                            .imdb_id("tt12345678")
+                            .language(SubtitleLanguage::English)
+                            .build(),
+                    ),
+                    "MySubtitleFile.srt".to_string(),
+                ))
+                .build(),
+        );
+        let response = MediaResponse::NotImplemented(
+            MESSAGE_TYPE_ERROR.to_string(),
+            serde_json::Value::Object(
+                vec![
+                    (
+                        "detailedErrorCode".to_string(),
+                        serde_json::Value::Number(Number::from(104)),
+                    ),
+                    (
+                        "type".to_string(),
+                        serde_json::Value::String(MESSAGE_TYPE_ERROR.to_string()),
+                    ),
+                ]
+                .into_iter()
+                .collect(),
+            ),
+        );
+        let mut provider = MockSubtitleProvider::new();
+        provider
+            .expect_convert()
+            .times(2)
+            .return_const(Ok(subtitle_url.to_string()));
+        let (tx, rx) = channel();
+        let mut transcoder = MockTranscoder::new();
+        transcoder.expect_transcode().times(1).returning(move |e| {
+            tx.send(e.to_string()).unwrap();
+            Ok(TranscodeOutput {
+                url: transcoding_url.to_string(),
+                output_type: TranscodeType::Live,
+            })
+        });
+        transcoder.expect_stop().times(1).return_const(());
+        let mut test_instance = TestInstance::new_player_with_additions(
+            Box::new(move || {
+                let mut device = create_default_device();
+                device
+                    .expect_device_status()
+                    .return_const(Ok(receiver::Status {
+                        request_id: 1,
+                        applications: vec![],
+                        is_active_input: true,
+                        is_stand_by: true,
+                        volume: Volume {
+                            level: None,
+                            muted: None,
+                        },
+                    }));
+                device.expect_launch_app().return_const(Ok(Application {
+                    app_id: "MyAppId".to_string(),
+                    session_id: "MySessionId".to_string(),
+                    transport_id: "MyTransportId".to_string(),
+                    namespaces: vec![],
+                    display_name: "".to_string(),
+                    status_text: "".to_string(),
+                }));
+                device
+                    .expect_broadcast_message::<LoadCommand>()
+                    .times(2)
+                    .return_const(Ok(()));
+                device
+                    .expect_play::<String>()
+                    .times(2)
+                    .return_const(Ok(StatusEntry {
+                        media_session_id: 10,
+                        media: None,
+                        playback_rate: 0.0,
+                        player_state: media::PlayerState::Playing,
+                        current_item_id: None,
+                        loading_item_id: None,
+                        preloaded_item_id: None,
+                        idle_reason: None,
+                        extended_status: None,
+                        current_time: None,
+                        supported_media_commands: 0,
+                    }));
+                device
+                    .expect_media_status::<String>()
+                    .return_const(Ok(media::Status {
+                        request_id: 1,
+                        entries: vec![],
+                    }));
+                device
+            }),
+            Box::new(provider),
+            Box::new(transcoder),
+        );
+        let player = test_instance.player.take().unwrap();
+        let runtime = test_instance.runtime.clone();
+
+        runtime.block_on(player.play(request));
+        runtime.block_on(
+            player
+                .inner
+                .handle_event(CastDeviceEvent::Message(ChannelMessage::Media(response))),
+        );
+
+        let transcode_url = rx.recv_timeout(Duration::from_millis(250)).unwrap();
+        assert_eq!(original_url, transcode_url);
+
+        let request_url = player
+            .request()
+            .and_then(|e| e.upgrade())
+            .map(|e| e.url().to_string())
+            .unwrap();
+        assert_eq!(
+            transcoding_url.to_string(),
+            request_url,
+            "expected the request url to be the transcoding live url"
+        );
+    }
+
+    #[test]
+    fn test_player_handle_event_error() {
+        init_logger();
+        let mut test_instance = create_default_test_instance();
+        let player = test_instance.player.take().unwrap();
+
+        test_instance.runtime.block_on(
+            player
+                .inner
+                .handle_event(CastDeviceEvent::Error("FooBar".to_string())),
+        );
+        let result = player.state();
+
+        assert_eq!(PlayerState::Error, result);
+    }
+
+    #[test]
+    fn test_player_start_app_already_running() {
+        init_logger();
+        let session_id = "MySessionId123456";
+        let transport_id = "MyTransportId";
+        let mut test_instance = TestInstance::new_player(Box::new(move || {
+            let mut device = MockFxCastDevice::new();
+            default_device_responses(&mut device);
+            default_device_status_response(&mut device);
+            device
+                .expect_device_status()
+                .return_const(Ok(receiver::Status {
+                    request_id: 1,
+                    applications: vec![Application {
+                        app_id: CastDeviceApp::DefaultMediaReceiver.to_string().to_string(),
+                        session_id: session_id.to_string(),
+                        transport_id: transport_id.to_string(),
+                        namespaces: vec![],
+                        display_name: "Existing default media receiver".to_string(),
+                        status_text: "MyExistingDefaultReceiverInstance".to_string(),
+                    }],
+                    is_active_input: true,
+                    is_stand_by: true,
+                    volume: Volume {
+                        level: None,
+                        muted: None,
+                    },
+                }));
+            device.expect_launch_app().times(0).return_const(Err(
+                ChromecastError::AppInitializationFailed(
+                    "Should not have been invoked".to_string(),
+                ),
+            ));
+            device
+        }));
+        let player = test_instance.player.take().unwrap();
+
+        let result = test_instance
+            .runtime
+            .block_on(player.inner.start_app())
+            .unwrap();
+
+        assert_eq!(
+            CastDeviceApp::DefaultMediaReceiver.to_string(),
+            result.app_id
+        );
+        assert_eq!(session_id.to_string(), result.session_id);
+        assert_eq!(transport_id.to_string(), result.transport_id);
+    }
+
+    fn create_default_test_instance() -> TestInstance {
+        TestInstance::new_player(Box::new(move || {
+            let mut device = create_default_device();
+            device.expect_ping().return_const(Ok(()));
+            device
+        }))
+    }
+
     fn create_default_device() -> MockFxCastDevice {
         let mut device = MockFxCastDevice::new();
         default_device_responses(&mut device);
@@ -1192,7 +1645,7 @@ mod tests {
 
     fn default_device_status_response(device: &mut MockFxCastDevice) {
         device
-            .expect_status::<String>()
+            .expect_media_status::<String>()
             .times(1..)
             .return_const(Ok(Status {
                 request_id: 0,

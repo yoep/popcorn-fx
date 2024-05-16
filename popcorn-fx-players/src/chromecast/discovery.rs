@@ -260,8 +260,7 @@ impl InnerChromecastDiscovery {
             .cast_address(addr.into())
             .cast_port(port)
             .subtitle_server(self.subtitle_server.clone())
-            // TODO: enable once a solution for broadcast messages has been found
-            // .transcoder(self.transcoder.clone())
+            .transcoder(self.transcoder.clone())
             .cast_device_factory(Box::new(|addr, port| DefaultCastDevice::new(addr, port)))
             .build()
         {
@@ -293,7 +292,6 @@ impl Debug for InnerChromecastDiscovery {
 #[cfg(test)]
 mod tests {
     use std::sync::mpsc::channel;
-    use std::thread;
     use std::time::Duration;
 
     use popcorn_fx_core::core::players::MockPlayerManager;

@@ -12,13 +12,16 @@ pub mod transcode;
 
 #[cfg(test)]
 mod tests {
+    use futures::executor::block_on;
+    use std::collections::HashMap;
     use std::fmt::Debug;
     use std::io::Cursor;
     use std::net::SocketAddr;
     use std::sync::Arc;
 
-    use log::{debug, error};
+    use log::{debug, error, warn};
     use mdns_sd::{ServiceDaemon, ServiceInfo};
+    use popcorn_fx_core::core::block_in_place;
     use protobuf::{EnumOrUnknown, Message};
     use rust_cast::cast::cast_channel;
     use rust_cast::cast::cast_channel::cast_message::{PayloadType, ProtocolVersion};
@@ -26,6 +29,7 @@ mod tests {
     use tokio::net::tcp::WriteHalf;
     use tokio::net::{TcpListener, TcpStream};
     use tokio::runtime::Runtime;
+    use tokio::sync::RwLock;
     use tokio_rustls::rustls::pki_types::PrivateKeyDer;
     use tokio_rustls::{rustls, TlsAcceptor};
     use tokio_util::sync::CancellationToken;
@@ -43,6 +47,14 @@ mod tests {
     pub struct MdnsInstance {
         pub addr: SocketAddr,
         pub daemon: ServiceDaemon,
+        pub responses: Arc<RwLock<HashMap<String, String>>>,
+    }
+
+    impl MdnsInstance {
+        pub fn add_response(&self, namespace: impl Into<String>, payload: impl Into<String>) {
+            let mut mutex = block_in_place(self.responses.write());
+            mutex.insert(namespace.into(), payload.into());
+        }
     }
 
     impl Debug for MdnsInstance {
@@ -71,7 +83,9 @@ mod tests {
             let socket_addr = listener.local_addr().expect("expected a valid socket");
             let addr = SocketAddr::new(ip_addr(), socket_addr.port());
             let cert = rcgen::generate_simple_self_signed([]).unwrap();
+            let responses = Arc::new(RwLock::new(HashMap::new()));
 
+            let thread_responses = responses.clone();
             let thread_cancel = instance.cancel_token.clone();
             instance.runtime.spawn(async move {
                 let config = rustls::ServerConfig::builder()
@@ -90,7 +104,7 @@ mod tests {
                         result = listener.accept() => {
                             match result {
                                 Ok((stream, socket)) => {
-                                    handle_socket_connection(stream, socket, acceptor.clone())
+                                    Self::handle_socket_connection(stream, socket, acceptor.clone(), thread_responses.clone())
                                 }
                                 Err(e) => error!("Failed to establish connection with client, {}", e),
                             }
@@ -111,7 +125,11 @@ mod tests {
 
             mdns.register(service).expect("Failed to register service");
 
-            instance.mdns = Some(MdnsInstance { addr, daemon: mdns });
+            instance.mdns = Some(MdnsInstance {
+                addr,
+                daemon: mdns,
+                responses,
+            });
             instance
         }
 
@@ -139,14 +157,19 @@ mod tests {
                 .cast_model("Chromecast")
                 .cast_address(addr.ip().to_string())
                 .cast_port(addr.port())
-                .subtitle_server(Arc::new(subtitle_server))
                 .cast_device_factory(Box::new(move |_, _| Ok(device())))
-                .heartbeat_millis(500)
+                .subtitle_server(Arc::new(subtitle_server))
+                .transcoder(Arc::new(transcoder))
+                .heartbeat_seconds(2)
                 .build()
                 .unwrap();
 
             instance.player = Some(player);
             instance
+        }
+
+        pub fn mdns(&self) -> Option<&MdnsInstance> {
+            self.mdns.as_ref()
         }
 
         fn new() -> Self {
@@ -160,8 +183,70 @@ mod tests {
             }
         }
 
-        pub fn mdns(&self) -> Option<&MdnsInstance> {
-            self.mdns.as_ref()
+        fn handle_socket_connection(
+            stream: TcpStream,
+            socket: SocketAddr,
+            acceptor: TlsAcceptor,
+            responses: Arc<RwLock<HashMap<String, String>>>,
+        ) {
+            tokio::spawn(async move {
+                match acceptor.accept(stream).await {
+                    Ok(stream) => {
+                        debug!(
+                            "Client TLS connection stream has been established for {}",
+                            socket
+                        );
+                        let (mut stream, _conn) = stream.into_inner();
+                        let (mut reader, mut writer) = stream.split();
+
+                        loop {
+                            // Read the length prefix of the message
+                            let mut len_buf = [0u8; 4];
+                            if let Err(e) = reader.read_exact(&mut len_buf).await {
+                                error!("Failed to read message length, {}", e);
+                                break;
+                            }
+                            let len = u32::from_be_bytes(len_buf) as usize;
+
+                            if len == 0 {
+                                debug!("Stopping TLS connection stream");
+                                break;
+                            }
+
+                            // read the protobuf message by filling the buffer
+                            // based on the determined length
+                            let mut buf = vec![0u8; len];
+                            if let Err(e) = reader.read_exact(&mut buf).await {
+                                error!("Failed to read message, {}", e);
+                                continue;
+                            }
+
+                            let mut cursor = Cursor::new(buf.as_slice());
+                            match <cast_channel::CastMessage as Message>::parse_from_reader(
+                                &mut cursor,
+                            ) {
+                                Ok(message) => {
+                                    debug!("Received cast message {:?}", message);
+                                    let namespace = message.namespace().to_string();
+                                    if let Some(response) =
+                                        create_response(message, &responses).await
+                                    {
+                                        write_response(&mut writer, response).await;
+                                    } else {
+                                        warn!("No response configured for {}", namespace);
+                                    }
+                                }
+                                Err(e) => {
+                                    error!("Failed to parse message, {}", e);
+                                    let response = create_ping_response();
+                                    write_response(&mut writer, response).await;
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => error!("Failed to accept client TLS connection, {}", e),
+                }
+            });
         }
     }
 
@@ -170,61 +255,6 @@ mod tests {
             debug!("Dropping {:?}", self);
             self.cancel_token.cancel();
         }
-    }
-
-    fn handle_socket_connection(stream: TcpStream, socket: SocketAddr, acceptor: TlsAcceptor) {
-        tokio::spawn(async move {
-            match acceptor.accept(stream).await {
-                Ok(stream) => {
-                    debug!(
-                        "Client TLS connection stream has been established for {}",
-                        socket
-                    );
-                    let (mut stream, _conn) = stream.into_inner();
-                    let (mut reader, mut writer) = stream.split();
-
-                    loop {
-                        // Read the length prefix of the message
-                        let mut len_buf = [0u8; 4];
-                        if let Err(e) = reader.read_exact(&mut len_buf).await {
-                            error!("Failed to read message length, {}", e);
-                            break;
-                        }
-                        let len = u32::from_be_bytes(len_buf) as usize;
-
-                        if len == 0 {
-                            debug!("Stopping TLS connection stream");
-                            break;
-                        }
-
-                        // read the protobuf message by filling the buffer
-                        // based on the determined length
-                        let mut buf = vec![0u8; len];
-                        if let Err(e) = reader.read_exact(&mut buf).await {
-                            error!("Failed to read message, {}", e);
-                            continue;
-                        }
-
-                        let mut cursor = Cursor::new(buf.as_slice());
-                        match <cast_channel::CastMessage as protobuf::Message>::parse_from_reader(
-                            &mut cursor,
-                        ) {
-                            Ok(message) => {
-                                debug!("Received cast message {:?}", message);
-                                let response = create_response(message);
-                                write_response(&mut writer, response).await;
-                            }
-                            Err(e) => {
-                                error!("Failed to parse message, {}", e);
-                                let response = create_ping_response();
-                                write_response(&mut writer, response).await;
-                            }
-                        }
-                    }
-                }
-                Err(e) => error!("Failed to accept client TLS connection, {}", e),
-            }
-        });
     }
 
     async fn write_response<'a>(
@@ -245,22 +275,33 @@ mod tests {
         }
     }
 
-    fn create_response(message: cast_channel::CastMessage) -> cast_channel::CastMessage {
-        match message.namespace() {
-            "urn:x-cast:com.google.cast.tp.connection" => cast_channel::CastMessage {
+    async fn create_response(
+        message: cast_channel::CastMessage,
+        responses: &Arc<RwLock<HashMap<String, String>>>,
+    ) -> Option<cast_channel::CastMessage> {
+        let namespace = message.namespace();
+
+        if let Some((key, response)) = responses
+            .read()
+            .await
+            .iter()
+            .find(|(e, _)| namespace == e.as_str())
+        {
+            return Some(cast_channel::CastMessage {
                 protocol_version: Some(EnumOrUnknown::new(ProtocolVersion::CASTV2_1_2)),
                 source_id: Some(DEFAULT_RECEIVER.to_string()),
                 destination_id: Some("sender-0".to_string()),
-                namespace: Some("urn:x-cast:com.google.cast.tp.connection".to_string()),
+                namespace: Some(key.clone()),
                 payload_type: Some(EnumOrUnknown::new(PayloadType::STRING)),
-                payload_utf8: Some(r#"{"type": "CLOSE"}"#.to_string()),
+                payload_utf8: Some(response.clone()),
                 payload_binary: None,
                 continued: None,
                 remaining_length: None,
                 special_fields: Default::default(),
-            },
-            _ => create_ping_response(),
+            });
         }
+
+        None
     }
 
     fn create_ping_response() -> cast_channel::CastMessage {

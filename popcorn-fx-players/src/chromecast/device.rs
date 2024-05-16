@@ -1,18 +1,31 @@
+use derive_more::Display;
 use std::borrow::Cow;
 use std::fmt::Debug;
 
 use log::debug;
 #[cfg(test)]
 use mockall::automock;
-use rust_cast::channels::media::{ResumeState, Status, StatusEntry};
+use rust_cast::channels::media::{ResumeState, StatusEntry};
 use rust_cast::channels::receiver::{Application, CastDeviceApp};
-use rust_cast::CastDevice;
+use rust_cast::channels::{media, receiver};
+use rust_cast::{CastDevice, ChannelMessage};
 use serde::Serialize;
 
 use crate::chromecast;
 use crate::chromecast::ChromecastError;
 
 pub const DEFAULT_RECEIVER: &str = "receiver-0";
+
+/// Represents events related to a cast device, such as messages and errors.
+#[derive(Debug, Display, Clone)]
+pub enum CastDeviceEvent {
+    /// Indicates a received Chromecast message.
+    #[display(fmt = "received Chromecast message")]
+    Message(ChannelMessage),
+    /// Indicates a received error message on the channel.
+    #[display(fmt = "received error message channel, {}", _0)]
+    Error(String),
+}
 
 /// A trait representing a Chromecast device with casting capabilities.
 ///
@@ -68,11 +81,14 @@ pub trait FxCastDevice: Debug + Send + Sync {
     ) -> chromecast::Result<StatusEntry>;
 
     /// Retrieves the status of the Chromecast device.
-    fn status<S: Into<Cow<'static, str>> + 'static>(
+    fn media_status<S: Into<Cow<'static, str>> + 'static>(
         &self,
         destination: S,
         media_session_id: Option<i32>,
-    ) -> chromecast::Result<Status>;
+    ) -> chromecast::Result<media::Status>;
+
+    /// Retrieves the status of the cast device.
+    fn device_status(&self) -> chromecast::Result<receiver::Status>;
 }
 
 /// A default implementation of the `FxCastDevice` trait using a concrete `CastDevice` instance.
@@ -176,14 +192,21 @@ impl FxCastDevice for DefaultCastDevice {
             .map_err(|e| ChromecastError::Connection(e.to_string()))
     }
 
-    fn status<S: Into<Cow<'static, str>>>(
+    fn media_status<S: Into<Cow<'static, str>>>(
         &self,
         destination: S,
         media_session_id: Option<i32>,
-    ) -> chromecast::Result<Status> {
+    ) -> chromecast::Result<media::Status> {
         self.0
             .media
             .get_status(destination, media_session_id)
+            .map_err(|e| ChromecastError::Connection(e.to_string()))
+    }
+
+    fn device_status(&self) -> chromecast::Result<receiver::Status> {
+        self.0
+            .receiver
+            .get_status()
             .map_err(|e| ChromecastError::Connection(e.to_string()))
     }
 }
@@ -274,5 +297,47 @@ mod tests {
         let device = DefaultCastDevice::new(addr.to_string(), port).unwrap();
 
         let _ = device.play(DEFAULT_RECEIVER, 13);
+    }
+
+    #[test]
+    #[ignore]
+    fn test_default_cast_device_media_status() {
+        init_logger();
+        let test_instance = TestInstance::new_mdns();
+        let mdns = test_instance.mdns().unwrap();
+        let addr = mdns.addr.ip();
+        let port = mdns.addr.port();
+        mdns.add_response(
+            "urn:x-cast:com.google.cast.media",
+            r#"
+        {
+            "requestId":1,
+            "type": "MEDIA_STATUS",
+            "status":[
+                {
+                    "mediaSessionId":1,
+                    "playerState":"PLAYING",
+                    "playbackRate":1.0,
+                    "supportedMediaCommands":2300
+                }
+            ]
+        }
+        "#,
+        );
+        let device = DefaultCastDevice::new(addr.to_string(), port).unwrap();
+
+        let _ = device.media_status(DEFAULT_RECEIVER, None);
+    }
+
+    #[test]
+    #[ignore]
+    fn test_default_cast_device_status() {
+        init_logger();
+        let test_instance = TestInstance::new_mdns();
+        let addr = test_instance.mdns().unwrap().addr.ip();
+        let port = test_instance.mdns().unwrap().addr.port();
+        let device = DefaultCastDevice::new(addr.to_string(), port).unwrap();
+
+        let _ = device.device_status();
     }
 }

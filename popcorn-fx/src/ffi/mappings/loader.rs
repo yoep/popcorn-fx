@@ -1,10 +1,11 @@
+use log::trace;
 use std::os::raw::c_char;
 use std::ptr;
 
-use popcorn_fx_core::{from_c_string, into_c_string};
 use popcorn_fx_core::core::loader::{
     LoaderEvent, LoadingError, LoadingProgress, LoadingStartedEvent, LoadingState,
 };
+use popcorn_fx_core::{from_c_string, into_c_string};
 
 /// A C-compatible callback function type for loader events.
 pub type LoaderEventCallback = extern "C" fn(LoaderEventC);
@@ -62,6 +63,10 @@ pub struct LoadingStartedEventC {
 /// Convert a `LoadingStartedEvent` into a C-compatible `LoadingStartedEventC`.
 impl From<LoadingStartedEvent> for LoadingStartedEventC {
     fn from(value: LoadingStartedEvent) -> Self {
+        trace!(
+            "Converting `LoadingStartedEvent` into `LoadingStartedEventC` for {:?}",
+            value
+        );
         let thumbnail = if let Some(e) = value.thumbnail {
             into_c_string(e)
         } else {
@@ -91,6 +96,10 @@ impl From<LoadingStartedEvent> for LoadingStartedEventC {
 /// Convert a C-compatible `LoadingStartedEventC` into a `LoadingStartedEvent`.
 impl From<LoadingStartedEventC> for LoadingStartedEvent {
     fn from(value: LoadingStartedEventC) -> Self {
+        trace!(
+            "Converting `LoadingStartedEventC` into `LoadingStartedEvent` for {:?}",
+            value
+        );
         let thumbnail = if !value.thumbnail.is_null() {
             Some(from_c_string(value.thumbnail))
         } else {

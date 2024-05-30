@@ -7,14 +7,14 @@ use chrono::{DateTime, Duration, Local};
 use log::{debug, error, info, trace, warn};
 use tokio::sync::Mutex;
 
-use popcorn_fx_core::core::{block_in_place, events, torrents};
 use popcorn_fx_core::core::config::{ApplicationConfig, CleaningMode, TorrentSettings};
 use popcorn_fx_core::core::events::{Event, EventPublisher, PlayerStoppedEvent};
 use popcorn_fx_core::core::storage::Storage;
 use popcorn_fx_core::core::torrents::{
-    Torrent, TorrentFileInfo, TorrentInfo, TorrentManager, TorrentManagerCallback,
+    Torrent, TorrentError, TorrentFileInfo, TorrentInfo, TorrentManager, TorrentManagerCallback,
     TorrentManagerState, TorrentWrapper,
 };
+use popcorn_fx_core::core::{block_in_place, events, torrents};
 
 const CLEANUP_WATCH_THRESHOLD: f64 = 85f64;
 const CLEANUP_AFTER: fn() -> Duration = || Duration::days(10);
@@ -23,7 +23,8 @@ const CLEANUP_AFTER: fn() -> Duration = || Duration::days(10);
 ///
 /// The function takes a `String` argument representing the URL of the torrent and returns
 /// a `TorrentInfo` struct. It must be `Send` and `Sync` to support concurrent execution.
-pub type ResolveTorrentInfoCallback = Box<dyn Fn(String) -> TorrentInfo + Send + Sync>;
+pub type ResolveTorrentInfoCallback =
+    Box<dyn Fn(String) -> Result<TorrentInfo, TorrentError> + Send + Sync>;
 
 /// A callback function type for resolving torrents.
 ///
@@ -307,7 +308,7 @@ impl TorrentManager for InnerTorrentManager {
     async fn info<'a>(&'a self, url: &'a str) -> torrents::Result<TorrentInfo> {
         debug!("Resolving torrent magnet url {}", url);
         let callback = block_in_place(self.resolve_torrent_info_callback.lock());
-        Ok(callback(url.to_string()))
+        callback(url.to_string())
     }
 
     async fn create(
@@ -447,7 +448,8 @@ mod test {
             callbacks: Default::default(),
         }));
         let torrent_info_callback = torrent_info.clone();
-        manager.register_resolve_info_callback(Box::new(move |_| torrent_info_callback.clone()));
+        manager
+            .register_resolve_info_callback(Box::new(move |_| Ok(torrent_info_callback.clone())));
 
         // register the torrent information by invoking the callbacks
         match block_in_place(manager.info(magnet_uri)) {

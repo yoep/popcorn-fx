@@ -3,9 +3,11 @@ use std::ptr;
 
 use log::{trace, warn};
 
-use popcorn_fx_core::{from_c_string, into_c_string};
+use popcorn_fx_core::core::torrents::{
+    DownloadStatus, TorrentError, TorrentInfo, TorrentState, TorrentWrapper,
+};
 use popcorn_fx_core::core::Handle;
-use popcorn_fx_core::core::torrents::{DownloadStatus, TorrentInfo, TorrentState, TorrentWrapper};
+use popcorn_fx_core::{from_c_string, into_c_string};
 use popcorn_fx_torrent::torrent::DefaultTorrentManager;
 
 use crate::ffi::{
@@ -148,7 +150,9 @@ pub extern "C" fn torrent_resolve_info_callback(
             trace!("Executing resolve magnet callback for {}", e);
             let info_c = callback(into_c_string(e));
             trace!("Received {:?} as resolve magnet callback result", info_c);
-            TorrentInfo::from(info_c)
+            Result::from(info_c)
+                .map(|e| TorrentInfo::from(e))
+                .map_err(|e| TorrentError::from(e))
         }));
     }
 }
@@ -297,20 +301,20 @@ pub extern "C" fn dispose_torrent_stream_event_value(event: TorrentStreamEventC)
 #[cfg(test)]
 mod test {
     use std::path::PathBuf;
-    use std::sync::Arc;
     use std::sync::mpsc::channel;
+    use std::sync::Arc;
     use std::time::Duration;
 
     use log::info;
     use tempfile::tempdir;
     use tokio::sync::Mutex;
 
-    use popcorn_fx_core::{assert_timeout_eq, into_c_string};
     use popcorn_fx_core::core::block_in_place;
     use popcorn_fx_core::core::torrents::{
         MockTorrent, Torrent, TorrentEvent, TorrentFileInfo, TorrentManager,
     };
     use popcorn_fx_core::testing::{copy_test_file, init_logger};
+    use popcorn_fx_core::{assert_timeout_eq, into_c_string};
 
     use crate::ffi::TorrentC;
     use crate::test::{default_args, new_instance};

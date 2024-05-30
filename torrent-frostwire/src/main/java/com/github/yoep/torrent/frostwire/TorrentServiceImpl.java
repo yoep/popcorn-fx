@@ -4,9 +4,7 @@ import com.frostwire.jlibtorrent.Priority;
 import com.frostwire.jlibtorrent.TorrentHandle;
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
-import com.github.yoep.popcorn.backend.adapters.torrent.TorrentException;
-import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
-import com.github.yoep.popcorn.backend.adapters.torrent.TorrentStreamListener;
+import com.github.yoep.popcorn.backend.adapters.torrent.*;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentFileInfo;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentHealth;
@@ -312,10 +310,15 @@ public class TorrentServiceImpl implements TorrentService {
                 var torrentInfo = getTorrentInfo(url).get();
                 var info = new com.github.yoep.popcorn.backend.adapters.torrent.TorrentInfoWrapper.ByValue(torrentInfo);
                 torrentInfos.add(info);
-                return info;
+                return new TorrentInfoResult.ByValue(info);
             } catch (Exception ex) {
                 log.error("Failed to resolve torrent info, {}", ex.getMessage(), ex);
-                throw new TorrentException(ex.getMessage(), ex);
+                // do not throw any errors here as this will crash the rust lib
+                var error = new TorrentError.ByValue();
+                error.tag = TorrentError.Tag.TORRENT_RESOLVING_FAILED;
+                error.union = new TorrentError.TorrentErrorUnion.ByValue();
+                error.union.torrentResolvingFailed_body = new TorrentError.TorrentResolvingFailed_Body(ex.getMessage());
+                return new TorrentInfoResult.ByValue(error);
             }
         };
     }

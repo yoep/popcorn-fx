@@ -23,6 +23,7 @@ mod media_mappers;
 mod media_mappings;
 mod players;
 mod playlists;
+mod result;
 mod settings;
 mod subtitle;
 mod torrents;

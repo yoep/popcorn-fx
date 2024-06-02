@@ -14,18 +14,7 @@ use serde::Serialize;
 use crate::chromecast;
 use crate::chromecast::ChromecastError;
 
-pub const DEFAULT_RECEIVER: &str = "receiver-0";
-
-/// Represents events related to a cast device, such as messages and errors.
-#[derive(Debug, Display, Clone)]
-pub enum CastDeviceEvent {
-    /// Indicates a received Chromecast message.
-    #[display(fmt = "received Chromecast message")]
-    Message(ChannelMessage),
-    /// Indicates a received error message on the channel.
-    #[display(fmt = "received error message channel, {}", _0)]
-    Error(String),
-}
+pub(crate) const DEFAULT_RECEIVER: &str = "receiver-0";
 
 /// A trait representing a Chromecast device with casting capabilities.
 ///
@@ -40,6 +29,9 @@ pub trait FxCastDevice: Debug + Send + Sync {
 
     /// Sends a ping message to the Chromecast device.
     fn ping(&self) -> chromecast::Result<()>;
+
+    /// Sends a pong message to the Chromecast device.
+    fn pong(&self) -> chromecast::Result<()>;
 
     /// Launches the specified app on the Chromecast device.
     fn launch_app(&self, app: &CastDeviceApp) -> chromecast::Result<Application>;
@@ -89,6 +81,9 @@ pub trait FxCastDevice: Debug + Send + Sync {
 
     /// Retrieves the status of the cast device.
     fn device_status(&self) -> chromecast::Result<receiver::Status>;
+
+    /// Receives messages from the Chromecast device.
+    fn receive(&self) -> chromecast::Result<ChannelMessage>;
 }
 
 /// A default implementation of the `FxCastDevice` trait using a concrete `CastDevice` instance.
@@ -129,7 +124,14 @@ impl FxCastDevice for DefaultCastDevice {
         self.0
             .heartbeat
             .ping()
-            .map_err(|e| ChromecastError::Connection(e.to_string()))
+            .map_err(|e| ChromecastError::Heartbeat(e.to_string()))
+    }
+
+    fn pong(&self) -> chromecast::Result<()> {
+        self.0
+            .heartbeat
+            .pong()
+            .map_err(|e| ChromecastError::Heartbeat(e.to_string()))
     }
 
     fn launch_app(&self, app: &CastDeviceApp) -> chromecast::Result<Application> {
@@ -207,6 +209,12 @@ impl FxCastDevice for DefaultCastDevice {
         self.0
             .receiver
             .get_status()
+            .map_err(|e| ChromecastError::Connection(e.to_string()))
+    }
+
+    fn receive(&self) -> chromecast::Result<ChannelMessage> {
+        self.0
+            .receive()
             .map_err(|e| ChromecastError::Connection(e.to_string()))
     }
 }

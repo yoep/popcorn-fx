@@ -6,6 +6,8 @@ pub enum ChromecastError {
     Discovery(String),
     #[error("failed to establish connection with Chromecast device, {0}")]
     Connection(String),
+    #[error("failed to communicate heartbeat with Chromecast device, {0}")]
+    Heartbeat(String),
     #[error("failed to initialize default media receiver app, {0}")]
     AppInitializationFailed(String),
     #[error("the default media receiver app is not running")]

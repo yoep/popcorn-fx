@@ -6,11 +6,12 @@ use std::time::Duration;
 use async_trait::async_trait;
 use derive_more::Display;
 use log::{debug, error, trace, warn};
+use rust_cast::channels::heartbeat::HeartbeatResponse;
 use rust_cast::channels::media::{MediaResponse, Status, StatusEntry};
 use rust_cast::channels::receiver::{Application, CastDeviceApp};
 use rust_cast::{channels, ChannelMessage};
 use tokio::runtime::Runtime;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, RwLock};
 use tokio::{runtime, time};
 use tokio_util::sync::CancellationToken;
 
@@ -22,7 +23,7 @@ use popcorn_fx_core::core::{
 };
 
 use crate::chromecast;
-use crate::chromecast::device::{CastDeviceEvent, FxCastDevice};
+use crate::chromecast::device::{FxCastDevice, DEFAULT_RECEIVER};
 use crate::chromecast::transcode::{NoOpTranscoder, Transcoder};
 use crate::chromecast::{
     ChromecastError, Image, LoadCommand, Media, MediaDetailedErrorCode, MediaError, Metadata,
@@ -74,7 +75,7 @@ impl<D: FxCastDevice> ChromecastPlayer<D> {
             "Connected to Chromecast device {} on {}:{}",
             name, cast_address, cast_port
         );
-        if let Err(e) = cast_device.connect("receiver-0") {
+        if let Err(e) = cast_device.connect(DEFAULT_RECEIVER) {
             return Err(ChromecastError::Connection(e.to_string()));
         }
         if let Err(e) = cast_device.ping() {
@@ -89,7 +90,7 @@ impl<D: FxCastDevice> ChromecastPlayer<D> {
             cast_port,
             request: Default::default(),
             state: Mutex::new(PlayerState::Ready),
-            cast_device: Mutex::new(cast_device),
+            cast_device: RwLock::new(cast_device),
             cast_device_factory,
             cast_app: Default::default(),
             cast_media_session_id: Default::default(),
@@ -129,7 +130,7 @@ impl<D: FxCastDevice> ChromecastPlayer<D> {
             let ping_result: chromecast::Result<()>;
 
             {
-                let mutex = inner.cast_device.lock().await;
+                let mutex = inner.cast_device.read().await;
                 trace!("Sending Chromecast {} heartbeat", inner.name);
                 ping_result = mutex.ping();
             }
@@ -141,6 +142,22 @@ impl<D: FxCastDevice> ChromecastPlayer<D> {
         }
 
         debug!("Chromecast {} heartbeat has been stopped", inner.name);
+    }
+
+    async fn start_message_handler(
+        inner: Arc<InnerChromecastPlayer<D>>,
+        cancellation_token: CancellationToken,
+    ) {
+        loop {
+            if cancellation_token.is_cancelled() {
+                break;
+            }
+
+            let message = inner.cast_device.read().await.receive();
+            inner.handle_event(message).await;
+        }
+
+        debug!("Chromecast {} message handler has been stopped", inner.name);
     }
 
     async fn start_status_updates(
@@ -218,6 +235,10 @@ impl<D: FxCastDevice + 'static> Player for ChromecastPlayer<D> {
                     self.inner.update_state_async(PlayerState::Error).await;
                     return;
                 }
+
+                // let inner = self.inner.clone();
+                // let cancellation_token = self.inner.shutdown_token.clone();
+                // self.inner.runtime.spawn(Self::start_message_handler(inner, cancellation_token));
 
                 // serve the chromecast subtitle if one is present
                 let subtitle_url = request.subtitle().map(|e| e.clone()).and_then(|e| {
@@ -407,7 +428,7 @@ struct InnerChromecastPlayer<D: FxCastDevice> {
     cast_model: String,
     cast_address: String,
     cast_port: u16,
-    cast_device: Mutex<D>,
+    cast_device: RwLock<D>,
     cast_device_factory: DeviceFactory<D>,
     cast_app: Mutex<Option<Application>>,
     cast_media_session_id: Mutex<Option<i32>>,
@@ -453,7 +474,12 @@ impl<D: FxCastDevice> InnerChromecastPlayer<D> {
 
             match mutex.clone() {
                 None => {
-                    let cast_device = self.cast_device.lock().await;
+                    let cast_device = self.cast_device.read().await;
+
+                    trace!("Establishing connection to the device receiver");
+                    if let Err(e) = cast_device.connect(DEFAULT_RECEIVER) {
+                        return Err(ChromecastError::AppInitializationFailed(e.to_string()));
+                    }
 
                     // verify if the default app is already running
                     // if so, we use the existing app information instead of launching a new app
@@ -474,11 +500,6 @@ impl<D: FxCastDevice> InnerChromecastPlayer<D> {
                             "Failed to retrieve Chromecast {} device status, {}",
                             self.name, e
                         ),
-                    }
-
-                    trace!("Establishing connection to the device receiver");
-                    if let Err(e) = cast_device.connect("receiver-0") {
-                        return Err(ChromecastError::AppInitializationFailed(e.to_string()));
                     }
 
                     trace!("Launching chromecast app {:?}", app);
@@ -556,7 +577,7 @@ impl<D: FxCastDevice> InnerChromecastPlayer<D> {
     async fn connect(&self) -> chromecast::Result<()> {
         self.try_command(|| async {
             let mutex = self.cast_app.lock().await;
-            let cast_device = self.cast_device.lock().await;
+            let cast_device = self.cast_device.read().await;
 
             if let Some(app) = mutex.as_ref() {
                 trace!("Connecting to chromecast app {:?}", app);
@@ -579,7 +600,7 @@ impl<D: FxCastDevice> InnerChromecastPlayer<D> {
     ) -> chromecast::Result<()> {
         return self
             .try_command(|| async {
-                let cast_device = self.cast_device.lock().await;
+                let cast_device = self.cast_device.read().await;
                 let active_track_ids = if subtitle_url.is_some() {
                     Some(vec![0])
                 } else {
@@ -612,7 +633,7 @@ impl<D: FxCastDevice> InnerChromecastPlayer<D> {
     async fn stop_app(&self) -> chromecast::Result<()> {
         self.try_command(|| async {
             let mut mutex = block_in_place(self.cast_app.lock());
-            let cast_device = block_in_place(self.cast_device.lock());
+            let cast_device = block_in_place(self.cast_device.read());
 
             if let Some(app) = mutex.take() {
                 debug!("Stopping chromecast app {:?}", app);
@@ -629,7 +650,7 @@ impl<D: FxCastDevice> InnerChromecastPlayer<D> {
             if let Some(media_session_id) = self.cast_media_session_id.lock().await.as_ref() {
                 match self
                     .try_command(|| async {
-                        let cast_device = self.cast_device.lock().await;
+                        let cast_device = self.cast_device.read().await;
                         cast_device.pause(app.transport_id.to_string(), media_session_id.clone())
                     })
                     .await
@@ -651,7 +672,7 @@ impl<D: FxCastDevice> InnerChromecastPlayer<D> {
             if let Some(media_session_id) = self.cast_media_session_id.lock().await.as_ref() {
                 match self
                     .try_command(|| async {
-                        let cast_device = self.cast_device.lock().await;
+                        let cast_device = self.cast_device.read().await;
                         cast_device.play(app.transport_id.to_string(), media_session_id.clone())
                     })
                     .await
@@ -677,7 +698,7 @@ impl<D: FxCastDevice> InnerChromecastPlayer<D> {
                 if let Err(e) = self
                     .try_command(|| async {
                         let chromecast_time = Self::parse_to_chromecast_time(time);
-                        let cast_device = self.cast_device.lock().await;
+                        let cast_device = self.cast_device.read().await;
 
                         cast_device.seek(
                             app.transport_id.to_string(),
@@ -737,7 +758,7 @@ impl<D: FxCastDevice> InnerChromecastPlayer<D> {
             _ = time::sleep(Duration::from_secs(5)) => Err(ChromecastError::CommandTimeout("status".to_string())),
             status = self.try_command(|| async {
                 if let Some(app) = self.cast_app.lock().await.as_ref() {
-                    let mutex = self.cast_device.lock().await;
+                    let mutex = self.cast_device.read().await;
 
                     trace!("Requesting Chromecast {} status info", self.name);
                     return mutex.media_status(app.transport_id.to_string(), None);
@@ -825,16 +846,15 @@ impl<D: FxCastDevice> InnerChromecastPlayer<D> {
         })
     }
 
-    // TODO: make sure CastDeviceEvent's are handled once the library is able to broadcast messages
-    #[allow(dead_code)]
-    async fn handle_event(&self, event: CastDeviceEvent) {
+    async fn handle_event(&self, event: chromecast::Result<ChannelMessage>) {
         trace!("Handling Chromecast {} event {:?}", self.name, event);
         match event {
-            CastDeviceEvent::Message(e) => match e {
+            Ok(e) => match e {
                 ChannelMessage::Media(response) => self.handle_media_event(response).await,
+                ChannelMessage::Heartbeat(response) => self.handle_heartbeat_event(response).await,
                 _ => {}
             },
-            CastDeviceEvent::Error(e) => {
+            Err(e) => {
                 error!("Chromecast message error: {}", e);
                 self.update_state_async(PlayerState::Error).await
             }
@@ -858,6 +878,17 @@ impl<D: FxCastDevice> InnerChromecastPlayer<D> {
                 }
             }
             _ => {}
+        }
+    }
+
+    async fn handle_heartbeat_event(&self, event: HeartbeatResponse) {
+        trace!("Handling heartbeat response event {:?}", event);
+        if let HeartbeatResponse::Ping = event {
+            // if we receive a ping message from the chromecast device, we need to answer with
+            // a pong message in a timely manner to prevent the device from closing the connection
+            if let Err(e) = self.cast_device.read().await.pong() {
+                error!("Failed to send pong heartbeat, {}", e);
+            }
         }
     }
 
@@ -930,7 +961,7 @@ impl<D: FxCastDevice> InnerChromecastPlayer<D> {
     /// - `Ok(())` if the connection is successfully reestablished.
     /// - `Err(chromecast::Error)` if an error occurs during the connection process.
     async fn reestablish_connection(&self) -> chromecast::Result<()> {
-        let mut mutex = self.cast_device.lock().await;
+        let mut mutex = self.cast_device.write().await;
         let address = self.cast_address.clone();
         let port = self.cast_port.clone();
 
@@ -1539,7 +1570,7 @@ mod tests {
         runtime.block_on(
             player
                 .inner
-                .handle_event(CastDeviceEvent::Message(ChannelMessage::Media(response))),
+                .handle_event(Ok(ChannelMessage::Media(response))),
         );
 
         let transcode_url = rx.recv_timeout(Duration::from_millis(250)).unwrap();
@@ -1566,7 +1597,7 @@ mod tests {
         test_instance.runtime.block_on(
             player
                 .inner
-                .handle_event(CastDeviceEvent::Error("FooBar".to_string())),
+                .handle_event(Err(ChromecastError::Connection("FooBar".to_string()))),
         );
         let result = player.state();
 

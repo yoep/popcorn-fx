@@ -296,6 +296,23 @@ mod tests {
     }
 
     #[test]
+    fn test_pong() {
+        init_logger();
+        let test_instance = TestInstance::new_mdns();
+        let addr = test_instance.mdns().unwrap().addr.ip();
+        let port = test_instance.mdns().unwrap().addr.port();
+        let device = DefaultCastDevice::new(addr.to_string(), port).unwrap();
+
+        let result = device.pong();
+
+        assert!(
+            result.is_ok(),
+            "expected pong to succeed, but got {:?} instead",
+            result
+        );
+    }
+
+    #[test]
     #[ignore]
     fn test_default_cast_device_play() {
         init_logger();

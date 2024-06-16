@@ -60,8 +60,8 @@ public class DetailsTorrentComponent implements Initializable {
     private final SubtitleService subtitleService;
     private final PlaylistManager playlistManager;
 
-    private TorrentInfo torrentInfo;
-    private SubtitleInfo subtitleInfo;
+    TorrentInfo torrentInfo;
+    SubtitleInfo subtitleInfo;
 
     @FXML
     ListView<TorrentFileInfo> torrentList;

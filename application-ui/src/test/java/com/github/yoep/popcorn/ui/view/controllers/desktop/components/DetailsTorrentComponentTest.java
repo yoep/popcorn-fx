@@ -32,6 +32,7 @@ import org.testfx.util.WaitForAsyncUtils;
 
 import java.net.URL;
 import java.util.Collections;
+import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -131,7 +132,7 @@ class DetailsTorrentComponentTest {
         when(subtitleService.custom()).thenReturn(subtitleCustom);
         when(torrent.getFiles()).thenReturn(Collections.singletonList(fileInfo));
         doAnswer(invocation -> {
-            holder.set(invocation.getArgument(1, Playlist.ByValue.class));
+            holder.set(invocation.getArgument(0, Playlist.ByValue.class));
             return null;
         }).when(playlistManager).play(isA(Playlist.ByValue.class));
         component.initialize(url, resourceBundle);
@@ -143,5 +144,27 @@ class DetailsTorrentComponentTest {
         var result = holder.get().getItems().get(0);
         assertNotNull(result.getTorrentInfo(), "Torrent info should not be null");
         assertNotNull(result.getTorrentFileInfo(), "Torrent file info should not be null");
+    }
+
+    @Test
+    void testCustomSubtitle() {
+        var subtitleFileUri = "/tmp/my-subtitle.srt";
+        var subtitleNone = mock(SubtitleInfo.class);
+        var subtitleCustom = mock(SubtitleInfo.class);
+        when(subtitleNone.getLanguage()).thenReturn(SubtitleLanguage.NONE);
+        when(subtitleNone.getFlagResource()).thenReturn("");
+        when(subtitleCustom.getLanguage()).thenReturn(SubtitleLanguage.CUSTOM);
+        when(subtitleCustom.getFlagResource()).thenReturn("");
+        when(subtitleCustom.isCustom()).thenReturn(true);
+        when(subtitleService.none()).thenReturn(subtitleNone);
+        when(subtitleService.custom()).thenReturn(subtitleCustom);
+        when(subtitlePickerService.pickCustomSubtitle())
+                .thenReturn(Optional.of(subtitleFileUri));
+        component.initialize(url, resourceBundle);
+
+        component.subtitleButton.select(subtitleService.custom());
+
+        verify(subtitleService).updatePreferredLanguage(SubtitleLanguage.CUSTOM);
+        assertEquals(SubtitleLanguage.CUSTOM, component.subtitleInfo.getLanguage());
     }
 }

@@ -63,10 +63,11 @@ public class SubtitleInfo extends Structure implements Closeable {
 
     @Builder
     public SubtitleInfo(String imdbId, SubtitleLanguage language, SubtitleFile.ByReference... files) {
+        files = files == null ? new SubtitleFile.ByReference[0] : files;
         this.imdbId = imdbId;
         this.language = language;
         this.files = files.length > 0 ? new SubtitleFile.ByReference() : null;
-        this.len = files.length;
+        this.len =  files.length;
         this.cache = asList(files);
 
         if (this.len > 0) {

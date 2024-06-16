@@ -1,6 +1,6 @@
 use std::fmt::{Debug, Formatter};
-use std::sync::Arc;
 use std::sync::mpsc::Sender;
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use derive_more::Display;
@@ -12,7 +12,7 @@ use crate::core::loader::{
     LoadingStrategy,
 };
 use crate::core::media::{
-    DEFAULT_AUDIO_LANGUAGE, Episode, MediaIdentifier, MediaType, MovieDetails,
+    Episode, MediaIdentifier, MediaType, MovieDetails, DEFAULT_AUDIO_LANGUAGE,
 };
 use crate::core::torrents::{TorrentFileInfo, TorrentInfo, TorrentManager};
 
@@ -127,7 +127,10 @@ impl LoadingStrategy for TorrentInfoLoadingStrategy {
         let mut url: Option<String> = None;
 
         if data.torrent_info.is_none() {
-            trace!("Processing item url {:?} for torrent loading strategy", data.url);
+            trace!(
+                "Processing item url {:?} for torrent loading strategy",
+                data.url
+            );
             if let Some(item_url) = data
                 .url
                 .as_ref()
@@ -194,10 +197,10 @@ mod tests {
 
     use tokio_util::sync::CancellationToken;
 
-    use crate::core::{block_in_place, media};
     use crate::core::media::ShowOverview;
-    use crate::core::playlists::PlaylistItem;
+    use crate::core::playlists::{PlaylistItem, PlaylistMedia};
     use crate::core::torrents::{MockTorrentManager, TorrentInfo};
+    use crate::core::{block_in_place, media};
     use crate::testing::init_logger;
 
     use super::*;
@@ -211,13 +214,11 @@ mod tests {
             title: "Lorem ipsum".to_string(),
             caption: None,
             thumb: None,
-            parent_media: None,
-            media: None,
-            torrent_info: None,
-            torrent_file_info: None,
+            media: Default::default(),
             quality: None,
             auto_resume_timestamp: None,
-            subtitles_enabled: false,
+            subtitle: Default::default(),
+            torrent: Default::default(),
         };
         let info = TorrentInfo {
             uri: String::new(),
@@ -288,21 +289,22 @@ mod tests {
                     .file("MySecondFile")
                     .build(),
             )]
-                .into_iter()
-                .collect(),
+            .into_iter()
+            .collect(),
         };
         let item = PlaylistItem {
             url: Some(magnet_url.to_string()),
             title: "Lorem ipsum".to_string(),
             caption: None,
             thumb: None,
-            parent_media: Some(Box::new(show)),
-            media: Some(Box::new(episode)),
-            torrent_info: None,
-            torrent_file_info: None,
+            media: PlaylistMedia {
+                parent: Some(Box::new(show)),
+                media: Some(Box::new(episode)),
+            },
             quality: Some("720p".to_string()),
             auto_resume_timestamp: None,
-            subtitles_enabled: false,
+            subtitle: Default::default(),
+            torrent: Default::default(),
         };
         let info = TorrentInfo {
             uri: String::new(),
@@ -354,13 +356,11 @@ mod tests {
             title: "Lorem ipsum".to_string(),
             caption: None,
             thumb: None,
-            parent_media: None,
-            media: None,
-            torrent_info: None,
-            torrent_file_info: None,
+            media: Default::default(),
             quality: None,
             auto_resume_timestamp: None,
-            subtitles_enabled: false,
+            subtitle: Default::default(),
+            torrent: Default::default(),
         };
         let info = TorrentInfo {
             uri: String::new(),

@@ -219,6 +219,9 @@ mod test {
             media: ptr::null_mut(),
             auto_resume_timestamp: ptr::null_mut(),
             subtitles_enabled: false,
+            subtitle_info: ptr::null_mut(),
+            torrent_info: ptr::null_mut(),
+            torrent_file_info: ptr::null_mut(),
         };
         let (items, len) = into_c_vec(vec![item]);
         let set = CArray::<PlaylistItemC> { items, len };
@@ -242,6 +245,9 @@ mod test {
             media: ptr::null_mut(),
             auto_resume_timestamp: ptr::null_mut(),
             subtitles_enabled: false,
+            subtitle_info: ptr::null_mut(),
+            torrent_info: ptr::null_mut(),
+            torrent_file_info: ptr::null_mut(),
         };
 
         let set = CArray::<PlaylistItemC>::from(vec![item]);

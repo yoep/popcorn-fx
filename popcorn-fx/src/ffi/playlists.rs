@@ -194,13 +194,11 @@ mod test {
             title: "MyPlaylistItem".to_string(),
             caption: Some("MyCaption".to_string()),
             thumb: Some("http://localhost:9870/my-thumb.png".to_string()),
-            parent_media: None,
-            media: None,
-            torrent_info: None,
-            torrent_file_info: None,
+            media: Default::default(),
             quality: None,
             auto_resume_timestamp: None,
-            subtitles_enabled: false,
+            subtitle: Default::default(),
+            torrent: Default::default(),
         });
         let playlist = CArray::from(vec![item]);
         let (tx, rx) = channel();
@@ -242,26 +240,22 @@ mod test {
                 title: "Item1".to_string(),
                 caption: None,
                 thumb: None,
-                parent_media: None,
-                media: None,
-                torrent_info: None,
-                torrent_file_info: None,
+                media: Default::default(),
                 quality: None,
                 auto_resume_timestamp: None,
-                subtitles_enabled: false,
+                subtitle: Default::default(),
+                torrent: Default::default(),
             }),
             PlaylistItemC::from(PlaylistItem {
                 url: None,
                 title: "Item2".to_string(),
                 caption: None,
                 thumb: None,
-                parent_media: None,
-                media: None,
-                torrent_info: None,
-                torrent_file_info: None,
+                media: Default::default(),
                 quality: None,
                 auto_resume_timestamp: None,
-                subtitles_enabled: false,
+                subtitle: Default::default(),
+                torrent: Default::default(),
             }),
         ]);
         let mut instance = PopcornFX::new(default_args(temp_path));
@@ -287,26 +281,22 @@ mod test {
                 title: "Item1".to_string(),
                 caption: None,
                 thumb: None,
-                parent_media: None,
-                media: None,
-                torrent_info: None,
-                torrent_file_info: None,
+                media: Default::default(),
                 quality: None,
                 auto_resume_timestamp: None,
-                subtitles_enabled: false,
+                subtitle: Default::default(),
+                torrent: Default::default(),
             },
             PlaylistItem {
                 url: None,
                 title: "Item2".to_string(),
                 caption: None,
                 thumb: None,
-                parent_media: None,
-                media: None,
-                torrent_info: None,
-                torrent_file_info: None,
+                media: Default::default(),
                 quality: None,
                 auto_resume_timestamp: None,
-                subtitles_enabled: false,
+                subtitle: Default::default(),
+                torrent: Default::default(),
             },
         ]));
 
@@ -329,6 +319,9 @@ mod test {
             quality: ptr::null_mut(),
             auto_resume_timestamp: ptr::null_mut(),
             subtitles_enabled: false,
+            subtitle_info: ptr::null_mut(),
+            torrent_info: ptr::null_mut(),
+            torrent_file_info: ptr::null_mut(),
         });
 
         dispose_playlist_item(item);
@@ -347,6 +340,9 @@ mod test {
             quality: ptr::null_mut(),
             auto_resume_timestamp: into_c_owned(500u64),
             subtitles_enabled: false,
+            subtitle_info: ptr::null_mut(),
+            torrent_info: ptr::null_mut(),
+            torrent_file_info: ptr::null_mut(),
         };
         let playlist = CArray::<PlaylistItemC>::from(vec![item]);
 

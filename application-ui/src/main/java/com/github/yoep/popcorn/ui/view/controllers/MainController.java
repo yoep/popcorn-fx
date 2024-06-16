@@ -27,7 +27,6 @@ import org.apache.commons.io.FilenameUtils;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.ResourceBundle;
@@ -228,7 +227,7 @@ public class MainController extends PopcornScaleAware implements Initializable {
         var file = files.get(0);
         var title = FilenameUtils.getBaseName(file.getName());
 
-        try (var playlist = new Playlist.ByValue(Collections.singletonList(new PlaylistItem(file.getAbsolutePath(), title)))) {
+        try (var playlist = new Playlist.ByValue(new PlaylistItem(file.getAbsolutePath(), title))) {
             playlistManager.play(playlist);
         }
     }

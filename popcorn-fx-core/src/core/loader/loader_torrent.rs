@@ -1,6 +1,6 @@
 use std::fmt::{Debug, Formatter};
-use std::sync::Arc;
 use std::sync::mpsc::Sender;
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use derive_more::Display;
@@ -102,7 +102,7 @@ mod tests {
 
     use crate::core::block_in_place;
     use crate::core::loader::LoadingResult;
-    use crate::core::playlists::PlaylistItem;
+    use crate::core::playlists::{PlaylistItem, PlaylistTorrent};
     use crate::core::torrents::{MockTorrent, MockTorrentManager, Torrent, TorrentInfo};
     use crate::testing::init_logger;
 
@@ -123,13 +123,14 @@ mod tests {
             title: "Lorem ipsum".to_string(),
             caption: None,
             thumb: None,
-            parent_media: None,
-            media: None,
-            torrent_info: Some(torrent_info.clone()),
-            torrent_file_info: None,
+            media: Default::default(),
             quality: None,
             auto_resume_timestamp: None,
-            subtitles_enabled: false,
+            subtitle: Default::default(),
+            torrent: PlaylistTorrent {
+                info: Some(torrent_info.clone()),
+                file_info: None,
+            },
         };
         let data = LoadingData::from(item);
         let (tx_event, _) = channel();
@@ -154,13 +155,11 @@ mod tests {
             title: "MyTorrent".to_string(),
             caption: None,
             thumb: None,
-            parent_media: None,
-            media: None,
-            torrent_info: None,
-            torrent_file_info: None,
+            media: Default::default(),
             quality: None,
             auto_resume_timestamp: None,
-            subtitles_enabled: false,
+            subtitle: Default::default(),
+            torrent: Default::default(),
         });
         let mut torrent = MockTorrent::new();
         torrent.expect_handle().return_const(handle.to_string());

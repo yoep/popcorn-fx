@@ -907,6 +907,12 @@ struct PlaylistItemC {
   const uint64_t *auto_resume_timestamp;
   /// A boolean flag indicating whether subtitles are enabled for the playlist item.
   bool subtitles_enabled;
+  /// A pointer to the subtitle information for the playlist item, if available, else [ptr::null_mut()].
+  SubtitleInfoC *subtitle_info;
+  /// A pointer to the torrent information for the playlist item, if applicable, else [ptr::null_mut()].
+  TorrentInfoC *torrent_info;
+  /// A pointer to the torrent file information for the playlist item, if applicable, else [ptr::null_mut()].
+  TorrentFileInfoC *torrent_file_info;
 };
 
 /// A C-compatible struct representing information about the next item to be played.
@@ -1902,23 +1908,6 @@ void loader_cancel(PopcornFX *instance, LoadingHandleC handle);
 ///
 /// A `LoadingHandleC` representing the loading process associated with the loaded item.
 LoadingHandleC loader_load(PopcornFX *instance, char *url);
-
-/// Loads a torrent file using its information and file details.
-///
-/// # Safety
-///
-/// This function accepts values to C structs (`TorrentInfoC` and `TorrentFileInfoC`) as arguments.
-///
-/// # Arguments
-///
-/// * `instance` - A mutable reference to the PopcornFX instance.
-/// * `torrent_info` - Information about the torrent.
-/// * `torrent_file` - Details of the torrent file.
-///
-/// # Returns
-///
-/// Returns a handle to the loading process.
-LoadingHandleC loader_load_torrent_file(PopcornFX *instance, TorrentInfoC torrent_info, TorrentFileInfoC torrent_file);
 
 /// Logs a message sent over FFI using the Rust logger.
 ///

@@ -15,6 +15,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
+import static java.util.Arrays.asList;
+
 /**
  * The subtitle info contains information about available subtitles for a certain IMDB ID.
  * This info includes a specific language for the media ID as well as multiple available files which can be used for smart subtitle detection.
@@ -31,6 +33,12 @@ public class SubtitleInfo extends Structure implements Closeable {
 
         public ByReference(String imdbId, SubtitleLanguage language) {
             super(imdbId, language);
+        }
+
+        public ByReference(SubtitleInfo info) {
+            super(info.getImdbId(), info.getLanguage(), Optional.ofNullable(info.getFiles())
+                    .map(e -> e.toArray(new SubtitleFile.ByReference[0]))
+                    .orElse(new SubtitleFile.ByReference[0]));
         }
 
         @Override
@@ -57,20 +65,23 @@ public class SubtitleInfo extends Structure implements Closeable {
     public SubtitleInfo(String imdbId, SubtitleLanguage language, SubtitleFile.ByReference... files) {
         this.imdbId = imdbId;
         this.language = language;
-        this.files = new SubtitleFile.ByReference();
+        this.files = files.length > 0 ? new SubtitleFile.ByReference() : null;
         this.len = files.length;
+        this.cache = asList(files);
 
-        var array = (SubtitleFile.ByReference[]) this.files.toArray(this.len);
-        for (int i = 0; i < this.len; i++) {
-            var file = files[i];
-            array[i].name = file.name;
-            array[i].url = file.url;
-            array[i].fileId = file.fileId;
-            array[i].score = file.score;
-            array[i].downloads = file.downloads;
-            array[i].quality = file.quality;
+        if (this.len > 0) {
+            var array = (SubtitleFile.ByReference[]) this.files.toArray(this.len);
+            for (int i = 0; i < this.len; i++) {
+                var file = files[i];
+                array[i].name = file.name;
+                array[i].url = file.url;
+                array[i].fileId = file.fileId;
+                array[i].score = file.score;
+                array[i].downloads = file.downloads;
+                array[i].quality = file.quality;
+            }
+            write();
         }
-        write();
     }
 
     //endregion

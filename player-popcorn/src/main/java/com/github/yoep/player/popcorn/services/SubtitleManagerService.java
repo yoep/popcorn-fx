@@ -17,6 +17,7 @@ import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleFile;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitlePreference;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.view.services.SubtitlePickerService;
 import javafx.beans.property.*;
@@ -180,9 +181,14 @@ public class SubtitleManagerService {
         this.quality = request.getQuality().orElse(null);
 
         if (request.isSubtitlesEnabled()) {
-            subtitleService.preferredSubtitle()
-                    .filter(e -> !e.isNone())
-                    .ifPresent(this::onSubtitleChanged);
+            try (var preference = subtitleService.preference()) {
+                log.trace("Retrieved subtitle preference {}", preference);
+                var tag = preference.getTag();
+                if (tag != SubtitlePreference.Tag.DISABLED && preference.getUnion().getLanguage_body().getLanguage() != SubtitleLanguage.NONE) {
+                    request.getSubtitleInfo()
+                            .ifPresent(this::onSubtitleChanged);
+                }
+            }
         } else {
             invokeListeners(SubtitleListener::onSubtitleDisabled);
         }
@@ -193,9 +199,7 @@ public class SubtitleManagerService {
             return;
 
         // invoke the subtitle changed again for the new player
-        subtitleService.preferredSubtitle()
-                .filter(e -> !e.isNone())
-                .ifPresent(this::onSubtitleChanged);
+        // TODO
     }
 
     private void onSubtitleDownloaded(Subtitle subtitle) {
@@ -242,8 +246,9 @@ public class SubtitleManagerService {
             log.debug("Downloading subtitle \"{}\" for video playback", subtitleInfo);
             var matcher = SubtitleMatcher.from(name, quality);
 
-            subtitleService.preferredSubtitle()
-                    .ifPresent(preferredSubtitle -> subtitleService.downloadAndParse(preferredSubtitle, matcher).whenComplete((subtitle, throwable) -> {
+            try (var preference = subtitleService.preference()) {
+                if (preference.getTag() != SubtitlePreference.Tag.DISABLED) {
+                    subtitleService.downloadAndParse(subtitleInfo, matcher).whenComplete((subtitle, throwable) -> {
                         if (throwable == null) {
                             log.debug("Subtitle (imdbId: {}, language: {}) has been downloaded with success", imdbId, language);
                             // auto-clean the subtitle
@@ -254,9 +259,9 @@ public class SubtitleManagerService {
                             log.error("Video subtitle failed, " + throwable.getMessage(), throwable);
                             eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(VideoMessage.SUBTITLE_DOWNLOAD_FILED)));
                         }
-
-                        preferredSubtitle.close();
-                    }));
+                    });
+                }
+            }
         }
     }
 

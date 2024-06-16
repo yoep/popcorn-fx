@@ -247,8 +247,8 @@ impl SubtitleFileBuilder {
             file_id: self.file_id.expect("file_id is not set"),
             name,
             url: self.url.expect("url is not set"),
-            score: self.score.expect("score is not set"),
-            downloads: self.downloads.expect("downloads is not set"),
+            score: self.score.unwrap_or(0f32),
+            downloads: self.downloads.unwrap_or(0),
             quality,
         }
     }

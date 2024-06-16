@@ -1,15 +1,20 @@
-use std::{mem, ptr};
 use std::os::raw::c_char;
+use std::{mem, ptr};
 
 use log::trace;
 
-use popcorn_fx_core::{from_c_into_boxed, from_c_string, into_c_owned, into_c_string};
 use popcorn_fx_core::core::media::MediaIdentifier;
 use popcorn_fx_core::core::playlists::{
-    PlayingNextInfo, PlaylistItem, PlaylistManagerEvent, PlaylistState,
+    PlayingNextInfo, PlaylistItem, PlaylistManagerEvent, PlaylistMedia, PlaylistState,
+    PlaylistSubtitle, PlaylistTorrent,
+};
+use popcorn_fx_core::core::subtitles::model::SubtitleInfo;
+use popcorn_fx_core::core::torrents::{TorrentFileInfo, TorrentInfo};
+use popcorn_fx_core::{
+    from_c_into_boxed, from_c_owned, from_c_string, into_c_owned, into_c_string,
 };
 
-use crate::ffi::MediaItemC;
+use crate::ffi::{MediaItemC, SubtitleInfoC, TorrentFileInfoC, TorrentInfoC};
 
 /// The callback function type for playlist manager events in C.
 ///
@@ -39,6 +44,12 @@ pub struct PlaylistItemC {
     pub auto_resume_timestamp: *const u64,
     /// A boolean flag indicating whether subtitles are enabled for the playlist item.
     pub subtitles_enabled: bool,
+    /// A pointer to the subtitle information for the playlist item, if available, else [ptr::null_mut()].
+    pub subtitle_info: *mut SubtitleInfoC,
+    /// A pointer to the torrent information for the playlist item, if applicable, else [ptr::null_mut()].
+    pub torrent_info: *mut TorrentInfoC,
+    /// A pointer to the torrent file information for the playlist item, if applicable, else [ptr::null_mut()].
+    pub torrent_file_info: *mut TorrentFileInfoC,
 }
 
 impl PlaylistItemC {
@@ -111,19 +122,44 @@ impl From<PlaylistItemC> for PlaylistItem {
         } else {
             None
         };
+        let subtitle_info = if !value.subtitle_info.is_null() {
+            let subtitle_c = from_c_owned(value.subtitle_info);
+            Some(SubtitleInfo::from(subtitle_c))
+        } else {
+            None
+        };
+        let torrent_info = if !value.torrent_info.is_null() {
+            let torrent_info_c = from_c_owned(value.torrent_info);
+            Some(TorrentInfo::from(torrent_info_c))
+        } else {
+            None
+        };
+        let torrent_file_info = if !value.torrent_file_info.is_null() {
+            let torrent_file_info_c = from_c_owned(value.torrent_file_info);
+            Some(TorrentFileInfo::from(torrent_file_info_c))
+        } else {
+            None
+        };
 
         PlaylistItem {
             url,
             title: from_c_string(value.title),
             caption,
             thumb,
-            parent_media,
-            media,
-            torrent_info: None,
-            torrent_file_info: None,
+            media: PlaylistMedia {
+                parent: parent_media,
+                media,
+            },
             quality,
             auto_resume_timestamp,
-            subtitles_enabled: value.subtitles_enabled,
+            subtitle: PlaylistSubtitle {
+                enabled: value.subtitles_enabled,
+                info: subtitle_info,
+            },
+            torrent: PlaylistTorrent {
+                info: torrent_info,
+                file_info: torrent_file_info,
+            },
         }
     }
 }
@@ -155,6 +191,11 @@ impl From<PlaylistItem> for PlaylistItemC {
         } else {
             ptr::null_mut()
         };
+        let subtitle_info = if let Some(e) = value.subtitle.info {
+            into_c_owned(SubtitleInfoC::from(e))
+        } else {
+            ptr::null_mut()
+        };
 
         Self {
             url,
@@ -162,10 +203,13 @@ impl From<PlaylistItem> for PlaylistItemC {
             caption,
             thumb,
             quality,
-            parent_media: PlaylistItemC::media_ptr(value.parent_media),
-            media: PlaylistItemC::media_ptr(value.media),
+            parent_media: PlaylistItemC::media_ptr(value.media.parent),
+            media: PlaylistItemC::media_ptr(value.media.media),
             auto_resume_timestamp,
-            subtitles_enabled: value.subtitles_enabled,
+            subtitles_enabled: value.subtitle.enabled,
+            subtitle_info,
+            torrent_info: ptr::null_mut(),
+            torrent_file_info: ptr::null_mut(),
         }
     }
 }
@@ -231,8 +275,9 @@ impl From<PlayingNextInfo> for PlayingNextInfoC {
 mod test {
     use std::ptr;
 
-    use popcorn_fx_core::{into_c_owned, into_c_string};
     use popcorn_fx_core::core::media::ShowOverview;
+    use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
+    use popcorn_fx_core::{into_c_owned, into_c_string};
 
     use super::*;
 
@@ -241,9 +286,10 @@ mod test {
         let url = "MyUrl";
         let title = "FooBar";
         let quality = "720p";
+        let imdb_id = "tt0000123";
         let media = ShowOverview {
-            imdb_id: "tt0000123".to_string(),
-            tvdb_id: "tt0000123".to_string(),
+            imdb_id: imdb_id.to_string(),
+            tvdb_id: imdb_id.to_string(),
             title: "FooBar".to_string(),
             year: "".to_string(),
             num_seasons: 0,
@@ -260,19 +306,39 @@ mod test {
             quality: into_c_string(quality.to_string()),
             auto_resume_timestamp: into_c_owned(8000u64),
             subtitles_enabled: true,
+            subtitle_info: into_c_owned(SubtitleInfoC {
+                imdb_id: into_c_string(imdb_id.to_string()),
+                language: SubtitleLanguage::Danish,
+                files: ptr::null_mut(),
+                len: 0,
+            }),
+            torrent_info: ptr::null_mut(),
+            torrent_file_info: ptr::null_mut(),
         };
         let expected_result = PlaylistItem {
             url: Some(url.to_string()),
             title: title.to_string(),
             caption: None,
             thumb: None,
-            parent_media: None,
-            media: Some(Box::new(media)),
-            torrent_info: None,
-            torrent_file_info: None,
+            media: PlaylistMedia {
+                parent: None,
+                media: Some(Box::new(media)),
+            },
             quality: Some(quality.to_string()),
             auto_resume_timestamp: None,
-            subtitles_enabled: true,
+            subtitle: PlaylistSubtitle {
+                enabled: true,
+                info: Some(
+                    SubtitleInfo::builder()
+                        .imdb_id(imdb_id)
+                        .language(SubtitleLanguage::Danish)
+                        .build(),
+                ),
+            },
+            torrent: PlaylistTorrent {
+                info: None,
+                file_info: None,
+            },
         };
 
         let result = PlaylistItem::from(item);
@@ -300,13 +366,15 @@ mod test {
             title: title.to_string(),
             caption: Some(caption.to_string()),
             thumb: None,
-            parent_media: None,
-            media: Some(Box::new(media.clone())),
-            torrent_info: None,
-            torrent_file_info: None,
+            media: PlaylistMedia {
+                parent: None,
+                media: Some(Box::new(media.clone())),
+            },
+
             quality: Some(quality.to_string()),
             auto_resume_timestamp: None,
-            subtitles_enabled: false,
+            subtitle: Default::default(),
+            torrent: Default::default(),
         };
 
         let result = PlaylistItemC::from(item);
@@ -335,19 +403,23 @@ mod test {
             media: ptr::null_mut(),
             auto_resume_timestamp: into_c_owned(auto_resume_timestamp.clone()),
             subtitles_enabled: true,
+            subtitle_info: ptr::null_mut(),
+            torrent_info: ptr::null_mut(),
+            torrent_file_info: ptr::null_mut(),
         };
         let expected_result = PlaylistItem {
             url: Some(url.to_string()),
             title: title.to_string(),
             caption: Some(caption.to_string()),
             thumb: Some(thumb.to_string()),
-            parent_media: None,
-            media: None,
-            torrent_info: None,
-            torrent_file_info: None,
+            media: Default::default(),
             quality: Some(quality.to_string()),
             auto_resume_timestamp: Some(auto_resume_timestamp),
-            subtitles_enabled: true,
+            subtitle: PlaylistSubtitle {
+                enabled: true,
+                info: None,
+            },
+            torrent: Default::default(),
         };
 
         let result = PlaylistItem::from(item);

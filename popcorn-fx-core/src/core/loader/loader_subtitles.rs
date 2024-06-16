@@ -215,6 +215,16 @@ impl LoadingStrategy for SubtitlesLoadingStrategy {
             }
 
             let subtitle_preference = self.subtitle_manager.preference_async().await;
+            // check if the subtitle preference is a custom subtitle and that a subtitle has been passed
+            // if so, continue with the loader without executing any action regarding subtitles
+            if subtitle_preference == SubtitlePreference::Language(SubtitleLanguage::Custom)
+                && data.subtitle.info.is_some()
+            {
+                return LoadingResult::Ok(data);
+            }
+
+            // check if the subtitle preference is disabled
+            // if not, try to download the preferred subtitle
             if subtitle_preference != SubtitlePreference::Disabled {
                 if subtitle_preference == SubtitlePreference::Language(SubtitleLanguage::None) {
                     trace!("Processing subtitle info for {:?}", data);
@@ -279,8 +289,8 @@ mod tests {
 
     use crate::core::block_in_place;
     use crate::core::loader::LoadingResult;
-    use crate::core::playlists::PlaylistItem;
-    use crate::core::subtitles::MockSubtitleProvider;
+    use crate::core::playlists::{PlaylistItem, PlaylistMedia, PlaylistSubtitle, PlaylistTorrent};
+    use crate::core::subtitles::{MockSubtitleProvider, SubtitleFile};
     use crate::core::torrents::TorrentFileInfo;
     use crate::testing::{init_logger, MockSubtitleManager};
 
@@ -306,13 +316,17 @@ mod tests {
             title: "".to_string(),
             caption: None,
             thumb: None,
-            parent_media: None,
-            media: Some(Box::new(movie_details.clone())),
-            torrent_info: None,
-            torrent_file_info: None,
+            media: PlaylistMedia {
+                parent: None,
+                media: Some(Box::new(movie_details.clone())),
+            },
             quality: None,
             auto_resume_timestamp: None,
-            subtitles_enabled: true,
+            subtitle: PlaylistSubtitle {
+                enabled: true,
+                info: None,
+            },
+            torrent: Default::default(),
         };
         let data = LoadingData::from(playlist_item);
         let (tx, rx) = channel();
@@ -374,13 +388,17 @@ mod tests {
             title: "".to_string(),
             caption: None,
             thumb: None,
-            parent_media: None,
-            media: None,
-            torrent_info: None,
-            torrent_file_info: Some(torrent_file_info.clone()),
+            media: Default::default(),
             quality: None,
             auto_resume_timestamp: None,
-            subtitles_enabled: true,
+            subtitle: PlaylistSubtitle {
+                enabled: true,
+                info: None,
+            },
+            torrent: PlaylistTorrent {
+                info: None,
+                file_info: Some(torrent_file_info.clone()),
+            },
         };
         let data = LoadingData::from(playlist_item);
         let (tx, rx) = channel();
@@ -447,13 +465,17 @@ mod tests {
             title: "".to_string(),
             caption: None,
             thumb: None,
-            parent_media: None,
-            media: Some(movie),
-            torrent_info: None,
-            torrent_file_info: None,
+            media: PlaylistMedia {
+                parent: None,
+                media: Some(movie),
+            },
             quality: None,
             auto_resume_timestamp: None,
-            subtitles_enabled: true,
+            subtitle: PlaylistSubtitle {
+                enabled: true,
+                info: None,
+            },
+            torrent: Default::default(),
         };
         let data = LoadingData::from(playlist_item);
         let (tx_event, _) = channel();
@@ -483,13 +505,11 @@ mod tests {
             title: "".to_string(),
             caption: None,
             thumb: None,
-            parent_media: None,
-            media: None,
-            torrent_info: None,
-            torrent_file_info: None,
+            media: Default::default(),
             quality: None,
             auto_resume_timestamp: None,
-            subtitles_enabled: false,
+            subtitle: Default::default(),
+            torrent: Default::default(),
         };
         let data = LoadingData::from(playlist_item);
         let (tx_event, _) = channel();
@@ -521,6 +541,61 @@ mod tests {
     }
 
     #[test]
+    fn test_process_custom_subtitle() {
+        init_logger();
+        let playlist_item = PlaylistItem {
+            url: None,
+            title: "".to_string(),
+            caption: None,
+            thumb: None,
+            media: Default::default(),
+            quality: None,
+            auto_resume_timestamp: None,
+            subtitle: PlaylistSubtitle {
+                enabled: true,
+                info: Some(
+                    SubtitleInfo::builder()
+                        .language(SubtitleLanguage::Custom)
+                        .files(vec![SubtitleFile::builder()
+                            .file_id(0)
+                            .url("/tmp/some/subtitle.srt")
+                            .name("Custom")
+                            .build()])
+                        .build(),
+                ),
+            },
+            torrent: Default::default(),
+        };
+        let data = LoadingData::from(playlist_item);
+        let (tx_event, _) = channel();
+        let mut provider = MockSubtitleProvider::new();
+        provider
+            .expect_movie_subtitles()
+            .times(0)
+            .return_const(subtitles::Result::Ok(Vec::new()));
+        provider
+            .expect_episode_subtitles()
+            .times(0)
+            .return_const(subtitles::Result::Ok(Vec::new()));
+        provider
+            .expect_file_subtitles()
+            .times(0)
+            .return_const(subtitles::Result::Ok(Vec::new()));
+        let mut manager = MockSubtitleManager::new();
+        manager
+            .expect_preference_async()
+            .return_const(SubtitlePreference::Language(SubtitleLanguage::Custom));
+        let loader = SubtitlesLoadingStrategy::new(
+            Arc::new(Box::new(provider)),
+            Arc::new(Box::new(manager)),
+        );
+
+        let result =
+            block_in_place(loader.process(data.clone(), tx_event, CancellationToken::new()));
+        assert_eq!(LoadingResult::Ok(data), result);
+    }
+
+    #[test]
     fn test_cancel() {
         init_logger();
         let data = LoadingData::from(PlaylistItem {
@@ -528,13 +603,14 @@ mod tests {
             title: "CancelledItem".to_string(),
             caption: None,
             thumb: None,
-            parent_media: None,
-            media: None,
-            torrent_info: None,
-            torrent_file_info: None,
+            media: Default::default(),
             quality: None,
             auto_resume_timestamp: None,
-            subtitles_enabled: true,
+            subtitle: PlaylistSubtitle {
+                enabled: true,
+                info: None,
+            },
+            torrent: Default::default(),
         });
         let mut provider = MockSubtitleProvider::new();
         provider

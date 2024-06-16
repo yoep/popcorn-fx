@@ -834,7 +834,7 @@ mod tests {
     use std::sync::Arc;
 
     use crate::core::media::{Episode, Images, MovieOverview, ShowOverview};
-    use crate::core::playlists::PlaylistItem;
+    use crate::core::playlists::{PlaylistItem, PlaylistMedia, PlaylistSubtitle};
     use crate::testing::MockTorrentStream;
 
     use super::*;
@@ -997,13 +997,17 @@ mod tests {
             title: title.to_string(),
             caption: None,
             thumb: None,
-            parent_media: None,
-            media: Some(Box::new(media.clone())),
-            torrent_info: None,
-            torrent_file_info: None,
+            media: PlaylistMedia {
+                parent: None,
+                media: Some(Box::new(media.clone())),
+            },
             quality: Some(quality.to_string()),
             auto_resume_timestamp: None,
-            subtitles_enabled,
+            subtitle: PlaylistSubtitle {
+                enabled: subtitles_enabled,
+                info: None,
+            },
+            torrent: Default::default(),
         };
         let stream = Arc::new(Box::new(MockTorrentStream::new()) as Box<dyn TorrentStream>);
         let mut data = LoadingData::from(item);
@@ -1065,13 +1069,17 @@ mod tests {
             title: title.to_string(),
             caption: None,
             thumb: None,
-            parent_media: Some(Box::new(media.clone())),
-            media: Some(Box::new(episode.clone())),
-            torrent_info: None,
-            torrent_file_info: None,
+            media: PlaylistMedia {
+                parent: Some(Box::new(media.clone())),
+                media: Some(Box::new(episode.clone())),
+            },
             quality: Some(quality.to_string()),
             auto_resume_timestamp: None,
-            subtitles_enabled,
+            subtitle: PlaylistSubtitle {
+                enabled: subtitles_enabled,
+                info: None,
+            },
+            torrent: Default::default(),
         };
         let stream = Arc::new(Box::new(MockTorrentStream::new()) as Box<dyn TorrentStream>);
         let mut data = LoadingData::from(item);

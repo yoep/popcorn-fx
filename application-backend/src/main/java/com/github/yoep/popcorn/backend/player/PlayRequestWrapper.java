@@ -2,6 +2,7 @@ package com.github.yoep.popcorn.backend.player;
 
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.lib.Handle;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.sun.jna.Pointer;
 import com.sun.jna.Structure;
 import lombok.Getter;
@@ -66,6 +67,11 @@ public class PlayRequestWrapper extends Structure implements Closeable, PlayRequ
     @Override
     public Optional<Handle> getStreamHandle() {
         return Optional.ofNullable(cachedStreamHandle);
+    }
+
+    @Override
+    public Optional<SubtitleInfo> getSubtitleInfo() {
+        return Optional.ofNullable(subtitle.getSubtitleInfo());
     }
 
     @Override

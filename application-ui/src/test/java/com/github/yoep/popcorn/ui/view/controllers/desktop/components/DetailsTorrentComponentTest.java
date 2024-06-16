@@ -7,6 +7,7 @@ import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowTorrentDetailsEvent;
 import com.github.yoep.popcorn.backend.loader.LoaderService;
+import com.github.yoep.popcorn.backend.playlists.Playlist;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
@@ -34,8 +35,10 @@ import java.util.Collections;
 import java.util.ResourceBundle;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.*;
 
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
@@ -52,8 +55,6 @@ class DetailsTorrentComponentTest {
     private SubtitlePickerService subtitlePickerService;
     @Mock
     private SubtitleService subtitleService;
-    @Mock
-    private LoaderService loaderService;
     @Mock
     private PlaylistManager playlistManager;
     @Mock
@@ -117,6 +118,7 @@ class DetailsTorrentComponentTest {
 
     @Test
     void testOnFileInfoClicked() {
+        var holder = new AtomicReference<Playlist.ByValue>();
         var torrent = mock(TorrentInfo.class);
         var fileInfo = mock(TorrentFileInfo.class);
         var subtitleNone = mock(SubtitleInfo.class);
@@ -127,11 +129,19 @@ class DetailsTorrentComponentTest {
         when(subtitleCustom.getFlagResource()).thenReturn("");
         when(subtitleService.none()).thenReturn(subtitleNone);
         when(subtitleService.custom()).thenReturn(subtitleCustom);
+        when(torrent.getFiles()).thenReturn(Collections.singletonList(fileInfo));
+        doAnswer(invocation -> {
+            holder.set(invocation.getArgument(1, Playlist.ByValue.class));
+            return null;
+        }).when(playlistManager).play(isA(Playlist.ByValue.class));
         component.initialize(url, resourceBundle);
 
         eventPublisher.publish(new ShowTorrentDetailsEvent(this, "", torrent));
         component.onFileInfoClicked(fileInfo);
 
-        verify(loaderService).load(torrent, fileInfo);
+        verify(playlistManager).play(isA(Playlist.ByValue.class));
+        var result = holder.get().getItems().get(0);
+        assertNotNull(result.getTorrentInfo(), "Torrent info should not be null");
+        assertNotNull(result.getTorrentFileInfo(), "Torrent file info should not be null");
     }
 }

@@ -1,6 +1,6 @@
 use std::fmt::{Debug, Formatter};
-use std::sync::Arc;
 use std::sync::mpsc::{channel, Sender};
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use derive_more::Display;
@@ -146,9 +146,9 @@ impl LoadingStrategy for TorrentStreamLoadingStrategy {
 mod tests {
     use std::time::Duration;
 
-    use crate::core::{block_in_place, Handle};
     use crate::core::playlists::PlaylistItem;
     use crate::core::torrents::{MockTorrentStreamServer, TorrentStream};
+    use crate::core::{block_in_place, Handle};
     use crate::testing::{init_logger, MockTorrentStream};
 
     use super::*;
@@ -163,13 +163,11 @@ mod tests {
             title: "MyStream".to_string(),
             caption: None,
             thumb: None,
-            parent_media: None,
-            media: None,
-            torrent_info: None,
-            torrent_file_info: None,
+            media: Default::default(),
             quality: None,
             auto_resume_timestamp: None,
-            subtitles_enabled: false,
+            subtitle: Default::default(),
+            torrent: Default::default(),
         });
         let mut stream = MockTorrentStream::new();
         stream.expect_handle().return_const(handle.to_string());

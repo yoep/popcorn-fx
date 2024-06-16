@@ -6,6 +6,7 @@ import com.github.yoep.popcorn.backend.media.providers.ShowDetails;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitlePreference;
 
 import java.util.List;
 import java.util.Optional;
@@ -75,18 +76,11 @@ public interface SubtitleService {
     SubtitleInfo getDefaultOrInterfaceLanguage(List<SubtitleInfo> subtitles);
 
     /**
-     * Get the preferred subtitle for the next media item playback.
+     * Get the subtitle preference of the user for the current media.
      *
-     * @return Returns the preferred subtitle.
+     * @return Returns the subtitle preference of the user for the current media.
      */
-    Optional<SubtitleInfo.ByReference> preferredSubtitle();
-
-    /**
-     * Get the preferred subtitle language for the next media item playback.
-     *
-     * @return Returns the preferred subtitle language.
-     */
-    SubtitleLanguage preferredSubtitleLanguage();
+    SubtitlePreference preference();
 
     /**
      * Update the preferred subtitle for the media playback.

@@ -16,6 +16,7 @@ import java.util.Optional;
 
 @Getter
 @ToString
+@EqualsAndHashCode(callSuper = false)
 @Structure.FieldOrder({"tag", "union"})
 public class SubtitlePreference extends Structure implements Closeable {
     public static class ByValue extends SubtitlePreference implements Structure.ByValue {
@@ -25,8 +26,8 @@ public class SubtitlePreference extends Structure implements Closeable {
         public ByValue(SubtitleLanguage language) {
             tag = Tag.LANGUAGE;
             union = new SubtitlePreferenceUnion.ByValue();
-            union.language = new SubtitleLanguagePreference_Body();
-            union.language.language = language;
+            union.language_body = new SubtitleLanguagePreference_Body();
+            union.language_body.language = language;
         }
 
         public static SubtitlePreference.ByValue disabled() {
@@ -57,6 +58,7 @@ public class SubtitlePreference extends Structure implements Closeable {
 
     @Getter
     @ToString
+    @EqualsAndHashCode(callSuper = false)
     @FieldOrder({"language"})
     public static class SubtitleLanguagePreference_Body extends Structure implements Closeable {
         public SubtitleLanguage language;
@@ -75,12 +77,12 @@ public class SubtitlePreference extends Structure implements Closeable {
 
         }
 
-        public SubtitleLanguagePreference_Body language;
+        public SubtitleLanguagePreference_Body language_body;
 
         @Override
         public void close() {
             setAutoSynch(false);
-            Optional.ofNullable(language)
+            Optional.ofNullable(language_body)
                     .ifPresent(SubtitleLanguagePreference_Body::close);
         }
     }

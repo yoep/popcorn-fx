@@ -134,27 +134,18 @@ public class SubtitleServiceImpl implements SubtitleService {
     }
 
     @Override
-    public Optional<SubtitleInfo.ByReference> preferredSubtitle() {
-        return Optional.ofNullable(fxLib.retrieve_preferred_subtitle(instance));
-    }
-
-    @Override
-    public SubtitleLanguage preferredSubtitleLanguage() {
-        synchronized (mutex) {
-            return fxLib.retrieve_preferred_subtitle_language(instance);
-        }
+    public SubtitlePreference preference() {
+        return fxLib.retrieve_subtitle_preference(instance);
     }
 
     @Override
     public void updateSubtitle(SubtitleInfo subtitle) {
-        synchronized (mutex) {
-            if (subtitle != null) {
-                log.trace("Updating subtitle to {}", subtitle);
-                fxLib.update_subtitle_preference(instance, new SubtitlePreference.ByValue(subtitle.getLanguage()));
-            } else {
-                log.trace("Clearing the preferred subtitle");
-                fxLib.reset_subtitle(instance);
-            }
+        if (subtitle != null) {
+            log.trace("Updating subtitle to {}", subtitle);
+            fxLib.update_subtitle_preference(instance, new SubtitlePreference.ByValue(subtitle.getLanguage()));
+        } else {
+            log.trace("Clearing the preferred subtitle");
+            fxLib.reset_subtitle(instance);
         }
     }
 

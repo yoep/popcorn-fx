@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.backend.playlists;
 
-import com.github.yoep.popcorn.backend.FxLib;
+import com.github.yoep.popcorn.backend.playlists.ffi.PlaylistItem;
 import com.sun.jna.FromNativeContext;
 import com.sun.jna.NativeMapped;
 import com.sun.jna.Structure;
@@ -18,11 +18,6 @@ import java.util.Optional;
 @Structure.FieldOrder({"tag", "union"})
 public class PlaylistManagerEvent extends Structure implements Closeable {
     public static class ByValue extends PlaylistManagerEvent implements Structure.ByValue {
-        @Override
-        public void close() {
-            super.close();
-            FxLib.INSTANCE.get().dispose_playlist_manager_event_value(this);
-        }
     }
 
     public Tag tag;

@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.backend.subtitles;
 
-import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleCue;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.sun.jna.Structure;
@@ -27,15 +26,10 @@ import java.util.Optional;
 @Structure.FieldOrder({"filepath", "subtitleInfo", "cueRef", "len"})
 public class Subtitle extends Structure implements Serializable, Closeable {
     public static class ByReference extends Subtitle implements Structure.ByReference {
-        @Override
-        public void close() {
-            super.close();
-            FxLib.INSTANCE.get().dispose_subtitle(this);
-        }
     }
 
     public String filepath;
-    public SubtitleInfo.ByReference subtitleInfo;
+    public com.github.yoep.popcorn.backend.subtitles.ffi.SubtitleInfo.ByReference subtitleInfo;
     public SubtitleCue.ByReference cueRef;
     public int len;
 
@@ -73,7 +67,8 @@ public class Subtitle extends Structure implements Serializable, Closeable {
      * @return Returns the subtitle info if present, else {@link Optional#empty()}.
      */
     public Optional<SubtitleInfo> getSubtitleInfo() {
-        return Optional.ofNullable(subtitleInfo);
+        return Optional.ofNullable(subtitleInfo)
+                .map(SubtitleInfo::from);
     }
 
     public File getFile() {

@@ -1,5 +1,7 @@
 package com.github.yoep.popcorn.backend.playlists;
 
+import com.github.yoep.popcorn.backend.playlists.model.PlaylistItem;
+
 public interface PlaylistManagerListener {
     void onPlaylistChanged();
 

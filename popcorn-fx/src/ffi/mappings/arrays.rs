@@ -150,6 +150,29 @@ impl<T: Debug + Clone> From<CArray<T>> for Vec<T> {
     }
 }
 
+impl<T: Debug + Clone> From<&CArray<T>> for Vec<T> {
+    /// Converts a CSet<T> into a Rust Vec<T>.
+    ///
+    /// This function takes a CSet<T> and creates a Rust Vec<T> by copying the elements from the C-compatible array.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - The CSet<T> to be converted into a Vec<T>.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use popcorn_fx::ffi::CArray;
+    ///
+    /// let c_set = CArray { items: [1, 2, 3].as_mut_ptr(), len: 3 };
+    /// let rust_vec: Vec<i32> = c_set.into();
+    /// ```
+    fn from(value: &CArray<T>) -> Self {
+        trace!("Converting C set {:?} into vector", value);
+        from_c_vec(value.items, value.len)
+    }
+}
+
 impl<T: Debug + Clone> Drop for CArray<T> {
     fn drop(&mut self) {
         trace!("Dropping {:?}", self);

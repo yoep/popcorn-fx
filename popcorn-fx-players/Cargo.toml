@@ -28,7 +28,7 @@ rand = { workspace = true, optional = true }
 regex = { workspace = true, optional = true }
 reqwest = { workspace = true, optional = true }
 rupnp = { version = "2.0.0", optional = true }
-rust_cast = { git = "https://github.com/yoep/rust-cast", branch = "feature/cast-package-export", optional = true, features = ["thread_safe"] }
+rust_cast = { git = "https://github.com/yoep/rust-cast", optional = true, features = ["thread_safe"] }
 serde = { workspace = true, optional = true }
 serde-xml-rs = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
@@ -46,7 +46,7 @@ httpmock.workspace = true
 mockall = "0.12.1"
 protobuf = "3.4.0"
 rcgen = "0.13.1"
-rust_cast = { git = "https://github.com/yoep/rust-cast", branch = "feature/cast-package-export", features = ["thread_safe", "cast"] }
+rust_cast = { git = "https://github.com/yoep/rust-cast", features = ["thread_safe", "cast"] }
 socket2 = "0.5.7"
 tempfile.workspace = true
 tokio = { workspace = true, features = ["full"] }

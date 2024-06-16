@@ -3,12 +3,11 @@ package com.github.yoep.player.popcorn.services;
 import com.github.yoep.player.popcorn.listeners.AbstractPlaybackListener;
 import com.github.yoep.player.popcorn.listeners.PlaybackListener;
 import com.github.yoep.player.popcorn.listeners.PlayerSubtitleListener;
-import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
-import com.github.yoep.popcorn.backend.subtitles.model.SubtitlePreference;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitlePreferenceTag;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
 
@@ -22,7 +21,6 @@ public class PlayerSubtitleService extends AbstractListenerService<PlayerSubtitl
     private final VideoService videoService;
     private final SubtitleService subtitleService;
     private final SubtitleManagerService subtitleManagerService;
-    private final FxLib fxLib;
 
     private final PlaybackListener listener = createListener();
 
@@ -34,7 +32,6 @@ public class PlayerSubtitleService extends AbstractListenerService<PlayerSubtitl
         this.videoService = videoService;
         this.subtitleService = subtitleService;
         this.subtitleManagerService = subtitleManagerService;
-        this.fxLib = fxLib;
         init();
     }
 
@@ -49,11 +46,10 @@ public class PlayerSubtitleService extends AbstractListenerService<PlayerSubtitl
     }
 
     public SubtitleInfo[] defaultSubtitles() {
-        try (var none = subtitleService.none()) {
-            try (var custom = subtitleService.custom()) {
-                return new SubtitleInfo[]{none, custom};
-            }
-        }
+        var none = subtitleService.none();
+        var custom = subtitleService.custom();
+
+        return new SubtitleInfo[]{none, custom};
     }
 
     //endregion
@@ -71,9 +67,8 @@ public class PlayerSubtitleService extends AbstractListenerService<PlayerSubtitl
     private void onPlayRequest(PlayRequest request) {
         if (request.isSubtitlesEnabled()) {
             // set the default subtitle to "none" when loading
-            try (var defaultSubtitle = fxLib.subtitle_none()) {
-                invokeListeners(e -> e.onAvailableSubtitlesChanged(Collections.singletonList(defaultSubtitle), defaultSubtitle));
-            }
+            var defaultSubtitle = subtitleService.none();
+            invokeListeners(e -> e.onAvailableSubtitlesChanged(Collections.singletonList(defaultSubtitle), defaultSubtitle));
 
             var filename = FilenameUtils.getName(request.getUrl());
 
@@ -86,23 +81,22 @@ public class PlayerSubtitleService extends AbstractListenerService<PlayerSubtitl
     private void handleSubtitlesResponse(SubtitleInfo requestSubtitle, List<SubtitleInfo> subtitles, Throwable throwable) {
         if (throwable == null) {
             log.trace("Available subtitles have been retrieved");
-            try (var preference = subtitleService.preference()) {
-                var tag = preference.getTag();
-                var activeSubtitle = new AtomicReference<>(subtitleService.none());
+            var preference = subtitleService.preference();
+            var tag = preference.tag();
+            var activeSubtitle = new AtomicReference<>(subtitleService.none());
 
-                if (tag != SubtitlePreference.Tag.DISABLED) {
-                    if (requestSubtitle == null || requestSubtitle.isNone()) {
-                        log.trace("Selecting a new default subtitle to enable during playback");
-                        activeSubtitle.set(subtitleService.getDefaultOrInterfaceLanguage(subtitles));
-                        subtitleService.updatePreferredLanguage(activeSubtitle.get().getLanguage());
-                    } else {
-                        log.trace("Using request subtitle {}", requestSubtitle);
-                        activeSubtitle.set(requestSubtitle);
-                    }
+            if (tag != SubtitlePreferenceTag.DISABLED) {
+                if (requestSubtitle == null || requestSubtitle.isNone()) {
+                    log.trace("Selecting a new default subtitle to enable during playback");
+                    activeSubtitle.set(subtitleService.getDefaultOrInterfaceLanguage(subtitles));
+                    subtitleService.updatePreferredLanguage(activeSubtitle.get().language());
+                } else {
+                    log.trace("Using request subtitle {}", requestSubtitle);
+                    activeSubtitle.set(requestSubtitle);
                 }
-
-                invokeListeners(e -> e.onAvailableSubtitlesChanged(subtitles, activeSubtitle.get()));
             }
+
+            invokeListeners(e -> e.onAvailableSubtitlesChanged(subtitles, activeSubtitle.get()));
         } else {
             log.error("Failed to retrieve subtitles, {}", throwable.getMessage(), throwable);
         }

@@ -2,7 +2,6 @@ package com.github.yoep.popcorn.backend.media.providers;
 
 import com.sun.jna.Pointer;
 import com.sun.jna.Structure;
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
 

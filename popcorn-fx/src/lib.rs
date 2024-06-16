@@ -151,7 +151,7 @@ pub extern "C" fn reset_subtitle(popcorn_fx: &mut PopcornFX) {
 pub extern "C" fn download(
     popcorn_fx: &mut PopcornFX,
     subtitle: &SubtitleInfoC,
-    matcher: SubtitleMatcherC,
+    matcher: &SubtitleMatcherC,
 ) -> *mut c_char {
     trace!(
         "Starting subtitle download from C for info: {:?}, matcher: {:?}",
@@ -184,7 +184,7 @@ pub extern "C" fn download(
 pub extern "C" fn download_and_parse_subtitle(
     popcorn_fx: &mut PopcornFX,
     subtitle: &SubtitleInfoC,
-    matcher: SubtitleMatcherC,
+    matcher: &SubtitleMatcherC,
 ) -> *mut SubtitleC {
     trace!(
         "Downloading and parsing subtitle from C for info: {:?}, matcher: {:?}",

@@ -21,14 +21,14 @@ public class SubtitleDropDownButton extends DropDownButton<SubtitleInfo> {
         return new DropDownButtonFactory<>() {
             @Override
             public String getId(SubtitleInfo item) {
-                return Optional.ofNullable(item.getImdbId())
-                        .orElseGet(() -> item.getLanguage().getCode());
+                return Optional.ofNullable(item.imdbId())
+                        .orElseGet(() -> item.language().getCode());
             }
 
             @Override
             public String displayName(SubtitleInfo item) {
                 return item
-                        .getLanguage()
+                        .language()
                         .getNativeName();
             }
 

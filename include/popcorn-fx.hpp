@@ -997,6 +997,25 @@ struct SubtitleC {
   int32_t len;
 };
 
+/// Represents user preferences for subtitles.
+struct SubtitlePreference {
+  enum class Tag {
+    /// Specifies a preferred subtitle language.
+    Language,
+    /// Indicates subtitles are disabled.
+    Disabled,
+  };
+
+  struct Language_Body {
+    SubtitleLanguage _0;
+  };
+
+  Tag tag;
+  union {
+    Language_Body language;
+  };
+};
+
 /// The C compatible struct for [MagnetInfo].
 struct MagnetInfoC {
   /// The name of the magnet
@@ -1243,25 +1262,6 @@ struct ApplicationConfigEventC {
 
 /// The C callback for the setting events.
 using ApplicationConfigCallbackC = void(*)(ApplicationConfigEventC);
-
-/// Represents user preferences for subtitles.
-struct SubtitlePreference {
-  enum class Tag {
-    /// Specifies a preferred subtitle language.
-    Language,
-    /// Indicates subtitles are disabled.
-    Disabled,
-  };
-
-  struct Language_Body {
-    SubtitleLanguage _0;
-  };
-
-  Tag tag;
-  union {
-    Language_Body language;
-  };
-};
 
 /// The C compatible [SubtitleEvent] representation
 struct SubtitleEventC {
@@ -1712,6 +1712,16 @@ void dispose_subtitle_info(Box<SubtitleInfoC> info);
 /// or if the memory was already deallocated, calling this function could lead to undefined behavior.
 void dispose_subtitle_info_set(Box<SubtitleInfoSet> set);
 
+/// Frees the memory allocated for the `SubtitlePreference` structure.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it's assumed that the `SubtitlePreference` structure was allocated using `Box`,
+/// and dropping a `Box` pointing to valid memory is safe. However, if the `SubtitlePreference` was allocated in a different way
+/// or if the memory was already deallocated, calling this function could lead to undefined behavior.
+///
+void dispose_subtitle_preference(Box<SubtitlePreference> subtitle_preference);
+
 /// Dispose the [TorrentCollectionSet] from memory.
 void dispose_torrent_collection(Box<TorrentCollectionSet> collection_set);
 
@@ -1727,12 +1737,12 @@ void dispose_tracking_event_value(TrackingEventC event);
 /// Download the given [SubtitleInfo] based on the best match according to the [SubtitleMatcher].
 ///
 /// It returns the filepath to the subtitle on success, else [ptr::null_mut].
-char *download(PopcornFX *popcorn_fx, const SubtitleInfoC *subtitle, SubtitleMatcherC matcher);
+char *download(PopcornFX *popcorn_fx, const SubtitleInfoC *subtitle, const SubtitleMatcherC *matcher);
 
 /// Download and parse the given subtitle info.
 ///
 /// It returns the [SubtitleC] reference on success, else [ptr::null_mut].
-SubtitleC *download_and_parse_subtitle(PopcornFX *popcorn_fx, const SubtitleInfoC *subtitle, SubtitleMatcherC matcher);
+SubtitleC *download_and_parse_subtitle(PopcornFX *popcorn_fx, const SubtitleInfoC *subtitle, const SubtitleMatcherC *matcher);
 
 /// Start downloading the application update if available.
 ///
@@ -1968,7 +1978,7 @@ const int64_t *play_next_playlist_item(PopcornFX *popcorn_fx);
 ///
 /// If the playlist playback is successfully started, a pointer to the internal playlist handle is returned.
 /// Otherwise, if an error occurs or the playlist is empty, a null pointer is returned.
-const int64_t *play_playlist(PopcornFX *popcorn_fx, CArray<PlaylistItemC> playlist);
+const int64_t *play_playlist(PopcornFX *popcorn_fx, const CArray<PlaylistItemC> *playlist_c);
 
 /// Retrieve a pointer to a `PlayerC` instance by its unique identifier (ID) from the PopcornFX player manager.
 ///
@@ -2078,7 +2088,7 @@ PlayerSet *players(PopcornFX *popcorn_fx);
 /// # Returns
 ///
 /// A CArray of PlaylistItemC representing the playlist.
-CArray<PlaylistItemC> playlist(PopcornFX *popcorn_fx);
+CArray<PlaylistItemC> *playlist(PopcornFX *popcorn_fx);
 
 /// Retrieve the default poster (placeholder) image data as a C compatible byte array.
 ///
@@ -2406,7 +2416,16 @@ StringArray *retrieve_provider_genres(PopcornFX *popcorn_fx, char *name);
 StringArray *retrieve_provider_sort_by(PopcornFX *popcorn_fx, char *name);
 
 /// Retrieves the current subtitle preference from PopcornFX.
-SubtitlePreference retrieve_subtitle_preference(PopcornFX *popcorn_fx);
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
+///
+/// # Returns
+///
+/// A pointer to a `SubtitlePreference` instance.
+///
+SubtitlePreference *retrieve_subtitle_preference(PopcornFX *popcorn_fx);
 
 /// Retrieve all watched movie id's.
 ///
@@ -2614,7 +2633,7 @@ UpdateStateC update_state(PopcornFX *popcorn_fx);
 ///
 /// * `popcorn_fx` - Mutable reference to the PopcornFX instance.
 /// * `preference` - The new subtitle preference to set.
-void update_subtitle_preference(PopcornFX *popcorn_fx, SubtitlePreference preference);
+void update_subtitle_preference(PopcornFX *popcorn_fx, const SubtitlePreference *preference);
 
 /// Update the subtitle settings with the new value.
 void update_subtitle_settings(PopcornFX *popcorn_fx, SubtitleSettingsC subtitle_settings);

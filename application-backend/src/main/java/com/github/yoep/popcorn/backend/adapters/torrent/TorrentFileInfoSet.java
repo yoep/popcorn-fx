@@ -71,5 +71,11 @@ public class TorrentFileInfoSet extends Structure implements Closeable {
     @Override
     public void close() {
         setAutoSynch(false);
+        Optional.ofNullable(files)
+                .map(e -> e.toArray(len))
+                .map(e -> (TorrentFileInfoWrapper[])e)
+                .stream()
+                .flatMap(Arrays::stream)
+                .forEach(TorrentFileInfoWrapper::close);
     }
 }

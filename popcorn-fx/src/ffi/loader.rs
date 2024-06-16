@@ -2,14 +2,10 @@ use std::os::raw::c_char;
 
 use log::{trace, warn};
 
-use popcorn_fx_core::core::playlists::PlaylistItem;
-use popcorn_fx_core::core::torrents::{TorrentFileInfo, TorrentInfo};
 use popcorn_fx_core::core::Handle;
 use popcorn_fx_core::from_c_string;
 
-use crate::ffi::{
-    LoaderEventC, LoaderEventCallback, LoadingHandleC, TorrentFileInfoC, TorrentInfoC,
-};
+use crate::ffi::{LoaderEventC, LoaderEventCallback, LoadingHandleC};
 use crate::PopcornFX;
 
 /// Register a loader event callback to receive loader state change events.

@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.backend.subtitles;
+package com.github.yoep.popcorn.backend.subtitles.ffi;
 
 import com.sun.jna.Callback;
 

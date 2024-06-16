@@ -44,7 +44,7 @@ public class PlayerSubtitleComponent implements Initializable {
                     if (item.isNone()) {
                         setText(localeText.get(MediaMessage.SUBTITLE_NONE));
                     } else {
-                        setText(item.getLanguage().getNativeName());
+                        setText(item.language().getNativeName());
                     }
                 }
             }

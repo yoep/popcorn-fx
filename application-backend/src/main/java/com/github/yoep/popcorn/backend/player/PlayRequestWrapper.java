@@ -71,7 +71,8 @@ public class PlayRequestWrapper extends Structure implements Closeable, PlayRequ
 
     @Override
     public Optional<SubtitleInfo> getSubtitleInfo() {
-        return Optional.ofNullable(subtitle.getSubtitleInfo());
+        return Optional.ofNullable(subtitle.getSubtitleInfo())
+                .map(SubtitleInfo::from);
     }
 
     @Override

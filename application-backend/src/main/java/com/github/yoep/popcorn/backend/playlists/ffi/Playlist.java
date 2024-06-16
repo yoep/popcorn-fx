@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.backend.playlists;
+package com.github.yoep.popcorn.backend.playlists.ffi;
 
 import com.sun.jna.Structure;
 import lombok.Data;
@@ -18,11 +18,11 @@ import static java.util.Arrays.asList;
 @EqualsAndHashCode(callSuper = false)
 @Structure.FieldOrder({"items", "len"})
 public class Playlist extends Structure implements Closeable {
-    public static class ByValue extends Playlist implements Structure.ByValue {
-        public ByValue() {
+    public static class ByReference extends Playlist implements Structure.ByReference {
+        public ByReference() {
         }
 
-        public ByValue(PlaylistItem... items) {
+        public ByReference(PlaylistItem... items) {
             super(Arrays.asList(items));
         }
     }
@@ -80,5 +80,9 @@ public class Playlist extends Structure implements Closeable {
     @Override
     public void close() {
         setAutoSynch(false);
+        Optional.ofNullable(items)
+                .map(e -> (PlaylistItem[]) e.toArray(len))
+                .ifPresent(e -> Arrays.stream(e)
+                        .forEach(PlaylistItem::close));
     }
 }

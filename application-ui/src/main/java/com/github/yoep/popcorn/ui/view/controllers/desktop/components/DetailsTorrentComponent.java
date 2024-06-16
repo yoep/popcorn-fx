@@ -1,15 +1,13 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
-import com.github.yoep.popcorn.backend.adapters.torrent.TorrentFileInfoWrapper;
-import com.github.yoep.popcorn.backend.adapters.torrent.TorrentInfoWrapper;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentFileInfo;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowTorrentDetailsEvent;
-import com.github.yoep.popcorn.backend.playlists.Playlist;
-import com.github.yoep.popcorn.backend.playlists.PlaylistItem;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
+import com.github.yoep.popcorn.backend.playlists.model.Playlist;
+import com.github.yoep.popcorn.backend.playlists.model.PlaylistItem;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleFile;
@@ -42,7 +40,7 @@ import org.apache.commons.io.FilenameUtils;
 
 import java.net.URL;
 import java.util.List;
-import java.util.Optional;
+import java.util.Objects;
 import java.util.ResourceBundle;
 
 import static java.util.Arrays.asList;
@@ -134,6 +132,7 @@ public class DetailsTorrentComponent implements Initializable {
         log.debug("Processing details of torrent info {}", event.getTorrentInfo().getName());
         this.torrentInfo = event.getTorrentInfo();
         this.subtitleInfo = null;
+        var defaultSubtitle = subtitleService.none();
         var validFiles = torrentInfo.getFiles().stream()
                 .filter(e -> {
                     var extension = FilenameUtils.getExtension(e.getFilename());
@@ -145,18 +144,22 @@ public class DetailsTorrentComponent implements Initializable {
         Platform.runLater(() -> {
             torrentList.getItems().clear();
             torrentList.getItems().addAll(validFiles);
+            subtitleButton.select(defaultSubtitle);
+            this.subtitleInfo = defaultSubtitle;
         });
 
         updateStoreTorrent(torrentCollectionService.isStored(torrentInfo.getMagnetUri()));
     }
 
     private void onSubtitleChanged(SubtitleInfo subtitleInfo) {
+        Objects.requireNonNull(subtitleInfo, "subtitleInfo cannot be null");
+        this.subtitleInfo = subtitleInfo;
         if (subtitleInfo.isCustom()) {
             subtitlePickerService.pickCustomSubtitle()
                     .ifPresent(e -> {
                         this.subtitleInfo = SubtitleInfo.builder()
                                 .language(SubtitleLanguage.CUSTOM)
-                                .files(new SubtitleFile.ByReference[]{SubtitleFile.ByReference.builder()
+                                .files(new SubtitleFile[]{SubtitleFile.builder()
                                         .name("Custom")
                                         .url(e)
                                         .build()})
@@ -164,7 +167,7 @@ public class DetailsTorrentComponent implements Initializable {
                         subtitleService.updatePreferredLanguage(SubtitleLanguage.CUSTOM);
                     });
         } else {
-            subtitleService.updatePreferredLanguage(subtitleInfo.getLanguage());
+            subtitleService.updatePreferredLanguage(subtitleInfo.language());
         }
     }
 
@@ -193,15 +196,14 @@ public class DetailsTorrentComponent implements Initializable {
     }
 
     void onFileInfoClicked(TorrentFileInfo fileInfo) {
-        var playlist = new Playlist.ByValue(PlaylistItem.builder()
+        Objects.requireNonNull(fileInfo, "fileInfo cannot be null");
+        var playlist = new Playlist(PlaylistItem.builder()
                 .url(torrentInfo.getMagnetUri())
                 .title(fileInfo.getFilename())
                 .subtitlesEnabled(true)
-                .subtitleInfo(Optional.ofNullable(subtitleInfo)
-                        .map(SubtitleInfo.ByReference::new)
-                        .orElse(null))
-                .torrentInfo(new TorrentInfoWrapper.ByReference(torrentInfo))
-                .torrentFileInfo(new TorrentFileInfoWrapper.ByReference(torrentInfo, fileInfo))
+                .subtitleInfo(subtitleInfo)
+                .torrentInfo(torrentInfo)
+                .torrentFileInfo(fileInfo)
                 .build());
         playlistManager.play(playlist);
     }

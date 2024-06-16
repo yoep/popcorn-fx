@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.backend.player;
 
-import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
+import com.github.yoep.popcorn.backend.subtitles.ffi.SubtitleInfo;
 import com.sun.jna.Structure;
 import lombok.Getter;
 import lombok.ToString;

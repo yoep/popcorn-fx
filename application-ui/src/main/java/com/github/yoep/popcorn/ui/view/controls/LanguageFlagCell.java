@@ -28,7 +28,7 @@ public class LanguageFlagCell extends Control {
      */
     public void updateItem(SubtitleInfo item) {
         if (item != null) {
-            setText(item.getLanguage().getNativeName());
+            setText(item.language().getNativeName());
 
             Optional.ofNullable(item.getFlagResource())
                     .map(LanguageFlagCell.class::getResourceAsStream)

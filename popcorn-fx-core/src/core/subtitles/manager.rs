@@ -212,10 +212,21 @@ impl SubtitleManager for InnerSubtitleManager {
 
     fn select_or_default(&self, subtitles: &[SubtitleInfo]) -> SubtitleInfo {
         trace!("Selecting subtitle out of {:?}", subtitles);
-        let subtitle = self
-            .find_for_default_subtitle_language(subtitles)
-            .or_else(|| self.find_for_interface_language(subtitles))
-            .unwrap_or(SubtitleInfo::none());
+        let mut subtitle = SubtitleInfo::none();
+        let preference = self.preference();
+
+        if let SubtitlePreference::Language(language) = preference {
+            if let Some(subtitle_info) = subtitles.iter().find(|e| e.language() == &language) {
+                subtitle = subtitle_info.clone();
+            } else {
+                trace!("Subtitle preference language {} not found, using default subtitle language instead", language);
+                subtitle = self
+                    .find_for_default_subtitle_language(subtitles)
+                    .or_else(|| self.find_for_interface_language(subtitles))
+                    .unwrap_or(SubtitleInfo::none());
+            }
+        }
+
         debug!("Selected subtitle {:?}", &subtitle);
         subtitle
     }

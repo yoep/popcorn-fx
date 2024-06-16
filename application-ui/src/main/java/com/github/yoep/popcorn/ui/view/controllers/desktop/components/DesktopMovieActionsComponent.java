@@ -5,8 +5,8 @@ import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
 import com.github.yoep.popcorn.backend.media.providers.MovieDetails;
 import com.github.yoep.popcorn.backend.messages.SubtitleMessage;
-import com.github.yoep.popcorn.backend.playlists.Playlist;
-import com.github.yoep.popcorn.backend.playlists.PlaylistItem;
+import com.github.yoep.popcorn.backend.playlists.model.Playlist;
+import com.github.yoep.popcorn.backend.playlists.model.PlaylistItem;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.listeners.LanguageSelectionListener;
@@ -82,7 +82,7 @@ public class DesktopMovieActionsComponent implements Initializable {
 
                 setText(null);
 
-                var language = item.getLanguage().getNativeName();
+                var language = item.language().getNativeName();
                 var image = Optional.ofNullable(item.getFlagResource())
                         .map(DesktopMovieActionsComponent.class::getResourceAsStream)
                         .map(Image::new)
@@ -160,9 +160,14 @@ public class DesktopMovieActionsComponent implements Initializable {
     }
 
     private void playTrailer() {
-        try (var item = PlaylistItem.fromMediaTrailer(media)) {
-            playlistManager.play(new Playlist.ByValue(item));
-        }
+        var item = PlaylistItem.builder()
+                .url(media.getTrailer())
+                .title(media.getTitle())
+                .caption("Trailer")
+                .thumb(media.getImages().getPoster())
+                .subtitlesEnabled(false)
+                .build();
+        playlistManager.play(new Playlist(item));
     }
 
     protected LanguageSelectionListener createLanguageListener() {

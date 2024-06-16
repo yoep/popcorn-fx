@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
-import com.github.yoep.popcorn.backend.playlists.PlaylistItem;
+import com.github.yoep.popcorn.backend.playlists.model.PlaylistItem;
 import com.github.yoep.popcorn.ui.view.controls.ImageCover;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.scene.control.Label;
@@ -54,8 +54,8 @@ class PlaylistItemComponentTest {
         var title = "Foo";
         var caption = "Bar";
         var image = new Image(PlaylistItemComponentTest.class.getResourceAsStream("/posterholder.png"));
+        when(item.title()).thenReturn(title);
         when(item.getThumb()).thenReturn(Optional.of(thumbUrl));
-        when(item.getTitle()).thenReturn(title);
         when(item.getCaption()).thenReturn(Optional.of(caption));
         when(imageService.load(isA(String.class))).thenReturn(CompletableFuture.completedFuture(image));
 

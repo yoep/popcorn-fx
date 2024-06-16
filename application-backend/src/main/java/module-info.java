@@ -37,6 +37,7 @@ module application.backend {
     exports com.github.yoep.popcorn.backend.media;
     exports com.github.yoep.popcorn.backend.messages;
     exports com.github.yoep.popcorn.backend.player;
+    exports com.github.yoep.popcorn.backend.playlists.model;
     exports com.github.yoep.popcorn.backend.playlists;
     exports com.github.yoep.popcorn.backend.services;
     exports com.github.yoep.popcorn.backend.settings.models.subtitles;
@@ -51,9 +52,14 @@ module application.backend {
     exports com.github.yoep.popcorn.backend.utils;
     exports com.github.yoep.popcorn.backend;
 
+    exports com.github.yoep.popcorn.backend.playlists.ffi to com.sun.jna;
+
     opens com.github.yoep.popcorn.backend.player to com.sun.jna;
     opens com.github.yoep.popcorn.backend.playlists to com.sun.jna;
     opens com.github.yoep.popcorn.backend.subtitles to com.sun.jna;
     opens com.github.yoep.popcorn.backend.torrent to com.sun.jna;
     opens com.github.yoep.popcorn.backend.updater to com.sun.jna;
+    opens com.github.yoep.popcorn.backend.playlists.model to com.sun.jna;
+    opens com.github.yoep.popcorn.backend.subtitles.ffi to com.sun.jna;
+    exports com.github.yoep.popcorn.backend.subtitles.ffi;
 }

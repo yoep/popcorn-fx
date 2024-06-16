@@ -272,8 +272,8 @@ impl Drop for SubtitleMatcherC {
     }
 }
 
-impl From<SubtitleMatcherC> for SubtitleMatcher {
-    fn from(value: SubtitleMatcherC) -> Self {
+impl From<&SubtitleMatcherC> for SubtitleMatcher {
+    fn from(value: &SubtitleMatcherC) -> Self {
         trace!("Converting matcher from C for {:?}", value);
         let name = if value.name.is_null() {
             None

@@ -6,11 +6,11 @@ import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentFileInfo;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowTorrentDetailsEvent;
-import com.github.yoep.popcorn.backend.loader.LoaderService;
-import com.github.yoep.popcorn.backend.playlists.Playlist;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
+import com.github.yoep.popcorn.backend.playlists.model.Playlist;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleFile;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.torrent.TorrentCollectionService;
@@ -78,12 +78,14 @@ class DetailsTorrentComponentTest {
 
     @Test
     void testInitialize() {
-        var subtitleNone = mock(SubtitleInfo.class);
-        var subtitleCustom = mock(SubtitleInfo.class);
-        when(subtitleNone.getLanguage()).thenReturn(SubtitleLanguage.NONE);
-        when(subtitleNone.getFlagResource()).thenReturn("");
-        when(subtitleCustom.getLanguage()).thenReturn(SubtitleLanguage.CUSTOM);
-        when(subtitleCustom.getFlagResource()).thenReturn("");
+        var subtitleNone = SubtitleInfo.builder()
+                .language(SubtitleLanguage.NONE)
+                .files(new SubtitleFile[0])
+                .build();
+        var subtitleCustom = SubtitleInfo.builder()
+                .language(SubtitleLanguage.CUSTOM)
+                .files(new SubtitleFile[0])
+                .build();
         when(subtitleService.none()).thenReturn(subtitleNone);
         when(subtitleService.custom()).thenReturn(subtitleCustom);
 
@@ -101,9 +103,9 @@ class DetailsTorrentComponentTest {
         var fileInfo = mock(TorrentFileInfo.class);
         var subtitleNone = mock(SubtitleInfo.class);
         var subtitleCustom = mock(SubtitleInfo.class);
-        when(subtitleNone.getLanguage()).thenReturn(SubtitleLanguage.NONE);
+        when(subtitleNone.language()).thenReturn(SubtitleLanguage.NONE);
         when(subtitleNone.getFlagResource()).thenReturn("");
-        when(subtitleCustom.getLanguage()).thenReturn(SubtitleLanguage.CUSTOM);
+        when(subtitleCustom.language()).thenReturn(SubtitleLanguage.CUSTOM);
         when(subtitleCustom.getFlagResource()).thenReturn("");
         when(subtitleService.none()).thenReturn(subtitleNone);
         when(subtitleService.custom()).thenReturn(subtitleCustom);
@@ -119,31 +121,31 @@ class DetailsTorrentComponentTest {
 
     @Test
     void testOnFileInfoClicked() {
-        var holder = new AtomicReference<Playlist.ByValue>();
+        var holder = new AtomicReference<Playlist>();
         var torrent = mock(TorrentInfo.class);
         var fileInfo = mock(TorrentFileInfo.class);
         var subtitleNone = mock(SubtitleInfo.class);
         var subtitleCustom = mock(SubtitleInfo.class);
-        when(subtitleNone.getLanguage()).thenReturn(SubtitleLanguage.NONE);
+        when(subtitleNone.language()).thenReturn(SubtitleLanguage.NONE);
         when(subtitleNone.getFlagResource()).thenReturn("");
-        when(subtitleCustom.getLanguage()).thenReturn(SubtitleLanguage.CUSTOM);
+        when(subtitleCustom.language()).thenReturn(SubtitleLanguage.CUSTOM);
         when(subtitleCustom.getFlagResource()).thenReturn("");
         when(subtitleService.none()).thenReturn(subtitleNone);
         when(subtitleService.custom()).thenReturn(subtitleCustom);
         when(torrent.getFiles()).thenReturn(Collections.singletonList(fileInfo));
         doAnswer(invocation -> {
-            holder.set(invocation.getArgument(0, Playlist.ByValue.class));
+            holder.set(invocation.getArgument(0, Playlist.class));
             return null;
-        }).when(playlistManager).play(isA(Playlist.ByValue.class));
+        }).when(playlistManager).play(isA(Playlist.class));
         component.initialize(url, resourceBundle);
 
         eventPublisher.publish(new ShowTorrentDetailsEvent(this, "", torrent));
         component.onFileInfoClicked(fileInfo);
 
-        verify(playlistManager).play(isA(Playlist.ByValue.class));
-        var result = holder.get().getItems().get(0);
-        assertNotNull(result.getTorrentInfo(), "Torrent info should not be null");
-        assertNotNull(result.getTorrentFileInfo(), "Torrent file info should not be null");
+        verify(playlistManager).play(isA(Playlist.class));
+        var result = holder.get().items().get(0);
+        assertNotNull(result.torrentInfo(), "Torrent info should not be null");
+        assertNotNull(result.torrentFileInfo(), "Torrent file info should not be null");
     }
 
     @Test
@@ -151,9 +153,9 @@ class DetailsTorrentComponentTest {
         var subtitleFileUri = "/tmp/my-subtitle.srt";
         var subtitleNone = mock(SubtitleInfo.class);
         var subtitleCustom = mock(SubtitleInfo.class);
-        when(subtitleNone.getLanguage()).thenReturn(SubtitleLanguage.NONE);
+        when(subtitleNone.language()).thenReturn(SubtitleLanguage.NONE);
         when(subtitleNone.getFlagResource()).thenReturn("");
-        when(subtitleCustom.getLanguage()).thenReturn(SubtitleLanguage.CUSTOM);
+        when(subtitleCustom.language()).thenReturn(SubtitleLanguage.CUSTOM);
         when(subtitleCustom.getFlagResource()).thenReturn("");
         when(subtitleCustom.isCustom()).thenReturn(true);
         when(subtitleService.none()).thenReturn(subtitleNone);
@@ -165,6 +167,6 @@ class DetailsTorrentComponentTest {
         component.subtitleButton.select(subtitleService.custom());
 
         verify(subtitleService).updatePreferredLanguage(SubtitleLanguage.CUSTOM);
-        assertEquals(SubtitleLanguage.CUSTOM, component.subtitleInfo.getLanguage());
+        assertEquals(SubtitleLanguage.CUSTOM, component.subtitleInfo.language());
     }
 }

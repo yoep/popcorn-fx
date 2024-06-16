@@ -67,7 +67,7 @@ class TvMovieActionsComponentTest {
     @BeforeEach
     void setUp() {
         var none = mock(SubtitleInfo.class);
-        when(none.getLanguage()).thenReturn(SubtitleLanguage.NONE);
+        when(none.language()).thenReturn(SubtitleLanguage.NONE);
         lenient().when(subtitleService.none()).thenReturn(none);
         doAnswer(invocation -> {
             listener.set(invocation.getArgument(0));

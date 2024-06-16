@@ -311,7 +311,7 @@ public class LanguageFlagSelection extends StackPane {
         flag.getStyleClass().add(POPUP_IMAGE_STYLE_CLASS);
         flag.setOnMouseClicked(event -> onSelectedItemChanged(subtitle));
 
-        Tooltip tooltip = new Tooltip(subtitle.getLanguage().getNativeName());
+        Tooltip tooltip = new Tooltip(subtitle.language().getNativeName());
         tooltip.setShowDelay(Duration.ZERO);
         Tooltip.install(flag, tooltip);
 

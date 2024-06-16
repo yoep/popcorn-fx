@@ -56,6 +56,31 @@ impl SubtitlesLoadingStrategy {
     ///
     /// * `data` - The loading data.
     async fn update_to_default_subtitle(&self, data: &mut LoadingData) {
+        let subtitles = self.retrieve_available_subtitles(&data).await;
+
+        if let Ok(subtitles) = subtitles {
+            let subtitle = self
+                .subtitle_manager
+                .select_or_default(subtitles.as_slice());
+
+            debug!("Updating subtitle to {} for {:?}", subtitle, data);
+            data.subtitle.info = Some(subtitle);
+        }
+    }
+
+    /// Retrieves the available subtitles for the given loading data.
+    ///
+    /// # Arguments
+    ///
+    /// * `data` - The loading data.
+    ///
+    /// # Returns
+    ///
+    /// A result containing the available subtitles if found, else the subtitle retrieval error.
+    async fn retrieve_available_subtitles(
+        &self,
+        data: &LoadingData,
+    ) -> subtitles::Result<Vec<SubtitleInfo>> {
         debug!("Loading subtitles for {:?}", data);
         let subtitles: subtitles::Result<Vec<SubtitleInfo>>;
 
@@ -72,17 +97,12 @@ impl SubtitlesLoadingStrategy {
                 .await
         } else {
             warn!("Unable to retrieve subtitles, no information known about the played item");
-            return;
+            return Err(SubtitleError::SearchFailed(
+                "no media information known".to_string(),
+            ));
         }
 
-        if let Ok(subtitles) = subtitles {
-            let subtitle = self
-                .subtitle_manager
-                .select_or_default(subtitles.as_slice());
-
-            debug!("Updating subtitle to {} for {:?}", subtitle, data);
-            data.subtitle.info = Some(subtitle);
-        }
+        return subtitles;
     }
 
     /// Handles loading subtitles for a movie.
@@ -226,16 +246,27 @@ impl LoadingStrategy for SubtitlesLoadingStrategy {
             // check if the subtitle preference is disabled
             // if not, try to download the preferred subtitle
             if subtitle_preference != SubtitlePreference::Disabled {
+                // update the current state to retrieving subtitles
+                event_channel
+                    .send(LoadingEvent::StateChanged(
+                        LoadingState::RetrievingSubtitles,
+                    ))
+                    .unwrap();
+
                 if subtitle_preference == SubtitlePreference::Language(SubtitleLanguage::None) {
                     trace!("Processing subtitle info for {:?}", data);
-                    event_channel
-                        .send(LoadingEvent::StateChanged(
-                            LoadingState::RetrievingSubtitles,
-                        ))
-                        .unwrap();
                     self.update_to_default_subtitle(&mut data).await;
                 } else {
-                    debug!("Subtitle has already been selected for {:?}", data);
+                    debug!(
+                        "Current subtitle preference {:?} for {:?}",
+                        subtitle_preference, data
+                    );
+                    if data.subtitle.info.is_none() {
+                        if let Ok(subtitles) = self.retrieve_available_subtitles(&data).await {
+                            data.subtitle.info =
+                                Some(self.subtitle_manager.select_or_default(&subtitles));
+                        }
+                    }
                 }
 
                 if let Some(info) = data.subtitle.info.as_ref() {

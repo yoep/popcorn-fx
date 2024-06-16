@@ -1,9 +1,8 @@
+use log::{trace, warn};
 use std::ptr;
 
-use log::trace;
-
 use popcorn_fx_core::core::playlists::{Playlist, PlaylistItem};
-use popcorn_fx_core::from_c_vec;
+use popcorn_fx_core::{from_c_vec, into_c_owned};
 
 use crate::ffi::{CArray, PlaylistItemC, PlaylistManagerCallbackC, PlaylistManagerEventC};
 use crate::PopcornFX;
@@ -25,10 +24,10 @@ use crate::PopcornFX;
 #[no_mangle]
 pub extern "C" fn play_playlist(
     popcorn_fx: &mut PopcornFX,
-    playlist: CArray<PlaylistItemC>,
+    playlist_c: &CArray<PlaylistItemC>,
 ) -> *const i64 {
-    trace!("Converting playlist from C for {:?}", playlist);
-    let playlist: Playlist = Vec::<PlaylistItemC>::from(playlist)
+    trace!("Converting playlist from C for {:?}", playlist_c);
+    let playlist: Playlist = Vec::<PlaylistItemC>::from(playlist_c)
         .into_iter()
         .map(|e| PlaylistItem::from(e))
         .collect();
@@ -38,7 +37,10 @@ pub extern "C" fn play_playlist(
         .playlist_manager()
         .play(playlist)
         .map(|e| e.value() as *const i64)
-        .unwrap_or(ptr::null())
+        .unwrap_or_else(|| {
+            warn!("Failed to start playlist from C");
+            ptr::null()
+        })
 }
 
 /// Play the next item in the playlist from C.
@@ -120,7 +122,7 @@ pub extern "C" fn register_playlist_manager_callback(
 ///
 /// A CArray of PlaylistItemC representing the playlist.
 #[no_mangle]
-pub extern "C" fn playlist(popcorn_fx: &mut PopcornFX) -> CArray<PlaylistItemC> {
+pub extern "C" fn playlist(popcorn_fx: &mut PopcornFX) -> *mut CArray<PlaylistItemC> {
     trace!("Retrieving playlist from C");
     let vec: Vec<PlaylistItemC> = popcorn_fx
         .playlist_manager()
@@ -129,7 +131,7 @@ pub extern "C" fn playlist(popcorn_fx: &mut PopcornFX) -> CArray<PlaylistItemC> 
         .into_iter()
         .map(|e| PlaylistItemC::from(e))
         .collect();
-    CArray::from(vec)
+    into_c_owned(CArray::from(vec))
 }
 
 /// Dispose of a playlist item.
@@ -139,7 +141,8 @@ pub extern "C" fn playlist(popcorn_fx: &mut PopcornFX) -> CArray<PlaylistItemC> 
 /// * `item` - A boxed `PlaylistItemC` representing the item to be disposed of.
 #[no_mangle]
 pub extern "C" fn dispose_playlist_item(item: Box<PlaylistItemC>) {
-    trace!("Disposing playlist item {:?}", item)
+    trace!("Disposing playlist item {:?}", item);
+    drop(item);
 }
 
 /// Dispose of a C-style array of playlist items.
@@ -200,7 +203,7 @@ mod test {
             subtitle: Default::default(),
             torrent: Default::default(),
         });
-        let playlist = CArray::from(vec![item]);
+        let mut playlist = CArray::from(vec![item]);
         let (tx, rx) = channel();
         let (tx_state, rx_state) = channel();
         let mut instance = PopcornFX::new(default_args(temp_path));
@@ -212,7 +215,7 @@ mod test {
                 PlaylistManagerEvent::StateChanged(state) => tx_state.send(state).unwrap(),
                 _ => {}
             }));
-        play_playlist(&mut instance, playlist);
+        play_playlist(&mut instance, &mut playlist);
 
         let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
         assert_eq!(
@@ -234,7 +237,7 @@ mod test {
         init_logger();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let playlist = CArray::from(vec![
+        let mut playlist = CArray::from(vec![
             PlaylistItemC::from(PlaylistItem {
                 url: None,
                 title: "Item1".to_string(),
@@ -260,7 +263,7 @@ mod test {
         ]);
         let mut instance = PopcornFX::new(default_args(temp_path));
 
-        play_playlist(&mut instance, playlist);
+        play_playlist(&mut instance, &mut playlist);
         let handle = play_next_playlist_item(&mut instance);
         assert!(
             !handle.is_null(),

@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use derive_more::Display;
-use log::{debug, trace};
+use log::{debug, info, trace};
 use tokio_util::sync::CancellationToken;
 
 use crate::core::loader::{
@@ -98,6 +98,7 @@ impl LoadingStrategy for PlayerLoadingStrategy {
         _: CancellationToken,
     ) -> LoadingResult {
         if let Some(url) = data.url.as_ref() {
+            let url = url.clone();
             debug!("Starting playlist item playback for {}", url);
             return match self.convert(data) {
                 Ok(request) => {
@@ -105,6 +106,7 @@ impl LoadingStrategy for PlayerLoadingStrategy {
                         .send(LoadingEvent::StateChanged(LoadingState::Playing))
                         .unwrap();
                     self.player_manager.play(request).await;
+                    info!("Playback started for {}", url);
                     LoadingResult::Completed
                 }
                 Err(err) => LoadingResult::Err(err),

@@ -151,7 +151,7 @@ public class TvPlayerControlsComponent implements Initializable {
                 });
             }
         });
-        subtitleSelection.setItemFactory(item -> new Button(item.getLanguage().getNativeName()));
+        subtitleSelection.setItemFactory(item -> new Button(item.language().getNativeName()));
         subtitleSelection.setOnItemActivated(item -> {
             subtitleOverlay.hide();
             playerControlsService.resume();

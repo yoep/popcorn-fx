@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
-import com.github.yoep.popcorn.backend.playlists.PlaylistItem;
+import com.github.yoep.popcorn.backend.playlists.model.PlaylistItem;
 import com.github.yoep.popcorn.ui.view.controls.ImageCover;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.application.Platform;
@@ -39,7 +39,7 @@ public class PlaylistItemComponent implements Initializable {
     public void initialize(URL url, ResourceBundle resourceBundle) {
         thumbnail.setImage(imageService.getPosterPlaceholder());
         item.getThumb().ifPresent(this::loadThumbnail);
-        title.setText(item.getTitle());
+        title.setText(item.title());
         caption.setText(item.getCaption().orElse(null));
     }
 

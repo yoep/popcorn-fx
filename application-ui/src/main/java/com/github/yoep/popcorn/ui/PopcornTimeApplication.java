@@ -15,7 +15,7 @@ import com.github.yoep.popcorn.backend.media.providers.ShowProviderService;
 import com.github.yoep.popcorn.backend.media.tracking.TraktTrackingService;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.player.PlayerManagerServiceImpl;
-import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
+import com.github.yoep.popcorn.backend.playlists.DefaultPlaylistManager;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleServiceImpl;
 import com.github.yoep.popcorn.backend.updater.UpdateService;
@@ -84,7 +84,7 @@ public class PopcornTimeApplication extends Application {
             var subtitleService = IOC.registerInstance(new SubtitleServiceImpl(fxLib, popcornFx, executorService));
             IOC.registerInstance(new MaximizeService(viewManager, applicationConfig));
             IOC.registerInstance(new PlatformFX());
-            IOC.registerInstance(new PlaylistManager(fxLib, popcornFx, applicationConfig));
+            IOC.registerInstance(new DefaultPlaylistManager(fxLib, popcornFx, applicationConfig));
             IOC.registerInstance(new EventPublisherBridge(eventPublisher, fxLib, popcornFx));
             IOC.registerInstance(new FavoriteProviderService(fxLib, popcornFx, executorService));
             IOC.registerInstance(new MovieProviderService(fxLib, popcornFx, executorService));

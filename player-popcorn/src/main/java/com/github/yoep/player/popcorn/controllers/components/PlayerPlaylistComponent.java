@@ -1,9 +1,9 @@
 package com.github.yoep.player.popcorn.controllers.components;
 
-import com.github.yoep.popcorn.backend.playlists.PlaylistItem;
-import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
+import com.github.yoep.popcorn.backend.playlists.DefaultPlaylistManager;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManagerListener;
 import com.github.yoep.popcorn.backend.playlists.PlaylistState;
+import com.github.yoep.popcorn.backend.playlists.model.PlaylistItem;
 import com.github.yoep.popcorn.ui.view.ViewLoader;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.PlaylistItemComponent;
 import com.github.yoep.popcorn.ui.view.controls.PlaylistControl;
@@ -21,7 +21,7 @@ import java.util.ResourceBundle;
 public class PlayerPlaylistComponent implements Initializable {
     public static final String PLAYLIST_ITEM_COMPONENT = "common/components/playlist-item.component.fxml";
 
-    private final PlaylistManager playlistManager;
+    private final DefaultPlaylistManager playlistManager;
     private final ViewLoader viewLoader;
     private final ImageService imageService;
 
@@ -53,8 +53,7 @@ public class PlayerPlaylistComponent implements Initializable {
     }
 
     private void onPlaylistChanged() {
-        try (var playlist = playlistManager.playlist()) {
-            playlistControl.setItems(playlist.getItems());
-        }
+        var playlist = playlistManager.playlist();
+        playlistControl.setItems(playlist.items());
     }
 }

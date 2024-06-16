@@ -1,4 +1,4 @@
-package com.github.yoep.popcorn.backend.subtitles.model;
+package com.github.yoep.popcorn.backend.subtitles.ffi;
 
 import com.sun.jna.Structure;
 import lombok.EqualsAndHashCode;
@@ -28,12 +28,6 @@ public class SubtitleInfoSet extends Structure implements Closeable {
 
         public ByReference(List<SubtitleInfo> subtitles) {
             super(subtitles);
-        }
-
-        @Override
-        public void close() {
-            super.close();
-//            FxLib.INSTANCE.get().dispose_subtitle_info_set(this);
         }
     }
 
@@ -95,5 +89,6 @@ public class SubtitleInfoSet extends Structure implements Closeable {
     @Override
     public void close() {
         setAutoSynch(false);
+        cachedSubtitles.forEach(SubtitleInfo::close);
     }
 }

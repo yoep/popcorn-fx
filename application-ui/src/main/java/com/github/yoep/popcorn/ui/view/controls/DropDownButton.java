@@ -128,7 +128,7 @@ public class DropDownButton<T> extends SplitMenuButton {
         }
 
         items.values().stream()
-                .filter(e -> e.item == item)
+                .filter(e -> e.item.equals(item))
                 .findFirst()
                 .ifPresentOrElse(
                         e -> updateActiveItem(e.control.getIdentifier()),
@@ -142,14 +142,6 @@ public class DropDownButton<T> extends SplitMenuButton {
 
     private void init() {
         getStyleClass().add(STYLE_CLASS);
-    }
-
-    private boolean isIdActive(int id) {
-        var activeId = getSelectedItem()
-                .map(Object::hashCode)
-                .orElse(-1);
-
-        return activeId.equals(id);
     }
 
     private void addItem(T item) {

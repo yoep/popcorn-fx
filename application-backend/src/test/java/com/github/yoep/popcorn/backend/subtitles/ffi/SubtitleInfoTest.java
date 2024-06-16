@@ -1,7 +1,8 @@
-package com.github.yoep.popcorn.backend.subtitles.model;
+package com.github.yoep.popcorn.backend.subtitles.ffi;
 
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleFile;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -10,7 +11,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class SubtitleInfoTest {
@@ -33,20 +33,21 @@ class SubtitleInfoTest {
     }
 
     @Test
-    void testNewReferenceInstance_SubtitleInfo() {
+    void testNewReferenceFrom() {
         var imdbId = "tt000123";
         var language = SubtitleLanguage.FRENCH;
-        var info = new SubtitleInfo.ByReference(SubtitleInfo.builder()
+        var modelInfo = com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo.builder()
                 .imdbId(imdbId)
                 .language(language)
-                .files(new SubtitleFile.ByReference[]{
-                        SubtitleFile.ByReference.builder()
+                .files(new com.github.yoep.popcorn.backend.subtitles.model.SubtitleFile[]{
+                        SubtitleFile.builder()
                                 .fileId(1)
                                 .name("FooBar")
                                 .url("http://example.com/subtitle.srt")
                                 .build()
                 })
-                .build());
+                .build();
+        var info = SubtitleInfo.ByReference.from(modelInfo);
 
         assertEquals(imdbId, info.imdbId);
         assertEquals(language, info.language);
@@ -59,7 +60,5 @@ class SubtitleInfoTest {
         var info = new SubtitleInfo.ByReference("imdbId", SubtitleLanguage.ENGLISH);
 
         info.close();
-
-        verify(fxLib).dispose_subtitle_info(info);
     }
 }

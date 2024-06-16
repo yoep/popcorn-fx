@@ -1,11 +1,12 @@
-package com.github.yoep.popcorn.backend.playlists;
+package com.github.yoep.popcorn.backend.playlists.ffi;
 
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentFileInfoWrapper;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentInfoWrapper;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentFileInfo;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
 import com.github.yoep.popcorn.backend.media.MediaItem;
 import com.github.yoep.popcorn.backend.media.providers.Media;
-import com.github.yoep.popcorn.backend.media.providers.MovieDetails;
-import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
+import com.github.yoep.popcorn.backend.subtitles.ffi.SubtitleInfo;
 import com.sun.jna.Structure;
 import lombok.*;
 
@@ -57,8 +58,8 @@ public class PlaylistItem extends Structure implements Closeable {
                         Long autoResumeTimestamp,
                         boolean subtitlesEnabled,
                         SubtitleInfo.ByReference subtitleInfo,
-                        TorrentInfoWrapper.ByReference torrentInfo,
-                        TorrentFileInfoWrapper.ByReference torrentFileInfo) {
+                        TorrentInfo torrentInfo,
+                        TorrentFileInfo torrentFileInfo) {
         this.url = url;
         this.title = title;
         this.caption = caption;
@@ -69,8 +70,12 @@ public class PlaylistItem extends Structure implements Closeable {
         this.autoResumeTimestamp = autoResumeTimestamp;
         this.subtitlesEnabled = (byte) (subtitlesEnabled ? 1 : 0);
         this.subtitleInfo = subtitleInfo;
-        this.torrentInfo = torrentInfo;
-        this.torrentFileInfo = torrentFileInfo;
+        this.torrentInfo = Optional.ofNullable(torrentInfo)
+                .map(TorrentInfoWrapper.ByReference::new)
+                .orElse(null);
+        this.torrentFileInfo = Optional.ofNullable(torrentFileInfo)
+                .map(e -> new TorrentFileInfoWrapper.ByReference(torrentInfo, e))
+                .orElse(null);
     }
 
     public Optional<String> getUrl() {
@@ -114,15 +119,30 @@ public class PlaylistItem extends Structure implements Closeable {
     @Override
     public void close() {
         setAutoSynch(false);
+        Optional.ofNullable(subtitleInfo)
+                .ifPresent(SubtitleInfo::close);
+        Optional.ofNullable(torrentInfo)
+                .ifPresent(TorrentInfoWrapper::close);
+        Optional.ofNullable(torrentFileInfo)
+                .ifPresent(TorrentFileInfoWrapper::close);
     }
 
-    public static PlaylistItem fromMediaTrailer(MovieDetails media) {
-        var item = new PlaylistItem();
-        item.url = media.getTrailer();
-        item.title = media.getTitle();
-        item.caption = "Trailer";
-        item.thumb = media.getImages().getPoster();
-        item.setSubtitlesEnabled(false);
-        return item;
+    public static PlaylistItem from(com.github.yoep.popcorn.backend.playlists.model.PlaylistItem item) {
+        return PlaylistItem.builder()
+                .url(item.url())
+                .title(item.title())
+                .caption(item.caption())
+                .thumb(item.thumb())
+                .quality(item.quality())
+                .parentMedia(item.parentMedia())
+                .media(item.media())
+                .autoResumeTimestamp(item.autoResumeTimestamp())
+                .subtitlesEnabled(item.subtitlesEnabled())
+                .subtitleInfo(Optional.ofNullable(item.subtitleInfo())
+                        .map(SubtitleInfo.ByReference::from)
+                        .orElse(null))
+                .torrentInfo(item.torrentInfo())
+                .torrentFileInfo(item.torrentFileInfo())
+                .build();
     }
 }

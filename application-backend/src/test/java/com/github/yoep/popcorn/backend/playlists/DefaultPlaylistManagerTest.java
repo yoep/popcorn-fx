@@ -3,10 +3,10 @@ package com.github.yoep.popcorn.backend.playlists;
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.lib.NativeString;
-import com.github.yoep.popcorn.backend.media.providers.Episode;
-import com.github.yoep.popcorn.backend.media.providers.Images;
-import com.github.yoep.popcorn.backend.media.providers.MovieDetails;
-import com.github.yoep.popcorn.backend.media.providers.ShowDetails;
+import com.github.yoep.popcorn.backend.media.MediaItem;
+import com.github.yoep.popcorn.backend.media.providers.*;
+import com.github.yoep.popcorn.backend.playlists.ffi.Playlist;
+import com.github.yoep.popcorn.backend.playlists.model.PlaylistItem;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.models.PlaybackSettings;
@@ -24,7 +24,7 @@ import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class PlaylistManagerTest {
+class DefaultPlaylistManagerTest {
     @Mock
     private FxLib fxLib;
     @Mock
@@ -36,15 +36,18 @@ class PlaylistManagerTest {
     @Mock
     private PlaybackSettings playbackSettings;
     @InjectMocks
-    private PlaylistManager playlistManager;
+    private DefaultPlaylistManager playlistManager;
 
     @Test
     void testPlay_Playlist() {
-        var playlist = new Playlist.ByValue();
+        var playlist = new com.github.yoep.popcorn.backend.playlists.model.Playlist(PlaylistItem.builder()
+                .url("http://localhost/example-video.mp4")
+                .build());
 
         playlistManager.play(playlist);
 
-        verify(fxLib).play_playlist(instance, playlist);
+        verify(fxLib).play_playlist(eq(instance), isA(Playlist.ByReference.class));
+        verify(fxLib, times(0)).dispose_playlist_set(isA(Playlist.ByReference.class));
     }
 
     @Test
@@ -59,11 +62,11 @@ class PlaylistManagerTest {
         doAnswer(invocation -> {
             playlistHolder.set(invocation.getArgument(1, Playlist.class));
             return null;
-        }).when(fxLib).play_playlist(isA(PopcornFx.class), isA(Playlist.ByValue.class));
+        }).when(fxLib).play_playlist(isA(PopcornFx.class), isA(Playlist.ByReference.class));
 
         playlistManager.play(movie, quality);
 
-        verify(fxLib).play_playlist(isA(PopcornFx.class), isA(Playlist.ByValue.class));
+        verify(fxLib).play_playlist(isA(PopcornFx.class), isA(Playlist.ByReference.class));
         var playlist = playlistHolder.get();
         var playlistItems = playlist.getCachedItems();
         assertEquals(1, playlistItems.size());
@@ -92,7 +95,7 @@ class PlaylistManagerTest {
         doAnswer(invocation -> {
             playlistHolder.set(invocation.getArgument(1, Playlist.class));
             return null;
-        }).when(fxLib).play_playlist(isA(PopcornFx.class), isA(Playlist.ByValue.class));
+        }).when(fxLib).play_playlist(isA(PopcornFx.class), isA(Playlist.ByReference.class));
         when(applicationConfig.getSettings()).thenReturn(applicationSettings);
         when(applicationSettings.getPlaybackSettings()).thenReturn(playbackSettings);
         when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
@@ -100,7 +103,7 @@ class PlaylistManagerTest {
         playlistManager.play(show, episode, quality);
 
         verify(playbackSettings).isAutoPlayNextEpisodeEnabled();
-        verify(fxLib).play_playlist(isA(PopcornFx.class), isA(Playlist.ByValue.class));
+        verify(fxLib).play_playlist(isA(PopcornFx.class), isA(Playlist.ByReference.class));
         var playlist = playlistHolder.get();
         var playlistItems = playlist.getCachedItems();
         assertEquals(1, playlistItems.size());
@@ -126,12 +129,26 @@ class PlaylistManagerTest {
 
     @Test
     void testPlaylist() {
-        var playlist = mock(Playlist.ByValue.class);
+        var parentedia = mock(ShowOverview.ByReference.class);
+        var media = mock(Episode.class);
+        var item = com.github.yoep.popcorn.backend.playlists.model.PlaylistItem.builder()
+                .url("http://localhost/example-video.mp4")
+                .title("MyVideo")
+                .thumb("http://localhost/example-thumb.png")
+                .autoResumeTimestamp(1700L)
+                .subtitlesEnabled(true)
+                .parentMedia(MediaItem.from(parentedia))
+                .media(MediaItem.from(media))
+                .build();
+        var itemFfi = com.github.yoep.popcorn.backend.playlists.ffi.PlaylistItem.from(item);
+        var playlist = new Playlist.ByReference(itemFfi);
+        var expectedResult = new com.github.yoep.popcorn.backend.playlists.model.Playlist(item);
         when(fxLib.playlist(isA(PopcornFx.class))).thenReturn(playlist);
 
         var result = playlistManager.playlist();
 
-        assertEquals(playlist, result);
+        assertEquals(expectedResult, result);
         verify(fxLib).playlist(instance);
+        verify(fxLib).dispose_playlist_set(playlist);
     }
 }

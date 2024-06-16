@@ -11,9 +11,20 @@ use crate::PopcornFX;
 pub type SubtitleCallbackC = extern "C" fn(SubtitleEventC);
 
 /// Retrieves the current subtitle preference from PopcornFX.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
+///
+/// # Returns
+///
+/// A pointer to a `SubtitlePreference` instance.
+///
 #[no_mangle]
-pub extern "C" fn retrieve_subtitle_preference(popcorn_fx: &mut PopcornFX) -> SubtitlePreference {
-    popcorn_fx.subtitle_manager().preference()
+pub extern "C" fn retrieve_subtitle_preference(
+    popcorn_fx: &mut PopcornFX,
+) -> *mut SubtitlePreference {
+    into_c_owned(popcorn_fx.subtitle_manager().preference())
 }
 
 /// Updates the subtitle preference for PopcornFX.
@@ -25,9 +36,12 @@ pub extern "C" fn retrieve_subtitle_preference(popcorn_fx: &mut PopcornFX) -> Su
 #[no_mangle]
 pub extern "C" fn update_subtitle_preference(
     popcorn_fx: &mut PopcornFX,
-    preference: SubtitlePreference,
+    preference: &SubtitlePreference,
 ) {
-    popcorn_fx.subtitle_manager().update_preference(preference)
+    trace!("Updating subtitle preference from C for {:?}", preference);
+    popcorn_fx
+        .subtitle_manager()
+        .update_preference(preference.clone())
 }
 
 /// Retrieve the default options available for the subtitles.
@@ -196,6 +210,20 @@ pub extern "C" fn dispose_subtitle(subtitle: Box<SubtitleC>) {
     drop(subtitle)
 }
 
+/// Frees the memory allocated for the `SubtitlePreference` structure.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it's assumed that the `SubtitlePreference` structure was allocated using `Box`,
+/// and dropping a `Box` pointing to valid memory is safe. However, if the `SubtitlePreference` was allocated in a different way
+/// or if the memory was already deallocated, calling this function could lead to undefined behavior.
+///
+#[no_mangle]
+pub extern "C" fn dispose_subtitle_preference(subtitle_preference: Box<SubtitlePreference>) {
+    trace!("Disposing subtitle preference C {:?}", subtitle_preference);
+    drop(subtitle_preference)
+}
+
 #[cfg(test)]
 mod test {
     use std::path::PathBuf;
@@ -232,7 +260,9 @@ mod test {
             .update_preference(preference.clone());
 
         let result = retrieve_subtitle_preference(&mut instance);
-        assert_eq!(preference, result);
+
+        assert!(!result.is_null(), "expected a preference to be returned");
+        assert_eq!(preference, from_c_owned(result));
     }
 
     #[test]
@@ -243,9 +273,10 @@ mod test {
         let preference = SubtitlePreference::Language(SubtitleLanguage::French);
         let mut instance = new_instance(temp_path);
 
-        update_subtitle_preference(&mut instance, preference.clone());
+        update_subtitle_preference(&mut instance, &preference);
 
         let result = instance.subtitle_manager().preference();
+
         assert_eq!(preference, result);
     }
 
@@ -391,5 +422,13 @@ mod test {
         let subtitle_c = SubtitleC::from(subtitle);
 
         dispose_subtitle(Box::new(subtitle_c))
+    }
+
+    #[test]
+    fn test_dispose_subtitle_preference() {
+        init_logger();
+        let preference = SubtitlePreference::Language(SubtitleLanguage::Finnish);
+
+        dispose_subtitle_preference(Box::new(preference));
     }
 }

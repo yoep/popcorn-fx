@@ -60,7 +60,7 @@ public abstract class AbstractActionsComponent implements Initializable {
             subtitleService.updateSubtitle(subtitle);
             play();
         });
-        subtitles.setItemFactory(item -> new Button(item.getLanguage().getNativeName()));
+        subtitles.setItemFactory(item -> new Button(item.language().getNativeName()));
     }
 
     /**

@@ -4,12 +4,13 @@ import com.github.yoep.popcorn.backend.media.providers.Episode;
 import com.github.yoep.popcorn.backend.media.providers.MovieDetails;
 import com.github.yoep.popcorn.backend.media.providers.ShowDetails;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
+import com.github.yoep.popcorn.backend.subtitles.ffi.SubtitleEvent;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleEventCallback;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitlePreference;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 public interface SubtitleService {
@@ -62,7 +63,7 @@ public interface SubtitleService {
      * @param subtitleInfo The subtitle info to download and parse.
      * @return Returns the subtitle for the given subtitle info.
      */
-    CompletableFuture<Subtitle> downloadAndParse(SubtitleInfo subtitleInfo, SubtitleMatcher.ByValue matcher);
+    CompletableFuture<Subtitle> downloadAndParse(SubtitleInfo subtitleInfo, SubtitleMatcher.ByReference matcher);
 
     /**
      * Get the subtitle that needs to be selected by default for the given subtitles list.

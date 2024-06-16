@@ -2,10 +2,6 @@ package com.github.yoep.popcorn.backend.loader;
 
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
-import com.github.yoep.popcorn.backend.adapters.torrent.TorrentFileInfoWrapper;
-import com.github.yoep.popcorn.backend.adapters.torrent.TorrentInfoWrapper;
-import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentFileInfo;
-import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.LoadingStartedEvent;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;

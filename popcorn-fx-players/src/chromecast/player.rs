@@ -15,7 +15,9 @@ use tokio::sync::{Mutex, RwLock};
 use tokio::{runtime, time};
 use tokio_util::sync::CancellationToken;
 
-use popcorn_fx_core::core::players::{PlayRequest, Player, PlayerEvent, PlayerState};
+use popcorn_fx_core::core::players::{
+    PlayRequest, PlaySubtitleRequest, Player, PlayerEvent, PlayerState,
+};
 use popcorn_fx_core::core::subtitles::model::{Subtitle, SubtitleType};
 use popcorn_fx_core::core::subtitles::SubtitleServer;
 use popcorn_fx_core::core::{
@@ -241,15 +243,20 @@ impl<D: FxCastDevice + 'static> Player for ChromecastPlayer<D> {
                 // self.inner.runtime.spawn(Self::start_message_handler(inner, cancellation_token));
 
                 // serve the chromecast subtitle if one is present
-                let subtitle_url = request.subtitle().map(|e| e.clone()).and_then(|e| {
-                    match self.inner.subtitle_server.serve(e, SubtitleType::Vtt) {
-                        Ok(e) => Some(e),
-                        Err(e) => {
-                            error!("Failed to serve subtitle, {}", e);
-                            None
-                        }
-                    }
-                });
+                let subtitle_url = request
+                    .subtitle()
+                    .subtitle
+                    .as_ref()
+                    .map(|e| e.clone())
+                    .and_then(
+                        |e| match self.inner.subtitle_server.serve(e, SubtitleType::Vtt) {
+                            Ok(e) => Some(e),
+                            Err(e) => {
+                                error!("Failed to serve subtitle, {}", e);
+                                None
+                            }
+                        },
+                    );
 
                 if let Err(e) = self.inner.load(&app, &request, subtitle_url).await {
                     error!("Failed to load Chromecast media, {}", e);
@@ -540,7 +547,7 @@ impl<D: FxCastDevice> InnerChromecastPlayer<D> {
 
                         // serve the chromecast subtitle if one is present
                         let subtitle_url: Option<String>;
-                        if request.subtitles_enabled() {
+                        if request.subtitle().enabled {
                             subtitle_url = self.subtitle_url(&request);
                         } else {
                             subtitle_url = None;
@@ -835,15 +842,18 @@ impl<D: FxCastDevice> InnerChromecastPlayer<D> {
     ///
     /// The subtitle URL if available, or `None` if the subtitle is not present or could not be served.
     fn subtitle_url(&self, request: &Box<dyn PlayRequest>) -> Option<String> {
-        request.subtitle().map(|e| e.clone()).and_then(|e| {
-            match self.subtitle_server.serve(e, SubtitleType::Vtt) {
+        request
+            .subtitle()
+            .subtitle
+            .as_ref()
+            .map(|e| e.clone())
+            .and_then(|e| match self.subtitle_server.serve(e, SubtitleType::Vtt) {
                 Ok(e) => Some(e),
                 Err(e) => {
                     error!("Failed to serve subtitle, {}", e);
                     None
                 }
-            }
-        })
+            })
     }
 
     async fn handle_event(&self, event: chromecast::Result<ChannelMessage>) {
@@ -1133,11 +1143,7 @@ impl PlayRequest for TranscodingPlayRequest {
         None
     }
 
-    fn subtitles_enabled(&self) -> bool {
-        self.request.subtitles_enabled()
-    }
-
-    fn subtitle(&self) -> Option<&Subtitle> {
+    fn subtitle(&self) -> &PlaySubtitleRequest {
         self.request.subtitle()
     }
 }
@@ -1310,8 +1316,11 @@ mod tests {
                 thumb: Some("http://localhost/my-thumb.png".to_string()),
                 background: Some("http://localhost/my-background.png".to_string()),
                 auto_resume_timestamp: Some(28000),
-                subtitles_enabled: true,
-                subtitle: None,
+                subtitle: PlaySubtitleRequest {
+                    enabled: true,
+                    info: None,
+                    subtitle: None,
+                },
             },
             parent_media: None,
             media: Box::new(movie),

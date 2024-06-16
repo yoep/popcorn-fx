@@ -9,6 +9,7 @@ import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguag
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfoSet;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitlePreference;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Collections;
@@ -42,7 +43,9 @@ public class SubtitleServiceImpl implements SubtitleService {
 
     @Override
     public boolean isDisabled() {
-        return fxLib.is_subtitle_disabled(instance) == 1;
+        try (var preference = fxLib.retrieve_subtitle_preference(instance)) {
+            return preference.getTag() == SubtitlePreference.Tag.DISABLED;
+        }
     }
 
     @Override
@@ -147,7 +150,7 @@ public class SubtitleServiceImpl implements SubtitleService {
         synchronized (mutex) {
             if (subtitle != null) {
                 log.trace("Updating subtitle to {}", subtitle);
-                fxLib.update_subtitle(instance, subtitle);
+                fxLib.update_subtitle_preference(instance, new SubtitlePreference.ByValue(subtitle.getLanguage()));
             } else {
                 log.trace("Clearing the preferred subtitle");
                 fxLib.reset_subtitle(instance);
@@ -156,11 +159,10 @@ public class SubtitleServiceImpl implements SubtitleService {
     }
 
     @Override
-    public void updateCustomSubtitle(String subtitleFilepath) {
-        Objects.requireNonNull(subtitleFilepath, "subtitleFilepath cannot be null");
+    public void updatePreferredLanguage(SubtitleLanguage language) {
         synchronized (mutex) {
-            log.trace("Updating subtitle custom filepath to {}", subtitleFilepath);
-            fxLib.update_subtitle_custom_file(instance, subtitleFilepath);
+            log.trace("Updating preferred subtitle language to {}", language);
+            fxLib.update_subtitle_preference(instance, new SubtitlePreference.ByValue(language));
         }
     }
 
@@ -174,7 +176,7 @@ public class SubtitleServiceImpl implements SubtitleService {
     public void disableSubtitle() {
         synchronized (mutex) {
             log.trace("Disabling subtitle");
-            fxLib.disable_subtitle(instance);
+            fxLib.update_subtitle_preference(instance, SubtitlePreference.ByValue.disabled());
         }
     }
 

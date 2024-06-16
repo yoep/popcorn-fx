@@ -2,7 +2,7 @@ use std::sync::Weak;
 
 use crate::core::media::{MediaIdentifier, TorrentInfo};
 use crate::core::playlists::PlaylistItem;
-use crate::core::subtitles::model::Subtitle;
+use crate::core::subtitles::model::{Subtitle, SubtitleInfo};
 use crate::core::torrents::{Torrent, TorrentFileInfo, TorrentStream};
 
 /// A structure representing loading data for a media item.
@@ -22,8 +22,7 @@ pub struct LoadingData {
     pub torrent_file_info: Option<TorrentFileInfo>,
     pub quality: Option<String>,
     pub auto_resume_timestamp: Option<u64>,
-    pub subtitles_enabled: Option<bool>,
-    pub subtitle: Option<Subtitle>,
+    pub subtitle: SubtitleData,
     pub media_torrent_info: Option<TorrentInfo>,
     pub torrent: Option<Weak<Box<dyn Torrent>>>,
     pub torrent_stream: Option<Weak<Box<dyn TorrentStream>>>,
@@ -72,7 +71,6 @@ impl Clone for LoadingData {
             torrent_file_info: self.torrent_file_info.clone(),
             quality: self.quality.clone(),
             auto_resume_timestamp: self.auto_resume_timestamp,
-            subtitles_enabled: self.subtitles_enabled,
             subtitle: self.subtitle.clone(),
             media_torrent_info: self.media_torrent_info.clone(),
             torrent: self.torrent.clone(),
@@ -94,8 +92,7 @@ impl From<&str> for LoadingData {
             torrent_file_info: None,
             quality: None,
             auto_resume_timestamp: None,
-            subtitles_enabled: None,
-            subtitle: None,
+            subtitle: SubtitleData::default(),
             media_torrent_info: None,
             torrent: None,
             torrent_stream: None,
@@ -116,13 +113,23 @@ impl From<PlaylistItem> for LoadingData {
             torrent_file_info: value.torrent_file_info,
             quality: value.quality,
             auto_resume_timestamp: value.auto_resume_timestamp,
-            subtitles_enabled: Some(value.subtitles_enabled),
-            subtitle: None,
+            subtitle: SubtitleData {
+                enabled: Some(value.subtitles_enabled),
+                info: None,
+                subtitle: None,
+            },
             media_torrent_info: None,
             torrent: None,
             torrent_stream: None,
         }
     }
+}
+
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct SubtitleData {
+    pub enabled: Option<bool>,
+    pub info: Option<SubtitleInfo>,
+    pub subtitle: Option<Subtitle>,
 }
 
 #[cfg(test)]

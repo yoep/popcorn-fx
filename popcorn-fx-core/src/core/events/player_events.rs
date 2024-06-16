@@ -33,7 +33,7 @@ impl From<&Box<dyn PlayRequest>> for PlayerStartedEvent {
             background: value.background().clone(),
             quality: value.quality().clone(),
             auto_resume_timestamp: value.auto_resume_timestamp().clone(),
-            subtitles_enabled: value.subtitles_enabled(),
+            subtitles_enabled: value.subtitle().enabled,
         }
     }
 }

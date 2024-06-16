@@ -10,9 +10,11 @@ import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfigEvent;
+import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleEvent;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleFile;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
@@ -45,6 +47,7 @@ public class SubtitleManagerService {
 
     private String quality;
     private String url;
+    private SubtitleInfo subtitleInfo;
 
     public SubtitleManagerService(ApplicationConfig applicationConfig, VideoService videoService, SubtitleService subtitleService, SubtitlePickerService subtitlePickerService, LocaleText localeText, EventPublisher eventPublisher) {
         this.applicationConfig = applicationConfig;
@@ -267,7 +270,16 @@ public class SubtitleManagerService {
         // show the subtitle picker popup and let the user pick a subtitle file
         // if the user cancels the picking, we disable the subtitle
         subtitlePickerService.pickCustomSubtitle().ifPresentOrElse(
-                subtitleService::updateCustomSubtitle,
+                e -> {
+                    this.subtitleInfo = SubtitleInfo.builder()
+                            .language(SubtitleLanguage.CUSTOM)
+                            .files(new SubtitleFile.ByReference[]{SubtitleFile.ByReference.builder()
+                                    .name("Custom")
+                                    .url(e)
+                                    .build()})
+                            .build();
+                    this.subtitleService.updatePreferredLanguage(SubtitleLanguage.CUSTOM);
+                },
                 subtitleService::disableSubtitle
         );
 

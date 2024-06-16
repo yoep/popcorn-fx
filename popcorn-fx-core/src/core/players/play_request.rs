@@ -1,16 +1,23 @@
-use std::fmt::{Debug, Display};
 use std::fmt::Formatter;
+use std::fmt::{Debug, Display};
 use std::sync::Weak;
 
 use derive_more::Display;
-use downcast_rs::{DowncastSync, impl_downcast};
+use downcast_rs::{impl_downcast, DowncastSync};
 #[cfg(any(test, feature = "testing"))]
 use mockall::automock;
 
 use crate::core::loader::LoadingData;
 use crate::core::media::MediaIdentifier;
-use crate::core::subtitles::model::Subtitle;
+use crate::core::subtitles::model::{Subtitle, SubtitleInfo};
 use crate::core::torrents::TorrentStream;
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PlaySubtitleRequest {
+    pub enabled: bool,
+    pub info: Option<SubtitleInfo>,
+    pub subtitle: Option<Subtitle>,
+}
 
 /// A trait representing a play request for media playback.
 #[cfg_attr(any(test, feature = "testing"), automock)]
@@ -49,15 +56,10 @@ pub trait PlayRequest: Debug + Display + DowncastSync {
     /// Returns an optional `u64` representing the auto-resume timestamp in seconds, or `None` if not available.
     fn auto_resume_timestamp(&self) -> Option<u64>;
 
-    /// Check if subtitles are enabled for the media playback.
+    /// Get the subtitle playback information for the media.
     ///
-    /// Returns `true` if subtitles are enabled, `false` otherwise.
-    fn subtitles_enabled(&self) -> bool;
-
-    /// The selected subtitle for the media playback (if available).
-    ///
-    /// Returns the selected subtitle for the media playback if set, else `None`.
-    fn subtitle<'a>(&'a self) -> Option<&'a Subtitle>;
+    /// Returns a reference to the `PlaySubtitleRequest` information.
+    fn subtitle(&self) -> &PlaySubtitleRequest;
 }
 impl_downcast!(sync PlayRequest);
 
@@ -84,10 +86,8 @@ pub struct PlayUrlRequest {
     pub background: Option<String>,
     /// The auto-resume timestamp for media playback (if available).
     pub auto_resume_timestamp: Option<u64>,
-    /// Indicates whether subtitles are enabled for the media playback.
-    pub subtitles_enabled: bool,
-    /// The selected subtitle for the media playback (if available).
-    pub subtitle: Option<Subtitle>,
+    /// The subtitle playback information for this request.
+    pub subtitle: PlaySubtitleRequest,
 }
 
 impl PlayUrlRequest {
@@ -126,12 +126,8 @@ impl PlayRequest for PlayUrlRequest {
         self.auto_resume_timestamp.clone()
     }
 
-    fn subtitles_enabled(&self) -> bool {
-        self.subtitles_enabled
-    }
-
-    fn subtitle(&self) -> Option<&Subtitle> {
-        self.subtitle.as_ref()
+    fn subtitle(&self) -> &PlaySubtitleRequest {
+        &self.subtitle
     }
 }
 
@@ -144,15 +140,14 @@ impl Debug for PlayUrlRequest {
             .field("thumb", &self.thumb)
             .field("background", &self.background)
             .field("auto_resume_timestamp", &self.auto_resume_timestamp)
-            .field("subtitles_enabled", &self.subtitles_enabled)
-            .field("subtitle", &self.subtitle.is_some())
+            .field("subtitle", &self.subtitle)
             .finish()
     }
 }
 
 impl<S> From<S> for PlayUrlRequest
-    where
-        S: Into<String>,
+where
+    S: Into<String>,
 {
     fn from(value: S) -> Self {
         PlayUrlRequestBuilder::builder()
@@ -164,7 +159,7 @@ impl<S> From<S> for PlayUrlRequest
 
 impl From<LoadingData> for PlayUrlRequest {
     fn from(value: LoadingData) -> Self {
-        let subtitles_enabled = value.subtitles_enabled.unwrap_or(false);
+        let subtitles_enabled = value.subtitle.enabled.unwrap_or(false);
         let mut builder = PlayUrlRequestBuilder::builder()
             .url(
                 value
@@ -182,7 +177,7 @@ impl From<LoadingData> for PlayUrlRequest {
             builder = builder.auto_resume_timestamp(e);
         }
         if subtitles_enabled {
-            if let Some(e) = value.subtitle {
+            if let Some(e) = value.subtitle.subtitle {
                 builder = builder.subtitle(e);
             }
         }
@@ -201,6 +196,7 @@ pub struct PlayUrlRequestBuilder {
     background: Option<String>,
     auto_resume_timestamp: Option<u64>,
     subtitles_enabled: bool,
+    subtitle_info: Option<SubtitleInfo>,
     subtitle: Option<Subtitle>,
 }
 
@@ -224,8 +220,8 @@ impl PlayUrlRequestBuilder {
 
     /// Sets the caption of the associated media.
     pub fn caption<S: Into<String>>(mut self, caption: S) -> Self
-        where
-            S: Into<String>,
+    where
+        S: Into<String>,
     {
         self.caption = Some(caption.into());
         self
@@ -256,6 +252,12 @@ impl PlayUrlRequestBuilder {
     }
 
     /// Sets the selected subtitle for the media playback.
+    pub fn subtitle_info(mut self, subtitle_info: SubtitleInfo) -> Self {
+        self.subtitle_info = Some(subtitle_info);
+        self
+    }
+
+    /// Sets the selected subtitle for the media playback.
     pub fn subtitle(mut self, subtitle: Subtitle) -> Self {
         self.subtitle = Some(subtitle);
         self
@@ -274,8 +276,11 @@ impl PlayUrlRequestBuilder {
             thumb: self.thumb,
             background: self.background,
             auto_resume_timestamp: self.auto_resume_timestamp,
-            subtitles_enabled: self.subtitles_enabled,
-            subtitle: self.subtitle,
+            subtitle: PlaySubtitleRequest {
+                enabled: self.subtitles_enabled,
+                info: self.subtitle_info,
+                subtitle: self.subtitle,
+            },
         }
     }
 }
@@ -328,11 +333,7 @@ impl PlayRequest for PlayStreamRequest {
         self.base.auto_resume_timestamp()
     }
 
-    fn subtitles_enabled(&self) -> bool {
-        self.base.subtitles_enabled()
-    }
-
-    fn subtitle(&self) -> Option<&Subtitle> {
+    fn subtitle(&self) -> &PlaySubtitleRequest {
         self.base.subtitle()
     }
 }
@@ -345,7 +346,7 @@ impl PartialEq for PlayStreamRequest {
 
 impl From<LoadingData> for PlayStreamRequest {
     fn from(value: LoadingData) -> Self {
-        let subtitles_enabled = value.subtitles_enabled.unwrap_or(false);
+        let subtitles_enabled = value.subtitle.enabled.unwrap_or(false);
         let mut builder = Self::builder()
             .url(
                 value
@@ -377,7 +378,7 @@ impl From<LoadingData> for PlayStreamRequest {
             builder = builder.torrent_stream(e);
         }
         if subtitles_enabled {
-            if let Some(e) = value.subtitle {
+            if let Some(e) = value.subtitle.subtitle {
                 builder = builder.subtitle(e);
             }
         }
@@ -396,6 +397,7 @@ pub struct PlayStreamRequestBuilder {
     background: Option<String>,
     auto_resume_timestamp: Option<u64>,
     subtitles_enabled: bool,
+    subtitle_info: Option<SubtitleInfo>,
     subtitle: Option<Subtitle>,
     quality: Option<String>,
     torrent_stream: Option<Weak<Box<dyn TorrentStream>>>,
@@ -409,8 +411,8 @@ impl PlayStreamRequestBuilder {
 
     /// Sets the URL for the media to be played.
     pub fn url<S>(mut self, url: S) -> Self
-        where
-            S: Into<String>,
+    where
+        S: Into<String>,
     {
         self.url = Some(url.into());
         self
@@ -418,8 +420,8 @@ impl PlayStreamRequestBuilder {
 
     /// Sets the title of the media.
     pub fn title<S>(mut self, title: S) -> Self
-        where
-            S: Into<String>,
+    where
+        S: Into<String>,
     {
         self.title = Some(title.into());
         self
@@ -427,8 +429,8 @@ impl PlayStreamRequestBuilder {
 
     /// Sets the caption of the media.
     pub fn caption<S>(mut self, caption: S) -> Self
-        where
-            S: Into<String>,
+    where
+        S: Into<String>,
     {
         self.caption = Some(caption.into());
         self
@@ -436,8 +438,8 @@ impl PlayStreamRequestBuilder {
 
     /// Sets the URL of the thumbnail associated with the media.
     pub fn thumb<S>(mut self, thumb: S) -> Self
-        where
-            S: Into<String>,
+    where
+        S: Into<String>,
     {
         self.thumb = Some(thumb.into());
         self
@@ -445,8 +447,8 @@ impl PlayStreamRequestBuilder {
 
     /// Sets the URL of the background associated with the media.
     pub fn background<S>(mut self, background: S) -> Self
-        where
-            S: Into<String>,
+    where
+        S: Into<String>,
     {
         self.background = Some(background.into());
         self
@@ -464,6 +466,12 @@ impl PlayStreamRequestBuilder {
         self
     }
 
+    /// Sets the subtitle information for the media.
+    pub fn subtitle_info(mut self, subtitle_info: SubtitleInfo) -> Self {
+        self.subtitle_info = Some(subtitle_info);
+        self
+    }
+
     /// Sets the selected subtitle for the media.
     pub fn subtitle(mut self, subtitle: Subtitle) -> Self {
         self.subtitle = Some(subtitle);
@@ -472,8 +480,8 @@ impl PlayStreamRequestBuilder {
 
     /// Sets the quality information for the media.
     pub fn quality<S>(mut self, quality: S) -> Self
-        where
-            S: Into<String>,
+    where
+        S: Into<String>,
     {
         self.quality = Some(quality.into());
         self
@@ -502,8 +510,11 @@ impl PlayStreamRequestBuilder {
             thumb: self.thumb,
             background: self.background,
             auto_resume_timestamp: self.auto_resume_timestamp,
-            subtitles_enabled: self.subtitles_enabled,
-            subtitle: self.subtitle,
+            subtitle: PlaySubtitleRequest {
+                enabled: self.subtitles_enabled,
+                info: self.subtitle_info,
+                subtitle: self.subtitle,
+            },
         };
 
         PlayStreamRequest {
@@ -577,11 +588,7 @@ impl PlayRequest for PlayMediaRequest {
         self.base.auto_resume_timestamp()
     }
 
-    fn subtitles_enabled(&self) -> bool {
-        self.base.subtitles_enabled()
-    }
-
-    fn subtitle(&self) -> Option<&Subtitle> {
+    fn subtitle(&self) -> &PlaySubtitleRequest {
         self.base.subtitle()
     }
 }
@@ -606,7 +613,7 @@ impl Clone for PlayMediaRequest {
 
 impl From<LoadingData> for PlayMediaRequest {
     fn from(value: LoadingData) -> Self {
-        let subtitles_enabled = value.subtitles_enabled.unwrap_or(false);
+        let subtitles_enabled = value.subtitle.enabled.unwrap_or(false);
         let mut builder = Self::builder()
             .url(
                 value
@@ -650,7 +657,7 @@ impl From<LoadingData> for PlayMediaRequest {
             builder = builder.torrent_stream(e);
         }
         if subtitles_enabled {
-            if let Some(e) = value.subtitle {
+            if let Some(e) = value.subtitle.subtitle {
                 builder = builder.subtitle(e);
             }
         }
@@ -675,6 +682,7 @@ pub struct PlayMediaRequestBuilder {
     background: Option<String>,
     auto_resume_timestamp: Option<u64>,
     subtitles_enabled: bool,
+    subtitle_info: Option<SubtitleInfo>,
     subtitle: Option<Subtitle>,
     media: Option<Box<dyn MediaIdentifier>>,
     parent_media: Option<Box<dyn MediaIdentifier>>,
@@ -690,8 +698,8 @@ impl PlayMediaRequestBuilder {
 
     /// Sets the URL for the media to be played.
     pub fn url<S>(mut self, url: S) -> Self
-        where
-            S: Into<String>,
+    where
+        S: Into<String>,
     {
         self.url = Some(url.into());
         self
@@ -699,8 +707,8 @@ impl PlayMediaRequestBuilder {
 
     /// Sets the title of the media.
     pub fn title<S>(mut self, title: S) -> Self
-        where
-            S: Into<String>,
+    where
+        S: Into<String>,
     {
         self.title = Some(title.into());
         self
@@ -708,8 +716,8 @@ impl PlayMediaRequestBuilder {
 
     /// Sets the caption of the media.
     pub fn caption<S>(mut self, caption: S) -> Self
-        where
-            S: Into<String>,
+    where
+        S: Into<String>,
     {
         self.caption = Some(caption.into());
         self
@@ -717,8 +725,8 @@ impl PlayMediaRequestBuilder {
 
     /// Sets the URL of the thumbnail associated with the media.
     pub fn thumb<S>(mut self, thumb: S) -> Self
-        where
-            S: Into<String>,
+    where
+        S: Into<String>,
     {
         self.thumb = Some(thumb.into());
         self
@@ -726,8 +734,8 @@ impl PlayMediaRequestBuilder {
 
     /// Sets the URL of the background associated with the media.
     pub fn background<S>(mut self, background: S) -> Self
-        where
-            S: Into<String>,
+    where
+        S: Into<String>,
     {
         self.background = Some(background.into());
         self
@@ -742,6 +750,12 @@ impl PlayMediaRequestBuilder {
     /// Sets whether subtitles are enabled for the media playback.
     pub fn subtitles_enabled(mut self, subtitles_enabled: bool) -> Self {
         self.subtitles_enabled = subtitles_enabled;
+        self
+    }
+
+    /// Sets the subtitle information for the media playback.
+    pub fn subtitle_info(mut self, subtitle_info: SubtitleInfo) -> Self {
+        self.subtitle_info = Some(subtitle_info);
         self
     }
 
@@ -765,8 +779,8 @@ impl PlayMediaRequestBuilder {
 
     /// Sets the quality information for the media.
     pub fn quality<S>(mut self, quality: S) -> Self
-        where
-            S: Into<String>,
+    where
+        S: Into<String>,
     {
         self.quality = Some(quality.into());
         self
@@ -795,8 +809,11 @@ impl PlayMediaRequestBuilder {
             thumb: self.thumb,
             background: self.background,
             auto_resume_timestamp: self.auto_resume_timestamp,
-            subtitles_enabled: self.subtitles_enabled,
-            subtitle: self.subtitle,
+            subtitle: PlaySubtitleRequest {
+                enabled: self.subtitles_enabled,
+                info: self.subtitle_info,
+                subtitle: self.subtitle,
+            },
         };
 
         PlayMediaRequest {
@@ -813,6 +830,7 @@ impl PlayMediaRequestBuilder {
 
 #[cfg(test)]
 mod tests {
+    use crate::core::loader::SubtitleData;
     use std::sync::Arc;
 
     use crate::core::media::{Episode, Images, MovieOverview, ShowOverview};
@@ -836,8 +854,11 @@ mod tests {
             thumb: Some(thumb.to_string()),
             background: Some(background.to_string()),
             auto_resume_timestamp: Some(auto_resume),
-            subtitles_enabled: true,
-            subtitle: None,
+            subtitle: PlaySubtitleRequest {
+                enabled: true,
+                info: None,
+                subtitle: None,
+            },
         };
 
         let result = PlayUrlRequestBuilder::builder()
@@ -869,8 +890,7 @@ mod tests {
             torrent_file_info: None,
             quality: None,
             auto_resume_timestamp: Some(auto_resume.clone()),
-            subtitles_enabled: None,
-            subtitle: None,
+            subtitle: SubtitleData::default(),
             media_torrent_info: None,
             torrent: None,
             torrent_stream: None,
@@ -882,8 +902,11 @@ mod tests {
             thumb: None,
             background: None,
             auto_resume_timestamp: Some(auto_resume),
-            subtitles_enabled: false,
-            subtitle: None,
+            subtitle: PlaySubtitleRequest {
+                enabled: false,
+                info: None,
+                subtitle: None,
+            },
         };
 
         let result = PlayUrlRequest::from(data);
@@ -926,8 +949,11 @@ mod tests {
                 thumb: Some(thumb.to_string()),
                 background: None,
                 auto_resume_timestamp: None,
-                subtitles_enabled: false,
-                subtitle: None,
+                subtitle: PlaySubtitleRequest {
+                    enabled: false,
+                    info: None,
+                    subtitle: None,
+                },
             },
             parent_media: Some(Box::new(show.clone())),
             media: Box::new(episode.clone()),
@@ -990,8 +1016,11 @@ mod tests {
                 thumb: None,
                 background: Some(background.to_string()),
                 auto_resume_timestamp: None,
-                subtitles_enabled,
-                subtitle: None,
+                subtitle: PlaySubtitleRequest {
+                    enabled: subtitles_enabled,
+                    info: None,
+                    subtitle: None,
+                },
             },
             parent_media: None,
             media: Box::new(media),
@@ -1055,8 +1084,11 @@ mod tests {
                 thumb: None,
                 background: Some(background.to_string()),
                 auto_resume_timestamp: None,
-                subtitles_enabled,
-                subtitle: None,
+                subtitle: PlaySubtitleRequest {
+                    enabled: subtitles_enabled,
+                    info: None,
+                    subtitle: None,
+                },
             },
             parent_media: Some(Box::new(media)),
             media: Box::new(episode),
@@ -1085,8 +1117,11 @@ mod tests {
             torrent_file_info: None,
             quality: None,
             auto_resume_timestamp: None,
-            subtitles_enabled: Some(true),
-            subtitle: None,
+            subtitle: SubtitleData {
+                enabled: Some(true),
+                info: None,
+                subtitle: None,
+            },
             media_torrent_info: None,
             torrent: None,
             torrent_stream: None,
@@ -1098,8 +1133,11 @@ mod tests {
             thumb: Some(thumb.to_string()),
             background: None,
             auto_resume_timestamp: None,
-            subtitles_enabled: true,
-            subtitle: None,
+            subtitle: PlaySubtitleRequest {
+                enabled: true,
+                info: None,
+                subtitle: None,
+            },
         };
 
         let result = PlayUrlRequest::from(data);

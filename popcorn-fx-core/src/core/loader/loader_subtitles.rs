@@ -17,7 +17,9 @@ use crate::core::subtitles;
 use crate::core::subtitles::language::SubtitleLanguage;
 use crate::core::subtitles::matcher::SubtitleMatcher;
 use crate::core::subtitles::model::{Subtitle, SubtitleInfo};
-use crate::core::subtitles::{SubtitleError, SubtitleManager, SubtitleProvider};
+use crate::core::subtitles::{
+    SubtitleError, SubtitleManager, SubtitlePreference, SubtitleProvider,
+};
 
 /// Represents a strategy for loading subtitles.
 #[derive(Display)]
@@ -53,7 +55,7 @@ impl SubtitlesLoadingStrategy {
     /// # Arguments
     ///
     /// * `data` - The loading data.
-    async fn update_to_default_subtitle(&self, data: &LoadingData) {
+    async fn update_to_default_subtitle(&self, data: &mut LoadingData) {
         debug!("Loading subtitles for {:?}", data);
         let subtitles: subtitles::Result<Vec<SubtitleInfo>>;
 
@@ -79,7 +81,7 @@ impl SubtitlesLoadingStrategy {
                 .select_or_default(subtitles.as_slice());
 
             debug!("Updating subtitle to {} for {:?}", subtitle, data);
-            self.subtitle_manager.update_subtitle(subtitle);
+            data.subtitle.info = Some(subtitle);
         }
     }
 
@@ -206,26 +208,27 @@ impl LoadingStrategy for SubtitlesLoadingStrategy {
         event_channel: Sender<LoadingEvent>,
         cancel: CancellationToken,
     ) -> LoadingResult {
-        if data.subtitles_enabled.unwrap_or(false) {
+        if data.subtitle.enabled.unwrap_or(false) {
             trace!("Subtitle manager state {:?}", self.subtitle_manager);
             if cancel.is_cancelled() {
                 return LoadingResult::Err(LoadingError::Cancelled);
             }
 
-            if !self.subtitle_manager.is_disabled_async().await {
-                if self.subtitle_manager.preferred_language() == SubtitleLanguage::None {
+            let subtitle_preference = self.subtitle_manager.preference_async().await;
+            if subtitle_preference != SubtitlePreference::Disabled {
+                if subtitle_preference == SubtitlePreference::Language(SubtitleLanguage::None) {
                     trace!("Processing subtitle info for {:?}", data);
                     event_channel
                         .send(LoadingEvent::StateChanged(
                             LoadingState::RetrievingSubtitles,
                         ))
                         .unwrap();
-                    self.update_to_default_subtitle(&data).await;
+                    self.update_to_default_subtitle(&mut data).await;
                 } else {
                     debug!("Subtitle has already been selected for {:?}", data);
                 }
 
-                if let Some(info) = self.subtitle_manager.preferred_subtitle() {
+                if let Some(info) = data.subtitle.info.as_ref() {
                     if cancel.is_cancelled() {
                         return LoadingResult::Err(LoadingError::Cancelled);
                     }
@@ -238,7 +241,7 @@ impl LoadingStrategy for SubtitlesLoadingStrategy {
                     trace!("Downloading subtitle for {:?}", data);
                     if let Some(subtitle) = self.download_subtitle(&info, &data).await {
                         let subtitle_filename = subtitle.file().to_string();
-                        data.subtitle = Some(subtitle);
+                        data.subtitle.subtitle = Some(subtitle);
                         info!(
                             "Subtitle {} has been downloaded for {:?}",
                             subtitle_filename, data.url
@@ -336,22 +339,13 @@ mod tests {
             )));
         let mut manager = MockSubtitleManager::new();
         manager
-            .expect_is_disabled_async()
+            .expect_preference_async()
             .times(1)
-            .return_const(false);
-        manager
-            .expect_preferred_language()
-            .times(1)
-            .return_const(SubtitleLanguage::None);
-        manager
-            .expect_preferred_subtitle()
-            .times(..2)
-            .returning(|| Some(SubtitleInfo::none()));
+            .return_const(SubtitlePreference::Language(SubtitleLanguage::None));
         manager
             .expect_select_or_default()
             .times(1)
             .returning(|_| SubtitleInfo::none());
-        manager.expect_update_subtitle().times(1).return_const(());
         let loader = SubtitlesLoadingStrategy::new(
             Arc::new(Box::new(provider)),
             Arc::new(Box::new(manager)),
@@ -413,22 +407,13 @@ mod tests {
             )));
         let mut manager = MockSubtitleManager::new();
         manager
-            .expect_is_disabled_async()
+            .expect_preference_async()
             .times(1)
-            .return_const(false);
-        manager
-            .expect_preferred_language()
-            .times(1)
-            .return_const(SubtitleLanguage::None);
-        manager
-            .expect_preferred_subtitle()
-            .times(..2)
-            .returning(|| Some(SubtitleInfo::none()));
+            .return_const(SubtitlePreference::Language(SubtitleLanguage::None));
         manager
             .expect_select_or_default()
             .times(1)
             .returning(|_| SubtitleInfo::none());
-        manager.expect_update_subtitle().times(1).return_const(());
         let loader = SubtitlesLoadingStrategy::new(
             Arc::new(Box::new(provider)),
             Arc::new(Box::new(manager)),
@@ -477,7 +462,10 @@ mod tests {
             .expect_movie_subtitles()
             .returning(|_| panic!("movie_subtitles should not have been invoked"));
         let mut manager = MockSubtitleManager::new();
-        manager.expect_is_disabled_async().return_const(true);
+        manager
+            .expect_preference_async()
+            .times(1)
+            .return_const(SubtitlePreference::Disabled);
         let manager = Arc::new(Box::new(manager) as Box<dyn SubtitleManager>);
         let loader = SubtitlesLoadingStrategy::new(Arc::new(Box::new(provider)), manager);
 
@@ -520,13 +508,8 @@ mod tests {
             .return_const(subtitles::Result::Ok(Vec::new()));
         let mut manager = MockSubtitleManager::new();
         manager
-            .expect_is_disabled_async()
-            .times(0)
-            .return_const(true);
-        manager
-            .expect_preferred_subtitle()
-            .times(0)
-            .return_const(Some(SubtitleInfo::custom()));
+            .expect_preference_async()
+            .return_const(SubtitlePreference::Disabled);
         let loader = SubtitlesLoadingStrategy::new(
             Arc::new(Box::new(provider)),
             Arc::new(Box::new(manager)),

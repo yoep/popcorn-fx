@@ -2,9 +2,9 @@ use std::os::raw::c_char;
 
 use log::{trace, warn};
 
-use popcorn_fx_core::core::Handle;
 use popcorn_fx_core::core::playlists::PlaylistItem;
 use popcorn_fx_core::core::torrents::{TorrentFileInfo, TorrentInfo};
+use popcorn_fx_core::core::Handle;
 use popcorn_fx_core::from_c_string;
 
 use crate::ffi::{
@@ -135,7 +135,7 @@ mod tests {
     use tempfile::tempdir;
 
     use popcorn_fx_core::core::loader::{
-        HIGHEST_ORDER, LoadingResult, LoadingState, MockLoadingStrategy,
+        LoadingResult, LoadingState, MockLoadingStrategy, HIGHEST_ORDER,
     };
     use popcorn_fx_core::core::media::MovieDetails;
     use popcorn_fx_core::core::playlists::PlaylistItem;
@@ -237,7 +237,7 @@ mod tests {
 
         let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
         assert_eq!(Some(filename.to_string()), result.title);
-        assert_eq!(Some(true), result.subtitles_enabled);
+        assert_eq!(Some(true), result.subtitle.enabled);
     }
 
     #[test]

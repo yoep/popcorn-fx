@@ -95,7 +95,7 @@ public class PopcornTimeApplication extends Application {
             IOC.registerInstance(new VideoQualityService(applicationConfig));
             IOC.registerInstance(new ImageService(fxLib, popcornFx, executorService));
             IOC.registerInstance(new ShowHelperService(localeText, watchedService));
-            IOC.registerInstance(new SubtitlePickerService(localeText, viewManager, subtitleService));
+            IOC.registerInstance(new SubtitlePickerService(localeText, viewManager));
             IOC.registerInstance(new TorrentCollectionService(fxLib, popcornFx));
 
             // services

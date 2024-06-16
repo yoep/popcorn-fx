@@ -7,7 +7,9 @@ import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowTorrentDetailsEvent;
 import com.github.yoep.popcorn.backend.loader.LoaderService;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
+import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleFile;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.CloseTorrentDetailsEvent;
@@ -57,6 +59,7 @@ public class DetailsTorrentComponent implements Initializable {
     private final PlaylistManager playlistManager;
 
     private TorrentInfo torrentInfo;
+    private SubtitleInfo subtitleInfo;
 
     @FXML
     ListView<TorrentFileInfo> torrentList;
@@ -128,6 +131,7 @@ public class DetailsTorrentComponent implements Initializable {
     private void onShowTorrentDetails(ShowTorrentDetailsEvent event) {
         log.debug("Processing details of torrent info {}", event.getTorrentInfo().getName());
         this.torrentInfo = event.getTorrentInfo();
+        this.subtitleInfo = null;
         var validFiles = torrentInfo.getFiles().stream()
                 .filter(e -> {
                     var extension = FilenameUtils.getExtension(e.getFilename());
@@ -146,9 +150,19 @@ public class DetailsTorrentComponent implements Initializable {
 
     private void onSubtitleChanged(SubtitleInfo subtitleInfo) {
         if (subtitleInfo.isCustom()) {
-            subtitlePickerService.pickCustomSubtitle().ifPresent(subtitleService::updateCustomSubtitle);
+            subtitlePickerService.pickCustomSubtitle()
+                    .ifPresent(e -> {
+                        this.subtitleInfo = SubtitleInfo.builder()
+                                .language(SubtitleLanguage.CUSTOM)
+                                .files(new SubtitleFile.ByReference[]{SubtitleFile.ByReference.builder()
+                                        .name("Custom")
+                                        .url(e)
+                                        .build()})
+                                .build();
+                        subtitleService.updatePreferredLanguage(SubtitleLanguage.CUSTOM);
+                    });
         } else {
-            subtitleService.updateSubtitle(subtitleInfo);
+            subtitleService.updatePreferredLanguage(subtitleInfo.getLanguage());
         }
     }
 

@@ -12,7 +12,7 @@ import java.util.Optional;
 
 @Getter
 @ToString
-@Structure.FieldOrder({"url", "title", "caption", "thumb", "background", "quality", "autoResumeTimestamp", "streamHandle", "subtitlesEnabled"})
+@Structure.FieldOrder({"url", "title", "caption", "thumb", "background", "quality", "autoResumeTimestamp", "streamHandle", "subtitle"})
 public class PlayRequestWrapper extends Structure implements Closeable, PlayRequest {
     public static class ByValue extends PlayRequestWrapper implements Structure.ByValue {
     }
@@ -25,7 +25,7 @@ public class PlayRequestWrapper extends Structure implements Closeable, PlayRequ
     public Pointer quality;
     public Pointer autoResumeTimestamp;
     public Pointer streamHandle;
-    public byte subtitlesEnabled;
+    public PlaySubtitleRequest.ByValue subtitle;
 
     private String cachedCaption;
     private String cachedThumb;
@@ -35,7 +35,7 @@ public class PlayRequestWrapper extends Structure implements Closeable, PlayRequ
     private Handle cachedStreamHandle;
 
     public boolean isSubtitlesEnabled() {
-        return subtitlesEnabled == 1;
+        return subtitle.enabled == 1;
     }
 
     @Override
@@ -95,5 +95,6 @@ public class PlayRequestWrapper extends Structure implements Closeable, PlayRequ
     @Override
     public void close() {
         setAutoSynch(false);
+        subtitle.close();
     }
 }

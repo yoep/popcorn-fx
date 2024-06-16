@@ -10,15 +10,15 @@ use thiserror::Error;
 use tokio::runtime::Runtime;
 use tokio::sync::Mutex;
 
-use crate::core::{block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks, Handle};
-use crate::core::loader::{LoadingData, LoadingEvent, LoadingStrategy};
 use crate::core::loader::loading_chain::{LoadingChain, Order};
 use crate::core::loader::task::LoadingTask;
+use crate::core::loader::{LoadingData, LoadingEvent, LoadingStrategy};
 use crate::core::media::{
     Episode, Images, MediaIdentifier, MediaOverview, MovieDetails, ShowDetails,
 };
 use crate::core::playlists::PlaylistItem;
 use crate::core::torrents::{DownloadStatus, Magnet, TorrentError};
+use crate::core::{block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks, Handle};
 
 /// Represents the result of a loading operation.
 ///
@@ -513,7 +513,7 @@ mod tests {
     use std::time::Duration;
 
     use crate::core::loader::loading_chain::DEFAULT_ORDER;
-    use crate::core::loader::MockLoadingStrategy;
+    use crate::core::loader::{MockLoadingStrategy, SubtitleData};
     use crate::testing::init_logger;
 
     use super::*;
@@ -536,8 +536,7 @@ mod tests {
             media_torrent_info: None,
             torrent: None,
             torrent_stream: None,
-            subtitles_enabled: None,
-            subtitle: None,
+            subtitle: SubtitleData::default(),
         };
 
         let result = LoadingData::from(url);
@@ -572,8 +571,11 @@ mod tests {
             torrent_file_info: None,
             quality: None,
             auto_resume_timestamp: None,
-            subtitles_enabled: Some(false),
-            subtitle: None,
+            subtitle: SubtitleData {
+                enabled: Some(false),
+                info: None,
+                subtitle: None,
+            },
             media_torrent_info: None,
             torrent: None,
             torrent_stream: None,

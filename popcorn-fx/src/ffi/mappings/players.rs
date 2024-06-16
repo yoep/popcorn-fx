@@ -8,16 +8,16 @@ use derive_more::Display;
 use log::trace;
 use tokio::sync::Mutex;
 
-use popcorn_fx_core::{from_c_string, from_c_vec, into_c_owned, into_c_string, into_c_vec};
+use popcorn_fx_core::core::players::{
+    PlayMediaRequest, PlayRequest, PlayStreamRequest, PlaySubtitleRequest, PlayUrlRequest, Player,
+    PlayerEvent, PlayerManagerEvent, PlayerState,
+};
 use popcorn_fx_core::core::{
     block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks,
 };
-use popcorn_fx_core::core::players::{
-    Player, PlayerEvent, PlayerManagerEvent, PlayerState, PlayMediaRequest, PlayRequest,
-    PlayStreamRequest, PlayUrlRequest,
-};
+use popcorn_fx_core::{from_c_string, from_c_vec, into_c_owned, into_c_string, into_c_vec};
 
-use crate::ffi::PlayerChangedEventC;
+use crate::ffi::{PlayerChangedEventC, SubtitleInfoC};
 
 /// A C-compatible callback function type for player manager events.
 pub type PlayerManagerEventCallback = extern "C" fn(PlayerManagerEventC);
@@ -425,6 +425,28 @@ impl From<PlayerManagerEvent> for PlayerManagerEventC {
     }
 }
 
+#[repr(C)]
+#[derive(Debug)]
+pub struct PlaySubtitleRequestC {
+    pub enabled: bool,
+    pub info: *mut SubtitleInfoC,
+}
+
+impl From<&PlaySubtitleRequest> for PlaySubtitleRequestC {
+    fn from(value: &PlaySubtitleRequest) -> Self {
+        let info = if let Some(info) = value.info.clone() {
+            into_c_owned(SubtitleInfoC::from(info))
+        } else {
+            ptr::null_mut()
+        };
+
+        Self {
+            enabled: value.enabled,
+            info,
+        }
+    }
+}
+
 /// Represents a play request in C-compatible form.
 #[repr(C)]
 #[derive(Debug)]
@@ -446,8 +468,8 @@ pub struct PlayRequestC {
     /// The stream handle pointer of the play request.
     /// This handle can be used to retrieve more information about the underlying stream.
     pub stream_handle: *mut i64,
-    /// Indicates whether subtitles are enabled for the media.
-    pub subtitles_enabled: bool,
+    /// The subtitle playback information for this request
+    pub subtitle: PlaySubtitleRequestC,
 }
 
 impl From<&PlayUrlRequest> for PlayRequestC {
@@ -487,7 +509,7 @@ impl From<&PlayUrlRequest> for PlayRequestC {
             background,
             quality,
             auto_resume_timestamp,
-            subtitles_enabled: value.subtitles_enabled,
+            subtitle: PlaySubtitleRequestC::from(value.subtitle()),
             stream_handle: ptr::null_mut(),
         }
     }
@@ -538,8 +560,8 @@ impl From<&PlayStreamRequest> for PlayRequestC {
             background,
             quality,
             auto_resume_timestamp,
-            subtitles_enabled: value.subtitles_enabled(),
             stream_handle,
+            subtitle: PlaySubtitleRequestC::from(value.subtitle()),
         }
     }
 }
@@ -589,8 +611,8 @@ impl From<&PlayMediaRequest> for PlayRequestC {
             background,
             quality,
             auto_resume_timestamp,
-            subtitles_enabled: value.subtitles_enabled(),
             stream_handle,
+            subtitle: PlaySubtitleRequestC::from(value.subtitle()),
         }
     }
 }
@@ -635,12 +657,12 @@ mod tests {
 
     use log::info;
 
-    use popcorn_fx_core::{from_c_owned, from_c_vec};
-    use popcorn_fx_core::core::Handle;
     use popcorn_fx_core::core::media::MovieOverview;
     use popcorn_fx_core::core::players::PlayerChange;
     use popcorn_fx_core::core::torrents::TorrentStream;
+    use popcorn_fx_core::core::Handle;
     use popcorn_fx_core::testing::{init_logger, MockPlayer, MockTorrentStream};
+    use popcorn_fx_core::{from_c_owned, from_c_vec};
 
     use super::*;
 

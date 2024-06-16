@@ -93,15 +93,17 @@ public interface SubtitleService {
      * Passing `null` will disable the subtitle for the next media playback item.
      *
      * @param subtitle The new subtitle info to prefer on the next playback, or null.
+     * @deprecated Use {@link #updatePreferredLanguage(SubtitleLanguage)} instead.
      */
+    @Deprecated
     void updateSubtitle(SubtitleInfo subtitle);
 
     /**
-     * Update the subtitle to a custom filepath.
+     * Update the preferred subtitle language for the media playback.
      *
-     * @param subtitleFilepath The filepath to the custom subtitle file.
+     * @param language The new subtitle language to prefer on the next playback.
      */
-    void updateCustomSubtitle(String subtitleFilepath);
+    void updatePreferredLanguage(SubtitleLanguage language);
 
     /**
      * Register a new subtitle callback which will be invoked for new {@link SubtitleEvent}'s.

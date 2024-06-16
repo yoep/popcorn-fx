@@ -27,6 +27,7 @@ import static java.util.Arrays.asList;
 @EqualsAndHashCode(of = {"imdbId", "language"}, callSuper = false)
 @Structure.FieldOrder({"imdbId", "language", "files", "len"})
 public class SubtitleInfo extends Structure implements Closeable {
+    @EqualsAndHashCode(callSuper = true)
     public static class ByReference extends SubtitleInfo implements Structure.ByReference {
         public ByReference() {
         }

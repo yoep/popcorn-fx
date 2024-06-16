@@ -4,14 +4,17 @@ import com.github.yoep.player.popcorn.listeners.PlaybackListener;
 import com.github.yoep.player.popcorn.listeners.PlayerSubtitleListener;
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
+import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitlePreference;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
@@ -86,19 +89,43 @@ class PlayerSubtitleServiceTest {
     }
 
     @Test
-    void testPlaybackListener_whenRequestIsShowPlayRequest_shouldInvokeListenersWithAvailableEpisodeSubtitles() {
+    void testPlaybackListener_whenRequestIsShowPlayRequestWithoutSubtitle_shouldInvokeListenersWithAvailableEpisodeSubtitles() {
+        var language = SubtitleLanguage.ENGLISH;
         var activeSubtitle = mock(SubtitleInfo.ByReference.class);
         var request = mock(PlayRequest.class);
         var availableSubtitles = asList(mock(SubtitleInfo.class), mock(SubtitleInfo.class));
         when(request.getUrl()).thenReturn("http://localhost:8080/MyFilename.mp4");
         when(request.isSubtitlesEnabled()).thenReturn(true);
+        when(request.getSubtitleInfo()).thenReturn(Optional.empty());
+        when(subtitleService.preference()).thenReturn(new SubtitlePreference.ByValue(SubtitleLanguage.NONE));
         when(subtitleService.retrieveSubtitles(isA(String.class))).thenReturn(CompletableFuture.completedFuture(availableSubtitles));
-        when(subtitleService.preferredSubtitle()).thenReturn(Optional.of(activeSubtitle));
+        when(subtitleService.getDefaultOrInterfaceLanguage(availableSubtitles)).thenReturn(activeSubtitle);
+        when(activeSubtitle.getLanguage()).thenReturn(language);
 
         listenerHolder.get().onPlay(request);
 
         verify(listener).onAvailableSubtitlesChanged(availableSubtitles, activeSubtitle);
         verify(subtitleService).retrieveSubtitles("MyFilename.mp4");
+        verify(subtitleService).updatePreferredLanguage(language);
+    }
+
+    @Test
+    void testPlaybackListener_whenRequestIsShowPlayRequestWithSubtitle_shouldInvokeListenersWithRequestSubtitle() {
+        var language = SubtitleLanguage.SPANISH;
+        var activeSubtitle = mock(SubtitleInfo.ByReference.class);
+        var request = mock(PlayRequest.class);
+        var availableSubtitles = asList(mock(SubtitleInfo.class), mock(SubtitleInfo.class));
+        when(request.getUrl()).thenReturn("http://localhost:8080/MyFilename.mp4");
+        when(request.isSubtitlesEnabled()).thenReturn(true);
+        when(request.getSubtitleInfo()).thenReturn(Optional.of(activeSubtitle));
+        when(subtitleService.preference()).thenReturn(new SubtitlePreference.ByValue(language));
+        when(subtitleService.retrieveSubtitles(isA(String.class))).thenReturn(CompletableFuture.completedFuture(availableSubtitles));
+
+        listenerHolder.get().onPlay(request);
+
+        verify(listener).onAvailableSubtitlesChanged(availableSubtitles, activeSubtitle);
+        verify(subtitleService).retrieveSubtitles("MyFilename.mp4");
+        verify(subtitleService, times(0)).getDefaultOrInterfaceLanguage(isA(List.class));
     }
 
     @Test
@@ -117,7 +144,9 @@ class PlayerSubtitleServiceTest {
         var availableSubtitles = asList(mock(SubtitleInfo.class), mock(SubtitleInfo.class));
         when(request.isSubtitlesEnabled()).thenReturn(true);
         when(request.getUrl()).thenReturn(filename);
+        when(subtitleService.preference()).thenReturn(new SubtitlePreference.ByValue(SubtitleLanguage.NONE));
         when(subtitleService.retrieveSubtitles(filename)).thenReturn(CompletableFuture.completedFuture(availableSubtitles));
+        when(subtitleService.getDefaultOrInterfaceLanguage(availableSubtitles)).thenReturn(subtitleNone);
 
         listenerHolder.get().onPlay(request);
 

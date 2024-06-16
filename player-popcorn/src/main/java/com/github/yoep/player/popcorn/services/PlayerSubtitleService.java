@@ -6,7 +6,6 @@ import com.github.yoep.player.popcorn.listeners.PlayerSubtitleListener;
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
-import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitlePreference;
@@ -15,6 +14,8 @@ import org.apache.commons.io.FilenameUtils;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
 public class PlayerSubtitleService extends AbstractListenerService<PlayerSubtitleListener> {
@@ -26,6 +27,10 @@ public class PlayerSubtitleService extends AbstractListenerService<PlayerSubtitl
     private final PlaybackListener listener = createListener();
 
     public PlayerSubtitleService(VideoService videoService, SubtitleService subtitleService, SubtitleManagerService subtitleManagerService, FxLib fxLib) {
+        Objects.requireNonNull(videoService, "videoService cannot be null");
+        Objects.requireNonNull(subtitleService, "subtitleService cannot be null");
+        Objects.requireNonNull(subtitleManagerService, "subtitleManagerService cannot be null");
+        Objects.requireNonNull(fxLib, "fxLib cannot be null");
         this.videoService = videoService;
         this.subtitleService = subtitleService;
         this.subtitleManagerService = subtitleManagerService;
@@ -70,26 +75,36 @@ public class PlayerSubtitleService extends AbstractListenerService<PlayerSubtitl
                 invokeListeners(e -> e.onAvailableSubtitlesChanged(Collections.singletonList(defaultSubtitle), defaultSubtitle));
             }
 
-            String filename = FilenameUtils.getName(request.getUrl());
+            var filename = FilenameUtils.getName(request.getUrl());
 
             log.debug("Retrieving subtitles for \"{}\"", filename);
-            subtitleService.retrieveSubtitles(filename).whenComplete(this::handleSubtitlesResponse);
+            subtitleService.retrieveSubtitles(filename).whenComplete((subtitles, throwable) ->
+                    handleSubtitlesResponse(request.getSubtitleInfo().orElse(null), subtitles, throwable));
         }
     }
 
-    private void handleSubtitlesResponse(final List<SubtitleInfo> subtitles, Throwable throwable) {
+    private void handleSubtitlesResponse(SubtitleInfo requestSubtitle, List<SubtitleInfo> subtitles, Throwable throwable) {
         if (throwable == null) {
             log.trace("Available subtitles have been retrieved");
             try (var preference = subtitleService.preference()) {
-                if (preference.getTag() != SubtitlePreference.Tag.DISABLED && preference.getUnion().getLanguage_body().getLanguage() == SubtitleLanguage.NONE) {
-                    log.trace("Selecting a new default subtitle to enable during playback");
-                    var subtitleInfo = subtitleService.getDefaultOrInterfaceLanguage(subtitles);
-                    subtitleService.updatePreferredLanguage(subtitleInfo.getLanguage());
-                    invokeListeners(e -> e.onAvailableSubtitlesChanged(subtitles, subtitleInfo));
+                var tag = preference.getTag();
+                var activeSubtitle = new AtomicReference<>(subtitleService.none());
+
+                if (tag != SubtitlePreference.Tag.DISABLED) {
+                    if (requestSubtitle == null || requestSubtitle.isNone()) {
+                        log.trace("Selecting a new default subtitle to enable during playback");
+                        activeSubtitle.set(subtitleService.getDefaultOrInterfaceLanguage(subtitles));
+                        subtitleService.updatePreferredLanguage(activeSubtitle.get().getLanguage());
+                    } else {
+                        log.trace("Using request subtitle {}", requestSubtitle);
+                        activeSubtitle.set(requestSubtitle);
+                    }
                 }
+
+                invokeListeners(e -> e.onAvailableSubtitlesChanged(subtitles, activeSubtitle.get()));
             }
         } else {
-            log.error("Failed to retrieve subtitles, " + throwable.getMessage(), throwable);
+            log.error("Failed to retrieve subtitles, {}", throwable.getMessage(), throwable);
         }
     }
 

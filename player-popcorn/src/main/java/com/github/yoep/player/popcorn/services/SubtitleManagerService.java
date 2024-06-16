@@ -46,9 +46,9 @@ public class SubtitleManagerService {
     private final LocaleText localeText;
     private final EventPublisher eventPublisher;
 
-    private String quality;
-    private String url;
-    private SubtitleInfo subtitleInfo;
+    String quality;
+    String url;
+    SubtitleInfo subtitleInfo;
 
     public SubtitleManagerService(ApplicationConfig applicationConfig, VideoService videoService, SubtitleService subtitleService, SubtitlePickerService subtitlePickerService, LocaleText localeText, EventPublisher eventPublisher) {
         this.applicationConfig = applicationConfig;
@@ -199,7 +199,8 @@ public class SubtitleManagerService {
             return;
 
         // invoke the subtitle changed again for the new player
-        // TODO
+        Optional.ofNullable(subtitleInfo)
+                .ifPresent(this::onSubtitleChanged);
     }
 
     private void onSubtitleDownloaded(Subtitle subtitle) {
@@ -220,6 +221,8 @@ public class SubtitleManagerService {
     }
 
     private void onSubtitleChanged(SubtitleInfo subtitleInfo) {
+        this.subtitleInfo = subtitleInfo;
+
         // check if the subtitle is being disabled
         // if so, update the subtitle to none and ignore the subtitle download & parsing
         if (subtitleService.isDisabled() || subtitleInfo == null || subtitleInfo.isNone()) {

@@ -17,6 +17,7 @@ import com.github.yoep.popcorn.backend.subtitles.SubtitleEventCallback;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitlePreference;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.view.services.SubtitlePickerService;
 import javafx.beans.property.ObjectProperty;
@@ -124,11 +125,12 @@ class SubtitleManagerServiceTest {
 
     @Test
     void testUpdateSubtitle_whenSubtitleIsGivenAndNotCustom_shouldDownloadAndActivateTheSubtitle() {
+        var language = SubtitleLanguage.DUTCH;
         var subtitleInfo = mock(SubtitleInfo.ByReference.class);
         var subtitle = mock(Subtitle.class);
         var request = mock(PlayRequest.class);
-        when(subtitleInfo.getLanguage()).thenReturn(SubtitleLanguage.DUTCH);
-        when(subtitleService.preferredSubtitle()).thenReturn(Optional.of(subtitleInfo));
+        when(subtitleInfo.getLanguage()).thenReturn(language);
+        when(subtitleService.preference()).thenReturn(new SubtitlePreference.ByValue(language));
         when(subtitleService.downloadAndParse(isA(SubtitleInfo.class), isA(SubtitleMatcher.ByValue.class))).thenReturn(CompletableFuture.completedFuture(subtitle));
         when(request.getUrl()).thenReturn("http://localhost:9000/MyVideo.mp4");
         var service = new SubtitleManagerService(settingsService, videoService, subtitleService, subtitlePickerService, localeText, eventPublisher);
@@ -142,14 +144,16 @@ class SubtitleManagerServiceTest {
 
     @Test
     void testUpdateSubtitle_whenSubtitleDownloadFails_shouldPublishErrorNotification() {
+        var language = SubtitleLanguage.FINNISH;
         var expectedErrorText = "my error text";
         var subtitleInfo = mock(SubtitleInfo.ByReference.class);
         var request = mock(PlayRequest.class);
-        when(subtitleService.preferredSubtitle()).thenReturn(Optional.of(subtitleInfo));
+        when(request.getUrl()).thenReturn("http://localhost:9000/MyVideo.mp4");
+        when(subtitleInfo.getLanguage()).thenReturn(language);
+        when(subtitleService.preference()).thenReturn(new SubtitlePreference.ByValue(language));
         when(subtitleService.downloadAndParse(eq(subtitleInfo), isA(SubtitleMatcher.ByValue.class)))
                 .thenReturn(CompletableFuture.failedFuture(new RuntimeException("my subtitle exception")));
         when(localeText.get(VideoMessage.SUBTITLE_DOWNLOAD_FILED)).thenReturn(expectedErrorText);
-        when(request.getUrl()).thenReturn("http://localhost:9000/MyVideo.mp4");
         var service = new SubtitleManagerService(settingsService, videoService, subtitleService, subtitlePickerService, localeText, eventPublisher);
         var listener = playbackListenerHolder.get();
         listener.onPlay(request);
@@ -166,7 +170,7 @@ class SubtitleManagerServiceTest {
         var videoPlayer = mock(VideoPlayback.class);
         var subtitleFile = new File(".");
         var request = mock(PlayRequest.class);
-        when(subtitleService.preferredSubtitle()).thenReturn(Optional.of(subtitleInfo));
+        when(subtitleService.preference()).thenReturn(new SubtitlePreference.ByValue(SubtitleLanguage.GERMAN));
         when(subtitleService.downloadAndParse(eq(subtitleInfo), isA(SubtitleMatcher.ByValue.class))).thenReturn(CompletableFuture.completedFuture(subtitle));
         when(videoService.getVideoPlayer()).thenReturn(Optional.of(videoPlayer));
         when(videoPlayer.supportsNativeSubtitleFile()).thenReturn(true);
@@ -183,9 +187,6 @@ class SubtitleManagerServiceTest {
 
     @Test
     void testSubtitleListener_whenSubtitleIsChangedToCustom_shouldLetTheUserPickASubtitle() {
-        var url = "my-video-url";
-        var quality = "720p";
-        var title = "my-video-title";
         var custom = mock(SubtitleInfo.ByReference.class);
         var event = new SubtitleEvent.ByValue();
         var request = mock(PlayRequest.class);
@@ -204,7 +205,7 @@ class SubtitleManagerServiceTest {
         var listener = listenerHolder.get();
         listener.callback(event);
 
-        verify(subtitleService).updateCustomSubtitle(expected_filepath);
+        verify(subtitleService).updatePreferredLanguage(SubtitleLanguage.CUSTOM);
     }
 
     @Test
@@ -246,7 +247,7 @@ class SubtitleManagerServiceTest {
         var videoPlayback = mock(VideoPlayback.class);
         var subtitleFuture = new CompletableFuture<Subtitle>();
         var request = mock(PlayRequest.class);
-        when(subtitleService.preferredSubtitle()).thenReturn(Optional.of(subtitleInfo));
+        when(subtitleService.preference()).thenReturn(new SubtitlePreference.ByValue(SubtitleLanguage.POLISH));
         when(subtitleService.downloadAndParse(eq(subtitleInfo), isA(SubtitleMatcher.ByValue.class))).thenReturn(CompletableFuture.completedFuture(subtitle));
         when(videoService.getVideoPlayer()).thenReturn(Optional.of(videoPlayback));
         when(videoPlayback.supportsNativeSubtitleFile()).thenReturn(false);
@@ -266,6 +267,7 @@ class SubtitleManagerServiceTest {
             }
         });
 
+        service.updateSubtitle(subtitleInfo);
         videoPlaybackProperty.set(videoPlayback);
 
         var result = subtitleFuture.get(200, TimeUnit.MILLISECONDS);

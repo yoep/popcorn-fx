@@ -266,9 +266,8 @@ pub mod testing {
     use crate::core::platform::{Platform, PlatformCallback, PlatformData, PlatformInfo};
     use crate::core::playback::MediaNotificationEvent;
     use crate::core::players::{PlayRequest, Player, PlayerEvent, PlayerState};
-    use crate::core::subtitles::language::SubtitleLanguage;
     use crate::core::subtitles::model::SubtitleInfo;
-    use crate::core::subtitles::{SubtitleEvent, SubtitleManager};
+    use crate::core::subtitles::{SubtitleEvent, SubtitleManager, SubtitlePreference};
     use crate::core::torrents::{
         Torrent, TorrentCallback, TorrentState, TorrentStream, TorrentStreamCallback,
         TorrentStreamState, TorrentStreamingResourceWrapper,
@@ -443,14 +442,10 @@ pub mod testing {
 
         #[async_trait]
         impl SubtitleManager for SubtitleManager {
-            fn preferred_subtitle(&self) -> Option<SubtitleInfo>;
-            fn preferred_language(&self) -> SubtitleLanguage;
-            fn is_disabled(&self) -> bool;
-            async fn is_disabled_async(&self) -> bool;
-            fn update_subtitle(&self, subtitle: SubtitleInfo);
-            fn update_custom_subtitle(&self, subtitle_file: &str);
+            fn preference(&self) -> SubtitlePreference;
+            async fn preference_async(&self) -> SubtitlePreference;
+            fn update_preference(&self, preference: SubtitlePreference);
             fn select_or_default(&self, subtitles: &[SubtitleInfo]) -> SubtitleInfo;
-            fn disable_subtitle(&self);
             fn reset(&self);
             fn cleanup(&self);
         }

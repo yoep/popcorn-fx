@@ -1,13 +1,13 @@
 package com.github.yoep.popcorn.backend.playlists;
 
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentFileInfoWrapper;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentInfoWrapper;
 import com.github.yoep.popcorn.backend.media.MediaItem;
 import com.github.yoep.popcorn.backend.media.providers.Media;
 import com.github.yoep.popcorn.backend.media.providers.MovieDetails;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.sun.jna.Structure;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
-import lombok.ToString;
+import lombok.*;
 
 import java.io.Closeable;
 import java.util.Optional;
@@ -16,7 +16,7 @@ import java.util.Optional;
 @ToString(of = "title")
 @EqualsAndHashCode(exclude = {"parentMedia", "media"}, callSuper = false)
 @NoArgsConstructor
-@Structure.FieldOrder({"url", "title", "caption", "thumb", "quality", "parentMedia", "media", "autoResumeTimestamp", "subtitlesEnabled"})
+@Structure.FieldOrder({"url", "title", "caption", "thumb", "quality", "parentMedia", "media", "autoResumeTimestamp", "subtitlesEnabled", "subtitleInfo", "torrentInfo", "torrentFileInfo"})
 public class PlaylistItem extends Structure implements Closeable {
     public static class ByReference extends PlaylistItem implements Structure.ByReference {
     }
@@ -30,6 +30,9 @@ public class PlaylistItem extends Structure implements Closeable {
     public MediaItem.ByReference media;
     public Long autoResumeTimestamp;
     public byte subtitlesEnabled;
+    public SubtitleInfo.ByReference subtitleInfo;
+    public TorrentInfoWrapper.ByReference torrentInfo;
+    public TorrentFileInfoWrapper.ByReference torrentFileInfo;
 
     public PlaylistItem(String url, String title) {
         this.url = url;
@@ -41,6 +44,33 @@ public class PlaylistItem extends Structure implements Closeable {
         this.title = title;
         this.thumb = thumb;
         this.media = media;
+    }
+
+    @Builder
+    public PlaylistItem(String url,
+                        String title,
+                        String caption,
+                        String thumb,
+                        String quality,
+                        MediaItem.ByReference parentMedia,
+                        MediaItem.ByReference media,
+                        Long autoResumeTimestamp,
+                        boolean subtitlesEnabled,
+                        SubtitleInfo.ByReference subtitleInfo,
+                        TorrentInfoWrapper.ByReference torrentInfo,
+                        TorrentFileInfoWrapper.ByReference torrentFileInfo) {
+        this.url = url;
+        this.title = title;
+        this.caption = caption;
+        this.thumb = thumb;
+        this.quality = quality;
+        this.parentMedia = parentMedia;
+        this.media = media;
+        this.autoResumeTimestamp = autoResumeTimestamp;
+        this.subtitlesEnabled = (byte) (subtitlesEnabled ? 1 : 0);
+        this.subtitleInfo = subtitleInfo;
+        this.torrentInfo = torrentInfo;
+        this.torrentFileInfo = torrentFileInfo;
     }
 
     public Optional<String> getUrl() {

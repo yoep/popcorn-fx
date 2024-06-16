@@ -31,12 +31,12 @@ import com.github.yoep.popcorn.backend.playlists.PlaylistManagerCallback;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManagerEvent;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfigEventCallback;
 import com.github.yoep.popcorn.backend.settings.models.*;
-import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleEventCallback;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfoSet;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitlePreference;
 import com.github.yoep.popcorn.backend.torrent.*;
 import com.github.yoep.popcorn.backend.torrent.collection.StoredTorrentSet;
 import com.github.yoep.popcorn.backend.updater.UpdateCallback;
@@ -86,17 +86,9 @@ public interface FxLib extends Library {
 
     SubtitleInfo.ByReference select_or_default_subtitle(PopcornFx instance, SubtitleInfoSet.ByReference subtitleSet);
 
-    SubtitleInfo.ByReference retrieve_preferred_subtitle(PopcornFx instance);
-
-    SubtitleLanguage retrieve_preferred_subtitle_language(PopcornFx instance);
-
-    byte is_subtitle_disabled(PopcornFx instance);
-
-    void update_subtitle(PopcornFx instance, SubtitleInfo subtitle);
-
-    void update_subtitle_custom_file(PopcornFx instance, String filepath);
-
-    void disable_subtitle(PopcornFx instance);
+    SubtitlePreference.ByValue retrieve_subtitle_preference(PopcornFx instance);
+    
+    void update_subtitle_preference(PopcornFx instance, SubtitlePreference.ByValue preference);
 
     void reset_subtitle(PopcornFx instance);
 
@@ -267,8 +259,6 @@ public interface FxLib extends Library {
     void register_loader_callback(PopcornFx instance, LoaderEventCallback callback);
 
     Long loader_load(PopcornFx instance, String url);
-
-    Long loader_load_torrent_file(PopcornFx instance, TorrentInfoWrapper.ByValue torrentInfo, TorrentFileInfoWrapper.ByValue torrentFile);
 
     void loader_cancel(PopcornFx instance, Long handle);
 

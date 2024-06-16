@@ -2,7 +2,6 @@ package com.github.yoep.popcorn.ui.view.services;
 
 import com.github.yoep.popcorn.backend.messages.SubtitleMessage;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleException;
-import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.view.ViewManager;
 import javafx.stage.FileChooser;
@@ -15,14 +14,12 @@ import java.util.Optional;
 public class SubtitlePickerService {
     private final LocaleText localeText;
     private final ViewManager viewManager;
-    private final SubtitleService subtitleService;
 
     private final FileChooser fileChooser = new FileChooser();
 
-    public SubtitlePickerService(LocaleText localeText, ViewManager viewManager, SubtitleService subtitleService) {
+    public SubtitlePickerService(LocaleText localeText, ViewManager viewManager) {
         this.localeText = localeText;
         this.viewManager = viewManager;
-        this.subtitleService = subtitleService;
         init();
     }
 
@@ -46,8 +43,6 @@ public class SubtitlePickerService {
         if (file != null) {
             // update the initial directory for next time
             fileChooser.setInitialDirectory(file.getParentFile());
-            subtitleService.updateCustomSubtitle(file.getAbsolutePath());
-
             return Optional.of(file.getAbsolutePath());
         }
 

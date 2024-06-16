@@ -1,21 +1,21 @@
 use std::env;
 use std::path::PathBuf;
 use std::str::FromStr;
-use std::sync::{Arc, Once};
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Once};
 
 use clap::Parser;
 use derive_more::Display;
 use directories::{BaseDirs, UserDirs};
-use log::{error, info, LevelFilter, warn};
+use log::{error, info, warn, LevelFilter};
 use log4rs::append::console::ConsoleAppender;
-use log4rs::append::rolling_file::policy::compound::CompoundPolicy;
 use log4rs::append::rolling_file::policy::compound::roll::fixed_window::FixedWindowRoller;
 use log4rs::append::rolling_file::policy::compound::trigger::size::SizeTrigger;
+use log4rs::append::rolling_file::policy::compound::CompoundPolicy;
 use log4rs::append::rolling_file::RollingFileAppender;
 use log4rs::config::{Appender, Logger, Root};
-use log4rs::Config;
 use log4rs::encode::pattern::PatternEncoder;
+use log4rs::Config;
 use tokio::runtime::Runtime;
 
 use popcorn_fx_core::core::block_in_place;
@@ -32,10 +32,10 @@ use popcorn_fx_core::core::loader::{
 use popcorn_fx_core::core::media::favorites::{
     DefaultFavoriteService, FavoriteCacheUpdater, FavoriteService,
 };
+use popcorn_fx_core::core::media::providers::enhancers::ThumbEnhancer;
 use popcorn_fx_core::core::media::providers::{
     FavoritesProvider, MovieProvider, ProviderManager, ShowProvider,
 };
-use popcorn_fx_core::core::media::providers::enhancers::ThumbEnhancer;
 use popcorn_fx_core::core::media::resume::{AutoResumeService, DefaultAutoResumeService};
 use popcorn_fx_core::core::media::tracking::{SyncMediaTracking, TrackingProvider};
 use popcorn_fx_core::core::media::watched::{DefaultWatchedService, WatchedService};
@@ -44,21 +44,21 @@ use popcorn_fx_core::core::playback::PlaybackControls;
 use popcorn_fx_core::core::players::{DefaultPlayerManager, PlayerManager};
 use popcorn_fx_core::core::playlists::PlaylistManager;
 use popcorn_fx_core::core::screen::{DefaultScreenService, ScreenService};
+use popcorn_fx_core::core::subtitles::model::SubtitleType;
+use popcorn_fx_core::core::subtitles::parsers::{SrtParser, VttParser};
 use popcorn_fx_core::core::subtitles::{
     DefaultSubtitleManager, SubtitleManager, SubtitleProvider, SubtitleServer,
 };
-use popcorn_fx_core::core::subtitles::model::SubtitleType;
-use popcorn_fx_core::core::subtitles::parsers::{SrtParser, VttParser};
-use popcorn_fx_core::core::torrents::{TorrentManager, TorrentStreamServer};
 use popcorn_fx_core::core::torrents::collection::TorrentCollection;
 use popcorn_fx_core::core::torrents::stream::DefaultTorrentStreamServer;
+use popcorn_fx_core::core::torrents::{TorrentManager, TorrentStreamServer};
 use popcorn_fx_core::core::updater::Updater;
 use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
 use popcorn_fx_platform::platform::DefaultPlatform;
 use popcorn_fx_players::chromecast::ChromecastDiscovery;
-use popcorn_fx_players::Discovery;
 use popcorn_fx_players::dlna::DlnaDiscovery;
 use popcorn_fx_players::vlc::VlcDiscovery;
+use popcorn_fx_players::Discovery;
 use popcorn_fx_torrent::torrent::DefaultTorrentManager;
 use popcorn_fx_trakt::trakt::TraktProvider;
 
@@ -233,10 +233,9 @@ impl PopcornFX {
                 .build(),
         ));
         let subtitle_server = Arc::new(SubtitleServer::new(subtitle_provider.clone()));
-        let subtitle_manager = Arc::new(Box::new(DefaultSubtitleManager::new(
-            settings.clone(),
-            event_publisher.clone(),
-        )) as Box<dyn SubtitleManager>);
+        let subtitle_manager = Arc::new(
+            Box::new(DefaultSubtitleManager::new(settings.clone())) as Box<dyn SubtitleManager>
+        );
         let platform = Arc::new(Box::new(DefaultPlatform::default()) as Box<dyn PlatformData>);
         let favorites_service =
             Arc::new(Box::new(DefaultFavoriteService::new(app_directory_path))
@@ -698,6 +697,7 @@ mod test {
 
     use popcorn_fx_core::core::config::{ApplicationConfigEvent, LoggingProperties};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
+    use popcorn_fx_core::core::subtitles::SubtitlePreference;
     use popcorn_fx_core::testing::{copy_test_file, init_logger};
 
     use crate::test::default_args;
@@ -714,11 +714,12 @@ mod test {
         let _ = popcorn_fx.platform().info();
         let _ = popcorn_fx.subtitle_server();
 
-        let preferred_language = popcorn_fx.subtitle_manager().preferred_language();
-        let preferred_subtitle = popcorn_fx.subtitle_manager().preferred_subtitle();
+        let preference = popcorn_fx.subtitle_manager().preference();
 
-        assert_eq!(SubtitleLanguage::None, preferred_language);
-        assert_eq!(None, preferred_subtitle);
+        assert_eq!(
+            SubtitlePreference::Language(SubtitleLanguage::None),
+            preference
+        );
     }
 
     #[test]

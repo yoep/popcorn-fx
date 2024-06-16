@@ -812,6 +812,11 @@ struct PlayerEventC {
   };
 };
 
+struct PlaySubtitleRequestC {
+  bool enabled;
+  SubtitleInfoC *info;
+};
+
 /// Represents a play request in C-compatible form.
 struct PlayRequestC {
   /// The URL of the media to be played.
@@ -831,8 +836,8 @@ struct PlayRequestC {
   /// The stream handle pointer of the play request.
   /// This handle can be used to retrieve more information about the underlying stream.
   int64_t *stream_handle;
-  /// Indicates whether subtitles are enabled for the media.
-  bool subtitles_enabled;
+  /// The subtitle playback information for this request
+  PlaySubtitleRequestC subtitle;
 };
 
 /// Represents events related to player management in C-compatible form.
@@ -902,6 +907,12 @@ struct PlaylistItemC {
   const uint64_t *auto_resume_timestamp;
   /// A boolean flag indicating whether subtitles are enabled for the playlist item.
   bool subtitles_enabled;
+  /// A pointer to the subtitle information for the playlist item, if available, else [ptr::null_mut()].
+  SubtitleInfoC *subtitle_info;
+  /// A pointer to the torrent information for the playlist item, if applicable, else [ptr::null_mut()].
+  TorrentInfoC *torrent_info;
+  /// A pointer to the torrent file information for the playlist item, if applicable, else [ptr::null_mut()].
+  TorrentFileInfoC *torrent_file_info;
 };
 
 /// A C-compatible struct representing information about the next item to be played.
@@ -1233,25 +1244,38 @@ struct ApplicationConfigEventC {
 /// The C callback for the setting events.
 using ApplicationConfigCallbackC = void(*)(ApplicationConfigEventC);
 
-/// The C compatible [SubtitleEvent] representation
-struct SubtitleEventC {
+/// Represents user preferences for subtitles.
+struct SubtitlePreference {
   enum class Tag {
-    SubtitleInfoChanged,
-    PreferredLanguageChanged,
+    /// Specifies a preferred subtitle language.
+    Language,
+    /// Indicates subtitles are disabled.
+    Disabled,
   };
 
-  struct SubtitleInfoChanged_Body {
-    SubtitleInfoC *_0;
-  };
-
-  struct PreferredLanguageChanged_Body {
+  struct Language_Body {
     SubtitleLanguage _0;
   };
 
   Tag tag;
   union {
-    SubtitleInfoChanged_Body subtitle_info_changed;
-    PreferredLanguageChanged_Body preferred_language_changed;
+    Language_Body language;
+  };
+};
+
+/// The C compatible [SubtitleEvent] representation
+struct SubtitleEventC {
+  enum class Tag {
+    PreferenceChanged,
+  };
+
+  struct PreferenceChanged_Body {
+    SubtitlePreference _0;
+  };
+
+  Tag tag;
+  union {
+    PreferenceChanged_Body preference_changed;
   };
 };
 
@@ -1509,10 +1533,6 @@ void cleanup_torrents_directory(PopcornFX *popcorn_fx);
 ///
 /// A pointer to a `SubtitleInfoSet` instance.
 SubtitleInfoSet *default_subtitle_options(PopcornFX *popcorn_fx);
-
-/// Disable the subtitle track on request of the user.
-/// This will make the [is_subtitle_disabled] return `true`.
-void disable_subtitle(PopcornFX *popcorn_fx);
 
 /// Starts the discovery process for external players such as VLC and DLNA servers.
 void discover_external_players(PopcornFX *popcorn_fx);
@@ -1793,11 +1813,6 @@ bool is_media_watched(PopcornFX *popcorn_fx, const MediaItemC *watchable);
 /// the backend itself.
 bool is_mouse_disabled(PopcornFX *popcorn_fx);
 
-/// Verify if the subtitle has been disabled by the user.
-///
-/// It returns true when the subtitle track should be disabled, else false.
-bool is_subtitle_disabled(PopcornFX *popcorn_fx);
-
 /// Verify if the TV mode is activated for the application.
 bool is_tv_mode(PopcornFX *popcorn_fx);
 
@@ -1893,23 +1908,6 @@ void loader_cancel(PopcornFX *instance, LoadingHandleC handle);
 ///
 /// A `LoadingHandleC` representing the loading process associated with the loaded item.
 LoadingHandleC loader_load(PopcornFX *instance, char *url);
-
-/// Loads a torrent file using its information and file details.
-///
-/// # Safety
-///
-/// This function accepts values to C structs (`TorrentInfoC` and `TorrentFileInfoC`) as arguments.
-///
-/// # Arguments
-///
-/// * `instance` - A mutable reference to the PopcornFX instance.
-/// * `torrent_info` - Information about the torrent.
-/// * `torrent_file` - Details of the torrent file.
-///
-/// # Returns
-///
-/// Returns a handle to the loading process.
-LoadingHandleC loader_load_torrent_file(PopcornFX *instance, TorrentInfoC torrent_info, TorrentFileInfoC torrent_file);
 
 /// Logs a message sent over FFI using the Rust logger.
 ///
@@ -2397,23 +2395,6 @@ MediaSetResult retrieve_available_shows(PopcornFX *popcorn_fx, const GenreC *gen
 /// It returns the [MediaItemC] on success, else a [ptr::null_mut].
 MediaResult retrieve_media_details(PopcornFX *popcorn_fx, const MediaItemC *media);
 
-/// Retrieves the preferred subtitle from the PopcornFX instance.
-///
-/// # Arguments
-///
-/// * `popcorn_fx` - A mutable reference to the PopcornFX instance.
-///
-/// # Returns
-///
-/// Returns a pointer to the preferred subtitle information in C-compatible format.
-/// If no preferred subtitle is found, it returns a null pointer.
-SubtitleInfoC *retrieve_preferred_subtitle(PopcornFX *popcorn_fx);
-
-/// Retrieve the preferred subtitle language for the next [Media] item playback.
-///
-/// It returns the preferred subtitle language.
-SubtitleLanguage retrieve_preferred_subtitle_language(PopcornFX *popcorn_fx);
-
 /// Retrieve the array of available genres for the given provider.
 ///
 /// It returns an empty list when the provider name doesn't exist.
@@ -2423,6 +2404,9 @@ StringArray *retrieve_provider_genres(PopcornFX *popcorn_fx, char *name);
 ///
 /// It returns an empty list when the provider name doesn't exist.
 StringArray *retrieve_provider_sort_by(PopcornFX *popcorn_fx, char *name);
+
+/// Retrieves the current subtitle preference from PopcornFX.
+SubtitlePreference retrieve_subtitle_preference(PopcornFX *popcorn_fx);
 
 /// Retrieve all watched movie id's.
 ///
@@ -2624,13 +2608,13 @@ void update_server_settings(PopcornFX *popcorn_fx, ServerSettingsC settings);
 /// The current update state of the application as a [UpdateStateC] value.
 UpdateStateC update_state(PopcornFX *popcorn_fx);
 
-/// Update the preferred subtitle for the [Media] item playback.
-/// This action will reset any custom configured subtitle files.
-void update_subtitle(PopcornFX *popcorn_fx, const SubtitleInfoC *subtitle);
-
-/// Update the preferred subtitle to a custom subtitle filepath.
-/// This action will reset any preferred subtitle.
-void update_subtitle_custom_file(PopcornFX *popcorn_fx, char *custom_filepath);
+/// Updates the subtitle preference for PopcornFX.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - Mutable reference to the PopcornFX instance.
+/// * `preference` - The new subtitle preference to set.
+void update_subtitle_preference(PopcornFX *popcorn_fx, SubtitlePreference preference);
 
 /// Update the subtitle settings with the new value.
 void update_subtitle_settings(PopcornFX *popcorn_fx, SubtitleSettingsC subtitle_settings);

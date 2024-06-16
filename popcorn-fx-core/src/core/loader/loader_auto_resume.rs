@@ -1,6 +1,6 @@
 use std::fmt::{Debug, Formatter};
-use std::sync::Arc;
 use std::sync::mpsc::Sender;
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use derive_more::Display;
@@ -104,9 +104,9 @@ mod tests {
     use std::time::Duration;
 
     use crate::core::block_in_place;
-    use crate::core::media::MovieOverview;
     use crate::core::media::resume::MockAutoResumeService;
-    use crate::core::playlists::PlaylistItem;
+    use crate::core::media::MovieOverview;
+    use crate::core::playlists::{PlaylistItem, PlaylistMedia, PlaylistSubtitle, PlaylistTorrent};
     use crate::core::torrents::TorrentFileInfo;
 
     use super::*;
@@ -128,18 +128,25 @@ mod tests {
             title: "FooBar".to_string(),
             caption: None,
             thumb: None,
-            parent_media: None,
-            media: Some(Box::new(movie)),
-            torrent_info: None,
-            torrent_file_info: Some(TorrentFileInfo {
-                filename: filename.to_string(),
-                file_path: "".to_string(),
-                file_size: 1254788,
-                file_index: 0,
-            }),
+            media: PlaylistMedia {
+                parent: None,
+                media: Some(Box::new(movie)),
+            },
             quality: None,
             auto_resume_timestamp: Some(24000),
-            subtitles_enabled: false,
+            subtitle: PlaylistSubtitle {
+                enabled: false,
+                info: None,
+            },
+            torrent: PlaylistTorrent {
+                info: None,
+                file_info: Some(TorrentFileInfo {
+                    filename: filename.to_string(),
+                    file_path: "".to_string(),
+                    file_size: 1254788,
+                    file_index: 0,
+                }),
+            },
         };
         let data = LoadingData::from(item);
         let (tx, rx) = channel();
@@ -196,18 +203,22 @@ mod tests {
             title: "FooBar".to_string(),
             caption: None,
             thumb: None,
-            parent_media: None,
-            media: None,
-            torrent_info: None,
-            torrent_file_info: Some(TorrentFileInfo {
-                filename: filename.to_string(),
-                file_path: "".to_string(),
-                file_size: 1254788,
-                file_index: 0,
-            }),
+            media: PlaylistMedia::default(),
             quality: None,
             auto_resume_timestamp: Some(24000),
-            subtitles_enabled: false,
+            subtitle: PlaylistSubtitle {
+                enabled: false,
+                info: None,
+            },
+            torrent: PlaylistTorrent {
+                info: None,
+                file_info: Some(TorrentFileInfo {
+                    filename: filename.to_string(),
+                    file_path: "".to_string(),
+                    file_size: 1254788,
+                    file_index: 0,
+                }),
+            },
         };
         let data = LoadingData::from(item);
         let (tx, rx) = channel();
@@ -260,13 +271,17 @@ mod tests {
             title: title.to_string(),
             caption: None,
             thumb: None,
-            parent_media: None,
-            media: None,
-            torrent_info: None,
-            torrent_file_info: None,
+            media: PlaylistMedia::default(),
             quality: None,
             auto_resume_timestamp: Some(24000),
-            subtitles_enabled: false,
+            subtitle: PlaylistSubtitle {
+                enabled: false,
+                info: None,
+            },
+            torrent: PlaylistTorrent {
+                info: None,
+                file_info: None,
+            },
         };
         let mut data = LoadingData::from(item);
         let auto_resume = MockAutoResumeService::new();

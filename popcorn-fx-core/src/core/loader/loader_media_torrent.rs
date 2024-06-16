@@ -9,7 +9,7 @@ use tokio_util::sync::CancellationToken;
 use crate::core::loader::{
     CancellationResult, LoadingData, LoadingError, LoadingEvent, LoadingResult, LoadingStrategy,
 };
-use crate::core::media::{DEFAULT_AUDIO_LANGUAGE, Episode, MediaType, MovieDetails, TorrentInfo};
+use crate::core::media::{Episode, MediaType, MovieDetails, TorrentInfo, DEFAULT_AUDIO_LANGUAGE};
 
 /// Represents a strategy for loading media torrent URLs.
 #[derive(Display)]
@@ -130,7 +130,7 @@ mod tests {
     use std::sync::mpsc::channel;
 
     use crate::core::block_in_place;
-    use crate::core::playlists::PlaylistItem;
+    use crate::core::playlists::{PlaylistItem, PlaylistMedia};
     use crate::testing::init_logger;
 
     use super::*;
@@ -157,27 +157,28 @@ mod tests {
             title: "LoremIpsum".to_string(),
             caption: None,
             thumb: None,
-            parent_media: None,
-            media: Some(Box::new(MovieDetails {
-                title: "".to_string(),
-                imdb_id: "".to_string(),
-                year: "".to_string(),
-                runtime: "".to_string(),
-                genres: vec![],
-                synopsis: "".to_string(),
-                rating: None,
-                images: Default::default(),
-                trailer: "".to_string(),
-                torrents: HashMap::from([(
-                    DEFAULT_AUDIO_LANGUAGE.to_string(),
-                    HashMap::from([(quality.to_string(), torrent_info.clone())]),
-                )]),
-            })),
-            torrent_info: None,
-            torrent_file_info: None,
+            media: PlaylistMedia {
+                parent: None,
+                media: Some(Box::new(MovieDetails {
+                    title: "".to_string(),
+                    imdb_id: "".to_string(),
+                    year: "".to_string(),
+                    runtime: "".to_string(),
+                    genres: vec![],
+                    synopsis: "".to_string(),
+                    rating: None,
+                    images: Default::default(),
+                    trailer: "".to_string(),
+                    torrents: HashMap::from([(
+                        DEFAULT_AUDIO_LANGUAGE.to_string(),
+                        HashMap::from([(quality.to_string(), torrent_info.clone())]),
+                    )]),
+                })),
+            },
             quality: Some(quality.to_string()),
             auto_resume_timestamp: None,
-            subtitles_enabled: false,
+            subtitle: Default::default(),
+            torrent: Default::default(),
         };
         let data = LoadingData::from(item);
         let (tx, _) = channel();
@@ -206,13 +207,11 @@ mod tests {
             title: title.to_string(),
             caption: None,
             thumb: None,
-            parent_media: None,
-            media: None,
-            torrent_info: None,
-            torrent_file_info: None,
+            media: Default::default(),
             quality: Some("720p".to_string()),
             auto_resume_timestamp: Some(50000),
-            subtitles_enabled: false,
+            subtitle: Default::default(),
+            torrent: Default::default(),
         };
         let data = LoadingData::from(item);
         let strategy = MediaTorrentUrlLoadingStrategy::new();

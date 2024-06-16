@@ -1,10 +1,8 @@
-use std::ptr;
-
 use log::trace;
 
-use popcorn_fx_core::{from_c_vec, into_c_owned};
 use popcorn_fx_core::core::subtitles::model::SubtitleInfo;
-use popcorn_fx_core::core::subtitles::SubtitleCallback;
+use popcorn_fx_core::core::subtitles::{SubtitleCallback, SubtitlePreference};
+use popcorn_fx_core::{from_c_vec, into_c_owned};
 
 use crate::ffi::{SubtitleC, SubtitleEventC, SubtitleInfoC, SubtitleInfoSet};
 use crate::PopcornFX;
@@ -12,23 +10,24 @@ use crate::PopcornFX;
 /// The C callback for the subtitle events.
 pub type SubtitleCallbackC = extern "C" fn(SubtitleEventC);
 
-/// Retrieves the preferred subtitle from the PopcornFX instance.
+/// Retrieves the current subtitle preference from PopcornFX.
+#[no_mangle]
+pub extern "C" fn retrieve_subtitle_preference(popcorn_fx: &mut PopcornFX) -> SubtitlePreference {
+    popcorn_fx.subtitle_manager().preference()
+}
+
+/// Updates the subtitle preference for PopcornFX.
 ///
 /// # Arguments
 ///
-/// * `popcorn_fx` - A mutable reference to the PopcornFX instance.
-///
-/// # Returns
-///
-/// Returns a pointer to the preferred subtitle information in C-compatible format.
-/// If no preferred subtitle is found, it returns a null pointer.
+/// * `popcorn_fx` - Mutable reference to the PopcornFX instance.
+/// * `preference` - The new subtitle preference to set.
 #[no_mangle]
-pub extern "C" fn retrieve_preferred_subtitle(popcorn_fx: &mut PopcornFX) -> *mut SubtitleInfoC {
-    trace!("Retrieving preferred subtitle from C");
-    match popcorn_fx.subtitle_manager().preferred_subtitle() {
-        None => ptr::null_mut(),
-        Some(e) => into_c_owned(SubtitleInfoC::from(e)),
-    }
+pub extern "C" fn update_subtitle_preference(
+    popcorn_fx: &mut PopcornFX,
+    preference: SubtitlePreference,
+) {
+    popcorn_fx.subtitle_manager().update_preference(preference)
 }
 
 /// Retrieve the default options available for the subtitles.
@@ -204,12 +203,12 @@ mod test {
     use log::info;
     use tempfile::tempdir;
 
-    use popcorn_fx_core::{from_c_owned, from_c_vec};
     use popcorn_fx_core::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::core::subtitles::model::Subtitle;
     use popcorn_fx_core::core::subtitles::SubtitleFile;
     use popcorn_fx_core::testing::{copy_test_file, init_logger};
+    use popcorn_fx_core::{from_c_owned, from_c_vec};
 
     use crate::test::new_instance;
 
@@ -218,6 +217,36 @@ mod test {
     #[no_mangle]
     pub extern "C" fn subtitle_callback(event: SubtitleEventC) {
         info!("Received subtitle callback event {:?}", event)
+    }
+
+    #[test]
+    fn test_retrieve_subtitle_preference() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let preference = SubtitlePreference::Language(SubtitleLanguage::Danish);
+        let mut instance = new_instance(temp_path);
+
+        instance
+            .subtitle_manager()
+            .update_preference(preference.clone());
+
+        let result = retrieve_subtitle_preference(&mut instance);
+        assert_eq!(preference, result);
+    }
+
+    #[test]
+    fn test_update_subtitle_preference() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let preference = SubtitlePreference::Language(SubtitleLanguage::French);
+        let mut instance = new_instance(temp_path);
+
+        update_subtitle_preference(&mut instance, preference.clone());
+
+        let result = instance.subtitle_manager().preference();
+        assert_eq!(preference, result);
     }
 
     #[test]
@@ -265,7 +294,7 @@ mod test {
         register_subtitle_callback(&mut instance, subtitle_callback);
         instance
             .subtitle_manager()
-            .update_subtitle(SubtitleInfo::none())
+            .update_preference(SubtitlePreference::Language(SubtitleLanguage::Finnish));
     }
 
     #[test]
@@ -316,18 +345,6 @@ mod test {
         let result = from_c_owned(select_or_default_subtitle(&mut instance, &mut set));
 
         assert_eq!(info, SubtitleInfo::from(result));
-    }
-
-    #[test]
-    fn test_retrieve_preferred_subtitle_default_null_ptr() {
-        init_logger();
-        let temp_dir = tempdir().expect("expected a tempt dir to be created");
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let mut instance = new_instance(temp_path);
-
-        let result = retrieve_preferred_subtitle(&mut instance);
-
-        assert_eq!(ptr::null_mut(), result);
     }
 
     #[test]

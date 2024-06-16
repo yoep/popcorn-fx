@@ -12,8 +12,8 @@ use chbs::probability::Probability;
 use chbs::word::{WordList, WordSampler};
 use derive_more::Display;
 use log::{debug, error, info, trace, warn};
-use reqwest::{Client, ClientBuilder, Error, Response};
 use reqwest::header::HeaderMap;
+use reqwest::{Client, ClientBuilder, Error, Response};
 use serde_xml_rs::from_str;
 use thiserror::Error;
 use tokio::runtime;
@@ -23,12 +23,12 @@ use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 use url::Url;
 
+use popcorn_fx_core::core::players::{PlayRequest, Player, PlayerEvent, PlayerState};
+use popcorn_fx_core::core::subtitles::matcher::SubtitleMatcher;
+use popcorn_fx_core::core::subtitles::{SubtitleManager, SubtitleProvider};
 use popcorn_fx_core::core::{
     block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks,
 };
-use popcorn_fx_core::core::players::{Player, PlayerEvent, PlayerState, PlayRequest};
-use popcorn_fx_core::core::subtitles::{SubtitleManager, SubtitleProvider};
-use popcorn_fx_core::core::subtitles::matcher::SubtitleMatcher;
 
 use crate::vlc::VlcStatus;
 
@@ -156,7 +156,7 @@ impl Drop for VlcPlayer {
 ///
 /// ```rust
 /// use tokio::runtime::Runtime;
-/// use popcorn_fx_vlc::vlc::VlcPlayer;
+/// use popcorn_fx_players::vlc::VlcPlayer;
 ///
 /// let shared_runtime = Runtime::new().unwrap();
 /// VlcPlayer::builder()
@@ -422,9 +422,9 @@ impl Player for InnerVlcPlayer {
             command.arg(arg);
         }
 
-        if let Some(subtitle) = self.subtitle_manager.preferred_subtitle() {
+        if let Some(subtitle) = request.subtitle().info.as_ref() {
             let matcher = SubtitleMatcher::from_string(filename, request.quality());
-            match self.subtitle_provider.download(&subtitle, &matcher).await {
+            match self.subtitle_provider.download(subtitle, &matcher).await {
                 Ok(uri) => {
                     debug!("Adding VLC player subtitle file {}", uri);
                     command.arg(format!("--sub-file={}", uri));
@@ -568,8 +568,10 @@ mod tests {
     use httpmock::Method::GET;
     use httpmock::MockServer;
 
-    use popcorn_fx_core::core::players::MockPlayRequest;
-    use popcorn_fx_core::core::subtitles::MockSubtitleProvider;
+    use popcorn_fx_core::core::players::{MockPlayRequest, PlaySubtitleRequest};
+    use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
+    use popcorn_fx_core::core::subtitles::model::SubtitleInfo;
+    use popcorn_fx_core::core::subtitles::{MockSubtitleProvider, SubtitlePreference};
     use popcorn_fx_core::testing::{init_logger, MockSubtitleManager};
 
     use super::*;
@@ -646,14 +648,35 @@ mod tests {
     fn test_play() {
         init_logger();
         let title = "FooBarTitle";
+        let language = SubtitleLanguage::Finnish;
         let mut request = MockPlayRequest::new();
+        let subtitle_url = "http://localhost:8080/subtitle.srt";
         request
             .expect_url()
             .return_const("http://localhost:8080/myvideo.mp4".to_string());
         request.expect_title().return_const(title.to_string());
+        request
+            .expect_quality()
+            .return_const(Some("720p".to_string()));
+        request.expect_subtitle().return_const(PlaySubtitleRequest {
+            enabled: true,
+            info: Some(
+                SubtitleInfo::builder()
+                    .imdb_id("tt8976123")
+                    .language(language)
+                    .build(),
+            ),
+            subtitle: None,
+        });
         let mut manager = MockSubtitleManager::new();
-        manager.expect_preferred_subtitle().return_const(None);
-        let provider = MockSubtitleProvider::new();
+        manager
+            .expect_preference()
+            .return_const(SubtitlePreference::Language(language));
+        let mut provider = MockSubtitleProvider::new();
+        provider
+            .expect_download()
+            .times(1)
+            .return_const(Ok(subtitle_url.to_string()));
         let player = VlcPlayer::builder()
             .subtitle_manager(Arc::new(Box::new(manager)))
             .subtitle_provider(Arc::new(Box::new(provider)))
@@ -688,8 +711,15 @@ mod tests {
         request
             .expect_url()
             .return_const("http://localhost:8080/myvideo.mp4".to_string());
+        request.expect_subtitle().return_const(PlaySubtitleRequest {
+            enabled: false,
+            info: None,
+            subtitle: None,
+        });
         let mut manager = MockSubtitleManager::new();
-        manager.expect_preferred_subtitle().return_const(None);
+        manager
+            .expect_preference()
+            .return_const(SubtitlePreference::Language(SubtitleLanguage::None));
         let provider = MockSubtitleProvider::new();
         let player = VlcPlayer::builder()
             .subtitle_manager(Arc::new(Box::new(manager)))

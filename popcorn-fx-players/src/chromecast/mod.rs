@@ -12,7 +12,6 @@ pub mod transcode;
 
 #[cfg(test)]
 mod tests {
-    use futures::executor::block_on;
     use std::collections::HashMap;
     use std::fmt::Debug;
     use std::io::Cursor;

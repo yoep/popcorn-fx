@@ -1,13 +1,18 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentFileInfoWrapper;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentInfoWrapper;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentFileInfo;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowTorrentDetailsEvent;
-import com.github.yoep.popcorn.backend.loader.LoaderService;
+import com.github.yoep.popcorn.backend.playlists.Playlist;
+import com.github.yoep.popcorn.backend.playlists.PlaylistItem;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
+import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleFile;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.CloseTorrentDetailsEvent;
@@ -37,12 +42,12 @@ import org.apache.commons.io.FilenameUtils;
 
 import java.net.URL;
 import java.util.List;
+import java.util.Optional;
 import java.util.ResourceBundle;
 
 import static java.util.Arrays.asList;
 
 @Slf4j
-
 @RequiredArgsConstructor
 public class DetailsTorrentComponent implements Initializable {
     private static final List<String> SUPPORTED_FILES = asList("mp4", "m4v", "avi", "mov", "mkv", "wmv");
@@ -53,10 +58,10 @@ public class DetailsTorrentComponent implements Initializable {
     private final PlayerManagerService playerManagerService;
     private final SubtitlePickerService subtitlePickerService;
     private final SubtitleService subtitleService;
-    private final LoaderService loaderService;
     private final PlaylistManager playlistManager;
 
-    private TorrentInfo torrentInfo;
+    TorrentInfo torrentInfo;
+    SubtitleInfo subtitleInfo;
 
     @FXML
     ListView<TorrentFileInfo> torrentList;
@@ -128,6 +133,7 @@ public class DetailsTorrentComponent implements Initializable {
     private void onShowTorrentDetails(ShowTorrentDetailsEvent event) {
         log.debug("Processing details of torrent info {}", event.getTorrentInfo().getName());
         this.torrentInfo = event.getTorrentInfo();
+        this.subtitleInfo = null;
         var validFiles = torrentInfo.getFiles().stream()
                 .filter(e -> {
                     var extension = FilenameUtils.getExtension(e.getFilename());
@@ -146,9 +152,19 @@ public class DetailsTorrentComponent implements Initializable {
 
     private void onSubtitleChanged(SubtitleInfo subtitleInfo) {
         if (subtitleInfo.isCustom()) {
-            subtitlePickerService.pickCustomSubtitle().ifPresent(subtitleService::updateCustomSubtitle);
+            subtitlePickerService.pickCustomSubtitle()
+                    .ifPresent(e -> {
+                        this.subtitleInfo = SubtitleInfo.builder()
+                                .language(SubtitleLanguage.CUSTOM)
+                                .files(new SubtitleFile.ByReference[]{SubtitleFile.ByReference.builder()
+                                        .name("Custom")
+                                        .url(e)
+                                        .build()})
+                                .build();
+                        subtitleService.updatePreferredLanguage(SubtitleLanguage.CUSTOM);
+                    });
         } else {
-            subtitleService.updateSubtitle(subtitleInfo);
+            subtitleService.updatePreferredLanguage(subtitleInfo.getLanguage());
         }
     }
 
@@ -177,8 +193,17 @@ public class DetailsTorrentComponent implements Initializable {
     }
 
     void onFileInfoClicked(TorrentFileInfo fileInfo) {
-        playlistManager.play(torrentInfo, fileInfo);
-        loaderService.load(torrentInfo, fileInfo);
+        var playlist = new Playlist.ByValue(PlaylistItem.builder()
+                .url(torrentInfo.getMagnetUri())
+                .title(fileInfo.getFilename())
+                .subtitlesEnabled(true)
+                .subtitleInfo(Optional.ofNullable(subtitleInfo)
+                        .map(SubtitleInfo.ByReference::new)
+                        .orElse(null))
+                .torrentInfo(new TorrentInfoWrapper.ByReference(torrentInfo))
+                .torrentFileInfo(new TorrentFileInfoWrapper.ByReference(torrentInfo, fileInfo))
+                .build());
+        playlistManager.play(playlist);
     }
 
     @FXML

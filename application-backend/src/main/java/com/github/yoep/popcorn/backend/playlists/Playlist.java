@@ -22,8 +22,8 @@ public class Playlist extends Structure implements Closeable {
         public ByValue() {
         }
 
-        public ByValue(List<PlaylistItem> items) {
-            super(items);
+        public ByValue(PlaylistItem... items) {
+            super(Arrays.asList(items));
         }
     }
 
@@ -53,6 +53,9 @@ public class Playlist extends Structure implements Closeable {
             array[i].media = item.media;
             array[i].autoResumeTimestamp = item.autoResumeTimestamp;
             array[i].subtitlesEnabled = item.subtitlesEnabled;
+            array[i].subtitleInfo = item.subtitleInfo;
+            array[i].torrentInfo = item.torrentInfo;
+            array[i].torrentFileInfo = item.torrentFileInfo;
         }
 
         write();

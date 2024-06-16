@@ -6,6 +6,7 @@ import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguag
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleFile;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfoSet;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitlePreference;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -100,8 +101,7 @@ class SubtitleServiceImplTest {
     @Test
     void testDisableSubtitle() {
         service.disableSubtitle();
-
-        verify(fxLib).disable_subtitle(instance);
+        verify(fxLib).update_subtitle_preference(instance, SubtitlePreference.ByValue.disabled());
     }
 
     @Test

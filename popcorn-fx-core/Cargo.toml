@@ -43,6 +43,7 @@ tokio-stream = { workspace = true }
 tokio-util = { workspace = true }
 url.workspace = true
 warp.workspace = true
+clap = { version = "4.5.7", features = ["derive"] }
 
 [dev-dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }

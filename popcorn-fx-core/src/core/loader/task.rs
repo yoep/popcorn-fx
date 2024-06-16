@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use std::sync::mpsc::{channel, Sender};
+use std::sync::Arc;
 
 use log::{debug, error, info, trace, warn};
 use tokio::runtime::Runtime;
@@ -7,12 +7,12 @@ use tokio::select;
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 
-use crate::core::{block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks, Handle};
+use crate::core::loader::loading_chain::LoadingChain;
 use crate::core::loader::{
     LoadingCallback, LoadingData, LoadingError, LoadingEvent, LoadingHandle, LoadingResult,
     LoadingState,
 };
-use crate::core::loader::loading_chain::LoadingChain;
+use crate::core::{block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks, Handle};
 
 /// Represents a task responsible for loading media items in a playlist.
 ///
@@ -352,13 +352,11 @@ mod tests {
             title: "MyStateTest".to_string(),
             caption: None,
             thumb: None,
-            parent_media: None,
-            media: None,
-            torrent_info: None,
-            torrent_file_info: None,
+            media: Default::default(),
             quality: None,
             auto_resume_timestamp: None,
-            subtitles_enabled: false,
+            subtitle: Default::default(),
+            torrent: Default::default(),
         });
         let (tx, rx) = channel();
         let mut strategy = MockLoadingStrategy::new();
@@ -406,13 +404,11 @@ mod tests {
             title: "MyLoadTest".to_string(),
             caption: None,
             thumb: None,
-            parent_media: None,
-            media: None,
-            torrent_info: None,
-            torrent_file_info: None,
+            media: Default::default(),
             quality: None,
             auto_resume_timestamp: None,
-            subtitles_enabled: false,
+            subtitle: Default::default(),
+            torrent: Default::default(),
         });
         let (tx_data, rx_data) = channel();
         let (tx_event, rx_event) = channel();
@@ -457,13 +453,11 @@ mod tests {
             title: "".to_string(),
             caption: None,
             thumb: None,
-            parent_media: None,
-            media: None,
-            torrent_info: None,
-            torrent_file_info: None,
+            media: Default::default(),
             quality: None,
             auto_resume_timestamp: None,
-            subtitles_enabled: false,
+            subtitle: Default::default(),
+            torrent: Default::default(),
         });
         let mut strategy = MockLoadingStrategy::new();
         let (tx, rx) = channel();
@@ -502,13 +496,11 @@ mod tests {
             title: "".to_string(),
             caption: None,
             thumb: None,
-            parent_media: None,
-            media: None,
-            torrent_info: None,
-            torrent_file_info: None,
+            media: Default::default(),
             quality: None,
             auto_resume_timestamp: None,
-            subtitles_enabled: false,
+            subtitle: Default::default(),
+            torrent: Default::default(),
         });
         let (tx, rx) = channel();
         let (tx_cancelled, rx_cancelled) = channel();
@@ -548,13 +540,11 @@ mod tests {
             title: "".to_string(),
             caption: None,
             thumb: None,
-            parent_media: None,
-            media: None,
-            torrent_info: None,
-            torrent_file_info: None,
+            media: Default::default(),
             quality: None,
             auto_resume_timestamp: None,
-            subtitles_enabled: false,
+            subtitle: Default::default(),
+            torrent: Default::default(),
         });
         let (tx, rx) = channel();
         let (tx_cancel, rx_cancel) = channel();

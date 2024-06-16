@@ -12,7 +12,6 @@ use popcorn_fx_core::core::config::{
 use popcorn_fx_core::core::media::favorites::FavoriteCallback;
 use popcorn_fx_core::core::media::watched::WatchedCallback;
 use popcorn_fx_core::core::media::*;
-use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
 use popcorn_fx_core::core::subtitles::matcher::SubtitleMatcher;
 use popcorn_fx_core::core::subtitles::model::SubtitleInfo;
 use popcorn_fx_core::{
@@ -136,56 +135,6 @@ pub extern "C" fn filename_subtitles(
             into_c_owned(SubtitleInfoSet::from(vec![]))
         }
     }
-}
-
-/// Retrieve the preferred subtitle language for the next [Media] item playback.
-///
-/// It returns the preferred subtitle language.
-#[no_mangle]
-pub extern "C" fn retrieve_preferred_subtitle_language(
-    popcorn_fx: &mut PopcornFX,
-) -> SubtitleLanguage {
-    popcorn_fx.subtitle_manager().preferred_language()
-}
-
-/// Verify if the subtitle has been disabled by the user.
-///
-/// It returns true when the subtitle track should be disabled, else false.
-#[no_mangle]
-pub extern "C" fn is_subtitle_disabled(popcorn_fx: &mut PopcornFX) -> bool {
-    popcorn_fx.subtitle_manager().is_disabled()
-}
-
-/// Update the preferred subtitle for the [Media] item playback.
-/// This action will reset any custom configured subtitle files.
-#[no_mangle]
-pub extern "C" fn update_subtitle(popcorn_fx: &mut PopcornFX, subtitle: &SubtitleInfoC) {
-    popcorn_fx
-        .subtitle_manager()
-        .update_subtitle(SubtitleInfo::from(subtitle))
-}
-
-/// Update the preferred subtitle to a custom subtitle filepath.
-/// This action will reset any preferred subtitle.
-#[no_mangle]
-pub extern "C" fn update_subtitle_custom_file(
-    popcorn_fx: &mut PopcornFX,
-    custom_filepath: *mut c_char,
-) {
-    let custom_filepath = from_c_string(custom_filepath);
-    trace!("Updating custom subtitle filepath to {}", &custom_filepath);
-
-    popcorn_fx
-        .subtitle_manager()
-        .update_custom_subtitle(custom_filepath.as_str())
-}
-
-/// Disable the subtitle track on request of the user.
-/// This will make the [is_subtitle_disabled] return `true`.
-#[no_mangle]
-pub extern "C" fn disable_subtitle(popcorn_fx: &mut PopcornFX) {
-    trace!("Disabling the subtitle track");
-    popcorn_fx.subtitle_manager().disable_subtitle()
 }
 
 /// Reset the current preferred subtitle configuration.
@@ -784,62 +733,6 @@ mod test {
         let result = is_media_liked(&mut instance, &mut media);
 
         assert_eq!(false, result)
-    }
-
-    #[test]
-    fn test_update_subtitle() {
-        let language1 = SubtitleLanguage::Finnish;
-        let subtitle1 = SubtitleInfo::builder()
-            .imdb_id("tt212121")
-            .language(language1.clone())
-            .build();
-        let info_c1 = SubtitleInfoC::from(subtitle1.clone());
-        let language2 = SubtitleLanguage::English;
-        let subtitle2 = SubtitleInfo::builder()
-            .imdb_id("tt212333")
-            .language(language2.clone())
-            .build();
-        let info_c2 = SubtitleInfoC::from(subtitle2.clone());
-        let temp_dir = tempdir().expect("expected a tempt dir to be created");
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let mut instance = PopcornFX::new(default_args(temp_path));
-
-        update_subtitle(&mut instance, &info_c1);
-        let info_result =
-            SubtitleInfo::from(&from_c_owned(retrieve_preferred_subtitle(&mut instance)));
-        let language_result = retrieve_preferred_subtitle_language(&mut instance);
-        assert_eq!(subtitle1, info_result);
-        assert_eq!(language1, language_result);
-
-        update_subtitle(&mut instance, &info_c2);
-        let info_result =
-            SubtitleInfo::from(&from_c_owned(retrieve_preferred_subtitle(&mut instance)));
-        let language_result = retrieve_preferred_subtitle_language(&mut instance);
-        assert_eq!(subtitle2, info_result);
-        assert_eq!(language2, language_result);
-
-        reset_subtitle(&mut instance);
-        let preferred_result = retrieve_preferred_subtitle_language(&mut instance);
-        assert_eq!(SubtitleLanguage::None, preferred_result);
-    }
-
-    #[test]
-    fn test_disable_subtitle() {
-        init_logger();
-        let temp_dir = tempdir().expect("expected a tempt dir to be created");
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let mut instance = PopcornFX::new(default_args(temp_path));
-
-        let disabled = is_subtitle_disabled(&mut instance);
-        assert!(
-            !disabled,
-            "expected the subtitle track to be enabled by default"
-        );
-
-        disable_subtitle(&mut instance);
-        let result = is_subtitle_disabled(&mut instance);
-
-        assert!(result, "expected the subtitle track to be disabled")
     }
 
     #[test]

@@ -5,6 +5,7 @@ use derive_more::Display;
 use log::{debug, info};
 
 use crate::core::media::MediaIdentifier;
+use crate::core::subtitles::model::SubtitleInfo;
 use crate::core::torrents::{TorrentFileInfo, TorrentInfo};
 
 /// A struct representing a playlist of media items.
@@ -97,14 +98,60 @@ impl FromIterator<PlaylistItem> for Playlist {
     }
 }
 
+#[derive(Debug, Default)]
+pub struct PlaylistMedia {
+    /// The parent media identifier associated with the playlist item, if available.
+    pub parent: Option<Box<dyn MediaIdentifier>>,
+    /// The media identifier associated with the playlist item, if available.
+    pub media: Option<Box<dyn MediaIdentifier>>,
+}
+
+impl Clone for PlaylistMedia {
+    fn clone(&self) -> Self {
+        let cloned_parent_media = match &self.parent {
+            None => None,
+            Some(media) => media.clone_identifier(),
+        };
+        let cloned_media = match &self.media {
+            None => None,
+            Some(media) => media.clone_identifier(),
+        };
+
+        Self {
+            parent: cloned_parent_media,
+            media: cloned_media,
+        }
+    }
+}
+
+impl PartialEq for PlaylistMedia {
+    fn eq(&self, other: &Self) -> bool {
+        self.parent.is_some() == other.parent.is_some()
+            && self.media.is_some() == other.media.is_some()
+    }
+}
+
+#[derive(Debug, Default, Display, Clone, PartialEq)]
+#[display(fmt = "enabled: {}, info: {:?}", enabled, info)]
+pub struct PlaylistSubtitle {
+    pub enabled: bool,
+    pub info: Option<SubtitleInfo>,
+}
+
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct PlaylistTorrent {
+    pub info: Option<TorrentInfo>,
+    pub file_info: Option<TorrentFileInfo>,
+}
+
 /// Represents an item in a playlist, which can be a media file, a stream URL, or other media content.
-#[derive(Debug, Display)]
+#[derive(Debug, Display, Clone)]
 #[display(
-    fmt = "url: {:?}, title: {}, quality: {:?}, subtitles_enabled: {}",
+    fmt = "url: {:?}, title: {}, quality: {:?}, subtitle: {}",
     url,
     title,
     quality,
-    subtitles_enabled
+    subtitle
 )]
 pub struct PlaylistItem {
     /// The URL of the playlist item, if available.
@@ -115,20 +162,16 @@ pub struct PlaylistItem {
     pub caption: Option<String>,
     /// The thumbnail URL of the playlist item, if available.
     pub thumb: Option<String>,
-    /// The parent media identifier associated with the playlist item, if available.
-    pub parent_media: Option<Box<dyn MediaIdentifier>>,
-    /// The media identifier associated with the playlist item, if available.
-    pub media: Option<Box<dyn MediaIdentifier>>,
-    /// Information about the torrent associated with the playlist item, if available.
-    pub torrent_info: Option<TorrentInfo>,
-    /// Information about the torrent file associated with the playlist item, if available.
-    pub torrent_file_info: Option<TorrentFileInfo>,
+    /// The media information about the playlist item.
+    pub media: PlaylistMedia,
     /// The quality of the playlist item, if available.
     pub quality: Option<String>,
     /// The timestamp for auto-resume functionality, if available.
     pub auto_resume_timestamp: Option<u64>,
-    /// Indicates whether subtitles are enabled for the playlist item.
-    pub subtitles_enabled: bool,
+    /// The subtitle information for the playlist item.
+    pub subtitle: PlaylistSubtitle,
+    /// The torrent information for the playlist item.
+    pub torrent: PlaylistTorrent,
 }
 
 impl PlaylistItem {
@@ -138,45 +181,10 @@ impl PlaylistItem {
     }
 }
 
-impl Clone for PlaylistItem {
-    fn clone(&self) -> Self {
-        let cloned_parent_media = match &self.parent_media {
-            None => None,
-            Some(media) => media.clone_identifier(),
-        };
-        let cloned_media = match &self.media {
-            None => None,
-            Some(media) => media.clone_identifier(),
-        };
-
-        Self {
-            url: self.url.clone(),
-            title: self.title.clone(),
-            caption: self.caption.clone(),
-            thumb: self.thumb.clone(),
-            parent_media: cloned_parent_media,
-            media: cloned_media,
-            torrent_info: self.torrent_info.clone(),
-            torrent_file_info: self.torrent_file_info.clone(),
-            quality: self.quality.clone(),
-            auto_resume_timestamp: self.auto_resume_timestamp,
-            subtitles_enabled: self.subtitles_enabled,
-        }
-    }
-}
-
 impl PartialEq for PlaylistItem {
     fn eq(&self, other: &Self) -> bool {
-        let mut media_equal = true;
         let mut thumb_equal = true;
 
-        if let Some(media) = &self.media {
-            if let Some(other_media) = &other.media {
-                media_equal = media.imdb_id() == other_media.imdb_id();
-            } else {
-                media_equal = false;
-            }
-        }
         if let Some(thumb) = &self.thumb {
             if let Some(other_thumb) = &other.thumb {
                 thumb_equal = thumb == other_thumb;
@@ -188,7 +196,7 @@ impl PartialEq for PlaylistItem {
         self.url == other.url
             && self.title.as_str() == other.title.as_str()
             && thumb_equal
-            && media_equal
+            && self.media == other.media
             && self.quality == other.quality
     }
 }
@@ -209,6 +217,7 @@ pub struct PlaylistItemBuilder {
     quality: Option<String>,
     auto_resume_timestamp: Option<u64>,
     subtitles_enabled: Option<bool>,
+    subtitle_info: Option<SubtitleInfo>,
 }
 
 impl PlaylistItemBuilder {
@@ -283,6 +292,12 @@ impl PlaylistItemBuilder {
         self
     }
 
+    /// Sets the subtitle information associated with the playlist item.
+    pub fn subtitle_info(mut self, subtitle_info: SubtitleInfo) -> Self {
+        self.subtitle_info = Some(subtitle_info);
+        self
+    }
+
     /// Builds the `PlaylistItem` from the builder.
     ///
     /// # Panics
@@ -294,13 +309,20 @@ impl PlaylistItemBuilder {
             title: self.title.expect("title is not set"),
             caption: self.caption,
             thumb: self.thumb,
-            parent_media: self.parent_media,
-            media: self.media,
-            torrent_info: self.torrent_info,
-            torrent_file_info: self.torrent_file_info,
+            media: PlaylistMedia {
+                parent: self.parent_media,
+                media: self.media,
+            },
             quality: self.quality,
             auto_resume_timestamp: self.auto_resume_timestamp,
-            subtitles_enabled: self.subtitles_enabled.unwrap_or_else(|| false),
+            subtitle: PlaylistSubtitle {
+                enabled: self.subtitles_enabled.unwrap_or_else(|| false),
+                info: self.subtitle_info,
+            },
+            torrent: PlaylistTorrent {
+                info: self.torrent_info,
+                file_info: self.torrent_file_info,
+            },
         }
     }
 }
@@ -327,20 +349,27 @@ mod test {
             title: "".to_string(),
             caption: None,
             thumb: None,
-            parent_media: None,
-            media: Some(media.clone()),
-            torrent_info: None,
-            torrent_file_info: None,
+            media: PlaylistMedia {
+                parent: None,
+                media: Some(media),
+            },
             quality: None,
             auto_resume_timestamp: None,
-            subtitles_enabled: false,
+            subtitle: PlaylistSubtitle {
+                enabled: false,
+                info: None,
+            },
+            torrent: PlaylistTorrent {
+                info: None,
+                file_info: None,
+            },
         });
 
         assert!(
             playlist
                 .items
                 .iter()
-                .position(|e| e.media.as_ref().unwrap().imdb_id() == imdb_id)
+                .position(|e| e.media.media.as_ref().unwrap().imdb_id() == imdb_id)
                 .is_some(),
             "expected the media item to have been added"
         );
@@ -355,17 +384,24 @@ mod test {
             title: "".to_string(),
             caption: None,
             thumb: None,
-            parent_media: None,
-            media: Some(Box::new(MovieOverview::new(
-                "ipsum".to_string(),
-                imdb_id.to_string(),
-                "2015".to_string(),
-            ))),
-            torrent_info: None,
-            torrent_file_info: None,
+            media: PlaylistMedia {
+                parent: None,
+                media: Some(Box::new(MovieOverview::new(
+                    "ipsum".to_string(),
+                    imdb_id.to_string(),
+                    "2015".to_string(),
+                ))),
+            },
             quality: None,
             auto_resume_timestamp: None,
-            subtitles_enabled: false,
+            subtitle: PlaylistSubtitle {
+                enabled: false,
+                info: None,
+            },
+            torrent: PlaylistTorrent {
+                info: None,
+                file_info: None,
+            },
         };
 
         playlist.add(playlist_item.clone());
@@ -375,7 +411,7 @@ mod test {
             playlist
                 .items
                 .iter()
-                .position(|e| e.media.as_ref().unwrap().imdb_id() == imdb_id)
+                .position(|e| e.media.media.as_ref().unwrap().imdb_id() == imdb_id)
                 .is_none(),
             "expected the media item to have been removed"
         );
@@ -396,19 +432,26 @@ mod test {
             title: "".to_string(),
             caption: None,
             thumb: None,
-            parent_media: None,
-            media: Some(media.clone()),
-            torrent_info: None,
-            torrent_file_info: None,
+            media: PlaylistMedia {
+                parent: None,
+                media: Some(media),
+            },
             quality: None,
             auto_resume_timestamp: None,
-            subtitles_enabled: false,
+            subtitle: PlaylistSubtitle {
+                enabled: false,
+                info: None,
+            },
+            torrent: PlaylistTorrent {
+                info: None,
+                file_info: None,
+            },
         });
         assert!(
             playlist
                 .items
                 .iter()
-                .position(|e| e.media.as_ref().unwrap().imdb_id() == imdb_id)
+                .position(|e| e.media.media.as_ref().unwrap().imdb_id() == imdb_id)
                 .is_some(),
             "expected the added item to have been returned"
         );
@@ -437,13 +480,20 @@ mod test {
             title: "".to_string(),
             caption: None,
             thumb: None,
-            parent_media: None,
-            media: Some(media.clone()),
-            torrent_info: None,
-            torrent_file_info: None,
+            media: PlaylistMedia {
+                parent: None,
+                media: Some(media.clone()),
+            },
             quality: None,
             auto_resume_timestamp: None,
-            subtitles_enabled: false,
+            subtitle: PlaylistSubtitle {
+                enabled: false,
+                info: None,
+            },
+            torrent: PlaylistTorrent {
+                info: None,
+                file_info: None,
+            },
         });
         assert!(
             playlist.has_next(),
@@ -472,13 +522,20 @@ mod test {
             title: "".to_string(),
             caption: None,
             thumb: None,
-            parent_media: None,
-            media: Some(media.clone()),
-            torrent_info: None,
-            torrent_file_info: None,
+            media: PlaylistMedia {
+                parent: None,
+                media: Some(media.clone()),
+            },
             quality: None,
             auto_resume_timestamp: None,
-            subtitles_enabled: false,
+            subtitle: PlaylistSubtitle {
+                enabled: false,
+                info: None,
+            },
+            torrent: PlaylistTorrent {
+                info: None,
+                file_info: None,
+            },
         });
         let result = playlist.next();
         assert!(
@@ -499,13 +556,20 @@ mod test {
             title: "FooBar".to_string(),
             caption: None,
             thumb: None,
-            parent_media: None,
-            media: None,
-            torrent_info: None,
-            torrent_file_info: None,
+            media: PlaylistMedia {
+                parent: None,
+                media: None,
+            },
             quality: None,
             auto_resume_timestamp: None,
-            subtitles_enabled: false,
+            subtitle: PlaylistSubtitle {
+                enabled: false,
+                info: None,
+            },
+            torrent: PlaylistTorrent {
+                info: None,
+                file_info: None,
+            },
         };
 
         let result = Playlist::from(item.clone());
@@ -521,13 +585,20 @@ mod test {
             title: title.to_string(),
             caption: None,
             thumb: None,
-            parent_media: None,
-            media: None,
-            torrent_info: None,
-            torrent_file_info: None,
+            media: PlaylistMedia {
+                parent: None,
+                media: None,
+            },
             quality: None,
             auto_resume_timestamp: None,
-            subtitles_enabled: false,
+            subtitle: PlaylistSubtitle {
+                enabled: false,
+                info: None,
+            },
+            torrent: PlaylistTorrent {
+                info: None,
+                file_info: None,
+            },
         });
 
         let result = playlist.iter();
@@ -547,13 +618,20 @@ mod test {
             title: title.to_string(),
             caption: None,
             thumb: None,
-            parent_media: None,
-            media: None,
-            torrent_info: None,
-            torrent_file_info: None,
+            media: PlaylistMedia {
+                parent: None,
+                media: None,
+            },
             quality: None,
             auto_resume_timestamp: None,
-            subtitles_enabled: false,
+            subtitle: PlaylistSubtitle {
+                enabled: false,
+                info: None,
+            },
+            torrent: PlaylistTorrent {
+                info: None,
+                file_info: None,
+            },
         }]
         .into_iter()
         .collect();

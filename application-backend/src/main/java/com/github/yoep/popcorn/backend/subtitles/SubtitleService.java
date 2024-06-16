@@ -6,6 +6,7 @@ import com.github.yoep.popcorn.backend.media.providers.ShowDetails;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitlePreference;
 
 import java.util.List;
 import java.util.Optional;
@@ -75,33 +76,28 @@ public interface SubtitleService {
     SubtitleInfo getDefaultOrInterfaceLanguage(List<SubtitleInfo> subtitles);
 
     /**
-     * Get the preferred subtitle for the next media item playback.
+     * Get the subtitle preference of the user for the current media.
      *
-     * @return Returns the preferred subtitle.
+     * @return Returns the subtitle preference of the user for the current media.
      */
-    Optional<SubtitleInfo.ByReference> preferredSubtitle();
-
-    /**
-     * Get the preferred subtitle language for the next media item playback.
-     *
-     * @return Returns the preferred subtitle language.
-     */
-    SubtitleLanguage preferredSubtitleLanguage();
+    SubtitlePreference preference();
 
     /**
      * Update the preferred subtitle for the media playback.
      * Passing `null` will disable the subtitle for the next media playback item.
      *
      * @param subtitle The new subtitle info to prefer on the next playback, or null.
+     * @deprecated Use {@link #updatePreferredLanguage(SubtitleLanguage)} instead.
      */
+    @Deprecated
     void updateSubtitle(SubtitleInfo subtitle);
 
     /**
-     * Update the subtitle to a custom filepath.
+     * Update the preferred subtitle language for the media playback.
      *
-     * @param subtitleFilepath The filepath to the custom subtitle file.
+     * @param language The new subtitle language to prefer on the next playback.
      */
-    void updateCustomSubtitle(String subtitleFilepath);
+    void updatePreferredLanguage(SubtitleLanguage language);
 
     /**
      * Register a new subtitle callback which will be invoked for new {@link SubtitleEvent}'s.

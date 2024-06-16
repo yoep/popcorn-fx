@@ -1,6 +1,6 @@
 use std::fmt::{Debug, Formatter};
-use std::sync::Arc;
 use std::sync::mpsc::Sender;
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use derive_more::Display;
@@ -76,6 +76,7 @@ mod tests {
 
     use crate::core::block_in_place;
     use crate::core::loader::loading_chain::DEFAULT_ORDER;
+    use crate::core::loader::SubtitleData;
     use crate::core::torrents::TorrentInfo;
     use crate::testing::init_logger;
 
@@ -102,8 +103,7 @@ mod tests {
             torrent_file_info: None,
             quality: None,
             auto_resume_timestamp: None,
-            subtitles_enabled: None,
-            subtitle: None,
+            subtitle: SubtitleData::default(),
             media_torrent_info: None,
             torrent: None,
             torrent_stream: None,
@@ -149,8 +149,7 @@ mod tests {
             torrent_file_info: None,
             quality: None,
             auto_resume_timestamp: None,
-            subtitles_enabled: None,
-            subtitle: None,
+            subtitle: SubtitleData::default(),
             media_torrent_info: None,
             torrent: None,
             torrent_stream: None,

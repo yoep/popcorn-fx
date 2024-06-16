@@ -37,15 +37,6 @@ public class LoaderService extends AbstractListenerService<LoaderListener> imple
         lastLoaderHandle = fxLib.loader_load(instance, url);
     }
 
-    public void load(TorrentInfo torrentInfo, TorrentFileInfo torrentFileInfo) {
-        Objects.requireNonNull(torrentInfo, "torrentInfo cannot be null");
-        try (var infoWrapper = new TorrentInfoWrapper.ByValue(torrentInfo)) {
-            try (var fileWrapper = new TorrentFileInfoWrapper.ByValue(torrentInfo, torrentFileInfo)) {
-                lastLoaderHandle = fxLib.loader_load_torrent_file(instance, infoWrapper, fileWrapper);
-            }
-        }
-    }
-
     public void cancel() {
         fxLib.loader_cancel(instance, lastLoaderHandle);
     }

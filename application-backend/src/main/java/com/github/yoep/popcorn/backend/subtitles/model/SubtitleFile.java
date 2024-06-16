@@ -17,6 +17,7 @@ public class SubtitleFile extends Structure implements Closeable {
         public ByReference() {
         }
 
+        @Builder
         public ByReference(int fileId, String name, String url, int score, int downloads, IntByReference quality) {
             super(fileId, name, url, score, downloads, quality);
         }

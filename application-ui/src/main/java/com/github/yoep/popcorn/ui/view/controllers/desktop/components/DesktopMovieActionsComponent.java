@@ -32,7 +32,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.ResourceBundle;
@@ -162,7 +161,7 @@ public class DesktopMovieActionsComponent implements Initializable {
 
     private void playTrailer() {
         try (var item = PlaylistItem.fromMediaTrailer(media)) {
-            playlistManager.play(new Playlist.ByValue(Collections.singletonList(item)));
+            playlistManager.play(new Playlist.ByValue(item));
         }
     }
 

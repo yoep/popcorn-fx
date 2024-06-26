@@ -29,22 +29,6 @@
             <name>central</name>
             <url>https://repo1.maven.org/maven2/</url>
         </repository>
-        <repository>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-            <id>gluonhq</id>
-            <name>gluonhq</name>
-            <url>https://nexus.gluonhq.com/nexus/content/repositories/releases/</url>
-        </repository>
-        <repository>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-            <id>bintray</id>
-            <name>bintray</name>
-            <url>https://jcenter.bintray.com</url>
-        </repository>
     </repositories>
 
     <scm>
@@ -65,7 +49,7 @@
         <jacoco.version>0.8.12</jacoco.version>
         <jaffree.version>2021.12.30</jaffree.version>
         <jakarta.validation-api.version>3.0.2</jakarta.validation-api.version>
-        <javafx.version>21.0.3</javafx.version>
+        <javafx.version>22.0.1</javafx.version>
         <jna.version>5.13.0</jna.version>
         <junit-jupiter.version>5.10.1</junit-jupiter.version>
         <log4j-to-slf4j.version>2.23.1</log4j-to-slf4j.version>

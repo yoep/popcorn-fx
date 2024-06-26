@@ -35,7 +35,7 @@
             </snapshots>
             <id>gluonhq</id>
             <name>gluonhq</name>
-            <url>http://nexus.gluonhq.com/nexus/content/repositories/releases/</url>
+            <url>https://nexus.gluonhq.com/nexus/content/repositories/releases/</url>
         </repository>
         <repository>
             <snapshots>

@@ -589,7 +589,7 @@ mod test {
         let expected_result =
             SubtitleMatcher::from_string(Some(name.to_string()), Some(quality.to_string()));
 
-        let result = SubtitleMatcher::from(matcher);
+        let result = SubtitleMatcher::from(&matcher);
 
         assert_eq!(expected_result, result);
     }

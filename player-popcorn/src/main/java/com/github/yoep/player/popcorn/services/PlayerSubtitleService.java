@@ -24,11 +24,10 @@ public class PlayerSubtitleService extends AbstractListenerService<PlayerSubtitl
 
     private final PlaybackListener listener = createListener();
 
-    public PlayerSubtitleService(VideoService videoService, SubtitleService subtitleService, SubtitleManagerService subtitleManagerService, FxLib fxLib) {
+    public PlayerSubtitleService(VideoService videoService, SubtitleService subtitleService, SubtitleManagerService subtitleManagerService) {
         Objects.requireNonNull(videoService, "videoService cannot be null");
         Objects.requireNonNull(subtitleService, "subtitleService cannot be null");
         Objects.requireNonNull(subtitleManagerService, "subtitleManagerService cannot be null");
-        Objects.requireNonNull(fxLib, "fxLib cannot be null");
         this.videoService = videoService;
         this.subtitleService = subtitleService;
         this.subtitleManagerService = subtitleManagerService;

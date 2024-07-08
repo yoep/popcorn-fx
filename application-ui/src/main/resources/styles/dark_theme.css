@@ -1637,6 +1637,7 @@
     -fx-font-family: "Open Sans Semibold";
     -fx-font-size: 1.5em;
     -fx-text-fill: #fafafa;
+    -fx-padding: 0 5 0 0;
 }
 
 .root .playlist .playlist-item .caption {

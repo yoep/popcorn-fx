@@ -1,67 +1,24 @@
 package com.github.yoep.popcorn.backend.subtitles.model;
 
-import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
-import com.sun.jna.Structure;
 import lombok.Builder;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
-import java.io.Closeable;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
+import java.util.Objects;
+
+import static java.util.Arrays.asList;
 
 /**
  * The subtitle info contains information about available subtitles for a certain IMDB ID.
  * This info includes a specific language for the media ID as well as multiple available files which can be used for smart subtitle detection.
  */
 @Slf4j
-@Data
-@ToString
-@EqualsAndHashCode(of = {"imdbId", "language"}, callSuper = false)
-@Structure.FieldOrder({"imdbId", "language", "files", "len"})
-public class SubtitleInfo extends Structure implements Closeable {
-    public static class ByReference extends SubtitleInfo implements Structure.ByReference {
-        public ByReference() {
-        }
-
-        public ByReference(String imdbId, SubtitleLanguage language) {
-            super(imdbId, language);
-        }
-
-        @Override
-        public void close() {
-            super.close();
-            FxLib.INSTANCE.get().dispose_subtitle_info(this);
-        }
-    }
-
-    public String imdbId;
-    public SubtitleLanguage language;
-    public SubtitleFile.ByReference files;
-    public int len;
-
-    private List<SubtitleFile> cache;
-
-    //region Constructors
-
-    public SubtitleInfo() {
-        super();
-    }
-
+public record SubtitleInfo(String imdbId, SubtitleLanguage language, List<SubtitleFile> files) {
     @Builder
-    public SubtitleInfo(String imdbId, SubtitleLanguage language) {
-        this.imdbId = imdbId;
-        this.language = language;
+    public SubtitleInfo(String imdbId, SubtitleLanguage language, SubtitleFile... files) {
+        this(imdbId, language, asList(files));
     }
-
-    //endregion
-
-    //region Getters & Setters
 
     /**
      * Check if this subtitle is a special subtitle.
@@ -78,7 +35,7 @@ public class SubtitleInfo extends Structure implements Closeable {
      * @return Returns true if this subtitle is the "none" subtitle, else false.
      */
     public boolean isNone() {
-        return getLanguage() == SubtitleLanguage.NONE;
+        return language() == SubtitleLanguage.NONE;
     }
 
     /**
@@ -87,7 +44,7 @@ public class SubtitleInfo extends Structure implements Closeable {
      * @return Returns true if this subtitle is the "custom" subtitle, else false.
      */
     public boolean isCustom() {
-        return getLanguage() == SubtitleLanguage.CUSTOM;
+        return language() == SubtitleLanguage.CUSTOM;
     }
 
     /**
@@ -100,34 +57,29 @@ public class SubtitleInfo extends Structure implements Closeable {
         return "/images/flags/" + language.getCode() + ".png";
     }
 
-    public List<SubtitleFile> getFiles() {
-        return cache;
-    }
-
-    //endregion
-
-    //region Methods
-
     @Override
-    public void read() {
-        super.read();
-        cache = Optional.ofNullable(files)
-                .map(e -> (SubtitleFile[]) files.toArray(len))
-                .map(Arrays::asList)
-                .orElse(Collections.emptyList());
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof SubtitleInfo that)) return false;
+
+        return Objects.equals(imdbId, that.imdbId) && language == that.language;
     }
 
     @Override
-    public void close() {
-        setAutoSynch(false);
-        Optional.ofNullable(cache)
-                .ifPresent(e -> e.forEach(SubtitleFile::close));
-        Optional.ofNullable(files)
-                .map(e -> (SubtitleFile.ByReference[]) e.toArray(this.len))
-                .stream()
-                .flatMap(Arrays::stream)
-                .forEach(SubtitleFile::close);
+    public int hashCode() {
+        int result = Objects.hashCode(imdbId);
+        result = 31 * result + language.hashCode();
+        return result;
     }
 
-    //endregion
+    public static SubtitleInfo from(com.github.yoep.popcorn.backend.subtitles.ffi.SubtitleInfo info) {
+        Objects.requireNonNull(info, "info cannot be null");
+        return SubtitleInfo.builder()
+                .imdbId(info.imdbId)
+                .language(info.language)
+                .files(info.getFiles().stream()
+                        .map(SubtitleFile::from)
+                        .toArray(SubtitleFile[]::new))
+                .build();
+    }
 }

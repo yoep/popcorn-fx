@@ -84,7 +84,7 @@ public class DesktopSerieActionsComponent implements Initializable, SerieActions
                 if (item == null)
                     return;
 
-                setText(item.getLanguage().getNativeName());
+                setText(item.language().getNativeName());
                 var image = new ImageView(Optional.ofNullable(item.getFlagResource())
                         .map(DesktopSerieActionsComponent.class::getResourceAsStream)
                         .map(Image::new)

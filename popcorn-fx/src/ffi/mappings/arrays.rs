@@ -150,6 +150,29 @@ impl<T: Debug + Clone> From<CArray<T>> for Vec<T> {
     }
 }
 
+impl<T: Debug + Clone> From<&CArray<T>> for Vec<T> {
+    /// Converts a CSet<T> into a Rust Vec<T>.
+    ///
+    /// This function takes a CSet<T> and creates a Rust Vec<T> by copying the elements from the C-compatible array.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - The CSet<T> to be converted into a Vec<T>.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use popcorn_fx::ffi::CArray;
+    ///
+    /// let c_set = CArray { items: [1, 2, 3].as_mut_ptr(), len: 3 };
+    /// let rust_vec: Vec<i32> = c_set.into();
+    /// ```
+    fn from(value: &CArray<T>) -> Self {
+        trace!("Converting C set {:?} into vector", value);
+        from_c_vec(value.items, value.len)
+    }
+}
+
 impl<T: Debug + Clone> Drop for CArray<T> {
     fn drop(&mut self) {
         trace!("Dropping {:?}", self);
@@ -219,6 +242,9 @@ mod test {
             media: ptr::null_mut(),
             auto_resume_timestamp: ptr::null_mut(),
             subtitles_enabled: false,
+            subtitle_info: ptr::null_mut(),
+            torrent_info: ptr::null_mut(),
+            torrent_file_info: ptr::null_mut(),
         };
         let (items, len) = into_c_vec(vec![item]);
         let set = CArray::<PlaylistItemC> { items, len };
@@ -242,6 +268,9 @@ mod test {
             media: ptr::null_mut(),
             auto_resume_timestamp: ptr::null_mut(),
             subtitles_enabled: false,
+            subtitle_info: ptr::null_mut(),
+            torrent_info: ptr::null_mut(),
+            torrent_file_info: ptr::null_mut(),
         };
 
         let set = CArray::<PlaylistItemC>::from(vec![item]);

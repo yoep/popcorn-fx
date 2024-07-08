@@ -1,10 +1,8 @@
-use std::ptr;
-
 use log::trace;
 
-use popcorn_fx_core::{from_c_vec, into_c_owned};
 use popcorn_fx_core::core::subtitles::model::SubtitleInfo;
-use popcorn_fx_core::core::subtitles::SubtitleCallback;
+use popcorn_fx_core::core::subtitles::{SubtitleCallback, SubtitlePreference};
+use popcorn_fx_core::{from_c_vec, into_c_owned};
 
 use crate::ffi::{SubtitleC, SubtitleEventC, SubtitleInfoC, SubtitleInfoSet};
 use crate::PopcornFX;
@@ -12,23 +10,38 @@ use crate::PopcornFX;
 /// The C callback for the subtitle events.
 pub type SubtitleCallbackC = extern "C" fn(SubtitleEventC);
 
-/// Retrieves the preferred subtitle from the PopcornFX instance.
+/// Retrieves the current subtitle preference from PopcornFX.
 ///
 /// # Arguments
 ///
-/// * `popcorn_fx` - A mutable reference to the PopcornFX instance.
+/// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
 ///
 /// # Returns
 ///
-/// Returns a pointer to the preferred subtitle information in C-compatible format.
-/// If no preferred subtitle is found, it returns a null pointer.
+/// A pointer to a `SubtitlePreference` instance.
+///
 #[no_mangle]
-pub extern "C" fn retrieve_preferred_subtitle(popcorn_fx: &mut PopcornFX) -> *mut SubtitleInfoC {
-    trace!("Retrieving preferred subtitle from C");
-    match popcorn_fx.subtitle_manager().preferred_subtitle() {
-        None => ptr::null_mut(),
-        Some(e) => into_c_owned(SubtitleInfoC::from(e)),
-    }
+pub extern "C" fn retrieve_subtitle_preference(
+    popcorn_fx: &mut PopcornFX,
+) -> *mut SubtitlePreference {
+    into_c_owned(popcorn_fx.subtitle_manager().preference())
+}
+
+/// Updates the subtitle preference for PopcornFX.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - Mutable reference to the PopcornFX instance.
+/// * `preference` - The new subtitle preference to set.
+#[no_mangle]
+pub extern "C" fn update_subtitle_preference(
+    popcorn_fx: &mut PopcornFX,
+    preference: &SubtitlePreference,
+) {
+    trace!("Updating subtitle preference from C for {:?}", preference);
+    popcorn_fx
+        .subtitle_manager()
+        .update_preference(preference.clone())
 }
 
 /// Retrieve the default options available for the subtitles.
@@ -197,6 +210,20 @@ pub extern "C" fn dispose_subtitle(subtitle: Box<SubtitleC>) {
     drop(subtitle)
 }
 
+/// Frees the memory allocated for the `SubtitlePreference` structure.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it's assumed that the `SubtitlePreference` structure was allocated using `Box`,
+/// and dropping a `Box` pointing to valid memory is safe. However, if the `SubtitlePreference` was allocated in a different way
+/// or if the memory was already deallocated, calling this function could lead to undefined behavior.
+///
+#[no_mangle]
+pub extern "C" fn dispose_subtitle_preference(subtitle_preference: Box<SubtitlePreference>) {
+    trace!("Disposing subtitle preference C {:?}", subtitle_preference);
+    drop(subtitle_preference)
+}
+
 #[cfg(test)]
 mod test {
     use std::path::PathBuf;
@@ -204,12 +231,12 @@ mod test {
     use log::info;
     use tempfile::tempdir;
 
-    use popcorn_fx_core::{from_c_owned, from_c_vec};
     use popcorn_fx_core::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::core::subtitles::model::Subtitle;
     use popcorn_fx_core::core::subtitles::SubtitleFile;
     use popcorn_fx_core::testing::{copy_test_file, init_logger};
+    use popcorn_fx_core::{from_c_owned, from_c_vec};
 
     use crate::test::new_instance;
 
@@ -218,6 +245,39 @@ mod test {
     #[no_mangle]
     pub extern "C" fn subtitle_callback(event: SubtitleEventC) {
         info!("Received subtitle callback event {:?}", event)
+    }
+
+    #[test]
+    fn test_retrieve_subtitle_preference() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let preference = SubtitlePreference::Language(SubtitleLanguage::Danish);
+        let mut instance = new_instance(temp_path);
+
+        instance
+            .subtitle_manager()
+            .update_preference(preference.clone());
+
+        let result = retrieve_subtitle_preference(&mut instance);
+
+        assert!(!result.is_null(), "expected a preference to be returned");
+        assert_eq!(preference, from_c_owned(result));
+    }
+
+    #[test]
+    fn test_update_subtitle_preference() {
+        init_logger();
+        let temp_dir = tempdir().expect("expected a tempt dir to be created");
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let preference = SubtitlePreference::Language(SubtitleLanguage::French);
+        let mut instance = new_instance(temp_path);
+
+        update_subtitle_preference(&mut instance, &preference);
+
+        let result = instance.subtitle_manager().preference();
+
+        assert_eq!(preference, result);
     }
 
     #[test]
@@ -265,7 +325,7 @@ mod test {
         register_subtitle_callback(&mut instance, subtitle_callback);
         instance
             .subtitle_manager()
-            .update_subtitle(SubtitleInfo::none())
+            .update_preference(SubtitlePreference::Language(SubtitleLanguage::Finnish));
     }
 
     #[test]
@@ -319,18 +379,6 @@ mod test {
     }
 
     #[test]
-    fn test_retrieve_preferred_subtitle_default_null_ptr() {
-        init_logger();
-        let temp_dir = tempdir().expect("expected a tempt dir to be created");
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let mut instance = new_instance(temp_path);
-
-        let result = retrieve_preferred_subtitle(&mut instance);
-
-        assert_eq!(ptr::null_mut(), result);
-    }
-
-    #[test]
     fn test_dispose_subtitle_info_set() {
         init_logger();
         let set = SubtitleInfoSet::from(vec![
@@ -374,5 +422,13 @@ mod test {
         let subtitle_c = SubtitleC::from(subtitle);
 
         dispose_subtitle(Box::new(subtitle_c))
+    }
+
+    #[test]
+    fn test_dispose_subtitle_preference() {
+        init_logger();
+        let preference = SubtitlePreference::Language(SubtitleLanguage::Finnish);
+
+        dispose_subtitle_preference(Box::new(preference));
     }
 }

@@ -5,9 +5,9 @@ import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
 import com.github.yoep.popcorn.backend.media.providers.Media;
 import com.github.yoep.popcorn.backend.media.providers.MediaTorrentInfo;
 import com.github.yoep.popcorn.backend.media.providers.MovieDetails;
-import com.github.yoep.popcorn.backend.playlists.Playlist;
-import com.github.yoep.popcorn.backend.playlists.PlaylistItem;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
+import com.github.yoep.popcorn.backend.playlists.model.Playlist;
+import com.github.yoep.popcorn.backend.playlists.model.PlaylistItem;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
@@ -25,7 +25,6 @@ import javafx.scene.input.MouseEvent;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.ResourceBundle;
@@ -124,9 +123,14 @@ public class TvMovieActionsComponent extends AbstractActionsComponent {
     }
 
     private void playTrailer() {
-        try (var item = PlaylistItem.fromMediaTrailer(media)) {
-            playlistManager.play(new Playlist.ByValue(Collections.singletonList(item)));
-        }
+        var item = PlaylistItem.builder()
+                .url(media.getTrailer())
+                .title(media.getTitle())
+                .caption("Trailer")
+                .thumb(media.getImages().getPoster())
+                .subtitlesEnabled(false)
+                .build();
+            playlistManager.play(new Playlist(item));
     }
 
     private void toggleFavoriteState() {

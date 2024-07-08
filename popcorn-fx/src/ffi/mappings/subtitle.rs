@@ -3,15 +3,15 @@ use std::ptr;
 
 use log::trace;
 
-use popcorn_fx_core::{
-    from_c_owned, from_c_string, from_c_vec, from_c_vec_owned, into_c_owned,
-    into_c_string, into_c_vec,
-};
-use popcorn_fx_core::core::subtitles::{SubtitleEvent, SubtitleFile};
 use popcorn_fx_core::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
 use popcorn_fx_core::core::subtitles::matcher::SubtitleMatcher;
 use popcorn_fx_core::core::subtitles::model::{Subtitle, SubtitleInfo};
+use popcorn_fx_core::core::subtitles::{SubtitleEvent, SubtitleFile, SubtitlePreference};
+use popcorn_fx_core::{
+    from_c_owned, from_c_string, from_c_vec, from_c_vec_owned, into_c_owned, into_c_string,
+    into_c_vec,
+};
 
 /// The C compatible [SubtitleInfo] representation.
 #[repr(C)]
@@ -133,23 +133,17 @@ impl Drop for SubtitleInfoC {
 
 /// The C compatible [SubtitleEvent] representation
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum SubtitleEventC {
-    SubtitleInfoChanged(*mut SubtitleInfoC),
-    PreferredLanguageChanged(SubtitleLanguage),
+    PreferenceChanged(SubtitlePreference),
 }
 
 impl From<SubtitleEvent> for SubtitleEventC {
     fn from(value: SubtitleEvent) -> Self {
         trace!("Converting SubtitleEvent to C for {:?}", value);
         match value {
-            SubtitleEvent::SubtitleInfoChanged(info) => SubtitleEventC::SubtitleInfoChanged(
-                info.map(|e| into_c_owned(SubtitleInfoC::from(e)))
-                    .or_else(|| Some(ptr::null_mut()))
-                    .unwrap(),
-            ),
-            SubtitleEvent::PreferredLanguageChanged(language) => {
-                SubtitleEventC::PreferredLanguageChanged(language)
+            SubtitleEvent::PreferenceChanged(preference) => {
+                SubtitleEventC::PreferenceChanged(preference)
             }
         }
     }
@@ -278,8 +272,8 @@ impl Drop for SubtitleMatcherC {
     }
 }
 
-impl From<SubtitleMatcherC> for SubtitleMatcher {
-    fn from(value: SubtitleMatcherC) -> Self {
+impl From<&SubtitleMatcherC> for SubtitleMatcher {
+    fn from(value: &SubtitleMatcherC) -> Self {
         trace!("Converting matcher from C for {:?}", value);
         let name = if value.name.is_null() {
             None
@@ -575,29 +569,13 @@ mod test {
     #[test]
     fn test_from_subtitle_event() {
         init_logger();
-        let imdb_id = "tt122121";
-        let info_none_event = SubtitleEvent::SubtitleInfoChanged(None);
-        let subtitle_info = SubtitleInfo::builder()
-            .imdb_id(imdb_id)
-            .language(SubtitleLanguage::Finnish)
-            .build();
-        let info_event = SubtitleEvent::SubtitleInfoChanged(Some(subtitle_info.clone()));
+        let preference = SubtitlePreference::Language(SubtitleLanguage::None);
+        let info_event = SubtitleEvent::PreferenceChanged(preference.clone());
+        let expected_result = SubtitleEventC::PreferenceChanged(preference);
 
-        let info_event_result = SubtitleEventC::from(info_event);
+        let result = SubtitleEventC::from(info_event);
 
-        match SubtitleEventC::from(info_none_event) {
-            SubtitleEventC::SubtitleInfoChanged(info) => assert_eq!(ptr::null_mut(), info),
-            _ => assert!(false, "expected SubtitleEventC::SubtitleInfoChanged"),
-        }
-        match info_event_result {
-            SubtitleEventC::SubtitleInfoChanged(info) => {
-                let subtitle_info_c = from_c_owned(info);
-
-                assert_eq!(imdb_id.to_string(), from_c_string(subtitle_info_c.imdb_id));
-                assert_eq!(SubtitleLanguage::Finnish, subtitle_info_c.language);
-            }
-            _ => assert!(false, "expected SubtitleEventC::SubtitleInfoChanged"),
-        }
+        assert_eq!(expected_result, result);
     }
 
     #[test]
@@ -611,7 +589,7 @@ mod test {
         let expected_result =
             SubtitleMatcher::from_string(Some(name.to_string()), Some(quality.to_string()));
 
-        let result = SubtitleMatcher::from(matcher);
+        let result = SubtitleMatcher::from(&matcher);
 
         assert_eq!(expected_result, result);
     }

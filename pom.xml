@@ -359,10 +359,13 @@
                         --add-opens application.backend/com.github.yoep.popcorn.backend.media.watched=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend.media=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend.player=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.playlists.ffi=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.playlists.model=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend.playlists=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend.services=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend.settings.models=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend.settings=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.subtitles.ffi=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend.subtitles.model=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend.subtitles=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend.updater=ALL-UNNAMED

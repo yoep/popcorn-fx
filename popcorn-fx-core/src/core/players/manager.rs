@@ -1,6 +1,6 @@
 use std::fmt::Debug;
-use std::sync::{Arc, RwLock, Weak};
 use std::sync::mpsc::{channel, Sender};
+use std::sync::{Arc, RwLock, Weak};
 
 use async_trait::async_trait;
 use derive_more::Display;
@@ -10,15 +10,15 @@ use mockall::automock;
 use tokio::runtime::Runtime;
 use tokio::sync::Mutex;
 
-use crate::core::{block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks};
 use crate::core::config::ApplicationConfig;
 use crate::core::events::{
     Event, EventPublisher, PlayerChangedEvent, PlayerStartedEvent, PlayerStoppedEvent,
 };
 use crate::core::media::MediaIdentifier;
-use crate::core::players::{Player, PlayerEvent, PlayerState, PlayMediaRequest, PlayRequest};
+use crate::core::players::{PlayMediaRequest, PlayRequest, Player, PlayerEvent, PlayerState};
 use crate::core::screen::ScreenService;
 use crate::core::torrents::{TorrentManager, TorrentStreamServer};
+use crate::core::{block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks};
 
 /// An event representing changes to the player manager.
 #[derive(Debug, Clone, Display)]
@@ -611,13 +611,13 @@ mod tests {
     use async_trait::async_trait;
     use tempfile::tempdir;
 
-    use crate::core::{CallbackHandle, Handle};
     use crate::core::config::{PlaybackSettings, PopcornSettings};
     use crate::core::events::DEFAULT_ORDER;
     use crate::core::media::MockMediaIdentifier;
-    use crate::core::players::{PlayUrlRequest, PlayUrlRequestBuilder};
+    use crate::core::players::{PlaySubtitleRequest, PlayUrlRequest, PlayUrlRequestBuilder};
     use crate::core::screen::MockScreenService;
     use crate::core::torrents::{MockTorrentManager, MockTorrentStreamServer, TorrentStream};
+    use crate::core::{CallbackHandle, Handle};
     use crate::testing::{init_logger, MockPlayer, MockTorrentStream};
 
     use super::*;
@@ -988,8 +988,11 @@ mod tests {
                 thumb: None,
                 background: None,
                 auto_resume_timestamp: None,
-                subtitles_enabled: false,
-                subtitle: None,
+                subtitle: PlaySubtitleRequest {
+                    enabled: false,
+                    info: None,
+                    subtitle: None,
+                },
             },
             parent_media: None,
             media: Box::new(MockMediaIdentifier::new()),

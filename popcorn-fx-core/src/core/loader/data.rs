@@ -2,7 +2,7 @@ use std::sync::Weak;
 
 use crate::core::media::{MediaIdentifier, TorrentInfo};
 use crate::core::playlists::PlaylistItem;
-use crate::core::subtitles::model::Subtitle;
+use crate::core::subtitles::model::{Subtitle, SubtitleInfo};
 use crate::core::torrents::{Torrent, TorrentFileInfo, TorrentStream};
 
 /// A structure representing loading data for a media item.
@@ -22,8 +22,7 @@ pub struct LoadingData {
     pub torrent_file_info: Option<TorrentFileInfo>,
     pub quality: Option<String>,
     pub auto_resume_timestamp: Option<u64>,
-    pub subtitles_enabled: Option<bool>,
-    pub subtitle: Option<Subtitle>,
+    pub subtitle: SubtitleData,
     pub media_torrent_info: Option<TorrentInfo>,
     pub torrent: Option<Weak<Box<dyn Torrent>>>,
     pub torrent_stream: Option<Weak<Box<dyn TorrentStream>>>,
@@ -72,7 +71,6 @@ impl Clone for LoadingData {
             torrent_file_info: self.torrent_file_info.clone(),
             quality: self.quality.clone(),
             auto_resume_timestamp: self.auto_resume_timestamp,
-            subtitles_enabled: self.subtitles_enabled,
             subtitle: self.subtitle.clone(),
             media_torrent_info: self.media_torrent_info.clone(),
             torrent: self.torrent.clone(),
@@ -94,8 +92,7 @@ impl From<&str> for LoadingData {
             torrent_file_info: None,
             quality: None,
             auto_resume_timestamp: None,
-            subtitles_enabled: None,
-            subtitle: None,
+            subtitle: SubtitleData::default(),
             media_torrent_info: None,
             torrent: None,
             torrent_stream: None,
@@ -110,14 +107,17 @@ impl From<PlaylistItem> for LoadingData {
             title: Some(value.title),
             caption: value.caption,
             thumb: value.thumb,
-            parent_media: value.parent_media,
-            media: value.media,
-            torrent_info: value.torrent_info,
-            torrent_file_info: value.torrent_file_info,
+            parent_media: value.media.parent,
+            media: value.media.media,
+            torrent_info: value.torrent.info,
+            torrent_file_info: value.torrent.file_info,
             quality: value.quality,
             auto_resume_timestamp: value.auto_resume_timestamp,
-            subtitles_enabled: Some(value.subtitles_enabled),
-            subtitle: None,
+            subtitle: SubtitleData {
+                enabled: Some(value.subtitle.enabled),
+                info: value.subtitle.info,
+                subtitle: None,
+            },
             media_torrent_info: None,
             torrent: None,
             torrent_stream: None,
@@ -125,9 +125,18 @@ impl From<PlaylistItem> for LoadingData {
     }
 }
 
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct SubtitleData {
+    pub enabled: Option<bool>,
+    pub info: Option<SubtitleInfo>,
+    pub subtitle: Option<Subtitle>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::media::{Episode, ShowOverview};
+    use crate::core::playlists::{PlaylistMedia, PlaylistSubtitle, PlaylistTorrent};
 
     #[test]
     fn test_from_str() {
@@ -144,25 +153,59 @@ mod tests {
         let caption = "MyCaption";
         let thumb = "MyThumb";
         let quality = "480p";
+        let show_overview = ShowOverview {
+            imdb_id: "tt123456".to_string(),
+            tvdb_id: "tt000001".to_string(),
+            title: "FooBar".to_string(),
+            year: "2019".to_string(),
+            num_seasons: 2,
+            images: Default::default(),
+            rating: None,
+        };
+        let episode = Episode {
+            season: 1,
+            episode: 3,
+            first_aired: 0,
+            title: "LoremIpsum".to_string(),
+            overview: "Some random overview".to_string(),
+            tvdb_id: 0,
+            tvdb_id_value: "".to_string(),
+            thumb: None,
+            torrents: Default::default(),
+        };
         let item = PlaylistItem {
             url: None,
             title: title.to_string(),
             caption: Some(caption.to_string()),
             thumb: Some(thumb.to_string()),
-            parent_media: None,
-            media: None,
+            media: PlaylistMedia {
+                parent: Some(Box::new(show_overview.clone())),
+                media: Some(Box::new(episode.clone())),
+            },
+            quality: Some(quality.to_string()),
+            auto_resume_timestamp: None,
+            subtitle: PlaylistSubtitle::default(),
+            torrent: PlaylistTorrent::default(),
+        };
+        let expected_result = LoadingData {
+            url: None,
+            title: Some(title.to_string()),
+            caption: Some(caption.to_string()),
+            thumb: Some(thumb.to_string()),
+            parent_media: Some(Box::new(show_overview)),
+            media: Some(Box::new(episode)),
             torrent_info: None,
             torrent_file_info: None,
             quality: Some(quality.to_string()),
             auto_resume_timestamp: None,
-            subtitles_enabled: false,
+            subtitle: SubtitleData::default(),
+            media_torrent_info: None,
+            torrent: None,
+            torrent_stream: None,
         };
 
         let result = LoadingData::from(item);
 
-        assert_eq!(Some(title.to_string()), result.title);
-        assert_eq!(Some(caption.to_string()), result.caption);
-        assert_eq!(Some(thumb.to_string()), result.thumb);
-        assert_eq!(Some(quality.to_string()), result.quality);
+        assert_eq!(expected_result, result);
     }
 }

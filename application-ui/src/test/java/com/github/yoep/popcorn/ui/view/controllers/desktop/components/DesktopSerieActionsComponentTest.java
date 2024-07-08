@@ -6,6 +6,7 @@ import com.github.yoep.popcorn.backend.media.providers.ShowDetails;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleFile;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.ui.view.controls.LanguageFlagSelection;
 import com.github.yoep.popcorn.ui.view.controls.PlayerDropDownButton;
@@ -100,12 +101,15 @@ class DesktopSerieActionsComponentTest {
         var episode = mock(Episode.class);
         var none = SubtitleInfo.builder()
                 .language(SubtitleLanguage.NONE)
+                .files(new SubtitleFile[0])
                 .build();
         var english = SubtitleInfo.builder()
                 .language(SubtitleLanguage.ENGLISH)
+                .files(new SubtitleFile[0])
                 .build();
         var french = SubtitleInfo.builder()
                 .language(SubtitleLanguage.FRENCH)
+                .files(new SubtitleFile[0])
                 .build();
         when(subtitleService.retrieveSubtitles(isA(ShowDetails.class), isA(Episode.class))).thenReturn(CompletableFuture.completedFuture(asList(none, english, french)));
         component.initialize(location, resources);

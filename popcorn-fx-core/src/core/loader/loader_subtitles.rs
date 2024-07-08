@@ -17,7 +17,9 @@ use crate::core::subtitles;
 use crate::core::subtitles::language::SubtitleLanguage;
 use crate::core::subtitles::matcher::SubtitleMatcher;
 use crate::core::subtitles::model::{Subtitle, SubtitleInfo};
-use crate::core::subtitles::{SubtitleError, SubtitleManager, SubtitleProvider};
+use crate::core::subtitles::{
+    SubtitleError, SubtitleManager, SubtitlePreference, SubtitleProvider,
+};
 
 /// Represents a strategy for loading subtitles.
 #[derive(Display)]
@@ -53,7 +55,32 @@ impl SubtitlesLoadingStrategy {
     /// # Arguments
     ///
     /// * `data` - The loading data.
-    async fn update_to_default_subtitle(&self, data: &LoadingData) {
+    async fn update_to_default_subtitle(&self, data: &mut LoadingData) {
+        let subtitles = self.retrieve_available_subtitles(&data).await;
+
+        if let Ok(subtitles) = subtitles {
+            let subtitle = self
+                .subtitle_manager
+                .select_or_default(subtitles.as_slice());
+
+            debug!("Updating subtitle to {} for {:?}", subtitle, data);
+            data.subtitle.info = Some(subtitle);
+        }
+    }
+
+    /// Retrieves the available subtitles for the given loading data.
+    ///
+    /// # Arguments
+    ///
+    /// * `data` - The loading data.
+    ///
+    /// # Returns
+    ///
+    /// A result containing the available subtitles if found, else the subtitle retrieval error.
+    async fn retrieve_available_subtitles(
+        &self,
+        data: &LoadingData,
+    ) -> subtitles::Result<Vec<SubtitleInfo>> {
         debug!("Loading subtitles for {:?}", data);
         let subtitles: subtitles::Result<Vec<SubtitleInfo>>;
 
@@ -70,17 +97,12 @@ impl SubtitlesLoadingStrategy {
                 .await
         } else {
             warn!("Unable to retrieve subtitles, no information known about the played item");
-            return;
+            return Err(SubtitleError::SearchFailed(
+                "no media information known".to_string(),
+            ));
         }
 
-        if let Ok(subtitles) = subtitles {
-            let subtitle = self
-                .subtitle_manager
-                .select_or_default(subtitles.as_slice());
-
-            debug!("Updating subtitle to {} for {:?}", subtitle, data);
-            self.subtitle_manager.update_subtitle(subtitle);
-        }
+        return subtitles;
     }
 
     /// Handles loading subtitles for a movie.
@@ -206,26 +228,48 @@ impl LoadingStrategy for SubtitlesLoadingStrategy {
         event_channel: Sender<LoadingEvent>,
         cancel: CancellationToken,
     ) -> LoadingResult {
-        if data.subtitles_enabled.unwrap_or(false) {
+        if data.subtitle.enabled.unwrap_or(false) {
             trace!("Subtitle manager state {:?}", self.subtitle_manager);
             if cancel.is_cancelled() {
                 return LoadingResult::Err(LoadingError::Cancelled);
             }
 
-            if !self.subtitle_manager.is_disabled_async().await {
-                if self.subtitle_manager.preferred_language() == SubtitleLanguage::None {
+            let subtitle_preference = self.subtitle_manager.preference_async().await;
+            // check if the subtitle preference is a custom subtitle and that a subtitle has been passed
+            // if so, continue with the loader without executing any action regarding subtitles
+            if subtitle_preference == SubtitlePreference::Language(SubtitleLanguage::Custom)
+                && data.subtitle.info.is_some()
+            {
+                return LoadingResult::Ok(data);
+            }
+
+            // check if the subtitle preference is disabled
+            // if not, try to download the preferred subtitle
+            if subtitle_preference != SubtitlePreference::Disabled {
+                // update the current state to retrieving subtitles
+                event_channel
+                    .send(LoadingEvent::StateChanged(
+                        LoadingState::RetrievingSubtitles,
+                    ))
+                    .unwrap();
+
+                if subtitle_preference == SubtitlePreference::Language(SubtitleLanguage::None) {
                     trace!("Processing subtitle info for {:?}", data);
-                    event_channel
-                        .send(LoadingEvent::StateChanged(
-                            LoadingState::RetrievingSubtitles,
-                        ))
-                        .unwrap();
-                    self.update_to_default_subtitle(&data).await;
+                    self.update_to_default_subtitle(&mut data).await;
                 } else {
-                    debug!("Subtitle has already been selected for {:?}", data);
+                    debug!(
+                        "Current subtitle preference {:?} for {:?}",
+                        subtitle_preference, data
+                    );
+                    if data.subtitle.info.is_none() {
+                        if let Ok(subtitles) = self.retrieve_available_subtitles(&data).await {
+                            data.subtitle.info =
+                                Some(self.subtitle_manager.select_or_default(&subtitles));
+                        }
+                    }
                 }
 
-                if let Some(info) = self.subtitle_manager.preferred_subtitle() {
+                if let Some(info) = data.subtitle.info.as_ref() {
                     if cancel.is_cancelled() {
                         return LoadingResult::Err(LoadingError::Cancelled);
                     }
@@ -238,7 +282,7 @@ impl LoadingStrategy for SubtitlesLoadingStrategy {
                     trace!("Downloading subtitle for {:?}", data);
                     if let Some(subtitle) = self.download_subtitle(&info, &data).await {
                         let subtitle_filename = subtitle.file().to_string();
-                        data.subtitle = Some(subtitle);
+                        data.subtitle.subtitle = Some(subtitle);
                         info!(
                             "Subtitle {} has been downloaded for {:?}",
                             subtitle_filename, data.url
@@ -276,8 +320,8 @@ mod tests {
 
     use crate::core::block_in_place;
     use crate::core::loader::LoadingResult;
-    use crate::core::playlists::PlaylistItem;
-    use crate::core::subtitles::MockSubtitleProvider;
+    use crate::core::playlists::{PlaylistItem, PlaylistMedia, PlaylistSubtitle, PlaylistTorrent};
+    use crate::core::subtitles::{MockSubtitleProvider, SubtitleFile};
     use crate::core::torrents::TorrentFileInfo;
     use crate::testing::{init_logger, MockSubtitleManager};
 
@@ -303,13 +347,17 @@ mod tests {
             title: "".to_string(),
             caption: None,
             thumb: None,
-            parent_media: None,
-            media: Some(Box::new(movie_details.clone())),
-            torrent_info: None,
-            torrent_file_info: None,
+            media: PlaylistMedia {
+                parent: None,
+                media: Some(Box::new(movie_details.clone())),
+            },
             quality: None,
             auto_resume_timestamp: None,
-            subtitles_enabled: true,
+            subtitle: PlaylistSubtitle {
+                enabled: true,
+                info: None,
+            },
+            torrent: Default::default(),
         };
         let data = LoadingData::from(playlist_item);
         let (tx, rx) = channel();
@@ -336,22 +384,13 @@ mod tests {
             )));
         let mut manager = MockSubtitleManager::new();
         manager
-            .expect_is_disabled_async()
+            .expect_preference_async()
             .times(1)
-            .return_const(false);
-        manager
-            .expect_preferred_language()
-            .times(1)
-            .return_const(SubtitleLanguage::None);
-        manager
-            .expect_preferred_subtitle()
-            .times(..2)
-            .returning(|| Some(SubtitleInfo::none()));
+            .return_const(SubtitlePreference::Language(SubtitleLanguage::None));
         manager
             .expect_select_or_default()
             .times(1)
             .returning(|_| SubtitleInfo::none());
-        manager.expect_update_subtitle().times(1).return_const(());
         let loader = SubtitlesLoadingStrategy::new(
             Arc::new(Box::new(provider)),
             Arc::new(Box::new(manager)),
@@ -380,13 +419,17 @@ mod tests {
             title: "".to_string(),
             caption: None,
             thumb: None,
-            parent_media: None,
-            media: None,
-            torrent_info: None,
-            torrent_file_info: Some(torrent_file_info.clone()),
+            media: Default::default(),
             quality: None,
             auto_resume_timestamp: None,
-            subtitles_enabled: true,
+            subtitle: PlaylistSubtitle {
+                enabled: true,
+                info: None,
+            },
+            torrent: PlaylistTorrent {
+                info: None,
+                file_info: Some(torrent_file_info.clone()),
+            },
         };
         let data = LoadingData::from(playlist_item);
         let (tx, rx) = channel();
@@ -413,22 +456,13 @@ mod tests {
             )));
         let mut manager = MockSubtitleManager::new();
         manager
-            .expect_is_disabled_async()
+            .expect_preference_async()
             .times(1)
-            .return_const(false);
-        manager
-            .expect_preferred_language()
-            .times(1)
-            .return_const(SubtitleLanguage::None);
-        manager
-            .expect_preferred_subtitle()
-            .times(..2)
-            .returning(|| Some(SubtitleInfo::none()));
+            .return_const(SubtitlePreference::Language(SubtitleLanguage::None));
         manager
             .expect_select_or_default()
             .times(1)
             .returning(|_| SubtitleInfo::none());
-        manager.expect_update_subtitle().times(1).return_const(());
         let loader = SubtitlesLoadingStrategy::new(
             Arc::new(Box::new(provider)),
             Arc::new(Box::new(manager)),
@@ -462,13 +496,17 @@ mod tests {
             title: "".to_string(),
             caption: None,
             thumb: None,
-            parent_media: None,
-            media: Some(movie),
-            torrent_info: None,
-            torrent_file_info: None,
+            media: PlaylistMedia {
+                parent: None,
+                media: Some(movie),
+            },
             quality: None,
             auto_resume_timestamp: None,
-            subtitles_enabled: true,
+            subtitle: PlaylistSubtitle {
+                enabled: true,
+                info: None,
+            },
+            torrent: Default::default(),
         };
         let data = LoadingData::from(playlist_item);
         let (tx_event, _) = channel();
@@ -477,7 +515,10 @@ mod tests {
             .expect_movie_subtitles()
             .returning(|_| panic!("movie_subtitles should not have been invoked"));
         let mut manager = MockSubtitleManager::new();
-        manager.expect_is_disabled_async().return_const(true);
+        manager
+            .expect_preference_async()
+            .times(1)
+            .return_const(SubtitlePreference::Disabled);
         let manager = Arc::new(Box::new(manager) as Box<dyn SubtitleManager>);
         let loader = SubtitlesLoadingStrategy::new(Arc::new(Box::new(provider)), manager);
 
@@ -495,13 +536,11 @@ mod tests {
             title: "".to_string(),
             caption: None,
             thumb: None,
-            parent_media: None,
-            media: None,
-            torrent_info: None,
-            torrent_file_info: None,
+            media: Default::default(),
             quality: None,
             auto_resume_timestamp: None,
-            subtitles_enabled: false,
+            subtitle: Default::default(),
+            torrent: Default::default(),
         };
         let data = LoadingData::from(playlist_item);
         let (tx_event, _) = channel();
@@ -520,13 +559,63 @@ mod tests {
             .return_const(subtitles::Result::Ok(Vec::new()));
         let mut manager = MockSubtitleManager::new();
         manager
-            .expect_is_disabled_async()
+            .expect_preference_async()
+            .return_const(SubtitlePreference::Disabled);
+        let loader = SubtitlesLoadingStrategy::new(
+            Arc::new(Box::new(provider)),
+            Arc::new(Box::new(manager)),
+        );
+
+        let result =
+            block_in_place(loader.process(data.clone(), tx_event, CancellationToken::new()));
+        assert_eq!(LoadingResult::Ok(data), result);
+    }
+
+    #[test]
+    fn test_process_custom_subtitle() {
+        init_logger();
+        let playlist_item = PlaylistItem {
+            url: None,
+            title: "".to_string(),
+            caption: None,
+            thumb: None,
+            media: Default::default(),
+            quality: None,
+            auto_resume_timestamp: None,
+            subtitle: PlaylistSubtitle {
+                enabled: true,
+                info: Some(
+                    SubtitleInfo::builder()
+                        .language(SubtitleLanguage::Custom)
+                        .files(vec![SubtitleFile::builder()
+                            .file_id(0)
+                            .url("/tmp/some/subtitle.srt")
+                            .name("Custom")
+                            .build()])
+                        .build(),
+                ),
+            },
+            torrent: Default::default(),
+        };
+        let data = LoadingData::from(playlist_item);
+        let (tx_event, _) = channel();
+        let mut provider = MockSubtitleProvider::new();
+        provider
+            .expect_movie_subtitles()
             .times(0)
-            .return_const(true);
+            .return_const(subtitles::Result::Ok(Vec::new()));
+        provider
+            .expect_episode_subtitles()
+            .times(0)
+            .return_const(subtitles::Result::Ok(Vec::new()));
+        provider
+            .expect_file_subtitles()
+            .times(0)
+            .return_const(subtitles::Result::Ok(Vec::new()));
+        let mut manager = MockSubtitleManager::new();
         manager
-            .expect_preferred_subtitle()
-            .times(0)
-            .return_const(Some(SubtitleInfo::custom()));
+            .expect_preference_async()
+            .return_const(SubtitlePreference::Language(SubtitleLanguage::Custom));
         let loader = SubtitlesLoadingStrategy::new(
             Arc::new(Box::new(provider)),
             Arc::new(Box::new(manager)),
@@ -545,13 +634,14 @@ mod tests {
             title: "CancelledItem".to_string(),
             caption: None,
             thumb: None,
-            parent_media: None,
-            media: None,
-            torrent_info: None,
-            torrent_file_info: None,
+            media: Default::default(),
             quality: None,
             auto_resume_timestamp: None,
-            subtitles_enabled: true,
+            subtitle: PlaylistSubtitle {
+                enabled: true,
+                info: None,
+            },
+            torrent: Default::default(),
         });
         let mut provider = MockSubtitleProvider::new();
         provider

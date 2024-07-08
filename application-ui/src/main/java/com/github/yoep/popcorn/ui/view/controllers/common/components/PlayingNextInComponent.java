@@ -1,7 +1,8 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
-import com.github.yoep.popcorn.backend.playlists.PlaylistItem;
+import com.github.yoep.popcorn.backend.playlists.DefaultPlaylistManager;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
+import com.github.yoep.popcorn.backend.playlists.model.PlaylistItem;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManagerListener;
 import com.github.yoep.popcorn.backend.playlists.PlaylistState;
 import com.github.yoep.popcorn.ui.view.controls.SizedImageView;
@@ -94,7 +95,7 @@ public class PlayingNextInComponent implements Initializable {
         }
 
         Platform.runLater(() -> {
-            showName.setText(nextItem.getTitle());
+            showName.setText(nextItem.title());
             episodeTitle.setText(nextItem.getCaption().orElse(null));
             //TODO
             //            episodeNumber.setText(String.valueOf(nextItem.getEpisode().getEpisode()));

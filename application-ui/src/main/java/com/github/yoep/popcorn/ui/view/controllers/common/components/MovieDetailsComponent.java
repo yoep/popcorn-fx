@@ -26,7 +26,9 @@ import java.util.ResourceBundle;
 
 @Slf4j
 public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<MovieDetails> {
-    private static final String DEFAULT_TORRENT_AUDIO = "en";
+    static final String DEFAULT_TORRENT_AUDIO = "en";
+    static final String POSTER_COMPONENT_VIEW = "components/poster.component.fxml";
+    static final String ACTIONS_COMPONENT_VIEW = "components/movie-actions.component.fxml";
 
     private final ViewLoader viewLoader;
 
@@ -101,7 +103,7 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
     }
 
     private void initializeActions() {
-        var pane = viewLoader.load("components/movie-actions.component.fxml");
+        var pane = viewLoader.load(ACTIONS_COMPONENT_VIEW);
         GridPane.setColumnIndex(pane, 0);
         GridPane.setColumnSpan(pane, 3);
         GridPane.setRowIndex(pane, 4);
@@ -133,7 +135,7 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
     //region Functions
 
     private void initializePoster() {
-        var poster = viewLoader.load("components/poster.component.fxml");
+        var poster = viewLoader.load(POSTER_COMPONENT_VIEW);
         detailsContent.add(poster, 0, 0);
     }
 

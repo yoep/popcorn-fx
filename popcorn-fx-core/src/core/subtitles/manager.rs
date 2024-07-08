@@ -1,6 +1,4 @@
 use std::fmt::Debug;
-use std::ops::DerefMut;
-use std::path::Path;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -8,87 +6,65 @@ use derive_more::Display;
 use log::{debug, error, info, trace};
 use tokio::sync::Mutex;
 
-use crate::core::{block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks};
 use crate::core::config::ApplicationConfig;
-use crate::core::events::{DEFAULT_ORDER, Event, EventPublisher};
 use crate::core::storage::Storage;
 use crate::core::subtitles::language::SubtitleLanguage;
 use crate::core::subtitles::model::SubtitleInfo;
-use crate::core::subtitles::SubtitleFile;
+use crate::core::{block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks};
 
 /// The callback to listen on events of the subtitle manager.
 pub type SubtitleCallback = CoreCallback<SubtitleEvent>;
 
-/// The events of the subtitle manager.
+/// Represents events related to subtitles.
 #[derive(Debug, Clone, Display)]
 pub enum SubtitleEvent {
-    /// Invoked when the preferred [SubtitleInfo] is changed.
-    ///
-    /// * The new subtitle information.
-    #[display(fmt = "Subtitle info changed to {:?}", _0)]
-    SubtitleInfoChanged(Option<SubtitleInfo>),
-    /// Invoked when the preferred [SubtitleLanguage] is changed.
-    ///
-    /// * The new preferred subtitle language
-    #[display(fmt = "Preferred subtitle language changed to {}", _0)]
-    PreferredLanguageChanged(SubtitleLanguage),
+    /// Indicates a change in subtitle preference.
+    #[display(fmt = "subtitle preference changed to {}", _0)]
+    PreferenceChanged(SubtitlePreference),
+}
+
+/// Represents user preferences for subtitles.
+#[repr(C)]
+#[derive(Debug, Clone, Display, PartialEq)]
+pub enum SubtitlePreference {
+    /// Specifies a preferred subtitle language.
+    #[display(fmt = "preferred language {}", _0)]
+    Language(SubtitleLanguage),
+    /// Indicates subtitles are disabled.
+    #[display(fmt = "disabled")]
+    Disabled,
 }
 
 #[async_trait]
 pub trait SubtitleManager: Debug + Callbacks<SubtitleEvent> + Send + Sync {
-    /// Retrieves the preferred subtitle.
+    /// Retrieves the current subtitle preference.
+    fn preference(&self) -> SubtitlePreference;
+
+    /// Asynchronously retrieves the current subtitle preference.
+    async fn preference_async(&self) -> SubtitlePreference;
+
+    /// Updates the subtitle preference.
+    ///
+    /// # Arguments
+    ///
+    /// * `preference` - The new subtitle preference to set.
+    fn update_preference(&self, preference: SubtitlePreference);
+
+    /// Selects a subtitle from the available list or returns a default if none match the preference.
+    ///
+    /// # Arguments
+    ///
+    /// * `subtitles` - Available subtitle options to choose from.
     ///
     /// # Returns
     ///
-    /// The preferred subtitle as an `Option<SubtitleInfo>`.
-    fn preferred_subtitle(&self) -> Option<SubtitleInfo>;
-
-    /// Retrieves the preferred language for subtitles.
-    ///
-    /// # Returns
-    ///
-    /// The preferred language for subtitles.
-    fn preferred_language(&self) -> SubtitleLanguage;
-
-    /// Checks if the subtitle has been disabled by the user.
-    ///
-    /// # Returns
-    ///
-    /// - `true` if the subtitle is disabled.
-    /// - `false` if the subtitle is enabled.
-    fn is_disabled(&self) -> bool;
-
-    /// Asynchronously checks if the subtitle has been disabled by the user.
-    ///
-    /// # Returns
-    ///
-    /// - `true` if the subtitle is disabled.
-    /// - `false` if the subtitle is enabled.
-    async fn is_disabled_async(&self) -> bool;
-
-    /// Updates the current subtitle with the provided subtitle information.
-    fn update_subtitle(&self, subtitle: SubtitleInfo);
-
-    /// Updates the subtitle with the custom subtitle file.
-    fn update_custom_subtitle(&self, subtitle_file: &str);
-    
-    /// Select one of the available subtitles.
-    ///
-    /// * `subtitles` - The available subtitle slice to pick from.
-    ///
-    /// # Returns
-    /// 
-    /// It returns the default [SubtitleInfo::none] when the preferred subtitle is not present.
+    /// The selected subtitle information, or a default if none match the preference.
     fn select_or_default(&self, subtitles: &[SubtitleInfo]) -> SubtitleInfo;
-
-    /// Disables the subtitle on behalf of the user.
-    /// To undo this action, call [reset].
-    fn disable_subtitle(&self);
 
     /// Resets the current selected subtitle information.
     fn reset(&self);
 
-    /// Cleans the stored subtitle files.
+    /// Cleans up stored subtitle files.
     fn cleanup(&self);
 }
 
@@ -104,21 +80,8 @@ impl DefaultSubtitleManager {
     /// # Arguments
     ///
     /// * `settings` - The application settings for configuring the manager.
-    pub fn new(settings: Arc<ApplicationConfig>, event_publisher: Arc<EventPublisher>) -> Self {
+    pub fn new(settings: Arc<ApplicationConfig>) -> Self {
         let instance = Arc::new(InnerSubtitleManager::new(settings));
-
-        let event_inner = instance.clone();
-        event_publisher.register(
-            Box::new(move |event| {
-                if let Event::PlayerStopped(_) = &event {
-                    event_inner.on_player_stopped();
-                }
-
-                Some(event)
-            }),
-            DEFAULT_ORDER,
-        );
-
         Self { inner: instance }
     }
 }
@@ -135,36 +98,20 @@ impl Callbacks<SubtitleEvent> for DefaultSubtitleManager {
 
 #[async_trait]
 impl SubtitleManager for DefaultSubtitleManager {
-    fn preferred_subtitle(&self) -> Option<SubtitleInfo> {
-        self.inner.preferred_subtitle()
+    fn preference(&self) -> SubtitlePreference {
+        self.inner.preference()
     }
 
-    fn preferred_language(&self) -> SubtitleLanguage {
-        self.inner.preferred_language()
+    async fn preference_async(&self) -> SubtitlePreference {
+        self.inner.preference_async().await
     }
 
-    fn is_disabled(&self) -> bool {
-        self.inner.is_disabled()
-    }
-
-    async fn is_disabled_async(&self) -> bool {
-        self.inner.is_disabled_async().await
-    }
-
-    fn update_subtitle(&self, subtitle: SubtitleInfo) {
-        self.inner.update_subtitle(subtitle)
-    }
-
-    fn update_custom_subtitle(&self, subtitle_file: &str) {
-        self.inner.update_custom_subtitle(subtitle_file)
+    fn update_preference(&self, preference: SubtitlePreference) {
+        self.inner.update_preference(preference);
     }
 
     fn select_or_default(&self, subtitles: &[SubtitleInfo]) -> SubtitleInfo {
         self.inner.select_or_default(subtitles)
-    }
-    
-    fn disable_subtitle(&self) {
-        self.inner.disable_subtitle()
     }
 
     fn reset(&self) {
@@ -179,11 +126,7 @@ impl SubtitleManager for DefaultSubtitleManager {
 #[derive(Debug)]
 struct InnerSubtitleManager {
     /// The known info of the selected subtitle if applicable.
-    subtitle_info: Arc<Mutex<Option<SubtitleInfo>>>,
-    /// The preferred language for the subtitle.
-    preferred_language: Arc<Mutex<SubtitleLanguage>>,
-    /// Indicates if the subtitle has been disabled by the user.
-    disabled_by_user: Mutex<bool>,
+    preference: Arc<Mutex<SubtitlePreference>>,
     /// Callbacks for handling subtitle events.
     callbacks: CoreCallbacks<SubtitleEvent>,
     /// Application settings.
@@ -198,57 +141,10 @@ impl InnerSubtitleManager {
     /// * `settings` - The application settings for configuring the manager.
     fn new(settings: Arc<ApplicationConfig>) -> Self {
         Self {
-            subtitle_info: Arc::new(Mutex::new(None)),
-            preferred_language: Arc::new(Mutex::new(SubtitleLanguage::None)),
-            disabled_by_user: Mutex::new(false),
+            preference: Arc::new(Mutex::new(Self::default_preference(&settings))),
             callbacks: Default::default(),
             settings,
         }
-    }
-
-    fn update_language(&self, preferred_language: SubtitleLanguage) {
-        let arc = self.preferred_language.clone();
-        let mut mutex = futures::executor::block_on(arc.lock());
-        let value = mutex.deref_mut();
-        let language_text = preferred_language.to_string();
-
-        *value = preferred_language;
-        info!("Subtitle language has been updated to {}", language_text);
-        self.callbacks
-            .invoke(SubtitleEvent::PreferredLanguageChanged(mutex.clone()));
-    }
-
-    fn update_subtitle_info(&self, subtitle: SubtitleInfo) {
-        trace!("Updating subtitle info to {:?}", subtitle);
-        let event_value: Option<SubtitleInfo>;
-
-        {
-            let mut mutex = block_in_place(self.subtitle_info.lock());
-            let _ = mutex.insert(subtitle);
-            debug!("Subtitle info has been updated to {:?}", mutex);
-            event_value = mutex.clone();
-        }
-
-        self.callbacks
-            .invoke(SubtitleEvent::SubtitleInfoChanged(event_value));
-    }
-
-    fn update_disabled_state(&self, new_state: bool) {
-        let mut mutex = block_in_place(self.disabled_by_user.lock());
-        let value = mutex.deref_mut();
-        *value = new_state;
-    }
-
-    fn reset_subtitle_info(&self) {
-        let mut mutex = block_in_place(self.subtitle_info.lock());
-        let _ = mutex.take();
-        trace!("Subtitle info has been reset");
-    }
-
-    fn on_player_stopped(&self) {
-        // only reset the subtitle info as we might need the preferred language
-        // for the next playback
-        self.reset_subtitle_info();
     }
 
     /// Find the subtitle for the default configured subtitle language.
@@ -277,6 +173,15 @@ impl InnerSubtitleManager {
             .find(|e| &e.language().code() == language)
             .map(|e| e.clone())
     }
+
+    fn default_preference(settings: &Arc<ApplicationConfig>) -> SubtitlePreference {
+        let preferred_language = settings
+            .user_settings()
+            .subtitle_settings
+            .default_subtitle
+            .clone();
+        SubtitlePreference::Language(preferred_language)
+    }
 }
 
 impl Callbacks<SubtitleEvent> for InnerSubtitleManager {
@@ -291,126 +196,44 @@ impl Callbacks<SubtitleEvent> for InnerSubtitleManager {
 
 #[async_trait]
 impl SubtitleManager for InnerSubtitleManager {
-    /// Retrieves the current preferred subtitle for [Media] item playbacks.
-    ///
-    /// # Returns
-    ///
-    /// The preferred [SubtitleInfo] if present.
-    fn preferred_subtitle(&self) -> Option<SubtitleInfo> {
-        trace!("Retrieving preferred subtitle from subtitle manager");
-        let mutex = block_in_place(self.subtitle_info.lock());
-
-        if mutex.is_some() {
-            mutex.clone()
-        } else {
-            None
-        }
+    fn preference(&self) -> SubtitlePreference {
+        block_in_place(self.preference_async())
     }
 
-    /// Retrieves the current preferred subtitle language for the [Media] item playback.
-    ///
-    /// # Returns
-    ///
-    /// The preferred [SubtitleLanguage].
-    fn preferred_language(&self) -> SubtitleLanguage {
-        let arc = self.preferred_language.clone();
-        let mutex = futures::executor::block_on(arc.lock());
-        *mutex
+    async fn preference_async(&self) -> SubtitlePreference {
+        let mutex = self.preference.lock().await;
+        mutex.clone()
     }
 
-    /// Checks if the subtitle has been disabled by the user.
-    ///
-    /// This function checks whether the subtitle is disabled by the user and returns `true` if it is disabled,
-    /// or `false` otherwise.
-    ///
-    /// # Returns
-    ///
-    /// `true` if the subtitle is disabled, `false` otherwise.
-    fn is_disabled(&self) -> bool {
-        block_in_place(self.is_disabled_async())
-    }
-
-    /// Asynchronously checks if the subtitle has been disabled by the user.
-    ///
-    /// This asynchronous function checks whether the subtitle is disabled by the user and returns `true` if it is disabled,
-    /// or `false` otherwise.
-    ///
-    /// # Returns
-    ///
-    /// `true` if the subtitle is disabled, `false` otherwise.
-    async fn is_disabled_async(&self) -> bool {
-        self.disabled_by_user.lock().await.clone()
-    }
-
-    /// Updates the [SubtitleInfo] for the next [Media] item playback.
-    ///
-    /// # Arguments
-    ///
-    /// * `subtitle` - The new subtitle information.
-    fn update_subtitle(&self, subtitle: SubtitleInfo) {
-        let subtitle_text = subtitle.to_string();
-        let language = subtitle.language().clone();
-
-        self.update_subtitle_info(subtitle);
-        self.update_language(language);
-        self.update_disabled_state(false);
-        info!("Subtitle has been updated to {}", subtitle_text);
-    }
-
-    /// Update the player to use a custom subtitle file.
-    ///
-    /// # Arguments
-    ///
-    /// * `subtitle_uri` - The uri of the custom subtitle file.
-    fn update_custom_subtitle(&self, subtitle_uri: &str) {
-        debug!("Updating to custom subtitle file {}", subtitle_uri);
-        let filename = Path::new(subtitle_uri)
-            .file_name()
-            .and_then(|e| e.to_str())
-            .map(|e| e.to_string())
-            .unwrap_or(String::new());
-
-        self.update_subtitle(
-            SubtitleInfo::builder()
-                .language(SubtitleLanguage::Custom)
-                .files(vec![SubtitleFile::builder()
-                    .file_id(1)
-                    .name(filename)
-                    .url(subtitle_uri)
-                    .score(0.0)
-                    .downloads(0)
-                    .build()])
-                .build(),
-        );
+    fn update_preference(&self, preference: SubtitlePreference) {
+        let mut mutex = block_in_place(self.preference.lock());
+        *mutex = preference;
     }
 
     fn select_or_default(&self, subtitles: &[SubtitleInfo]) -> SubtitleInfo {
         trace!("Selecting subtitle out of {:?}", subtitles);
-        let subtitle = self
-            .find_for_default_subtitle_language(subtitles)
-            .or_else(|| self.find_for_interface_language(subtitles))
-            .unwrap_or(SubtitleInfo::none());
+        let mut subtitle = SubtitleInfo::none();
+        let preference = self.preference();
+
+        if let SubtitlePreference::Language(language) = preference {
+            if let Some(subtitle_info) = subtitles.iter().find(|e| e.language() == &language) {
+                subtitle = subtitle_info.clone();
+            } else {
+                trace!("Subtitle preference language {} not found, using default subtitle language instead", language);
+                subtitle = self
+                    .find_for_default_subtitle_language(subtitles)
+                    .or_else(|| self.find_for_interface_language(subtitles))
+                    .unwrap_or(SubtitleInfo::none());
+            }
+        }
+
         debug!("Selected subtitle {:?}", &subtitle);
         subtitle
     }
 
-    /// Disable the subtitle track.
-    fn disable_subtitle(&self) {
-        self.update_subtitle_info(SubtitleInfo::none());
-        self.update_language(SubtitleLanguage::None);
-        self.update_disabled_state(true);
-        info!("Subtitle track has been disabled")
-    }
-
     /// Reset the player to its default state for the next media playback.
     fn reset(&self) {
-        let mut mutex_language = block_in_place(self.preferred_language.lock());
-        let language_value = mutex_language.deref_mut();
-
-        *language_value = SubtitleLanguage::None;
-        self.update_disabled_state(false);
-        self.reset_subtitle_info();
-
+        self.update_preference(Self::default_preference(&self.settings));
         info!("Subtitle has been reset for next media playback")
     }
 
@@ -445,146 +268,44 @@ impl Drop for InnerSubtitleManager {
 #[cfg(test)]
 mod test {
     use std::path::PathBuf;
-    use std::sync::mpsc::channel;
-    use std::time::Duration;
 
     use tempfile::tempdir;
 
-    use crate::core::config::{DecorationType, PopcornProperties, PopcornSettings, SubtitleFamily, SubtitleSettings, UiScale, UiSettings};
-    use crate::core::events::{LOWEST_ORDER, PlayerStoppedEvent};
+    use crate::core::config::{
+        DecorationType, PopcornProperties, PopcornSettings, SubtitleFamily, SubtitleSettings,
+        UiScale, UiSettings,
+    };
     use crate::core::media::Category;
-    use crate::core::subtitles::language::SubtitleLanguage::English;
     use crate::testing::{copy_test_file, init_logger};
 
     use super::*;
 
     #[test]
-    fn test_player_stopped_event() {
+    fn test_update_preference_language() {
         init_logger();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let settings = default_settings(temp_path, false);
-        let subtitle = SubtitleInfo::builder()
-            .imdb_id("tt1111")
-            .language(SubtitleLanguage::French)
-            .build();
-        let (tx, rx) = channel();
-        let event_publisher = Arc::new(EventPublisher::default());
-        let manager = DefaultSubtitleManager::new(settings, event_publisher.clone());
+        let preference = SubtitlePreference::Language(SubtitleLanguage::Dutch);
+        let manager = DefaultSubtitleManager::new(settings);
 
-        event_publisher.register(
-            Box::new(move |_| {
-                tx.send(()).unwrap();
-                None
-            }),
-            LOWEST_ORDER,
-        );
+        manager.update_preference(preference.clone());
 
-        manager.update_subtitle(subtitle);
-        event_publisher.publish(Event::PlayerStopped(PlayerStoppedEvent {
-            url: "http://localhost/my-video".to_string(),
-            media: None,
-            time: Some(12000),
-            duration: Some(47000),
-        }));
-
-        let _ = rx
-            .recv_timeout(Duration::from_millis(200))
-            .expect("expected to receive the player stopped event");
-        assert_eq!(None, manager.preferred_subtitle());
-        assert_eq!(SubtitleLanguage::French, manager.preferred_language());
+        assert_eq!(preference, manager.preference())
     }
 
     #[test]
-    fn test_update_subtitle() {
+    fn test_update_preference_disabled() {
         init_logger();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let settings = default_settings(temp_path, false);
-        let subtitle = SubtitleInfo::builder()
-            .imdb_id("tt1111")
-            .language(SubtitleLanguage::Croatian)
-            .build();
-        let event_publisher = Arc::new(EventPublisher::default());
-        let manager = DefaultSubtitleManager::new(settings, event_publisher);
+        let preference = SubtitlePreference::Disabled;
+        let manager = DefaultSubtitleManager::new(settings);
 
-        manager.disable_subtitle();
-        manager.update_subtitle(subtitle.clone());
-        let subtitle_result = manager.preferred_subtitle();
-        let language_result = manager.preferred_language();
+        manager.update_preference(preference.clone());
 
-        assert_eq!(Some(subtitle), subtitle_result);
-        assert_eq!(SubtitleLanguage::Croatian, language_result);
-        assert_eq!(false, manager.is_disabled())
-    }
-
-    #[test]
-    fn test_subtitle_info_changed() {
-        init_logger();
-        let temp_dir = tempdir().expect("expected a tempt dir to be created");
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = default_settings(temp_path, false);
-        let subtitle = SubtitleInfo::builder()
-            .imdb_id("tt1234555")
-            .language(SubtitleLanguage::Spanish)
-            .build();
-        let (tx_info, rx_info) = channel();
-        let (tx_lang, rx_lang) = channel();
-        let event_publisher = Arc::new(EventPublisher::default());
-        let manager = DefaultSubtitleManager::new(settings, event_publisher);
-
-        manager.add(Box::new(move |event| match event {
-            SubtitleEvent::SubtitleInfoChanged(info) => tx_info.send(info).unwrap(),
-            SubtitleEvent::PreferredLanguageChanged(lang) => tx_lang.send(lang).unwrap(),
-        }));
-        manager.update_subtitle(subtitle.clone());
-
-        let info = rx_info.recv_timeout(Duration::from_millis(200)).unwrap();
-        assert_eq!(Some(subtitle), info);
-
-        let lang = rx_lang.recv_timeout(Duration::from_millis(200)).unwrap();
-        assert_eq!(SubtitleLanguage::Spanish, lang);
-    }
-
-    #[test]
-    fn test_update_custom_subtitle() {
-        init_logger();
-        let temp_dir = tempdir().expect("expected a tempt dir to be created");
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = default_settings(temp_path, false);
-        let filepath = "/home/lorem/ipsum.srt";
-        let expected_result = SubtitleInfo::builder()
-            .language(SubtitleLanguage::Custom)
-            .files(vec![SubtitleFile::builder()
-                .file_id(1)
-                .name("ipsum.srt")
-                .url(filepath)
-                .score(0.0)
-                .downloads(0)
-                .build()])
-            .build();
-        let event_publisher = Arc::new(EventPublisher::default());
-        let manager = DefaultSubtitleManager::new(settings, event_publisher);
-
-        manager.update_custom_subtitle(filepath);
-        let result = manager.preferred_subtitle();
-
-        assert_eq!(Some(expected_result), result);
-    }
-
-    #[test]
-    fn test_disable_subtitle() {
-        init_logger();
-        let temp_dir = tempdir().expect("expected a tempt dir to be created");
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = default_settings(temp_path, false);
-        let event_publisher = Arc::new(EventPublisher::default());
-        let manager = DefaultSubtitleManager::new(settings, event_publisher);
-
-        manager.disable_subtitle();
-        let result = manager.is_disabled();
-
-        assert!(result, "expected the subtitle to be disabled")
+        assert_eq!(preference, manager.preference())
     }
 
     #[test]
@@ -593,24 +314,15 @@ mod test {
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let settings = default_settings(temp_path, false);
-        let subtitle = SubtitleInfo::builder()
-            .imdb_id("tt121212")
-            .language(SubtitleLanguage::Lithuanian)
-            .build();
-        let event_publisher = Arc::new(EventPublisher::default());
-        let manager = DefaultSubtitleManager::new(settings, event_publisher);
+        let preference = SubtitlePreference::Language(SubtitleLanguage::Bulgarian);
+        let manager = DefaultSubtitleManager::new(settings);
 
-        manager.update_custom_subtitle("my-subtitle.srt");
-        manager.update_subtitle(subtitle);
-        manager.disable_subtitle();
+        manager.update_preference(preference.clone());
         manager.reset();
 
-        assert_eq!(None, manager.preferred_subtitle());
-        assert_eq!(SubtitleLanguage::None, manager.preferred_language());
         assert_eq!(
-            false,
-            manager.is_disabled(),
-            "expected the subtitle to not be disabled"
+            SubtitlePreference::Language(SubtitleLanguage::English),
+            manager.preference()
         )
     }
 
@@ -620,8 +332,7 @@ mod test {
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let settings = default_settings(temp_path, true);
-        let event_publisher = Arc::new(EventPublisher::default());
-        let manager = DefaultSubtitleManager::new(settings, event_publisher);
+        let manager = DefaultSubtitleManager::new(settings);
         let subtitle_info = SubtitleInfo::builder()
             .imdb_id("lorem")
             .language(SubtitleLanguage::English)
@@ -646,8 +357,7 @@ mod test {
             maximized: false,
             native_window_enabled: false,
         });
-        let event_publisher = Arc::new(EventPublisher::default());
-        let manager = DefaultSubtitleManager::new(settings, event_publisher);
+        let manager = DefaultSubtitleManager::new(settings);
         let subtitle_info = SubtitleInfo::builder()
             .imdb_id("ipsum")
             .language(SubtitleLanguage::French)
@@ -665,8 +375,7 @@ mod test {
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let settings = default_settings(temp_path, true);
-        let event_publisher = Arc::new(EventPublisher::default());
-        let manager = DefaultSubtitleManager::new(settings, event_publisher);
+        let manager = DefaultSubtitleManager::new(settings);
         let filepath = copy_test_file(temp_path, "example.srt", None);
 
         drop(manager);
@@ -692,7 +401,7 @@ mod test {
                     subtitle_settings: SubtitleSettings {
                         directory: temp_path.to_string(),
                         auto_cleaning_enabled,
-                        default_subtitle: English,
+                        default_subtitle: SubtitleLanguage::English,
                         font_family: SubtitleFamily::Arial,
                         font_size: 28,
                         decoration: DecorationType::None,

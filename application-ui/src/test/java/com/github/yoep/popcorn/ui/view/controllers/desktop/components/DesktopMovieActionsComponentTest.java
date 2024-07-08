@@ -6,10 +6,11 @@ import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
 import com.github.yoep.popcorn.backend.media.providers.Images;
 import com.github.yoep.popcorn.backend.media.providers.MovieDetails;
 import com.github.yoep.popcorn.backend.player.PlayerManagerListener;
-import com.github.yoep.popcorn.backend.playlists.Playlist;
+import com.github.yoep.popcorn.backend.playlists.model.Playlist;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleFile;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.view.controls.LanguageFlagSelection;
@@ -66,7 +67,7 @@ class DesktopMovieActionsComponentTest {
         lenient().when(subtitleService.retrieveSubtitles(isA(MovieDetails.class))).thenReturn(new CompletableFuture<>());
         lenient().when(subtitleService.none()).thenReturn(subtitleNone);
         lenient().when(subtitleService.custom()).thenReturn(mock(SubtitleInfo.class));
-        lenient().when(subtitleNone.getLanguage()).thenReturn(SubtitleLanguage.NONE);
+        lenient().when(subtitleNone.language()).thenReturn(SubtitleLanguage.NONE);
         lenient().when(subtitleNone.getFlagResource()).thenReturn("");
 
         component.watchNowButton = new PlayerDropDownButton();
@@ -114,14 +115,17 @@ class DesktopMovieActionsComponentTest {
         var none = SubtitleInfo.builder()
                 .imdbId(null)
                 .language(SubtitleLanguage.NONE)
+                .files(new SubtitleFile[0])
                 .build();
         var english = SubtitleInfo.builder()
                 .imdbId("tt1122")
                 .language(SubtitleLanguage.ENGLISH)
+                .files(new SubtitleFile[0])
                 .build();
         var german = SubtitleInfo.builder()
                 .imdbId("tt1122")
                 .language(SubtitleLanguage.GERMAN)
+                .files(new SubtitleFile[0])
                 .build();
         var media = mock(MovieDetails.class);
         var languages = asList(none, english, german);
@@ -152,7 +156,7 @@ class DesktopMovieActionsComponentTest {
         component.onTrailerClicked(event);
 
         verify(event).consume();
-        verify(playlistManager).play(isA(Playlist.ByValue.class));
+        verify(playlistManager).play(isA(Playlist.class));
         verify(playerManager).addListener(isA(PlayerManagerListener.class));
     }
 }

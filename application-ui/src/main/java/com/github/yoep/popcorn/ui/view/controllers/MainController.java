@@ -2,8 +2,8 @@ package com.github.yoep.popcorn.ui.view.controllers;
 
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.events.*;
-import com.github.yoep.popcorn.backend.playlists.Playlist;
-import com.github.yoep.popcorn.backend.playlists.PlaylistItem;
+import com.github.yoep.popcorn.backend.playlists.model.Playlist;
+import com.github.yoep.popcorn.backend.playlists.model.PlaylistItem;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.ui.ApplicationArgs;
@@ -27,7 +27,6 @@ import org.apache.commons.io.FilenameUtils;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.ResourceBundle;
@@ -228,9 +227,11 @@ public class MainController extends PopcornScaleAware implements Initializable {
         var file = files.get(0);
         var title = FilenameUtils.getBaseName(file.getName());
 
-        try (var playlist = new Playlist.ByValue(Collections.singletonList(new PlaylistItem(file.getAbsolutePath(), title)))) {
-            playlistManager.play(playlist);
-        }
+        var playlist = new Playlist(PlaylistItem.builder()
+                .url(file.getAbsolutePath())
+                .title(title)
+                .build());
+        playlistManager.play(playlist);
     }
 
     /**

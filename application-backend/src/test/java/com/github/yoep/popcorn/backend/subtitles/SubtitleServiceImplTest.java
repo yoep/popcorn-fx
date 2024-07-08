@@ -3,9 +3,8 @@ package com.github.yoep.popcorn.backend.subtitles;
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
+import com.github.yoep.popcorn.backend.subtitles.ffi.*;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleFile;
-import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
-import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfoSet;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -33,45 +32,62 @@ class SubtitleServiceImplTest {
 
     @Test
     void testNone() {
+        var language = SubtitleLanguage.NONE;
         var none = new SubtitleInfo.ByReference();
-        none.language = SubtitleLanguage.NONE;
+        var expectedResult = com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo.builder()
+                .language(language)
+                .files(new SubtitleFile[0])
+                .build();
+        none.language = language;
         when(fxLib.subtitle_none()).thenReturn(none);
 
         var result = service.none();
 
-        assertEquals(none, result);
+        assertEquals(expectedResult, result);
     }
 
     @Test
     void testCustom() {
+        var language = SubtitleLanguage.CUSTOM;
         var custom = new SubtitleInfo.ByReference();
-        custom.language = SubtitleLanguage.CUSTOM;
+        var expectedResult = com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo.builder()
+                .language(language)
+                .files(new SubtitleFile[0])
+                .build();
+        custom.language = language;
         when(fxLib.subtitle_custom()).thenReturn(custom);
 
         var result = service.custom();
 
-        assertEquals(custom, result);
+        assertEquals(expectedResult, result);
     }
 
     @Test
     void testGetDefaultOrInterfaceLanguage_whenListIsEmpty_shouldReturnNone() {
-        var none = mock(SubtitleInfo.ByReference.class);
-        when(fxLib.subtitle_none()).thenReturn(none);
+        var language = SubtitleLanguage.NONE;
+        var expectedResult = com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo.builder()
+                .language(language)
+                .files(new SubtitleFile[0])
+                .build();
+        var subtitleFfi = SubtitleInfo.ByReference.from(expectedResult);
+        when(fxLib.subtitle_none()).thenReturn(subtitleFfi);
 
         var result = service.getDefaultOrInterfaceLanguage(new ArrayList<>());
 
-        assertEquals(none, result);
+        assertEquals(expectedResult, result);
         verify(fxLib, times(0)).select_or_default_subtitle(eq(instance), isA(SubtitleInfoSet.ByReference.class));
     }
 
     @Test
     void testGetDefaultOrInterfaceLanguage() {
         var subtitleFile = mock(SubtitleFile.class);
-        var subtitle = mock(SubtitleInfo.class);
-        when(subtitle.getImdbId()).thenReturn("tt111111");
-        when(subtitle.getLanguage()).thenReturn(SubtitleLanguage.ENGLISH);
-        when(subtitle.getFiles()).thenReturn(Collections.singletonList(subtitleFile));
-        when(subtitle.getLen()).thenReturn(1);
+        var subtitle = com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo.builder()
+                .imdbId("tt111111")
+                .language(SubtitleLanguage.ENGLISH)
+                .files(new SubtitleFile[]{subtitleFile})
+                .build();
+        var subtitleFfi = SubtitleInfo.ByReference.from(subtitle);
+        when(fxLib.select_or_default_subtitle(eq(instance), isA(SubtitleInfoSet.ByReference.class))).thenReturn(subtitleFfi);
 
         service.getDefaultOrInterfaceLanguage(Collections.singletonList(subtitle));
 
@@ -80,9 +96,10 @@ class SubtitleServiceImplTest {
 
     @Test
     void testSubtitleEventCallback() throws ExecutionException, InterruptedException, TimeoutException {
-        var eventFuture = new CompletableFuture<SubtitleEvent.ByValue>();
+        var eventFuture = new CompletableFuture<com.github.yoep.popcorn.backend.subtitles.model.SubtitleEvent>();
         var callbackHolder = new AtomicReference<SubtitleEventCallback>();
         var event = mock(SubtitleEvent.ByValue.class);
+        var expectedResult = com.github.yoep.popcorn.backend.subtitles.model.SubtitleEvent.from(event);
         doAnswer(invocation -> {
             callbackHolder.set(invocation.getArgument(1));
             return null;
@@ -94,14 +111,13 @@ class SubtitleServiceImplTest {
         callback.callback(event);
 
         var result = eventFuture.get(200, TimeUnit.MILLISECONDS);
-        assertEquals(event, result);
+        assertEquals(expectedResult, result);
     }
 
     @Test
     void testDisableSubtitle() {
         service.disableSubtitle();
-
-        verify(fxLib).disable_subtitle(instance);
+        verify(fxLib).update_subtitle_preference(instance, SubtitlePreference.ByReference.disabled());
     }
 
     @Test

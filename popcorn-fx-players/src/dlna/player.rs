@@ -217,8 +217,12 @@ impl InnerPlayer {
         let mut subtitle_attributes = String::new();
         let mut video_resource_attributes = String::new();
 
-        if let Some(subtitle) = request.subtitle() {
-            trace!("Trying to serve DLNA subtitle {} for {}", subtitle.file(), request.url());
+        if let Some(subtitle) = request.subtitle().subtitle.as_ref() {
+            trace!(
+                "Trying to serve DLNA subtitle {} for {}",
+                subtitle.file(),
+                request.url()
+            );
             match self
                 .subtitle_server
                 .serve(subtitle.clone(), UPNP_PLAYER_SUBTITLE_FORMAT)

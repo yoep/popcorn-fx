@@ -1,10 +1,10 @@
 use std::fmt::{Debug, Formatter};
-use std::sync::Arc;
 use std::sync::mpsc::Sender;
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use derive_more::Display;
-use log::{debug, trace};
+use log::{debug, info, trace};
 use tokio_util::sync::CancellationToken;
 
 use crate::core::loader::{
@@ -12,7 +12,7 @@ use crate::core::loader::{
     LoadingStrategy,
 };
 use crate::core::players::{
-    PlayerManager, PlayMediaRequest, PlayRequest, PlayStreamRequest, PlayUrlRequest,
+    PlayMediaRequest, PlayRequest, PlayStreamRequest, PlayUrlRequest, PlayerManager,
 };
 
 /// A loading strategy specifically designed for player loading.
@@ -98,6 +98,7 @@ impl LoadingStrategy for PlayerLoadingStrategy {
         _: CancellationToken,
     ) -> LoadingResult {
         if let Some(url) = data.url.as_ref() {
+            let url = url.clone();
             debug!("Starting playlist item playback for {}", url);
             return match self.convert(data) {
                 Ok(request) => {
@@ -105,6 +106,7 @@ impl LoadingStrategy for PlayerLoadingStrategy {
                         .send(LoadingEvent::StateChanged(LoadingState::Playing))
                         .unwrap();
                     self.player_manager.play(request).await;
+                    info!("Playback started for {}", url);
                     LoadingResult::Completed
                 }
                 Err(err) => LoadingResult::Err(err),
@@ -129,7 +131,7 @@ mod tests {
     use crate::core::loader::LoadingData;
     use crate::core::media::MovieDetails;
     use crate::core::players::MockPlayerManager;
-    use crate::core::playlists::PlaylistItem;
+    use crate::core::playlists::{PlaylistItem, PlaylistMedia};
     use crate::core::torrents::TorrentStream;
     use crate::testing::{init_logger, MockTorrentStream};
 
@@ -145,13 +147,11 @@ mod tests {
             title: title.to_string(),
             caption: None,
             thumb: None,
-            parent_media: None,
-            media: None,
-            torrent_info: None,
-            torrent_file_info: None,
+            media: Default::default(),
             quality: None,
             auto_resume_timestamp: None,
-            subtitles_enabled: false,
+            subtitle: Default::default(),
+            torrent: Default::default(),
         };
         let data = LoadingData::from(item);
         let (tx, rx) = channel();
@@ -194,13 +194,14 @@ mod tests {
             title: "RRoll".to_string(),
             caption: None,
             thumb: None,
-            parent_media: None,
-            media: Some(Box::new(movie.clone())),
-            torrent_info: None,
-            torrent_file_info: None,
+            media: PlaylistMedia {
+                parent: None,
+                media: Some(Box::new(movie.clone())),
+            },
             quality: Some(quality.to_string()),
             auto_resume_timestamp: None,
-            subtitles_enabled: false,
+            subtitle: Default::default(),
+            torrent: Default::default(),
         };
         let mut data = LoadingData::from(item);
         data.torrent_stream = Some(Arc::downgrade(&stream));
@@ -258,13 +259,14 @@ mod tests {
             title: "RRoll".to_string(),
             caption: None,
             thumb: None,
-            parent_media: None,
-            media: Some(Box::new(movie.clone())),
-            torrent_info: None,
-            torrent_file_info: None,
+            media: PlaylistMedia {
+                parent: None,
+                media: Some(Box::new(movie.clone())),
+            },
             quality: Some("1080p".to_string()),
             auto_resume_timestamp: None,
-            subtitles_enabled: false,
+            subtitle: Default::default(),
+            torrent: Default::default(),
         };
         let data = LoadingData::from(item);
         let (tx_event, _rx_event) = channel();
@@ -310,13 +312,14 @@ mod tests {
             title: title.to_string(),
             caption: None,
             thumb: None,
-            parent_media: None,
-            media: None,
-            torrent_info: None,
-            torrent_file_info: None,
+            media: PlaylistMedia {
+                parent: None,
+                media: None,
+            },
             quality: Some(quality.to_string()),
             auto_resume_timestamp: None,
-            subtitles_enabled: false,
+            subtitle: Default::default(),
+            torrent: Default::default(),
         };
         let mut data = LoadingData::from(item);
         data.torrent_stream = Some(Arc::downgrade(&stream));

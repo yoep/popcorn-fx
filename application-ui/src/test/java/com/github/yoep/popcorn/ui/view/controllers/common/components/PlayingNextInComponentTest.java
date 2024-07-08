@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
-import com.github.yoep.popcorn.backend.playlists.PlaylistItem;
+import com.github.yoep.popcorn.backend.playlists.model.PlaylistItem;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManagerListener;
 import com.github.yoep.popcorn.ui.view.controls.SizedImageView;
@@ -60,7 +60,7 @@ class PlayingNextInComponentTest {
         var thumb = "MyThumbUrl";
         var listenerHolder = new AtomicReference<PlaylistManagerListener>();
         var item = mock(PlaylistItem.class);
-        when(item.getTitle()).thenReturn(title);
+        when(item.title()).thenReturn(title);
         when(item.getCaption()).thenReturn(Optional.of(caption));
         when(item.getThumb()).thenReturn(Optional.of(thumb));
         when(imageService.load(isA(String.class))).thenReturn(new CompletableFuture<>());

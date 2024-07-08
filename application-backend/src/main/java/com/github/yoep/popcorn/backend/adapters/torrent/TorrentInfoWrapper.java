@@ -86,5 +86,7 @@ public class TorrentInfoWrapper extends Structure implements TorrentInfo, Closea
     @Override
     public void close() {
         setAutoSynch(false);
+        Optional.ofNullable(files)
+                .ifPresent(TorrentFileInfoSet::close);
     }
 }

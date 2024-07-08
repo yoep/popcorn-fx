@@ -11,11 +11,11 @@ import java.util.Objects;
 @EqualsAndHashCode(callSuper = false)
 @Structure.FieldOrder({"name", "quality"})
 public class SubtitleMatcher extends Structure implements Closeable {
-    public static class ByValue extends SubtitleMatcher implements Structure.ByValue {
-        public ByValue() {
+    public static class ByReference extends SubtitleMatcher implements Structure.ByReference {
+        public ByReference() {
         }
 
-        public ByValue(String name, String quality) {
+        public ByReference(String name, String quality) {
             super(name, quality);
         }
     }
@@ -44,9 +44,9 @@ public class SubtitleMatcher extends Structure implements Closeable {
      * @param quality The quality of the media (optional).
      * @return Returns the subtitle matcher.
      */
-    public static SubtitleMatcher.ByValue from(String name, String quality) {
+    public static ByReference from(String name, String quality) {
         Objects.requireNonNull(name, "name cannot be null");
-        return new SubtitleMatcher.ByValue(name, quality);
+        return new ByReference(name, quality);
     }
 
     @Override

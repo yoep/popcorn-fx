@@ -1,6 +1,7 @@
 package com.github.yoep.popcorn.backend.adapters.player;
 
 import com.github.yoep.popcorn.backend.lib.Handle;
+import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 
 import java.util.Optional;
 
@@ -69,4 +70,11 @@ public interface PlayRequest {
      * @return An {@link Optional} containing the handle for the media stream if available, otherwise {@link Optional#empty()}.
      */
     Optional<Handle> getStreamHandle();
+
+    /**
+     * Get the subtitle info for the media item if available.
+     *
+     * @return Returns the subtitle info if available, otherwise {@link Optional#empty()}.
+     */
+    Optional<SubtitleInfo> getSubtitleInfo();
 }

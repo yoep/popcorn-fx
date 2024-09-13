@@ -9,8 +9,8 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use tokio::io::AsyncWriteExt;
 
-use crate::core::{block_in_place, storage};
 use crate::core::storage::StorageError;
+use crate::core::{block_in_place, storage};
 
 /// The storage module is responsible for storing and retrieving files from the file system.
 ///
@@ -158,14 +158,20 @@ impl Storage {
         let absolute_path = path.to_str().unwrap();
         debug!("Deleting path {}", absolute_path);
 
-        if path.is_file() {
-            trace!("Deleting filepath {}", absolute_path);
-            fs::remove_file(path)
-                .map_err(|e| StorageError::IO(absolute_path.to_string(), e.to_string()))
+        // verify if the path exists before we try to delete it
+        if path.exists() {
+            if path.is_file() {
+                trace!("Deleting filepath {}", absolute_path);
+                fs::remove_file(path)
+                    .map_err(|e| StorageError::IO(absolute_path.to_string(), e.to_string()))
+            } else {
+                trace!("Deleting directory {}", absolute_path);
+                fs::remove_dir_all(path)
+                    .map_err(|e| StorageError::IO(absolute_path.to_string(), e.to_string()))
+            }
         } else {
-            trace!("Deleting directory {}", absolute_path);
-            fs::remove_dir_all(path)
-                .map_err(|e| StorageError::IO(absolute_path.to_string(), e.to_string()))
+            trace!("Storage path {} does not exist", absolute_path);
+            Err(StorageError::NotFound(absolute_path.to_string()))
         }
     }
 }

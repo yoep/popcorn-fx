@@ -12,11 +12,11 @@ use serde::Serialize;
 use tokio::runtime::Runtime;
 use tokio::sync::Mutex;
 
-use crate::core::{block_in_place, cache};
-use crate::core::cache::{CacheError, CacheExecutionError, CacheParserError};
 use crate::core::cache::info::{CacheEntry, CacheInfo};
 use crate::core::cache::strategies::{CacheFirstStrategy, CacheLastStrategy};
+use crate::core::cache::{CacheError, CacheExecutionError, CacheParserError};
 use crate::core::storage::{Storage, StorageError};
+use crate::core::{block_in_place, cache};
 
 const DIRECTORY: &str = "cache";
 const FILENAME: &str = "cache.json";
@@ -246,11 +246,16 @@ impl CacheManager {
                         )
                     }
                     Err(e) => {
-                        error!(
-                            "Failed to delete cache file {}, {}",
-                            expired.entry.absolute_path(),
-                            e.to_string()
-                        )
+                        if let StorageError::NotFound(e) = e {
+                            debug!("Cache {} entry {} has been removed externally, removing entry from cache manager", expired.name, e);
+                            cache.remove(expired.name.as_str(), expired.entry.key());
+                        } else {
+                            error!(
+                                "Failed to delete cache file {}, {}",
+                                expired.entry.absolute_path(),
+                                e.to_string()
+                            )
+                        }
                     }
                 }
             }
@@ -1020,8 +1025,8 @@ impl SerializedCacheOperation {
 #[cfg(test)]
 mod test {
     use std::string::FromUtf8Error;
-    use std::sync::Arc;
     use std::sync::mpsc::channel;
+    use std::sync::Arc;
     use std::thread;
 
     use tokio::runtime::Runtime;

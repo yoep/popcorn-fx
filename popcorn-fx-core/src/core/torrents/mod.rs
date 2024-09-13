@@ -1,5 +1,4 @@
 pub use errors::*;
-pub use magnet::*;
 pub use manager::*;
 pub use stream_server::*;
 pub use torrent_stream::*;
@@ -8,7 +7,7 @@ pub use wrapper::*;
 
 pub mod collection;
 mod errors;
-mod magnet;
+pub mod magnet;
 mod manager;
 pub mod stream;
 mod stream_server;

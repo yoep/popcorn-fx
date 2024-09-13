@@ -1,4 +1,5 @@
 use std::fmt::Debug;
+use std::str::FromStr;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -17,7 +18,8 @@ use crate::core::media::{
     Episode, Images, MediaIdentifier, MediaOverview, MovieDetails, ShowDetails,
 };
 use crate::core::playlists::PlaylistItem;
-use crate::core::torrents::{DownloadStatus, Magnet, TorrentError};
+use crate::core::torrents::magnet::Magnet;
+use crate::core::torrents::{DownloadStatus, TorrentError};
 use crate::core::{block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks, Handle};
 
 /// Represents the result of a loading operation.

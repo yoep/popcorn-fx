@@ -1,0 +1,496 @@
+use std::fmt::Debug;
+use std::str::FromStr;
+
+use base32::Alphabet;
+use hex::FromHex;
+use log::{debug, trace, warn};
+use sha1::{Digest, Sha1};
+use sha2::Sha256;
+
+use crate::torrents::{Result, TorrentError};
+
+pub const V1_HASH_IDENTIFIER: &str = "btih";
+pub const V2_HASH_IDENTIFIER: &str = "btmh";
+
+/// Represents the available protocol versions of the BitTorrent protocol.
+pub const PROTOCOL_VERSIONS: [ProtocolVersion; 2] = [ProtocolVersion::V1, ProtocolVersion::V2];
+
+/// Represent the v1 info hash type of the BitTorrent protocol.
+pub type Sha1Hash = [u8; 20];
+
+/// Represents the unique identifier for a torrent's metadata.
+/// It can contain both v1 (SHA1) and v2 (SHA256) hashes.
+#[derive(Default, Clone)]
+pub struct InfoHash {
+    /// The v1 (SHA1) hash, if present.
+    v1: Option<Sha1Hash>,
+    /// The v2 (SHA256) hash, if present.
+    v2: Option<Vec<u8>>,
+}
+
+impl InfoHash {
+    /// Creates a new `InfoHashBuilder` for constructing an `InfoHash`.
+    ///
+    /// # Returns
+    ///
+    /// A new `InfoHashBuilder` instance.
+    pub fn builder() -> InfoHashBuilder {
+        InfoHashBuilder::default()
+    }
+
+    /// Checks if the v1 info hash is present.
+    ///
+    /// # Returns
+    ///
+    /// `true` if the v1 info hash is present, otherwise `false`.
+    pub fn has_v1(&self) -> bool {
+        self.v1.is_some()
+    }
+
+    /// Checks if the v2 info hash is present.
+    ///
+    /// # Returns
+    ///
+    /// `true` if the v2 info hash is present, otherwise `false`.
+    pub fn has_v2(&self) -> bool {
+        self.v2.is_some()
+    }
+
+    /// Retrieve the v1 info hash if present.
+    /// The v1 hash is always exactly 20 bytes long.
+    ///
+    /// # Returns
+    ///
+    /// Returns the v1 info hash as a 20-byte array if present, otherwise `None`.
+    pub fn hash_v1(&self) -> Option<Sha1Hash> {
+        self.v1.as_ref().map(|e| {
+            let mut hash: [u8; 20] = [0; 20];
+            hash.copy_from_slice(e.as_slice());
+            hash
+        })
+    }
+
+    /// Returns a reference to the v2 info hash if present.
+    ///
+    /// # Returns
+    ///
+    /// Returns a reference to the v2 info hash as a slice of bytes if present, otherwise `None`.
+    pub fn hash_v2(&self) -> Option<&[u8]> {
+        self.v2.as_ref().map(|e| e.as_slice())
+    }
+
+    /// Retrieve the info hash as a 20-byte array.
+    /// This will be the v1 hash if present, otherwise the shortened v2 hash to match 20 bytes.
+    ///
+    /// # Returns
+    ///
+    /// Returns the info hash as a 20-byte array.
+    pub fn get_info_hash_bytes(&self) -> [u8; 20] {
+        let mut info_hash_bytes: [u8; 20];
+
+        if let Some(hash) = self.hash_v1() {
+            info_hash_bytes = hash;
+        } else {
+            let v2_hash = self.hash_v2().expect("expected v2 info hash to be present");
+            info_hash_bytes = [0; 20];
+            info_hash_bytes.copy_from_slice(v2_hash);
+        }
+
+        info_hash_bytes
+    }
+
+    pub fn from_bytes<T>(bytes: T) -> Result<Self>
+    where
+        T: AsRef<[u8]>,
+    {
+        if bytes.as_ref().len() == 20 {
+            let mut hash: [u8; 20] = [0; 20];
+            hash.copy_from_slice(bytes.as_ref());
+            return Ok(Self {
+                v1: Some(hash),
+                v2: None,
+            });
+        } else if bytes.as_ref().len() == 32 {
+            let mut hash: [u8; 32] = [0; 32];
+            hash.copy_from_slice(bytes.as_ref());
+            return Ok(Self {
+                v1: None,
+                v2: Some(hash.to_vec()),
+            });
+        }
+
+        Err(TorrentError::InvalidInfoHash(
+            "invalid info hash length".to_string(),
+        ))
+    }
+
+    /// Try to parse the given v1 info hash into an `InfoHash`.
+    /// The following formats are supported for the info hash:
+    /// * SHA1 hex encoded
+    /// * SHA1 base32 encoded
+    /// * Raw SHA1 hash
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - The v1 info hash string to parse.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the `InfoHash` if successful, or a `TorrentError` if parsing fails.
+    fn try_from_v1(value: &str) -> Result<Self> {
+        trace!("Trying to parse info hash from v1 {}", value);
+        let topic_length = value.len();
+        let mut topic_bytes = value.as_bytes().to_vec();
+
+        if topic_length == 40 {
+            trace!("Parsing info hash value as v1 hex");
+            topic_bytes = Vec::from_hex(value).map_err(|e| {
+                debug!("Failed to parse info hash hex, {}", e);
+                TorrentError::InvalidInfoHash("invalid hex value".to_string())
+            })?;
+        } else if topic_length == 32 {
+            trace!("Parsing info hash value as v1 base32");
+            let decoded_topic = base32::decode(Alphabet::Z, value).ok_or(
+                TorrentError::InvalidInfoHash("invalid base32 value".to_string()),
+            )?;
+
+            if decoded_topic.len() != 20 {
+                return Err(TorrentError::InvalidInfoHash(
+                    "expected 20 bytes".to_string(),
+                ));
+            }
+
+            topic_bytes = decoded_topic;
+        } else if topic_length != 20 {
+            trace!("Parsing info hash value as v1 sha1");
+            return Err(TorrentError::InvalidInfoHash(
+                "expected 20 bytes".to_string(),
+            ));
+        }
+
+        let mut hash = [0u8; 20];
+        hash.copy_from_slice(&topic_bytes);
+        Ok(Self {
+            v1: Some(hash),
+            v2: None,
+        })
+    }
+
+    /// Try to parse the given v2 info hash into an `InfoHash`.
+    /// The v2 hash must be SHA256 and prefixed with "1220".
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - The v2 info hash string to parse.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the `InfoHash` if successful, or a `TorrentError` if parsing fails.
+    fn try_from_v2(value: &str) -> Result<Self> {
+        trace!("Trying to parse info hash from v2 {}", value);
+        if !value.starts_with("1220") {
+            return Err(TorrentError::InvalidInfoHash(
+                "invalid sha256 prefix".to_string(),
+            ));
+        }
+
+        let value = &value.as_bytes()[4..];
+
+        if value.len() != 64 {
+            return Err(TorrentError::InvalidInfoHash(
+                "expected sha256 to be 64 bytes".to_string(),
+            ));
+        }
+
+        trace!("Parsing info hash value as v2 sha256 hex encoded");
+        let info_hash = hex::decode(value).map_err(|e| {
+            warn!("Failed to parse info hash hex, {}", e);
+            TorrentError::InvalidInfoHash("invalid sha256 hex".to_string())
+        })?;
+
+        Ok(Self {
+            v1: None,
+            v2: Some(info_hash),
+        })
+    }
+}
+
+impl PartialEq for InfoHash {
+    fn eq(&self, other: &Self) -> bool {
+        match (&self.v1, &other.v1) {
+            (Some(v1_self), Some(v1_other)) if v1_self != v1_other => return false,
+            _ => {}
+        }
+
+        match (&self.v2, &other.v2) {
+            (Some(v2_self), Some(v2_other)) if v2_self != v2_other => return false,
+            _ => {}
+        }
+
+        true
+    }
+}
+
+impl Debug for InfoHash {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("InfoHash")
+            .field("v1", &self.v1.as_ref().map(|e| e.len()))
+            .field("v2", &self.v2.as_ref().map(|e| e.len()))
+            .finish()
+    }
+}
+
+impl<T> From<T> for InfoHash
+where
+    T: AsRef<[u8]>,
+{
+    /// Converts the given data into an `InfoHash` containing both v1 (SHA1) and v2 (SHA256) hashes.
+    ///
+    /// # Arguments
+    ///
+    /// * `info_data` - The data from which to generate the info hashes.
+    ///
+    /// # Returns
+    ///
+    /// An `InfoHash` struct containing the computed v1 and v2 hashes.
+    fn from(info_data: T) -> Self {
+        let v1_hasher = Sha1::digest(info_data.as_ref());
+        let v2_hash = Sha256::digest(info_data.as_ref());
+
+        let mut v1_hash = [0; 20];
+        v1_hash.copy_from_slice(v1_hasher.as_slice());
+        Self {
+            v1: Some(v1_hash),
+            v2: Some(v2_hash.to_vec()),
+        }
+    }
+}
+
+impl FromStr for InfoHash {
+    type Err = TorrentError;
+
+    /// Parses an `InfoHash` from a string representation.
+    /// The expected format is "xt:<version>:<info_hash>" where `<version>` identifies the hash version.
+    ///
+    /// # Arguments
+    ///
+    /// * `xt` - The string to parse, containing the info hash.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the `InfoHash` if parsing is successful, or a `TorrentError` if it fails.
+    fn from_str(xt: &str) -> Result<Self> {
+        let segments: Vec<&str> = xt.split(':').collect();
+        let info_hash_version_identifier = segments
+            .get(1)
+            .ok_or(TorrentError::InvalidTopic(xt.to_string()))?;
+        let info_hash_value = segments
+            .get(2)
+            .ok_or(TorrentError::InvalidTopic(xt.to_string()))?;
+
+        if *info_hash_version_identifier == V1_HASH_IDENTIFIER {
+            Self::try_from_v1(info_hash_value)
+        } else if *info_hash_version_identifier == V2_HASH_IDENTIFIER {
+            Self::try_from_v2(info_hash_value)
+        } else {
+            warn!("Unable to identify info hash version for xt {}", xt);
+            Err(TorrentError::InvalidTopic(xt.to_string()))
+        }
+    }
+}
+
+/// A builder for constructing an `InfoHash` struct with optional v1 and v2 hashes.
+///
+/// This builder allows setting the v1 and v2 hashes individually and then constructing
+/// an `InfoHash` with those values. It is useful for creating `InfoHash` instances when
+/// you have specific hash values to include.
+///
+/// # Examples
+///
+/// ```rust
+/// use popcorn_fx_torrent::torrents::InfoHash;
+///
+/// let info_hash = InfoHash::builder()
+///     .v1(vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20])
+///     .v2(vec![21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64])
+///     .build();
+/// ```
+#[derive(Debug, Default)]
+pub struct InfoHashBuilder {
+    v1: Option<Vec<u8>>,
+    v2: Option<Vec<u8>>,
+}
+
+impl InfoHashBuilder {
+    /// Creates a new `InfoHashBuilder` instance with default settings.
+    ///
+    /// # Returns
+    ///
+    /// A new `InfoHashBuilder` instance.
+    pub fn builder() -> InfoHashBuilder {
+        InfoHashBuilder::default()
+    }
+
+    /// Sets the v1 hash in the builder.
+    ///
+    /// # Arguments
+    ///
+    /// * `v1` - A `Vec<u8>` containing the v1 hash.
+    ///
+    /// # Returns
+    ///
+    /// The updated `InfoHashBuilder` instance with the v1 hash set.
+    pub fn v1<T: Into<Vec<u8>>>(mut self, v1: T) -> Self {
+        self.v1 = Some(v1.into());
+        self
+    }
+
+    /// Sets the v2 hash in the builder.
+    ///
+    /// # Arguments
+    ///
+    /// * `v2` - A `Vec<u8>` containing the v2 hash.
+    ///
+    /// # Returns
+    ///
+    /// The updated `InfoHashBuilder` instance with the v2 hash set.
+    pub fn v2<T: Into<Vec<u8>>>(mut self, v2: T) -> Self {
+        self.v2 = Some(v2.into());
+        self
+    }
+
+    /// Constructs and returns an `InfoHash` based on the configured builder settings.
+    ///
+    /// This method validates the v1 hash to ensure it is exactly 20 bytes long, as required.
+    /// If the v1 hash does not meet this requirement, it returns an error.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(InfoHash)` - An `InfoHash` instance containing the v1 and/or v2 hashes set in the builder, if all validations pass.
+    /// * `Err(TorrentError)` - A `TorrentError` if the v1 hash is not 20 bytes long.
+    pub fn build(self) -> Result<InfoHash> {
+        if let Some(v1) = self.v1.as_ref() {
+            if v1.len() != 20 {
+                return Err(TorrentError::InvalidInfoHash(
+                    "v1 hash must be 20 bytes".to_string(),
+                ));
+            }
+        }
+
+        Ok(InfoHash {
+            v1: self.v1.map(|e| {
+                let mut v1_hash = [0; 20];
+                v1_hash.copy_from_slice(e.as_slice());
+                v1_hash
+            }),
+            v2: self.v2,
+        })
+    }
+}
+
+/// BitTorrent version enumerator
+#[derive(Debug, Clone, PartialEq)]
+pub enum ProtocolVersion {
+    /// The original BitTorrent version, using SHA-1 hashes
+    V1,
+    /// Version 2 of the BitTorrent protocol, using SHA-256 hashes
+    V2,
+}
+
+#[cfg(test)]
+mod tests {
+    use hex_literal::hex;
+
+    use popcorn_fx_core::testing::init_logger;
+
+    use super::*;
+
+    #[test]
+    fn test_info_hash_from() {
+        init_logger();
+        let info_data = b"hello world";
+        let mut expected_result: [u8; 20] = [0; 20];
+        expected_result.copy_from_slice(hex!("2aae6c35c94fcfb415dbe95f408b9ce91ee846ed").as_ref());
+
+        let result = InfoHash::from(info_data);
+
+        assert_eq!(Some(expected_result), result.hash_v1());
+        assert_eq!(
+            Some(hex!("b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9").as_ref()),
+            result.hash_v2()
+        );
+    }
+
+    #[test]
+    fn test_info_hash_from_str() {
+        init_logger();
+        let xt_v1 = "urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7";
+        let result = InfoHash::from_str(xt_v1).unwrap();
+        assert!(result.v1.is_some(), "expected a v1 hash");
+        assert_eq!(
+            "eadaf0efea39406914414d359e0ea16416409bd7",
+            result.v1.map(|e| hex::encode(e)).unwrap()
+        );
+
+        let xt_v2 = "urn:btmh:1220cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd";
+        let result = InfoHash::from_str(xt_v2).unwrap();
+        assert!(result.v2.is_some(), "expected a v2 hash");
+        assert_eq!(
+            "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+            result.v2.map(|e| hex::encode(e)).unwrap()
+        );
+    }
+
+    #[test]
+    fn test_info_hash_get_info_hash_bytes() {
+        let expected_result: [u8; 20] = "EADAF0EFEA39406914414D359E0EA16416409BD7"
+            .as_bytes()
+            .try_into()
+            .unwrap();
+        let hash = "urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7";
+        let info_hash = InfoHash::from_str(hash).unwrap();
+        let result = info_hash.get_info_hash_bytes();
+        assert_eq!(expected_result, result);
+
+        let expected_result: [u8; 20] =
+            "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+                .as_bytes()
+                .try_into()
+                .unwrap();
+        let hash = "urn:btmh:1220cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd";
+        let info_hash = InfoHash::from_str(hash).unwrap();
+        let result = info_hash.get_info_hash_bytes();
+        assert_eq!(expected_result, result);
+    }
+
+    #[test]
+    fn test_info_hash_builder() {
+        let result = InfoHashBuilder::default().v1(vec![0, 1, 2, 123]).build();
+        assert_eq!(
+            Err(TorrentError::InvalidInfoHash(
+                "v1 hash must be 20 bytes".to_string()
+            )),
+            result
+        );
+    }
+
+    #[test]
+    fn test_info_hash_eq() {
+        let info_hash = InfoHash {
+            v1: Some([0; 20]),
+            v2: Some(vec![1, 2, 3, 4, 5]),
+        };
+
+        let other = InfoHash {
+            v1: Some([0; 20]),
+            v2: None,
+        };
+        assert_eq!(info_hash, other, "expected the v2 hash to not be compared");
+
+        let other = InfoHash {
+            v1: None,
+            v2: Some(vec![1, 2, 3, 4, 5]),
+        };
+        assert_eq!(info_hash, other, "expected the v1 hash to not be compared");
+    }
+}

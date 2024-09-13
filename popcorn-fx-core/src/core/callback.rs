@@ -94,7 +94,7 @@ where
 
 impl<E: Display + Clone> CoreCallbacks<E> {
     /// Invoke all callbacks for the given `event`.
-    /// Each callback will receive it's own owned instance of the `event`.
+    /// Each callback will receive its own owned instance of the `event`.
     pub fn invoke(&self, event: E) {
         let callbacks = self.callbacks.clone();
         let execute = async move {

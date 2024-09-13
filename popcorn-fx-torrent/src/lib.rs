@@ -1,3 +1,3 @@
 extern crate core;
 
-pub mod torrent;
+pub mod torrents;

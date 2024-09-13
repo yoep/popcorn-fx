@@ -8,7 +8,7 @@ use popcorn_fx_core::core::torrents::{
 };
 use popcorn_fx_core::core::Handle;
 use popcorn_fx_core::{from_c_string, into_c_string};
-use popcorn_fx_torrent::torrent::DefaultTorrentManager;
+use popcorn_fx_torrent::torrents::DefaultTorrentManager;
 
 use crate::ffi::{
     CancelTorrentCallback, DownloadStatusC, ResolveTorrentCallback, ResolveTorrentInfoCallback,

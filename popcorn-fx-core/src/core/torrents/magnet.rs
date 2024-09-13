@@ -4,15 +4,26 @@ use log::{trace, warn};
 use thiserror::Error;
 use url::Url;
 
-pub type MagnetResult = Result<Magnet, MagnetError>;
+const MAGNET_SCHEME: &str = "magnet";
 
 /// Represents possible errors that can occur when parsing a magnet URI.
-#[derive(Debug, Error)]
+pub type Result<T> = std::result::Result<T, MagnetError>;
+
+/// Represents possible errors that can occur when parsing a magnet URI.
+#[derive(Debug, Clone, Error, PartialEq)]
 pub enum MagnetError {
+    /// Failed to parse the magnet URI.
     #[error("failed to parse magnet uri, {0}")]
     Parse(String),
+    /// The specified magnet URI is invalid.
     #[error("invalid magnet uri")]
     InvalidUri,
+    /// The specified file index value is invalid.
+    #[error("value \"{0}\" is invalid")]
+    InvalidValue(String),
+    /// The specified scheme in the magnet URI is not supported.
+    #[error("scheme \"{0}\" is not supported")]
+    UnsupportedScheme(String),
 }
 
 /// Represents a Magnet link.
@@ -37,6 +48,11 @@ impl Magnet {
         self.exact_topic.as_str()
     }
 
+    /// Gets the 'xt' info hash information from the magnet link.
+    pub fn info_hash(&self) -> &str {
+        self.xt()
+    }
+
     /// Gets the 'dn' (display name) value from the magnet link, if present.
     pub fn dn(&self) -> Option<&str> {
         self.display_name.as_ref().map(|e| e.as_str())
@@ -50,6 +66,11 @@ impl Magnet {
     /// Gets the 'tr' (address tracker) values from the magnet link.
     pub fn tr(&self) -> &[String] {
         self.address_tracker.as_slice()
+    }
+
+    /// Gets the 'tr' tracker values from the magnet link.
+    pub fn trackers(&self) -> &[String] {
+        self.tr()
     }
 
     /// Gets the 'ws' (web seed) values from the magnet link.
@@ -82,14 +103,56 @@ impl Magnet {
         self.select_only.as_ref().map(|e| e.as_str())
     }
 
+    /// Retrieve the select only indexes from the magnet link, if present.
+    pub fn select_only(&self) -> Result<Option<Vec<u32>>> {
+        if let Some(so) = self.so() {
+            let mut indexes = Vec::new();
+            let sections = so.split(",");
+
+            for section in sections {
+                if let Some((start, end)) = section.split_once("-") {
+                    let start = start
+                        .parse::<u32>()
+                        .map_err(|e| MagnetError::InvalidValue(e.to_string()))?;
+                    let end = end
+                        .parse::<u32>()
+                        .map_err(|e| MagnetError::InvalidValue(e.to_string()))?;
+                    for i in start..=end {
+                        indexes.push(i);
+                    }
+                } else {
+                    indexes.push(
+                        section
+                            .parse::<u32>()
+                            .map_err(|e| MagnetError::InvalidValue(e.to_string()))?,
+                    );
+                }
+            }
+
+            return Ok(Some(indexes));
+        }
+
+        Ok(None)
+    }
+
     /// Gets the 'x.pe' (peer) value from the magnet link, if present.
     pub fn x_pe(&self) -> Option<&str> {
         self.peer.as_ref().map(|e| e.as_str())
     }
+}
 
-    /// Parses a magnet URI and constructs a `Magnet` instance.
-    pub fn from_str(uri: &str) -> MagnetResult {
+impl FromStr for Magnet {
+    type Err = MagnetError;
+
+    fn from_str(uri: &str) -> Result<Self> {
         let uri = Url::parse(uri).map_err(|e| MagnetError::Parse(e.to_string()))?;
+        let scheme = uri.scheme();
+
+        // verify if the given scheme is supported
+        if scheme != MAGNET_SCHEME {
+            return Err(MagnetError::UnsupportedScheme(scheme.to_string()));
+        }
+
         let query = uri.query_pairs();
         let mut builder = MagnetBuilder::builder();
 
@@ -265,7 +328,7 @@ impl MagnetBuilder {
     ///
     /// - `Ok(Magnet)`: A `Magnet` instance with the specified configuration.
     /// - `Err(MagnetError::InvalidUri)`: If the exact topic is not set, indicating an invalid magnet link.
-    pub fn build(self) -> MagnetResult {
+    pub fn build(self) -> Result<Magnet> {
         if let Some(exact_topic) = self.exact_topic {
             Ok(Magnet {
                 exact_topic,
@@ -293,7 +356,72 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_dn() {
+    fn test_magnet_from_str() {
+        init_logger();
+        let uri = "magnet:?xt=urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7&dn=debian-12.4.0-amd64-DVD-1.iso&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce";
+        let expected_result = Magnet {
+            exact_topic: "urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7".to_string(),
+            display_name: Some("debian-12.4.0-amd64-DVD-1.iso".to_string()),
+            exact_length: None,
+            address_tracker: vec![
+                "udp://tracker.opentrackr.org:1337".to_string(),
+                "udp://open.stealth.si:80/announce".to_string(),
+                "udp://tracker.torrent.eu.org:451/announce".to_string(),
+                "udp://tracker.bittor.pw:1337/announce".to_string(),
+                "udp://public.popcorn-tracker.org:6969/announce".to_string(),
+                "udp://tracker.dler.org:6969/announce".to_string(),
+                "udp://exodus.desync.com:6969".to_string(),
+                "udp://open.demonii.com:1337/announce".to_string(),
+            ],
+            web_seed: vec![],
+            acceptable_source: vec![],
+            exact_source: None,
+            keyword_topic: None,
+            manifest_topic: None,
+            select_only: None,
+            peer: None,
+        };
+
+        let result = Magnet::from_str(uri).unwrap();
+
+        assert_eq!(expected_result, result);
+    }
+
+    #[test]
+    fn test_magnet_from_str_invalid_scheme() {
+        init_logger();
+        let uri = "custom:?xt=urn:btih:EADAF0EFEA39406914414D359E0EA1641640007";
+
+        let result = Magnet::from_str(uri);
+
+        assert_eq!(
+            Err(MagnetError::UnsupportedScheme("custom".to_string())),
+            result
+        );
+    }
+
+    #[test]
+    fn test_magnet_xt() {
+        init_logger();
+        let expected_result = "urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7";
+        let uri = "magnet:?xt=urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7&dn=debian-12.4.0-amd64-DVD-1.iso&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce";
+
+        let magnet = Magnet::from_str(uri).unwrap();
+
+        assert_eq!(
+            expected_result,
+            magnet.xt(),
+            "expected the exact topic to match"
+        );
+        assert_eq!(
+            expected_result,
+            magnet.info_hash(),
+            "expected the info hash to match"
+        );
+    }
+
+    #[test]
+    fn test_magnet_dn() {
         init_logger();
         let display_name = "Example File Name";
         let magnet = Magnet {
@@ -316,15 +444,17 @@ mod tests {
     }
 
     #[test]
-    fn test_from_str() {
+    fn test_magnet_tr() {
         init_logger();
-        let xt = "urn:btih:6b0cd35c4a6b7240b93d1e159f8c82b841d83a7a";
-        let magnet_uri = format!("magnet:?xt={}&dn=Example%20File%20Name&tr=http%3A%2F%2Ftracker.example.com%3A12345%2Fannounce&xl=1234567890&sf=Example%20Folder", xt);
-        let expected_result = Magnet {
-            exact_topic: xt.to_string(),
-            display_name: Some("Example File Name".to_string()),
-            exact_length: Some(1234567890),
-            address_tracker: vec!["http://tracker.example.com:12345/announce".to_string()],
+        let expected_result = vec![
+            "http://tracker1.example.com:12345/announce".to_string(),
+            "http://tracker2.example.com:23456/announce".to_string(),
+        ];
+        let magnet = Magnet {
+            exact_topic: "urn:btih:6b0cd35c4a6b724".to_string(),
+            display_name: None,
+            exact_length: Some(8455000),
+            address_tracker: expected_result.clone(),
             web_seed: vec![],
             acceptable_source: vec![],
             exact_source: None,
@@ -334,16 +464,34 @@ mod tests {
             peer: None,
         };
 
-        let result = Magnet::from_str(magnet_uri.as_str());
+        let result = magnet.dn();
 
-        if let Ok(magnet) = result {
-            assert_eq!(expected_result, magnet);
-        } else {
-            assert!(
-                false,
-                "expected a magnet to have been returned, got {:?} instead",
-                result
-            );
-        }
+        assert_eq!(expected_result.as_slice(), magnet.tr());
+        assert_eq!(expected_result.as_slice(), magnet.trackers());
+    }
+
+    #[test]
+    fn test_magnet_select_only() {
+        let expected_result: Vec<u32> = vec![0, 2, 4, 6, 7, 8];
+        let magnet = Magnet {
+            exact_topic: "urn:btih:6b0cd35c4a6b724".to_string(),
+            display_name: None,
+            exact_length: None,
+            address_tracker: vec![],
+            web_seed: vec![],
+            acceptable_source: vec![],
+            exact_source: None,
+            keyword_topic: None,
+            manifest_topic: None,
+            select_only: Some("0,2,4,6-8".to_string()),
+            peer: None,
+        };
+
+        let result = magnet
+            .select_only()
+            .expect("expected the so to be valid")
+            .expect("expected the so to be present");
+
+        assert_eq!(expected_result, result)
     }
 }

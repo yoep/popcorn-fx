@@ -88,7 +88,7 @@ impl DefaultTorrentManager {
         trace!("Updating torrent info resolve callback");
         let mut guard = block_in_place(self.inner.resolve_torrent_info_callback.lock());
         *guard = callback;
-        info!("Updated torrent  inforesolve callback");
+        info!("Updated torrent inforesolve callback");
     }
 
     pub fn register_resolve_callback(&self, callback: ResolveTorrentCallback) {

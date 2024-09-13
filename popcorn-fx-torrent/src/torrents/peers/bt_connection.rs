@@ -1,0 +1,477 @@
+use byteorder::ByteOrder;
+use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
+use std::io::{Cursor, Read, Write};
+
+use super::{PeerError, PeerId, Result};
+use crate::torrents::peers::extensions::Extensions;
+use crate::torrents::peers::protocol::MessageType;
+use crate::torrents::InfoHash;
+use bitmask_enum::bitmask;
+use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+use log::{info, trace};
+use serde::{Deserialize, Serialize};
+use tokio_util::bytes::Buf;
+
+pub const PROTOCOL: &str = "BitTorrent protocol";
+
+#[bitmask(u8)]
+#[bitmask_config(vec_debug, flags_iter)]
+pub enum ExtensionFlag {
+    None,
+    Dht,
+    Fast,
+    SupportV2,
+    Extensions,
+}
+
+impl Into<[u8; 8]> for ExtensionFlag {
+    fn into(self) -> [u8; 8] {
+        let mut bit_array = [0; 8];
+
+        // if self.contains(ExtensionFlags::Dht) {
+        //     bit_array[7] |= 0x01;
+        // }
+        if self.contains(ExtensionFlag::Extensions) {
+            bit_array[5] |= 0x10;
+        }
+        // if self.contains(ExtensionFlags::Fast) {
+        //     bit_array[7] |= 0x04;
+        // }
+        if self.contains(ExtensionFlag::SupportV2) {
+            bit_array[7] |= 0x10;
+        }
+
+        bit_array
+    }
+}
+
+impl From<[u8; 8]> for ExtensionFlag {
+    fn from(bits: [u8; 8]) -> Self {
+        let mut flags = ExtensionFlag::None;
+
+        if bits[7] & 0x01 == 0x01 {
+            flags |= ExtensionFlag::Dht;
+        }
+        if bits[5] & 0x10 == 0x10 {
+            flags |= ExtensionFlag::Extensions;
+        }
+        if bits[7] & 0x04 == 0x04 {
+            flags |= ExtensionFlag::Fast;
+        }
+        if bits[7] & 0x10 == 0x10 {
+            flags |= ExtensionFlag::SupportV2;
+        }
+
+        flags
+    }
+}
+
+impl Display for ExtensionFlag {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut extensions = Vec::new();
+
+        if self.contains(ExtensionFlag::Dht) {
+            extensions.push("DHT");
+        }
+        if self.contains(ExtensionFlag::Extensions) {
+            extensions.push("Extensions");
+        }
+        if self.contains(ExtensionFlag::Fast) {
+            extensions.push("Fast");
+        }
+        if self.contains(ExtensionFlag::SupportV2) {
+            extensions.push("SupportV2");
+        }
+
+        write!(f, "{}", extensions.join(" | "))
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Handshake {
+    pub supported_extensions: ExtensionFlag,
+    pub info_hash: InfoHash,
+    pub peer_id: PeerId,
+}
+
+impl Handshake {
+    pub fn new(info_hash: InfoHash, peer_id: PeerId, extensions: ExtensionFlag) -> Self {
+        let mut extensions = extensions;
+
+        if info_hash.has_v2() {
+            extensions |= ExtensionFlag::SupportV2;
+        }
+
+        Self {
+            supported_extensions: extensions,
+            info_hash,
+            peer_id,
+        }
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
+        let mut cursor = Cursor::new(bytes);
+
+        // read the protocol length
+        let protocol_len = cursor.read_u8()?;
+        if protocol_len != PROTOCOL.len() as u8 {
+            return Err(PeerError::Handshake(format!(
+                "expected protocol length {}, but got {}",
+                PROTOCOL.len(),
+                protocol_len
+            )));
+        }
+
+        // read the protocol string
+        let mut protocol_buf = vec![0; protocol_len as usize];
+        cursor.read_exact(&mut protocol_buf)?;
+        let protocol =
+            String::from_utf8(protocol_buf).map_err(|e| PeerError::Handshake(e.to_string()))?;
+        if protocol != PROTOCOL {
+            return Err(PeerError::Handshake(format!(
+                "expected protocol {}, but got {}",
+                PROTOCOL, protocol
+            )));
+        }
+
+        // read the extensions
+        let mut extensions_buf = [0u8; 8];
+        cursor.read_exact(&mut extensions_buf)?;
+        let supported_extensions = ExtensionFlag::from(extensions_buf);
+
+        // read the info hash
+        let mut info_hash_bytes: [u8; 20] = [0; 20];
+        cursor.read_exact(&mut info_hash_bytes)?;
+        let info_hash = InfoHash::from_bytes(info_hash_bytes)
+            .map_err(|e| PeerError::Handshake(e.to_string()))?;
+
+        // read the peer id
+        let mut peer_bytes = [0; 20];
+        cursor.read(&mut peer_bytes)?;
+        let peer_id = PeerId::try_from(peer_bytes.as_ref())?;
+
+        Ok(Self {
+            supported_extensions,
+            info_hash,
+            peer_id,
+        })
+    }
+}
+
+impl TryInto<Vec<u8>> for Handshake {
+    type Error = PeerError;
+
+    fn try_into(self) -> Result<Vec<u8>> {
+        let mut buffer = Vec::new();
+        let info_hash_bytes = self.info_hash.get_info_hash_bytes();
+
+        // write the length of the protocol string
+        buffer.write_u8(PROTOCOL.len() as u8)?;
+        // write the protocol string
+        buffer.write_all(PROTOCOL.as_bytes())?;
+        // write the support extensions
+        buffer.write_all(&Into::<[u8; 8]>::into(self.supported_extensions))?;
+        // write the info v1 hash
+        buffer.write_all(&info_hash_bytes)?;
+        // write the peer id
+        buffer.write_all(&self.peer_id.value())?;
+
+        Ok(buffer)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Message {
+    KeepAlive,
+    Choke,
+    Unchoke,
+    Interested,
+    NotInterested,
+    Have(u32),
+    Bitfield(Vec<bool>),
+    Request(Request),
+    Piece,
+    Cancel(Request),
+    ExtendedHandshake(ExtendedHandshake),
+    ExtendedPayload(Vec<u8>),
+    HaveAll,
+    HaveNone,
+}
+
+impl Message {
+    pub fn message_type(&self) -> MessageType {
+        match &self {
+            Message::KeepAlive => MessageType::KeepAlive,
+            Message::Choke => MessageType::Choke,
+            Message::Unchoke => MessageType::Unchoke,
+            Message::Interested => MessageType::Interested,
+            Message::NotInterested => MessageType::NotInterested,
+            Message::Have(_) => MessageType::Have,
+            Message::Bitfield(_) => MessageType::Bitfield,
+            Message::Request(_) => MessageType::Request,
+            Message::Piece => MessageType::Piece,
+            Message::Cancel(_) => MessageType::Cancel,
+            Message::ExtendedHandshake(_) => MessageType::Extended,
+            Message::ExtendedPayload(_) => MessageType::Extended,
+            Message::HaveAll => MessageType::HaveAll,
+            Message::HaveNone => MessageType::HaveNone,
+        }
+    }
+}
+
+impl TryFrom<&[u8]> for Message {
+    type Error = PeerError;
+
+    fn try_from(bytes: &[u8]) -> Result<Self> {
+        // verify if the received length is 0
+        // in such a case, it's a keep alive message from the peer
+        if bytes.is_empty() {
+            trace!("Received an em pty keep alive message from the peer");
+            return Ok(Message::KeepAlive);
+        }
+
+        // create a cursor for the given bytes
+        let mut cursor = Cursor::new(bytes);
+
+        // try to read the message type which is the first single byte in the message
+        let msg_type_id = cursor.read_u8()?;
+        trace!("Received message type id {} from the peer", msg_type_id);
+        let msg_type = MessageType::try_from(msg_type_id)?;
+
+        match msg_type {
+            MessageType::Choke => Ok(Message::Choke),
+            MessageType::Unchoke => Ok(Message::Unchoke),
+            MessageType::Interested => Ok(Message::Interested),
+            MessageType::NotInterested => Ok(Message::NotInterested),
+            MessageType::Have => Ok(Message::Have(cursor.read_u32::<BigEndian>()?)),
+            MessageType::Bitfield => {
+                let total_pieces = cursor.remaining() * 8;
+                let mut bitfield = vec![false; total_pieces];
+                let mut byte_index: usize = 0;
+
+                while cursor.has_remaining() {
+                    let byte = cursor.read_u8()?;
+                    for bit_index in 0..8 {
+                        let has_piece = (byte & (1 << (7 - bit_index))) != 0;
+                        let piece_index = byte_index * 8 + bit_index;
+
+                        bitfield[piece_index] = has_piece;
+                    }
+
+                    byte_index += 1;
+                }
+
+                Ok(Message::Bitfield(bitfield))
+            }
+            MessageType::Request => {
+                let request = Request::try_from(cursor)?;
+                Ok(Message::Request(request))
+            }
+            MessageType::Piece => Ok(Message::Piece),
+            MessageType::Cancel => {
+                let request = Request::try_from(cursor)?;
+                Ok(Message::Cancel(request))
+            }
+            MessageType::Extended => {
+                let extended_id = cursor.read_u8()?;
+
+                // if the extension id = 0, then the incoming message is an extended handshake
+                // otherwise it's an extended payload which should be processed by the peer extensions
+                if extended_id == 0 {
+                    let extended = serde_bencode::from_bytes(cursor.chunk())
+                        .map_err(|e| PeerError::Parsing(e.to_string()))?;
+                    Ok(Message::ExtendedHandshake(extended))
+                } else {
+                    Ok(Message::ExtendedPayload(cursor.chunk().to_vec()))
+                }
+            }
+            MessageType::HaveAll => Ok(Message::HaveAll),
+            MessageType::HaveNone => Ok(Message::HaveNone),
+            _ => Err(PeerError::UnsupportedMessage(msg_type as u8)),
+        }
+    }
+}
+
+impl TryInto<Vec<u8>> for Message {
+    type Error = PeerError;
+
+    fn try_into(self) -> Result<Vec<u8>> {
+        let mut buffer = Vec::new();
+
+        // pre-allocate the message length in the buffer
+        buffer.extend_from_slice(&[0u8; 4]);
+
+        // write the message type as first byte in the buffer
+        // for the keep alive message, we'll send the length message only
+        // this will result in a message of length 0
+        if self != Message::KeepAlive {
+            let message_type = self.message_type();
+            trace!("Writing peer message type {:?}", message_type);
+            buffer.write_u8(message_type as u8)?;
+        }
+
+        trace!("Parsing message {:?}", self);
+        match self {
+            Message::Have(e) => {
+                buffer.write_u32::<BigEndian>(e)?;
+            }
+            Message::Bitfield(e) => {
+                todo!()
+            }
+            Message::Request(e) => {
+                todo!()
+            }
+            Message::Piece => {
+                todo!()
+            }
+            Message::Cancel(e) => {
+                todo!()
+            }
+            Message::ExtendedHandshake(e) => {
+                // the handshake identifier
+                buffer.write_u8(0)?;
+                buffer.write_all(
+                    &*serde_bencode::to_bytes(&e).map_err(|e| PeerError::Parsing(e.to_string()))?,
+                )?;
+            }
+            Message::ExtendedPayload(bytes) => buffer.write_all(&*bytes)?,
+            _ => {}
+        }
+
+        // retract the initial message length bytes from the actual message buffer length
+        let msg_length = buffer.len() - 4;
+        // write the message length in the first 4 bytes of the buffer
+        BigEndian::write_u32(&mut buffer[..4], msg_length as u32);
+
+        Ok(buffer)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ExtendedHandshake {
+    /// Dictionary of supported extension messages which maps names of extensions to an extended message ID for each extension message.
+    /// The only requirement on these IDs is that no extension message share the same one.
+    /// Setting an extension number to zero means that the extension is not supported/disabled.
+    /// The client should ignore any extension names it doesn't recognize.
+    pub m: Extensions,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    /// Client name and version (as an utf-8 string).
+    /// This is a much more reliable way of identifying the client than relying on the peer id encoding.
+    #[serde(rename = "v")]
+    pub client: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub regg: Option<i32>,
+    #[serde(default)]
+    pub encryption: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata_size: Option<u32>,
+    /// Local TCP listen port. Allows each side to learn about the TCP port number of the other side.
+    /// Note that there is no need for the receiving side of the connection to send this extension message, since its port number is already known.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub port: Option<u32>,
+    /// A string containing the compact representation of the ip address this peer sees you as. i.e. this is the receiver's external ip address (no port is included).
+    /// This may be either an IPv4 (4 bytes) or an IPv6 (16 bytes) address.
+    #[serde(
+        rename = "yourip",
+        default,
+        with = "serde_bytes",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub your_ip: Option<Vec<u8>>,
+    #[serde(default, with = "serde_bytes", skip_serializing_if = "Option::is_none")]
+    pub ipv4: Option<Vec<u8>>,
+    #[serde(default, with = "serde_bytes", skip_serializing_if = "Option::is_none")]
+    pub ipv6: Option<Vec<u8>>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Request {
+    pub index: u32,
+    pub begin: u32,
+    pub length: u32,
+}
+
+impl TryFrom<Cursor<&[u8]>> for Request {
+    type Error = PeerError;
+
+    fn try_from(mut value: Cursor<&[u8]>) -> Result<Self> {
+        let index = value.read_u32::<BigEndian>()?;
+        let begin = value.read_u32::<BigEndian>()?;
+        let length = value.read_u32::<BigEndian>()?;
+
+        Ok(Self {
+            index,
+            begin,
+            length,
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use popcorn_fx_core::testing::init_logger;
+
+    #[test]
+    fn test_handshake_new() {
+        let info_hash = InfoHash::try_from(
+            "urn:btmh:1220cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+        )
+        .unwrap();
+        let peer_id = PeerId::new();
+        let expected_result = Handshake {
+            supported_extensions: ExtensionFlag::Dht | ExtensionFlag::SupportV2,
+            info_hash: info_hash.clone(),
+            peer_id,
+        };
+
+        let result = Handshake::new(info_hash, peer_id, ExtensionFlag::Dht);
+
+        assert_eq!(expected_result, result);
+    }
+
+    #[test]
+    fn test_handshake_into_bytes() {
+        let info_hash = InfoHash::try_from(
+            "urn:btmh:1220cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+        )
+        .unwrap();
+        let peer_id = PeerId::new();
+        let handshake = Handshake::new(
+            info_hash,
+            peer_id,
+            ExtensionFlag::Dht | ExtensionFlag::Extensions,
+        );
+
+        let result = TryInto::<Vec<u8>>::try_into(handshake).unwrap();
+
+        assert_eq!(68, result.len(), "expected the handshake length to be 68");
+    }
+
+    #[test]
+    fn test_message_deserialization_extended_handshake() {
+        init_logger();
+        let message_payload = "d1:ei1e1:md11:ut_metadatai3e6:ut_pexi1ee13:metadata_sizei304838e1:pi51413e4:reqqi512e11:upload_onlyi1e1:v17:Transmission 3.00e";
+        let mut message_bytes: Vec<u8> = vec![20, 0];
+        let expected_result = Message::ExtendedHandshake(ExtendedHandshake {
+            m: vec![("ut_pex".to_string(), 1), ("ut_metadata".to_string(), 3)]
+                .into_iter()
+                .collect(),
+            client: Some("Transmission 3.00".to_string()),
+            regg: None,
+            encryption: false,
+            metadata_size: Some(304838),
+            port: None,
+            your_ip: None,
+            ipv4: None,
+            ipv6: None,
+        });
+
+        message_bytes.extend_from_slice(message_payload.as_bytes());
+
+        let result = Message::try_from(message_bytes.as_ref()).unwrap();
+
+        assert_eq!(expected_result, result);
+    }
+}

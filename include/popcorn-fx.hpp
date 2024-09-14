@@ -2654,4 +2654,4 @@ char *version();
 /// * `popcorn_fx` - a mutable reference to a `PopcornFX` instance.
 VersionInfoC *version_info(PopcornFX *popcorn_fx);
 
-} // extern "C"
+}  // extern "C"

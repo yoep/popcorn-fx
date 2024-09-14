@@ -938,4 +938,25 @@ mod test {
             "expected the file to have been removed"
         );
     }
+
+    #[test]
+    fn test_delete_non_existing_path() {
+        init_logger();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let filepath = PathBuf::from(temp_path).join("image.png");
+
+        if let Err(e) = Storage::delete(filepath) {
+            if let StorageError::NotFound(_) = e {
+            } else {
+                assert!(
+                    false,
+                    "expected StorageError::NotFound, got {:?} instead",
+                    e
+                )
+            }
+        } else {
+            assert!(false, "expected an error to be returned")
+        }
+    }
 }

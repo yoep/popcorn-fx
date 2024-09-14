@@ -228,41 +228,12 @@ impl CacheManager {
             .await
     }
 
+    /// Runs the cleanup task in a separate thread.
+    /// This invocation doesn't wait for the task to complete.
     fn run_cleanup(&self) {
         let cache_manager = self.inner.clone();
-        self.runtime.spawn(async move {
-            debug!("Checking for expired cache data");
-            let mut cache = cache_manager.cache_info.lock().await;
-            let expired_entries = cache.expired();
-
-            for expired in expired_entries.into_iter() {
-                match Storage::delete(expired.entry.path()) {
-                    Ok(_) => {
-                        cache.remove(expired.name.as_str(), expired.entry.key());
-                        debug!(
-                            "Cache {} entry {} has been cleaned",
-                            expired.name,
-                            expired.entry.key()
-                        )
-                    }
-                    Err(e) => {
-                        if let StorageError::NotFound(e) = e {
-                            debug!("Cache {} entry {} has been removed externally, removing entry from cache manager", expired.name, e);
-                            cache.remove(expired.name.as_str(), expired.entry.key());
-                        } else {
-                            error!(
-                                "Failed to delete cache file {}, {}",
-                                expired.entry.absolute_path(),
-                                e.to_string()
-                            )
-                        }
-                    }
-                }
-            }
-
-            drop(cache);
-            let _ = cache_manager.write_cache_info().await;
-        });
+        self.runtime
+            .spawn(async move { cache_manager.execute_cleanup().await });
     }
 }
 
@@ -664,6 +635,40 @@ impl InnerCacheManager {
                 warn!("Check information could not be stored, {}", e);
                 CacheError::Io(e.to_string())
             })
+    }
+
+    async fn execute_cleanup(&self) {
+        debug!("Checking for expired cache data");
+        let mut cache = self.cache_info.lock().await;
+        let expired_entries = cache.expired();
+
+        for expired in expired_entries.into_iter() {
+            match Storage::delete(expired.entry.path()) {
+                Ok(_) => {
+                    cache.remove(expired.name.as_str(), expired.entry.key());
+                    debug!(
+                        "Cache {} entry {} has been cleaned",
+                        expired.name,
+                        expired.entry.key()
+                    )
+                }
+                Err(e) => {
+                    if let StorageError::NotFound(e) = e {
+                        debug!("Cache {} entry {} has been removed externally, removing entry from cache manager", expired.name, e);
+                        cache.remove(expired.name.as_str(), expired.entry.key());
+                    } else {
+                        error!(
+                            "Failed to delete cache file {}, {}",
+                            expired.entry.absolute_path(),
+                            e.to_string()
+                        )
+                    }
+                }
+            }
+        }
+
+        drop(cache);
+        let _ = self.write_cache_info().await;
     }
 
     fn generate_cache_filename(name: &str, key: &str) -> String {
@@ -1390,5 +1395,55 @@ mod test {
         );
 
         assert_timeout!(Duration::from_millis(100), !path.exists());
+    }
+
+    #[test]
+    fn test_run_cleanup_non_existing_entry() {
+        init_logger();
+        let cache_entry = "foo";
+        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let test_filepath = PathBuf::from(temp_path).join("example.png");
+        let storage = Storage::from(&PathBuf::from(temp_path).join(DIRECTORY));
+        let runtime = Runtime::new().unwrap();
+        storage
+            .options()
+            .make_dirs(true)
+            .serializer(FILENAME)
+            .write(&CacheInfo {
+                entries: vec![(
+                    cache_entry.to_string(),
+                    vec![CacheEntry {
+                        key: "bar".to_string(),
+                        path: test_filepath.to_str().unwrap().to_string(),
+                        expires_after: 60,
+                        created_on: "2023-01-01T12:00".to_string(),
+                    }],
+                )]
+                .into_iter()
+                .collect(),
+            })
+            .unwrap();
+
+        let cache_manager = Arc::new(
+            CacheManagerBuilder::default()
+                .storage_path(temp_path)
+                .build(),
+        );
+
+        let inner = cache_manager.inner.clone();
+        runtime.block_on(inner.execute_cleanup());
+
+        let cache = runtime.block_on(cache_manager.inner.cache_info.lock());
+
+        if let Some(entry) = cache.entries(cache_entry) {
+            assert_eq!(
+                0,
+                entry.len(),
+                "expected the non existing entry to be removed"
+            );
+        } else {
+            assert!(false, "expected the cache to contain the entry info")
+        }
     }
 }

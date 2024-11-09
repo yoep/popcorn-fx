@@ -1,8 +1,8 @@
-use itertools::Itertools;
 use log::{trace, warn};
 use popcorn_fx_core::core::torrents::magnet::Magnet;
 use serde::{Deserialize, Serialize};
 use sha1::{Digest, Sha1};
+use sha2::Sha256;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
 use std::str::FromStr;
@@ -36,10 +36,34 @@ pub enum WebSeed {
 pub struct TorrentFileMeta {
     /// Length of the file in bytes.
     pub length: u64,
-    /// MD5 checksum of the file, if available.
-    pub md5sum: Option<String>,
     /// Path to the file.
     pub path: Vec<String>,
+    /// The utf-8 representation path to the file
+    #[serde(
+        rename = "path.utf-8",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub path_utf8: Option<Vec<String>>,
+    /// MD5 checksum of the file, if available.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub md5sum: Option<String>,
+    /// When present the characters each represent a file attribute. l = symlink, x = executable, h = hidden, p = padding file.
+    /// See BEP47
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub attr: Option<String>,
+    /// Path of the symlink target relative to the torrent root directory.
+    /// See BEP47
+    #[serde(
+        rename = "symlink path",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub symlink_path: Option<Vec<String>>,
+    /// The SHA1 digest calculated over the contents of the file itself, without any additional padding. Can be used to aid file deduplication.
+    /// See BEP47
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sha1: Option<String>,
 }
 
 /// Information about a torrent file, which can be a single file or multiple files.
@@ -47,17 +71,31 @@ pub struct TorrentFileMeta {
 #[serde(untagged)]
 pub enum TorrentInfoFile {
     Single {
-        /// Name of the file.
-        name: String,
         /// Length of the file in bytes.
         length: u64,
         /// MD5 checksum of the file, if available.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
         md5sum: Option<String>,
+        /// When present the characters each represent a file attribute. l = symlink, x = executable, h = hidden, p = padding file.
+        /// See BEP47
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        attr: Option<String>,
+        /// Path of the symlink target relative to the torrent root directory.
+        /// See BEP47
+        #[serde(
+            rename = "symlink path",
+            default,
+            skip_serializing_if = "Option::is_none"
+        )]
+        symlink_path: Option<Vec<String>>,
+        /// The SHA1 digest calculated over the contents of the file itself, without any additional padding. Can be used to aid file deduplication.
+        /// See BEP47
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        sha1: Option<String>,
     },
     Multiple {
-        /// Name of the directory.
-        name: String,
         /// List of files within the directory.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
         files: Vec<TorrentFileMeta>,
     },
 }
@@ -68,14 +106,32 @@ pub struct TorrentMetadata {
     /// Length of each piece in bytes.
     #[serde(rename = "piece length")]
     pub piece_length: u64,
-    /// An integer value, set to 2 to indicate compatibility with the current revision of BEP52. Version 1 is not assigned to avoid confusion with BEP3.
-    #[serde(rename = "meta version")]
-    pub meta_version: Option<u16>,
     /// Pieces of the torrent.
-    #[serde(with = "serde_bytes")]
+    /// Can be empty when the torrent only supports v2, see BEP52.
+    #[serde(with = "serde_bytes", default, skip_serializing_if = "Vec::is_empty")]
     pub pieces: Vec<u8>,
-    /// Flag indicating if the torrent is private.
+    /// Name of the torrent.
+    /// This either represents the name of the file or the name of the directory.
+    pub name: String,
+    /// Name of the torrent in UTF-8 format.
+    #[serde(
+        rename = "name.utf-8",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub name_utf8: Option<String>,
+    /// Flag indicating if the torrent is private, see BEP27.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub private: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source: Option<String>,
+    /// An integer value, set to 2 to indicate compatibility with the current revision of BEP52. Version 1 is not assigned to avoid confusion with BEP3.
+    #[serde(
+        rename = "meta version",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub meta_version: Option<u64>,
     /// Information about the torrent files.
     #[serde(flatten)]
     pub files: TorrentInfoFile,
@@ -138,7 +194,10 @@ impl Debug for TorrentMetadata {
 pub struct TorrentMetadataBuilder {
     pieces: Option<Vec<u8>>,
     piece_length: Option<u64>,
+    name: Option<String>,
+    name_utf8: Option<String>,
     private: Option<i64>,
+    source: Option<String>,
     files: Option<TorrentInfoFile>,
 }
 
@@ -157,8 +216,23 @@ impl TorrentMetadataBuilder {
         self
     }
 
+    pub fn name(mut self, name: String) -> Self {
+        self.name = Some(name);
+        self
+    }
+
+    pub fn name_utf8(mut self, name_utf8: String) -> Self {
+        self.name_utf8 = Some(name_utf8);
+        self
+    }
+
     pub fn private(mut self, private: i64) -> Self {
         self.private = Some(private);
+        self
+    }
+
+    pub fn source(mut self, source: String) -> Self {
+        self.source = Some(source);
         self
     }
 
@@ -171,9 +245,12 @@ impl TorrentMetadataBuilder {
         TorrentMetadata {
             pieces: self.pieces.unwrap_or_default(),
             piece_length: self.piece_length.unwrap_or_default(),
+            name: self.name.expect("expected name to be set"),
+            name_utf8: self.name_utf8,
             private: self.private,
-            files: self.files.expect("expected files to be set"),
+            source: self.source,
             meta_version: None,
+            files: self.files.expect("expected files to be set"),
         }
     }
 }
@@ -310,12 +387,29 @@ impl TorrentInfo {
 
         tiered_trackers
     }
+
+    /// Create the info hash information from this data.
+    /// It will create both a v1 and v2 hash.
+    pub fn create_info_hash(&self) -> Result<InfoHash> {
+        // verify is the info dict is known
+        // if it isn't the case, then we're unable to generate the info hash
+        if self.info.is_none() {
+            return Err(TorrentError::InvalidMetadata(
+                "info dictionary is empty".to_string(),
+            ));
+        }
+
+        let info_bytes = serde_bencode::to_bytes(&self)?;
+
+        Ok(InfoHash::from(info_bytes))
+    }
 }
 
 impl TryFrom<&[u8]> for TorrentInfo {
     type Error = TorrentError;
 
-    /// Attempts to parse torrent metadata from bytes.
+    /// Attempts to parse torrent metadata from the given bytes.
+    /// The bytes should be encoded in the `bencode` format.
     ///
     /// # Arguments
     ///
@@ -328,6 +422,7 @@ impl TryFrom<&[u8]> for TorrentInfo {
     fn try_from(value: &[u8]) -> Result<Self> {
         let mut torrent = serde_bencode::from_bytes::<Self>(value)
             .map_err(|e| TorrentError::TorrentParse(e.to_string()))?;
+        // calculate the info hash from the info dict
         let info_bytes = serde_bencode::to_bytes(&torrent.info)
             .map_err(|e| TorrentError::TorrentParse(e.to_string()))?;
 
@@ -616,11 +711,16 @@ mod tests {
                 pieces: vec![],
                 piece_length: 20,
                 private: None,
+                name: "FooBarFile".to_string(),
+                name_utf8: None,
                 files: TorrentInfoFile::Single {
-                    name: "FooBarFile".to_string(),
                     length: 145600,
                     md5sum: None,
+                    attr: None,
+                    symlink_path: None,
+                    sha1: None,
                 },
+                source: None,
                 meta_version: None,
             })
             .info_hash(
@@ -702,5 +802,16 @@ mod tests {
             hex::encode(info_hash.hash_v1().unwrap())
         );
         assert_eq!(Some("debian-12.4.0-amd64-DVD-1.iso"), result.name());
+    }
+
+    #[test]
+    fn test_torrent_info_create_info_hash() {
+        init_logger();
+        let torrent = read_test_file_to_bytes("debian-udp.torrent");
+        let info = TorrentInfo::try_from(torrent.as_slice()).unwrap();
+
+        let result = info.create_info_hash().unwrap();
+
+        assert_eq!(info.info_hash, result);
     }
 }

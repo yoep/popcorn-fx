@@ -191,7 +191,7 @@ impl UdpConnection {
             let request = AnnounceRequest {
                 transaction_id: session.transaction_id,
                 connection_id: session.connection_id,
-                info_hash: info_hash.get_info_hash_bytes(),
+                info_hash: info_hash.short_info_hash_bytes(),
                 peer_id: self.peer_id.value(),
                 downloaded: 0,
                 left: u64::MAX,

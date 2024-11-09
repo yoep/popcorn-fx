@@ -36,6 +36,11 @@ tokio = { workspace = true, features = ["rt-multi-thread", "time"] }
 tokio-util.workspace = true
 url.workspace = true
 
+[features]
+default = ["extension-metadata"]
+
+extension-metadata = []
+
 [dev-dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }
 

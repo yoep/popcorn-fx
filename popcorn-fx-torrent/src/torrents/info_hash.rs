@@ -63,11 +63,7 @@ impl InfoHash {
     ///
     /// Returns the v1 info hash as a 20-byte array if present, otherwise `None`.
     pub fn hash_v1(&self) -> Option<Sha1Hash> {
-        self.v1.as_ref().map(|e| {
-            let mut hash: [u8; 20] = [0; 20];
-            hash.copy_from_slice(e.as_slice());
-            hash
-        })
+        self.v1.as_ref().map(|e| e.clone())
     }
 
     /// Returns a reference to the v2 info hash if present.
@@ -85,15 +81,14 @@ impl InfoHash {
     /// # Returns
     ///
     /// Returns the info hash as a 20-byte array.
-    pub fn get_info_hash_bytes(&self) -> [u8; 20] {
-        let mut info_hash_bytes: [u8; 20];
+    pub fn short_info_hash_bytes(&self) -> [u8; 20] {
+        let mut info_hash_bytes = [0u8; 20];
 
         if let Some(hash) = self.hash_v1() {
             info_hash_bytes = hash;
         } else {
             let v2_hash = self.hash_v2().expect("expected v2 info hash to be present");
-            info_hash_bytes = [0; 20];
-            info_hash_bytes.copy_from_slice(v2_hash);
+            info_hash_bytes.copy_from_slice(&v2_hash[..20]);
         }
 
         info_hash_bytes
@@ -145,7 +140,7 @@ impl InfoHash {
         if topic_length == 40 {
             trace!("Parsing info hash value as v1 hex");
             topic_bytes = Vec::from_hex(value).map_err(|e| {
-                debug!("Failed to parse info hash hex, {}", e);
+                debug!("Failed to parse v1 info hash hex, {}", e);
                 TorrentError::InvalidInfoHash("invalid hex value".to_string())
             })?;
         } else if topic_length == 32 {
@@ -168,8 +163,16 @@ impl InfoHash {
             ));
         }
 
+        if topic_bytes.len() != 20 {
+            return Err(TorrentError::InvalidInfoHash(format!(
+                "expected 20 bytes, got {}",
+                topic_bytes.len()
+            )));
+        }
+
         let mut hash = [0u8; 20];
-        hash.copy_from_slice(&topic_bytes);
+        hash.copy_from_slice(&topic_bytes[..20]);
+        trace!("Info hash v1: {:?}", hash);
         Ok(Self {
             v1: Some(hash),
             v2: None,
@@ -258,7 +261,8 @@ where
         let v2_hash = Sha256::digest(info_data.as_ref());
 
         let mut v1_hash = [0; 20];
-        v1_hash.copy_from_slice(v1_hasher.as_slice());
+        v1_hash.copy_from_slice(&v1_hasher[..20]);
+        trace!("Info hash v1: {:?}, v2: {:?} ", v1_hash, v2_hash);
         Self {
             v1: Some(v1_hash),
             v2: Some(v2_hash.to_vec()),
@@ -280,6 +284,7 @@ impl FromStr for InfoHash {
     ///
     /// A `Result` containing the `InfoHash` if parsing is successful, or a `TorrentError` if it fails.
     fn from_str(xt: &str) -> Result<Self> {
+        trace!("Parsing info hash from magnet {}", xt);
         let segments: Vec<&str> = xt.split(':').collect();
         let info_hash_version_identifier = segments
             .get(1)
@@ -399,11 +404,11 @@ pub enum ProtocolVersion {
 
 #[cfg(test)]
 mod tests {
-    use hex_literal::hex;
-
-    use popcorn_fx_core::testing::init_logger;
-
     use super::*;
+    use crate::torrents::TorrentInfo;
+    use hex_literal::hex;
+    use popcorn_fx_core::core::torrents::magnet::Magnet;
+    use popcorn_fx_core::testing::{init_logger, read_test_file_to_bytes};
 
     #[test]
     fn test_info_hash_from() {
@@ -442,24 +447,25 @@ mod tests {
     }
 
     #[test]
-    fn test_info_hash_get_info_hash_bytes() {
-        let expected_result: [u8; 20] = "EADAF0EFEA39406914414D359E0EA16416409BD7"
-            .as_bytes()
-            .try_into()
-            .unwrap();
-        let hash = "urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7";
-        let info_hash = InfoHash::from_str(hash).unwrap();
-        let result = info_hash.get_info_hash_bytes();
-        assert_eq!(expected_result, result);
-
+    fn test_info_hash_short_info_hash_bytes() {
+        init_logger();
         let expected_result: [u8; 20] =
-            "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
-                .as_bytes()
+            Vec::from_hex("EADAF0EFEA39406914414D359E0EA16416409BD7".as_bytes())
+                .expect("expected the hash string to be a valid hex")
                 .try_into()
                 .unwrap();
+        let hash = "urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7";
+        let info_hash = InfoHash::from_str(hash).unwrap();
+        let result = info_hash.short_info_hash_bytes();
+        assert_eq!(expected_result, result);
+
+        let bytes = hex::decode("cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd")
+            .unwrap();
+        let mut expected_result = [0u8; 20];
+        expected_result.copy_from_slice(&bytes[..20]);
         let hash = "urn:btmh:1220cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd";
         let info_hash = InfoHash::from_str(hash).unwrap();
-        let result = info_hash.get_info_hash_bytes();
+        let result = info_hash.short_info_hash_bytes();
         assert_eq!(expected_result, result);
     }
 
@@ -492,5 +498,22 @@ mod tests {
             v2: Some(vec![1, 2, 3, 4, 5]),
         };
         assert_eq!(info_hash, other, "expected the v1 hash to not be compared");
+    }
+
+    #[test]
+    fn test_info_hash_short_info_hash_bytes_different_sources_same_hash() {
+        init_logger();
+        let torrent = read_test_file_to_bytes("debian-udp.torrent");
+        let torrent_info_file = TorrentInfo::try_from(torrent.as_slice()).unwrap();
+        let info_hash_file = torrent_info_file.info_hash;
+
+        let magnet = Magnet::from_str("magnet:?xt=urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7&dn=debian-12.4.0-amd64-DVD-1.iso&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce").unwrap();
+        let torrent_info_magnet = TorrentInfo::try_from(magnet).unwrap();
+        let info_hash_magnet = torrent_info_magnet.info_hash;
+
+        let hash_bytes_file = info_hash_file.short_info_hash_bytes();
+        let hash_bytes_magnet = info_hash_magnet.short_info_hash_bytes();
+
+        assert_eq!(hash_bytes_file, hash_bytes_magnet);
     }
 }

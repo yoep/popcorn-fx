@@ -2,7 +2,7 @@ use std::fmt::{Debug, Display, Formatter};
 
 use rand::Rng;
 
-use crate::torrents::peers::{PeerError, Result};
+use crate::torrents::peers::{Error, Result};
 
 const ID_PREFIX: &str = "-RW0082-";
 
@@ -73,11 +73,11 @@ impl Debug for PeerId {
 }
 
 impl TryFrom<&[u8]> for PeerId {
-    type Error = PeerError;
+    type Error = Error;
 
     fn try_from(value: &[u8]) -> Result<Self> {
         if value.len() != 20 {
-            return Err(PeerError::InvalidPeerId);
+            return Err(Error::InvalidPeerId);
         }
 
         let mut buffer = [0u8; 20];

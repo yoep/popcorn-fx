@@ -280,7 +280,7 @@ pub mod testing {
         INIT.call_once(|| {
             log4rs::init_config(Config::builder()
                 .appender(Appender::builder().build("stdout", Box::new(ConsoleAppender::builder()
-                    .encoder(Box::new(PatternEncoder::new("\x1B[37m{d(%Y-%m-%d %H:%M:%S%.3f)}\x1B[0m {h({l:>5.5})} \x1B[35m{I:>6.6}\x1B[0m \x1B[37m---\x1B[0m \x1B[37m[{T:>15.15}]\x1B[0m \x1B[36m{t:<40.40}\x1B[0m \x1B[37m:\x1B[0m {m}{n}")))
+                    .encoder(Box::new(PatternEncoder::new("\x1B[37m{d(%Y-%m-%d %H:%M:%S%.3f)}\x1B[0m {h({l:>5.5})} \x1B[35m{I:>6.6}\x1B[0m \x1B[37m---\x1B[0m \x1B[37m[{T:>15.15}]\x1B[0m \x1B[36m{t:<60.60}\x1B[0m \x1B[37m:\x1B[0m {m}{n}")))
                     .build())))
                 .logger(Logger::builder().build("httpmock::server", LevelFilter::Debug))
                 .logger(Logger::builder().build("async_io", LevelFilter::Info))

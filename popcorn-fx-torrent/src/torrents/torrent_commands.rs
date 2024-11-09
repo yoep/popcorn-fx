@@ -1,6 +1,6 @@
 use crate::torrents::channel::{CommandInstruction, CommandReceiver, CommandSender};
 use crate::torrents::trackers::Announcement;
-use crate::torrents::{TorrentCallback, TorrentInfo};
+use crate::torrents::{TorrentCallback, TorrentInfo, TorrentMetadata};
 use popcorn_fx_core::core::CallbackHandle;
 use std::fmt::Debug;
 use url::Url;
@@ -26,6 +26,8 @@ pub(crate) enum TorrentCommand {
     AnnounceAll,
     /// Add a new tracker to the torrent
     AddTracker(Url, u8),
+    /// Add the metadata of the torrent which has been retrieved from a peer
+    AddMetadata(TorrentMetadata),
     /// Register a new torrent callback
     AddCallback(TorrentCallback),
     /// Remove an existing callback handle from the torrent
@@ -40,6 +42,7 @@ impl PartialEq for TorrentCommand {
             (TorrentCommand::StartAnnouncing, TorrentCommand::StartAnnouncing) => true,
             (TorrentCommand::AnnounceAll, TorrentCommand::AnnounceAll) => true,
             (TorrentCommand::AddTracker(_, _), TorrentCommand::AddTracker(_, _)) => true,
+            (TorrentCommand::AddMetadata(_), TorrentCommand::AddMetadata(_)) => true,
             (TorrentCommand::AddCallback(_), TorrentCommand::AddCallback(_)) => true,
             (TorrentCommand::RemoveCallback(_), TorrentCommand::RemoveCallback(_)) => true,
             _ => false,
@@ -56,6 +59,9 @@ impl Debug for TorrentCommand {
             TorrentCommand::AnnounceAll => write!(f, "TorrentCommand::AnnounceAll"),
             TorrentCommand::AddTracker(url, tier) => {
                 write!(f, "TorrentCommand::AddTracker({}, {})", url, tier)
+            }
+            TorrentCommand::AddMetadata(metadata) => {
+                write!(f, "TorrentCommand::AddMetadata({:?})", metadata)
             }
             TorrentCommand::AddCallback(_) => write!(f, "TorrentCommand::AddCallback"),
             TorrentCommand::RemoveCallback(e) => write!(f, "TorrentCommand::RemoveCallback({})", e),

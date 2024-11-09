@@ -14,14 +14,14 @@ use url::Url;
 
 use popcorn_fx_core::core::{CallbackHandle, Callbacks, CoreCallback, CoreCallbacks, Handle};
 
-use crate::torrents::channel::{new_command_channel, ChannelError};
+use crate::torrents::channel::{new_command_channel, Error};
 use crate::torrents::peers::{Peer, PeerId};
 use crate::torrents::torrent_commands::{
     TorrentCommand, TorrentCommandInstruction, TorrentCommandReceiver, TorrentCommandResponse,
     TorrentCommandSender,
 };
 use crate::torrents::trackers::{Announcement, Tracker, TrackerError, TrackerManager};
-use crate::torrents::{Pieces, Result, TorrentError, TorrentInfo};
+use crate::torrents::{channel, Pieces, Result, TorrentError, TorrentInfo, TorrentMetadata};
 
 const DEFAULT_TIMEOUT_SECONDS: u64 = 10;
 
@@ -191,16 +191,17 @@ impl Torrent {
         self.command_sender
             .send(TorrentCommand::AnnounceAll)
             .await
-            .map(|response| {
+            .and_then(|response| {
                 if let TorrentCommandResponse::AnnounceAll(announce) = response {
                     return Ok(announce);
                 }
 
-                Err(ChannelError::UnexpectedCommandResponse(
+                Err(Error::UnexpectedCommandResponse(
                     "TorrentCommandResponse::AnnounceAll".to_string(),
                     format!("{:?}", response),
-                ))?
-            })?
+                ))
+            })
+            .map_err(|e| TorrentError::from(e))
     }
 
     async fn add_known_torrent_trackers(&self) -> Result<()> {
@@ -250,7 +251,7 @@ impl Torrent {
                     return Ok(metadata);
                 }
 
-                Err(ChannelError::UnexpectedCommandResponse(
+                Err(Error::UnexpectedCommandResponse(
                     "TorrentCommandResponse::Metadata".to_string(),
                     format!("{:?}", response),
                 ))?
@@ -266,7 +267,7 @@ impl Torrent {
                     return Ok(trackers);
                 }
 
-                Err(ChannelError::UnexpectedCommandResponse(
+                Err(Error::UnexpectedCommandResponse(
                     "TorrentCommandResponse::ActiveTrackers".to_string(),
                     format!("{:?}", response),
                 ))?
@@ -422,6 +423,10 @@ impl InnerTorrent {
                 self.add_tracker(url, tier).await;
                 Ok(())
             }
+            TorrentCommand::AddMetadata(metadata) => {
+                self.add_metadata(metadata);
+                Ok(())
+            }
             TorrentCommand::AddCallback(callback) => {
                 self.callbacks.add(callback);
                 Ok(())
@@ -451,6 +456,17 @@ impl InnerTorrent {
         }
 
         debug!("Tracker {} has been added to torrent {}", url, self.handle);
+    }
+
+    fn add_metadata(&mut self, metadata: TorrentMetadata) {
+        // check if the metadata is already available
+        // if so, we ignore this action
+        if self.metadata.info.is_some() {
+            return;
+        }
+
+        self.metadata.info = Some(metadata);
+        debug!("Updated metadata of {:?}", self);
     }
 
     async fn start_announcing(&self) {

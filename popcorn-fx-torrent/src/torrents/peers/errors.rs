@@ -1,14 +1,14 @@
-use crate::torrents::channel::ChannelError;
+use crate::torrents::channel;
 use std::io;
 use thiserror::Error;
 use tokio::time::error::Elapsed;
 
 /// The peer operation specific [std::result::Result] type
-pub type Result<T> = std::result::Result<T, PeerError>;
+pub type Result<T> = std::result::Result<T, Error>;
 
 /// Indicates that an error occurred while communicating with a peer
 #[derive(Debug, Clone, Error, PartialEq)]
-pub enum PeerError {
+pub enum Error {
     #[error("peer id is invalid")]
     InvalidPeerId,
     #[error("unsupported message type {0}")]
@@ -23,25 +23,25 @@ pub enum PeerError {
     Closed,
 }
 
-impl From<io::Error> for PeerError {
+impl From<io::Error> for Error {
     fn from(error: io::Error) -> Self {
-        PeerError::Io(error.to_string())
+        Error::Io(error.to_string())
     }
 }
 
-impl From<Elapsed> for PeerError {
+impl From<Elapsed> for Error {
     fn from(error: Elapsed) -> Self {
-        PeerError::Io(error.to_string())
+        Error::Io(error.to_string())
     }
 }
 
-impl From<ChannelError> for PeerError {
-    fn from(error: ChannelError) -> Self {
-        if let ChannelError::Closed = error {
-            return PeerError::Closed;
+impl From<channel::Error> for Error {
+    fn from(error: channel::Error) -> Self {
+        if let channel::Error::Closed = error {
+            return Error::Closed;
         }
 
-        PeerError::Io(error.to_string())
+        Error::Io(error.to_string())
     }
 }
 
@@ -51,10 +51,10 @@ mod tests {
 
     #[test]
     fn test_from_channel_error() {
-        let error = ChannelError::Closed;
+        let error = Error::Closed;
 
-        let result = PeerError::from(error);
+        let result = Error::from(error);
 
-        assert_eq!(PeerError::Closed, result);
+        assert_eq!(Error::Closed, result);
     }
 }

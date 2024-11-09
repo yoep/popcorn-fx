@@ -6,7 +6,7 @@ use log::{debug, trace, warn};
 use tokio::sync::{mpsc, oneshot};
 use tokio::time;
 
-use crate::torrents::channel::{ChannelError, Result};
+use crate::torrents::channel::{Error, Result};
 
 const DEFAULT_COMMAND_TIMEOUT_SECONDS: u64 = 60;
 
@@ -45,10 +45,10 @@ where
 
         tokio::select! {
             _ = time::sleep(self.timeout) => {
-                Err(ChannelError::Timeout(self.timeout.as_millis() as u64))
+                Err(Error::Timeout(self.timeout.as_millis() as u64))
             },
             response = response_receiver => {
-                response.map_err(|e| ChannelError::Failed(e.to_string()))
+                response.map_err(|e| Error::Failed(e.to_string()))
             }
         }
     }
@@ -73,7 +73,7 @@ where
     ) -> Result<()> {
         // verify if the sender is already closed before trying to send the command
         if self.command_sender.is_closed() {
-            return Err(ChannelError::Closed);
+            return Err(Error::Closed);
         }
 
         // create the command instruction
@@ -84,7 +84,7 @@ where
 
         trace!("Trying to send {:?}", command_instruction);
         if let Err(e) = self.command_sender.send(command_instruction) {
-            return Err(ChannelError::Failed(e.to_string()));
+            return Err(Error::Failed(e.to_string()));
         }
 
         Ok(())
@@ -209,7 +209,7 @@ where
         if let Some(sender) = self.response_sender.take() {
             return sender
                 .send(response)
-                .map_err(|_| ChannelError::Failed("failed to send command response".to_string()));
+                .map_err(|_| Error::Failed("failed to send command response".to_string()));
         }
 
         warn!("Response has already been sent, ignoring response");
@@ -296,7 +296,7 @@ mod tests {
         let result = runtime.block_on(sender.send(TestCommand::Foo));
 
         assert_eq!(
-            ChannelError::Timeout(timout.as_millis() as u64),
+            Error::Timeout(timout.as_millis() as u64),
             result.unwrap_err()
         );
     }

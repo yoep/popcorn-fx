@@ -1,7 +1,6 @@
-use crate::torrents::channel::ChannelError;
-use crate::torrents::peers::PeerError;
 use crate::torrents::trackers::TrackerError;
-use crate::torrents::TorrentHandle;
+use crate::torrents::{channel, peers, TorrentHandle};
+use serde_bencode::Error;
 use thiserror::Error;
 
 /// The result type for the torrent package.
@@ -30,7 +29,7 @@ pub enum TorrentError {
     #[error("a tracker error occurred, {0}")]
     Tracker(TrackerError),
     #[error("a peer error occurred, {0}")]
-    Peer(PeerError),
+    Peer(peers::Error),
     #[error("an io error occurred, {0}")]
     Io(String),
     #[error("a torrent piece error occurred, {0}")]
@@ -43,8 +42,8 @@ impl From<TrackerError> for TorrentError {
     }
 }
 
-impl From<PeerError> for TorrentError {
-    fn from(error: PeerError) -> Self {
+impl From<peers::Error> for TorrentError {
+    fn from(error: peers::Error) -> Self {
         TorrentError::Peer(error)
     }
 }
@@ -55,14 +54,20 @@ impl From<std::io::Error> for TorrentError {
     }
 }
 
+impl From<serde_bencode::Error> for TorrentError {
+    fn from(error: Error) -> Self {
+        TorrentError::TorrentParse(error.to_string())
+    }
+}
+
 impl From<PieceError> for TorrentError {
     fn from(error: PieceError) -> Self {
         TorrentError::Piece(error)
     }
 }
 
-impl From<ChannelError> for TorrentError {
-    fn from(error: ChannelError) -> Self {
+impl From<channel::Error> for TorrentError {
+    fn from(error: channel::Error) -> Self {
         TorrentError::Io(error.to_string())
     }
 }
@@ -85,13 +90,13 @@ mod tests {
 
     #[test]
     fn test_torrent_error_from_peer_error() {
-        let err = PeerError::Io("foo bar".to_string());
+        let err = peers::Error::Io("foo bar".to_string());
 
         let result: TorrentError = err.into();
 
         assert_eq!(
             result,
-            TorrentError::Peer(PeerError::Io("foo bar".to_string()))
+            TorrentError::Peer(peers::Error::Io("foo bar".to_string()))
         );
     }
 

@@ -1,10 +1,10 @@
 use thiserror::Error;
 
 /// The channel error result type
-pub type Result<T> = std::result::Result<T, ChannelError>;
+pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, Clone, Error, PartialEq)]
-pub enum ChannelError {
+pub enum Error {
     /// Indicates that the command channel is no longer available.
     #[error("command channel is not longer available")]
     Closed,

@@ -1,17 +1,18 @@
+use crate::torrents::peers::PeerId;
+use crate::torrents::trackers::udp::UdpConnection;
+use crate::torrents::trackers::{AnnounceEvent, Result, TrackerError};
+use crate::torrents::InfoHash;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use derive_more::Display;
 use log::{debug, trace};
+use popcorn_fx_core::core::Handle;
 use std::fmt::Debug;
 use std::net::SocketAddr;
 use std::time::Duration;
 use tokio::net::lookup_host;
+use tokio::sync::RwLock;
 use url::Url;
-
-use crate::torrents::peers::PeerId;
-use crate::torrents::trackers::udp::UdpConnection;
-use crate::torrents::trackers::{Result, TrackerError};
-use crate::torrents::InfoHash;
 
 const DEFAULT_CONNECTION_TIMEOUT_SECONDS: u64 = 10;
 const DEFAULT_ANNOUNCEMENT_INTERVAL_SECONDS: u64 = 120;
@@ -50,16 +51,22 @@ pub trait TrackerConnection: Debug + Send + Sync {
     /// A `Result` that is `Ok` if the connection was successful or an `Err` if there was an issue.
     async fn start(&mut self) -> Result<()>;
 
-    /// Asynchronously announce the peer to the tracker.
+    /// Announce the given torrent hash to the tracker.
+    /// This will send the known peer info to the tracker with the type of announcement.
     ///
     /// # Arguments
     ///
     /// * `info_hash` - The `InfoHash` of the torrent to announce.
+    /// * `event` - The announcement event type to announce.
     ///
     /// # Returns
     ///
     /// A `Result` containing the `Announce` struct with tracker response data or an error if the announcement failed.
-    async fn announce(&self, info_hash: InfoHash) -> Result<AnnounceEntryResponse>;
+    async fn announce(
+        &self,
+        info_hash: InfoHash,
+        event: AnnounceEvent,
+    ) -> Result<AnnounceEntryResponse>;
 
     /// Asynchronously scrape the tracker for torrent statistics.
     ///
@@ -76,9 +83,15 @@ pub trait TrackerConnection: Debug + Send + Sync {
     fn close(&mut self);
 }
 
+/// The tracker identifier handle
+pub type TrackerHandle = Handle;
+
 #[derive(Debug, Display)]
-#[display(fmt = "[{}] {}", tier, url)]
+#[display(fmt = "[{}] ({}){}", handle, tier, url)]
 pub struct Tracker {
+    /// The unique tracker handle
+    handle: TrackerHandle,
+    /// The tracker url
     url: Url,
     tier: u8,
     peer_id: PeerId,
@@ -87,9 +100,9 @@ pub struct Tracker {
     /// The timeout for tracker connections before failing
     timeout: Duration,
     /// The interval in seconds to do another announcement to the tracker
-    announcement_interval_seconds: u64,
+    announcement_interval_seconds: RwLock<u64>,
     /// The last time an announcement was made by this tracker
-    last_announcement: DateTime<Utc>,
+    last_announcement: RwLock<DateTime<Utc>>,
 }
 
 impl Tracker {
@@ -105,21 +118,29 @@ impl Tracker {
         announcement_interval_seconds: u64,
     ) -> Result<Self> {
         trace!("Trying to create new tracker for {}", url);
+        let handle = TrackerHandle::new();
         let endpoints = Self::resolve(&url).await?;
         let connection =
             Self::create_connection(&url, peer_id, &endpoints, timeout.clone()).await?;
+        let last_announcement = DateTime::from_timestamp(0, 0).unwrap();
 
         trace!("Resolved tracker {} to {:?}", url, endpoints);
         Ok(Self {
+            handle,
             url,
             tier,
             peer_id,
             endpoints,
             connection,
             timeout,
-            announcement_interval_seconds,
-            last_announcement: DateTime::from_timestamp(0, 0).unwrap(),
+            announcement_interval_seconds: RwLock::new(announcement_interval_seconds),
+            last_announcement: RwLock::new(last_announcement),
         })
+    }
+
+    /// The unique handle for this tracker.
+    pub fn handle(&self) -> TrackerHandle {
+        self.handle
     }
 
     pub fn url(&self) -> &Url {
@@ -131,8 +152,8 @@ impl Tracker {
     /// # Returns
     ///
     /// Returns the interval in seconds for the announcements.
-    pub fn announcement_interval(&self) -> u64 {
-        self.announcement_interval_seconds
+    pub async fn announcement_interval(&self) -> u64 {
+        self.announcement_interval_seconds.read().await.clone()
     }
 
     /// Retrieve the last time this tracker made an announcement.
@@ -140,15 +161,35 @@ impl Tracker {
     /// # Returns
     ///
     /// Returns the last time this tracker made an announcement.
-    pub fn last_announcement(&self) -> DateTime<Utc> {
-        self.last_announcement.clone()
+    pub async fn last_announcement(&self) -> DateTime<Utc> {
+        self.last_announcement.read().await.clone()
     }
 
-    pub async fn announce(&mut self, info_hash: InfoHash) -> Result<AnnounceEntryResponse> {
-        match self.connection.announce(info_hash).await {
+    /// Announce the given event to this tracker for the given torrent info hash.
+    ///
+    /// # Arguments
+    ///
+    /// * `info_hash` - The torrent info hash to make the announcement for
+    /// * `event` - The announcement event
+    ///
+    /// # Returns
+    ///
+    /// Returns the announcement response from the tracker.
+    pub async fn announce(
+        &self,
+        info_hash: InfoHash,
+        event: AnnounceEvent,
+    ) -> Result<AnnounceEntryResponse> {
+        match self.connection.announce(info_hash, event).await {
             Ok(e) => {
-                self.announcement_interval_seconds = e.interval_seconds;
-                self.last_announcement = Utc::now();
+                {
+                    let mut mutex = self.last_announcement.write().await;
+                    *mutex = Utc::now();
+                }
+                {
+                    let mut mutex = self.announcement_interval_seconds.write().await;
+                    *mutex = e.interval_seconds;
+                }
 
                 Ok(e)
             }
@@ -304,7 +345,7 @@ mod tests {
             .unwrap();
 
         let result = tracker
-            .announce(info_hash)
+            .announce(info_hash, AnnounceEvent::Started)
             .await
             .expect("expected the announce to succeed");
 

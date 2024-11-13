@@ -25,4 +25,6 @@ pub enum TorrentError {
     TorrentResolvingFailed(String),
     #[error("Failed to load the torrent collection, {0}")]
     TorrentCollectionLoadingFailed(String),
+    #[error("{0}")]
+    TorrentError(String),
 }

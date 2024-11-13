@@ -3,12 +3,12 @@ use std::sync::Weak;
 
 use async_trait::async_trait;
 use derive_more::Display;
-use downcast_rs::{DowncastSync, impl_downcast};
+use downcast_rs::{impl_downcast, DowncastSync};
 #[cfg(any(test, feature = "testing"))]
 use mockall::automock;
 
-use crate::core::{CoreCallback, torrents};
-use crate::core::torrents::{Torrent, TorrentFileInfo, TorrentInfo};
+use crate::core::torrents::{Torrent, TorrentFileInfo, TorrentHealth, TorrentInfo};
+use crate::core::{torrents, CoreCallback};
 
 /// The callback type for the torrent manager events.
 pub type TorrentManagerCallback = CoreCallback<TorrentManagerEvent>;
@@ -77,6 +77,17 @@ pub trait TorrentManager: Debug + DowncastSync {
     /// The torrent meta information on success, or a [torrent::TorrentError] if there was an error.
     async fn info<'a>(&'a self, url: &'a str) -> torrents::Result<TorrentInfo>;
 
+    /// Retrieve the health of the torrent based on the given magnet link.
+    ///
+    /// # Arguments
+    ///
+    /// * `url` - The magnet link of the torrent
+    ///
+    /// # Returns
+    ///
+    /// The torrent health on success, or a [torrent::TorrentError] if there was an error.
+    async fn health_from_uri<'a>(&'a self, url: &'a str) -> torrents::Result<TorrentHealth>;
+
     /// Create a new torrent session based on the provided file information.
     ///
     /// # Arguments
@@ -113,6 +124,18 @@ pub trait TorrentManager: Debug + DowncastSync {
     ///
     /// * `handle` - The unique handle of the torrent session to remove.
     fn remove(&self, handle: &str);
+
+    /// Calculate the health of the torrent based on the given seed count and peer count.
+    ///
+    /// # Arguments
+    ///
+    /// * `seeds` - The number of seeds the torrent has (completed peers).
+    /// * `leechers` - The number of leechers the torrent has (incomplete peers).
+    ///
+    /// # Returns
+    ///
+    /// Returns the calculated torrent health.
+    fn calculate_health(&self, seeds: u32, leechers: u32) -> TorrentHealth;
 
     /// Cleanup the torrents directory.
     ///

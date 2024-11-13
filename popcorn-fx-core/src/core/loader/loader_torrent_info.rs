@@ -18,6 +18,7 @@ use crate::core::torrents::{TorrentFileInfo, TorrentInfo, TorrentManager};
 
 const MAGNET_PREFIX: &str = "magnet:?";
 
+/// Represent the loading strategy for loading the torrent information from a media item or a magnet link.
 #[derive(Display)]
 #[display(fmt = "Torrent info loading strategy")]
 pub struct TorrentInfoLoadingStrategy {
@@ -55,7 +56,7 @@ impl TorrentInfoLoadingStrategy {
         media: &Box<dyn MediaIdentifier>,
         quality: &str,
     ) -> Result<TorrentFileInfo, LoadingError> {
-        return match media.media_type() {
+        match media.media_type() {
             MediaType::Movie => media
                 .downcast_ref::<MovieDetails>()
                 .and_then(|movie| movie.torrents().get(&DEFAULT_AUDIO_LANGUAGE.to_string()))
@@ -104,7 +105,7 @@ impl TorrentInfoLoadingStrategy {
                 "unsupported media type {}",
                 media.media_type()
             ))),
-        };
+        }
     }
 }
 

@@ -4,27 +4,25 @@ use std::sync::{Arc, Weak};
 
 use async_trait::async_trait;
 use chrono::{DateTime, Duration, Local};
+use itertools::Itertools;
 use log::{debug, error, info, trace, warn};
+use tokio::runtime::Runtime;
 use tokio::sync::Mutex;
 
+use crate::torrents::peers::extensions::metadata::MetadataExtension;
+use crate::torrents::peers::extensions::Extension;
+use crate::torrents::{errors, DefaultSession, Session, TorrentInfoFile};
 use popcorn_fx_core::core::config::{ApplicationConfig, CleaningMode, TorrentSettings};
 use popcorn_fx_core::core::events::{Event, EventPublisher, PlayerStoppedEvent};
 use popcorn_fx_core::core::storage::Storage;
 use popcorn_fx_core::core::torrents::{
-    Torrent, TorrentError, TorrentFileInfo, TorrentInfo, TorrentManager, TorrentManagerCallback,
+    Torrent, TorrentFileInfo, TorrentHealth, TorrentInfo, TorrentManager, TorrentManagerCallback,
     TorrentManagerState, TorrentWrapper,
 };
 use popcorn_fx_core::core::{block_in_place, events, torrents};
 
 const CLEANUP_WATCH_THRESHOLD: f64 = 85f64;
 const CLEANUP_AFTER: fn() -> Duration = || Duration::days(10);
-
-/// A callback function type for resolving torrent information.
-///
-/// The function takes a `String` argument representing the URL of the torrent and returns
-/// a `TorrentInfo` struct. It must be `Send` and `Sync` to support concurrent execution.
-pub type ResolveTorrentInfoCallback =
-    Box<dyn Fn(String) -> Result<TorrentInfo, TorrentError> + Send + Sync>;
 
 /// A callback function type for resolving torrents.
 ///
@@ -52,14 +50,21 @@ pub struct DefaultTorrentManager {
 }
 
 impl DefaultTorrentManager {
-    pub fn new(settings: Arc<ApplicationConfig>, event_publisher: Arc<EventPublisher>) -> Self {
+    pub fn new(
+        settings: Arc<ApplicationConfig>,
+        event_publisher: Arc<EventPublisher>,
+        runtime: Arc<Runtime>,
+    ) -> popcorn_fx_core::core::torrents::Result<Self> {
+        let extensions: Vec<Box<dyn Extension>> = vec![Box::new(MetadataExtension::new())];
+        let session: Box<dyn Session> = block_in_place(DefaultSession::new(extensions, runtime))
+            .map(|e| Box::new(e))
+            .map_err(|e| torrents::TorrentError::TorrentError(e.to_string()))?;
+
         let instance = Self {
             inner: Arc::new(InnerTorrentManager {
                 settings,
+                session,
                 torrents: Default::default(),
-                resolve_torrent_info_callback: Mutex::new(Box::new(|_| {
-                    panic!("No torrent info resolver configured")
-                })),
                 resolve_torrent_callback: Mutex::new(Box::new(|_, _, _| {
                     panic!("No torrent resolver configured")
                 })),
@@ -81,14 +86,7 @@ impl DefaultTorrentManager {
             events::DEFAULT_ORDER - 10,
         );
 
-        instance
-    }
-
-    pub fn register_resolve_info_callback(&self, callback: ResolveTorrentInfoCallback) {
-        trace!("Updating torrent info resolve callback");
-        let mut guard = block_in_place(self.inner.resolve_torrent_info_callback.lock());
-        *guard = callback;
-        info!("Updated torrent inforesolve callback");
+        Ok(instance)
     }
 
     pub fn register_resolve_callback(&self, callback: ResolveTorrentCallback) {
@@ -120,6 +118,10 @@ impl TorrentManager for DefaultTorrentManager {
         self.inner.info(url).await
     }
 
+    async fn health_from_uri<'a>(&'a self, url: &'a str) -> torrents::Result<TorrentHealth> {
+        self.inner.health_from_uri(url).await
+    }
+
     async fn create(
         &self,
         file_info: &TorrentFileInfo,
@@ -131,10 +133,6 @@ impl TorrentManager for DefaultTorrentManager {
             .await
     }
 
-    fn cleanup(&self) {
-        self.inner.cleanup()
-    }
-
     fn by_handle(&self, handle: &str) -> Option<Weak<Box<dyn Torrent>>> {
         self.inner.by_handle(handle)
     }
@@ -142,18 +140,154 @@ impl TorrentManager for DefaultTorrentManager {
     fn remove(&self, handle: &str) {
         self.inner.remove(handle)
     }
+
+    fn calculate_health(&self, seeds: u32, leechers: u32) -> TorrentHealth {
+        self.inner.calculate_health(seeds, leechers)
+    }
+
+    fn cleanup(&self) {
+        self.inner.cleanup()
+    }
 }
 
 struct InnerTorrentManager {
     /// The settings of the application
     settings: Arc<ApplicationConfig>,
+    /// The underlying torrent sessions of the application
+    session: Box<dyn Session>,
+    #[deprecated]
     torrents: Mutex<Vec<Arc<Box<dyn Torrent>>>>,
-    resolve_torrent_info_callback: Mutex<ResolveTorrentInfoCallback>,
     resolve_torrent_callback: Mutex<ResolveTorrentCallback>,
     cancel_torrent_callback: Mutex<CancelTorrentCallback>,
 }
 
 impl InnerTorrentManager {
+    fn state(&self) -> TorrentManagerState {
+        TorrentManagerState::Running
+    }
+
+    fn register(&self, _callback: TorrentManagerCallback) {
+        todo!()
+    }
+
+    async fn info<'a>(
+        &'a self,
+        url: &'a str,
+    ) -> popcorn_fx_core::core::torrents::Result<TorrentInfo> {
+        debug!("Resolving torrent magnet url {}", url);
+        self.session
+            .fetch_magnet(url, std::time::Duration::from_secs(30))
+            .await
+            .and_then(|torrent_info| {
+                trace!("Retrieved torrent info {:?}", torrent_info);
+                if let Some(metadata) = torrent_info.info {
+                    let directory_name = if let TorrentInfoFile::Single { .. } = &metadata.files {
+                        None
+                    } else {
+                        Some(metadata.name.clone())
+                    };
+
+                    Ok(TorrentInfo {
+                        uri: url.to_string(),
+                        total_files: metadata.total_files() as u32,
+                        files: metadata
+                            .files()
+                            .into_iter()
+                            .enumerate()
+                            .map(|(index, file)| TorrentFileInfo {
+                                filename: file.path.iter().last().cloned().unwrap_or(String::new()),
+                                file_path: file.path.iter().join("/"),
+                                file_size: file.length,
+                                file_index: index,
+                            })
+                            .collect(),
+                        name: metadata.name,
+                        directory_name,
+                    })
+                } else {
+                    debug!(
+                        "Torrent info is missing it's metadata, unable to create the torrent info"
+                    );
+                    Err(errors::TorrentError::InvalidMetadata(format!(
+                        "metadata is missing for torrent {}",
+                        torrent_info.info_hash
+                    )))
+                }
+            })
+            .map_err(|e| {
+                if let errors::TorrentError::Timeout = e {
+                    return torrents::TorrentError::TorrentResolvingFailed(e.to_string());
+                }
+
+                torrents::TorrentError::TorrentError(e.to_string())
+            })
+    }
+
+    async fn health_from_uri<'a>(
+        &'a self,
+        url: &'a str,
+    ) -> popcorn_fx_core::core::torrents::Result<TorrentHealth> {
+        trace!("Retrieving torrent health from magnet link {}", url);
+        self.session
+            .torrent_health_from_uri(url)
+            .await
+            .map_err(|e| torrents::TorrentError::TorrentError(e.to_string()))
+    }
+
+    async fn create(
+        &self,
+        file_info: &TorrentFileInfo,
+        torrent_directory: &str,
+        auto_download: bool,
+    ) -> torrents::Result<Weak<Box<dyn Torrent>>> {
+        debug!("Resolving torrent info {:?}", file_info);
+        let torrent_wrapper: TorrentWrapper;
+
+        {
+            let callback = block_in_place(self.resolve_torrent_callback.lock());
+            torrent_wrapper = callback(file_info, torrent_directory, auto_download);
+        }
+
+        trace!("Received resolved torrent {:?}", torrent_wrapper);
+        let wrapper = Arc::new(Box::new(torrent_wrapper) as Box<dyn Torrent>);
+        let handle = wrapper.handle();
+
+        if self.by_handle(handle).is_none() {
+            let mut mutex = block_in_place(self.torrents.lock());
+            debug!("Adding torrent with handle {}", handle);
+            mutex.push(wrapper.clone());
+        } else {
+            warn!(
+                "Duplicate handle {} detected, unable to add torrent",
+                handle
+            );
+        }
+
+        Ok(Arc::downgrade(&wrapper))
+    }
+
+    fn by_handle(&self, handle: &str) -> Option<Weak<Box<dyn Torrent>>> {
+        let mutex = block_in_place(self.torrents.lock());
+        mutex
+            .iter()
+            .find(|e| e.handle() == handle)
+            .map(|e| Arc::downgrade(e))
+    }
+
+    fn remove(&self, handle: &str) {
+        let mut mutex = block_in_place(self.torrents.lock());
+        let position = mutex.iter().position(|e| e.handle() == handle);
+
+        if let Some(position) = position {
+            debug!("Removing torrent with handle {}", handle);
+            let torrent = mutex.remove(position);
+            drop(mutex);
+
+            let mutex = block_in_place(self.cancel_torrent_callback.lock());
+            mutex(torrent.handle().to_string());
+        }
+    }
+
     fn on_player_stopped(&self, event: PlayerStoppedEvent) {
         trace!("Received player stopped event for {:?}", event);
         let settings = self.settings.user_settings();
@@ -236,6 +370,16 @@ impl InnerTorrentManager {
         }
     }
 
+    fn calculate_health(&self, seeds: u32, leechers: u32) -> TorrentHealth {
+        TorrentHealth::from(seeds, leechers)
+    }
+
+    fn cleanup(&self) {
+        let settings = self.settings.user_settings();
+        let settings = settings.torrent();
+        Self::clean_directory(settings);
+    }
+
     fn clean_directory(settings: &TorrentSettings) {
         debug!(
             "Cleaning torrent directory {}",
@@ -295,83 +439,6 @@ impl Debug for InnerTorrentManager {
     }
 }
 
-#[async_trait]
-impl TorrentManager for InnerTorrentManager {
-    fn state(&self) -> TorrentManagerState {
-        TorrentManagerState::Running
-    }
-
-    fn register(&self, _callback: TorrentManagerCallback) {
-        todo!()
-    }
-
-    async fn info<'a>(&'a self, url: &'a str) -> torrents::Result<TorrentInfo> {
-        debug!("Resolving torrent magnet url {}", url);
-        let callback = block_in_place(self.resolve_torrent_info_callback.lock());
-        callback(url.to_string())
-    }
-
-    async fn create(
-        &self,
-        file_info: &TorrentFileInfo,
-        torrent_directory: &str,
-        auto_download: bool,
-    ) -> torrents::Result<Weak<Box<dyn Torrent>>> {
-        debug!("Resolving torrent info {:?}", file_info);
-        let torrent_wrapper: TorrentWrapper;
-
-        {
-            let callback = block_in_place(self.resolve_torrent_callback.lock());
-            torrent_wrapper = callback(file_info, torrent_directory, auto_download);
-        }
-
-        trace!("Received resolved torrent {:?}", torrent_wrapper);
-        let wrapper = Arc::new(Box::new(torrent_wrapper) as Box<dyn Torrent>);
-        let handle = wrapper.handle();
-
-        if self.by_handle(handle).is_none() {
-            let mut mutex = block_in_place(self.torrents.lock());
-            debug!("Adding torrent with handle {}", handle);
-            mutex.push(wrapper.clone());
-        } else {
-            warn!(
-                "Duplicate handle {} detected, unable to add torrent",
-                handle
-            );
-        }
-
-        Ok(Arc::downgrade(&wrapper))
-    }
-
-    fn by_handle(&self, handle: &str) -> Option<Weak<Box<dyn Torrent>>> {
-        let mutex = block_in_place(self.torrents.lock());
-        mutex
-            .iter()
-            .find(|e| e.handle() == handle)
-            .map(|e| Arc::downgrade(e))
-    }
-
-    fn remove(&self, handle: &str) {
-        let mut mutex = block_in_place(self.torrents.lock());
-        let position = mutex.iter().position(|e| e.handle() == handle);
-
-        if let Some(position) = position {
-            debug!("Removing torrent with handle {}", handle);
-            let torrent = mutex.remove(position);
-            drop(mutex);
-
-            let mutex = block_in_place(self.cancel_torrent_callback.lock());
-            mutex(torrent.handle().to_string());
-        }
-    }
-
-    fn cleanup(&self) {
-        let settings = self.settings.user_settings();
-        let settings = settings.torrent();
-        Self::clean_directory(settings);
-    }
-}
-
 impl Drop for InnerTorrentManager {
     fn drop(&mut self) {
         let settings = self.settings.user_settings();
@@ -387,14 +454,13 @@ impl Drop for InnerTorrentManager {
 
 #[cfg(test)]
 mod test {
-    use std::path::PathBuf;
-    use std::sync::mpsc::channel;
-
-    use utime::set_file_times;
-
     use popcorn_fx_core::core::config::{PopcornSettings, TorrentSettings};
     use popcorn_fx_core::core::torrents::TorrentState;
     use popcorn_fx_core::testing::{copy_test_file, init_logger};
+    use std::fs::{File, FileTimes};
+    use std::path::PathBuf;
+    use std::sync::mpsc::channel;
+    use std::time::SystemTime;
 
     use super::*;
 
@@ -402,11 +468,44 @@ mod test {
     fn test_state() {
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
+        let runtime = Arc::new(Runtime::new().unwrap());
         let settings = default_config(temp_path, CleaningMode::Off);
         let event_publisher = Arc::new(EventPublisher::default());
-        let manager = DefaultTorrentManager::new(settings, event_publisher.clone());
+        let manager =
+            DefaultTorrentManager::new(settings, event_publisher.clone(), runtime).unwrap();
 
         assert_eq!(TorrentManagerState::Running, manager.state())
+    }
+
+    #[test]
+    fn test_info() {
+        init_logger();
+        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let runtime = Arc::new(Runtime::new().unwrap());
+        let uri = "magnet:?xt=urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7&dn=debian-12.4.0-amd64-DVD-1.iso&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce";
+        let settings = default_config(temp_path, CleaningMode::Off);
+        let event_publisher = Arc::new(EventPublisher::default());
+        let manager =
+            DefaultTorrentManager::new(settings, event_publisher.clone(), runtime.clone()).unwrap();
+        let expected_result = TorrentInfo {
+            uri: uri.to_string(),
+            name: "debian-12.4.0-amd64-DVD-1.iso".to_string(),
+            directory_name: None,
+            total_files: 1,
+            files: vec![TorrentFileInfo {
+                filename: "debian-12.4.0-amd64-DVD-1.iso".to_string(),
+                file_path: "debian-12.4.0-amd64-DVD-1.iso".to_string(),
+                file_size: 3994091520,
+                file_index: 0,
+            }],
+        };
+
+        let result = runtime
+            .block_on(manager.info(uri))
+            .expect("expected the torrent info to have been returned");
+
+        assert_eq!(expected_result, result)
     }
 
     #[test]
@@ -414,6 +513,7 @@ mod test {
         init_logger();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
+        let runtime = Arc::new(Runtime::new().unwrap());
         let magnet_uri = "magnet:?ExampleMagnetUri";
         let filename = "torrents/lorem ipsum=[dolor].mp4";
         let filepath = PathBuf::from(temp_path).join(filename);
@@ -432,7 +532,8 @@ mod test {
         let output_path = copy_test_file(temp_path, "example.mp4", Some(filename));
         let settings = default_config(temp_path, CleaningMode::Watched);
         let event_publisher = Arc::new(EventPublisher::default());
-        let manager = DefaultTorrentManager::new(settings, event_publisher.clone());
+        let manager =
+            DefaultTorrentManager::new(settings, event_publisher.clone(), runtime).unwrap();
         let (tx, rx) = channel();
 
         manager.register_resolve_callback(Box::new(move |_, _, _| TorrentWrapper {
@@ -448,8 +549,6 @@ mod test {
             callbacks: Default::default(),
         }));
         let torrent_info_callback = torrent_info.clone();
-        manager
-            .register_resolve_info_callback(Box::new(move |_| Ok(torrent_info_callback.clone())));
 
         // register the torrent information by invoking the callbacks
         match block_in_place(manager.info(magnet_uri)) {
@@ -499,9 +598,12 @@ mod test {
         init_logger();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
+        let runtime = Arc::new(Runtime::new().unwrap());
         let settings = default_config(temp_path, CleaningMode::Off);
         let filepath = copy_test_file(temp_path, "debian.torrent", Some("torrents/debian.torrent"));
-        let manager = DefaultTorrentManager::new(settings, Arc::new(EventPublisher::default()));
+        let manager =
+            DefaultTorrentManager::new(settings, Arc::new(EventPublisher::default()), runtime)
+                .unwrap();
 
         manager.cleanup();
 
@@ -517,9 +619,12 @@ mod test {
         init_logger();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
+        let runtime = Arc::new(Runtime::new().unwrap());
         let settings = default_config(temp_path, CleaningMode::Off);
         let filepath = copy_test_file(temp_path, "debian.torrent", None);
-        let manager = DefaultTorrentManager::new(settings, Arc::new(EventPublisher::default()));
+        let manager =
+            DefaultTorrentManager::new(settings, Arc::new(EventPublisher::default()), runtime)
+                .unwrap();
 
         drop(manager);
 
@@ -531,10 +636,15 @@ mod test {
         init_logger();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
+        let runtime = Arc::new(Runtime::new().unwrap());
         let settings = default_config(temp_path, CleaningMode::OnShutdown);
         copy_test_file(temp_path, "debian.torrent", Some("torrents/debian.torrent"));
-        let manager =
-            DefaultTorrentManager::new(settings.clone(), Arc::new(EventPublisher::default()));
+        let manager = DefaultTorrentManager::new(
+            settings.clone(),
+            Arc::new(EventPublisher::default()),
+            runtime,
+        )
+        .unwrap();
 
         drop(manager);
 
@@ -556,20 +666,27 @@ mod test {
         init_logger();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
+        let runtime = Arc::new(Runtime::new().unwrap());
         let settings = default_config(temp_path, CleaningMode::Watched);
         let _ = copy_test_file(
             temp_path,
             "debian.torrent",
             Some("torrents/my-torrent/debian.torrent"),
         );
-        let manager =
-            DefaultTorrentManager::new(settings.clone(), Arc::new(EventPublisher::default()));
+        let manager = DefaultTorrentManager::new(
+            settings.clone(),
+            Arc::new(EventPublisher::default()),
+            runtime,
+        )
+        .unwrap();
         let modified = Local::now() - Duration::days(10);
 
-        set_file_times(
-            PathBuf::from(temp_path).join("torrents").join("my-torrent"),
-            modified.timestamp(),
-            modified.timestamp(),
+        let file =
+            File::open(PathBuf::from(temp_path).join("torrents").join("my-torrent")).unwrap();
+        file.set_times(
+            FileTimes::new()
+                .set_accessed(SystemTime::from(modified))
+                .set_modified(SystemTime::from(modified)),
         )
         .unwrap();
         drop(manager);

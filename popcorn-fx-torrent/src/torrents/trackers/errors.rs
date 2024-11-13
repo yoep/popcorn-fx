@@ -1,3 +1,4 @@
+use crate::torrents::trackers::TrackerHandle;
 use thiserror::Error;
 use tokio::time::error::Elapsed;
 use url::Url;
@@ -6,6 +7,8 @@ pub type Result<T> = std::result::Result<T, TrackerError>;
 
 #[derive(Debug, Clone, Error, PartialEq)]
 pub enum TrackerError {
+    #[error("the tracker handle {0} is invalid")]
+    InvalidHandle(TrackerHandle),
     #[error("tracker has no available addresses (left)")]
     Unavailable,
     #[error("an error occurred while connecting to the tracker, {0}")]

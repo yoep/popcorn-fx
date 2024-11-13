@@ -1,9 +1,8 @@
-use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::io::{Cursor, Read, Write};
 
 use super::{Error, PeerId, Result};
-use crate::torrents::peers::extensions::{ExtensionName, ExtensionNumber, ExtensionRegistry};
+use crate::torrents::peers::extensions::{ExtensionNumber, ExtensionRegistry};
 use crate::torrents::InfoHash;
 use bitmask_enum::bitmask;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
@@ -15,7 +14,7 @@ pub const PROTOCOL: &str = "BitTorrent protocol";
 
 #[bitmask(u8)]
 #[bitmask_config(vec_debug, flags_iter)]
-pub enum ExtensionFlag {
+pub enum ExtensionFlags {
     None,
     Dht,
     Fast,
@@ -23,17 +22,17 @@ pub enum ExtensionFlag {
     Extensions,
 }
 
-impl Into<[u8; 8]> for ExtensionFlag {
+impl Into<[u8; 8]> for ExtensionFlags {
     fn into(self) -> [u8; 8] {
         let mut bit_array = [0; 8];
 
         // if self.contains(ExtensionFlag::Dht) {
         //     bit_array[7] |= 0x01;
         // }
-        if self.contains(ExtensionFlag::Extensions) {
+        if self.contains(ExtensionFlags::Extensions) {
             bit_array[5] |= 0x10;
         }
-        if self.contains(ExtensionFlag::Fast) {
+        if self.contains(ExtensionFlags::Fast) {
             bit_array[7] |= 0x04;
         }
         // if self.contains(ExtensionFlag::SupportV2) {
@@ -44,41 +43,41 @@ impl Into<[u8; 8]> for ExtensionFlag {
     }
 }
 
-impl From<[u8; 8]> for ExtensionFlag {
+impl From<[u8; 8]> for ExtensionFlags {
     fn from(bits: [u8; 8]) -> Self {
-        let mut flags = ExtensionFlag::None;
+        let mut flags = ExtensionFlags::None;
 
         if bits[7] & 0x01 == 0x01 {
-            flags |= ExtensionFlag::Dht;
+            flags |= ExtensionFlags::Dht;
         }
         if bits[5] & 0x10 == 0x10 {
-            flags |= ExtensionFlag::Extensions;
+            flags |= ExtensionFlags::Extensions;
         }
         if bits[7] & 0x04 == 0x04 {
-            flags |= ExtensionFlag::Fast;
+            flags |= ExtensionFlags::Fast;
         }
         if bits[7] & 0x10 == 0x10 {
-            flags |= ExtensionFlag::SupportV2;
+            flags |= ExtensionFlags::SupportV2;
         }
 
         flags
     }
 }
 
-impl Display for ExtensionFlag {
+impl Display for ExtensionFlags {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let mut extensions = Vec::new();
 
-        if self.contains(ExtensionFlag::Dht) {
+        if self.contains(ExtensionFlags::Dht) {
             extensions.push("DHT");
         }
-        if self.contains(ExtensionFlag::Extensions) {
+        if self.contains(ExtensionFlags::Extensions) {
             extensions.push("Extensions");
         }
-        if self.contains(ExtensionFlag::Fast) {
+        if self.contains(ExtensionFlags::Fast) {
             extensions.push("Fast");
         }
-        if self.contains(ExtensionFlag::SupportV2) {
+        if self.contains(ExtensionFlags::SupportV2) {
             extensions.push("SupportV2");
         }
 
@@ -142,17 +141,17 @@ impl TryFrom<u8> for MessageType {
 
 #[derive(Debug, PartialEq)]
 pub struct Handshake {
-    pub supported_extensions: ExtensionFlag,
+    pub supported_extensions: ExtensionFlags,
     pub info_hash: InfoHash,
     pub peer_id: PeerId,
 }
 
 impl Handshake {
-    pub fn new(info_hash: InfoHash, peer_id: PeerId, extensions: ExtensionFlag) -> Self {
+    pub fn new(info_hash: InfoHash, peer_id: PeerId, extensions: ExtensionFlags) -> Self {
         let mut extensions = extensions;
 
         if info_hash.has_v2() {
-            extensions |= ExtensionFlag::SupportV2;
+            extensions |= ExtensionFlags::SupportV2;
         }
 
         Self {
@@ -190,13 +189,13 @@ impl Handshake {
         // read the extensions
         let mut extensions_buf = [0u8; 8];
         cursor.read_exact(&mut extensions_buf)?;
-        let supported_extensions = ExtensionFlag::from(extensions_buf);
+        let supported_extensions = ExtensionFlags::from(extensions_buf);
 
         // read the info hash
         let mut info_hash_bytes: [u8; 20] = [0; 20];
         cursor.read_exact(&mut info_hash_bytes)?;
-        let info_hash =
-            InfoHash::from_bytes(info_hash_bytes).map_err(|e| Error::Handshake(e.to_string()))?;
+        let info_hash = InfoHash::from_peer_handshake(info_hash_bytes)
+            .map_err(|e| Error::Handshake(e.to_string()))?;
 
         // read the peer id
         let mut peer_bytes = [0; 20];
@@ -233,7 +232,7 @@ impl TryInto<Vec<u8>> for Handshake {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum Message {
     KeepAlive,
     Choke,
@@ -404,6 +403,33 @@ impl TryInto<Vec<u8>> for Message {
     }
 }
 
+impl Debug for Message {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Message::KeepAlive => f.write_str("KeepAlive"),
+            Message::Choke => f.write_str("Choke"),
+            Message::Unchoke => f.write_str("Unchoke"),
+            Message::Interested => f.write_str("Interested"),
+            Message::NotInterested => f.write_str("NotInterested"),
+            Message::Have(e) => f.debug_tuple("Have").field(e).finish(),
+            Message::Bitfield(e) => f.write_fmt(format_args!("Bitfield([size {}])", e.len())),
+            Message::Request(e) => f.write_fmt(format_args!("Request({:?})", e)),
+            Message::Piece => f.write_str("Piece"),
+            Message::Cancel(e) => f.write_fmt(format_args!("Cancel({:?})", e)),
+            Message::ExtendedHandshake(e) => {
+                f.write_fmt(format_args!("ExtendedHandshake({:?})", e))
+            }
+            Message::ExtendedPayload(number, payload) => f.write_fmt(format_args!(
+                "ExtendedPayload({:?}, [size {}])",
+                number,
+                payload.len()
+            )),
+            Message::HaveAll => f.write_str("HaveAll"),
+            Message::HaveNone => f.write_str("HaveNone"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ExtendedHandshake {
     /// Dictionary of supported extension messages which maps names of extensions to an extended message ID for each extension message.
@@ -477,12 +503,12 @@ mod tests {
         .unwrap();
         let peer_id = PeerId::new();
         let expected_result = Handshake {
-            supported_extensions: ExtensionFlag::Dht | ExtensionFlag::SupportV2,
+            supported_extensions: ExtensionFlags::Dht | ExtensionFlags::SupportV2,
             info_hash: info_hash.clone(),
             peer_id,
         };
 
-        let result = Handshake::new(info_hash, peer_id, ExtensionFlag::Dht);
+        let result = Handshake::new(info_hash, peer_id, ExtensionFlags::Dht);
 
         assert_eq!(expected_result, result);
     }
@@ -497,7 +523,7 @@ mod tests {
         let handshake = Handshake::new(
             info_hash,
             peer_id,
-            ExtensionFlag::Dht | ExtensionFlag::Extensions,
+            ExtensionFlags::Dht | ExtensionFlags::Extensions,
         );
 
         let result = TryInto::<Vec<u8>>::try_into(handshake).unwrap();

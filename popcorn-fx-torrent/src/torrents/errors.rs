@@ -1,5 +1,5 @@
 use crate::torrents::trackers::TrackerError;
-use crate::torrents::{channel, peers, TorrentHandle};
+use crate::torrents::{peers, TorrentHandle};
 use serde_bencode::Error;
 use thiserror::Error;
 
@@ -32,6 +32,8 @@ pub enum TorrentError {
     Peer(peers::Error),
     #[error("an io error occurred, {0}")]
     Io(String),
+    #[error("the torrent operation has timed out")]
+    Timeout,
     #[error("a torrent piece error occurred, {0}")]
     Piece(PieceError),
 }
@@ -63,12 +65,6 @@ impl From<serde_bencode::Error> for TorrentError {
 impl From<PieceError> for TorrentError {
     fn from(error: PieceError) -> Self {
         TorrentError::Piece(error)
-    }
-}
-
-impl From<channel::Error> for TorrentError {
-    fn from(error: channel::Error) -> Self {
-        TorrentError::Io(error.to_string())
     }
 }
 

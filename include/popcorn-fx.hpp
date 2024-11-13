@@ -182,6 +182,33 @@ enum class SubtitleLanguage : int32_t {
   Vietnamese = 35,
 };
 
+/// Represents the different states of torrent health.
+enum class TorrentHealthState : uint8_t {
+  /// Unknown health state, indicating that the health of the torrent could not be determined.
+  Unknown,
+  /// Bad health state, indicating that the torrent is in poor condition.
+  Bad,
+  /// Medium health state, indicating that the torrent is in a moderate condition.
+  Medium,
+  /// Good health state, indicating that the torrent is in good condition.
+  Good,
+  /// Excellent health state, indicating that the torrent is in excellent condition.
+  Excellent,
+};
+
+/// The states of the [TorrentManager].
+enum class TorrentManagerState : int32_t {
+  /// The initial state of the torrent manager.
+  /// This state builds the session and makes sure a session could be established.
+  Initializing = 0,
+  /// Indicates that the torrent manager is running and can start
+  /// handling torrent actions
+  Running = 1,
+  /// Indicates that the torrent manager encountered an error and could not be started.
+  /// This is most of the time related to failures when creating sessions.
+  Error = 2,
+};
+
 /// The state of a [Torrent] which is represented as a [i32].
 /// This state is abi compatible to be used over [std::ffi].
 enum class TorrentState : int32_t {
@@ -256,12 +283,6 @@ struct PopcornFX;
 /// and a `bool` indicating whether auto-start download is enabled. It returns a `TorrentWrapper`.
 /// It must be `Send` and `Sync` to support concurrent execution.
 struct ResolveTorrentCallback;
-
-/// A callback function type for resolving torrent information.
-///
-/// The function takes a `String` argument representing the URL of the torrent and returns
-/// a `TorrentInfo` struct. It must be `Send` and `Sync` to support concurrent execution.
-struct ResolveTorrentInfoCallback;
 
 /// A C-compatible struct representing a player.
 struct PlayerC {
@@ -520,6 +541,18 @@ struct ByteArray {
   int32_t len;
 };
 
+/// Represents the health statistics of a torrent.
+struct TorrentHealth {
+  /// The health state of the torrent.
+  TorrentHealthState state;
+  /// The ratio of uploaded data to downloaded data for the torrent.
+  float ratio;
+  /// The number of seeders (peers with a complete copy of the torrent).
+  uint32_t seeds;
+  /// The number of leechers currently downloading the torrent.
+  uint32_t leechers;
+};
+
 /// The C compatible [SubtitleFile] representation.
 struct SubtitleFileC {
   int32_t file_id;
@@ -564,9 +597,9 @@ struct TorrentFileInfoC {
   /// A pointer to a null-terminated C string representing the file path.
   char *file_path;
   /// The size of the file in bytes.
-  int64_t file_size;
+  uint64_t file_size;
   /// The index of the file.
-  int32_t file_index;
+  uint32_t file_index;
 };
 
 /// A C-compatible set/array of items.
@@ -589,7 +622,7 @@ struct TorrentInfoC {
   /// A pointer to a null-terminated C string representing the directory name of the torrent.
   char *directory_name;
   /// The total number of files in the torrent.
-  int32_t total_files;
+  uint32_t total_files;
   /// A set of `TorrentFileInfoC` structs representing individual files within the torrent.
   CArray<TorrentFileInfoC> files;
 };
@@ -1451,6 +1484,103 @@ struct MediaResult {
   };
 };
 
+/// A C-compatible enum representing various errors related to torrents.
+struct TorrentErrorC {
+  enum class Tag {
+    /// Represents an error indicating an invalid URL.
+    InvalidUrl,
+    /// Represents an error indicating a file not found.
+    FileNotFound,
+    /// Represents a generic file-related error.
+    FileError,
+    /// Represents an error indicating an invalid stream state.
+    InvalidStreamState,
+    /// Represents an error indicating an invalid manager state.
+    InvalidManagerState,
+    /// Represents an error indicating an invalid handle.
+    InvalidHandle,
+    /// Represents an error indicating failure during torrent resolving.
+    TorrentResolvingFailed,
+    /// Represents an error indicating failure during torrent collection loading.
+    TorrentCollectionLoadingFailed,
+    Torrent,
+  };
+
+  struct InvalidUrl_Body {
+    char *_0;
+  };
+
+  struct FileNotFound_Body {
+    char *_0;
+  };
+
+  struct FileError_Body {
+    char *_0;
+  };
+
+  struct InvalidStreamState_Body {
+    TorrentStreamState _0;
+  };
+
+  struct InvalidManagerState_Body {
+    TorrentManagerState _0;
+  };
+
+  struct InvalidHandle_Body {
+    char *_0;
+  };
+
+  struct TorrentResolvingFailed_Body {
+    char *_0;
+  };
+
+  struct TorrentCollectionLoadingFailed_Body {
+    char *_0;
+  };
+
+  struct Torrent_Body {
+    char *_0;
+  };
+
+  Tag tag;
+  union {
+    InvalidUrl_Body invalid_url;
+    FileNotFound_Body file_not_found;
+    FileError_Body file_error;
+    InvalidStreamState_Body invalid_stream_state;
+    InvalidManagerState_Body invalid_manager_state;
+    InvalidHandle_Body invalid_handle;
+    TorrentResolvingFailed_Body torrent_resolving_failed;
+    TorrentCollectionLoadingFailed_Body torrent_collection_loading_failed;
+    Torrent_Body torrent;
+  };
+};
+
+/// A C-compatible enum representing either a successful result or an error.
+template<typename T, typename E>
+struct ResultC {
+  enum class Tag {
+    /// Represents a successful result containing a value of type `T`.
+    Ok,
+    /// Represents an error containing a value of type `E`.
+    Err,
+  };
+
+  struct Ok_Body {
+    T _0;
+  };
+
+  struct Err_Body {
+    E _0;
+  };
+
+  Tag tag;
+  union {
+    Ok_Body ok;
+    Err_Body err;
+  };
+};
+
 
 extern "C" {
 
@@ -1494,6 +1624,13 @@ PopcornSettingsC *application_settings(PopcornFX *popcorn_fx);
 ///
 /// This function should only be called from C code, and the returned byte array should be disposed of using the `dispose_byte_array` function.
 ByteArray *artwork_placeholder(PopcornFX *popcorn_fx);
+
+/// Calculates the health of a torrent based on the number of seeds and leechers.
+///
+/// # Returns
+///
+/// Returns the health of the torrent.
+TorrentHealth calculate_torrent_health(PopcornFX *popcorn_fx, uint32_t seeds, uint32_t leechers);
 
 /// Start polling the update channel for new application versions.
 ///
@@ -2537,6 +2674,18 @@ void torrent_collection_remove(PopcornFX *popcorn_fx, char *magnet_uri);
 /// * `download_status` - The new download status of the torrent.
 void torrent_download_status(PopcornFX *popcorn_fx, char *handle, DownloadStatusC download_status);
 
+/// Calculates the health of a torrent based on its magnet link.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to the PopcornFX instance.
+/// * `uri` - The magnet link of the torrent.
+///
+/// # Returns
+///
+/// Returns the health of the torrent.
+ResultC<TorrentHealth, TorrentErrorC> torrent_health_from_uri(PopcornFX *popcorn_fx, const char *uri);
+
 /// Callback function for handling the completion of downloading a piece in a torrent.
 ///
 /// # Arguments
@@ -2545,36 +2694,6 @@ void torrent_download_status(PopcornFX *popcorn_fx, char *handle, DownloadStatus
 /// * `handle` - The handle to the torrent.
 /// * `piece` - The index of the finished piece.
 void torrent_piece_finished(PopcornFX *popcorn_fx, char *handle, uint32_t piece);
-
-/// Registers a new C-compatible resolve torrent callback function with PopcornFX.
-///
-/// This function allows registering a callback that will be invoked when torrent resolution is complete.
-///
-/// # Arguments
-///
-/// * `popcorn_fx` - A mutable reference to the PopcornFX instance.
-/// * `callback` - The C-compatible resolve torrent callback function to be registered.
-///
-/// # Example
-///
-/// ```c
-/// void resolve_callback(TorrentInfoC info) {
-///     // Handle resolved torrent information
-/// }
-///
-/// // Register the C-compatible callback with PopcornFX
-/// torrent_resolve_callback(popcorn_fx, resolve_callback);
-/// ```
-///
-/// This function registers a callback that receives resolved torrent information in the form of a `TorrentInfoC` struct.
-/// You can then handle this information as needed within your callback function.
-///
-/// Note: This function is intended for C integration with PopcornFX.
-///
-/// # Safety
-///
-/// This function performs unsafe operations, as it deals with raw C-compatible function pointers.
-void torrent_resolve_info_callback(PopcornFX *popcorn_fx, ResolveTorrentInfoCallback callback);
 
 /// Callback function for handling changes in the state of a torrent.
 ///

@@ -1,10 +1,12 @@
 use crate::torrents::peers::bt_protocol::Message;
 use crate::torrents::peers::extensions::Extension;
 use crate::torrents::peers::{extensions, Peer, PeerEvent};
+use std::fmt::{Debug, Formatter};
 
 use crate::torrents::TorrentMetadata;
 use async_trait::async_trait;
 use log::{debug, error, trace, warn};
+use popcorn_fx_core::core::block_in_place;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use std::io::Cursor;
 use tokio::sync::RwLock;
@@ -15,7 +17,7 @@ pub const EXTENSION_NAME_METADATA: &str = "ut_metadata";
 const METADATA_PIECE_SIZE: usize = 1024 * 16;
 
 /// The BEP9 extension protocol message for the metadata extension.
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Serialize, Deserialize, PartialEq)]
 pub struct MetadataExtensionMessage {
     /// Indicates which part of the metadata this message refers to
     pub piece: u32,
@@ -32,6 +34,17 @@ pub struct MetadataExtensionMessage {
     pub data: Vec<u8>,
 }
 
+impl Debug for MetadataExtensionMessage {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MetadataExtensionMessage")
+            .field("piece", &self.piece)
+            .field("total_size", &self.total_size)
+            .field("msg_type", &self.msg_type)
+            .field("data", &format!("[size {}]", self.data.len()))
+            .finish()
+    }
+}
+
 /// The metadata action type of the message.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -42,7 +55,6 @@ pub enum MetadataMessageType {
     Reject = 2,
 }
 
-#[derive(Debug)]
 pub struct MetadataExtension {
     /// The number of expected pieces
     total_pieces: RwLock<Option<u32>>,
@@ -137,8 +149,9 @@ impl MetadataExtension {
                     serde_bencode::from_bytes(metadata_buffer.as_ref().unwrap())?;
                 debug!("Received metadata from peer, {:?}", metadata);
 
-                // update the peer metadata
-                peer.update_torrent_metadata(metadata);
+                // update the metadata of the underlying torrent through the peer
+                peer.update_torrent_metadata(metadata).await;
+                self.clear_buffer().await;
             } else {
                 trace!(
                     "Requesting next metadata piece {} out of {}",
@@ -241,6 +254,11 @@ impl MetadataExtension {
         Ok(())
     }
 
+    async fn clear_buffer(&self) {
+        let mut mutex = self.metadata_buffer.write().await;
+        let _ = mutex.take();
+    }
+
     /// A custom deserializer for the metadata extension message.
     /// This is only used for the [MetadataMessageType::Data] as it contains additional bytes within
     /// the payload which represent the bencoded metadata.
@@ -286,6 +304,19 @@ impl Extension for MetadataExtension {
 
     fn clone_box(&self) -> Box<dyn Extension> {
         Box::new(Self::new())
+    }
+}
+
+impl Debug for MetadataExtension {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let buffer_len = block_in_place(self.metadata_buffer.read())
+            .as_ref()
+            .map(|e| e.len())
+            .unwrap_or(0);
+        f.debug_struct("MetadataExtension")
+            .field("total_pieces", &self.total_pieces)
+            .field("metadata_buffer", &format!("[size {}]", buffer_len))
+            .finish()
     }
 }
 

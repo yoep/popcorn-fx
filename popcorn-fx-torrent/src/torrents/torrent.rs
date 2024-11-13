@@ -1,27 +1,28 @@
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
+use std::net::SocketAddr;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::mpsc::{channel, RecvError};
+use std::sync::{Arc, Weak};
 use std::time::{Duration, Instant};
 
 use bitmask_enum::bitmask;
 use derive_more::Display;
+use futures::future;
 use futures::future::join_all;
 use log::{debug, error, trace, warn};
 use tokio::runtime::Runtime;
-use tokio::select;
+use tokio::sync::RwLock;
+use tokio::{select, time};
 use tokio_util::sync::CancellationToken;
 use url::Url;
 
 use popcorn_fx_core::core::{CallbackHandle, Callbacks, CoreCallback, CoreCallbacks, Handle};
 
-use crate::torrents::channel::{new_command_channel, Error};
-use crate::torrents::peers::{Peer, PeerId};
-use crate::torrents::torrent_commands::{
-    TorrentCommand, TorrentCommandInstruction, TorrentCommandReceiver, TorrentCommandResponse,
-    TorrentCommandSender,
-};
-use crate::torrents::trackers::{Announcement, Tracker, TrackerError, TrackerManager};
-use crate::torrents::{channel, Pieces, Result, TorrentError, TorrentInfo, TorrentMetadata};
+use crate::torrents::peers::extensions::Extensions;
+use crate::torrents::peers::{Peer, PeerId, PeerState};
+
+use crate::torrents::trackers::{AnnounceEvent, Announcement, TrackerError, TrackerManager};
+use crate::torrents::{InfoHash, Pieces, Result, TorrentError, TorrentInfo, TorrentMetadata};
 
 const DEFAULT_TIMEOUT_SECONDS: u64 = 10;
 
@@ -29,7 +30,10 @@ const DEFAULT_TIMEOUT_SECONDS: u64 = 10;
 pub type TorrentHandle = Handle;
 
 /// Possible flags which can be attached to a [Torrent].
-#[bitmask(u8)]
+///
+/// The default value for the flag options is [TorrentFlags::AutoManaged],
+/// which will retrieve the metadata if needed and automatically start the download.
+#[bitmask(u16)]
 pub enum TorrentFlags {
     None = 0b00000000,
     /// Indicates seed mode.
@@ -42,33 +46,53 @@ pub enum TorrentFlags {
     ApplyIpFilter = 0b00001000,
     /// Torrent is paused.
     Paused = 0b00010000,
-    /// Torrent is auto-managed.
-    /// This means that the torrent may be resumed at any point in time.
-    AutoManaged = 0b00100000,
+    /// Complete the torrent metadata from peers if needed.
+    Metadata = 0b00100000,
     /// Sequential download is enabled.
     SequentialDownload = 0b01000000,
     /// Torrent should stop when ready.
     StopWhenReady = 0b10000000,
+    /// Torrent is auto-managed.
+    /// This means that the torrent may be resumed at any point in time.
+    AutoManaged = 0b100100000,
 }
 
 impl Default for TorrentFlags {
     fn default() -> Self {
-        TorrentFlags::None
+        TorrentFlags::AutoManaged
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum TorrentStatus {
+/// The states of the torrent
+#[derive(Debug, Display, Clone, PartialEq)]
+pub enum TorrentState {
+    /// The torrent is being initialized
+    #[display(fmt = "initializing")]
+    Initializing,
     /// The torrent has not started its download yet, and is currently checking existing files.
+    #[display(fmt = "checking files")]
     CheckingFiles,
-    /// The torrent is trying to download metadata from peers.
-    DownloadingMetadata,
+    /// The torrent is trying to retrieve the metadata from peers.
+    #[display(fmt = "retrieving metadata")]
+    RetrievingMetadata,
     /// The torrent is being downloaded. This is the state most torrents will be in most of the time.
+    #[display(fmt = "downloading")]
     Downloading,
     /// In this state the torrent has finished downloading but still doesn't have the entire torrent.
+    #[display(fmt = "finished")]
     Finished,
     /// In this state the torrent has finished downloading and is a pure seeder.
+    #[display(fmt = "seeding")]
     Seeding,
+    /// The torrent encountered an unrecoverable error.
+    #[display(fmt = "error")]
+    Error,
+}
+
+impl Default for TorrentState {
+    fn default() -> Self {
+        Self::Initializing
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -78,6 +102,17 @@ pub struct StorageInfo {
     pub last_piece_len: u32,
     pub download_len: u64,
     pub download_dir: PathBuf,
+}
+
+/// The torrent statistics
+#[derive(Debug, Clone, PartialEq)]
+pub struct TorrentStats {
+    /// The total rates for all peers for this torrent.
+    /// The rates are given as the number of bytes per second.
+    pub uploaded: f64,
+    /// The total rates for all peers for this torrent.
+    /// The rates are given as the number of bytes per second.
+    pub downloaded: f64,
 }
 
 /// Requests a new torrent creation based on the given data.
@@ -94,7 +129,9 @@ pub struct StorageInfo {
 ///         metadata,
 ///         options: TorrentFlags::default(),
 ///         peer_listener_port: 6881,
-///         timeout: Some(Duration::from_secs(10)),
+///         extensions: vec![],
+///         peer_timeout: Some(Duration::from_secs(10)),
+///         tracker_timeout: Some(Duration::from_secs(3)),
 ///         runtime: None, // optional shared runtime between torrents
 ///     };
 ///
@@ -111,8 +148,12 @@ pub struct TorrentRequest {
     pub options: TorrentFlags,
     /// The port on which the torrent session is listening for new incoming peer connections
     pub peer_listener_port: u16,
-    /// The maximum amount of time to wait for a response from trackers & peers
-    pub timeout: Option<Duration>,
+    /// The extensions that should be enabled for this torrent
+    pub extensions: Extensions,
+    /// The maximum amount of time to wait for a response from peers
+    pub peer_timeout: Option<Duration>,
+    /// The maximum amount of time to wait for a response from trackers
+    pub tracker_timeout: Option<Duration>,
     /// The underlying Tokio runtime to use for asynchronous operations
     pub runtime: Option<Arc<Runtime>>,
 }
@@ -120,7 +161,19 @@ pub struct TorrentRequest {
 pub type TorrentCallback = CoreCallback<TorrentEvent>;
 
 #[derive(Debug, Display, Clone, PartialEq)]
-pub enum TorrentEvent {}
+pub enum TorrentEvent {
+    /// Invoked when the status of the torrent has changed
+    #[display(fmt = "torrent state has changed to {}", _0)]
+    StateChanged(TorrentState),
+    /// Invoked when the torrent metadata has been changed
+    #[display(fmt = "torrent metadata has been changed")]
+    MetadataChanged,
+    /// Invoked when the active peer connections have changed
+    PeersChanged,
+    /// Invoked when the torrent stats have been updated
+    #[display(fmt = "torrent stats have been updated")]
+    Stats(TorrentStats),
+}
 
 /// A torrent is an actual tracked torrent which is communicating with one or more trackers and peers.
 ///
@@ -128,13 +181,77 @@ pub enum TorrentEvent {}
 #[derive(Debug)]
 pub struct Torrent {
     handle: TorrentHandle,
+    /// The unique peer id of this torrent
+    /// This id is used as our client id when connecting to peers
     peer_id: PeerId,
-    command_sender: TorrentCommandSender,
+    /// The inner torrent instance reference holder
+    instance: TorrentInstance,
     runtime: Arc<Runtime>,
-    cancellation_token: CancellationToken,
 }
 
 impl Torrent {
+    fn new(
+        metadata: TorrentInfo,
+        peer_listener_port: u16,
+        extensions: Extensions,
+        flags: TorrentFlags,
+        peer_timeout: Option<Duration>,
+        tracker_timeout: Option<Duration>,
+        runtime: Arc<Runtime>,
+    ) -> Self {
+        let handle = TorrentHandle::new();
+        let peer_id = PeerId::new();
+        let info_hash = metadata.info_hash.clone();
+        let cancellation_token = CancellationToken::new();
+        let inner = Arc::new(InnerTorrent {
+            handle,
+            metadata: RwLock::new(metadata),
+            peer_id,
+            tracker_manager: TrackerManager::new(
+                peer_id,
+                peer_listener_port,
+                info_hash,
+                tracker_timeout.unwrap_or(Duration::from_secs(DEFAULT_TIMEOUT_SECONDS)),
+                runtime.clone(),
+            ),
+            peers: RwLock::new(Vec::<Peer>::new()),
+            pieces: None,
+            extensions,
+            state: RwLock::new(Default::default()),
+            options: RwLock::new(flags),
+            callbacks: Default::default(),
+            timeout: peer_timeout.unwrap_or(Duration::from_secs(DEFAULT_TIMEOUT_SECONDS)),
+            cancellation_token,
+        });
+
+        // create a new separate thread which manages the internal torrent resources
+        // this thread is automatically cancelled when the torrent is dropped
+        let inner_schedule = inner.clone();
+        runtime.spawn(async move {
+            inner_schedule.start().await;
+        });
+
+        let torrent = Self {
+            handle,
+            peer_id,
+            instance: TorrentInstance::Owner(inner),
+            runtime,
+        };
+        let torrent_initialization = torrent.clone();
+
+        // start a new thread which initializes the torrent
+        torrent.runtime.spawn(async move {
+            if let Err(e) = torrent_initialization.initialize().await {
+                error!(
+                    "Failed to initialize torrent {}, {}",
+                    torrent_initialization.handle, e
+                );
+            }
+        });
+
+        torrent
+    }
+
     /// Retrieve the unique handle of this torrent.
     /// This handle identifies the torrent within a session.
     ///
@@ -143,15 +260,6 @@ impl Torrent {
     /// Returns the unique handle of this torrent.
     pub fn handle(&self) -> TorrentHandle {
         self.handle
-    }
-
-    /// Retrieve the command sender of this torrent.
-    ///
-    /// # Returns
-    ///
-    /// Returns the command sender of this torrent.
-    pub(crate) fn command_sender(&self) -> TorrentCommandSender {
-        self.command_sender.clone()
     }
 
     /// Retrieve the unique peer id of this torrent.
@@ -164,48 +272,116 @@ impl Torrent {
         self.peer_id
     }
 
-    /// Start announcing the torrent to its known trackers.
+    /// Retrieve the state of this torrent.
     ///
     /// # Returns
     ///
-    /// nothing if the announcing process has started for this torrent, else the [TorrentError].
+    /// Returns the state of this torrent.
+    pub async fn state(&self) -> TorrentState {
+        match self.instance() {
+            None => TorrentState::Error,
+            Some(e) => e.state().await,
+        }
+    }
+
+    /// Retrieve the metadata of the torrent.
+    ///
+    /// # Returns
+    ///
+    /// Returns the metadata of the torrent, or [TorrentError::InvalidHandle] when the torrent is invalid.
+    pub async fn metadata(&self) -> Result<TorrentInfo> {
+        let inner = self
+            .instance()
+            .ok_or(TorrentError::InvalidHandle(self.handle))?;
+        Ok(inner.metadata().await)
+    }
+
+    /// Start announcing the torrent to its known trackers.
+    /// This will start a period announcement for all active trackers.
+    ///
+    /// # Returns
+    ///
+    /// Returns a [TorrentError] when the announcement of the torrent couldn't be started.
     pub async fn start_announcing(&self) -> Result<()> {
-        let trackers = self.retrieve_active_trackers().await?;
+        let inner = self
+            .instance()
+            .ok_or(TorrentError::InvalidHandle(self.handle))?;
+        let trackers = inner.active_trackers().await;
 
         if trackers.is_empty() {
             self.add_known_torrent_trackers().await?;
         }
 
-        self.command_sender
-            .send_void(TorrentCommand::StartAnnouncing)?;
+        inner.start_announcing().await;
+        Ok(())
+    }
+
+    /// Announce this torrent to the known trackers.
+    /// This will retrieve the announcement information from the trackers.
+    ///
+    /// # Returns
+    ///
+    /// Returns the announcement information, or [TorrentError::InvalidHandle] when the torrent is invalid.
+    pub async fn announce(&self) -> Result<Announcement> {
+        let inner = self
+            .instance()
+            .ok_or(TorrentError::InvalidHandle(self.handle))?;
+        let trackers = inner.active_trackers().await;
+
+        if trackers.is_empty() {
+            Ok(self.add_known_torrent_trackers().await?)
+        } else {
+            Ok(inner.announce_all().await)
+        }
+    }
+
+    /// Add the given metadata to the torrent.
+    /// This method can be used by extensions to update the torrent metadata when the current
+    /// connection is based on a magnet link.
+    ///
+    /// If the data was already known, this method does nothing.
+    pub async fn add_metadata(&self, metadata: TorrentMetadata) {
+        let inner = self
+            .instance()
+            .ok_or(TorrentError::InvalidHandle(self.handle));
+
+        match inner {
+            Ok(inner) => {
+                inner.add_metadata(metadata).await;
+            }
+            Err(e) => {
+                error!("Failed to update metadata for torrent {}, {}", self, e);
+            }
+        }
+    }
+
+    async fn initialize(&self) -> Result<()> {
+        let inner = self
+            .instance()
+            .ok_or(TorrentError::InvalidHandle(self.handle))?;
+        let metadata = inner.metadata().await;
+        let torrent_flags = inner.options().await;
+
+        // check if the metadata needs to be requested
+        // this will only have an effect when the metadata extension is enabled for peers
+        if torrent_flags.contains(TorrentFlags::Metadata) && metadata.info.is_none() {
+            self.retrieve_metadata(&inner).await;
+        }
 
         Ok(())
     }
 
-    pub async fn announce(&self) -> Result<Announcement> {
-        let trackers = self.retrieve_active_trackers().await?;
-        if trackers.is_empty() {
-            self.add_known_torrent_trackers().await?;
-        }
-
-        self.command_sender
-            .send(TorrentCommand::AnnounceAll)
-            .await
-            .and_then(|response| {
-                if let TorrentCommandResponse::AnnounceAll(announce) = response {
-                    return Ok(announce);
-                }
-
-                Err(Error::UnexpectedCommandResponse(
-                    "TorrentCommandResponse::AnnounceAll".to_string(),
-                    format!("{:?}", response),
-                ))
-            })
-            .map_err(|e| TorrentError::from(e))
-    }
-
-    async fn add_known_torrent_trackers(&self) -> Result<()> {
-        let metadata = self.retrieve_metadata().await?;
+    /// Add the known trackers to the torrent.
+    /// These are extracted from the torrent info metadata.
+    ///
+    /// # Returns
+    ///
+    /// Returns the collected announcement result of the added trackers.
+    async fn add_known_torrent_trackers(&self) -> Result<Announcement> {
+        let inner = self
+            .instance()
+            .ok_or(TorrentError::InvalidHandle(self.handle))?;
+        let metadata = inner.metadata().await;
         let tiered_trackers = metadata.tiered_trackers();
         let mut tracker_futures = Vec::with_capacity(tiered_trackers.values().map(Vec::len).sum());
 
@@ -222,87 +398,157 @@ impl Torrent {
         let start_time = Instant::now();
         for (tier, trackers) in tiered_trackers {
             for url in trackers {
-                let sender = self.command_sender.clone();
-                let task = self.runtime.spawn(async move {
-                    if let Err(e) = sender.send_void(TorrentCommand::AddTracker(url, tier)) {
-                        error!("Failed to add tracker to torrent, {}", e);
-                    }
-                });
+                let inner_torrent_tracker = inner.clone();
+                let task = self
+                    .runtime
+                    .spawn(async move { inner_torrent_tracker.add_tracker(url, tier).await });
                 tracker_futures.push(task);
             }
         }
 
-        join_all(tracker_futures).await;
+        let announcements: Vec<Announcement> = join_all(tracker_futures)
+            .await
+            .into_iter()
+            .map(|e| {
+                if let Err(e) = &e {
+                    debug!("Failed to add torrent {} tracker, {}", self, e)
+                }
+
+                e
+            })
+            .filter(|e| e.is_ok())
+            .map(|e| e.unwrap())
+            .map(|e| {
+                if let Err(e) = &e {
+                    debug!("Failed to add torrent {} tracker, {}", self, e)
+                }
+
+                e
+            })
+            .filter(|e| e.is_ok())
+            .map(|e| e.unwrap())
+            .collect();
         let time_taken = start_time.elapsed();
         trace!(
             "Took {}.{:03} seconds to add trackers",
             time_taken.as_secs(),
             time_taken.subsec_millis()
         );
+
+        let mut result = Announcement::default();
+        for announcement in announcements {
+            result.total_leechers += announcement.total_leechers;
+            result.total_seeders += announcement.total_seeders;
+            result.peers.extend(announcement.peers);
+        }
+
+        Ok(result)
+    }
+
+    async fn add_peers(&self, peer_addresses: Vec<SocketAddr>, extensions: Extensions) -> usize {
+        let mut futures = Vec::new();
+        let mut added_peers = 0;
+
+        for peer_addr in peer_addresses {
+            futures.push(self.add_peer(
+                peer_addr,
+                extensions.iter().map(|e| e.clone_box()).collect(),
+            ))
+        }
+
+        let responses = future::join_all(futures).await;
+        for response in responses {
+            match response {
+                Ok(_) => added_peers += 1,
+                Err(e) => debug!("Failed to add peer to torrent {}, {}", self.handle, e),
+            }
+        }
+
+        added_peers
+    }
+
+    async fn add_peer(&self, peer_addr: SocketAddr, extensions: Extensions) -> Result<()> {
+        let peer =
+            Peer::new_outbound(peer_addr, self.clone(), extensions, self.runtime.clone()).await?;
+
+        match self.instance() {
+            None => return Err(TorrentError::InvalidHandle(self.handle)),
+            Some(e) => e.add_peer(peer).await,
+        }
+
         Ok(())
     }
 
-    async fn retrieve_metadata(&self) -> Result<TorrentInfo> {
-        self.command_sender
-            .send(TorrentCommand::Metadata)
-            .await
-            .map(|response| {
-                if let TorrentCommandResponse::Metadata(metadata) = response {
-                    return Ok(metadata);
-                }
+    // TODO: improve the performance of this
+    async fn retrieve_metadata(&self, inner: &Arc<InnerTorrent>) {
+        inner.update_state(TorrentState::RetrievingMetadata).await;
 
-                Err(Error::UnexpectedCommandResponse(
-                    "TorrentCommandResponse::Metadata".to_string(),
-                    format!("{:?}", response),
-                ))?
-            })?
+        const NUMBER_OF_PEERS: usize = 5;
+        let metadata = inner.metadata().await;
+        let cancellation_token = CancellationToken::new();
+        let tiered_trackers = metadata.tiered_trackers();
+        let (tx, rx) = channel();
+
+        for (tier, urls) in tiered_trackers {
+            for url in urls {
+                let tx_tracker = tx.clone();
+                let inner_torrent_tracker = inner.clone();
+                let cancellation_token_tracker = cancellation_token.clone();
+                self.runtime.spawn(async move {
+                    select! {
+                        _ = cancellation_token_tracker.cancelled() => return,
+                        result = inner_torrent_tracker.add_tracker(url, tier) => {
+                            match result.map(|e| e.peers)
+                                .and_then(|peers| tx_tracker.send(peers)
+                                    .map_err(|e| TorrentError::Io(e.to_string()))) {
+                                Ok(_) => {},
+                                Err(e) => debug!("Failed to add tracker to {}, {}", inner_torrent_tracker, e),
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        let mut added_peers = 0;
+
+        // try to add at least NUMBER_OF_PEERS peers
+        // if the first attempt failed, we'll try again
+        while added_peers < NUMBER_OF_PEERS {
+            match rx.recv() {
+                Ok(peers) => added_peers += self.add_peers(peers, inner.extensions()).await,
+                Err(_) => {
+                    debug!(
+                        "Reached end of available peers for {} before reaching {} peer connections",
+                        self, NUMBER_OF_PEERS
+                    );
+                    break;
+                }
+            }
+        }
+
+        // stop any running tracker creation threads
+        cancellation_token.cancel();
     }
 
-    async fn retrieve_active_trackers(&self) -> Result<Vec<Url>> {
-        self.command_sender
-            .send(TorrentCommand::ActiveTrackers)
-            .await
-            .map(|response| {
-                if let TorrentCommandResponse::ActiveTrackers(trackers) = response {
-                    return Ok(trackers);
-                }
-
-                Err(Error::UnexpectedCommandResponse(
-                    "TorrentCommandResponse::ActiveTrackers".to_string(),
-                    format!("{:?}", response),
-                ))?
-            })?
+    /// Retrieve a temporary strong reference to the inner torrent.
+    fn instance(&self) -> Option<Arc<InnerTorrent>> {
+        match &self.instance {
+            TorrentInstance::Owner(e) => Some(e.clone()),
+            TorrentInstance::Borrowed(e) => e.upgrade(),
+        }
     }
 }
 
 impl Callbacks<TorrentEvent> for Torrent {
     fn add(&self, callback: TorrentCallback) -> CallbackHandle {
-        let response = self.runtime.block_on(
-            self.command_sender
-                .send(TorrentCommand::AddCallback(callback)),
-        );
-
-        if let Err(e) = response {
-            error!("Failed to add callback to torrent, {}", e);
-            return Default::default();
-        }
-
-        match response {
-            Ok(TorrentCommandResponse::AddCallback(handle)) => handle,
-            _ => {
-                error!("Failed to add callback to torrent, {:?}", response);
-                Default::default()
-            }
-        }
+        self.instance()
+            .map(|e| e.callbacks.add(callback))
+            .unwrap_or(CallbackHandle::new())
     }
 
     fn remove(&self, handle: CallbackHandle) {
-        if let Err(e) = self
-            .command_sender
-            .send_void(TorrentCommand::RemoveCallback(handle))
-        {
-            error!("Failed to remove the callback from torrent, {}", e);
-        }
+        self.instance().map(|e| e.callbacks.remove(handle));
     }
 }
 
@@ -311,9 +557,8 @@ impl Clone for Torrent {
         Self {
             handle: self.handle,
             peer_id: self.peer_id,
-            command_sender: self.command_sender.clone(),
+            instance: self.instance.clone(),
             runtime: self.runtime.clone(),
-            cancellation_token: self.cancellation_token.clone(),
         }
     }
 }
@@ -321,157 +566,252 @@ impl Clone for Torrent {
 impl TryFrom<TorrentRequest> for Torrent {
     type Error = TorrentError;
 
-    fn try_from(value: TorrentRequest) -> Result<Self> {
-        let metadata = value.metadata;
-        let runtime = value
+    fn try_from(request: TorrentRequest) -> Result<Self> {
+        let metadata = request.metadata;
+        let runtime = request
             .runtime
             .unwrap_or_else(|| Arc::new(Runtime::new().expect("expected a new runtime")));
 
         // validate the given metadata before creating the torrent
         metadata.validate()?;
 
-        let handle = TorrentHandle::new();
-        let peer_id = PeerId::new();
-        let timeout = value
-            .timeout
-            .unwrap_or(Duration::from_secs(DEFAULT_TIMEOUT_SECONDS));
-        let cancellation_token = CancellationToken::new();
-        let mut inner = InnerTorrent {
-            handle,
+        Ok(Self::new(
             metadata,
-            peer_id,
-            tracker_manager: TrackerManager::new(
-                peer_id,
-                value.peer_listener_port,
-                timeout,
-                runtime.clone(),
-            ),
-            peers: vec![],
-            pieces: None,
-            callbacks: Default::default(),
-            timeout,
-            cancellation_token: cancellation_token.clone(),
-        };
-
-        let (command_sender, command_receiver) = new_command_channel();
-
-        runtime.spawn(async move {
-            inner.start(command_receiver).await;
-        });
-
-        Ok(Self {
-            handle,
-            peer_id,
-            command_sender,
-            cancellation_token,
+            request.peer_listener_port,
+            request.extensions,
+            request.options,
+            request.peer_timeout,
+            request.tracker_timeout,
             runtime,
-        })
+        ))
+    }
+}
+
+impl PartialEq for Torrent {
+    fn eq(&self, other: &Self) -> bool {
+        self.handle == other.handle && self.peer_id == other.peer_id
+    }
+}
+
+impl Display for Torrent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.handle)
+    }
+}
+
+impl Drop for Torrent {
+    fn drop(&mut self) {
+        // if the owning torrent gets dropped
+        // we need to make sure that any running threads are cancelled on the inner torrent
+        if let TorrentInstance::Owner(inner) = &self.instance {
+            inner.cancellation_token.cancel();
+        }
+    }
+}
+
+/// The torrent instances owns the actual inner instance.
+/// This prevents other [Torrent] references from keeping the torrent alive while the session has dropped it.
+#[derive(Debug)]
+enum TorrentInstance {
+    Owner(Arc<InnerTorrent>),
+    Borrowed(Weak<InnerTorrent>),
+}
+
+impl Clone for TorrentInstance {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Owner(inner) => Self::Borrowed(Arc::downgrade(inner)),
+            Self::Borrowed(inner) => Self::Borrowed(inner.clone()),
+        }
     }
 }
 
 #[derive(Debug)]
 struct InnerTorrent {
+    /// The unique immutable handle of the torrent
     handle: TorrentHandle,
-    metadata: TorrentInfo,
+    /// The unique immutable peer id of the torrent
     peer_id: PeerId,
+    /// The torrent metadata information of the torrent
+    /// This might still be incomplete if the torrent was created from a magnet link
+    metadata: RwLock<TorrentInfo>,
+    /// The manager of the trackers for the torrent
     tracker_manager: TrackerManager,
     /// The established peer connections
-    peers: Vec<Peer>,
+    peers: RwLock<Vec<Peer>>,
     /// The pieces of the torrent, these are only known if the metadata is available
     pieces: Option<Pieces>,
+    /// The enabled extensions for this torrent
+    extensions: Extensions,
+    /// The state of the torrent
+    state: RwLock<TorrentState>,
+    /// The torrent options that are set for this torrent
+    options: RwLock<TorrentFlags>,
+    /// The callbacks for the torrent events
     callbacks: CoreCallbacks<TorrentEvent>,
     timeout: Duration,
     cancellation_token: CancellationToken,
 }
 
 impl InnerTorrent {
-    async fn start(&mut self, mut command_receiver: TorrentCommandReceiver) {
+    /// Start the main loop of this torrent.
+    async fn start(&self) {
         loop {
             select! {
                 _ = self.cancellation_token.cancelled() => break,
-                command = command_receiver.recv() => {
-                    if let Some(command) = command {
-                        self.handle_command_instruction(command).await;
-                    } else {
-                        break;
-                    }
-                }
+                _ = time::sleep(Duration::from_secs(1)) => self.update_stats().await,
+                _ = time::sleep(Duration::from_secs(30)) => self.clean_peers().await,
             }
         }
 
-        debug!("Closing torrent {}", self.handle);
+        trace!("Torrent {} main loop ended", self);
     }
 
-    async fn handle_command_instruction(&mut self, mut instruction: TorrentCommandInstruction) {
-        let instruction_info = format!("{:?}", instruction);
-        let command_result = match instruction.command {
-            TorrentCommand::Metadata => {
-                instruction.respond(TorrentCommandResponse::Metadata(self.metadata.clone()))
-            }
-            TorrentCommand::ActiveTrackers => instruction.respond(
-                TorrentCommandResponse::ActiveTrackers(self.active_trackers().await),
-            ),
-            TorrentCommand::StartAnnouncing => Ok(self.start_announcing().await),
-            TorrentCommand::AnnounceAll => {
-                instruction.respond(TorrentCommandResponse::AnnounceAll(
-                    self.tracker_manager
-                        .announce_all(self.metadata.info_hash.clone())
-                        .await,
-                ))
-            }
-            TorrentCommand::AddTracker(url, tier) => {
-                self.add_tracker(url, tier).await;
-                Ok(())
-            }
-            TorrentCommand::AddMetadata(metadata) => {
-                self.add_metadata(metadata);
-                Ok(())
-            }
-            TorrentCommand::AddCallback(callback) => {
-                self.callbacks.add(callback);
-                Ok(())
-            }
-            TorrentCommand::RemoveCallback(handle) => {
-                self.callbacks.remove(handle);
-                Ok(())
-            }
-        };
+    async fn state(&self) -> TorrentState {
+        self.state.read().await.clone()
+    }
 
-        if let Err(e) = command_result {
-            error!("Failed to process torrent {}, {}", instruction_info, e);
-        }
+    async fn options(&self) -> TorrentFlags {
+        self.options.read().await.clone()
     }
 
     async fn active_trackers(&self) -> Vec<Url> {
         self.tracker_manager.trackers().await
     }
 
-    async fn add_tracker(&self, url: Url, tier: u8) {
-        if let Err(e) = self.tracker_manager.add_tracker(&url, tier).await {
-            warn!(
-                "Failed to add tracker {} to torrent {}, {}",
-                url, self.handle, e
-            );
-            return;
-        }
-
-        debug!("Tracker {} has been added to torrent {}", url, self.handle);
+    async fn metadata(&self) -> TorrentInfo {
+        self.metadata.read().await.clone()
     }
 
-    fn add_metadata(&mut self, metadata: TorrentMetadata) {
-        // check if the metadata is already available
-        // if so, we ignore this action
-        if self.metadata.info.is_some() {
+    /// Try to add the given tracker to the tracker manager of this torrent.
+    ///
+    /// # Returns
+    ///
+    /// Returns the announcement result that was made to the tracker.
+    async fn add_tracker(&self, url: Url, tier: u8) -> Result<Announcement> {
+        let handle = self.tracker_manager.add_tracker(&url, tier).await?;
+
+        debug!("Tracker {} has been added to torrent {}", url, self);
+        Ok(self
+            .tracker_manager
+            .announce(handle, AnnounceEvent::Started)
+            .await?)
+    }
+
+    async fn add_peer(&self, peer: Peer) {
+        trace!("Adding peer {} to torrent {}", peer, self);
+        {
+            let mut mutex = self.peers.write().await;
+            mutex.push(peer);
+        }
+
+        self.invoke_event(TorrentEvent::PeersChanged);
+    }
+
+    async fn add_metadata(&self, metadata: TorrentMetadata) {
+        let is_metadata_known: bool;
+        let info_hash: InfoHash;
+
+        {
+            let mutex = self.metadata.read().await;
+            is_metadata_known = mutex.info.is_some();
+            info_hash = mutex.info_hash.clone();
+        }
+
+        // verify if the metadata of the torrent is already known
+        // if so, we ignore this update
+        if is_metadata_known {
             return;
         }
 
-        self.metadata.info = Some(metadata);
-        debug!("Updated metadata of {:?}", self);
+        // validate the received metadata against our info hash
+        let is_metadata_invalid = metadata
+            .info_hash()
+            .map(|metadata_info_hash| metadata_info_hash != info_hash)
+            .map_err(|e| {
+                debug!(
+                    "Failed to calculate the info hash from the received metadata of {}, {}",
+                    self, e
+                );
+            })
+            .unwrap_or(true);
+        if is_metadata_invalid {
+            debug!("Received invalid metadata for torrent {}", self);
+            return;
+        }
+
+        {
+            let mut mutex = self.metadata.write().await;
+            (*mutex).info = Some(metadata);
+            debug!("Updated metadata of {:?}", self);
+        }
+
+        self.invoke_event(TorrentEvent::MetadataChanged);
     }
 
     async fn start_announcing(&self) {
-        let info_hash = self.metadata.info_hash.clone();
-        self.tracker_manager.start_announcing(info_hash);
+        self.tracker_manager.start_announcing();
+    }
+
+    async fn announce_all(&self) -> Announcement {
+        self.tracker_manager.announce_all().await
+    }
+
+    async fn update_state(&self, state: TorrentState) {
+        {
+            let mut mutex = self.state.write().await;
+            *mutex = state.clone();
+        }
+
+        self.invoke_event(TorrentEvent::StateChanged(state));
+    }
+
+    async fn update_stats(&self) {
+        let mut uploaded = 0;
+        let mut downloaded = 0;
+
+        for peer in self.peers.read().await.iter() {
+            let stats = peer.stats_and_reset().await;
+            uploaded += stats.upload;
+            downloaded += stats.download;
+        }
+
+        self.invoke_event(TorrentEvent::Stats(TorrentStats {
+            uploaded: uploaded as f64,
+            downloaded: downloaded as f64,
+        }))
+    }
+
+    /// Cleanup the peer resources which have been closed or are no longer valid.
+    async fn clean_peers(&self) {
+        let mut mutex = self.peers.write().await;
+        let mut indexes_to_remove = vec![];
+
+        for (index, peer) in mutex.iter().enumerate() {
+            let peer_state = peer.state().await;
+            if peer_state == PeerState::Closed || peer_state == PeerState::Error {
+                indexes_to_remove.push(index);
+                // make sure we're correctly closing the peer connection
+                peer.close().await;
+            }
+        }
+
+        let total_peers_removed = indexes_to_remove.len();
+        for index in indexes_to_remove {
+            mutex.remove(index);
+        }
+        debug!(
+            "Cleaned a total of {} peers for torrent {}",
+            total_peers_removed, self
+        );
+    }
+
+    fn extensions(&self) -> Extensions {
+        self.extensions.iter().map(|e| e.clone_box()).collect()
+    }
+
+    fn invoke_event(&self, event: TorrentEvent) {
+        self.callbacks.invoke(event)
     }
 }
 
@@ -482,6 +822,18 @@ impl Callbacks<TorrentEvent> for InnerTorrent {
 
     fn remove(&self, handle: CallbackHandle) {
         self.callbacks.remove(handle)
+    }
+}
+
+impl Display for InnerTorrent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.handle)
+    }
+}
+
+impl Drop for InnerTorrent {
+    fn drop(&mut self) {
+        trace!("Torrent {} is being dropped", self);
     }
 }
 
@@ -501,7 +853,9 @@ mod tests {
             metadata: torrent_info,
             options: Default::default(),
             peer_listener_port: 6881,
-            timeout: Some(Duration::from_secs(1)),
+            extensions: vec![],
+            peer_timeout: None,
+            tracker_timeout: Some(Duration::from_secs(1)),
             runtime: Some(runtime.clone()),
         })
         .unwrap();
@@ -521,7 +875,9 @@ mod tests {
             metadata: torrent_info,
             options: Default::default(),
             peer_listener_port: 6881,
-            timeout: Some(Duration::from_secs(1)),
+            extensions: vec![],
+            peer_timeout: None,
+            tracker_timeout: Some(Duration::from_secs(1)),
             runtime: Some(runtime.clone()),
         })
         .unwrap();
@@ -533,5 +889,27 @@ mod tests {
             "expected seeders to have been found"
         );
         assert_ne!(0, result.peers.len(), "expected peers to have been found");
+    }
+
+    #[test]
+    fn test_torrent_metadata() {
+        init_logger();
+        let torrent_info_data = read_test_file_to_bytes("debian-udp.torrent");
+        let torrent_info = TorrentInfo::try_from(torrent_info_data.as_slice()).unwrap();
+        let runtime = Arc::new(Runtime::new().unwrap());
+        let torrent = Torrent::try_from(TorrentRequest {
+            metadata: torrent_info.clone(),
+            options: Default::default(),
+            peer_listener_port: 6881,
+            extensions: vec![],
+            peer_timeout: None,
+            tracker_timeout: Some(Duration::from_secs(1)),
+            runtime: Some(runtime.clone()),
+        })
+        .unwrap();
+
+        let metadata = runtime.block_on(torrent.metadata()).unwrap();
+
+        assert_eq!(torrent_info, metadata);
     }
 }

@@ -4,14 +4,14 @@ use std::ptr;
 use log::{trace, warn};
 
 use popcorn_fx_core::core::torrents::{
-    DownloadStatus, TorrentError, TorrentInfo, TorrentState, TorrentWrapper,
+    DownloadStatus, TorrentHealth, TorrentState, TorrentWrapper,
 };
-use popcorn_fx_core::core::Handle;
-use popcorn_fx_core::{from_c_string, into_c_string};
+use popcorn_fx_core::core::{block_in_place, Handle};
+use popcorn_fx_core::{from_c_string, into_c_owned, into_c_string};
 use popcorn_fx_torrent::torrents::DefaultTorrentManager;
 
 use crate::ffi::{
-    CancelTorrentCallback, DownloadStatusC, ResolveTorrentCallback, ResolveTorrentInfoCallback,
+    CancelTorrentCallback, DownloadStatusC, ResolveTorrentCallback, ResultC, TorrentErrorC,
     TorrentFileInfoC, TorrentStreamEventC, TorrentStreamEventCallback,
 };
 use crate::PopcornFX;
@@ -105,55 +105,6 @@ pub extern "C" fn torrent_download_status(
             "Unable to process torrent download status, handle {} not found",
             handle
         );
-    }
-}
-
-/// Registers a new C-compatible resolve torrent callback function with PopcornFX.
-///
-/// This function allows registering a callback that will be invoked when torrent resolution is complete.
-///
-/// # Arguments
-///
-/// * `popcorn_fx` - A mutable reference to the PopcornFX instance.
-/// * `callback` - The C-compatible resolve torrent callback function to be registered.
-///
-/// # Example
-///
-/// ```c
-/// void resolve_callback(TorrentInfoC info) {
-///     // Handle resolved torrent information
-/// }
-///
-/// // Register the C-compatible callback with PopcornFX
-/// torrent_resolve_callback(popcorn_fx, resolve_callback);
-/// ```
-///
-/// This function registers a callback that receives resolved torrent information in the form of a `TorrentInfoC` struct.
-/// You can then handle this information as needed within your callback function.
-///
-/// Note: This function is intended for C integration with PopcornFX.
-///
-/// # Safety
-///
-/// This function performs unsafe operations, as it deals with raw C-compatible function pointers.
-#[no_mangle]
-pub extern "C" fn torrent_resolve_info_callback(
-    popcorn_fx: &mut PopcornFX,
-    callback: ResolveTorrentInfoCallback,
-) {
-    trace!("Registering new C resolve torrent info callback");
-    if let Some(manager) = popcorn_fx
-        .torrent_manager()
-        .downcast_ref::<DefaultTorrentManager>()
-    {
-        manager.register_resolve_info_callback(Box::new(move |e| {
-            trace!("Executing resolve magnet callback for {}", e);
-            let info_c = callback(into_c_string(e));
-            trace!("Received {:?} as resolve magnet callback result", info_c);
-            Result::from(info_c)
-                .map(|e| TorrentInfo::from(e))
-                .map_err(|e| TorrentError::from(e))
-        }));
     }
 }
 
@@ -284,6 +235,53 @@ pub extern "C" fn remove_torrent_stream_event_callback(
         .unsubscribe(handle, callback_handle);
 }
 
+/// Calculates the health of a torrent based on its magnet link.
+///
+/// # Arguments
+///
+/// * `popcorn_fx` - A mutable reference to the PopcornFX instance.
+/// * `uri` - The magnet link of the torrent.
+///
+/// # Returns
+///
+/// Returns the health of the torrent.
+#[no_mangle]
+pub extern "C" fn torrent_health_from_uri(
+    popcorn_fx: &mut PopcornFX,
+    uri: *const c_char,
+) -> ResultC<TorrentHealth, TorrentErrorC> {
+    trace!("Retrieving torrent health of uri from C");
+    let uri = from_c_string(uri);
+
+    ResultC::from(
+        block_in_place(popcorn_fx.torrent_manager().health_from_uri(&uri))
+            .map_err(|e| TorrentErrorC::from(e)),
+    )
+}
+
+/// Calculates the health of a torrent based on the number of seeds and leechers.
+///
+/// # Returns
+///
+/// Returns the health of the torrent.
+#[no_mangle]
+pub extern "C" fn calculate_torrent_health(
+    popcorn_fx: &mut PopcornFX,
+    seeds: u32,
+    leechers: u32,
+) -> *mut TorrentHealth {
+    trace!(
+        "Calculating torrent health from C with seeds {} and leechers {}",
+        seeds,
+        leechers
+    );
+    into_c_owned(
+        popcorn_fx
+            .torrent_manager()
+            .calculate_health(seeds, leechers),
+    )
+}
+
 /// Clean the torrents directory.
 /// This will remove all existing torrents from the system.
 #[no_mangle]
@@ -296,6 +294,12 @@ pub extern "C" fn cleanup_torrents_directory(popcorn_fx: &mut PopcornFX) {
 pub extern "C" fn dispose_torrent_stream_event_value(event: TorrentStreamEventC) {
     trace!("Disposing torrent stream event from C {:?}", event);
     drop(event);
+}
+
+#[no_mangle]
+pub extern "C" fn dispose_torrent_health(health: Box<TorrentHealth>) {
+    trace!("Disposing torrent health from C {:?}", health);
+    drop(health);
 }
 
 #[cfg(test)]

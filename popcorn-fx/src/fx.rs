@@ -251,10 +251,11 @@ impl PopcornFX {
             &favorites_service,
             &watched_service,
         ));
-        let torrent_manager = Arc::new(Box::new(DefaultTorrentManager::new(
-            settings.clone(),
-            event_publisher.clone(),
-        )) as Box<dyn TorrentManager>);
+        // TODO: handle creation failures in a better way
+        let torrent_manager = Arc::new(Box::new(
+            DefaultTorrentManager::new(settings.clone(), event_publisher.clone(), runtime.clone())
+                .expect("expected a torrent manager to have been created"),
+        ) as Box<dyn TorrentManager>);
         let torrent_stream_server = Arc::new(
             Box::new(DefaultTorrentStreamServer::default()) as Box<dyn TorrentStreamServer>
         );

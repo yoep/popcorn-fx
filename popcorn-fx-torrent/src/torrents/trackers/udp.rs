@@ -5,7 +5,7 @@ use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::time::Duration;
 
 use crate::torrents::peers::PeerId;
-use crate::torrents::trackers::manager::Event;
+use crate::torrents::trackers::manager::AnnounceEvent;
 use crate::torrents::trackers::{AnnounceEntryResponse, TrackerConnection};
 use crate::torrents::trackers::{Result, TrackerError};
 use crate::torrents::InfoHash;
@@ -83,8 +83,12 @@ impl TrackerConnection for UdpConnection {
         }
     }
 
-    async fn announce(&self, info_hash: InfoHash) -> Result<AnnounceEntryResponse> {
-        self.do_announce(info_hash, Event::Started).await
+    async fn announce(
+        &self,
+        info_hash: InfoHash,
+        event: AnnounceEvent,
+    ) -> Result<AnnounceEntryResponse> {
+        self.do_announce(info_hash, event).await
     }
 
     async fn scrape(&mut self) -> Result<()> {
@@ -94,10 +98,6 @@ impl TrackerConnection for UdpConnection {
     fn close(&mut self) {
         trace!("Closing udp connection");
         self.cancel.cancel();
-        // TODO: send close event to the tracker
-        // if let Err(e) = block_in_place(self.do_announce(info_hash, Event::Stopped)) {
-        //     error!("Failed to close tracker connection, {}", e);
-        // };
     }
 }
 
@@ -185,7 +185,7 @@ impl UdpConnection {
     async fn do_announce(
         &self,
         info_hash: InfoHash,
-        event: Event,
+        event: AnnounceEvent,
     ) -> Result<AnnounceEntryResponse> {
         if let Some(session) = &self.session {
             let request = AnnounceRequest {
@@ -353,7 +353,7 @@ struct AnnounceRequest {
     pub left: u64,
     pub corrupt: i64,
     pub redundant: i64,
-    pub event: Event,
+    pub event: AnnounceEvent,
     pub ip_address: u32,
     pub key: u32,
     pub num_want: u32,

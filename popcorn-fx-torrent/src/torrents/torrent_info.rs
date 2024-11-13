@@ -177,6 +177,55 @@ impl TorrentMetadata {
             }
         }
     }
+
+    /// Get the total number of files in the torrent.
+    ///
+    /// # Returns
+    ///
+    /// Returns the total number of files in the torrent.
+    pub fn total_files(&self) -> usize {
+        match &self.files {
+            TorrentInfoFile::Single { .. } => 1,
+            TorrentInfoFile::Multiple { files, .. } => files.len(),
+        }
+    }
+
+    /// Get the files of the torrent.
+    ///
+    /// # Returns
+    ///
+    /// Returns an array of the files of the torrent.
+    pub fn files(&self) -> Vec<TorrentFileMeta> {
+        match &self.files {
+            TorrentInfoFile::Single {
+                length,
+                md5sum,
+                attr,
+                symlink_path,
+                sha1,
+            } => vec![TorrentFileMeta {
+                length: *length,
+                md5sum: md5sum.clone(),
+                path: vec![self.name.clone()],
+                path_utf8: None,
+                attr: attr.clone(),
+                symlink_path: symlink_path.clone(),
+                sha1: sha1.clone(),
+            }],
+            TorrentInfoFile::Multiple { files, .. } => files.clone(),
+        }
+    }
+
+    /// Calculate the info hash of this metadata.
+    ///
+    /// # Returns
+    ///
+    /// Returns the calculated info hash, or returns an error when the info hash could not be calculated.
+    pub fn info_hash(&self) -> Result<InfoHash> {
+        let metadata_bytes = serde_bencode::to_bytes(&self)?;
+
+        Ok(InfoHash::from(metadata_bytes))
+    }
 }
 
 impl Debug for TorrentMetadata {
@@ -388,20 +437,19 @@ impl TorrentInfo {
         tiered_trackers
     }
 
-    /// Create the info hash information from this data.
-    /// It will create both a v1 and v2 hash.
-    pub fn create_info_hash(&self) -> Result<InfoHash> {
-        // verify is the info dict is known
-        // if it isn't the case, then we're unable to generate the info hash
-        if self.info.is_none() {
-            return Err(TorrentError::InvalidMetadata(
+    /// Calculate the info hash from the metadata of the torrent.
+    /// This can only be done when the metadata is available.
+    ///
+    /// # Returns
+    ///
+    /// Returns the calculated info hash of the metadata.
+    pub fn calculate_info_hash(&self) -> Result<InfoHash> {
+        match &self.info {
+            Some(metadata) => metadata.info_hash(),
+            None => Err(TorrentError::InvalidMetadata(
                 "info dictionary is empty".to_string(),
-            ));
+            )),
         }
-
-        let info_bytes = serde_bencode::to_bytes(&self)?;
-
-        Ok(InfoHash::from(info_bytes))
     }
 }
 
@@ -810,7 +858,7 @@ mod tests {
         let torrent = read_test_file_to_bytes("debian-udp.torrent");
         let info = TorrentInfo::try_from(torrent.as_slice()).unwrap();
 
-        let result = info.create_info_hash().unwrap();
+        let result = info.calculate_info_hash().unwrap();
 
         assert_eq!(info.info_hash, result);
     }

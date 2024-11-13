@@ -7,6 +7,7 @@ pub use media_mappers::*;
 pub use media_mappings::*;
 pub use players::*;
 pub use playlists::*;
+pub use result::*;
 pub use settings::*;
 pub use subtitle::*;
 pub use torrents::*;

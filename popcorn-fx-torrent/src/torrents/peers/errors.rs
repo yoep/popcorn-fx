@@ -1,4 +1,4 @@
-use crate::torrents::channel;
+use crate::torrents::TorrentError;
 use std::io;
 use thiserror::Error;
 use tokio::time::error::Elapsed;
@@ -17,10 +17,18 @@ pub enum Error {
     Handshake(String),
     #[error("failed to parse message, {0}")]
     Parsing(String),
+    #[error("failed to execute the torrent operation, {0}")]
+    Torrent(String),
     #[error("an io error occurred, {0}")]
     Io(String),
     #[error("the peer is no longer available")]
     Closed,
+}
+
+impl From<TorrentError> for Error {
+    fn from(error: TorrentError) -> Self {
+        Error::Torrent(error.to_string())
+    }
 }
 
 impl From<io::Error> for Error {
@@ -31,16 +39,6 @@ impl From<io::Error> for Error {
 
 impl From<Elapsed> for Error {
     fn from(error: Elapsed) -> Self {
-        Error::Io(error.to_string())
-    }
-}
-
-impl From<channel::Error> for Error {
-    fn from(error: channel::Error) -> Self {
-        if let channel::Error::Closed = error {
-            return Error::Closed;
-        }
-
         Error::Io(error.to_string())
     }
 }

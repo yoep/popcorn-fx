@@ -3,24 +3,27 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use crate::torrents::peers::PeerId;
+use crate::torrents::trackers::{
+    AnnounceEntryResponse, Result, Tracker, TrackerError, TrackerHandle,
+};
+use crate::torrents::InfoHash;
 use chrono::Utc;
 use derive_more::Display;
+use futures::future;
 use log::{debug, info, trace, warn};
+use popcorn_fx_core::core::block_in_place;
 use tokio::runtime::Runtime;
 use tokio::sync::RwLock;
 use tokio::{select, time};
 use tokio_util::sync::CancellationToken;
 use url::Url;
 
-use crate::torrents::peers::PeerId;
-use crate::torrents::trackers::{AnnounceEntryResponse, Result, Tracker, TrackerError};
-use crate::torrents::InfoHash;
-
 /// Kinds of tracker announces. This is typically indicated as the ``&event=``
 /// HTTP query string parameter to HTTP trackers.
 #[repr(u8)]
 #[derive(Debug, Display, Clone)]
-pub enum Event {
+pub enum AnnounceEvent {
     #[display(fmt = "none")]
     None = 0,
     #[display(fmt = "completed")]
@@ -77,14 +80,23 @@ impl TrackerManager {
     ///
     /// * `peer_id` - The peer ID to associate with the manager.
     /// * `peer_port` - The port number on which the [Session] is listening for incoming peer connections.
+    /// * `info_hash` - The info hash of the torrent being tracked by this manager.
     /// * `timeout` - The timeout for tracker connections.
     /// * `runtime` - The runtime environment for spawning asynchronous tasks.
     ///
     /// # Returns
     ///
     /// A `TrackerManager` instance with initialized settings.
-    pub fn new(peer_id: PeerId, peer_port: u16, timeout: Duration, runtime: Arc<Runtime>) -> Self {
-        let inner = Arc::new(InnerTrackerManager::new(peer_id, peer_port, timeout));
+    pub fn new(
+        peer_id: PeerId,
+        peer_port: u16,
+        info_hash: InfoHash,
+        timeout: Duration,
+        runtime: Arc<Runtime>,
+    ) -> Self {
+        let inner = Arc::new(InnerTrackerManager::new(
+            peer_id, peer_port, info_hash, timeout,
+        ));
         let cancellation_token = CancellationToken::new();
 
         Self {
@@ -112,8 +124,21 @@ impl TrackerManager {
     ///
     /// # Returns
     ///
-    /// A `Result` indicating success or failure. Returns `TrackerError::DuplicateUrl` if the URL already exists.
-    pub async fn add_tracker(&self, url: &Url, tier: u8) -> Result<()> {
+    /// Returns the created tracker handle on success, else the [TrackerError].
+    pub async fn add_tracker(&self, url: &Url, tier: u8) -> Result<TrackerHandle> {
+        let url_already_exists: bool;
+
+        // check if the given url is already known for a tracker
+        {
+            let trackers = self.inner.trackers.read().await;
+            url_already_exists = trackers.iter().any(|e| e.url() == url);
+        }
+
+        // if the url is already known, reject the request to create the tracker
+        if url_already_exists {
+            return Err(TrackerError::DuplicateUrl(url.clone()));
+        }
+
         match Tracker::builder()
             .url(url.clone())
             .tier(tier)
@@ -123,44 +148,27 @@ impl TrackerManager {
             .await
         {
             Ok(tracker) => {
-                {
-                    let trackers = self.inner.trackers.read().await;
-                    if trackers.iter().any(|e| e.url() == tracker.url()) {
-                        return Err(TrackerError::DuplicateUrl(tracker.url().clone()));
-                    }
-                }
+                let handle = tracker.handle();
+                let tracker_info = tracker.to_string();
 
                 {
                     let mut mutex = self.inner.trackers.write().await;
-                    debug!("Adding new {}", tracker);
                     mutex.push(tracker);
+                    debug!("Tracker {} has been added", tracker_info);
                 }
+
+                Ok(handle)
             }
             Err(e) => {
                 warn!("Failed to create new tracker {}: {}", url, e);
-                return Err(e);
+                Err(e)
             }
         }
-
-        Ok(())
-    }
-
-    /// Updates the info hash for the manager.
-    ///
-    /// # Arguments
-    ///
-    /// * `info_hash` - The new info hash to set.
-    pub async fn update_info_hash(&self, info_hash: InfoHash) {
-        self.inner.update_info_hash(info_hash).await
     }
 
     /// Starts announcing to all trackers with the specified info hash.
     /// This will start automatic announcement loops for each known tracker within this manager.
-    ///
-    /// # Arguments
-    ///
-    /// * `info_hash` - The info hash to announce.
-    pub fn start_announcing(&self, info_hash: InfoHash) {
+    pub fn start_announcing(&self) {
         trace!("Creating a new automatic announcement loop for {:?}", self);
         let announcement_cancellation_token = self.cancellation_token.clone();
         let announcement_manager = self.inner.clone();
@@ -185,8 +193,7 @@ impl TrackerManager {
 
         let inner = self.inner.clone();
         self.runtime.spawn(async move {
-            inner.update_info_hash(info_hash.clone()).await;
-            inner.announce_all(info_hash).await;
+            inner.announce_all().await;
         });
     }
 
@@ -194,16 +201,12 @@ impl TrackerManager {
     /// In regard to [self.start_announcing], this will not start an automatic announcement loop
     /// and is more a one of.
     ///
-    /// # Arguments
-    ///
-    /// * `info_hash` - The info hash to announce.
-    ///
     /// # Returns
     ///
     /// Returns the announcement response result.
-    pub async fn announce_all(&self, info_hash: InfoHash) -> Announcement {
+    pub async fn announce_all(&self) -> Announcement {
         let start_time = Instant::now();
-        let result = self.inner.announce_all(info_hash).await;
+        let result = self.inner.announce_all().await;
         let elapsed = start_time.elapsed();
         trace!(
             "Announced to all trackers in {}.{:03} seconds",
@@ -211,6 +214,45 @@ impl TrackerManager {
             elapsed.subsec_millis()
         );
         result
+    }
+
+    pub async fn announce(
+        &self,
+        handle: TrackerHandle,
+        event: AnnounceEvent,
+    ) -> Result<Announcement> {
+        let mutex = self.inner.trackers.read().await;
+        let tracker = mutex
+            .iter()
+            .find(|e| e.handle() == handle)
+            .ok_or(TrackerError::InvalidHandle(handle))?;
+
+        match self
+            .inner
+            .announce_tracker(tracker, event)
+            .await
+            .map(|e| Announcement {
+                total_leechers: e.leechers,
+                total_seeders: e.seeders,
+                peers: e.peers,
+            }) {
+            Ok(e) => {
+                // update the discovered peers
+                self.inner.add_peers(e.peers.as_slice()).await;
+                Ok(e)
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    /// Announce to all trackers that the given torrent info hash has stopped.
+    ///
+    /// # Arguments
+    ///
+    /// * `info_hash` - The torrent info hash to announce
+    pub async fn announce_stopped(&self) {
+        self.cancellation_token.cancel();
+        self.inner.announce_stopped().await;
     }
 
     /// Performs automatic announcements to all trackers periodically.
@@ -224,21 +266,20 @@ impl TrackerManager {
         let mut mutex = manager.trackers.write().await;
         let now = Utc::now();
 
-        if let Some(info_hash) = manager.info_hash().await {
-            for tracker in mutex.as_mut_slice() {
-                let interval = tracker.announcement_interval();
-                let last_announcement = tracker.last_announcement();
-                let delta = now.signed_duration_since(last_announcement);
+        for tracker in mutex.as_mut_slice() {
+            let interval = tracker.announcement_interval().await;
+            let last_announcement = tracker.last_announcement().await;
+            let delta = now.signed_duration_since(last_announcement);
 
-                if delta.num_seconds() >= interval as i64 {
-                    match manager.announce_tracker(tracker, info_hash.clone()).await {
-                        Ok(_) => {}
-                        Err(e) => warn!("Failed make an announcement for {}, {}", tracker, e),
-                    }
+            if delta.num_seconds() >= interval as i64 {
+                match manager
+                    .announce_tracker(tracker, AnnounceEvent::Started)
+                    .await
+                {
+                    Ok(_) => {}
+                    Err(e) => warn!("Failed make an announcement for {}, {}", tracker, e),
                 }
             }
-        } else {
-            warn!("Unable to announce trackers, no info hash set");
         }
     }
 }
@@ -253,59 +294,78 @@ impl Drop for TrackerManager {
 struct InnerTrackerManager {
     peer_id: PeerId,
     peer_port: u16,
-    info_hash: RwLock<Option<InfoHash>>,
+    /// The torrent info hash for which this tracker manager is responsible for
+    info_hash: InfoHash,
     trackers: RwLock<Vec<Tracker>>,
+    /// The discovered peers from the trackers
     peers: RwLock<Vec<SocketAddr>>,
     connection_timeout: Duration,
 }
 
 impl InnerTrackerManager {
-    fn new(peer_id: PeerId, peer_port: u16, connection_timeout: Duration) -> Self {
+    fn new(
+        peer_id: PeerId,
+        peer_port: u16,
+        info_hash: InfoHash,
+        connection_timeout: Duration,
+    ) -> Self {
         Self {
             peer_id,
             peer_port,
-            info_hash: Default::default(),
+            info_hash,
             trackers: Default::default(),
             peers: Default::default(),
             connection_timeout,
         }
     }
 
-    async fn info_hash(&self) -> Option<InfoHash> {
-        self.info_hash.read().await.clone()
+    async fn info_hash(&self) -> InfoHash {
+        self.info_hash.clone()
     }
 
-    async fn update_info_hash(&self, info_hash: InfoHash) {
-        trace!("Updating info hash to {:?}", info_hash);
-        let mut mutex = self.info_hash.write().await;
-        *mutex = Some(info_hash);
-    }
-
-    async fn add_peers(&self, peers: Vec<SocketAddr>) {
-        trace!("Adding a total of {} peers", peers.len());
+    async fn add_peers(&self, peers: &[SocketAddr]) {
+        trace!("Discovered a total of {} peers, {:?}", peers.len(), peers);
         let mut mutex = self.peers.write().await;
+        let mut new_peers: usize = 0;
+
         for peer in peers {
             if !mutex.contains(&peer) {
-                trace!("Adding peer {:?}", peer);
-                mutex.push(peer);
+                mutex.push(peer.clone());
+                new_peers += 1;
             }
         }
+
+        debug!("Discovered a total of {} new peers", new_peers);
     }
 
-    async fn announce_all(&self, info_hash: InfoHash) -> Announcement {
+    async fn announce_all(&self) -> Announcement {
         let mut result = Announcement::default();
+        let mut mutex = self.trackers.write().await;
+        let mut futures = Vec::new();
         let mut total_peers = 0;
 
-        let mut mutex = self.trackers.write().await;
+        // start announcing the given hash to each tracker simultaneously
         for tracker in mutex.as_mut_slice() {
-            if let Ok(response) = self.announce_tracker(tracker, info_hash.clone()).await {
-                result.total_leechers += response.leechers;
-                result.total_seeders += response.seeders;
-                result.peers.extend_from_slice(response.peers.as_slice());
+            futures.push(self.announce_tracker(tracker, AnnounceEvent::Started));
+        }
 
-                let found_peers = response.peers.len();
-                self.add_peers(response.peers).await;
-                total_peers += found_peers;
+        // wait for all responses to complete
+        let responses = future::join_all(futures).await;
+        for response in responses {
+            match response {
+                Ok(response) => {
+                    result.total_leechers += response.leechers;
+                    result.total_seeders += response.seeders;
+                    result.peers.extend_from_slice(response.peers.as_slice());
+
+                    let found_peers = response.peers.len();
+                    self.add_peers(response.peers.as_slice()).await;
+                    total_peers += found_peers;
+                }
+                Err(e) => debug!(
+                    "Failed to announce info hash {:?} to tracker, {}",
+                    self.info_hash, e
+                ),
             }
         }
 
@@ -313,13 +373,44 @@ impl InnerTrackerManager {
         result
     }
 
+    async fn announce_stopped(&self) {
+        let mut mutex = self.trackers.write().await;
+        let mut futures = Vec::new();
+
+        debug!(
+            "Announcing stopped event to all trackers for {:?}",
+            self.info_hash
+        );
+        for tracker in mutex.as_mut_slice() {
+            futures.push(self.announce_tracker(tracker, AnnounceEvent::Stopped));
+        }
+
+        // wait for all responses to complete and filter on errors
+        let responses: Vec<Result<AnnounceEntryResponse>> = future::join_all(futures)
+            .await
+            .into_iter()
+            .filter(|e| e.is_err())
+            .collect();
+        for response in responses {
+            if let Err(e) = response {
+                debug!(
+                    "Failed to make stopped announcement to tracker for info hash {:?}, {}",
+                    self.info_hash, e
+                );
+            }
+        }
+    }
+
     async fn announce_tracker(
         &self,
-        tracker: &mut Tracker,
-        info_hash: InfoHash,
+        tracker: &Tracker,
+        event: AnnounceEvent,
     ) -> Result<AnnounceEntryResponse> {
-        trace!("Announcing to tracker {}", tracker);
-        match tracker.announce(info_hash).await {
+        trace!("Announcing event {} to tracker {}", event, tracker);
+        match tracker
+            .announce(self.info_hash.clone(), event.clone())
+            .await
+        {
             Ok(response) => {
                 debug!(
                     "Tracker {} announcement found {} peers",
@@ -329,15 +420,25 @@ impl InnerTrackerManager {
                 Ok(response)
             }
             Err(e) => {
-                warn!("Tracker {} announcement failed, {:?}", tracker, e);
+                warn!(
+                    "Announcement of event {} failed for tracker {}, {:?}",
+                    event, tracker, e
+                );
                 Err(e)
             }
         }
     }
 }
 
+impl Drop for InnerTrackerManager {
+    fn drop(&mut self) {
+        block_in_place(self.announce_stopped());
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
     use url::Url;
 
     use popcorn_fx_core::testing::init_logger;
@@ -350,10 +451,44 @@ mod tests {
         let url = Url::parse("udp://tracker.opentrackr.org:1337").unwrap();
         let runtime = Arc::new(Runtime::new().unwrap());
         let peer_id = PeerId::new();
-        let manager = TrackerManager::new(peer_id, 6881, Duration::from_secs(1), runtime.clone());
+        let info_hash =
+            InfoHash::from_str("urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7").unwrap();
+        let manager = TrackerManager::new(
+            peer_id,
+            6881,
+            info_hash,
+            Duration::from_secs(1),
+            runtime.clone(),
+        );
 
         let result = runtime.block_on(manager.add_tracker(&url, 0));
 
-        assert_eq!(Ok(()), result);
+        assert_eq!(
+            None,
+            result.err(),
+            "expected the tracker to have been created"
+        );
+    }
+
+    #[test]
+    fn test_announce_all() {
+        init_logger();
+        let url = Url::parse("udp://tracker.opentrackr.org:1337").unwrap();
+        let runtime = Arc::new(Runtime::new().unwrap());
+        let peer_id = PeerId::new();
+        let info_hash =
+            InfoHash::from_str("urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7").unwrap();
+        let manager = TrackerManager::new(
+            peer_id,
+            6881,
+            info_hash,
+            Duration::from_secs(1),
+            runtime.clone(),
+        );
+
+        runtime.block_on(manager.add_tracker(&url, 0)).unwrap();
+        let result = runtime.block_on(manager.announce_all());
+
+        assert_ne!(0, result.peers.len(), "expected peers to have been found");
     }
 }

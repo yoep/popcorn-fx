@@ -1,51 +1,35 @@
 package com.github.yoep.popcorn.ui.view.services;
 
-import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
+import com.github.yoep.popcorn.backend.FxLib;
+import com.github.yoep.popcorn.backend.PopcornFx;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentHealth;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
-import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
-import com.github.yoep.popcorn.backend.settings.models.TorrentSettings;
 import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.io.File;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class HealthServiceTest {
     @Mock
-    private TorrentService torrentService;
+    private FxLib fxLib;
     @Mock
-    private ApplicationConfig settingsService;
-    @Mock
-    private ApplicationSettings settings;
-    @Mock
-    private TorrentSettings torrentSettings;
+    private PopcornFx instance;
     @Spy
-    private EventPublisher eventPublisher = new EventPublisher();
+    private EventPublisher eventPublisher = new EventPublisher(false);
     @InjectMocks
     private HealthService healthService;
-    @TempDir
-    public File torrentDirectory;
-
-    @BeforeEach
-    void setUp() {
-        lenient().when(settingsService.getSettings()).thenReturn(settings);
-        lenient().when(settings.getTorrentSettings()).thenReturn(torrentSettings);
-        lenient().when(torrentSettings.getDirectory()).thenReturn(torrentDirectory.getAbsolutePath());
-    }
 
     @Test
     void testCalculateHealth_whenInvoked_shouldCallCalculateHealthOnTorrentService() {
@@ -54,41 +38,47 @@ class HealthServiceTest {
 
         healthService.calculateHealth(seeds, peers);
 
-        verify(torrentService).calculateHealth(seeds, peers);
+        verify(fxLib).calculate_torrent_health(instance, seeds, peers);
     }
 
     @Test
     void testGetTorrentHealth_whenPreviousFutureIsStillRunning_shouldCancelPreviousFuture() {
         var firstUrl = "lorem";
         var secondUrl = "ipsum";
-        var future = mock(CompletableFuture.class);
-        when(torrentService.getTorrentHealth(firstUrl, torrentDirectory)).thenReturn(future);
-        when(torrentService.getTorrentHealth(secondUrl, torrentDirectory)).thenReturn(future);
-        when(future.isDone()).thenReturn(false);
+        when(fxLib.calculate_torrent_health(eq(instance), anyInt(), anyInt()))
+                .thenAnswer(invocation -> {
+                    // how to sleep thread
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+
+                    return new TorrentHealth();
+                });
 
         healthService.getTorrentHealth(firstUrl);
+        var future = healthService.healthFuture;
         healthService.getTorrentHealth(secondUrl);
 
-        verify(future).cancel(true);
+        assertTrue(future.isCancelled());
     }
 
     @Test
     void testOnLoadMediaTorrent_whenPreviousFutureIsStillRunning_shouldCancelPreviousFuture() throws ExecutionException, InterruptedException,
             TimeoutException {
         var firstUrl = "lorem";
-        var future = mock(CompletableFuture.class);
         var wait = new CompletableFuture<Void>();
-        when(torrentService.getTorrentHealth(firstUrl, torrentDirectory)).thenReturn(future);
-        when(future.isDone()).thenReturn(false);
         eventPublisher.register(CloseDetailsEvent.class, event -> {
             wait.complete(null);
             return null;
         }, EventPublisher.LOWEST_ORDER);
 
         healthService.getTorrentHealth(firstUrl);
+        var future = healthService.healthFuture;
         eventPublisher.publish(new CloseDetailsEvent(this));
 
         wait.get(200, TimeUnit.MILLISECONDS);
-        verify(future).cancel(true);
+        assertTrue(future.isCancelled());
     }
 }

@@ -8,7 +8,6 @@ import com.github.yoep.popcorn.backend.lib.Handle;
 import com.github.yoep.popcorn.backend.torrent.DownloadStatusC;
 import com.github.yoep.popcorn.backend.torrent.TorrentStreamEventC;
 import com.github.yoep.popcorn.backend.torrent.TorrentStreamEventCallback;
-import com.github.yoep.torrent.frostwire.model.TorrentHealthImpl;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

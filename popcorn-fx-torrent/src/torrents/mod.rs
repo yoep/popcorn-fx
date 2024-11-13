@@ -4,10 +4,8 @@ pub use manager::*;
 pub use pieces::*;
 pub use session::*;
 pub use torrent::*;
-pub use torrent_health::*;
 pub use torrent_info::*;
 
-mod channel;
 mod errors;
 mod fs;
 mod info_hash;
@@ -16,7 +14,5 @@ mod peers;
 mod pieces;
 mod session;
 mod torrent;
-mod torrent_commands;
-mod torrent_health;
 mod torrent_info;
 mod trackers;

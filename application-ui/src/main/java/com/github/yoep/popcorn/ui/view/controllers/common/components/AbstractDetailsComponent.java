@@ -163,7 +163,7 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
 
     private String getHealthTooltip(TorrentHealth health) {
         return localeText.get(health.getState().getKey()) + " - Ratio: " + String.format("%1$,.2f", health.getRatio()) + "\n" +
-                "Seeds: " + health.getSeeds() + " - Peers: " + health.getPeers();
+                "Seeds: " + health.getSeeds() + " - Peers: " + health.getLeechers();
     }
 
     //endregion

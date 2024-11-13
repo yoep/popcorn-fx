@@ -83,4 +83,4 @@ popcorn:
     popcorn_fx_players::vlc:
       level: info
     popcorn_fx_torrent:
-      level: info
+      level: trace

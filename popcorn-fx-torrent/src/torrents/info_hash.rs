@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
 
 use base32::Alphabet;
@@ -20,7 +20,7 @@ pub type Sha1Hash = [u8; 20];
 
 /// Represents the unique identifier for a torrent's metadata.
 /// It can contain both v1 (SHA1) and v2 (SHA256) hashes.
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Eq, Hash)]
 pub struct InfoHash {
     /// The v1 (SHA1) hash, if present.
     v1: Option<Sha1Hash>,
@@ -94,7 +94,13 @@ impl InfoHash {
         info_hash_bytes
     }
 
-    pub fn from_bytes<T>(bytes: T) -> Result<Self>
+    /// Try to parse the given peer handshake bytes into an `InfoHash`.
+    /// This should only be used by peer implementations which want to validate an incoming handshake.
+    ///
+    /// # Returns
+    ///
+    /// Returns the info hash if the given handshake bytes are a valid v1 or v2 info hash.
+    pub fn from_peer_handshake<T>(bytes: T) -> Result<Self>
     where
         T: AsRef<[u8]>,
     {
@@ -235,11 +241,23 @@ impl PartialEq for InfoHash {
 }
 
 impl Debug for InfoHash {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("InfoHash")
-            .field("v1", &self.v1.as_ref().map(|e| e.len()))
-            .field("v2", &self.v2.as_ref().map(|e| e.len()))
+            .field("v1", &self.v1.as_ref().map(|e| hex::encode(e)))
+            .field("v2", &self.v2.as_ref().map(|e| hex::encode(e)))
             .finish()
+    }
+}
+
+impl Display for InfoHash {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if let Some(v1) = &self.v1 {
+            write!(f, "{}", hex::encode(v1).to_uppercase())
+        } else if let Some(v2) = &self.v2 {
+            write!(f, "{}", hex::encode(v2).to_uppercase())
+        } else {
+            write!(f, "INVALID INFO HASH")
+        }
     }
 }
 
@@ -515,5 +533,24 @@ mod tests {
         let hash_bytes_magnet = info_hash_magnet.short_info_hash_bytes();
 
         assert_eq!(hash_bytes_file, hash_bytes_magnet);
+    }
+
+    #[test]
+    fn test_info_hash_display() {
+        let hash = "urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7";
+        let info_hash = InfoHash::from_str(hash).unwrap();
+        let result = info_hash.to_string();
+        assert_eq!(
+            "EADAF0EFEA39406914414D359E0EA16416409BD7", result,
+            "expected the v1 hash to be displayed"
+        );
+
+        let hash = "urn:btmh:1220cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd";
+        let info_hash = InfoHash::from_str(hash).unwrap();
+        let result = info_hash.to_string();
+        assert_eq!(
+            "CDCDCDCDCDCDCDCDCDCDCDCDCDCDCDCDCDCDCDCDCDCDCDCDCDCDCDCDCDCDCDCD", result,
+            "expected the v2 hash to be displayed"
+        );
     }
 }

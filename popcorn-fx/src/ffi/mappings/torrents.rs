@@ -4,12 +4,11 @@ use std::ptr;
 use log::trace;
 
 use popcorn_fx_core::core::torrents::{
-    DownloadStatus, TorrentError, TorrentFileInfo, TorrentInfo, TorrentManagerState, TorrentState,
-    TorrentStreamEvent, TorrentStreamState, TorrentWrapper,
+    DownloadStatus, TorrentError, TorrentFileInfo, TorrentHealth, TorrentInfo, TorrentManagerState,
+    TorrentState, TorrentStreamEvent, TorrentStreamState, TorrentWrapper,
 };
 use popcorn_fx_core::{from_c_string, into_c_string, into_c_vec};
 
-use crate::ffi::mappings::result::ResultC;
 use crate::ffi::CArray;
 
 /// Type alias for a callback that verifies if the given byte is available.
@@ -32,10 +31,6 @@ pub type SequentialModeCallbackC = extern "C" fn();
 
 /// Type alias for a callback that retrieves the torrent state.
 pub type TorrentStateCallbackC = extern "C" fn() -> TorrentState;
-
-/// Type alias for a callback that resolves torrent information.
-pub type ResolveTorrentInfoCallback =
-    extern "C" fn(url: *mut c_char) -> ResultC<TorrentInfoC, TorrentErrorC>;
 
 /// Type alias for a callback that resolves torrent information and starts a download.
 pub type ResolveTorrentCallback = extern "C" fn(
@@ -70,6 +65,8 @@ pub enum TorrentErrorC {
     TorrentResolvingFailed(*mut c_char),
     /// Represents an error indicating failure during torrent collection loading.
     TorrentCollectionLoadingFailed(*mut c_char),
+    /// Represent a general torrent error failure
+    Torrent(*mut c_char),
 }
 
 impl From<TorrentError> for TorrentErrorC {
@@ -90,6 +87,7 @@ impl From<TorrentError> for TorrentErrorC {
             TorrentError::TorrentCollectionLoadingFailed(error) => {
                 TorrentErrorC::TorrentCollectionLoadingFailed(into_c_string(error))
             }
+            TorrentError::TorrentError(error) => TorrentErrorC::Torrent(into_c_string(error)),
         }
     }
 }
@@ -112,6 +110,7 @@ impl From<TorrentErrorC> for TorrentError {
             TorrentErrorC::TorrentCollectionLoadingFailed(error) => {
                 TorrentError::TorrentCollectionLoadingFailed(from_c_string(error))
             }
+            TorrentErrorC::Torrent(error) => TorrentError::TorrentError(from_c_string(error)),
         }
     }
 }
@@ -169,7 +168,7 @@ pub struct TorrentInfoC {
     /// A pointer to a null-terminated C string representing the directory name of the torrent.
     pub directory_name: *mut c_char,
     /// The total number of files in the torrent.
-    pub total_files: i32,
+    pub total_files: u32,
     /// A set of `TorrentFileInfoC` structs representing individual files within the torrent.
     pub files: CArray<TorrentFileInfoC>,
 }
@@ -192,7 +191,7 @@ impl From<TorrentInfo> for TorrentInfoC {
             uri: into_c_string(value.uri),
             name: into_c_string(value.name),
             directory_name,
-            total_files: value.total_files,
+            total_files: value.total_files as u32,
             files: CArray::from(torrent_info_files),
         }
     }
@@ -215,7 +214,7 @@ impl From<TorrentInfoC> for TorrentInfo {
             uri: from_c_string(value.uri),
             name: from_c_string(value.name),
             directory_name,
-            total_files: value.total_files,
+            total_files: value.total_files as u32,
             files,
         }
     }
@@ -230,9 +229,9 @@ pub struct TorrentFileInfoC {
     /// A pointer to a null-terminated C string representing the file path.
     pub file_path: *mut c_char,
     /// The size of the file in bytes.
-    pub file_size: i64,
+    pub file_size: u64,
     /// The index of the file.
-    pub file_index: i32,
+    pub file_index: u32,
 }
 
 impl From<TorrentFileInfoC> for TorrentFileInfo {
@@ -242,7 +241,7 @@ impl From<TorrentFileInfoC> for TorrentFileInfo {
             filename: from_c_string(value.filename),
             file_path: from_c_string(value.file_path),
             file_size: value.file_size,
-            file_index: value.file_index,
+            file_index: value.file_index as usize,
         }
     }
 }
@@ -254,7 +253,7 @@ impl From<TorrentFileInfo> for TorrentFileInfoC {
             filename: into_c_string(value.filename),
             file_path: into_c_string(value.file_path),
             file_size: value.file_size,
-            file_index: value.file_index,
+            file_index: value.file_index as u32,
         }
     }
 }
@@ -366,12 +365,12 @@ mod tests {
         let filename = "MyTFile";
         let file_path = "/tmp/path/file";
         let file_size = 87500;
-        let file_index = 1;
+        let file_index = 1usize;
         let file_info = TorrentFileInfoC {
             filename: into_c_string(filename.to_string()),
             file_path: into_c_string(file_path.to_string()),
             file_size,
-            file_index,
+            file_index: file_index as u32,
         };
         let expected_result = TorrentFileInfo {
             filename: filename.to_string(),
@@ -403,7 +402,7 @@ mod tests {
         assert_eq!(filename.to_string(), from_c_string(result.filename));
         assert_eq!(file_path.to_string(), from_c_string(result.file_path));
         assert_eq!(file_size, result.file_size);
-        assert_eq!(file_index, result.file_index);
+        assert_eq!(file_index as u32, result.file_index);
     }
 
     #[test]

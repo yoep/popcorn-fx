@@ -270,11 +270,11 @@ impl InnerLoadingTask {
     }
 
     pub fn subscribe(&self, callback: CoreCallback<LoadingEvent>) -> CallbackHandle {
-        self.callbacks.add(callback)
+        self.callbacks.add_callback(callback)
     }
 
     pub fn unsubscribe(&self, callback_handle: CallbackHandle) {
-        self.callbacks.remove(callback_handle)
+        self.callbacks.remove_callback(callback_handle)
     }
 
     pub fn handle_state_callback(&self, state: LoadingState) {

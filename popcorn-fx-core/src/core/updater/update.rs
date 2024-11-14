@@ -15,13 +15,13 @@ use tokio::runtime::Runtime;
 use tokio::sync::Mutex;
 use url::Url;
 
-use crate::core::{Callbacks, CoreCallback, CoreCallbacks, updater};
 use crate::core::config::ApplicationConfig;
 use crate::core::launcher::LauncherOptions;
 use crate::core::platform::PlatformData;
 use crate::core::storage::Storage;
-use crate::core::updater::{UpdateError, VersionInfo};
 use crate::core::updater::task::UpdateTask;
+use crate::core::updater::{UpdateError, VersionInfo};
+use crate::core::{updater, Callbacks, CoreCallback, CoreCallbacks};
 use crate::VERSION;
 
 const UPDATE_INFO_FILE: &str = "versions.json";
@@ -342,7 +342,7 @@ impl InnerUpdater {
 
         // add the given callbacks to the initial list
         for callback in callbacks.into_iter() {
-            core_callbacks.add(callback);
+            core_callbacks.add_callback(callback);
         }
 
         Self {
@@ -788,7 +788,7 @@ impl InnerUpdater {
     }
 
     fn register(&self, callback: UpdateCallback) {
-        self.callbacks.add(callback);
+        self.callbacks.add_callback(callback);
     }
 
     /// Verify if an application update is available for the current platform.
@@ -949,10 +949,10 @@ impl Drop for InnerUpdater {
 
 #[cfg(test)]
 mod test {
-    use std::{fs, thread};
     use std::collections::HashMap;
     use std::sync::mpsc::channel;
     use std::time::Duration;
+    use std::{fs, thread};
 
     use httpmock::Method::{GET, HEAD};
     use httpmock::MockServer;
@@ -963,9 +963,9 @@ mod test {
     use crate::core::platform::{PlatformInfo, PlatformType};
     use crate::core::updater::PatchInfo;
     use crate::testing::{
-        copy_test_file, init_logger, MockDummyPlatformData, read_temp_dir_file_as_bytes,
-        read_temp_dir_file_as_string, read_test_file_to_bytes, read_test_file_to_string,
-        test_resource_filepath,
+        copy_test_file, init_logger, read_temp_dir_file_as_bytes, read_temp_dir_file_as_string,
+        read_test_file_to_bytes, read_test_file_to_string, test_resource_filepath,
+        MockDummyPlatformData,
     };
 
     use super::*;

@@ -140,12 +140,12 @@ impl DlnaPlayer {
 }
 
 impl Callbacks<PlayerEvent> for DlnaPlayer {
-    fn add(&self, callback: CoreCallback<PlayerEvent>) -> CallbackHandle {
-        self.inner.add(callback)
+    fn add_callback(&self, callback: CoreCallback<PlayerEvent>) -> CallbackHandle {
+        self.inner.add_callback(callback)
     }
 
-    fn remove(&self, handle: CallbackHandle) {
-        self.inner.remove(handle)
+    fn remove_callback(&self, handle: CallbackHandle) {
+        self.inner.remove_callback(handle)
     }
 }
 
@@ -365,12 +365,12 @@ impl InnerPlayer {
 }
 
 impl Callbacks<PlayerEvent> for InnerPlayer {
-    fn add(&self, callback: CoreCallback<PlayerEvent>) -> CallbackHandle {
-        self.callbacks.add(callback)
+    fn add_callback(&self, callback: CoreCallback<PlayerEvent>) -> CallbackHandle {
+        self.callbacks.add_callback(callback)
     }
 
-    fn remove(&self, handle: CallbackHandle) {
-        self.callbacks.remove(handle)
+    fn remove_callback(&self, handle: CallbackHandle) {
+        self.callbacks.remove_callback(handle)
     }
 }
 
@@ -835,7 +835,7 @@ mod tests {
         let (tx_time, rx_time) = channel();
         let player = instance.player_instance();
 
-        player.add(Box::new(move |event| match &event {
+        player.add_callback(Box::new(move |event| match &event {
             PlayerEvent::DurationChanged(_) => tx_duration.send(event).unwrap(),
             PlayerEvent::TimeChanged(_) => tx_time.send(event).unwrap(),
             _ => {}
@@ -905,7 +905,7 @@ mod tests {
         let (tx, rx) = channel();
         let player = instance.player_instance();
 
-        player.add(Box::new(move |event| {
+        player.add_callback(Box::new(move |event| {
             if let PlayerEvent::StateChanged(_) = &event {
                 tx.send(event).unwrap();
             }

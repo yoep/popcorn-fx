@@ -457,7 +457,7 @@ impl MediaLoader for InnerMediaLoader {
     }
 
     fn subscribe(&self, callback: LoaderCallback) -> CallbackHandle {
-        self.callbacks.add(callback)
+        self.callbacks.add_callback(callback)
     }
 
     fn load_url(&self, url: &str) -> LoadingHandle {

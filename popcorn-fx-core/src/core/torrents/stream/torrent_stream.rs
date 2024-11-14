@@ -391,12 +391,12 @@ impl TorrentStream for TorrentStreamWrapper {
 
     fn subscribe_stream(&self, callback: TorrentStreamCallback) -> CallbackHandle {
         debug!("Adding a new callback to stream {}", self);
-        self.callbacks.add(callback)
+        self.callbacks.add_callback(callback)
     }
 
     fn unsubscribe_stream(&self, handle: CallbackHandle) {
         debug!("Removing callback {} from stream {}", handle, self);
-        self.callbacks.remove(handle)
+        self.callbacks.remove_callback(handle)
     }
 
     fn stop_stream(&self) {

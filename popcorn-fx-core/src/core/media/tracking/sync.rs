@@ -7,10 +7,10 @@ use thiserror::Error;
 use tokio::runtime::Runtime;
 use tokio::sync::Mutex;
 
-use crate::core::{block_in_place, CallbackHandle};
 use crate::core::config::{ApplicationConfig, MediaTrackingSyncState};
 use crate::core::media::tracking::{TrackingError, TrackingEvent, TrackingProvider};
 use crate::core::media::watched::WatchedService;
+use crate::core::{block_in_place, CallbackHandle};
 
 /// Represents the state of synchronization.
 #[derive(Debug, Display, Clone, PartialEq)]
@@ -71,17 +71,18 @@ impl SyncMediaTracking {
 
         let event_instance = instance.inner.clone();
         let event_runtime = instance.inner.runtime.clone();
-        instance.callback_handle = Some(instance.inner.provider.add(Box::new(move |event| {
-            if let TrackingEvent::AuthorizationStateChanged(state) = event {
-                trace!("Received authorization state changed to {}", state);
-                if state {
-                    let runtime_instance = event_instance.clone();
-                    event_runtime.spawn(async move {
-                        Self::handle_sync_result(runtime_instance.sync().await)
-                    });
+        instance.callback_handle =
+            Some(instance.inner.provider.add_callback(Box::new(move |event| {
+                if let TrackingEvent::AuthorizationStateChanged(state) = event {
+                    trace!("Received authorization state changed to {}", state);
+                    if state {
+                        let runtime_instance = event_instance.clone();
+                        event_runtime.spawn(async move {
+                            Self::handle_sync_result(runtime_instance.sync().await)
+                        });
+                    }
                 }
-            }
-        })));
+            })));
         let auto_sync_instance = instance.inner.clone();
         instance.inner.runtime.spawn(async move {
             if auto_sync_instance.provider.is_authorized() {
@@ -121,7 +122,7 @@ impl Drop for SyncMediaTracking {
         trace!("Dropping {:?}", self);
         if let Some(handle) = self.callback_handle {
             debug!("Removing tracking provider callback handle {}", handle);
-            self.inner.provider.remove(handle);
+            self.inner.provider.remove_callback(handle);
         }
     }
 }
@@ -300,10 +301,10 @@ mod tests {
     use mockall::predicate;
 
     use crate::assert_timeout_eq;
-    use crate::core::Handle;
-    use crate::core::media::{MediaIdentifier, MockMediaIdentifier};
     use crate::core::media::tracking::MockTrackingProvider;
     use crate::core::media::watched::MockWatchedService;
+    use crate::core::media::{MediaIdentifier, MockMediaIdentifier};
+    use crate::core::Handle;
     use crate::testing::init_logger;
 
     use super::*;
@@ -316,8 +317,11 @@ mod tests {
         let config = Arc::new(ApplicationConfig::builder().storage(temp_path).build());
         let mut provider = MockTrackingProvider::new();
         provider.expect_is_authorized().times(1).return_const(true);
-        provider.expect_add().times(1).return_const(Handle::new());
-        provider.expect_remove().times(1).return_const(());
+        provider
+            .expect_add_callback()
+            .times(1)
+            .return_const(Handle::new());
+        provider.expect_remove_callback().times(1).return_const(());
         provider.expect_add_watched_movies().return_const(Ok(()));
         provider
             .expect_watched_movies()
@@ -363,9 +367,12 @@ mod tests {
         let config = Arc::new(ApplicationConfig::builder().storage(temp_path).build());
         let watched_service = MockWatchedService::new();
         let mut provider = MockTrackingProvider::new();
-        provider.expect_add().times(1).return_const(handle.clone());
         provider
-            .expect_remove()
+            .expect_add_callback()
+            .times(1)
+            .return_const(handle.clone());
+        provider
+            .expect_remove_callback()
             .times(1)
             .with(predicate::eq(handle))
             .return_const(());
@@ -389,8 +396,8 @@ mod tests {
         let config = Arc::new(ApplicationConfig::builder().storage(temp_path).build());
         let mut provider = MockTrackingProvider::new();
         provider.expect_is_authorized().return_const(false);
-        provider.expect_add().return_const(Handle::new());
-        provider.expect_remove().return_const(());
+        provider.expect_add_callback().return_const(Handle::new());
+        provider.expect_remove_callback().return_const(());
         provider.expect_add_watched_movies().return_const(Ok(()));
         provider
             .expect_watched_movies()
@@ -430,8 +437,8 @@ mod tests {
         let config = Arc::new(ApplicationConfig::builder().storage(temp_path).build());
         let mut provider = MockTrackingProvider::new();
         provider.expect_is_authorized().return_const(false);
-        provider.expect_add().return_const(Handle::new());
-        provider.expect_remove().return_const(());
+        provider.expect_add_callback().return_const(Handle::new());
+        provider.expect_remove_callback().return_const(());
         provider.expect_add_watched_movies().return_const(Ok(()));
         provider
             .expect_watched_movies()
@@ -472,11 +479,11 @@ mod tests {
         let config = Arc::new(ApplicationConfig::builder().storage(temp_path).build());
         let mut provider = MockTrackingProvider::new();
         provider.expect_is_authorized().return_const(false);
-        provider.expect_add().returning(move |e| {
+        provider.expect_add_callback().returning(move |e| {
             tx.send(e).unwrap();
             Handle::new()
         });
-        provider.expect_remove().return_const(());
+        provider.expect_remove_callback().return_const(());
         provider.expect_add_watched_movies().return_const(Ok(()));
         provider
             .expect_watched_movies()

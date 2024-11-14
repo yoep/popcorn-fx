@@ -5,6 +5,7 @@ use crate::torrents::peers::extensions::{
 
 use crate::torrents::peers::{Error, PeerId, Result};
 use crate::torrents::{InfoHash, Torrent, TorrentInfo, TorrentMetadata};
+use bit_vec::BitVec;
 use byteorder::BigEndian;
 use byteorder::ByteOrder;
 use derive_more::Display;
@@ -80,6 +81,7 @@ pub struct RemotePeer {
     pub supported_extensions: ExtensionFlags,
     pub extensions: ExtensionRegistry,
     pub client_name: Option<String>,
+    pub pieces: BitVec,
 }
 
 #[derive(Debug, Display, Clone, PartialEq)]
@@ -457,7 +459,8 @@ impl Peer {
     async fn send_initial_messages(&self) -> Result<()> {
         let extensions = self.remote_supported_extensions().await;
 
-        if extensions.contains(ExtensionFlags::Extensions) {
+        // TODO: send the bitfield if we know it
+        if extensions.contains(ExtensionFlags::LTEP) {
             self.inner.send_extended_handshake().await?;
         }
         if extensions.contains(ExtensionFlags::Fast) {
@@ -502,12 +505,12 @@ impl Peer {
 }
 
 impl Callbacks<PeerEvent> for Peer {
-    fn add(&self, callback: CoreCallback<PeerEvent>) -> CallbackHandle {
-        self.inner.add(callback)
+    fn add_callback(&self, callback: CoreCallback<PeerEvent>) -> CallbackHandle {
+        self.inner.add_callback(callback)
     }
 
-    fn remove(&self, handle: CallbackHandle) {
-        self.inner.remove(handle)
+    fn remove_callback(&self, handle: CallbackHandle) {
+        self.inner.remove_callback(handle)
     }
 }
 
@@ -755,6 +758,7 @@ impl InnerPeer {
                 self.update_remote_peer_choke_state(ChokeState::UnChoked)
                     .await
             }
+            Message::Bitfield(pieces) => self.update_remote_pieces(pieces).await,
             Message::ExtendedHandshake(handshake) => {
                 self.update_extended_handshake(handshake).await
             }
@@ -784,6 +788,7 @@ impl InnerPeer {
                 supported_extensions: handshake.supported_extensions,
                 extensions: ExtensionRegistry::default(),
                 client_name: None,
+                pieces: BitVec::with_capacity(0),
             });
         }
 
@@ -804,6 +809,20 @@ impl InnerPeer {
         debug!("Updated peer {} state to {:?}", self, state);
 
         self.invoke_event(PeerEvent::StateChanged(state)).await;
+    }
+
+    async fn update_remote_pieces(&self, pieces: BitVec) {
+        {
+            let mut mutex = self.remote.write().await;
+            if let Some(remote) = mutex.as_mut() {
+                remote.pieces = pieces;
+                // drop the mutex as the Display impl requires it to print the info of the remote peer
+                drop(mutex);
+                debug!("Updated peer {} with remote pieces information", self);
+            } else {
+                warn!("Received bitfield before the initial handshake was completed");
+            }
+        }
     }
 
     async fn update_extended_handshake(&self, handshake: ExtendedHandshake) {
@@ -832,11 +851,8 @@ impl InnerPeer {
         self.update_state(PeerState::Handshake).await;
         let torrent_info = self.torrent.metadata().await?;
 
-        let handshake = Handshake::new(
-            torrent_info.info_hash,
-            self.client_id,
-            ExtensionFlags::Extensions,
-        );
+        let handshake =
+            Handshake::new(torrent_info.info_hash, self.client_id, ExtensionFlags::LTEP);
         trace!("Trying to send handshake {:?}", handshake);
         match self
             .send_raw_bytes(TryInto::<Vec<u8>>::try_into(handshake)?)
@@ -945,12 +961,12 @@ impl InnerPeer {
 }
 
 impl Callbacks<PeerEvent> for InnerPeer {
-    fn add(&self, callback: CoreCallback<PeerEvent>) -> CallbackHandle {
-        self.callbacks.add(callback)
+    fn add_callback(&self, callback: CoreCallback<PeerEvent>) -> CallbackHandle {
+        self.callbacks.add_callback(callback)
     }
 
-    fn remove(&self, handle: CallbackHandle) {
-        self.callbacks.remove(handle)
+    fn remove_callback(&self, handle: CallbackHandle) {
+        self.callbacks.remove_callback(handle)
     }
 }
 
@@ -1005,7 +1021,7 @@ mod tests {
 
     use super::*;
     use crate::torrents::peers::extensions::metadata::MetadataExtension;
-    use crate::torrents::{Torrent, TorrentInfo, TorrentRequest};
+    use crate::torrents::{Torrent, TorrentFlags, TorrentInfo, TorrentRequest};
 
     #[test]
     fn test_peer_new_outbound() {
@@ -1015,11 +1031,11 @@ mod tests {
         let runtime = Arc::new(Runtime::new().unwrap());
         let request = TorrentRequest {
             metadata: torrent_info.clone(),
-            options: Default::default(),
+            options: TorrentFlags::None,
             peer_listener_port: 6881,
-            extensions: vec![],
-            peer_timeout: Some(Duration::from_secs(1)),
-            tracker_timeout: None,
+            extensions: vec![Box::new(MetadataExtension::new())],
+            peer_timeout: Some(Duration::from_secs(2)),
+            tracker_timeout: Some(Duration::from_secs(2)),
             runtime: Some(runtime.clone()),
         };
         let torrent = Torrent::try_from(request).unwrap();

@@ -7,11 +7,11 @@ use log::{debug, error, info, trace, warn};
 use souvlaki::{MediaControlEvent, MediaControls, MediaMetadata, MediaPlayback, PlatformConfig};
 use tokio::sync::{Mutex, MutexGuard};
 
-use popcorn_fx_core::core::{Callbacks, CoreCallbacks};
 use popcorn_fx_core::core::platform::{
     Platform, PlatformCallback, PlatformData, PlatformEvent, PlatformInfo, PlatformType,
 };
 use popcorn_fx_core::core::playback::{MediaInfo, MediaNotificationEvent};
+use popcorn_fx_core::core::{Callbacks, CoreCallbacks};
 
 #[cfg(target_os = "linux")]
 use crate::platform::platform_linux::PlatformLinux;
@@ -185,7 +185,7 @@ impl Platform for DefaultPlatform {
     }
 
     fn register(&self, callback: PlatformCallback) {
-        self.callbacks.add(callback);
+        self.callbacks.add_callback(callback);
     }
 }
 
@@ -358,7 +358,7 @@ mod test {
         let callbacks = Arc::new(CoreCallbacks::default());
         let event = MediaControlEvent::Play;
 
-        callbacks.add(Box::new(move |event| tx.send(event).unwrap()));
+        callbacks.add_callback(Box::new(move |event| tx.send(event).unwrap()));
         DefaultPlatform::handle_media_event(event, &callbacks.clone());
 
         let result = rx.recv_timeout(Duration::from_millis(100)).unwrap();
@@ -371,7 +371,7 @@ mod test {
         let callbacks = Arc::new(CoreCallbacks::default());
         let event = MediaControlEvent::Pause;
 
-        callbacks.add(Box::new(move |event| tx.send(event).unwrap()));
+        callbacks.add_callback(Box::new(move |event| tx.send(event).unwrap()));
         DefaultPlatform::handle_media_event(event, &callbacks.clone());
 
         let result = rx.recv_timeout(Duration::from_millis(100)).unwrap();
@@ -384,7 +384,7 @@ mod test {
         let callbacks = Arc::new(CoreCallbacks::default());
         let event = MediaControlEvent::Next;
 
-        callbacks.add(Box::new(move |event| tx.send(event).unwrap()));
+        callbacks.add_callback(Box::new(move |event| tx.send(event).unwrap()));
         DefaultPlatform::handle_media_event(event, &callbacks.clone());
 
         let result = rx.recv_timeout(Duration::from_millis(100)).unwrap();

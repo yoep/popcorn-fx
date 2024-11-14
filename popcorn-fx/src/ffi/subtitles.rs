@@ -152,7 +152,7 @@ pub extern "C" fn register_subtitle_callback(
         callback(event_c)
     });
 
-    popcorn_fx.subtitle_manager().add(wrapper);
+    popcorn_fx.subtitle_manager().add_callback(wrapper);
 }
 
 /// Clean the subtitles directory.

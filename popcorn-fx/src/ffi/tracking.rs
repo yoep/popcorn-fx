@@ -37,10 +37,12 @@ pub extern "C" fn register_tracking_provider_callback(
     callback: TrackingEventCCallback,
 ) {
     trace!("Registering new tracking provider callback for C");
-    popcorn_fx.tracking_provider().add(Box::new(move |event| {
-        trace!("Invoking tracking event C for {:?}", event);
-        callback(TrackingEventC::from(event));
-    }));
+    popcorn_fx
+        .tracking_provider()
+        .add_callback(Box::new(move |event| {
+            trace!("Invoking tracking event C for {:?}", event);
+            callback(TrackingEventC::from(event));
+        }));
 }
 
 /// Checks if the current tracking provider is authorized.
@@ -110,10 +112,10 @@ mod tests {
     use tempfile::tempdir;
     use url::Url;
 
-    use popcorn_fx_core::{assert_timeout_eq, from_c_string};
     use popcorn_fx_core::core::block_in_place;
     use popcorn_fx_core::core::config::Tracker;
     use popcorn_fx_core::testing::init_logger;
+    use popcorn_fx_core::{assert_timeout_eq, from_c_string};
 
     use crate::test::new_instance;
 

@@ -3,8 +3,8 @@ use std::ptr;
 
 use log::{debug, error, info, trace, warn};
 
-use popcorn_fx_core::{from_c_string, into_c_owned};
 use popcorn_fx_core::core::players::{Player, PlayerEvent};
+use popcorn_fx_core::{from_c_string, into_c_owned};
 
 use crate::ffi::{
     PlayerC, PlayerEventC, PlayerManagerEventC, PlayerManagerEventCallback, PlayerRegistrationC,
@@ -415,16 +415,16 @@ pub extern "C" fn dispose_player(player: Box<PlayerC>) {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
     use std::sync::mpsc::channel;
+    use std::sync::Arc;
     use std::time::Duration;
 
     use tempfile::tempdir;
 
-    use popcorn_fx_core::{from_c_owned, from_c_vec, into_c_string, into_c_vec};
-    use popcorn_fx_core::core::Callbacks;
     use popcorn_fx_core::core::players::{PlayerManagerEvent, PlayerState};
+    use popcorn_fx_core::core::Callbacks;
     use popcorn_fx_core::testing::{init_logger, MockPlayer};
+    use popcorn_fx_core::{from_c_owned, from_c_vec, into_c_string, into_c_vec};
 
     use crate::ffi::PlayRequestC;
     use crate::test::default_args;
@@ -640,7 +640,7 @@ mod tests {
             stop_callback: stop_registration_callback,
         });
         let (tx, rx) = channel();
-        player.add(Box::new(move |e| {
+        player.add_callback(Box::new(move |e| {
             tx.send(e).unwrap();
         }));
         let event_c = PlayerEventC::DurationChanged(expected_result.clone());

@@ -284,7 +284,7 @@ impl FavoriteService for DefaultFavoriteService {
     }
 
     fn register(&self, callback: FavoriteCallback) {
-        self.callbacks.add(callback);
+        self.callbacks.add_callback(callback);
     }
 }
 

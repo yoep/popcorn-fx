@@ -312,7 +312,7 @@ impl Session for DefaultSession {
             .ok_or(TorrentError::InvalidHandle(handle))?;
         let (tx, rx) = channel();
 
-        torrent.add(Box::new(move |event| {
+        torrent.add_callback(Box::new(move |event| {
             tx.send(event).unwrap();
         }));
 
@@ -346,12 +346,12 @@ impl Session for DefaultSession {
 }
 
 impl Callbacks<SessionEvent> for DefaultSession {
-    fn add(&self, callback: CoreCallback<SessionEvent>) -> CallbackHandle {
-        self.inner.add(callback)
+    fn add_callback(&self, callback: CoreCallback<SessionEvent>) -> CallbackHandle {
+        self.inner.add_callback(callback)
     }
 
-    fn remove(&self, handle: CallbackHandle) {
-        self.inner.remove(handle)
+    fn remove_callback(&self, handle: CallbackHandle) {
+        self.inner.remove_callback(handle)
     }
 }
 
@@ -449,12 +449,12 @@ impl InnerSession {
 }
 
 impl Callbacks<SessionEvent> for InnerSession {
-    fn add(&self, callback: CoreCallback<SessionEvent>) -> CallbackHandle {
-        self.callbacks.add(callback)
+    fn add_callback(&self, callback: CoreCallback<SessionEvent>) -> CallbackHandle {
+        self.callbacks.add_callback(callback)
     }
 
-    fn remove(&self, handle: CallbackHandle) {
-        self.callbacks.remove(handle)
+    fn remove_callback(&self, handle: CallbackHandle) {
+        self.callbacks.remove_callback(handle)
     }
 }
 
@@ -487,8 +487,8 @@ pub mod tests {
         }
 
         impl Callbacks<SessionEvent> for Session {
-            fn add(&self, callback: CoreCallback<SessionEvent>) -> CallbackHandle;
-            fn remove(&self, handle: CallbackHandle);
+            fn add_callback(&self, callback: CoreCallback<SessionEvent>) -> CallbackHandle;
+            fn remove_callback(&self, handle: CallbackHandle);
         }
     }
 
@@ -566,7 +566,7 @@ pub mod tests {
             .block_on(DefaultSession::new(vec![], runtime.clone()))
             .unwrap();
 
-        session.add(Box::new(move |event| {
+        session.add_callback(Box::new(move |event| {
             tx.send(event).unwrap();
         }));
 
@@ -589,7 +589,7 @@ pub mod tests {
             .block_on(DefaultSession::new(vec![], runtime.clone()))
             .unwrap();
 
-        session.add(Box::new(move |event| {
+        session.add_callback(Box::new(move |event| {
             tx.send(event).unwrap();
         }));
         let handle = runtime

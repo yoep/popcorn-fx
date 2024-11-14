@@ -425,8 +425,8 @@ pub mod testing {
         }
 
         impl Callbacks<PlayerEvent> for Player {
-            fn add(&self, callback: CoreCallback<PlayerEvent>) -> CallbackHandle;
-            fn remove(&self, handle: CallbackHandle);
+            fn add_callback(&self, callback: CoreCallback<PlayerEvent>) -> CallbackHandle;
+            fn remove_callback(&self, handle: CallbackHandle);
         }
     }
 
@@ -451,8 +451,8 @@ pub mod testing {
         }
 
          impl Callbacks<SubtitleEvent> for SubtitleManager {
-            fn add(&self, callback: CoreCallback<SubtitleEvent>) -> CallbackHandle;
-            fn remove(&self, handle: CallbackHandle);
+            fn add_callback(&self, callback: CoreCallback<SubtitleEvent>) -> CallbackHandle;
+            fn remove_callback(&self, handle: CallbackHandle);
         }
     }
 

@@ -5,7 +5,8 @@ use rand::Rng;
 
 /// A unique opaque handle which can be used as resource identifier.
 ///
-/// Handles are commonly used to uniquely identify objects or resources within a system. This `Handle` struct provides a convenient way to generate and manage unique handles.
+/// Handles are commonly used to uniquely identify objects or resources within a system.
+/// This `Handle` struct provides a convenient way to generate and manage unique handles.
 ///
 /// # Example
 ///

@@ -87,12 +87,12 @@ impl DefaultSubtitleManager {
 }
 
 impl Callbacks<SubtitleEvent> for DefaultSubtitleManager {
-    fn add(&self, callback: CoreCallback<SubtitleEvent>) -> CallbackHandle {
-        self.inner.add(callback)
+    fn add_callback(&self, callback: CoreCallback<SubtitleEvent>) -> CallbackHandle {
+        self.inner.add_callback(callback)
     }
 
-    fn remove(&self, handle: CallbackHandle) {
-        self.inner.remove(handle)
+    fn remove_callback(&self, handle: CallbackHandle) {
+        self.inner.remove_callback(handle)
     }
 }
 
@@ -185,12 +185,12 @@ impl InnerSubtitleManager {
 }
 
 impl Callbacks<SubtitleEvent> for InnerSubtitleManager {
-    fn add(&self, callback: CoreCallback<SubtitleEvent>) -> CallbackHandle {
-        self.callbacks.add(callback)
+    fn add_callback(&self, callback: CoreCallback<SubtitleEvent>) -> CallbackHandle {
+        self.callbacks.add_callback(callback)
     }
 
-    fn remove(&self, handle: CallbackHandle) {
-        self.callbacks.remove(handle)
+    fn remove_callback(&self, handle: CallbackHandle) {
+        self.callbacks.remove_callback(handle)
     }
 }
 

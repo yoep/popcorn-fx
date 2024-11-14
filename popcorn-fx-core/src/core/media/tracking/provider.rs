@@ -6,10 +6,10 @@ use derive_more::Display;
 use mockall::mock;
 use thiserror::Error;
 
-use crate::core::{Callbacks, CoreCallback};
+use crate::core::media::MediaIdentifier;
 #[cfg(any(test, feature = "testing"))]
 use crate::core::CallbackHandle;
-use crate::core::media::MediaIdentifier;
+use crate::core::{Callbacks, CoreCallback};
 
 /// Represents errors that can occur during authorization.
 #[derive(Debug, Clone, Error, PartialEq)]
@@ -110,7 +110,7 @@ mock! {
     }
 
     impl Callbacks<TrackingEvent> for TrackingProvider {
-        fn add(&self, callback: CoreCallback<TrackingEvent>) -> CallbackHandle;
-        fn remove(&self, handle: CallbackHandle);
+        fn add_callback(&self, callback: CoreCallback<TrackingEvent>) -> CallbackHandle;
+        fn remove_callback(&self, handle: CallbackHandle);
     }
 }

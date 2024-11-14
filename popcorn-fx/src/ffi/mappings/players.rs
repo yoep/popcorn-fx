@@ -176,12 +176,12 @@ impl PlayerWrapper {
 }
 
 impl Callbacks<PlayerEvent> for PlayerWrapper {
-    fn add(&self, callback: CoreCallback<PlayerEvent>) -> CallbackHandle {
-        self.callbacks.add(callback)
+    fn add_callback(&self, callback: CoreCallback<PlayerEvent>) -> CallbackHandle {
+        self.callbacks.add_callback(callback)
     }
 
-    fn remove(&self, callback_id: CallbackHandle) {
-        self.callbacks.remove(callback_id)
+    fn remove_callback(&self, callback_id: CallbackHandle) {
+        self.callbacks.remove_callback(callback_id)
     }
 }
 

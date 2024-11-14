@@ -59,12 +59,12 @@ impl VlcPlayer {
 }
 
 impl Callbacks<PlayerEvent> for VlcPlayer {
-    fn add(&self, callback: CoreCallback<PlayerEvent>) -> CallbackHandle {
-        self.inner.add(callback)
+    fn add_callback(&self, callback: CoreCallback<PlayerEvent>) -> CallbackHandle {
+        self.inner.add_callback(callback)
     }
 
-    fn remove(&self, handle: CallbackHandle) {
-        self.inner.remove(handle)
+    fn remove_callback(&self, handle: CallbackHandle) {
+        self.inner.remove_callback(handle)
     }
 }
 
@@ -373,12 +373,12 @@ impl InnerVlcPlayer {
 }
 
 impl Callbacks<PlayerEvent> for InnerVlcPlayer {
-    fn add(&self, callback: CoreCallback<PlayerEvent>) -> CallbackHandle {
-        self.callbacks.add(callback)
+    fn add_callback(&self, callback: CoreCallback<PlayerEvent>) -> CallbackHandle {
+        self.callbacks.add_callback(callback)
     }
 
-    fn remove(&self, handle: CallbackHandle) {
-        self.callbacks.remove(handle)
+    fn remove_callback(&self, handle: CallbackHandle) {
+        self.callbacks.remove_callback(handle)
     }
 }
 
@@ -768,7 +768,7 @@ mod tests {
             .address(server.address().clone())
             .build();
 
-        player.add(Box::new(move |event| match event {
+        player.add_callback(Box::new(move |event| match event {
             PlayerEvent::DurationChanged(e) => tx_duration.send(e).unwrap(),
             PlayerEvent::TimeChanged(e) => tx_time.send(e).unwrap(),
             PlayerEvent::StateChanged(e) => tx_status.send(e).unwrap(),

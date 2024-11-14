@@ -7,11 +7,11 @@ use mockall::automock;
 use tokio::runtime::Handle;
 use tokio::sync::Mutex;
 
-use crate::core::{block_in_place, Callbacks, CoreCallbacks, events, media};
 use crate::core::events::{Event, EventPublisher, PlayerStoppedEvent};
-use crate::core::media::{MediaError, MediaIdentifier, MediaType};
 use crate::core::media::watched::Watched;
+use crate::core::media::{MediaError, MediaIdentifier, MediaType};
 use crate::core::storage::{Storage, StorageError};
+use crate::core::{block_in_place, events, media, Callbacks, CoreCallbacks};
 
 const FILENAME: &str = "watched.json";
 const WATCHED_PERCENTAGE_THRESHOLD: f64 = 85 as f64;
@@ -377,7 +377,7 @@ impl WatchedService for InnerWatchedService {
     }
 
     fn register(&self, callback: WatchedCallback) {
-        self.callbacks.add(callback);
+        self.callbacks.add_callback(callback);
     }
 }
 

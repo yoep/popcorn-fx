@@ -15,8 +15,11 @@ pub const V2_HASH_IDENTIFIER: &str = "btmh";
 /// Represents the available protocol versions of the BitTorrent protocol.
 pub const PROTOCOL_VERSIONS: [ProtocolVersion; 2] = [ProtocolVersion::V1, ProtocolVersion::V2];
 
-/// Represent the v1 info hash type of the BitTorrent protocol.
+/// Represent the v1 hash type of the BitTorrent protocol.
 pub type Sha1Hash = [u8; 20];
+
+/// Represent the v2 hash type of the BitTorrent protocol.
+pub type Sha256Hash = [u8; 32];
 
 /// Represents the unique identifier for a torrent's metadata.
 /// It can contain both v1 (SHA1) and v2 (SHA256) hashes.
@@ -81,7 +84,7 @@ impl InfoHash {
     /// # Returns
     ///
     /// Returns the info hash as a 20-byte array.
-    pub fn short_info_hash_bytes(&self) -> [u8; 20] {
+    pub fn short_info_hash_bytes(&self) -> Sha1Hash {
         let mut info_hash_bytes = [0u8; 20];
 
         if let Some(hash) = self.hash_v1() {
@@ -94,25 +97,26 @@ impl InfoHash {
         info_hash_bytes
     }
 
-    /// Try to parse the given peer handshake bytes into an `InfoHash`.
-    /// This should only be used by peer implementations which want to validate an incoming handshake.
+    /// Try to parse the given hash bytes into an `InfoHash`.
+    /// This should only be used by peer implementations or piece calculations,
+    /// which want to validate an incoming handshake or piece data.
     ///
     /// # Returns
     ///
-    /// Returns the info hash if the given handshake bytes are a valid v1 or v2 info hash.
-    pub fn from_peer_handshake<T>(bytes: T) -> Result<Self>
+    /// Returns the info hash if the given bytes are a valid v1 or v2 info hash.
+    pub fn try_from_bytes<T>(bytes: T) -> Result<Self>
     where
         T: AsRef<[u8]>,
     {
         if bytes.as_ref().len() == 20 {
-            let mut hash: [u8; 20] = [0; 20];
+            let mut hash: Sha1Hash = [0; 20];
             hash.copy_from_slice(bytes.as_ref());
             return Ok(Self {
                 v1: Some(hash),
                 v2: None,
             });
         } else if bytes.as_ref().len() == 32 {
-            let mut hash: [u8; 32] = [0; 32];
+            let mut hash: Sha256Hash = [0; 32];
             hash.copy_from_slice(bytes.as_ref());
             return Ok(Self {
                 v1: None,
@@ -123,6 +127,61 @@ impl InfoHash {
         Err(TorrentError::InvalidInfoHash(
             "invalid info hash length".to_string(),
         ))
+    }
+
+    /// Create the info from the given v1 bencoded metadata bytes.
+    ///
+    /// # Arguments
+    ///
+    /// * `bytes` - The bencoded metadata bytes.
+    ///
+    /// # Returns
+    ///
+    /// Returns the info hash for the metadata bytes.
+    pub fn from_metadata_v1<T>(bytes: T) -> Self
+    where
+        T: AsRef<[u8]>,
+    {
+        Self::from_metadata(bytes, false)
+    }
+
+    /// Create the info from the given v2 bencoded metadata bytes.
+    /// This will result in both a v1 & v2 hash being created.
+    ///
+    /// # Arguments
+    ///
+    /// * `bytes` - The bencoded metadata bytes.
+    ///
+    /// # Returns
+    ///
+    /// Returns the info hash for the metadata bytes.
+    pub fn from_metadata_v2<T>(bytes: T) -> Self
+    where
+        T: AsRef<[u8]>,
+    {
+        Self::from_metadata(bytes, true)
+    }
+
+    fn from_metadata<T>(bytes: T, is_v2: bool) -> Self
+    where
+        T: AsRef<[u8]>,
+    {
+        let v1_hasher = Sha1::digest(bytes.as_ref());
+        let mut v1_hash = [0; 20];
+        let mut v2_hash = None;
+
+        v1_hash.copy_from_slice(&v1_hasher[..20]);
+
+        if is_v2 {
+            let v2_hasher = Sha256::digest(bytes.as_ref());
+            v2_hash = Some(v2_hasher.to_vec());
+        }
+
+        trace!("Info hash v1: {:?}, v2: {:?} ", v1_hash, v2_hash);
+        Self {
+            v1: Some(v1_hash),
+            v2: v2_hash,
+        }
     }
 
     /// Try to parse the given v1 info hash into an `InfoHash`.
@@ -257,33 +316,6 @@ impl Display for InfoHash {
             write!(f, "{}", hex::encode(v2).to_uppercase())
         } else {
             write!(f, "INVALID INFO HASH")
-        }
-    }
-}
-
-impl<T> From<T> for InfoHash
-where
-    T: AsRef<[u8]>,
-{
-    /// Converts the given data into an `InfoHash` containing both v1 (SHA1) and v2 (SHA256) hashes.
-    ///
-    /// # Arguments
-    ///
-    /// * `info_data` - The data from which to generate the info hashes.
-    ///
-    /// # Returns
-    ///
-    /// An `InfoHash` struct containing the computed v1 and v2 hashes.
-    fn from(info_data: T) -> Self {
-        let v1_hasher = Sha1::digest(info_data.as_ref());
-        let v2_hash = Sha256::digest(info_data.as_ref());
-
-        let mut v1_hash = [0; 20];
-        v1_hash.copy_from_slice(&v1_hasher[..20]);
-        trace!("Info hash v1: {:?}, v2: {:?} ", v1_hash, v2_hash);
-        Self {
-            v1: Some(v1_hash),
-            v2: Some(v2_hash.to_vec()),
         }
     }
 }
@@ -429,19 +461,16 @@ mod tests {
     use popcorn_fx_core::testing::{init_logger, read_test_file_to_bytes};
 
     #[test]
-    fn test_info_hash_from() {
+    fn test_info_hash_from_metadata_v1() {
         init_logger();
         let info_data = b"hello world";
         let mut expected_result: [u8; 20] = [0; 20];
         expected_result.copy_from_slice(hex!("2aae6c35c94fcfb415dbe95f408b9ce91ee846ed").as_ref());
 
-        let result = InfoHash::from(info_data);
+        let result = InfoHash::from_metadata_v1(info_data);
 
         assert_eq!(Some(expected_result), result.hash_v1());
-        assert_eq!(
-            Some(hex!("b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9").as_ref()),
-            result.hash_v2()
-        );
+        assert_eq!(None, result.hash_v2());
     }
 
     #[test]

@@ -1,43 +1,79 @@
-use std::fmt::{Debug, Display, Formatter};
-use std::io::{Cursor, Read, Write};
-
 use super::{Error, PeerId, Result};
 use crate::torrents::peers::extensions::{ExtensionNumber, ExtensionRegistry};
 use crate::torrents::InfoHash;
+use bit_vec::BitVec;
 use bitmask_enum::bitmask;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use log::trace;
 use serde::{Deserialize, Serialize};
+use std::fmt::{Debug, Display, Formatter};
+use std::io::{Cursor, Read, Write};
 use tokio_util::bytes::Buf;
 
 pub const PROTOCOL: &str = "BitTorrent protocol";
+const EXTENSION_BIT_AZUREUS: u8 = 0x80;
+const EXTENSION_BIT_LTEP: u8 = 0x10;
+const EXTENSION_BIT_ENP: u8 = 0x02;
+const EXTENSION_BIT_DHT: u8 = 0x01;
+const EXTENSION_BIT_XBT: u8 = 0x02;
+const EXTENSION_BIT_FAST: u8 = 0x04;
+const EXTENSION_BIT_NAT: u8 = 0x08;
+const EXTENSION_BIT_V2_UPGRADE: u8 = 0x10;
 
-#[bitmask(u8)]
+/// The extension flags of the protocol.
+/// See BEP4 (https://www.bittorrent.org/beps/bep_0004.html) for more info.
+///
+/// _The known collisions mentioned in BEP4, are ignored within these flags._
+#[bitmask(u16)]
 #[bitmask_config(vec_debug, flags_iter)]
 pub enum ExtensionFlags {
     None,
+    /// Azureus Messaging Protocol
+    Azureus,
+    /// Libtorrent Extension Protocol, aka Extensions
+    LTEP,
+    /// Extension Negotiation Protocol
+    ENP,
+    /// BitTorrent DHT
     Dht,
+    /// XBT Peer Exchange
+    XbtPeerExchange,
+    /// suggest, haveall, havenone, reject request, and allow fast extensions
     Fast,
+    /// NAT Traversal
+    Nat,
+    /// hybrid torrent legacy to v2 upgrade
     SupportV2,
-    Extensions,
 }
 
 impl Into<[u8; 8]> for ExtensionFlags {
     fn into(self) -> [u8; 8] {
         let mut bit_array = [0; 8];
 
-        // if self.contains(ExtensionFlag::Dht) {
-        //     bit_array[7] |= 0x01;
-        // }
-        if self.contains(ExtensionFlags::Extensions) {
-            bit_array[5] |= 0x10;
+        if self.contains(Self::Azureus) {
+            bit_array[0] |= EXTENSION_BIT_AZUREUS;
         }
-        if self.contains(ExtensionFlags::Fast) {
-            bit_array[7] |= 0x04;
+        if self.contains(Self::LTEP) {
+            bit_array[5] |= EXTENSION_BIT_LTEP;
         }
-        // if self.contains(ExtensionFlag::SupportV2) {
-        //     bit_array[7] |= 0x10;
-        // }
+        if self.contains(Self::ENP) {
+            bit_array[5] |= EXTENSION_BIT_ENP;
+        }
+        if self.contains(Self::Dht) {
+            bit_array[7] |= EXTENSION_BIT_DHT;
+        }
+        if self.contains(Self::XbtPeerExchange) {
+            bit_array[7] |= EXTENSION_BIT_XBT;
+        }
+        if self.contains(Self::Fast) {
+            bit_array[7] |= EXTENSION_BIT_FAST;
+        }
+        if self.contains(Self::Nat) {
+            bit_array[7] |= EXTENSION_BIT_NAT;
+        }
+        if self.contains(Self::SupportV2) {
+            bit_array[7] |= EXTENSION_BIT_V2_UPGRADE;
+        }
 
         bit_array
     }
@@ -45,19 +81,31 @@ impl Into<[u8; 8]> for ExtensionFlags {
 
 impl From<[u8; 8]> for ExtensionFlags {
     fn from(bits: [u8; 8]) -> Self {
-        let mut flags = ExtensionFlags::None;
+        let mut flags = Self::None;
 
-        if bits[7] & 0x01 == 0x01 {
-            flags |= ExtensionFlags::Dht;
+        if bits[0] & EXTENSION_BIT_AZUREUS == EXTENSION_BIT_AZUREUS {
+            flags |= Self::Azureus;
         }
-        if bits[5] & 0x10 == 0x10 {
-            flags |= ExtensionFlags::Extensions;
+        if bits[5] & EXTENSION_BIT_LTEP == EXTENSION_BIT_LTEP {
+            flags |= Self::LTEP;
         }
-        if bits[7] & 0x04 == 0x04 {
-            flags |= ExtensionFlags::Fast;
+        if bits[5] & EXTENSION_BIT_ENP == EXTENSION_BIT_ENP {
+            flags |= Self::ENP;
         }
-        if bits[7] & 0x10 == 0x10 {
-            flags |= ExtensionFlags::SupportV2;
+        if bits[7] & EXTENSION_BIT_DHT == EXTENSION_BIT_DHT {
+            flags |= Self::Dht;
+        }
+        if bits[7] & EXTENSION_BIT_XBT == EXTENSION_BIT_XBT {
+            flags |= Self::XbtPeerExchange;
+        }
+        if bits[7] & EXTENSION_BIT_FAST == EXTENSION_BIT_FAST {
+            flags |= Self::Fast;
+        }
+        if bits[7] & EXTENSION_BIT_NAT == EXTENSION_BIT_NAT {
+            flags |= Self::Nat;
+        }
+        if bits[7] & EXTENSION_BIT_V2_UPGRADE == EXTENSION_BIT_V2_UPGRADE {
+            flags |= Self::SupportV2;
         }
 
         flags
@@ -68,16 +116,28 @@ impl Display for ExtensionFlags {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let mut extensions = Vec::new();
 
-        if self.contains(ExtensionFlags::Dht) {
+        if self.contains(Self::Azureus) {
+            extensions.push("Azureus");
+        }
+        if self.contains(Self::LTEP) {
+            extensions.push("LTEP");
+        }
+        if self.contains(Self::ENP) {
+            extensions.push("ENP");
+        }
+        if self.contains(Self::Dht) {
             extensions.push("DHT");
         }
-        if self.contains(ExtensionFlags::Extensions) {
-            extensions.push("Extensions");
+        if self.contains(Self::XbtPeerExchange) {
+            extensions.push("XBT");
         }
-        if self.contains(ExtensionFlags::Fast) {
+        if self.contains(Self::Fast) {
             extensions.push("Fast");
         }
-        if self.contains(ExtensionFlags::SupportV2) {
+        if self.contains(Self::Nat) {
+            extensions.push("Nat");
+        }
+        if self.contains(Self::SupportV2) {
             extensions.push("SupportV2");
         }
 
@@ -85,8 +145,10 @@ impl Display for ExtensionFlags {
     }
 }
 
-/// The message types used in the BitTorrent protocol.
+/// These message types are used in the BitTorrent protocol and defined in BEP04.
 /// This is always the first byte of the wire message.
+///
+/// See https://www.bittorrent.org/beps/bep_0004.html for more info.
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum MessageType {
@@ -103,17 +165,23 @@ pub enum MessageType {
     Piece = 7,
     Cancel = 8,
 
+    // BEP5: DHT extension
+    Port = 0x09,
+
     // BEP6: Fast extension
-    HaveAll = 14,
-    HaveNone = 15,
+    Suggest = 0x0D,
+    HaveAll = 0x0E,
+    HaveNone = 0x0F,
+    RejectRequest = 0x10,
+    AllowedFast = 0x11,
 
     // BEP10: Extension Protocol
-    Extended = 20,
+    Extended = 0x14,
 
     // BEP52: The BitTorrent Protocol Specification v2
-    HashRequest = 21,
-    Hashes = 22,
-    HashReject = 23,
+    HashRequest = 0x15,
+    Hashes = 0x16,
+    HashReject = 0x17,
 }
 
 impl TryFrom<u8> for MessageType {
@@ -194,7 +262,7 @@ impl Handshake {
         // read the info hash
         let mut info_hash_bytes: [u8; 20] = [0; 20];
         cursor.read_exact(&mut info_hash_bytes)?;
-        let info_hash = InfoHash::from_peer_handshake(info_hash_bytes)
+        let info_hash = InfoHash::try_from_bytes(info_hash_bytes)
             .map_err(|e| Error::Handshake(e.to_string()))?;
 
         // read the peer id
@@ -240,7 +308,7 @@ pub enum Message {
     Interested,
     NotInterested,
     Have(u32),
-    Bitfield(Vec<bool>),
+    Bitfield(BitVec),
     Request(Request),
     Piece,
     Cancel(Request),
@@ -268,6 +336,15 @@ impl Message {
             Message::HaveAll => MessageType::HaveAll,
             Message::HaveNone => MessageType::HaveNone,
         }
+    }
+
+    /// Convert the message into Bittorrent wire protocol byte array.
+    ///
+    /// # Returns
+    ///
+    /// Returns the byte array of the message.
+    pub fn to_bytes(self) -> Result<Vec<u8>> {
+        self.try_into()
     }
 }
 
@@ -303,23 +380,14 @@ impl TryFrom<&[u8]> for Message {
             MessageType::NotInterested => Ok(Message::NotInterested),
             MessageType::Have => Ok(Message::Have(cursor.read_u32::<BigEndian>()?)),
             MessageType::Bitfield => {
-                let total_pieces = cursor.remaining() * 8;
-                let mut bitfield = vec![false; total_pieces];
-                let mut byte_index: usize = 0;
+                let buffer_len = cursor.remaining();
+                let mut buffer = vec![0u8; buffer_len];
 
-                while cursor.has_remaining() {
-                    let byte = cursor.read_u8()?;
-                    for bit_index in 0..8 {
-                        let has_piece = (byte & (1 << (7 - bit_index))) != 0;
-                        let piece_index = byte_index * 8 + bit_index;
+                cursor.read_exact(&mut buffer).map_err(|e| {
+                    Error::Parsing(format!("failed to read bitfield payload, {}", e))
+                })?;
 
-                        bitfield[piece_index] = has_piece;
-                    }
-
-                    byte_index += 1;
-                }
-
-                Ok(Message::Bitfield(bitfield))
+                Ok(Message::Bitfield(BitVec::from_bytes(&buffer)))
             }
             MessageType::Request => {
                 let request = Request::try_from(cursor)?;
@@ -332,18 +400,23 @@ impl TryFrom<&[u8]> for Message {
             }
             MessageType::Extended => {
                 let extended_id = cursor.read_u8()?;
+                let buffer_len = cursor.remaining();
+                let mut buffer = vec![0u8; buffer_len];
+
+                // read the remaining bytes of the cursor into the buffer
+                cursor.read_exact(&mut buffer).map_err(|e| {
+                    Error::Parsing(format!("failed to read extended message payload, {}", e))
+                })?;
 
                 // if the extension id = 0, then the incoming message is an extended handshake
                 // otherwise it's an extended payload which should be processed by the peer extensions
                 if extended_id == 0 {
-                    let extended = serde_bencode::from_bytes(cursor.chunk())
-                        .map_err(|e| Error::Parsing(e.to_string()))?;
+                    let extended = serde_bencode::from_bytes(&buffer).map_err(|e| {
+                        Error::Parsing(format!("failed to parse extended handshake, {}", e))
+                    })?;
                     Ok(Message::ExtendedHandshake(extended))
                 } else {
-                    Ok(Message::ExtendedPayload(
-                        extended_id,
-                        cursor.chunk().to_vec(),
-                    ))
+                    Ok(Message::ExtendedPayload(extended_id, buffer))
                 }
             }
             MessageType::HaveAll => Ok(Message::HaveAll),
@@ -373,8 +446,9 @@ impl TryInto<Vec<u8>> for Message {
             Message::Have(e) => {
                 buffer.write_u32::<BigEndian>(e)?;
             }
-            Message::Bitfield(e) => {
-                todo!()
+            Message::Bitfield(bitfield) => {
+                let bytes = bitfield.to_bytes();
+                buffer.extend_from_slice(bytes.as_slice());
             }
             Message::Request(e) => {
                 todo!()
@@ -494,10 +568,11 @@ impl TryFrom<Cursor<&[u8]>> for Request {
 mod tests {
     use super::*;
     use popcorn_fx_core::testing::init_logger;
+    use std::str::FromStr;
 
     #[test]
     fn test_handshake_new() {
-        let info_hash = InfoHash::try_from(
+        let info_hash = InfoHash::from_str(
             "urn:btmh:1220cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
         )
         .unwrap();
@@ -515,7 +590,7 @@ mod tests {
 
     #[test]
     fn test_handshake_into_bytes() {
-        let info_hash = InfoHash::try_from(
+        let info_hash = InfoHash::from_str(
             "urn:btmh:1220cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
         )
         .unwrap();
@@ -523,7 +598,7 @@ mod tests {
         let handshake = Handshake::new(
             info_hash,
             peer_id,
-            ExtensionFlags::Dht | ExtensionFlags::Extensions,
+            ExtensionFlags::Dht | ExtensionFlags::LTEP,
         );
 
         let result = TryInto::<Vec<u8>>::try_into(handshake).unwrap();
@@ -589,5 +664,29 @@ mod tests {
         let byte = 97;
         let result = MessageType::try_from(byte);
         assert_eq!(Err(Error::UnsupportedMessage(byte)), result);
+    }
+
+    #[test]
+    fn test_message_keep_alive_to_bytes() {
+        let message = Message::KeepAlive;
+        let expected_result = vec![0u8; 0];
+
+        let result = message.to_bytes().unwrap();
+
+        assert_eq!(expected_result, result);
+    }
+
+    #[test]
+    fn test_message_bitfield_to_bytes() {
+        let mut bitfield = BitVec::from_elem(32, true);
+        bitfield.set(13, false);
+        bitfield.set(27, false);
+        let mut expected_result = vec![MessageType::Bitfield as u8];
+        expected_result.extend_from_slice(&bitfield.to_bytes());
+        let message = Message::Bitfield(bitfield);
+
+        let result = message.to_bytes().unwrap();
+
+        assert_eq!(expected_result, result);
     }
 }

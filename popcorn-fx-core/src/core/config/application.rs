@@ -2,12 +2,12 @@ use derive_more::Display;
 use log::{debug, error, info, trace, warn};
 use tokio::sync::{Mutex, MutexGuard};
 
-use crate::core::{block_in_place, Callbacks, CoreCallback, CoreCallbacks};
 use crate::core::config::{
     ConfigError, PlaybackSettings, PopcornProperties, PopcornSettings, ServerSettings,
     SubtitleSettings, TorrentSettings, Tracker, TrackingSettings, UiSettings,
 };
 use crate::core::storage::Storage;
+use crate::core::{block_in_place, Callbacks, CoreCallback, CoreCallbacks};
 
 const DEFAULT_SETTINGS_FILENAME: &str = "settings.json";
 
@@ -313,7 +313,7 @@ impl ApplicationConfig {
 
     /// Register a new callback with this instance.
     pub fn register(&self, callback: ApplicationConfigCallback) {
-        self.callbacks.add(callback);
+        self.callbacks.add_callback(callback);
     }
 
     /// Save the application settings.
@@ -434,7 +434,7 @@ impl ApplicationConfigBuilder {
     ///     .build();
     /// ```
     pub fn with_callback(self, callback: ApplicationConfigCallback) -> Self {
-        self.callbacks.add(callback);
+        self.callbacks.add_callback(callback);
         self
     }
 

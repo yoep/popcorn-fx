@@ -1,4 +1,4 @@
-use log::{trace, warn};
+use log::{debug, trace, warn};
 use popcorn_fx_core::core::torrents::magnet::Magnet;
 use serde::{Deserialize, Serialize};
 use sha1::{Digest, Sha1};
@@ -10,6 +10,7 @@ use url::Url;
 
 use crate::torrents::errors::{Result, TorrentError};
 use crate::torrents::info_hash::InfoHash;
+use crate::torrents::{Sha1Hash, Sha256Hash};
 
 const VALIDATION_ERR_MISSING_METADATA_FIELDS: &str = "info or info_hash must be set";
 
@@ -106,7 +107,7 @@ pub struct TorrentMetadata {
     /// Length of each piece in bytes.
     #[serde(rename = "piece length")]
     pub piece_length: u64,
-    /// Pieces of the torrent.
+    /// Pieces bytes of the torrent.
     /// Can be empty when the torrent only supports v2, see BEP52.
     #[serde(with = "serde_bytes", default, skip_serializing_if = "Vec::is_empty")]
     pub pieces: Vec<u8>,
@@ -143,7 +144,7 @@ impl TorrentMetadata {
     /// # Returns
     ///
     /// A vector containing the SHA1 hashes of each piece.
-    pub fn sha1_pieces(&self) -> Vec<[u8; 20]> {
+    pub fn sha1_pieces(&self) -> Vec<Sha1Hash> {
         self.pieces
             .as_slice()
             .chunks_exact(20)
@@ -156,10 +157,10 @@ impl TorrentMetadata {
     /// # Returns
     ///
     /// A vector containing the SHA256 hashes of each piece.
-    pub fn sha256_pieces(&self) -> Vec<[u8; 64]> {
+    pub fn sha256_pieces(&self) -> Vec<Sha256Hash> {
         self.pieces
             .as_slice()
-            .chunks_exact(64)
+            .chunks_exact(32)
             .map(|e| e.try_into().unwrap())
             .collect()
     }
@@ -223,8 +224,13 @@ impl TorrentMetadata {
     /// Returns the calculated info hash, or returns an error when the info hash could not be calculated.
     pub fn info_hash(&self) -> Result<InfoHash> {
         let metadata_bytes = serde_bencode::to_bytes(&self)?;
+        let is_v2 = self.meta_version.filter(|e| *e == 2).is_some();
 
-        Ok(InfoHash::from(metadata_bytes))
+        if is_v2 {
+            Ok(InfoHash::from_metadata_v2(metadata_bytes))
+        } else {
+            Ok(InfoHash::from_metadata_v1(metadata_bytes))
+        }
     }
 }
 
@@ -376,6 +382,15 @@ impl TorrentInfo {
         self.name = Some(name.into());
     }
 
+    /// Retrieve the metadata version if known.
+    ///
+    /// # Returns
+    ///
+    /// Returns the metadata version of the torrent info if known, else [None].
+    pub fn metadata_version(&self) -> Option<u64> {
+        self.info.as_ref().and_then(|e| e.meta_version.clone())
+    }
+
     /// Validate the metadata contained within this struct.
     ///
     /// # Returns
@@ -383,12 +398,6 @@ impl TorrentInfo {
     /// Returns nothing when the metadata is valid, else the validation error.
     pub fn validate(&self) -> Result<()> {
         trace!("Validating {:?}", self);
-        // if self.info.is_none() && self.info_hash.is_none() {
-        //     return Err(TorrentError::InvalidMetadata(
-        //         VALIDATION_ERR_MISSING_METADATA_FIELDS.to_string(),
-        //     ));
-        // }
-
         Ok(())
     }
 
@@ -437,6 +446,37 @@ impl TorrentInfo {
         tiered_trackers
     }
 
+    /// Get the total number of pieces which are in the torrent.
+    /// This can only be calculated if the metadata is known.
+    ///
+    /// # Returns
+    ///
+    /// Returns the total number of pieces for the torrent.
+    pub fn num_of_pieces(&self) -> Option<usize> {
+        if let Some(metadata) = &self.info {
+            let file_size = metadata.total_size();
+            let piece_length = metadata.piece_length as usize;
+            let expected_pieces = if self.info_hash.has_v2() {
+                metadata.sha256_pieces().len()
+            } else {
+                metadata.sha1_pieces().len()
+            };
+
+            let num_pieces = (file_size + piece_length - 1) / piece_length;
+
+            if expected_pieces == num_pieces {
+                return Some(num_pieces);
+            }
+
+            debug!(
+                "Unable to determine pieces, expected {} but got {} instead",
+                expected_pieces, num_pieces
+            );
+        }
+
+        None
+    }
+
     /// Calculate the info hash from the metadata of the torrent.
     /// This can only be done when the metadata is available.
     ///
@@ -468,14 +508,22 @@ impl TryFrom<&[u8]> for TorrentInfo {
     /// A Result containing the parsed TorrentInfo if successful,
     /// or a TorrentError if parsing fails.
     fn try_from(value: &[u8]) -> Result<Self> {
-        let mut torrent = serde_bencode::from_bytes::<Self>(value)
+        let mut torrent_info = serde_bencode::from_bytes::<Self>(value)
             .map_err(|e| TorrentError::TorrentParse(e.to_string()))?;
+        // retrieve the metadata version from the metadata info, default to version 1 if unknown
+        let metadata_version = torrent_info.metadata_version().unwrap_or(1);
         // calculate the info hash from the info dict
-        let info_bytes = serde_bencode::to_bytes(&torrent.info)
+        let info_bytes = serde_bencode::to_bytes(&torrent_info.info)
             .map_err(|e| TorrentError::TorrentParse(e.to_string()))?;
+        // calculate the info hash based on the metadata version
+        let info_hash = if metadata_version == 2 {
+            InfoHash::from_metadata_v2(info_bytes)
+        } else {
+            InfoHash::from_metadata_v1(info_bytes)
+        };
 
-        torrent.info_hash = InfoHash::from(info_bytes);
-        Ok(torrent)
+        torrent_info.info_hash = info_hash;
+        Ok(torrent_info)
     }
 }
 

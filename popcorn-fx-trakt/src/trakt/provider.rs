@@ -2,37 +2,37 @@ use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use std::net::{SocketAddr, TcpListener};
 use std::result;
-use std::sync::Arc;
 use std::sync::mpsc::{channel, Sender};
+use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
 use chrono::{Local, Utc};
 use log::{debug, error, info, trace, warn};
-use oauth2::{
-    AuthorizationCode, AuthUrl, ClientId, ClientSecret, CsrfToken, RedirectUrl, TokenResponse,
-    TokenUrl,
-};
 use oauth2::basic::{BasicClient, BasicTokenResponse};
 use oauth2::reqwest::async_http_client;
-use reqwest::Client;
+use oauth2::{
+    AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken, RedirectUrl, TokenResponse,
+    TokenUrl,
+};
 use reqwest::header::HeaderMap;
+use reqwest::Client;
 use thiserror::Error;
 use tokio::runtime::Runtime;
-use tokio::sync::{Mutex, oneshot};
+use tokio::sync::{oneshot, Mutex};
 use url::Url;
-use warp::Filter;
 use warp::http::Response;
+use warp::Filter;
 
-use popcorn_fx_core::core::{
-    block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks,
-};
 use popcorn_fx_core::core::config::{
     ApplicationConfig, Tracker, TrackingClientProperties, TrackingProperties,
 };
-use popcorn_fx_core::core::media::MediaIdentifier;
 use popcorn_fx_core::core::media::tracking::{
     AuthorizationError, OpenAuthorization, TrackingError, TrackingEvent, TrackingProvider,
+};
+use popcorn_fx_core::core::media::MediaIdentifier;
+use popcorn_fx_core::core::{
+    block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks,
 };
 
 use crate::trakt::{AddToWatchList, Movie, MovieId, WatchedMovie};
@@ -249,12 +249,12 @@ impl TraktProvider {
 }
 
 impl Callbacks<TrackingEvent> for TraktProvider {
-    fn add(&self, callback: CoreCallback<TrackingEvent>) -> CallbackHandle {
-        self.callbacks.add(callback)
+    fn add_callback(&self, callback: CoreCallback<TrackingEvent>) -> CallbackHandle {
+        self.callbacks.add_callback(callback)
     }
 
-    fn remove(&self, handle: CallbackHandle) {
-        self.callbacks.remove(handle)
+    fn remove_callback(&self, handle: CallbackHandle) {
+        self.callbacks.remove_callback(handle)
     }
 }
 
@@ -446,8 +446,8 @@ struct AuthCallbackResult {
 mod tests {
     use httpmock::Method::{GET, POST};
     use httpmock::MockServer;
-    use reqwest::Client;
     use reqwest::header::CONTENT_TYPE;
+    use reqwest::Client;
     use tempfile::tempdir;
     use url::Url;
 

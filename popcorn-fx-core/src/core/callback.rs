@@ -27,14 +27,14 @@ where
     /// ```no_run
     /// use popcorn_fx_core::core::CoreCallbacks;
     ///
-    /// let event_handler = CoreCallbacks::new();
+    /// let event_handler = CoreCallbacks::default();
     /// let callback_id = event_handler.add(|event| {
     ///     // Your callback logic here
     /// });
     /// ```
     ///
     /// The `callback_handle` can be used to later remove the callback if needed.
-    fn add(&self, callback: CoreCallback<E>) -> CallbackHandle;
+    fn add_callback(&self, callback: CoreCallback<E>) -> CallbackHandle;
 
     /// Removes a callback from the event handler using its associated identifier.
     ///
@@ -47,7 +47,7 @@ where
     /// ```no_run
     /// use popcorn_fx_core::core::CoreCallbacks;
     ///
-    /// let event_handler = CoreCallbacks::new();
+    /// let event_handler = CoreCallbacks::default();
     /// let callback_handle = event_handler.add(|event| {
     ///     // Your callback logic here
     /// });
@@ -58,7 +58,7 @@ where
     ///
     /// If the provided `callback_handle` does not correspond to any registered callback, this
     /// function should have no effect.
-    fn remove(&self, handle: CallbackHandle);
+    fn remove_callback(&self, handle: CallbackHandle);
 }
 
 /// The callback type which handles callbacks for changes within the Popcorn FX.
@@ -81,7 +81,7 @@ pub type CoreCallback<E> = Box<dyn Fn(E) + Send>;
 /// let callback: CallbackExample = Box::new(|e| println!("received {:?}", e));
 /// let callbacks = CoreCallbacks::<CoreEvent>::default();
 ///
-/// callbacks.add(callback);
+/// callbacks.add_callback(callback);
 /// callbacks.invoke(CoreEvent::Change);
 /// ```
 #[derive(Clone)]
@@ -116,7 +116,7 @@ impl<E: Display + Clone> CoreCallbacks<E> {
 }
 
 impl<E: Display + Clone> Callbacks<E> for CoreCallbacks<E> {
-    fn add(&self, callback: CoreCallback<E>) -> CallbackHandle {
+    fn add_callback(&self, callback: CoreCallback<E>) -> CallbackHandle {
         trace!("Registering new callback to CoreCallbacks");
         let handle = Handle::new();
         let mut mutex = block_in_place(self.callbacks.lock());
@@ -132,7 +132,7 @@ impl<E: Display + Clone> Callbacks<E> for CoreCallbacks<E> {
         handle
     }
 
-    fn remove(&self, handle: CallbackHandle) {
+    fn remove_callback(&self, handle: CallbackHandle) {
         trace!("Removing callback from CoreCallbacks");
         let callbacks = self.callbacks.clone();
         let mut mutex = block_in_place(callbacks.lock());
@@ -194,7 +194,7 @@ mod test {
             value: "lorem".to_string(),
         };
 
-        callbacks.add(Box::new(move |e| {
+        callbacks.add_callback(Box::new(move |e| {
             tx.send(e).unwrap();
         }));
         callbacks.invoke(event.clone());
@@ -209,12 +209,12 @@ mod test {
         init_logger();
         let callbacks = CoreCallbacks::<Event>::default();
 
-        let id = callbacks.add(Box::new(move |_| {}));
+        let id = callbacks.add_callback(Box::new(move |_| {}));
         let e = block_in_place(callbacks.callbacks.lock());
         assert_eq!(1, e.len());
         drop(e);
 
-        callbacks.remove(id);
+        callbacks.remove_callback(id);
         let e = block_in_place(callbacks.callbacks.lock());
         assert_eq!(0, e.len());
     }
@@ -224,7 +224,7 @@ mod test {
         init_logger();
         let callbacks = CoreCallbacks::<Event>::default();
 
-        callbacks.remove(Handle::new());
+        callbacks.remove_callback(Handle::new());
         let e = block_in_place(callbacks.callbacks.lock());
         assert_eq!(0, e.len());
     }

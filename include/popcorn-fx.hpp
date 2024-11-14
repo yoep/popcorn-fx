@@ -183,7 +183,7 @@ enum class SubtitleLanguage : int32_t {
 };
 
 /// Represents the different states of torrent health.
-enum class TorrentHealthState : uint8_t {
+enum class TorrentHealthState : uint32_t {
   /// Unknown health state, indicating that the health of the torrent could not be determined.
   Unknown,
   /// Bad health state, indicating that the torrent is in poor condition.
@@ -1503,6 +1503,7 @@ struct TorrentErrorC {
     TorrentResolvingFailed,
     /// Represents an error indicating failure during torrent collection loading.
     TorrentCollectionLoadingFailed,
+    /// Represent a general torrent error failure
     Torrent,
   };
 
@@ -1630,7 +1631,7 @@ ByteArray *artwork_placeholder(PopcornFX *popcorn_fx);
 /// # Returns
 ///
 /// Returns the health of the torrent.
-TorrentHealth calculate_torrent_health(PopcornFX *popcorn_fx, uint32_t seeds, uint32_t leechers);
+TorrentHealth *calculate_torrent_health(PopcornFX *popcorn_fx, uint32_t seeds, uint32_t leechers);
 
 /// Start polling the update channel for new application versions.
 ///
@@ -1861,6 +1862,8 @@ void dispose_subtitle_preference(Box<SubtitlePreference> subtitle_preference);
 
 /// Dispose the [TorrentCollectionSet] from memory.
 void dispose_torrent_collection(Box<TorrentCollectionSet> collection_set);
+
+void dispose_torrent_health(Box<TorrentHealth> health);
 
 void dispose_torrent_stream_event_value(TorrentStreamEventC event);
 

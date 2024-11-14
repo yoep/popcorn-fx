@@ -159,7 +159,7 @@ impl PlaylistManager {
     ///
     /// An identifier for the subscription, which can be used to unsubscribe later.
     pub fn subscribe(&self, callback: CoreCallback<PlaylistManagerEvent>) -> CallbackHandle {
-        self.inner.callbacks.add(callback)
+        self.inner.callbacks.add_callback(callback)
     }
 
     /// Unsubscribe from playlist manager events.
@@ -168,7 +168,7 @@ impl PlaylistManager {
     ///
     /// * `callback_id` - The identifier of the subscription to be removed.
     pub fn unsubscribe(&self, handle: CallbackHandle) {
-        self.inner.callbacks.remove(handle)
+        self.inner.callbacks.remove_callback(handle)
     }
 
     /// Stop the playback of the playlist.
@@ -875,7 +875,7 @@ mod test {
             .expect_subscribe()
             .times(1)
             .returning(move |e| {
-                subscribe_callback.add(e);
+                subscribe_callback.add_callback(e);
                 Handle::new()
             });
         let (tx, rx) = channel();
@@ -951,7 +951,7 @@ mod test {
             .expect_subscribe()
             .times(1)
             .returning(move |e| {
-                subscribe_callback.add(e);
+                subscribe_callback.add_callback(e);
                 Handle::new()
             });
         let (tx, rx) = channel();

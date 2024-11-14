@@ -310,7 +310,7 @@ impl InnerPlayerManager {
                     "Removing internal player callback handle {}",
                     callback_handle
                 );
-                old_player.remove(callback_handle.clone());
+                old_player.remove_callback(callback_handle.clone());
             }
         }
 
@@ -324,7 +324,7 @@ impl InnerPlayerManager {
                 new_player
             );
             let sender = self.listener_sender.clone();
-            let callback_handle = new_player.add(Box::new(move |e| {
+            let callback_handle = new_player.add_callback(Box::new(move |e| {
                 let wrapper = PlayerEventWrapper::from(e);
                 if let Err(e) = sender.send(wrapper) {
                     error!("Failed to send player event, {}", e);
@@ -559,7 +559,7 @@ impl PlayerManager for InnerPlayerManager {
     }
 
     fn subscribe(&self, callback: PlayerManagerCallback) -> CallbackHandle {
-        self.callbacks.add(callback)
+        self.callbacks.add_callback(callback)
     }
 
     async fn play(&self, request: Box<dyn PlayRequest>) {
@@ -639,12 +639,12 @@ mod tests {
     }
 
     impl Callbacks<PlayerEvent> for DummyPlayer {
-        fn add(&self, callback: CoreCallback<PlayerEvent>) -> CallbackHandle {
-            self.callbacks.add(callback)
+        fn add_callback(&self, callback: CoreCallback<PlayerEvent>) -> CallbackHandle {
+            self.callbacks.add_callback(callback)
         }
 
-        fn remove(&self, handle: CallbackHandle) {
-            self.callbacks.remove(handle)
+        fn remove_callback(&self, handle: CallbackHandle) {
+            self.callbacks.remove_callback(handle)
         }
     }
 
@@ -704,7 +704,7 @@ mod tests {
         let mut player = MockPlayer::default();
         player.expect_id().return_const(player_id.to_string());
         player.expect_name().return_const("Foo".to_string());
-        player.expect_add().return_const(1245i64);
+        player.expect_add_callback().return_const(1245i64);
         let player = Box::new(player) as Box<dyn Player>;
         let torrent_manager = MockTorrentManager::new();
         let torrent_stream_server = MockTorrentStreamServer::new();
@@ -742,7 +742,7 @@ mod tests {
         player
             .expect_name()
             .return_const("FooBar player".to_string());
-        player.expect_add().return_const(1245i64);
+        player.expect_add_callback().return_const(1245i64);
         let player = Box::new(player) as Box<dyn Player>;
         let (tx, rx) = channel();
         let event_publisher = Arc::new(EventPublisher::default());
@@ -794,7 +794,7 @@ mod tests {
         player
             .expect_name()
             .return_const("FooBar player".to_string());
-        player.expect_add().return_const(1245i64);
+        player.expect_add_callback().return_const(1245i64);
         let player = Box::new(player) as Box<dyn Player>;
         let (tx, rx) = channel();
         let event_publisher = Arc::new(EventPublisher::default());
@@ -1002,7 +1002,7 @@ mod tests {
         let mut player = MockPlayer::new();
         player.expect_id().return_const(player_id.to_string());
         player.expect_name().return_const("MyPlayer".to_string());
-        player.expect_add().returning(move |e| {
+        player.expect_add_callback().returning(move |e| {
             tx.send(e).unwrap();
             Handle::new()
         });
@@ -1058,7 +1058,7 @@ mod tests {
         let mut player = MockPlayer::default();
         player.expect_id().return_const(player_id.to_string());
         player.expect_name().return_const("FooBar".to_string());
-        player.expect_add().returning(|_| Handle::new());
+        player.expect_add_callback().returning(|_| Handle::new());
         player.expect_play().times(1).returning(move |e| {
             tx.send(e).unwrap();
         });

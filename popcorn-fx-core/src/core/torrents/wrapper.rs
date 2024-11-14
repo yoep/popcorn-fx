@@ -5,8 +5,8 @@ use derive_more::Display;
 use log::trace;
 use tokio::sync::Mutex;
 
-use crate::core::{CallbackHandle, Callbacks, CoreCallbacks};
 use crate::core::torrents::{DownloadStatus, Torrent, TorrentCallback, TorrentEvent, TorrentState};
+use crate::core::{CallbackHandle, Callbacks, CoreCallbacks};
 
 /// The has byte callback.
 pub type HasBytesCallback = Box<dyn Fn(&[u64]) -> bool + Send>;
@@ -193,7 +193,7 @@ impl Torrent for TorrentWrapper {
     }
 
     fn subscribe(&self, callback: TorrentCallback) -> CallbackHandle {
-        self.callbacks.add(callback)
+        self.callbacks.add_callback(callback)
     }
 }
 

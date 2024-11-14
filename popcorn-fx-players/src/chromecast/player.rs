@@ -186,12 +186,12 @@ impl<D: FxCastDevice> ChromecastPlayer<D> {
 }
 
 impl<D: FxCastDevice> Callbacks<PlayerEvent> for ChromecastPlayer<D> {
-    fn add(&self, callback: CoreCallback<PlayerEvent>) -> CallbackHandle {
-        self.inner.add(callback)
+    fn add_callback(&self, callback: CoreCallback<PlayerEvent>) -> CallbackHandle {
+        self.inner.add_callback(callback)
     }
 
-    fn remove(&self, handle: CallbackHandle) {
-        self.inner.remove(handle)
+    fn remove_callback(&self, handle: CallbackHandle) {
+        self.inner.remove_callback(handle)
     }
 }
 
@@ -1067,12 +1067,12 @@ impl<D: FxCastDevice> InnerChromecastPlayer<D> {
 }
 
 impl<D: FxCastDevice> Callbacks<PlayerEvent> for InnerChromecastPlayer<D> {
-    fn add(&self, callback: CoreCallback<PlayerEvent>) -> CallbackHandle {
-        self.callbacks.add(callback)
+    fn add_callback(&self, callback: CoreCallback<PlayerEvent>) -> CallbackHandle {
+        self.callbacks.add_callback(callback)
     }
 
-    fn remove(&self, handle: CallbackHandle) {
-        self.callbacks.remove(handle)
+    fn remove_callback(&self, handle: CallbackHandle) {
+        self.callbacks.remove_callback(handle)
     }
 }
 
@@ -1330,7 +1330,7 @@ mod tests {
         let (tx, rx) = channel();
         let player = test_instance.player.take().unwrap();
 
-        player.add(Box::new(move |event| {
+        player.add_callback(Box::new(move |event| {
             if let PlayerEvent::StateChanged(state) = event {
                 tx.send(state).unwrap();
             }

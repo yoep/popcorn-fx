@@ -6,8 +6,12 @@ use thiserror::Error;
 /// The result type for the torrent package.
 pub type Result<T> = std::result::Result<T, TorrentError>;
 
+/// The torrent piece specific errors.
+/// These errors can occur when working with [Piece] related operations.
 #[derive(Debug, Clone, Error, PartialEq)]
 pub enum PieceError {
+    #[error("torrent pieces are currently unknown")]
+    Unavailable,
     #[error("failed to calculate pieces, {0}")]
     UnableToDeterminePieces(String),
 }

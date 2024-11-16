@@ -11,6 +11,8 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Error {
     #[error("peer id is invalid")]
     InvalidPeerId,
+    #[error("invalid message length specified, expected {0} but got {1}")]
+    InvalidLength(u32, u32),
     #[error("unsupported message type {0}")]
     UnsupportedMessage(u8),
     #[error("an error occurred during the handshake, {0}")]

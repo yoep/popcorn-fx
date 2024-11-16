@@ -1,17 +1,21 @@
-use crate::torrents::peers::bt_protocol::{ExtendedHandshake, ExtensionFlags, Handshake, Message};
+use crate::torrents::peers::bt_protocol::{
+    ExtendedHandshake, ExtensionFlags, Handshake, Message, Request,
+};
 use crate::torrents::peers::extensions::{
     Extension, ExtensionName, ExtensionNumber, ExtensionRegistry, Extensions,
 };
 
+use crate::torrents::peers::peer_reader::{PeerReader, PeerReaderEvent};
+use crate::torrents::peers::peer_request_buffer::PeerRequestBuffer;
 use crate::torrents::peers::{Error, PeerId, Result};
-use crate::torrents::{InfoHash, Torrent, TorrentInfo, TorrentMetadata};
+use crate::torrents::{InfoHash, PieceIndex, Torrent, TorrentInfo, TorrentMetadata};
 use bit_vec::BitVec;
 use byteorder::BigEndian;
 use byteorder::ByteOrder;
 use derive_more::Display;
 use log::{debug, error, trace, warn};
 use popcorn_fx_core::core::{
-    block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks,
+    block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks, Handle,
 };
 use std::fmt::{Debug, Display, Formatter};
 use std::io;
@@ -21,7 +25,7 @@ use std::time::{Duration, Instant};
 use tokio::io::{split, AsyncRead, AsyncReadExt, AsyncWriteExt, BufReader, BufWriter, WriteHalf};
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
-use tokio::sync::mpsc::{channel, Receiver, Sender};
+use tokio::sync::mpsc::{channel, unbounded_channel, Receiver, Sender};
 use tokio::sync::{Mutex, RwLock};
 use tokio::time::timeout;
 use tokio::{select, time};
@@ -30,31 +34,40 @@ use tokio_util::sync::CancellationToken;
 const DEFAULT_CONNECTION_TIMEOUT_SECONDS: u64 = 10;
 const KEEP_ALIVE_SECONDS: u64 = 120;
 const HANDSHAKE_MESSAGE_LEN: usize = 68;
+const REQUEST_MAX_LENGTH: usize = 16 * 1024; // 16 KiB
+
+/// The peer's unique identifier handle.
+pub type PeerHandle = Handle;
 
 /// The peer specific event callbacks.
 pub type PeerCallback = CoreCallback<PeerEvent>;
 
 /// The choke states of a peer.
+#[repr(u8)]
 #[derive(Debug, Display, Clone, Copy, PartialEq)]
 pub enum ChokeState {
     #[display(fmt = "choked")]
-    Choked,
+    Choked = 0,
     #[display(fmt = "un-choked")]
-    UnChoked,
+    UnChoked = 1,
 }
 
+/// The interest states of a peer.
+#[repr(u8)]
 #[derive(Debug, Display, Clone, Copy, PartialEq)]
-pub enum InterestedState {
-    #[display(fmt = "interested")]
-    Interested,
+pub enum InterestState {
     #[display(fmt = "not interested")]
-    NotInterested,
+    NotInterested = 0,
+    #[display(fmt = "interested")]
+    Interested = 1,
 }
 
+/// The connection direction type of a peer.
+#[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ConnectionType {
-    Inbound,
-    Outbound,
+    Inbound = 0,
+    Outbound = 1,
 }
 
 /// The state that a peer is in
@@ -81,7 +94,6 @@ pub struct RemotePeer {
     pub supported_extensions: ExtensionFlags,
     pub extensions: ExtensionRegistry,
     pub client_name: Option<String>,
-    pub pieces: BitVec,
 }
 
 #[derive(Debug, Display, Clone, PartialEq)]
@@ -95,15 +107,20 @@ pub enum PeerEvent {
 }
 
 #[derive(Debug, Default, Clone)]
-pub struct PeerStats {
-    /// The bytes per second that are uploaded to the peer
-    pub upload: u64,
-    /// The bytes per second that the downloaded from the peer
-    pub download: u64,
+pub struct PeerDataTransferStats {
+    /// The bytes that have been transferred from the peer.
+    pub upload: usize,
+    /// The bytes per second that have been transferred from the peer.
+    pub upload_rate: u64,
+    /// The bytes that have been transferred to the peer.
+    pub download: usize,
+    /// The bytes per second that the downloaded from the peer.
+    pub download_rate: u64,
 }
 
 #[derive(Debug)]
 pub struct Peer {
+    handle: PeerHandle,
     inner: Arc<InnerPeer>,
     runtime: Arc<Runtime>,
 }
@@ -133,6 +150,24 @@ impl Peer {
         let cancellation_token = CancellationToken::new();
 
         todo!()
+    }
+
+    /// Get the unique identifier handle of the peer.
+    ///
+    /// # Returns
+    ///
+    /// Returns the unique identifier handle of the peer.
+    pub fn handle(&self) -> PeerHandle {
+        self.handle
+    }
+
+    /// Get the connection type of the peer.
+    ///
+    /// # Returns
+    ///
+    /// Returns the connection type of the peer.
+    pub fn connection_type(&self) -> ConnectionType {
+        self.inner.connection_type
     }
 
     /// Retrieve the remote peer id.
@@ -209,6 +244,20 @@ impl Peer {
         mutex.clone()
     }
 
+    /// Verify if the remote peer has the given piece.
+    ///
+    /// # Arguments
+    ///
+    /// * `piece` - The piece index that should be checked.
+    ///
+    /// # Returns
+    ///
+    /// Returns true when the remote peer has the piece available, else false.
+    pub async fn remote_has_piece(&self, piece: PieceIndex) -> bool {
+        let mutex = self.inner.remote_pieces.read().await;
+        mutex.get(piece as usize).unwrap_or(false)
+    }
+
     /// Send the given message to the remote peer.
     ///
     /// # Arguments
@@ -275,30 +324,60 @@ impl Peer {
                 .is_some()
     }
 
+    /// Request a piece from the remote peer.
+    /// This creates one or more requests for the given piece in a queue buffer.
+    ///
+    /// # Arguments
+    ///
+    /// * `piece` - The piece index to request
+    pub(crate) async fn request_piece(&self, piece: PieceIndex) {
+        if let Some(piece) = self.inner.torrent.piece_info(piece).await {
+            let num_of_requests = (piece.length + REQUEST_MAX_LENGTH - 1) / REQUEST_MAX_LENGTH;
+            let mut offset = 0;
+
+            for _ in 0..num_of_requests {
+                let length = if piece.length < REQUEST_MAX_LENGTH {
+                    piece.length
+                } else {
+                    REQUEST_MAX_LENGTH
+                };
+
+                self.inner
+                    .client_pending_requests
+                    .push(Request {
+                        index: piece.index,
+                        begin: offset,
+                        length,
+                    })
+                    .await;
+
+                offset += length;
+            }
+        }
+    }
+
     /// Retrieve the connection stats from this peer and reset the stats.
     ///
     /// # Returns
     ///
     /// Returns the peer connection stats.
-    pub(crate) async fn stats_and_reset(&self) -> PeerStats {
-        let uploaded: u64;
-        let downloaded: u64;
+    pub(crate) async fn stats_and_reset(&self) -> PeerDataTransferStats {
+        let mut stats = PeerDataTransferStats::default();
 
         {
-            let mut mutex = self.inner.bytes_read.write().await;
-            uploaded = *mutex;
-            *mutex = 0;
+            let mut mutex = self.inner.incoming_data_stats.write().await;
+            stats.upload = mutex.transferred_bytes;
+            stats.upload_rate = mutex.transferred_bytes_rate;
+            mutex.reset();
         }
         {
-            let mut mutex = self.inner.bytes_written.write().await;
-            downloaded = *mutex;
-            *mutex = 0;
+            let mut mutex = self.inner.outgoing_data_stats.write().await;
+            stats.download = mutex.transferred_bytes;
+            stats.download_rate = mutex.transferred_bytes_rate;
+            mutex.reset();
         }
 
-        PeerStats {
-            upload: uploaded,
-            download: downloaded,
-        }
+        stats
     }
 
     /// Close this peer connection.
@@ -318,34 +397,49 @@ impl Peer {
             .map(|e| split(e))
             .map_err(|e| Error::Io(format!("failed to connect to {}, {}", addr, e)))?;
         let (extension_event_sender, extension_event_receiver) = channel(10);
+        let (reader_sender, peer_reader_receiver) = channel(10);
         let extension_registry = Self::create_extension_registry(&extensions);
+        let peer_handle = PeerHandle::new();
         let inner = Arc::new(InnerPeer {
+            handle: peer_handle,
             client_id: torrent.peer_id(),
+            // the remote information is unknown until the handshake has been completed
             remote: RwLock::new(None),
             torrent,
-            // connections should always start in the choked state
-            choke_state: ChokeState::Choked,
-            peer_choke_state: RwLock::new(ChokeState::Choked),
-            // connections should always start in the not interested state
-            interested_state: InterestedState::NotInterested,
             addr,
-            connection_type: ConnectionType::Outbound,
             state: RwLock::new(PeerState::Handshake),
+            connection_type: ConnectionType::Outbound,
+            // connections should always start in the choked state
+            client_choke_state: RwLock::new(ChokeState::Choked),
+            remote_choke_state: RwLock::new(ChokeState::Choked),
+            // connections should always start in the not interested state
+            client_interest_state: RwLock::new(InterestState::NotInterested),
+            remote_interest_state: RwLock::new(InterestState::NotInterested),
             extension_event_sender,
             extensions,
             extension_registry,
+            client_pieces: RwLock::new(BitVec::with_capacity(0)),
+            remote_pieces: RwLock::new(BitVec::with_capacity(0)),
+            // create new peer request buffers which are not running as the peer connection starts in the state choked
+            client_pending_requests: PeerRequestBuffer::new(false),
+            remote_pending_requests: PeerRequestBuffer::new(false),
             writer: Mutex::new(BufWriter::new(writer)),
-            bytes_read: RwLock::new(0),
-            bytes_written: RwLock::new(0),
+            incoming_data_stats: RwLock::new(PeerTransferStats::default()),
+            outgoing_data_stats: RwLock::new(PeerTransferStats::default()),
             callbacks: Default::default(),
             cancellation_token: CancellationToken::new(),
         });
-        let peer = Self { inner, runtime };
-        let mut peer_reader = PeerReader {
-            addr,
-            reader: BufReader::new(reader),
-            peer: peer.clone(),
+        let peer = Self {
+            handle: peer_handle,
+            inner,
+            runtime,
         };
+        let mut peer_reader = PeerReader::new(
+            peer.handle,
+            reader,
+            reader_sender,
+            peer.inner.cancellation_token.clone(),
+        );
         let mut peer_extension_events = PeerExtensionEvents {
             peer: peer.clone(),
             receiver: extension_event_receiver,
@@ -371,37 +465,43 @@ impl Peer {
         });
 
         // start the main loop of the inner peer
-        let main_inner = peer.inner.clone();
-        peer.runtime.spawn(async move { main_inner.start().await });
+        let main_loop = peer.clone();
+        peer.runtime
+            .spawn(async move { main_loop.start(peer_reader_receiver).await });
 
         peer.send_initial_messages().await?;
 
         Ok(peer)
     }
 
-    async fn handle_received_message(&self, message: Message, bytes_read: u64) {
-        {
-            let mut mutex = self.inner.bytes_read.write().await;
-            *mutex += bytes_read;
-        }
+    /// Handle events that are sent from the peer reader.
+    async fn handle_reader_event(&self, event: PeerReaderEvent) {
+        match event {
+            PeerReaderEvent::Closed => self.inner.cancellation_token.cancel(),
+            PeerReaderEvent::Message(message, data_transfer) => {
+                self.inner
+                    .update_read_data_transfer_stats(data_transfer)
+                    .await;
 
-        if let Message::ExtendedPayload(extension_number, payload) = message {
-            trace!("Handling extended payload number {}", extension_number);
-            if let Some(extension) = self.find_supported_extension(extension_number).await {
-                if let Err(e) = extension.handle(payload.as_ref(), self).await {
-                    error!(
-                        "Failed to process extension message of peer {}, {}",
-                        self, e
-                    );
-                }
-            } else {
-                warn!(
+                if let Message::ExtendedPayload(extension_number, payload) = message {
+                    trace!("Handling extended payload number {}", extension_number);
+                    if let Some(extension) = self.find_supported_extension(extension_number).await {
+                        if let Err(e) = extension.handle(payload.as_ref(), self).await {
+                            error!(
+                                "Failed to process extension message of peer {}, {}",
+                                self, e
+                            );
+                        }
+                    } else {
+                        warn!(
                     "Received unsupported extension message of peer {} for extension number {}",
                     self, extension_number
                 );
+                    }
+                } else {
+                    self.inner.handle_received_message(message).await
+                }
             }
-        } else {
-            self.inner.handle_received_message(message).await
         }
     }
 
@@ -477,9 +577,30 @@ impl Peer {
     /// of this library.
     fn clone(&self) -> Self {
         Self {
+            handle: self.handle.clone(),
             inner: self.inner.clone(),
             runtime: self.runtime.clone(),
         }
+    }
+
+    /// Start the main loop of this peer.
+    /// It handles the peer reader events and processing of the pending requests.
+    async fn start(&self, mut peer_reader: Receiver<PeerReaderEvent>) {
+        loop {
+            select! {
+                _ = self.inner.cancellation_token.cancelled() => break,
+                _ = time::sleep(Duration::from_secs(KEEP_ALIVE_SECONDS)) => self.inner.send_keep_alive().await,
+                event = peer_reader.recv() => {
+                    if let Some(event) = event {
+                        self.handle_reader_event(event).await;
+                    }
+                },
+                request = self.inner.client_pending_requests.next() => self.inner.send_pending_request(request).await,
+                request = self.inner.remote_pending_requests.next() => self.inner.handle_pending_request(request).await
+            }
+        }
+
+        trace!("Peer {} main loop ended", self);
     }
 
     /// Create an extension registry for the given extensions.
@@ -520,87 +641,54 @@ impl Display for Peer {
     }
 }
 
-#[derive(Debug)]
-struct PeerReader<R>
-where
-    R: AsyncRead + Unpin,
-{
-    addr: SocketAddr,
-    reader: BufReader<R>,
-    peer: Peer,
+/// Information about transferred data over the peer connection.
+#[derive(Debug, Clone)]
+pub(crate) struct DataTransferStats {
+    /// The total amount of bytes that have been transferred
+    pub transferred_bytes: usize,
+    /// The time it took in milliseconds to transfer the bytes
+    pub elapsed: u128,
 }
 
-impl<R> PeerReader<R>
-where
-    R: AsyncRead + Unpin,
-{
-    async fn start_read_loop(&mut self) {
-        loop {
-            let mut buffer = vec![0u8; 4];
-
-            select! {
-                _ = self.peer.inner.cancellation_token.cancelled() => break,
-                read_result = self.reader.read(&mut buffer) => {
-                    match read_result {
-                        Ok(0) => {
-                            trace!("Peer reader EOF for {}", self.addr);
-                            break
-                        },
-                        Ok(buffer_size) => {
-                            if let Err(e) = self.read_next(&buffer, buffer_size).await {
-                                error!("{}", e);
-                                break
-                            }
-                        },
-                        Err(e) => {
-                            error!("{}", Error::from(e));
-                            break
-                        }
-                    }
-                }
-            }
+impl DataTransferStats {
+    /// Get the rate of bytes transferred per second.
+    pub fn rate(&self) -> u64 {
+        // if a connection channel is closed
+        // it can cause the elapsed time to be 0
+        if self.elapsed == 0 {
+            return 0;
         }
 
-        trace!("Peer {} read loop ended", self.addr);
-        self.peer.close().await;
+        ((self.transferred_bytes as u128 * 1000) / self.elapsed) as u64
     }
+}
 
-    async fn read(&mut self, len: usize) -> Result<Vec<u8>> {
-        let mut buffer = vec![0u8; len];
-        let read_result = self.reader.read_exact(&mut buffer).await;
+#[derive(Debug, Default, Clone)]
+struct PeerTransferStats {
+    /// The amount of bytes that have been transferred.
+    pub transferred_bytes: usize,
+    /// The actual useful bytes that have been transferred.
+    /// This only counts the actual piece payload data that has been transferred and excludes everything of the Bittorrent message protocol.
+    pub transferred_bytes_useful: usize,
+    /// The total amount of bytes that have been transferred per second.
+    pub transferred_bytes_rate: u64,
+    /// The actual useful bytes transferred per second.
+    /// This only counts the actual piece payload data that has been transferred and excludes everything of the Bittorrent message protocol.
+    pub transferred_bytes_useful_rate: u64,
+    /// The total amount of bytes that have been transferred during the lifetime of the connection.
+    pub total_transferred_bytes: u64,
+    /// The actual useful total bytes that have been transferred during the lifetime of the connection.
+    /// This only counts the actual piece payload data that has been transferred and excludes everything of the Bittorrent message protocol.
+    pub total_transferred_bytes_useful: u64,
+}
 
-        match read_result {
-            Ok(0) => Err(Error::Closed),
-            Ok(_) => Ok(buffer),
-            Err(e) => Err(Error::Io(e.to_string())),
-        }
-    }
-
-    async fn read_next(&mut self, buffer: &[u8], buffer_size: usize) -> Result<()> {
-        // we expect to receive the incoming message length as a BigEndian
-        if buffer_size != 4 {
-            warn!("Invalid message length {}", buffer_size);
-            return Ok(());
-        }
-
-        let length = BigEndian::read_u32(buffer);
-        let bytes = self.read(length as usize).await?;
-
-        // we want to unblock the reader thread as soon as possible
-        // so we're going to move this whole process into a new separate thread
-        let message_peer = self.peer.clone();
-        self.peer.runtime.spawn(async move {
-            match Message::try_from(bytes.as_ref()) {
-                Ok(msg) => {
-                    message_peer
-                        .handle_received_message(msg, bytes.len() as u64)
-                        .await
-                }
-                Err(e) => warn!("Received invalid message payload, {}", e),
-            }
-        });
-
-        Ok(())
+impl PeerTransferStats {
+    /// Reset all the data transfer stats, except for the lifetime stats.
+    fn reset(&mut self) {
+        self.transferred_bytes = 0;
+        self.transferred_bytes_useful = 0;
+        self.transferred_bytes_rate = 0;
+        self.transferred_bytes_useful_rate = 0;
     }
 }
 
@@ -644,26 +732,33 @@ impl PeerExtensionEvents {
     }
 }
 
+#[derive(Debug)]
 struct InnerPeer {
+    /// The peer's unique identifier handle
+    handle: PeerHandle,
     /// Our unique client peer id
     client_id: PeerId,
-    /// The remote peer data
+    /// The remote peer information, known after the initial handshake.
     remote: RwLock<Option<RemotePeer>>,
-    /// The torrent this peer belongs to
-    /// This is a weak reference to the torrent
+    /// The immutable torrent this peer connection belongs to.
+    /// This is a weak reference to the [Torrent] and might be invalid if the peer is kept alive for invalid reasons.
     torrent: Torrent,
-    /// Our own current choke state with the remote peer
-    choke_state: ChokeState,
-    /// The choke state of the remote peer
-    peer_choke_state: RwLock<ChokeState>,
-    /// The current interest state into the remote peer
-    interested_state: InterestedState,
-    /// The remote peer address
+    /// The immutable address of the remote peer
     addr: SocketAddr,
     /// Identifies the connection direction (_incoming or outgoing_) of this peer
     connection_type: ConnectionType,
-    /// The state of our peer connection with the remote peer
+    /// The state of the client peer connection with the remote peer
     state: RwLock<PeerState>,
+
+    /// The client choke state
+    client_choke_state: RwLock<ChokeState>,
+    /// The choke state of the remote peer
+    remote_choke_state: RwLock<ChokeState>,
+
+    /// The client interest state for the pieces of the remote peer
+    client_interest_state: RwLock<InterestState>,
+    /// The interest state of the remote peer for our available pieces
+    remote_interest_state: RwLock<InterestState>,
 
     /// The event sender for extensions
     extension_event_sender: Sender<PeerEvent>,
@@ -672,13 +767,23 @@ struct InnerPeer {
     extensions: Extensions,
     extension_registry: ExtensionRegistry,
 
+    /// The torrent pieces
+    client_pieces: RwLock<BitVec>,
+    /// The pieces of the remote peer
+    remote_pieces: RwLock<BitVec>,
+
+    /// The clients pending requests to the remote peer
+    client_pending_requests: PeerRequestBuffer,
+    /// The remote pending requests for this client
+    remote_pending_requests: PeerRequestBuffer,
+
     /// The TCP write connection to the remote peer
     writer: Mutex<BufWriter<WriteHalf<TcpStream>>>,
 
-    /// The bytes that have been read from the remote peer
-    bytes_read: RwLock<u64>,
-    /// The bytes that have been written to the remote peer
-    bytes_written: RwLock<u64>,
+    /// The data transfer info of the incoming channel (from the remote peer)
+    incoming_data_stats: RwLock<PeerTransferStats>,
+    /// The data transfer info of the outgoing channel (to the remote peer)
+    outgoing_data_stats: RwLock<PeerTransferStats>,
 
     /// The callbacks which are triggered by this peer when an event is raised
     callbacks: CoreCallbacks<PeerEvent>,
@@ -687,20 +792,6 @@ struct InnerPeer {
 }
 
 impl InnerPeer {
-    /// Start the main loop of this peer.
-    ///
-    /// This includes the keep alive events that are send periodically.
-    async fn start(&self) {
-        loop {
-            select! {
-                _ = self.cancellation_token.cancelled() => break,
-                _ = time::sleep(Duration::from_secs(KEEP_ALIVE_SECONDS)) => self.send_keep_alive().await,
-            }
-        }
-
-        trace!("Peer {} main loop ended", self);
-    }
-
     /// Retrieve the remote peer id.
     ///
     /// # Returns
@@ -758,12 +849,26 @@ impl InnerPeer {
                 self.update_remote_peer_choke_state(ChokeState::UnChoked)
                     .await
             }
+            Message::Interested => {
+                self.update_remote_peer_interest_state(InterestState::Interested)
+                    .await
+            }
+            Message::NotInterested => {
+                self.update_remote_peer_interest_state(InterestState::NotInterested)
+                    .await
+            }
+            Message::Have(piece) => self.update_remote_piece(piece as usize, true).await,
             Message::Bitfield(pieces) => self.update_remote_pieces(pieces).await,
+            Message::Request(request) => self.remote_pending_requests.push(request).await,
             Message::ExtendedHandshake(handshake) => {
                 self.update_extended_handshake(handshake).await
             }
             _ => warn!("Message handling not yet implemented for {:?}", message),
         }
+    }
+
+    async fn handle_pending_request(&self, request: Request) {
+        todo!()
     }
 
     async fn validate_handshake(&self, buffer: Vec<u8>) -> Result<()> {
@@ -788,7 +893,6 @@ impl InnerPeer {
                 supported_extensions: handshake.supported_extensions,
                 extensions: ExtensionRegistry::default(),
                 client_name: None,
-                pieces: BitVec::with_capacity(0),
             });
         }
 
@@ -798,7 +902,24 @@ impl InnerPeer {
     }
 
     async fn update_remote_peer_choke_state(&self, state: ChokeState) {
-        let mut mutex = self.peer_choke_state.write().await;
+        // update the choke state of the remote peer
+        {
+            let mut mutex = self.remote_choke_state.write().await;
+            *mutex = state;
+        }
+
+        // update the pending requests buffer state
+        if state == ChokeState::Choked {
+            self.client_pending_requests.pause().await;
+        } else {
+            self.client_pending_requests.resume().await;
+        }
+
+        trace!("Remote peer {} entered {} state", self, state);
+    }
+
+    async fn update_remote_peer_interest_state(&self, state: InterestState) {
+        let mut mutex = self.remote_interest_state.write().await;
         *mutex = state;
         trace!("Remote peer {} entered {} state", self, state);
     }
@@ -811,17 +932,29 @@ impl InnerPeer {
         self.invoke_event(PeerEvent::StateChanged(state)).await;
     }
 
+    async fn update_pieces(&self, pieces: BitVec) {
+        let mut mutex = self.client_pieces.write().await;
+        *mutex = pieces;
+        debug!("Updated peer {} with pieces information", self);
+    }
+
     async fn update_remote_pieces(&self, pieces: BitVec) {
+        let mut mutex = self.remote_pieces.write().await;
+        *mutex = pieces;
+        debug!("Updated peer {} with remote pieces information", self);
+    }
+
+    async fn update_remote_piece(&self, piece: usize, value: bool) {
         {
-            let mut mutex = self.remote.write().await;
-            if let Some(remote) = mutex.as_mut() {
-                remote.pieces = pieces;
-                // drop the mutex as the Display impl requires it to print the info of the remote peer
-                drop(mutex);
-                debug!("Updated peer {} with remote pieces information", self);
-            } else {
-                warn!("Received bitfield before the initial handshake was completed");
-            }
+            let mut mutex = self.remote_pieces.write().await;
+            mutex.set(piece, value);
+        }
+
+        // notify the torrent about the piece availability from this peer
+        if value {
+            self.torrent
+                .notify_peer_has_piece(piece as PieceIndex)
+                .await;
         }
     }
 
@@ -845,6 +978,20 @@ impl InnerPeer {
 
         self.invoke_event(PeerEvent::ExtendedHandshakeCompleted)
             .await;
+    }
+
+    async fn update_read_data_transfer_stats(&self, data_transfer: DataTransferStats) {
+        let mut mutex = self.incoming_data_stats.write().await;
+        mutex.transferred_bytes += data_transfer.transferred_bytes;
+        mutex.transferred_bytes_rate += data_transfer.rate();
+        mutex.total_transferred_bytes += data_transfer.transferred_bytes as u64;
+    }
+
+    async fn update_write_data_transfer_stats(&self, data_transfer: DataTransferStats) {
+        let mut mutex = self.outgoing_data_stats.write().await;
+        mutex.transferred_bytes += data_transfer.transferred_bytes;
+        mutex.transferred_bytes_rate += data_transfer.rate();
+        mutex.total_transferred_bytes += data_transfer.transferred_bytes as u64;
     }
 
     async fn send_handshake(&self) -> Result<()> {
@@ -911,6 +1058,7 @@ impl InnerPeer {
         let mut mutex = self.writer.lock().await;
         let msg_length = bytes.as_ref().len();
 
+        let start_time = Instant::now();
         timeout(
             Duration::from_secs(DEFAULT_CONNECTION_TIMEOUT_SECONDS),
             async {
@@ -923,14 +1071,30 @@ impl InnerPeer {
         )
         .await??;
         drop(mutex);
+        let elapsed = start_time.elapsed().as_millis();
 
         // update the connection stats
-        {
-            let mut mutex = self.bytes_written.write().await;
-            *mutex += msg_length as u64;
-        }
+        self.update_write_data_transfer_stats(DataTransferStats {
+            transferred_bytes: msg_length,
+            elapsed,
+        })
+        .await;
 
         Ok(())
+    }
+
+    async fn send_pending_request(&self, request: Request) {
+        // we normally shouldn't receive a request when the remote peer is choked
+        // in case it does happen, we put the request back on the queue
+        if *self.remote_choke_state.read().await == ChokeState::Choked {
+            debug!("Received a request when the remote peer is choked, putting the request back on the queue");
+            self.client_pending_requests.push(request).await;
+            return;
+        }
+
+        if let Err(e) = self.send(Message::Request(request)).await {
+            warn!("Failed to send pending request to peer {}, {}", self, e);
+        }
     }
 
     async fn send_keep_alive(&self) {
@@ -976,25 +1140,6 @@ impl Display for InnerPeer {
             Some(remote) => write!(f, "{}:{}", self.client_id, remote.peer_id),
             None => write!(f, "{}", self.client_id),
         }
-    }
-}
-
-impl Debug for InnerPeer {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("InnerPeer")
-            .field("client_id", &self.client_id)
-            .field("remote", &self.remote)
-            .field("torrent", &self.torrent)
-            .field("choke_state", &self.choke_state)
-            .field("peer_choke_state", &self.peer_choke_state)
-            .field("addr", &self.addr)
-            .field("interested_state", &self.interested_state)
-            .field("connection_type", &self.connection_type)
-            .field("state", &self.state)
-            .field("extensions", &self.extensions)
-            .field("writer", &self.writer)
-            .field("cancellation_token", &self.cancellation_token)
-            .finish()
     }
 }
 
@@ -1151,6 +1296,37 @@ mod tests {
         // subtract the mock thread from the running tasks
         let alive_tasks = runtime.metrics().num_alive_tasks() - 1;
         assert_eq!(0, alive_tasks, "expected all tasks to have been ended");
+    }
+
+    #[test]
+    fn test_data_transfer_stats_rate() {
+        let stats = DataTransferStats {
+            transferred_bytes: 1024,
+            elapsed: 1000,
+        };
+        let result = stats.rate();
+        assert_eq!(1024, result);
+
+        let stats = DataTransferStats {
+            transferred_bytes: 1024,
+            elapsed: 500,
+        };
+        let result = stats.rate();
+        assert_eq!(2048, result);
+
+        let stats = DataTransferStats {
+            transferred_bytes: 16384,
+            elapsed: 50,
+        };
+        let result = stats.rate();
+        assert_eq!(327680, result);
+
+        let stats = DataTransferStats {
+            transferred_bytes: 1024,
+            elapsed: 1250,
+        };
+        let result = stats.rate();
+        assert_eq!(819, result);
     }
 
     async fn handle_tcp_stream(mut stream: TcpStream, info_hash: InfoHash) {

@@ -194,11 +194,19 @@ impl InnerTorrentManager {
                             .files()
                             .into_iter()
                             .enumerate()
-                            .map(|(index, file)| TorrentFileInfo {
-                                filename: file.path.iter().last().cloned().unwrap_or(String::new()),
-                                file_path: file.path.iter().join("/"),
-                                file_size: file.length,
-                                file_index: index,
+                            .map(|(index, file)| {
+                                let file_path = file.path.as_ref().cloned().unwrap_or(Vec::new());
+
+                                TorrentFileInfo {
+                                    filename: file_path
+                                        .iter()
+                                        .last()
+                                        .cloned()
+                                        .unwrap_or(String::new()),
+                                    file_path: file_path.iter().join("/"),
+                                    file_size: file.length,
+                                    file_index: index,
+                                }
                             })
                             .collect(),
                         name: metadata.name,

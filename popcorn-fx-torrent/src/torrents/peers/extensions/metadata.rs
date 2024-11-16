@@ -3,7 +3,7 @@ use crate::torrents::peers::extensions::Extension;
 use crate::torrents::peers::{extensions, Peer, PeerEvent};
 use std::fmt::{Debug, Formatter};
 
-use crate::torrents::TorrentMetadata;
+use crate::torrents::{PieceIndex, TorrentMetadata};
 use async_trait::async_trait;
 use log::{debug, error, trace, warn};
 use popcorn_fx_core::core::block_in_place;
@@ -20,10 +20,10 @@ const METADATA_PIECE_SIZE: usize = 1024 * 16;
 #[derive(Serialize, Deserialize, PartialEq)]
 pub struct MetadataExtensionMessage {
     /// Indicates which part of the metadata this message refers to
-    pub piece: u32,
+    pub piece: PieceIndex,
     /// The size of the additional bytes after the message
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub total_size: Option<u32>,
+    pub total_size: Option<usize>,
     #[serde(
         serialize_with = "serialize_metadata_type",
         deserialize_with = "deserialize_metadata_type"
@@ -57,7 +57,7 @@ pub enum MetadataMessageType {
 
 pub struct MetadataExtension {
     /// The number of expected pieces
-    total_pieces: RwLock<Option<u32>>,
+    total_pieces: RwLock<Option<usize>>,
     /// The received metadata pieces
     metadata_buffer: RwLock<Option<Vec<u8>>>,
 }
@@ -70,7 +70,11 @@ impl MetadataExtension {
         }
     }
 
-    async fn send_metadata<'a>(&'a self, piece: u32, peer: &'a Peer) -> extensions::Result<()> {
+    async fn send_metadata<'a>(
+        &'a self,
+        piece: PieceIndex,
+        peer: &'a Peer,
+    ) -> extensions::Result<()> {
         // retrieve the current known metadata
         let metadata = peer.metadata().await.and_then(|e| e.info);
 
@@ -120,7 +124,7 @@ impl MetadataExtension {
             ))?;
             // always make sure we round up so we get the last piece
             let calculated_total_pieces =
-                (metadata_total_size as f32 / METADATA_PIECE_SIZE as f32).ceil() as u32;
+                (metadata_total_size + METADATA_PIECE_SIZE - 1) / METADATA_PIECE_SIZE;
 
             let mut mutex = self.total_pieces.write().await;
             *mutex = Some(calculated_total_pieces);
@@ -142,7 +146,7 @@ impl MetadataExtension {
         }
 
         if let Some(total_pieces) = total_pieces {
-            if total_pieces - 1 == message.piece {
+            if total_pieces - 1 == message.piece as usize {
                 // try to deserialize the metadata
                 let metadata_buffer = self.metadata_buffer.read().await;
                 let metadata: TorrentMetadata =
@@ -169,7 +173,7 @@ impl MetadataExtension {
 
     async fn request_metadata<'a>(
         &'a self,
-        piece_index: u32,
+        piece_index: PieceIndex,
         peer: &'a Peer,
     ) -> extensions::Result<()> {
         let extension_number = peer
@@ -219,12 +223,12 @@ impl MetadataExtension {
 
     async fn send_metadata_piece(
         metadata: &TorrentMetadata,
-        piece: u32,
+        piece: PieceIndex,
         peer: &Peer,
     ) -> extensions::Result<()> {
         // serialize the metadata
         let metadata_bytes = serde_bencode::to_bytes(&metadata)?;
-        let metadata_size = metadata_bytes.len() as u32;
+        let metadata_size = metadata_bytes.len();
         let message = MetadataExtensionMessage {
             piece,
             total_size: Some(metadata_size),
@@ -234,8 +238,8 @@ impl MetadataExtension {
         let mut payload = serde_bencode::to_bytes(&message)?;
 
         // calculate the payload size that should be sent
-        let start_index = piece * METADATA_PIECE_SIZE as u32;
-        let mut end_index = start_index + METADATA_PIECE_SIZE as u32;
+        let start_index = piece * METADATA_PIECE_SIZE;
+        let mut end_index = start_index + METADATA_PIECE_SIZE;
 
         // check if the last piece is smaller than the METADATA_PIECE_SIZE
         // if so, we need to adjust the end index
@@ -358,7 +362,7 @@ mod tests {
             msg_type: MetadataMessageType::Request,
             data: vec![],
         };
-        let expected_result = "d5:piecei0e4:typei0ee";
+        let expected_result = "d8:msg_typei0e5:piecei0ee";
 
         let result = serde_bencode::to_string(&extension).unwrap();
 
@@ -367,10 +371,10 @@ mod tests {
 
     #[test]
     fn test_deserialize() {
-        let message = "d5:piecei5e4:typei1ee";
+        let message = "d5:piecei5e8:msg_typei1e10:total_sizei12000ee";
         let expected_result = MetadataExtensionMessage {
             piece: 5,
-            total_size: None,
+            total_size: Some(12000),
             msg_type: MetadataMessageType::Data,
             data: vec![],
         };

@@ -1,6 +1,6 @@
 use super::{Error, PeerId, Result};
 use crate::torrents::peers::extensions::{ExtensionNumber, ExtensionRegistry};
-use crate::torrents::InfoHash;
+use crate::torrents::{InfoHash, PieceIndex};
 use bit_vec::BitVec;
 use bitmask_enum::bitmask;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
@@ -310,7 +310,7 @@ pub enum Message {
     Have(u32),
     Bitfield(BitVec),
     Request(Request),
-    Piece,
+    Piece(Piece),
     Cancel(Request),
     ExtendedHandshake(ExtendedHandshake),
     ExtendedPayload(ExtensionNumber, Vec<u8>),
@@ -329,7 +329,7 @@ impl Message {
             Message::Have(_) => MessageType::Have,
             Message::Bitfield(_) => MessageType::Bitfield,
             Message::Request(_) => MessageType::Request,
-            Message::Piece => MessageType::Piece,
+            Message::Piece(_) => MessageType::Piece,
             Message::Cancel(_) => MessageType::Cancel,
             Message::ExtendedHandshake(_) => MessageType::Extended,
             Message::ExtendedPayload(_, _) => MessageType::Extended,
@@ -393,7 +393,10 @@ impl TryFrom<&[u8]> for Message {
                 let request = Request::try_from(cursor)?;
                 Ok(Message::Request(request))
             }
-            MessageType::Piece => Ok(Message::Piece),
+            MessageType::Piece => {
+                let piece = Piece::try_from(cursor)?;
+                Ok(Message::Piece(piece))
+            }
             MessageType::Cancel => {
                 let request = Request::try_from(cursor)?;
                 Ok(Message::Cancel(request))
@@ -451,13 +454,29 @@ impl TryInto<Vec<u8>> for Message {
                 buffer.extend_from_slice(bytes.as_slice());
             }
             Message::Request(e) => {
-                todo!()
+                buffer.write_u32::<BigEndian>(e.index as u32)?;
+                buffer.write_u32::<BigEndian>(e.begin as u32)?;
+                buffer.write_u32::<BigEndian>(e.length as u32)?;
             }
-            Message::Piece => {
-                todo!()
+            Message::Piece(e) => {
+                let buffer_len = e.data.len();
+
+                // verify if the data length matches the length field
+                // if not, return an error so that the peer doesn't receive an invalid message
+                if e.length != buffer_len {
+                    return Err(Error::InvalidLength(e.length as u32, buffer_len as u32));
+                }
+
+                buffer.write_u32::<BigEndian>(e.index as u32)?;
+                buffer.write_u32::<BigEndian>(e.begin as u32)?;
+                buffer.write_u32::<BigEndian>(e.length as u32)?;
+
+                buffer.write_all(&e.data)?;
             }
             Message::Cancel(e) => {
-                todo!()
+                buffer.write_u32::<BigEndian>(e.index as u32)?;
+                buffer.write_u32::<BigEndian>(e.begin as u32)?;
+                buffer.write_u32::<BigEndian>(e.length as u32)?;
             }
             Message::ExtendedHandshake(e) => {
                 // the handshake identifier
@@ -488,7 +507,7 @@ impl Debug for Message {
             Message::Have(e) => f.debug_tuple("Have").field(e).finish(),
             Message::Bitfield(e) => f.write_fmt(format_args!("Bitfield([size {}])", e.len())),
             Message::Request(e) => f.write_fmt(format_args!("Request({:?})", e)),
-            Message::Piece => f.write_str("Piece"),
+            Message::Piece(e) => f.write_fmt(format_args!("Piece({:?})", e)),
             Message::Cancel(e) => f.write_fmt(format_args!("Cancel({:?})", e)),
             Message::ExtendedHandshake(e) => {
                 f.write_fmt(format_args!("ExtendedHandshake({:?})", e))
@@ -543,9 +562,12 @@ pub struct ExtendedHandshake {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Request {
-    pub index: u32,
-    pub begin: u32,
-    pub length: u32,
+    /// The index of the piece that is being requested
+    pub index: PieceIndex,
+    /// The offset within the piece
+    pub begin: usize,
+    /// The length in bytes of the piece that is requested
+    pub length: usize,
 }
 
 impl TryFrom<Cursor<&[u8]>> for Request {
@@ -557,9 +579,50 @@ impl TryFrom<Cursor<&[u8]>> for Request {
         let length = value.read_u32::<BigEndian>()?;
 
         Ok(Self {
-            index,
-            begin,
+            index: index as PieceIndex,
+            begin: begin as usize,
+            length: length as usize,
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Piece {
+    /// The index of the piece that is being requested
+    pub index: PieceIndex,
+    /// The offset within the piece
+    pub begin: usize,
+    /// The length in bytes of the piece that is requested
+    pub length: usize,
+    /// The data of the piece
+    pub data: Vec<u8>,
+}
+
+impl TryFrom<Cursor<&[u8]>> for Piece {
+    type Error = Error;
+
+    fn try_from(mut value: Cursor<&[u8]>) -> Result<Self> {
+        let index = value.read_u32::<BigEndian>()?;
+        let begin = value.read_u32::<BigEndian>()?;
+        let length = value.read_u32::<BigEndian>()? as usize;
+        let mut buffer = vec![0u8; length];
+
+        if length != value.remaining() {
+            return Err(Error::Parsing(format!(
+                "expected {} piece bytes, but got {} instead",
+                length,
+                value.remaining()
+            )));
+        }
+
+        // read the remaining
+        value.read_exact(&mut buffer)?;
+
+        Ok(Self {
+            index: index as PieceIndex,
+            begin: begin as usize,
             length,
+            data: buffer,
         })
     }
 }

@@ -32,14 +32,18 @@ pub enum WebSeed {
     HttpSeed(String),
 }
 
-/// Metadata for a file within a torrent.
+/// The file info metadata information of a file within a torrent.
+/// This information is specific to a single file inside the [TorrentMetadata].
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct TorrentFileMeta {
+pub struct TorrentFileInfo {
     /// Length of the file in bytes.
     pub length: u64,
-    /// Path to the file.
-    pub path: Vec<String>,
-    /// The utf-8 representation path to the file
+    /// Path of the file.
+    /// This is never present in a single torrent file.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub path: Option<Vec<String>>,
+    /// The utf-8 representation path to the file.
+    /// This is never present in a single torrent file.
     #[serde(
         rename = "path.utf-8",
         default,
@@ -67,37 +71,32 @@ pub struct TorrentFileMeta {
     pub sha1: Option<String>,
 }
 
+impl TorrentFileInfo {
+    /// Get the path of the torrent file.
+    /// If the file information belongs to a [TorrentInfoFile::Single], the returned path will be empty.
+    ///
+    /// # Returns
+    ///
+    /// Returns either the utf8 representation of the path or the normal path.
+    pub fn path(&self) -> Vec<String> {
+        self.path_utf8
+            .clone()
+            .map_or_else(|| self.path.clone(), |e| Some(e))
+            .unwrap_or(Vec::new())
+    }
+}
+
 /// Information about a torrent file, which can be a single file or multiple files.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(untagged)]
 pub enum TorrentInfoFile {
     Single {
-        /// Length of the file in bytes.
-        length: u64,
-        /// MD5 checksum of the file, if available.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        md5sum: Option<String>,
-        /// When present the characters each represent a file attribute. l = symlink, x = executable, h = hidden, p = padding file.
-        /// See BEP47
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        attr: Option<String>,
-        /// Path of the symlink target relative to the torrent root directory.
-        /// See BEP47
-        #[serde(
-            rename = "symlink path",
-            default,
-            skip_serializing_if = "Option::is_none"
-        )]
-        symlink_path: Option<Vec<String>>,
-        /// The SHA1 digest calculated over the contents of the file itself, without any additional padding. Can be used to aid file deduplication.
-        /// See BEP47
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        sha1: Option<String>,
+        #[serde(flatten)]
+        file: TorrentFileInfo,
     },
     Multiple {
         /// List of files within the directory.
-        #[serde(default, skip_serializing_if = "Vec::is_empty")]
-        files: Vec<TorrentFileMeta>,
+        files: Vec<TorrentFileInfo>,
     },
 }
 
@@ -139,6 +138,15 @@ pub struct TorrentMetadata {
 }
 
 impl TorrentMetadata {
+    /// Get the name of the torrent.
+    ///
+    /// # Returns
+    ///
+    /// Returns the utf8 representation of the name if available, else the name field.
+    pub fn name(&self) -> String {
+        self.name_utf8.clone().unwrap_or(self.name.clone())
+    }
+
     /// Converts the pieces of the torrent into a vector of SHA1 hashes.
     ///
     /// # Returns
@@ -172,7 +180,7 @@ impl TorrentMetadata {
     /// Returns the total file size of the torrent in bytes.
     pub fn total_size(&self) -> usize {
         match &self.files {
-            TorrentInfoFile::Single { length, .. } => length.clone() as usize,
+            TorrentInfoFile::Single { file } => file.length.clone() as usize,
             TorrentInfoFile::Multiple { files, .. } => {
                 files.iter().map(|f| f.length as usize).sum()
             }
@@ -187,7 +195,7 @@ impl TorrentMetadata {
     pub fn total_files(&self) -> usize {
         match &self.files {
             TorrentInfoFile::Single { .. } => 1,
-            TorrentInfoFile::Multiple { files, .. } => files.len(),
+            TorrentInfoFile::Multiple { files } => files.len(),
         }
     }
 
@@ -196,24 +204,10 @@ impl TorrentMetadata {
     /// # Returns
     ///
     /// Returns an array of the files of the torrent.
-    pub fn files(&self) -> Vec<TorrentFileMeta> {
+    pub fn files(&self) -> Vec<TorrentFileInfo> {
         match &self.files {
-            TorrentInfoFile::Single {
-                length,
-                md5sum,
-                attr,
-                symlink_path,
-                sha1,
-            } => vec![TorrentFileMeta {
-                length: *length,
-                md5sum: md5sum.clone(),
-                path: vec![self.name.clone()],
-                path_utf8: None,
-                attr: attr.clone(),
-                symlink_path: symlink_path.clone(),
-                sha1: sha1.clone(),
-            }],
-            TorrentInfoFile::Multiple { files, .. } => files.clone(),
+            TorrentInfoFile::Single { file } => vec![file.clone()],
+            TorrentInfoFile::Multiple { files } => files.clone(),
         }
     }
 
@@ -237,9 +231,13 @@ impl TorrentMetadata {
 impl Debug for TorrentMetadata {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("TorrentMetadata")
-            .field("pieces", &self.pieces.len())
             .field("piece_length", &self.piece_length)
+            .field("pieces", &self.pieces.len())
+            .field("name", &self.name)
+            .field("name_utf8", &self.name_utf8)
             .field("private", &self.private)
+            .field("source", &self.source)
+            .field("meta_version", &self.meta_version)
             .field("files", &self.files)
             .finish()
     }
@@ -447,12 +445,12 @@ impl TorrentInfo {
     }
 
     /// Get the total number of pieces which are in the torrent.
-    /// This can only be calculated if the metadata is known.
+    /// This can only be calculated if the metadata is known and will return [None] when not it's available.
     ///
     /// # Returns
     ///
     /// Returns the total number of pieces for the torrent.
-    pub fn num_of_pieces(&self) -> Option<usize> {
+    pub fn total_pieces(&self) -> Option<usize> {
         if let Some(metadata) = &self.info {
             let file_size = metadata.total_size();
             let piece_length = metadata.piece_length as usize;
@@ -775,60 +773,11 @@ impl TorrentInfoBuilder {
 
 #[cfg(test)]
 mod tests {
-    use log::trace;
     use std::str::FromStr;
 
     use popcorn_fx_core::testing::{init_logger, read_test_file_to_bytes};
 
     use super::*;
-
-    #[test]
-    fn test_torrent_info_validate() {
-        init_logger();
-
-        let info = TorrentInfoBuilder::builder()
-            .info_hash(
-                InfoHash::from_str(
-                    "urn:btmh:1220cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
-                )
-                .unwrap(),
-            )
-            .build();
-        let result = info.validate();
-        // assert_eq!(
-        //     Err(TorrentError::InvalidMetadata(
-        //         VALIDATION_ERR_MISSING_METADATA_FIELDS.to_string()
-        //     )),
-        //     result
-        // );
-
-        let info = TorrentInfoBuilder::builder()
-            .info(TorrentMetadata {
-                pieces: vec![],
-                piece_length: 20,
-                private: None,
-                name: "FooBarFile".to_string(),
-                name_utf8: None,
-                files: TorrentInfoFile::Single {
-                    length: 145600,
-                    md5sum: None,
-                    attr: None,
-                    symlink_path: None,
-                    sha1: None,
-                },
-                source: None,
-                meta_version: None,
-            })
-            .info_hash(
-                InfoHash::from_str(
-                    "urn:btmh:1220cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
-                )
-                .unwrap(),
-            )
-            .build();
-        let result = info.validate();
-        assert_eq!(Ok(()), result);
-    }
 
     #[test]
     fn test_torrent_info_tiered_trackers() {
@@ -877,11 +826,37 @@ mod tests {
         init_logger();
         let announce = "http://bttracker.debian.org:6969/announce";
         let data = read_test_file_to_bytes("debian.torrent");
+        let expected_name = "debian-11.6.0-amd64-netinst.iso";
+        let expected_piece_length = 262144;
+        let expected_files = TorrentInfoFile::Single {
+            file: TorrentFileInfo {
+                length: 406847488,
+                path: None,
+                path_utf8: None,
+                md5sum: None,
+                attr: None,
+                symlink_path: None,
+                sha1: None,
+            },
+        };
 
         let info = TorrentInfo::try_from(data.as_slice()).unwrap();
 
-        trace!("{:?}", info);
         assert_eq!(announce, info.announce.expect("expected announce").as_str());
+        assert_ne!(
+            None, info.info,
+            "expected the metadata to have been present"
+        );
+        let metadata = info.info.unwrap();
+        assert_eq!(
+            expected_name, metadata.name,
+            "expected the piece length to match"
+        );
+        assert_eq!(
+            expected_piece_length, metadata.piece_length,
+            "expected the piece length to match"
+        );
+        assert_eq!(expected_files, metadata.files);
     }
 
     #[test]

@@ -59,7 +59,7 @@ impl TrackerConnection for UdpConnection {
             });
 
             let response = self.read().await?;
-            return match response {
+            match response {
                 Response::Connection(response) => {
                     debug!("Received connect response {:?}", response);
                     let session = self.session.as_mut().unwrap();
@@ -75,7 +75,7 @@ impl TrackerConnection for UdpConnection {
                         response
                     )))
                 }
-            };
+            }
         } else {
             return Err(TrackerError::from(io::Error::from(
                 io::ErrorKind::AddrNotAvailable,

@@ -12,7 +12,7 @@ use crate::torrents::InfoHash;
 use async_trait::async_trait;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use derive_more::Display;
-use log::{debug, error, trace};
+use log::{debug, trace};
 use tokio::net::UdpSocket;
 use tokio::sync::Mutex;
 use tokio::time::timeout;
@@ -23,8 +23,7 @@ const ERROR_CONNECTION_NOT_INITIALIZED: &'static str = "udp connection not start
 #[derive(Debug)]
 pub struct UdpConnection {
     peer_id: PeerId,
-    addr_cursor: Mutex<Option<usize>>,
-    addrs: Vec<SocketAddr>,
+    addrs: AddressManager,
     session: Option<UdpConnectionSession>,
     timeout: Duration,
     cancel: CancellationToken,
@@ -34,13 +33,24 @@ pub struct UdpConnection {
 impl TrackerConnection for UdpConnection {
     async fn start(&mut self) -> Result<()> {
         let socket = UdpSocket::bind("0:0").await?;
-        let addr = self.next_addr().await;
+        let mut connected = false;
 
-        if let Some(addr) = addr {
+        // try to connect to an available address known for the tracker
+        while let Some(addr) = self.next_addr().await {
             trace!("Trying to connect to {:?}", addr);
-            socket.connect(addr).await?;
-            trace!("Opened connection with {:?}", addr);
+            match socket.connect(addr).await {
+                Ok(_) => {
+                    debug!("Successfully connected to tracker address {}", addr);
+                    connected = true;
+                    break;
+                }
+                Err(e) => {
+                    debug!("Failed to connect to tracker address {}, {}", addr, e);
+                }
+            }
+        }
 
+        if connected {
             // generate a new transaction id on each connection attempt
             let transaction_id = Self::generate_transaction_id();
             let connect_request = ConnectRequest::new(transaction_id);
@@ -77,9 +87,9 @@ impl TrackerConnection for UdpConnection {
                 }
             }
         } else {
-            return Err(TrackerError::from(io::Error::from(
+            Err(TrackerError::from(io::Error::from(
                 io::ErrorKind::AddrNotAvailable,
-            )));
+            )))
         }
     }
 
@@ -89,10 +99,6 @@ impl TrackerConnection for UdpConnection {
         event: AnnounceEvent,
     ) -> Result<AnnounceEntryResponse> {
         self.do_announce(info_hash, event).await
-    }
-
-    async fn scrape(&mut self) -> Result<()> {
-        todo!()
     }
 
     fn close(&mut self) {
@@ -105,8 +111,7 @@ impl UdpConnection {
     pub fn new(addrs: &[SocketAddr], peer_id: PeerId, timeout: Duration) -> Self {
         Self {
             peer_id,
-            addr_cursor: Default::default(),
-            addrs: addrs.to_vec(),
+            addrs: AddressManager::new(addrs),
             session: Default::default(),
             timeout,
             cancel: Default::default(),
@@ -114,16 +119,7 @@ impl UdpConnection {
     }
 
     async fn next_addr(&self) -> Option<&SocketAddr> {
-        trace!("Retrieving next udp connection address");
-        let mut mutex = self.addr_cursor.lock().await;
-        let cursor = mutex.as_ref().map(|e| e + 1).unwrap_or(0);
-        let addr = self.addrs.get(cursor);
-
-        if addr.is_some() {
-            *mutex = Some(cursor);
-        }
-
-        addr
+        self.addrs.next_addr().await
     }
 
     async fn send<T>(&self, message: T) -> Result<()>
@@ -131,13 +127,13 @@ impl UdpConnection {
         T: AsRef<[u8]>,
     {
         trace!("Trying to send udp message");
-        return if let Some(session) = &self.session {
+        if let Some(session) = &self.session {
             Self::send_with_socket(message, &session.socket, &self.cancel).await
         } else {
-            return Err(TrackerError::Connection(
+            Err(TrackerError::Connection(
                 ERROR_CONNECTION_NOT_INITIALIZED.to_string(),
-            ));
-        };
+            ))
+        }
     }
 
     async fn read(&self) -> Result<Response> {
@@ -252,6 +248,35 @@ impl UdpConnection {
     fn generate_transaction_id() -> u32 {
         // don't use 0, because that has special meaning (uninitialized)
         rand::random::<u32>() + 1
+    }
+}
+
+#[derive(Debug)]
+struct AddressManager {
+    addr_cursor: Mutex<usize>,
+    addrs: Vec<SocketAddr>,
+}
+
+impl AddressManager {
+    pub fn new(addrs: &[SocketAddr]) -> Self {
+        Self {
+            addr_cursor: Default::default(),
+            addrs: addrs.to_vec(),
+        }
+    }
+
+    /// Get the next available address from the address manager.
+    /// It returns [None] if there are no more addresses left.
+    pub async fn next_addr(&self) -> Option<&SocketAddr> {
+        let mut cursor = self.addr_cursor.lock().await;
+
+        if self.addrs.is_empty() || *cursor >= self.addrs.len() {
+            return None;
+        }
+
+        let addr = self.addrs.get(*cursor);
+        *cursor += 1;
+        addr
     }
 }
 
@@ -431,9 +456,12 @@ struct UdpResponse {
 
 #[cfg(test)]
 mod tests {
-    use popcorn_fx_core::testing::init_logger;
-
     use super::*;
+    use crate::torrents::TorrentInfo;
+    use popcorn_fx_core::core::block_in_place;
+    use popcorn_fx_core::testing::{init_logger, read_test_file_to_bytes};
+    use tokio::net::lookup_host;
+    use tokio::runtime::Runtime;
 
     #[test]
     fn test_generate_transaction_id() {
@@ -457,5 +485,62 @@ mod tests {
 
         let result = connection.next_addr().await;
         assert_eq!(None, result);
+    }
+
+    #[test]
+    fn test_announce() {
+        init_logger();
+        let runtime = Runtime::new().expect("expected a runtime");
+        let torrent_info_data = read_test_file_to_bytes("debian-udp.torrent");
+        let torrent_info = TorrentInfo::try_from(torrent_info_data.as_slice()).unwrap();
+        let peer_id = PeerId::new();
+        let addrs: Vec<SocketAddr> = get_tracker_addresses(&torrent_info);
+        let mut connection = UdpConnection::new(&addrs, peer_id, Duration::from_secs(1));
+
+        runtime
+            .block_on(connection.start())
+            .expect("expected the connection to start");
+        let result = runtime
+            .block_on(connection.announce(torrent_info.info_hash, AnnounceEvent::Started))
+            .expect("expected the announce to succeed");
+
+        assert_ne!(
+            0, result.interval_seconds,
+            "expected the interval to be greater than 0"
+        );
+        assert_ne!(
+            0,
+            result.peers.len(),
+            "expected the number of peers to be greater than 0"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_address_manager_next_addr() {
+        let addrs = vec![SocketAddr::from(([127, 0, 0, 1], 6881))];
+        let manager = AddressManager::new(&addrs);
+
+        let result = manager.next_addr().await;
+        assert_ne!(None, result, "expected an address to be returned");
+
+        let result = manager.next_addr().await;
+        assert_eq!(None, result, "expected no address to be returned");
+    }
+
+    /// Get the unordered tracker addresses of the given torrent info.
+    fn get_tracker_addresses(torrent_info: &TorrentInfo) -> Vec<SocketAddr> {
+        torrent_info
+            .trackers()
+            .into_iter()
+            .filter_map(|url| {
+                let host = url.host_str().unwrap();
+                let port = url.port().unwrap_or(80);
+
+                block_in_place(lookup_host((host, port)))
+                    .map(|e| e.collect::<Vec<SocketAddr>>())
+                    .ok()
+            })
+            .flatten()
+            .collect()
     }
 }

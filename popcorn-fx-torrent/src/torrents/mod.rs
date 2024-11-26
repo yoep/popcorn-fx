@@ -1,4 +1,5 @@
 pub use errors::*;
+pub use file::*;
 pub use info_hash::*;
 pub use manager::*;
 pub use piece::*;
@@ -8,12 +9,13 @@ pub use torrent_info::*;
 
 mod errors;
 mod file;
-mod fs;
+pub mod fs;
 mod info_hash;
 mod manager;
-mod peers;
+pub mod peers;
 mod piece;
 mod session;
 mod torrent;
 mod torrent_info;
+mod torrent_request_buffer;
 mod trackers;

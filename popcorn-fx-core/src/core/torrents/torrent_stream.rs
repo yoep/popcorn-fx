@@ -2,18 +2,20 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use derive_more::Display;
-use downcast_rs::impl_downcast;
 use futures::Stream;
 use url::Url;
 
-use crate::core::{CallbackHandle, CoreCallback, Handle, torrents};
 use crate::core::torrents::{DownloadStatus, Torrent};
+use crate::core::{torrents, CallbackHandle, CoreCallback, Handle};
+
+/// The unique identifier handle of a stream.
+pub type StreamHandle = Handle;
 
 /// The stream bytes that are available to be used for the [TorrentStream].
 pub type StreamBytes = Vec<u8>;
 
 /// The streaming result of a read operation on the [TorrentStream] resource.
-pub type StreamBytesResult = Result<StreamBytes, torrents::TorrentError>;
+pub type StreamBytesResult = Result<StreamBytes, torrents::Error>;
 
 /// The callback type for all torrent stream events.
 pub type TorrentStreamCallback = CoreCallback<TorrentStreamEvent>;
@@ -58,7 +60,7 @@ pub trait TorrentStream: Torrent {
     /// Get the stream handle of this stream.
     ///
     /// Returns the stream handle of this stream.
-    fn stream_handle(&self) -> Handle;
+    fn stream_handle(&self) -> StreamHandle;
 
     /// Get the endpoint URL where the stream is available.
     ///
@@ -69,7 +71,7 @@ pub trait TorrentStream: Torrent {
     /// The actual [Stream] implementation is wrapped in the [TorrentStreamingResourceWrapper],
     /// as most streaming servers require the [Stream] to have a known size.
     ///
-    /// Returns the stream of the torrent bytes or the [torrents::TorrentError] that occurred.
+    /// Returns the stream of the torrent bytes or the [torrents::Error] that occurred.
     fn stream(&self) -> torrents::Result<TorrentStreamingResourceWrapper>;
 
     /// Stream the torrent contents as a byte array with the given offset and length.
@@ -81,7 +83,7 @@ pub trait TorrentStream: Torrent {
     /// * `offset` - The offset within the torrent to start streaming from.
     /// * `len` - The length of the content to stream (optional).
     ///
-    /// Returns the stream of the torrent bytes or the [torrents::TorrentError] that occurred.
+    /// Returns the stream of the torrent bytes or the [torrents::Error] that occurred.
     fn stream_offset(
         &self,
         offset: u64,
@@ -109,11 +111,10 @@ pub trait TorrentStream: Torrent {
     /// and stopping the underlying [Torrent] process.
     fn stop_stream(&self);
 }
-impl_downcast!(sync TorrentStream);
 
 /// The streaming resource of a [TorrentStream].
 /// It allows a [Torrent] to be streamed over HTTP.
-pub trait TorrentStreamingResource: Stream<Item = StreamBytesResult> + Send + 'static {
+pub trait TorrentStreamingResource: Stream<Item = StreamBytesResult> + Send {
     /// The starting offset of the stream in regards to the resource bytes.
     /// This will be the initial seek offset within the resource bytes and is 0 index based.
     fn offset(&self) -> u64;
@@ -140,7 +141,7 @@ pub struct TorrentStreamingResourceWrapper {
 impl TorrentStreamingResourceWrapper {
     pub fn new<T>(stream: T) -> Self
     where
-        T: TorrentStreamingResource<Item = StreamBytesResult>,
+        T: TorrentStreamingResource<Item = StreamBytesResult> + 'static,
     {
         Self {
             inner: Box::pin(stream),

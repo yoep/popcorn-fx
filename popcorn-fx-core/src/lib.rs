@@ -269,7 +269,7 @@ pub mod testing {
     use crate::core::subtitles::model::SubtitleInfo;
     use crate::core::subtitles::{SubtitleEvent, SubtitleManager, SubtitlePreference};
     use crate::core::torrents::{
-        Torrent, TorrentCallback, TorrentState, TorrentStream, TorrentStreamCallback,
+        Torrent, TorrentEvent, TorrentHandle, TorrentState, TorrentStream, TorrentStreamCallback,
         TorrentStreamState, TorrentStreamingResourceWrapper,
     };
     use crate::core::{torrents, CallbackHandle, Callbacks, CoreCallback, Handle};
@@ -460,44 +460,34 @@ pub mod testing {
         #[derive(Debug)]
         pub TorrentStream {}
 
+        #[async_trait]
         impl Torrent for TorrentStream {
-            fn handle(&self) -> &str;
-
+            fn handle(&self) -> TorrentHandle;
             fn file(&self) -> PathBuf;
-
-            fn has_bytes(&self, bytes: &[u64]) -> bool;
-
-            fn has_piece(&self, piece: u32) -> bool;
-
-            fn prioritize_bytes(&self, bytes: &[u64]);
-
+            async fn has_bytes(&self, bytes: &std::ops::Range<usize>) -> bool;
+            async fn has_piece(&self, piece: usize) -> bool;
+            async fn prioritize_bytes(&self, bytes: &std::ops::Range<usize>);
             fn prioritize_pieces(&self, pieces: &[u32]);
-
-            fn total_pieces(&self) -> i32;
-
+            async fn total_pieces(&self) -> Option<usize>;
             fn sequential_mode(&self);
-
             fn state(&self) -> TorrentState;
-
-            fn subscribe(&self, callback: TorrentCallback) -> CallbackHandle;
         }
 
+        #[async_trait]
         impl TorrentStream for TorrentStream {
             fn stream_handle(&self) -> Handle;
-
             fn url(&self) -> Url;
-
             fn stream(&self) -> torrents::Result<TorrentStreamingResourceWrapper>;
-
             fn stream_offset(&self, offset: u64, len: Option<u64>) -> torrents::Result<TorrentStreamingResourceWrapper>;
-
             fn stream_state(&self) -> TorrentStreamState;
-
             fn subscribe_stream(&self, callback: TorrentStreamCallback) -> CallbackHandle;
-
             fn unsubscribe_stream(&self, handle: CallbackHandle);
-
             fn stop_stream(&self);
+        }
+
+        impl Callbacks<TorrentEvent> for TorrentStream {
+            fn add_callback(&self, callback: CoreCallback<TorrentEvent>) -> CallbackHandle;
+            fn remove_callback(&self, handle: CallbackHandle);
         }
     }
 

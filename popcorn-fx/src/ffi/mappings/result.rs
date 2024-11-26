@@ -31,7 +31,7 @@ impl<T, E> From<ResultC<T, E>> for Result<T, E> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use popcorn_fx_core::core::torrents::TorrentError;
+    use popcorn_fx_core::core::torrents::Error;
     use popcorn_fx_core::testing::init_logger;
 
     #[test]
@@ -39,7 +39,7 @@ mod tests {
         init_logger();
         let result = Ok(1);
 
-        let result_c: ResultC<i32, TorrentError> = ResultC::from(result);
+        let result_c: ResultC<i32, Error> = ResultC::from(result);
 
         assert_eq!(result_c, ResultC::Ok(1));
     }
@@ -49,7 +49,7 @@ mod tests {
         init_logger();
         let result_c = ResultC::Ok(1);
 
-        let result: Result<i32, TorrentError> = Result::from(result_c);
+        let result: Result<i32, Error> = Result::from(result_c);
 
         assert_eq!(result, Ok(1));
     }

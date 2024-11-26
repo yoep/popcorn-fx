@@ -412,6 +412,7 @@ impl TorrentInfo {
         let mut tier = 0u8;
 
         // add the announce tracker info to the tiered trackers if present
+
         if let Some(announce) = self.announce.as_ref() {
             match Url::parse(announce) {
                 Ok(url) => {
@@ -442,6 +443,19 @@ impl TorrentInfo {
         }
 
         tiered_trackers
+    }
+
+    /// Get the trackers that don't contain any order for this torrent.
+    ///
+    /// # Returns
+    ///
+    /// Returns the trackers from the `announce` field for this torrent.
+    pub fn trackers(&self) -> Vec<Url> {
+        self.announce
+            .as_ref()
+            .iter()
+            .filter_map(|url| Url::parse(url).ok())
+            .collect()
     }
 
     /// Get the total number of pieces which are in the torrent.

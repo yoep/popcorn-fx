@@ -34,7 +34,6 @@ public class TorrentServiceImpl implements TorrentService {
     private final FxLib fxLib;
     private final PopcornFx instance;
     private final ExecutorService executorService;
-    private final CancelTorrentCallback cancelTorrentCallback = createCancelTorrentCallback();
 
     private final List<TorrentWrapper> torrentWrappers = new ArrayList<>();
     private final Map<Handle, StreamListenerHolder> torrentStreamCallbacks = new HashMap<>();
@@ -44,7 +43,6 @@ public class TorrentServiceImpl implements TorrentService {
         this.fxLib = fxLib;
         this.instance = instance;
         this.executorService = executorService;
-        init();
     }
 
     //region Getters
@@ -150,11 +148,6 @@ public class TorrentServiceImpl implements TorrentService {
     //endregion
 
     //region Functions
-
-    private void init() {
-        fxLib.register_torrent_resolve_callback(instance, (a, b, c) -> null);
-        fxLib.torrent_cancel_callback(instance, cancelTorrentCallback);
-    }
 
     private TorrentHandle internalCreateTorrentHandle(TorrentFileInfo torrentFile, File torrentDirectory) {
         log.debug("Creating new torrent for {} in {}", torrentFile.getFilename(), torrentDirectory.getAbsolutePath());

@@ -14,7 +14,8 @@ use futures::future;
 use log::{debug, info, trace, warn};
 use popcorn_fx_core::core::block_in_place;
 use tokio::runtime::Runtime;
-use tokio::sync::RwLock;
+use tokio::sync::mpsc::Sender;
+use tokio::sync::{RwLock, RwLockReadGuard};
 use tokio::{select, time};
 use tokio_util::sync::CancellationToken;
 use url::Url;
@@ -37,7 +38,7 @@ pub enum AnnounceEvent {
 }
 
 /// The announcement result returned by all trackers.
-#[derive(Default, PartialEq)]
+#[derive(Default, Clone, PartialEq)]
 pub struct Announcement {
     /// The total number of leechers reported by the trackers.
     pub total_leechers: u64,
@@ -63,6 +64,15 @@ impl Debug for Announcement {
     }
 }
 
+/// The event that can be emitted by the tracker manager.
+#[derive(Debug, Clone, PartialEq)]
+pub enum TrackerManagerEvent {
+    /// Invoked when new peer have been discovered
+    PeersDiscovered(Vec<SocketAddr>),
+    /// Invoked when a new tracker has been added
+    TrackerAdded(TrackerHandle),
+}
+
 /// Manages trackers and handles periodic announcements.
 ///
 /// The `TrackerManager` is responsible for managing a list of trackers, performing automatic announcements, and handling tracker updates.
@@ -82,6 +92,7 @@ impl TrackerManager {
     /// * `peer_port` - The port number on which the [Session] is listening for incoming peer connections.
     /// * `info_hash` - The info hash of the torrent being tracked by this manager.
     /// * `timeout` - The timeout for tracker connections.
+    /// * `event_sender` - The event sender to use for emitting events.
     /// * `runtime` - The runtime environment for spawning asynchronous tasks.
     ///
     /// # Returns
@@ -92,10 +103,15 @@ impl TrackerManager {
         peer_port: u16,
         info_hash: InfoHash,
         timeout: Duration,
+        event_sender: Sender<TrackerManagerEvent>,
         runtime: Arc<Runtime>,
     ) -> Self {
         let inner = Arc::new(InnerTrackerManager::new(
-            peer_id, peer_port, info_hash, timeout,
+            peer_id,
+            peer_port,
+            info_hash,
+            timeout,
+            event_sender,
         ));
         let cancellation_token = CancellationToken::new();
 
@@ -106,14 +122,22 @@ impl TrackerManager {
         }
     }
 
-    /// Retrieve the trackers which are currently active within this manager.
-    ///
-    /// # Returns
-    ///
-    /// Returns an array of active tracker URLs.
+    /// Checks if a given tracker URL is known within this manager.
+    pub async fn is_tracker_url_known(&self, url: &Url) -> bool {
+        let trackers = self.inner.trackers.read().await;
+        trackers.iter().any(|e| e.url() == url)
+    }
+
+    /// Get the currently active trackers.
+    /// This might return an empty list if no trackers have been added yet.
     pub async fn trackers(&self) -> Vec<Url> {
         let trackers = self.inner.trackers.read().await;
         trackers.iter().map(|e| e.url().clone()).collect()
+    }
+
+    /// Get the currently known peers that have been discovered by the trackers.
+    pub async fn discovered_peers(&self) -> Vec<SocketAddr> {
+        self.inner.peers.read().await.clone()
     }
 
     /// Adds a new tracker to the manager.
@@ -147,18 +171,7 @@ impl TrackerManager {
             .build()
             .await
         {
-            Ok(tracker) => {
-                let handle = tracker.handle();
-                let tracker_info = tracker.to_string();
-
-                {
-                    let mut mutex = self.inner.trackers.write().await;
-                    mutex.push(tracker);
-                    debug!("Tracker {} has been added", tracker_info);
-                }
-
-                Ok(handle)
-            }
+            Ok(tracker) => self.inner.add_tracker(tracker).await,
             Err(e) => {
                 warn!("Failed to create new tracker {}: {}", url, e);
                 Err(e)
@@ -216,33 +229,22 @@ impl TrackerManager {
         result
     }
 
+    /// Announce the given event to the specified tracker.
     pub async fn announce(
         &self,
         handle: TrackerHandle,
         event: AnnounceEvent,
     ) -> Result<Announcement> {
-        let mutex = self.inner.trackers.read().await;
-        let tracker = mutex
-            .iter()
-            .find(|e| e.handle() == handle)
-            .ok_or(TrackerError::InvalidHandle(handle))?;
+        self.inner.announce(handle, event).await
+    }
 
-        match self
-            .inner
-            .announce_tracker(tracker, event)
-            .await
-            .map(|e| Announcement {
-                total_leechers: e.leechers,
-                total_seeders: e.seeders,
-                peers: e.peers,
-            }) {
-            Ok(e) => {
-                // update the discovered peers
-                self.inner.add_peers(e.peers.as_slice()).await;
-                Ok(e)
-            }
-            Err(e) => Err(e),
-        }
+    /// Make a new announcement to the specified tracker for the given event.
+    /// This method will spawn the announcement task and return immediately.
+    pub async fn make_announcement(&self, handle: TrackerHandle, event: AnnounceEvent) {
+        let inner = self.inner.clone();
+        self.runtime.spawn(async move {
+            let _ = inner.announce(handle, event).await;
+        });
     }
 
     /// Announce to all trackers that the given torrent info hash has stopped.
@@ -300,6 +302,7 @@ struct InnerTrackerManager {
     /// The discovered peers from the trackers
     peers: RwLock<Vec<SocketAddr>>,
     connection_timeout: Duration,
+    event_sender: Sender<TrackerManagerEvent>,
 }
 
 impl InnerTrackerManager {
@@ -308,6 +311,7 @@ impl InnerTrackerManager {
         peer_port: u16,
         info_hash: InfoHash,
         connection_timeout: Duration,
+        event_sender: Sender<TrackerManagerEvent>,
     ) -> Self {
         Self {
             peer_id,
@@ -316,26 +320,73 @@ impl InnerTrackerManager {
             trackers: Default::default(),
             peers: Default::default(),
             connection_timeout,
+            event_sender,
         }
     }
 
+    /// Get the info hash of the torrent being tracked.
     async fn info_hash(&self) -> InfoHash {
         self.info_hash.clone()
+    }
+
+    /// Add the given tracker to the trackers pool.
+    /// Returns a unique tracker handle for the added tracker.
+    async fn add_tracker(&self, tracker: Tracker) -> Result<TrackerHandle> {
+        let handle = tracker.handle();
+        let tracker_info = tracker.to_string();
+
+        {
+            let mut mutex = self.trackers.write().await;
+            mutex.push(tracker);
+            debug!("Tracker {} has been added", tracker_info);
+        }
+
+        self.send_event(TrackerManagerEvent::TrackerAdded(handle))
+            .await;
+        Ok(handle)
     }
 
     async fn add_peers(&self, peers: &[SocketAddr]) {
         trace!("Discovered a total of {} peers, {:?}", peers.len(), peers);
         let mut mutex = self.peers.write().await;
-        let mut new_peers: usize = 0;
+        let mut new_peers = Vec::new();
 
-        for peer in peers {
+        for peer in peers.into_iter() {
             if !mutex.contains(&peer) {
                 mutex.push(peer.clone());
-                new_peers += 1;
+                new_peers.push(peer.clone());
             }
         }
 
-        debug!("Discovered a total of {} new peers", new_peers);
+        debug!("Discovered a total of {} new peers", new_peers.len());
+        if new_peers.len() > 0 {
+            self.send_event(TrackerManagerEvent::PeersDiscovered(new_peers))
+                .await;
+        }
+    }
+
+    async fn announce(&self, handle: TrackerHandle, event: AnnounceEvent) -> Result<Announcement> {
+        let mutex = self.trackers.read().await;
+        let tracker = mutex
+            .iter()
+            .find(|e| e.handle() == handle)
+            .ok_or(TrackerError::InvalidHandle(handle))?;
+
+        match self
+            .announce_tracker(tracker, event)
+            .await
+            .map(|e| Announcement {
+                total_leechers: e.leechers,
+                total_seeders: e.seeders,
+                peers: e.peers,
+            }) {
+            Ok(e) => {
+                // update the discovered peers
+                self.add_peers(e.peers.as_slice()).await;
+                Ok(e)
+            }
+            Err(e) => Err(e),
+        }
     }
 
     async fn announce_all(&self) -> Announcement {
@@ -428,6 +479,16 @@ impl InnerTrackerManager {
             }
         }
     }
+
+    async fn send_event(&self, event: TrackerManagerEvent) {
+        trace!("Sending event {:?}", event);
+        if let Err(e) = self.event_sender.send(event).await {
+            warn!(
+                "Failed to send tracker manager event for peer {}, {}",
+                self.peer_id, e
+            );
+        }
+    }
 }
 
 impl Drop for InnerTrackerManager {
@@ -439,6 +500,7 @@ impl Drop for InnerTrackerManager {
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
+    use tokio::sync::oneshot::channel;
     use url::Url;
 
     use popcorn_fx_core::testing::init_logger;
@@ -453,11 +515,13 @@ mod tests {
         let peer_id = PeerId::new();
         let info_hash =
             InfoHash::from_str("urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7").unwrap();
+        let (tx, _rx) = tokio::sync::mpsc::channel(1);
         let manager = TrackerManager::new(
             peer_id,
             6881,
             info_hash,
             Duration::from_secs(1),
+            tx,
             runtime.clone(),
         );
 
@@ -478,11 +542,13 @@ mod tests {
         let peer_id = PeerId::new();
         let info_hash =
             InfoHash::from_str("urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7").unwrap();
+        let (tx, _rx) = tokio::sync::mpsc::channel(1);
         let manager = TrackerManager::new(
             peer_id,
             6881,
             info_hash,
             Duration::from_secs(1),
+            tx,
             runtime.clone(),
         );
 

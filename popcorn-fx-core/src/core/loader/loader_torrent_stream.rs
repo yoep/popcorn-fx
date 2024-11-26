@@ -11,9 +11,7 @@ use crate::core::loader::{
     CancellationResult, LoadingData, LoadingError, LoadingEvent, LoadingProgress, LoadingResult,
     LoadingState, LoadingStrategy,
 };
-use crate::core::torrents::{
-    TorrentError, TorrentStreamEvent, TorrentStreamServer, TorrentStreamState,
-};
+use crate::core::torrents::{Error, TorrentStreamEvent, TorrentStreamServer, TorrentStreamState};
 
 #[derive(Display)]
 #[display(fmt = "Torrent stream loading strategy")]
@@ -78,7 +76,7 @@ impl LoadingStrategy for TorrentStreamLoadingStrategy {
                                     }
                                     TorrentStreamState::Stopped => tx
                                         .send(Err(LoadingError::TorrentError(
-                                            TorrentError::InvalidStreamState(state),
+                                            Error::InvalidStreamState(state),
                                         )))
                                         .unwrap(),
                                 },
@@ -128,14 +126,9 @@ impl LoadingStrategy for TorrentStreamLoadingStrategy {
                 "Cancelling torrent download & stream for {}",
                 stream.stream_handle()
             );
+
             self.torrent_stream_server
                 .stop_stream(stream.stream_handle());
-
-            if let Some(stream) =
-                stream.downcast_ref::<crate::core::torrents::stream::DefaultTorrentStream>()
-            {
-                data.torrent = Some(Arc::downgrade(&stream.torrent()));
-            }
         }
 
         Ok(data)
@@ -147,7 +140,7 @@ mod tests {
     use std::time::Duration;
 
     use crate::core::playlists::PlaylistItem;
-    use crate::core::torrents::{MockTorrentStreamServer, TorrentStream};
+    use crate::core::torrents::{MockTorrentStreamServer, TorrentHandle, TorrentStream};
     use crate::core::{block_in_place, Handle};
     use crate::testing::{init_logger, MockTorrentStream};
 
@@ -156,7 +149,7 @@ mod tests {
     #[test]
     fn test_cancel() {
         init_logger();
-        let handle = "MyTorrentHandle";
+        let handle = TorrentHandle::new();
         let stream_handle = Handle::new();
         let mut data = LoadingData::from(PlaylistItem {
             url: None,
@@ -170,7 +163,7 @@ mod tests {
             torrent: Default::default(),
         });
         let mut stream = MockTorrentStream::new();
-        stream.expect_handle().return_const(handle.to_string());
+        stream.expect_handle().return_const(handle);
         stream
             .expect_stream_handle()
             .return_const(stream_handle.clone());

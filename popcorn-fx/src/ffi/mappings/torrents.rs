@@ -4,8 +4,8 @@ use std::ptr;
 use log::trace;
 
 use popcorn_fx_core::core::torrents::{
-    DownloadStatus, TorrentError, TorrentFileInfo, TorrentHealth, TorrentInfo, TorrentManagerState,
-    TorrentState, TorrentStreamEvent, TorrentStreamState, TorrentWrapper,
+    DownloadStatus, Error, TorrentFileInfo, TorrentHealth, TorrentInfo, TorrentState,
+    TorrentStreamEvent, TorrentStreamState,
 };
 use popcorn_fx_core::{from_c_string, into_c_string, into_c_vec};
 
@@ -57,8 +57,6 @@ pub enum TorrentErrorC {
     FileError(*mut c_char),
     /// Represents an error indicating an invalid stream state.
     InvalidStreamState(TorrentStreamState),
-    /// Represents an error indicating an invalid manager state.
-    InvalidManagerState(TorrentManagerState),
     /// Represents an error indicating an invalid handle.
     InvalidHandle(*mut c_char),
     /// Represents an error indicating failure during torrent resolving.
@@ -69,48 +67,42 @@ pub enum TorrentErrorC {
     Torrent(*mut c_char),
 }
 
-impl From<TorrentError> for TorrentErrorC {
-    fn from(value: TorrentError) -> Self {
+impl From<Error> for TorrentErrorC {
+    fn from(value: Error) -> Self {
         trace!("Converting TorrentErrorC from TorrentError {:?}", value);
         match value {
-            TorrentError::InvalidUrl(url) => TorrentErrorC::InvalidUrl(into_c_string(url)),
-            TorrentError::FileNotFound(file) => TorrentErrorC::FileNotFound(into_c_string(file)),
-            TorrentError::FileError(error) => TorrentErrorC::FileError(into_c_string(error)),
-            TorrentError::InvalidStreamState(state) => TorrentErrorC::InvalidStreamState(state),
-            TorrentError::InvalidManagerState(state) => TorrentErrorC::InvalidManagerState(state),
-            TorrentError::InvalidHandle(handle) => {
-                TorrentErrorC::InvalidHandle(into_c_string(handle))
-            }
-            TorrentError::TorrentResolvingFailed(error) => {
+            Error::InvalidUrl(url) => TorrentErrorC::InvalidUrl(into_c_string(url)),
+            Error::FileNotFound(file) => TorrentErrorC::FileNotFound(into_c_string(file)),
+            Error::FileError(error) => TorrentErrorC::FileError(into_c_string(error)),
+            Error::InvalidStreamState(state) => TorrentErrorC::InvalidStreamState(state),
+            Error::InvalidHandle(handle) => TorrentErrorC::InvalidHandle(into_c_string(handle)),
+            Error::TorrentResolvingFailed(error) => {
                 TorrentErrorC::TorrentResolvingFailed(into_c_string(error))
             }
-            TorrentError::TorrentCollectionLoadingFailed(error) => {
+            Error::TorrentCollectionLoadingFailed(error) => {
                 TorrentErrorC::TorrentCollectionLoadingFailed(into_c_string(error))
             }
-            TorrentError::TorrentError(error) => TorrentErrorC::Torrent(into_c_string(error)),
+            Error::TorrentError(error) => TorrentErrorC::Torrent(into_c_string(error)),
         }
     }
 }
 
-impl From<TorrentErrorC> for TorrentError {
+impl From<TorrentErrorC> for Error {
     fn from(value: TorrentErrorC) -> Self {
         trace!("Converting TorrentError from TorrentErrorC {:?}", value);
         match value {
-            TorrentErrorC::InvalidUrl(url) => TorrentError::InvalidUrl(from_c_string(url)),
-            TorrentErrorC::FileNotFound(file) => TorrentError::FileNotFound(from_c_string(file)),
-            TorrentErrorC::FileError(error) => TorrentError::FileError(from_c_string(error)),
-            TorrentErrorC::InvalidStreamState(state) => TorrentError::InvalidStreamState(state),
-            TorrentErrorC::InvalidManagerState(state) => TorrentError::InvalidManagerState(state),
-            TorrentErrorC::InvalidHandle(handle) => {
-                TorrentError::InvalidHandle(from_c_string(handle))
-            }
+            TorrentErrorC::InvalidUrl(url) => Error::InvalidUrl(from_c_string(url)),
+            TorrentErrorC::FileNotFound(file) => Error::FileNotFound(from_c_string(file)),
+            TorrentErrorC::FileError(error) => Error::FileError(from_c_string(error)),
+            TorrentErrorC::InvalidStreamState(state) => Error::InvalidStreamState(state),
+            TorrentErrorC::InvalidHandle(handle) => Error::InvalidHandle(from_c_string(handle)),
             TorrentErrorC::TorrentResolvingFailed(error) => {
-                TorrentError::TorrentResolvingFailed(from_c_string(error))
+                Error::TorrentResolvingFailed(from_c_string(error))
             }
             TorrentErrorC::TorrentCollectionLoadingFailed(error) => {
-                TorrentError::TorrentCollectionLoadingFailed(from_c_string(error))
+                Error::TorrentCollectionLoadingFailed(from_c_string(error))
             }
-            TorrentErrorC::Torrent(error) => TorrentError::TorrentError(from_c_string(error)),
+            TorrentErrorC::Torrent(error) => Error::TorrentError(from_c_string(error)),
         }
     }
 }
@@ -130,32 +122,6 @@ pub struct TorrentC {
     pub prioritize_pieces: PrioritizePiecesCallbackC,
     pub sequential_mode: SequentialModeCallbackC,
     pub torrent_state: TorrentStateCallbackC,
-}
-
-impl From<TorrentC> for TorrentWrapper {
-    fn from(value: TorrentC) -> Self {
-        trace!("Converting TorrentWrapper from TorrentC {:?}", value);
-        Self::new(
-            from_c_string(value.handle),
-            from_c_string(value.filepath),
-            Box::new(move |bytes| -> bool {
-                let (bytes, len) = into_c_vec(bytes.to_vec());
-                (value.has_byte_callback)(len, bytes)
-            }),
-            Box::new(move |piece| (value.has_piece_callback)(piece)),
-            Box::new(move || (value.total_pieces)()),
-            Box::new(move |bytes| {
-                let (bytes, len) = into_c_vec(bytes.to_vec());
-                (value.prioritize_bytes)(len, bytes)
-            }),
-            Box::new(move |pieces| {
-                let (pieces, len) = into_c_vec(pieces.to_vec());
-                (value.prioritize_pieces)(len, pieces)
-            }),
-            Box::new(move || (value.sequential_mode)()),
-            Box::new(move || (value.torrent_state)()),
-        )
-    }
 }
 
 /// A C-compatible struct representing torrent information.
@@ -511,7 +477,7 @@ mod tests {
     fn test_torrent_error_c_from() {
         init_logger();
         let filename = "my-filename";
-        let error = TorrentError::FileNotFound(filename.to_string());
+        let error = Error::FileNotFound(filename.to_string());
 
         let error_c = TorrentErrorC::from(error);
 
@@ -533,13 +499,13 @@ mod tests {
         let resolve_failed_message = "failed to resolve torrent X";
 
         let error_c = TorrentErrorC::FileNotFound(into_c_string(filename));
-        let error = TorrentError::from(error_c);
-        assert_eq!(TorrentError::FileNotFound(filename.to_string()), error);
+        let error = Error::from(error_c);
+        assert_eq!(Error::FileNotFound(filename.to_string()), error);
 
         let error_c = TorrentErrorC::TorrentResolvingFailed(into_c_string(resolve_failed_message));
-        let error = TorrentError::from(error_c);
+        let error = Error::from(error_c);
         assert_eq!(
-            TorrentError::TorrentResolvingFailed(resolve_failed_message.to_string()),
+            Error::TorrentResolvingFailed(resolve_failed_message.to_string()),
             error
         );
     }

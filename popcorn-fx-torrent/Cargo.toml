@@ -15,9 +15,10 @@ crate-type = ["rlib"]
 popcorn-fx-core = { path = "../popcorn-fx-core" }
 
 async-trait.workspace = true
-base32 = "0.5"
-bitmask-enum = "2.2"
+base32.workspace = true
+base64.workspace = true
 bit-vec = "0.8"
+bitmask-enum = "2.2"
 byteorder = "1.5"
 chrono.workspace = true
 derive_more = { workspace = true }
@@ -25,7 +26,9 @@ futures.workspace = true
 hex = "0.4.3"
 itertools.workspace = true
 log.workspace = true
+percent-encoding.workspace = true
 rand.workspace = true
+reqwest = { workspace = true, features = ["json", "stream"] }
 serde.workspace = true
 serde_bencode = "0.2.4"
 serde_bytes = "0.11.15"

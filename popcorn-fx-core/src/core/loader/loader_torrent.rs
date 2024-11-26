@@ -84,11 +84,9 @@ impl LoadingStrategy for TorrentLoadingStrategy {
     }
 
     async fn cancel(&self, mut data: LoadingData) -> CancellationResult {
-        if let Some(torrent) = data.torrent.take().and_then(|e| e.upgrade()) {
+        if let Some(torrent) = data.torrent.take() {
             debug!("Cancelling the torrent downloading");
             self.torrent_manager.remove(torrent.handle());
-        } else {
-            trace!("No torrent available to cancel");
         }
 
         Ok(data)
@@ -103,7 +101,9 @@ mod tests {
     use crate::core::block_in_place;
     use crate::core::loader::LoadingResult;
     use crate::core::playlists::{PlaylistItem, PlaylistTorrent};
-    use crate::core::torrents::{MockTorrent, MockTorrentManager, Torrent, TorrentInfo};
+    use crate::core::torrents::{
+        MockTorrent, MockTorrentManager, Torrent, TorrentHandle, TorrentInfo,
+    };
     use crate::testing::init_logger;
 
     use super::*;
@@ -149,7 +149,7 @@ mod tests {
     #[test]
     fn test_cancel() {
         init_logger();
-        let handle = "MyHandle";
+        let handle = TorrentHandle::new();
         let mut data = LoadingData::from(PlaylistItem {
             url: Some("".to_string()),
             title: "MyTorrent".to_string(),
@@ -162,9 +162,9 @@ mod tests {
             torrent: Default::default(),
         });
         let mut torrent = MockTorrent::new();
-        torrent.expect_handle().return_const(handle.to_string());
-        let torrent = Arc::new(Box::new(torrent) as Box<dyn Torrent>);
-        data.torrent = Some(Arc::downgrade(&torrent));
+        torrent.expect_handle().return_const(handle);
+        let torrent = Box::new(torrent) as Box<dyn Torrent>;
+        data.torrent = Some(torrent);
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let settings = Arc::new(ApplicationConfig::builder().storage(temp_path).build());

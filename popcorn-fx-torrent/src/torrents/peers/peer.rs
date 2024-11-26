@@ -1,14 +1,15 @@
 use crate::torrents::peers::bt_protocol::{
-    ExtendedHandshake, ExtensionFlags, Handshake, Message, Request,
+    ExtendedHandshake, ExtensionFlags, Handshake, Message, Piece, Request,
 };
 use crate::torrents::peers::extensions::{
     Extension, ExtensionName, ExtensionNumber, ExtensionRegistry, Extensions,
 };
+use std::cmp::Ordering;
 
 use crate::torrents::peers::peer_reader::{PeerReader, PeerReaderEvent};
 use crate::torrents::peers::peer_request_buffer::PeerRequestBuffer;
 use crate::torrents::peers::{Error, PeerId, Result};
-use crate::torrents::{InfoHash, PieceIndex, Torrent, TorrentInfo, TorrentMetadata};
+use crate::torrents::{InfoHash, PieceIndex, PiecePart, Torrent, TorrentInfo, TorrentMetadata};
 use bit_vec::BitVec;
 use byteorder::BigEndian;
 use byteorder::ByteOrder;
@@ -22,10 +23,10 @@ use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio::io::{split, AsyncRead, AsyncReadExt, AsyncWriteExt, BufReader, BufWriter, WriteHalf};
+use tokio::io::{split, AsyncWriteExt, BufReader, BufWriter, WriteHalf};
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
-use tokio::sync::mpsc::{channel, unbounded_channel, Receiver, Sender};
+use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::sync::{Mutex, RwLock};
 use tokio::time::timeout;
 use tokio::{select, time};
@@ -34,7 +35,6 @@ use tokio_util::sync::CancellationToken;
 const DEFAULT_CONNECTION_TIMEOUT_SECONDS: u64 = 10;
 const KEEP_ALIVE_SECONDS: u64 = 120;
 const HANDSHAKE_MESSAGE_LEN: usize = 68;
-const REQUEST_MAX_LENGTH: usize = 16 * 1024; // 16 KiB
 
 /// The peer's unique identifier handle.
 pub type PeerHandle = Handle;
@@ -44,12 +44,30 @@ pub type PeerCallback = CoreCallback<PeerEvent>;
 
 /// The choke states of a peer.
 #[repr(u8)]
-#[derive(Debug, Display, Clone, Copy, PartialEq)]
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq)]
 pub enum ChokeState {
     #[display(fmt = "choked")]
     Choked = 0,
     #[display(fmt = "un-choked")]
     UnChoked = 1,
+}
+
+impl PartialOrd for ChokeState {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        if self == other {
+            Some(Ordering::Equal)
+        } else if self == &ChokeState::Choked && other == &ChokeState::UnChoked {
+            Some(Ordering::Less)
+        } else {
+            Some(Ordering::Greater)
+        }
+    }
+}
+
+impl Ord for ChokeState {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.partial_cmp(other).unwrap()
+    }
 }
 
 /// The interest states of a peer.
@@ -77,6 +95,8 @@ pub enum PeerState {
     Handshake,
     #[display(fmt = "retrieving metadata")]
     RetrievingMetadata,
+    #[display(fmt = "paused")]
+    Paused,
     #[display(fmt = "downloading")]
     Downloading,
     #[display(fmt = "uploading")]
@@ -121,6 +141,7 @@ pub struct PeerDataTransferStats {
 #[derive(Debug)]
 pub struct Peer {
     handle: PeerHandle,
+    addr: SocketAddr,
     inner: Arc<InnerPeer>,
     runtime: Arc<Runtime>,
 }
@@ -161,6 +182,11 @@ impl Peer {
         self.handle
     }
 
+    /// Get the address of the peer.
+    pub fn addr(&self) -> SocketAddr {
+        self.addr
+    }
+
     /// Get the connection type of the peer.
     ///
     /// # Returns
@@ -180,7 +206,7 @@ impl Peer {
         self.inner.remote_id().await
     }
 
-    /// Retrieve the remote peer information.
+    /// Get the remote peer information.
     /// This is only available after the handshake with the peer has been completed.
     ///
     /// # Returns
@@ -190,7 +216,7 @@ impl Peer {
         self.inner.remote.read().await.as_ref().map(|e| e.clone())
     }
 
-    /// Retrieve the known supported extensions of the remote peer.
+    /// Get the known supported extensions of the remote peer.
     /// This might still be `None` when the handshake with the peer has not been completed yet.
     ///
     /// # Returns
@@ -204,7 +230,7 @@ impl Peer {
             .unwrap_or(ExtensionFlags::None)
     }
 
-    /// Retrieve the known extension registry of the remote peer.
+    /// Get the known extension registry of the remote peer.
     /// This might still be `None` when the handshake with the peer has not been completed yet.
     ///
     /// # Returns
@@ -213,6 +239,25 @@ impl Peer {
     pub async fn remote_extension_registry(&self) -> Option<ExtensionRegistry> {
         let mutex = self.inner.remote.read().await;
         mutex.as_ref().map(|e| e.extensions.clone())
+    }
+
+    /// Get the remote peer choke state.
+    pub async fn remote_choke_state(&self) -> ChokeState {
+        self.inner.remote_choke_state.read().await.clone()
+    }
+
+    /// Verify if the remote peer has the given piece.
+    ///
+    /// # Arguments
+    ///
+    /// * `piece` - The piece index that should be checked.
+    ///
+    /// # Returns
+    ///
+    /// Returns true when the remote peer has the piece available, else false.
+    pub async fn remote_has_piece(&self, piece: PieceIndex) -> bool {
+        let mutex = self.inner.remote_pieces.read().await;
+        mutex.get(piece as usize).unwrap_or(false)
     }
 
     /// Retrieve the torrent info hash.
@@ -244,18 +289,16 @@ impl Peer {
         mutex.clone()
     }
 
-    /// Verify if the remote peer has the given piece.
+    /// Notify the peer we have a certain piece available for download.
+    /// This is offloaded to the main loop of the peer, so this will not block unless the channel is full.
     ///
     /// # Arguments
     ///
-    /// * `piece` - The piece index that should be checked.
-    ///
-    /// # Returns
-    ///
-    /// Returns true when the remote peer has the piece available, else false.
-    pub async fn remote_has_piece(&self, piece: PieceIndex) -> bool {
-        let mutex = self.inner.remote_pieces.read().await;
-        mutex.get(piece as usize).unwrap_or(false)
+    /// * `piece` - The piece index that we have available for download
+    pub async fn notify_have_piece(&self, piece: PieceIndex) {
+        self.inner
+            .send_internal_event(InternalEvent::HavePiece(piece))
+            .await
     }
 
     /// Send the given message to the remote peer.
@@ -324,36 +367,41 @@ impl Peer {
                 .is_some()
     }
 
-    /// Request a piece from the remote peer.
-    /// This creates one or more requests for the given piece in a queue buffer.
+    /// Resume the exchanging of data with the peer.
+    pub async fn resume(&self) {
+        self.inner
+            .update_client_choke_state(ChokeState::UnChoked)
+            .await;
+
+        if self.inner.client_pending_requests.len().await > 0 {
+            self.inner.update_state(PeerState::Downloading).await;
+        } else {
+            self.inner.update_state(PeerState::Uploading).await;
+        }
+    }
+
+    /// Pause the exchanging of data with the peer.
+    pub async fn pause(&self) {
+        self.inner
+            .update_client_choke_state(ChokeState::Choked)
+            .await;
+        self.inner.update_state(PeerState::Paused).await;
+    }
+
+    /// Request a piece part from the remote peer.
     ///
     /// # Arguments
     ///
-    /// * `piece` - The piece index to request
-    pub(crate) async fn request_piece(&self, piece: PieceIndex) {
-        if let Some(piece) = self.inner.torrent.piece_info(piece).await {
-            let num_of_requests = (piece.length + REQUEST_MAX_LENGTH - 1) / REQUEST_MAX_LENGTH;
-            let mut offset = 0;
-
-            for _ in 0..num_of_requests {
-                let length = if piece.length < REQUEST_MAX_LENGTH {
-                    piece.length
-                } else {
-                    REQUEST_MAX_LENGTH
-                };
-
-                self.inner
-                    .client_pending_requests
-                    .push(Request {
-                        index: piece.index,
-                        begin: offset,
-                        length,
-                    })
-                    .await;
-
-                offset += length;
-            }
-        }
+    /// * `part` - The piece part that should be requested
+    pub(crate) async fn request_piece_part(&self, part: PiecePart) {
+        // set our state to the peer as interested
+        self.inner
+            .update_client_interest_state(InterestState::Interested)
+            .await;
+        self.inner
+            .client_pending_requests
+            .push(Request::from(&part))
+            .await
     }
 
     /// Retrieve the connection stats from this peer and reset the stats.
@@ -398,6 +446,7 @@ impl Peer {
             .map_err(|e| Error::Io(format!("failed to connect to {}, {}", addr, e)))?;
         let (extension_event_sender, extension_event_receiver) = channel(10);
         let (reader_sender, peer_reader_receiver) = channel(10);
+        let (event_sender, event_receiver) = channel(10);
         let extension_registry = Self::create_extension_registry(&extensions);
         let peer_handle = PeerHandle::new();
         let inner = Arc::new(InnerPeer {
@@ -426,11 +475,13 @@ impl Peer {
             writer: Mutex::new(BufWriter::new(writer)),
             incoming_data_stats: RwLock::new(PeerTransferStats::default()),
             outgoing_data_stats: RwLock::new(PeerTransferStats::default()),
+            event_sender,
             callbacks: Default::default(),
             cancellation_token: CancellationToken::new(),
         });
         let peer = Self {
             handle: peer_handle,
+            addr,
             inner,
             runtime,
         };
@@ -467,7 +518,7 @@ impl Peer {
         // start the main loop of the inner peer
         let main_loop = peer.clone();
         peer.runtime
-            .spawn(async move { main_loop.start(peer_reader_receiver).await });
+            .spawn(async move { main_loop.start(peer_reader_receiver, event_receiver).await });
 
         peer.send_initial_messages().await?;
 
@@ -558,16 +609,42 @@ impl Peer {
 
     async fn send_initial_messages(&self) -> Result<()> {
         let extensions = self.remote_supported_extensions().await;
+        let bitfield = self.inner.torrent.piece_bitfield().await;
 
-        // TODO: send the bitfield if we know it
-        if extensions.contains(ExtensionFlags::LTEP) {
-            self.inner.send_extended_handshake().await?;
+        // as one of the initial messages, we try to send the bitfield with completed pieces
+        // this is only done if at least one piece is completed
+        if bitfield.any() {
+            if let Err(e) = self.inner.send(Message::Bitfield(bitfield)).await {
+                debug!("Failed to send bitfield to peer {}, {}", self, e);
+            }
         }
-        if extensions.contains(ExtensionFlags::Fast) {
-            // TODO: fix the fast extension
-            // this is being sent even when the peer does not support the fast extension
-            // peers are closing the connection if this happens
-            // self.inner.send(Message::HaveNone).await?;
+
+        if let Some(remote_supported_extensions) = self.inner.remote_supported_extensions().await {
+            // check if the extensions protocol is enabled
+            // if so, we send the extended handshake to the remote peer
+            if extensions.contains(ExtensionFlags::LTEP)
+                && remote_supported_extensions.contains(ExtensionFlags::LTEP)
+            {
+                if let Err(e) = self.inner.send_extended_handshake().await {
+                    debug!("Failed to send extended handshake to peer {}, {}", self, e);
+                    // remove the LTEP extension flag from the remote peer
+                    // as the extended handshake has failed to complete
+                    if let Some(mutex) = self.inner.remote.write().await.as_mut() {
+                        mutex.supported_extensions &= !ExtensionFlags::LTEP;
+                    }
+                }
+            }
+
+            // check if the fast protocol is enabled
+            // if so, we send the initial fast messages to the remote peer
+            if extensions.contains(ExtensionFlags::Fast)
+                && remote_supported_extensions.contains(ExtensionFlags::Fast)
+            {
+                // TODO: fix the fast extension
+                // this is being sent even when the peer does not support the fast extension
+                // peers are closing the connection if this happens
+                // self.inner.send(Message::HaveNone).await?;
+            }
         }
 
         Ok(())
@@ -578,6 +655,7 @@ impl Peer {
     fn clone(&self) -> Self {
         Self {
             handle: self.handle.clone(),
+            addr: self.addr.clone(),
             inner: self.inner.clone(),
             runtime: self.runtime.clone(),
         }
@@ -585,7 +663,11 @@ impl Peer {
 
     /// Start the main loop of this peer.
     /// It handles the peer reader events and processing of the pending requests.
-    async fn start(&self, mut peer_reader: Receiver<PeerReaderEvent>) {
+    async fn start(
+        &self,
+        mut peer_reader: Receiver<PeerReaderEvent>,
+        mut event_receiver: Receiver<InternalEvent>,
+    ) {
         loop {
             select! {
                 _ = self.inner.cancellation_token.cancelled() => break,
@@ -595,6 +677,11 @@ impl Peer {
                         self.handle_reader_event(event).await;
                     }
                 },
+                event = event_receiver.recv() => {
+                    if let Some(event) = event {
+                        self.inner.handle_event(event).await;
+                    }
+                }
                 request = self.inner.client_pending_requests.next() => self.inner.send_pending_request(request).await,
                 request = self.inner.remote_pending_requests.next() => self.inner.handle_pending_request(request).await
             }
@@ -638,6 +725,12 @@ impl Callbacks<PeerEvent> for Peer {
 impl Display for Peer {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.inner)
+    }
+}
+
+impl PartialEq for Peer {
+    fn eq(&self, other: &Self) -> bool {
+        self.handle == other.handle
     }
 }
 
@@ -732,6 +825,12 @@ impl PeerExtensionEvents {
     }
 }
 
+#[derive(Debug, PartialEq)]
+enum InternalEvent {
+    /// Indicates that the torrent has completed a piece and the remote peer needs to be notified
+    HavePiece(PieceIndex),
+}
+
 #[derive(Debug)]
 struct InnerPeer {
     /// The peer's unique identifier handle
@@ -785,6 +884,8 @@ struct InnerPeer {
     /// The data transfer info of the outgoing channel (to the remote peer)
     outgoing_data_stats: RwLock<PeerTransferStats>,
 
+    /// The sender for internal events
+    event_sender: Sender<InternalEvent>,
     /// The callbacks which are triggered by this peer when an event is raised
     callbacks: CoreCallbacks<PeerEvent>,
     /// The cancellation token to cancel any async task within this peer on closure
@@ -802,7 +903,7 @@ impl InnerPeer {
         mutex.as_ref().map(|e| e.peer_id.clone())
     }
 
-    /// Retrieve the remote peer information.
+    /// Get the remote peer information.
     ///
     /// # Returns
     ///
@@ -812,7 +913,7 @@ impl InnerPeer {
         mutex.as_ref().map(|e| e.clone())
     }
 
-    /// Retrieve the supported extension registry of the remote peer.
+    /// Get the supported extension registry of the remote peer.
     ///
     /// # Returns
     ///
@@ -825,7 +926,17 @@ impl InnerPeer {
             .map(|e| e.extensions.clone())
     }
 
-    /// Retrieve the client peer extensions registry.
+    /// Get the supported extensions of the remote peer.
+    /// This might still be `None` when the handshake with the peer has not been completed yet.
+    async fn remote_supported_extensions(&self) -> Option<ExtensionFlags> {
+        self.remote
+            .read()
+            .await
+            .as_ref()
+            .map(|e| e.supported_extensions.clone())
+    }
+
+    /// Get the client peer extensions registry.
     /// This is the registry of our own client.
     ///
     /// # Returns
@@ -860,6 +971,7 @@ impl InnerPeer {
             Message::Have(piece) => self.update_remote_piece(piece as usize, true).await,
             Message::Bitfield(pieces) => self.update_remote_pieces(pieces).await,
             Message::Request(request) => self.remote_pending_requests.push(request).await,
+            Message::Piece(piece) => self.handle_received_piece(piece).await,
             Message::ExtendedHandshake(handshake) => {
                 self.update_extended_handshake(handshake).await
             }
@@ -868,7 +980,48 @@ impl InnerPeer {
     }
 
     async fn handle_pending_request(&self, request: Request) {
-        todo!()
+        if self.torrent.has_piece(request.index).await {
+            let request_end = request.begin + request.length;
+            match self
+                .torrent
+                .read_piece_bytes(request.index, request.begin..request_end)
+                .await
+            {
+                Ok(data) => {
+                    if let Err(e) = self
+                        .send(Message::Piece(Piece {
+                            index: request.index,
+                            begin: request.begin,
+                            data,
+                        }))
+                        .await
+                    {
+                        debug!("Failed to send piece data to peer {}, {}", self, e);
+                    }
+                }
+                Err(e) => {
+                    warn!("Failed to read the piece data for {}, {}", self, e);
+                }
+            }
+        } else {
+            debug!(
+                "Unable to provide piece {} to peer {}, piece data is not available",
+                request.index, self
+            );
+        }
+    }
+
+    async fn handle_received_piece(&self, piece: Piece) {
+        if let Some(part) = self.torrent.piece_part(piece.index, piece.begin).await {
+            self.torrent.piece_completed(part, piece.data).await;
+        }
+    }
+
+    /// Handle an internal event
+    async fn handle_event(&self, event: InternalEvent) {
+        match event {
+            InternalEvent::HavePiece(piece) => self.update_client_piece(piece).await,
+        }
     }
 
     async fn validate_handshake(&self, buffer: Vec<u8>) -> Result<()> {
@@ -901,6 +1054,34 @@ impl InnerPeer {
         Ok(())
     }
 
+    async fn update_client_choke_state(&self, state: ChokeState) {
+        // check if we're already in the expected state
+        if *self.client_choke_state.read().await == state {
+            trace!("Peer {} is already in the client state {}", self, state);
+            return;
+        }
+
+        {
+            let mut mutex = self.client_choke_state.write().await;
+            *mutex = state;
+        }
+
+        let send_result: Result<()>;
+        if state == ChokeState::Choked {
+            self.remote_pending_requests.pause().await;
+            send_result = self.send(Message::Choke).await;
+        } else {
+            self.remote_pending_requests.resume().await;
+            send_result = self.send(Message::Unchoke).await;
+        }
+
+        if let Err(e) = send_result {
+            debug!("Failed to send choke state to peer {}, {}", self, e);
+        }
+
+        trace!("Client peer {} entered {} state", self, state);
+    }
+
     async fn update_remote_peer_choke_state(&self, state: ChokeState) {
         // update the choke state of the remote peer
         {
@@ -916,6 +1097,32 @@ impl InnerPeer {
         }
 
         trace!("Remote peer {} entered {} state", self, state);
+    }
+
+    async fn update_client_interest_state(&self, state: InterestState) {
+        // check if we're already in the expected state
+        if *self.client_interest_state.read().await == state {
+            trace!("Peer {} is already in the client state {}", self, state);
+            return;
+        }
+
+        {
+            let mut mutex = self.client_interest_state.write().await;
+            *mutex = state;
+        }
+
+        let send_result: Result<()>;
+        if state == InterestState::NotInterested {
+            send_result = self.send(Message::NotInterested).await;
+        } else {
+            send_result = self.send(Message::Interested).await;
+        }
+
+        if let Err(e) = send_result {
+            debug!("Failed to send interest state to peer {}, {}", self, e);
+        }
+
+        trace!("Client peer {} entered {} state", self, state);
     }
 
     async fn update_remote_peer_interest_state(&self, state: InterestState) {
@@ -944,7 +1151,11 @@ impl InnerPeer {
         debug!("Updated peer {} with remote pieces information", self);
     }
 
-    async fn update_remote_piece(&self, piece: usize, value: bool) {
+    async fn update_client_piece(&self, piece: PieceIndex) {
+        self.client_pieces.write().await.set(piece as usize, true);
+    }
+
+    async fn update_remote_piece(&self, piece: PieceIndex, value: bool) {
         {
             let mut mutex = self.remote_pieces.write().await;
             mutex.set(piece, value);
@@ -952,9 +1163,7 @@ impl InnerPeer {
 
         // notify the torrent about the piece availability from this peer
         if value {
-            self.torrent
-                .notify_peer_has_piece(piece as PieceIndex)
-                .await;
+            self.torrent.notify_peer_has_piece(piece).await;
         }
     }
 
@@ -1110,6 +1319,12 @@ impl InnerPeer {
         }
     }
 
+    async fn send_internal_event(&self, event: InternalEvent) {
+        if let Err(e) = self.event_sender.send(event).await {
+            debug!("Failed to send internal event for {}, {}", self, e);
+        }
+    }
+
     async fn invoke_event(&self, event: PeerEvent) {
         if let Err(e) = self.extension_event_sender.send(event.clone()).await {
             error!("Failed to send extensions event, {}", e)
@@ -1156,6 +1371,8 @@ mod tests {
     use std::sync::Arc;
 
     use log::info;
+    use tempfile::tempdir;
+    use tokio::io::AsyncReadExt;
     use tokio::net::TcpListener;
     use tokio::runtime::Runtime;
 
@@ -1165,12 +1382,15 @@ mod tests {
     use popcorn_fx_core::testing::{init_logger, read_test_file_to_bytes};
 
     use super::*;
+    use crate::torrents::fs::DefaultTorrentFileStorage;
     use crate::torrents::peers::extensions::metadata::MetadataExtension;
     use crate::torrents::{Torrent, TorrentFlags, TorrentInfo, TorrentRequest};
 
     #[test]
     fn test_peer_new_outbound() {
         init_logger();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
         let magnet = Magnet::from_str("magnet:?xt=urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7&dn=debian-12.4.0-amd64-DVD-1.iso&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce").unwrap();
         let torrent_info = TorrentInfo::try_from(magnet).unwrap();
         let runtime = Arc::new(Runtime::new().unwrap());
@@ -1179,6 +1399,7 @@ mod tests {
             options: TorrentFlags::None,
             peer_listener_port: 6881,
             extensions: vec![Box::new(MetadataExtension::new())],
+            storage: Box::new(DefaultTorrentFileStorage::new(temp_path)),
             peer_timeout: Some(Duration::from_secs(2)),
             tracker_timeout: Some(Duration::from_secs(2)),
             runtime: Some(runtime.clone()),
@@ -1215,6 +1436,8 @@ mod tests {
     #[test]
     fn test_peer_new_outbound_mock() {
         init_logger();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
         let magnet = Magnet::from_str("magnet:?xt=urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7&dn=debian-12.4.0-amd64-DVD-1.iso&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce").unwrap();
         let torrent_info = TorrentInfo::try_from(magnet).unwrap();
         let runtime = Arc::new(Runtime::new().unwrap());
@@ -1223,6 +1446,7 @@ mod tests {
             options: Default::default(),
             peer_listener_port: 6881,
             extensions: vec![],
+            storage: Box::new(DefaultTorrentFileStorage::new(temp_path)),
             peer_timeout: Some(Duration::from_secs(1)),
             tracker_timeout: None,
             runtime: Some(runtime.clone()),
@@ -1254,6 +1478,8 @@ mod tests {
     #[test]
     fn test_peer_close() {
         init_logger();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
         let torrent_info_data = read_test_file_to_bytes("debian-udp.torrent");
         let torrent_info = TorrentInfo::try_from(torrent_info_data.as_slice()).unwrap();
         let runtime = Arc::new(Runtime::new().unwrap());
@@ -1262,6 +1488,7 @@ mod tests {
             options: Default::default(),
             peer_listener_port: 6881,
             extensions: vec![],
+            storage: Box::new(DefaultTorrentFileStorage::new(temp_path)),
             peer_timeout: Some(Duration::from_secs(1)),
             tracker_timeout: None,
             runtime: Some(runtime.clone()),

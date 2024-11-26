@@ -4,7 +4,6 @@ import com.github.yoep.popcorn.backend.adapters.screen.FullscreenCallback;
 import com.github.yoep.popcorn.backend.adapters.screen.IsFullscreenCallback;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentHealthResult;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentHealth;
-import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentState;
 import com.github.yoep.popcorn.backend.controls.PlaybackControlCallback;
 import com.github.yoep.popcorn.backend.events.EventBridgeCallback;
 import com.github.yoep.popcorn.backend.events.EventC;
@@ -38,7 +37,10 @@ import com.github.yoep.popcorn.backend.subtitles.ffi.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.ffi.SubtitleInfoSet;
 import com.github.yoep.popcorn.backend.subtitles.ffi.SubtitlePreference;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
-import com.github.yoep.popcorn.backend.torrent.*;
+import com.github.yoep.popcorn.backend.torrent.DownloadStatusC;
+import com.github.yoep.popcorn.backend.torrent.ResolveTorrentCallback;
+import com.github.yoep.popcorn.backend.torrent.TorrentStreamEventC;
+import com.github.yoep.popcorn.backend.torrent.TorrentStreamEventCallback;
 import com.github.yoep.popcorn.backend.torrent.collection.StoredTorrentSet;
 import com.github.yoep.popcorn.backend.updater.UpdateCallback;
 import com.github.yoep.popcorn.backend.updater.UpdateState;
@@ -133,17 +135,9 @@ public interface FxLib extends Library {
 
     void register_watched_event_callback(PopcornFx instance, WatchedEventCallback callback);
 
-    void register_torrent_resolve_callback(PopcornFx instance, ResolveTorrentCallback callback);
-
-    void torrent_cancel_callback(PopcornFx instance, CancelTorrentCallback callback);
-
     Long register_torrent_stream_event_callback(PopcornFx instance, Long streamHandle, TorrentStreamEventCallback callback);
 
     void remove_torrent_stream_event_callback(PopcornFx instance, Long streamHandle, Long callbackHandle);
-
-    void torrent_state_changed(PopcornFx instance, String handle, TorrentState state);
-
-    void torrent_piece_finished(PopcornFx instance, String handle, int piece);
 
     void torrent_download_status(PopcornFx instance, String handle, DownloadStatusC.ByValue downloadStatus);
 

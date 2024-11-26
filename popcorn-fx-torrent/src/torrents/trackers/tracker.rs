@@ -1,4 +1,5 @@
 use crate::torrents::peers::PeerId;
+use crate::torrents::trackers::http::HttpConnection;
 use crate::torrents::trackers::udp::UdpConnection;
 use crate::torrents::trackers::{AnnounceEvent, Result, TrackerError};
 use crate::torrents::InfoHash;
@@ -12,6 +13,7 @@ use std::net::SocketAddr;
 use std::time::Duration;
 use tokio::net::lookup_host;
 use tokio::sync::RwLock;
+use tokio::{select, time};
 use url::Url;
 
 const DEFAULT_CONNECTION_TIMEOUT_SECONDS: u64 = 10;
@@ -34,12 +36,12 @@ pub struct AnnounceEntryResponse {
     pub peers: Vec<SocketAddr>,
 }
 
-/// Trait for managing connections to a tracker.
+/// Trait that defines the underlying tracker connection protocol.
 ///
 /// This trait defines the methods required to interact with a tracker, including connecting to the tracker,
-/// announcing a peer, scraping for statistics, and closing the connection.
+/// announcing a peer and closing the connection.
 ///
-/// Implementations of this trait will provide specific logic for different tracker protocols or types.
+/// Implementations of this trait will provide specific logic for different tracker connection protocols or types.
 #[async_trait]
 pub trait TrackerConnection: Debug + Send + Sync {
     /// Asynchronously start the tracker connection.
@@ -67,15 +69,6 @@ pub trait TrackerConnection: Debug + Send + Sync {
         info_hash: InfoHash,
         event: AnnounceEvent,
     ) -> Result<AnnounceEntryResponse>;
-
-    /// Asynchronously scrape the tracker for torrent statistics.
-    ///
-    /// This method requests information such as the number of leechers and seeders.
-    ///
-    /// # Returns
-    ///
-    /// A `Result` that is `Ok` if the scrape was successful or an `Err` if there was an issue.
-    async fn scrape(&mut self) -> Result<()>;
 
     /// Close the tracker connection and cancel any pending tasks.
     ///
@@ -211,10 +204,16 @@ impl Tracker {
             "udp" => {
                 connection = Box::new(UdpConnection::new(addrs, peer_id, timeout));
             }
+            "http" | "https" => {
+                connection = Box::new(HttpConnection::new(url.clone(), peer_id, timeout));
+            }
             _ => return Err(TrackerError::UnsupportedScheme(scheme.to_string())),
         }
 
-        connection.start().await?;
+        let _ = select! {
+            _ = time::sleep(timeout) => Err(TrackerError::Timeout(url.clone())),
+            result = connection.start() => result,
+        }?;
 
         debug!("Tracker {} connection established", url);
         Ok(connection)
@@ -328,15 +327,41 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_tracker_announce() {
+    async fn test_tracker_announce_udp() {
         init_logger();
         let data = read_test_file_to_bytes("debian-udp.torrent");
         let info = TorrentInfo::try_from(data.as_slice()).unwrap();
+
+        let result = execute_tracker_announcement(info).await;
+
+        assert_ne!(
+            0,
+            result.peers.len(),
+            "expected the announce to return peers"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_tracker_announce_https() {
+        init_logger();
+        let data = read_test_file_to_bytes("debian.torrent");
+        let info = TorrentInfo::try_from(data.as_slice()).unwrap();
+
+        let result = execute_tracker_announcement(info).await;
+
+        assert_ne!(
+            0,
+            result.peers.len(),
+            "expected the announce to return peers"
+        );
+    }
+
+    async fn execute_tracker_announcement(info: TorrentInfo) -> AnnounceEntryResponse {
         let peer_id = PeerId::new();
         let tracker_uris = info.tiered_trackers();
         let tracker_uri = tracker_uris.get(&0).map(|e| e.get(0).unwrap()).unwrap();
         let info_hash = info.info_hash.clone();
-        let mut tracker = Tracker::builder()
+        let tracker = Tracker::builder()
             .url(tracker_uri.clone())
             .peer_id(peer_id)
             .timeout(Duration::from_secs(1))
@@ -344,15 +369,9 @@ mod tests {
             .await
             .unwrap();
 
-        let result = tracker
+        tracker
             .announce(info_hash, AnnounceEvent::Started)
             .await
-            .expect("expected the announce to succeed");
-
-        assert_ne!(
-            0,
-            result.peers.len(),
-            "expected the announce to return peers"
-        );
+            .expect("expected the announce to succeed")
     }
 }

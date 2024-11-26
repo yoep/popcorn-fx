@@ -41,6 +41,11 @@ impl PeerRequestBuffer {
         *self.queued_notifications.write().await = 0;
     }
 
+    /// Get the number of requests in the buffer.
+    pub async fn len(&self) -> usize {
+        self.data.read().await.len()
+    }
+
     /// Push a new request into the buffer.
     pub async fn push(&self, value: Request) {
         {
@@ -92,6 +97,32 @@ mod tests {
     use std::sync::Arc;
     use std::time::Duration;
     use tokio::runtime::Runtime;
+
+    #[test]
+    fn test_next_resume() {
+        let runtime = Runtime::new().expect("expected a runtime");
+        let expected_request = Request {
+            index: 0,
+            begin: 0,
+            length: 1024,
+        };
+        let (tx, rx) = channel();
+        let buffer = Arc::new(PeerRequestBuffer::new(false));
+
+        let listener = buffer.clone();
+        runtime.spawn(async move {
+            tx.send(listener.next().await).unwrap();
+        });
+
+        runtime.block_on(buffer.push(expected_request.clone()));
+        runtime.block_on(buffer.resume());
+
+        let request = rx
+            .recv_timeout(Duration::from_millis(50))
+            .expect("expected a request to have been sent");
+
+        assert_eq!(expected_request, request);
+    }
 
     #[test]
     fn test_next_when_paused() {

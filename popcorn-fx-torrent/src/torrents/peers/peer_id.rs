@@ -36,13 +36,22 @@ impl PeerId {
         }
     }
 
-    /// Retrieves the raw 20-byte value of the `PeerId`.
+    /// Get the raw 20-byte value of the `PeerId`.
     ///
     /// # Returns
     ///
     /// A 20-byte array representing the `PeerId`.
     pub fn value(&self) -> [u8; 20] {
         self.0.clone()
+    }
+
+    /// Get the slice value of the `PeerId`.
+    ///
+    /// # Returns
+    ///
+    /// A 20-byte slice representing the `PeerId`.
+    pub fn as_slice(&self) -> &[u8] {
+        &self.0
     }
 
     /// Generates a new peer ID string by concatenating a fixed prefix with a random 12-digit suffix.

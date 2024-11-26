@@ -616,7 +616,9 @@ mod tests {
     use crate::core::media::MockMediaIdentifier;
     use crate::core::players::{PlaySubtitleRequest, PlayUrlRequest, PlayUrlRequestBuilder};
     use crate::core::screen::MockScreenService;
-    use crate::core::torrents::{MockTorrentManager, MockTorrentStreamServer, TorrentStream};
+    use crate::core::torrents::{
+        MockTorrentManager, MockTorrentStreamServer, TorrentHandle, TorrentStream,
+    };
     use crate::core::{CallbackHandle, Handle};
     use crate::testing::{init_logger, MockPlayer, MockTorrentStream};
 
@@ -971,13 +973,11 @@ mod tests {
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let player_id = "SomeId123";
-        let torrent_handle = "MyTorrentHandle";
+        let torrent_handle = TorrentHandle::new();
         let stream_handle = Handle::new();
         let (tx, rx) = channel();
         let mut stream = MockTorrentStream::new();
-        stream
-            .expect_handle()
-            .return_const(torrent_handle.to_string());
+        stream.expect_handle().return_const(torrent_handle);
         stream.expect_stream_handle().return_const(stream_handle);
         let stream = Arc::new(Box::new(stream) as Box<dyn TorrentStream>);
         let request: Arc<Box<dyn PlayRequest>> = Arc::new(Box::new(PlayMediaRequest {
@@ -1014,7 +1014,7 @@ mod tests {
         torrent_manager
             .expect_remove()
             .times(1)
-            .withf(move |e| e == torrent_handle)
+            .withf(move |e| e == &torrent_handle)
             .return_const(());
         let mut torrent_stream_server = MockTorrentStreamServer::new();
         torrent_stream_server

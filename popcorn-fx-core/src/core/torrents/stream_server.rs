@@ -2,12 +2,12 @@ use std::fmt::Debug;
 use std::sync::Weak;
 
 use derive_more::Display;
-use downcast_rs::{DowncastSync, impl_downcast};
+use downcast_rs::{impl_downcast, DowncastSync};
 #[cfg(any(test, feature = "testing"))]
 use mockall::automock;
 
-use crate::core::{CallbackHandle, Handle, torrents};
 use crate::core::torrents::{Torrent, TorrentStream, TorrentStreamCallback};
+use crate::core::{torrents, CallbackHandle, Handle};
 
 /// The state of the torrent stream server.
 #[derive(Debug, Clone, Display, PartialEq)]
@@ -40,7 +40,7 @@ pub trait TorrentStreamServer: Debug + DowncastSync {
     /// A result containing a weak reference to the started torrent stream, or an error if the stream could not be started.
     fn start_stream(
         &self,
-        torrent: Weak<Box<dyn Torrent>>,
+        torrent: Box<dyn Torrent>,
     ) -> torrents::Result<Weak<Box<dyn TorrentStream>>>;
 
     /// Stop a torrent stream.

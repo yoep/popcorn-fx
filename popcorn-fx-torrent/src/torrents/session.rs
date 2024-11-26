@@ -1,11 +1,13 @@
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::mpsc::{channel, Receiver};
 use std::sync::Arc;
 use std::time::Duration;
 
 use crate::torrents::errors::Result;
+use crate::torrents::fs::DefaultTorrentFileStorage;
 use crate::torrents::peers::extensions::Extensions;
 use crate::torrents::peers::PeerListener;
 use crate::torrents::torrent::Torrent;
@@ -14,7 +16,7 @@ use crate::torrents::{
 };
 use async_trait::async_trait;
 use derive_more::Display;
-use log::{debug, trace, warn};
+use log::{debug, trace};
 use popcorn_fx_core::available_port;
 use popcorn_fx_core::core::torrents::magnet::Magnet;
 use popcorn_fx_core::core::torrents::TorrentHealth;
@@ -29,10 +31,13 @@ pub type SessionHandle = Handle;
 /// A callback handler for the [Session] events.
 pub type SessionCallback = CoreCallback<SessionEvent>;
 
+/// The torrent session events.
 #[derive(Debug, Display, Clone, PartialEq)]
 pub enum SessionEvent {
+    /// Indicates that a new torrent was added to the session.
     #[display(fmt = "Torrent added: {}", _0)]
     TorrentAdded(TorrentHandle),
+    /// Indicates that a torrent has been removed from the session.
     #[display(fmt = "Torrent removed: {}", _0)]
     TorrentRemoved(TorrentHandle),
 }
@@ -51,7 +56,20 @@ pub trait Session: Debug + Callbacks<SessionEvent> + Send + Sync {
     /// Returns the unique session handle for this session.
     fn handle(&self) -> SessionHandle;
 
-    /// Retrieve the torrent based on the given info hash.
+    /// Get the torrent based on the given handle.
+    /// It returns a weak reference to the torrent, which can be invalidated at any moment.
+    /// To check if a torrent is still valid, use the [Torrent::is_valid] method.
+    ///
+    /// # Arguments
+    ///
+    /// * `handle` - The handle of the torrent to retrieve.
+    ///
+    /// # Returns
+    ///
+    /// Returns the torrent if found, else `None`.
+    async fn find_torrent_by_handle(&self, handle: TorrentHandle) -> Option<Torrent>;
+
+    /// Get the torrent based on the given info hash.
     ///
     /// # Arguments
     ///
@@ -62,7 +80,7 @@ pub trait Session: Debug + Callbacks<SessionEvent> + Send + Sync {
     /// Returns a weak reference to the torrent if found, else `None`.
     async fn find_torrent_by_info_hash(&self, info_hash: &InfoHash) -> Option<Torrent>;
 
-    /// Returns the torrent health of the given torrent metadata.
+    /// Get the calculated torrent health based on the given torrent metadata.
     ///
     /// # Arguments
     ///
@@ -129,13 +147,30 @@ pub struct DefaultSession {
 }
 
 impl DefaultSession {
-    pub async fn new(extensions: Extensions, runtime: Arc<Runtime>) -> Result<Self> {
+    /// Create a new torrent sessions.
+    ///
+    /// # Arguments
+    ///
+    /// * `base_path` - The base path to use for storing torrent data.
+    /// * `extensions` - The peer extensions to use for this session.
+    /// * `runtime` - The tokio runtime to use for this session.
+    ///
+    /// # Returns
+    ///
+    /// Returns the session when initialized successfully or an error on failure.
+    pub async fn new<P: AsRef<Path>>(
+        base_path: P,
+        extensions: Extensions,
+        runtime: Arc<Runtime>,
+    ) -> Result<Self> {
         trace!("Trying to create a new torrent session");
         let port = available_port!(6881, 6889).ok_or(TorrentError::Io(
             "no available port found to start new peer listener".to_string(),
         ))?;
         let peer_listener = PeerListener::new(port, runtime.clone()).await?;
-        let inner_session = InnerSession::new(peer_listener, extensions).await?;
+        let torrent_storage_location = base_path.as_ref().to_path_buf();
+        let inner_session =
+            InnerSession::new(torrent_storage_location, peer_listener, extensions).await?;
 
         debug!("Created new torrent session {}", inner_session.handle);
         Ok(Self {
@@ -145,10 +180,6 @@ impl DefaultSession {
     }
 
     pub async fn torrent(&self, handle: TorrentHandle) -> Option<Torrent> {
-        self.inner.find_torrent_by_handle(handle).await
-    }
-
-    pub async fn find_torrent_by_handle(&self, handle: TorrentHandle) -> Option<Torrent> {
         self.inner.find_torrent_by_handle(handle).await
     }
 
@@ -197,6 +228,7 @@ impl DefaultSession {
             options,
             peer_listener_port: self.inner.peer_listener.port(),
             extensions: self.inner.extensions(),
+            storage: Box::new(DefaultTorrentFileStorage::new(&self.inner.base_path)),
             peer_timeout,
             tracker_timeout,
             runtime: Some(self.runtime.clone()),
@@ -245,6 +277,10 @@ impl Session for DefaultSession {
         self.inner.handle
     }
 
+    async fn find_torrent_by_handle(&self, handle: TorrentHandle) -> Option<Torrent> {
+        self.inner.find_torrent_by_handle(handle).await
+    }
+
     async fn find_torrent_by_info_hash(&self, info_hash: &InfoHash) -> Option<Torrent> {
         self.inner.find_torrent_by_info_hash(info_hash).await
     }
@@ -264,6 +300,7 @@ impl Session for DefaultSession {
                         options: TorrentFlags::None,
                         peer_listener_port: self.inner.peer_listener.port(),
                         extensions: self.inner.extensions(),
+                        storage: Box::new(DefaultTorrentFileStorage::new(&self.inner.base_path)),
                         peer_timeout: Some(Duration::from_secs(3)),
                         tracker_timeout: Some(Duration::from_secs(2)),
                         runtime: Some(self.runtime.clone()),
@@ -360,16 +397,27 @@ impl Callbacks<SessionEvent> for DefaultSession {
 struct InnerSession {
     /// The unique session identifier
     handle: SessionHandle,
+    /// The base path for the torrent storage of the session
+    base_path: PathBuf,
+    /// The currently active torrents within the session
     torrents: RwLock<HashMap<InfoHash, Torrent>>,
+    /// The peer listener for the session
     peer_listener: PeerListener,
+    /// The currently active extensions for the session
     extensions: Extensions,
+    /// The event callbacks of the session
     callbacks: CoreCallbacks<SessionEvent>,
 }
 
 impl InnerSession {
-    async fn new(peer_listener: PeerListener, extensions: Extensions) -> Result<Self> {
+    async fn new(
+        base_path: PathBuf,
+        peer_listener: PeerListener,
+        extensions: Extensions,
+    ) -> Result<Self> {
         Ok(Self {
             handle: Default::default(),
+            base_path,
             peer_listener,
             extensions,
             torrents: Default::default(),
@@ -468,6 +516,7 @@ pub mod tests {
     use mockall::mock;
     use popcorn_fx_core::core::torrents::TorrentHealthState;
     use popcorn_fx_core::testing::{init_logger, read_test_file_to_bytes};
+    use tempfile::tempdir;
 
     use super::*;
 
@@ -478,6 +527,7 @@ pub mod tests {
         #[async_trait]
         impl Session for Session {
             fn handle(&self) -> SessionHandle;
+            async fn find_torrent_by_handle(&self, handle: TorrentHandle) -> Option<Torrent>;
             async fn find_torrent_by_info_hash(&self, info_hash: &InfoHash) -> Option<Torrent>;
             async fn torrent_health_from_info(&self, torrent_info: TorrentInfo) -> Result<TorrentHealth>;
             async fn torrent_health_from_uri(&self, magnet_uri: &str) -> Result<TorrentHealth>;
@@ -495,12 +545,15 @@ pub mod tests {
     #[test]
     fn test_find_torrent() {
         init_logger();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
         let data = read_test_file_to_bytes("debian.torrent");
         let info = TorrentInfo::try_from(data.as_slice()).unwrap();
         let info_hash = info.info_hash.clone();
         let runtime = Arc::new(Runtime::new().unwrap());
         let session = runtime
             .block_on(DefaultSession::new(
+                temp_path,
                 vec![Box::new(MetadataExtension::new())],
                 runtime.clone(),
             ))
@@ -517,10 +570,13 @@ pub mod tests {
     #[test]
     fn test_session_fetch_magnet() {
         init_logger();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
         let uri = "magnet:?xt=urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7&dn=debian-12.4.0-amd64-DVD-1.iso&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce";
         let runtime = Arc::new(Runtime::new().unwrap());
         let session = runtime
             .block_on(DefaultSession::new(
+                temp_path,
                 vec![Box::new(MetadataExtension::new())],
                 runtime.clone(),
             ))
@@ -539,11 +595,13 @@ pub mod tests {
     #[test]
     fn test_session_torrent_health() {
         init_logger();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
         let runtime = Arc::new(Runtime::new().unwrap());
         let data = read_test_file_to_bytes("debian-udp.torrent");
         let info = TorrentInfo::try_from(data.as_slice()).unwrap();
         let session = runtime
-            .block_on(DefaultSession::new(vec![], runtime.clone()))
+            .block_on(DefaultSession::new(temp_path, vec![], runtime.clone()))
             .unwrap();
 
         let result = runtime
@@ -558,12 +616,14 @@ pub mod tests {
     #[test]
     fn test_session_add_torrent() {
         init_logger();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
         let runtime = Arc::new(Runtime::new().unwrap());
         let data = read_test_file_to_bytes("debian.torrent");
         let info = TorrentInfo::try_from(data.as_slice()).unwrap();
         let (tx, rx) = channel();
         let session = runtime
-            .block_on(DefaultSession::new(vec![], runtime.clone()))
+            .block_on(DefaultSession::new(temp_path, vec![], runtime.clone()))
             .unwrap();
 
         session.add_callback(Box::new(move |event| {
@@ -581,12 +641,14 @@ pub mod tests {
     #[test]
     fn test_session_remove_torrent() {
         init_logger();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
         let runtime = Arc::new(Runtime::new().unwrap());
         let data = read_test_file_to_bytes("debian.torrent");
         let info = TorrentInfo::try_from(data.as_slice()).unwrap();
         let (tx, rx) = channel();
         let session = runtime
-            .block_on(DefaultSession::new(vec![], runtime.clone()))
+            .block_on(DefaultSession::new(temp_path, vec![], runtime.clone()))
             .unwrap();
 
         session.add_callback(Box::new(move |event| {

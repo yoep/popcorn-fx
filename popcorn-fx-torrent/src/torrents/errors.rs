@@ -1,5 +1,5 @@
 use crate::torrents::trackers::TrackerError;
-use crate::torrents::{peers, TorrentHandle};
+use crate::torrents::{fs, peers, TorrentHandle};
 use serde_bencode::Error;
 use thiserror::Error;
 
@@ -14,6 +14,8 @@ pub enum PieceError {
     Unavailable,
     #[error("failed to calculate pieces, {0}")]
     UnableToDeterminePieces(String),
+    #[error("exceeding chunk size, expected size {0} but got {1}")]
+    InvalidChunkSize(usize, usize),
 }
 
 #[derive(Debug, Clone, Error, PartialEq)]
@@ -40,6 +42,8 @@ pub enum TorrentError {
     Timeout,
     #[error("a torrent piece error occurred, {0}")]
     Piece(PieceError),
+    #[error("the requested data is unavailable")]
+    DataUnavailable,
 }
 
 impl From<TrackerError> for TorrentError {
@@ -69,6 +73,12 @@ impl From<serde_bencode::Error> for TorrentError {
 impl From<PieceError> for TorrentError {
     fn from(error: PieceError) -> Self {
         TorrentError::Piece(error)
+    }
+}
+
+impl From<fs::Error> for TorrentError {
+    fn from(error: fs::Error) -> Self {
+        TorrentError::Io(error.to_string())
     }
 }
 

@@ -2692,6 +2692,7 @@ version = "0.8.2"
 dependencies = [
  "async-trait",
  "base32",
+ "base64 0.22.1",
  "bit-vec 0.8.0",
  "bitmask-enum",
  "byteorder",
@@ -2703,8 +2704,10 @@ dependencies = [
  "itertools 0.13.0",
  "log",
  "mockall 0.13.0",
+ "percent-encoding",
  "popcorn-fx-core",
  "rand",
+ "reqwest 0.12.9",
  "serde",
  "serde_bencode",
  "serde_bytes",

@@ -1,6 +1,6 @@
 use super::{Error, PeerId, Result};
 use crate::torrents::peers::extensions::{ExtensionNumber, ExtensionRegistry};
-use crate::torrents::{InfoHash, PieceIndex};
+use crate::torrents::{InfoHash, PieceIndex, PiecePart};
 use bit_vec::BitVec;
 use bitmask_enum::bitmask;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
@@ -459,17 +459,8 @@ impl TryInto<Vec<u8>> for Message {
                 buffer.write_u32::<BigEndian>(e.length as u32)?;
             }
             Message::Piece(e) => {
-                let buffer_len = e.data.len();
-
-                // verify if the data length matches the length field
-                // if not, return an error so that the peer doesn't receive an invalid message
-                if e.length != buffer_len {
-                    return Err(Error::InvalidLength(e.length as u32, buffer_len as u32));
-                }
-
                 buffer.write_u32::<BigEndian>(e.index as u32)?;
                 buffer.write_u32::<BigEndian>(e.begin as u32)?;
-                buffer.write_u32::<BigEndian>(e.length as u32)?;
 
                 buffer.write_all(&e.data)?;
             }
@@ -586,14 +577,22 @@ impl TryFrom<Cursor<&[u8]>> for Request {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+impl From<&PiecePart> for Request {
+    fn from(value: &PiecePart) -> Self {
+        Self {
+            index: value.piece,
+            begin: value.begin,
+            length: value.length,
+        }
+    }
+}
+
+#[derive(Clone, PartialEq)]
 pub struct Piece {
     /// The index of the piece that is being requested
     pub index: PieceIndex,
     /// The offset within the piece
     pub begin: usize,
-    /// The length in bytes of the piece that is requested
-    pub length: usize,
     /// The data of the piece
     pub data: Vec<u8>,
 }
@@ -604,26 +603,27 @@ impl TryFrom<Cursor<&[u8]>> for Piece {
     fn try_from(mut value: Cursor<&[u8]>) -> Result<Self> {
         let index = value.read_u32::<BigEndian>()?;
         let begin = value.read_u32::<BigEndian>()?;
-        let length = value.read_u32::<BigEndian>()? as usize;
+        let length = value.remaining();
         let mut buffer = vec![0u8; length];
 
-        if length != value.remaining() {
-            return Err(Error::Parsing(format!(
-                "expected {} piece bytes, but got {} instead",
-                length,
-                value.remaining()
-            )));
-        }
-
-        // read the remaining
+        // read the remaining bytes into the buffer
         value.read_exact(&mut buffer)?;
 
         Ok(Self {
             index: index as PieceIndex,
             begin: begin as usize,
-            length,
             data: buffer,
         })
+    }
+}
+
+impl Debug for Piece {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Piece")
+            .field("index", &self.index)
+            .field("begin", &self.begin)
+            .field("length", &self.data.len())
+            .finish()
     }
 }
 

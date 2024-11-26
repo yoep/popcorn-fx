@@ -196,19 +196,6 @@ enum class TorrentHealthState : uint32_t {
   Excellent,
 };
 
-/// The states of the [TorrentManager].
-enum class TorrentManagerState : int32_t {
-  /// The initial state of the torrent manager.
-  /// This state builds the session and makes sure a session could be established.
-  Initializing = 0,
-  /// Indicates that the torrent manager is running and can start
-  /// handling torrent actions
-  Running = 1,
-  /// Indicates that the torrent manager encountered an error and could not be started.
-  /// This is most of the time related to failures when creating sessions.
-  Error = 2,
-};
-
 /// The state of a [Torrent] which is represented as a [i32].
 /// This state is abi compatible to be used over [std::ffi].
 enum class TorrentState : int32_t {
@@ -256,9 +243,6 @@ enum class UpdateStateC : int32_t {
 template<typename T = void>
 struct Box;
 
-/// The callback for cancelling the torrent.
-struct CancelTorrentCallback;
-
 /// A type representing a callback function to set the fullscreen state of the application.
 struct FullscreenCallback;
 
@@ -276,13 +260,6 @@ struct PlayerWrapperC;
 /// let instance = PopcornFX::default();
 /// ```
 struct PopcornFX;
-
-/// A callback function type for resolving torrents.
-///
-/// The function takes a `TorrentFileInfo` struct, a `String` representing the torrent directory,
-/// and a `bool` indicating whether auto-start download is enabled. It returns a `TorrentWrapper`.
-/// It must be `Send` and `Sync` to support concurrent execution.
-struct ResolveTorrentCallback;
 
 /// A C-compatible struct representing a player.
 struct PlayerC {
@@ -1315,6 +1292,45 @@ struct SubtitleEventC {
 /// The C callback for the subtitle events.
 using SubtitleCallbackC = void(*)(SubtitleEventC);
 
+/// Type alias for a callback that verifies if the given byte is available.
+using HasByteCallbackC = bool(*)(int32_t, uint64_t*);
+
+/// Type alias for a callback that verifies if the given piece is available.
+using HasPieceCallbackC = bool(*)(uint32_t);
+
+/// Type alias for a callback that retrieves the total pieces of the torrent.
+using TotalPiecesCallbackC = int32_t(*)();
+
+/// Type alias for a callback that prioritizes bytes.
+using PrioritizeBytesCallbackC = void(*)(int32_t, uint64_t*);
+
+/// Type alias for a callback that prioritizes pieces.
+using PrioritizePiecesCallbackC = void(*)(int32_t, uint32_t*);
+
+/// Type alias for a callback that updates the torrent mode to sequential.
+using SequentialModeCallbackC = void(*)();
+
+/// Type alias for a callback that retrieves the torrent state.
+using TorrentStateCallbackC = TorrentState(*)();
+
+/// The C compatible abi struct for a [Torrent].
+/// This currently uses callbacks as it's a wrapper around a torrent implementation provided through C.
+struct TorrentC {
+  char *handle;
+  /// The filepath to the torrent file
+  char *filepath;
+  HasByteCallbackC has_byte_callback;
+  HasPieceCallbackC has_piece_callback;
+  TotalPiecesCallbackC total_pieces;
+  PrioritizeBytesCallbackC prioritize_bytes;
+  PrioritizePiecesCallbackC prioritize_pieces;
+  SequentialModeCallbackC sequential_mode;
+  TorrentStateCallbackC torrent_state;
+};
+
+/// Type alias for a callback that resolves torrent information and starts a download.
+using ResolveTorrentCallback = TorrentC(*)(TorrentFileInfoC file_info, char *torrent_directory, bool auto_start_download);
+
 /// Type alias for a callback that handles torrent stream events.
 using TorrentStreamEventCallback = void(*)(TorrentStreamEventC);
 
@@ -1483,6 +1499,9 @@ struct MediaResult {
     Err_Body err;
   };
 };
+
+/// Type alias for a callback that cancels a torrent download.
+using CancelTorrentCallback = void(*)(char*);
 
 /// A C-compatible enum representing various errors related to torrents.
 struct TorrentErrorC {

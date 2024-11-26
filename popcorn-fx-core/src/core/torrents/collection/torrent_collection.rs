@@ -1,10 +1,10 @@
 use log::{debug, error, info, trace, warn};
 use tokio::sync::Mutex;
 
-use crate::core::{block_in_place, torrents};
 use crate::core::storage::{Storage, StorageError};
 use crate::core::torrents::collection::{Collection, MagnetInfo};
-use crate::core::torrents::TorrentError;
+use crate::core::torrents::Error;
+use crate::core::{block_in_place, torrents};
 
 const FILENAME: &str = "torrent-collection.json";
 
@@ -41,7 +41,7 @@ impl TorrentCollection {
     }
 
     /// Retrieve all stored magnets as owned instances.
-    /// It returns the array of available [MagnetInfo] items, else the [TorrentError].
+    /// It returns the array of available [MagnetInfo] items, else the [Error].
     pub fn all(&self) -> torrents::Result<Vec<MagnetInfo>> {
         match futures::executor::block_on(self.load_collection_cache()) {
             Ok(_) => {
@@ -117,7 +117,7 @@ impl TorrentCollection {
                 }
                 StorageError::ReadingFailed(_, error) => {
                     error!("Failed to load torrent collection, {}", error);
-                    Err(TorrentError::TorrentCollectionLoadingFailed(error))
+                    Err(Error::TorrentCollectionLoadingFailed(error))
                 }
                 _ => {
                     warn!("Unexpected error returned from storage, {}", e);

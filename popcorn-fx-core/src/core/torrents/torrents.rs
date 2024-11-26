@@ -1,15 +1,19 @@
+use crate::core::{Callbacks, CoreCallback, Handle};
+use async_trait::async_trait;
+use derive_more::Display;
+use log::{debug, trace};
+
 #[cfg(any(test, feature = "testing"))]
+pub use mock::*;
 use std::fmt::Formatter;
 use std::fmt::{Debug, Display};
 use std::path::PathBuf;
 
-use derive_more::Display;
-use downcast_rs::{impl_downcast, DowncastSync};
-use log::{debug, trace};
-#[cfg(any(test, feature = "testing"))]
-use mockall::automock;
+/// A unique handle identifier of a [Torrent].
+pub type TorrentHandle = Handle;
 
-use crate::core::{CallbackHandle, CoreCallback};
+/// The torrent event specific callbacks.
+pub type TorrentEventCallback = CoreCallback<TorrentEvent>;
 
 const TORRENT_STATES: [TorrentState; 7] = [
     TorrentState::Creating,
@@ -102,32 +106,40 @@ pub struct DownloadStatus {
 
 /// The torrent describes the meta-info of a shared file that can be queried over the network.
 /// It allows for action such as downloading the shared file to the local system.
-#[cfg_attr(any(test, feature = "testing"), automock)]
-pub trait Torrent: Display + Debug + DowncastSync {
-    /// The unique handle of this [Torrent].
-    fn handle(&self) -> &str;
+#[async_trait]
+pub trait Torrent: Debug + Display + Callbacks<TorrentEvent> + Send + Sync {
+    /// Get the unique identifier handle of the torrent.
+    fn handle(&self) -> TorrentHandle;
 
     /// The absolute path to this torrent file.
     fn file(&self) -> PathBuf;
 
-    /// Verify if the given bytes are available for this [Torrent].
+    /// Check if the given bytes are available within the torrent.
+    /// This will check if the underlying pieces that contain the given byte range are downloaded, validated and written to storage.
     ///
-    /// It returns true when the bytes are available, else false.
-    fn has_bytes(&self, bytes: &[u64]) -> bool;
+    /// # Arguments
+    ///
+    /// * `bytes` - The byte range to check.
+    ///
+    /// # Returns
+    ///
+    /// Returns true when all bytes are downloaded, validated and written to storage, else false.
+    async fn has_bytes(&self, bytes: &std::ops::Range<usize>) -> bool;
 
-    /// Verify if the given piece is available.
+    /// Check if the given piece is downloaded, validated and written to storage.
     ///
     /// It returns true when the piece is present, else false.
-    fn has_piece(&self, piece: u32) -> bool;
+    async fn has_piece(&self, piece: usize) -> bool;
 
     /// Prioritize the given bytes to be downloaded.
-    fn prioritize_bytes(&self, bytes: &[u64]);
+    async fn prioritize_bytes(&self, bytes: &std::ops::Range<usize>);
 
     /// Prioritize the given piece indexes.
     fn prioritize_pieces(&self, pieces: &[u32]);
 
-    /// The total number of pieces that are available for download.
-    fn total_pieces(&self) -> i32;
+    /// Get the total number of pieces in the torrent.
+    /// It might return [None] when the metadata is still being retrieved.
+    async fn total_pieces(&self) -> Option<usize>;
 
     /// Update the download mode of the torrent to sequential.
     fn sequential_mode(&self);
@@ -135,18 +147,6 @@ pub trait Torrent: Display + Debug + DowncastSync {
     /// Retrieve the current state of the torrent.
     /// It returns an owned instance of the state.
     fn state(&self) -> TorrentState;
-
-    /// Register a new callback for the [TorrentEvent]'s.
-    /// The callback will be triggered when a new event occurs within the torrent.
-    fn subscribe(&self, callback: TorrentCallback) -> CallbackHandle;
-}
-impl_downcast!(sync Torrent);
-
-#[cfg(any(test, feature = "testing"))]
-impl Display for MockTorrent {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "MockTorrent")
-    }
 }
 
 /// The torrent information
@@ -363,6 +363,44 @@ impl TorrentHealth {
             ratio: ratio as f32,
             seeds: seeds as u32,
             leechers: leechers as u32,
+        }
+    }
+}
+
+#[cfg(any(test, feature = "testing"))]
+mod mock {
+    use super::*;
+    use crate::core::CallbackHandle;
+    use mockall::mock;
+    use std::fmt::Display;
+
+    mock! {
+        #[derive(Debug, Clone)]
+        pub Torrent {}
+
+        #[async_trait]
+        impl Torrent for Torrent {
+            fn handle(&self) -> TorrentHandle;
+            fn file(&self) -> PathBuf;
+            async fn has_bytes(&self, bytes: &std::ops::Range<usize>) -> bool;
+            async fn has_piece(&self, piece: usize) -> bool;
+            async fn prioritize_bytes(&self, bytes: &std::ops::Range<usize>);
+            fn prioritize_pieces(&self, pieces: &[u32]);
+            async fn total_pieces(&self) -> Option<usize>;
+            fn sequential_mode(&self);
+            fn state(&self) -> TorrentState;
+        }
+
+        impl Callbacks<TorrentEvent> for Torrent {
+            fn add_callback(&self, callback: CoreCallback<TorrentEvent>) -> CallbackHandle;
+            fn remove_callback(&self, handle: CallbackHandle);
+        }
+    }
+
+    #[cfg(any(test, feature = "testing"))]
+    impl Display for MockTorrent {
+        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+            write!(f, "MockTorrent")
         }
     }
 }

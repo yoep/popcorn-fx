@@ -178,11 +178,7 @@ public class TorrentWrapper extends Structure implements Torrent, Closeable {
         this.torrent.addListener(new TorrentListener() {
             @Override
             public void onStateChanged(TorrentState oldState, TorrentState newState) {
-                try {
-                    FxLibInstance.INSTANCE.get().torrent_state_changed(instance, handle, newState);
-                } catch (Exception ex) {
-                    log.error("Failed to update C torrent state, {}", ex.getMessage(), ex);
-                }
+
             }
 
             @Override
@@ -192,7 +188,7 @@ public class TorrentWrapper extends Structure implements Torrent, Closeable {
 
             @Override
             public void onDownloadStatus(DownloadStatus status) {
-                try(var downloadStatusC = DownloadStatusC.ByValue.builder()
+                try (var downloadStatusC = DownloadStatusC.ByValue.builder()
                         .progress(status.progress())
                         .seeds(status.seeds())
                         .peers(status.peers())
@@ -201,7 +197,7 @@ public class TorrentWrapper extends Structure implements Torrent, Closeable {
                         .downloaded(status.downloaded())
                         .total_size(status.totalSize())
                         .build()) {
-                    FxLibInstance.INSTANCE.get().torrent_download_status(instance, handle,downloadStatusC );
+                    FxLibInstance.INSTANCE.get().torrent_download_status(instance, handle, downloadStatusC);
                 } catch (Exception ex) {
                     log.error("Failed to update C torrent download status, {}", ex.getMessage(), ex);
                 }
@@ -209,11 +205,7 @@ public class TorrentWrapper extends Structure implements Torrent, Closeable {
 
             @Override
             public void onPieceFinished(int pieceIndex) {
-                try {
-                    FxLibInstance.INSTANCE.get().torrent_piece_finished(instance, handle, pieceIndex);
-                } catch (Exception ex) {
-                    log.error("Failed to invoked C torrent on piece finished, {}", ex.getMessage(), ex);
-                }
+
             }
         });
     }

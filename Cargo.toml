@@ -14,6 +14,8 @@ members = [
 
 [workspace.dependencies]
 async-trait = "0.1.81"
+base32 = "0.5.1"
+base64 = "0.22.1"
 bytes = "1.5.0"
 chrono = "0.4.38"
 derive_more = "0.99.18"
@@ -25,6 +27,7 @@ local-ip-address = "0.6.1"
 log = "0.4.22"
 oauth2 = "4.4.2"
 open = "5.3.0"
+percent-encoding = "2.3.1"
 rand = "0.8.5"
 regex = "1.10.5"
 reqwest = "0.12.5"

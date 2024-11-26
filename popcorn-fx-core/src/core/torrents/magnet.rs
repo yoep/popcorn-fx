@@ -464,9 +464,9 @@ mod tests {
             peer: None,
         };
 
-        let result = magnet.dn();
+        let result = magnet.tr();
 
-        assert_eq!(expected_result.as_slice(), magnet.tr());
+        assert_eq!(expected_result.as_slice(), result);
         assert_eq!(expected_result.as_slice(), magnet.trackers());
     }
 

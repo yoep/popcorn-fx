@@ -24,7 +24,7 @@ pub struct LoadingData {
     pub auto_resume_timestamp: Option<u64>,
     pub subtitle: SubtitleData,
     pub media_torrent_info: Option<TorrentInfo>,
-    pub torrent: Option<Weak<Box<dyn Torrent>>>,
+    pub torrent: Option<Box<dyn Torrent>>,
     pub torrent_stream: Option<Weak<Box<dyn TorrentStream>>>,
 }
 
@@ -73,7 +73,7 @@ impl Clone for LoadingData {
             auto_resume_timestamp: self.auto_resume_timestamp,
             subtitle: self.subtitle.clone(),
             media_torrent_info: self.media_torrent_info.clone(),
-            torrent: self.torrent.clone(),
+            torrent: None,
             torrent_stream: self.torrent_stream.clone(),
         }
     }

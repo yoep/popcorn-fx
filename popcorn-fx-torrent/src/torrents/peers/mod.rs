@@ -7,7 +7,6 @@ mod bt_protocol;
 mod errors;
 pub mod extensions;
 mod listener;
-mod metadata;
 mod peer;
 mod peer_id;
 mod peer_reader;

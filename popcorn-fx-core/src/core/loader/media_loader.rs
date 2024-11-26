@@ -19,7 +19,7 @@ use crate::core::media::{
 };
 use crate::core::playlists::PlaylistItem;
 use crate::core::torrents::magnet::Magnet;
-use crate::core::torrents::{DownloadStatus, TorrentError};
+use crate::core::torrents::{DownloadStatus, Error};
 use crate::core::{block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks, Handle};
 
 /// Represents the result of a loading operation.
@@ -214,7 +214,7 @@ pub enum LoadingError {
     #[error("Failed to parse URL: {0}")]
     ParseError(String),
     #[error("Failed to load torrent, {0}")]
-    TorrentError(TorrentError),
+    TorrentError(Error),
     #[error("Failed to process media information, {0}")]
     MediaError(String),
     #[error("Loading timed-out, {0}")]

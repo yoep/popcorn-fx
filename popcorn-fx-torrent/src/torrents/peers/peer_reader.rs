@@ -3,7 +3,6 @@ use crate::torrents::peers::{DataTransferStats, Error, PeerHandle};
 use byteorder::BigEndian;
 use byteorder::ByteOrder;
 use log::{error, trace, warn};
-use std::net::SocketAddr;
 use std::time::Instant;
 use tokio::io::{AsyncRead, AsyncReadExt, BufReader};
 use tokio::select;

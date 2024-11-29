@@ -1,10 +1,9 @@
 use std::fmt::{Debug, Display, Formatter};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use log::{debug, info, trace, warn};
-use tokio::sync::Mutex;
 
-use crate::core::{block_in_place, Handle};
+use crate::core::Handle;
 
 pub type CallbackHandle = Handle;
 
@@ -96,22 +95,21 @@ impl<E: Display + Clone> CoreCallbacks<E> {
     /// Invoke all callbacks for the given `event`.
     /// Each callback will receive its own owned instance of the `event`.
     pub fn invoke(&self, event: E) {
-        let callbacks = self.callbacks.clone();
-        let execute = async move {
-            let mutex = callbacks.lock().await;
+        Self::execute_callbacks(event, self.callbacks.clone())
+    }
 
-            trace!(
-                "Calling a total of {} callbacks for {{{}}}",
-                mutex.len(),
-                &event
-            );
-            for internal_callback in mutex.iter() {
-                let callback = &internal_callback.callback;
-                callback(event.clone());
-            }
-        };
+    fn execute_callbacks(event: E, callbacks: Arc<Mutex<Vec<InternalCallbackHolder<E>>>>) {
+        let mutex = callbacks.lock().expect("expected to acquire the lock");
 
-        block_in_place(execute)
+        trace!(
+            "Calling a total of {} callbacks for {{{}}}",
+            mutex.len(),
+            &event
+        );
+        for internal_callback in mutex.iter() {
+            let callback = &internal_callback.callback;
+            callback(event.clone());
+        }
     }
 }
 
@@ -119,7 +117,7 @@ impl<E: Display + Clone> Callbacks<E> for CoreCallbacks<E> {
     fn add_callback(&self, callback: CoreCallback<E>) -> CallbackHandle {
         trace!("Registering new callback to CoreCallbacks");
         let handle = Handle::new();
-        let mut mutex = block_in_place(self.callbacks.lock());
+        let mut mutex = self.callbacks.lock().expect("expected to acquire the lock");
 
         mutex.push(InternalCallbackHolder {
             handle: handle.clone(),
@@ -135,7 +133,7 @@ impl<E: Display + Clone> Callbacks<E> for CoreCallbacks<E> {
     fn remove_callback(&self, handle: CallbackHandle) {
         trace!("Removing callback from CoreCallbacks");
         let callbacks = self.callbacks.clone();
-        let mut mutex = block_in_place(callbacks.lock());
+        let mut mutex = callbacks.lock().expect("expected to acquire the lock");
         let position = mutex.iter().position(|e| e.handle == handle);
 
         if let Some(position) = position {
@@ -149,7 +147,7 @@ impl<E: Display + Clone> Callbacks<E> for CoreCallbacks<E> {
 
 impl<E: Display + Clone> Debug for CoreCallbacks<E> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let mutex = futures::executor::block_on(self.callbacks.lock());
+        let mutex = self.callbacks.lock().expect("expected to acquire the lock");
         write!(f, "CoreCallbacks {{callbacks: {}}}", mutex.len())
     }
 }
@@ -210,12 +208,12 @@ mod test {
         let callbacks = CoreCallbacks::<Event>::default();
 
         let id = callbacks.add_callback(Box::new(move |_| {}));
-        let e = block_in_place(callbacks.callbacks.lock());
+        let e = callbacks.callbacks.lock().unwrap();
         assert_eq!(1, e.len());
         drop(e);
 
         callbacks.remove_callback(id);
-        let e = block_in_place(callbacks.callbacks.lock());
+        let e = callbacks.callbacks.lock().unwrap();
         assert_eq!(0, e.len());
     }
 
@@ -225,7 +223,7 @@ mod test {
         let callbacks = CoreCallbacks::<Event>::default();
 
         callbacks.remove_callback(Handle::new());
-        let e = block_in_place(callbacks.callbacks.lock());
+        let e = callbacks.callbacks.lock().unwrap();
         assert_eq!(0, e.len());
     }
 }

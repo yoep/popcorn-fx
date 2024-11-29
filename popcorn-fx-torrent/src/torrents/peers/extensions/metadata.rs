@@ -306,7 +306,7 @@ impl Extension for MetadataExtension {
         }
     }
 
-    fn clone_box(&self) -> Box<dyn Extension> {
+    fn clone_boxed(&self) -> Box<dyn Extension> {
         Box::new(Self::new())
     }
 }

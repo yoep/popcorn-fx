@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -6,6 +7,8 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Error {
     #[error("the requested torrent piece data is unavailable")]
     Unavailable,
+    #[error("the torrent filepath {0} is invalid")]
+    InvalidFilepath(PathBuf),
     #[error("an io error occurred, {0}")]
     Io(String),
 }

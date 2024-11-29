@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 use std::fs;
 use std::path::PathBuf;
+use std::str::FromStr;
 use std::sync::{Arc, Weak};
 
 use async_trait::async_trait;
@@ -11,7 +12,9 @@ use tokio::runtime::Runtime;
 
 use crate::torrents::peers::extensions::metadata::MetadataExtension;
 use crate::torrents::peers::extensions::Extension;
-use crate::torrents::{errors, DefaultSession, PieceIndex, Session, Torrent, TorrentInfoFile};
+use crate::torrents::{
+    errors, DefaultSession, InfoHash, PieceIndex, Session, Torrent, TorrentFlags, TorrentInfoFile,
+};
 use popcorn_fx_core::core::config::{ApplicationConfig, CleaningMode, TorrentSettings};
 use popcorn_fx_core::core::events::{Event, EventPublisher, PlayerStoppedEvent};
 use popcorn_fx_core::core::storage::Storage;
@@ -66,7 +69,7 @@ impl popcorn_fx_core::core::torrents::Torrent for Torrent {
         todo!()
     }
 
-    async fn total_pieces(&self) -> Option<usize> {
+    async fn total_pieces(&self) -> usize {
         self.total_pieces().await
     }
 
@@ -93,12 +96,12 @@ impl DefaultTorrentManager {
         event_publisher: Arc<EventPublisher>,
         runtime: Arc<Runtime>,
     ) -> torrents::Result<Self> {
-        let extensions: Vec<Box<dyn Extension>> = vec![Box::new(MetadataExtension::new())];
-        let session: Box<dyn Session> = block_in_place(DefaultSession::new(
-            settings.user_settings().torrent_settings.directory(),
-            extensions,
-            runtime,
-        ))
+        let session: Box<dyn Session> = block_in_place(
+            DefaultSession::builder()
+                .base_path(settings.user_settings().torrent_settings.directory())
+                .runtime(runtime)
+                .build(),
+        )
         .map(|e| Box::new(e))
         .map_err(|e| torrents::Error::TorrentError(e.to_string()))?;
 
@@ -138,13 +141,11 @@ impl TorrentManager for DefaultTorrentManager {
 
     async fn create(
         &self,
+        info: &TorrentInfo,
         file_info: &TorrentFileInfo,
-        torrent_directory: &str,
         auto_download: bool,
     ) -> torrents::Result<Box<dyn popcorn_fx_core::core::torrents::Torrent>> {
-        self.inner
-            .create(file_info, torrent_directory, auto_download)
-            .await
+        self.inner.create(info, file_info, auto_download).await
     }
 
     async fn by_handle(
@@ -210,6 +211,7 @@ impl InnerTorrentManager {
                     };
 
                     Ok(TorrentInfo {
+                        info_hash: torrent_info.info_hash.to_string(),
                         uri: url.to_string(),
                         total_files: metadata.total_files() as u32,
                         files: metadata
@@ -266,10 +268,28 @@ impl InnerTorrentManager {
 
     async fn create(
         &self,
+        info: &TorrentInfo,
         file_info: &TorrentFileInfo,
-        torrent_directory: &str,
         auto_download: bool,
     ) -> torrents::Result<Box<dyn popcorn_fx_core::core::torrents::Torrent>> {
+        let info_hash = InfoHash::from_str(info.info_hash.as_str())
+            .map_err(|e| popcorn_fx_core::core::torrents::Error::TorrentError(e.to_string()))?;
+        let mut torrent = self.session.find_torrent_by_info_hash(&info_hash).await;
+
+        if torrent.is_none() {
+            let handle = self
+                .session
+                .add_torrent_from_uri(&info.uri, TorrentFlags::Metadata)
+                .await
+                .map_err(|e| popcorn_fx_core::core::torrents::Error::TorrentError(e.to_string()))?;
+
+            torrent = self.session.find_torrent_by_handle(handle).await;
+        }
+
+        let torrent = torrent.ok_or(popcorn_fx_core::core::torrents::Error::TorrentError(
+            "expected a torrent to have been created".to_string(),
+        ))?;
+
         todo!()
     }
 
@@ -437,6 +457,7 @@ mod test {
         let manager =
             DefaultTorrentManager::new(settings, event_publisher.clone(), runtime.clone()).unwrap();
         let expected_result = TorrentInfo {
+            info_hash: String::new(),
             uri: uri.to_string(),
             name: "debian-12.4.0-amd64-DVD-1.iso".to_string(),
             directory_name: None,
@@ -466,6 +487,7 @@ mod test {
         let filename = "torrents/lorem ipsum=[dolor].mp4";
         let filepath = PathBuf::from(temp_path).join(filename);
         let torrent_info = TorrentInfo {
+            info_hash: String::new(),
             uri: String::new(),
             name: filename.to_string(),
             directory_name: None,
@@ -494,7 +516,8 @@ mod test {
                 let torrent_file_info = result
                     .largest_file()
                     .expect("expected a torrent file to have been present in the torrent info");
-                let result = block_in_place(manager.create(&torrent_file_info, temp_path, true));
+                let result =
+                    block_in_place(manager.create(&torrent_info, &torrent_file_info, true));
                 assert!(
                     result.is_ok(),
                     "expected the torrent to have been created, {}",

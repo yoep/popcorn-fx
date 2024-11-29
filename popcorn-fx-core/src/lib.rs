@@ -468,7 +468,7 @@ pub mod testing {
             async fn has_piece(&self, piece: usize) -> bool;
             async fn prioritize_bytes(&self, bytes: &std::ops::Range<usize>);
             fn prioritize_pieces(&self, pieces: &[u32]);
-            async fn total_pieces(&self) -> Option<usize>;
+            async fn total_pieces(&self) -> usize;
             fn sequential_mode(&self);
             fn state(&self) -> TorrentState;
         }

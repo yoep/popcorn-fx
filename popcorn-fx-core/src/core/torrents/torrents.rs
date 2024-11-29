@@ -5,7 +5,6 @@ use log::{debug, trace};
 
 #[cfg(any(test, feature = "testing"))]
 pub use mock::*;
-use std::fmt::Formatter;
 use std::fmt::{Debug, Display};
 use std::path::PathBuf;
 
@@ -139,7 +138,7 @@ pub trait Torrent: Debug + Display + Callbacks<TorrentEvent> + Send + Sync {
 
     /// Get the total number of pieces in the torrent.
     /// It might return [None] when the metadata is still being retrieved.
-    async fn total_pieces(&self) -> Option<usize>;
+    async fn total_pieces(&self) -> usize;
 
     /// Update the download mode of the torrent to sequential.
     fn sequential_mode(&self);
@@ -152,13 +151,16 @@ pub trait Torrent: Debug + Display + Callbacks<TorrentEvent> + Send + Sync {
 /// The torrent information
 #[derive(Debug, Display, Clone, PartialEq)]
 #[display(
-    fmt = "uri: {}, name: {}, directory_name: {:?}, total_files: {}",
+    fmt = "info_hash: {}, uri: {}, name: {}, directory_name: {:?}, total_files: {}",
+    info_hash,
     uri,
     name,
     directory_name,
     total_files
 )]
 pub struct TorrentInfo {
+    /// The info hash of the torrent.
+    pub info_hash: String,
     /// The magnet uri of the torrent
     pub uri: String,
     /// The name of the torrent
@@ -372,7 +374,8 @@ mod mock {
     use super::*;
     use crate::core::CallbackHandle;
     use mockall::mock;
-    use std::fmt::Display;
+    use std::fmt::{Display, Formatter};
+    use std::ops::Range;
 
     mock! {
         #[derive(Debug, Clone)]
@@ -382,11 +385,11 @@ mod mock {
         impl Torrent for Torrent {
             fn handle(&self) -> TorrentHandle;
             fn file(&self) -> PathBuf;
-            async fn has_bytes(&self, bytes: &std::ops::Range<usize>) -> bool;
+            async fn has_bytes(&self, bytes: &Range<usize>) -> bool;
             async fn has_piece(&self, piece: usize) -> bool;
-            async fn prioritize_bytes(&self, bytes: &std::ops::Range<usize>);
+            async fn prioritize_bytes(&self, bytes: &Range<usize>);
             fn prioritize_pieces(&self, pieces: &[u32]);
-            async fn total_pieces(&self) -> Option<usize>;
+            async fn total_pieces(&self) -> usize;
             fn sequential_mode(&self);
             fn state(&self) -> TorrentState;
         }
@@ -397,7 +400,6 @@ mod mock {
         }
     }
 
-    #[cfg(any(test, feature = "testing"))]
     impl Display for MockTorrent {
         fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
             write!(f, "MockTorrent")
@@ -439,6 +441,7 @@ mod test {
             file_index: 0,
         };
         let info = TorrentInfo {
+            info_hash: String::new(),
             uri: String::new(),
             name: "".to_string(),
             directory_name: Some("torrentDirectory".to_string()),
@@ -470,6 +473,7 @@ mod test {
             file_index: 0,
         };
         let info = TorrentInfo {
+            info_hash: String::new(),
             uri: String::new(),
             name: "".to_string(),
             directory_name: Some("torrentDirectory".to_string()),
@@ -499,6 +503,7 @@ mod test {
             file_index: 0,
         };
         let info = TorrentInfo {
+            info_hash: String::new(),
             uri: String::new(),
             name: "".to_string(),
             directory_name: None,

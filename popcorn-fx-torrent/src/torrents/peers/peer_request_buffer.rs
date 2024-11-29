@@ -1,14 +1,17 @@
 use crate::torrents::peers::bt_protocol::Request;
-use std::collections::VecDeque;
-use tokio::sync::{Notify, RwLock};
+use log::warn;
+use tokio::sync::mpsc::{channel, Receiver, Sender};
+use tokio::sync::{Mutex, Notify, RwLock};
+
+const BUFFER_SIZE: usize = 25;
 
 /// A buffer implementation for peer requests.
 /// It uses an internal [VecDeque] to store the request data.
 #[derive(Debug)]
 pub struct PeerRequestBuffer {
-    data: RwLock<VecDeque<Request>>,
+    sender: Sender<Request>,
+    receiver: Mutex<Receiver<Request>>,
     is_running: RwLock<bool>,
-    queued_notifications: RwLock<usize>,
     notify: Notify,
 }
 
@@ -16,10 +19,11 @@ impl PeerRequestBuffer {
     /// Create a new buffer for peer requests.
     /// It starts in the state given by the `running` parameter.
     pub fn new(running: bool) -> Self {
+        let (sender, receiver) = channel(BUFFER_SIZE);
         Self {
-            data: RwLock::new(VecDeque::with_capacity(0)),
+            sender,
+            receiver: Mutex::new(receiver),
             is_running: RwLock::new(running),
-            queued_notifications: RwLock::new(0),
             notify: Notify::new(),
         }
     }
@@ -33,60 +37,29 @@ impl PeerRequestBuffer {
     /// Resumes the buffer for being processed.
     pub async fn resume(&self) {
         *self.is_running.write().await = true;
-
-        for _ in 0..*self.queued_notifications.read().await {
-            self.notify.notify_one();
-        }
-
-        *self.queued_notifications.write().await = 0;
+        self.notify.notify_waiters();
     }
 
     /// Get the number of requests in the buffer.
     pub async fn len(&self) -> usize {
-        self.data.read().await.len()
+        self.receiver.lock().await.len()
     }
 
     /// Push a new request into the buffer.
     pub async fn push(&self, value: Request) {
-        {
-            let mut mutex = self.data.write().await;
-            let buffer_len = mutex.len();
-            mutex.insert(buffer_len, value);
-        }
-
-        if *self.is_running.read().await {
-            self.notify.notify_one();
-        } else {
-            *self.queued_notifications.write().await += 1;
+        if let Err(e) = self.sender.send(value).await {
+            warn!("Failed to buffer request, {}", e);
         }
     }
 
     /// Retrieve a value from the buffer.
     /// This method waits for a new request to become available.
-    pub async fn next(&self) -> Request {
-        let mut is_queued = false;
-
-        loop {
+    pub async fn next(&self) -> Option<Request> {
+        if !*self.is_running.read().await {
             self.notify.notified().await;
-
-            if *self.is_running.read().await {
-                return self
-                    .data
-                    .write()
-                    .await
-                    .pop_front()
-                    .expect("expected a request to have been present");
-            } else if !is_queued {
-                *self.queued_notifications.write().await += 1;
-                is_queued = true;
-            }
         }
-    }
 
-    /// Clear all requests from the buffer.
-    pub async fn clear(&self) {
-        let mut mutex = self.data.write().await;
-        mutex.clear();
+        self.receiver.lock().await.recv().await
     }
 }
 
@@ -97,6 +70,25 @@ mod tests {
     use std::sync::Arc;
     use std::time::Duration;
     use tokio::runtime::Runtime;
+
+    #[test]
+    fn test_len() {
+        let runtime = Runtime::new().expect("expected a runtime");
+        let request = Request {
+            index: 0,
+            begin: 0,
+            length: 1024,
+        };
+        let buffer = Arc::new(PeerRequestBuffer::new(false));
+
+        runtime.block_on(buffer.push(request.clone()));
+        runtime.block_on(buffer.push(request));
+        runtime.block_on(buffer.len());
+
+        let result = runtime.block_on(buffer.len());
+
+        assert_eq!(2, result);
+    }
 
     #[test]
     fn test_next_resume() {
@@ -119,6 +111,7 @@ mod tests {
 
         let request = rx
             .recv_timeout(Duration::from_millis(50))
+            .unwrap()
             .expect("expected a request to have been sent");
 
         assert_eq!(expected_request, request);

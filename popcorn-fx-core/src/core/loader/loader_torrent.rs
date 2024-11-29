@@ -50,33 +50,35 @@ impl LoadingStrategy for TorrentLoadingStrategy {
         event_channel: Sender<LoadingEvent>,
         _: CancellationToken,
     ) -> loader::LoadingResult {
-        if let Some(torrent_file_info) = data.torrent_file_info.as_ref() {
-            trace!("Processing torrent info of {:?}", torrent_file_info);
-            event_channel
-                .send(LoadingEvent::StateChanged(LoadingState::Connecting))
-                .unwrap();
-            let torrent_directory: String;
+        if let Some(torrent) = data.torrent_info.as_ref() {
+            if let Some(torrent_file_info) = data.torrent_file_info.as_ref() {
+                trace!("Processing torrent info of {:?}", torrent_file_info);
+                event_channel
+                    .send(LoadingEvent::StateChanged(LoadingState::Connecting))
+                    .unwrap();
+                let torrent_directory: String;
 
-            {
-                let settings = self.application_settings.user_settings();
-                torrent_directory = settings
-                    .torrent()
-                    .directory()
-                    .to_str()
-                    .map(|e| e.to_string())
-                    .expect("expected a valid torrent directory from the user settings");
-            }
-
-            match self
-                .torrent_manager
-                .create(torrent_file_info, torrent_directory.as_str(), true)
-                .await
-            {
-                Ok(torrent) => {
-                    debug!("Enhancing playlist item with torrent");
-                    data.torrent = Some(torrent);
+                {
+                    let settings = self.application_settings.user_settings();
+                    torrent_directory = settings
+                        .torrent()
+                        .directory()
+                        .to_str()
+                        .map(|e| e.to_string())
+                        .expect("expected a valid torrent directory from the user settings");
                 }
-                Err(e) => return loader::LoadingResult::Err(LoadingError::TorrentError(e)),
+
+                match self
+                    .torrent_manager
+                    .create(torrent, torrent_file_info, true)
+                    .await
+                {
+                    Ok(torrent) => {
+                        debug!("Enhancing playlist item with torrent");
+                        data.torrent = Some(torrent);
+                    }
+                    Err(e) => return loader::LoadingResult::Err(LoadingError::TorrentError(e)),
+                }
             }
         }
 
@@ -112,6 +114,7 @@ mod tests {
     fn test_process() {
         init_logger();
         let torrent_info = TorrentInfo {
+            info_hash: String::new(),
             uri: String::new(),
             name: "".to_string(),
             directory_name: None,

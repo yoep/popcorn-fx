@@ -196,7 +196,7 @@ impl Tracker {
         addrs: &[SocketAddr],
         timeout: Duration,
     ) -> Result<Box<dyn TrackerConnection>> {
-        debug!("Trying to connect to tracker at {}", url);
+        trace!("Trying to connect to tracker at {}", url);
         let scheme = url.scheme();
         let mut connection: Box<dyn TrackerConnection>;
 

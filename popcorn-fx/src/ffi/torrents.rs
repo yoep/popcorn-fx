@@ -3,14 +3,11 @@ use std::ptr;
 
 use log::trace;
 
-use popcorn_fx_core::core::torrents::{TorrentHealth, TorrentState};
+use popcorn_fx_core::core::torrents::TorrentHealth;
 use popcorn_fx_core::core::{block_in_place, Handle};
 use popcorn_fx_core::{from_c_string, into_c_owned};
 
-use crate::ffi::{
-    DownloadStatusC, ResolveTorrentCallback, ResultC, TorrentErrorC, TorrentFileInfoC,
-    TorrentStreamEventC, TorrentStreamEventCallback,
-};
+use crate::ffi::{ResultC, TorrentErrorC, TorrentStreamEventC, TorrentStreamEventCallback};
 use crate::PopcornFX;
 
 /// Registers a new torrent stream event callback.
@@ -253,7 +250,7 @@ mod test {
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut torrent = MockTorrent::new();
         torrent.expect_file().return_const(PathBuf::from(temp_path));
-        torrent.expect_total_pieces().return_const(Some(10));
+        torrent.expect_total_pieces().return_const(10);
         torrent
             .expect_state()
             .return_const(TorrentState::Downloading);

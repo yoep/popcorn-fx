@@ -64,7 +64,9 @@ where
                         },
                         Ok(buffer_size) => {
                             if let Err(e) = self.read_next(&buffer, buffer_size).await {
-                                error!("{}", e);
+                                if e != Error::Closed {
+                                    error!("{}", e);
+                                }
                                 break
                             }
                         },

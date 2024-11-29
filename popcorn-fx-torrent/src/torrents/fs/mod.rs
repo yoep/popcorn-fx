@@ -3,4 +3,3 @@ pub use storage::*;
 
 mod errors;
 mod storage;
-pub mod strategies;

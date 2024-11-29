@@ -45,22 +45,11 @@ pub trait TorrentManager: Debug + DowncastSync + Callbacks<TorrentManagerEvent> 
     /// The torrent health on success, or a [torrent::TorrentError] if there was an error.
     async fn health_from_uri<'a>(&'a self, url: &'a str) -> torrents::Result<TorrentHealth>;
 
-    /// Create a new torrent session based on the provided file information.
-    ///
-    /// # Arguments
-    ///
-    /// * `file_info` - The file information for the torrent.
-    /// * `torrent_directory` - The directory where the torrent files will be stored.
-    /// * `auto_download` - A flag indicating whether the torrent should start downloading automatically.
-    ///
-    /// # Returns
-    ///
-    /// A `Result` containing a weak reference to the created torrent session on success,
-    /// or a [torrent::TorrentError] on failure.
+    /// Create a new torrent within the manager for the given info.
     async fn create(
         &self,
+        info: &TorrentInfo,
         file_info: &TorrentFileInfo,
-        torrent_directory: &str,
         auto_download: bool,
     ) -> torrents::Result<Box<dyn Torrent>>;
 
@@ -117,8 +106,8 @@ mod mock {
             async fn health_from_uri<'a>(&'a self, url: &'a str) -> torrents::Result<TorrentHealth>;
             async fn create(
                 &self,
+                info: &TorrentInfo,
                 file_info: &TorrentFileInfo,
-                torrent_directory: &str,
                 auto_download: bool,
             ) -> torrents::Result<Box<dyn Torrent>>;
             async fn by_handle(&self, handle: TorrentHandle) -> Option<Box<dyn Torrent>>;

@@ -32,6 +32,10 @@ pub enum TorrentError {
     InvalidInfoHash(String),
     #[error("the torrent handle {0} is no longer valid or invalid")]
     InvalidHandle(TorrentHandle),
+    #[error("the torrent request is invalid, {0}")]
+    InvalidRequest(String),
+    #[error("the specified range {0:?} is invalid")]
+    InvalidRange(std::ops::Range<usize>),
     #[error("a tracker error occurred, {0}")]
     Tracker(TrackerError),
     #[error("a peer error occurred, {0}")]

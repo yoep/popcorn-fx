@@ -18,7 +18,7 @@ pub type Extensions = Vec<Box<dyn Extension>>;
 /// An extension can only be activated when the remote peer supports **BEP10**.
 ///
 /// Extensions are registered at the [crate::torrents::Session] level.
-/// An extension is then cloned through the [Extension::clone_box] method for each created peer connection in a torrent.
+/// An extension is then cloned through the [Extension::clone_boxed] method for each created peer connection in a torrent.
 /// This means that the extension can store peer related information internally for later use.
 #[async_trait]
 pub trait Extension: Debug + Send + Sync {
@@ -53,5 +53,5 @@ pub trait Extension: Debug + Send + Sync {
     /// # Returns
     ///
     /// A new boxed instance of this extension.
-    fn clone_box(&self) -> Box<dyn Extension>;
+    fn clone_boxed(&self) -> Box<dyn Extension>;
 }

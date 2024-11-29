@@ -31,6 +31,15 @@ impl Default for PiecePriority {
     }
 }
 
+impl PartialOrd for PiecePriority {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        let a = *self as u8;
+        let b = *other as u8;
+
+        Some(a.cmp(&b))
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Piece {
     /// The hash information of the piece
@@ -95,6 +104,11 @@ impl Piece {
         }
     }
 
+    /// Get the length of this piece in bytes.
+    pub fn len(&self) -> usize {
+        self.length
+    }
+
     /// Get the known availability of this piece within the torrent peers.
     /// If no connections have been made yet to peers, this might return 0.
     pub fn availability(&self) -> u32 {
@@ -116,8 +130,9 @@ impl Piece {
         self.completed_parts.count_ones() > 0
     }
 
-    /// Get the bytes range of this piece.
-    pub fn range(&self) -> std::ops::Range<usize> {
+    /// Get the range of the piece bytes relative to the torrent.
+    /// It returns the byte range within the torrent.
+    pub fn torrent_byte_range(&self) -> std::ops::Range<usize> {
         self.offset..(self.offset + self.length)
     }
 
@@ -145,7 +160,7 @@ impl Piece {
 }
 
 /// Identifies a piece part of a piece.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PiecePart {
     /// The piece index to which this part belongs
     pub piece: PieceIndex,
@@ -156,6 +171,16 @@ pub struct PiecePart {
     /// The size in bytes of this part.
     /// This is related to the [MAX_PIECE_PART_SIZE]
     pub length: usize,
+}
+
+impl PartialOrd for PiecePart {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        if self.piece != other.piece {
+            return None;
+        }
+
+        Some(self.part.cmp(&other.part))
+    }
 }
 
 /// The piece chunk pool stores piece parts that have been received from peers.

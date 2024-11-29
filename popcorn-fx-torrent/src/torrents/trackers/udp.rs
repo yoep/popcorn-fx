@@ -40,7 +40,7 @@ impl TrackerConnection for UdpConnection {
             trace!("Trying to connect to {:?}", addr);
             match socket.connect(addr).await {
                 Ok(_) => {
-                    debug!("Successfully connected to tracker address {}", addr);
+                    trace!("Successfully connected to tracker address {}", addr);
                     connected = true;
                     break;
                 }

@@ -128,14 +128,22 @@ pub enum PeerEvent {
 
 #[derive(Debug, Default, Clone)]
 pub struct PeerDataTransferStats {
-    /// The bytes that have been transferred from the peer.
-    pub upload: usize,
-    /// The bytes per second that have been transferred from the peer.
-    pub upload_rate: u64,
     /// The bytes that have been transferred to the peer.
+    pub upload: usize,
+    /// The bytes per second that have been transferred to the peer.
+    pub upload_rate: u64,
+    /// The bytes that contain actual piece data transferred to the peer.
+    pub upload_useful: usize,
+    /// The bytes per seconds that contain actual piece data transferred to the peer.
+    pub upload_useful_rate: u64,
+    /// The bytes that have been transferred from the peer.
     pub download: usize,
     /// The bytes per second that the downloaded from the peer.
     pub download_rate: u64,
+    /// The bytes that contain actual piece data transferred from the peer.
+    pub download_useful: usize,
+    /// The bytes per seconds that contain actual piece data transferred from the peer.
+    pub download_useful_rate: u64,
 }
 
 #[derive(Debug)]
@@ -416,12 +424,16 @@ impl Peer {
             let mut mutex = self.inner.incoming_data_stats.write().await;
             stats.upload = mutex.transferred_bytes;
             stats.upload_rate = mutex.transferred_bytes_rate;
+            stats.upload_useful = mutex.transferred_bytes_useful;
+            stats.upload_useful_rate = mutex.transferred_bytes_useful_rate;
             mutex.reset();
         }
         {
             let mut mutex = self.inner.outgoing_data_stats.write().await;
             stats.download = mutex.transferred_bytes;
             stats.download_rate = mutex.transferred_bytes_rate;
+            stats.download_useful = mutex.transferred_bytes_useful;
+            stats.download_useful_rate = mutex.transferred_bytes_useful_rate;
             mutex.reset();
         }
 
@@ -531,7 +543,7 @@ impl Peer {
             PeerReaderEvent::Closed => self.inner.cancellation_token.cancel(),
             PeerReaderEvent::Message(message, data_transfer) => {
                 self.inner
-                    .update_read_data_transfer_stats(data_transfer)
+                    .update_read_data_transfer_stats(&message, data_transfer)
                     .await;
 
                 if let Message::ExtendedPayload(extension_number, payload) = message {
@@ -682,8 +694,16 @@ impl Peer {
                         self.inner.handle_event(event).await;
                     }
                 }
-                request = self.inner.client_pending_requests.next() => self.inner.send_pending_request(request).await,
-                request = self.inner.remote_pending_requests.next() => self.inner.handle_pending_request(request).await
+                request = self.inner.client_pending_requests.next() => {
+                    if let Some(request) = request {
+                        self.inner.send_pending_request(request).await
+                    }
+                },
+                request = self.inner.remote_pending_requests.next() => {
+                    if let Some(request) = request {
+                        self.inner.handle_pending_request(request).await
+                    }
+                }
             }
         }
 
@@ -1158,6 +1178,12 @@ impl InnerPeer {
     async fn update_remote_piece(&self, piece: PieceIndex, value: bool) {
         {
             let mut mutex = self.remote_pieces.write().await;
+            // increase the size of the bitvec if needed
+            // this can be the case when the peer is sending piece data while the torrent is still retrieving the metadata
+            if piece > mutex.len() && !self.torrent.is_metadata_known().await {
+                let additional_len = piece as usize - mutex.len();
+                mutex.extend(vec![false; additional_len]);
+            }
             mutex.set(piece, value);
         }
 
@@ -1189,11 +1215,24 @@ impl InnerPeer {
             .await;
     }
 
-    async fn update_read_data_transfer_stats(&self, data_transfer: DataTransferStats) {
+    async fn update_read_data_transfer_stats(
+        &self,
+        message: &Message,
+        data_transfer: DataTransferStats,
+    ) {
         let mut mutex = self.incoming_data_stats.write().await;
         mutex.transferred_bytes += data_transfer.transferred_bytes;
         mutex.transferred_bytes_rate += data_transfer.rate();
         mutex.total_transferred_bytes += data_transfer.transferred_bytes as u64;
+
+        if let Message::Piece(piece) = message {
+            mutex.total_transferred_bytes_useful += piece.data.len() as u64;
+
+            if data_transfer.elapsed != 0 {
+                mutex.transferred_bytes_useful_rate =
+                    ((piece.data.len() as u128 * 1000) / data_transfer.elapsed) as u64
+            }
+        }
     }
 
     async fn update_write_data_transfer_stats(&self, data_transfer: DataTransferStats) {
@@ -1394,16 +1433,17 @@ mod tests {
         let magnet = Magnet::from_str("magnet:?xt=urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7&dn=debian-12.4.0-amd64-DVD-1.iso&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce").unwrap();
         let torrent_info = TorrentInfo::try_from(magnet).unwrap();
         let runtime = Arc::new(Runtime::new().unwrap());
-        let request = TorrentRequest {
-            metadata: torrent_info.clone(),
-            options: TorrentFlags::None,
-            peer_listener_port: 6881,
-            extensions: vec![Box::new(MetadataExtension::new())],
-            storage: Box::new(DefaultTorrentFileStorage::new(temp_path)),
-            peer_timeout: Some(Duration::from_secs(2)),
-            tracker_timeout: Some(Duration::from_secs(2)),
-            runtime: Some(runtime.clone()),
-        };
+        let request = Torrent::request()
+            .metadata(torrent_info.clone())
+            .options(TorrentFlags::None)
+            .peer_listener_port(6881)
+            .extensions(vec![Box::new(MetadataExtension::new())])
+            .storage(Box::new(DefaultTorrentFileStorage::new(temp_path)))
+            .peer_timeout(Duration::from_secs(2))
+            .tracker_timeout(Duration::from_secs(1))
+            .runtime(runtime.clone())
+            .build()
+            .unwrap();
         let torrent = Torrent::try_from(request).unwrap();
 
         let announcement = runtime.block_on(torrent.announce()).unwrap();
@@ -1441,16 +1481,17 @@ mod tests {
         let magnet = Magnet::from_str("magnet:?xt=urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7&dn=debian-12.4.0-amd64-DVD-1.iso&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce").unwrap();
         let torrent_info = TorrentInfo::try_from(magnet).unwrap();
         let runtime = Arc::new(Runtime::new().unwrap());
-        let request = TorrentRequest {
-            metadata: torrent_info.clone(),
-            options: Default::default(),
-            peer_listener_port: 6881,
-            extensions: vec![],
-            storage: Box::new(DefaultTorrentFileStorage::new(temp_path)),
-            peer_timeout: Some(Duration::from_secs(1)),
-            tracker_timeout: None,
-            runtime: Some(runtime.clone()),
-        };
+        let request = Torrent::request()
+            .metadata(torrent_info.clone())
+            .options(TorrentFlags::None)
+            .peer_listener_port(6881)
+            .extensions(vec![Box::new(MetadataExtension::new())])
+            .storage(Box::new(DefaultTorrentFileStorage::new(temp_path)))
+            .peer_timeout(Duration::from_secs(2))
+            .tracker_timeout(Duration::from_secs(1))
+            .runtime(runtime.clone())
+            .build()
+            .unwrap();
         let mock_addr = available_socket();
         let mut listener = runtime.block_on(TcpListener::bind(&mock_addr)).unwrap();
         let torrent = Torrent::try_from(request).unwrap();
@@ -1483,16 +1524,17 @@ mod tests {
         let torrent_info_data = read_test_file_to_bytes("debian-udp.torrent");
         let torrent_info = TorrentInfo::try_from(torrent_info_data.as_slice()).unwrap();
         let runtime = Arc::new(Runtime::new().unwrap());
-        let request = TorrentRequest {
-            metadata: torrent_info.clone(),
-            options: Default::default(),
-            peer_listener_port: 6881,
-            extensions: vec![],
-            storage: Box::new(DefaultTorrentFileStorage::new(temp_path)),
-            peer_timeout: Some(Duration::from_secs(1)),
-            tracker_timeout: None,
-            runtime: Some(runtime.clone()),
-        };
+        let request = Torrent::request()
+            .metadata(torrent_info.clone())
+            .options(TorrentFlags::None)
+            .peer_listener_port(6881)
+            .extensions(vec![Box::new(MetadataExtension::new())])
+            .storage(Box::new(DefaultTorrentFileStorage::new(temp_path)))
+            .peer_timeout(Duration::from_secs(2))
+            .tracker_timeout(Duration::from_secs(1))
+            .runtime(runtime.clone())
+            .build()
+            .unwrap();
         let mock_addr = available_socket();
         let mut listener = runtime.block_on(TcpListener::bind(&mock_addr)).unwrap();
         let torrent = Torrent::try_from(request).unwrap();

@@ -94,7 +94,7 @@ impl Torrent for DefaultTorrentStream {
         self.inner.prioritize_pieces(pieces)
     }
 
-    async fn total_pieces(&self) -> Option<usize> {
+    async fn total_pieces(&self) -> usize {
         self.inner.total_pieces().await
     }
 
@@ -278,7 +278,7 @@ impl InnerTorrentStream {
     }
 
     fn preparation_pieces(torrent: &Box<dyn Torrent>) -> Vec<u32> {
-        let total_pieces = block_in_place(torrent.total_pieces()).unwrap_or(0);
+        let total_pieces = block_in_place(torrent.total_pieces());
         trace!(
             "Calculating preparation pieces of {:?} for a total of {} pieces",
             torrent.file(),
@@ -345,7 +345,7 @@ impl Torrent for InnerTorrentStream {
         self.torrent.prioritize_pieces(pieces)
     }
 
-    async fn total_pieces(&self) -> Option<usize> {
+    async fn total_pieces(&self) -> usize {
         self.torrent.total_pieces().await
     }
 
@@ -701,7 +701,7 @@ mod test {
         mock.expect_file().returning(move || temp_path.clone());
         mock.expect_has_bytes().return_const(true);
         mock.expect_has_piece().return_const(true);
-        mock.expect_total_pieces().returning(|| Some(10));
+        mock.expect_total_pieces().returning(|| 10);
         mock.expect_prioritize_pieces().returning(|_: &[u32]| {});
         mock.expect_sequential_mode().returning(|| {});
         mock.expect_state().return_const(TorrentState::Downloading);
@@ -832,7 +832,7 @@ mod test {
         mock.expect_file().returning(move || temp_path.clone());
         mock.expect_has_bytes().return_const(true);
         mock.expect_has_piece().return_const(false);
-        mock.expect_total_pieces().returning(|| Some(100));
+        mock.expect_total_pieces().returning(|| 100);
         mock.expect_prioritize_pieces()
             .returning(move |pieces: &[u32]| {
                 tx.send(pieces.to_vec()).unwrap();
@@ -867,7 +867,7 @@ mod test {
         mock.expect_file().returning(move || temp_path.clone());
         mock.expect_has_bytes().return_const(false);
         mock.expect_has_piece().return_const(false);
-        mock.expect_total_pieces().returning(|| Some(100));
+        mock.expect_total_pieces().returning(|| 100);
         mock.expect_prioritize_pieces()
             .times(0)
             .returning(|_: &[u32]| {});
@@ -890,7 +890,7 @@ mod test {
         let url = Url::parse("http://localhost").unwrap();
         mock.expect_file().returning(move || temp_path.clone());
         mock.expect_has_bytes().return_const(true);
-        mock.expect_total_pieces().returning(|| Some(10));
+        mock.expect_total_pieces().returning(|| 10);
         mock.expect_prioritize_pieces().returning(|_: &[u32]| {});
         mock.expect_state().return_const(TorrentState::Downloading);
         copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);

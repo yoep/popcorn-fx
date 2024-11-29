@@ -348,8 +348,14 @@ impl FromStr for InfoHash {
         } else if *info_hash_version_identifier == V2_HASH_IDENTIFIER {
             Self::try_from_v2(info_hash_value)
         } else {
-            warn!("Unable to identify info hash version for xt {}", xt);
-            Err(TorrentError::InvalidTopic(xt.to_string()))
+            // try to decode the hex value
+            match hex::decode(xt.as_bytes()) {
+                Ok(bytes) => Self::try_from_bytes(bytes.as_slice()),
+                Err(e) => {
+                    warn!("Unable to identify info hash version for xt {}", xt);
+                    Err(TorrentError::InvalidTopic(xt.to_string()))
+                }
+            }
         }
     }
 }

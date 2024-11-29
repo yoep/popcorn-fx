@@ -4,10 +4,10 @@ use std::ptr;
 use log::trace;
 
 use popcorn_fx_core::core::torrents::{
-    DownloadStatus, Error, TorrentFileInfo, TorrentHealth, TorrentInfo, TorrentState,
-    TorrentStreamEvent, TorrentStreamState,
+    DownloadStatus, Error, TorrentFileInfo, TorrentInfo, TorrentState, TorrentStreamEvent,
+    TorrentStreamState,
 };
-use popcorn_fx_core::{from_c_string, into_c_string, into_c_vec};
+use popcorn_fx_core::{from_c_string, into_c_string};
 
 use crate::ffi::CArray;
 
@@ -128,6 +128,7 @@ pub struct TorrentC {
 #[repr(C)]
 #[derive(Debug)]
 pub struct TorrentInfoC {
+    pub info_hash: *mut c_char,
     pub uri: *mut c_char,
     /// A pointer to a null-terminated C string representing the name of the torrent.
     pub name: *mut c_char,
@@ -154,6 +155,7 @@ impl From<TorrentInfo> for TorrentInfoC {
             .collect();
 
         Self {
+            info_hash: into_c_string(value.info_hash),
             uri: into_c_string(value.uri),
             name: into_c_string(value.name),
             directory_name,
@@ -177,10 +179,11 @@ impl From<TorrentInfoC> for TorrentInfo {
         };
 
         Self {
+            info_hash: from_c_string(value.info_hash),
             uri: from_c_string(value.uri),
             name: from_c_string(value.name),
             directory_name,
-            total_files: value.total_files as u32,
+            total_files: value.total_files,
             files,
         }
     }

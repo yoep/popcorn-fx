@@ -173,7 +173,7 @@ impl TrackerManager {
         {
             Ok(tracker) => self.inner.add_tracker(tracker).await,
             Err(e) => {
-                warn!("Failed to create new tracker {}: {}", url, e);
+                debug!("Failed to create new tracker {}: {}", url, e);
                 Err(e)
             }
         }

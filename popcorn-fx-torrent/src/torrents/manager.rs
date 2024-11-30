@@ -10,16 +10,15 @@ use itertools::Itertools;
 use log::{debug, error, info, trace, warn};
 use tokio::runtime::Runtime;
 
-use crate::torrents::peers::extensions::metadata::MetadataExtension;
-use crate::torrents::peers::extensions::Extension;
 use crate::torrents::{
-    errors, DefaultSession, InfoHash, PieceIndex, Session, Torrent, TorrentFlags, TorrentInfoFile,
+    errors, DefaultSession, FilePriority, InfoHash, PieceIndex, PiecePriority, Session, Torrent,
+    TorrentEvent, TorrentFlags, TorrentInfoFile,
 };
 use popcorn_fx_core::core::config::{ApplicationConfig, CleaningMode, TorrentSettings};
 use popcorn_fx_core::core::events::{Event, EventPublisher, PlayerStoppedEvent};
 use popcorn_fx_core::core::storage::Storage;
 use popcorn_fx_core::core::torrents::{
-    TorrentCallback, TorrentFileInfo, TorrentHandle, TorrentHealth, TorrentInfo, TorrentManager,
+    TorrentFileInfo, TorrentHandle, TorrentHealth, TorrentInfo, TorrentManager,
     TorrentManagerCallback, TorrentManagerEvent, TorrentState,
 };
 use popcorn_fx_core::core::{
@@ -34,12 +33,32 @@ impl Callbacks<popcorn_fx_core::core::torrents::TorrentEvent> for Torrent {
         &self,
         callback: CoreCallback<popcorn_fx_core::core::torrents::TorrentEvent>,
     ) -> CallbackHandle {
-        // TODO
-        CallbackHandle::new()
+        <Torrent as Callbacks<TorrentEvent>>::add_callback(
+            self,
+            Box::new(move |event| {
+                let event = match event {
+                    TorrentEvent::StateChanged(e) => {
+                        Some(torrents::TorrentEvent::StateChanged(TorrentState::from(e)))
+                    }
+                    TorrentEvent::MetadataChanged => None,
+                    TorrentEvent::PeersChanged => None,
+                    TorrentEvent::PiecesChanged => None,
+                    TorrentEvent::PieceCompleted(e) => {
+                        Some(torrents::TorrentEvent::PieceFinished(e as u32))
+                    }
+                    TorrentEvent::FilesChanged => None,
+                    TorrentEvent::Stats(_) => None,
+                };
+
+                if let Some(event) = event {
+                    callback(event);
+                }
+            }),
+        )
     }
 
     fn remove_callback(&self, handle: CallbackHandle) {
-        // TODO
+        <Torrent as Callbacks<TorrentEvent>>::remove_callback(self, handle)
     }
 }
 
@@ -62,23 +81,45 @@ impl popcorn_fx_core::core::torrents::Torrent for Torrent {
     }
 
     async fn prioritize_bytes(&self, bytes: &std::ops::Range<usize>) {
-        todo!()
+        self.prioritize_bytes(bytes).await
     }
 
-    fn prioritize_pieces(&self, pieces: &[u32]) {
-        todo!()
+    async fn prioritize_pieces(&self, pieces: &[u32]) {
+        let mut priorities = Vec::new();
+
+        for piece in pieces {
+            priorities.push((*piece as PieceIndex, PiecePriority::High));
+        }
+
+        self.prioritize_pieces(priorities).await;
     }
 
     async fn total_pieces(&self) -> usize {
         self.total_pieces().await
     }
 
-    fn sequential_mode(&self) {
-        todo!()
+    async fn sequential_mode(&self) {
+        self.add_options(TorrentFlags::SequentialDownload).await
     }
 
-    fn state(&self) -> TorrentState {
-        todo!()
+    async fn state(&self) -> TorrentState {
+        TorrentState::from(self.state().await)
+    }
+}
+
+impl From<crate::torrents::TorrentState> for TorrentState {
+    fn from(value: crate::torrents::TorrentState) -> Self {
+        match value {
+            crate::torrents::TorrentState::Initializing => torrents::TorrentState::Initializing,
+            crate::torrents::TorrentState::CheckingFiles => torrents::TorrentState::CheckingFiles,
+            crate::torrents::TorrentState::RetrievingMetadata => {
+                torrents::TorrentState::Initializing
+            }
+            crate::torrents::TorrentState::Downloading => torrents::TorrentState::Downloading,
+            crate::torrents::TorrentState::Finished => torrents::TorrentState::Completed,
+            crate::torrents::TorrentState::Seeding => torrents::TorrentState::Completed,
+            crate::torrents::TorrentState::Error => torrents::TorrentState::Error,
+        }
     }
 }
 
@@ -141,11 +182,11 @@ impl TorrentManager for DefaultTorrentManager {
 
     async fn create(
         &self,
-        info: &TorrentInfo,
+        uri: &str,
         file_info: &TorrentFileInfo,
         auto_download: bool,
     ) -> torrents::Result<Box<dyn popcorn_fx_core::core::torrents::Torrent>> {
-        self.inner.create(info, file_info, auto_download).await
+        self.inner.create(uri, file_info, auto_download).await
     }
 
     async fn by_handle(
@@ -268,29 +309,54 @@ impl InnerTorrentManager {
 
     async fn create(
         &self,
-        info: &TorrentInfo,
+        uri: &str,
         file_info: &TorrentFileInfo,
         auto_download: bool,
     ) -> torrents::Result<Box<dyn popcorn_fx_core::core::torrents::Torrent>> {
-        let info_hash = InfoHash::from_str(info.info_hash.as_str())
-            .map_err(|e| popcorn_fx_core::core::torrents::Error::TorrentError(e.to_string()))?;
-        let mut torrent = self.session.find_torrent_by_info_hash(&info_hash).await;
+        let torrent = self
+            .session
+            .add_torrent_from_uri(uri, TorrentFlags::Metadata)
+            .await
+            .map_err(|e| torrents::Error::TorrentError(e.to_string()))?;
 
-        if torrent.is_none() {
-            let handle = self
-                .session
-                .add_torrent_from_uri(&info.uri, TorrentFlags::Metadata)
-                .await
-                .map_err(|e| popcorn_fx_core::core::torrents::Error::TorrentError(e.to_string()))?;
+        // make sure that the metadata if the torrent is fetched
+        torrent.add_options(TorrentFlags::Metadata).await;
+        let mut files = torrent.files().await;
 
-            torrent = self.session.find_torrent_by_handle(handle).await;
+        if files.is_empty() {
+            let (tx, rx) = std::sync::mpsc::channel();
+            let callback_handle = torrent.add_callback(Box::new(move |event| {
+                if let TorrentEvent::FilesChanged = event {
+                    tx.send(event).unwrap();
+                }
+            }));
+
+            let _ = rx
+                .recv()
+                .map_err(|e| torrents::Error::TorrentError(e.to_string()))?;
+            <Torrent as Callbacks<TorrentEvent>>::remove_callback(&torrent, callback_handle);
+            files = torrent.files().await;
         }
 
-        let torrent = torrent.ok_or(popcorn_fx_core::core::torrents::Error::TorrentError(
-            "expected a torrent to have been created".to_string(),
-        ))?;
+        let file_priorities = files
+            .iter_mut()
+            .map(|file| {
+                let priority = if file.index == file_info.file_index {
+                    FilePriority::Normal
+                } else {
+                    FilePriority::None
+                };
 
-        todo!()
+                (file.index, priority)
+            })
+            .collect();
+        torrent.priorities_files(file_priorities).await;
+
+        if auto_download {
+            torrent.resume().await;
+        }
+
+        Ok(Box::new(torrent))
     }
 
     async fn by_handle(

@@ -176,7 +176,8 @@ impl LoadingStrategy for TorrentInfoLoadingStrategy {
                     }
 
                     debug!("Updating torrent info to {:?}", info);
-                    data.url = None; // remove the original url as the item has been enhanced with the data of it
+                    // TODO: verify
+                    // data.url = None; // remove the original url as the item has been enhanced with the data of it
                     data.torrent_info = Some(info);
                 }
                 Err(e) => return LoadingResult::Err(e),
@@ -222,6 +223,7 @@ mod tests {
             torrent: Default::default(),
         };
         let info = TorrentInfo {
+            info_hash: String::new(),
             uri: String::new(),
             name: "MyTorrentInfo".to_string(),
             directory_name: None,
@@ -308,6 +310,7 @@ mod tests {
             torrent: Default::default(),
         };
         let info = TorrentInfo {
+            info_hash: String::new(),
             uri: String::new(),
             name: "MyShowTorrentInfo".to_string(),
             directory_name: None,
@@ -364,6 +367,7 @@ mod tests {
             torrent: Default::default(),
         };
         let info = TorrentInfo {
+            info_hash: String::new(),
             uri: String::new(),
             name: "MyTorrentInfo".to_string(),
             directory_name: None,

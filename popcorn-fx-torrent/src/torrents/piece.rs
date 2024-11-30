@@ -40,6 +40,19 @@ impl PartialOrd for PiecePriority {
     }
 }
 
+impl From<u8> for PiecePriority {
+    fn from(value: u8) -> Self {
+        match value {
+            1 => Self::Normal,
+            2 => Self::High,
+            3 => Self::Readahead,
+            4 => Self::Next,
+            5 => Self::Now,
+            _ => Self::None,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Piece {
     /// The hash information of the piece

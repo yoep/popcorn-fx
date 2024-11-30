@@ -3,6 +3,9 @@ use std::hash::Hash;
 use std::ops::Range;
 use std::path::PathBuf;
 
+/// The unique index of the file within the torrent.
+pub type FileIndex = usize;
+
 /// Alias name for the piece priority of a file.
 pub type FilePriority = PiecePriority;
 
@@ -10,6 +13,8 @@ pub type FilePriority = PiecePriority;
 /// Torrents can contain one or more files.
 #[derive(Debug, Clone)]
 pub struct File {
+    /// The index of the file within the torrent.
+    pub index: FileIndex,
     /// The path of the file within the torrent.
     pub path: PathBuf,
     /// The offset of the file within the torrent.
@@ -26,12 +31,10 @@ impl File {
     /// Check if the file contains some bytes from the given piece.
     /// It returns true when at least 1 byte overlaps with the given piece, else false.
     pub fn contains(&self, piece: &Piece) -> bool {
-        let file_start = self.offset;
-        let file_end = self.offset + self.length;
-        let piece_start = piece.offset;
-        let piece_end = piece.offset + piece.length;
+        let file_range = self.torrent_byte_range();
+        let piece_range = piece.torrent_byte_range();
 
-        file_start < piece_end && piece_start < file_end
+        overlapping_range(file_range, piece_range).is_some()
     }
 
     /// Get the overlapping byte range of the file with the given piece, still relative to the torrent bytes.
@@ -204,6 +207,7 @@ mod tests {
 
     fn new_file(offset: usize, length: usize) -> File {
         File {
+            index: 0,
             path: PathBuf::new(),
             offset,
             length,

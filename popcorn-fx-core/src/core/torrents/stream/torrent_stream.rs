@@ -90,20 +90,20 @@ impl Torrent for DefaultTorrentStream {
         self.inner.prioritize_bytes(bytes).await
     }
 
-    fn prioritize_pieces(&self, pieces: &[u32]) {
-        self.inner.prioritize_pieces(pieces)
+    async fn prioritize_pieces(&self, pieces: &[u32]) {
+        self.inner.prioritize_pieces(pieces).await
     }
 
     async fn total_pieces(&self) -> usize {
         self.inner.total_pieces().await
     }
 
-    fn sequential_mode(&self) {
-        self.inner.sequential_mode()
+    async fn sequential_mode(&self) {
+        self.inner.sequential_mode().await
     }
 
-    fn state(&self) -> TorrentState {
-        self.inner.state()
+    async fn state(&self) -> TorrentState {
+        self.inner.state().await
     }
 }
 
@@ -206,7 +206,7 @@ impl InnerTorrentStream {
     }
 
     fn start_preparing_pieces(&self) {
-        let state = self.torrent.state();
+        let state = block_in_place(self.torrent.state());
         trace!("Starting stream preparation with torrent state {}", state);
         if state == TorrentState::Completed {
             debug!("Torrent has state {}, starting stream immediately", state);
@@ -214,7 +214,7 @@ impl InnerTorrentStream {
         } else {
             let mutex = block_in_place(self.preparing_pieces.lock());
             debug!("Preparing a total of {} pieces for the stream", mutex.len());
-            self.torrent.prioritize_pieces(&mutex[..]);
+            block_in_place(self.torrent.prioritize_pieces(&mutex[..]));
         }
     }
 
@@ -341,20 +341,20 @@ impl Torrent for InnerTorrentStream {
         self.torrent.prioritize_bytes(bytes).await
     }
 
-    fn prioritize_pieces(&self, pieces: &[u32]) {
-        self.torrent.prioritize_pieces(pieces)
+    async fn prioritize_pieces(&self, pieces: &[u32]) {
+        self.torrent.prioritize_pieces(pieces).await
     }
 
     async fn total_pieces(&self) -> usize {
         self.torrent.total_pieces().await
     }
 
-    fn sequential_mode(&self) {
-        self.torrent.sequential_mode()
+    async fn sequential_mode(&self) {
+        self.torrent.sequential_mode().await
     }
 
-    fn state(&self) -> TorrentState {
-        self.torrent.state()
+    async fn state(&self) -> TorrentState {
+        self.torrent.state().await
     }
 }
 

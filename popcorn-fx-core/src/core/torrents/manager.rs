@@ -48,7 +48,7 @@ pub trait TorrentManager: Debug + DowncastSync + Callbacks<TorrentManagerEvent> 
     /// Create a new torrent within the manager for the given info.
     async fn create(
         &self,
-        info: &TorrentInfo,
+        uri: &str,
         file_info: &TorrentFileInfo,
         auto_download: bool,
     ) -> torrents::Result<Box<dyn Torrent>>;
@@ -106,7 +106,7 @@ mod mock {
             async fn health_from_uri<'a>(&'a self, url: &'a str) -> torrents::Result<TorrentHealth>;
             async fn create(
                 &self,
-                info: &TorrentInfo,
+                uri: &str,
                 file_info: &TorrentFileInfo,
                 auto_download: bool,
             ) -> torrents::Result<Box<dyn Torrent>>;

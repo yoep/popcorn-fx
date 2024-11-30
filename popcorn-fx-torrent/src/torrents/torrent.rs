@@ -8,13 +8,13 @@ use log::{debug, error, trace, warn};
 use async_trait::async_trait;
 use sha1::Sha1;
 use sha2::{Digest, Sha256};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Debug, Display, Formatter};
 use std::net::SocketAddr;
 use std::sync::{Arc, Weak};
 use std::time::{Duration, Instant};
 use tokio::runtime::Runtime;
-use tokio::sync::mpsc::{Receiver, Sender};
+use tokio::sync::mpsc::{unbounded_channel, Receiver, UnboundedReceiver, UnboundedSender};
 use tokio::sync::{RwLock, RwLockReadGuard};
 use tokio::{select, time};
 use tokio_util::sync::CancellationToken;
@@ -28,19 +28,13 @@ use popcorn_fx_core::core::{
 
 use crate::torrents::file::{File, FilePriority};
 use crate::torrents::fs::TorrentFileStorage;
-use crate::torrents::operations::{
-    TorrentFileValidationOperation, TorrentFilesOperation, TorrentMetadataOperation,
-    TorrentPendingRequestsOperation, TorrentPiecesOperation,
-};
-use crate::torrents::peers::extensions::metadata::MetadataExtension;
-use crate::torrents::request_strategies::{PriorityRequestStrategy, RequestAvailabilityStrategy};
 use crate::torrents::torrent_request_buffer::{PendingRequest, PendingRequestBuffer};
 use crate::torrents::trackers::{
     AnnounceEvent, Announcement, TrackerError, TrackerHandle, TrackerManager, TrackerManagerEvent,
 };
 use crate::torrents::{
-    InfoHash, PartIndex, Piece, PieceChunkPool, PieceIndex, PiecePart, PiecePriority, Result,
-    TorrentError, TorrentInfo, TorrentMetadata, DEFAULT_TORRENT_EXTENSIONS,
+    FileIndex, InfoHash, PartIndex, Piece, PieceChunkPool, PieceIndex, PiecePart, PiecePriority,
+    Result, TorrentError, TorrentInfo, TorrentMetadata, DEFAULT_TORRENT_EXTENSIONS,
     DEFAULT_TORRENT_OPERATIONS, DEFAULT_TORRENT_REQUEST_STRATEGIES,
 };
 
@@ -57,6 +51,7 @@ pub type TorrentOperations = Vec<Box<dyn TorrentOperation>>;
 /// The default value for the flag options is [TorrentFlags::AutoManaged],
 /// which will retrieve the metadata if needed and automatically start the download.
 #[bitmask(u16)]
+#[bitmask_config(vec_debug, flags_iter)]
 pub enum TorrentFlags {
     None = 0b00000000,
     /// Indicates seed mode.
@@ -323,9 +318,6 @@ impl TryFrom<TorrentRequest> for Torrent {
             .runtime
             .unwrap_or_else(|| Arc::new(Runtime::new().expect("expected a new runtime")));
 
-        // validate the given metadata before creating the torrent
-        metadata.validate()?;
-
         Ok(Self::new(
             metadata,
             peer_listener_port,
@@ -452,7 +444,7 @@ impl Torrent {
         let handle = TorrentHandle::new();
         let peer_id = PeerId::new();
         let info_hash = metadata.info_hash.clone();
-        let (event_sender, event_receiver) = tokio::sync::mpsc::channel(50);
+        let (event_sender, event_receiver) = unbounded_channel();
         let (tracker_sender, tracker_receiver) = tokio::sync::mpsc::channel(5);
         let cancellation_token = CancellationToken::new();
         let inner = Arc::new(InnerTorrent {
@@ -487,6 +479,9 @@ impl Torrent {
             cancellation_token,
         });
 
+        // as initial command, request the execution of the operations
+        inner.send_command_event(TorrentCommandEvent::ExecuteOperations);
+
         let inner_main_loop = inner.clone();
         let torrent = Self {
             handle,
@@ -499,10 +494,6 @@ impl Torrent {
         // create a new separate thread which manages the internal torrent resources
         // this thread is automatically cancelled when the torrent is dropped
         torrent.runtime.spawn(async move {
-            // as initial command, request the execution of the operations
-            inner_main_loop
-                .send_internal_event(InternalEvent::ExecuteOperations)
-                .await;
             // start the main loop of the torrent
             inner_main_loop
                 .start(torrent_main_loop, event_receiver, tracker_receiver)
@@ -585,6 +576,26 @@ impl Torrent {
         }
 
         TorrentFlags::None
+    }
+
+    /// Add the given options to the torrent.
+    ///
+    /// It triggers the [TorrentEvent::OptionsChanged] event if the options changed.
+    /// If the options are already present, this will be a no-op.
+    pub async fn add_options(&self, options: TorrentFlags) {
+        if let Some(inner) = self.instance() {
+            inner.add_options(options).await;
+        }
+    }
+
+    /// Remove the given options to the torrent.
+    ///
+    /// It triggers the [TorrentEvent::OptionsChanged] event if the options changed.
+    /// If none of the given options are present, this will be a no-op.
+    pub async fn remove_options(&self, options: TorrentFlags) {
+        if let Some(inner) = self.instance() {
+            inner.remove_options(options).await;
+        }
     }
 
     /// Get the total amount of pieces for this torrent.
@@ -729,6 +740,16 @@ impl Torrent {
         Vec::with_capacity(0)
     }
 
+    /// Set the priorities of the files.
+    /// Use [Torrent::files] to get the current files with its [FileIndex].
+    ///
+    /// Providing all file indexes of the torrent is not required.
+    pub async fn priorities_files(&self, priorities: Vec<(FileIndex, PiecePriority)>) {
+        if let Some(inner) = self.instance() {
+            inner.prioritize_files(priorities).await;
+        }
+    }
+
     /// Start announcing the torrent to its known trackers.
     /// This will start a period announcement for all active trackers.
     ///
@@ -800,15 +821,13 @@ impl Torrent {
             inner.remove_options(TorrentFlags::Paused).await;
 
             if inner.tracker_manager.trackers().await.len() == 0 {
-                inner.send_internal_event(InternalEvent::WantTracker).await;
+                inner.send_command_event(TorrentCommandEvent::WantTracker);
             }
 
             inner.update_wanted_peers(20).await;
-            inner.send_internal_event(InternalEvent::WantPeer).await;
+            inner.send_command_event(TorrentCommandEvent::WantPeer);
 
-            inner
-                .send_internal_event(InternalEvent::ExecuteOperations)
-                .await;
+            inner.send_command_event(TorrentCommandEvent::ExecuteOperations);
         }
     }
 
@@ -909,15 +928,7 @@ impl Torrent {
     /// The torrent will then validate and store the completed piece data.
     pub(crate) async fn piece_completed(&self, part: PiecePart, data: Vec<u8>) {
         if let Some(inner) = self.instance() {
-            inner
-                .send_internal_event(InternalEvent::PiecePartCompleted(part, data))
-                .await;
-        }
-    }
-
-    async fn send_internal_event(&self, event: InternalEvent) {
-        if let Some(inner) = self.instance() {
-            inner.send_internal_event(event).await;
+            inner.send_command_event(TorrentCommandEvent::PiecePartCompleted(part, data));
         }
     }
 
@@ -992,10 +1003,10 @@ impl Clone for TorrentInstance {
     }
 }
 
-/// The events for internal torrent commands.
-/// These are triggered when certain events happen in the torrent, but are never exposed outside the torrent.
+/// The internal torrent command events which are executed on the main loop of the torrent.
+/// These are triggered when certain events happen in the torrent, but are never exposed outside the [InnerTorrent].
 #[derive(PartialEq)]
-pub enum InternalEvent {
+pub enum TorrentCommandEvent {
     /// Indicates that the torrent options (flags) have changed
     OptionsChanged,
     /// Indicates that the operations chain needs to be executed
@@ -1014,24 +1025,24 @@ pub enum InternalEvent {
     PieceCompleted(PieceIndex),
 }
 
-impl Debug for InternalEvent {
+impl Debug for TorrentCommandEvent {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            InternalEvent::OptionsChanged => write!(f, "OptionsChanged"),
-            InternalEvent::ExecuteOperations => write!(f, "ExecuteOperations"),
-            InternalEvent::WantTracker => write!(f, "WantTracker"),
-            InternalEvent::WantPeer => write!(f, "WantPeer"),
-            InternalEvent::PeerConnected(e) => write!(f, "PeerConnected({})", e),
-            InternalEvent::ConnectToPeer(e) => write!(f, "ConnectToPeer({})", e),
-            InternalEvent::PiecePartCompleted(e, data) => {
+            TorrentCommandEvent::OptionsChanged => write!(f, "OptionsChanged"),
+            TorrentCommandEvent::ExecuteOperations => write!(f, "ExecuteOperations"),
+            TorrentCommandEvent::WantTracker => write!(f, "WantTracker"),
+            TorrentCommandEvent::WantPeer => write!(f, "WantPeer"),
+            TorrentCommandEvent::PeerConnected(e) => write!(f, "PeerConnected({})", e),
+            TorrentCommandEvent::ConnectToPeer(e) => write!(f, "ConnectToPeer({})", e),
+            TorrentCommandEvent::PiecePartCompleted(e, data) => {
                 write!(f, "PiecePartCompleted({:?}, [size {}])", e, data.len())
             }
-            InternalEvent::PieceCompleted(e) => write!(f, "PieceCompleted({})", e),
+            TorrentCommandEvent::PieceCompleted(e) => write!(f, "PieceCompleted({})", e),
         }
     }
 }
 
-/// The internal torrent structre data
+/// The internal torrent structure data
 #[derive(Debug)]
 pub struct InnerTorrent {
     /// The unique immutable handle of the torrent
@@ -1077,7 +1088,7 @@ pub struct InnerTorrent {
     /// The data transfer stats of the torrent
     stats: RwLock<TorrentTransferStats>,
     /// The internal command event sender
-    event_sender: Sender<InternalEvent>,
+    event_sender: UnboundedSender<TorrentCommandEvent>,
     /// The callbacks for the torrent events
     callbacks: CoreCallbacks<TorrentEvent>,
     /// The timeout for peer connections
@@ -1091,16 +1102,17 @@ impl InnerTorrent {
     async fn start(
         &self,
         weak_ref: Torrent,
-        mut internal_events: Receiver<InternalEvent>,
+        mut command_events: UnboundedReceiver<TorrentCommandEvent>,
         mut tracker_receiver: Receiver<TrackerManagerEvent>,
     ) {
-        let mut stats_interval = time::interval(Duration::from_secs(1));
+        // the interval used to execute periodic torrent operations
+        let mut tick_interval = time::interval(Duration::from_secs(1));
         let mut cleanup_interval = time::interval(Duration::from_secs(30));
 
         loop {
             select! {
                 _ = self.cancellation_token.cancelled() => break,
-                event = internal_events.recv() => {
+                event = command_events.recv() => {
                     if let Some(event) = event {
                         self.handle_command_event(&weak_ref, event).await;
                     } else {
@@ -1118,7 +1130,7 @@ impl InnerTorrent {
                         self.handle_tracker_event(event).await;
                     }
                 }
-                _ = stats_interval.tick() => self.update_stats().await,
+                _ = tick_interval.tick() => self.update_stats().await,
                 _ = cleanup_interval.tick() => {
                     self.clean_peers().await;
                     self.pending_requests.retry_timed_out_requests().await;
@@ -1245,7 +1257,7 @@ impl InnerTorrent {
             .collect()
     }
 
-    /// Set the priorities of the pieces.
+    /// Prioritize the given pieces within this torrent.
     pub async fn prioritize_pieces(&self, priorities: Vec<(PieceIndex, PiecePriority)>) {
         let mut mutex = self.pieces.write().await;
 
@@ -1257,8 +1269,7 @@ impl InnerTorrent {
 
         self.pending_requests.clear().await;
         debug!("Torrent {} piece priorities have been changed", self);
-        self.send_internal_event(InternalEvent::ExecuteOperations)
-            .await;
+        self.send_command_event(TorrentCommandEvent::ExecuteOperations);
     }
 
     /// Get if this torrent has been completed downloading are wanted pieces.
@@ -1348,6 +1359,38 @@ impl InnerTorrent {
         self.files.read().await.len()
     }
 
+    /// Prioritize the files of the torrent.
+    /// This will update the underlying piece priorities of each file.
+    ///
+    /// Providing all file indexes of the torrent is not required.
+    pub async fn prioritize_files(&self, priorities: Vec<(FileIndex, PiecePriority)>) {
+        let mut mutex = self.files.write().await;
+        let mut piece_priorities = HashMap::new();
+
+        for (file_index, priority) in priorities {
+            if let Some(file) = mutex.get_mut(file_index) {
+                let pieces = self.file_pieces(&file).await;
+
+                // update the priority of the file
+                file.priority = priority;
+
+                // add the piece priorities that have to be updated
+                for piece in pieces {
+                    let entry = piece_priorities.entry(piece.index).or_insert(priority);
+                    *entry = PiecePriority::from((*entry as u8).max(priority as u8));
+                }
+            } else {
+                warn!(
+                    "Invalid torrent file index {} given for {}",
+                    file_index, self
+                );
+            }
+        }
+
+        self.prioritize_pieces(piece_priorities.into_iter().map(|(k, v)| (k, v)).collect())
+            .await;
+    }
+
     /// Get the pending pieces which are being requested for the torrent.
     /// These are requests that are queued to be sent to peers.
     pub async fn pending_requested_pieces(&self) -> Vec<PieceIndex> {
@@ -1426,8 +1469,7 @@ impl InnerTorrent {
         }
 
         self.invoke_event(TorrentEvent::MetadataChanged);
-        self.send_internal_event(InternalEvent::ExecuteOperations)
-            .await;
+        self.send_command_event(TorrentCommandEvent::ExecuteOperations);
     }
 
     /// Starts the announcement loop of the torrent.
@@ -1442,23 +1484,41 @@ impl InnerTorrent {
     }
 
     /// Add the given options to the torrent.
+    ///
+    /// It triggers the [TorrentEvent::OptionsChanged] event if the options changed.
+    /// If the options are already present, this will be a no-op.
     pub async fn add_options(&self, options: TorrentFlags) {
+        // check if all the given options are already present
+        // of so, this is a no-op
+        if self.options.read().await.contains(options) {
+            return;
+        }
+
         {
             let mut mutex = self.options.write().await;
             *mutex |= options;
         }
-        self.send_internal_event(InternalEvent::OptionsChanged)
-            .await;
+
+        self.send_command_event(TorrentCommandEvent::OptionsChanged);
     }
 
     /// Remove the given options from the torrent.
+    ///
+    /// It triggers the [TorrentEvent::OptionsChanged] event if the options changed.
+    /// If none of the given options are present, this will be a no-op.
     pub async fn remove_options(&self, options: TorrentFlags) {
+        // check if any of the given options is actually present
+        // of not, this is a no-op
+        if !self.options.read().await.intersects(options) {
+            return;
+        }
+
         {
             let mut mutex = self.options.write().await;
             *mutex &= !options;
         }
-        self.send_internal_event(InternalEvent::OptionsChanged)
-            .await;
+
+        self.send_command_event(TorrentCommandEvent::OptionsChanged);
     }
 
     /// Update the state of this torrent.
@@ -1541,7 +1601,7 @@ impl InnerTorrent {
                 "There are not enough peers for torrent {}, requesting additional peers",
                 self
             );
-            self.send_internal_event(InternalEvent::WantPeer).await;
+            self.send_command_event(TorrentCommandEvent::WantPeer);
         }
     }
 
@@ -1584,7 +1644,7 @@ impl InnerTorrent {
 
         // notify the peers
         for peer in self.peers.read().await.iter() {
-            peer.notify_have_piece(piece).await;
+            peer.notify_have_piece(piece);
         }
     }
 
@@ -1615,25 +1675,24 @@ impl InnerTorrent {
     pub async fn pause(&self) {
         self.pending_requests.clear().await;
         self.add_options(TorrentFlags::Paused).await;
-        self.send_internal_event(InternalEvent::OptionsChanged)
-            .await;
+        self.send_command_event(TorrentCommandEvent::OptionsChanged);
     }
 
-    async fn handle_command_event(&self, torrent: &Torrent, event: InternalEvent) {
+    async fn handle_command_event(&self, torrent: &Torrent, event: TorrentCommandEvent) {
         trace!("Handling event {:?} for torrent {}", event, self);
         match event {
-            InternalEvent::OptionsChanged => self.process_options().await,
-            InternalEvent::ExecuteOperations => self.execute_operations_chain().await,
-            InternalEvent::WantTracker => self.connect_to_known_trackers(&torrent),
-            InternalEvent::WantPeer => self.process_peer_wanted().await,
-            InternalEvent::PeerConnected(peer) => self.add_peer(peer).await,
-            InternalEvent::ConnectToPeer(addr) => {
+            TorrentCommandEvent::OptionsChanged => self.process_options().await,
+            TorrentCommandEvent::ExecuteOperations => self.execute_operations_chain().await,
+            TorrentCommandEvent::WantTracker => self.connect_to_known_trackers(&torrent),
+            TorrentCommandEvent::WantPeer => self.process_peer_wanted().await,
+            TorrentCommandEvent::PeerConnected(peer) => self.add_peer(peer).await,
+            TorrentCommandEvent::ConnectToPeer(addr) => {
                 self.create_peer_connection(torrent.clone(), addr)
             }
-            InternalEvent::PiecePartCompleted(part, data) => {
+            TorrentCommandEvent::PiecePartCompleted(part, data) => {
                 self.process_received_part(part, data).await
             }
-            InternalEvent::PieceCompleted(piece) => self.process_completed_piece(piece).await,
+            TorrentCommandEvent::PieceCompleted(piece) => self.process_completed_piece(piece).await,
         }
     }
 
@@ -1666,22 +1725,21 @@ impl InnerTorrent {
 
     async fn process_options(&self) {
         let mutex = self.options.read().await;
+        trace!("Processing the options{:?} of {}", *mutex, self);
+        self.send_command_event(TorrentCommandEvent::ExecuteOperations);
+
         if *mutex & TorrentFlags::Paused == TorrentFlags::Paused {
             // choke all the peers
             let peers = self.peers.read().await;
-            let mut futures = Vec::new();
             for peer in peers.iter() {
-                futures.push(peer.pause());
+                peer.pause();
             }
-            futures::future::join_all(futures).await;
         } else if *mutex & TorrentFlags::UploadMode == TorrentFlags::UploadMode {
             // unchoke all the peers
             let peers = self.peers.read().await;
-            let mut futures = Vec::new();
             for peer in peers.iter() {
-                futures.push(peer.resume());
+                peer.resume();
             }
-            futures::future::join_all(futures).await;
         }
     }
 
@@ -1788,8 +1846,7 @@ impl InnerTorrent {
                     .await;
 
                 if piece_completed {
-                    self.send_internal_event(InternalEvent::PieceCompleted(piece_part.piece))
-                        .await;
+                    self.send_command_event(TorrentCommandEvent::PieceCompleted(piece_part.piece));
                 }
             }
             Err(e) => warn!("Failed to add chunk data for {}, {}", self, e),
@@ -2050,8 +2107,7 @@ impl InnerTorrent {
         let mut requested_peers = 0;
 
         for peer_addr in peer_addresses.into_iter().take(wanted_connections) {
-            self.send_internal_event(InternalEvent::ConnectToPeer(peer_addr))
-                .await;
+            self.send_command_event(TorrentCommandEvent::ConnectToPeer(peer_addr));
             requested_peers += 1;
         }
 
@@ -2077,7 +2133,7 @@ impl InnerTorrent {
             let handle_info = torrent.handle();
             match Self::try_create_peer_connection(torrent, peer_addr, extensions).await {
                 Ok(peer) => {
-                    let _ = event_sender.send(InternalEvent::PeerConnected(peer)).await;
+                    let _ = event_sender.send(TorrentCommandEvent::PeerConnected(peer));
                 }
                 Err(e) => debug!(
                     "Failed to create peer connection for torrent {}, {}",
@@ -2118,11 +2174,11 @@ impl InnerTorrent {
 
         // check if new peers are wanted
         if *self.wanted_peers.read().await > self.active_peers_len().await {
-            self.send_internal_event(InternalEvent::WantPeer).await;
+            self.send_command_event(TorrentCommandEvent::WantPeer);
         }
     }
 
-    /// Filter out any peer address which currently have a peer connection established.
+    /// Filter out any peer address which currently have an active established connection.
     async fn unique_peer_addresses(&self, peer_addresses: Vec<SocketAddr>) -> Vec<SocketAddr> {
         let mutex = self.peers.read().await;
         peer_addresses
@@ -2165,7 +2221,7 @@ impl InnerTorrent {
             }
 
             if let Some((offset, range)) = file.torrent_piece_byte_range(piece) {
-                if let Err(e) = self.storage.write(&file.path, offset, &data[range]).await {
+                if let Err(_) = self.storage.write(&file.path, offset, &data[range]).await {
                     error!(
                         "Failed to write the piece chunk data of {} for {}",
                         piece_index, self
@@ -2199,9 +2255,12 @@ impl InnerTorrent {
 
     /// Send an internal command event for this torrent.
     /// It will queue the command for execution on the main loop thread.
-    pub async fn send_internal_event(&self, event: InternalEvent) {
-        if let Err(e) = self.event_sender.send(event).await {
-            warn!("Failed to send command event to torrent {}, {}", self, e);
+    pub fn send_command_event(&self, event: TorrentCommandEvent) {
+        if let Err(e) = self.event_sender.send(event) {
+            warn!(
+                "Failed to send command event of {} to the main loop, {}",
+                self, e
+            );
         }
     }
 

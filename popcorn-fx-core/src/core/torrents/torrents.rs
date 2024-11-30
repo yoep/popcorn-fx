@@ -15,7 +15,7 @@ pub type TorrentHandle = Handle;
 pub type TorrentEventCallback = CoreCallback<TorrentEvent>;
 
 const TORRENT_STATES: [TorrentState; 7] = [
-    TorrentState::Creating,
+    TorrentState::Initializing,
     TorrentState::Ready,
     TorrentState::Starting,
     TorrentState::Downloading,
@@ -43,24 +43,28 @@ pub enum TorrentEvent {
 
 /// The state of a [Torrent] which is represented as a [i32].
 /// This state is abi compatible to be used over [std::ffi].
-#[repr(i32)]
+#[repr(u8)]
 #[derive(Debug, Clone, Display, PartialEq)]
 pub enum TorrentState {
     /// The initial phase of the torrent in which it's still being created.
     /// This is the state where the metadata of the torrent is retrieved.
-    Creating = 0,
+    Initializing = 0,
+    /// The torrent is validating existing files
+    CheckingFiles = 1,
+    /// The torrent is retrieving metadata from peers
+    RetrievingMetadata = 2,
     /// The torrent is ready to be downloaded (metadata is available).
-    Ready = 1,
+    Ready = 3,
     /// The download of the torrent is starting.
-    Starting = 2,
+    Starting = 4,
     /// The torrent is being downloaded.
-    Downloading = 3,
+    Downloading = 5,
     /// The torrent download has been paused.
-    Paused = 4,
+    Paused = 6,
     /// The torrent download has completed.
-    Completed = 5,
+    Completed = 7,
     /// The torrent encountered an error and cannot be downloaded.
-    Error = -1,
+    Error = 8,
 }
 
 impl From<i32> for TorrentState {
@@ -134,18 +138,18 @@ pub trait Torrent: Debug + Display + Callbacks<TorrentEvent> + Send + Sync {
     async fn prioritize_bytes(&self, bytes: &std::ops::Range<usize>);
 
     /// Prioritize the given piece indexes.
-    fn prioritize_pieces(&self, pieces: &[u32]);
+    async fn prioritize_pieces(&self, pieces: &[u32]);
 
     /// Get the total number of pieces in the torrent.
     /// It might return [None] when the metadata is still being retrieved.
     async fn total_pieces(&self) -> usize;
 
     /// Update the download mode of the torrent to sequential.
-    fn sequential_mode(&self);
+    async fn sequential_mode(&self);
 
     /// Retrieve the current state of the torrent.
     /// It returns an owned instance of the state.
-    fn state(&self) -> TorrentState;
+    async fn state(&self) -> TorrentState;
 }
 
 /// The torrent information
@@ -388,10 +392,10 @@ mod mock {
             async fn has_bytes(&self, bytes: &Range<usize>) -> bool;
             async fn has_piece(&self, piece: usize) -> bool;
             async fn prioritize_bytes(&self, bytes: &Range<usize>);
-            fn prioritize_pieces(&self, pieces: &[u32]);
+            async fn prioritize_pieces(&self, pieces: &[u32]);
             async fn total_pieces(&self) -> usize;
-            fn sequential_mode(&self);
-            fn state(&self) -> TorrentState;
+            async fn sequential_mode(&self);
+            async fn state(&self) -> TorrentState;
         }
 
         impl Callbacks<TorrentEvent> for Torrent {
@@ -423,7 +427,7 @@ mod test {
         let paused = TorrentState::from(4);
 
         assert_eq!(TorrentState::Error, error);
-        assert_eq!(TorrentState::Creating, creating);
+        assert_eq!(TorrentState::Initializing, creating);
         assert_eq!(TorrentState::Ready, ready);
         assert_eq!(TorrentState::Starting, starting);
         assert_eq!(TorrentState::Downloading, downloading);

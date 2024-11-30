@@ -26,7 +26,9 @@ use std::time::{Duration, Instant};
 use tokio::io::{split, AsyncWriteExt, BufReader, BufWriter, WriteHalf};
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
-use tokio::sync::mpsc::{channel, Receiver, Sender};
+use tokio::sync::mpsc::{
+    channel, unbounded_channel, Receiver, Sender, UnboundedReceiver, UnboundedSender,
+};
 use tokio::sync::{Mutex, RwLock};
 use tokio::time::timeout;
 use tokio::{select, time};
@@ -303,10 +305,9 @@ impl Peer {
     /// # Arguments
     ///
     /// * `piece` - The piece index that we have available for download
-    pub async fn notify_have_piece(&self, piece: PieceIndex) {
+    pub fn notify_have_piece(&self, piece: PieceIndex) {
         self.inner
-            .send_internal_event(InternalEvent::HavePiece(piece))
-            .await
+            .send_command_event(PeerCommandEvent::HavePiece(piece))
     }
 
     /// Send the given message to the remote peer.
@@ -376,24 +377,28 @@ impl Peer {
     }
 
     /// Resume the exchanging of data with the peer.
-    pub async fn resume(&self) {
+    pub fn resume(&self) {
         self.inner
-            .update_client_choke_state(ChokeState::UnChoked)
-            .await;
+            .send_command_event(PeerCommandEvent::UpdateClientChokeState(
+                ChokeState::UnChoked,
+            ));
 
-        if self.inner.client_pending_requests.len().await > 0 {
-            self.inner.update_state(PeerState::Downloading).await;
+        if block_in_place(self.inner.client_pending_requests.len()) > 0 {
+            self.inner
+                .send_command_event(PeerCommandEvent::UpdateState(PeerState::Downloading));
         } else {
-            self.inner.update_state(PeerState::Uploading).await;
+            self.inner
+                .send_command_event(PeerCommandEvent::UpdateState(PeerState::Uploading));
         }
     }
 
-    /// Pause the exchanging of data with the peer.
-    pub async fn pause(&self) {
+    /// Pause the peer client.
+    /// This will put the data exchange with the peer on hold.
+    pub fn pause(&self) {
         self.inner
-            .update_client_choke_state(ChokeState::Choked)
-            .await;
-        self.inner.update_state(PeerState::Paused).await;
+            .send_command_event(PeerCommandEvent::UpdateClientChokeState(ChokeState::Choked));
+        self.inner
+            .send_command_event(PeerCommandEvent::UpdateState(PeerState::Paused));
     }
 
     /// Request a piece part from the remote peer.
@@ -456,9 +461,9 @@ impl Peer {
         let (reader, writer) = stream
             .map(|e| split(e))
             .map_err(|e| Error::Io(format!("failed to connect to {}, {}", addr, e)))?;
-        let (extension_event_sender, extension_event_receiver) = channel(10);
-        let (reader_sender, peer_reader_receiver) = channel(10);
-        let (event_sender, event_receiver) = channel(10);
+        let (extension_event_sender, extension_event_receiver) = channel(20);
+        let (reader_sender, peer_reader_receiver) = channel(20);
+        let (event_sender, event_receiver) = unbounded_channel();
         let extension_registry = Self::create_extension_registry(&extensions);
         let peer_handle = PeerHandle::new();
         let inner = Arc::new(InnerPeer {
@@ -678,7 +683,7 @@ impl Peer {
     async fn start(
         &self,
         mut peer_reader: Receiver<PeerReaderEvent>,
-        mut event_receiver: Receiver<InternalEvent>,
+        mut event_receiver: UnboundedReceiver<PeerCommandEvent>,
     ) {
         loop {
             select! {
@@ -691,7 +696,7 @@ impl Peer {
                 },
                 event = event_receiver.recv() => {
                     if let Some(event) = event {
-                        self.inner.handle_event(event).await;
+                        self.inner.handle_command_event(event).await;
                     }
                 }
                 request = self.inner.client_pending_requests.next() => {
@@ -845,10 +850,16 @@ impl PeerExtensionEvents {
     }
 }
 
+/// The internal peer command events which are executed on the main loop of the peer.
+/// These can be used to offload async operations to the main loop.
 #[derive(Debug, PartialEq)]
-enum InternalEvent {
+enum PeerCommandEvent {
     /// Indicates that the torrent has completed a piece and the remote peer needs to be notified
     HavePiece(PieceIndex),
+    /// Indicates that the choke state of the peer needs to be changed
+    UpdateClientChokeState(ChokeState),
+    /// Indicates that the state if the peer needs to be changed
+    UpdateState(PeerState),
 }
 
 #[derive(Debug)]
@@ -905,7 +916,7 @@ struct InnerPeer {
     outgoing_data_stats: RwLock<PeerTransferStats>,
 
     /// The sender for internal events
-    event_sender: Sender<InternalEvent>,
+    event_sender: UnboundedSender<PeerCommandEvent>,
     /// The callbacks which are triggered by this peer when an event is raised
     callbacks: CoreCallbacks<PeerEvent>,
     /// The cancellation token to cancel any async task within this peer on closure
@@ -1037,10 +1048,15 @@ impl InnerPeer {
         }
     }
 
-    /// Handle an internal event
-    async fn handle_event(&self, event: InternalEvent) {
+    /// Handle an internal peer command event.
+    async fn handle_command_event(&self, event: PeerCommandEvent) {
+        trace!("Handling peer {} command event {:?}", self, event);
         match event {
-            InternalEvent::HavePiece(piece) => self.update_client_piece(piece).await,
+            PeerCommandEvent::HavePiece(piece) => self.update_client_piece(piece).await,
+            PeerCommandEvent::UpdateClientChokeState(state) => {
+                self.update_client_choke_state(state).await
+            }
+            PeerCommandEvent::UpdateState(state) => self.update_state(state).await,
         }
     }
 
@@ -1358,12 +1374,6 @@ impl InnerPeer {
         }
     }
 
-    async fn send_internal_event(&self, event: InternalEvent) {
-        if let Err(e) = self.event_sender.send(event).await {
-            debug!("Failed to send internal event for {}, {}", self, e);
-        }
-    }
-
     async fn invoke_event(&self, event: PeerEvent) {
         if let Err(e) = self.extension_event_sender.send(event.clone()).await {
             error!("Failed to send extensions event, {}", e)
@@ -1375,6 +1385,15 @@ impl InnerPeer {
     async fn close(&self) {
         self.cancellation_token.cancel();
         self.update_state(PeerState::Closed).await;
+    }
+
+    fn send_command_event(&self, event: PeerCommandEvent) {
+        if let Err(e) = self.event_sender.send(event) {
+            debug!(
+                "Failed to send internal peer command event for {}, {}",
+                self, e
+            );
+        }
     }
 }
 

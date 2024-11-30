@@ -50,7 +50,7 @@ impl LoadingStrategy for TorrentLoadingStrategy {
         event_channel: Sender<LoadingEvent>,
         _: CancellationToken,
     ) -> loader::LoadingResult {
-        if let Some(torrent) = data.torrent_info.as_ref() {
+        if let Some(uri) = data.url.as_ref() {
             if let Some(torrent_file_info) = data.torrent_file_info.as_ref() {
                 trace!("Processing torrent info of {:?}", torrent_file_info);
                 event_channel
@@ -70,7 +70,7 @@ impl LoadingStrategy for TorrentLoadingStrategy {
 
                 match self
                     .torrent_manager
-                    .create(torrent, torrent_file_info, true)
+                    .create(uri.as_ref(), torrent_file_info, true)
                     .await
                 {
                     Ok(torrent) => {

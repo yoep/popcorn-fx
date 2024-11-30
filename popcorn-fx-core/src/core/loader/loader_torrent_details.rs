@@ -86,6 +86,7 @@ mod tests {
     fn test_process() {
         init_logger();
         let torrent_info = TorrentInfo {
+            info_hash: String::new(),
             uri: String::new(),
             name: "MyTorrentName".to_string(),
             directory_name: None,

@@ -281,6 +281,38 @@ impl InfoHash {
             v2: Some(info_hash),
         })
     }
+
+    /// Try to parse the given value into an `InfoHash`.
+    /// It tries to find the info hash format without any identifiers.
+    fn try_from_str_value(value: &str) -> Result<Self> {
+        match Self::try_from_v1(value) {
+            Ok(info_hash) => Ok(info_hash),
+            Err(_) => match Self::try_from_v2(value) {
+                Ok(info_hash) => Ok(info_hash),
+                Err(_) => Err(TorrentError::InvalidTopic(value.to_string())),
+            },
+        }
+    }
+
+    /// Try to parse the given value into an `InfoHash`.
+    /// It tries to find the info hash format based on identifiers from within the segments.
+    fn try_from_str_segments(value: &str, segments: Vec<&str>) -> Result<Self> {
+        let info_hash_version_identifier = segments
+            .get(1)
+            .ok_or(TorrentError::InvalidTopic(value.to_string()))?;
+        let info_hash_value = segments
+            .get(2)
+            .ok_or(TorrentError::InvalidTopic(value.to_string()))?;
+
+        if *info_hash_version_identifier == V1_HASH_IDENTIFIER {
+            Self::try_from_v1(info_hash_value)
+        } else if *info_hash_version_identifier == V2_HASH_IDENTIFIER {
+            Self::try_from_v2(info_hash_value)
+        } else {
+            warn!("Unable to identify info hash version for xt {}", value);
+            Err(TorrentError::InvalidTopic(value.to_string()))
+        }
+    }
 }
 
 impl PartialEq for InfoHash {
@@ -324,7 +356,22 @@ impl FromStr for InfoHash {
     type Err = TorrentError;
 
     /// Parses an `InfoHash` from a string representation.
-    /// The expected format is "xt:<version>:<info_hash>" where `<version>` identifies the hash version.
+    /// The expected format is `xt:<version>:<info_hash>` where `<version>` identifies the hash version or the `<info_hash>` hex value without any additions.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use std::str::FromStr;
+    /// use popcorn_fx_torrent::torrents::InfoHash;
+    ///
+    /// // parse from a v1 info hash
+    /// let xt_v1 = "urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7";
+    /// let info_hash = InfoHash::from_str(xt_v1).unwrap();
+    ///
+    /// // parse from an unidentified info hash
+    /// let hash = "EADAF0EFEA39406914414D359E0EA16416409BD7";
+    /// let info_hash = InfoHash::from_str(hash).unwrap();
+    /// ```
     ///
     /// # Arguments
     ///
@@ -336,26 +383,11 @@ impl FromStr for InfoHash {
     fn from_str(xt: &str) -> Result<Self> {
         trace!("Parsing info hash from magnet {}", xt);
         let segments: Vec<&str> = xt.split(':').collect();
-        let info_hash_version_identifier = segments
-            .get(1)
-            .ok_or(TorrentError::InvalidTopic(xt.to_string()))?;
-        let info_hash_value = segments
-            .get(2)
-            .ok_or(TorrentError::InvalidTopic(xt.to_string()))?;
 
-        if *info_hash_version_identifier == V1_HASH_IDENTIFIER {
-            Self::try_from_v1(info_hash_value)
-        } else if *info_hash_version_identifier == V2_HASH_IDENTIFIER {
-            Self::try_from_v2(info_hash_value)
+        if segments.len() == 1 {
+            Self::try_from_str_value(xt)
         } else {
-            // try to decode the hex value
-            match hex::decode(xt.as_bytes()) {
-                Ok(bytes) => Self::try_from_bytes(bytes.as_slice()),
-                Err(e) => {
-                    warn!("Unable to identify info hash version for xt {}", xt);
-                    Err(TorrentError::InvalidTopic(xt.to_string()))
-                }
-            }
+            Self::try_from_str_segments(xt, segments)
         }
     }
 }
@@ -497,6 +529,19 @@ mod tests {
             "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
             result.v2.map(|e| hex::encode(e)).unwrap()
         );
+    }
+
+    #[test]
+    fn test_info_hash_from_str_display() {
+        init_logger();
+        let torrent_info_data = read_test_file_to_bytes("debian-udp.torrent");
+        let torrent_info = TorrentInfo::try_from(torrent_info_data.as_slice()).unwrap();
+        let info_hash = torrent_info.info_hash;
+
+        let value = info_hash.to_string();
+        let result = InfoHash::from_str(&value).unwrap();
+
+        assert_eq!(info_hash, result);
     }
 
     #[test]

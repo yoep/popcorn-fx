@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::mpsc::{channel, Receiver};
@@ -24,7 +25,9 @@ pub use mock::*;
 use popcorn_fx_core::available_port;
 use popcorn_fx_core::core::torrents::magnet::Magnet;
 use popcorn_fx_core::core::torrents::TorrentHealth;
-use popcorn_fx_core::core::{CallbackHandle, Callbacks, CoreCallback, CoreCallbacks, Handle};
+use popcorn_fx_core::core::{
+    block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks, Handle,
+};
 use tokio::runtime::Runtime;
 use tokio::sync::RwLock;
 use tokio::{select, time};
@@ -95,17 +98,33 @@ pub trait Session: Debug + Callbacks<SessionEvent> + Send + Sync {
     /// Returns a result containing the torrent health on success or an error on failure.
     async fn torrent_health_from_info(&self, torrent_info: TorrentInfo) -> Result<TorrentHealth>;
 
-    /// Get the torrent health of the given torrent magnet link.
-    /// This will request the seeders and leechers from the magnet's tracker.
+    /// Get the torrent health information for the given uri.
+    /// The uri can either be a magnet uri or a filepath to a torrent file.
+    ///
+    /// If the uri points to a valid resolvable torrent information, than the seeders and leechers will be requested from the trackers.
     ///
     /// # Arguments
     ///
-    /// * `magnet_uri` - The magnet URI of the torrent to fetch the health of.
+    /// * `uri` - The uri of the torrent to check.
     ///
     /// # Returns
     ///
     /// Returns a result containing the torrent health on success or an error on failure.
-    async fn torrent_health_from_uri(&self, magnet_uri: &str) -> Result<TorrentHealth>;
+    async fn torrent_health_from_uri(&self, uri: &str) -> Result<TorrentHealth>;
+
+    /// Resolve the given uri into torrent information.
+    /// The uri can either be a magnet uri or a filepath to a torrent file.
+    ///
+    /// This doesn't create any [Torrent] neither does it retrieve the metadata if it's incomplete.
+    ///
+    /// # Arguments
+    ///
+    /// * `uri` - The uri to resolve.
+    ///
+    /// # Returns
+    ///
+    /// Returns the resolved torrent information on success.
+    fn resolve(&self, uri: &str) -> Result<TorrentInfo>;
 
     /// Get the torrent information for the given magnet URI.
     ///
@@ -130,8 +149,7 @@ pub trait Session: Debug + Callbacks<SessionEvent> + Send + Sync {
     /// # Returns
     ///
     /// Returns the created torrent handle if successful.
-    async fn add_torrent_from_uri(&self, uri: &str, options: TorrentFlags)
-        -> Result<TorrentHandle>;
+    async fn add_torrent_from_uri(&self, uri: &str, options: TorrentFlags) -> Result<Torrent>;
 
     /// Add a new torrent to this session for the given metadata information.
     ///
@@ -147,7 +165,7 @@ pub trait Session: Debug + Callbacks<SessionEvent> + Send + Sync {
         &self,
         torrent_info: TorrentInfo,
         options: TorrentFlags,
-    ) -> Result<TorrentHandle>;
+    ) -> Result<Torrent>;
 
     /// Remove a torrent from this session.
     /// The handle will be ignored if it does not exist in this session.
@@ -238,7 +256,8 @@ impl DefaultSession {
         self.inner.find_torrent_by_handle(handle).await
     }
 
-    /// Try to find an existing torrent within the session for the torrent info, or create a new one if not found.
+    /// Try to find an existing torrent within the session based on the info hash,
+    /// or create a new torrent from the given torrent information.
     ///
     /// # Arguments
     ///
@@ -250,7 +269,7 @@ impl DefaultSession {
     ///
     /// # Returns
     ///
-    /// Returns a result containing the handle of the newly added or existing torrent on success.
+    /// Returns a torrent (weak reference) on success.
     async fn find_or_add_torrent(
         &self,
         torrent_info: TorrentInfo,
@@ -258,23 +277,23 @@ impl DefaultSession {
         peer_timeout: Option<Duration>,
         tracker_timeout: Option<Duration>,
         send_callback_event: bool,
-    ) -> Result<TorrentHandle> {
+    ) -> Result<Torrent> {
         trace!(
             "Trying to add {:?} to session {}",
             torrent_info,
             self.inner.handle
         );
         // check if the info hash is already known
-        if let Some(handle) = self
+        if let Some(torrent) = self
             .inner
-            .find_handle_by_info_hash(&torrent_info.info_hash)
+            .find_torrent_by_info_hash(&torrent_info.info_hash)
             .await
         {
             debug!(
                 "Torrent info hash {} already exists in session {}",
                 torrent_info.info_hash, self.inner.handle
             );
-            return Ok(handle);
+            return Ok(torrent);
         }
 
         let info_hash = torrent_info.info_hash.clone();
@@ -285,7 +304,7 @@ impl DefaultSession {
             .extensions(self.inner.extensions())
             .operations(self.inner.torrent_operations())
             .storage(Box::new(DefaultTorrentFileStorage::new(
-                &self.inner.base_path,
+                &block_in_place(self.inner.base_path.read()).clone(),
             )))
             .runtime(self.runtime.clone());
 
@@ -297,13 +316,13 @@ impl DefaultSession {
         }
 
         let torrent = Torrent::try_from(request)?;
-        let handle = torrent.handle();
+        let result_torrent = torrent.clone();
 
         self.inner
             .add_torrent(info_hash, torrent, send_callback_event)
             .await;
 
-        Ok(handle)
+        Ok(result_torrent)
     }
 
     async fn wait_for_metadata(
@@ -323,14 +342,6 @@ impl DefaultSession {
                 }
             }
         }
-    }
-
-    fn magnet_to_torrent_info(magnet_uri: &str) -> Result<TorrentInfo> {
-        let magnet =
-            Magnet::from_str(magnet_uri).map_err(|e| TorrentError::TorrentParse(e.to_string()))?;
-        let torrent_info = TorrentInfo::try_from(magnet)?;
-
-        Ok(torrent_info)
     }
 }
 
@@ -365,7 +376,7 @@ impl Session for DefaultSession {
                         .extensions(self.inner.extensions())
                         .operations(self.inner.torrent_operations())
                         .storage(Box::new(DefaultTorrentFileStorage::new(
-                            &self.inner.base_path,
+                            &block_in_place(self.inner.base_path.read()).clone(),
                         )))
                         .peer_timeout(Duration::from_secs(3))
                         .tracker_timeout(Duration::from_secs(2))
@@ -388,17 +399,45 @@ impl Session for DefaultSession {
         ))
     }
 
-    async fn torrent_health_from_uri(&self, magnet_uri: &str) -> Result<TorrentHealth> {
-        trace!("Retrieving torrent health for {:?}", magnet_uri);
-        let torrent_info = Self::magnet_to_torrent_info(magnet_uri)?;
+    async fn torrent_health_from_uri(&self, uri: &str) -> Result<TorrentHealth> {
+        trace!("Retrieving torrent health for {:?}", uri);
+        let torrent_info = self.resolve(uri)?;
 
         self.torrent_health_from_info(torrent_info).await
     }
 
+    fn resolve(&self, uri: &str) -> Result<TorrentInfo> {
+        trace!("Resolving torrent uri {}", uri);
+        Magnet::from_str(uri)
+            .map_err(|e| TorrentError::MagnetParse(e.to_string()))
+            .and_then(|e| TorrentInfo::try_from(e))
+            .map(|e| Ok::<TorrentInfo, TorrentError>(e))
+            .unwrap_or_else(|_| {
+                PathBuf::from_str(uri)
+                    .map_err(|e| TorrentError::Io(e.to_string()))
+                    .and_then(|filepath| {
+                        std::fs::OpenOptions::new()
+                            .create(false)
+                            .read(true)
+                            .open(filepath)
+                            .map_err(|e| TorrentError::Io(e.to_string()))
+                    })
+                    .and_then(|mut file| {
+                        let mut buffer = vec![];
+                        if let Err(e) = file.read_to_end(&mut buffer) {
+                            return Err(TorrentError::Io(e.to_string()));
+                        }
+
+                        Ok(buffer)
+                    })
+                    .and_then(|bytes| TorrentInfo::try_from(bytes.as_slice()))
+            })
+    }
+
     async fn fetch_magnet(&self, magnet_uri: &str, timeout: Duration) -> Result<TorrentInfo> {
         trace!("Trying to fetch magnet {}", magnet_uri);
-        let torrent_info = Self::magnet_to_torrent_info(magnet_uri)?;
-        let handle = self
+        let torrent_info = self.resolve(magnet_uri)?;
+        let torrent = self
             .find_or_add_torrent(
                 torrent_info,
                 TorrentFlags::Metadata,
@@ -407,11 +446,6 @@ impl Session for DefaultSession {
                 false,
             )
             .await?;
-        let torrent = self
-            .inner
-            .find_torrent_by_handle(handle)
-            .await
-            .ok_or(TorrentError::InvalidHandle(handle))?;
         let (tx, rx) = channel();
 
         let callback_handle = torrent.add_callback(Box::new(move |event| {
@@ -426,6 +460,9 @@ impl Session for DefaultSession {
             return Ok(torrent_info);
         }
 
+        // make sure the torrent tries to download the metadata
+        torrent.add_options(TorrentFlags::Metadata).await;
+
         // otherwise, wait for the MetadataChanged event
         select! {
             _ = time::sleep(timeout) => {
@@ -439,19 +476,16 @@ impl Session for DefaultSession {
         }
     }
 
-    async fn add_torrent_from_uri(
-        &self,
-        uri: &str,
-        options: TorrentFlags,
-    ) -> Result<TorrentHandle> {
-        todo!()
+    async fn add_torrent_from_uri(&self, uri: &str, options: TorrentFlags) -> Result<Torrent> {
+        let torrent_info = self.resolve(uri)?;
+        self.add_torrent_from_info(torrent_info, options).await
     }
 
     async fn add_torrent_from_info(
         &self,
         torrent_info: TorrentInfo,
         options: TorrentFlags,
-    ) -> Result<TorrentHandle> {
+    ) -> Result<Torrent> {
         self.find_or_add_torrent(torrent_info, options, None, None, true)
             .await
     }
@@ -559,7 +593,7 @@ struct InnerSession {
     /// The unique session identifier
     handle: SessionHandle,
     /// The base path for the torrent storage of the session
-    base_path: PathBuf,
+    base_path: RwLock<PathBuf>,
     /// The currently active torrents within the session
     torrents: RwLock<HashMap<InfoHash, Torrent>>,
     /// The peer listener for the session
@@ -584,7 +618,7 @@ impl InnerSession {
     ) -> Result<Self> {
         Ok(Self {
             handle: Default::default(),
-            base_path,
+            base_path: RwLock::new(base_path),
             peer_listener,
             extensions,
             torrent_operations,
@@ -614,6 +648,8 @@ impl InnerSession {
             .map(|(_, e)| e.clone())
     }
 
+    /// Try to find the torrent by the given info hash.
+    /// It returns a weak reference to the torrent if it is found, otherwise None.
     async fn find_torrent_by_info_hash(&self, info_hash: &InfoHash) -> Option<Torrent> {
         (*self.torrents.read().await)
             .get(info_hash)
@@ -626,8 +662,12 @@ impl InnerSession {
             .map(|e| e.handle())
     }
 
-    /// Add the given torrent to the session.
+    /// Add or replace the torrent in the session based on the info hash.
+    ///
+    /// ## Caution
+    ///
     /// This might replace an existing torrent with the same info hash.
+    /// The original strong reference torrent will be dropped in this scenario, invalidating the original torrent.
     ///
     /// # Arguments
     ///
@@ -701,10 +741,11 @@ mod mock {
             async fn find_torrent_by_handle(&self, handle: TorrentHandle) -> Option<Torrent>;
             async fn find_torrent_by_info_hash(&self, info_hash: &InfoHash) -> Option<Torrent>;
             async fn torrent_health_from_info(&self, torrent_info: TorrentInfo) -> Result<TorrentHealth>;
-            async fn torrent_health_from_uri(&self, magnet_uri: &str) -> Result<TorrentHealth>;
+            async fn torrent_health_from_uri(&self, uri: &str) -> Result<TorrentHealth>;
+            fn resolve(&self, uri: &str) -> Result<TorrentInfo>;
             async fn fetch_magnet(&self, magnet_uri: &str, timeout: Duration) -> Result<TorrentInfo>;
-            async fn add_torrent_from_uri(&self, uri: &str, options: TorrentFlags) -> Result<TorrentHandle>;
-            async fn add_torrent_from_info(&self, torrent_info: TorrentInfo, options: TorrentFlags) -> Result<TorrentHandle>;
+            async fn add_torrent_from_uri(&self, uri: &str, options: TorrentFlags) -> Result<Torrent>;
+            async fn add_torrent_from_info(&self, torrent_info: TorrentInfo, options: TorrentFlags) -> Result<Torrent>;
             fn remove_torrent(&self, handle: TorrentHandle);
         }
 
@@ -720,10 +761,9 @@ pub mod tests {
     use std::sync::mpsc::channel;
     use std::time::Duration;
 
-    use crate::torrents::peers::extensions::metadata::MetadataExtension;
     use log::info;
     use popcorn_fx_core::core::torrents::TorrentHealthState;
-    use popcorn_fx_core::testing::{init_logger, read_test_file_to_bytes};
+    use popcorn_fx_core::testing::{init_logger, read_test_file_to_bytes, test_resource_filepath};
     use tempfile::tempdir;
 
     use super::*;
@@ -808,6 +848,39 @@ pub mod tests {
     }
 
     #[test]
+    fn test_session_resolve() {
+        init_logger();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let runtime = Arc::new(Runtime::new().unwrap());
+        let session = runtime
+            .block_on(
+                DefaultSession::builder()
+                    .base_path(temp_path)
+                    .extensions(vec![])
+                    .runtime(runtime.clone())
+                    .build(),
+            )
+            .unwrap();
+
+        let filepath = test_resource_filepath("debian.torrent");
+        let result = runtime
+            .block_on(session.resolve(filepath.to_str().unwrap()))
+            .expect("expected the torrent info to have been resolved");
+        let expected_info_hash =
+            InfoHash::from_str("6D4795DEE70AEB88E03E5336CA7C9FCF0A1E206D").unwrap();
+        assert_eq!(expected_info_hash, result.info_hash);
+
+        let uri = "magnet:?xt=urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7&dn=debian-12.4.0-amd64-DVD-1.iso&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce";
+        let result = runtime
+            .block_on(session.resolve(uri))
+            .expect("expected the torrent info to have been resolved");
+        let expected_info_hash =
+            InfoHash::from_str("EADAF0EFEA39406914414D359E0EA16416409BD7").unwrap();
+        assert_eq!(expected_info_hash, result.info_hash);
+    }
+
+    #[test]
     fn test_session_add_torrent() {
         init_logger();
         let temp_dir = tempdir().unwrap();
@@ -830,12 +903,12 @@ pub mod tests {
             tx.send(event).unwrap();
         }));
 
-        let handle = runtime
+        let torrent = runtime
             .block_on(session.add_torrent_from_info(info, TorrentFlags::default()))
             .expect("expected a torrent handle");
 
         let event = rx.recv_timeout(Duration::from_millis(200)).unwrap();
-        assert_eq!(event, SessionEvent::TorrentAdded(handle));
+        assert_eq!(event, SessionEvent::TorrentAdded(torrent.handle()));
     }
 
     #[test]
@@ -860,9 +933,10 @@ pub mod tests {
         session.add_callback(Box::new(move |event| {
             tx.send(event).unwrap();
         }));
-        let handle = runtime
+        let torrent = runtime
             .block_on(session.add_torrent_from_info(info, TorrentFlags::default()))
             .expect("expected a torrent handle");
+        let handle = torrent.handle();
 
         let event = rx.recv_timeout(Duration::from_millis(200)).unwrap();
         assert_eq!(event, SessionEvent::TorrentAdded(handle));

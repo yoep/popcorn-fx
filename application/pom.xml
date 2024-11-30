@@ -54,13 +54,6 @@
             <version>${project.version}</version>
         </dependency>
 
-        <!-- Popcorn Torrent -->
-        <dependency>
-            <groupId>com.github.yoep</groupId>
-            <artifactId>torrent-frostwire</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-
         <!-- Testing -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>

@@ -2,7 +2,6 @@ package com.github.yoep.popcorn.backend.adapters.torrent;
 
 import com.github.yoep.popcorn.backend.adapters.torrent.model.Torrent;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentFileInfo;
-import com.github.yoep.popcorn.backend.adapters.torrent.state.SessionState;
 import com.github.yoep.popcorn.backend.lib.Handle;
 import javafx.beans.property.ReadOnlyObjectProperty;
 
@@ -15,28 +14,6 @@ import java.util.concurrent.CompletableFuture;
  * Use this service to resolve magnet url's or start downloading a torrent.
  */
 public interface TorrentService {
-    /**
-     * Get the state of the torrent session.
-     *
-     * @return Returns the current session state.
-     */
-    SessionState getSessionState();
-
-    /**
-     * Get the session state property of this torrent service.
-     *
-     * @return Returns the session state property of this service.
-     */
-    ReadOnlyObjectProperty<SessionState> sessionStateProperty();
-
-    /**
-     * Get the error that occurred in the torrent session.
-     * The {@link TorrentException} might only be present if the {@link #getSessionState()} is {@link SessionState#ERROR}.
-     *
-     * @return Returns the torrent session error.
-     */
-    Optional<TorrentException> getSessionError();
-
     /**
      * Create a new torrent for the given torrent file.
      *

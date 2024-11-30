@@ -368,12 +368,17 @@ pub struct TorrentInfo {
 }
 
 impl TorrentInfo {
+    /// Creates a new `TorrentInfoBuilder` instance.
     pub fn builder() -> TorrentInfoBuilder {
         TorrentInfoBuilder::builder()
     }
 
+    /// Get the display name of the torrent if known.
     pub fn name(&self) -> Option<&str> {
-        self.name.as_ref().map(|e| e.as_str())
+        self.name
+            .as_ref()
+            .filter(|e| !e.is_empty())
+            .map(|e| e.as_str())
     }
 
     pub fn update_name<T: Into<String>>(&mut self, name: T) {
@@ -387,16 +392,6 @@ impl TorrentInfo {
     /// Returns the metadata version of the torrent info if known, else [None].
     pub fn metadata_version(&self) -> Option<u64> {
         self.info.as_ref().and_then(|e| e.meta_version.clone())
-    }
-
-    /// Validate the metadata contained within this struct.
-    ///
-    /// # Returns
-    ///
-    /// Returns nothing when the metadata is valid, else the validation error.
-    pub fn validate(&self) -> Result<()> {
-        trace!("Validating {:?}", self);
-        Ok(())
     }
 
     /// Get the trackers in a tiered order for this torrent.

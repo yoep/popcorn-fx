@@ -1,12 +1,12 @@
 use crate::torrents::peers::PeerHandle;
 use crate::torrents::{PartIndex, PieceIndex, PiecePart};
 use derive_more::Display;
-use log::{debug, trace, warn};
-use std::collections::{HashMap, VecDeque};
+use log::trace;
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
-use tokio::sync::{Mutex, Notify, OwnedSemaphorePermit, RwLock, Semaphore};
+use tokio::sync::{Mutex, OwnedSemaphorePermit, RwLock, Semaphore};
 
 /// The timeout after which a request will be retried for execution
 const REQUEST_TIMEOUT_MILLIS: u128 = 60 * 1000; // 60 seconds
@@ -295,6 +295,7 @@ impl PendingRequestBuffer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use log::debug;
     use popcorn_fx_core::core::Handle;
     use popcorn_fx_core::testing::init_logger;
     use std::sync::mpsc::{channel, RecvTimeoutError};

@@ -463,14 +463,14 @@ pub mod testing {
         #[async_trait]
         impl Torrent for TorrentStream {
             fn handle(&self) -> TorrentHandle;
-            fn file(&self) -> PathBuf;
-            async fn has_bytes(&self, bytes: &Range<usize>) -> bool;
+            async fn file(&self) -> PathBuf;
+            async fn has_bytes(&self, bytes: &std::ops::Range<usize>) -> bool;
             async fn has_piece(&self, piece: usize) -> bool;
-            async fn prioritize_bytes(&self, bytes: &Range<usize>);
+            async fn prioritize_bytes(&self, bytes: &std::ops::Range<usize>);
             async fn prioritize_pieces(&self, pieces: &[u32]);
             async fn total_pieces(&self) -> usize;
             async fn sequential_mode(&self);
-            fn state(&self) -> TorrentState;
+            async fn state(&self) -> TorrentState;
         }
 
         #[async_trait]

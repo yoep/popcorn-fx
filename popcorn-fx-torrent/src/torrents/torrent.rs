@@ -1,18 +1,17 @@
 use bit_vec::BitVec;
 use bitmask_enum::bitmask;
 use derive_more::Display;
-use futures::future::join_all;
 use itertools::Itertools;
 use log::{debug, error, trace, warn};
 
 use async_trait::async_trait;
 use sha1::Sha1;
 use sha2::{Digest, Sha256};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::net::SocketAddr;
 use std::sync::{Arc, Weak};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc::{unbounded_channel, Receiver, UnboundedReceiver, UnboundedSender};
 use tokio::sync::{RwLock, RwLockReadGuard};
@@ -30,7 +29,7 @@ use crate::torrents::file::{File, FilePriority};
 use crate::torrents::fs::TorrentFileStorage;
 use crate::torrents::torrent_request_buffer::{PendingRequest, PendingRequestBuffer};
 use crate::torrents::trackers::{
-    AnnounceEvent, Announcement, TrackerError, TrackerHandle, TrackerManager, TrackerManagerEvent,
+    AnnounceEvent, Announcement, TrackerEntry, TrackerHandle, TrackerManager, TrackerManagerEvent,
 };
 use crate::torrents::{
     FileIndex, InfoHash, PartIndex, Piece, PieceChunkPool, PieceIndex, PiecePart, PiecePriority,
@@ -169,6 +168,80 @@ impl TorrentTransferStats {
     }
 }
 
+/// The torrent configuration.
+#[derive(Debug, Clone)]
+pub struct TorrentConfig {
+    pub peers_lower_limit: usize,
+    pub peers_upper_limit: usize,
+    pub peer_connection_timeout: Duration,
+    pub tracker_connection_timeout: Duration,
+}
+
+impl TorrentConfig {
+    /// Create a new torrent configuration builder.
+    pub fn builder() -> TorrentConfigBuilder {
+        TorrentConfigBuilder::builder()
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct TorrentConfigBuilder {
+    peers_lower_limit: Option<usize>,
+    peers_upper_limit: Option<usize>,
+    peer_connection_timeout: Option<Duration>,
+    tracker_connection_timeout: Option<Duration>,
+}
+
+impl TorrentConfigBuilder {
+    /// Create a new torrent configuration builder.
+    pub fn builder() -> Self {
+        Self::default()
+    }
+
+    /// Set the lower limit for the number of peers.
+    pub fn peers_lower_limit(mut self, limit: usize) -> Self {
+        self.peers_lower_limit = Some(limit);
+        self
+    }
+
+    /// Set the upper limit for the number of peers.
+    pub fn peers_upper_limit(mut self, limit: usize) -> Self {
+        self.peers_upper_limit = Some(limit);
+        self
+    }
+
+    /// Set the timeout for peer connections.
+    pub fn peer_connection_timeout(mut self, timeout: Duration) -> Self {
+        self.peer_connection_timeout = Some(timeout);
+        self
+    }
+
+    /// Set the timeout for tracker connections.
+    pub fn tracker_connection_timeout(mut self, timeout: Duration) -> Self {
+        self.tracker_connection_timeout = Some(timeout);
+        self
+    }
+
+    /// Build the torrent configuration.
+    pub fn build(self) -> TorrentConfig {
+        let peers_lower_limit = self.peers_lower_limit.unwrap_or(10);
+        let peers_upper_limit = self.peers_upper_limit.unwrap_or(100);
+        let peer_connection_timeout = self
+            .peer_connection_timeout
+            .unwrap_or(Duration::from_secs(DEFAULT_TIMEOUT_SECONDS));
+        let tracker_connection_timeout = self
+            .tracker_connection_timeout
+            .unwrap_or(Duration::from_secs(DEFAULT_TIMEOUT_SECONDS));
+
+        TorrentConfig {
+            peers_lower_limit,
+            peers_upper_limit,
+            peer_connection_timeout,
+            tracker_connection_timeout,
+        }
+    }
+}
+
 /// Requests a new torrent creation based on the given data.
 /// This is the **recommended** way to create new torrents.
 ///
@@ -197,16 +270,14 @@ pub struct TorrentRequest {
     metadata: Option<TorrentInfo>,
     /// The torrent options
     options: Option<TorrentFlags>,
+    /// The torrent configuration
+    config: Option<TorrentConfig>,
     /// The port on which the torrent session is listening for new incoming peer connections
     peer_listener_port: Option<u16>,
     /// The extensions that should be enabled for this torrent
     extensions: Option<Extensions>,
     /// The storage strategy to use for the torrent data
     storage: Option<Box<dyn TorrentFileStorage>>,
-    /// The maximum amount of time to wait for a response from peers
-    peer_timeout: Option<Duration>,
-    /// The maximum amount of time to wait for a response from trackers
-    tracker_timeout: Option<Duration>,
     /// The operations used by the torrent for processing data
     operations: Option<Vec<Box<dyn TorrentOperation>>>,
     /// The request strategies used by the torrent
@@ -228,6 +299,12 @@ impl TorrentRequest {
         self
     }
 
+    /// Set the torrent configuration
+    pub fn config(mut self, config: TorrentConfig) -> Self {
+        self.config = Some(config);
+        self
+    }
+
     /// Set the port on which the torrent session is listening for new incoming peer connections
     pub fn peer_listener_port(mut self, port: u16) -> Self {
         self.peer_listener_port = Some(port);
@@ -243,18 +320,6 @@ impl TorrentRequest {
     /// Set the storage strategy to use for the torrent data
     pub fn storage(mut self, storage: Box<dyn TorrentFileStorage>) -> Self {
         self.storage = Some(storage);
-        self
-    }
-
-    /// Set the maximum amount of time to wait for a response from peers
-    pub fn peer_timeout(mut self, timeout: Duration) -> Self {
-        self.peer_timeout = Some(timeout);
-        self
-    }
-
-    /// Set the maximum amount of time to wait for a response from trackers
-    pub fn tracker_timeout(mut self, timeout: Duration) -> Self {
-        self.tracker_timeout = Some(timeout);
         self
     }
 
@@ -299,15 +364,12 @@ impl TryFrom<TorrentRequest> for Torrent {
             .extensions
             .unwrap_or_else(DEFAULT_TORRENT_EXTENSIONS);
         let options = request.options.unwrap_or(TorrentFlags::default());
+        let config = request
+            .config
+            .unwrap_or_else(|| TorrentConfig::builder().build());
         let storage = request.storage.ok_or(TorrentError::InvalidRequest(
             "file storage is missing".to_string(),
         ))?;
-        let peer_timeout = request
-            .peer_timeout
-            .unwrap_or(Duration::from_secs(DEFAULT_TIMEOUT_SECONDS));
-        let tracker_timeout = request
-            .tracker_timeout
-            .unwrap_or(Duration::from_secs(DEFAULT_TIMEOUT_SECONDS));
         let operations = request
             .operations
             .unwrap_or_else(DEFAULT_TORRENT_OPERATIONS);
@@ -323,9 +385,8 @@ impl TryFrom<TorrentRequest> for Torrent {
             peer_listener_port,
             extensions,
             options,
+            config,
             storage,
-            peer_timeout,
-            tracker_timeout,
             operations,
             request_strategies,
             runtime,
@@ -433,10 +494,9 @@ impl Torrent {
         metadata: TorrentInfo,
         peer_listener_port: u16,
         extensions: Extensions,
-        flags: TorrentFlags,
+        options: TorrentFlags,
+        config: TorrentConfig,
         storage: Box<dyn TorrentFileStorage>,
-        peer_timeout: Duration,
-        tracker_timeout: Duration,
         operations: Vec<Box<dyn TorrentOperation>>,
         request_strategies: Vec<Box<dyn RequestStrategy>>,
         runtime: Arc<Runtime>,
@@ -455,12 +515,11 @@ impl Torrent {
                 peer_id,
                 peer_listener_port,
                 info_hash,
-                tracker_timeout,
+                config.tracker_connection_timeout.clone(),
                 tracker_sender,
                 runtime.clone(),
             ),
             peers: RwLock::new(Vec::with_capacity(0)),
-            wanted_peers: Default::default(),
             pieces: RwLock::new(Vec::with_capacity(0)),
             completed_pieces: RwLock::new(BitVec::with_capacity(0)),
             pending_requests: PendingRequestBuffer::new(20),
@@ -469,11 +528,11 @@ impl Torrent {
             storage,
             extensions,
             state: RwLock::new(Default::default()),
-            options: RwLock::new(flags),
+            options: RwLock::new(options),
+            config: RwLock::new(config),
             stats: RwLock::new(TorrentTransferStats::default()),
             event_sender,
             callbacks: Default::default(),
-            timeout: peer_timeout,
             operations,
             request_strategies,
             cancellation_token,
@@ -750,26 +809,6 @@ impl Torrent {
         }
     }
 
-    /// Start announcing the torrent to its known trackers.
-    /// This will start a period announcement for all active trackers.
-    ///
-    /// # Returns
-    ///
-    /// Returns a [TorrentError] when the announcement of the torrent couldn't be started.
-    pub async fn start_announcing(&self) -> Result<()> {
-        let inner = self
-            .instance()
-            .ok_or(TorrentError::InvalidHandle(self.handle))?;
-        let trackers = inner.active_trackers().await;
-
-        if trackers.is_empty() {
-            inner.add_known_trackers().await?;
-        }
-
-        inner.start_announcing().await;
-        Ok(())
-    }
-
     /// Announce this torrent to the known trackers.
     /// This will retrieve the announcement information from the trackers.
     ///
@@ -780,13 +819,11 @@ impl Torrent {
         let inner = self
             .instance()
             .ok_or(TorrentError::InvalidHandle(self.handle))?;
-        let trackers = inner.active_trackers().await;
 
-        if trackers.is_empty() {
-            Ok(inner.add_and_announce_trackers().await?)
-        } else {
-            Ok(inner.announce_all().await)
-        }
+        // execute the operations chain which is responsible for adding the trackers
+        inner.execute_operations_chain().await;
+
+        Ok(inner.announce_all().await)
     }
 
     /// Add the given metadata to the torrent.
@@ -820,14 +857,8 @@ impl Torrent {
                 .await;
             inner.remove_options(TorrentFlags::Paused).await;
 
-            if inner.tracker_manager.trackers().await.len() == 0 {
-                inner.send_command_event(TorrentCommandEvent::WantTracker);
-            }
-
-            inner.update_wanted_peers(20).await;
-            inner.send_command_event(TorrentCommandEvent::WantPeer);
-
             inner.send_command_event(TorrentCommandEvent::ExecuteOperations);
+            inner.send_command_event(TorrentCommandEvent::WantPeer);
         }
     }
 
@@ -1011,14 +1042,14 @@ pub enum TorrentCommandEvent {
     OptionsChanged,
     /// Indicates that the operations chain needs to be executed
     ExecuteOperations,
-    /// Indicates that trackers are wanted for the torrent
-    WantTracker,
     /// Indicates that an additional peer is wanted for the torrent
     WantPeer,
-    /// Indicates that the given peer has been connected and needs to be managed by the torrent
-    PeerConnected(Peer),
+    /// Indicates that the torrent wants to connect to a new tracker
+    ConnectToTracker(TrackerEntry),
     /// Indicates that the torrent wants to connect to the given peer addr
     ConnectToPeer(SocketAddr),
+    /// Indicates that the given peer has been connected and needs to be managed by the torrent
+    PeerConnected(Peer),
     /// Indicates that a piece part has been completed
     PiecePartCompleted(PiecePart, Vec<u8>),
     /// Indicates that a piece has been completed
@@ -1030,10 +1061,10 @@ impl Debug for TorrentCommandEvent {
         match self {
             TorrentCommandEvent::OptionsChanged => write!(f, "OptionsChanged"),
             TorrentCommandEvent::ExecuteOperations => write!(f, "ExecuteOperations"),
-            TorrentCommandEvent::WantTracker => write!(f, "WantTracker"),
             TorrentCommandEvent::WantPeer => write!(f, "WantPeer"),
-            TorrentCommandEvent::PeerConnected(e) => write!(f, "PeerConnected({})", e),
+            TorrentCommandEvent::ConnectToTracker(e) => write!(f, "ConnectToTracker({:?})", e),
             TorrentCommandEvent::ConnectToPeer(e) => write!(f, "ConnectToPeer({})", e),
+            TorrentCommandEvent::PeerConnected(e) => write!(f, "PeerConnected({})", e),
             TorrentCommandEvent::PiecePartCompleted(e, data) => {
                 write!(f, "PiecePartCompleted({:?}, [size {}])", e, data.len())
             }
@@ -1057,8 +1088,6 @@ pub struct InnerTorrent {
 
     /// The established peer connections
     peers: RwLock<Vec<Peer>>,
-    /// The lower bound of peers which are at least wanted
-    wanted_peers: RwLock<usize>,
 
     /// The pieces of the torrent, these are only known if the metadata is available
     pieces: RwLock<Vec<Piece>>,
@@ -1085,14 +1114,14 @@ pub struct InnerTorrent {
     state: RwLock<TorrentState>,
     /// The torrent options that are set for this torrent
     options: RwLock<TorrentFlags>,
+    /// The torrent configuration
+    config: RwLock<TorrentConfig>,
     /// The data transfer stats of the torrent
     stats: RwLock<TorrentTransferStats>,
     /// The internal command event sender
     event_sender: UnboundedSender<TorrentCommandEvent>,
     /// The callbacks for the torrent events
     callbacks: CoreCallbacks<TorrentEvent>,
-    /// The timeout for peer connections
-    timeout: Duration,
     cancellation_token: CancellationToken,
 }
 
@@ -1106,7 +1135,7 @@ impl InnerTorrent {
         mut tracker_receiver: Receiver<TrackerManagerEvent>,
     ) {
         // the interval used to execute periodic torrent operations
-        let mut tick_interval = time::interval(Duration::from_secs(1));
+        let mut operations_tick = time::interval(Duration::from_secs(1));
         let mut cleanup_interval = time::interval(Duration::from_secs(30));
 
         loop {
@@ -1130,7 +1159,7 @@ impl InnerTorrent {
                         self.handle_tracker_event(event).await;
                     }
                 }
-                _ = tick_interval.tick() => self.update_stats().await,
+                _ = operations_tick.tick() => self.update_stats().await,
                 _ = cleanup_interval.tick() => {
                     self.clean_peers().await;
                     self.pending_requests.retry_timed_out_requests().await;
@@ -1289,18 +1318,6 @@ impl InnerTorrent {
             == 0
     }
 
-    /// Get the tiered trackers from the metadata of this torrent.
-    async fn tiered_trackers(&self) -> Result<BTreeMap<u8, Vec<Url>>> {
-        let metadata = self.metadata().await;
-        let tiered_trackers = metadata.tiered_trackers();
-
-        if tiered_trackers.is_empty() {
-            return Err(TorrentError::Tracker(TrackerError::Unavailable));
-        }
-
-        Ok(tiered_trackers)
-    }
-
     /// Get the number of active peers for this torrent.
     /// This excludes the closed peer connections which have not yet been cleaned.
     pub async fn active_peers_len(&self) -> usize {
@@ -1403,14 +1420,23 @@ impl InnerTorrent {
     }
 
     /// Try to add the given tracker to the tracker manager of this torrent.
-    pub async fn add_tracker(&self, url: Url, tier: u8) -> Result<TrackerHandle> {
-        let handle = self.tracker_manager.add_tracker(&url, tier).await?;
+    pub async fn add_tracker(&self, entry: TrackerEntry) -> Result<TrackerHandle> {
+        let url = entry.url.clone();
+        let handle = self.tracker_manager.add_tracker_entry(entry).await?;
 
-        debug!(
+        trace!(
             "Tracker {}({}) has been added to torrent {}",
-            url, handle, self
+            url,
+            handle,
+            self
         );
         Ok(handle)
+    }
+
+    /// Try to add the given tracker to the tracker manager of this torrent.
+    /// This creates the tracker in a background task.
+    pub async fn add_tracker_async(&self, entry: TrackerEntry) {
+        self.tracker_manager.add_tracker_async(entry).await;
     }
 
     /// Add the given peer to this torrent.
@@ -1472,15 +1498,15 @@ impl InnerTorrent {
         self.send_command_event(TorrentCommandEvent::ExecuteOperations);
     }
 
-    /// Starts the announcement loop of the torrent.
-    pub async fn start_announcing(&self) {
-        self.tracker_manager.start_announcing();
-    }
-
     /// Announce the torrent to all trackers.
     /// It returns the announcement result collected from all active trackers.
     pub async fn announce_all(&self) -> Announcement {
         self.tracker_manager.announce_all().await
+    }
+
+    /// Announce to all the trackers without waiting for the results.
+    pub async fn make_announce_all(&self) {
+        self.tracker_manager.make_announce_all().await
     }
 
     /// Add the given options to the torrent.
@@ -1592,19 +1618,6 @@ impl InnerTorrent {
         }
     }
 
-    pub async fn update_wanted_peers(&self, num_of_peers: usize) {
-        *self.wanted_peers.write().await = num_of_peers;
-        trace!("Wanted peers set to {} for {}", num_of_peers, self);
-
-        if self.active_peers_len().await < num_of_peers {
-            trace!(
-                "There are not enough peers for torrent {}, requesting additional peers",
-                self
-            );
-            self.send_command_event(TorrentCommandEvent::WantPeer);
-        }
-    }
-
     pub async fn update_pieces(&self, pieces: Vec<Piece>) {
         trace!("Updating pieces of {}", self);
         {
@@ -1683,8 +1696,8 @@ impl InnerTorrent {
         match event {
             TorrentCommandEvent::OptionsChanged => self.process_options().await,
             TorrentCommandEvent::ExecuteOperations => self.execute_operations_chain().await,
-            TorrentCommandEvent::WantTracker => self.connect_to_known_trackers(&torrent),
             TorrentCommandEvent::WantPeer => self.process_peer_wanted().await,
+            TorrentCommandEvent::ConnectToTracker(e) => self.add_tracker_async(e).await,
             TorrentCommandEvent::PeerConnected(peer) => self.add_peer(peer).await,
             TorrentCommandEvent::ConnectToPeer(addr) => {
                 self.create_peer_connection(torrent.clone(), addr)
@@ -1700,9 +1713,8 @@ impl InnerTorrent {
         trace!("Handling event {:?} for torrent {}", event, self);
         match event {
             TrackerManagerEvent::PeersDiscovered(peers) => {
-                // calculate the number of newly wanted connections
                 let new_connections =
-                    self.wanted_peers.read().await.clone() - self.active_peers_len().await;
+                    self.config.read().await.peers_lower_limit - self.active_peers_len().await;
                 let peers = self.unique_peer_addresses(peers).await;
 
                 self.create_peer_connections(peers, new_connections).await
@@ -1761,7 +1773,8 @@ impl InnerTorrent {
         let peer_addresses = self
             .unique_peer_addresses(self.tracker_manager.discovered_peers().await)
             .await;
-        let num_of_peers = (*self.wanted_peers.read().await - self.active_peers_len().await).max(1);
+        let num_of_peers =
+            (self.config.read().await.peers_lower_limit - self.active_peers_len().await).max(1);
 
         self.create_peer_connections(peer_addresses, num_of_peers)
             .await
@@ -1879,101 +1892,6 @@ impl InnerTorrent {
                 piece, self
             );
         }
-    }
-
-    async fn add_known_trackers(&self) -> Result<()> {
-        let futures: Vec<_> = self
-            .get_missing_trackers()
-            .await?
-            .into_iter()
-            .map(|(tier, url)| self.add_tracker(url, tier))
-            .collect();
-
-        // extract all individual announcements that have been made to trackers
-        let start_time = Instant::now();
-        join_all(futures).await;
-        let time_taken = start_time.elapsed();
-        trace!(
-            "Took {}.{:03} seconds to add trackers",
-            time_taken.as_secs(),
-            time_taken.subsec_millis()
-        );
-
-        Ok(())
-    }
-
-    async fn add_and_announce_trackers(&self) -> Result<Announcement> {
-        let futures: Vec<_> = self
-            .get_missing_trackers()
-            .await?
-            .into_iter()
-            .map(|(tier, url)| async move {
-                match self.add_tracker(url, tier).await {
-                    Ok(handle) => Ok(self
-                        .tracker_manager
-                        .announce(handle, AnnounceEvent::Started)
-                        .await?),
-                    Err(e) => Err(e),
-                }
-            })
-            .collect();
-
-        // extract all individual announcements that have been made to trackers
-        let start_time = Instant::now();
-        let announcements: Vec<Announcement> = join_all(futures)
-            .await
-            .into_iter()
-            .filter_map(|e| match e {
-                Ok(e) => Some(e),
-                Err(e) => {
-                    debug!("Failed to add torrent {} tracker, {}", self, e);
-                    None
-                }
-            })
-            .collect();
-        let time_taken = start_time.elapsed();
-        trace!(
-            "Took {}.{:03} seconds to add trackers",
-            time_taken.as_secs(),
-            time_taken.subsec_millis()
-        );
-
-        let mut result = Announcement::default();
-        for announcement in announcements {
-            result.total_leechers += announcement.total_leechers;
-            result.total_seeders += announcement.total_seeders;
-            result.peers.extend(announcement.peers);
-        }
-
-        Ok(result)
-    }
-
-    async fn get_missing_trackers(&self) -> Result<Vec<(u8, Url)>> {
-        let tiered_trackers = self.tiered_trackers().await?;
-
-        Ok(tiered_trackers
-            .into_iter()
-            .map(|(tier, trackers)| {
-                trackers
-                    .into_iter()
-                    .map(|url| (tier, url))
-                    .collect::<Vec<_>>()
-            })
-            .flatten()
-            .filter(|(_, url)| !block_in_place(self.tracker_manager.is_tracker_url_known(url)))
-            .collect())
-    }
-
-    /// Connect to trackers which are currently known within the torrent.
-    /// This operation is executed on a new thread to unblock the caller.
-    fn connect_to_known_trackers(&self, torrent: &Torrent) {
-        // move this operation to a new thread to unblock the main loop
-        let inner_tracker = torrent.instance().expect("expected a valid instance");
-        torrent.runtime.spawn(async move {
-            if let Err(e) = inner_tracker.add_known_trackers().await {
-                warn!("Failed to add known trackers for {}, {}", inner_tracker, e);
-            }
-        });
     }
 
     /// Validate if the given piece data is valid.
@@ -2173,7 +2091,7 @@ impl InnerTorrent {
         }
 
         // check if new peers are wanted
-        if *self.wanted_peers.read().await > self.active_peers_len().await {
+        if self.config.read().await.peers_lower_limit > self.active_peers_len().await {
             self.send_command_event(TorrentCommandEvent::WantPeer);
         }
     }
@@ -2319,28 +2237,6 @@ mod tests {
     use tempfile::tempdir;
 
     #[test]
-    fn test_torrent_start_announcing() {
-        init_logger();
-        let temp_dir = tempdir().unwrap();
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let torrent_info_data = read_test_file_to_bytes("debian-udp.torrent");
-        let torrent_info = TorrentInfo::try_from(torrent_info_data.as_slice()).unwrap();
-        let runtime = Arc::new(Runtime::new().unwrap());
-        let torrent = Torrent::request()
-            .metadata(torrent_info)
-            .peer_listener_port(6881)
-            .storage(Box::new(DefaultTorrentFileStorage::new(temp_path)))
-            .tracker_timeout(Duration::from_secs(1))
-            .runtime(runtime.clone())
-            .build()
-            .unwrap();
-
-        let result = runtime.block_on(torrent.start_announcing());
-
-        assert_eq!(Ok(()), result);
-    }
-
-    #[test]
     fn test_torrent_announce() {
         init_logger();
         let temp_dir = tempdir().unwrap();
@@ -2350,9 +2246,13 @@ mod tests {
         let runtime = Arc::new(Runtime::new().unwrap());
         let torrent = Torrent::request()
             .metadata(torrent_info)
-            .peer_listener_port(6881)
+            .peer_listener_port(9001)
+            .config(
+                TorrentConfig::builder()
+                    .tracker_connection_timeout(Duration::from_secs(1))
+                    .build(),
+            )
             .storage(Box::new(DefaultTorrentFileStorage::new(temp_path)))
-            .tracker_timeout(Duration::from_secs(1))
             .runtime(runtime.clone())
             .build()
             .unwrap();
@@ -2376,9 +2276,13 @@ mod tests {
         let runtime = Arc::new(Runtime::new().unwrap());
         let torrent = Torrent::request()
             .metadata(torrent_info.clone())
-            .peer_listener_port(6881)
+            .peer_listener_port(9002)
+            .config(
+                TorrentConfig::builder()
+                    .tracker_connection_timeout(Duration::from_secs(1))
+                    .build(),
+            )
             .storage(Box::new(DefaultTorrentFileStorage::new(temp_path)))
-            .tracker_timeout(Duration::from_secs(1))
             .runtime(runtime.clone())
             .build()
             .unwrap();
@@ -2400,11 +2304,15 @@ mod tests {
         let (tx, rx) = channel();
         let torrent = Torrent::request()
             .metadata(torrent_info)
-            .peer_listener_port(6881)
+            .peer_listener_port(9003)
+            .config(
+                TorrentConfig::builder()
+                    .peer_connection_timeout(Duration::from_secs(1))
+                    .tracker_connection_timeout(Duration::from_secs(1))
+                    .build(),
+            )
             .extensions(vec![Box::new(MetadataExtension::new())])
             .storage(Box::new(DefaultTorrentFileStorage::new(temp_path)))
-            .peer_timeout(Duration::from_secs(2))
-            .tracker_timeout(Duration::from_secs(1))
             .runtime(runtime.clone())
             .build()
             .unwrap();
@@ -2435,8 +2343,13 @@ mod tests {
         let torrent = Torrent::request()
             .metadata(torrent_info)
             .peer_listener_port(9001)
+            .config(
+                TorrentConfig::builder()
+                    .peer_connection_timeout(Duration::from_secs(1))
+                    .tracker_connection_timeout(Duration::from_secs(1))
+                    .build(),
+            )
             .storage(Box::new(DefaultTorrentFileStorage::new(temp_path)))
-            .tracker_timeout(Duration::from_secs(1))
             .runtime(runtime.clone())
             .build()
             .unwrap();
@@ -2479,8 +2392,13 @@ mod tests {
             .metadata(torrent_info)
             .peer_listener_port(6881)
             .options(TorrentFlags::None)
+            .config(
+                TorrentConfig::builder()
+                    .peer_connection_timeout(Duration::from_secs(1))
+                    .tracker_connection_timeout(Duration::from_secs(1))
+                    .build(),
+            )
             .storage(Box::new(DefaultTorrentFileStorage::new(temp_path)))
-            .tracker_timeout(Duration::from_secs(1))
             .runtime(runtime.clone())
             .build()
             .unwrap();
@@ -2551,10 +2469,14 @@ mod tests {
             .metadata(torrent_info)
             .peer_listener_port(6881)
             .options(TorrentFlags::None)
+            .config(
+                TorrentConfig::builder()
+                    .peer_connection_timeout(Duration::from_secs(1))
+                    .tracker_connection_timeout(Duration::from_secs(1))
+                    .build(),
+            )
             .extensions(vec![Box::new(MetadataExtension::new())])
             .storage(Box::new(DefaultTorrentFileStorage::new(temp_path)))
-            .peer_timeout(Duration::from_secs(2))
-            .tracker_timeout(Duration::from_secs(1))
             .runtime(runtime.clone())
             .build()
             .unwrap();
@@ -2595,8 +2517,13 @@ mod tests {
         let torrent = Torrent::request()
             .metadata(torrent_info)
             .peer_listener_port(6881)
+            .config(
+                TorrentConfig::builder()
+                    .peer_connection_timeout(Duration::from_secs(1))
+                    .tracker_connection_timeout(Duration::from_secs(1))
+                    .build(),
+            )
             .storage(Box::new(DefaultTorrentFileStorage::new(temp_path)))
-            .tracker_timeout(Duration::from_secs(1))
             .runtime(runtime.clone())
             .build()
             .unwrap();
@@ -2633,8 +2560,13 @@ mod tests {
         let torrent = Torrent::request()
             .metadata(torrent_info)
             .peer_listener_port(6881)
+            .config(
+                TorrentConfig::builder()
+                    .peer_connection_timeout(Duration::from_secs(1))
+                    .tracker_connection_timeout(Duration::from_secs(1))
+                    .build(),
+            )
             .storage(Box::new(DefaultTorrentFileStorage::new(temp_path)))
-            .tracker_timeout(Duration::from_secs(1))
             .runtime(runtime.clone())
             .build()
             .unwrap();

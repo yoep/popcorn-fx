@@ -23,7 +23,7 @@ use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio::io::{split, AsyncWriteExt, BufReader, BufWriter, WriteHalf};
+use tokio::io::{split, AsyncWriteExt, BufWriter, WriteHalf};
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc::{
@@ -1194,12 +1194,23 @@ impl InnerPeer {
     async fn update_remote_piece(&self, piece: PieceIndex, value: bool) {
         {
             let mut mutex = self.remote_pieces.write().await;
-            // increase the size of the bitvec if needed
-            // this can be the case when the peer is sending piece data while the torrent is still retrieving the metadata
-            if piece > mutex.len() && !self.torrent.is_metadata_known().await {
-                let additional_len = piece as usize - mutex.len();
+            // ensure the BitVec is large enough to accommodate the piece index
+            if piece >= mutex.len() {
+                if self.torrent.is_metadata_known().await {
+                    warn!(
+                        "Received piece index {} out of range ({}) for {}",
+                        piece,
+                        mutex.len(),
+                        self
+                    );
+                    return;
+                }
+
+                // increase the size of the BitVec if metadata is still being retrieved
+                let additional_len = piece as usize + 1 - mutex.len();
                 mutex.extend(vec![false; additional_len]);
             }
+
             mutex.set(piece, value);
         }
 
@@ -1442,7 +1453,7 @@ mod tests {
     use super::*;
     use crate::torrents::fs::DefaultTorrentFileStorage;
     use crate::torrents::peers::extensions::metadata::MetadataExtension;
-    use crate::torrents::{Torrent, TorrentFlags, TorrentInfo, TorrentRequest};
+    use crate::torrents::{Torrent, TorrentConfig, TorrentFlags, TorrentInfo};
 
     #[test]
     fn test_peer_new_outbound() {
@@ -1455,11 +1466,15 @@ mod tests {
         let request = Torrent::request()
             .metadata(torrent_info.clone())
             .options(TorrentFlags::None)
+            .config(
+                TorrentConfig::builder()
+                    .peer_connection_timeout(Duration::from_secs(2))
+                    .tracker_connection_timeout(Duration::from_secs(1))
+                    .build(),
+            )
             .peer_listener_port(6881)
             .extensions(vec![Box::new(MetadataExtension::new())])
             .storage(Box::new(DefaultTorrentFileStorage::new(temp_path)))
-            .peer_timeout(Duration::from_secs(2))
-            .tracker_timeout(Duration::from_secs(1))
             .runtime(runtime.clone())
             .build()
             .unwrap();
@@ -1503,11 +1518,15 @@ mod tests {
         let request = Torrent::request()
             .metadata(torrent_info.clone())
             .options(TorrentFlags::None)
+            .config(
+                TorrentConfig::builder()
+                    .peer_connection_timeout(Duration::from_secs(2))
+                    .tracker_connection_timeout(Duration::from_secs(1))
+                    .build(),
+            )
             .peer_listener_port(6881)
             .extensions(vec![Box::new(MetadataExtension::new())])
             .storage(Box::new(DefaultTorrentFileStorage::new(temp_path)))
-            .peer_timeout(Duration::from_secs(2))
-            .tracker_timeout(Duration::from_secs(1))
             .runtime(runtime.clone())
             .build()
             .unwrap();
@@ -1546,11 +1565,15 @@ mod tests {
         let request = Torrent::request()
             .metadata(torrent_info.clone())
             .options(TorrentFlags::None)
+            .config(
+                TorrentConfig::builder()
+                    .peer_connection_timeout(Duration::from_secs(2))
+                    .tracker_connection_timeout(Duration::from_secs(1))
+                    .build(),
+            )
             .peer_listener_port(6881)
             .extensions(vec![Box::new(MetadataExtension::new())])
             .storage(Box::new(DefaultTorrentFileStorage::new(temp_path)))
-            .peer_timeout(Duration::from_secs(2))
-            .tracker_timeout(Duration::from_secs(1))
             .runtime(runtime.clone())
             .build()
             .unwrap();

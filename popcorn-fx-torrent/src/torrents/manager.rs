@@ -1,8 +1,7 @@
 use std::fmt::Debug;
 use std::fs;
 use std::path::PathBuf;
-use std::str::FromStr;
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use chrono::{DateTime, Duration, Local};
@@ -11,7 +10,7 @@ use log::{debug, error, info, trace, warn};
 use tokio::runtime::Runtime;
 
 use crate::torrents::{
-    errors, DefaultSession, FilePriority, InfoHash, PieceIndex, PiecePriority, Session, Torrent,
+    errors, DefaultSession, FilePriority, PieceIndex, PiecePriority, Session, Torrent,
     TorrentEvent, TorrentFlags, TorrentInfoFile,
 };
 use popcorn_fx_core::core::config::{ApplicationConfig, CleaningMode, TorrentSettings};
@@ -19,7 +18,7 @@ use popcorn_fx_core::core::events::{Event, EventPublisher, PlayerStoppedEvent};
 use popcorn_fx_core::core::storage::Storage;
 use popcorn_fx_core::core::torrents::{
     TorrentFileInfo, TorrentHandle, TorrentHealth, TorrentInfo, TorrentManager,
-    TorrentManagerCallback, TorrentManagerEvent, TorrentState,
+    TorrentManagerEvent, TorrentState,
 };
 use popcorn_fx_core::core::{
     block_in_place, events, torrents, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks,
@@ -68,8 +67,14 @@ impl popcorn_fx_core::core::torrents::Torrent for Torrent {
         self.handle()
     }
 
-    fn file(&self) -> PathBuf {
-        todo!()
+    async fn file(&self) -> PathBuf {
+        // try to find the first file with a priority
+        self.files()
+            .await
+            .into_iter()
+            .find(|e| e.priority != FilePriority::None)
+            .map(|e| e.path)
+            .unwrap_or(PathBuf::from("unknown"))
     }
 
     async fn has_bytes(&self, bytes: &std::ops::Range<usize>) -> bool {
@@ -230,10 +235,6 @@ struct InnerTorrentManager {
 }
 
 impl InnerTorrentManager {
-    fn register(&self, _callback: TorrentManagerCallback) {
-        todo!()
-    }
-
     async fn info<'a>(
         &'a self,
         url: &'a str,
@@ -388,7 +389,7 @@ impl InnerTorrentManager {
                     if percentage >= CLEANUP_WATCH_THRESHOLD {
                         debug!("Cleaning media file \"{}\"", filename);
                         if let Some(torrent) = self.find_by_filename(filename.as_str()) {
-                            let filepath = torrent.file();
+                            let filepath = block_in_place(torrent.file());
                             let absolute_filepath = filepath.to_str().unwrap();
 
                             if filepath.exists() {
@@ -582,8 +583,7 @@ mod test {
                 let torrent_file_info = result
                     .largest_file()
                     .expect("expected a torrent file to have been present in the torrent info");
-                let result =
-                    block_in_place(manager.create(&torrent_info, &torrent_file_info, true));
+                let result = block_in_place(manager.create(magnet_uri, &torrent_file_info, true));
                 assert!(
                     result.is_ok(),
                     "expected the torrent to have been created, {}",

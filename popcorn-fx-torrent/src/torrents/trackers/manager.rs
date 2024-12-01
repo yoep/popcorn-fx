@@ -15,10 +15,12 @@ use log::{debug, info, trace, warn};
 use popcorn_fx_core::core::block_in_place;
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc::Sender;
-use tokio::sync::{RwLock, RwLockReadGuard};
+use tokio::sync::RwLock;
 use tokio::{select, time};
 use tokio_util::sync::CancellationToken;
 use url::Url;
+
+const DEFAULT_ANNOUNCEMENT_INTERVAL_SECONDS: u64 = 30;
 
 /// Kinds of tracker announces. This is typically indicated as the ``&event=``
 /// HTTP query string parameter to HTTP trackers.
@@ -64,6 +66,15 @@ impl Debug for Announcement {
     }
 }
 
+#[derive(Debug, Display, Clone, PartialEq)]
+#[display(fmt = "({}) {}", tier, url)]
+pub struct TrackerEntry {
+    /// The tier of the tracker
+    pub tier: u8,
+    /// The tracker url to connect to
+    pub url: Url,
+}
+
 /// The event that can be emitted by the tracker manager.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TrackerManagerEvent {
@@ -80,7 +91,6 @@ pub enum TrackerManagerEvent {
 pub struct TrackerManager {
     inner: Arc<InnerTrackerManager>,
     runtime: Arc<Runtime>,
-    cancellation_token: CancellationToken,
 }
 
 impl TrackerManager {
@@ -113,13 +123,13 @@ impl TrackerManager {
             timeout,
             event_sender,
         ));
-        let cancellation_token = CancellationToken::new();
 
-        Self {
-            inner,
-            cancellation_token,
-            runtime,
-        }
+        let inner_main_loop = inner.clone();
+        runtime.spawn(async move {
+            inner_main_loop.start().await;
+        });
+
+        Self { inner, runtime }
     }
 
     /// Checks if a given tracker URL is known within this manager.
@@ -144,69 +154,30 @@ impl TrackerManager {
     ///
     /// # Arguments
     ///
-    /// * `tracker` - The new tracker to add.
+    /// * `url` - The URL of the tracker to add.
+    /// * `tier` - The tier of the tracker to add.
     ///
     /// # Returns
     ///
     /// Returns the created tracker handle on success, else the [TrackerError].
-    pub async fn add_tracker(&self, url: &Url, tier: u8) -> Result<TrackerHandle> {
-        let url_already_exists: bool;
-
-        // check if the given url is already known for a tracker
-        {
-            let trackers = self.inner.trackers.read().await;
-            url_already_exists = trackers.iter().any(|e| e.url() == url);
-        }
-
-        // if the url is already known, reject the request to create the tracker
-        if url_already_exists {
-            return Err(TrackerError::DuplicateUrl(url.clone()));
-        }
-
-        match Tracker::builder()
-            .url(url.clone())
-            .tier(tier)
-            .timeout(self.inner.connection_timeout.clone())
-            .peer_id(self.inner.peer_id.clone())
-            .build()
-            .await
-        {
-            Ok(tracker) => self.inner.add_tracker(tracker).await,
-            Err(e) => {
-                debug!("Failed to create new tracker {}: {}", url, e);
-                Err(e)
-            }
-        }
+    pub async fn add_tracker_entry(&self, entry: TrackerEntry) -> Result<TrackerHandle> {
+        self.inner.create_tracker_from_entry(entry).await
     }
 
-    /// Starts announcing to all trackers with the specified info hash.
-    /// This will start automatic announcement loops for each known tracker within this manager.
-    pub fn start_announcing(&self) {
-        trace!("Creating a new automatic announcement loop for {:?}", self);
-        let announcement_cancellation_token = self.cancellation_token.clone();
-        let announcement_manager = self.inner.clone();
-        self.runtime.spawn(async move {
-            loop {
-                select! {
-                    _ = announcement_cancellation_token.cancelled() => break,
-                    _ = Self::do_automatic_announcements(&announcement_manager) => {},
-                }
-
-                select! {
-                    _ = announcement_cancellation_token.cancelled() => break,
-                    _ = time::sleep(Duration::from_secs(10)) => {},
-                }
-            }
-
-            debug!(
-                "Automatic announcement loop of {:?} has been terminated",
-                announcement_manager
-            );
-        });
-
+    /// Adds a new tracker to the manager on a background task.
+    ///
+    /// # Arguments
+    ///
+    /// * `url` - The URL of the tracker to add.
+    /// * `tier` - The tier of the tracker to add.
+    pub async fn add_tracker_async(&self, entry: TrackerEntry) {
         let inner = self.inner.clone();
+
         self.runtime.spawn(async move {
-            inner.announce_all().await;
+            select! {
+                _ = inner.cancellation_token.cancelled() => return,
+                _ = inner.create_tracker_from_entry(entry) => return,
+            }
         });
     }
 
@@ -229,6 +200,18 @@ impl TrackerManager {
         result
     }
 
+    /// Announces to all the trackers with the specified info hash.
+    /// This method will spawn the announcement task and return immediately.
+    pub async fn make_announce_all(&self) {
+        let inner = self.inner.clone();
+        self.runtime.spawn(async move {
+            select! {
+                _ = inner.cancellation_token.cancelled() => return,
+                _ = inner.announce_all() => return,
+            }
+        });
+    }
+
     /// Announce the given event to the specified tracker.
     pub async fn announce(
         &self,
@@ -243,56 +226,23 @@ impl TrackerManager {
     pub async fn make_announcement(&self, handle: TrackerHandle, event: AnnounceEvent) {
         let inner = self.inner.clone();
         self.runtime.spawn(async move {
-            let _ = inner.announce(handle, event).await;
-        });
-    }
-
-    /// Announce to all trackers that the given torrent info hash has stopped.
-    ///
-    /// # Arguments
-    ///
-    /// * `info_hash` - The torrent info hash to announce
-    pub async fn announce_stopped(&self) {
-        self.cancellation_token.cancel();
-        self.inner.announce_stopped().await;
-    }
-
-    /// Performs automatic announcements to all trackers periodically.
-    ///
-    /// This method is called by the periodic task loop.
-    ///
-    /// # Arguments
-    ///
-    /// * `manager` - The `InnerTrackerManager` to perform announcements with.
-    async fn do_automatic_announcements(manager: &Arc<InnerTrackerManager>) {
-        let mut mutex = manager.trackers.write().await;
-        let now = Utc::now();
-
-        for tracker in mutex.as_mut_slice() {
-            let interval = tracker.announcement_interval().await;
-            let last_announcement = tracker.last_announcement().await;
-            let delta = now.signed_duration_since(last_announcement);
-
-            if delta.num_seconds() >= interval as i64 {
-                match manager
-                    .announce_tracker(tracker, AnnounceEvent::Started)
-                    .await
-                {
-                    Ok(_) => {}
-                    Err(e) => warn!("Failed make an announcement for {}, {}", tracker, e),
-                }
+            select! {
+                _ = inner.cancellation_token.cancelled() => return,
+                _ = inner.announce(handle, event) => return,
             }
-        }
+        });
     }
 }
 
 impl Drop for TrackerManager {
     fn drop(&mut self) {
-        self.cancellation_token.cancel();
+        trace!("Dropping tracker manager {}", self.inner);
+        self.inner.cancellation_token.cancel();
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Display)]
+#[display(fmt = "{} ({})", peer_id, info_hash)]
 struct InnerTrackerManager {
     peer_id: PeerId,
     peer_port: u16,
@@ -303,6 +253,7 @@ struct InnerTrackerManager {
     peers: RwLock<Vec<SocketAddr>>,
     connection_timeout: Duration,
     event_sender: Sender<TrackerManagerEvent>,
+    cancellation_token: CancellationToken,
 }
 
 impl InnerTrackerManager {
@@ -321,12 +272,55 @@ impl InnerTrackerManager {
             peers: Default::default(),
             connection_timeout,
             event_sender,
+            cancellation_token: Default::default(),
         }
     }
 
-    /// Get the info hash of the torrent being tracked.
-    async fn info_hash(&self) -> InfoHash {
-        self.info_hash.clone()
+    /// Start the main loop of the tracker manager.
+    async fn start(&self) {
+        let mut announcement_tick =
+            time::interval(Duration::from_secs(DEFAULT_ANNOUNCEMENT_INTERVAL_SECONDS));
+
+        loop {
+            select! {
+                _ = self.cancellation_token.cancelled() => break,
+                _ = announcement_tick.tick() => self.do_automatic_announcements().await,
+            }
+        }
+
+        debug!("Tracker manager {} main loop has stopped", self);
+    }
+
+    /// Try to create a new tracker for the given url.
+    /// It returns the created tracker handle on success, else the [TrackerError].
+    async fn create_tracker_from_entry(&self, entry: TrackerEntry) -> Result<TrackerHandle> {
+        let url_already_exists: bool;
+
+        // check if the given url is already known for a tracker
+        {
+            let trackers = self.trackers.read().await;
+            url_already_exists = trackers.iter().any(|e| e.url() == &entry.url);
+        }
+
+        // if the url is already known, reject the request to create the tracker
+        if url_already_exists {
+            return Err(TrackerError::DuplicateUrl(entry.url));
+        }
+
+        match Tracker::builder()
+            .url(entry.url)
+            .tier(entry.tier)
+            .timeout(self.connection_timeout.clone())
+            .peer_id(self.peer_id.clone())
+            .build()
+            .await
+        {
+            Ok(tracker) => self.add_tracker(tracker).await,
+            Err(e) => {
+                debug!("Failed to create new tracker, {}", e);
+                Err(e)
+            }
+        }
     }
 
     /// Add the given tracker to the trackers pool.
@@ -338,7 +332,7 @@ impl InnerTrackerManager {
         {
             let mut mutex = self.trackers.write().await;
             mutex.push(tracker);
-            debug!("Tracker {} has been added", tracker_info);
+            debug!("Tracker {} has been added to {}", tracker_info, self);
         }
 
         self.send_event(TrackerManagerEvent::TrackerAdded(handle))
@@ -489,6 +483,31 @@ impl InnerTrackerManager {
             );
         }
     }
+
+    /// Performs automatic announcements to all trackers periodically.
+    ///
+    /// This method is called by the periodic task loop.
+    ///
+    /// # Arguments
+    ///
+    /// * `manager` - The `InnerTrackerManager` to perform announcements with.
+    async fn do_automatic_announcements(&self) {
+        let mut mutex = self.trackers.write().await;
+        let now = Utc::now();
+
+        for tracker in mutex.as_mut_slice() {
+            let interval = tracker.announcement_interval().await;
+            let last_announcement = tracker.last_announcement().await;
+            let delta = now.signed_duration_since(last_announcement);
+
+            if delta.num_seconds() >= interval as i64 {
+                match self.announce_tracker(tracker, AnnounceEvent::Started).await {
+                    Ok(_) => {}
+                    Err(e) => warn!("Failed make an announcement for {}, {}", tracker, e),
+                }
+            }
+        }
+    }
 }
 
 impl Drop for InnerTrackerManager {
@@ -500,7 +519,6 @@ impl Drop for InnerTrackerManager {
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
-    use tokio::sync::oneshot::channel;
     use url::Url;
 
     use popcorn_fx_core::testing::init_logger;
@@ -516,6 +534,7 @@ mod tests {
         let info_hash =
             InfoHash::from_str("urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7").unwrap();
         let (tx, _rx) = tokio::sync::mpsc::channel(1);
+        let entry = TrackerEntry { tier: 0, url };
         let manager = TrackerManager::new(
             peer_id,
             6881,
@@ -525,7 +544,7 @@ mod tests {
             runtime.clone(),
         );
 
-        let result = runtime.block_on(manager.add_tracker(&url, 0));
+        let result = runtime.block_on(manager.add_tracker_entry(entry));
 
         assert_eq!(
             None,
@@ -534,8 +553,33 @@ mod tests {
         );
     }
 
+    #[tokio::test]
+    async fn test_announce_all() {
+        init_logger();
+        let url = Url::parse("udp://tracker.opentrackr.org:1337").unwrap();
+        let runtime = Arc::new(Runtime::new().unwrap());
+        let peer_id = PeerId::new();
+        let info_hash =
+            InfoHash::from_str("urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7").unwrap();
+        let (tx, _rx) = tokio::sync::mpsc::channel(1);
+        let entry = TrackerEntry { tier: 0, url };
+        let manager = TrackerManager::new(
+            peer_id,
+            6881,
+            info_hash,
+            Duration::from_secs(1),
+            tx,
+            runtime.clone(),
+        );
+
+        manager.add_tracker_entry(entry).await.unwrap();
+        let result = manager.announce_all().await;
+
+        assert_ne!(0, result.peers.len(), "expected peers to have been found");
+    }
+
     #[test]
-    fn test_announce_all() {
+    fn test_drop() {
         init_logger();
         let url = Url::parse("udp://tracker.opentrackr.org:1337").unwrap();
         let runtime = Arc::new(Runtime::new().unwrap());
@@ -552,9 +596,7 @@ mod tests {
             runtime.clone(),
         );
 
-        runtime.block_on(manager.add_tracker(&url, 0)).unwrap();
-        let result = runtime.block_on(manager.announce_all());
-
-        assert_ne!(0, result.peers.len(), "expected peers to have been found");
+        runtime.block_on(manager.add_tracker_async(TrackerEntry { tier: 0, url }));
+        drop(manager);
     }
 }

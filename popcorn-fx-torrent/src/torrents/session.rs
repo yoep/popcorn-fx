@@ -13,8 +13,8 @@ use crate::torrents::peers::extensions::Extensions;
 use crate::torrents::peers::PeerListener;
 use crate::torrents::torrent::Torrent;
 use crate::torrents::{
-    InfoHash, RequestStrategy, TorrentError, TorrentEvent, TorrentFlags, TorrentHandle,
-    TorrentInfo, TorrentOperation, TorrentOperations, DEFAULT_TORRENT_EXTENSIONS,
+    InfoHash, RequestStrategy, TorrentConfig, TorrentError, TorrentEvent, TorrentFlags,
+    TorrentHandle, TorrentInfo, TorrentOperation, TorrentOperations, DEFAULT_TORRENT_EXTENSIONS,
     DEFAULT_TORRENT_OPERATIONS, DEFAULT_TORRENT_REQUEST_STRATEGIES,
 };
 use async_trait::async_trait;
@@ -297,25 +297,28 @@ impl DefaultSession {
         }
 
         let info_hash = torrent_info.info_hash.clone();
-        let mut request = Torrent::request()
-            .metadata(torrent_info)
-            .options(options)
-            .peer_listener_port(self.inner.peer_listener.port())
-            .extensions(self.inner.extensions())
-            .operations(self.inner.torrent_operations())
-            .storage(Box::new(DefaultTorrentFileStorage::new(
-                &block_in_place(self.inner.base_path.read()).clone(),
-            )))
-            .runtime(self.runtime.clone());
+        let mut config = TorrentConfig::builder();
 
         if let Some(peer_timeout) = peer_timeout {
-            request = request.peer_timeout(peer_timeout);
+            config = config.peer_connection_timeout(peer_timeout);
         }
         if let Some(tracker_timeout) = tracker_timeout {
-            request = request.tracker_timeout(tracker_timeout);
+            config = config.tracker_connection_timeout(tracker_timeout);
         }
 
-        let torrent = Torrent::try_from(request)?;
+        let torrent = Torrent::try_from(
+            Torrent::request()
+                .metadata(torrent_info)
+                .options(options)
+                .config(config.build())
+                .peer_listener_port(self.inner.peer_listener.port())
+                .extensions(self.inner.extensions())
+                .operations(self.inner.torrent_operations())
+                .storage(Box::new(DefaultTorrentFileStorage::new(
+                    &block_in_place(self.inner.base_path.read()).clone(),
+                )))
+                .runtime(self.runtime.clone()),
+        )?;
         let result_torrent = torrent.clone();
 
         self.inner
@@ -372,14 +375,18 @@ impl Session for DefaultSession {
                     let request = Torrent::request()
                         .metadata(torrent_info)
                         .options(TorrentFlags::None)
+                        .config(
+                            TorrentConfig::builder()
+                                .peer_connection_timeout(Duration::from_secs(2))
+                                .tracker_connection_timeout(Duration::from_secs(1))
+                                .build(),
+                        )
                         .peer_listener_port(self.inner.peer_listener.port())
                         .extensions(self.inner.extensions())
                         .operations(self.inner.torrent_operations())
                         .storage(Box::new(DefaultTorrentFileStorage::new(
                             &block_in_place(self.inner.base_path.read()).clone(),
                         )))
-                        .peer_timeout(Duration::from_secs(3))
-                        .tracker_timeout(Duration::from_secs(2))
                         .runtime(self.runtime.clone());
 
                     Torrent::try_from(request)
@@ -864,16 +871,16 @@ pub mod tests {
             .unwrap();
 
         let filepath = test_resource_filepath("debian.torrent");
-        let result = runtime
-            .block_on(session.resolve(filepath.to_str().unwrap()))
+        let result = session
+            .resolve(filepath.to_str().unwrap())
             .expect("expected the torrent info to have been resolved");
         let expected_info_hash =
             InfoHash::from_str("6D4795DEE70AEB88E03E5336CA7C9FCF0A1E206D").unwrap();
         assert_eq!(expected_info_hash, result.info_hash);
 
         let uri = "magnet:?xt=urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7&dn=debian-12.4.0-amd64-DVD-1.iso&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce";
-        let result = runtime
-            .block_on(session.resolve(uri))
+        let result = session
+            .resolve(uri)
             .expect("expected the torrent info to have been resolved");
         let expected_info_hash =
             InfoHash::from_str("EADAF0EFEA39406914414D359E0EA16416409BD7").unwrap();

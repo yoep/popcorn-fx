@@ -74,8 +74,8 @@ impl Torrent for DefaultTorrentStream {
         self.inner.handle()
     }
 
-    fn file(&self) -> PathBuf {
-        self.inner.file()
+    async fn file(&self) -> PathBuf {
+        self.inner.file().await
     }
 
     async fn has_bytes(&self, bytes: &std::ops::Range<usize>) -> bool {
@@ -254,7 +254,7 @@ impl InnerTorrentStream {
         let pieces = block_in_place(self.preparing_pieces.lock());
 
         if pieces.is_empty() {
-            self.torrent.sequential_mode();
+            block_in_place(self.torrent.sequential_mode());
             self.update_state(TorrentStreamState::Streaming);
         } else {
             debug!("Awaiting {} remaining pieces to be prepared", pieces.len());
@@ -281,7 +281,7 @@ impl InnerTorrentStream {
         let total_pieces = block_in_place(torrent.total_pieces());
         trace!(
             "Calculating preparation pieces of {:?} for a total of {} pieces",
-            torrent.file(),
+            block_in_place(torrent.file()),
             total_pieces
         );
         let number_of_preparation_pieces = max(8, (total_pieces as f32 * 0.08) as u32);
@@ -325,8 +325,8 @@ impl Torrent for InnerTorrentStream {
         self.torrent.handle()
     }
 
-    fn file(&self) -> PathBuf {
-        self.torrent.file()
+    async fn file(&self) -> PathBuf {
+        self.torrent.file().await
     }
 
     async fn has_bytes(&self, bytes: &std::ops::Range<usize>) -> bool {
@@ -457,7 +457,7 @@ impl DefaultTorrentStreamingResource {
             torrent
         );
         futures::executor::block_on(async {
-            let filepath = torrent.file();
+            let filepath = block_in_place(torrent.file());
 
             trace!("Opening torrent file {:?}", &filepath);
             fs::OpenOptions::new()

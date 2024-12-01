@@ -363,7 +363,7 @@ impl TorrentStreamServer for TorrentStreamServerInner {
         torrent: Box<dyn Torrent>,
     ) -> torrents::Result<Weak<Box<dyn TorrentStream>>> {
         let mut mutex = block_in_place(self.streams.lock());
-        let filepath = torrent.file();
+        let filepath = block_in_place(torrent.file());
         let filename = filepath
             .file_name()
             .expect("expected a valid filename")
@@ -488,7 +488,7 @@ mod test {
         torrent.expect_file().returning(move || file.clone());
         torrent.expect_has_bytes().return_const(true);
         torrent.expect_has_piece().returning(|_: usize| true);
-        torrent.expect_total_pieces().returning(|| Some(10));
+        torrent.expect_total_pieces().returning(|| 10);
         torrent.expect_prioritize_pieces().returning(|_: &[u32]| {});
         torrent.expect_sequential_mode().returning(|| {});
         torrent
@@ -581,7 +581,7 @@ mod test {
         torrent.expect_file().returning(move || file.clone());
         torrent.expect_has_bytes().return_const(true);
         torrent.expect_has_piece().returning(|_: usize| true);
-        torrent.expect_total_pieces().returning(|| Some(10));
+        torrent.expect_total_pieces().returning(|| 10);
         torrent.expect_prioritize_pieces().returning(|_: &[u32]| {});
         torrent.expect_sequential_mode().returning(|| {});
         torrent
@@ -633,7 +633,7 @@ mod test {
         let server = DefaultTorrentStreamServer::default();
         let mut torrent = MockTorrent::new();
         torrent.expect_file().returning(move || file.clone());
-        torrent.expect_total_pieces().returning(|| Some(10));
+        torrent.expect_total_pieces().returning(|| 10);
         torrent.expect_prioritize_pieces().returning(|_: &[u32]| {});
         torrent
             .expect_state()

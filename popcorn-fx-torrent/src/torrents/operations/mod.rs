@@ -1,9 +1,11 @@
+pub use connect_trackers::*;
 pub use create_files::*;
 pub use create_pending_requests::*;
 pub use create_pieces::*;
 pub use retrieve_metadata::*;
 pub use validate_files::*;
 
+mod connect_trackers;
 mod create_files;
 mod create_pending_requests;
 mod create_pieces;

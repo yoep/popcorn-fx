@@ -85,7 +85,7 @@ mod tests {
     use super::*;
     use crate::torrents::fs::DefaultTorrentFileStorage;
     use crate::torrents::operations::{TorrentFilesOperation, TorrentPiecesOperation};
-    use crate::torrents::{Torrent, TorrentInfo};
+    use crate::torrents::{Torrent, TorrentConfig, TorrentInfo};
     use popcorn_fx_core::testing::{copy_test_file, init_logger, read_test_file_to_bytes};
     use std::time::Duration;
     use tempfile::tempdir;
@@ -105,8 +105,12 @@ mod tests {
         let torrent = Torrent::request()
             .metadata(torrent_info)
             .peer_listener_port(6881)
+            .config(
+                TorrentConfig::builder()
+                    .tracker_connection_timeout(Duration::from_secs(1))
+                    .build(),
+            )
             .storage(Box::new(DefaultTorrentFileStorage::new(temp_path)))
-            .tracker_timeout(Duration::from_secs(1))
             .operations(vec![
                 Box::new(TorrentPiecesOperation::new()),
                 Box::new(TorrentFilesOperation::new()),

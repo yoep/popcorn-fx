@@ -149,7 +149,11 @@ impl HttpConnection {
 #[async_trait]
 impl TrackerConnection for HttpConnection {
     async fn start(&mut self) -> Result<()> {
-        // no-op
+        let url = self.url.clone();
+
+        // check if we're able to connect
+        trace!("Trying to connect to {}", url);
+        self.client.head(url).send().await?;
         Ok(())
     }
 
@@ -249,6 +253,20 @@ mod tests {
     use log::info;
     use popcorn_fx_core::testing::{init_logger, read_test_file_to_bytes};
     use tokio::runtime::Runtime;
+
+    #[tokio::test]
+    async fn test_start() {
+        init_logger();
+        let torrent_info_data = read_test_file_to_bytes("ubuntu-https.torrent");
+        let torrent_info = TorrentInfo::try_from(torrent_info_data.as_slice()).unwrap();
+        let peer_id = PeerId::new();
+        let url = torrent_info.trackers().get(0).cloned().unwrap();
+        let mut connection = HttpConnection::new(url, peer_id, Duration::from_secs(2));
+
+        let result = connection.start().await;
+
+        assert_eq!(Ok(()), result);
+    }
 
     #[test]
     fn test_create_announce_url() {

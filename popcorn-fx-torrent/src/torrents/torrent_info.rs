@@ -1,8 +1,6 @@
-use log::{debug, trace, warn};
+use log::{debug, warn};
 use popcorn_fx_core::core::torrents::magnet::Magnet;
 use serde::{Deserialize, Serialize};
-use sha1::{Digest, Sha1};
-use sha2::Sha256;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
 use std::str::FromStr;
@@ -11,8 +9,6 @@ use url::Url;
 use crate::torrents::errors::{Result, TorrentError};
 use crate::torrents::info_hash::InfoHash;
 use crate::torrents::{Sha1Hash, Sha256Hash};
-
-const VALIDATION_ERR_MISSING_METADATA_FIELDS: &str = "info or info_hash must be set";
 
 /// Represents a list of URLs, which can be single, multiple, or ignored.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -407,7 +403,6 @@ impl TorrentInfo {
         let mut tier = 0u8;
 
         // add the announce tracker info to the tiered trackers if present
-
         if let Some(announce) = self.announce.as_ref() {
             match Url::parse(announce) {
                 Ok(url) => {

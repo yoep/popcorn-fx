@@ -115,7 +115,7 @@ pub trait Torrent: Debug + Display + Callbacks<TorrentEvent> + Send + Sync {
     fn handle(&self) -> TorrentHandle;
 
     /// The absolute path to this torrent file.
-    fn file(&self) -> PathBuf;
+    async fn file(&self) -> PathBuf;
 
     /// Check if the given bytes are available within the torrent.
     /// This will check if the underlying pieces that contain the given byte range are downloaded, validated and written to storage.
@@ -388,7 +388,7 @@ mod mock {
         #[async_trait]
         impl Torrent for Torrent {
             fn handle(&self) -> TorrentHandle;
-            fn file(&self) -> PathBuf;
+            async fn file(&self) -> PathBuf;
             async fn has_bytes(&self, bytes: &Range<usize>) -> bool;
             async fn has_piece(&self, piece: usize) -> bool;
             async fn prioritize_bytes(&self, bytes: &Range<usize>);

@@ -5,8 +5,6 @@ use derive_more::Display;
 use log::trace;
 use tokio::sync::Mutex;
 
-const RETRIEVE_METADATA_CONNECTIONS: usize = 15;
-
 /// The torrent metadata operation is responsible for checking if the metadata for a torrent is present and if not, retrieving it from peers.
 #[derive(Debug, Display)]
 #[display(fmt = "retrieve metadata operation")]
@@ -65,14 +63,9 @@ impl TorrentOperation for TorrentMetadataOperation {
             // if not, we want to retrieve the peers from trackers
             if torrent.discovered_peers().await.len() == 0 {
                 trace!("No peers discovered yet, requesting from trackers");
-                torrent.send_command_event(TorrentCommandEvent::WantTracker);
+                torrent.make_announce_all().await;
             }
 
-            // request the torrent to establish connections to peers
-            // if the MetadataExtension is enabled, this will automatically start to fetch metadata from peers
-            torrent
-                .update_wanted_peers(RETRIEVE_METADATA_CONNECTIONS)
-                .await;
             torrent.send_command_event(TorrentCommandEvent::WantPeer);
             self.info.lock().await.requesting_metadata = true;
         }
@@ -95,7 +88,7 @@ struct MetadataInfo {
 mod tests {
     use super::*;
     use crate::torrents::fs::DefaultTorrentFileStorage;
-    use crate::torrents::{Torrent, TorrentInfo};
+    use crate::torrents::{Torrent, TorrentConfig, TorrentInfo};
     use popcorn_fx_core::core::torrents::magnet::Magnet;
     use popcorn_fx_core::testing::{init_logger, read_test_file_to_bytes};
     use std::str::FromStr;
@@ -115,8 +108,13 @@ mod tests {
         let torrent = Torrent::request()
             .metadata(torrent_info)
             .peer_listener_port(6881)
+            .config(
+                TorrentConfig::builder()
+                    .peer_connection_timeout(Duration::from_secs(1))
+                    .tracker_connection_timeout(Duration::from_secs(1))
+                    .build(),
+            )
             .storage(Box::new(DefaultTorrentFileStorage::new(temp_path)))
-            .tracker_timeout(Duration::from_secs(1))
             .runtime(runtime.clone())
             .build()
             .unwrap();
@@ -141,8 +139,13 @@ mod tests {
             .metadata(torrent_info)
             .options(TorrentFlags::None)
             .peer_listener_port(6881)
+            .config(
+                TorrentConfig::builder()
+                    .peer_connection_timeout(Duration::from_secs(1))
+                    .tracker_connection_timeout(Duration::from_secs(1))
+                    .build(),
+            )
             .storage(Box::new(DefaultTorrentFileStorage::new(temp_path)))
-            .tracker_timeout(Duration::from_secs(1))
             .runtime(runtime.clone())
             .build()
             .unwrap();

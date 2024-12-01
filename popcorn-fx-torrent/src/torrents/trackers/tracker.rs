@@ -140,7 +140,7 @@ impl Tracker {
         &self.url
     }
 
-    /// Retrieve the expected announcement interval in seconds.
+    /// Get the expected announcement interval in seconds.
     ///
     /// # Returns
     ///

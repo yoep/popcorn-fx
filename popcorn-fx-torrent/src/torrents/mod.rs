@@ -1,6 +1,6 @@
 use crate::torrents::operations::{
     TorrentFileValidationOperation, TorrentFilesOperation, TorrentMetadataOperation,
-    TorrentPendingRequestsOperation, TorrentPiecesOperation,
+    TorrentPendingRequestsOperation, TorrentPiecesOperation, TorrentTrackersOperation,
 };
 #[cfg(feature = "extension-metadata")]
 use crate::torrents::peers::extensions::metadata::MetadataExtension;
@@ -40,6 +40,7 @@ const DEFAULT_TORRENT_EXTENSIONS: fn() -> Extensions = || {
 };
 const DEFAULT_TORRENT_OPERATIONS: fn() -> TorrentOperations = || {
     vec![
+        Box::new(TorrentTrackersOperation::new()),
         Box::new(TorrentMetadataOperation::new()),
         Box::new(TorrentPiecesOperation::new()),
         Box::new(TorrentFilesOperation::new()),

@@ -49,10 +49,10 @@ impl PeerListener {
         loop {
             select! {
                 _ = cancellation_token.cancelled() => break,
-                Ok((stream, socket)) = ipv4.accept() => {
+                Ok((_stream, socket)) = ipv4.accept() => {
                     trace!("Received incoming peer connection {}", socket);
                 },
-                Ok((stream, socket)) = ipv6.accept() => {
+                Ok((_stream, socket)) = ipv6.accept() => {
                     trace!("Received incoming peer connection {}", socket);
                 },
             }

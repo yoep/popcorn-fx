@@ -182,7 +182,7 @@ impl MetadataExtension {
             .and_then(|registry| {
                 registry
                     .iter()
-                    .find(|(name, number)| name.as_str() == EXTENSION_NAME_METADATA)
+                    .find(|(name, _)| name.as_str() == EXTENSION_NAME_METADATA)
                     .map(|(_, e)| e.clone())
             })
             .ok_or(extensions::Error::Operation(

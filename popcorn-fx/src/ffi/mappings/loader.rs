@@ -182,11 +182,11 @@ impl From<LoadingProgress> for LoadingProgressC {
         Self {
             progress: value.progress,
             seeds: value.seeds,
-            peers: value.peers,
-            download_speed: value.download_speed,
-            upload_speed: value.upload_speed,
+            peers: value.peers as u32,
+            download_speed: value.download_speed as u32,
+            upload_speed: value.upload_speed as u32,
             downloaded: value.downloaded,
-            total_size: value.total_size,
+            total_size: value.total_size as u64,
         }
     }
 }

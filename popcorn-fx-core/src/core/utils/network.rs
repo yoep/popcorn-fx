@@ -74,10 +74,10 @@ macro_rules! available_port {
         popcorn_fx_core::core::utils::network::available_port($lower_bound, $upper_bound)
     };
     ($lower_bound:expr) => {
-        ($lower_bound, u16::MAX)
+        popcorn_fx_core::core::utils::network::available_port($lower_bound, u16::MAX)
     };
     () => {
-        (1000, u16::MAX)
+        popcorn_fx_core::core::utils::network::available_port(1000, u16::MAX)
     };
 }
 

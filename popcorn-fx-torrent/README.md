@@ -15,9 +15,11 @@ Both V1 & V2 of the Bittorrent protocol specification have been implemented.
 - [x] [BEP10](https://www.bittorrent.org/beps/bep_0010.html) - Extension Protocol
 - [ ] [BEP11](https://www.bittorrent.org/beps/bep_0011.html) - Peer Exchange (PEX)
 - [x] [BEP20](https://www.bittorrent.org/beps/bep_0020.html) - Peer ID Conventions
+- [ ] [BEP29](https://www.bittorrent.org/beps/bep_0029.html) - uTorrent transport protocol
 - [ ] [BEP47](https://www.bittorrent.org/beps/bep_0047.html) - Padding files and extended file attributes
 - [ ] [BEP52](https://www.bittorrent.org/beps/bep_0052.html) - The BitTorrent Protocol Specification v2
 - [x] [BEP53](https://www.bittorrent.org/beps/bep_0053.html) - Magnets
+- [ ] [BEP55](https://www.bittorrent.org/beps/bep_0055.html) - Holepunch extension
 
 ## Usage
 

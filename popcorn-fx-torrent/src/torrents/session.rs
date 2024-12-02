@@ -9,13 +9,15 @@ use std::time::Duration;
 
 use crate::torrents::errors::Result;
 use crate::torrents::fs::DefaultTorrentFileStorage;
+use crate::torrents::operations::TorrentTrackersSyncOperation;
 use crate::torrents::peers::extensions::Extensions;
 use crate::torrents::peers::PeerListener;
 use crate::torrents::torrent::Torrent;
 use crate::torrents::{
     InfoHash, RequestStrategy, TorrentConfig, TorrentError, TorrentEvent, TorrentFlags,
     TorrentHandle, TorrentInfo, TorrentOperation, TorrentOperations, DEFAULT_TORRENT_EXTENSIONS,
-    DEFAULT_TORRENT_OPERATIONS, DEFAULT_TORRENT_REQUEST_STRATEGIES,
+    DEFAULT_TORRENT_OPERATIONS, DEFAULT_TORRENT_PROTOCOL_EXTENSIONS,
+    DEFAULT_TORRENT_REQUEST_STRATEGIES,
 };
 use async_trait::async_trait;
 use derive_more::Display;
@@ -28,9 +30,11 @@ use popcorn_fx_core::core::torrents::TorrentHealth;
 use popcorn_fx_core::core::{
     block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks, Handle,
 };
+use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
 use tokio::sync::RwLock;
 use tokio::{select, time};
+use tokio_util::sync::CancellationToken;
 
 /// A unique handle identifier of a [Session].
 pub type SessionHandle = Handle;
@@ -231,25 +235,19 @@ impl DefaultSession {
         runtime: Arc<Runtime>,
     ) -> Result<Self> {
         trace!("Trying to create a new torrent session");
-        let port = available_port!(6881, 6889).ok_or(TorrentError::Io(
-            "no available port found to start new peer listener".to_string(),
-        ))?;
-        let peer_listener = PeerListener::new(port, runtime.clone()).await?;
         let torrent_storage_location = base_path.as_ref().to_path_buf();
-        let inner_session = InnerSession::new(
-            torrent_storage_location,
-            peer_listener,
-            extensions,
-            torrent_operations,
-            request_strategies,
-        )
-        .await?;
+        let inner = Arc::new(
+            InnerSession::new(
+                torrent_storage_location,
+                extensions,
+                torrent_operations,
+                request_strategies,
+            )
+            .await?,
+        );
 
-        debug!("Created new torrent session {}", inner_session.handle);
-        Ok(Self {
-            inner: Arc::new(inner_session),
-            runtime,
-        })
+        debug!("Created new torrent session {}", inner.handle);
+        Ok(Self { inner, runtime })
     }
 
     pub async fn torrent(&self, handle: TorrentHandle) -> Option<Torrent> {
@@ -311,7 +309,6 @@ impl DefaultSession {
                 .metadata(torrent_info)
                 .options(options)
                 .config(config.build())
-                .peer_listener_port(self.inner.peer_listener.port())
                 .extensions(self.inner.extensions())
                 .operations(self.inner.torrent_operations())
                 .storage(Box::new(DefaultTorrentFileStorage::new(
@@ -377,11 +374,13 @@ impl Session for DefaultSession {
                         .options(TorrentFlags::None)
                         .config(
                             TorrentConfig::builder()
-                                .peer_connection_timeout(Duration::from_secs(2))
+                                .peers_lower_limit(0)
+                                .peers_upper_limit(0)
+                                .peer_connection_timeout(Duration::from_secs(0))
                                 .tracker_connection_timeout(Duration::from_secs(1))
                                 .build(),
                         )
-                        .peer_listener_port(self.inner.peer_listener.port())
+                        .protocol_extensions(DEFAULT_TORRENT_PROTOCOL_EXTENSIONS())
                         .extensions(self.inner.extensions())
                         .operations(self.inner.torrent_operations())
                         .storage(Box::new(DefaultTorrentFileStorage::new(
@@ -603,8 +602,6 @@ struct InnerSession {
     base_path: RwLock<PathBuf>,
     /// The currently active torrents within the session
     torrents: RwLock<HashMap<InfoHash, Torrent>>,
-    /// The peer listener for the session
-    peer_listener: PeerListener,
     /// The currently active extensions for the session
     extensions: Extensions,
     /// The torrent operations for the session
@@ -618,7 +615,6 @@ struct InnerSession {
 impl InnerSession {
     async fn new(
         base_path: PathBuf,
-        peer_listener: PeerListener,
         extensions: Extensions,
         torrent_operations: Vec<Box<dyn TorrentOperation>>,
         request_strategies: Vec<Box<dyn RequestStrategy>>,
@@ -626,7 +622,6 @@ impl InnerSession {
         Ok(Self {
             handle: Default::default(),
             base_path: RwLock::new(base_path),
-            peer_listener,
             extensions,
             torrent_operations,
             request_strategies,
@@ -828,7 +823,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_session_torrent_health() {
+    fn test_session_torrent_health_from_file() {
         init_logger();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -849,7 +844,35 @@ pub mod tests {
             .block_on(session.torrent_health_from_info(info))
             .expect("expected a torrent health");
 
-        info!("torrent health: {:?}", result);
+        info!("Got torrent health result {:?}", result);
+        assert_ne!(TorrentHealthState::Unknown, result.state);
+        assert_ne!(0, result.seeds, "expected seeders to have been found");
+    }
+
+    #[test]
+    fn test_session_torrent_health_from_magnet() {
+        init_logger();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let runtime = Arc::new(Runtime::new().unwrap());
+        let uri = "magnet:?xt=urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7&dn=debian-12.4.0-amd64-DVD-1.iso&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce";
+        let magnet = Magnet::from_str(uri).unwrap();
+        let info = TorrentInfo::try_from(magnet).unwrap();
+        let session = runtime
+            .block_on(
+                DefaultSession::builder()
+                    .base_path(temp_path)
+                    .extensions(vec![])
+                    .runtime(runtime.clone())
+                    .build(),
+            )
+            .unwrap();
+
+        let result = runtime
+            .block_on(session.torrent_health_from_info(info))
+            .expect("expected a torrent health");
+
+        info!("Got torrent health result {:?}", result);
         assert_ne!(TorrentHealthState::Unknown, result.state);
         assert_ne!(0, result.seeds, "expected seeders to have been found");
     }

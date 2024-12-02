@@ -97,8 +97,14 @@ impl ApplicationConfig {
     /// These are mutable and can be changed during the lifetime of the application.
     /// They're most of the time managed by the user based on preferences.
     pub fn user_settings(&self) -> PopcornSettings {
-        let mutex = block_in_place(self.settings.lock());
-        mutex.clone()
+        block_in_place(self.user_settings_async())
+    }
+
+    /// The popcorn user settings of the application.
+    /// These are mutable and can be changed during the lifetime of the application.
+    /// They're most of the time managed by the user based on preferences.
+    pub async fn user_settings_async(&self) -> PopcornSettings {
+        self.settings.lock().await.clone()
     }
 
     /// Get a reference to the mutex guarding the user settings for the application.

@@ -251,11 +251,11 @@ impl From<DownloadStatusC> for DownloadStatus {
         Self {
             progress: value.progress,
             seeds: value.seeds,
-            peers: value.peers,
-            download_speed: value.download_speed,
-            upload_speed: value.upload_speed,
+            peers: value.peers as usize,
+            download_speed: value.download_speed as u64,
+            upload_speed: value.upload_speed as u64,
             downloaded: value.downloaded,
-            total_size: value.total_size,
+            total_size: value.total_size as usize,
         }
     }
 }
@@ -265,11 +265,11 @@ impl From<DownloadStatus> for DownloadStatusC {
         Self {
             progress: value.progress,
             seeds: value.seeds,
-            peers: value.peers,
-            download_speed: value.download_speed,
-            upload_speed: value.upload_speed,
+            peers: value.peers as u32,
+            download_speed: value.download_speed as u32,
+            upload_speed: value.upload_speed as u32,
             downloaded: value.downloaded,
-            total_size: value.total_size,
+            total_size: value.total_size as u64,
         }
     }
 }
@@ -306,10 +306,12 @@ mod tests {
 
     #[test]
     fn test_from_torrent_info_c() {
+        let handle = "MyHandle";
         let uri = "magnet:?FooBarUri";
         let name = "FooBar54";
         let total_files = 15;
         let info = TorrentInfoC {
+            info_hash: into_c_string(handle.to_string()),
             uri: into_c_string(uri.to_string()),
             name: into_c_string(name.to_string()),
             directory_name: ptr::null_mut(),
@@ -317,6 +319,7 @@ mod tests {
             files: CArray::from(Vec::<TorrentFileInfoC>::new()),
         };
         let expected_result = TorrentInfo {
+            info_hash: handle.to_string(),
             uri: uri.to_string(),
             name: name.to_string(),
             directory_name: None,

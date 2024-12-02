@@ -1,12 +1,13 @@
-use std::fmt::Debug;
-use std::fs;
-use std::path::PathBuf;
-use std::sync::Arc;
-
 use async_trait::async_trait;
-use chrono::{DateTime, Duration, Local};
+use chrono::{DateTime, Local};
 use itertools::Itertools;
 use log::{debug, error, info, trace, warn};
+use std::fmt::Debug;
+use std::fs;
+use std::ops::Div;
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::time::Duration;
 use tokio::runtime::Runtime;
 
 use crate::torrents::{
@@ -17,7 +18,7 @@ use popcorn_fx_core::core::config::{ApplicationConfig, CleaningMode, TorrentSett
 use popcorn_fx_core::core::events::{Event, EventPublisher, PlayerStoppedEvent};
 use popcorn_fx_core::core::storage::Storage;
 use popcorn_fx_core::core::torrents::{
-    TorrentFileInfo, TorrentHandle, TorrentHealth, TorrentInfo, TorrentManager,
+    DownloadStatus, TorrentFileInfo, TorrentHandle, TorrentHealth, TorrentInfo, TorrentManager,
     TorrentManagerEvent, TorrentState,
 };
 use popcorn_fx_core::core::{
@@ -25,7 +26,7 @@ use popcorn_fx_core::core::{
 };
 
 const CLEANUP_WATCH_THRESHOLD: f64 = 85f64;
-const CLEANUP_AFTER: fn() -> Duration = || Duration::days(10);
+const CLEANUP_AFTER: fn() -> Duration = || Duration::from_secs(10 * 24 * 60 * 60);
 
 impl Callbacks<popcorn_fx_core::core::torrents::TorrentEvent> for Torrent {
     fn add_callback(
@@ -41,12 +42,23 @@ impl Callbacks<popcorn_fx_core::core::torrents::TorrentEvent> for Torrent {
                     }
                     TorrentEvent::MetadataChanged => None,
                     TorrentEvent::PeersChanged => None,
+                    TorrentEvent::TrackersChanged => None,
                     TorrentEvent::PiecesChanged => None,
                     TorrentEvent::PieceCompleted(e) => {
                         Some(torrents::TorrentEvent::PieceFinished(e as u32))
                     }
                     TorrentEvent::FilesChanged => None,
-                    TorrentEvent::Stats(_) => None,
+                    TorrentEvent::Stats(stats) => {
+                        Some(torrents::TorrentEvent::DownloadStatus(DownloadStatus {
+                            progress: stats.progress(),
+                            seeds: 0,
+                            peers: stats.total_peers,
+                            download_speed: stats.download_rate,
+                            upload_speed: stats.upload_rate,
+                            downloaded: stats.total_downloaded as u64,
+                            total_size: stats.total_size,
+                        }))
+                    }
                 };
 
                 if let Some(event) = event {
@@ -142,14 +154,16 @@ impl DefaultTorrentManager {
         event_publisher: Arc<EventPublisher>,
         runtime: Arc<Runtime>,
     ) -> torrents::Result<Self> {
-        let session: Box<dyn Session> = block_in_place(
-            DefaultSession::builder()
-                .base_path(settings.user_settings().torrent_settings.directory())
-                .runtime(runtime)
-                .build(),
-        )
-        .map(|e| Box::new(e))
-        .map_err(|e| torrents::Error::TorrentError(e.to_string()))?;
+        let session: Box<dyn Session> = runtime
+            .clone()
+            .block_on(
+                DefaultSession::builder()
+                    .base_path(settings.user_settings().torrent_settings.directory())
+                    .runtime(runtime)
+                    .build(),
+            )
+            .map(|e| Box::new(e))
+            .map_err(|e| torrents::Error::TorrentError(e.to_string()))?;
 
         let instance = Self {
             inner: Arc::new(InnerTorrentManager {
@@ -450,7 +464,7 @@ impl InnerTorrentManager {
 
     fn clean_directory_after(settings: &TorrentSettings) {
         let cleanup_after = CLEANUP_AFTER();
-        debug!("Cleaning torrents older than {}", cleanup_after);
+        debug!("Cleaning torrents older than {:?}", cleanup_after);
         for entry in settings
             .directory
             .read_dir()
@@ -467,7 +481,9 @@ impl InnerTorrentManager {
                                 absolute_path,
                                 last_modified
                             );
-                            if Local::now() - last_modified >= cleanup_after {
+                            if Local::now() - last_modified
+                                >= chrono::Duration::from_std(cleanup_after).unwrap()
+                            {
                                 match Storage::delete(filepath.path()) {
                                     Ok(_) => {
                                         debug!("Torrent path {} has been removed", absolute_path)
@@ -542,6 +558,42 @@ mod test {
             .expect("expected the torrent info to have been returned");
 
         assert_eq!(expected_result, result)
+    }
+
+    #[test]
+    fn test_create() {
+        init_logger();
+        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let runtime = Arc::new(Runtime::new().unwrap());
+        // let uri = "magnet:?xt=urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7&dn=debian-12.4.0-amd64-DVD-1.iso&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce";
+        let uri = "magnet:?xt=urn:btih:95EF921A3E1128F65CDD7B85E87D738249FA94A1&tr=udp://tracker.opentrackr.org:1337&tr=udp://tracker.tiny-vps.com:6969&tr=udp://tracker.openbittorrent.com:1337&tr=udp://tracker.coppersurfer.tk:6969&tr=udp://tracker.leechers-paradise.org:6969&tr=udp://p4p.arenabg.ch:1337&tr=udp://p4p.arenabg.com:1337&tr=udp://tracker.internetwarriors.net:1337&tr=udp://9.rarbg.to:2710&tr=udp://9.rarbg.me:2710&tr=udp://exodus.desync.com:6969&tr=udp://tracker.cyberia.is:6969&tr=udp://tracker.torrent.eu.org:451&tr=udp://open.stealth.si:80&tr=udp://tracker.moeking.me:6969&tr=udp://tracker.zerobytes.xyz:1337";
+        let settings = default_config(temp_path, CleaningMode::Off);
+        let event_publisher = Arc::new(EventPublisher::default());
+        let (tx, rx) = channel();
+        let manager =
+            DefaultTorrentManager::new(settings, event_publisher.clone(), runtime.clone()).unwrap();
+
+        let torrent_info = runtime
+            .block_on(manager.info(uri))
+            .expect("expected the torrent info to have been returned");
+        let torrent_file = torrent_info
+            .largest_file()
+            .expect("expected a file to be returned");
+
+        let torrent = runtime
+            .block_on(manager.create(uri, &torrent_file, true))
+            .expect("expected the torrent to have been created");
+
+        torrent.add_callback(Box::new(move |event| {
+            if let torrents::TorrentEvent::PieceFinished(piece) = event {
+                info!("Received piece finished event for piece {}", piece);
+                tx.send(()).unwrap()
+            }
+        }));
+
+        rx.recv_timeout(Duration::from_secs(120))
+            .expect("expected the download to have been started");
     }
 
     #[test]
@@ -704,7 +756,7 @@ mod test {
             runtime,
         )
         .unwrap();
-        let modified = Local::now() - Duration::days(10);
+        let modified = Local::now() - chrono::Duration::days(10);
 
         let file =
             File::open(PathBuf::from(temp_path).join("torrents").join("my-torrent")).unwrap();

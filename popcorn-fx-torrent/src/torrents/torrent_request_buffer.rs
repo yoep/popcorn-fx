@@ -9,7 +9,7 @@ use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::sync::{Mutex, OwnedSemaphorePermit, RwLock, Semaphore};
 
 /// The timeout after which a request will be retried for execution
-const REQUEST_TIMEOUT_MILLIS: u128 = 60 * 1000; // 60 seconds
+const REQUEST_TIMEOUT_MILLIS: u128 = 30 * 1000;
 
 /// The pending request for a piece part of a torrent.
 #[derive(Debug, Display, Clone)]

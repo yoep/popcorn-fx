@@ -66,7 +66,6 @@ impl TorrentOperation for TorrentMetadataOperation {
                 torrent.make_announce_all().await;
             }
 
-            torrent.send_command_event(TorrentCommandEvent::WantPeer);
             self.info.lock().await.requesting_metadata = true;
         }
 

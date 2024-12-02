@@ -1,10 +1,12 @@
 use crate::torrents::operations::{
     TorrentFileValidationOperation, TorrentFilesOperation, TorrentMetadataOperation,
-    TorrentPendingRequestsOperation, TorrentPiecesOperation, TorrentTrackersOperation,
+    TorrentPeersOperation, TorrentPendingRequestsOperation, TorrentPiecesOperation,
+    TorrentTrackersOperation,
 };
 #[cfg(feature = "extension-metadata")]
 use crate::torrents::peers::extensions::metadata::MetadataExtension;
 use crate::torrents::peers::extensions::Extensions;
+use crate::torrents::peers::ProtocolExtensionFlags;
 use crate::torrents::request_strategies::{PriorityRequestStrategy, RequestAvailabilityStrategy};
 pub use errors::*;
 pub use file::*;
@@ -21,6 +23,7 @@ pub mod fs;
 mod info_hash;
 mod manager;
 pub mod operations;
+mod peer_pool;
 pub mod peers;
 mod piece;
 pub mod request_strategies;
@@ -30,6 +33,8 @@ mod torrent_info;
 mod torrent_request_buffer;
 mod trackers;
 
+const DEFAULT_TORRENT_PROTOCOL_EXTENSIONS: fn() -> ProtocolExtensionFlags =
+    || ProtocolExtensionFlags::LTEP;
 const DEFAULT_TORRENT_EXTENSIONS: fn() -> Extensions = || {
     let mut extensions: Extensions = Vec::new();
 
@@ -41,6 +46,7 @@ const DEFAULT_TORRENT_EXTENSIONS: fn() -> Extensions = || {
 const DEFAULT_TORRENT_OPERATIONS: fn() -> TorrentOperations = || {
     vec![
         Box::new(TorrentTrackersOperation::new()),
+        Box::new(TorrentPeersOperation::new()),
         Box::new(TorrentMetadataOperation::new()),
         Box::new(TorrentPiecesOperation::new()),
         Box::new(TorrentFilesOperation::new()),

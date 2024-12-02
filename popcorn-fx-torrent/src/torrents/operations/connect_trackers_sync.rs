@@ -5,26 +5,22 @@ use derive_more::Display;
 use log::{debug, warn};
 use tokio::sync::Mutex;
 
-/// The torrent trackers operation is responsible for adding the known trackers to the torrent.
-/// This operation add the trackers in a "fire-and-forget" mode and only waits for one tracker connection to have been established.
+/// The torrent trackers sync operation is responsible for adding the known trackers to the torrent.
+/// This operation waits for the trackersto have established a connection before continuing.
 #[derive(Debug, Display)]
-#[display(fmt = "connect trackers operation")]
-pub struct TorrentTrackersOperation {
+#[display(fmt = "connect trackers synchronized operation")]
+pub struct TorrentTrackersSyncOperation {
     initialized: Mutex<bool>,
-    cached_tiered_trackers: Mutex<Vec<TrackerEntry>>,
 }
 
-impl TorrentTrackersOperation {
+impl TorrentTrackersSyncOperation {
     pub fn new() -> Self {
         Self {
             initialized: Default::default(),
-            cached_tiered_trackers: Mutex::new(Vec::new()),
         }
     }
 
-    /// Get the tiered trackers from the metadata of the torrent.
-    /// Returns false if the tiered trackers could not be created.
-    async fn create_trackers_cache(&self, torrent: &InnerTorrent) -> bool {
+    async fn create_trackers(&self, torrent: &InnerTorrent) -> bool {
         let metadata = torrent.metadata().await;
         let tiered_trackers = metadata.tiered_trackers();
 
@@ -36,65 +32,43 @@ impl TorrentTrackersOperation {
             return false;
         }
 
-        let tracker_entries = tiered_trackers
+        let futures: Vec<_> = tiered_trackers
             .into_iter()
-            .map(|(tier, trackers)| {
-                trackers
-                    .into_iter()
+            .map(|(tier, urls)| {
+                urls.into_iter()
                     .map(|url| TrackerEntry { tier, url })
                     .collect::<Vec<_>>()
             })
             .flatten()
+            .map(|(entry)| torrent.add_tracker(entry))
             .collect();
 
-        *self.cached_tiered_trackers.lock().await = tracker_entries;
+        let added_trackers = futures::future::join_all(futures)
+            .await
+            .into_iter()
+            .map(|e| e.is_ok())
+            .count();
+        debug!("Added {} trackers to {}", added_trackers, torrent);
         *self.initialized.lock().await = true;
         true
-    }
-
-    /// Try to add the trackers from the cache to the torrent.
-    async fn add_trackers_from_cache(&self, torrent: &InnerTorrent) {
-        let mut mutex = self.cached_tiered_trackers.lock().await;
-        let entries: Vec<_> = mutex.drain(..).collect();
-
-        if entries.is_empty() {
-            return;
-        }
-
-        let total_entries = entries.len();
-        for entry in entries {
-            torrent.send_command_event(TorrentCommandEvent::ConnectToTracker(entry));
-        }
-
-        debug!(
-            "Queued a total of {} new trackers for {}",
-            total_entries, torrent
-        );
     }
 }
 
 #[async_trait]
-impl TorrentOperation for TorrentTrackersOperation {
+impl TorrentOperation for TorrentTrackersSyncOperation {
     async fn execute<'a>(&self, torrent: &'a InnerTorrent) -> Option<&'a InnerTorrent> {
-        // build the tiered trackers cache if needed
+        // add the known trackers to the torrent
         if !*self.initialized.lock().await {
-            // if we're unable to create the tiered trackers
-            // then stop the operation chain as we're unable to continue
-            if !self.create_trackers_cache(&torrent).await {
+            if !self.create_trackers(torrent).await {
                 return None;
             }
         }
 
-        self.add_trackers_from_cache(&torrent).await;
-        if torrent.active_tracker_connections().await > 0 {
-            Some(torrent)
-        } else {
-            None
-        }
+        Some(torrent)
     }
 
     fn clone_boxed(&self) -> Box<dyn TorrentOperation> {
-        Box::new(TorrentTrackersOperation::new())
+        Box::new(TorrentTrackersSyncOperation::new())
     }
 }
 
@@ -133,21 +107,8 @@ mod tests {
             .build()
             .unwrap();
         let inner = torrent.instance().unwrap();
-        let (tx, rx) = channel();
-        let operation = TorrentTrackersOperation::new();
+        let operation = TorrentTrackersSyncOperation::new();
 
-        torrent.add_callback(Box::new(move |event| {
-            if let TorrentEvent::TrackersChanged = event {
-                tx.send(()).unwrap();
-            }
-        }));
-
-        let result = operation.execute(&*inner).await;
-        assert_eq!(None, result);
-
-        let _ = rx
-            .recv_timeout(Duration::from_secs(2))
-            .expect("expected a tracker connection to have been established");
         let result = operation.execute(&*inner).await;
         assert_eq!(Some(&*inner), result);
     }

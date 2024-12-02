@@ -2711,7 +2711,6 @@ dependencies = [
  "serde",
  "serde_bencode",
  "serde_bytes",
- "serde_json",
  "sha1",
  "sha2",
  "tempfile",

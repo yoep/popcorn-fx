@@ -111,18 +111,18 @@ mod tests {
                     .build(),
             )
             .storage(Box::new(DefaultTorrentFileStorage::new(temp_path)))
-            .operations(vec![
-                Box::new(TorrentPiecesOperation::new()),
-                Box::new(TorrentFilesOperation::new()),
-            ])
+            .operations(vec![])
             .build()
             .unwrap();
+        let piece_operation = TorrentPiecesOperation::new();
+        let file_operation = TorrentFilesOperation::new();
         let operation =
             Box::new(TorrentFileValidationOperation::new()) as Box<dyn TorrentOperation>;
         let inner = torrent.instance().unwrap();
 
         // create the pieces and files
-        inner.execute_operations_chain().await;
+        let _ = piece_operation.execute(&*inner).await;
+        let _ = file_operation.execute(&*inner).await;
 
         let result = operation.execute(&*inner).await;
         assert_eq!(Some(&*inner), result);

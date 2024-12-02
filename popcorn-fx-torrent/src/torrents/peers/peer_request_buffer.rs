@@ -1,4 +1,4 @@
-use crate::torrents::peers::bt_protocol::Request;
+use crate::torrents::peers::protocols::Request;
 use log::warn;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::sync::{Mutex, Notify, RwLock};

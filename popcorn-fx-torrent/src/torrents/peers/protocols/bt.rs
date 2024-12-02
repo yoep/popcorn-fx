@@ -1,11 +1,13 @@
-use super::{Error, PeerId, Result};
+use crate::torrents::peers::extensions::metadata::MetadataMessageType;
 use crate::torrents::peers::extensions::{ExtensionNumber, ExtensionRegistry};
+use crate::torrents::peers::{Error, PeerId, ProtocolExtensionFlags, Result};
 use crate::torrents::{InfoHash, PieceIndex, PiecePart};
 use bit_vec::BitVec;
 use bitmask_enum::bitmask;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use log::trace;
-use serde::{Deserialize, Serialize};
+use serde::de::Visitor;
+use serde::{Deserialize, Deserializer, Serialize};
 use std::fmt::{Debug, Display, Formatter};
 use std::io::{Cursor, Read, Write};
 use tokio_util::bytes::Buf;
@@ -20,33 +22,7 @@ const EXTENSION_BIT_FAST: u8 = 0x04;
 const EXTENSION_BIT_NAT: u8 = 0x08;
 const EXTENSION_BIT_V2_UPGRADE: u8 = 0x10;
 
-/// The extension flags of the protocol.
-/// See BEP4 (https://www.bittorrent.org/beps/bep_0004.html) for more info.
-///
-/// _The known collisions mentioned in BEP4, are ignored within these flags._
-#[bitmask(u16)]
-#[bitmask_config(vec_debug, flags_iter)]
-pub enum ExtensionFlags {
-    None,
-    /// Azureus Messaging Protocol
-    Azureus,
-    /// Libtorrent Extension Protocol, aka Extensions
-    LTEP,
-    /// Extension Negotiation Protocol
-    ENP,
-    /// BitTorrent DHT
-    Dht,
-    /// XBT Peer Exchange
-    XbtPeerExchange,
-    /// suggest, haveall, havenone, reject request, and allow fast extensions
-    Fast,
-    /// NAT Traversal
-    Nat,
-    /// hybrid torrent legacy to v2 upgrade
-    SupportV2,
-}
-
-impl Into<[u8; 8]> for ExtensionFlags {
+impl Into<[u8; 8]> for ProtocolExtensionFlags {
     fn into(self) -> [u8; 8] {
         let mut bit_array = [0; 8];
 
@@ -79,7 +55,7 @@ impl Into<[u8; 8]> for ExtensionFlags {
     }
 }
 
-impl From<[u8; 8]> for ExtensionFlags {
+impl From<[u8; 8]> for ProtocolExtensionFlags {
     fn from(bits: [u8; 8]) -> Self {
         let mut flags = Self::None;
 
@@ -109,39 +85,6 @@ impl From<[u8; 8]> for ExtensionFlags {
         }
 
         flags
-    }
-}
-
-impl Display for ExtensionFlags {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let mut extensions = Vec::new();
-
-        if self.contains(Self::Azureus) {
-            extensions.push("Azureus");
-        }
-        if self.contains(Self::LTEP) {
-            extensions.push("LTEP");
-        }
-        if self.contains(Self::ENP) {
-            extensions.push("ENP");
-        }
-        if self.contains(Self::Dht) {
-            extensions.push("DHT");
-        }
-        if self.contains(Self::XbtPeerExchange) {
-            extensions.push("XBT");
-        }
-        if self.contains(Self::Fast) {
-            extensions.push("Fast");
-        }
-        if self.contains(Self::Nat) {
-            extensions.push("Nat");
-        }
-        if self.contains(Self::SupportV2) {
-            extensions.push("SupportV2");
-        }
-
-        write!(f, "{}", extensions.join(" | "))
     }
 }
 
@@ -209,17 +152,17 @@ impl TryFrom<u8> for MessageType {
 
 #[derive(Debug, PartialEq)]
 pub struct Handshake {
-    pub supported_extensions: ExtensionFlags,
+    pub supported_extensions: ProtocolExtensionFlags,
     pub info_hash: InfoHash,
     pub peer_id: PeerId,
 }
 
 impl Handshake {
-    pub fn new(info_hash: InfoHash, peer_id: PeerId, extensions: ExtensionFlags) -> Self {
+    pub fn new(info_hash: InfoHash, peer_id: PeerId, extensions: ProtocolExtensionFlags) -> Self {
         let mut extensions = extensions;
 
         if info_hash.has_v2() {
-            extensions |= ExtensionFlags::SupportV2;
+            extensions |= ProtocolExtensionFlags::SupportV2;
         }
 
         Self {
@@ -257,7 +200,7 @@ impl Handshake {
         // read the extensions
         let mut extensions_buf = [0u8; 8];
         cursor.read_exact(&mut extensions_buf)?;
-        let supported_extensions = ExtensionFlags::from(extensions_buf);
+        let supported_extensions = ProtocolExtensionFlags::from(extensions_buf);
 
         // read the info hash
         let mut info_hash_bytes: [u8; 20] = [0; 20];
@@ -528,7 +471,7 @@ pub struct ExtendedHandshake {
     pub client: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub regg: Option<i32>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_encryption_type")]
     pub encryption: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata_size: Option<u32>,
@@ -627,6 +570,52 @@ impl Debug for Piece {
     }
 }
 
+#[derive(Debug)]
+struct EncryptionVisitor {}
+
+impl<'de> Visitor<'de> for EncryptionVisitor {
+    type Value = bool;
+
+    fn expecting(&self, f: &mut Formatter) -> std::fmt::Result {
+        write!(f, "expected a boolean or numeric value of 0 or 1")
+    }
+
+    fn visit_bool<E>(self, v: bool) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(v)
+    }
+
+    fn visit_i64<E>(self, v: i64) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(v == 1)
+    }
+
+    fn visit_u8<E>(self, v: u8) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(v == 1)
+    }
+
+    fn visit_none<E>(self) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(false)
+    }
+}
+
+fn deserialize_encryption_type<'de, D>(deserializer: D) -> std::result::Result<bool, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    D::deserialize_any(deserializer, EncryptionVisitor {})
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -641,12 +630,12 @@ mod tests {
         .unwrap();
         let peer_id = PeerId::new();
         let expected_result = Handshake {
-            supported_extensions: ExtensionFlags::Dht | ExtensionFlags::SupportV2,
+            supported_extensions: ProtocolExtensionFlags::Dht | ProtocolExtensionFlags::SupportV2,
             info_hash: info_hash.clone(),
             peer_id,
         };
 
-        let result = Handshake::new(info_hash, peer_id, ExtensionFlags::Dht);
+        let result = Handshake::new(info_hash, peer_id, ProtocolExtensionFlags::Dht);
 
         assert_eq!(expected_result, result);
     }
@@ -661,7 +650,7 @@ mod tests {
         let handshake = Handshake::new(
             info_hash,
             peer_id,
-            ExtensionFlags::Dht | ExtensionFlags::LTEP,
+            ProtocolExtensionFlags::Dht | ProtocolExtensionFlags::LTEP,
         );
 
         let result = TryInto::<Vec<u8>>::try_into(handshake).unwrap();

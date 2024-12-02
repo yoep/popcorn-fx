@@ -1,5 +1,5 @@
-use crate::torrents::peers::bt_protocol::Message;
 use crate::torrents::peers::extensions::Extension;
+use crate::torrents::peers::protocols::Message;
 use crate::torrents::peers::{extensions, Peer, PeerEvent};
 use std::fmt::{Debug, Formatter};
 
@@ -156,7 +156,7 @@ impl MetadataExtension {
                 // update the metadata of the underlying torrent through the peer
                 peer.update_torrent_metadata(metadata).await;
                 self.clear_buffer().await;
-            } else {
+            } else if self.should_request_metadata(&peer).await {
                 trace!(
                     "Requesting next metadata piece {} out of {}",
                     current_piece + 1,
@@ -279,8 +279,8 @@ impl MetadataExtension {
 
 #[async_trait]
 impl Extension for MetadataExtension {
-    fn name(&self) -> String {
-        EXTENSION_NAME_METADATA.to_string()
+    fn name(&self) -> &str {
+        EXTENSION_NAME_METADATA
     }
 
     async fn handle<'a>(&'a self, payload: &'a [u8], peer: &'a Peer) -> extensions::Result<()> {

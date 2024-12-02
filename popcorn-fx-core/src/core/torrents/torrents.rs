@@ -96,15 +96,15 @@ pub struct DownloadStatus {
     /// The number of seeds available for the torrent.
     pub seeds: u32,
     /// The number of peers connected to the torrent.
-    pub peers: u32,
+    pub peers: usize,
     /// The total download transfer rate in bytes of payload only, not counting protocol chatter.
-    pub download_speed: u32,
+    pub download_speed: u64,
     /// The total upload transfer rate in bytes of payload only, not counting protocol chatter.
-    pub upload_speed: u32,
+    pub upload_speed: u64,
     /// The total amount of data downloaded in bytes.
     pub downloaded: u64,
     /// The total size of the torrent in bytes.
-    pub total_size: u64,
+    pub total_size: usize,
 }
 
 /// The torrent describes the meta-info of a shared file that can be queried over the network.

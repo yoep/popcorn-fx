@@ -145,6 +145,12 @@ impl TrackerManager {
         trackers.iter().map(|e| e.url().clone()).collect()
     }
 
+    /// Get the total number of active trackers.
+    /// This might return 0 if no trackers have been added yet.
+    pub async fn total_trackers(&self) -> usize {
+        self.inner.trackers.read().await.len()
+    }
+
     /// Get the currently known peers that have been discovered by the trackers.
     pub async fn discovered_peers(&self) -> Vec<SocketAddr> {
         self.inner.peers.read().await.clone()

@@ -22,8 +22,8 @@ pub type Extensions = Vec<Box<dyn Extension>>;
 /// This means that the extension can store peer related information internally for later use.
 #[async_trait]
 pub trait Extension: Debug + Send + Sync {
-    /// Retrieve the extension protocol name.
-    fn name(&self) -> String;
+    /// Get the unique extension protocol name.
+    fn name(&self) -> &str;
 
     /// Handle the given extension message payload which has been received from the remote peer.
     /// If you want to store data internally, make use of [tokio::sync::Mutex] or [tokio::sync::RwLock].

@@ -32,7 +32,6 @@ reqwest = { workspace = true, features = ["json", "stream"] }
 serde.workspace = true
 serde_bencode = "0.2.4"
 serde_bytes = "0.11.15"
-serde_json.workspace = true
 sha1 = "0.10.6"
 sha2 = "0.10.8"
 thiserror.workspace = true
@@ -41,9 +40,10 @@ tokio-util.workspace = true
 url.workspace = true
 
 [features]
-default = ["extension-metadata"]
+default = ["extension-metadata", "extension-holepunch"]
 
 extension-metadata = []
+extension-holepunch = []
 
 [dev-dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }

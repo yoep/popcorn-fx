@@ -1,4 +1,4 @@
-use crate::torrents::peers::bt_protocol::Message;
+use crate::torrents::peers::protocols::Message;
 use crate::torrents::peers::{DataTransferStats, Error, PeerHandle};
 use byteorder::BigEndian;
 use byteorder::ByteOrder;

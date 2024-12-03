@@ -1,9 +1,10 @@
-use crate::torrents::peers::{Peer, PeerState};
+use crate::torrents::peers::{Peer, PeerHandle, PeerState};
 use crate::torrents::TorrentHandle;
 use log::{debug, warn};
 use std::net::SocketAddr;
 use std::time::Duration;
-use tokio::sync::{Mutex, RwLock, Semaphore};
+use tokio::sync::futures::Notified;
+use tokio::sync::{Mutex, Notify, RwLock, Semaphore};
 use tokio::{select, time};
 
 /// A pool manager which manages the peers of a torrent
@@ -14,7 +15,9 @@ pub struct PeerPool {
     /// The currently active peers within the pool
     pub peers: RwLock<Vec<Peer>>,
     /// The discovered peers addrs
-    pub available_peer_addrs: RwLock<Vec<SocketAddr>>,
+    available_peer_addrs: RwLock<Vec<SocketAddr>>,
+    /// The notifier of the peer pool which is invoked when the peers change
+    notifier: Notify,
     /// The maximum amount of peers allowed in the pool
     limit: Mutex<usize>,
     /// The semaphore to limit the number of active peers and in-flight peers for the pool
@@ -28,6 +31,7 @@ impl PeerPool {
             handle,
             peers: Default::default(),
             available_peer_addrs: Default::default(),
+            notifier: Default::default(),
             limit: Mutex::new(pool_limit),
             semaphore: Semaphore::new(pool_limit),
         }
@@ -46,7 +50,19 @@ impl PeerPool {
         }
 
         mutex.push(peer);
+        self.notifier.notify_waiters();
         true
+    }
+
+    /// Remove the peer from the pool.
+    pub async fn remove_peer(&self, peer: PeerHandle) {
+        let mut mutex = self.peers.write().await;
+        mutex.retain(|e| e.handle() != peer);
+    }
+
+    /// Get the length of the currently available/known peer addresses.
+    pub async fn available_peer_addrs_len(&self) -> usize {
+        self.available_peer_addrs.read().await.len()
     }
 
     /// Add the given peer addrs to the pool's available peer addrs.
@@ -100,6 +116,11 @@ impl PeerPool {
         }
 
         *mutex = limit;
+    }
+
+    /// Get notified when new peers are added to the pool.
+    pub fn notified(&self) -> Notified<'_> {
+        self.notifier.notified()
     }
 
     /// Remove any closed or invalid peers from the pool.

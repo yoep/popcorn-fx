@@ -1,4 +1,4 @@
-use crate::torrents::peers::extensions::Extension;
+use crate::torrents::peers::extensions::{Extension, ExtensionNumber};
 use crate::torrents::peers::protocols::Message;
 use crate::torrents::peers::{extensions, Peer, PeerEvent};
 use std::fmt::{Debug, Formatter};
@@ -176,18 +176,9 @@ impl MetadataExtension {
         piece_index: PieceIndex,
         peer: &'a Peer,
     ) -> extensions::Result<()> {
-        let extension_number = peer
-            .remote_extension_registry()
-            .await
-            .and_then(|registry| {
-                registry
-                    .iter()
-                    .find(|(name, _)| name.as_str() == EXTENSION_NAME_METADATA)
-                    .map(|(_, e)| e.clone())
-            })
-            .ok_or(extensions::Error::Operation(
-                "failed to find metadata extension".to_string(),
-            ))?;
+        let extension_number = self.find_metadata_extension_number(&peer).await.ok_or(
+            extensions::Error::Operation("failed to find metadata extension".to_string()),
+        )?;
         let message = MetadataExtensionMessage {
             piece: piece_index,
             total_size: None,
@@ -205,6 +196,22 @@ impl MetadataExtension {
             .map_err(|e| extensions::Error::Io(format!("{}", e)))
     }
 
+    /// Try to find the metadata extensions number of the remote peer.
+    async fn find_metadata_extension_number<'a>(
+        &'a self,
+        peer: &'a Peer,
+    ) -> Option<ExtensionNumber> {
+        peer.remote_extension_registry()
+            .await
+            .and_then(|e| e.get(EXTENSION_NAME_METADATA).cloned())
+    }
+
+    /// Check if the metadata extension is supported by the remote peer.
+    async fn is_metadata_extension_supported<'a>(&'a self, peer: &'a Peer) -> bool {
+        self.find_metadata_extension_number(&peer).await.is_some()
+    }
+
+    /// Check if the metadata should be requested for the torrent.
     async fn should_request_metadata<'a>(&'a self, peer: &'a Peer) -> bool {
         if let Some(metadata) = peer.metadata().await {
             return metadata.info.is_none();
@@ -214,7 +221,9 @@ impl MetadataExtension {
     }
 
     async fn on_extended_handshake(&self, peer: &Peer) {
-        if self.should_request_metadata(peer).await {
+        if self.is_metadata_extension_supported(&peer).await
+            && self.should_request_metadata(peer).await
+        {
             if let Err(e) = self.request_metadata(0, peer).await {
                 error!("Failed to request metadata, {}", e);
             }

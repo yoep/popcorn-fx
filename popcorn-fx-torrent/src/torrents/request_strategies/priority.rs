@@ -44,4 +44,8 @@ impl RequestStrategy for PriorityRequestStrategy {
             })
             .collect()
     }
+
+    fn clone_boxed(&self) -> Box<dyn RequestStrategy> {
+        Box::new(Self::new())
+    }
 }

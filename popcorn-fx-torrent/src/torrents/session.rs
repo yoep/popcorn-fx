@@ -9,14 +9,13 @@ use std::time::Duration;
 
 use crate::torrents::errors::Result;
 use crate::torrents::fs::DefaultTorrentFileStorage;
-use crate::torrents::operations::TorrentTrackersSyncOperation;
 use crate::torrents::peers::extensions::Extensions;
-use crate::torrents::peers::PeerListener;
+use crate::torrents::peers::ProtocolExtensionFlags;
 use crate::torrents::torrent::Torrent;
 use crate::torrents::{
-    InfoHash, RequestStrategy, TorrentConfig, TorrentError, TorrentEvent, TorrentFlags,
-    TorrentHandle, TorrentInfo, TorrentOperation, TorrentOperations, DEFAULT_TORRENT_EXTENSIONS,
-    DEFAULT_TORRENT_OPERATIONS, DEFAULT_TORRENT_PROTOCOL_EXTENSIONS,
+    InfoHash, RequestStrategies, RequestStrategy, TorrentConfig, TorrentError, TorrentEvent,
+    TorrentFlags, TorrentHandle, TorrentInfo, TorrentOperation, TorrentOperations,
+    DEFAULT_TORRENT_EXTENSIONS, DEFAULT_TORRENT_OPERATIONS, DEFAULT_TORRENT_PROTOCOL_EXTENSIONS,
     DEFAULT_TORRENT_REQUEST_STRATEGIES,
 };
 use async_trait::async_trait;
@@ -24,17 +23,14 @@ use derive_more::Display;
 use log::{debug, trace};
 #[cfg(test)]
 pub use mock::*;
-use popcorn_fx_core::available_port;
 use popcorn_fx_core::core::torrents::magnet::Magnet;
 use popcorn_fx_core::core::torrents::TorrentHealth;
 use popcorn_fx_core::core::{
     block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks, Handle,
 };
-use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
 use tokio::sync::RwLock;
 use tokio::{select, time};
-use tokio_util::sync::CancellationToken;
 
 /// A unique handle identifier of a [Session].
 pub type SessionHandle = Handle;
@@ -229,6 +225,7 @@ impl DefaultSession {
     /// Returns the session when initialized successfully or an error on failure.
     pub async fn new<P: AsRef<Path>>(
         base_path: P,
+        protocol_extensions: ProtocolExtensionFlags,
         extensions: Extensions,
         torrent_operations: Vec<Box<dyn TorrentOperation>>,
         request_strategies: Vec<Box<dyn RequestStrategy>>,
@@ -239,6 +236,7 @@ impl DefaultSession {
         let inner = Arc::new(
             InnerSession::new(
                 torrent_storage_location,
+                protocol_extensions,
                 extensions,
                 torrent_operations,
                 request_strategies,
@@ -309,8 +307,10 @@ impl DefaultSession {
                 .metadata(torrent_info)
                 .options(options)
                 .config(config.build())
+                .protocol_extensions(self.inner.protocol_extensions)
                 .extensions(self.inner.extensions())
                 .operations(self.inner.torrent_operations())
+                .request_strategies(self.inner.request_strategies())
                 .storage(Box::new(DefaultTorrentFileStorage::new(
                     &block_in_place(self.inner.base_path.read()).clone(),
                 )))
@@ -380,9 +380,10 @@ impl Session for DefaultSession {
                                 .tracker_connection_timeout(Duration::from_secs(1))
                                 .build(),
                         )
-                        .protocol_extensions(DEFAULT_TORRENT_PROTOCOL_EXTENSIONS())
+                        .protocol_extensions(self.inner.protocol_extensions)
                         .extensions(self.inner.extensions())
                         .operations(self.inner.torrent_operations())
+                        .request_strategies(self.inner.request_strategies())
                         .storage(Box::new(DefaultTorrentFileStorage::new(
                             &block_in_place(self.inner.base_path.read()).clone(),
                         )))
@@ -516,6 +517,7 @@ impl Callbacks<SessionEvent> for DefaultSession {
 #[derive(Debug, Default)]
 pub struct SessionBuilder {
     base_path: Option<PathBuf>,
+    protocol_extensions: Option<ProtocolExtensionFlags>,
     extensions: Option<Extensions>,
     torrent_operation: Option<Vec<Box<dyn TorrentOperation>>>,
     request_strategy: Option<Vec<Box<dyn RequestStrategy>>>,
@@ -530,6 +532,12 @@ impl SessionBuilder {
     /// Set the base path for the torrent storage of the session.
     pub fn base_path<P: AsRef<Path>>(mut self, base_path: P) -> Self {
         self.base_path = Some(base_path.as_ref().to_path_buf());
+        self
+    }
+
+    /// Set the protocol extensions for the session.
+    pub fn protocol_extensions(mut self, protocol_extensions: ProtocolExtensionFlags) -> Self {
+        self.protocol_extensions = Some(protocol_extensions);
         self
     }
 
@@ -564,6 +572,9 @@ impl SessionBuilder {
     /// The only required field within this builder is the base path for the torrent storage.
     pub async fn build(self) -> Result<DefaultSession> {
         let base_path = self.base_path.expect("expected the base path to be set");
+        let protocol_extensions = self
+            .protocol_extensions
+            .unwrap_or_else(DEFAULT_TORRENT_PROTOCOL_EXTENSIONS);
         let extensions = self.extensions.unwrap_or_else(DEFAULT_TORRENT_EXTENSIONS);
         let torrent_operations = self
             .torrent_operation
@@ -584,6 +595,7 @@ impl SessionBuilder {
 
         DefaultSession::new(
             base_path,
+            protocol_extensions,
             extensions,
             torrent_operations,
             request_strategies,
@@ -602,6 +614,8 @@ struct InnerSession {
     base_path: RwLock<PathBuf>,
     /// The currently active torrents within the session
     torrents: RwLock<HashMap<InfoHash, Torrent>>,
+    /// The enabled protocol extensions of the session
+    protocol_extensions: ProtocolExtensionFlags,
     /// The currently active extensions for the session
     extensions: Extensions,
     /// The torrent operations for the session
@@ -615,6 +629,7 @@ struct InnerSession {
 impl InnerSession {
     async fn new(
         base_path: PathBuf,
+        protocol_extensions: ProtocolExtensionFlags,
         extensions: Extensions,
         torrent_operations: Vec<Box<dyn TorrentOperation>>,
         request_strategies: Vec<Box<dyn RequestStrategy>>,
@@ -622,6 +637,7 @@ impl InnerSession {
         Ok(Self {
             handle: Default::default(),
             base_path: RwLock::new(base_path),
+            protocol_extensions,
             extensions,
             torrent_operations,
             request_strategies,
@@ -636,6 +652,13 @@ impl InnerSession {
 
     fn torrent_operations(&self) -> TorrentOperations {
         self.torrent_operations
+            .iter()
+            .map(|e| e.clone_boxed())
+            .collect()
+    }
+
+    fn request_strategies(&self) -> RequestStrategies {
+        self.request_strategies
             .iter()
             .map(|e| e.clone_boxed())
             .collect()

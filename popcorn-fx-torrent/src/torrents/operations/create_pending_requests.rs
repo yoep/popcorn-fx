@@ -17,16 +17,17 @@ impl TorrentPendingRequestsOperation {
         let wanted_pieces = torrent.wanted_pieces().await;
 
         if wanted_pieces.len() > 0 {
-            debug!("{} pieces are wanted for {}", wanted_pieces.len(), torrent);
+            trace!("{} pieces are wanted for {}", wanted_pieces.len(), torrent);
             let requested_pieces = torrent.pending_requested_pieces().await;
             let mut pending_requests: Vec<PendingRequest> = wanted_pieces
                 .into_iter()
                 .filter(|e| !requested_pieces.contains(&e.index))
+                // .filter(|e| e.availability() > 0)
                 .map(|piece| PendingRequest::new(piece.index, piece.parts.clone()))
                 .collect();
 
-            trace!(
-                "Ordering a total of {} pending requests for {}",
+            debug!(
+                "Queueing {} pending requests for {}",
                 pending_requests.len(),
                 torrent
             );

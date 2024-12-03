@@ -68,9 +68,9 @@ pub struct Piece {
     /// The (request) parts of the piece.
     pub parts: Vec<PiecePart>,
     /// The completed parts of the piece
-    completed_parts: BitVec,
+    pub(crate) completed_parts: BitVec,
     /// The availability of this piece
-    availability: u32,
+    pub(crate) availability: u32,
 }
 
 impl Piece {
@@ -169,6 +169,12 @@ impl Piece {
     /// Mark a part of this piece as completed
     pub(crate) fn part_completed(&mut self, part: PartIndex) {
         self.completed_parts.set(part, true);
+    }
+
+    /// Reset completed parts in case the validation of the data failed.
+    ///This will reset the `completed_parts` back to `false`.
+    pub(crate) fn reset_completed_parts(&mut self) {
+        self.completed_parts = BitVec::from_elem(self.parts.len(), false);
     }
 }
 

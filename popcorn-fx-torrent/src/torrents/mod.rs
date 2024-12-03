@@ -34,7 +34,7 @@ mod torrent_request_buffer;
 mod trackers;
 
 const DEFAULT_TORRENT_PROTOCOL_EXTENSIONS: fn() -> ProtocolExtensionFlags =
-    || ProtocolExtensionFlags::LTEP;
+    || ProtocolExtensionFlags::LTEP | ProtocolExtensionFlags::Fast;
 const DEFAULT_TORRENT_EXTENSIONS: fn() -> Extensions = || {
     let mut extensions: Extensions = Vec::new();
 

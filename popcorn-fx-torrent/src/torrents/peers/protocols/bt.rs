@@ -1,14 +1,12 @@
-use crate::torrents::peers::extensions::metadata::MetadataMessageType;
 use crate::torrents::peers::extensions::{ExtensionNumber, ExtensionRegistry};
 use crate::torrents::peers::{Error, PeerId, ProtocolExtensionFlags, Result};
 use crate::torrents::{InfoHash, PieceIndex, PiecePart};
 use bit_vec::BitVec;
-use bitmask_enum::bitmask;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use log::trace;
 use serde::de::Visitor;
 use serde::{Deserialize, Deserializer, Serialize};
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{Debug, Formatter};
 use std::io::{Cursor, Read, Write};
 use tokio_util::bytes::Buf;
 
@@ -253,12 +251,15 @@ pub enum Message {
     Have(u32),
     Bitfield(BitVec),
     Request(Request),
+    RejectRequest(Request),
     Piece(Piece),
     Cancel(Request),
     ExtendedHandshake(ExtendedHandshake),
     ExtendedPayload(ExtensionNumber, Vec<u8>),
     HaveAll,
     HaveNone,
+    Suggest(u32),
+    AllowedFast(u32),
 }
 
 impl Message {
@@ -272,12 +273,15 @@ impl Message {
             Message::Have(_) => MessageType::Have,
             Message::Bitfield(_) => MessageType::Bitfield,
             Message::Request(_) => MessageType::Request,
+            Message::RejectRequest(_) => MessageType::RejectRequest,
             Message::Piece(_) => MessageType::Piece,
             Message::Cancel(_) => MessageType::Cancel,
             Message::ExtendedHandshake(_) => MessageType::Extended,
             Message::ExtendedPayload(_, _) => MessageType::Extended,
             Message::HaveAll => MessageType::HaveAll,
             Message::HaveNone => MessageType::HaveNone,
+            Message::Suggest(_) => MessageType::Suggest,
+            Message::AllowedFast(_) => MessageType::AllowedFast,
         }
     }
 
@@ -336,6 +340,10 @@ impl TryFrom<&[u8]> for Message {
                 let request = Request::try_from(cursor)?;
                 Ok(Message::Request(request))
             }
+            MessageType::RejectRequest => {
+                let request = Request::try_from(cursor)?;
+                Ok(Message::Request(request))
+            }
             MessageType::Piece => {
                 let piece = Piece::try_from(cursor)?;
                 Ok(Message::Piece(piece))
@@ -367,6 +375,8 @@ impl TryFrom<&[u8]> for Message {
             }
             MessageType::HaveAll => Ok(Message::HaveAll),
             MessageType::HaveNone => Ok(Message::HaveNone),
+            MessageType::Suggest => Ok(Message::Suggest(cursor.read_u32::<BigEndian>()?)),
+            MessageType::AllowedFast => Ok(Message::AllowedFast(cursor.read_u32::<BigEndian>()?)),
             _ => Err(Error::UnsupportedMessage(msg_type as u8)),
         }
     }
@@ -389,14 +399,14 @@ impl TryInto<Vec<u8>> for Message {
 
         trace!("Serializing message {:?}", self);
         match self {
-            Message::Have(e) => {
+            Message::Have(e) | Message::AllowedFast(e) | Message::Suggest(e) => {
                 buffer.write_u32::<BigEndian>(e)?;
             }
             Message::Bitfield(bitfield) => {
                 let bytes = bitfield.to_bytes();
                 buffer.extend_from_slice(bytes.as_slice());
             }
-            Message::Request(e) => {
+            Message::Request(e) | Message::RejectRequest(e) | Message::Cancel(e) => {
                 buffer.write_u32::<BigEndian>(e.index as u32)?;
                 buffer.write_u32::<BigEndian>(e.begin as u32)?;
                 buffer.write_u32::<BigEndian>(e.length as u32)?;
@@ -404,13 +414,7 @@ impl TryInto<Vec<u8>> for Message {
             Message::Piece(e) => {
                 buffer.write_u32::<BigEndian>(e.index as u32)?;
                 buffer.write_u32::<BigEndian>(e.begin as u32)?;
-
                 buffer.write_all(&e.data)?;
-            }
-            Message::Cancel(e) => {
-                buffer.write_u32::<BigEndian>(e.index as u32)?;
-                buffer.write_u32::<BigEndian>(e.begin as u32)?;
-                buffer.write_u32::<BigEndian>(e.length as u32)?;
             }
             Message::ExtendedHandshake(e) => {
                 // the handshake identifier
@@ -441,6 +445,7 @@ impl Debug for Message {
             Message::Have(e) => f.debug_tuple("Have").field(e).finish(),
             Message::Bitfield(e) => f.write_fmt(format_args!("Bitfield([size {}])", e.len())),
             Message::Request(e) => f.write_fmt(format_args!("Request({:?})", e)),
+            Message::RejectRequest(e) => f.write_fmt(format_args!("RejectRequest({:?})", e)),
             Message::Piece(e) => f.write_fmt(format_args!("Piece({:?})", e)),
             Message::Cancel(e) => f.write_fmt(format_args!("Cancel({:?})", e)),
             Message::ExtendedHandshake(e) => {
@@ -453,6 +458,8 @@ impl Debug for Message {
             )),
             Message::HaveAll => f.write_str("HaveAll"),
             Message::HaveNone => f.write_str("HaveNone"),
+            Message::Suggest(e) => f.write_fmt(format_args!("Suggest({})", e)),
+            Message::AllowedFast(e) => f.write_fmt(format_args!("AllowedFast({})", e)),
         }
     }
 }

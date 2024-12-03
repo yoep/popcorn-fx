@@ -10,7 +10,7 @@ Both V1 & V2 of the Bittorrent protocol specification have been implemented.
 - [x] [BEP3](https://www.bittorrent.org/beps/bep_0003.html) - The BitTorrent Protocol Specification
 - [x] [BEP4](https://www.bittorrent.org/beps/bep_0004.html) - Assigned Numbers
 - [ ] [BEP5](https://www.bittorrent.org/beps/bep_0005.html) - DHT Protocol
-- [ ] [BEP6](https://www.bittorrent.org/beps/bep_0006.html) - Fast Extension
+- [x] [BEP6](https://www.bittorrent.org/beps/bep_0006.html) - Fast Extension
 - [x] [BEP9](https://www.bittorrent.org/beps/bep_0009.html) - Extension for Peers to Send Metadata Files
 - [x] [BEP10](https://www.bittorrent.org/beps/bep_0010.html) - Extension Protocol
 - [ ] [BEP11](https://www.bittorrent.org/beps/bep_0011.html) - Peer Exchange (PEX)

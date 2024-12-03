@@ -46,4 +46,8 @@ impl RequestStrategy for RequestAvailabilityStrategy {
             })
             .collect()
     }
+
+    fn clone_boxed(&self) -> Box<dyn RequestStrategy> {
+        Box::new(Self::new())
+    }
 }

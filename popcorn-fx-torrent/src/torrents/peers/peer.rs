@@ -170,7 +170,7 @@ impl Display for ProtocolExtensionFlags {
 #[derive(Debug, Clone, PartialEq)]
 pub struct RemotePeer {
     pub peer_id: PeerId,
-    pub supported_extensions: ProtocolExtensionFlags,
+    pub protocol_extensions: ProtocolExtensionFlags,
     pub extensions: ExtensionRegistry,
     pub client_name: Option<String>,
 }
@@ -312,7 +312,7 @@ impl Peer {
         let mutex = self.inner.remote.read().await;
         mutex
             .as_ref()
-            .map(|e| e.supported_extensions.clone())
+            .map(|e| e.protocol_extensions.clone())
             .unwrap_or(ProtocolExtensionFlags::None)
     }
 
@@ -344,6 +344,12 @@ impl Peer {
     pub async fn remote_has_piece(&self, piece: PieceIndex) -> bool {
         let mutex = self.inner.remote_pieces.read().await;
         mutex.get(piece as usize).unwrap_or(false)
+    }
+
+    /// Get the available pieces of the remote peer as a bit vector.
+    /// It might return an empty bit vector when the handshake has not been completed yet.
+    pub async fn remote_piece_bitfield(&self) -> BitVec {
+        self.inner.remote_pieces.read().await.clone()
     }
 
     /// Retrieve the torrent info hash.
@@ -612,52 +618,60 @@ impl Peer {
     async fn send_initial_messages(&self) -> Result<()> {
         let client_supported_extensions = self.inner.protocol_extensions;
         let bitfield = self.inner.torrent.piece_bitfield().await;
+        let remote_supported_extensions =
+            self.inner
+                .remote_protocol_extensions()
+                .await
+                .ok_or(Error::Handshake(
+                    "protocol extensions should have been set in the handshake".to_string(),
+                ))?;
+        let mut is_fast_have_sent = false;
 
-        // as one of the initial messages, we try to send the bitfield with completed pieces
+        // check if the fast protocol is enabled
+        // if so, we send the initial fast messages to the remote peer
+        if client_supported_extensions.contains(ProtocolExtensionFlags::Fast)
+            && remote_supported_extensions.contains(ProtocolExtensionFlags::Fast)
+        {
+            let is_metadata_known = self
+                .inner
+                .torrent
+                .metadata()
+                .await
+                .map(|e| e.info.is_some())
+                .unwrap_or(false);
+
+            if is_metadata_known && bitfield.all() {
+                is_fast_have_sent = true;
+                if let Err(e) = self.inner.send(Message::HaveAll).await {
+                    warn!("Failed to send have all to peer {}, {}", self, e);
+                }
+            } else if !is_metadata_known || bitfield.none() {
+                is_fast_have_sent = true;
+                if let Err(e) = self.inner.send(Message::HaveNone).await {
+                    warn!("Failed to send have none to peer {}, {}", self, e);
+                }
+            }
+        }
+
+        // we try to send the bitfield with completed pieces if none of the initial fast messages have been sent
         // this is only done if at least one piece is completed
-        if bitfield.any() {
+        if !is_fast_have_sent && bitfield.any() {
             if let Err(e) = self.inner.send(Message::Bitfield(bitfield.clone())).await {
                 warn!("Failed to send bitfield to peer {}, {}", self, e);
             }
         }
 
-        if let Some(remote_supported_extensions) = self.inner.remote_supported_extensions().await {
-            // check if the extensions protocol is enabled
-            // if so, we send the extended handshake to the remote peer
-            if client_supported_extensions.contains(ProtocolExtensionFlags::LTEP)
-                && remote_supported_extensions.contains(ProtocolExtensionFlags::LTEP)
-            {
-                if let Err(e) = self.inner.send_extended_handshake().await {
-                    warn!("Failed to send extended handshake to peer {}, {}", self, e);
-                    // remove the LTEP extension flag from the remote peer
-                    // as the extended handshake has failed to complete
-                    if let Some(mutex) = self.inner.remote.write().await.as_mut() {
-                        mutex.supported_extensions &= !ProtocolExtensionFlags::LTEP;
-                    }
-                }
-            }
-
-            // check if the fast protocol is enabled
-            // if so, we send the initial fast messages to the remote peer
-            if client_supported_extensions.contains(ProtocolExtensionFlags::Fast)
-                && remote_supported_extensions.contains(ProtocolExtensionFlags::Fast)
-            {
-                let is_metadata_known = self
-                    .inner
-                    .torrent
-                    .metadata()
-                    .await
-                    .map(|e| e.info.is_some())
-                    .unwrap_or(false);
-
-                if is_metadata_known && bitfield.all() {
-                    if let Err(e) = self.inner.send(Message::HaveAll).await {
-                        warn!("Failed to send have all to peer {}, {}", self, e);
-                    }
-                } else if !is_metadata_known || bitfield.none() {
-                    if let Err(e) = self.inner.send(Message::HaveNone).await {
-                        warn!("Failed to send have none to peer {}, {}", self, e);
-                    }
+        // check if the extensions protocol is enabled
+        // if so, we send the extended handshake to the remote peer
+        if client_supported_extensions.contains(ProtocolExtensionFlags::LTEP)
+            && remote_supported_extensions.contains(ProtocolExtensionFlags::LTEP)
+        {
+            if let Err(e) = self.inner.send_extended_handshake().await {
+                warn!("Failed to send extended handshake to peer {}, {}", self, e);
+                // remove the LTEP extension flag from the remote peer
+                // as the extended handshake has failed to complete
+                if let Some(mutex) = self.inner.remote.write().await.as_mut() {
+                    mutex.protocol_extensions &= !ProtocolExtensionFlags::LTEP;
                 }
             }
         }
@@ -1069,14 +1083,14 @@ impl InnerPeer {
             .map(|e| e.extensions.clone())
     }
 
-    /// Get the supported extensions of the remote peer.
+    /// Get the supported protocol extensions of the remote peer.
     /// This might still be `None` when the handshake with the peer has not been completed yet.
-    async fn remote_supported_extensions(&self) -> Option<ProtocolExtensionFlags> {
+    async fn remote_protocol_extensions(&self) -> Option<ProtocolExtensionFlags> {
         self.remote
             .read()
             .await
             .as_ref()
-            .map(|e| e.supported_extensions.clone())
+            .map(|e| e.protocol_extensions.clone())
     }
 
     /// Get the client peer extensions registry.
@@ -1112,8 +1126,11 @@ impl InnerPeer {
                     .await
             }
             Message::Have(piece) => self.update_remote_piece(piece as usize).await,
+            Message::HaveAll => self.update_remote_fast_have(true).await,
+            Message::HaveNone => self.update_remote_fast_have(false).await,
             Message::Bitfield(pieces) => self.update_remote_pieces(pieces).await,
             Message::Request(request) => self.remote_pending_requests.push(request).await,
+            Message::RejectRequest(request) => self.notify_request_rejected(request).await,
             Message::Piece(piece) => self.handle_received_piece(piece).await,
             Message::ExtendedHandshake(handshake) => {
                 self.update_extended_handshake(handshake).await
@@ -1154,9 +1171,28 @@ impl InnerPeer {
         }
     }
 
+    async fn notify_request_rejected(&self, request: Request) {
+        self.torrent
+            .pending_request_rejected(request.index, request.begin)
+            .await;
+    }
+
+    /// Handle a received piece data message
     async fn handle_received_piece(&self, piece: Piece) {
         if let Some(part) = self.torrent.piece_part(piece.index, piece.begin).await {
-            self.torrent.piece_completed(part, piece.data).await;
+            let data_size = piece.data.len();
+            if part.length == data_size {
+                self.torrent.piece_completed(part, piece.data);
+            } else {
+                debug!(
+                    "Received invalid piece part {:?} data from {}, received data len {} and expected {}",
+                    part,
+                    self,
+                    piece.data.len(),
+                    data_size
+                );
+                self.torrent.invalid_piece_received(part, self.handle);
+            }
         }
     }
 
@@ -1191,7 +1227,7 @@ impl InnerPeer {
             let mut mutex = self.remote.write().await;
             *mutex = Some(RemotePeer {
                 peer_id: handshake.peer_id,
-                supported_extensions: handshake.supported_extensions,
+                protocol_extensions: handshake.supported_extensions,
                 extensions: ExtensionRegistry::default(),
                 client_name: None,
             });
@@ -1336,7 +1372,26 @@ impl InnerPeer {
         }
 
         self.invoke_event(PeerEvent::RemotePieceAvailable(piece));
-        self.torrent.notify_peer_has_piece(piece).await;
+        self.torrent.notify_peer_has_piece(piece);
+    }
+
+    async fn update_remote_fast_have(&self, have_all: bool) {
+        // if the fast protocol is disabled, we should close the connection
+        if !self
+            .protocol_extensions
+            .contains(ProtocolExtensionFlags::Fast)
+        {
+            warn!(
+                "Fast protocol is disabled, closing connection with peer {}",
+                self
+            );
+            self.close().await;
+            return;
+        }
+
+        let bitfield_len = self.torrent.total_pieces().await;
+        let mut mutex = self.remote_pieces.write().await;
+        *mutex = BitVec::from_elem(bitfield_len, have_all);
     }
 
     async fn update_extended_handshake(&self, handshake: ExtendedHandshake) {
@@ -1520,6 +1575,7 @@ impl InnerPeer {
     /// Close the connection of this peer.
     async fn close(&self) {
         self.cancellation_token.cancel();
+        self.torrent.notify_peer_closed(self.handle);
     }
 
     fn send_command_event(&self, event: PeerCommandEvent) {
@@ -1580,7 +1636,9 @@ mod tests {
         TorrentFilesOperation, TorrentPiecesOperation, TorrentTrackersOperation,
     };
     use crate::torrents::peers::extensions::metadata::MetadataExtension;
-    use crate::torrents::{Torrent, TorrentConfig, TorrentFlags, TorrentInfo};
+    use crate::torrents::{
+        Torrent, TorrentConfig, TorrentFlags, TorrentInfo, DEFAULT_TORRENT_PROTOCOL_EXTENSIONS,
+    };
 
     #[test]
     fn test_peer_new_outbound() {
@@ -1621,7 +1679,7 @@ mod tests {
             match runtime.block_on(Peer::new_outbound(
                 peer_addr,
                 torrent.clone(),
-                ProtocolExtensionFlags::LTEP,
+                DEFAULT_TORRENT_PROTOCOL_EXTENSIONS(),
                 vec![Box::new(MetadataExtension::new())],
                 runtime.clone(),
             )) {
@@ -1636,9 +1694,18 @@ mod tests {
             }
         }
 
-        let state = runtime.block_on(peer.as_ref().unwrap().state());
+        let peer = peer.unwrap();
+        let (tx, rx) = std::sync::mpsc::channel();
+        peer.add_callback(Box::new(move |event| {
+            if let PeerEvent::StateChanged(state) = event {
+                tx.send(state).unwrap()
+            }
+        }));
 
-        assert_timeout!(Duration::from_secs(20), state != PeerState::Handshake);
+        let state = rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("expected to receive a state update");
+        assert_ne!(PeerState::Handshake, state);
     }
 
     #[test]

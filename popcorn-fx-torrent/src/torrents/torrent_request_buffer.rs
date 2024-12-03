@@ -1,7 +1,7 @@
 use crate::torrents::peers::PeerHandle;
 use crate::torrents::{PartIndex, PieceIndex, PiecePart};
 use derive_more::Display;
-use log::trace;
+use log::{debug, trace};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
@@ -9,7 +9,7 @@ use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::sync::{Mutex, OwnedSemaphorePermit, RwLock, Semaphore};
 
 /// The timeout after which a request will be retried for execution
-const REQUEST_TIMEOUT_MILLIS: u128 = 30 * 1000;
+const REQUEST_TIMEOUT_MILLIS: u128 = 20 * 1000;
 
 /// The pending request for a piece part of a torrent.
 #[derive(Debug, Display, Clone)]
@@ -229,6 +229,7 @@ impl PendingRequestBuffer {
             if request.is_completed() {
                 request.release_permit();
                 mutex.retain(|e| e.piece() != piece);
+                trace!("Removed pending request of piece {}", piece);
             }
         }
     }
@@ -264,7 +265,7 @@ impl PendingRequestBuffer {
 
         {
             let mutex = self.requests.read().await;
-            retry_requests = mutex
+            let timed_out_requests: Vec<_> = mutex
                 .iter()
                 .filter(|e| e.inner.pending_requests.read().unwrap().len() > 0)
                 .filter(|e| {
@@ -278,13 +279,27 @@ impl PendingRequestBuffer {
                                 && from.requested_at.elapsed().as_millis() > REQUEST_TIMEOUT_MILLIS
                         })
                 })
-                .take(self.semaphore.available_permits())
                 .cloned()
+                .collect();
+
+            // release the permits of the timed out requests
+            for request in timed_out_requests.iter() {
+                request.release_permit();
+            }
+
+            // try to queue the timed out requests again
+            retry_requests = timed_out_requests
+                .into_iter()
+                .take(self.semaphore.available_permits())
+                .map(|e| e.clone())
                 .collect();
         }
 
         if retry_requests.len() > 0 {
-            trace!("Retrying a total of {} requests", retry_requests.len());
+            debug!(
+                "Retrying a total of {} timed out requests",
+                retry_requests.len()
+            );
             for request in retry_requests {
                 let _ = self.sender.send(request);
             }

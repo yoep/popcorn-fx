@@ -1,5 +1,5 @@
-use crate::torrents::{InnerTorrent, TorrentOperation, TorrentState};
 use crate::torrents::{TorrentCommandEvent, TorrentFlags};
+use crate::torrents::{TorrentContext, TorrentOperation, TorrentState};
 use async_trait::async_trait;
 use derive_more::Display;
 use log::trace;
@@ -22,7 +22,7 @@ impl TorrentMetadataOperation {
         }
     }
 
-    async fn is_metadata_known(&self, torrent: &InnerTorrent) -> bool {
+    async fn is_metadata_known(&self, torrent: &TorrentContext) -> bool {
         // check if we've already checked for the presence of the metadata before
         // if so, use the cached information
         if self.info.lock().await.metadata_present {
@@ -37,15 +37,15 @@ impl TorrentMetadataOperation {
         false
     }
 
-    async fn is_metadata_retrieval_enabled(&self, torrent: &InnerTorrent) -> bool {
-        let options = torrent.options().await;
+    async fn is_metadata_retrieval_enabled(&self, torrent: &TorrentContext) -> bool {
+        let options = torrent.options_owned().await;
         options.contains(TorrentFlags::Metadata)
     }
 }
 
 #[async_trait]
 impl TorrentOperation for TorrentMetadataOperation {
-    async fn execute<'a>(&self, torrent: &'a InnerTorrent) -> Option<&'a InnerTorrent> {
+    async fn execute<'a>(&self, torrent: &'a TorrentContext) -> Option<&'a TorrentContext> {
         let is_metadata_known = self.is_metadata_known(&torrent).await;
 
         if is_metadata_known {

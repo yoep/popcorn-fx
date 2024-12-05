@@ -1,4 +1,4 @@
-use crate::torrents::{File, InnerTorrent, TorrentOperation, TorrentState};
+use crate::torrents::{File, TorrentContext, TorrentOperation, TorrentState};
 use async_trait::async_trait;
 use derive_more::Display;
 use log::{debug, trace};
@@ -18,7 +18,7 @@ impl TorrentFileValidationOperation {
         }
     }
 
-    async fn validate_file(&self, torrent: &InnerTorrent, file: &File) {
+    async fn validate_file(&self, torrent: &TorrentContext, file: &File) {
         let pieces = torrent.file_pieces(file).await;
         let mut valid_pieces = 0;
 
@@ -49,7 +49,7 @@ impl TorrentFileValidationOperation {
 
 #[async_trait]
 impl TorrentOperation for TorrentFileValidationOperation {
-    async fn execute<'a>(&self, torrent: &'a InnerTorrent) -> Option<&'a InnerTorrent> {
+    async fn execute<'a>(&self, torrent: &'a TorrentContext) -> Option<&'a TorrentContext> {
         // check if the files have already been validated
         // if so, continue the chain
         if *self.validated.lock().await {
@@ -66,10 +66,13 @@ impl TorrentOperation for TorrentFileValidationOperation {
                 if torrent.file_exists(&file) {
                     debug!("Verifying file {:?} pieces of {}", file, torrent);
                     self.validate_file(&torrent, &file).await;
+                } else {
+                    debug!("File {:?} not found for {}", file, self)
                 }
             }
 
             *self.validated.lock().await = true;
+            torrent.update_state(TorrentState::Downloading).await;
         }
 
         Some(torrent)
@@ -130,7 +133,8 @@ mod tests {
         assert_eq!(
             true,
             inner
-                .pieces_read_lock()
+                .pieces_lock()
+                .read()
                 .await
                 .get(0)
                 .unwrap()

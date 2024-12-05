@@ -20,6 +20,10 @@ pub trait TorrentFileStorage: Debug + Send + Sync {
     /// This doesn't check if the file contains any actual data.
     fn exists(&self, filepath: &Path) -> bool;
 
+    /// Get the path of this storage.
+    /// This is the path under which all file operations are performed.
+    fn path(&self) -> &Path;
+
     /// Try to create/open the file.
     /// It returns an error if the specified location couldn't be accessed.
     async fn open(&self, filepath: &Path) -> Result<()>;
@@ -133,6 +137,10 @@ impl TorrentFileStorage for DefaultTorrentFileStorage {
         let absolute_filepath = self.absolute_filepath(filepath);
 
         self.is_valid_filepath(&absolute_filepath) && absolute_filepath.exists()
+    }
+
+    fn path(&self) -> &Path {
+        self.base_path.as_path()
     }
 
     async fn open(&self, filepath: &Path) -> Result<()> {

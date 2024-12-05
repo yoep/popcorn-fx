@@ -1,5 +1,5 @@
 use crate::torrents::trackers::TrackerEntry;
-use crate::torrents::{InnerTorrent, TorrentCommandEvent, TorrentOperation};
+use crate::torrents::{TorrentCommandEvent, TorrentContext, TorrentOperation};
 use async_trait::async_trait;
 use derive_more::Display;
 use log::{debug, warn};
@@ -24,7 +24,7 @@ impl TorrentTrackersOperation {
 
     /// Get the tiered trackers from the metadata of the torrent.
     /// Returns false if the tiered trackers could not be created.
-    async fn create_trackers_cache(&self, torrent: &InnerTorrent) -> bool {
+    async fn create_trackers_cache(&self, torrent: &TorrentContext) -> bool {
         let metadata = torrent.metadata().await;
         let tiered_trackers = metadata.tiered_trackers();
 
@@ -53,7 +53,7 @@ impl TorrentTrackersOperation {
     }
 
     /// Try to add the trackers from the cache to the torrent.
-    async fn add_trackers_from_cache(&self, torrent: &InnerTorrent) {
+    async fn add_trackers_from_cache(&self, torrent: &TorrentContext) {
         let mut mutex = self.cached_tiered_trackers.lock().await;
         let entries: Vec<_> = mutex.drain(..).collect();
 
@@ -75,7 +75,7 @@ impl TorrentTrackersOperation {
 
 #[async_trait]
 impl TorrentOperation for TorrentTrackersOperation {
-    async fn execute<'a>(&self, torrent: &'a InnerTorrent) -> Option<&'a InnerTorrent> {
+    async fn execute<'a>(&self, torrent: &'a TorrentContext) -> Option<&'a TorrentContext> {
         // build the tiered trackers cache if needed
         if !*self.initialized.lock().await {
             // if we're unable to create the tiered trackers
@@ -86,7 +86,11 @@ impl TorrentOperation for TorrentTrackersOperation {
         }
 
         self.add_trackers_from_cache(&torrent).await;
-        if torrent.active_tracker_connections().await > 0 {
+        // check if the metadata is known or if there are active tracker connections
+        // if not, we wait for at least one tracker connection
+        if torrent.metadata_lock().read().await.info.is_some()
+            || torrent.active_tracker_connections().await > 0
+        {
             Some(torrent)
         } else {
             None
@@ -103,6 +107,7 @@ mod tests {
     use super::*;
     use crate::torrents::fs::DefaultTorrentFileStorage;
     use crate::torrents::{Torrent, TorrentConfig, TorrentEvent, TorrentInfo};
+    use popcorn_fx_core::available_port;
     use popcorn_fx_core::core::Callbacks;
     use popcorn_fx_core::testing::{init_logger, read_test_file_to_bytes};
     use std::sync::mpsc::channel;
@@ -119,9 +124,10 @@ mod tests {
         let torrent_info_data = read_test_file_to_bytes("ubuntu-https.torrent");
         let torrent_info = TorrentInfo::try_from(torrent_info_data.as_slice()).unwrap();
         let runtime = Arc::new(Runtime::new().unwrap());
+        let port = available_port!(6881, 31000).unwrap();
         let torrent = Torrent::request()
             .metadata(torrent_info)
-            .peer_listener_port(9090)
+            .peer_listener_port(port)
             .config(
                 TorrentConfig::builder()
                     .tracker_connection_timeout(Duration::from_secs(1))

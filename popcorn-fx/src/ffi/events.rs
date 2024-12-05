@@ -64,7 +64,7 @@ mod test {
     use log::info;
     use tempfile::tempdir;
 
-    use popcorn_fx_core::core::events::{DEFAULT_ORDER, Event};
+    use popcorn_fx_core::core::events::{Event, DEFAULT_ORDER};
     use popcorn_fx_core::into_c_string;
     use popcorn_fx_core::testing::init_logger;
 
@@ -125,6 +125,7 @@ mod test {
     #[test]
     fn test_dispose_event_value() {
         dispose_event_value(EventC::TorrentDetailsLoaded(TorrentInfoC {
+            info_hash: into_c_string("MyHandle".to_string()),
             uri: into_c_string("magnet:?Lorem".to_string()),
             name: into_c_string("Foo".to_string()),
             directory_name: into_c_string("Bar".to_string()),

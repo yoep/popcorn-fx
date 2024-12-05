@@ -26,7 +26,8 @@ pub use mock::*;
 use popcorn_fx_core::core::torrents::magnet::Magnet;
 use popcorn_fx_core::core::torrents::TorrentHealth;
 use popcorn_fx_core::core::{
-    block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks, Handle,
+    block_in_place, block_in_place_runtime, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks,
+    Handle,
 };
 use tokio::runtime::Runtime;
 use tokio::sync::RwLock;
@@ -385,7 +386,8 @@ impl Session for DefaultSession {
                         .operations(self.inner.torrent_operations())
                         .request_strategies(self.inner.request_strategies())
                         .storage(Box::new(DefaultTorrentFileStorage::new(
-                            &block_in_place(self.inner.base_path.read()).clone(),
+                            &block_in_place_runtime(self.inner.base_path.read(), &self.runtime)
+                                .clone(),
                         )))
                         .runtime(self.runtime.clone());
 
@@ -409,7 +411,6 @@ impl Session for DefaultSession {
     async fn torrent_health_from_uri(&self, uri: &str) -> Result<TorrentHealth> {
         trace!("Retrieving torrent health for {:?}", uri);
         let torrent_info = self.resolve(uri)?;
-
         self.torrent_health_from_info(torrent_info).await
     }
 

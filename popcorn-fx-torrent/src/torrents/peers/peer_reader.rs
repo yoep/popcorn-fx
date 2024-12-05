@@ -59,19 +59,19 @@ where
                 read_result = self.reader.read(&mut buffer) => {
                     match read_result {
                         Ok(0) => {
-                            trace!("Peer reader EOF for peer {}", self.handle);
+                            trace!("Peer reader {} EOF", self.handle);
                             break
                         },
                         Ok(buffer_size) => {
                             if let Err(e) = self.read_next(&buffer, buffer_size).await {
                                 if e != Error::Closed {
-                                    error!("{}", e);
+                                    warn!("{}", e);
                                 }
                                 break
                             }
                         },
                         Err(e) => {
-                            error!("{}", Error::from(e));
+                            warn!("{}", Error::from(e));
                             break
                         }
                     }

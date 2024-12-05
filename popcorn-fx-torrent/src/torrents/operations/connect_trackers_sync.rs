@@ -1,5 +1,5 @@
 use crate::torrents::trackers::TrackerEntry;
-use crate::torrents::{InnerTorrent, TorrentCommandEvent, TorrentOperation};
+use crate::torrents::{TorrentCommandEvent, TorrentContext, TorrentOperation};
 use async_trait::async_trait;
 use derive_more::Display;
 use log::{debug, warn};
@@ -20,7 +20,7 @@ impl TorrentTrackersSyncOperation {
         }
     }
 
-    async fn create_trackers(&self, torrent: &InnerTorrent) -> bool {
+    async fn create_trackers(&self, torrent: &TorrentContext) -> bool {
         let metadata = torrent.metadata().await;
         let tiered_trackers = metadata.tiered_trackers();
 
@@ -56,7 +56,7 @@ impl TorrentTrackersSyncOperation {
 
 #[async_trait]
 impl TorrentOperation for TorrentTrackersSyncOperation {
-    async fn execute<'a>(&self, torrent: &'a InnerTorrent) -> Option<&'a InnerTorrent> {
+    async fn execute<'a>(&self, torrent: &'a TorrentContext) -> Option<&'a TorrentContext> {
         // add the known trackers to the torrent
         if !*self.initialized.lock().await {
             if !self.create_trackers(torrent).await {

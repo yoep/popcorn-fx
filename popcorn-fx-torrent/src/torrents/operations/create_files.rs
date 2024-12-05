@@ -1,4 +1,4 @@
-use crate::torrents::{File, InnerTorrent, TorrentError, TorrentOperation};
+use crate::torrents::{File, TorrentContext, TorrentError, TorrentOperation};
 use async_trait::async_trait;
 use derive_more::Display;
 use log::{debug, warn};
@@ -15,7 +15,7 @@ impl TorrentFilesOperation {
 
     /// Create the torrent files information.
     /// This can only be executed when the torrent metadata is known.
-    async fn create_files(&self, torrent: &InnerTorrent) -> bool {
+    async fn create_files(&self, torrent: &TorrentContext) -> bool {
         match self.try_create_files(torrent).await {
             Ok(files) => {
                 let total_files = files.len();
@@ -35,7 +35,10 @@ impl TorrentFilesOperation {
 
     /// Try to create the files of the torrent.
     /// This operation doesn't store the created files within this torrent.
-    async fn try_create_files(&self, torrent: &InnerTorrent) -> crate::torrents::Result<Vec<File>> {
+    async fn try_create_files(
+        &self,
+        torrent: &TorrentContext,
+    ) -> crate::torrents::Result<Vec<File>> {
         let info = torrent.metadata().await;
         let is_v2_metadata: bool = info.info_hash.has_v2();
         let metadata = info.info.ok_or(TorrentError::InvalidMetadata(
@@ -77,7 +80,7 @@ impl TorrentFilesOperation {
 
 #[async_trait]
 impl TorrentOperation for TorrentFilesOperation {
-    async fn execute<'a>(&self, torrent: &'a InnerTorrent) -> Option<&'a InnerTorrent> {
+    async fn execute<'a>(&self, torrent: &'a TorrentContext) -> Option<&'a TorrentContext> {
         // check if the files have already been created
         // if so, continue the chain
         if torrent.total_files().await > 0 {

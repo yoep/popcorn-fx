@@ -145,12 +145,12 @@ mod test {
 
     use popcorn_fx_core::core::block_in_place;
     use popcorn_fx_core::core::torrents::{
-        MockTorrent, Torrent, TorrentEvent, TorrentFileInfo, TorrentManager,
+        MockTorrent, Torrent, TorrentEvent, TorrentFileInfo, TorrentManager, TorrentState,
     };
     use popcorn_fx_core::testing::{copy_test_file, init_logger};
     use popcorn_fx_core::{assert_timeout_eq, into_c_string};
 
-    use crate::ffi::TorrentC;
+    use crate::ffi::{TorrentC, TorrentFileInfoC};
     use crate::test::{default_args, new_instance};
 
     use super::*;
@@ -250,7 +250,7 @@ mod test {
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut torrent = MockTorrent::new();
         torrent.expect_file().return_const(PathBuf::from(temp_path));
-        torrent.expect_total_pieces().return_const(10);
+        torrent.expect_total_pieces().return_const(10usize);
         torrent
             .expect_state()
             .return_const(TorrentState::Downloading);

@@ -97,14 +97,16 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
 
         // request the real-time health
         healthService.getTorrentHealth(torrentInfo.getUrl()).whenComplete((torrentHealth, throwable) -> {
-            this.health.setUpdating(false);
+            Platform.runLater(() -> {
+                this.health.setUpdating(false);
 
-            if (throwable == null) {
-                updateHealthIcon(torrentHealth);
-            } else if (!(throwable instanceof CancellationException)) {
-                // do not remove the health state, keep the original info from the API
-                log.error("Failed to retrieve health info, " + throwable.getMessage(), throwable);
-            }
+                if (throwable == null) {
+                    updateHealthIcon(torrentHealth);
+                } else if (!(throwable instanceof CancellationException)) {
+                    // do not remove the health state, keep the original info from the API
+                    log.error("Failed to retrieve health info, {}", throwable.getMessage(), throwable);
+                }
+            });
         });
     }
 

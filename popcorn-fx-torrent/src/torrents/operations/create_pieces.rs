@@ -1,5 +1,5 @@
 use crate::torrents::{
-    InfoHash, InnerTorrent, Piece, PieceError, PieceIndex, TorrentMetadata, TorrentOperation,
+    InfoHash, Piece, PieceError, PieceIndex, TorrentContext, TorrentMetadata, TorrentOperation,
     TorrentState,
 };
 use async_trait::async_trait;
@@ -18,7 +18,7 @@ impl TorrentPiecesOperation {
 
     /// Create the pieces information for the torrent.
     /// This operation can only be done when the metadata of the torrent is known.
-    async fn create_pieces(&self, data: &InnerTorrent) -> bool {
+    async fn create_pieces(&self, data: &TorrentContext) -> bool {
         // update the state back to initializing
         data.update_state(TorrentState::Initializing).await;
 
@@ -48,7 +48,10 @@ impl TorrentPiecesOperation {
     /// # Returns
     ///
     /// Returns the pieces result for the torrent if available, else the error.
-    async fn try_create_pieces(&self, data: &InnerTorrent) -> crate::torrents::Result<Vec<Piece>> {
+    async fn try_create_pieces(
+        &self,
+        data: &TorrentContext,
+    ) -> crate::torrents::Result<Vec<Piece>> {
         let info_hash: InfoHash;
         let num_pieces: usize;
         let metadata: TorrentMetadata;
@@ -111,7 +114,7 @@ impl TorrentPiecesOperation {
 
 #[async_trait]
 impl TorrentOperation for TorrentPiecesOperation {
-    async fn execute<'a>(&self, torrent: &'a InnerTorrent) -> Option<&'a InnerTorrent> {
+    async fn execute<'a>(&self, torrent: &'a TorrentContext) -> Option<&'a TorrentContext> {
         // check if the pieces have already been created
         // if so, continue the chain
         if torrent.total_pieces().await > 0 {

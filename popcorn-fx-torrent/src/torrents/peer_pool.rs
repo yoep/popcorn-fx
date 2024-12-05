@@ -3,8 +3,7 @@ use crate::torrents::TorrentHandle;
 use log::{debug, warn};
 use std::net::SocketAddr;
 use std::time::Duration;
-use tokio::sync::futures::Notified;
-use tokio::sync::{Mutex, Notify, RwLock, Semaphore};
+use tokio::sync::{Mutex, RwLock, Semaphore};
 use tokio::{select, time};
 
 /// A pool manager which manages the peers of a torrent
@@ -16,8 +15,6 @@ pub struct PeerPool {
     pub peers: RwLock<Vec<Peer>>,
     /// The discovered peers addrs
     available_peer_addrs: RwLock<Vec<SocketAddr>>,
-    /// The notifier of the peer pool which is invoked when the peers change
-    notifier: Notify,
     /// The maximum amount of peers allowed in the pool
     limit: Mutex<usize>,
     /// The semaphore to limit the number of active peers and in-flight peers for the pool
@@ -31,7 +28,6 @@ impl PeerPool {
             handle,
             peers: Default::default(),
             available_peer_addrs: Default::default(),
-            notifier: Default::default(),
             limit: Mutex::new(pool_limit),
             semaphore: Semaphore::new(pool_limit),
         }
@@ -50,7 +46,6 @@ impl PeerPool {
         }
 
         mutex.push(peer);
-        self.notifier.notify_waiters();
         true
     }
 
@@ -118,11 +113,6 @@ impl PeerPool {
         *mutex = limit;
     }
 
-    /// Get notified when new peers are added to the pool.
-    pub fn notified(&self) -> Notified<'_> {
-        self.notifier.notified()
-    }
-
     /// Remove any closed or invalid peers from the pool.
     /// The cleanup tries to close the peer connection within a timely manner if possible.
     pub async fn clean(&self) {
@@ -144,5 +134,18 @@ impl PeerPool {
 
         mutex.retain(|e| !handles_to_remove.contains(&e.handle()));
         debug!("Cleaned a total of {} peers", handles_to_remove.len());
+    }
+
+    /// Shut down the peer pool, closing all peer connections.
+    pub async fn shutdown(&self) {
+        debug!("Shutting down peer pool for {}", self.handle);
+        let mut peers = self.peers.write().await;
+        let mut addrs = self.available_peer_addrs.write().await;
+
+        addrs.clear();
+        self.set_pool_limit(0).await;
+        for peer in std::mem::take(&mut *peers) {
+            peer.close().await;
+        }
     }
 }

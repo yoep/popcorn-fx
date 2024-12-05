@@ -1,4 +1,4 @@
-use crate::torrents::{InnerTorrent, TorrentCommandEvent, TorrentOperation};
+use crate::torrents::{TorrentCommandEvent, TorrentContext, TorrentOperation};
 use async_trait::async_trait;
 use derive_more::Display;
 
@@ -14,7 +14,7 @@ impl TorrentPeersOperation {
     async fn create_additional_peer_connections(
         &self,
         wanted_connections: usize,
-        torrent: &InnerTorrent,
+        torrent: &TorrentContext,
     ) {
         let peer_addrs = torrent
             .peer_pool()
@@ -29,7 +29,7 @@ impl TorrentPeersOperation {
 
 #[async_trait]
 impl TorrentOperation for TorrentPeersOperation {
-    async fn execute<'a>(&self, torrent: &'a InnerTorrent) -> Option<&'a InnerTorrent> {
+    async fn execute<'a>(&self, torrent: &'a TorrentContext) -> Option<&'a TorrentContext> {
         let wanted_connections = torrent.remaining_peer_connections_needed().await;
         if wanted_connections > 0 {
             self.create_additional_peer_connections(wanted_connections, torrent)
@@ -49,6 +49,7 @@ mod tests {
     use super::*;
     use crate::torrents::fs::DefaultTorrentFileStorage;
     use crate::torrents::{Torrent, TorrentConfig, TorrentFlags, TorrentInfo};
+    use popcorn_fx_core::available_port;
     use popcorn_fx_core::core::torrents::magnet::Magnet;
     use popcorn_fx_core::testing::init_logger;
     use std::str::FromStr;
@@ -66,10 +67,11 @@ mod tests {
         let magnet = Magnet::from_str(uri).unwrap();
         let torrent_info = TorrentInfo::try_from(magnet).unwrap();
         let runtime = Arc::new(Runtime::new().unwrap());
+        let port = available_port!(6881, 31000).unwrap();
         let torrent = Torrent::request()
             .metadata(torrent_info)
             .options(TorrentFlags::None)
-            .peer_listener_port(6881)
+            .peer_listener_port(port)
             .config(
                 TorrentConfig::builder()
                     .peer_connection_timeout(Duration::from_secs(1))

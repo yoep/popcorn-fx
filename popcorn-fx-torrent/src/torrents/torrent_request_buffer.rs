@@ -1,12 +1,11 @@
 use crate::torrents::peers::PeerHandle;
 use crate::torrents::{PartIndex, PieceIndex, PiecePart};
 use derive_more::Display;
-use log::{debug, trace};
+use log::trace;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
-use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
-use tokio::sync::{Mutex, OwnedSemaphorePermit, RwLock, Semaphore};
+use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 
 /// The timeout after which a request will be retried for execution
 const REQUEST_TIMEOUT_MILLIS: u128 = 20 * 1000;
@@ -41,13 +40,13 @@ impl PendingRequest {
     }
 
     /// Get the piece parts as a slice of the pending request.
-    pub fn parts_slice(&self) -> &[PiecePart] {
+    pub fn parts_as_slice(&self) -> &[PiecePart] {
         &self.inner.parts
     }
 
     /// Get the list of parts which still need to be requested from a peer.
     /// This is a list of piece parts which are either not yet requested from a peer or have timed-out.
-    pub fn parts_to_request(&self) -> Vec<PiecePart> {
+    pub fn parts_to_request(&self) -> Vec<&PiecePart> {
         self.inner
             .parts
             .iter()
@@ -61,7 +60,6 @@ impl PendingRequest {
                     .filter(|e| e.requested_at.elapsed().as_millis() < REQUEST_TIMEOUT_MILLIS)
                     .is_none()
             })
-            .cloned()
             .collect()
     }
 
@@ -78,6 +76,13 @@ impl PendingRequest {
     pub fn release_permit(&self) {
         let mut mutex = self.inner.permit.write().unwrap();
         let _ = mutex.take();
+    }
+
+    /// Release the given part index as being processed by a peer.
+    /// This is called when a peer has rejected a part of the pending request.
+    fn release_part(&self, part: &PartIndex) {
+        let mut mutex = self.inner.pending_requests.write().unwrap();
+        mutex.remove(part);
     }
 
     /// Mark the given part index as completed within the request.
@@ -133,189 +138,135 @@ struct InnerPendingRequest {
 
 #[derive(Debug)]
 pub struct PendingRequestBuffer {
-    requests: RwLock<Vec<PendingRequest>>,
-    semaphore: Arc<Semaphore>,
-    sender: UnboundedSender<PendingRequest>,
-    receiver: Mutex<UnboundedReceiver<PendingRequest>>,
+    pub requests: Vec<PendingRequest>,
+    pub semaphore: Arc<Semaphore>,
 }
 
 impl PendingRequestBuffer {
     /// Get a new request buffer.
     /// It will have a maximum of `max_in_flight` requests in flight at any given time.
     pub fn new(max_in_flight: usize) -> Self {
-        let (sender, receiver) = unbounded_channel();
-
         Self {
-            requests: RwLock::new(Vec::with_capacity(0)),
+            requests: Vec::with_capacity(0),
             semaphore: Arc::new(Semaphore::new(max_in_flight)),
-            sender,
-            receiver: Mutex::new(receiver),
         }
     }
 
     /// Get the number of pending requests.
-    pub async fn len(&self) -> usize {
-        self.requests.read().await.len()
+    pub fn len(&self) -> usize {
+        self.requests.len()
     }
 
     /// Get the pending requested pieces stored in the buffer.
-    pub async fn pending_pieces(&self) -> Vec<PieceIndex> {
+    pub fn pending_pieces(&self) -> Vec<PieceIndex> {
+        self.requests.iter().map(|e| e.piece()).collect()
+    }
+
+    /// Check if the given piece is currently queued for being requested.
+    pub fn is_pending(&self, piece: &PieceIndex) -> bool {
+        self.requests.iter().any(|e| e.piece() == *piece)
+    }
+
+    /// Get all pending requests that have not yet been requested from a peer or have timed-out.
+    /// It returns the list of pending requests.
+    pub fn pending_requests(&self) -> Vec<&PendingRequest> {
         self.requests
-            .read()
-            .await
             .iter()
-            .map(|e| e.piece())
+            .filter(|e| !e.is_completed())
+            .filter(|e| e.parts_to_request().len() > 0)
             .collect()
     }
 
     /// Push a new request into the buffer.
-    pub async fn push(&self, request: PendingRequest) {
-        {
-            let mut mutex = self.requests.write().await;
-            if !mutex.iter().any(|e| e.piece() == request.piece()) {
-                let index = mutex.len();
-                mutex.insert(index, request.clone());
-                let _ = self.sender.send(request);
-            }
+    pub fn push(&mut self, request: PendingRequest) {
+        // check if the pending piece request is already in the buffer
+        // if so, ignore this request
+        if self.requests.iter().any(|e| e.piece() == request.piece()) {
+            return;
         }
+
+        self.requests.push(request);
+    }
+
+    /// Get the amount of available requests that are allowed to be processed/requested by peers.
+    /// This will count the remaining "in-flight" slots of the buffer.
+    pub fn available_permits(&self) -> usize {
+        self.semaphore.available_permits()
     }
 
     /// Push multiple requests onto the buffer.
-    pub async fn push_all(&self, mut requests: Vec<PendingRequest>) {
-        {
-            let mut mutex = self.requests.write().await;
-            // filter out any duplicate requests
-            requests = requests
-                .into_iter()
-                .filter(|pending_request| {
-                    !mutex
-                        .iter()
-                        .any(|existing_request| existing_request.piece() == pending_request.piece())
-                })
-                .collect();
+    pub fn push_all(&mut self, requests: Vec<PendingRequest>) {
+        // filter out any duplicate requests
+        let requests: Vec<_> = requests
+            .into_iter()
+            .filter(|e| !self.requests.contains(e))
+            .collect();
 
-            mutex.extend(requests.clone());
-        }
-
-        for request in requests {
-            let _ = self.sender.send(request);
-        }
-    }
-
-    /// Check if the given piece part is currently being requested.
-    pub async fn is_pending_async(&self, piece: PieceIndex) -> bool {
-        self.requests
-            .read()
-            .await
-            .iter()
-            .find(|e| e.piece() == piece)
-            .is_some()
+        self.requests.extend(requests);
     }
 
     /// Update the peers that are currently trying to retrieve the given piece part.
-    pub async fn update_request_from(&self, piece: PieceIndex, part: PartIndex, peer: PeerHandle) {
-        let mut mutex = self.requests.write().await;
-        if let Some(request) = mutex.iter_mut().find(|e| e.piece() == piece) {
+    pub fn update_request_from(&self, piece: PieceIndex, part: PartIndex, peer: PeerHandle) {
+        if let Some(request) = self.requests.iter().find(|e| e.piece() == piece) {
             request.add_part_requested_from(part, peer);
         }
     }
 
     /// Update a pending piece part request as being completed.
-    pub async fn update_request_part_completed(&self, piece: PieceIndex, part: PartIndex) {
-        let mut mutex = self.requests.write().await;
-        if let Some(request) = mutex.iter_mut().find(|e| e.piece() == piece) {
-            request.mark_part_as_completed(part);
+    pub fn update_request_part_completed(&mut self, piece: PieceIndex, part: PartIndex) {
+        let mut is_piece_completed = false;
 
-            if request.is_completed() {
+        if let Some(request) = self.requests.iter().find(|e| e.piece() == piece) {
+            request.mark_part_as_completed(part);
+            is_piece_completed = request.is_completed();
+        }
+
+        if is_piece_completed {
+            if let Some(position) = self.requests.iter().position(|e| e.piece() == piece) {
+                let request = self.requests.remove(position);
                 request.release_permit();
-                mutex.retain(|e| e.piece() != piece);
                 trace!("Removed pending request of piece {}", piece);
             }
         }
     }
 
-    /// Clear the current buffer
-    pub async fn clear(&self) {
-        self.requests.write().await.clear();
-
-        {
-            let mut mutex = self.receiver.lock().await;
-            while mutex.try_recv().is_ok() {}
+    /// Accept a pending request as "in-flight".
+    /// This will mark the request as being requested by one-or-more peers.
+    pub async fn accept(&self, request: &PendingRequest) {
+        // check if the request already has a permit
+        if request.inner.permit.read().unwrap().is_some() {
+            return;
         }
-    }
 
-    /// Get the next pending request from the buffer.
-    ///
-    /// When no requests are available, this will wait until a request is available.
-    pub async fn next(&self) -> Option<PendingRequest> {
         if let Ok(permit) = self.semaphore.clone().acquire_owned().await {
-            if let Some(request) = self.receiver.lock().await.recv().await {
-                request.inner.permit.write().unwrap().replace(permit);
-                return Some(request);
+            if let Ok(mut mutex) = request.inner.permit.write() {
+                *mutex = Some(permit);
             }
         }
-
-        None
     }
 
-    /// Retry the requests which are in flight and have not yet been completed within the expected deadline.
-    /// This will push the request back on the buffer channel to be processed again.
-    pub async fn retry_timed_out_requests(&self) {
-        let retry_requests: Vec<PendingRequest>;
+    /// Release the pending request from in-flight as it was unable to be processed by any peer.
+    pub fn release(&self, request: &PendingRequest) {
+        request.release_permit();
+    }
 
-        {
-            let mutex = self.requests.read().await;
-            let timed_out_requests: Vec<_> = mutex
-                .iter()
-                .filter(|e| e.inner.pending_requests.read().unwrap().len() > 0)
-                .filter(|e| {
-                    e.inner
-                        .pending_requests
-                        .read()
-                        .unwrap()
-                        .iter()
-                        .any(|(_, from)| {
-                            !from.completed
-                                && from.requested_at.elapsed().as_millis() > REQUEST_TIMEOUT_MILLIS
-                        })
-                })
-                .cloned()
-                .collect();
+    /// Release the given part from the pending request as being processed.
+    /// This should be called when a peer has rejected a part of the pending request.
+    pub fn release_part(&self, request: &PendingRequest, part: &PartIndex) {
+        request.release_part(part);
+    }
 
-            // release the permits of the timed out requests
-            for request in timed_out_requests.iter() {
-                request.release_permit();
-            }
-
-            // try to queue the timed out requests again
-            retry_requests = timed_out_requests
-                .into_iter()
-                .take(self.semaphore.available_permits())
-                .map(|e| e.clone())
-                .collect();
-        }
-
-        if retry_requests.len() > 0 {
-            debug!(
-                "Retrying a total of {} timed out requests",
-                retry_requests.len()
-            );
-            for request in retry_requests {
-                let _ = self.sender.send(request);
-            }
-        }
+    /// Clear the current buffer
+    pub fn clear(&mut self) {
+        self.requests.clear();
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use log::debug;
     use popcorn_fx_core::core::Handle;
     use popcorn_fx_core::testing::init_logger;
-    use std::sync::mpsc::{channel, RecvTimeoutError};
-    use std::time::Duration;
-    use tokio::runtime::Runtime;
 
     #[test]
     fn test_pending_request_is_completed() {
@@ -336,112 +287,39 @@ mod tests {
 
     #[test]
     fn test_buffer_len() {
-        let runtime = Runtime::new().unwrap();
-        let buffer = PendingRequestBuffer::new(1);
+        let mut buffer = PendingRequestBuffer::new(1);
 
-        runtime.block_on(buffer.push_all(vec![
+        buffer.push_all(vec![
             create_pending_request(1, 2),
             create_pending_request(2, 1),
-        ]));
-        let result = runtime.block_on(buffer.len());
+        ]);
+        let result = buffer.len();
 
         assert_eq!(2, result, "expected 2 pending requests");
     }
 
-    #[tokio::test]
-    async fn test_buffer_is_pending() {
+    #[test]
+    fn test_buffer_is_pending() {
         let piece_index = 1;
         let request = create_pending_request(piece_index, 3);
-        let buffer = PendingRequestBuffer::new(1);
+        let mut buffer = PendingRequestBuffer::new(1);
 
-        buffer.push_all(vec![request]).await;
-        let result = buffer.is_pending_async(piece_index).await;
+        buffer.push_all(vec![request]);
+        let result = buffer.is_pending(&piece_index);
 
         assert_eq!(true, result, "expected the piece part to be pending");
     }
 
     #[test]
-    fn test_buffer_next() {
-        let runtime = Runtime::new().unwrap();
-        let request = create_pending_request(1, 3);
-        let (tx, rx) = channel();
-        let buffer = PendingRequestBuffer::new(1);
-
-        runtime.block_on(buffer.push_all(vec![request]));
-        runtime.spawn(async move {
-            tx.send(buffer.next().await).unwrap();
-        });
-
-        let result = rx.recv_timeout(Duration::from_millis(50)).unwrap();
-
-        assert_ne!(None, result, "expected a pending request");
-    }
-
-    #[test]
-    fn test_buffer_next_max_in_flight() {
-        init_logger();
-        let runtime = Runtime::new().unwrap();
-        let requests = vec![create_pending_request(1, 1), create_pending_request(2, 6)];
-        let (tx, rx) = channel();
-        let buffer = Arc::new(PendingRequestBuffer::new(1));
-
-        runtime.block_on(buffer.push_all(requests));
-        let inner_recv = buffer.clone();
-        runtime.spawn(async move {
-            loop {
-                if let Some(request) = inner_recv.next().await {
-                    if let Err(_) = tx.send(request) {
-                        debug!("Closing pending request channel");
-                        break;
-                    }
-                }
-            }
-        });
-
-        let _ = rx
-            .recv_timeout(Duration::from_millis(50))
-            .expect("expected a pending request");
-
-        let result = rx.recv_timeout(Duration::from_millis(100));
-        assert_eq!(
-            Err(RecvTimeoutError::Timeout),
-            result,
-            "expected no next item to be returned"
-        );
-
-        // mark the piece as completed
-        let inner = buffer.clone();
-        runtime.block_on(async move {
-            inner.update_request_from(1, 1, Handle::new()).await;
-            inner.update_request_part_completed(1, 1).await;
-        });
-
-        let _ = rx
-            .recv_timeout(Duration::from_millis(100))
-            .expect("expected a pending request");
-    }
-
-    #[test]
     fn test_buffer_clear() {
         init_logger();
-        let runtime = Runtime::new().unwrap();
         let requests = vec![create_pending_request(1, 1), create_pending_request(2, 6)];
-        let (tx, rx) = channel();
-        let buffer = Arc::new(PendingRequestBuffer::new(1));
+        let mut buffer = PendingRequestBuffer::new(1);
 
-        runtime.block_on(buffer.push_all(requests));
-        runtime.block_on(buffer.clear());
+        buffer.push_all(requests);
+        buffer.clear();
 
-        runtime.spawn(async move {
-            let _ = tx.send(buffer.next().await);
-        });
-
-        let result = rx.recv_timeout(Duration::from_millis(100));
-        assert_eq!(
-            Err(RecvTimeoutError::Timeout),
-            result,
-            "expected no next item to be returned"
-        );
+        assert_eq!(0, buffer.requests.len());
     }
 
     fn create_pending_request(piece: PieceIndex, num_of_parts: usize) -> PendingRequest {

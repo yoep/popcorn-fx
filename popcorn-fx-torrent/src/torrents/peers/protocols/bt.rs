@@ -82,6 +82,11 @@ impl From<[u8; 8]> for ProtocolExtensionFlags {
             flags |= Self::SupportV2;
         }
 
+        if flags.is_none() {
+            return flags;
+        }
+
+        flags &= !Self::None;
         flags
     }
 }
@@ -139,6 +144,12 @@ impl TryFrom<u8> for MessageType {
             6 => Ok(MessageType::Request),
             7 => Ok(MessageType::Piece),
             8 => Ok(MessageType::Cancel),
+            9 => Ok(MessageType::Port),
+            13 => Ok(MessageType::Suggest),
+            14 => Ok(MessageType::HaveAll),
+            15 => Ok(MessageType::HaveNone),
+            16 => Ok(MessageType::RejectRequest),
+            17 => Ok(MessageType::AllowedFast),
             20 => Ok(MessageType::Extended),
             21 => Ok(MessageType::HashRequest),
             22 => Ok(MessageType::Hashes),
@@ -628,6 +639,27 @@ mod tests {
     use super::*;
     use popcorn_fx_core::testing::init_logger;
     use std::str::FromStr;
+
+    #[test]
+    fn test_protocol_extension_flags_from() {
+        let expected = ProtocolExtensionFlags::LTEP;
+        let extensions: [u8; 8] = expected.into();
+        assert_eq!([0, 0, 0, 0, 0, 16, 0, 0], extensions);
+        let result = ProtocolExtensionFlags::from(extensions);
+        assert_eq!(expected, result);
+
+        let expected = ProtocolExtensionFlags::LTEP | ProtocolExtensionFlags::Fast;
+        let extensions: [u8; 8] = expected.into();
+        assert_eq!([0, 0, 0, 0, 0, 16, 0, 4], extensions);
+        let result = ProtocolExtensionFlags::from(extensions);
+        assert_eq!(expected, result);
+
+        let expected = ProtocolExtensionFlags::Fast;
+        let extensions: [u8; 8] = expected.into();
+        assert_eq!([0, 0, 0, 0, 0, 0, 0, 4], extensions);
+        let result = ProtocolExtensionFlags::from(extensions);
+        assert_eq!(expected, result);
+    }
 
     #[test]
     fn test_handshake_new() {

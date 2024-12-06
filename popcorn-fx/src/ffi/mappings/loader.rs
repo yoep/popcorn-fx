@@ -181,7 +181,7 @@ impl From<LoadingProgress> for LoadingProgressC {
     fn from(value: LoadingProgress) -> Self {
         Self {
             progress: value.progress,
-            seeds: value.seeds,
+            seeds: value.seeds as u32,
             peers: value.peers as u32,
             download_speed: value.download_speed as u32,
             upload_speed: value.upload_speed as u32,

@@ -59,7 +59,7 @@ use popcorn_fx_players::chromecast::ChromecastDiscovery;
 use popcorn_fx_players::dlna::DlnaDiscovery;
 use popcorn_fx_players::vlc::VlcDiscovery;
 use popcorn_fx_players::Discovery;
-use popcorn_fx_torrent::torrents::DefaultTorrentManager;
+use popcorn_fx_torrent::torrent::DefaultTorrentManager;
 use popcorn_fx_trakt::trakt::TraktProvider;
 
 static INIT: Once = Once::new();

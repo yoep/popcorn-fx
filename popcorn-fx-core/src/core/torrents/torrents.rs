@@ -94,7 +94,7 @@ pub struct DownloadStatus {
     /// Progress indication between 0 and 1 that represents the progress of the download.
     pub progress: f32,
     /// The number of seeds available for the torrent.
-    pub seeds: u32,
+    pub seeds: usize,
     /// The number of peers connected to the torrent.
     pub peers: usize,
     /// The total download transfer rate in bytes of payload only, not counting protocol chatter.

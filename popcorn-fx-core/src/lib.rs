@@ -276,7 +276,24 @@ pub mod testing {
 
     static INIT: Once = Once::new();
 
+    /// Initializes the logger with the specified log level.
+    #[macro_export]
+    macro_rules! init_logger {
+        ($level:expr) => {
+            popcorn_fx_core::testing::init_logger_level($level)
+        };
+        () => {
+            popcorn_fx_core::testing::init_logger_level(log::LevelFilter::Trace)
+        };
+    }
+
+    #[deprecated(note = "Use init_logger! macro instead")]
     pub fn init_logger() {
+        init_logger_level(LevelFilter::Trace)
+    }
+
+    /// Initializes the logger with the specified log level.
+    pub fn init_logger_level(level: LevelFilter) {
         INIT.call_once(|| {
             log4rs::init_config(Config::builder()
                 .appender(Appender::builder().build("stdout", Box::new(ConsoleAppender::builder()
@@ -293,7 +310,7 @@ pub mod testing {
                 .logger(Logger::builder().build("serde_xml_rs", LevelFilter::Info))
                 .logger(Logger::builder().build("tracing", LevelFilter::Info))
                 .logger(Logger::builder().build("want", LevelFilter::Info))
-                .build(Root::builder().appender("stdout").build(LevelFilter::Trace))
+                .build(Root::builder().appender("stdout").build(level))
                 .unwrap())
                 .unwrap();
         })

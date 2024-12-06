@@ -250,7 +250,7 @@ impl From<DownloadStatusC> for DownloadStatus {
     fn from(value: DownloadStatusC) -> Self {
         Self {
             progress: value.progress,
-            seeds: value.seeds,
+            seeds: value.seeds as usize,
             peers: value.peers as usize,
             download_speed: value.download_speed as u64,
             upload_speed: value.upload_speed as u64,
@@ -264,7 +264,7 @@ impl From<DownloadStatus> for DownloadStatusC {
     fn from(value: DownloadStatus) -> Self {
         Self {
             progress: value.progress,
-            seeds: value.seeds,
+            seeds: value.seeds as u32,
             peers: value.peers as u32,
             download_speed: value.download_speed as u32,
             upload_speed: value.upload_speed as u32,

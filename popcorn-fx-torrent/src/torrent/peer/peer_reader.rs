@@ -113,7 +113,7 @@ where
         let length = BigEndian::read_u32(buffer);
         let start_time = Instant::now();
         let bytes = self.read(length as usize).await?;
-        let elapsed = start_time.elapsed().as_millis();
+        let elapsed = start_time.elapsed().as_micros();
 
         // we want to unblock the reader thread as soon as possible
         // so we're going to move this whole process into a new separate thread
@@ -135,7 +135,7 @@ where
                     )
                     .await;
                 }
-                Err(e) => warn!("Received invalid message payload, {}", e),
+                Err(e) => warn!("Received invalid message payload for {}, {}", handle, e),
             }
         });
 

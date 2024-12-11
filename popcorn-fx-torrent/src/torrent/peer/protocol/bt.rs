@@ -8,6 +8,7 @@ use serde::de::Visitor;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::fmt::{Debug, Formatter};
 use std::io::{Cursor, Read, Write};
+use std::net::SocketAddr;
 use tokio_util::bytes::Buf;
 
 pub const PROTOCOL: &str = "BitTorrent protocol";
@@ -181,29 +182,32 @@ impl Handshake {
         }
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
+    pub fn from_bytes(addr: &SocketAddr, bytes: &[u8]) -> Result<Self> {
         let mut cursor = Cursor::new(bytes);
 
         // read the protocol length
         let protocol_len = cursor.read_u8()?;
         if protocol_len != PROTOCOL.len() as u8 {
-            return Err(Error::Handshake(format!(
-                "expected protocol length {}, but got {}",
-                PROTOCOL.len(),
-                protocol_len
-            )));
+            return Err(Error::Handshake(
+                addr.clone(),
+                format!(
+                    "expected protocol length {}, but got {}",
+                    PROTOCOL.len(),
+                    protocol_len
+                ),
+            ));
         }
 
         // read the protocol string
         let mut protocol_buf = vec![0; protocol_len as usize];
         cursor.read_exact(&mut protocol_buf)?;
-        let protocol =
-            String::from_utf8(protocol_buf).map_err(|e| Error::Handshake(e.to_string()))?;
+        let protocol = String::from_utf8(protocol_buf)
+            .map_err(|e| Error::Handshake(addr.clone(), e.to_string()))?;
         if protocol != PROTOCOL {
-            return Err(Error::Handshake(format!(
-                "expected protocol {}, but got {}",
-                PROTOCOL, protocol
-            )));
+            return Err(Error::Handshake(
+                addr.clone(),
+                format!("expected protocol {}, but got {}", PROTOCOL, protocol),
+            ));
         }
 
         // read the extensions
@@ -215,7 +219,7 @@ impl Handshake {
         let mut info_hash_bytes: [u8; 20] = [0; 20];
         cursor.read_exact(&mut info_hash_bytes)?;
         let info_hash = InfoHash::try_from_bytes(info_hash_bytes)
-            .map_err(|e| Error::Handshake(e.to_string()))?;
+            .map_err(|e| Error::Handshake(addr.clone(), e.to_string()))?;
 
         // read the peer id
         let mut peer_bytes = [0; 20];
@@ -556,6 +560,17 @@ pub struct Piece {
     pub begin: usize,
     /// The data of the piece
     pub data: Vec<u8>,
+}
+
+impl Piece {
+    /// Get the related request for this piece data.
+    pub fn request(&self) -> Request {
+        Request {
+            index: self.index,
+            begin: self.begin,
+            length: self.data.len(),
+        }
+    }
 }
 
 impl TryFrom<Cursor<&[u8]>> for Piece {

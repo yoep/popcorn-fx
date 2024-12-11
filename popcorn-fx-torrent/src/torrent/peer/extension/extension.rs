@@ -1,5 +1,5 @@
 use crate::torrent::peer::extension::errors;
-use crate::torrent::peer::{Peer, PeerEvent};
+use crate::torrent::peer::{Peer, PeerContext, PeerEvent};
 use async_trait::async_trait;
 use errors::Result;
 use std::collections::HashMap;
@@ -36,7 +36,7 @@ pub trait Extension: Debug + Send + Sync {
     /// # Returns
     ///
     /// Return an error when the extension fails to process the payload successfully.
-    async fn handle<'a>(&'a self, payload: &'a [u8], peer: &'a Peer) -> Result<()>;
+    async fn handle<'a>(&'a self, payload: &'a [u8], peer: &'a PeerContext) -> Result<()>;
 
     /// Invoked when an event is raised by a peer and this extension is supported.
     /// Keep in mind that the [PeerEvent::HandshakeCompleted] event will never be received by an extension
@@ -46,12 +46,11 @@ pub trait Extension: Debug + Send + Sync {
     ///
     /// * `event` - The event raised by the peer
     /// * `peer` - The peer that raised the event
-    async fn on<'a>(&'a self, event: PeerEvent, peer: &'a Peer);
+    async fn on<'a>(&'a self, event: &'a PeerEvent, peer: &'a PeerContext);
 
     /// Clone this extension into a new boxed instance.
+    /// This is called by a torrent for creating an instance of the extension for each new [Peer] connection.
     ///
-    /// # Returns
-    ///
-    /// A new boxed instance of this extension.
+    /// Context of an extension can be shared between peers if wanted by the extension during this method.
     fn clone_boxed(&self) -> Box<dyn Extension>;
 }

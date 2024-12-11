@@ -496,11 +496,12 @@ mod tests {
     use crate::torrent::TorrentInfo;
     use hex_literal::hex;
     use popcorn_fx_core::core::torrents::magnet::Magnet;
+    use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::{init_logger, read_test_file_to_bytes};
 
     #[test]
     fn test_info_hash_from_metadata_v1() {
-        init_logger();
+        init_logger!();
         let info_data = b"hello world";
         let mut expected_result: [u8; 20] = [0; 20];
         expected_result.copy_from_slice(hex!("2aae6c35c94fcfb415dbe95f408b9ce91ee846ed").as_ref());
@@ -513,7 +514,7 @@ mod tests {
 
     #[test]
     fn test_info_hash_from_str() {
-        init_logger();
+        init_logger!();
         let xt_v1 = "urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7";
         let result = InfoHash::from_str(xt_v1).unwrap();
         assert!(result.v1.is_some(), "expected a v1 hash");
@@ -533,7 +534,7 @@ mod tests {
 
     #[test]
     fn test_info_hash_from_str_display() {
-        init_logger();
+        init_logger!();
         let torrent_info_data = read_test_file_to_bytes("debian-udp.torrent");
         let torrent_info = TorrentInfo::try_from(torrent_info_data.as_slice()).unwrap();
         let info_hash = torrent_info.info_hash;
@@ -546,7 +547,7 @@ mod tests {
 
     #[test]
     fn test_info_hash_short_info_hash_bytes() {
-        init_logger();
+        init_logger!();
         let expected_result: [u8; 20] =
             Vec::from_hex("EADAF0EFEA39406914414D359E0EA16416409BD7".as_bytes())
                 .expect("expected the hash string to be a valid hex")
@@ -600,7 +601,7 @@ mod tests {
 
     #[test]
     fn test_info_hash_short_info_hash_bytes_different_sources_same_hash() {
-        init_logger();
+        init_logger!();
         let torrent = read_test_file_to_bytes("debian-udp.torrent");
         let torrent_info_file = TorrentInfo::try_from(torrent.as_slice()).unwrap();
         let info_hash_file = torrent_info_file.info_hash;

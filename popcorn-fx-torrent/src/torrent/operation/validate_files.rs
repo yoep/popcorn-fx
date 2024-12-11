@@ -1,12 +1,14 @@
-use crate::torrent::{File, TorrentContext, TorrentOperation, TorrentState};
+use crate::torrent::{
+    File, TorrentCommandEvent, TorrentContext, TorrentOperation, TorrentOperationResult,
+    TorrentState,
+};
 use async_trait::async_trait;
-use derive_more::Display;
+use futures::future;
 use log::{debug, trace};
 use tokio::sync::Mutex;
 
 /// The torrent file validation operation validates existing files of the torrent and checks which pieces have been completed before/valid.
-#[derive(Debug, Display)]
-#[display(fmt = "torrent file validation operation")]
+#[derive(Debug)]
 pub struct TorrentFileValidationOperation {
     validated: Mutex<bool>,
 }
@@ -18,8 +20,24 @@ impl TorrentFileValidationOperation {
         }
     }
 
-    async fn validate_file(&self, torrent: &TorrentContext, file: &File) {
-        let pieces = torrent.file_pieces(file).await;
+    async fn validate_files(torrent: &TorrentContext, files: Vec<File>) {
+        debug!(
+            "Validating a total of {} files for {}",
+            files.len(),
+            torrent
+        );
+        let futures: Vec<_> = files
+            .into_iter()
+            .filter(|e| torrent.file_exists(e))
+            .map(|e| Self::validate_file(torrent, e))
+            .collect();
+
+        future::join_all(futures).await;
+    }
+
+    async fn validate_file(torrent: &TorrentContext, file: File) {
+        let pieces = torrent.file_pieces(&file).await;
+        let mut completed_pieces = Vec::new();
         let mut valid_pieces = 0;
 
         trace!(
@@ -30,30 +48,35 @@ impl TorrentFileValidationOperation {
         );
         for piece in pieces.into_iter() {
             // retrieve the piece data
-            if let Ok(piece_data) = torrent.read_file_piece(file, piece.index).await {
+            if let Ok(piece_data) = torrent.read_file_piece(&file, piece.index).await {
                 let is_valid = torrent.validate_piece_data(piece.index, &piece_data).await;
 
                 if is_valid {
                     valid_pieces += 1;
-                    torrent.update_piece_completed(piece.index).await;
+                    completed_pieces.push(piece.index);
                 }
             }
         }
 
         debug!(
-            "File {:?} validated with {} valid pieces for {}",
+            "Torrent file {:?} validated with {} valid pieces for {}",
             file.path, valid_pieces, torrent
         );
+        torrent.pieces_completed(completed_pieces).await;
     }
 }
 
 #[async_trait]
 impl TorrentOperation for TorrentFileValidationOperation {
-    async fn execute<'a>(&self, torrent: &'a TorrentContext) -> Option<&'a TorrentContext> {
+    fn name(&self) -> &str {
+        "torrent file validation operation"
+    }
+
+    async fn execute(&self, torrent: &TorrentContext) -> TorrentOperationResult {
         // check if the files have already been validated
         // if so, continue the chain
         if *self.validated.lock().await {
-            return Some(torrent);
+            return TorrentOperationResult::Continue;
         }
 
         let files = torrent.files().await;
@@ -61,21 +84,20 @@ impl TorrentOperation for TorrentFileValidationOperation {
         if files.len() > 0 {
             torrent.update_state(TorrentState::CheckingFiles).await;
 
-            trace!("Validating {:?} files for {}", files, torrent);
-            for file in files.into_iter() {
-                if torrent.file_exists(&file) {
-                    debug!("Verifying file {:?} pieces of {}", file, torrent);
-                    self.validate_file(&torrent, &file).await;
-                } else {
-                    debug!("File {:?} not found for {}", file, self)
-                }
-            }
-
+            Self::validate_files(torrent, files).await;
             *self.validated.lock().await = true;
-            torrent.update_state(TorrentState::Downloading).await;
+            debug!("Torrent files of {} have been validated", torrent);
+
+            if torrent.is_download_allowed().await {
+                torrent.send_command_event(TorrentCommandEvent::State(TorrentState::Downloading));
+            } else if torrent.is_upload_allowed().await {
+                torrent.send_command_event(TorrentCommandEvent::State(TorrentState::Seeding));
+            } else {
+                torrent.send_command_event(TorrentCommandEvent::State(TorrentState::Finished));
+            }
         }
 
-        Some(torrent)
+        TorrentOperationResult::Continue
     }
 
     fn clone_boxed(&self) -> Box<dyn TorrentOperation> {
@@ -86,15 +108,12 @@ impl TorrentOperation for TorrentFileValidationOperation {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::torrent::fs::DefaultTorrentFileStorage;
-    use crate::torrent::operation::{TorrentFilesOperation, TorrentPiecesOperation};
-    use crate::torrent::{Torrent, TorrentConfig, TorrentInfo};
+    use crate::torrent::operation::{TorrentCreateFilesOperation, TorrentCreatePiecesOperation};
+    use crate::torrent::tests::create_torrent_from_uri;
+    use crate::torrent::TorrentFlags;
     use popcorn_fx_core::init_logger;
-    use popcorn_fx_core::testing::{copy_test_file, read_test_file_to_bytes};
-    use std::sync::Arc;
-    use std::time::Duration;
+    use popcorn_fx_core::testing::copy_test_file;
     use tempfile::tempdir;
-    use tokio::runtime::Runtime;
 
     #[test]
     fn test_execute() {
@@ -103,42 +122,33 @@ mod tests {
         let temp_path = temp_dir.path().to_str().unwrap();
         copy_test_file(
             temp_path,
-            "piece-1_10.iso",
+            "piece-1_30.iso",
             Some("debian-12.4.0-amd64-DVD-1.iso"),
         );
-        let runtime = Arc::new(Runtime::new().unwrap());
-        let torrent_info_data = read_test_file_to_bytes("debian-udp.torrent");
-        let torrent_info = TorrentInfo::try_from(torrent_info_data.as_slice()).unwrap();
-        let torrent = Torrent::request()
-            .metadata(torrent_info)
-            .peer_listener_port(6881)
-            .config(
-                TorrentConfig::builder()
-                    .tracker_connection_timeout(Duration::from_secs(1))
-                    .build(),
-            )
-            .storage(Box::new(DefaultTorrentFileStorage::new(temp_path)))
-            .operations(vec![])
-            .runtime(runtime.clone())
-            .build()
-            .unwrap();
+        let (torrent, runtime) =
+            create_torrent_from_uri("debian-udp.torrent", temp_path, TorrentFlags::None, vec![]);
+        let inner = torrent.instance().unwrap();
 
+        // create pieces & files
         runtime.block_on(async {
-            let piece_operation = TorrentPiecesOperation::new();
-            let file_operation = TorrentFilesOperation::new();
-            let operation =
-                Box::new(TorrentFileValidationOperation::new()) as Box<dyn TorrentOperation>;
-            let inner = torrent.instance().unwrap();
+            let piece_operation = TorrentCreatePiecesOperation::new();
+            let file_operation = TorrentCreateFilesOperation::new();
 
             // create the pieces and files
             let _ = piece_operation.execute(&*inner).await;
             let _ = file_operation.execute(&*inner).await;
+        });
+
+        // validate the file
+        runtime.block_on(async {
+            let operation =
+                Box::new(TorrentFileValidationOperation::new()) as Box<dyn TorrentOperation>;
 
             let result = operation.execute(&*inner).await;
-            assert_eq!(Some(&*inner), result);
+            assert_eq!(TorrentOperationResult::Continue, result);
 
             let pieces = inner.pieces_lock().read().await;
-            for piece in 0..9 {
+            for piece in 0..30 {
                 assert_eq!(
                     true,
                     pieces.get(piece).unwrap().is_completed(),
@@ -152,6 +162,16 @@ mod tests {
                     piece
                 );
             }
+
+            let result = inner.stats().await;
+            assert_eq!(
+                30, result.completed_pieces,
+                "expected completed pieces to be 30"
+            );
+            assert_ne!(
+                0, result.total_completed_size,
+                "expected total completed size to be > 0"
+            );
         });
     }
 }

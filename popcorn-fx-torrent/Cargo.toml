@@ -40,9 +40,10 @@ tokio-util.workspace = true
 url.workspace = true
 
 [features]
-default = ["extension-metadata", "extension-holepunch"]
+default = ["extension-metadata", "extension-pex", "extension-holepunch"]
 
 extension-metadata = []
+extension-pex = []
 extension-holepunch = []
 
 [dev-dependencies]
@@ -51,4 +52,3 @@ popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }
 hex-literal = "0.4.1"
 mockall.workspace = true
 tempfile.workspace = true
-utime = "0"

@@ -1,6 +1,6 @@
 use crate::torrent::peer::extension::{Extension, ExtensionNumber};
 use crate::torrent::peer::protocol::Message;
-use crate::torrent::peer::{extension, Peer, PeerEvent};
+use crate::torrent::peer::{extension, PeerContext, PeerEvent};
 use std::fmt::{Debug, Formatter};
 
 use crate::torrent::{PieceIndex, TorrentMetadata};
@@ -73,10 +73,10 @@ impl MetadataExtension {
     async fn send_metadata<'a>(
         &'a self,
         piece: PieceIndex,
-        peer: &'a Peer,
+        peer: &'a PeerContext,
     ) -> extension::Result<()> {
         // retrieve the current known metadata
-        let metadata = peer.metadata().await.and_then(|e| e.info);
+        let metadata = peer.metadata().await.info;
 
         if let Some(metadata) = metadata {
             Self::send_metadata_piece(&metadata, piece, peer).await?;
@@ -112,7 +112,7 @@ impl MetadataExtension {
     async fn process_metadata<'a>(
         &'a self,
         message: MetadataExtensionMessage,
-        peer: &'a Peer,
+        peer: &'a PeerContext,
     ) -> extension::Result<()> {
         let mut total_pieces = self.total_pieces.read().await.as_ref().map(|e| e.clone());
         let current_piece = message.piece;
@@ -154,7 +154,7 @@ impl MetadataExtension {
                 debug!("Received metadata from peer, {:?}", metadata);
 
                 // update the metadata of the underlying torrent through the peer
-                peer.update_torrent_metadata(metadata).await;
+                peer.update_metadata(metadata).await;
                 self.clear_buffer().await;
             } else if self.should_request_metadata(&peer).await {
                 trace!(
@@ -174,7 +174,7 @@ impl MetadataExtension {
     async fn request_metadata<'a>(
         &'a self,
         piece_index: PieceIndex,
-        peer: &'a Peer,
+        peer: &'a PeerContext,
     ) -> extension::Result<()> {
         let extension_number =
             self.find_metadata_extension_number(&peer)
@@ -202,7 +202,7 @@ impl MetadataExtension {
     /// Try to find the metadata extensions number of the remote peer.
     async fn find_metadata_extension_number<'a>(
         &'a self,
-        peer: &'a Peer,
+        peer: &'a PeerContext,
     ) -> Option<ExtensionNumber> {
         peer.remote_extension_registry()
             .await
@@ -210,20 +210,16 @@ impl MetadataExtension {
     }
 
     /// Check if the metadata extension is supported by the remote peer.
-    async fn is_metadata_extension_supported<'a>(&'a self, peer: &'a Peer) -> bool {
+    async fn is_metadata_extension_supported<'a>(&'a self, peer: &'a PeerContext) -> bool {
         self.find_metadata_extension_number(&peer).await.is_some()
     }
 
     /// Check if the metadata should be requested for the torrent.
-    async fn should_request_metadata<'a>(&'a self, peer: &'a Peer) -> bool {
-        if let Some(metadata) = peer.metadata().await {
-            return metadata.info.is_none();
-        }
-
-        false
+    async fn should_request_metadata<'a>(&'a self, peer: &'a PeerContext) -> bool {
+        peer.metadata().await.info.is_none()
     }
 
-    async fn on_extended_handshake(&self, peer: &Peer) {
+    async fn on_extended_handshake(&self, peer: &PeerContext) {
         if self.is_metadata_extension_supported(&peer).await
             && self.should_request_metadata(peer).await
         {
@@ -236,7 +232,7 @@ impl MetadataExtension {
     async fn send_metadata_piece(
         metadata: &TorrentMetadata,
         piece: PieceIndex,
-        peer: &Peer,
+        peer: &PeerContext,
     ) -> extension::Result<()> {
         // serialize the metadata
         let metadata_bytes = serde_bencode::to_bytes(&metadata)?;
@@ -295,7 +291,11 @@ impl Extension for MetadataExtension {
         EXTENSION_NAME_METADATA
     }
 
-    async fn handle<'a>(&'a self, payload: &'a [u8], peer: &'a Peer) -> extension::Result<()> {
+    async fn handle<'a>(
+        &'a self,
+        payload: &'a [u8],
+        peer: &'a PeerContext,
+    ) -> extension::Result<()> {
         let message: MetadataExtensionMessage = Self::deserialize(payload)?;
         trace!("Received metadata message {:?}", message);
 
@@ -311,7 +311,7 @@ impl Extension for MetadataExtension {
         Ok(())
     }
 
-    async fn on<'a>(&'a self, event: PeerEvent, peer: &'a Peer) {
+    async fn on<'a>(&'a self, event: &'a PeerEvent, peer: &'a PeerContext) {
         match event {
             PeerEvent::ExtendedHandshakeCompleted => self.on_extended_handshake(peer).await,
             _ => {}

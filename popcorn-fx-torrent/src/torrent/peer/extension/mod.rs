@@ -7,3 +7,5 @@ mod extension;
 pub mod holepunch;
 #[cfg(feature = "extension-metadata")]
 pub mod metadata;
+#[cfg(feature = "extension-pex")]
+pub mod pex;

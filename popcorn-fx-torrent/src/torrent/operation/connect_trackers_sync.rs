@@ -1,5 +1,7 @@
 use crate::torrent::tracker::TrackerEntry;
-use crate::torrent::{TorrentCommandEvent, TorrentContext, TorrentOperation};
+use crate::torrent::{
+    TorrentCommandEvent, TorrentContext, TorrentOperation, TorrentOperationResult,
+};
 use async_trait::async_trait;
 use derive_more::Display;
 use log::{debug, warn};
@@ -7,8 +9,7 @@ use tokio::sync::Mutex;
 
 /// The torrent trackers sync operation is responsible for adding the known trackers to the torrent.
 /// This operation waits for the trackersto have established a connection before continuing.
-#[derive(Debug, Display)]
-#[display(fmt = "connect trackers synchronized operation")]
+#[derive(Debug)]
 pub struct TorrentTrackersSyncOperation {
     initialized: Mutex<bool>,
 }
@@ -56,15 +57,19 @@ impl TorrentTrackersSyncOperation {
 
 #[async_trait]
 impl TorrentOperation for TorrentTrackersSyncOperation {
-    async fn execute<'a>(&self, torrent: &'a TorrentContext) -> Option<&'a TorrentContext> {
+    fn name(&self) -> &str {
+        "connect trackers synchronized operation"
+    }
+
+    async fn execute(&self, torrent: &TorrentContext) -> TorrentOperationResult {
         // add the known trackers to the torrent
         if !*self.initialized.lock().await {
             if !self.create_trackers(torrent).await {
-                return None;
+                return TorrentOperationResult::Stop;
             }
         }
 
-        Some(torrent)
+        TorrentOperationResult::Continue
     }
 
     fn clone_boxed(&self) -> Box<dyn TorrentOperation> {
@@ -76,18 +81,17 @@ impl TorrentOperation for TorrentTrackersSyncOperation {
 mod tests {
     use super::*;
     use crate::torrent::fs::DefaultTorrentFileStorage;
-    use crate::torrent::{Torrent, TorrentConfig, TorrentEvent, TorrentInfo};
-    use popcorn_fx_core::core::Callbacks;
-    use popcorn_fx_core::testing::{init_logger, read_test_file_to_bytes};
-    use std::sync::mpsc::channel;
+    use crate::torrent::{Torrent, TorrentConfig, TorrentInfo};
+    use popcorn_fx_core::init_logger;
+    use popcorn_fx_core::testing::read_test_file_to_bytes;
     use std::sync::Arc;
     use std::time::Duration;
     use tempfile::tempdir;
     use tokio::runtime::Runtime;
 
-    #[tokio::test]
-    async fn test_execute() {
-        init_logger();
+    #[test]
+    fn test_execute() {
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let torrent_info_data = read_test_file_to_bytes("ubuntu-https.torrent");
@@ -109,7 +113,16 @@ mod tests {
         let inner = torrent.instance().unwrap();
         let operation = TorrentTrackersSyncOperation::new();
 
-        let result = operation.execute(&*inner).await;
-        assert_eq!(Some(&*inner), result);
+        runtime.block_on(async {
+            let result = operation.execute(&*inner).await;
+            assert_eq!(TorrentOperationResult::Continue, result);
+
+            let result = inner.announce_all().await;
+            assert_ne!(
+                0,
+                result.peers.len(),
+                "expected to have discovered some peers"
+            );
+        });
     }
 }

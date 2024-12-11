@@ -13,9 +13,11 @@ Both V1 & V2 of the Bittorrent protocol specification have been implemented.
 - [x] [BEP6](https://www.bittorrent.org/beps/bep_0006.html) - Fast Extension
 - [x] [BEP9](https://www.bittorrent.org/beps/bep_0009.html) - Extension for Peers to Send Metadata Files
 - [x] [BEP10](https://www.bittorrent.org/beps/bep_0010.html) - Extension Protocol
-- [ ] [BEP11](https://www.bittorrent.org/beps/bep_0011.html) - Peer Exchange (PEX)
+- [x] [BEP11](https://www.bittorrent.org/beps/bep_0011.html) - Peer Exchange (PEX)
 - [x] [BEP20](https://www.bittorrent.org/beps/bep_0020.html) - Peer ID Conventions
+- [ ] [BEP21](https://www.bittorrent.org/beps/bep_0021.html) - Extension for partial seeds
 - [ ] [BEP29](https://www.bittorrent.org/beps/bep_0029.html) - uTorrent transport protocol
+- [ ] [BEP40](https://www.bittorrent.org/beps/bep_0040.html) - Canonical Peer Priority
 - [ ] [BEP47](https://www.bittorrent.org/beps/bep_0047.html) - Padding files and extended file attributes
 - [ ] [BEP52](https://www.bittorrent.org/beps/bep_0052.html) - The BitTorrent Protocol Specification v2
 - [x] [BEP53](https://www.bittorrent.org/beps/bep_0053.html) - Magnets

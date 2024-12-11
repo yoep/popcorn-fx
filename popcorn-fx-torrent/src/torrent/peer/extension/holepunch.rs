@@ -1,5 +1,5 @@
 use crate::torrent::peer::extension::Extension;
-use crate::torrent::peer::{Peer, PeerEvent};
+use crate::torrent::peer::{Peer, PeerContext, PeerEvent};
 use async_trait::async_trait;
 
 const HOLEPUNCH_EXTENSION_NAME: &str = "ut_holepunch";
@@ -23,13 +23,13 @@ impl Extension for HolepunchExtension {
 
     async fn handle<'a>(
         &'a self,
-        payload: &'a [u8],
-        peer: &'a Peer,
+        _payload: &'a [u8],
+        _peer: &'a PeerContext,
     ) -> crate::torrent::peer::extension::Result<()> {
         todo!()
     }
 
-    async fn on<'a>(&'a self, event: PeerEvent, peer: &'a Peer) {
+    async fn on<'a>(&'a self, _event: &'a PeerEvent, _peer: &'a PeerContext) {
         todo!()
     }
 

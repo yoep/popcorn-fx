@@ -1,86 +1,17 @@
 logging:
   level:
-    com.github.yoep.popcorn.backend.events: INFO
-    com.github.yoep.popcorn.backend.media.favorites: INFO
-    com.github.yoep.popcorn.backend.media.providers: INFO
-    com.github.yoep.popcorn.backend.media.resume: INFO
-    com.github.yoep.popcorn.backend.media.watched: INFO
-    com.github.yoep.popcorn.backend.settings: INFO
-    com.github.yoep.popcorn.backend.subtitles: INFO
-    com.github.yoep.popcorn.backend.torrent: INFO
-    com.github.yoep.popcorn.media: INFO
-    com.github.yoep.popcorn.ui.events: INFO
-    com.github.yoep.popcorn.ui.font: INFO
-    com.github.yoep.popcorn.ui.info: INFO
-    com.github.yoep.popcorn.ui.messages: INFO
-    com.github.yoep.popcorn.ui.platform: INFO
-    com.github.yoep.popcorn.ui.view: INFO
-    com.github.yoep.popcorn.ui: DEBUG
-    com.github.yoep.popcorn: INFO
-    com.github.yoep.torrent.frostwire: INFO
-    com.github.yoep.video.vlc: INFO
-    com.github.yoep.video.youtube: INFO
-    com.github.yoep.video: INFO
+    com.github.yoep.popcorn: WARN
+    com.github.yoep.popcorn.backend: WARN
 
 popcorn:
   loggers:
     popcorn_fx:
-      level: info
-    popcorn_fx::ffi:
-      level: info
-    popcorn_fx::ffi::favorites:
-      level: info
-    popcorn_fx::ffi::subtitles:
-      level: info
-    popcorn_fx::ffi::playlists:
-      level: trace
-    popcorn_fx::ffi::mappings::subtitle:
-      level: info
+      level: warn
     popcorn_fx_core:
-      level: info
-    popcorn_fx_core::core::cache:
-      level: info
-    popcorn_fx_core::core::config:
-      level: info
-    popcorn_fx_core::core::events:
-      level: info
-    popcorn_fx_core::core::loader:
-      level: info
-    popcorn_fx_core::core::media:
-      level: info
-    popcorn_fx_core::core::media::favorites:
-      level: info
-    popcorn_fx_core::core::media::providers:
-      level: info
-    popcorn_fx_core::core::media::tracking:
-      level: info
-    popcorn_fx_core::core::media::resume:
-      level: info
-    popcorn_fx_core::core::media::watched:
-      level: info
-    popcorn_fx_core::core::subtitles::parsers:
-      level: info
-    popcorn_fx_core::core::players:
-      level: info
-    popcorn_fx_core::core::playlists:
-      level: info
-    popcorn_fx_core::core::screen:
-      level: info
-    popcorn_fx_core::core::subtitles:
-      level: info
-    popcorn_fx_core::core::torrents:
-      level: info
-    popcorn_fx_core::core::updater:
-      level: info
+      level: warn
+    popcorn_fx_players:
+      level: warn
     popcorn_fx_opensubtitles:
-      level: info
-    popcorn_fx_platform:
-      level: info
-    popcorn_fx_players::chromecast:
-      level: info
-    popcorn_fx_players::dlna:
-      level: info
-    popcorn_fx_players::vlc:
-      level: info
+      level: warn
     popcorn_fx_torrent:
       level: debug

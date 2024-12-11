@@ -4,7 +4,6 @@ use itertools::Itertools;
 use log::{debug, error, info, trace, warn};
 use std::fmt::Debug;
 use std::fs;
-use std::ops::Div;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -14,6 +13,7 @@ use crate::torrent::{
     errors, DefaultSession, FilePriority, PieceIndex, PiecePriority, Session, Torrent,
     TorrentEvent, TorrentFlags, TorrentInfoFile,
 };
+use popcorn_fx_core::core::callback::Callback;
 use popcorn_fx_core::core::config::{ApplicationConfig, CleaningMode, TorrentSettings};
 use popcorn_fx_core::core::events::{Event, EventPublisher, PlayerStoppedEvent};
 use popcorn_fx_core::core::storage::Storage;
@@ -22,7 +22,8 @@ use popcorn_fx_core::core::torrents::{
     TorrentManagerEvent, TorrentState,
 };
 use popcorn_fx_core::core::{
-    block_in_place, events, torrents, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks,
+    block_in_place_runtime, events, torrents, CallbackHandle, Callbacks, CoreCallback,
+    CoreCallbacks,
 };
 
 const CLEANUP_WATCH_THRESHOLD: f64 = 85f64;
@@ -33,44 +34,45 @@ impl Callbacks<popcorn_fx_core::core::torrents::TorrentEvent> for Torrent {
         &self,
         callback: CoreCallback<popcorn_fx_core::core::torrents::TorrentEvent>,
     ) -> CallbackHandle {
-        <Torrent as Callbacks<TorrentEvent>>::add_callback(
-            self,
-            Box::new(move |event| {
-                let event = match event {
-                    TorrentEvent::StateChanged(e) => {
-                        Some(torrents::TorrentEvent::StateChanged(TorrentState::from(e)))
-                    }
-                    TorrentEvent::MetadataChanged => None,
-                    TorrentEvent::PeersChanged => None,
-                    TorrentEvent::TrackersChanged => None,
-                    TorrentEvent::PiecesChanged => None,
-                    TorrentEvent::PieceCompleted(e) => {
-                        Some(torrents::TorrentEvent::PieceFinished(e as u32))
-                    }
-                    TorrentEvent::FilesChanged => None,
-                    TorrentEvent::Stats(stats) => {
-                        Some(torrents::TorrentEvent::DownloadStatus(DownloadStatus {
-                            progress: stats.progress(),
-                            seeds: stats.total_peers,
-                            peers: stats.total_peers,
-                            download_speed: stats.download_useful_rate,
-                            upload_speed: stats.upload_useful_rate,
-                            downloaded: stats.total_downloaded_useful as u64,
-                            total_size: stats.total_size,
-                        }))
-                    }
-                };
+        let mut receiver = self.subscribe();
+        tokio::spawn(async move {
+            loop {
+                match receiver.recv().await {
+                    Some(event) => {
+                        let callback_event = match &*event {
+                            TorrentEvent::StateChanged(e) => {
+                                Some(torrents::TorrentEvent::StateChanged(TorrentState::from(e)))
+                            }
+                            TorrentEvent::PieceCompleted(e) => {
+                                Some(torrents::TorrentEvent::PieceFinished(*e as u32))
+                            }
+                            TorrentEvent::Stats(stats) => {
+                                Some(torrents::TorrentEvent::DownloadStatus(DownloadStatus {
+                                    progress: stats.progress(),
+                                    seeds: stats.total_peers,
+                                    peers: stats.total_peers,
+                                    download_speed: stats.download_useful_rate,
+                                    upload_speed: stats.upload_useful_rate,
+                                    downloaded: stats.total_downloaded_useful as u64,
+                                    total_size: stats.total_size,
+                                }))
+                            }
+                            _ => None,
+                        };
 
-                if let Some(event) = event {
-                    callback(event);
+                        if let Some(event) = callback_event {
+                            callback(event);
+                        }
+                    }
+                    None => break,
                 }
-            }),
-        )
+            }
+        });
+
+        CallbackHandle::new()
     }
 
-    fn remove_callback(&self, handle: CallbackHandle) {
-        <Torrent as Callbacks<TorrentEvent>>::remove_callback(self, handle)
-    }
+    fn remove_callback(&self, handle: CallbackHandle) {}
 }
 
 #[async_trait]
@@ -120,21 +122,23 @@ impl popcorn_fx_core::core::torrents::Torrent for Torrent {
     }
 
     async fn state(&self) -> TorrentState {
-        TorrentState::from(self.state().await)
+        let state = self.state().await;
+        TorrentState::from(&state)
     }
 }
 
-impl From<crate::torrent::TorrentState> for TorrentState {
-    fn from(value: crate::torrent::TorrentState) -> Self {
+impl From<&crate::torrent::TorrentState> for TorrentState {
+    fn from(value: &crate::torrent::TorrentState) -> Self {
         match value {
             crate::torrent::TorrentState::Initializing => torrents::TorrentState::Initializing,
             crate::torrent::TorrentState::CheckingFiles => torrents::TorrentState::CheckingFiles,
             crate::torrent::TorrentState::RetrievingMetadata => {
-                torrents::TorrentState::Initializing
+                torrents::TorrentState::RetrievingMetadata
             }
             crate::torrent::TorrentState::Downloading => torrents::TorrentState::Downloading,
             crate::torrent::TorrentState::Finished => torrents::TorrentState::Completed,
             crate::torrent::TorrentState::Seeding => torrents::TorrentState::Completed,
+            crate::torrent::TorrentState::Paused => torrents::TorrentState::Paused,
             crate::torrent::TorrentState::Error => torrents::TorrentState::Error,
         }
     }
@@ -159,7 +163,7 @@ impl DefaultTorrentManager {
             .block_on(
                 DefaultSession::builder()
                     .base_path(settings.user_settings().torrent_settings.directory())
-                    .runtime(runtime)
+                    .runtime(runtime.clone())
                     .build(),
             )
             .map(|e| Box::new(e))
@@ -170,6 +174,7 @@ impl DefaultTorrentManager {
                 settings,
                 session,
                 callbacks: Default::default(),
+                runtime,
             }),
         };
 
@@ -246,6 +251,8 @@ struct InnerTorrentManager {
     session: Box<dyn Session>,
     /// The callbacks of the torrent manager
     callbacks: CoreCallbacks<TorrentManagerEvent>,
+    /// The shared runtime
+    runtime: Arc<Runtime>,
 }
 
 impl InnerTorrentManager {
@@ -339,17 +346,20 @@ impl InnerTorrentManager {
         let mut files = torrent.files().await;
 
         if files.is_empty() {
-            let (tx, rx) = std::sync::mpsc::channel();
-            let callback_handle = torrent.add_callback(Box::new(move |event| {
-                if let TorrentEvent::FilesChanged = event {
-                    tx.send(event).unwrap();
-                }
-            }));
+            let mut receiver = torrent.subscribe();
 
-            let _ = rx
-                .recv()
-                .map_err(|e| torrents::Error::TorrentError(e.to_string()))?;
-            <Torrent as Callbacks<TorrentEvent>>::remove_callback(&torrent, callback_handle);
+            loop {
+                if let Some(event) = receiver.recv().await {
+                    if let TorrentEvent::FilesChanged = *event {
+                        break;
+                    }
+                } else {
+                    return Err(torrents::Error::TorrentError(
+                        "torrent got invalidated".to_string(),
+                    ));
+                }
+            }
+
             files = torrent.files().await;
         }
 
@@ -403,7 +413,7 @@ impl InnerTorrentManager {
                     if percentage >= CLEANUP_WATCH_THRESHOLD {
                         debug!("Cleaning media file \"{}\"", filename);
                         if let Some(torrent) = self.find_by_filename(filename.as_str()) {
-                            let filepath = block_in_place(torrent.file());
+                            let filepath = block_in_place_runtime(torrent.file(), &self.runtime);
                             let absolute_filepath = filepath.to_str().unwrap();
 
                             if filepath.exists() {
@@ -433,12 +443,12 @@ impl InnerTorrentManager {
 
     fn find_by_filename(
         &self,
-        filename: &str,
+        _filename: &str,
     ) -> Option<Box<dyn popcorn_fx_core::core::torrents::Torrent>> {
         todo!()
     }
 
-    fn remove_by_filename(&self, filename: &str) {
+    fn remove_by_filename(&self, _filename: &str) {
         todo!()
     }
 
@@ -519,18 +529,18 @@ impl Drop for InnerTorrentManager {
 
 #[cfg(test)]
 mod test {
+    use super::*;
     use popcorn_fx_core::core::config::{PopcornSettings, TorrentSettings};
+    use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::{copy_test_file, init_logger};
     use std::fs::{File, FileTimes};
     use std::path::PathBuf;
     use std::sync::mpsc::channel;
     use std::time::SystemTime;
 
-    use super::*;
-
     #[test]
     fn test_info() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let runtime = Arc::new(Runtime::new().unwrap());
@@ -540,7 +550,7 @@ mod test {
         let manager =
             DefaultTorrentManager::new(settings, event_publisher.clone(), runtime.clone()).unwrap();
         let expected_result = TorrentInfo {
-            info_hash: String::new(),
+            info_hash: "EADAF0EFEA39406914414D359E0EA16416409BD7".to_string(),
             uri: uri.to_string(),
             name: "debian-12.4.0-amd64-DVD-1.iso".to_string(),
             directory_name: None,
@@ -562,7 +572,7 @@ mod test {
 
     #[test]
     fn test_create() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let runtime = Arc::new(Runtime::new().unwrap());
@@ -598,7 +608,7 @@ mod test {
 
     #[test]
     fn test_on_player_stopped() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let runtime = Arc::new(Runtime::new().unwrap());
@@ -622,20 +632,20 @@ mod test {
         let settings = default_config(temp_path, CleaningMode::Watched);
         let event_publisher = Arc::new(EventPublisher::default());
         let manager =
-            DefaultTorrentManager::new(settings, event_publisher.clone(), runtime).unwrap();
+            DefaultTorrentManager::new(settings, event_publisher.clone(), runtime.clone()).unwrap();
         let (tx, rx) = channel();
 
         let torrent_info_callback = torrent_info.clone();
 
         // register the torrent information by invoking the callbacks
-        match block_in_place(manager.info(magnet_uri)) {
+        match runtime.block_on(manager.info(magnet_uri)) {
             Ok(result) => {
                 assert_eq!(torrent_info, result);
 
                 let torrent_file_info = result
                     .largest_file()
                     .expect("expected a torrent file to have been present in the torrent info");
-                let result = block_in_place(manager.create(magnet_uri, &torrent_file_info, true));
+                let result = runtime.block_on(manager.create(magnet_uri, &torrent_file_info, true));
                 assert!(
                     result.is_ok(),
                     "expected the torrent to have been created, {}",
@@ -656,7 +666,7 @@ mod test {
             }),
             events::LOWEST_ORDER,
         );
-        block_in_place(async {
+        runtime.block_on(async {
             event_publisher.publish(Event::PlayerStopped(PlayerStoppedEvent {
                 url: "http://localhost:8081/lorem%20ipsum%3D%5Bdolor%5D.mp4".to_string(),
                 media: None,
@@ -672,7 +682,7 @@ mod test {
 
     #[test]
     fn test_cleanup() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let runtime = Arc::new(Runtime::new().unwrap());
@@ -693,7 +703,7 @@ mod test {
 
     #[test]
     fn test_drop_cleaning_disabled() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let runtime = Arc::new(Runtime::new().unwrap());
@@ -710,7 +720,7 @@ mod test {
 
     #[test]
     fn test_drop_cleaning_mode_set_to_on_shutdown() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let runtime = Arc::new(Runtime::new().unwrap());
@@ -740,7 +750,7 @@ mod test {
 
     #[test]
     fn test_drop_cleaning_mode_set_to_watched() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let runtime = Arc::new(Runtime::new().unwrap());

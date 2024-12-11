@@ -1,9 +1,10 @@
-pub use callback::*;
+pub use callback_old::*;
 pub use handle::*;
 pub use runtime::*;
 
 #[cfg(feature = "cache")]
 pub mod cache;
+pub mod callback;
 pub mod config;
 pub mod events;
 pub mod images;
@@ -26,6 +27,6 @@ pub mod torrents;
 pub mod updater;
 pub mod utils;
 
-mod callback;
+mod callback_old;
 mod handle;
 mod runtime;

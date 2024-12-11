@@ -777,15 +777,15 @@ impl TorrentInfoBuilder {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-
+    use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::{init_logger, read_test_file_to_bytes};
+    use std::str::FromStr;
 
     use super::*;
 
     #[test]
     fn test_torrent_info_tiered_trackers() {
-        init_logger();
+        init_logger!();
         let announce = "udp://example.tracker.org:6969/announce";
         let info = TorrentInfoBuilder::builder()
             .announce(announce)
@@ -827,7 +827,7 @@ mod tests {
 
     #[test]
     fn test_torrent_info_try_from_bytes() {
-        init_logger();
+        init_logger!();
         let announce = "http://bttracker.debian.org:6969/announce";
         let data = read_test_file_to_bytes("debian.torrent");
         let expected_name = "debian-11.6.0-amd64-netinst.iso";
@@ -865,7 +865,7 @@ mod tests {
 
     #[test]
     fn test_torrent_info_try_from_magnet() {
-        init_logger();
+        init_logger!();
         let uri = "magnet:?xt=urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7&dn=debian-12.4.0-amd64-DVD-1.iso&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce";
         let magnet = Magnet::from_str(uri).unwrap();
 
@@ -881,7 +881,7 @@ mod tests {
 
     #[test]
     fn test_torrent_info_create_info_hash() {
-        init_logger();
+        init_logger!();
         let torrent = read_test_file_to_bytes("debian-udp.torrent");
         let info = TorrentInfo::try_from(torrent.as_slice()).unwrap();
 

@@ -304,7 +304,8 @@ impl TrackerBuilder {
 
 #[cfg(test)]
 mod tests {
-    use popcorn_fx_core::testing::{init_logger, read_test_file_to_bytes};
+    use popcorn_fx_core::init_logger;
+    use popcorn_fx_core::testing::read_test_file_to_bytes;
 
     use crate::torrent::TorrentInfo;
 
@@ -312,7 +313,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_tracker_new() {
-        init_logger();
+        init_logger!();
         let url = Url::parse("udp://tracker.opentrackr.org:1337").unwrap();
         let peer_id = PeerId::new();
 
@@ -328,7 +329,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_tracker_announce_udp() {
-        init_logger();
+        init_logger!();
         let data = read_test_file_to_bytes("debian-udp.torrent");
         let info = TorrentInfo::try_from(data.as_slice()).unwrap();
 
@@ -343,7 +344,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_tracker_announce_https() {
-        init_logger();
+        init_logger!();
         let data = read_test_file_to_bytes("debian.torrent");
         let info = TorrentInfo::try_from(data.as_slice()).unwrap();
 

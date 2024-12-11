@@ -12,7 +12,8 @@ use chrono::Utc;
 use derive_more::Display;
 use futures::future;
 use log::{debug, info, trace, warn};
-use popcorn_fx_core::core::block_in_place;
+use popcorn_fx_core::core::block_in_place_runtime;
+use popcorn_fx_core::core::callback::{Callback, MultiCallback, Subscriber, Subscription};
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::RwLock;
@@ -101,8 +102,7 @@ impl TrackerManager {
     /// * `peer_id` - The peer ID to associate with the manager.
     /// * `peer_port` - The port number on which the [Session] is listening for incoming peer connections.
     /// * `info_hash` - The info hash of the torrent being tracked by this manager.
-    /// * `timeout` - The timeout for tracker connections.
-    /// * `event_sender` - The event sender to use for emitting events.
+    /// * `connection_timeout` - The timeout for tracker connections.
     /// * `runtime` - The runtime environment for spawning asynchronous tasks.
     ///
     /// # Returns
@@ -112,17 +112,19 @@ impl TrackerManager {
         peer_id: PeerId,
         peer_port: u16,
         info_hash: InfoHash,
-        timeout: Duration,
-        event_sender: Sender<TrackerManagerEvent>,
+        connection_timeout: Duration,
         runtime: Arc<Runtime>,
     ) -> Self {
-        let inner = Arc::new(InnerTrackerManager::new(
+        let inner = Arc::new(InnerTrackerManager {
             peer_id,
             peer_port,
             info_hash,
-            timeout,
-            event_sender,
-        ));
+            trackers: Default::default(),
+            peers: Default::default(),
+            connection_timeout,
+            callbacks: MultiCallback::new(runtime.clone()),
+            cancellation_token: Default::default(),
+        });
 
         let inner_main_loop = inner.clone();
         runtime.spawn(async move {
@@ -240,6 +242,16 @@ impl TrackerManager {
     }
 }
 
+impl Callback<TrackerManagerEvent> for TrackerManager {
+    fn subscribe(&self) -> Subscription<TrackerManagerEvent> {
+        self.inner.callbacks.subscribe()
+    }
+
+    fn subscribe_with(&self, subscriber: Subscriber<TrackerManagerEvent>) {
+        self.inner.callbacks.subscribe_with(subscriber)
+    }
+}
+
 impl Drop for TrackerManager {
     fn drop(&mut self) {
         trace!("Dropping tracker manager {}", self.inner);
@@ -258,30 +270,11 @@ struct InnerTrackerManager {
     /// The discovered peers from the trackers
     peers: RwLock<Vec<SocketAddr>>,
     connection_timeout: Duration,
-    event_sender: Sender<TrackerManagerEvent>,
+    callbacks: MultiCallback<TrackerManagerEvent>,
     cancellation_token: CancellationToken,
 }
 
 impl InnerTrackerManager {
-    fn new(
-        peer_id: PeerId,
-        peer_port: u16,
-        info_hash: InfoHash,
-        connection_timeout: Duration,
-        event_sender: Sender<TrackerManagerEvent>,
-    ) -> Self {
-        Self {
-            peer_id,
-            peer_port,
-            info_hash,
-            trackers: Default::default(),
-            peers: Default::default(),
-            connection_timeout,
-            event_sender,
-            cancellation_token: Default::default(),
-        }
-    }
-
     /// Start the main loop of the tracker manager.
     async fn start(&self) {
         let mut announcement_tick =
@@ -294,6 +287,7 @@ impl InnerTrackerManager {
             }
         }
 
+        self.announce_stopped().await;
         debug!("Tracker manager {} main loop has stopped", self);
     }
 
@@ -481,13 +475,7 @@ impl InnerTrackerManager {
     }
 
     async fn send_event(&self, event: TrackerManagerEvent) {
-        trace!("Sending event {:?}", event);
-        if let Err(e) = self.event_sender.send(event).await {
-            warn!(
-                "Failed to send tracker manager event for peer {}, {}",
-                self.peer_id, e
-            );
-        }
+        self.callbacks.invoke(event);
     }
 
     /// Performs automatic announcements to all trackers periodically.
@@ -516,37 +504,30 @@ impl InnerTrackerManager {
     }
 }
 
-impl Drop for InnerTrackerManager {
-    fn drop(&mut self) {
-        block_in_place(self.announce_stopped());
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-    use url::Url;
-
+    use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::init_logger;
+    use std::str::FromStr;
+    use std::sync::mpsc::channel;
+    use url::Url;
 
     use super::*;
 
     #[test]
     fn test_add_tracker() {
-        init_logger();
+        init_logger!();
         let url = Url::parse("udp://tracker.opentrackr.org:1337").unwrap();
         let runtime = Arc::new(Runtime::new().unwrap());
         let peer_id = PeerId::new();
         let info_hash =
             InfoHash::from_str("urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7").unwrap();
-        let (tx, _rx) = tokio::sync::mpsc::channel(1);
         let entry = TrackerEntry { tier: 0, url };
         let manager = TrackerManager::new(
             peer_id,
             6881,
             info_hash,
             Duration::from_secs(1),
-            tx,
             runtime.clone(),
         );
 
@@ -561,20 +542,18 @@ mod tests {
 
     #[tokio::test]
     async fn test_announce_all() {
-        init_logger();
+        init_logger!();
         let url = Url::parse("udp://tracker.opentrackr.org:1337").unwrap();
         let runtime = Arc::new(Runtime::new().unwrap());
         let peer_id = PeerId::new();
         let info_hash =
             InfoHash::from_str("urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7").unwrap();
-        let (tx, _rx) = tokio::sync::mpsc::channel(1);
         let entry = TrackerEntry { tier: 0, url };
         let manager = TrackerManager::new(
             peer_id,
             6881,
             info_hash,
             Duration::from_secs(1),
-            tx,
             runtime.clone(),
         );
 
@@ -585,20 +564,51 @@ mod tests {
     }
 
     #[test]
-    fn test_drop() {
-        init_logger();
+    fn test_add_callback() {
+        init_logger!();
         let url = Url::parse("udp://tracker.opentrackr.org:1337").unwrap();
         let runtime = Arc::new(Runtime::new().unwrap());
         let peer_id = PeerId::new();
         let info_hash =
             InfoHash::from_str("urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7").unwrap();
-        let (tx, _rx) = tokio::sync::mpsc::channel(1);
+        let entry = TrackerEntry { tier: 0, url };
+        let (tx, rx) = channel();
         let manager = TrackerManager::new(
             peer_id,
             6881,
             info_hash,
             Duration::from_secs(1),
-            tx,
+            runtime.clone(),
+        );
+
+        let mut receiver = manager.subscribe();
+        runtime.spawn(async move {
+            tx.send(receiver.recv().await).unwrap();
+        });
+
+        runtime
+            .block_on(manager.add_tracker_entry(entry))
+            .expect("expected the tracker to have been created");
+
+        let event = rx
+            .recv_timeout(Duration::from_millis(200))
+            .expect("expected to receive an event");
+        assert_ne!(None, event, "expected to receive an event");
+    }
+
+    #[test]
+    fn test_drop() {
+        init_logger!();
+        let url = Url::parse("udp://tracker.opentrackr.org:1337").unwrap();
+        let runtime = Arc::new(Runtime::new().unwrap());
+        let peer_id = PeerId::new();
+        let info_hash =
+            InfoHash::from_str("urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7").unwrap();
+        let manager = TrackerManager::new(
+            peer_id,
+            6881,
+            info_hash,
+            Duration::from_secs(1),
             runtime.clone(),
         );
 

@@ -2,8 +2,9 @@ use crate::torrent::peer::{Peer, PeerHandle, PeerState};
 use crate::torrent::TorrentHandle;
 use log::{debug, warn};
 use std::net::SocketAddr;
+use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::{Mutex, RwLock, Semaphore};
+use tokio::sync::{Mutex, OwnedSemaphorePermit, RwLock, Semaphore};
 use tokio::{select, time};
 
 /// A pool manager which manages the peers of a torrent
@@ -14,11 +15,13 @@ pub struct PeerPool {
     /// The currently active peers within the pool
     pub peers: RwLock<Vec<Peer>>,
     /// The discovered peers addrs
-    available_peer_addrs: RwLock<Vec<SocketAddr>>,
+    available_peer_addrs: Mutex<Vec<SocketAddr>>,
+    /// The peer addrs which have been identified as seeds
+    seed_peer_addrs: Mutex<Vec<SocketAddr>>,
     /// The maximum amount of peers allowed in the pool
     limit: Mutex<usize>,
     /// The semaphore to limit the number of active peers and in-flight peers for the pool
-    semaphore: Semaphore,
+    permits: Arc<Semaphore>,
 }
 
 impl PeerPool {
@@ -28,12 +31,17 @@ impl PeerPool {
             handle,
             peers: Default::default(),
             available_peer_addrs: Default::default(),
+            seed_peer_addrs: Default::default(),
             limit: Mutex::new(pool_limit),
-            semaphore: Semaphore::new(pool_limit),
+            permits: Arc::new(Semaphore::new(pool_limit.min(25))),
         }
     }
 
-    /// Add the given peer to the pool.
+    /// Add the given [Peer] to this peer pool.
+    /// The pool will check if the peer is unique before adding it to the pool, if it's a duplicate,
+    /// the peer won't be added to the pool and the function will return [None].
+    ///
+    /// It returns a [Subscription] to receive peer events when the peer is added to the pool.
     pub async fn add_peer(&self, peer: Peer) -> bool {
         let mut mutex = self.peers.write().await;
 
@@ -49,20 +57,24 @@ impl PeerPool {
         true
     }
 
-    /// Remove the peer from the pool.
-    pub async fn remove_peer(&self, peer: PeerHandle) {
+    /// Remove the [Peer] from the pool by the given [PeerHandle].
+    /// It returns the peer that has been removed from the pool.
+    pub async fn remove_peer(&self, peer: PeerHandle) -> Option<Peer> {
         let mut mutex = self.peers.write().await;
-        mutex.retain(|e| e.handle() != peer);
+        mutex
+            .iter()
+            .position(|e| e.handle() == peer)
+            .map(|position| mutex.remove(position))
     }
 
     /// Get the length of the currently available/known peer addresses.
     pub async fn available_peer_addrs_len(&self) -> usize {
-        self.available_peer_addrs.read().await.len()
+        self.available_peer_addrs.lock().await.len()
     }
 
     /// Add the given peer addrs to the pool's available peer addrs.
     pub async fn add_available_peer_addrs(&self, addrs: Vec<SocketAddr>) {
-        let mut mutex = self.available_peer_addrs.write().await;
+        let mut mutex = self.available_peer_addrs.lock().await;
         let addrs: Vec<_> = addrs.into_iter().filter(|e| !mutex.contains(e)).collect();
 
         debug!(
@@ -73,10 +85,29 @@ impl PeerPool {
         mutex.extend(addrs);
     }
 
+    /// Remove the given peer addrs from the pool's available peer addrs.
+    pub async fn remove_available_peer_addrs(&self, addrs: Vec<SocketAddr>) {
+        let mut mutex = self.available_peer_addrs.lock().await;
+        mutex.retain(|e| !addrs.contains(e));
+    }
+
+    /// Add the given peer addrs to the pool's seed peer addrs.
+    pub async fn add_seed_peer_addrs(&self, addrs: Vec<SocketAddr>) {
+        let mut mutex = self.seed_peer_addrs.lock().await;
+        let addrs: Vec<SocketAddr> = addrs.into_iter().filter(|e| !mutex.contains(e)).collect();
+        mutex.extend(addrs);
+    }
+
+    pub async fn remove_seed_peer_addrs(&self, addrs: Vec<SocketAddr>) {
+        let mut mutex = self.seed_peer_addrs.lock().await;
+        mutex.retain(|e| !addrs.contains(e));
+    }
+
     /// Try to get the given amount of available peer addrs from the pool.
     /// If the available peer addrs are not enough, it will return the remaining available addresses.
-    pub async fn take_available_peer_addrs(&self, mut len: usize) -> Vec<SocketAddr> {
-        let mut mutex = self.available_peer_addrs.write().await;
+    pub async fn take_available_peer_addrs(&self, len: usize) -> Vec<SocketAddr> {
+        let mut mutex = self.available_peer_addrs.lock().await;
+        let mut len = len.min(self.permits.available_permits());
 
         if mutex.len() < len {
             len = mutex.len();
@@ -105,12 +136,22 @@ impl PeerPool {
         let change = limit as i32 - *mutex as i32;
 
         if change > 0 {
-            self.semaphore.add_permits(change as usize);
+            self.permits.add_permits(change as usize);
         } else {
-            self.semaphore.forget_permits(change as usize);
+            self.permits.forget_permits(change as usize);
         }
 
         *mutex = limit;
+    }
+
+    /// Try to get a permit for creating a new peer connection.
+    /// This permit limits the amount of active peers in the pool and from overcommitment.
+    pub async fn permit(&self) -> Option<OwnedSemaphorePermit> {
+        if self.permits.available_permits() == 0 {
+            return None;
+        }
+
+        self.permits.clone().acquire_owned().await.ok()
     }
 
     /// Remove any closed or invalid peers from the pool.
@@ -140,9 +181,11 @@ impl PeerPool {
     pub async fn shutdown(&self) {
         debug!("Shutting down peer pool for {}", self.handle);
         let mut peers = self.peers.write().await;
-        let mut addrs = self.available_peer_addrs.write().await;
 
-        addrs.clear();
+        // clear all known addrs
+        self.available_peer_addrs.lock().await.clear();
+        self.seed_peer_addrs.lock().await.clear();
+
         self.set_pool_limit(0).await;
         for peer in std::mem::take(&mut *peers) {
             peer.close().await;

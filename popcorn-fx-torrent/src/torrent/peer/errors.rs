@@ -1,5 +1,6 @@
 use crate::torrent::TorrentError;
 use std::io;
+use std::net::SocketAddr;
 use thiserror::Error;
 use tokio::time::error::Elapsed;
 
@@ -15,8 +16,8 @@ pub enum Error {
     InvalidLength(u32, u32),
     #[error("unsupported message type {0}")]
     UnsupportedMessage(u8),
-    #[error("an error occurred during the handshake, {0}")]
-    Handshake(String),
+    #[error("handshake with {0} failed, {1}")]
+    Handshake(SocketAddr, String),
     #[error("failed to parse message, {0}")]
     Parsing(String),
     #[error("failed to execute the torrent operation, {0}")]

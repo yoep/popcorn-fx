@@ -1,5 +1,7 @@
 use crate::torrent::tracker::TrackerEntry;
-use crate::torrent::{TorrentCommandEvent, TorrentContext, TorrentOperation};
+use crate::torrent::{
+    TorrentCommandEvent, TorrentContext, TorrentOperation, TorrentOperationResult,
+};
 use async_trait::async_trait;
 use derive_more::Display;
 use log::{debug, warn};
@@ -7,8 +9,7 @@ use tokio::sync::Mutex;
 
 /// The torrent trackers operation is responsible for adding the known trackers to the torrent.
 /// This operation add the trackers in a "fire-and-forget" mode and only waits for one tracker connection to have been established.
-#[derive(Debug, Display)]
-#[display(fmt = "connect trackers operation")]
+#[derive(Debug)]
 pub struct TorrentTrackersOperation {
     initialized: Mutex<bool>,
     cached_tiered_trackers: Mutex<Vec<TrackerEntry>>,
@@ -75,13 +76,17 @@ impl TorrentTrackersOperation {
 
 #[async_trait]
 impl TorrentOperation for TorrentTrackersOperation {
-    async fn execute<'a>(&self, torrent: &'a TorrentContext) -> Option<&'a TorrentContext> {
+    fn name(&self) -> &str {
+        "connect trackers operation"
+    }
+
+    async fn execute(&self, torrent: &TorrentContext) -> TorrentOperationResult {
         // build the tiered trackers cache if needed
         if !*self.initialized.lock().await {
             // if we're unable to create the tiered trackers
             // then stop the operation chain as we're unable to continue
             if !self.create_trackers_cache(&torrent).await {
-                return None;
+                return TorrentOperationResult::Stop;
             }
         }
 
@@ -91,9 +96,9 @@ impl TorrentOperation for TorrentTrackersOperation {
         if torrent.metadata_lock().read().await.info.is_some()
             || torrent.active_tracker_connections().await > 0
         {
-            Some(torrent)
+            TorrentOperationResult::Continue
         } else {
-            None
+            TorrentOperationResult::Stop
         }
     }
 
@@ -107,18 +112,18 @@ mod tests {
     use super::*;
     use crate::torrent::fs::DefaultTorrentFileStorage;
     use crate::torrent::{Torrent, TorrentConfig, TorrentEvent, TorrentInfo};
-    use popcorn_fx_core::available_port;
-    use popcorn_fx_core::core::Callbacks;
-    use popcorn_fx_core::testing::{init_logger, read_test_file_to_bytes};
+    use popcorn_fx_core::core::callback::Callback;
+    use popcorn_fx_core::testing::read_test_file_to_bytes;
+    use popcorn_fx_core::{available_port, init_logger};
     use std::sync::mpsc::channel;
     use std::sync::Arc;
     use std::time::Duration;
     use tempfile::tempdir;
     use tokio::runtime::Runtime;
 
-    #[tokio::test]
-    async fn test_execute() {
-        init_logger();
+    #[test]
+    fn test_execute() {
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let torrent_info_data = read_test_file_to_bytes("ubuntu-https.torrent");
@@ -142,19 +147,20 @@ mod tests {
         let (tx, rx) = channel();
         let operation = TorrentTrackersOperation::new();
 
-        torrent.add_callback(Box::new(move |event| {
-            if let TorrentEvent::TrackersChanged = event {
+        let mut receiver = torrent.subscribe();
+        runtime.spawn(async move {
+            if let TorrentEvent::TrackersChanged = *receiver.recv().await.unwrap() {
                 tx.send(()).unwrap();
             }
-        }));
+        });
 
-        let result = operation.execute(&*inner).await;
-        assert_eq!(None, result);
+        let result = runtime.block_on(operation.execute(&*inner));
+        assert_eq!(TorrentOperationResult::Stop, result);
 
         let _ = rx
             .recv_timeout(Duration::from_secs(2))
             .expect("expected a tracker connection to have been established");
-        let result = operation.execute(&*inner).await;
-        assert_eq!(Some(&*inner), result);
+        let result = runtime.block_on(operation.execute(&*inner));
+        assert_eq!(TorrentOperationResult::Continue, result);
     }
 }

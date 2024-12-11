@@ -3,7 +3,6 @@ use std::fmt::Debug;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
-use std::sync::mpsc::{channel, Receiver};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -13,21 +12,20 @@ use crate::torrent::peer::extension::Extensions;
 use crate::torrent::peer::ProtocolExtensionFlags;
 use crate::torrent::torrent::Torrent;
 use crate::torrent::{
-    InfoHash, RequestStrategies, RequestStrategy, TorrentConfig, TorrentError, TorrentEvent,
+    ExtensionFactories, ExtensionFactory, InfoHash, TorrentConfig, TorrentError, TorrentEvent,
     TorrentFlags, TorrentHandle, TorrentInfo, TorrentOperation, TorrentOperations,
     DEFAULT_TORRENT_EXTENSIONS, DEFAULT_TORRENT_OPERATIONS, DEFAULT_TORRENT_PROTOCOL_EXTENSIONS,
-    DEFAULT_TORRENT_REQUEST_STRATEGIES,
 };
 use async_trait::async_trait;
 use derive_more::Display;
 use log::{debug, trace};
 #[cfg(test)]
 pub use mock::*;
+use popcorn_fx_core::core::callback::Callback;
 use popcorn_fx_core::core::torrents::magnet::Magnet;
 use popcorn_fx_core::core::torrents::TorrentHealth;
 use popcorn_fx_core::core::{
-    block_in_place, block_in_place_runtime, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks,
-    Handle,
+    block_in_place_runtime, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks, Handle,
 };
 use tokio::runtime::Runtime;
 use tokio::sync::RwLock;
@@ -202,7 +200,7 @@ impl DefaultSession {
     /// fn new_torrent_session(shared_runtime: Arc<Runtime>) -> Result<DefaultSession> {
     ///     DefaultSession::builder()
     ///         .base_path("/torrent/location/directory")
-    ///         .extensions(vec![Box::new(MetadataExtension::new())])
+    ///         .extensions(vec![|| Box::new(MetadataExtension::new())])
     ///         .runtime(shared_runtime)
     ///         .build()
     /// }
@@ -227,9 +225,8 @@ impl DefaultSession {
     pub async fn new<P: AsRef<Path>>(
         base_path: P,
         protocol_extensions: ProtocolExtensionFlags,
-        extensions: Extensions,
+        extensions: ExtensionFactories,
         torrent_operations: Vec<Box<dyn TorrentOperation>>,
-        request_strategies: Vec<Box<dyn RequestStrategy>>,
         runtime: Arc<Runtime>,
     ) -> Result<Self> {
         trace!("Trying to create a new torrent session");
@@ -240,7 +237,6 @@ impl DefaultSession {
                 protocol_extensions,
                 extensions,
                 torrent_operations,
-                request_strategies,
             )
             .await?,
         );
@@ -303,6 +299,8 @@ impl DefaultSession {
             config = config.tracker_connection_timeout(tracker_timeout);
         }
 
+        let storage_path = self.inner.base_path.read().await.clone();
+        trace!("Trying to create new torrent for info hash {}", info_hash);
         let torrent = Torrent::try_from(
             Torrent::request()
                 .metadata(torrent_info)
@@ -311,10 +309,7 @@ impl DefaultSession {
                 .protocol_extensions(self.inner.protocol_extensions)
                 .extensions(self.inner.extensions())
                 .operations(self.inner.torrent_operations())
-                .request_strategies(self.inner.request_strategies())
-                .storage(Box::new(DefaultTorrentFileStorage::new(
-                    &block_in_place(self.inner.base_path.read()).clone(),
-                )))
+                .storage(Box::new(DefaultTorrentFileStorage::new(storage_path)))
                 .runtime(self.runtime.clone()),
         )?;
         let result_torrent = torrent.clone();
@@ -326,20 +321,13 @@ impl DefaultSession {
         Ok(result_torrent)
     }
 
-    async fn wait_for_metadata(
-        torrent: &Torrent,
-        rx: Receiver<TorrentEvent>,
-        timeout: Duration,
-    ) -> Result<TorrentInfo> {
-        loop {
-            let event = rx
-                .recv_timeout(timeout)
-                .map_err(|_| TorrentError::Timeout)?;
+    async fn wait_for_metadata(torrent: &Torrent) -> Result<TorrentInfo> {
+        let mut receiver = torrent.subscribe();
 
-            if let TorrentEvent::MetadataChanged = event {
-                let torrent_info = torrent.metadata().await?;
-                if torrent_info.info.is_some() {
-                    return Ok(torrent_info);
+        loop {
+            if let Some(event) = receiver.recv().await {
+                if let TorrentEvent::MetadataChanged = *event {
+                    return torrent.metadata().await;
                 }
             }
         }
@@ -384,7 +372,6 @@ impl Session for DefaultSession {
                         .protocol_extensions(self.inner.protocol_extensions)
                         .extensions(self.inner.extensions())
                         .operations(self.inner.torrent_operations())
-                        .request_strategies(self.inner.request_strategies())
                         .storage(Box::new(DefaultTorrentFileStorage::new(
                             &block_in_place_runtime(self.inner.base_path.read(), &self.runtime)
                                 .clone(),
@@ -454,13 +441,6 @@ impl Session for DefaultSession {
                 false,
             )
             .await?;
-        let (tx, rx) = channel();
-
-        let callback_handle = torrent.add_callback(Box::new(move |event| {
-            if let Err(e) = tx.send(event) {
-                debug!("Failed to send torrent event, {}", e);
-            }
-        }));
 
         // check if the metadata is already fetched
         let torrent_info = torrent.metadata().await?;
@@ -472,15 +452,10 @@ impl Session for DefaultSession {
         torrent.add_options(TorrentFlags::Metadata).await;
 
         // otherwise, wait for the MetadataChanged event
+        trace!("Trying to fetch metadata for {}", magnet_uri);
         select! {
-            _ = time::sleep(timeout) => {
-                <Torrent as Callbacks<TorrentEvent>>::remove_callback(&torrent, callback_handle);
-                Err(TorrentError::Timeout)
-            },
-            result = Self::wait_for_metadata(&torrent, rx, timeout) => {
-                <Torrent as Callbacks<TorrentEvent>>::remove_callback(&torrent, callback_handle);
-                result
-            }
+            _ = time::sleep(timeout) => Err(TorrentError::Timeout),
+            result = Self::wait_for_metadata(&torrent) => result,
         }
     }
 
@@ -519,9 +494,8 @@ impl Callbacks<SessionEvent> for DefaultSession {
 pub struct SessionBuilder {
     base_path: Option<PathBuf>,
     protocol_extensions: Option<ProtocolExtensionFlags>,
-    extensions: Option<Extensions>,
+    extension_factories: Option<ExtensionFactories>,
     torrent_operation: Option<Vec<Box<dyn TorrentOperation>>>,
-    request_strategy: Option<Vec<Box<dyn RequestStrategy>>>,
     runtime: Option<Arc<Runtime>>,
 }
 
@@ -542,9 +516,19 @@ impl SessionBuilder {
         self
     }
 
+    /// Add an extension to the session.
+    pub fn extension(mut self, extension: ExtensionFactory) -> Self {
+        self.extension_factories
+            .get_or_insert(Vec::new())
+            .push(extension);
+        self
+    }
+
     /// Set the extensions for the session.
-    pub fn extensions(mut self, extensions: Extensions) -> Self {
-        self.extensions = Some(extensions);
+    pub fn extensions(mut self, extensions: ExtensionFactories) -> Self {
+        self.extension_factories
+            .get_or_insert(Vec::new())
+            .extend(extensions);
         self
     }
 
@@ -554,12 +538,6 @@ impl SessionBuilder {
         torrent_operations: Vec<Box<dyn TorrentOperation>>,
     ) -> Self {
         self.torrent_operation = Some(torrent_operations);
-        self
-    }
-
-    /// Set the request strategies for the session.
-    pub fn request_strategies(mut self, request_strategies: Vec<Box<dyn RequestStrategy>>) -> Self {
-        self.request_strategy = Some(request_strategies);
         self
     }
 
@@ -576,13 +554,12 @@ impl SessionBuilder {
         let protocol_extensions = self
             .protocol_extensions
             .unwrap_or_else(DEFAULT_TORRENT_PROTOCOL_EXTENSIONS);
-        let extensions = self.extensions.unwrap_or_else(DEFAULT_TORRENT_EXTENSIONS);
+        let extensions = self
+            .extension_factories
+            .unwrap_or_else(DEFAULT_TORRENT_EXTENSIONS);
         let torrent_operations = self
             .torrent_operation
             .unwrap_or_else(DEFAULT_TORRENT_OPERATIONS);
-        let request_strategies = self
-            .request_strategy
-            .unwrap_or_else(DEFAULT_TORRENT_REQUEST_STRATEGIES);
         let runtime = self.runtime.unwrap_or_else(|| {
             Arc::new(
                 tokio::runtime::Builder::new_multi_thread()
@@ -599,7 +576,6 @@ impl SessionBuilder {
             protocol_extensions,
             extensions,
             torrent_operations,
-            request_strategies,
             runtime,
         )
         .await
@@ -617,12 +593,10 @@ struct InnerSession {
     torrents: RwLock<HashMap<InfoHash, Torrent>>,
     /// The enabled protocol extensions of the session
     protocol_extensions: ProtocolExtensionFlags,
-    /// The currently active extensions for the session
-    extensions: Extensions,
+    /// The factories to create new extensions for a torrent
+    extension_factories: ExtensionFactories,
     /// The torrent operations for the session
     torrent_operations: Vec<Box<dyn TorrentOperation>>,
-    /// The request strategies for the session
-    request_strategies: Vec<Box<dyn RequestStrategy>>,
     /// The event callbacks of the session
     callbacks: CoreCallbacks<SessionEvent>,
 }
@@ -631,35 +605,26 @@ impl InnerSession {
     async fn new(
         base_path: PathBuf,
         protocol_extensions: ProtocolExtensionFlags,
-        extensions: Extensions,
+        extensions: ExtensionFactories,
         torrent_operations: Vec<Box<dyn TorrentOperation>>,
-        request_strategies: Vec<Box<dyn RequestStrategy>>,
     ) -> Result<Self> {
         Ok(Self {
             handle: Default::default(),
             base_path: RwLock::new(base_path),
             protocol_extensions,
-            extensions,
+            extension_factories: extensions,
             torrent_operations,
-            request_strategies,
             torrents: Default::default(),
             callbacks: Default::default(),
         })
     }
 
     fn extensions(&self) -> Extensions {
-        self.extensions.iter().map(|e| e.clone_boxed()).collect()
+        self.extension_factories.iter().map(|e| e()).collect()
     }
 
     fn torrent_operations(&self) -> TorrentOperations {
         self.torrent_operations
-            .iter()
-            .map(|e| e.clone_boxed())
-            .collect()
-    }
-
-    fn request_strategies(&self) -> RequestStrategies {
-        self.request_strategies
             .iter()
             .map(|e| e.clone_boxed())
             .collect()
@@ -787,16 +752,16 @@ pub mod tests {
     use std::sync::mpsc::channel;
     use std::time::Duration;
 
+    use super::*;
     use log::info;
     use popcorn_fx_core::core::torrents::TorrentHealthState;
-    use popcorn_fx_core::testing::{init_logger, read_test_file_to_bytes, test_resource_filepath};
+    use popcorn_fx_core::init_logger;
+    use popcorn_fx_core::testing::{read_test_file_to_bytes, test_resource_filepath};
     use tempfile::tempdir;
-
-    use super::*;
 
     #[test]
     fn test_find_torrent() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let data = read_test_file_to_bytes("debian.torrent");
@@ -822,7 +787,7 @@ pub mod tests {
 
     #[test]
     fn test_session_fetch_magnet() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let uri = "magnet:?xt=urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7&dn=debian-12.4.0-amd64-DVD-1.iso&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce";
@@ -848,7 +813,7 @@ pub mod tests {
 
     #[test]
     fn test_session_torrent_health_from_file() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let runtime = Arc::new(Runtime::new().unwrap());
@@ -875,7 +840,7 @@ pub mod tests {
 
     #[test]
     fn test_session_torrent_health_from_magnet() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let runtime = Arc::new(Runtime::new().unwrap());
@@ -903,7 +868,7 @@ pub mod tests {
 
     #[test]
     fn test_session_resolve() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let runtime = Arc::new(Runtime::new().unwrap());
@@ -936,7 +901,7 @@ pub mod tests {
 
     #[test]
     fn test_session_add_torrent() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let runtime = Arc::new(Runtime::new().unwrap());
@@ -967,7 +932,7 @@ pub mod tests {
 
     #[test]
     fn test_session_remove_torrent() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let runtime = Arc::new(Runtime::new().unwrap());

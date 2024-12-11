@@ -16,7 +16,7 @@ use rand::Rng;
 /// let handle = Handle::new();
 /// println!("Generated Handle: {:?}", handle);
 /// ```
-#[derive(Debug, Display, Copy, Clone, PartialEq)]
+#[derive(Debug, Display, Copy, Clone, PartialEq, Eq, Hash)]
 #[display(fmt = "handle {}", handle)]
 pub struct Handle {
     handle: i64,

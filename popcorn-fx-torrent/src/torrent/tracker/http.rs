@@ -2,18 +2,13 @@ use crate::torrent::peer::PeerId;
 use crate::torrent::tracker::{
     AnnounceEntryResponse, AnnounceEvent, Result, TrackerConnection, TrackerError,
 };
-use crate::torrent::InfoHash;
+use crate::torrent::{CompactIpv4Addrs, InfoHash};
 use async_trait::async_trait;
-use base64::prelude::BASE64_STANDARD;
-use base64::Engine;
 use log::{debug, trace};
 use percent_encoding::{AsciiSet, NON_ALPHANUMERIC};
 use reqwest::redirect::Policy;
 use reqwest::{Client, Error, Response};
-use serde::de::{SeqAccess, Visitor};
-use serde::{Deserialize, Deserializer};
-use std::fmt::Formatter;
-use std::net::{Ipv4Addr, SocketAddr};
+use serde::Deserialize;
 use std::time::Duration;
 use tokio::select;
 use tokio_util::sync::CancellationToken;
@@ -41,8 +36,8 @@ pub struct HttpResponse {
     /// The total number of peers which have not yet completed the torrent
     #[serde(default)]
     pub incomplete: Option<u32>,
-    #[serde(default, deserialize_with = "deserialize_peers_type")]
-    pub peers: Vec<HttpPeer>,
+    #[serde(default, with = "crate::torrent::compact::compact_ipv4")]
+    pub peers: CompactIpv4Addrs,
 }
 
 impl Into<AnnounceEntryResponse> for HttpResponse {
@@ -53,21 +48,6 @@ impl Into<AnnounceEntryResponse> for HttpResponse {
             seeders: self.complete.unwrap_or(0) as u64,
             peers: self.peers.into_iter().map(|e| e.into()).collect(),
         }
-    }
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct HttpPeer {
-    pub ip: String,
-    pub port: u16,
-    #[serde(rename = "peer id", default)]
-    pub id: Vec<u8>,
-}
-
-impl Into<SocketAddr> for HttpPeer {
-    fn into(self) -> SocketAddr {
-        let ip_addr = self.ip.parse().expect("expected a valid ip address");
-        SocketAddr::new(ip_addr, self.port)
     }
 }
 
@@ -176,87 +156,18 @@ impl TrackerConnection for HttpConnection {
     }
 }
 
-struct HttpPeerVisitor {}
-
-impl HttpPeerVisitor {
-    fn parse_peers_bytes(bytes: &[u8]) -> Vec<HttpPeer> {
-        let mut peers = Vec::new();
-        let peer_count = bytes.len() / 6;
-
-        for i in 0..peer_count {
-            let start = i * 6;
-            let end = start + 6;
-            let peer = &bytes[start..end];
-
-            peers.push(HttpPeer {
-                ip: Ipv4Addr::new(peer[0], peer[1], peer[2], peer[3]).to_string(),
-                port: u16::from_be_bytes([peer[4], peer[5]]),
-                id: Vec::with_capacity(0),
-            });
-        }
-
-        trace!("Parsed {} peers from http tracker", peers.len());
-        peers
-    }
-}
-
-impl<'de> Visitor<'de> for HttpPeerVisitor {
-    type Value = Vec<HttpPeer>;
-
-    fn expecting(&self, f: &mut Formatter) -> std::fmt::Result {
-        write!(f, "expected a string, sequence or byte array of http peers")
-    }
-
-    fn visit_str<E>(self, v: &str) -> std::result::Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        let value = BASE64_STANDARD
-            .decode(v)
-            .map_err(|e| serde::de::Error::custom(e.to_string()))?;
-
-        Ok(Self::parse_peers_bytes(value.as_ref()))
-    }
-
-    fn visit_seq<A>(self, mut seq: A) -> std::result::Result<Self::Value, A::Error>
-    where
-        A: SeqAccess<'de>,
-    {
-        let mut peers = Vec::new();
-
-        while let Ok(Some(peer)) = seq.next_element::<HttpPeer>() {
-            peers.push(peer);
-        }
-
-        Ok(peers)
-    }
-
-    fn visit_bytes<E>(self, v: &[u8]) -> std::result::Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        Ok(Self::parse_peers_bytes(v))
-    }
-}
-
-fn deserialize_peers_type<'de, D>(deserializer: D) -> std::result::Result<Vec<HttpPeer>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    D::deserialize_any(deserializer, HttpPeerVisitor {})
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::torrent::TorrentInfo;
     use log::info;
-    use popcorn_fx_core::testing::{init_logger, read_test_file_to_bytes};
+    use popcorn_fx_core::init_logger;
+    use popcorn_fx_core::testing::read_test_file_to_bytes;
     use tokio::runtime::Runtime;
 
     #[tokio::test]
     async fn test_start() {
-        init_logger();
+        init_logger!();
         let torrent_info_data = read_test_file_to_bytes("ubuntu-https.torrent");
         let torrent_info = TorrentInfo::try_from(torrent_info_data.as_slice()).unwrap();
         let peer_id = PeerId::new();
@@ -270,8 +181,8 @@ mod tests {
 
     #[test]
     fn test_create_announce_url() {
-        init_logger();
-        let expected_hash_value = "A%E6%CDP%CC%ECU%CDW%04%C5%E3%D1v%E7%B5%93%17%A3%FB";
+        init_logger!();
+        let expected_hash_value = "info_hash=.%8ED%06%8B%25H%14%EA%1A%7DIi%A9%AF%1Dx%E0%F5%1F";
         let torrent_info_data = read_test_file_to_bytes("ubuntu-https.torrent");
         let torrent_info = TorrentInfo::try_from(torrent_info_data.as_slice()).unwrap();
         let peer_id = PeerId::new();
@@ -292,9 +203,9 @@ mod tests {
 
     #[test]
     fn test_announce() {
-        init_logger();
+        init_logger!();
         let runtime = Runtime::new().expect("expected a runtime");
-        let torrent_info_data = read_test_file_to_bytes("debian.torrent");
+        let torrent_info_data = read_test_file_to_bytes("ubuntu-https.torrent");
         let torrent_info = TorrentInfo::try_from(torrent_info_data.as_slice()).unwrap();
         let peer_id = PeerId::new();
         let url = torrent_info.trackers().get(0).cloned().unwrap();

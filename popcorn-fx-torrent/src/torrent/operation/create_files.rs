@@ -1,14 +1,16 @@
-use crate::torrent::{File, TorrentContext, TorrentError, TorrentOperation};
+use crate::torrent::{
+    File, TorrentCommandEvent, TorrentContext, TorrentError, TorrentOperation,
+    TorrentOperationResult, TorrentState,
+};
 use async_trait::async_trait;
 use derive_more::Display;
 use log::{debug, warn};
 use std::path::PathBuf;
 
-#[derive(Debug, Display)]
-#[display(fmt = "create torrent files operation")]
-pub struct TorrentFilesOperation {}
+#[derive(Debug)]
+pub struct TorrentCreateFilesOperation;
 
-impl TorrentFilesOperation {
+impl TorrentCreateFilesOperation {
     pub fn new() -> Self {
         Self {}
     }
@@ -16,6 +18,8 @@ impl TorrentFilesOperation {
     /// Create the torrent files information.
     /// This can only be executed when the torrent metadata is known.
     async fn create_files(&self, torrent: &TorrentContext) -> bool {
+        torrent.send_command_event(TorrentCommandEvent::State(TorrentState::Initializing));
+
         match self.try_create_files(torrent).await {
             Ok(files) => {
                 let total_files = files.len();
@@ -79,20 +83,19 @@ impl TorrentFilesOperation {
 }
 
 #[async_trait]
-impl TorrentOperation for TorrentFilesOperation {
-    async fn execute<'a>(&self, torrent: &'a TorrentContext) -> Option<&'a TorrentContext> {
+impl TorrentOperation for TorrentCreateFilesOperation {
+    fn name(&self) -> &str {
+        "create torrent files operation"
+    }
+
+    async fn execute(&self, torrent: &TorrentContext) -> TorrentOperationResult {
         // check if the files have already been created
         // if so, continue the chain
-        if torrent.total_files().await > 0 {
-            return Some(torrent);
+        if torrent.total_files().await > 0 || self.create_files(&torrent).await {
+            return TorrentOperationResult::Continue;
         }
 
-        // try to create the files
-        if self.create_files(&torrent).await {
-            return Some(torrent);
-        }
-
-        None
+        TorrentOperationResult::Stop
     }
 
     fn clone_boxed(&self) -> Box<dyn TorrentOperation> {
@@ -104,14 +107,15 @@ impl TorrentOperation for TorrentFilesOperation {
 mod tests {
     use super::*;
     use crate::torrent::fs::DefaultTorrentFileStorage;
-    use crate::torrent::operation::{TorrentMetadataOperation, TorrentPiecesOperation};
+    use crate::torrent::operation::{TorrentCreatePiecesOperation, TorrentMetadataOperation};
     use crate::torrent::{Torrent, TorrentInfo};
-    use popcorn_fx_core::testing::{init_logger, read_test_file_to_bytes};
+    use popcorn_fx_core::init_logger;
+    use popcorn_fx_core::testing::read_test_file_to_bytes;
     use tempfile::tempdir;
 
     #[tokio::test]
     async fn test_execute() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let torrent_info_data = read_test_file_to_bytes("debian-udp.torrent");
@@ -121,18 +125,18 @@ mod tests {
             .peer_listener_port(6881)
             .operations(vec![
                 Box::new(TorrentMetadataOperation::new()),
-                Box::new(TorrentPiecesOperation::new()),
+                Box::new(TorrentCreatePiecesOperation::new()),
             ])
             .storage(Box::new(DefaultTorrentFileStorage::new(temp_path)))
             .build()
             .unwrap();
-        let operation = TorrentFilesOperation::new();
+        let operation = TorrentCreateFilesOperation::new();
         let inner = torrent.instance().unwrap();
 
         let result = operation.execute(&*inner).await;
 
         assert_eq!(
-            Some(&*inner),
+            TorrentOperationResult::Continue,
             result,
             "expected the operations chain to continue"
         );

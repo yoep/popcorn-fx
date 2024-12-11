@@ -1,5 +1,7 @@
 use crate::torrent::{InfoHash, PieceError};
 use bit_vec::BitVec;
+use log::trace;
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use tokio::sync::RwLock;
 
@@ -14,7 +16,7 @@ pub type PartIndex = PieceIndex;
 
 /// The priority of a piece.
 #[repr(u8)]
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum PiecePriority {
     /// Indicates that there is no interest in this piece and the piece will be ignored
     None = 0,
@@ -32,11 +34,17 @@ impl Default for PiecePriority {
 }
 
 impl PartialOrd for PiecePriority {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for PiecePriority {
+    fn cmp(&self, other: &Self) -> Ordering {
         let a = *self as u8;
         let b = *other as u8;
 
-        Some(a.cmp(&b))
+        a.cmp(&b)
     }
 }
 
@@ -135,18 +143,29 @@ impl Piece {
 
     /// Get if this piece has all its parts completed.
     pub fn is_completed(&self) -> bool {
-        self.completed_parts.count_ones() as usize == self.num_of_parts()
+        self.completed_parts.all()
     }
 
     /// Get if this piece has partially completed data.
     pub fn is_partially_completed(&self) -> bool {
-        self.completed_parts.count_ones() > 0
+        !self.completed_parts.all() && !self.completed_parts.none()
     }
 
     /// Get the range of the piece bytes relative to the torrent.
     /// It returns the byte range within the torrent.
     pub fn torrent_byte_range(&self) -> std::ops::Range<usize> {
         self.offset..(self.offset + self.length)
+    }
+
+    /// Get the parts of this piece that need to be requested from a peer.
+    /// This returns the parts that have not been completed yet.
+    pub fn parts_to_request(&self) -> Vec<&PiecePart> {
+        self.completed_parts
+            .iter()
+            .enumerate()
+            .filter(|(_, value)| !*value)
+            .map(|(index, _)| &self.parts[index])
+            .collect()
     }
 
     /// Increase the availability of this piece.
@@ -158,6 +177,14 @@ impl Piece {
     /// Decrease the availability of this piece.
     /// If a peer that had this piece disconnected, the availability should decrease.
     pub(crate) fn decrease_availability(&mut self) {
+        if self.availability == 0 {
+            trace!(
+                "Tried to decrease availability of piece {} below 0",
+                self.index
+            );
+            return;
+        }
+
         self.availability -= 1;
     }
 
@@ -258,6 +285,26 @@ impl PieceChunkPool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::str::FromStr;
+
+    #[test]
+    fn test_piece_priority_order() {
+        let priority = PiecePriority::Normal;
+        let result = priority.cmp(&PiecePriority::Normal);
+        assert_eq!(Ordering::Equal, result);
+
+        let priority = PiecePriority::Normal;
+        let result = priority.cmp(&PiecePriority::None);
+        assert_eq!(Ordering::Greater, result);
+
+        let priority = PiecePriority::None;
+        let result = priority.cmp(&PiecePriority::Normal);
+        assert_eq!(Ordering::Less, result);
+
+        let priority = PiecePriority::High;
+        let result = priority.cmp(&PiecePriority::Normal);
+        assert_eq!(Ordering::Greater, result);
+    }
 
     #[test]
     fn test_increase_availability() {
@@ -281,5 +328,29 @@ mod tests {
         let result = piece.availability();
 
         assert_eq!(expected_result, result);
+    }
+
+    #[test]
+    fn test_is_completed() {
+        let mut piece = create_piece(0, 3);
+
+        piece.part_completed(0);
+        piece.part_completed(1);
+
+        let result = piece.is_completed();
+        assert_eq!(false, result);
+
+        piece.part_completed(2);
+
+        let result = piece.is_completed();
+        assert_eq!(true, result);
+    }
+
+    fn create_piece(piece: PieceIndex, num_of_parts: usize) -> Piece {
+        let info_hash = InfoHash::from_str("urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7")
+            .expect("expected a valid hash");
+        let length = num_of_parts * MAX_PIECE_PART_SIZE;
+
+        Piece::new(info_hash, piece, 0, length)
     }
 }

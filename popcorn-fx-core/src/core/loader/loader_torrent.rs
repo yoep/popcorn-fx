@@ -106,13 +106,13 @@ mod tests {
     use crate::core::torrents::{
         MockTorrent, MockTorrentManager, Torrent, TorrentHandle, TorrentInfo,
     };
-    use crate::testing::init_logger;
+    use crate::init_logger;
 
     use super::*;
 
     #[test]
     fn test_process() {
-        init_logger();
+        init_logger!();
         let torrent_info = TorrentInfo {
             info_hash: String::new(),
             uri: String::new(),
@@ -151,7 +151,7 @@ mod tests {
 
     #[test]
     fn test_cancel() {
-        init_logger();
+        init_logger!();
         let handle = TorrentHandle::new();
         let mut data = LoadingData::from(PlaylistItem {
             url: Some("".to_string()),

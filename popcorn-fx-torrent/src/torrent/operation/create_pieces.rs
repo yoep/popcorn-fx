@@ -18,7 +18,7 @@ impl TorrentCreatePiecesOperation {
     /// Create the pieces information for the torrent.
     /// This operation can only be done when the metadata of the torrent is known.
     async fn create_pieces(&self, torrent: &TorrentContext) -> bool {
-        torrent.send_command_event(TorrentCommandEvent::State(TorrentState::Initializing));
+        torrent.update_state(TorrentState::Initializing).await;
 
         match self.try_create_pieces(torrent).await {
             Ok(pieces) => {

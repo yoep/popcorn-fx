@@ -14,14 +14,26 @@ Both V1 & V2 of the Bittorrent protocol specification have been implemented.
 - [x] [BEP9](https://www.bittorrent.org/beps/bep_0009.html) - Extension for Peers to Send Metadata Files
 - [x] [BEP10](https://www.bittorrent.org/beps/bep_0010.html) - Extension Protocol
 - [x] [BEP11](https://www.bittorrent.org/beps/bep_0011.html) - Peer Exchange (PEX)
+- [x] [BEP12](https://www.bittorrent.org/beps/bep_0012.html) - Multitracker Metadata Extension
+- [x] [BEP15](https://www.bittorrent.org/beps/bep_0015.html) - UDP Tracker Protocol for BitTorrent
+- [ ] [BEP19](https://www.bittorrent.org/beps/bep_0019.html) - WebSeed - HTTP/FTP Seeding (GetRight style)
 - [x] [BEP20](https://www.bittorrent.org/beps/bep_0020.html) - Peer ID Conventions
-- [ ] [BEP21](https://www.bittorrent.org/beps/bep_0021.html) - Extension for partial seeds
+- [x] [BEP21](https://www.bittorrent.org/beps/bep_0021.html) - Extension for partial seeds
 - [ ] [BEP29](https://www.bittorrent.org/beps/bep_0029.html) - uTorrent transport protocol
 - [ ] [BEP40](https://www.bittorrent.org/beps/bep_0040.html) - Canonical Peer Priority
-- [ ] [BEP47](https://www.bittorrent.org/beps/bep_0047.html) - Padding files and extended file attributes
+- [x] [BEP47](https://www.bittorrent.org/beps/bep_0047.html) - Padding files and extended file attributes
 - [ ] [BEP52](https://www.bittorrent.org/beps/bep_0052.html) - The BitTorrent Protocol Specification v2
 - [x] [BEP53](https://www.bittorrent.org/beps/bep_0053.html) - Magnets
 - [ ] [BEP55](https://www.bittorrent.org/beps/bep_0055.html) - Holepunch extension
+
+## Installation
+
+To install the library, add the following cargo dependency.
+
+```toml
+[dependencies]
+popcorn-fx-torrent = { path = "../popcorn-fx-torrent" }
+```
 
 ## Usage
 

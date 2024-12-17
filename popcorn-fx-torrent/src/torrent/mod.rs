@@ -31,7 +31,6 @@ mod torrent;
 mod torrent_info;
 mod tracker;
 
-// TODO: fix the fast protocol
 const DEFAULT_TORRENT_PROTOCOL_EXTENSIONS: fn() -> ProtocolExtensionFlags =
     || ProtocolExtensionFlags::LTEP;
 const DEFAULT_TORRENT_EXTENSIONS: fn() -> ExtensionFactories = || {
@@ -59,12 +58,46 @@ const DEFAULT_TORRENT_OPERATIONS: fn() -> TorrentOperations = || {
 pub mod tests {
     use super::*;
     use crate::torrent::fs::DefaultTorrentFileStorage;
+    use crate::torrent::peer::{DefaultPeerListener, Peer, PeerId, PeerListener};
     use popcorn_fx_core::available_port;
     use popcorn_fx_core::core::torrents::magnet::Magnet;
     use popcorn_fx_core::testing::read_test_file_to_bytes;
+    use std::net::SocketAddr;
     use std::str::FromStr;
     use std::sync::Arc;
+    use std::time::Duration;
     use tokio::runtime::Runtime;
+
+    #[macro_export]
+    macro_rules! create_torrent {
+        ($uri:expr, $temp_dir:expr, $options:expr) => {
+            crate::torrent::tests::create_torrent_from_uri(
+                $uri,
+                $temp_dir,
+                $options,
+                crate::torrent::DEFAULT_TORRENT_OPERATIONS(),
+                std::sync::Arc::new(tokio::runtime::Runtime::new().unwrap()),
+            )
+        };
+        ($uri:expr, $temp_dir:expr, $options:expr, $operations:expr) => {
+            crate::torrent::tests::create_torrent_from_uri(
+                $uri,
+                $temp_dir,
+                $options,
+                $operations,
+                std::sync::Arc::new(tokio::runtime::Runtime::new().unwrap()),
+            )
+        };
+        ($uri:expr, $temp_dir:expr, $options:expr, $operations:expr, $runtime:expr) => {
+            crate::torrent::tests::create_torrent_from_uri(
+                $uri,
+                $temp_dir,
+                $options,
+                $operations,
+                $runtime,
+            )
+        };
+    }
 
     /// Create a new torrent instance from the given uri.
     /// The uri can either be a [Magnet] uri or a filename to a torrent file within the testing resources.
@@ -73,7 +106,8 @@ pub mod tests {
         temp_dir: &str,
         options: TorrentFlags,
         operations: TorrentOperations,
-    ) -> (Torrent, Arc<Runtime>) {
+        runtime: Arc<Runtime>,
+    ) -> Torrent {
         let torrent_info: TorrentInfo;
 
         if uri.starts_with("magnet:") {
@@ -86,18 +120,82 @@ pub mod tests {
 
         let port = available_port!(6881, 31000).unwrap();
 
-        let runtime = Arc::new(Runtime::new().unwrap());
-        (
-            Torrent::request()
-                .metadata(torrent_info)
-                .peer_listener_port(port)
-                .options(options)
-                .operations(operations)
-                .storage(Box::new(DefaultTorrentFileStorage::new(temp_dir)))
-                .runtime(runtime.clone())
-                .build()
-                .unwrap(),
-            runtime,
-        )
+        Torrent::request()
+            .metadata(torrent_info)
+            .peer_listener_port(port)
+            .options(options)
+            .operations(operations)
+            .storage(Box::new(DefaultTorrentFileStorage::new(temp_dir)))
+            .runtime(runtime)
+            .build()
+            .unwrap()
+    }
+
+    #[macro_export]
+    macro_rules! create_peer_pair {
+        ($torrent:expr) => {
+            crate::torrent::tests::create_peer_pair(
+                $torrent,
+                $torrent
+                    .instance()
+                    .expect("expected a valid torrent context")
+                    .protocols()
+                    .clone(),
+            )
+        };
+        ($torrent:expr, $protocols:expr) => {
+            crate::torrent::tests::create_peer_pair($torrent, $protocols)
+        };
+    }
+
+    pub fn create_peer_pair(torrent: &Torrent, protocols: ProtocolExtensionFlags) -> (Peer, Peer) {
+        let context = torrent.instance().unwrap();
+        let runtime = context.runtime();
+        let port = available_port!(6881, 31000).unwrap();
+        let (tx, rx) = std::sync::mpsc::channel();
+        let extensions = context.extensions();
+
+        let incoming_context = context.clone();
+        let incoming_runtime = runtime.clone();
+        let incoming_extensions = context.extensions();
+        let mut listener = DefaultPeerListener::new(port, runtime.clone()).unwrap();
+        runtime.spawn(async move {
+            if let Some(peer) = listener.recv().await {
+                tx.send(
+                    Peer::new_inbound(
+                        PeerId::new(),
+                        peer.socket_addr,
+                        peer.stream,
+                        incoming_context,
+                        protocols.clone(),
+                        incoming_extensions,
+                        Duration::from_secs(5),
+                        incoming_runtime,
+                    )
+                    .await,
+                )
+                .unwrap();
+            }
+        });
+
+        let peer_context = context.clone();
+        let outgoing_peer = runtime
+            .block_on(Peer::new_outbound(
+                PeerId::new(),
+                SocketAddr::new([127, 0, 0, 1].into(), port),
+                peer_context,
+                protocols,
+                extensions,
+                Duration::from_secs(5),
+                runtime.clone(),
+            ))
+            .expect("expected the outgoing connection to succeed");
+
+        let incoming_peer = rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("expected an incoming peer")
+            .expect("expected the incoming connection to succeed");
+
+        (outgoing_peer, incoming_peer)
     }
 }

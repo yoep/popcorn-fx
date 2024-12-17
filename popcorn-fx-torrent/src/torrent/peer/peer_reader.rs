@@ -129,7 +129,7 @@ where
                             msg,
                             DataTransferStats {
                                 transferred_bytes: bytes.len(),
-                                elapsed,
+                                elapsed_micro: elapsed,
                             },
                         ),
                     )

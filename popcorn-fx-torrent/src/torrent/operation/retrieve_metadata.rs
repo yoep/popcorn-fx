@@ -60,8 +60,7 @@ impl TorrentOperation for TorrentMetadataOperation {
             && !self.info.lock().await.requesting_metadata
         {
             // update the state of the torrent
-            torrent
-                .send_command_event(TorrentCommandEvent::State(TorrentState::RetrievingMetadata));
+            torrent.update_state(TorrentState::RetrievingMetadata).await;
 
             // check if there have been any peers discovered yet
             // if not, we want to retrieve the peers from trackers

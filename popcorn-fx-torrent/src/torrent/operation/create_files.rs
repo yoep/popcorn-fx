@@ -18,7 +18,7 @@ impl TorrentCreateFilesOperation {
     /// Create the torrent files information.
     /// This can only be executed when the torrent metadata is known.
     async fn create_files(&self, torrent: &TorrentContext) -> bool {
-        torrent.send_command_event(TorrentCommandEvent::State(TorrentState::Initializing));
+        torrent.update_state(TorrentState::Initializing).await;
 
         match self.try_create_files(torrent).await {
             Ok(files) => {

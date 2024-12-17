@@ -17,8 +17,8 @@ impl TorrentConnectPeersOperation {
         wanted_connections: usize,
         torrent: &TorrentContext,
     ) {
-        let peer_addrs = torrent
-            .peer_pool()
+        let peer_pool = torrent.peer_pool();
+        let peer_addrs = peer_pool
             .take_available_peer_addrs(wanted_connections)
             .await;
 

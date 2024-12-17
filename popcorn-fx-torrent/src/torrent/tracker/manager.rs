@@ -26,7 +26,7 @@ const DEFAULT_ANNOUNCEMENT_INTERVAL_SECONDS: u64 = 30;
 /// Kinds of tracker announces. This is typically indicated as the ``&event=``
 /// HTTP query string parameter to HTTP trackers.
 #[repr(u8)]
-#[derive(Debug, Display, Clone)]
+#[derive(Debug, Display, Copy, Clone)]
 pub enum AnnounceEvent {
     #[display(fmt = "none")]
     None = 0,
@@ -198,7 +198,7 @@ impl TrackerManager {
     /// Returns the announcement response result.
     pub async fn announce_all(&self) -> Announcement {
         let start_time = Instant::now();
-        let result = self.inner.announce_all().await;
+        let result = self.inner.announce_all(AnnounceEvent::Started).await;
         let elapsed = start_time.elapsed();
         trace!(
             "Announced to all trackers in {}.{:03} seconds",
@@ -206,18 +206,6 @@ impl TrackerManager {
             elapsed.subsec_millis()
         );
         result
-    }
-
-    /// Announces to all the trackers with the specified info hash.
-    /// This method will spawn the announcement task and return immediately.
-    pub async fn make_announce_all(&self) {
-        let inner = self.inner.clone();
-        self.runtime.spawn(async move {
-            select! {
-                _ = inner.cancellation_token.cancelled() => return,
-                _ = inner.announce_all() => return,
-            }
-        });
     }
 
     /// Announce the given event to the specified tracker.
@@ -229,9 +217,21 @@ impl TrackerManager {
         self.inner.announce(handle, event).await
     }
 
+    /// Announces to all the trackers with the specified info hash.
+    /// This method will spawn the announcement task and return immediately.
+    pub fn make_announcement_to_all(&self, event: AnnounceEvent) {
+        let inner = self.inner.clone();
+        self.runtime.spawn(async move {
+            select! {
+                _ = inner.cancellation_token.cancelled() => return,
+                _ = inner.announce_all(event) => return,
+            }
+        });
+    }
+
     /// Make a new announcement to the specified tracker for the given event.
     /// This method will spawn the announcement task and return immediately.
-    pub async fn make_announcement(&self, handle: TrackerHandle, event: AnnounceEvent) {
+    pub fn make_announcement(&self, handle: TrackerHandle, event: AnnounceEvent) {
         let inner = self.inner.clone();
         self.runtime.spawn(async move {
             select! {
@@ -383,16 +383,16 @@ impl InnerTrackerManager {
         }
     }
 
-    async fn announce_all(&self) -> Announcement {
+    async fn announce_all(&self, event: AnnounceEvent) -> Announcement {
         let mut result = Announcement::default();
-        let mut mutex = self.trackers.write().await;
-        let mut futures = Vec::new();
         let mut total_peers = 0;
+        let mutex = self.trackers.read().await;
 
         // start announcing the given hash to each tracker simultaneously
-        for tracker in mutex.as_mut_slice() {
-            futures.push(self.announce_tracker(tracker, AnnounceEvent::Started));
-        }
+        let futures: Vec<_> = mutex
+            .iter()
+            .map(|tracker| self.announce_tracker(tracker, event))
+            .collect();
 
         // wait for all responses to complete
         let responses = future::join_all(futures).await;

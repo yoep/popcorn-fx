@@ -1,4 +1,4 @@
-use crate::torrent::{Piece, PiecePriority, TorrentFileInfo};
+use crate::torrent::{FileAttributeFlags, Piece, PiecePriority, TorrentFileInfo};
 use std::hash::Hash;
 use std::ops::Range;
 use std::path::PathBuf;
@@ -86,6 +86,11 @@ impl File {
     /// It returns the byte range of the file within the torrent.
     pub fn torrent_byte_range(&self) -> Range<usize> {
         self.offset..(self.offset + self.length)
+    }
+
+    /// Get the file attributes of the torrent file.
+    pub fn attributes(&self) -> FileAttributeFlags {
+        self.info.attr.unwrap_or(FileAttributeFlags::default())
     }
 }
 

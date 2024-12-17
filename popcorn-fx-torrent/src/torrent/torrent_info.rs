@@ -1,8 +1,10 @@
+use bitmask_enum::bitmask;
 use log::{debug, warn};
 use popcorn_fx_core::core::torrents::magnet::Magnet;
-use serde::{Deserialize, Serialize};
+use serde::de::{Error, Visitor};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::{BTreeMap, HashMap};
-use std::fmt::Debug;
+use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
 use url::Url;
 
@@ -26,6 +28,111 @@ pub enum UrlList {
 pub enum WebSeed {
     UrlSeed(String),
     HttpSeed(String),
+}
+
+/// The file attributes of a torrent file.
+/// See BEP47 for more info.
+#[bitmask(u8)]
+#[bitmask_config(vec_debug, flags_iter)]
+pub enum FileAttributeFlags {
+    Symlink = 0b0001,
+    Executable = 0b0010,
+    Hidden = 0b0100,
+    PaddingFile = 0b1000,
+}
+
+impl Default for FileAttributeFlags {
+    fn default() -> Self {
+        FileAttributeFlags::none()
+    }
+}
+
+impl Display for FileAttributeFlags {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut flags = Vec::new();
+
+        if self.contains(FileAttributeFlags::Symlink) {
+            flags.push('l');
+        }
+        if self.contains(FileAttributeFlags::Executable) {
+            flags.push('x');
+        }
+        if self.contains(FileAttributeFlags::Hidden) {
+            flags.push('h');
+        }
+        if self.contains(FileAttributeFlags::PaddingFile) {
+            flags.push('p');
+        }
+
+        write!(f, "{}", flags.into_iter().collect::<String>())
+    }
+}
+
+impl FromStr for FileAttributeFlags {
+    type Err = TorrentError;
+
+    fn from_str(value: &str) -> std::result::Result<Self, Self::Err> {
+        let mut flags = FileAttributeFlags::none();
+
+        for ch in value.to_lowercase().chars() {
+            flags = match ch {
+                'l' => flags | FileAttributeFlags::Symlink,
+                'x' => flags | FileAttributeFlags::Executable,
+                'h' => flags | FileAttributeFlags::Hidden,
+                'p' => flags | FileAttributeFlags::PaddingFile,
+                _ => {
+                    return Err(TorrentError::TorrentParse(
+                        "Invalid character in file attributes".to_string(),
+                    ))
+                }
+            };
+        }
+
+        Ok(flags)
+    }
+}
+
+impl Serialize for FileAttributeFlags {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(self.to_string().as_str())
+    }
+}
+
+impl<'de> Deserialize<'de> for FileAttributeFlags {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Deserializer::deserialize_any(deserializer, FileAttributeFlagVisitor {})
+    }
+}
+
+struct FileAttributeFlagVisitor;
+
+impl<'de> Visitor<'de> for FileAttributeFlagVisitor {
+    type Value = FileAttributeFlags;
+
+    fn expecting(&self, f: &mut Formatter) -> std::fmt::Result {
+        write!(f, "expected a string")
+    }
+
+    fn visit_str<E>(self, v: &str) -> std::result::Result<Self::Value, E>
+    where
+        E: Error,
+    {
+        FileAttributeFlags::from_str(v).map_err(|e| Error::custom(e))
+    }
+
+    fn visit_bytes<E>(self, v: &[u8]) -> std::result::Result<Self::Value, E>
+    where
+        E: Error,
+    {
+        FileAttributeFlags::from_str(String::from_utf8_lossy(v).as_ref())
+            .map_err(|e| Error::custom(e))
+    }
 }
 
 /// The file info metadata information of a file within a torrent.
@@ -52,7 +159,7 @@ pub struct TorrentFileInfo {
     /// When present the characters each represent a file attribute. l = symlink, x = executable, h = hidden, p = padding file.
     /// See BEP47
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub attr: Option<String>,
+    pub attr: Option<FileAttributeFlags>,
     /// Path of the symlink target relative to the torrent root directory.
     /// See BEP47
     #[serde(
@@ -79,6 +186,14 @@ impl TorrentFileInfo {
             .clone()
             .map_or_else(|| self.path.clone(), |e| Some(e))
             .unwrap_or(Vec::new())
+    }
+
+    /// Check if the file is a padding file (see BEP47).
+    pub fn is_padding_file(&self) -> bool {
+        self.attr
+            .as_ref()
+            .map(|e| e.contains(FileAttributeFlags::PaddingFile))
+            .unwrap_or(false)
     }
 }
 
@@ -778,7 +893,7 @@ impl TorrentInfoBuilder {
 #[cfg(test)]
 mod tests {
     use popcorn_fx_core::init_logger;
-    use popcorn_fx_core::testing::{init_logger, read_test_file_to_bytes};
+    use popcorn_fx_core::testing::read_test_file_to_bytes;
     use std::str::FromStr;
 
     use super::*;
@@ -888,5 +1003,33 @@ mod tests {
         let result = info.calculate_info_hash().unwrap();
 
         assert_eq!(info.info_hash, result);
+    }
+
+    #[test]
+    fn test_file_attribute_flags_from_str() {
+        let result = FileAttributeFlags::from_str("x").unwrap();
+        assert_eq!(FileAttributeFlags::Executable, result);
+
+        let result = FileAttributeFlags::from_str("H").unwrap();
+        assert_eq!(FileAttributeFlags::Hidden, result);
+
+        let result = FileAttributeFlags::from_str("p").unwrap();
+        assert_eq!(FileAttributeFlags::PaddingFile, result);
+
+        let result = FileAttributeFlags::from_str("l").unwrap();
+        assert_eq!(FileAttributeFlags::Symlink, result);
+    }
+
+    #[test]
+    fn test_file_attribute_flags_deserialize() {
+        let expected_result = FileAttributeFlags::Executable | FileAttributeFlags::PaddingFile;
+        let bytes = serde_bencode::to_bytes(&expected_result).unwrap();
+        let result: FileAttributeFlags = serde_bencode::from_bytes(bytes.as_ref()).unwrap();
+        assert_eq!(expected_result, result);
+
+        let expected_result = FileAttributeFlags::Symlink;
+        let bytes = serde_bencode::to_bytes(&expected_result).unwrap();
+        let result: FileAttributeFlags = serde_bencode::from_bytes(bytes.as_ref()).unwrap();
+        assert_eq!(expected_result, result);
     }
 }

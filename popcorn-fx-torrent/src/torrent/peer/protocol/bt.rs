@@ -486,14 +486,20 @@ pub struct ExtendedHandshake {
     /// Setting an extension number to zero means that the extension is not supported/disabled.
     /// The client should ignore any extension names it doesn't recognize.
     pub m: ExtensionRegistry,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    /// Indicates that the peer is partially seeding a multi file torrent.
+    #[serde(
+        default,
+        skip_serializing_if = "is_false",
+        with = "crate::torrent::peer::protocol::bt::bool_int"
+    )]
+    pub upload_only: bool,
     /// Client name and version (as an utf-8 string).
     /// This is a much more reliable way of identifying the client than relying on the peer id encoding.
-    #[serde(rename = "v")]
+    #[serde(rename = "v", skip_serializing_if = "Option::is_none")]
     pub client: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub regg: Option<i32>,
-    #[serde(default, deserialize_with = "deserialize_encryption_type")]
+    #[serde(default, with = "crate::torrent::peer::protocol::bt::bool_int")]
     pub encryption: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata_size: Option<u32>,
@@ -603,56 +609,74 @@ impl Debug for Piece {
     }
 }
 
-#[derive(Debug)]
-struct EncryptionVisitor {}
+mod bool_int {
+    use serde::de::Visitor;
+    use serde::Deserializer;
+    use std::fmt::Formatter;
 
-impl<'de> Visitor<'de> for EncryptionVisitor {
-    type Value = bool;
+    #[derive(Debug)]
+    struct BoolIntVisitor;
 
-    fn expecting(&self, f: &mut Formatter) -> std::fmt::Result {
-        write!(f, "expected a boolean or numeric value of 0 or 1")
+    impl<'de> Visitor<'de> for BoolIntVisitor {
+        type Value = bool;
+
+        fn expecting(&self, f: &mut Formatter) -> std::fmt::Result {
+            write!(f, "expected a boolean or numeric value of 0 or 1")
+        }
+
+        fn visit_bool<E>(self, v: bool) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(v)
+        }
+
+        fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(v == 1)
+        }
+
+        fn visit_u8<E>(self, v: u8) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(v == 1)
+        }
+
+        fn visit_none<E>(self) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(false)
+        }
     }
 
-    fn visit_bool<E>(self, v: bool) -> std::result::Result<Self::Value, E>
+    pub fn serialize<S>(value: &bool, serializer: S) -> Result<S::Ok, S::Error>
     where
-        E: serde::de::Error,
+        S: serde::Serializer,
     {
-        Ok(v)
+        let value = if *value { 1 } else { 0 };
+        serde::Serialize::serialize(&value, serializer)
     }
 
-    fn visit_i64<E>(self, v: i64) -> std::result::Result<Self::Value, E>
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<bool, D::Error>
     where
-        E: serde::de::Error,
+        D: Deserializer<'de>,
     {
-        Ok(v == 1)
-    }
-
-    fn visit_u8<E>(self, v: u8) -> std::result::Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        Ok(v == 1)
-    }
-
-    fn visit_none<E>(self) -> std::result::Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        Ok(false)
+        D::deserialize_any(deserializer, BoolIntVisitor {})
     }
 }
 
-fn deserialize_encryption_type<'de, D>(deserializer: D) -> std::result::Result<bool, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    D::deserialize_any(deserializer, EncryptionVisitor {})
+fn is_false(b: &bool) -> bool {
+    !b
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use popcorn_fx_core::testing::init_logger;
+    use popcorn_fx_core::init_logger;
     use std::str::FromStr;
 
     #[test]
@@ -714,13 +738,14 @@ mod tests {
 
     #[test]
     fn test_message_deserialization_extended_handshake() {
-        init_logger();
+        init_logger!();
         let message_payload = "d1:ei1e1:md11:ut_metadatai3e6:ut_pexi1ee13:metadata_sizei304838e1:pi51413e4:reqqi512e11:upload_onlyi1e1:v17:Transmission 3.00e";
         let mut message_bytes: Vec<u8> = vec![20, 0];
         let expected_result = Message::ExtendedHandshake(ExtendedHandshake {
             m: vec![("ut_pex".to_string(), 1), ("ut_metadata".to_string(), 3)]
                 .into_iter()
                 .collect(),
+            upload_only: false,
             client: Some("Transmission 3.00".to_string()),
             regg: None,
             encryption: false,

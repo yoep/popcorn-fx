@@ -88,13 +88,8 @@ impl TorrentOperation for TorrentFileValidationOperation {
             *self.validated.lock().await = true;
             debug!("Torrent files of {} have been validated", torrent);
 
-            if torrent.is_download_allowed().await {
-                torrent.send_command_event(TorrentCommandEvent::State(TorrentState::Downloading));
-            } else if torrent.is_upload_allowed().await {
-                torrent.send_command_event(TorrentCommandEvent::State(TorrentState::Seeding));
-            } else {
-                torrent.send_command_event(TorrentCommandEvent::State(TorrentState::Finished));
-            }
+            let new_state = torrent.determine_state().await;
+            torrent.send_command_event(TorrentCommandEvent::State(new_state));
         }
 
         TorrentOperationResult::Continue
@@ -108,8 +103,8 @@ impl TorrentOperation for TorrentFileValidationOperation {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::create_torrent;
     use crate::torrent::operation::{TorrentCreateFilesOperation, TorrentCreatePiecesOperation};
-    use crate::torrent::tests::create_torrent_from_uri;
     use crate::torrent::TorrentFlags;
     use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::copy_test_file;
@@ -125,9 +120,9 @@ mod tests {
             "piece-1_30.iso",
             Some("debian-12.4.0-amd64-DVD-1.iso"),
         );
-        let (torrent, runtime) =
-            create_torrent_from_uri("debian-udp.torrent", temp_path, TorrentFlags::None, vec![]);
-        let inner = torrent.instance().unwrap();
+        let torrent = create_torrent!("debian-udp.torrent", temp_path, TorrentFlags::None, vec![]);
+        let context = torrent.instance().unwrap();
+        let runtime = context.runtime();
 
         // create pieces & files
         runtime.block_on(async {
@@ -135,8 +130,8 @@ mod tests {
             let file_operation = TorrentCreateFilesOperation::new();
 
             // create the pieces and files
-            let _ = piece_operation.execute(&*inner).await;
-            let _ = file_operation.execute(&*inner).await;
+            let _ = piece_operation.execute(&*context).await;
+            let _ = file_operation.execute(&*context).await;
         });
 
         // validate the file
@@ -144,10 +139,10 @@ mod tests {
             let operation =
                 Box::new(TorrentFileValidationOperation::new()) as Box<dyn TorrentOperation>;
 
-            let result = operation.execute(&*inner).await;
+            let result = operation.execute(&*context).await;
             assert_eq!(TorrentOperationResult::Continue, result);
 
-            let pieces = inner.pieces_lock().read().await;
+            let pieces = context.pieces_lock().read().await;
             for piece in 0..30 {
                 assert_eq!(
                     true,
@@ -157,13 +152,13 @@ mod tests {
                 );
                 assert_eq!(
                     true,
-                    inner.has_piece(piece).await,
+                    context.has_piece(piece).await,
                     "expected piece bitfield {} to be completed",
                     piece
                 );
             }
 
-            let result = inner.stats().await;
+            let result = context.stats().await;
             assert_eq!(
                 30, result.completed_pieces,
                 "expected completed pieces to be 30"

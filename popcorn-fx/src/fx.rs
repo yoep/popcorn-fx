@@ -18,7 +18,6 @@ use log4rs::encode::pattern::PatternEncoder;
 use log4rs::Config;
 use tokio::runtime::Runtime;
 
-use popcorn_fx_core::core::block_in_place;
 use popcorn_fx_core::core::cache::CacheManager;
 use popcorn_fx_core::core::config::{ApplicationConfig, PopcornProperties};
 use popcorn_fx_core::core::events::EventPublisher;
@@ -53,6 +52,7 @@ use popcorn_fx_core::core::torrents::collection::TorrentCollection;
 use popcorn_fx_core::core::torrents::stream::DefaultTorrentStreamServer;
 use popcorn_fx_core::core::torrents::{TorrentManager, TorrentStreamServer};
 use popcorn_fx_core::core::updater::Updater;
+use popcorn_fx_core::core::{block_in_place, block_in_place_runtime};
 use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
 use popcorn_fx_platform::platform::DefaultPlatform;
 use popcorn_fx_players::chromecast::ChromecastDiscovery;
@@ -479,7 +479,7 @@ impl PopcornFX {
     /// Reload the settings of this instance.
     /// This will read the settings from the storage and notify all subscribers of new changes.
     pub fn reload_settings(&mut self) {
-        block_in_place(async { self.settings.reload() })
+        self.settings.reload()
     }
 
     /// Retrieve the event publisher of the FX instance.

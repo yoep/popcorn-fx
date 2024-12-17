@@ -26,15 +26,24 @@ pub struct PeerPool {
 
 impl PeerPool {
     /// Create a new peer pool for the given torrent handle.
-    pub fn new(handle: TorrentHandle, pool_limit: usize) -> Self {
+    ///
+    /// The pool limit defines the maximum amount of peer connections that can be active for the torrent.
+    /// The maximum in flight sets the maximum amount of peer connections that can be tried to be established at the same moment.
+    pub fn new(handle: TorrentHandle, pool_limit: usize, max_in_flight: usize) -> Self {
         Self {
             handle,
             peers: Default::default(),
             available_peer_addrs: Default::default(),
             seed_peer_addrs: Default::default(),
             limit: Mutex::new(pool_limit),
-            permits: Arc::new(Semaphore::new(pool_limit.min(25))),
+            permits: Arc::new(Semaphore::new(pool_limit.min(max_in_flight))),
         }
+    }
+
+    /// Check if at least one permit for a new connection is available.
+    ///
+    pub fn is_permit_available(&self) -> bool {
+        self.permits.available_permits() > 0
     }
 
     /// Add the given [Peer] to this peer pool.
@@ -107,11 +116,8 @@ impl PeerPool {
     /// If the available peer addrs are not enough, it will return the remaining available addresses.
     pub async fn take_available_peer_addrs(&self, len: usize) -> Vec<SocketAddr> {
         let mut mutex = self.available_peer_addrs.lock().await;
-        let mut len = len.min(self.permits.available_permits());
-
-        if mutex.len() < len {
-            len = mutex.len();
-        }
+        let remaining_permits = self.permits.available_permits();
+        let len = len.min(remaining_permits).min(mutex.len());
 
         mutex.drain(0..len).collect()
     }
@@ -190,5 +196,30 @@ impl PeerPool {
         for peer in std::mem::take(&mut *peers) {
             peer.close().await;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use popcorn_fx_core::init_logger;
+
+    #[tokio::test]
+    async fn test_peer_pool_is_permit_available() {
+        init_logger!();
+        let pool = PeerPool::new(TorrentHandle::new(), 2, 1);
+
+        let permit = pool.permit().await;
+        assert!(permit.is_some(), "expected a permit");
+
+        let result = pool.is_permit_available();
+        assert_eq!(
+            false, result,
+            "expected no additional permits to have been available"
+        );
+
+        drop(permit);
+        let result = pool.is_permit_available();
+        assert_eq!(true, result, "expected a permit to have been available");
     }
 }

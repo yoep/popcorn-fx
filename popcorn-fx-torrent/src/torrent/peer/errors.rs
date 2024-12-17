@@ -24,7 +24,8 @@ pub enum Error {
     Torrent(String),
     #[error("an io error occurred, {0}")]
     Io(String),
-    #[error("the peer is no longer available")]
+    /// Indicating that the peer connection is closed
+    #[error("the peer connection is closed")]
     Closed,
 }
 

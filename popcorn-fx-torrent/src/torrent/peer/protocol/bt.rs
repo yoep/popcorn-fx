@@ -1,6 +1,6 @@
 use crate::torrent::peer::extension::{ExtensionNumber, ExtensionRegistry};
 use crate::torrent::peer::{Error, PeerId, ProtocolExtensionFlags, Result};
-use crate::torrent::{InfoHash, PieceIndex, PiecePart};
+use crate::torrent::{CompactIp, InfoHash, PieceIndex, PiecePart};
 use bit_vec::BitVec;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use log::trace;
@@ -509,13 +509,8 @@ pub struct ExtendedHandshake {
     pub port: Option<u32>,
     /// A string containing the compact representation of the ip address this peer sees you as. i.e. this is the receiver's external ip address (no port is included).
     /// This may be either an IPv4 (4 bytes) or an IPv6 (16 bytes) address.
-    #[serde(
-        rename = "yourip",
-        default,
-        with = "serde_bytes",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub your_ip: Option<Vec<u8>>,
+    #[serde(rename = "yourip", default, skip_serializing_if = "Option::is_none")]
+    pub your_ip: Option<CompactIp>,
     #[serde(default, with = "serde_bytes", skip_serializing_if = "Option::is_none")]
     pub ipv4: Option<Vec<u8>>,
     #[serde(default, with = "serde_bytes", skip_serializing_if = "Option::is_none")]

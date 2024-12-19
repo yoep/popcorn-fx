@@ -1,12 +1,10 @@
 use crate::torrent::peer::{Error, Result};
 use async_trait::async_trait;
-use log::{debug, error, trace, warn};
-use popcorn_fx_core::core::block_in_place;
+use log::{debug, trace, warn};
 use std::fmt::Debug;
 use std::net::SocketAddr;
 use std::sync::mpsc::{channel, Sender};
 use std::sync::Arc;
-use std::time::Duration;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::runtime::Runtime;
 use tokio::select;
@@ -64,18 +62,18 @@ impl DefaultPeerListener {
     pub fn new(port: u16, runtime: Arc<Runtime>) -> Result<Self> {
         trace!("Trying to create new peer listener on port {}", port);
         let cancellation_token = CancellationToken::new();
-        let (result_sender, result_receiver) = channel();
+        let (tx_ready, rx_ready) = channel();
         let (sender, receiver) = unbounded_channel();
 
         let listener_cancellation = cancellation_token.clone();
-        runtime.spawn(async move {
-            Self::start(port, result_sender, sender, listener_cancellation).await
-        });
+        runtime
+            .spawn(async move { Self::start(port, sender, tx_ready, listener_cancellation).await });
 
         // wait for the listeners to be ready
-        result_receiver
-            .recv()
-            .expect("expected a result to have been returned")?;
+        match rx_ready.recv() {
+            Ok(ready) => ready?,
+            Err(_) => return Err(Error::Closed),
+        }
 
         debug!("Created new peer listener on port {}", port);
         Ok(Self {
@@ -88,8 +86,8 @@ impl DefaultPeerListener {
 
     async fn start(
         port: u16,
-        result_sender: Sender<Result<()>>,
         sender: UnboundedSender<PeerEntry>,
+        ready_sender: Sender<Result<()>>,
         cancellation_token: CancellationToken,
     ) {
         let ipv4: TcpListener;
@@ -101,13 +99,14 @@ impl DefaultPeerListener {
             Ok((ipv4_result, ipv6_result)) => {
                 ipv4 = ipv4_result;
                 ipv6 = ipv6_result;
-                result_sender.send(Ok(())).unwrap();
+                ready_sender.send(Ok(())).unwrap();
             }
             Err(e) => {
-                result_sender.send(Err(Error::Io(e.to_string()))).unwrap();
+                ready_sender.send(Err(Error::Io(e.to_string()))).unwrap();
                 return;
             }
         }
+        drop(ready_sender);
 
         loop {
             select! {
@@ -163,8 +162,7 @@ impl Drop for DefaultPeerListener {
 #[cfg(test)]
 mod tests {
     use log::error;
-    use popcorn_fx_core::available_port;
-    use popcorn_fx_core::testing::init_logger;
+    use popcorn_fx_core::{available_port, init_logger};
     use std::sync::mpsc::channel;
     use std::time::Duration;
     use tokio::net::TcpStream;
@@ -173,7 +171,7 @@ mod tests {
 
     #[test]
     fn test_port() {
-        init_logger();
+        init_logger!();
         let runtime = Arc::new(Runtime::new().unwrap());
         let expected_port = available_port!(31000, 32000).unwrap();
         let listener = DefaultPeerListener::new(expected_port, runtime.clone()).unwrap();
@@ -185,7 +183,7 @@ mod tests {
 
     #[test]
     fn test_recv() {
-        init_logger();
+        init_logger!();
         let runtime = Arc::new(Runtime::new().unwrap());
         let (tx, rx) = channel();
         let port = available_port!(31000, 32000).unwrap();
@@ -211,7 +209,7 @@ mod tests {
 
     #[test]
     fn test_peer_listener_drop() {
-        init_logger();
+        init_logger!();
         let runtime = Arc::new(Runtime::new().unwrap());
         let addr: SocketAddr = ([127, 0, 0, 1], 6881).into();
         let listener = DefaultPeerListener::new(6881, runtime.clone()).unwrap();

@@ -1,10 +1,12 @@
 use crate::torrent::peer::extension::{Error, Extension, ExtensionNumber, Result};
 use crate::torrent::peer::protocol::Message;
-use crate::torrent::peer::{ConnectionType, PeerCommandEvent, PeerContext, PeerEvent};
-use crate::torrent::{CompactIpv4Addrs, CompactIpv6Addrs, PeerInfo, TorrentEvent};
+use crate::torrent::peer::{
+    ConnectionType, PeerClientInfo, PeerCommandEvent, PeerContext, PeerEvent,
+};
+use crate::torrent::{CompactIpv4Addrs, CompactIpv6Addrs, TorrentEvent};
 use async_trait::async_trait;
 use bitmask_enum::bitmask;
-use log::{debug, trace, warn};
+use log::{debug, warn};
 use popcorn_fx_core::core::callback::Callback;
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
@@ -23,13 +25,13 @@ pub struct PexMessage {
     #[serde(default, with = "crate::torrent::compact::compact_ipv4")]
     pub added: CompactIpv4Addrs,
     /// The flags of the added ipv4 peer addresses
-    #[serde(rename = "added.f", with = "pex_flags")]
+    #[serde(default, rename = "added.f", with = "pex_flags")]
     pub added_flags: Vec<PexFlag>,
     /// The added ipv6 peer addresses
     #[serde(default, with = "crate::torrent::compact::compact_ipv6")]
     pub added6: CompactIpv6Addrs,
     /// The flags of the added ipv6 peer addresses
-    #[serde(rename = "added6.f", with = "pex_flags")]
+    #[serde(default, rename = "added6.f", with = "pex_flags")]
     pub added6_flags: Vec<PexFlag>,
     /// The dropped ipv4 peer addresses
     #[serde(default, with = "crate::torrent::compact::compact_ipv4")]
@@ -276,7 +278,7 @@ impl InnerPexPool {
         }
     }
 
-    async fn peer_added(&self, peer: &PeerInfo) {
+    async fn peer_added(&self, peer: &PeerClientInfo) {
         let mut flags = PexFlag::none();
 
         if peer.connection_type == ConnectionType::Outbound {
@@ -289,7 +291,7 @@ impl InnerPexPool {
         });
     }
 
-    async fn peer_removed(&self, peer: &PeerInfo) {
+    async fn peer_removed(&self, peer: &PeerClientInfo) {
         let mut flags = PexFlag::none();
 
         if peer.connection_type == ConnectionType::Outbound {

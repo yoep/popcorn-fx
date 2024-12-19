@@ -10,3 +10,4 @@ mod peer;
 mod peer_id;
 mod peer_reader;
 mod protocol;
+pub mod webseed;

@@ -307,7 +307,7 @@ mod tests {
     use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::read_test_file_to_bytes;
 
-    use crate::torrent::TorrentInfo;
+    use crate::torrent::TorrentMetadata;
 
     use super::*;
 
@@ -331,7 +331,7 @@ mod tests {
     async fn test_tracker_announce_udp() {
         init_logger!();
         let data = read_test_file_to_bytes("debian-udp.torrent");
-        let info = TorrentInfo::try_from(data.as_slice()).unwrap();
+        let info = TorrentMetadata::try_from(data.as_slice()).unwrap();
 
         let result = execute_tracker_announcement(info).await;
 
@@ -346,7 +346,7 @@ mod tests {
     async fn test_tracker_announce_https() {
         init_logger!();
         let data = read_test_file_to_bytes("debian.torrent");
-        let info = TorrentInfo::try_from(data.as_slice()).unwrap();
+        let info = TorrentMetadata::try_from(data.as_slice()).unwrap();
 
         let result = execute_tracker_announcement(info).await;
 
@@ -357,7 +357,7 @@ mod tests {
         );
     }
 
-    async fn execute_tracker_announcement(info: TorrentInfo) -> AnnounceEntryResponse {
+    async fn execute_tracker_announcement(info: TorrentMetadata) -> AnnounceEntryResponse {
         let peer_id = PeerId::new();
         let tracker_uris = info.tiered_trackers();
         let tracker_uri = tracker_uris.get(&0).map(|e| e.get(0).unwrap()).unwrap();

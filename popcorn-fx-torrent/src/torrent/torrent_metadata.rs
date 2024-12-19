@@ -5,6 +5,7 @@ use serde::de::{Error, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Debug, Display, Formatter};
+use std::path::PathBuf;
 use std::str::FromStr;
 use url::Url;
 
@@ -13,22 +14,7 @@ use crate::torrent::info_hash::InfoHash;
 use crate::torrent::{Sha1Hash, Sha256Hash};
 
 /// Represents a list of URLs, which can be single, multiple, or ignored.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(untagged)]
-pub enum UrlList {
-    Single(String),
-    Multiple(Vec<String>),
-    Ignore(Vec<Vec<String>>),
-    Ignore2(Vec<i64>),
-}
-
-/// Represents a web seed, also known as a URL seed or HTTP seed.
-/// It's essentially a URL with some state associated with it.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub enum WebSeed {
-    UrlSeed(String),
-    HttpSeed(String),
-}
+pub type UrlList = Vec<String>;
 
 /// The file attributes of a torrent file.
 /// See BEP47 for more info.
@@ -136,7 +122,7 @@ impl<'de> Visitor<'de> for FileAttributeFlagVisitor {
 }
 
 /// The file info metadata information of a file within a torrent.
-/// This information is specific to a single file inside the [TorrentMetadata].
+/// This information is specific to a single file inside the [TorrentMetadataInfo].
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TorrentFileInfo {
     /// Length of the file in bytes.
@@ -175,16 +161,33 @@ pub struct TorrentFileInfo {
 }
 
 impl TorrentFileInfo {
-    /// Get the path of the torrent file.
+    /// Get the path to the torrent file.
+    /// If the file information belongs to a [TorrentInfoFile::Single], the returned path will be empty.
+    pub fn path(&self) -> PathBuf {
+        let empty_vec = Vec::with_capacity(0);
+        let segments = self
+            .path_utf8
+            .as_ref()
+            .unwrap_or_else(|| self.path.as_ref().unwrap_or(&empty_vec));
+
+        let mut path = PathBuf::new();
+        for segment in segments {
+            path.push(segment);
+        }
+
+        path
+    }
+
+    /// Get the segments of the path to the torrent file.
     /// If the file information belongs to a [TorrentInfoFile::Single], the returned path will be empty.
     ///
     /// # Returns
     ///
     /// Returns either the utf8 representation of the path or the normal path.
-    pub fn path(&self) -> Vec<String> {
+    pub fn path_segments(&self) -> Vec<String> {
         self.path_utf8
-            .clone()
-            .map_or_else(|| self.path.clone(), |e| Some(e))
+            .as_ref()
+            .map_or_else(|| self.path.clone(), |e| Some(e.clone()))
             .unwrap_or(Vec::new())
     }
 
@@ -213,7 +216,7 @@ pub enum TorrentInfoFile {
 
 /// Metadata of a torrent, including pieces, piece length, file info, etc.
 #[derive(Clone, Serialize, Deserialize, PartialEq)]
-pub struct TorrentMetadata {
+pub struct TorrentMetadataInfo {
     /// Length of each piece in bytes.
     #[serde(rename = "piece length")]
     pub piece_length: u64,
@@ -248,7 +251,7 @@ pub struct TorrentMetadata {
     pub files: TorrentInfoFile,
 }
 
-impl TorrentMetadata {
+impl TorrentMetadataInfo {
     /// Get the name of the torrent.
     ///
     /// # Returns
@@ -339,7 +342,7 @@ impl TorrentMetadata {
     }
 }
 
-impl Debug for TorrentMetadata {
+impl Debug for TorrentMetadataInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("TorrentMetadata")
             .field("piece_length", &self.piece_length)
@@ -355,7 +358,7 @@ impl Debug for TorrentMetadata {
 }
 
 #[derive(Debug, Default)]
-pub struct TorrentMetadataBuilder {
+pub struct TorrentMetadataInfoBuilder {
     pieces: Option<Vec<u8>>,
     piece_length: Option<u64>,
     name: Option<String>,
@@ -365,9 +368,9 @@ pub struct TorrentMetadataBuilder {
     files: Option<TorrentInfoFile>,
 }
 
-impl TorrentMetadataBuilder {
-    pub fn builder() -> TorrentMetadataBuilder {
-        TorrentMetadataBuilder::default()
+impl TorrentMetadataInfoBuilder {
+    pub fn builder() -> TorrentMetadataInfoBuilder {
+        TorrentMetadataInfoBuilder::default()
     }
 
     pub fn pieces(mut self, pieces: Vec<u8>) -> Self {
@@ -405,8 +408,8 @@ impl TorrentMetadataBuilder {
         self
     }
 
-    pub fn build(self) -> TorrentMetadata {
-        TorrentMetadata {
+    pub fn build(self) -> TorrentMetadataInfo {
+        TorrentMetadataInfo {
             pieces: self.pieces.unwrap_or_default(),
             piece_length: self.piece_length.unwrap_or_default(),
             name: self.name.expect("expected name to be set"),
@@ -427,10 +430,10 @@ impl TorrentMetadataBuilder {
 ///
 /// ```
 /// use std::convert::TryInto;
-/// use crate::popcorn_fx_torrent::torrent::{TorrentInfo, TorrentError, Result};
+/// use crate::popcorn_fx_torrent::torrent::{TorrentMetadata, TorrentError, Result};
 ///
-/// fn parse_torrent_data(data: &[u8]) -> Result<TorrentInfo> {
-///     let torrent_info: TorrentInfo = data.try_into()?;
+/// fn parse_torrent_data(data: &[u8]) -> Result<TorrentMetadata> {
+///     let torrent_info: TorrentMetadata = data.try_into()?;
 ///     Ok(torrent_info)
 /// }
 /// ```
@@ -441,14 +444,14 @@ impl TorrentMetadataBuilder {
 /// If only the info-hash is specified, the torrent file will be downloaded from peers,
 /// requiring support for the metadata extension.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct TorrentInfo {
+pub struct TorrentMetadata {
     /// The display name of the torrent.
     #[serde(skip)]
     name: Option<String>,
     /// URL of the tracker for the torrent.
     pub announce: Option<String>,
     /// Metadata specific to the torrent, equivalent to `ti` field in `add_torrent_params`.
-    pub info: Option<TorrentMetadata>,
+    pub info: Option<TorrentMetadataInfo>,
     /// A dictionary of strings. For each file in the file tree that is larger than the piece size it contains one string value.
     #[serde(rename = "piece layers")]
     pub piece_layers: Option<HashMap<String, String>>,
@@ -473,15 +476,12 @@ pub struct TorrentInfo {
     /// and validates the info-dict when received from the swarm.
     #[serde(skip)]
     pub info_hash: InfoHash,
-    /// The web seeds list of the torrent.
-    #[serde(default)]
-    pub web_seeds: Vec<WebSeed>,
 }
 
-impl TorrentInfo {
+impl TorrentMetadata {
     /// Creates a new `TorrentInfoBuilder` instance.
-    pub fn builder() -> TorrentInfoBuilder {
-        TorrentInfoBuilder::builder()
+    pub fn builder() -> TorrentMetadataBuilder {
+        TorrentMetadataBuilder::builder()
     }
 
     /// Get the display name of the torrent if known.
@@ -610,7 +610,7 @@ impl TorrentInfo {
     }
 }
 
-impl TryFrom<&[u8]> for TorrentInfo {
+impl TryFrom<&[u8]> for TorrentMetadata {
     type Error = TorrentError;
 
     /// Attempts to parse torrent metadata from the given bytes.
@@ -644,11 +644,11 @@ impl TryFrom<&[u8]> for TorrentInfo {
     }
 }
 
-impl TryFrom<Magnet> for TorrentInfo {
+impl TryFrom<Magnet> for TorrentMetadata {
     type Error = TorrentError;
 
     fn try_from(value: Magnet) -> Result<Self> {
-        let mut builder = TorrentInfoBuilder::builder();
+        let mut builder = TorrentMetadataBuilder::builder();
 
         // extract the display name
         if let Some(name) = value.display_name.as_ref() {
@@ -657,6 +657,11 @@ impl TryFrom<Magnet> for TorrentInfo {
         // extract the trackers
         for tracker in value.trackers() {
             builder = builder.tracker(tracker);
+        }
+        // extract webseeds
+        let webseeds: UrlList = value.ws().into_iter().map(|e| e.clone()).collect();
+        if !webseeds.is_empty() {
+            builder = builder.url_list(webseeds);
         }
         // extract the info hash
         builder = builder.info_hash(InfoHash::from_str(value.xt())?);
@@ -669,10 +674,10 @@ impl TryFrom<Magnet> for TorrentInfo {
 ///
 /// The `TorrentInfoBuilder` allows for the creation of a `TorrentInfo` instance with flexible configuration of its fields.
 #[derive(Debug, Default)]
-pub struct TorrentInfoBuilder {
+pub struct TorrentMetadataBuilder {
     name: Option<String>,
     announce: Option<String>,
-    info: Option<TorrentMetadata>,
+    info: Option<TorrentMetadataInfo>,
     announce_list: Option<Vec<Vec<String>>>,
     creation_date: Option<u64>,
     comment: Option<String>,
@@ -683,7 +688,7 @@ pub struct TorrentInfoBuilder {
     piece_layers: Option<HashMap<String, String>>,
 }
 
-impl TorrentInfoBuilder {
+impl TorrentMetadataBuilder {
     /// Creates a new `TorrentInfoBuilder` instance.
     ///
     /// # Returns
@@ -730,7 +735,7 @@ impl TorrentInfoBuilder {
     /// # Returns
     ///
     /// The updated `TorrentInfoBuilder` instance.
-    pub fn info(mut self, info: TorrentMetadata) -> Self {
+    pub fn info(mut self, info: TorrentMetadataInfo) -> Self {
         self.info = Some(info);
         self
     }
@@ -869,8 +874,8 @@ impl TorrentInfoBuilder {
     ///
     /// A `TorrentInfo` instance containing the fields set in the builder.
     /// Panics if the `info_hash` field is not set.
-    pub fn build(self) -> TorrentInfo {
-        TorrentInfo {
+    pub fn build(self) -> TorrentMetadata {
+        TorrentMetadata {
             name: self.name,
             announce: self.announce,
             info: self.info,
@@ -885,24 +890,22 @@ impl TorrentInfoBuilder {
             info_hash: self
                 .info_hash
                 .expect("expected the info hash to be present"),
-            web_seeds: vec![],
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::read_test_file_to_bytes;
     use std::str::FromStr;
-
-    use super::*;
 
     #[test]
     fn test_torrent_info_tiered_trackers() {
         init_logger!();
         let announce = "udp://example.tracker.org:6969/announce";
-        let info = TorrentInfoBuilder::builder()
+        let info = TorrentMetadataBuilder::builder()
             .announce(announce)
             .announce_list(vec![
                 vec![
@@ -959,7 +962,7 @@ mod tests {
             },
         };
 
-        let info = TorrentInfo::try_from(data.as_slice()).unwrap();
+        let info = TorrentMetadata::try_from(data.as_slice()).unwrap();
 
         assert_eq!(announce, info.announce.expect("expected announce").as_str());
         assert_ne!(
@@ -984,7 +987,7 @@ mod tests {
         let uri = "magnet:?xt=urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7&dn=debian-12.4.0-amd64-DVD-1.iso&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce";
         let magnet = Magnet::from_str(uri).unwrap();
 
-        let result = TorrentInfo::try_from(magnet).unwrap();
+        let result = TorrentMetadata::try_from(magnet).unwrap();
 
         let info_hash = &result.info_hash;
         assert_eq!(
@@ -998,7 +1001,7 @@ mod tests {
     fn test_torrent_info_create_info_hash() {
         init_logger!();
         let torrent = read_test_file_to_bytes("debian-udp.torrent");
-        let info = TorrentInfo::try_from(torrent.as_slice()).unwrap();
+        let info = TorrentMetadata::try_from(torrent.as_slice()).unwrap();
 
         let result = info.calculate_info_hash().unwrap();
 
@@ -1030,6 +1033,64 @@ mod tests {
         let expected_result = FileAttributeFlags::Symlink;
         let bytes = serde_bencode::to_bytes(&expected_result).unwrap();
         let result: FileAttributeFlags = serde_bencode::from_bytes(bytes.as_ref()).unwrap();
+        assert_eq!(expected_result, result);
+    }
+
+    #[test]
+    fn test_torrent_file_path() {
+        let expected_result = PathBuf::from("foo/bar");
+        let file = TorrentFileInfo {
+            length: 0,
+            path: Some(vec!["foo".to_string(), "bar".to_string()]),
+            path_utf8: None,
+            md5sum: None,
+            attr: None,
+            symlink_path: None,
+            sha1: None,
+        };
+        let result = file.path();
+        assert_eq!(expected_result, result);
+
+        let expected_result = PathBuf::from("esta/dolor");
+        let file = TorrentFileInfo {
+            length: 0,
+            path: Some(vec!["this".to_string(), "is invalid".to_string()]),
+            path_utf8: Some(vec!["esta".to_string(), "dolor".to_string()]),
+            md5sum: None,
+            attr: None,
+            symlink_path: None,
+            sha1: None,
+        };
+        let result = file.path();
+        assert_eq!(expected_result, result);
+    }
+
+    #[test]
+    fn test_torrent_file_path_segments() {
+        let expected_result = vec!["foo".to_string(), "bar".to_string()];
+        let file = TorrentFileInfo {
+            length: 0,
+            path: Some(expected_result.clone()),
+            path_utf8: None,
+            md5sum: None,
+            attr: None,
+            symlink_path: None,
+            sha1: None,
+        };
+        let result = file.path_segments();
+        assert_eq!(expected_result, result);
+
+        let expected_result = vec!["esta".to_string(), "dolor".to_string()];
+        let file = TorrentFileInfo {
+            length: 0,
+            path: Some(vec!["this".to_string(), "is invalid".to_string()]),
+            path_utf8: Some(expected_result.clone()),
+            md5sum: None,
+            attr: None,
+            symlink_path: None,
+            sha1: None,
+        };
+        let result = file.path_segments();
         assert_eq!(expected_result, result);
     }
 }

@@ -3,6 +3,7 @@ use crate::torrent::{TorrentContext, TorrentOperation, TorrentState};
 use async_trait::async_trait;
 use derive_more::Display;
 use log::trace;
+use std::sync::Arc;
 use tokio::sync::Mutex;
 
 /// The torrent metadata operation is responsible for checking if the metadata for a torrent is present and if not, retrieving it from peers.
@@ -48,7 +49,7 @@ impl TorrentOperation for TorrentMetadataOperation {
         "retrieve metadata operation"
     }
 
-    async fn execute(&self, torrent: &TorrentContext) -> TorrentOperationResult {
+    async fn execute(&self, torrent: &Arc<TorrentContext>) -> TorrentOperationResult {
         let is_metadata_known = self.is_metadata_known(&torrent).await;
 
         if is_metadata_known {
@@ -74,10 +75,6 @@ impl TorrentOperation for TorrentMetadataOperation {
 
         TorrentOperationResult::Stop
     }
-
-    fn clone_boxed(&self) -> Box<dyn TorrentOperation> {
-        Box::new(TorrentMetadataOperation::new())
-    }
 }
 
 #[derive(Debug)]
@@ -90,7 +87,7 @@ struct MetadataInfo {
 mod tests {
     use super::*;
     use crate::torrent::fs::DefaultTorrentFileStorage;
-    use crate::torrent::{Torrent, TorrentConfig, TorrentInfo};
+    use crate::torrent::{Torrent, TorrentConfig, TorrentMetadata};
     use popcorn_fx_core::core::torrents::magnet::Magnet;
     use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::read_test_file_to_bytes;
@@ -106,7 +103,7 @@ mod tests {
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let torrent_info_data = read_test_file_to_bytes("debian-udp.torrent");
-        let torrent_info = TorrentInfo::try_from(torrent_info_data.as_slice()).unwrap();
+        let torrent_info = TorrentMetadata::try_from(torrent_info_data.as_slice()).unwrap();
         let runtime = Arc::new(Runtime::new().unwrap());
         let torrent = Torrent::request()
             .metadata(torrent_info)
@@ -124,7 +121,7 @@ mod tests {
         let operation = TorrentMetadataOperation::new();
         let inner = torrent.instance().unwrap();
 
-        let result = operation.execute(&*inner).await;
+        let result = operation.execute(&inner).await;
 
         assert_eq!(TorrentOperationResult::Continue, result);
     }
@@ -136,7 +133,7 @@ mod tests {
         let temp_path = temp_dir.path().to_str().unwrap();
         let uri = "magnet:?xt=urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7&dn=debian-12.4.0-amd64-DVD-1.iso&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce";
         let magnet = Magnet::from_str(uri).unwrap();
-        let torrent_info = TorrentInfo::try_from(magnet).unwrap();
+        let torrent_info = TorrentMetadata::try_from(magnet).unwrap();
         let runtime = Arc::new(Runtime::new().unwrap());
         let torrent = Torrent::request()
             .metadata(torrent_info)
@@ -155,7 +152,7 @@ mod tests {
         let inner = torrent.instance().unwrap();
         let operation = TorrentMetadataOperation::new();
 
-        let result = operation.execute(&*inner).await;
+        let result = operation.execute(&inner).await;
 
         assert_eq!(TorrentOperationResult::Stop, result);
     }

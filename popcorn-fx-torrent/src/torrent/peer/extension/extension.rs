@@ -1,5 +1,5 @@
 use crate::torrent::peer::extension::errors;
-use crate::torrent::peer::{Peer, PeerContext, PeerEvent};
+use crate::torrent::peer::{PeerContext, PeerEvent, TcpPeer};
 use async_trait::async_trait;
 use errors::Result;
 use std::collections::HashMap;
@@ -49,7 +49,7 @@ pub trait Extension: Debug + Send + Sync {
     async fn on<'a>(&'a self, event: &'a PeerEvent, peer: &'a PeerContext);
 
     /// Clone this extension into a new boxed instance.
-    /// This is called by a torrent for creating an instance of the extension for each new [Peer] connection.
+    /// This is called by a torrent for creating an instance of the extension for each new [TcpPeer] connection.
     ///
     /// Context of an extension can be shared between peers if wanted by the extension during this method.
     fn clone_boxed(&self) -> Box<dyn Extension>;

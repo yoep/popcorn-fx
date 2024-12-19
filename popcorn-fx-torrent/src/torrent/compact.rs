@@ -2,8 +2,9 @@ use crate::torrent::{Result, TorrentError};
 use base64::prelude::BASE64_STANDARD;
 use base64::Engine;
 use log::{trace, warn};
-use serde::de::SeqAccess;
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::de::{Error, SeqAccess, Visitor};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use std::f32::consts::E;
 use std::fmt::Formatter;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
@@ -104,7 +105,7 @@ impl TryInto<CompactIpv4Addr> for SocketAddr {
                 ip: addr,
                 port: self.port(),
             }),
-            IpAddr::V6(_) => Err(TorrentError::TorrentParse(
+            IpAddr::V6(_) => Err(TorrentError::AddressParse(
                 "expected ipv4, but got ipv6 instead".to_string(),
             )),
         }
@@ -153,7 +154,7 @@ struct CompactIpv4AddrVisitor;
 impl CompactIpv4AddrVisitor {
     fn parse_bytes(bytes: &[u8]) -> Result<CompactIpv4Addr> {
         if bytes.len() != 6 {
-            return Err(TorrentError::TorrentParse(
+            return Err(TorrentError::AddressParse(
                 "expected a byte slice of a compact ipv4 address".to_string(),
             ));
         }
@@ -303,7 +304,7 @@ impl TryInto<CompactIpv6Addr> for SocketAddr {
                 ip: addr,
                 port: self.port(),
             }),
-            IpAddr::V4(_) => Err(TorrentError::TorrentParse(
+            IpAddr::V4(_) => Err(TorrentError::AddressParse(
                 "expected ipv6, but got ipv4 instead".to_string(),
             )),
         }
@@ -352,13 +353,13 @@ struct CompactIpv6AddrVisitor;
 impl CompactIpv6AddrVisitor {
     fn parse_bytes(bytes: &[u8]) -> Result<CompactIpv6Addr> {
         if bytes.len() != 18 {
-            return Err(TorrentError::TorrentParse(
+            return Err(TorrentError::AddressParse(
                 "expected a byte slice of a compact ipv6 address".to_string(),
             ));
         }
 
         let ip_bytes: [u8; 16] = <[u8; 16]>::try_from(&bytes[0..16]).map_err(|_| {
-            TorrentError::TorrentParse("failed to convert slice to [u8; 16]".to_string())
+            TorrentError::AddressParse("failed to convert slice to [u8; 16]".to_string())
         })?;
         let ip = Ipv6Addr::from(ip_bytes);
         let port = u16::from_be_bytes([bytes[16], bytes[17]]);
@@ -403,7 +404,76 @@ pub mod compact_ipv6 {
     where
         D: Deserializer<'de>,
     {
-        D::deserialize_any(deserializer, CompactIpv6AddrsVisitor {})
+        D::deserialize_any(deserializer, CompactIpv6AddrsVisitor)
+    }
+}
+
+/// A compact representation of an ipv4 or ipv6 address without port.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CompactIp {
+    pub ip: IpAddr,
+}
+
+impl From<&SocketAddr> for CompactIp {
+    fn from(value: &SocketAddr) -> Self {
+        Self { ip: value.ip() }
+    }
+}
+
+impl Serialize for CompactIp {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let bytes: Vec<u8> = match &self.ip {
+            IpAddr::V4(addr) => addr.octets().to_vec(),
+            IpAddr::V6(addr) => addr.octets().to_vec(),
+        };
+
+        serializer.serialize_bytes(&bytes)
+    }
+}
+
+impl<'de> Deserialize<'de> for CompactIp {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_bytes(CompactIpVisitor)
+    }
+}
+
+struct CompactIpVisitor;
+
+impl<'de> Visitor<'de> for CompactIpVisitor {
+    type Value = CompactIp;
+
+    fn expecting(&self, f: &mut Formatter) -> std::fmt::Result {
+        write!(f, "expected a compact ip address as bytes")
+    }
+
+    fn visit_bytes<E>(self, bytes: &[u8]) -> std::result::Result<Self::Value, E>
+    where
+        E: Error,
+    {
+        let addr: IpAddr;
+
+        if bytes.len() == 4 {
+            addr = IpAddr::V4(Ipv4Addr::new(bytes[0], bytes[1], bytes[2], bytes[3]));
+        } else if bytes.len() == 16 {
+            addr = <[u8; 16]>::try_from(&bytes[0..16])
+                .map(|e| Ipv6Addr::from(e))
+                .map(|e| IpAddr::V6(e))
+                .map_err(|_| {
+                    Error::custom(TorrentError::AddressParse(
+                        "failed to convert slice to [u8; 16]".to_string(),
+                    ))
+                })?;
+        } else {
+            return Err(Error::invalid_length(bytes.len(), &self));
+        }
+
+        Ok(CompactIp { ip: addr })
     }
 }
 
@@ -495,6 +565,23 @@ mod tests {
 
         let result = serde_bencode::from_bytes::<TestIpv6List>(&bytes).unwrap();
 
+        assert_eq!(expected_result, result);
+    }
+
+    #[test]
+    fn test_compact_ip() {
+        let expected_result = CompactIp {
+            ip: IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+        };
+        let bytes = serde_bencode::to_bytes(&expected_result).unwrap();
+        let result = serde_bencode::from_bytes(&bytes).unwrap();
+        assert_eq!(expected_result, result);
+
+        let expected_result = CompactIp {
+            ip: IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 16)),
+        };
+        let bytes = serde_bencode::to_bytes(&expected_result).unwrap();
+        let result = serde_bencode::from_bytes(&bytes).unwrap();
         assert_eq!(expected_result, result);
     }
 }

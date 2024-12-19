@@ -5,6 +5,7 @@ use crate::torrent::{
 use async_trait::async_trait;
 use derive_more::Display;
 use log::{debug, warn};
+use std::sync::Arc;
 use tokio::sync::Mutex;
 
 /// The torrent trackers operation is responsible for adding the known trackers to the torrent.
@@ -80,7 +81,7 @@ impl TorrentOperation for TorrentTrackersOperation {
         "connect trackers operation"
     }
 
-    async fn execute(&self, torrent: &TorrentContext) -> TorrentOperationResult {
+    async fn execute(&self, torrent: &Arc<TorrentContext>) -> TorrentOperationResult {
         // build the tiered trackers cache if needed
         if !*self.initialized.lock().await {
             // if we're unable to create the tiered trackers
@@ -101,17 +102,13 @@ impl TorrentOperation for TorrentTrackersOperation {
             TorrentOperationResult::Stop
         }
     }
-
-    fn clone_boxed(&self) -> Box<dyn TorrentOperation> {
-        Box::new(TorrentTrackersOperation::new())
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::torrent::fs::DefaultTorrentFileStorage;
-    use crate::torrent::{Torrent, TorrentConfig, TorrentEvent, TorrentInfo};
+    use crate::torrent::{Torrent, TorrentConfig, TorrentEvent, TorrentMetadata};
     use popcorn_fx_core::core::callback::Callback;
     use popcorn_fx_core::testing::read_test_file_to_bytes;
     use popcorn_fx_core::{available_port, init_logger};
@@ -127,7 +124,7 @@ mod tests {
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let torrent_info_data = read_test_file_to_bytes("ubuntu-https.torrent");
-        let torrent_info = TorrentInfo::try_from(torrent_info_data.as_slice()).unwrap();
+        let torrent_info = TorrentMetadata::try_from(torrent_info_data.as_slice()).unwrap();
         let runtime = Arc::new(Runtime::new().unwrap());
         let port = available_port!(6881, 31000).unwrap();
         let torrent = Torrent::request()
@@ -154,13 +151,13 @@ mod tests {
             }
         });
 
-        let result = runtime.block_on(operation.execute(&*inner));
+        let result = runtime.block_on(operation.execute(&inner));
         assert_eq!(TorrentOperationResult::Stop, result);
 
         let _ = rx
             .recv_timeout(Duration::from_secs(2))
             .expect("expected a tracker connection to have been established");
-        let result = runtime.block_on(operation.execute(&*inner));
+        let result = runtime.block_on(operation.execute(&inner));
         assert_eq!(TorrentOperationResult::Continue, result);
     }
 }

@@ -24,6 +24,8 @@ pub enum TorrentError {
     MagnetParse(String),
     #[error("failed to parse torrent data, {0}")]
     TorrentParse(String),
+    #[error("failed to parse address, {0}")]
+    AddressParse(String),
     #[error("the metadata of the torrent is invalid, {0}")]
     InvalidMetadata(String),
     #[error("the provided exact topic (xt) is invalid, {0}")]

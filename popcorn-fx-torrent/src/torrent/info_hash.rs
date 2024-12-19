@@ -493,7 +493,7 @@ pub enum ProtocolVersion {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::torrent::TorrentInfo;
+    use crate::torrent::TorrentMetadata;
     use hex_literal::hex;
     use popcorn_fx_core::core::torrents::magnet::Magnet;
     use popcorn_fx_core::init_logger;
@@ -536,7 +536,7 @@ mod tests {
     fn test_info_hash_from_str_display() {
         init_logger!();
         let torrent_info_data = read_test_file_to_bytes("debian-udp.torrent");
-        let torrent_info = TorrentInfo::try_from(torrent_info_data.as_slice()).unwrap();
+        let torrent_info = TorrentMetadata::try_from(torrent_info_data.as_slice()).unwrap();
         let info_hash = torrent_info.info_hash;
 
         let value = info_hash.to_string();
@@ -603,11 +603,11 @@ mod tests {
     fn test_info_hash_short_info_hash_bytes_different_sources_same_hash() {
         init_logger!();
         let torrent = read_test_file_to_bytes("debian-udp.torrent");
-        let torrent_info_file = TorrentInfo::try_from(torrent.as_slice()).unwrap();
+        let torrent_info_file = TorrentMetadata::try_from(torrent.as_slice()).unwrap();
         let info_hash_file = torrent_info_file.info_hash;
 
         let magnet = Magnet::from_str("magnet:?xt=urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7&dn=debian-12.4.0-amd64-DVD-1.iso&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce").unwrap();
-        let torrent_info_magnet = TorrentInfo::try_from(magnet).unwrap();
+        let torrent_info_magnet = TorrentMetadata::try_from(magnet).unwrap();
         let info_hash_magnet = torrent_info_magnet.info_hash;
 
         let hash_bytes_file = info_hash_file.short_info_hash_bytes();

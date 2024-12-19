@@ -6,6 +6,7 @@ use async_trait::async_trait;
 use derive_more::Display;
 use log::{debug, warn};
 use std::path::PathBuf;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct TorrentCreateFilesOperation;
@@ -56,7 +57,7 @@ impl TorrentCreateFilesOperation {
             let file_length = file.length as usize;
             let mut path = PathBuf::new().join(metadata.name());
 
-            for path_section in file.path() {
+            for path_section in file.path_segments() {
                 path = path.join(path_section);
             }
 
@@ -88,7 +89,7 @@ impl TorrentOperation for TorrentCreateFilesOperation {
         "create torrent files operation"
     }
 
-    async fn execute(&self, torrent: &TorrentContext) -> TorrentOperationResult {
+    async fn execute(&self, torrent: &Arc<TorrentContext>) -> TorrentOperationResult {
         // check if the files have already been created
         // if so, continue the chain
         if torrent.total_files().await > 0 || self.create_files(&torrent).await {
@@ -97,10 +98,6 @@ impl TorrentOperation for TorrentCreateFilesOperation {
 
         TorrentOperationResult::Stop
     }
-
-    fn clone_boxed(&self) -> Box<dyn TorrentOperation> {
-        Box::new(Self::new())
-    }
 }
 
 #[cfg(test)]
@@ -108,7 +105,7 @@ mod tests {
     use super::*;
     use crate::torrent::fs::DefaultTorrentFileStorage;
     use crate::torrent::operation::{TorrentCreatePiecesOperation, TorrentMetadataOperation};
-    use crate::torrent::{Torrent, TorrentInfo};
+    use crate::torrent::{Torrent, TorrentMetadata};
     use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::read_test_file_to_bytes;
     use tempfile::tempdir;
@@ -119,21 +116,20 @@ mod tests {
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let torrent_info_data = read_test_file_to_bytes("debian-udp.torrent");
-        let torrent_info = TorrentInfo::try_from(torrent_info_data.as_slice()).unwrap();
+        let torrent_info = TorrentMetadata::try_from(torrent_info_data.as_slice()).unwrap();
         let torrent = Torrent::request()
             .metadata(torrent_info)
             .peer_listener_port(6881)
-            .operations(vec![
-                Box::new(TorrentMetadataOperation::new()),
-                Box::new(TorrentCreatePiecesOperation::new()),
-            ])
+            .operations(vec![|| Box::new(TorrentMetadataOperation::new()), || {
+                Box::new(TorrentCreatePiecesOperation::new())
+            }])
             .storage(Box::new(DefaultTorrentFileStorage::new(temp_path)))
             .build()
             .unwrap();
         let operation = TorrentCreateFilesOperation::new();
         let inner = torrent.instance().unwrap();
 
-        let result = operation.execute(&*inner).await;
+        let result = operation.execute(&inner).await;
 
         assert_eq!(
             TorrentOperationResult::Continue,

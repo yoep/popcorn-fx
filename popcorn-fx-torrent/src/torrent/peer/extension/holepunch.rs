@@ -1,5 +1,5 @@
 use crate::torrent::peer::extension::Extension;
-use crate::torrent::peer::{Peer, PeerContext, PeerEvent};
+use crate::torrent::peer::{PeerContext, PeerEvent, TcpPeer};
 use async_trait::async_trait;
 
 const HOLEPUNCH_EXTENSION_NAME: &str = "ut_holepunch";

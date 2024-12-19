@@ -159,7 +159,7 @@ impl TrackerConnection for HttpConnection {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::torrent::TorrentInfo;
+    use crate::torrent::TorrentMetadata;
     use log::info;
     use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::read_test_file_to_bytes;
@@ -169,7 +169,7 @@ mod tests {
     async fn test_start() {
         init_logger!();
         let torrent_info_data = read_test_file_to_bytes("ubuntu-https.torrent");
-        let torrent_info = TorrentInfo::try_from(torrent_info_data.as_slice()).unwrap();
+        let torrent_info = TorrentMetadata::try_from(torrent_info_data.as_slice()).unwrap();
         let peer_id = PeerId::new();
         let url = torrent_info.trackers().get(0).cloned().unwrap();
         let mut connection = HttpConnection::new(url, peer_id, Duration::from_secs(2));
@@ -184,7 +184,7 @@ mod tests {
         init_logger!();
         let expected_hash_value = "info_hash=.%8ED%06%8B%25H%14%EA%1A%7DIi%A9%AF%1Dx%E0%F5%1F";
         let torrent_info_data = read_test_file_to_bytes("ubuntu-https.torrent");
-        let torrent_info = TorrentInfo::try_from(torrent_info_data.as_slice()).unwrap();
+        let torrent_info = TorrentMetadata::try_from(torrent_info_data.as_slice()).unwrap();
         let peer_id = PeerId::new();
         let url = torrent_info.trackers().get(0).cloned().unwrap();
         let connection = HttpConnection::new(url, peer_id, Duration::from_secs(2));
@@ -206,7 +206,7 @@ mod tests {
         init_logger!();
         let runtime = Runtime::new().expect("expected a runtime");
         let torrent_info_data = read_test_file_to_bytes("ubuntu-https.torrent");
-        let torrent_info = TorrentInfo::try_from(torrent_info_data.as_slice()).unwrap();
+        let torrent_info = TorrentMetadata::try_from(torrent_info_data.as_slice()).unwrap();
         let peer_id = PeerId::new();
         let url = torrent_info.trackers().get(0).cloned().unwrap();
         let mut connection = HttpConnection::new(url, peer_id, Duration::from_secs(2));

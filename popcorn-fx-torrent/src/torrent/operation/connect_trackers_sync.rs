@@ -5,6 +5,7 @@ use crate::torrent::{
 use async_trait::async_trait;
 use derive_more::Display;
 use log::{debug, warn};
+use std::sync::Arc;
 use tokio::sync::Mutex;
 
 /// The torrent trackers sync operation is responsible for adding the known trackers to the torrent.
@@ -61,7 +62,7 @@ impl TorrentOperation for TorrentTrackersSyncOperation {
         "connect trackers synchronized operation"
     }
 
-    async fn execute(&self, torrent: &TorrentContext) -> TorrentOperationResult {
+    async fn execute(&self, torrent: &Arc<TorrentContext>) -> TorrentOperationResult {
         // add the known trackers to the torrent
         if !*self.initialized.lock().await {
             if !self.create_trackers(torrent).await {
@@ -71,17 +72,13 @@ impl TorrentOperation for TorrentTrackersSyncOperation {
 
         TorrentOperationResult::Continue
     }
-
-    fn clone_boxed(&self) -> Box<dyn TorrentOperation> {
-        Box::new(TorrentTrackersSyncOperation::new())
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::torrent::fs::DefaultTorrentFileStorage;
-    use crate::torrent::{Torrent, TorrentConfig, TorrentInfo};
+    use crate::torrent::{Torrent, TorrentConfig, TorrentMetadata};
     use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::read_test_file_to_bytes;
     use std::sync::Arc;
@@ -95,7 +92,7 @@ mod tests {
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let torrent_info_data = read_test_file_to_bytes("ubuntu-https.torrent");
-        let torrent_info = TorrentInfo::try_from(torrent_info_data.as_slice()).unwrap();
+        let torrent_info = TorrentMetadata::try_from(torrent_info_data.as_slice()).unwrap();
         let runtime = Arc::new(Runtime::new().unwrap());
         let torrent = Torrent::request()
             .metadata(torrent_info)
@@ -114,7 +111,7 @@ mod tests {
         let operation = TorrentTrackersSyncOperation::new();
 
         runtime.block_on(async {
-            let result = operation.execute(&*inner).await;
+            let result = operation.execute(&inner).await;
             assert_eq!(TorrentOperationResult::Continue, result);
 
             let result = inner.announce_all().await;

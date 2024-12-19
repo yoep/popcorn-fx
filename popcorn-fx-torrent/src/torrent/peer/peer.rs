@@ -5,8 +5,10 @@ use crate::torrent::peer::peer_reader::{PeerReader, PeerReaderEvent};
 use crate::torrent::peer::protocol::{ExtendedHandshake, Handshake, Message, Piece, Request};
 use crate::torrent::peer::{Error, PeerId, Result};
 use crate::torrent::{
-    InfoHash, PieceIndex, TorrentContext, TorrentEvent, TorrentInfo, TorrentMetadata,
+    calculate_byte_rate, CompactIp, InfoHash, PieceIndex, TorrentContext, TorrentEvent,
+    TorrentMetadata, TorrentMetadataInfo, MAX_PIECE_PART_SIZE,
 };
+use async_trait::async_trait;
 use bit_vec::BitVec;
 use bitmask_enum::bitmask;
 use byteorder::BigEndian;
@@ -32,9 +34,85 @@ use tokio_util::sync::CancellationToken;
 
 const KEEP_ALIVE_SECONDS: u64 = 90;
 const HANDSHAKE_MESSAGE_LEN: usize = 68;
+/// The maximum amount of in-flight pieces a peer can request
+const MAX_PENDING_PIECES: usize = 3;
 
 /// The peer's unique identifier handle.
 pub type PeerHandle = Handle;
+
+/// The [Peer] is a connection to connect to a remote peer and exchange piece data of a specific torrent.
+#[async_trait]
+pub trait Peer: Debug + Display + Send + Sync + Callback<PeerEvent> {
+    /// Get the unique identifier handle of the peer.
+    ///
+    /// # Returns
+    ///
+    /// It returns the unique identifier handle of the peer.
+    fn handle(&self) -> PeerHandle;
+
+    /// Get the unique identifier handle of the peer as reference.
+    ///
+    /// # Returns
+    ///
+    /// Returns the unique identifier reference handle of the peer.
+    fn handle_as_ref(&self) -> &PeerHandle;
+
+    /// Get the peer client information.
+    ///
+    /// # Returns
+    ///
+    /// It returns an owned instance of the client info.
+    fn client(&self) -> PeerClientInfo;
+
+    /// Get the address of the remote peer.
+    ///
+    /// # Returns
+    ///
+    /// It returns the socket address of the remote peer.
+    fn addr(&self) -> SocketAddr;
+
+    /// Get the address reference of the remote peer.
+    ///
+    /// # Returns
+    ///
+    /// It returns the socket address of the remote peer as reference.
+    fn addr_as_ref(&self) -> &SocketAddr;
+
+    /// Get the current state of the peer.
+    ///
+    /// # Returns
+    ///
+    /// It returns the current state if the peer.
+    async fn state(&self) -> PeerState;
+
+    /// Get the connection stats with the remote peer.
+    ///
+    /// # Returns
+    ///
+    /// It returns the metrics of the connection transfer data.
+    async fn stats(&self) -> PeerStats;
+
+    /// Get the available pieces of the remote peer as a bit vector.
+    ///
+    /// # Returns
+    ///
+    /// It returns an empty bit vector when the handshake has not yet been completed, else the known [BitVec] of available pieces.
+    async fn remote_piece_bitfield(&self) -> BitVec;
+
+    /// Notify the remote peer that we have new piece(s) available for download.
+    /// This operation is offloaded to the main loop of the [Peer], resulting in a non-blocking operation.
+    ///
+    /// In normal circumstances, this operation is only called by the [Torrent] of the peer.
+    ///
+    /// # Arguments
+    ///
+    /// * `pieces` - The piece indexes that have become available.
+    fn notify_piece_availability(&self, pieces: Vec<PieceIndex>);
+
+    /// Close the peer connection, cancelling any queued operation.
+    /// The connection with the remote peer will be closed and this peer can no longer be used.
+    async fn close(&self);
+}
 
 /// The choke states of a peer.
 #[repr(u8)]
@@ -254,32 +332,37 @@ impl Display for PeerEvent {
 }
 
 #[derive(Debug, Default, Clone)]
-pub struct PeerDataTransferStats {
+pub struct PeerStats {
     /// The bytes that have been transferred to the peer.
     pub upload: usize,
-    /// The bytes per second that have been transferred to the peer.
-    pub upload_rate: u64,
     /// The bytes that contain actual piece data transferred to the peer.
     pub upload_useful: usize,
-    /// The bytes per seconds that contain actual piece data transferred to the peer.
-    pub upload_useful_rate: u64,
     /// The bytes that have been transferred from the peer.
     pub download: usize,
-    /// The bytes per second that the downloaded from the peer.
-    pub download_rate: u64,
     /// The bytes that contain actual piece data transferred from the peer.
     pub download_useful: usize,
-    /// The bytes per seconds that contain actual piece data transferred from the peer.
-    pub download_useful_rate: u64,
+}
+
+/// The peer client information.
+#[derive(Debug, Display, Clone, PartialEq)]
+#[display(fmt = "{}[{}]", id, addr)]
+pub struct PeerClientInfo {
+    /// The unique handle of the peer
+    pub handle: PeerHandle,
+    /// The unique peer id communicated with the remote peer
+    pub id: PeerId,
+    /// The remote peer address the client is connected to
+    pub addr: SocketAddr,
+    /// The connection direction of the peer client
+    pub connection_type: ConnectionType,
 }
 
 #[derive(Debug)]
-pub struct Peer {
-    handle: PeerHandle,
+pub struct TcpPeer {
     inner: Arc<PeerContext>,
 }
 
-impl Peer {
+impl TcpPeer {
     pub async fn new_outbound(
         peer_id: PeerId,
         addr: SocketAddr,
@@ -320,41 +403,13 @@ impl Peer {
         }
     }
 
-    /// Get the unique identifier handle of the peer.
-    ///
-    /// # Returns
-    ///
-    /// Returns the unique identifier handle of the peer.
-    pub fn handle(&self) -> PeerHandle {
-        self.handle
-    }
-
-    /// Get the unique identifier handle of the peer as reference.
-    ///
-    /// # Returns
-    ///
-    /// Returns the unique identifier reference handle of the peer.
-    pub fn handle_as_ref(&self) -> &PeerHandle {
-        &self.handle
-    }
-
-    /// Get the address of the remote peer.
-    pub fn addr(&self) -> SocketAddr {
-        self.inner.addr()
-    }
-
-    /// Get the address reference of the remote peer.
-    pub fn addr_as_ref(&self) -> &SocketAddr {
-        self.inner.addr_as_ref()
-    }
-
     /// Get the connection type of the peer.
     ///
     /// # Returns
     ///
     /// Returns the connection type of the peer.
     pub fn connection_type(&self) -> ConnectionType {
-        self.inner.connection_type
+        self.inner.client.connection_type
     }
 
     /// Retrieve the remote peer id.
@@ -426,12 +481,6 @@ impl Peer {
         mutex.get(piece as usize).unwrap_or(false)
     }
 
-    /// Get the available pieces of the remote peer as a bit vector.
-    /// It might return an empty bit vector when the handshake has not been completed yet.
-    pub async fn remote_piece_bitfield(&self) -> BitVec {
-        self.inner.remote_piece_bitfield().await
-    }
-
     /// Check if the remote peer is a seed.
     /// This means that the remote peer has all pieces available and is seeding the torrent.
     pub async fn is_seed(&self) -> bool {
@@ -460,17 +509,6 @@ impl Peer {
     /// Get the client choke state of the peer.
     pub async fn choke_state(&self) -> ChokeState {
         self.inner.choke_state().await
-    }
-
-    /// Notify the peer we have new piece(s) available for download.
-    /// This is offloaded to the main loop of the peer, so this will not block unless the channel is full.
-    ///
-    /// # Arguments
-    ///
-    /// * `piece` - The piece index that we have available for download
-    pub fn notify_has_pieces(&self, pieces: Vec<PieceIndex>) {
-        self.inner
-            .send_command_event(PeerCommandEvent::ClientHasPieces(pieces))
     }
 
     /// Verify if the peer supports the given extension name with the remote peer.
@@ -516,40 +554,6 @@ impl Peer {
             .send_command_event(PeerCommandEvent::UpdateState(PeerState::Paused));
     }
 
-    /// Close this peer connection.
-    /// The connection with the remote peer will be closed and this peer can no longer be used.
-    pub async fn close(&self) {
-        self.inner.close(CloseReason::Client).await
-    }
-
-    /// Retrieve the connection stats from this peer and reset the stats.
-    ///
-    /// # Returns
-    ///
-    /// Returns the peer connection stats.
-    pub(crate) async fn stats_and_reset(&self) -> PeerDataTransferStats {
-        let mut stats = PeerDataTransferStats::default();
-
-        {
-            let mut mutex = self.inner.outgoing_data_stats.write().await;
-            stats.upload = mutex.transferred_bytes;
-            stats.upload_rate = mutex.transferred_bytes_rate;
-            stats.upload_useful = mutex.transferred_bytes_useful;
-            stats.upload_useful_rate = mutex.transferred_bytes_useful_rate;
-            mutex.reset();
-        }
-        {
-            let mut mutex = self.inner.incoming_data_stats.write().await;
-            stats.download = mutex.transferred_bytes;
-            stats.download_rate = mutex.transferred_bytes_rate;
-            stats.download_useful = mutex.transferred_bytes_useful;
-            stats.download_useful_rate = mutex.transferred_bytes_useful_rate;
-            mutex.reset();
-        }
-
-        stats
-    }
-
     async fn send_initial_messages(&self) -> Result<()> {
         let mut is_fast_have_sent = false;
 
@@ -581,6 +585,7 @@ impl Peer {
             .is_protocol_enabled(ProtocolExtensionFlags::Fast)
             .await;
         if is_fast_enabled && is_bitfield_known {
+            let mut message: Option<Message> = None;
             let is_metadata_known = self
                 .inner
                 .torrent
@@ -591,29 +596,42 @@ impl Peer {
                 .is_some();
 
             if is_metadata_known && bitfield.all() {
-                is_fast_have_sent = true;
-                if let Err(e) = self.inner.send(Message::HaveAll).await {
-                    warn!("Failed to send have all to peer {}, {}", self, e);
-                    self.inner
-                        .send_command_event(PeerCommandEvent::UpdateState(PeerState::Error));
-                }
+                message = Some(Message::HaveAll);
             } else if !is_metadata_known || bitfield.none() {
-                is_fast_have_sent = true;
-                if let Err(e) = self.inner.send(Message::HaveNone).await {
-                    warn!("Failed to send have none to peer {}, {}", self, e);
-                    self.inner
-                        .send_command_event(PeerCommandEvent::UpdateState(PeerState::Error));
+                message = Some(Message::HaveNone);
+            }
+
+            if let Some(message) = message {
+                let message_type = format!("{:?}", message);
+                match (&self.inner).send(message).await {
+                    Ok(_) => {
+                        is_fast_have_sent = true;
+                        debug!("Sent message {} to peer {}", message_type, self);
+                    }
+                    Err(e) => {
+                        warn!(
+                            "Failed to send message {} to peer {}, {}",
+                            message_type, self, e
+                        );
+                        self.inner
+                            .send_command_event(PeerCommandEvent::UpdateState(PeerState::Error));
+                    }
                 }
             }
         }
 
         // we try to send the bitfield with completed pieces if none of the initial fast messages have been sent
         // this is only done if at least one piece is completed
-        if !is_fast_have_sent && bitfield.any() {
-            if let Err(e) = self.inner.send(Message::Bitfield(bitfield.clone())).await {
-                warn!("Failed to send bitfield to peer {}, {}", self, e);
-                self.inner
-                    .send_command_event(PeerCommandEvent::UpdateState(PeerState::Error));
+        if !is_fast_have_sent && is_bitfield_known && bitfield.any() {
+            let message = Message::Bitfield(bitfield.clone());
+            let message_type = format!("{:?}", message);
+            match self.inner.send(message).await {
+                Ok(_) => debug!("Sent message {} to peer {}", message_type, self),
+                Err(e) => {
+                    warn!("Failed to send bitfield to peer {}, {}", self, e);
+                    self.inner
+                        .send_command_event(PeerCommandEvent::UpdateState(PeerState::Error));
+                }
             }
         }
 
@@ -643,14 +661,16 @@ impl Peer {
         let peer_handle = PeerHandle::new();
         let total_pieces = torrent.total_pieces().await;
         let inner = Arc::new(PeerContext {
-            handle: peer_handle,
-            client_id: peer_id,
+            client: PeerClientInfo {
+                handle: peer_handle,
+                id: peer_id,
+                addr,
+                connection_type,
+            },
             // the remote information is unknown until the handshake has been completed
             remote: RwLock::new(None),
             torrent,
-            addr,
             state: RwLock::new(PeerState::Handshake),
-            connection_type,
             protocol_extensions,
             // connections should always start in the choked state
             client_choke_state: RwLock::new(ChokeState::Choked),
@@ -662,7 +682,7 @@ impl Peer {
             extension_registry,
             client_pieces: RwLock::new(BitVec::from_elem(total_pieces, false)),
             remote_pieces: RwLock::new(BitVec::from_elem(total_pieces, false)),
-            remote_fast_pieces: RwLock::new(Vec::with_capacity(0)),
+            remote_fast_pieces: RwLock::new(BitVec::from_elem(total_pieces, false)),
             // create new peer request buffers which are not running as the peer connection starts in the state choked
             client_pending_requests: RwLock::new(HashMap::with_capacity(0)),
             client_pending_request_permits: Mutex::new(HashMap::with_capacity(0)),
@@ -677,12 +697,9 @@ impl Peer {
             timeout,
             runtime,
         });
-        let peer = Self {
-            handle: peer_handle,
-            inner,
-        };
+        let peer = Self { inner };
         let mut peer_reader = PeerReader::new(
-            peer.handle,
+            peer.inner.client.clone(),
             reader,
             reader_sender,
             peer.inner.cancellation_token.clone(),
@@ -695,9 +712,9 @@ impl Peer {
 
         // retrieve the incoming handshake from the reader
         // as the handshake is always 68 bytes long, we request a buffer of 68 bytes from the reader
-        trace!("Waiting for peer handshake from {}", peer.inner.addr);
+        trace!("Peer {} is awaiting the remote handshake", peer);
         let bytes =
-            Self::try_receive_handshake(&peer.inner.addr, &mut peer_reader, timeout).await?;
+            Self::try_receive_handshake(&peer.inner.client.addr, &mut peer_reader, timeout).await?;
         peer.inner.validate_handshake(bytes).await?;
 
         if connection_type == ConnectionType::Inbound {
@@ -761,7 +778,51 @@ impl Peer {
     }
 }
 
-impl Callback<PeerEvent> for Peer {
+#[async_trait]
+impl Peer for TcpPeer {
+    fn handle(&self) -> PeerHandle {
+        self.inner.client.handle
+    }
+
+    fn handle_as_ref(&self) -> &PeerHandle {
+        &self.inner.client.handle
+    }
+
+    fn client(&self) -> PeerClientInfo {
+        self.inner.client.clone()
+    }
+
+    fn addr(&self) -> SocketAddr {
+        self.inner.addr()
+    }
+
+    fn addr_as_ref(&self) -> &SocketAddr {
+        self.inner.addr_as_ref()
+    }
+
+    async fn state(&self) -> PeerState {
+        self.inner.state().await
+    }
+
+    async fn stats(&self) -> PeerStats {
+        self.inner.stats().await
+    }
+
+    async fn remote_piece_bitfield(&self) -> BitVec {
+        self.inner.remote_piece_bitfield().await
+    }
+
+    fn notify_piece_availability(&self, pieces: Vec<PieceIndex>) {
+        self.inner
+            .send_command_event(PeerCommandEvent::ClientHasPieces(pieces))
+    }
+
+    async fn close(&self) {
+        self.inner.close(CloseReason::Client).await
+    }
+}
+
+impl Callback<PeerEvent> for TcpPeer {
     fn subscribe(&self) -> Subscription<PeerEvent> {
         self.inner.subscribe()
     }
@@ -771,15 +832,15 @@ impl Callback<PeerEvent> for Peer {
     }
 }
 
-impl Display for Peer {
+impl Display for TcpPeer {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.inner)
     }
 }
 
-impl PartialEq for Peer {
+impl PartialEq for TcpPeer {
     fn eq(&self, other: &Self) -> bool {
-        self.handle == other.handle
+        self.inner.client == other.inner.client
     }
 }
 
@@ -795,7 +856,7 @@ pub(crate) struct DataTransferStats {
 impl DataTransferStats {
     /// Get the rate of bytes transferred per second.
     pub fn rate(&self) -> u64 {
-        PeerContext::calculate_rate(self.transferred_bytes, self.elapsed_micro)
+        calculate_byte_rate(self.transferred_bytes, self.elapsed_micro)
     }
 }
 
@@ -813,32 +874,31 @@ pub(crate) enum CloseReason {
     FastProtocol,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 struct PeerTransferStats {
     /// The amount of bytes that have been transferred.
-    pub transferred_bytes: usize,
+    transferred_bytes: usize,
     /// The actual useful bytes that have been transferred.
     /// This only counts the actual piece payload data that has been transferred and excludes everything of the Bittorrent message protocol.
-    pub transferred_bytes_useful: usize,
-    /// The total amount of bytes that have been transferred per second.
-    pub transferred_bytes_rate: u64,
-    /// The actual useful bytes transferred per second.
-    /// This only counts the actual piece payload data that has been transferred and excludes everything of the Bittorrent message protocol.
-    pub transferred_bytes_useful_rate: u64,
+    transferred_bytes_useful: usize,
     /// The total amount of bytes that have been transferred during the lifetime of the connection.
-    pub total_transferred_bytes: u64,
+    total_transferred_bytes: u64,
     /// The actual useful total bytes that have been transferred during the lifetime of the connection.
     /// This only counts the actual piece payload data that has been transferred and excludes everything of the Bittorrent message protocol.
-    pub total_transferred_bytes_useful: u64,
+    total_transferred_bytes_useful: u64,
+    /// The time the stats where scraped
+    scraped_at: Instant,
 }
 
-impl PeerTransferStats {
-    /// Reset all the data transfer stats, except for the lifetime stats.
-    fn reset(&mut self) {
-        self.transferred_bytes = 0;
-        self.transferred_bytes_useful = 0;
-        self.transferred_bytes_rate = 0;
-        self.transferred_bytes_useful_rate = 0;
+impl Default for PeerTransferStats {
+    fn default() -> Self {
+        Self {
+            transferred_bytes: 0,
+            transferred_bytes_useful: 0,
+            total_transferred_bytes: 0,
+            total_transferred_bytes_useful: 0,
+            scraped_at: Instant::now(),
+        }
     }
 }
 
@@ -847,9 +907,6 @@ impl PeerTransferStats {
 pub struct RequestPieceData {
     /// The piece index to request
     pub piece: PieceIndex,
-    /// The indication if the piece is allowed by the fast protocol.
-    /// If it's allowed, then it will be requested even if the remote peer is choked.
-    pub is_fast_allowed: bool,
 }
 
 /// The internal peer command events which are executed on the main loop of the peer.
@@ -881,21 +938,16 @@ pub enum PeerCommandEvent {
     RequestUploadPermit,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Display)]
+#[display(fmt = "{}", client)]
 pub struct PeerContext {
-    /// The peer's unique identifier handle
-    handle: PeerHandle,
-    /// Our unique client peer id
-    client_id: PeerId,
+    /// The client information of the peer
+    client: PeerClientInfo,
     /// The remote peer information, known after the initial handshake.
     remote: RwLock<Option<RemotePeer>>,
     /// The immutable torrent this peer connection belongs to.
     /// This is a weak reference to the [Torrent] and might be invalid if the peer is kept alive for invalid reasons.
     torrent: Arc<TorrentContext>,
-    /// The immutable address of the remote peer
-    addr: SocketAddr,
-    /// Identifies the connection direction (_incoming or outgoing_) of this peer
-    connection_type: ConnectionType,
     /// The state of the client peer connection with the remote peer
     state: RwLock<PeerState>,
     /// The peer client supported/enabled protocol extensions
@@ -921,7 +973,7 @@ pub struct PeerContext {
     /// The pieces of the remote peer
     remote_pieces: RwLock<BitVec>,
     /// The allowed fast pieces of the remote peer
-    remote_fast_pieces: RwLock<Vec<PieceIndex>>,
+    remote_fast_pieces: RwLock<BitVec>,
 
     /// The clients pending requests to the remote peer
     /// The are requests which we've requested from the remote peer
@@ -973,7 +1025,7 @@ impl PeerContext {
                 Some(event) = peer_reader.recv() => self.handle_reader_event(event).await,
                 Some(event) = event_receiver.recv() => self.handle_command_event(event).await,
                 Some(event) = torrent_receiver.recv() => self.handle_torrent_event(&*event).await,
-                _ = interval.tick() => self.check_wanted_pieces().await,
+                _ = interval.tick() => self.check_for_wanted_pieces().await,
             }
         }
 
@@ -983,12 +1035,12 @@ impl PeerContext {
 
     /// Get the address of the remote peer.
     pub fn addr(&self) -> SocketAddr {
-        self.addr
+        self.client.addr
     }
 
     /// Get the address reference of the remote peer.
     pub fn addr_as_ref(&self) -> &SocketAddr {
-        &self.addr
+        &self.client.addr
     }
 
     /// Get the underlying torrent of the peer.
@@ -1005,6 +1057,24 @@ impl PeerContext {
     /// Get the state of the peer.
     pub async fn state(&self) -> PeerState {
         self.state.read().await.clone()
+    }
+
+    /// Get the connection transfer metrics of the peer.
+    pub async fn stats(&self) -> PeerStats {
+        let mut stats = PeerStats::default();
+
+        {
+            let mutex = self.outgoing_data_stats.read().await;
+            stats.upload = mutex.transferred_bytes;
+            stats.upload_useful = mutex.transferred_bytes_useful;
+        }
+        {
+            let mutex = self.incoming_data_stats.read().await;
+            stats.download = mutex.transferred_bytes;
+            stats.download_useful = mutex.transferred_bytes_useful;
+        }
+
+        stats
     }
 
     /// Get the client choke state of the peer.
@@ -1064,7 +1134,8 @@ impl PeerContext {
     /// Check if the remote peer is a seed.
     /// This means that the remote peer has all pieces available and is seeding the torrent.
     pub async fn is_seed(&self) -> bool {
-        self.remote_pieces.read().await.all()
+        let mutex = self.remote_pieces.read().await;
+        mutex.len() > 0 && mutex.all()
     }
 
     /// Check if a specific protocol extension is supported by the remote peer.
@@ -1085,9 +1156,19 @@ impl PeerContext {
         *self.client_interest_state.read().await == InterestState::Interested
     }
 
+    /// Check if fast requests are allowed for the given piece.
+    /// It returns true when fast requests are allowed for the given piece, else false.
+    pub async fn is_fast_allowed(&self, piece: &PieceIndex) -> bool {
+        self.remote_fast_pieces
+            .read()
+            .await
+            .get(*piece)
+            .unwrap_or(false)
+    }
+
     /// Get the known metadata from the torrent.
     /// This info is requested from the torrent that created this peer.
-    pub async fn metadata(&self) -> TorrentInfo {
+    pub async fn metadata(&self) -> TorrentMetadata {
         self.torrent.metadata_lock().read().await.clone()
     }
 
@@ -1098,7 +1179,7 @@ impl PeerContext {
     /// # Arguments
     ///
     /// * `metadata` - The new torrent metadata
-    pub async fn update_metadata(&self, metadata: TorrentMetadata) {
+    pub async fn update_metadata(&self, metadata: TorrentMetadataInfo) {
         self.torrent.add_metadata(metadata).await;
     }
 
@@ -1165,10 +1246,10 @@ impl PeerContext {
     }
 
     async fn handle_received_message(&self, message: Message) {
-        debug!("Processing remote peer {} message {:?}", self, message);
+        debug!("Peer {} received remote message {:?}", self, message);
         match message {
             Message::KeepAlive => {
-                trace!("Received keep alive for peer {}", self);
+                trace!("Peer {} received keep alive", self);
             }
             Message::Choke => {
                 self.update_remote_peer_choke_state(ChokeState::Choked)
@@ -1194,7 +1275,7 @@ impl PeerContext {
             Message::RejectRequest(request) => self.handle_rejected_client_request(request).await,
             Message::Cancel(request) => self.cancel_remote_pending_request(request).await,
             Message::Suggest(piece) => self.handle_piece_suggestion(piece as PieceIndex).await,
-            Message::AllowedFast(piece) => self.add_remote_fast_piece(piece as PieceIndex).await,
+            Message::AllowedFast(piece) => self.remote_fast_piece(piece as PieceIndex).await,
             Message::Piece(piece) => self.handle_received_piece(piece).await,
             Message::ExtendedHandshake(handshake) => {
                 self.update_extended_handshake(handshake).await
@@ -1220,11 +1301,19 @@ impl PeerContext {
             return;
         }
 
-        if *self.state.read().await != PeerState::Uploading {
-            self.send_command_event(PeerCommandEvent::UpdateState(PeerState::Uploading));
+        // check if the client is choked, if so, we reject the request
+        // this can happen if the client choke's while the request was still queued in the command channel
+        let is_client_choked = *self.client_choke_state.read().await == ChokeState::Choked;
+        if is_client_choked {
+            self.send_reject_request(request).await;
+            return;
         }
 
         if self.torrent.has_piece(request.index).await {
+            if *self.state.read().await != PeerState::Uploading {
+                self.send_command_event(PeerCommandEvent::UpdateState(PeerState::Uploading));
+            }
+
             let request_end = request.begin + request.length;
             match self
                 .torrent
@@ -1264,7 +1353,7 @@ impl PeerContext {
     async fn handle_torrent_event(&self, event: &TorrentEvent) {
         match event {
             TorrentEvent::PiecesChanged => {
-                trace!("Updating peer {} client piece bitfield", self);
+                trace!("Peer {} updating client piece bitfield", self);
                 // retrieve the torrent pieces bitfield and store it as the client bitfield
                 let piece_bitfield = self.torrent.piece_bitfield().await;
                 let bitfield_len = piece_bitfield.len();
@@ -1298,7 +1387,7 @@ impl PeerContext {
     async fn handle_rejected_client_request(&self, request: Request) {
         self.remove_client_pending_request(&request).await;
         self.torrent
-            .pending_request_rejected(request.index, request.begin, self.handle)
+            .pending_request_rejected(request.index, request.begin, &self.client)
             .await;
     }
 
@@ -1324,7 +1413,8 @@ impl PeerContext {
 
                     self.release_client_pending_request_permit(piece_index)
                         .await;
-                    self.torrent.invalid_piece_data_received(part, self.handle);
+                    self.torrent.invalid_piece_data_received(part, &self.client);
+                    self.check_for_wanted_pieces().await;
                 }
             } else {
                 debug!(
@@ -1344,7 +1434,7 @@ impl PeerContext {
 
     /// Handle an internal peer command event.
     async fn handle_command_event(&self, event: PeerCommandEvent) {
-        trace!("Handling peer {} command event {:?}", self, event);
+        trace!("Peer {} handling command event {:?}", self, event);
         match event {
             PeerCommandEvent::ClientHasPieces(pieces) => {
                 self.update_client_piece_availability(pieces).await
@@ -1374,14 +1464,14 @@ impl PeerContext {
 
     /// Check if the remote peer has at least one wanted piece available.
     /// If so, trigger the necessary commands to retrieve this piece.
-    async fn check_wanted_pieces(&self) {
+    async fn check_for_wanted_pieces(&self) {
         if !self.torrent.is_download_allowed().await {
             return;
         }
 
         let pending_requests = self.client_pending_requests.read().await.len();
-        let has_wanted_requests = self.has_wanted_piece().await;
-        if pending_requests == 0 && has_wanted_requests {
+        let has_wanted_pieces = self.has_wanted_piece().await;
+        if pending_requests < MAX_PENDING_PIECES && has_wanted_pieces {
             let is_client_interested = self.is_client_interested().await;
             if !is_client_interested {
                 self.send_command_event(PeerCommandEvent::DetermineClientInterestState);
@@ -1471,15 +1561,15 @@ impl PeerContext {
     }
 
     async fn validate_handshake(&self, buffer: Vec<u8>) -> Result<()> {
-        let handshake = Handshake::from_bytes(&self.addr, buffer.as_ref())?;
+        let handshake = Handshake::from_bytes(&self.client.addr, buffer.as_ref())?;
         let info_hash = self.torrent.metadata_lock().read().await.info_hash.clone();
-        debug!("Received {:?} for {}", handshake, self);
+        trace!("Peer {} received handshake {:?}", self, handshake);
 
         // verify that the peer sent the correct info hash which we expect
         if info_hash != handshake.info_hash {
             self.update_state(PeerState::Error).await;
             return Err(Error::Handshake(
-                self.addr.clone(),
+                self.client.addr.clone(),
                 "received incorrect info hash from peer".to_string(),
             ));
         }
@@ -1496,7 +1586,10 @@ impl PeerContext {
             });
         }
 
-        debug!("Handshake of peer {} has been validated", self);
+        debug!(
+            "Peer {} handshake has been validated, {:?}",
+            self, handshake
+        );
         self.invoke_event(PeerEvent::HandshakeCompleted);
         Ok(())
     }
@@ -1529,7 +1622,7 @@ impl PeerContext {
             let _ = self.remote_pending_request_permit.lock().await.take();
         }
 
-        debug!("Client peer {} entered {} state", self, state);
+        debug!("Peer {} client entered {} state", self, state);
     }
 
     /// Updates the choke state of the remote peer.
@@ -1550,7 +1643,7 @@ impl PeerContext {
             self.send_command_event(PeerCommandEvent::RequestWantedPieces);
         }
 
-        trace!("Remote peer {} entered {} state", self, state);
+        trace!("Peer {} remote entered {} state", self, state);
     }
 
     /// Updates the interest state of the client peer.
@@ -1579,7 +1672,7 @@ impl PeerContext {
                 state, self, e
             );
         } else {
-            trace!("Client peer {} entered {} state", self, state);
+            debug!("Peer {} client entered {} state", self, state);
         }
     }
 
@@ -1592,7 +1685,7 @@ impl PeerContext {
 
         *mutex = state;
         drop(mutex);
-        trace!("Remote peer {} entered {} state", self, state);
+        debug!("Peer {} remote entered {} state", self, state);
 
         // if the remote peer is no longer interested
         // choke the client so that another peer can obtain the permit
@@ -1611,13 +1704,14 @@ impl PeerContext {
         }
 
         *mutex = state;
-        debug!("Updated peer {} state to {:?}", self, state);
+        debug!("Peer {} state updated to {:?}", self, state);
 
         self.invoke_event(PeerEvent::StateChanged(state));
     }
 
-    /// Set the client peer as having the given piece.
-    pub async fn update_client_piece_availability(&self, pieces: Vec<PieceIndex>) {
+    /// Set the client peer as having the given pieces.
+    /// This updates the peer client bitfield availability and informs the remote peer about the newly available pieces.
+    async fn update_client_piece_availability(&self, pieces: Vec<PieceIndex>) {
         {
             let mut mutex = self.client_pieces.write().await;
             for piece in pieces.iter() {
@@ -1634,8 +1728,8 @@ impl PeerContext {
         for piece in pieces.iter() {
             if let Err(e) = self.send(Message::Have(*piece as u32)).await {
                 warn!(
-                    "Failed to notify remote peer about piece {} availability, {}",
-                    piece, e
+                    "Peer {} failed to notify remote peer about {} piece availability, {}",
+                    self, piece, e
                 );
             }
         }
@@ -1683,12 +1777,13 @@ impl PeerContext {
             let mut mutex = self.remote_pieces.write().await;
             *mutex = pieces.clone();
             if pieces.all() {
-                debug!("Updated peer {} with all pieces available", self);
+                debug!("Peer {} has all pieces available", self);
             } else {
                 debug!(
-                    "Updated peer {} with a total of {} available pieces",
+                    "Peer {} updated with a total of {}/{} available pieces",
                     self,
-                    pieces.count_ones()
+                    pieces.count_ones(),
+                    self.torrent.total_pieces().await
                 );
             }
         }
@@ -1730,10 +1825,39 @@ impl PeerContext {
         self.send_command_event(PeerCommandEvent::DetermineClientInterestState);
     }
 
+    /// Add a pending request which is being requested by the remote peer.
+    /// This request can however still be rejected on several conditions.
     async fn add_remote_pending_request(&self, request: Request) {
+        let mut reject_request = false;
         let mut mutex = self.remote_pending_requests.write().await;
+        // check if the request is a duplicate
         if mutex.contains(&request) {
-            debug!("Received duplicate {:?} for {}", request, self);
+            warn!("Peer {} requested duplicate request {:?}", self, request);
+            if self.is_protocol_enabled(ProtocolExtensionFlags::Fast).await {
+                self.close(CloseReason::FastProtocol).await;
+            }
+
+            return;
+        }
+        // check if the client peer is choked, if so, reject the request
+        if *self.client_choke_state.read().await == ChokeState::Choked {
+            debug!(
+                "Peer {} received request for piece {} data while being choked",
+                self, request.index
+            );
+            reject_request = true;
+        }
+        // check if the request chunk is larger than the allowed chunk size, if so, reject the request
+        if request.length > MAX_PIECE_PART_SIZE {
+            debug!(
+                "Peer {} requested too large piece {} part, max length {}, requested length {}",
+                self, request.index, MAX_PIECE_PART_SIZE, request.length
+            );
+            reject_request = true;
+        }
+
+        if reject_request {
+            self.send_reject_request(request).await;
             return;
         }
 
@@ -1774,8 +1898,8 @@ impl PeerContext {
         }
     }
 
-    /// Add the received "fast" piece to the list of allowed fast pieces.
-    async fn add_remote_fast_piece(&self, piece: PieceIndex) {
+    /// Add the given piece to be executed as fast request.
+    async fn remote_fast_piece(&self, piece: PieceIndex) {
         // When the fast extension is disabled, if a peer receives an Allowed Fast message then the peer MUST close the connection.
         if !self.is_protocol_enabled(ProtocolExtensionFlags::Fast).await {
             self.close(CloseReason::FastProtocol).await;
@@ -1784,15 +1908,13 @@ impl PeerContext {
 
         {
             let mut mutex = self.remote_fast_pieces.write().await;
-            if !mutex.contains(&piece) {
-                mutex.push(piece);
-            } else {
-                trace!(
-                    "Received duplicate allowed fast piece {} for {}",
-                    piece,
-                    self
-                );
+            if mutex.len() < piece {
+                // extend the bitfield
+                let additional_len = piece as usize + 1 - mutex.len();
+                mutex.extend(vec![false; additional_len]);
             }
+
+            mutex.set(piece, true);
         }
 
         self.send_command_event(PeerCommandEvent::RequestFastPieces);
@@ -1813,30 +1935,29 @@ impl PeerContext {
         if is_download_allowed && is_piece_wanted {
             self.send_command_event(PeerCommandEvent::RequestPieceData(RequestPieceData {
                 piece,
-                is_fast_allowed: false,
             }));
         }
     }
 
     async fn update_extended_handshake(&self, handshake: ExtendedHandshake) {
-        {
-            let mut mutex = self.remote.write().await;
-            if let Some(remote) = mutex.as_mut() {
-                remote.extensions = handshake.m;
-                remote.client_name = handshake.client;
-                let remote_info = format!("{:?}", remote);
-                // drop the mutex as the Display impl requires it to print the info of the remote peer
-                drop(mutex);
-                debug!(
-                    "Updated peer {} with extended handshake information, {}",
-                    self, remote_info
-                );
-            } else {
-                warn!("Received extended handshake before the initial handshake was completed");
-            }
-        }
+        let mut mutex = self.remote.write().await;
+        if let Some(remote) = mutex.as_mut() {
+            remote.extensions = handshake.m;
+            remote.client_name = handshake.client;
+            let remote_info = format!("{:?}", remote);
 
-        self.invoke_event(PeerEvent::ExtendedHandshakeCompleted);
+            debug!(
+                "Peer {} updated extended handshake information, {}",
+                self, remote_info
+            );
+            self.invoke_event(PeerEvent::ExtendedHandshakeCompleted);
+        } else {
+            warn!(
+                "Peer {} received extended handshake before the initial handshake was completed",
+                self
+            );
+            self.close(CloseReason::Client).await;
+        }
     }
 
     async fn update_read_data_transfer_stats(
@@ -1846,15 +1967,12 @@ impl PeerContext {
     ) {
         let mut mutex = self.incoming_data_stats.write().await;
         mutex.transferred_bytes += data_transfer.transferred_bytes;
-        mutex.transferred_bytes_rate += data_transfer.rate();
         mutex.total_transferred_bytes += data_transfer.transferred_bytes as u64;
 
         if let Message::Piece(piece) = message {
             let data_size = piece.data.len();
             mutex.transferred_bytes_useful += data_size;
             mutex.total_transferred_bytes_useful += data_size as u64;
-            mutex.transferred_bytes_useful_rate =
-                Self::calculate_rate(data_size, data_transfer.elapsed_micro);
         }
     }
 
@@ -1865,14 +1983,11 @@ impl PeerContext {
     ) {
         let mut mutex = self.outgoing_data_stats.write().await;
         mutex.transferred_bytes += data_transfer.transferred_bytes;
-        mutex.transferred_bytes_rate += data_transfer.rate();
         mutex.total_transferred_bytes += data_transfer.transferred_bytes as u64;
 
         if let Some(piece_data_size) = piece_data_size {
             mutex.transferred_bytes_useful += piece_data_size;
             mutex.total_transferred_bytes_useful += piece_data_size as u64;
-            mutex.transferred_bytes_useful_rate =
-                Self::calculate_rate(piece_data_size, data_transfer.elapsed_micro);
         }
     }
 
@@ -1891,6 +2006,14 @@ impl PeerContext {
         if !self.torrent.is_piece_wanted(&request_data.piece).await {
             trace!(
                 "Piece {} is no longer wanted for {}",
+                request_data.piece,
+                self
+            );
+            return;
+        }
+        if self.is_piece_already_requested(&request_data.piece).await {
+            trace!(
+                "Piece {} is already being requested for {}",
                 request_data.piece,
                 self
             );
@@ -1925,10 +2048,7 @@ impl PeerContext {
                     requests
                 );
                 for request in requests {
-                    if self
-                        .send_pending_request(request, request_data.is_fast_allowed)
-                        .await
-                    {
+                    if self.send_pending_request(request).await {
                         sent_requests += 1;
                     }
                 }
@@ -1940,8 +2060,8 @@ impl PeerContext {
                         .await
                         .insert(piece.index, permit);
                     debug!(
-                        "Sent a total of {} requests for piece {} data from {}",
-                        sent_requests, piece.index, self
+                        "Peer {} requested piece {} data ({} pending requests)",
+                        self, piece.index, sent_requests
                     );
                 } // otherwise, we'll drop the permit automatically as no data could be requested
             }
@@ -1951,23 +2071,39 @@ impl PeerContext {
     /// Try to request pieces that are wanted by the torrent and are available.
     /// Pieces that have already been requested will not be retried.
     async fn request_wanted_pieces(&self) {
+        // this can happen if the torrent options have changed while the command was being queued
         if !self.torrent.is_download_allowed().await {
+            trace!("Peer {} is no longer allowed to download data", self);
             return;
         }
 
-        let mutex = self.client_pending_requests.read().await;
+        let client_pending_requests = self.client_pending_requests.read().await;
+        let is_pending_requests_full = client_pending_requests.len() >= MAX_PENDING_PIECES;
+        if is_pending_requests_full {
+            trace!(
+                "Peer {} no additional requests can be made, pending requests queue is full",
+                self
+            );
+            return;
+        }
+
+        let remote_pieces = self.remote_pieces.read().await;
         let wanted_pieces: Vec<PieceIndex> = self
             .torrent
             .wanted_pieces()
             .await
             .into_iter()
-            .filter(|e| !mutex.contains_key(e))
+            // filter out the pieces the remote doesn't have
+            .filter(|e| remote_pieces.get(*e).unwrap_or(false))
+            // filter out any pending requests which have already been sent
+            .filter(|e| !client_pending_requests.contains_key(e))
+            // take a max of X pieces
+            .take(MAX_PENDING_PIECES.saturating_sub(client_pending_requests.len()))
             .collect();
 
         for piece in wanted_pieces {
             self.send_command_event(PeerCommandEvent::RequestPieceData(RequestPieceData {
                 piece,
-                is_fast_allowed: false,
             }))
         }
     }
@@ -1979,30 +2115,47 @@ impl PeerContext {
         }
 
         let wanted_pieces = self.torrent.wanted_pieces().await;
-        let mutex = self.client_pending_requests.read().await;
+        let client_pending_requests = self.client_pending_requests.read().await;
         let wanted_fast_pieces: Vec<PieceIndex> = self
             .remote_fast_pieces
             .read()
             .await
             .iter()
-            .filter(|e| wanted_pieces.contains(e))
-            .filter(|e| !mutex.contains_key(e))
-            .cloned()
+            .enumerate()
+            // filter out the non-fast pieces
+            .filter(|(_, value)| *value)
+            // filter out any unwanted pieces
+            .filter(|(piece, _)| wanted_pieces.contains(piece))
+            // filter out any pending requests which have already been sent
+            .filter(|(piece, _)| !client_pending_requests.contains_key(piece))
+            // take a max of X pieces
+            .take(MAX_PENDING_PIECES.saturating_sub(client_pending_requests.len()))
+            .map(|(piece, _)| piece as PieceIndex)
             .collect();
 
         for piece in wanted_fast_pieces {
             self.send_command_event(PeerCommandEvent::RequestPieceData(RequestPieceData {
                 piece,
-                is_fast_allowed: true,
             }))
         }
+    }
+
+    /// Check if the given piece is already being requested from the remote peer.
+    /// It returns true if at least one pending piece part is pending for the given piece index.
+    async fn is_piece_already_requested(&self, piece: &PieceIndex) -> bool {
+        self.client_pending_requests
+            .read()
+            .await
+            .get(piece)
+            .map(|e| e.len() > 0)
+            .unwrap_or(false)
     }
 
     async fn send_handshake(&self) -> Result<()> {
         self.update_state(PeerState::Handshake).await;
         let info_hash = self.torrent.metadata_lock().read().await.info_hash.clone();
 
-        let handshake = Handshake::new(info_hash, self.client_id, self.protocol_extensions);
+        let handshake = Handshake::new(info_hash, self.client.id, self.protocol_extensions);
         trace!("Trying to send handshake {:?}", handshake);
         match self
             .send_raw_bytes(TryInto::<Vec<u8>>::try_into(handshake)?, None)
@@ -2027,7 +2180,7 @@ impl PeerContext {
             encryption: false,
             metadata_size: None,
             port: Some(self.torrent.peer_port() as u32),
-            your_ip: None,
+            your_ip: Some(CompactIp::from(&self.client.addr)),
             ipv4: None,
             ipv6: None,
         });
@@ -2038,18 +2191,24 @@ impl PeerContext {
     /// Send the reject request to the remote peer.
     /// This is only executed if the fast protocol is enabled.
     async fn send_reject_request(&self, request: Request) {
-        // check if the fast protocol is enabled
-        // if so, we should send the reject request
-        if self.is_protocol_enabled(ProtocolExtensionFlags::Fast).await {
-            if let Err(e) = self.send(Message::RejectRequest(request)).await {
-                debug!("Failed to send reject request to peer {}, {}", self, e);
-            }
+        // if the fast protocol is disabled, then we don't send a reject
+        if !self.is_protocol_enabled(ProtocolExtensionFlags::Fast).await {
+            return;
+        }
+
+        let piece = request.index;
+        match self.send(Message::RejectRequest(request)).await {
+            Ok(_) => debug!("Peer {} rejected remote request {}", self, piece),
+            Err(e) => warn!(
+                "Peer {} failed to reject remote request {}, {}",
+                self, piece, e
+            ),
         }
     }
 
     /// Try to send the given message to the remote peer.
     pub async fn send(&self, message: Message) -> Result<()> {
-        trace!("Sending peer {} message {:?}", self, message);
+        trace!("Peer {} trying to send message {:?}", self, message);
         let mut piece_data_size: Option<usize> = None;
         if let Message::Piece(piece) = &message {
             piece_data_size = Some(piece.data.len());
@@ -2097,13 +2256,13 @@ impl PeerContext {
         })
         .await??;
         drop(mutex);
-        let elapsed = start_time.elapsed().as_micros();
+        let elapsed = start_time.elapsed();
 
         // update the connection stats
         self.update_write_data_transfer_stats(
             DataTransferStats {
                 transferred_bytes: msg_length,
-                elapsed_micro: elapsed,
+                elapsed_micro: elapsed.as_micros(),
             },
             piece_data_size,
         )
@@ -2112,13 +2271,16 @@ impl PeerContext {
         Ok(())
     }
 
-    /// Request the given piece data from the remote peer.
-    /// This will only be executed if the remote peer is not choked and the request has not been made before.
+    /// Request piece data which is available from the remote peer.
+    /// This will only be executed if:
+    ///  - remote peer is not choked or fast is allowed
+    ///  - request has not been requested before
     ///
     /// It returns `true` when the request has been sent to the remote peer, else `false`.
-    async fn send_pending_request(&self, request: Request, is_fast_allowed: bool) -> bool {
+    async fn send_pending_request(&self, request: Request) -> bool {
         // if the remote peer is choked, but the fast protocol allows this request, the request will be allowed
         let is_remote_choked = *self.remote_choke_state.read().await == ChokeState::Choked;
+        let is_fast_allowed = self.is_fast_allowed(&request.index).await;
         if !is_fast_allowed && is_remote_choked {
             trace!(
                 "Trying to request piece {} data from choked peer {}",
@@ -2126,10 +2288,6 @@ impl PeerContext {
                 self
             );
             return false;
-        }
-
-        if *self.state.read().await != PeerState::Downloading {
-            self.send_command_event(PeerCommandEvent::UpdateState(PeerState::Downloading));
         }
 
         // check if the request is a duplicate
@@ -2140,18 +2298,25 @@ impl PeerContext {
             .unwrap_or(false)
         {
             debug!(
-                "Trying to request duplicate piece {} data from peer {}",
+                "Tried to request duplicate piece {} data from peer {}",
                 request.index, self
             );
             return false;
         }
 
+        if *self.state.read().await != PeerState::Downloading {
+            self.send_command_event(PeerCommandEvent::UpdateState(PeerState::Downloading));
+        }
+
         if let Err(e) = self.send(Message::Request(request.clone())).await {
             warn!(
-                "Failed request piece {} data from peer {}, {}",
-                request.index, self, e
+                "Failed request piece {} data (fast: {:?}) from peer {}, {}",
+                request.index, is_fast_allowed, self, e
             );
             return false;
+        }
+        if is_fast_allowed {
+            debug!("Peer {} requested fast piece {} data", self, request.index);
         }
 
         // store the pending request
@@ -2203,18 +2368,21 @@ impl PeerContext {
     /// Release the permit behind the client pending piece data request.
     /// This will remove any remaining pending requests for the piece and release the permit unlock.
     async fn release_client_pending_request_permit(&self, piece: &PieceIndex) {
-        let mut mutex = self.client_pending_requests.write().await;
+        let mut client_pending_requests = self.client_pending_requests.write().await;
 
         // remove the permit lock and entry
-        mutex.remove(piece);
+        client_pending_requests.remove(piece);
         self.client_pending_request_permits
             .lock()
             .await
             .remove(piece);
-        trace!("Released piece {} data request permit for {}", piece, self);
+        let request_additional_pieces = client_pending_requests.len() < MAX_PENDING_PIECES;
+        drop(client_pending_requests); // drop the mutex as `has_wanted_piece` needs it for calculation
+        trace!("Peer {} released piece {} request permit", self, piece);
 
-        if mutex.len() == 0 {
-            self.send_command_event(PeerCommandEvent::UpdateState(PeerState::Idle));
+        if request_additional_pieces && self.has_wanted_piece().await {
+            trace!("Peer {} has more wanted pieces from the remote peer", self);
+            self.check_for_wanted_pieces().await;
         }
     }
 
@@ -2301,7 +2469,7 @@ impl PeerContext {
     /// Close the connection of the peer.
     /// This cancels the main loop of the peer and notifies the parent torrent of the closure.
     pub(crate) async fn close(&self, reason: CloseReason) {
-        debug!("Closing peer {}, {}", self, reason);
+        debug!("Peer {} is closing, {}", self, reason);
         // cancel the main loop of the peer to stop any ongoing operation
         self.cancellation_token.cancel();
         // clear any permits as they cannot be completed from now on
@@ -2312,7 +2480,7 @@ impl PeerContext {
         // notify any subscribers
         self.update_state(PeerState::Closed).await;
         // notify the torrent that this peer is being closed
-        self.torrent.notify_peer_closed(self.handle);
+        self.torrent.notify_peer_closed(self.client.handle);
     }
 
     /// Publish a command event to the peer that will be processed by the main loop.
@@ -2324,15 +2492,6 @@ impl PeerContext {
             );
         }
     }
-
-    /// Calculate the data transfer rate in bytes/second.
-    fn calculate_rate(data_size: usize, elapsed_micro_secs: u128) -> u64 {
-        if elapsed_micro_secs <= 1_000_000 {
-            return data_size as u64;
-        }
-
-        ((data_size as u128 * 1_000_000) / elapsed_micro_secs) as u64
-    }
 }
 
 impl Callback<PeerEvent> for PeerContext {
@@ -2342,12 +2501,6 @@ impl Callback<PeerEvent> for PeerContext {
 
     fn subscribe_with(&self, subscriber: Subscriber<PeerEvent>) {
         self.callbacks.subscribe_with(subscriber)
-    }
-}
-
-impl Display for PeerContext {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}[{}]", self.client_id, self.addr)
     }
 }
 
@@ -2422,11 +2575,11 @@ mod tests {
         // create a connection to the source torrent which has the metadata
         let peer_addr = SocketAddr::from(([127, 0, 0, 1], source_torrent.peer_port()));
         let peer = runtime
-            .block_on(Peer::new_outbound(
+            .block_on(TcpPeer::new_outbound(
                 PeerId::new(),
                 peer_addr,
                 context.clone(),
-                context.protocols().clone(),
+                context.protocol_extensions(),
                 vec![Box::new(MetadataExtension::new())],
                 Duration::from_secs(5),
                 runtime.clone(),
@@ -2457,7 +2610,7 @@ mod tests {
 
         // create the pieces for the torrent
         let operation = TorrentCreatePiecesOperation::new();
-        let result = runtime.block_on(operation.execute(&*context));
+        let result = runtime.block_on(operation.execute(&context));
         assert_eq!(TorrentOperationResult::Continue, result);
 
         let (tx, rx) = std::sync::mpsc::channel();
@@ -2476,7 +2629,7 @@ mod tests {
         });
 
         // notify the other peer we have "fake" pieces
-        outgoing.notify_has_pieces(expected_pieces.clone());
+        outgoing.notify_piece_availability(expected_pieces.clone());
 
         let result = rx
             .recv_timeout(Duration::from_secs(2))
@@ -2499,7 +2652,7 @@ mod tests {
 
         // create the pieces for the torrent
         let operation = TorrentCreatePiecesOperation::new();
-        let result = runtime.block_on(operation.execute(&*context));
+        let result = runtime.block_on(operation.execute(&context));
         assert_eq!(TorrentOperationResult::Continue, result);
 
         // check if both the client & remote piece bitfield have been updated

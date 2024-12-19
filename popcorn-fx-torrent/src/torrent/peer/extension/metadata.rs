@@ -3,7 +3,7 @@ use crate::torrent::peer::protocol::Message;
 use crate::torrent::peer::{extension, PeerContext, PeerEvent};
 use std::fmt::{Debug, Formatter};
 
-use crate::torrent::{PieceIndex, TorrentMetadata};
+use crate::torrent::{PieceIndex, TorrentMetadataInfo};
 use async_trait::async_trait;
 use log::{debug, error, trace, warn};
 use popcorn_fx_core::core::block_in_place;
@@ -149,7 +149,7 @@ impl MetadataExtension {
             if total_pieces - 1 == message.piece as usize {
                 // try to deserialize the metadata
                 let metadata_buffer = self.metadata_buffer.read().await;
-                let metadata: TorrentMetadata =
+                let metadata: TorrentMetadataInfo =
                     serde_bencode::from_bytes(metadata_buffer.as_ref().unwrap())?;
                 debug!("Received metadata from peer, {:?}", metadata);
 
@@ -230,7 +230,7 @@ impl MetadataExtension {
     }
 
     async fn send_metadata_piece(
-        metadata: &TorrentMetadata,
+        metadata: &TorrentMetadataInfo,
         piece: PieceIndex,
         peer: &PeerContext,
     ) -> extension::Result<()> {

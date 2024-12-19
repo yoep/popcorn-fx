@@ -1,11 +1,12 @@
 use crate::torrent::{
-    InfoHash, Piece, PieceError, PieceIndex, TorrentCommandEvent, TorrentContext, TorrentMetadata,
-    TorrentOperation, TorrentOperationResult, TorrentState,
+    InfoHash, Piece, PieceError, PieceIndex, TorrentCommandEvent, TorrentContext,
+    TorrentMetadataInfo, TorrentOperation, TorrentOperationResult, TorrentState,
 };
 use async_trait::async_trait;
 use bit_vec::BitVec;
 use derive_more::Display;
 use log::{debug, warn};
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct TorrentCreatePiecesOperation;
@@ -47,7 +48,7 @@ impl TorrentCreatePiecesOperation {
     async fn try_create_pieces(&self, data: &TorrentContext) -> crate::torrent::Result<Vec<Piece>> {
         let info_hash: InfoHash;
         let num_pieces: usize;
-        let metadata: TorrentMetadata;
+        let metadata: TorrentMetadataInfo;
 
         {
             let mutex = data.metadata().await;
@@ -111,7 +112,7 @@ impl TorrentOperation for TorrentCreatePiecesOperation {
         "create pieces operation"
     }
 
-    async fn execute(&self, torrent: &TorrentContext) -> TorrentOperationResult {
+    async fn execute(&self, torrent: &Arc<TorrentContext>) -> TorrentOperationResult {
         // check if the pieces have already been created
         // if so, continue the chain
         if torrent.total_pieces().await > 0 {
@@ -125,17 +126,13 @@ impl TorrentOperation for TorrentCreatePiecesOperation {
             TorrentOperationResult::Stop
         }
     }
-
-    fn clone_boxed(&self) -> Box<dyn TorrentOperation> {
-        Box::new(TorrentCreatePiecesOperation::new())
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::torrent::fs::DefaultTorrentFileStorage;
-    use crate::torrent::{Torrent, TorrentFlags, TorrentInfo};
+    use crate::torrent::{Torrent, TorrentFlags, TorrentMetadata};
     use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::read_test_file_to_bytes;
     use std::sync::Arc;
@@ -148,7 +145,7 @@ mod tests {
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let torrent_info_data = read_test_file_to_bytes("debian-udp.torrent");
-        let torrent_info = TorrentInfo::try_from(torrent_info_data.as_slice()).unwrap();
+        let torrent_info = TorrentMetadata::try_from(torrent_info_data.as_slice()).unwrap();
         let runtime = Arc::new(Runtime::new().unwrap());
         let torrent = Torrent::request()
             .metadata(torrent_info)
@@ -161,7 +158,7 @@ mod tests {
         let inner = torrent.instance().unwrap();
         let operation = Box::new(TorrentCreatePiecesOperation::new()) as Box<dyn TorrentOperation>;
 
-        let result = operation.execute(&*inner).await;
+        let result = operation.execute(&inner).await;
 
         assert_eq!(TorrentOperationResult::Continue, result);
         assert_ne!(
@@ -177,7 +174,7 @@ mod tests {
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let torrent_info_data = read_test_file_to_bytes("debian-udp.torrent");
-        let torrent_info = TorrentInfo::try_from(torrent_info_data.as_slice()).unwrap();
+        let torrent_info = TorrentMetadata::try_from(torrent_info_data.as_slice()).unwrap();
         let torrent = Torrent::request()
             .metadata(torrent_info.clone())
             .options(TorrentFlags::None)
@@ -191,7 +188,7 @@ mod tests {
         inner
             .update_pieces(vec![Piece::new(torrent_info.info_hash.clone(), 0, 0, 1024)])
             .await;
-        let result = operation.execute(&*inner).await;
+        let result = operation.execute(&inner).await;
 
         assert_eq!(TorrentOperationResult::Continue, result);
         assert_eq!(

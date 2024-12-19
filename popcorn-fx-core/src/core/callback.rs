@@ -181,7 +181,6 @@ where
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("BaseCallback")
             .field("callbacks", &self.callbacks.lock().unwrap().len())
-            .field("runtime", &self.runtime)
             .finish()
     }
 }

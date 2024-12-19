@@ -457,7 +457,7 @@ struct UdpResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::torrent::TorrentInfo;
+    use crate::torrent::TorrentMetadata;
     use popcorn_fx_core::core::block_in_place;
     use popcorn_fx_core::testing::{init_logger, read_test_file_to_bytes};
     use tokio::net::lookup_host;
@@ -492,7 +492,7 @@ mod tests {
         init_logger();
         let runtime = Runtime::new().expect("expected a runtime");
         let torrent_info_data = read_test_file_to_bytes("debian-udp.torrent");
-        let torrent_info = TorrentInfo::try_from(torrent_info_data.as_slice()).unwrap();
+        let torrent_info = TorrentMetadata::try_from(torrent_info_data.as_slice()).unwrap();
         let peer_id = PeerId::new();
         let addrs: Vec<SocketAddr> = get_tracker_addresses(&torrent_info);
         let mut connection = UdpConnection::new(&addrs, peer_id, Duration::from_secs(1));
@@ -528,7 +528,7 @@ mod tests {
     }
 
     /// Get the unordered tracker addresses of the given torrent info.
-    fn get_tracker_addresses(torrent_info: &TorrentInfo) -> Vec<SocketAddr> {
+    fn get_tracker_addresses(torrent_info: &TorrentMetadata) -> Vec<SocketAddr> {
         torrent_info
             .trackers()
             .into_iter()

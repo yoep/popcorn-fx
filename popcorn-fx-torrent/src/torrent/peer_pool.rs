@@ -1,6 +1,6 @@
 use crate::torrent::peer::{Peer, PeerHandle, PeerState};
 use crate::torrent::TorrentHandle;
-use log::{debug, warn};
+use log::{debug, trace, warn};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -13,7 +13,7 @@ pub struct PeerPool {
     /// The unique handle of the torrent
     handle: TorrentHandle,
     /// The currently active peers within the pool
-    pub peers: RwLock<Vec<Peer>>,
+    pub peers: RwLock<Vec<Box<dyn Peer>>>,
     /// The discovered peers addrs
     available_peer_addrs: Mutex<Vec<SocketAddr>>,
     /// The peer addrs which have been identified as seeds
@@ -46,12 +46,12 @@ impl PeerPool {
         self.permits.available_permits() > 0
     }
 
-    /// Add the given [Peer] to this peer pool.
+    /// Add the given [TcpPeer] to this peer pool.
     /// The pool will check if the peer is unique before adding it to the pool, if it's a duplicate,
     /// the peer won't be added to the pool and the function will return [None].
     ///
     /// It returns a [Subscription] to receive peer events when the peer is added to the pool.
-    pub async fn add_peer(&self, peer: Peer) -> bool {
+    pub async fn add_peer(&self, peer: Box<dyn Peer>) -> bool {
         let mut mutex = self.peers.write().await;
 
         if mutex.iter().any(|e| e.handle() == peer.handle()) {
@@ -66,9 +66,9 @@ impl PeerPool {
         true
     }
 
-    /// Remove the [Peer] from the pool by the given [PeerHandle].
+    /// Remove the [TcpPeer] from the pool by the given [PeerHandle].
     /// It returns the peer that has been removed from the pool.
-    pub async fn remove_peer(&self, peer: PeerHandle) -> Option<Peer> {
+    pub async fn remove_peer(&self, peer: PeerHandle) -> Option<Box<dyn Peer>> {
         let mut mutex = self.peers.write().await;
         mutex
             .iter()
@@ -86,7 +86,7 @@ impl PeerPool {
         let mut mutex = self.available_peer_addrs.lock().await;
         let addrs: Vec<_> = addrs.into_iter().filter(|e| !mutex.contains(e)).collect();
 
-        debug!(
+        trace!(
             "Adding a total of {} new peer addrs for torrent {}",
             addrs.len(),
             self.handle

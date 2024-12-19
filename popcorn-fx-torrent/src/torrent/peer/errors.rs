@@ -1,4 +1,4 @@
-use crate::torrent::TorrentError;
+use crate::torrent::PieceIndex;
 use std::io;
 use std::net::SocketAddr;
 use thiserror::Error;
@@ -12,27 +12,23 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Error {
     #[error("peer id is invalid")]
     InvalidPeerId,
-    #[error("invalid message length specified, expected {0} but got {1}")]
+    #[error("invalid message length, expected {0} but got {1}")]
     InvalidLength(u32, u32),
+    #[error("piece index {0} is invalid")]
+    InvalidPiece(PieceIndex),
     #[error("unsupported message type {0}")]
     UnsupportedMessage(u8),
     #[error("handshake with {0} failed, {1}")]
     Handshake(SocketAddr, String),
+    /// Indicates that a received message couldn't be parsed
     #[error("failed to parse message, {0}")]
     Parsing(String),
-    #[error("failed to execute the torrent operation, {0}")]
-    Torrent(String),
+    /// Indicates that an io error occurred
     #[error("an io error occurred, {0}")]
     Io(String),
-    /// Indicating that the peer connection is closed
+    /// Indicates that the peer connection is closed
     #[error("the peer connection is closed")]
     Closed,
-}
-
-impl From<TorrentError> for Error {
-    fn from(error: TorrentError) -> Self {
-        Error::Torrent(error.to_string())
-    }
 }
 
 impl From<io::Error> for Error {
@@ -44,19 +40,5 @@ impl From<io::Error> for Error {
 impl From<Elapsed> for Error {
     fn from(error: Elapsed) -> Self {
         Error::Io(error.to_string())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_from_channel_error() {
-        let error = Error::Closed;
-
-        let result = Error::from(error);
-
-        assert_eq!(Error::Closed, result);
     }
 }

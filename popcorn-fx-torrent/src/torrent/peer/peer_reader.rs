@@ -1,7 +1,8 @@
 use crate::torrent::peer::protocol::Message;
-use crate::torrent::peer::{DataTransferStats, Error, PeerHandle};
+use crate::torrent::peer::{DataTransferStats, Error, PeerClientInfo, PeerHandle};
 use byteorder::BigEndian;
 use byteorder::ByteOrder;
+use derive_more::Display;
 use log::{error, trace, warn};
 use std::time::Instant;
 use tokio::io::{AsyncRead, AsyncReadExt, BufReader};
@@ -19,12 +20,13 @@ pub enum PeerReaderEvent {
 }
 
 /// The peer reader is a buffered reader which reads messages from the peer connection stream.
-#[derive(Debug)]
+#[derive(Debug, Display)]
+#[display(fmt = "{}", client)]
 pub struct PeerReader<R>
 where
     R: AsyncRead + Unpin,
 {
-    handle: PeerHandle,
+    client: PeerClientInfo,
     reader: BufReader<R>,
     sender: Sender<PeerReaderEvent>,
     cancellation_token: CancellationToken,
@@ -36,13 +38,13 @@ where
 {
     /// Create a new reader for the peer connection reader stream.
     pub fn new(
-        handle: PeerHandle,
+        client: PeerClientInfo,
         reader: R,
         sender: Sender<PeerReaderEvent>,
         cancellation_token: CancellationToken,
     ) -> Self {
         Self {
-            handle,
+            client,
             reader: BufReader::new(reader),
             sender,
             cancellation_token,
@@ -59,19 +61,19 @@ where
                 read_result = self.reader.read(&mut buffer) => {
                     match read_result {
                         Ok(0) => {
-                            trace!("Peer reader {} EOF", self.handle);
+                            trace!("Peer reader {} EOF", self);
                             break
                         },
                         Ok(buffer_size) => {
                             if let Err(e) = self.read_next(&buffer, buffer_size).await {
                                 if e != Error::Closed {
-                                    warn!("{}", e);
+                                    warn!("Peer {} failed to read message, {}", self, e);
                                 }
                                 break
                             }
                         },
                         Err(e) => {
-                            warn!("{}", Error::from(e));
+                            warn!("Peer {} reader encountered an error, {}", self, Error::from(e));
                             break
                         }
                     }
@@ -79,8 +81,8 @@ where
             }
         }
 
-        trace!("Peer {} main reader loop ended", self.handle);
-        Self::send(self.handle, self.sender.clone(), PeerReaderEvent::Closed).await;
+        trace!("Peer {} main reader loop ended", self);
+        Self::send(&self.client, self.sender.clone(), PeerReaderEvent::Closed).await;
     }
 
     /// Try to read a specific number of bytes from the stream.
@@ -106,45 +108,48 @@ where
     ) -> crate::torrent::peer::Result<()> {
         // we expect to receive the incoming message length as a BigEndian
         if buffer_size != 4 {
-            warn!("Invalid message length {}", buffer_size);
-            return Ok(());
+            return Err(Error::InvalidLength(4, buffer_size as u32));
         }
 
         let length = BigEndian::read_u32(buffer);
         let start_time = Instant::now();
         let bytes = self.read(length as usize).await?;
-        let elapsed = start_time.elapsed().as_micros();
+        let elapsed = start_time.elapsed();
 
         // we want to unblock the reader thread as soon as possible
         // so we're going to move this whole process into a new separate thread
-        let handle = self.handle.clone();
+        let client = self.client.clone();
         let sender = self.sender.clone();
         tokio::spawn(async move {
             match Message::try_from(bytes.as_ref()) {
                 Ok(msg) => {
                     Self::send(
-                        handle,
+                        &client,
                         sender,
                         PeerReaderEvent::Message(
                             msg,
                             DataTransferStats {
                                 transferred_bytes: bytes.len(),
-                                elapsed_micro: elapsed,
+                                elapsed_micro: elapsed.as_micros(),
                             },
                         ),
                     )
                     .await;
                 }
-                Err(e) => warn!("Received invalid message payload for {}, {}", handle, e),
+                Err(e) => warn!("Received invalid message payload for {}, {}", client, e),
             }
         });
 
         Ok(())
     }
 
-    async fn send(handle: PeerHandle, sender: Sender<PeerReaderEvent>, event: PeerReaderEvent) {
+    async fn send(
+        client: &PeerClientInfo,
+        sender: Sender<PeerReaderEvent>,
+        event: PeerReaderEvent,
+    ) {
         if let Err(e) = sender.send(event).await {
-            warn!("Failed to send peer reader event of {}, {}", handle, e)
+            warn!("Failed to send peer reader event of {}, {}", client, e)
         }
     }
 }

@@ -14,7 +14,7 @@ pub use manager::*;
 pub use piece::*;
 pub use session::*;
 pub use torrent::*;
-pub use torrent_info::*;
+pub use torrent_metadata::*;
 
 mod compact;
 mod errors;
@@ -28,11 +28,11 @@ mod peer_pool;
 mod piece;
 mod session;
 mod torrent;
-mod torrent_info;
+mod torrent_metadata;
 mod tracker;
 
 const DEFAULT_TORRENT_PROTOCOL_EXTENSIONS: fn() -> ProtocolExtensionFlags =
-    || ProtocolExtensionFlags::LTEP;
+    || ProtocolExtensionFlags::LTEP | ProtocolExtensionFlags::Fast;
 const DEFAULT_TORRENT_EXTENSIONS: fn() -> ExtensionFactories = || {
     let mut extensions: ExtensionFactories = Vec::new();
 
@@ -43,14 +43,16 @@ const DEFAULT_TORRENT_EXTENSIONS: fn() -> ExtensionFactories = || {
 
     extensions
 };
-const DEFAULT_TORRENT_OPERATIONS: fn() -> TorrentOperations = || {
+/// The default operations applied to a torrent.
+/// These include the necessary chain of actions to be executed during the torrent lifecycle.
+const DEFAULT_TORRENT_OPERATIONS: fn() -> Vec<TorrentOperationFactory> = || {
     vec![
-        Box::new(TorrentTrackersOperation::new()),
-        Box::new(TorrentConnectPeersOperation::new()),
-        Box::new(TorrentMetadataOperation::new()),
-        Box::new(TorrentCreatePiecesOperation::new()),
-        Box::new(TorrentCreateFilesOperation::new()),
-        Box::new(TorrentFileValidationOperation::new()),
+        || Box::new(TorrentTrackersOperation::new()),
+        || Box::new(TorrentConnectPeersOperation::new()),
+        || Box::new(TorrentMetadataOperation::new()),
+        || Box::new(TorrentCreatePiecesOperation::new()),
+        || Box::new(TorrentCreateFilesOperation::new()),
+        || Box::new(TorrentFileValidationOperation::new()),
     ]
 };
 
@@ -58,7 +60,7 @@ const DEFAULT_TORRENT_OPERATIONS: fn() -> TorrentOperations = || {
 pub mod tests {
     use super::*;
     use crate::torrent::fs::DefaultTorrentFileStorage;
-    use crate::torrent::peer::{DefaultPeerListener, Peer, PeerId, PeerListener};
+    use crate::torrent::peer::{DefaultPeerListener, PeerId, PeerListener, TcpPeer};
     use popcorn_fx_core::available_port;
     use popcorn_fx_core::core::torrents::magnet::Magnet;
     use popcorn_fx_core::testing::read_test_file_to_bytes;
@@ -105,17 +107,17 @@ pub mod tests {
         uri: &str,
         temp_dir: &str,
         options: TorrentFlags,
-        operations: TorrentOperations,
+        operations: Vec<TorrentOperationFactory>,
         runtime: Arc<Runtime>,
     ) -> Torrent {
-        let torrent_info: TorrentInfo;
+        let torrent_info: TorrentMetadata;
 
         if uri.starts_with("magnet:") {
             let magnet = Magnet::from_str(uri).unwrap();
-            torrent_info = TorrentInfo::try_from(magnet).unwrap();
+            torrent_info = TorrentMetadata::try_from(magnet).unwrap();
         } else {
             let torrent_info_data = read_test_file_to_bytes(uri);
-            torrent_info = TorrentInfo::try_from(torrent_info_data.as_slice()).unwrap();
+            torrent_info = TorrentMetadata::try_from(torrent_info_data.as_slice()).unwrap();
         }
 
         let port = available_port!(6881, 31000).unwrap();
@@ -139,7 +141,7 @@ pub mod tests {
                 $torrent
                     .instance()
                     .expect("expected a valid torrent context")
-                    .protocols()
+                    .protocol_extensions()
                     .clone(),
             )
         };
@@ -148,7 +150,10 @@ pub mod tests {
         };
     }
 
-    pub fn create_peer_pair(torrent: &Torrent, protocols: ProtocolExtensionFlags) -> (Peer, Peer) {
+    pub fn create_peer_pair(
+        torrent: &Torrent,
+        protocols: ProtocolExtensionFlags,
+    ) -> (TcpPeer, TcpPeer) {
         let context = torrent.instance().unwrap();
         let runtime = context.runtime();
         let port = available_port!(6881, 31000).unwrap();
@@ -162,7 +167,7 @@ pub mod tests {
         runtime.spawn(async move {
             if let Some(peer) = listener.recv().await {
                 tx.send(
-                    Peer::new_inbound(
+                    TcpPeer::new_inbound(
                         PeerId::new(),
                         peer.socket_addr,
                         peer.stream,
@@ -180,7 +185,7 @@ pub mod tests {
 
         let peer_context = context.clone();
         let outgoing_peer = runtime
-            .block_on(Peer::new_outbound(
+            .block_on(TcpPeer::new_outbound(
                 PeerId::new(),
                 SocketAddr::new([127, 0, 0, 1].into(), port),
                 peer_context,

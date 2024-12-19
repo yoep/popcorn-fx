@@ -340,23 +340,33 @@ impl InnerTrackerManager {
         Ok(handle)
     }
 
-    async fn add_peers(&self, peers: &[SocketAddr]) {
+    /// Add the discovered peer addresses to the manager.
+    /// This will only add unique peer addresses and filter out any duplicate addresses that have already been discovered.
+    ///
+    /// It returns the total amount of added peer addresses that were added.
+    async fn add_peers(&self, peers: &[SocketAddr]) -> usize {
         trace!("Discovered a total of {} peers, {:?}", peers.len(), peers);
         let mut mutex = self.peers.write().await;
-        let mut new_peers = Vec::new();
+        let mut unique_new_peer_addrs = Vec::new();
 
         for peer in peers.into_iter() {
-            if !mutex.contains(&peer) {
+            if !mutex.contains(peer) {
                 mutex.push(peer.clone());
-                new_peers.push(peer.clone());
+                unique_new_peer_addrs.push(peer.clone());
             }
         }
 
-        debug!("Discovered a total of {} new peers", new_peers.len());
-        if new_peers.len() > 0 {
-            self.send_event(TrackerManagerEvent::PeersDiscovered(new_peers))
+        debug!(
+            "Discovered a total of {} new peers",
+            unique_new_peer_addrs.len()
+        );
+        let total_peers = unique_new_peer_addrs.len();
+        if total_peers > 0 {
+            self.send_event(TrackerManagerEvent::PeersDiscovered(unique_new_peer_addrs))
                 .await;
         }
+
+        total_peers
     }
 
     async fn announce(&self, handle: TrackerHandle, event: AnnounceEvent) -> Result<Announcement> {
@@ -403,9 +413,7 @@ impl InnerTrackerManager {
                     result.total_seeders += response.seeders;
                     result.peers.extend_from_slice(response.peers.as_slice());
 
-                    let found_peers = response.peers.len();
-                    self.add_peers(response.peers.as_slice()).await;
-                    total_peers += found_peers;
+                    total_peers += self.add_peers(response.peers.as_slice()).await;
                 }
                 Err(e) => debug!(
                     "Failed to announce info hash {:?} to tracker, {}",
@@ -414,7 +422,10 @@ impl InnerTrackerManager {
             }
         }
 
-        info!("Found a total of {} peers", total_peers);
+        info!(
+            "Discovered a total of {} peers for {}",
+            total_peers, self.info_hash
+        );
         result
     }
 

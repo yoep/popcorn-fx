@@ -1,5 +1,5 @@
 use crate::torrent::{
-    File, TorrentCommandEvent, TorrentContext, TorrentOperation, TorrentOperationResult,
+    File, Piece, TorrentCommandEvent, TorrentContext, TorrentOperation, TorrentOperationResult,
     TorrentState,
 };
 use async_trait::async_trait;
@@ -81,6 +81,8 @@ impl TorrentFileValidationOperation {
         *self.state.lock().await = ValidationState::Validating;
     }
 
+    /// Validate the given file of the torrent.
+    /// The file will be validated into multiple parallel chunks.
     async fn validate_file(
         torrent: Arc<TorrentContext>,
         file: File,
@@ -89,7 +91,6 @@ impl TorrentFileValidationOperation {
         let mut pieces = torrent.file_pieces(&file).await;
         let total_chunks = (pieces.len() + 1) / CHUNK_VALIDATION_SIZE;
         let total_pieces = pieces.len();
-        let mut valid_pieces = 0;
 
         trace!(
             "Torrent {} is validating {} pieces for file {:?}",
@@ -97,52 +98,75 @@ impl TorrentFileValidationOperation {
             pieces.len(),
             file.path
         );
-        for chunk in 0..total_chunks {
-            // check if the torrent is closing
-            if cancellation_token.is_cancelled() {
-                trace!(
-                    "Torrent {} is closing, interrupting validation of {:?}",
-                    torrent,
-                    file.path
-                );
-                break;
-            }
 
-            let range_start = chunk * CHUNK_VALIDATION_SIZE;
-            let range_end = (chunk + 1) * CHUNK_VALIDATION_SIZE;
-            trace!(
-                "Torrent {} is validating chunk [{}-{}]/{} for {:?}",
-                torrent,
-                range_start,
-                range_end,
-                total_pieces,
-                file.path
-            );
-            let mut completed_pieces = Vec::new();
-            let end = pieces.len().min(CHUNK_VALIDATION_SIZE);
+        let futures: Vec<_> = (0..total_chunks)
+            .map(|chunk| {
+                let end = pieces.len().min(CHUNK_VALIDATION_SIZE);
+                Self::validate_file_chunk(
+                    &torrent,
+                    &file,
+                    chunk,
+                    total_pieces,
+                    pieces.drain(..end).collect(),
+                )
+            })
+            .collect();
 
-            for piece in pieces.drain(..end) {
-                // retrieve the piece data
-                if let Ok(piece_data) = torrent.read_file_piece(&file, piece.index).await {
-                    let is_valid = torrent.validate_piece_data(piece.index, &piece_data).await;
-
-                    if is_valid {
-                        valid_pieces += 1;
-                        completed_pieces.push(piece.index);
-                    }
-                }
-            }
-
-            // do intermediate update
-            if !completed_pieces.is_empty() {
-                torrent.pieces_completed(completed_pieces).await;
+        let total_valid_pieces: usize;
+        select! {
+            _ = cancellation_token.cancelled() => return,
+            result = future::join_all(futures) => {
+                total_valid_pieces = result.into_iter().sum::<usize>();
             }
         }
 
         debug!(
             "Torrent {} validated {:?} with {} valid pieces",
-            torrent, file.path, valid_pieces
+            torrent, file.path, total_valid_pieces
         );
+    }
+
+    /// Validate a chunk of pieces for the given file.
+    /// At the end of the chunk validation, an intermediate update will be sent to the torrent.
+    async fn validate_file_chunk(
+        torrent: &Arc<TorrentContext>,
+        file: &File,
+        chunk: usize,
+        total_pieces: usize,
+        pieces: Vec<Piece>,
+    ) -> usize {
+        let range_start = chunk * CHUNK_VALIDATION_SIZE;
+        let range_end = (chunk + 1) * CHUNK_VALIDATION_SIZE;
+        let mut completed_pieces = Vec::new();
+        let mut valid_pieces = 0;
+
+        trace!(
+            "Torrent {} is validating chunk [{}-{}]/{} for {:?}",
+            torrent,
+            range_start,
+            range_end,
+            total_pieces,
+            file.path
+        );
+
+        for piece in pieces.into_iter() {
+            // retrieve the piece data
+            if let Ok(piece_data) = torrent.read_file_piece(&file, piece.index).await {
+                let is_valid = torrent.validate_piece_data(piece.index, &piece_data).await;
+
+                if is_valid {
+                    valid_pieces += 1;
+                    completed_pieces.push(piece.index);
+                }
+            }
+        }
+
+        // inform the torrent about the validated pieces of this chunk
+        if !completed_pieces.is_empty() {
+            torrent.pieces_completed(completed_pieces).await;
+        }
+
+        valid_pieces
     }
 }
 
@@ -185,6 +209,52 @@ mod tests {
     use tokio::time;
 
     #[test]
+    fn test_execute_state_validating() {
+        init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let torrent = create_torrent!(
+            "debian-udp.torrent",
+            temp_path,
+            TorrentFlags::none(),
+            vec![]
+        );
+        let context = torrent.instance().unwrap();
+        let runtime = context.runtime();
+        let operation = TorrentFileValidationOperation::new();
+
+        runtime.block_on(async {
+            *operation.state.lock().await = ValidationState::Validating;
+        });
+        let result = runtime.block_on(operation.execute(&context));
+
+        assert_eq!(TorrentOperationResult::Stop, result);
+    }
+
+    #[test]
+    fn test_execute_state_validated() {
+        init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let torrent = create_torrent!(
+            "debian-udp.torrent",
+            temp_path,
+            TorrentFlags::none(),
+            vec![]
+        );
+        let context = torrent.instance().unwrap();
+        let runtime = context.runtime();
+        let operation = TorrentFileValidationOperation::new();
+
+        runtime.block_on(async {
+            *operation.state.lock().await = ValidationState::Validated;
+        });
+        let result = runtime.block_on(operation.execute(&context));
+
+        assert_eq!(TorrentOperationResult::Continue, result);
+    }
+
+    #[test]
     fn test_execute() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
@@ -194,7 +264,12 @@ mod tests {
             "piece-1_30.iso",
             Some("debian-12.4.0-amd64-DVD-1.iso"),
         );
-        let torrent = create_torrent!("debian-udp.torrent", temp_path, TorrentFlags::None, vec![]);
+        let torrent = create_torrent!(
+            "debian-udp.torrent",
+            temp_path,
+            TorrentFlags::none(),
+            vec![]
+        );
         let context = torrent.instance().unwrap();
         let runtime = context.runtime();
         let operation = TorrentFileValidationOperation::new();

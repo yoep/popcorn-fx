@@ -1,15 +1,17 @@
 use std::fmt::{Debug, Formatter};
-use std::sync::mpsc::{channel, Sender};
+use std::sync::mpsc::Sender;
 use std::sync::Arc;
 
 use async_trait::async_trait;
 use derive_more::Display;
 use log::{debug, trace, warn};
+use tokio::select;
 use tokio_util::sync::CancellationToken;
 
+use crate::core::callback::Callback;
 use crate::core::loader::{
-    CancellationResult, LoadingData, LoadingError, LoadingEvent, LoadingProgress, LoadingResult,
-    LoadingState, LoadingStrategy,
+    CancellationResult, LoaderResult, LoadingData, LoadingError, LoadingEvent, LoadingProgress,
+    LoadingResult, LoadingState, LoadingStrategy,
 };
 use crate::core::torrents::{Error, TorrentStreamEvent, TorrentStreamServer, TorrentStreamState};
 
@@ -23,6 +25,40 @@ impl TorrentStreamLoadingStrategy {
     pub fn new(torrent_stream_server: Arc<Box<dyn TorrentStreamServer>>) -> Self {
         Self {
             torrent_stream_server,
+        }
+    }
+
+    /// Handle the given stream event.
+    /// This function checks if the stream is ready to be started based on the received torrent strean event.
+    ///
+    /// It returns `Ok(true)` when the stream is ready to start, else `Ok(false)` or the error that occurred.
+    async fn handle_stream_event(
+        &self,
+        event: Arc<TorrentStreamEvent>,
+        event_channel: &Sender<LoadingEvent>,
+    ) -> LoaderResult<bool> {
+        match &*event {
+            TorrentStreamEvent::StateChanged(state) => match state {
+                TorrentStreamState::Preparing => {
+                    debug!("Waiting for the torrent stream to be ready");
+                    Ok(false)
+                }
+                TorrentStreamState::Streaming => {
+                    debug!("Torrent stream is ready");
+                    Ok(true)
+                }
+                TorrentStreamState::Stopped => Err(LoadingError::TorrentError(
+                    Error::InvalidStreamState(*state),
+                )),
+            },
+            TorrentStreamEvent::DownloadStatus(status) => {
+                event_channel
+                    .send(LoadingEvent::ProgressChanged(LoadingProgress::from(
+                        status.clone(),
+                    )))
+                    .unwrap();
+                Ok(false)
+            }
         }
     }
 }
@@ -51,58 +87,30 @@ impl LoadingStrategy for TorrentStreamLoadingStrategy {
             match self.torrent_stream_server.start_stream(torrent) {
                 Ok(stream) => {
                     if let Some(stream) = stream.upgrade() {
-                        let (tx, rx) = channel();
                         trace!("Updating playlist item url to stream {}", stream.url());
                         data.url = Some(stream.url().to_string());
                         event_channel
                             .send(LoadingEvent::StateChanged(LoadingState::Downloading))
                             .unwrap();
 
-                        let event_channel_stream = event_channel.clone();
-                        let callback_id = stream.subscribe_stream(Box::new(move |event| {
-                            if cancel_token.is_cancelled() {
-                                debug!("Cancelling the torrent stream loading process");
-                                tx.send(Ok(())).unwrap();
-                            }
-
-                            match event {
-                                TorrentStreamEvent::StateChanged(state) => match state {
-                                    TorrentStreamState::Preparing => {
-                                        debug!("Waiting for the torrent stream to be ready")
+                        let mut receiver = Callback::<TorrentStreamEvent>::subscribe(&**stream);
+                        loop {
+                            select! {
+                                _ = cancel_token.cancelled() => break,
+                                event = receiver.recv() => {
+                                    if let Some(event) = event {
+                                        match self.handle_stream_event(event, &event_channel).await {
+                                            Ok(ready) => {
+                                                if ready {
+                                                    break;
+                                                }
+                                            },
+                                            Err(e) => return LoadingResult::Err(e),
+                                        }
+                                    } else {
+                                        break;
                                     }
-                                    TorrentStreamState::Streaming => {
-                                        debug!("Torrent stream is ready");
-                                        tx.send(Ok(())).unwrap();
-                                    }
-                                    TorrentStreamState::Stopped => tx
-                                        .send(Err(LoadingError::TorrentError(
-                                            Error::InvalidStreamState(state),
-                                        )))
-                                        .unwrap(),
-                                },
-                                TorrentStreamEvent::DownloadStatus(status) => {
-                                    event_channel_stream
-                                        .send(LoadingEvent::ProgressChanged(LoadingProgress::from(
-                                            status,
-                                        )))
-                                        .unwrap();
                                 }
-                            }
-                        }));
-                        match rx.recv() {
-                            Ok(_) => {
-                                event_channel
-                                    .send(LoadingEvent::StateChanged(
-                                        LoadingState::DownloadFinished,
-                                    ))
-                                    .unwrap();
-                                stream.unsubscribe_stream(callback_id);
-                                trace!("Received stream ready signal");
-                            }
-                            Err(e) => {
-                                return LoadingResult::Err(LoadingError::TimeoutError(
-                                    e.to_string(),
-                                ))
                             }
                         }
                     } else {
@@ -139,7 +147,7 @@ impl LoadingStrategy for TorrentStreamLoadingStrategy {
 mod tests {
     use std::time::Duration;
 
-    use crate::core::playlists::PlaylistItem;
+    use crate::core::playlist::PlaylistItem;
     use crate::core::torrents::{MockTorrentStreamServer, TorrentHandle, TorrentStream};
     use crate::core::{block_in_place, Handle};
     use crate::testing::{init_logger, MockTorrentStream};

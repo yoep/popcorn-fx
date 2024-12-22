@@ -1,6 +1,6 @@
 use derive_more::Display;
 
-use crate::core::events::{PlayerStartedEvent, PlayerStoppedEvent};
+use crate::core::event::{PlayerStartedEvent, PlayerStoppedEvent};
 use crate::core::playback::PlaybackState;
 use crate::core::torrents::TorrentInfo;
 
@@ -13,7 +13,7 @@ use crate::core::torrents::TorrentInfo;
 /// # Examples
 ///
 /// ```no_run
-/// use popcorn_fx_core::core::events::{Event, PlayerChangedEvent};
+/// use popcorn_fx_core::core::event::{Event, PlayerChangedEvent};
 ///
 /// let event = Event::PlayerChanged(PlayerChangedEvent {
 ///     old_player_id: Some("OldPlayerId".to_string()),

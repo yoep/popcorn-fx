@@ -154,13 +154,17 @@ impl HttpPeerContext {
     }
 
     async fn check_for_wanted_pieces(&self) {
-        let wanted_pieces = self.torrent.wanted_pieces().await.into_iter().take(3);
+        let wanted_pieces = self
+            .torrent
+            .wanted_request_pieces()
+            .await
+            .into_iter()
+            .take(3);
+        let metadata = self.torrent.metadata().await;
 
-        // request a permit and release it after requesting the pieces, don't release it while requesting
-        if let Some(_permit) = self.torrent.request_download_permit().await {
-            let metadata = self.torrent.metadata().await;
-
-            for piece in wanted_pieces {
+        for piece in wanted_pieces {
+            // request a permit and release it after requesting the piece, don't release it while requesting
+            if let Some(_permit) = self.torrent.request_download_permit(&piece).await {
                 if let Err(e) = self.request_piece(piece, &metadata).await {
                     warn!(
                         "Torrent {} failed to request webseed data from {}, {}",
@@ -302,7 +306,7 @@ mod tests {
         let expected_result =
             Url::parse("https://mirror.com/pub/debian-11.6.0-amd64-netinst.iso/README%25201.md")
                 .unwrap();
-        let torrent = create_torrent!("debian.torrent", temp_path, TorrentFlags::None, vec![]);
+        let torrent = create_torrent!("debian.torrent", temp_path, TorrentFlags::none(), vec![]);
         let context = torrent.instance().unwrap();
         let runtime = context.runtime();
         let metadata = runtime.block_on(context.metadata());

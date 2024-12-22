@@ -1,12 +1,13 @@
-use std::pin::Pin;
-use std::task::{Context, Poll};
-
+use async_trait::async_trait;
 use derive_more::Display;
 use futures::Stream;
+use std::pin::Pin;
+use std::task::{Context, Poll};
 use url::Url;
 
+use crate::core::callback::Callback;
 use crate::core::torrents::{DownloadStatus, Torrent};
-use crate::core::{torrents, CallbackHandle, CoreCallback, Handle};
+use crate::core::{torrents, Handle};
 
 /// The unique identifier handle of a stream.
 pub type StreamHandle = Handle;
@@ -17,12 +18,9 @@ pub type StreamBytes = Vec<u8>;
 /// The streaming result of a read operation on the [TorrentStream] resource.
 pub type StreamBytesResult = Result<StreamBytes, torrents::Error>;
 
-/// The callback type for all torrent stream events.
-pub type TorrentStreamCallback = CoreCallback<TorrentStreamEvent>;
-
 /// The state of the [TorrentStream].
 #[repr(i32)]
-#[derive(Debug, Clone, Display, PartialEq)]
+#[derive(Debug, Copy, Clone, Display, PartialEq)]
 pub enum TorrentStreamState {
     /// The initial state of the torrent stream.
     /// This state indicates that the stream is preparing the initial pieces.
@@ -56,7 +54,8 @@ pub enum TorrentStreamEvent {
 ///
 /// This trait defines methods for retrieving stream details, streaming torrent content,
 /// and managing the stream state.
-pub trait TorrentStream: Torrent {
+#[async_trait]
+pub trait TorrentStream: Torrent + Callback<TorrentStreamEvent> {
     /// Get the stream handle of this stream.
     ///
     /// Returns the stream handle of this stream.
@@ -91,21 +90,7 @@ pub trait TorrentStream: Torrent {
     ) -> torrents::Result<TorrentStreamingResourceWrapper>;
 
     /// Get the current state of the stream.
-    fn stream_state(&self) -> TorrentStreamState;
-
-    /// Subscribe to stream events with the provided callback.
-    ///
-    /// # Arguments
-    ///
-    /// * `callback` - A callback function to handle stream events.
-    fn subscribe_stream(&self, callback: TorrentStreamCallback) -> CallbackHandle;
-
-    /// Unsubscribe from stream events with the provided callback ID.
-    ///
-    /// # Arguments
-    ///
-    /// * `handle` - The handle of the callback to unsubscribe.
-    fn unsubscribe_stream(&self, handle: CallbackHandle);
+    async fn stream_state(&self) -> TorrentStreamState;
 
     /// Stop the stream, preventing new streaming resources from being created,
     /// and stopping the underlying [Torrent] process.

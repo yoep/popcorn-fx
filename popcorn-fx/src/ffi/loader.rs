@@ -94,7 +94,7 @@ mod tests {
         LoadingResult, LoadingState, MockLoadingStrategy, HIGHEST_ORDER,
     };
     use popcorn_fx_core::core::media::MovieDetails;
-    use popcorn_fx_core::core::playlists::{PlaylistItem, PlaylistMedia};
+    use popcorn_fx_core::core::playlist::{PlaylistItem, PlaylistMedia};
     use popcorn_fx_core::into_c_string;
     use popcorn_fx_core::testing::init_logger;
 

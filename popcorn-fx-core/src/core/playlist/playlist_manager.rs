@@ -4,10 +4,10 @@ use derive_more::Display;
 use log::{debug, info, trace};
 use tokio::sync::Mutex;
 
-use crate::core::events::{Event, EventPublisher, HIGHEST_ORDER};
+use crate::core::event::{Event, EventPublisher, HIGHEST_ORDER};
 use crate::core::loader::{LoadingHandle, MediaLoader};
 use crate::core::players::{PlayerManager, PlayerManagerEvent, PlayerState};
-use crate::core::playlists::{Playlist, PlaylistItem};
+use crate::core::playlist::{Playlist, PlaylistItem};
 use crate::core::{block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks, Handle};
 
 const PLAYING_NEXT_IN_THRESHOLD_SECONDS: u64 = 60;
@@ -415,7 +415,7 @@ mod test {
     use std::sync::mpsc::channel;
     use std::time::Duration;
 
-    use crate::core::events::{DEFAULT_ORDER, LOWEST_ORDER};
+    use crate::core::event::{DEFAULT_ORDER, LOWEST_ORDER};
     use crate::core::loader::MockMediaLoader;
     use crate::core::players::MockPlayerManager;
     use crate::core::Handle;

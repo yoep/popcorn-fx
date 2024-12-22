@@ -301,7 +301,7 @@ mod tests {
     use derive_more::Display;
 
     use crate::core::loader::{CancellationResult, LoadingStrategy, MockLoadingStrategy};
-    use crate::core::playlists::PlaylistItem;
+    use crate::core::playlist::PlaylistItem;
     use crate::testing::init_logger;
 
     use super::*;

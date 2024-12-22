@@ -139,13 +139,25 @@ impl Magnet {
     pub fn x_pe(&self) -> Option<&str> {
         self.peer.as_ref().map(|e| e.as_str())
     }
+
+    /// Check if the given uri contains an encoded `&` as `&amp`.
+    fn contains_encoded_ampersand(uri: &str) -> bool {
+        uri.contains("&amp;")
+    }
 }
 
 impl FromStr for Magnet {
     type Err = MagnetError;
 
     fn from_str(uri: &str) -> Result<Self> {
-        let uri = Url::parse(uri).map_err(|e| MagnetError::Parse(e.to_string()))?;
+        let mut uri = uri.to_string();
+
+        // replace any encoded ampersands
+        if Self::contains_encoded_ampersand(uri.as_str()) {
+            uri = uri.replace("&amp;", "&");
+        }
+
+        let uri = Url::parse(&uri).map_err(|e| MagnetError::Parse(e.to_string()))?;
         let scheme = uri.scheme();
 
         // verify if the given scheme is supported
@@ -351,36 +363,26 @@ impl MagnetBuilder {
 
 #[cfg(test)]
 mod tests {
-    use crate::testing::init_logger;
+    use crate::init_logger;
 
     use super::*;
 
     #[test]
     fn test_magnet_from_str() {
-        init_logger();
+        init_logger!();
         let uri = "magnet:?xt=urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7&dn=debian-12.4.0-amd64-DVD-1.iso&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce";
-        let expected_result = Magnet {
-            exact_topic: "urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7".to_string(),
-            display_name: Some("debian-12.4.0-amd64-DVD-1.iso".to_string()),
-            exact_length: None,
-            address_tracker: vec![
-                "udp://tracker.opentrackr.org:1337".to_string(),
-                "udp://open.stealth.si:80/announce".to_string(),
-                "udp://tracker.torrent.eu.org:451/announce".to_string(),
-                "udp://tracker.bittor.pw:1337/announce".to_string(),
-                "udp://public.popcorn-tracker.org:6969/announce".to_string(),
-                "udp://tracker.dler.org:6969/announce".to_string(),
-                "udp://exodus.desync.com:6969".to_string(),
-                "udp://open.demonii.com:1337/announce".to_string(),
-            ],
-            web_seed: vec![],
-            acceptable_source: vec![],
-            exact_source: None,
-            keyword_topic: None,
-            manifest_topic: None,
-            select_only: None,
-            peer: None,
-        };
+        let expected_result = create_expected_magnet_from_str();
+
+        let result = Magnet::from_str(uri).unwrap();
+
+        assert_eq!(expected_result, result);
+    }
+
+    #[test]
+    fn test_magnet_from_str_encoded_url() {
+        init_logger!();
+        let uri = "magnet:?xt=urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7&amp;dn=debian-12.4.0-amd64-DVD-1.iso&amp;tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&amp;tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&amp;tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Fexodus.desync.com%3A6969&amp;tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce";
+        let expected_result = create_expected_magnet_from_str();
 
         let result = Magnet::from_str(uri).unwrap();
 
@@ -389,7 +391,7 @@ mod tests {
 
     #[test]
     fn test_magnet_from_str_invalid_scheme() {
-        init_logger();
+        init_logger!();
         let uri = "custom:?xt=urn:btih:EADAF0EFEA39406914414D359E0EA1641640007";
 
         let result = Magnet::from_str(uri);
@@ -402,7 +404,7 @@ mod tests {
 
     #[test]
     fn test_magnet_xt() {
-        init_logger();
+        init_logger!();
         let expected_result = "urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7";
         let uri = "magnet:?xt=urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7&dn=debian-12.4.0-amd64-DVD-1.iso&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce";
 
@@ -422,7 +424,7 @@ mod tests {
 
     #[test]
     fn test_magnet_dn() {
-        init_logger();
+        init_logger!();
         let display_name = "Example File Name";
         let magnet = Magnet {
             exact_topic: "urn:btih:6b0cd35c4a6b724".to_string(),
@@ -445,7 +447,7 @@ mod tests {
 
     #[test]
     fn test_magnet_tr() {
-        init_logger();
+        init_logger!();
         let expected_result = vec![
             "http://tracker1.example.com:12345/announce".to_string(),
             "http://tracker2.example.com:23456/announce".to_string(),
@@ -493,5 +495,30 @@ mod tests {
             .expect("expected the so to be present");
 
         assert_eq!(expected_result, result)
+    }
+
+    fn create_expected_magnet_from_str() -> Magnet {
+        Magnet {
+            exact_topic: "urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7".to_string(),
+            display_name: Some("debian-12.4.0-amd64-DVD-1.iso".to_string()),
+            exact_length: None,
+            address_tracker: vec![
+                "udp://tracker.opentrackr.org:1337".to_string(),
+                "udp://open.stealth.si:80/announce".to_string(),
+                "udp://tracker.torrent.eu.org:451/announce".to_string(),
+                "udp://tracker.bittor.pw:1337/announce".to_string(),
+                "udp://public.popcorn-tracker.org:6969/announce".to_string(),
+                "udp://tracker.dler.org:6969/announce".to_string(),
+                "udp://exodus.desync.com:6969".to_string(),
+                "udp://open.demonii.com:1337/announce".to_string(),
+            ],
+            web_seed: vec![],
+            acceptable_source: vec![],
+            exact_source: None,
+            keyword_topic: None,
+            manifest_topic: None,
+            select_only: None,
+            peer: None,
+        }
     }
 }

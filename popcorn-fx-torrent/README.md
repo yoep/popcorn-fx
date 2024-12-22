@@ -37,7 +37,7 @@ popcorn-fx-torrent = { path = "../popcorn-fx-torrent" }
 
 ## Usage
 
-Every interaction with `Torrents`, `Trackers` or `Peers`, requires the use of a `Session` which isolates torrents from each other.
+Every interaction with `Torrent`, `Tracker` or `Peer`, requires the use of a `Session` which isolates torrents from each other.
 It is however possible to interact with `.torrent` metadata through the `TorrentInfo` without making use of any `Session`.
 
 _Create a new session_

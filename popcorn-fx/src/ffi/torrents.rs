@@ -10,61 +10,6 @@ use popcorn_fx_core::{from_c_string, into_c_owned};
 use crate::ffi::{ResultC, TorrentErrorC, TorrentStreamEventC, TorrentStreamEventCallback};
 use crate::PopcornFX;
 
-/// Registers a new torrent stream event callback.
-///
-/// This function registers a callback function to receive torrent stream events.
-///
-/// # Arguments
-///
-/// * `popcorn_fx` - A mutable reference to the PopcornFX instance.
-/// * `stream_handle` - The handle of the torrent stream.
-/// * `callback` - The callback function to be invoked when torrent stream events occur.
-///
-/// # Returns
-///
-/// A pointer to an integer value representing the handle of the registered callback, or a null pointer if registration fails.
-#[no_mangle]
-pub extern "C" fn register_torrent_stream_event_callback(
-    popcorn_fx: &mut PopcornFX,
-    stream_handle: i64,
-    callback: TorrentStreamEventCallback,
-) -> *const i64 {
-    trace!(
-        "Registering a new torrent stream event callback for handle {}",
-        stream_handle
-    );
-    let handle = Handle::from(stream_handle);
-    popcorn_fx
-        .torrent_stream_server()
-        .subscribe(
-            handle,
-            Box::new(move |event| {
-                trace!("Invoking torrent stream event C callback for {:?}", event);
-                callback(TorrentStreamEventC::from(event))
-            }),
-        )
-        .map(|handle| handle.value() as *const i64)
-        .unwrap_or(ptr::null())
-}
-
-#[no_mangle]
-pub extern "C" fn remove_torrent_stream_event_callback(
-    popcorn_fx: &mut PopcornFX,
-    stream_handle: *const i64,
-    callback_handle: *const i64,
-) {
-    trace!(
-        "Removing torrent event stream callback handle {:?} of {:?}",
-        callback_handle,
-        stream_handle
-    );
-    let callback_handle = Handle::from(callback_handle as i64);
-    let handle = Handle::from(stream_handle as i64);
-    popcorn_fx
-        .torrent_stream_server()
-        .unsubscribe(handle, callback_handle);
-}
-
 /// Calculates the health of a torrent based on its magnet link.
 ///
 /// # Arguments

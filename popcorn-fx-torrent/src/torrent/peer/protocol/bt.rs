@@ -458,7 +458,9 @@ impl Debug for Message {
             Message::Interested => f.write_str("Interested"),
             Message::NotInterested => f.write_str("NotInterested"),
             Message::Have(e) => f.debug_tuple("Have").field(e).finish(),
-            Message::Bitfield(e) => f.write_fmt(format_args!("Bitfield([size {}])", e.len())),
+            Message::Bitfield(e) => {
+                f.write_fmt(format_args!("Bitfield({}/{})", e.count_ones(), e.len()))
+            }
             Message::Request(e) => f.write_fmt(format_args!("Request({:?})", e)),
             Message::RejectRequest(e) => f.write_fmt(format_args!("RejectRequest({:?})", e)),
             Message::Piece(e) => f.write_fmt(format_args!("Piece({:?})", e)),
@@ -740,7 +742,7 @@ mod tests {
             m: vec![("ut_pex".to_string(), 1), ("ut_metadata".to_string(), 3)]
                 .into_iter()
                 .collect(),
-            upload_only: false,
+            upload_only: true,
             client: Some("Transmission 3.00".to_string()),
             regg: None,
             encryption: false,

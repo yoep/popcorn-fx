@@ -20,7 +20,7 @@ use tokio::runtime::Runtime;
 
 use popcorn_fx_core::core::cache::CacheManager;
 use popcorn_fx_core::core::config::{ApplicationConfig, PopcornProperties};
-use popcorn_fx_core::core::events::EventPublisher;
+use popcorn_fx_core::core::event::EventPublisher;
 use popcorn_fx_core::core::images::{DefaultImageLoader, ImageLoader};
 use popcorn_fx_core::core::loader::{
     AutoResumeLoadingStrategy, DefaultMediaLoader, LoadingStrategy, MediaLoader,
@@ -41,7 +41,7 @@ use popcorn_fx_core::core::media::watched::{DefaultWatchedService, WatchedServic
 use popcorn_fx_core::core::platform::PlatformData;
 use popcorn_fx_core::core::playback::PlaybackControls;
 use popcorn_fx_core::core::players::{DefaultPlayerManager, PlayerManager};
-use popcorn_fx_core::core::playlists::PlaylistManager;
+use popcorn_fx_core::core::playlist::PlaylistManager;
 use popcorn_fx_core::core::screen::{DefaultScreenService, ScreenService};
 use popcorn_fx_core::core::subtitles::model::SubtitleType;
 use popcorn_fx_core::core::subtitles::parsers::{SrtParser, VttParser};

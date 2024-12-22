@@ -7,7 +7,7 @@ use derive_more::Display;
 use log::{debug, trace};
 use tokio_util::sync::CancellationToken;
 
-use crate::core::events::{Event, EventPublisher};
+use crate::core::event::{Event, EventPublisher};
 use crate::core::loader::{
     CancellationResult, LoadingData, LoadingEvent, LoadingResult, LoadingStrategy,
 };

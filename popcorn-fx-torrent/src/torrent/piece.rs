@@ -321,13 +321,25 @@ mod tests {
     #[test]
     fn test_decrease_availability() {
         let mut piece = Piece::new(InfoHash::default(), 0, 0, 1024);
-        let expected_result = 1;
+
+        piece.increase_availability();
+        piece.increase_availability();
+        piece.decrease_availability();
+
+        let result = piece.availability();
+        assert_eq!(1, result);
+    }
+
+    #[test]
+    fn test_decrease_availability_overflow() {
+        let mut piece = Piece::new(InfoHash::default(), 0, 0, 1024);
 
         piece.increase_availability();
         piece.decrease_availability();
-        let result = piece.availability();
+        piece.decrease_availability();
 
-        assert_eq!(expected_result, result);
+        let result = piece.availability();
+        assert_eq!(0, result);
     }
 
     #[test]

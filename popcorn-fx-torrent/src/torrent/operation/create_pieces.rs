@@ -149,7 +149,7 @@ mod tests {
         let runtime = Arc::new(Runtime::new().unwrap());
         let torrent = Torrent::request()
             .metadata(torrent_info)
-            .options(TorrentFlags::None)
+            .options(TorrentFlags::none())
             .peer_listener_port(9666)
             .storage(Box::new(DefaultTorrentFileStorage::new(temp_path)))
             .runtime(runtime.clone())
@@ -177,7 +177,7 @@ mod tests {
         let torrent_info = TorrentMetadata::try_from(torrent_info_data.as_slice()).unwrap();
         let torrent = Torrent::request()
             .metadata(torrent_info.clone())
-            .options(TorrentFlags::None)
+            .options(TorrentFlags::none())
             .peer_listener_port(8080)
             .storage(Box::new(DefaultTorrentFileStorage::new(temp_path)))
             .build()

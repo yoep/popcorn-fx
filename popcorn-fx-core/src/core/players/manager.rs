@@ -11,7 +11,7 @@ use tokio::runtime::Runtime;
 use tokio::sync::Mutex;
 
 use crate::core::config::ApplicationConfig;
-use crate::core::events::{
+use crate::core::event::{
     Event, EventPublisher, PlayerChangedEvent, PlayerStartedEvent, PlayerStoppedEvent,
 };
 use crate::core::media::MediaIdentifier;
@@ -612,7 +612,7 @@ mod tests {
     use tempfile::tempdir;
 
     use crate::core::config::{PlaybackSettings, PopcornSettings};
-    use crate::core::events::DEFAULT_ORDER;
+    use crate::core::event::DEFAULT_ORDER;
     use crate::core::media::MockMediaIdentifier;
     use crate::core::players::{PlaySubtitleRequest, PlayUrlRequest, PlayUrlRequestBuilder};
     use crate::core::screen::MockScreenService;

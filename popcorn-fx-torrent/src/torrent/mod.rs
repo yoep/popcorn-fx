@@ -64,6 +64,7 @@ pub mod tests {
     use popcorn_fx_core::available_port;
     use popcorn_fx_core::core::torrents::magnet::Magnet;
     use popcorn_fx_core::testing::read_test_file_to_bytes;
+    use rand::{thread_rng, Rng};
     use std::net::SocketAddr;
     use std::str::FromStr;
     use std::sync::Arc;
@@ -120,11 +121,10 @@ pub mod tests {
             torrent_info = TorrentMetadata::try_from(torrent_info_data.as_slice()).unwrap();
         }
 
-        let port = available_port!(6881, 31000).unwrap();
-
+        let port_start = thread_rng().gen_range(6881..10000);
         Torrent::request()
             .metadata(torrent_info)
-            .peer_listener_port(port)
+            .peer_listener_port(available_port!(port_start, 31000).unwrap())
             .options(options)
             .operations(operations)
             .storage(Box::new(DefaultTorrentFileStorage::new(temp_dir)))

@@ -320,7 +320,7 @@ mod tests {
 
     use crate::core::block_in_place;
     use crate::core::loader::LoadingResult;
-    use crate::core::playlists::{PlaylistItem, PlaylistMedia, PlaylistSubtitle, PlaylistTorrent};
+    use crate::core::playlist::{PlaylistItem, PlaylistMedia, PlaylistSubtitle, PlaylistTorrent};
     use crate::core::subtitles::{MockSubtitleProvider, SubtitleFile};
     use crate::core::torrents::TorrentFileInfo;
     use crate::testing::{init_logger, MockSubtitleManager};

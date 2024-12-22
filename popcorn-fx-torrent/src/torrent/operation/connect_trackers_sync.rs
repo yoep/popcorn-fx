@@ -42,7 +42,7 @@ impl TorrentTrackersSyncOperation {
                     .collect::<Vec<_>>()
             })
             .flatten()
-            .map(|(entry)| torrent.add_tracker(entry))
+            .map(|entry| torrent.add_tracker(entry))
             .collect();
 
         let added_trackers = futures::future::join_all(futures)

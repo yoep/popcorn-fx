@@ -1,8 +1,9 @@
-use crate::core::{Callbacks, CoreCallback, Handle};
+use crate::core::Handle;
 use async_trait::async_trait;
 use derive_more::Display;
 use log::{debug, trace};
 
+use crate::core::callback::Callback;
 #[cfg(any(test, feature = "testing"))]
 pub use mock::*;
 use std::fmt::{Debug, Display};
@@ -10,22 +11,6 @@ use std::path::PathBuf;
 
 /// A unique handle identifier of a [Torrent].
 pub type TorrentHandle = Handle;
-
-/// The torrent event specific callbacks.
-pub type TorrentEventCallback = CoreCallback<TorrentEvent>;
-
-const TORRENT_STATES: [TorrentState; 7] = [
-    TorrentState::Initializing,
-    TorrentState::Ready,
-    TorrentState::Starting,
-    TorrentState::Downloading,
-    TorrentState::Paused,
-    TorrentState::Completed,
-    TorrentState::Error,
-];
-
-/// The callback type for all torrent events.
-pub type TorrentCallback = CoreCallback<TorrentEvent>;
 
 /// Represents events that can occur for a torrent.
 #[derive(Debug, Clone, Display)]
@@ -67,20 +52,6 @@ pub enum TorrentState {
     Error = 8,
 }
 
-impl From<i32> for TorrentState {
-    fn from(value: i32) -> Self {
-        for state in TORRENT_STATES {
-            let ordinal = state.clone() as i32;
-
-            if ordinal == value {
-                return state;
-            }
-        }
-
-        panic!("Ordinal {} is out of range for TorrentState", value)
-    }
-}
-
 /// Represents the download status of a torrent.
 #[derive(Debug, Display, Clone, PartialOrd, PartialEq)]
 #[display(
@@ -110,7 +81,7 @@ pub struct DownloadStatus {
 /// The torrent describes the meta-info of a shared file that can be queried over the network.
 /// It allows for action such as downloading the shared file to the local system.
 #[async_trait]
-pub trait Torrent: Debug + Display + Callbacks<TorrentEvent> + Send + Sync {
+pub trait Torrent: Debug + Display + Callback<TorrentEvent> + Send + Sync {
     /// Get the unique identifier handle of the torrent.
     fn handle(&self) -> TorrentHandle;
 
@@ -376,7 +347,7 @@ impl TorrentHealth {
 #[cfg(any(test, feature = "testing"))]
 mod mock {
     use super::*;
-    use crate::core::CallbackHandle;
+    use crate::core::callback::{Subscriber, Subscription};
     use mockall::mock;
     use std::fmt::{Display, Formatter};
     use std::ops::Range;
@@ -398,9 +369,9 @@ mod mock {
             async fn state(&self) -> TorrentState;
         }
 
-        impl Callbacks<TorrentEvent> for Torrent {
-            fn add_callback(&self, callback: CoreCallback<TorrentEvent>) -> CallbackHandle;
-            fn remove_callback(&self, handle: CallbackHandle);
+        impl Callback<TorrentEvent> for Torrent {
+            fn subscribe(&self) -> Subscription<TorrentEvent>;
+            fn subscribe_with(&self, subscriber: Subscriber<TorrentEvent>);
         }
     }
 
@@ -413,30 +384,12 @@ mod mock {
 
 #[cfg(test)]
 mod test {
-    use crate::testing::init_logger;
-
     use super::*;
-
-    #[test]
-    fn test_torrent_state_from() {
-        let error = TorrentState::from(-1);
-        let creating = TorrentState::from(0);
-        let ready = TorrentState::from(1);
-        let starting = TorrentState::from(2);
-        let downloading = TorrentState::from(3);
-        let paused = TorrentState::from(4);
-
-        assert_eq!(TorrentState::Error, error);
-        assert_eq!(TorrentState::Initializing, creating);
-        assert_eq!(TorrentState::Ready, ready);
-        assert_eq!(TorrentState::Starting, starting);
-        assert_eq!(TorrentState::Downloading, downloading);
-        assert_eq!(TorrentState::Paused, paused);
-    }
+    use crate::init_logger;
 
     #[test]
     fn test_torrent_info_by_filename_match_without_torrent_directory() {
-        init_logger();
+        init_logger!();
         let filename = "lorem.mp4";
         let expected_result = TorrentFileInfo {
             filename: "".to_string(),
@@ -468,7 +421,7 @@ mod test {
 
     #[test]
     fn test_torrent_info_by_filename_match_with_torrent_directory() {
-        init_logger();
+        init_logger!();
         let filename = "ipsum.mp4";
         let expected_result = TorrentFileInfo {
             filename: "".to_string(),

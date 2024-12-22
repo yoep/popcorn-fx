@@ -8,7 +8,7 @@ use tokio::runtime::Runtime;
 use tokio::sync::Mutex;
 
 use crate::core::block_in_place;
-use crate::core::events::Event;
+use crate::core::event::Event;
 
 /// The highest order for events, this priority will be first invoked
 pub const HIGHEST_ORDER: Order = i32::MIN;
@@ -18,7 +18,7 @@ pub const DEFAULT_ORDER: Order = 0;
 pub const LOWEST_ORDER: Order = i32::MAX;
 
 /// The event callback type which handles callbacks for events within Popcorn FX.
-/// This is a generic type that can be reused within the [crate::core::events] package.
+/// This is a generic type that can be reused within the [crate::core::event] package.
 ///
 /// The callback uses a chain methodology which means it keeps invoking the chain of consumers/listeners for as long as event is being returned.
 /// Returning [None] as a result for the callback, will stop the chain from being invoked.
@@ -28,7 +28,7 @@ pub const LOWEST_ORDER: Order = i32::MAX;
 /// ## Continue invoking the chain
 ///
 /// ```no_run
-/// use popcorn_fx_core::core::events::{Event, EventCallback};
+/// use popcorn_fx_core::core::event::{Event, EventCallback};
 ///
 /// let continue_consumer: EventCallback = Box::new(|event| {
 ///     // do something with the event
@@ -40,7 +40,7 @@ pub const LOWEST_ORDER: Order = i32::MAX;
 /// ## Stop the chain
 ///
 /// ```no_run
-/// use popcorn_fx_core::core::events::{Event, EventCallback};
+/// use popcorn_fx_core::core::event::{Event, EventCallback};
 ///
 /// let stop_consumer: EventCallback = Box::new(|event| {
 ///     // consume the event and prevent the chain from continuing
@@ -61,7 +61,7 @@ pub type Order = i32;
 /// ## Publish a new event
 ///
 /// ```no_run
-/// use popcorn_fx_core::core::events::{Event, EventPublisher, PlayerStoppedEvent};
+/// use popcorn_fx_core::core::event::{Event, EventPublisher, PlayerStoppedEvent};
 /// let publisher = EventPublisher::default();
 ///
 /// publisher.publish(Event::PlayerStopped(PlayerStoppedEvent {
@@ -75,7 +75,7 @@ pub type Order = i32;
 /// ## Register consumer/listener
 ///
 /// ```no_run
-/// use popcorn_fx_core::core::events::{Event, EventPublisher, HIGHEST_ORDER};
+/// use popcorn_fx_core::core::event::{Event, EventPublisher, HIGHEST_ORDER};
 /// let publisher = EventPublisher::default();
 ///
 /// publisher.register(Box::new(|event|Some(event)), HIGHEST_ORDER);
@@ -99,8 +99,8 @@ impl EventPublisher {
     /// Registering a new event callback with the highest order:
     ///
     /// ```no_run
-    /// use popcorn_fx_core::core::events;
-    /// use popcorn_fx_core::core::events::{Event, EventPublisher, EventCallback, Order};
+    /// use popcorn_fx_core::core::event;
+    /// use popcorn_fx_core::core::event::{Event, EventPublisher, EventCallback, Order};
     ///
     /// let event_publisher = EventPublisher::default();
     /// let callback: EventCallback = Box::new(|event| {
@@ -108,7 +108,7 @@ impl EventPublisher {
     ///     Some(event)
     /// });
     ///
-    /// event_publisher.register(callback, events::HIGHEST_ORDER);
+    /// event_publisher.register(callback, event::HIGHEST_ORDER);
     /// ```
     pub fn register(&self, callback: EventCallback, order: Order) {
         trace!("Registering a new callback to the EventPublisher");
@@ -215,7 +215,7 @@ mod test {
     use std::sync::mpsc::channel;
     use std::time::Duration;
 
-    use crate::core::events::PlayerStoppedEvent;
+    use crate::core::event::PlayerStoppedEvent;
     use crate::testing::init_logger;
 
     use super::*;

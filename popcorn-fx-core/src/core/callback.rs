@@ -85,7 +85,7 @@ where
 /// A multithreaded callback holder.
 ///
 /// This callback holder will invoke the given events on a separate thread, thus unblocking the caller thread for other tasks.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MultiCallback<T>
 where
     T: Debug + Send + Sync,

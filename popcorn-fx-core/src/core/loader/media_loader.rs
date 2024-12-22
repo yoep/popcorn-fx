@@ -17,7 +17,7 @@ use crate::core::loader::{LoadingData, LoadingEvent, LoadingStrategy};
 use crate::core::media::{
     Episode, Images, MediaIdentifier, MediaOverview, MovieDetails, ShowDetails,
 };
-use crate::core::playlists::PlaylistItem;
+use crate::core::playlist::PlaylistItem;
 use crate::core::torrents::magnet::Magnet;
 use crate::core::torrents::{DownloadStatus, Error};
 use crate::core::{block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks, Handle};
@@ -71,27 +71,29 @@ pub enum LoadingResult {
 /// An enum representing the result of a cancellation operation on loading data.
 pub type CancellationResult = Result<LoadingData, LoadingError>;
 
-#[repr(i32)]
+#[repr(u32)]
 #[derive(Debug, Clone, Display, PartialOrd, PartialEq)]
 pub enum LoadingState {
     #[display(fmt = "Loader is initializing")]
-    Initializing,
+    Initializing = 0,
     #[display(fmt = "Loader is starting")]
-    Starting,
+    Starting = 1,
     #[display(fmt = "Loader is retrieving subtitles")]
-    RetrievingSubtitles,
+    RetrievingSubtitles = 2,
     #[display(fmt = "Loader is downloading a subtitle")]
-    DownloadingSubtitle,
+    DownloadingSubtitle = 3,
+    #[display(fmt = "Loader is retrieving the metadata")]
+    RetrievingMetadata = 4,
     #[display(fmt = "Loader is connecting")]
-    Connecting,
+    Connecting = 5,
     #[display(fmt = "Loader is downloading the media")]
-    Downloading,
+    Downloading = 6,
     #[display(fmt = "Loader has finished downloading the media")]
-    DownloadFinished,
+    DownloadFinished = 7,
     #[display(fmt = "Loader is ready to start the playback")]
-    Ready,
+    Ready = 8,
     #[display(fmt = "Loader is playing media")]
-    Playing,
+    Playing = 9,
 }
 
 #[derive(Debug, Display, Clone, PartialEq)]

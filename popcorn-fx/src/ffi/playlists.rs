@@ -1,7 +1,7 @@
 use log::{trace, warn};
 use std::ptr;
 
-use popcorn_fx_core::core::playlists::{Playlist, PlaylistItem};
+use popcorn_fx_core::core::playlist::{Playlist, PlaylistItem};
 use popcorn_fx_core::{from_c_vec, into_c_owned};
 
 use crate::ffi::{CArray, PlaylistItemC, PlaylistManagerCallbackC, PlaylistManagerEventC};
@@ -179,7 +179,7 @@ mod test {
 
     use tempfile::tempdir;
 
-    use popcorn_fx_core::core::playlists::{PlaylistManagerEvent, PlaylistState};
+    use popcorn_fx_core::core::playlist::{PlaylistManagerEvent, PlaylistState};
     use popcorn_fx_core::testing::init_logger;
     use popcorn_fx_core::{into_c_owned, into_c_string};
 

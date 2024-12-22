@@ -130,7 +130,7 @@ mod tests {
     use std::sync::mpsc::channel;
 
     use crate::core::block_in_place;
-    use crate::core::playlists::{PlaylistItem, PlaylistMedia};
+    use crate::core::playlist::{PlaylistItem, PlaylistMedia};
     use crate::testing::init_logger;
 
     use super::*;

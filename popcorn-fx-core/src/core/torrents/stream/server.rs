@@ -1,10 +1,10 @@
-use std::collections::HashMap;
-use std::net::SocketAddr;
-use std::sync::{Arc, Weak};
-
+use async_trait::async_trait;
 use hyper::Body;
 use itertools::Itertools;
 use log::{debug, error, info, trace, warn};
+use std::collections::HashMap;
+use std::net::SocketAddr;
+use std::sync::{Arc, Weak};
 use tokio::sync::{Mutex, MutexGuard};
 use url::Url;
 use warp::http::header::{
@@ -14,14 +14,15 @@ use warp::http::{HeaderValue, Response, StatusCode};
 use warp::hyper::HeaderMap;
 use warp::{hyper, Filter, Rejection};
 
+use crate::core::callback::{Callback, Subscription};
 use crate::core::torrents::stream::torrent_stream::DefaultTorrentStream;
 use crate::core::torrents::stream::{MediaType, MediaTypeFactory, Range};
 use crate::core::torrents::{
-    Error, Torrent, TorrentStream, TorrentStreamCallback, TorrentStreamServer,
+    Error, Torrent, TorrentStream, TorrentStreamEvent, TorrentStreamServer,
     TorrentStreamServerState,
 };
 use crate::core::utils::network::available_socket;
-use crate::core::{block_in_place, torrents, CallbackHandle, Handle};
+use crate::core::{block_in_place, torrents, Handle};
 
 const SERVER_PROTOCOL: &str = "http";
 const SERVER_VIDEO_PATH: &str = "video";
@@ -52,6 +53,7 @@ impl DefaultTorrentStreamServer {
     }
 }
 
+#[async_trait]
 impl TorrentStreamServer for DefaultTorrentStreamServer {
     fn state(&self) -> TorrentStreamServerState {
         self.inner.state()
@@ -68,12 +70,8 @@ impl TorrentStreamServer for DefaultTorrentStreamServer {
         self.inner.stop_stream(handle)
     }
 
-    fn subscribe(&self, handle: Handle, callback: TorrentStreamCallback) -> Option<CallbackHandle> {
-        self.inner.subscribe(handle, callback)
-    }
-
-    fn unsubscribe(&self, handle: Handle, callback_handle: CallbackHandle) {
-        self.inner.unsubscribe(handle, callback_handle)
+    async fn subscribe(&self, handle: Handle) -> Option<Subscription<TorrentStreamEvent>> {
+        self.inner.subscribe(handle).await
     }
 }
 
@@ -352,6 +350,7 @@ impl TorrentStreamServerInner {
     }
 }
 
+#[async_trait]
 impl TorrentStreamServer for TorrentStreamServerInner {
     fn state(&self) -> TorrentStreamServerState {
         let mutex = self.state.blocking_lock();
@@ -382,9 +381,11 @@ impl TorrentStreamServer for TorrentStreamServerInner {
         match self.build_url(filename) {
             Ok(url) => {
                 debug!("Starting url stream for {}", &url);
-                let stream = Arc::new(
-                    Box::new(DefaultTorrentStream::new(url, torrent)) as Box<dyn TorrentStream>
-                );
+                let stream = Arc::new(Box::new(DefaultTorrentStream::new(
+                    url,
+                    torrent,
+                    self.runtime.clone(),
+                )) as Box<dyn TorrentStream>);
                 let stream_ref = Arc::downgrade(&stream);
 
                 mutex.insert(filename.to_string(), stream);
@@ -418,27 +419,17 @@ impl TorrentStreamServer for TorrentStreamServerInner {
         }
     }
 
-    fn subscribe(&self, handle: Handle, callback: TorrentStreamCallback) -> Option<CallbackHandle> {
-        let mutex = block_in_place(self.streams.lock());
+    async fn subscribe(&self, handle: Handle) -> Option<Subscription<TorrentStreamEvent>> {
+        let mutex = self.streams.lock().await;
         let position = mutex.iter().position(|(_, e)| e.stream_handle() == handle);
 
         if let Some((_, stream)) = position.and_then(|e| mutex.iter().nth(e)) {
             debug!("Subscribing callback to stream handle {}", handle);
-            return Some(stream.subscribe_stream(callback));
+            return Some(Callback::<TorrentStreamEvent>::subscribe(&***stream));
         }
 
         warn!("Unable to subscribe to {}, stream handle not found", handle);
         None
-    }
-
-    fn unsubscribe(&self, handle: Handle, callback_handle: CallbackHandle) {
-        let mutex = block_in_place(self.streams.lock());
-        let position = mutex.iter().position(|(_, e)| e.stream_handle() == handle);
-
-        if let Some((_, stream)) = position.and_then(|e| mutex.iter().nth(e)) {
-            debug!("Unsubscribing callback from stream handle {}", handle);
-            stream.unsubscribe_stream(callback_handle);
-        }
     }
 }
 

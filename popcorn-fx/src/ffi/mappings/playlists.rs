@@ -4,7 +4,7 @@ use std::{mem, ptr};
 use log::trace;
 
 use popcorn_fx_core::core::media::MediaIdentifier;
-use popcorn_fx_core::core::playlists::{
+use popcorn_fx_core::core::playlist::{
     PlayingNextInfo, PlaylistItem, PlaylistManagerEvent, PlaylistMedia, PlaylistState,
     PlaylistSubtitle, PlaylistTorrent,
 };

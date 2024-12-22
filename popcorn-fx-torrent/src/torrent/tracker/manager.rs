@@ -100,7 +100,7 @@ impl TrackerManager {
     /// # Arguments
     ///
     /// * `peer_id` - The peer ID to associate with the manager.
-    /// * `peer_port` - The port number on which the [Session] is listening for incoming peer connections.
+    /// * `peer_port` - The port number on which the [Torrent] is listening for incoming peer connections.
     /// * `info_hash` - The info hash of the torrent being tracked by this manager.
     /// * `connection_timeout` - The timeout for tracker connections.
     /// * `runtime` - The runtime environment for spawning asynchronous tasks.
@@ -136,8 +136,7 @@ impl TrackerManager {
 
     /// Checks if a given tracker URL is known within this manager.
     pub async fn is_tracker_url_known(&self, url: &Url) -> bool {
-        let trackers = self.inner.trackers.read().await;
-        trackers.iter().any(|e| e.url() == url)
+        self.inner.is_tracker_url_known(url).await
     }
 
     /// Get the currently active trackers.
@@ -291,18 +290,17 @@ impl InnerTrackerManager {
         debug!("Tracker manager {} main loop has stopped", self);
     }
 
+    /// Check if the given url is already registered/known.
+    async fn is_tracker_url_known(&self, url: &Url) -> bool {
+        let trackers = self.trackers.read().await;
+        trackers.iter().any(|e| e.url() == url)
+    }
+
     /// Try to create a new tracker for the given url.
     /// It returns the created tracker handle on success, else the [TrackerError].
     async fn create_tracker_from_entry(&self, entry: TrackerEntry) -> Result<TrackerHandle> {
-        let url_already_exists: bool;
-
-        // check if the given url is already known for a tracker
-        {
-            let trackers = self.trackers.read().await;
-            url_already_exists = trackers.iter().any(|e| e.url() == &entry.url);
-        }
-
         // if the url is already known, reject the request to create the tracker
+        let url_already_exists = self.is_tracker_url_known(&entry.url).await;
         if url_already_exists {
             return Err(TrackerError::DuplicateUrl(entry.url));
         }
@@ -312,6 +310,7 @@ impl InnerTrackerManager {
             .tier(entry.tier)
             .timeout(self.connection_timeout.clone())
             .peer_id(self.peer_id.clone())
+            .peer_port(self.peer_port)
             .build()
             .await
         {

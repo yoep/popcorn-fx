@@ -129,7 +129,7 @@ public class LoaderComponent implements Initializable {
 
     private void handleLoaderStateChanged(LoaderState newState) {
         switch (newState) {
-            case IDLE, INITIALIZING -> onLoadingInitializing();
+            case INITIALIZING -> onLoadingInitializing();
             case STARTING -> {
                 reset();
                 progressStatus.setVisible(false);
@@ -137,6 +137,7 @@ public class LoaderComponent implements Initializable {
             }
             case RETRIEVING_SUBTITLES -> statusText.setText(localeText.get(TorrentMessage.RETRIEVING_SUBTITLES));
             case DOWNLOADING_SUBTITLE -> statusText.setText(localeText.get(TorrentMessage.DOWNLOADING_SUBTITLE));
+            case RETRIEVING_METADATA -> statusText.setText(localeText.get(TorrentMessage.RETRIEVING_METADATA));
             case CONNECTING -> statusText.setText(localeText.get(TorrentMessage.CONNECTING));
             case DOWNLOADING -> {
                 progressStatus.setVisible(true);

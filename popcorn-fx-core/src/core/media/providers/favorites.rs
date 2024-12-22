@@ -195,7 +195,7 @@ impl MediaProvider for FavoritesProvider {
 mod test {
     use tempfile::tempdir;
 
-    use crate::core::events::EventPublisher;
+    use crate::core::event::EventPublisher;
     use crate::core::media;
     use crate::core::media::favorites::{DefaultFavoriteService, MockFavoriteService};
     use crate::core::media::watched::DefaultWatchedService;

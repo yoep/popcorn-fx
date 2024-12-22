@@ -137,7 +137,7 @@ mod tests {
         let runtime = Arc::new(Runtime::new().unwrap());
         let torrent = Torrent::request()
             .metadata(torrent_info)
-            .options(TorrentFlags::None)
+            .options(TorrentFlags::none())
             .peer_listener_port(6881)
             .config(
                 TorrentConfig::builder()

@@ -7,11 +7,11 @@ use mockall::automock;
 use tokio::runtime::Handle;
 use tokio::sync::Mutex;
 
-use crate::core::events::{Event, EventPublisher, PlayerStoppedEvent};
+use crate::core::event::{Event, EventPublisher, PlayerStoppedEvent};
 use crate::core::media::watched::Watched;
 use crate::core::media::{MediaError, MediaIdentifier, MediaType};
 use crate::core::storage::{Storage, StorageError};
-use crate::core::{block_in_place, events, media, Callbacks, CoreCallbacks};
+use crate::core::{block_in_place, event, media, Callbacks, CoreCallbacks};
 
 const FILENAME: &str = "watched.json";
 const WATCHED_PERCENTAGE_THRESHOLD: f64 = 85 as f64;
@@ -110,7 +110,7 @@ impl DefaultWatchedService {
 
                 Some(event)
             }),
-            events::DEFAULT_ORDER,
+            event::DEFAULT_ORDER,
         );
 
         instance
@@ -632,7 +632,7 @@ mod test {
                 tx.send(true).unwrap();
                 Some(event)
             }),
-            events::LOWEST_ORDER,
+            event::LOWEST_ORDER,
         );
         event_publisher.publish(Event::PlayerStopped(PlayerStoppedEvent {
             url: "http://localhost:8052/example.mp4".to_string(),

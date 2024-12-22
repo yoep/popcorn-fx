@@ -1,9 +1,8 @@
 use crate::torrent::tracker::TrackerEntry;
 use crate::torrent::{
-    TorrentCommandEvent, TorrentContext, TorrentOperation, TorrentOperationResult,
+    TorrentCommandEvent, TorrentContext, TorrentOperation, TorrentOperationResult, TorrentState,
 };
 use async_trait::async_trait;
-use derive_more::Display;
 use log::{debug, warn};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -35,6 +34,7 @@ impl TorrentTrackersOperation {
                 "Unable to create tiered trackers for {}, no tiered trackers found in metadata",
                 torrent
             );
+            torrent.send_command_event(TorrentCommandEvent::State(TorrentState::Error));
             return false;
         }
 
@@ -107,57 +107,66 @@ impl TorrentOperation for TorrentTrackersOperation {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::torrent::fs::DefaultTorrentFileStorage;
-    use crate::torrent::{Torrent, TorrentConfig, TorrentEvent, TorrentMetadata};
+    use crate::create_torrent;
+    use crate::torrent::{TorrentEvent, TorrentFlags};
     use popcorn_fx_core::core::callback::Callback;
-    use popcorn_fx_core::testing::read_test_file_to_bytes;
-    use popcorn_fx_core::{available_port, init_logger};
+    use popcorn_fx_core::init_logger;
     use std::sync::mpsc::channel;
-    use std::sync::Arc;
     use std::time::Duration;
     use tempfile::tempdir;
-    use tokio::runtime::Runtime;
 
     #[test]
-    fn test_execute() {
+    fn test_execute_metadata_info_unknown() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let torrent_info_data = read_test_file_to_bytes("ubuntu-https.torrent");
-        let torrent_info = TorrentMetadata::try_from(torrent_info_data.as_slice()).unwrap();
-        let runtime = Arc::new(Runtime::new().unwrap());
-        let port = available_port!(6881, 31000).unwrap();
-        let torrent = Torrent::request()
-            .metadata(torrent_info)
-            .peer_listener_port(port)
-            .config(
-                TorrentConfig::builder()
-                    .tracker_connection_timeout(Duration::from_secs(1))
-                    .build(),
-            )
-            .storage(Box::new(DefaultTorrentFileStorage::new(temp_path)))
-            .operations(vec![])
-            .runtime(runtime.clone())
-            .build()
-            .unwrap();
+        let uri = "magnet:?xt=urn:btih:2C6B6858D61DA9543D4231A71DB4B1C9264B0685&dn=Ubuntu%2022.04%20LTS&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce";
+        let torrent = create_torrent!(uri, temp_path, TorrentFlags::none(), vec![]);
         let inner = torrent.instance().unwrap();
+        let runtime = inner.runtime();
         let (tx, rx) = channel();
         let operation = TorrentTrackersOperation::new();
 
         let mut receiver = torrent.subscribe();
         runtime.spawn(async move {
-            if let TorrentEvent::TrackersChanged = *receiver.recv().await.unwrap() {
-                tx.send(()).unwrap();
+            loop {
+                if let Some(event) = receiver.recv().await {
+                    if let TorrentEvent::TrackersChanged = *event {
+                        tx.send(()).unwrap();
+                        break;
+                    }
+                } else {
+                    break;
+                }
             }
         });
 
         let result = runtime.block_on(operation.execute(&inner));
-        assert_eq!(TorrentOperationResult::Stop, result);
+        assert_eq!(TorrentOperationResult::Stop, result, "expected the chain to stop if the metadata is unknown and no tracker connections have yet been established");
 
         let _ = rx
             .recv_timeout(Duration::from_secs(2))
             .expect("expected a tracker connection to have been established");
         let result = runtime.block_on(operation.execute(&inner));
         assert_eq!(TorrentOperationResult::Continue, result);
+    }
+
+    #[test]
+    fn test_execute_metadata_info_known() {
+        init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let uri = "debian-udp.torrent";
+        let torrent = create_torrent!(uri, temp_path, TorrentFlags::none(), vec![]);
+        let inner = torrent.instance().unwrap();
+        let runtime = inner.runtime();
+        let operation = TorrentTrackersOperation::new();
+
+        let result = runtime.block_on(operation.execute(&inner));
+        assert_eq!(
+            TorrentOperationResult::Continue,
+            result,
+            "expected the chain to continue if the metadata info is known"
+        );
     }
 }

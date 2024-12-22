@@ -367,7 +367,7 @@ impl Session for DefaultSession {
                 || {
                     let request = Torrent::request()
                         .metadata(torrent_info)
-                        .options(TorrentFlags::None)
+                        .options(TorrentFlags::none())
                         .config(
                             TorrentConfig::builder()
                                 .peers_lower_limit(0)

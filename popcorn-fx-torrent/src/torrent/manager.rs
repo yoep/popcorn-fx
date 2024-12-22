@@ -1,43 +1,39 @@
+use crate::torrent::{
+    errors, torrent, DefaultSession, FilePriority, PieceIndex, PiecePriority, Session, Torrent,
+    TorrentEvent, TorrentFlags, TorrentInfoFile,
+};
 use async_trait::async_trait;
 use chrono::{DateTime, Local};
 use itertools::Itertools;
 use log::{debug, error, info, trace, warn};
-use std::fmt::Debug;
-use std::fs;
-use std::path::PathBuf;
-use std::sync::Arc;
-use std::time::Duration;
-use tokio::runtime::Runtime;
-
-use crate::torrent::{
-    errors, DefaultSession, FilePriority, PieceIndex, PiecePriority, Session, Torrent,
-    TorrentEvent, TorrentFlags, TorrentInfoFile,
-};
-use popcorn_fx_core::core::callback::Callback;
+use popcorn_fx_core::core::callback::{Callback, Subscriber, Subscription};
 use popcorn_fx_core::core::config::{ApplicationConfig, CleaningMode, TorrentSettings};
-use popcorn_fx_core::core::events::{Event, EventPublisher, PlayerStoppedEvent};
+use popcorn_fx_core::core::event::{Event, EventPublisher, PlayerStoppedEvent};
 use popcorn_fx_core::core::storage::Storage;
 use popcorn_fx_core::core::torrents::{
     DownloadStatus, TorrentFileInfo, TorrentHandle, TorrentHealth, TorrentInfo, TorrentManager,
     TorrentManagerEvent, TorrentState,
 };
 use popcorn_fx_core::core::{
-    block_in_place_runtime, events, torrents, CallbackHandle, Callbacks, CoreCallback,
-    CoreCallbacks,
+    block_in_place_runtime, event, torrents, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks,
 };
+use std::fmt::Debug;
+use std::fs;
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::runtime::Runtime;
+use tokio::sync::mpsc::unbounded_channel;
 
 const CLEANUP_WATCH_THRESHOLD: f64 = 85f64;
 const CLEANUP_AFTER: fn() -> Duration = || Duration::from_secs(10 * 24 * 60 * 60);
 
-impl Callbacks<popcorn_fx_core::core::torrents::TorrentEvent> for Torrent {
-    fn add_callback(
-        &self,
-        callback: CoreCallback<popcorn_fx_core::core::torrents::TorrentEvent>,
-    ) -> CallbackHandle {
-        let mut receiver = self.subscribe();
+impl crate::torrent::Torrent {
+    fn subscribe_and_map_event(&self, sender: Subscriber<torrents::TorrentEvent>) {
+        let mut rx_event = self.subscribe();
         tokio::spawn(async move {
             loop {
-                match receiver.recv().await {
+                match rx_event.recv().await {
                     Some(event) => {
                         let callback_event = match &*event {
                             TorrentEvent::StateChanged(e) => {
@@ -53,7 +49,7 @@ impl Callbacks<popcorn_fx_core::core::torrents::TorrentEvent> for Torrent {
                                     peers: stats.total_peers,
                                     download_speed: stats.download_useful_rate,
                                     upload_speed: stats.upload_useful_rate,
-                                    downloaded: stats.total_downloaded_useful as u64,
+                                    downloaded: stats.total_completed_size as u64,
                                     total_size: stats.total_size,
                                 }))
                             }
@@ -61,18 +57,29 @@ impl Callbacks<popcorn_fx_core::core::torrents::TorrentEvent> for Torrent {
                         };
 
                         if let Some(event) = callback_event {
-                            callback(event);
+                            if let Err(_) = sender.send(Arc::new(event)) {
+                                break;
+                            }
                         }
                     }
                     None => break,
                 }
             }
         });
+    }
+}
 
-        CallbackHandle::new()
+impl Callback<torrents::TorrentEvent> for Torrent {
+    fn subscribe(&self) -> Subscription<torrents::TorrentEvent> {
+        let (subscriber, receiver) = unbounded_channel();
+        self.subscribe_and_map_event(subscriber);
+
+        receiver
     }
 
-    fn remove_callback(&self, handle: CallbackHandle) {}
+    fn subscribe_with(&self, subscriber: Subscriber<torrents::TorrentEvent>) {
+        self.subscribe_and_map_event(subscriber);
+    }
 }
 
 #[async_trait]
@@ -187,7 +194,7 @@ impl DefaultTorrentManager {
 
                 Some(event)
             }),
-            events::DEFAULT_ORDER - 10,
+            event::DEFAULT_ORDER - 10,
         );
 
         Ok(instance)
@@ -342,7 +349,9 @@ impl InnerTorrentManager {
             .map_err(|e| torrents::Error::TorrentError(e.to_string()))?;
 
         // make sure that the metadata if the torrent is fetched
-        torrent.add_options(TorrentFlags::Metadata).await;
+        torrent
+            .add_options(TorrentFlags::Metadata | TorrentFlags::UploadMode)
+            .await;
         let mut files = torrent.files().await;
 
         if files.is_empty() {
@@ -664,7 +673,7 @@ mod test {
                 tx.send(true).unwrap();
                 Some(e)
             }),
-            events::LOWEST_ORDER,
+            event::LOWEST_ORDER,
         );
         runtime.block_on(async {
             event_publisher.publish(Event::PlayerStopped(PlayerStoppedEvent {

@@ -1,13 +1,14 @@
-use std::fmt::Debug;
-use std::sync::Weak;
-
+use async_trait::async_trait;
 use derive_more::Display;
 use downcast_rs::{impl_downcast, DowncastSync};
 #[cfg(any(test, feature = "testing"))]
 use mockall::automock;
+use std::fmt::Debug;
+use std::sync::Weak;
 
-use crate::core::torrents::{Torrent, TorrentStream, TorrentStreamCallback};
-use crate::core::{torrents, CallbackHandle, Handle};
+use crate::core::callback::Subscription;
+use crate::core::torrents::{Torrent, TorrentStream, TorrentStreamEvent};
+use crate::core::{torrents, Handle};
 
 /// The state of the torrent stream server.
 #[derive(Debug, Clone, Display, PartialEq)]
@@ -21,6 +22,7 @@ pub enum TorrentStreamServerState {
 ///
 /// This trait defines methods for managing the state of the torrent stream server and starting/stopping torrent streams.
 #[cfg_attr(any(test, feature = "testing"), automock)]
+#[async_trait]
 pub trait TorrentStreamServer: Debug + DowncastSync {
     /// Get the current state of the torrent stream server.
     ///
@@ -66,20 +68,6 @@ pub trait TorrentStreamServer: Debug + DowncastSync {
     /// This method allows subscribing to events from the specified torrent stream using a callback function.
     /// The callback function will be called whenever events occur on the torrent stream.
     /// It returns an optional callback handle that can be used to unsubscribe from the event stream later.
-    fn subscribe(&self, handle: Handle, callback: TorrentStreamCallback) -> Option<CallbackHandle>;
-
-    /// Unsubscribe from events of a torrent stream.
-    ///
-    /// # Arguments
-    ///
-    /// * `handle` - An identifier for the torrent stream to unsubscribe from.
-    /// * `callback_handle` - The handle returned from the `subscribe` method.
-    ///
-    /// # Remarks
-    ///
-    /// This method allows unsubscribing from events of a torrent stream previously subscribed to
-    /// using the `subscribe` method. The `callback_handle` must match the handle returned when
-    /// subscribing to the event stream.
-    fn unsubscribe(&self, handle: Handle, callback_handle: CallbackHandle);
+    async fn subscribe(&self, handle: Handle) -> Option<Subscription<TorrentStreamEvent>>;
 }
 impl_downcast!(sync TorrentStreamServer);

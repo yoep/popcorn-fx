@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use log::{debug, trace, warn};
 
-use crate::core::events::{Event, EventPublisher, PlayerStartedEvent, DEFAULT_ORDER};
+use crate::core::event::{Event, EventPublisher, PlayerStartedEvent, DEFAULT_ORDER};
 use crate::core::platform::{PlatformData, PlatformEvent};
 use crate::core::playback::{
     MediaInfo, MediaNotificationEvent, PlaybackControlCallback, PlaybackControlEvent, PlaybackState,
@@ -29,7 +29,7 @@ use crate::core::{Callbacks, CoreCallbacks};
 ///
 /// ```no_run
 /// use std::sync::Arc;
-/// use popcorn_fx_core::core::events::EventPublisher;
+/// use popcorn_fx_core::core::event::EventPublisher;
 /// use popcorn_fx_core::core::playback::PlaybackControls;
 ///
 /// let controls = PlaybackControls::builder()
@@ -49,7 +49,7 @@ impl PlaybackControls {
     ///
     /// ```no_run
     /// use std::sync::Arc;
-    /// use popcorn_fx_core::core::events::EventPublisher;
+    /// use popcorn_fx_core::core::event::EventPublisher;
     /// use popcorn_fx_core::core::playback::PlaybackControls;
     ///
     /// let controls = PlaybackControls::builder()
@@ -73,7 +73,7 @@ impl PlaybackControls {
 ///
 /// ```no_run
 /// use std::sync::Arc;
-/// use popcorn_fx_core::core::events::EventPublisher;
+/// use popcorn_fx_core::core::event::EventPublisher;
 /// use popcorn_fx_core::core::playback::PlaybackControls;
 ///
 /// let controls = PlaybackControls::builder()
@@ -210,7 +210,7 @@ mod test {
     use std::sync::mpsc::channel;
     use std::time::Duration;
 
-    use crate::core::events::PlayerStoppedEvent;
+    use crate::core::event::PlayerStoppedEvent;
     use crate::testing::{init_logger, MockDummyPlatformData};
 
     use super::*;

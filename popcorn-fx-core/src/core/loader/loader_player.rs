@@ -131,7 +131,7 @@ mod tests {
     use crate::core::loader::LoadingData;
     use crate::core::media::MovieDetails;
     use crate::core::players::MockPlayerManager;
-    use crate::core::playlists::{PlaylistItem, PlaylistMedia};
+    use crate::core::playlist::{PlaylistItem, PlaylistMedia};
     use crate::core::torrents::TorrentStream;
     use crate::testing::{init_logger, MockTorrentStream};
 

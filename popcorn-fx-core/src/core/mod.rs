@@ -6,7 +6,7 @@ pub use runtime::*;
 pub mod cache;
 pub mod callback;
 pub mod config;
-pub mod events;
+pub mod event;
 pub mod images;
 #[cfg(feature = "launcher")]
 pub mod launcher;
@@ -19,7 +19,7 @@ pub mod platform;
 #[cfg(feature = "playback")]
 pub mod playback;
 pub mod players;
-pub mod playlists;
+pub mod playlist;
 pub mod screen;
 pub mod storage;
 pub mod subtitles;

@@ -200,7 +200,7 @@ mod tests {
     use tokio_util::sync::CancellationToken;
 
     use crate::core::media::ShowOverview;
-    use crate::core::playlists::{PlaylistItem, PlaylistMedia};
+    use crate::core::playlist::{PlaylistItem, PlaylistMedia};
     use crate::core::torrents::{MockTorrentManager, TorrentInfo};
     use crate::core::{block_in_place, media};
     use crate::testing::init_logger;

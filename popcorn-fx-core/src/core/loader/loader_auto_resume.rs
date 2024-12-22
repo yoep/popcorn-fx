@@ -106,7 +106,7 @@ mod tests {
     use crate::core::block_in_place;
     use crate::core::media::resume::MockAutoResumeService;
     use crate::core::media::MovieOverview;
-    use crate::core::playlists::{PlaylistItem, PlaylistMedia, PlaylistSubtitle, PlaylistTorrent};
+    use crate::core::playlist::{PlaylistItem, PlaylistMedia, PlaylistSubtitle, PlaylistTorrent};
     use crate::core::torrents::TorrentFileInfo;
 
     use super::*;

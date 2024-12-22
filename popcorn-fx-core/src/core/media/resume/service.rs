@@ -7,11 +7,11 @@ use log::{debug, error, info, trace, warn};
 use mockall::automock;
 use tokio::sync::Mutex;
 
-use crate::core::{block_in_place, media};
-use crate::core::events::{Event, EventPublisher, HIGHEST_ORDER, PlayerStoppedEvent};
-use crate::core::media::MediaError;
+use crate::core::event::{Event, EventPublisher, PlayerStoppedEvent, HIGHEST_ORDER};
 use crate::core::media::resume::AutoResume;
+use crate::core::media::MediaError;
 use crate::core::storage::{Storage, StorageError};
+use crate::core::{block_in_place, media};
 
 const FILENAME: &str = "auto-resume.json";
 /// The minimum duration a video playback should have
@@ -64,7 +64,7 @@ impl AutoResumeService for DefaultAutoResumeService {
 ///
 /// ```no_run
 /// use std::sync::Arc;
-/// use popcorn_fx_core::core::events::EventPublisher;
+/// use popcorn_fx_core::core::event::EventPublisher;
 /// use popcorn_fx_core::core::media::resume::DefaultAutoResumeService;
 ///
 /// let auto_resume_service = DefaultAutoResumeService::builder()
@@ -95,7 +95,7 @@ impl DefaultAutoResumeServiceBuilder {
     ///
     /// ```no_run
     /// use std::sync::Arc;
-    /// use popcorn_fx_core::core::events::EventPublisher;
+    /// use popcorn_fx_core::core::event::EventPublisher;
     /// use popcorn_fx_core::core::media::resume::DefaultAutoResumeService;
     ///
     /// let auto_resume_service = DefaultAutoResumeService::builder()

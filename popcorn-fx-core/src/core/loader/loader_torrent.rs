@@ -56,17 +56,6 @@ impl LoadingStrategy for TorrentLoadingStrategy {
                 event_channel
                     .send(LoadingEvent::StateChanged(LoadingState::Connecting))
                     .unwrap();
-                let torrent_directory: String;
-
-                {
-                    let settings = self.application_settings.user_settings();
-                    torrent_directory = settings
-                        .torrent()
-                        .directory()
-                        .to_str()
-                        .map(|e| e.to_string())
-                        .expect("expected a valid torrent directory from the user settings");
-                }
 
                 match self
                     .torrent_manager
@@ -102,7 +91,7 @@ mod tests {
 
     use crate::core::block_in_place;
     use crate::core::loader::LoadingResult;
-    use crate::core::playlists::{PlaylistItem, PlaylistTorrent};
+    use crate::core::playlist::{PlaylistItem, PlaylistTorrent};
     use crate::core::torrents::{
         MockTorrent, MockTorrentManager, Torrent, TorrentHandle, TorrentInfo,
     };

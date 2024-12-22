@@ -38,7 +38,6 @@ import com.github.yoep.popcorn.backend.subtitles.ffi.SubtitleInfoSet;
 import com.github.yoep.popcorn.backend.subtitles.ffi.SubtitlePreference;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
 import com.github.yoep.popcorn.backend.torrent.DownloadStatusC;
-import com.github.yoep.popcorn.backend.torrent.ResolveTorrentCallback;
 import com.github.yoep.popcorn.backend.torrent.TorrentStreamEventC;
 import com.github.yoep.popcorn.backend.torrent.TorrentStreamEventCallback;
 import com.github.yoep.popcorn.backend.torrent.collection.StoredTorrentSet;
@@ -134,10 +133,6 @@ public interface FxLib extends Library {
     void remove_from_watched(PopcornFx instance, MediaItem media);
 
     void register_watched_event_callback(PopcornFx instance, WatchedEventCallback callback);
-
-    Long register_torrent_stream_event_callback(PopcornFx instance, Long streamHandle, TorrentStreamEventCallback callback);
-
-    void remove_torrent_stream_event_callback(PopcornFx instance, Long streamHandle, Long callbackHandle);
 
     void torrent_download_status(PopcornFx instance, String handle, DownloadStatusC.ByValue downloadStatus);
 

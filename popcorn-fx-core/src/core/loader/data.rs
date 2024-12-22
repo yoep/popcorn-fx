@@ -1,7 +1,7 @@
 use std::sync::Weak;
 
 use crate::core::media::{MediaIdentifier, TorrentInfo};
-use crate::core::playlists::PlaylistItem;
+use crate::core::playlist::PlaylistItem;
 use crate::core::subtitles::model::{Subtitle, SubtitleInfo};
 use crate::core::torrents::{Torrent, TorrentFileInfo, TorrentStream};
 
@@ -136,7 +136,7 @@ pub struct SubtitleData {
 mod tests {
     use super::*;
     use crate::core::media::{Episode, ShowOverview};
-    use crate::core::playlists::{PlaylistMedia, PlaylistSubtitle, PlaylistTorrent};
+    use crate::core::playlist::{PlaylistMedia, PlaylistSubtitle, PlaylistTorrent};
 
     #[test]
     fn test_from_str() {

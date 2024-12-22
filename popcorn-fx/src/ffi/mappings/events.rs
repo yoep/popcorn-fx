@@ -3,11 +3,11 @@ use std::ptr;
 
 use log::trace;
 
-use popcorn_fx_core::{from_c_string, into_c_string};
-use popcorn_fx_core::core::events::{Event, PlayerChangedEvent};
+use popcorn_fx_core::core::event::{Event, PlayerChangedEvent};
 use popcorn_fx_core::core::playback::PlaybackState;
 use popcorn_fx_core::core::players::PlayerChange;
 use popcorn_fx_core::core::torrents::TorrentInfo;
+use popcorn_fx_core::{from_c_string, into_c_string};
 
 use crate::ffi::TorrentInfoC;
 

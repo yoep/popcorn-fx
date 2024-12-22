@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 use std::io;
-use std::io::{Cursor, Write};
+use std::io::{Cursor, Read, Write};
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::time::Duration;
 
@@ -23,6 +23,7 @@ const ERROR_CONNECTION_NOT_INITIALIZED: &'static str = "udp connection not start
 #[derive(Debug)]
 pub struct UdpConnection {
     peer_id: PeerId,
+    peer_port: u16,
     addrs: AddressManager,
     session: Option<UdpConnectionSession>,
     timeout: Duration,
@@ -108,9 +109,10 @@ impl TrackerConnection for UdpConnection {
 }
 
 impl UdpConnection {
-    pub fn new(addrs: &[SocketAddr], peer_id: PeerId, timeout: Duration) -> Self {
+    pub fn new(addrs: &[SocketAddr], peer_id: PeerId, peer_port: u16, timeout: Duration) -> Self {
         Self {
             peer_id,
+            peer_port,
             addrs: AddressManager::new(addrs),
             session: Default::default(),
             timeout,
@@ -153,7 +155,11 @@ impl UdpConnection {
         match action {
             Action::Connect => ConnectResponse::try_from(response).map(|e| Response::Connection(e)),
             Action::Announce => AnnounceResponse::try_from(response).map(|e| Response::Announce(e)),
-            _ => todo!(),
+            Action::Error => ErrorResponse::try_from(response).map(|e| Response::Error(e.message)),
+            _ => Err(TrackerError::AnnounceError(format!(
+                "Tracker action {:?} has not been implemented",
+                action
+            ))),
         }
     }
 
@@ -198,7 +204,7 @@ impl UdpConnection {
                 key: 0,
                 num_want: 100,
                 redundant: 0,
-                listen_port: 6881,
+                listen_port: self.peer_port,
             };
 
             trace!("Sending announce request {:?}", request);
@@ -214,6 +220,7 @@ impl UdpConnection {
                         peers: response.peers,
                     })
                 }
+                Response::Error(e) => Err(TrackerError::AnnounceError(e)),
                 _ => Err(TrackerError::Io(format!(
                     "expected Response::Announce, but got {:?} instead",
                     response
@@ -317,11 +324,13 @@ impl TryFrom<u32> for Action {
     }
 }
 
+/// The response of a tracker announcement.
 #[derive(Debug)]
 enum Response {
     Connection(ConnectResponse),
     Announce(AnnounceResponse),
     Scrape,
+    Error(String),
 }
 
 #[derive(Debug)]
@@ -449,6 +458,25 @@ impl TryFrom<UdpResponse> for AnnounceResponse {
 }
 
 #[derive(Debug)]
+struct ErrorResponse {
+    /// The error message returned by the tracker
+    pub message: String,
+}
+
+impl TryFrom<UdpResponse> for ErrorResponse {
+    type Error = TrackerError;
+
+    fn try_from(mut response: UdpResponse) -> Result<Self> {
+        let mut message = String::new();
+
+        // try to read the error message
+        response.cursor.read_to_string(&mut message)?;
+
+        Ok(Self { message })
+    }
+}
+
+#[derive(Debug)]
 struct UdpResponse {
     pub transaction_id: u32,
     pub cursor: Cursor<Vec<u8>>,
@@ -459,7 +487,8 @@ mod tests {
     use super::*;
     use crate::torrent::TorrentMetadata;
     use popcorn_fx_core::core::block_in_place;
-    use popcorn_fx_core::testing::{init_logger, read_test_file_to_bytes};
+    use popcorn_fx_core::testing::read_test_file_to_bytes;
+    use popcorn_fx_core::{available_port, init_logger};
     use tokio::net::lookup_host;
     use tokio::runtime::Runtime;
 
@@ -475,10 +504,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_udp_connection_next_addr() {
-        init_logger();
+        init_logger!();
         let socket_addr = ([127, 0, 0, 1], 1599).try_into().unwrap();
         let peer_id = PeerId::new();
-        let connection = UdpConnection::new(&[socket_addr], peer_id, Duration::from_secs(1));
+        let peer_port = available_port!(6881, 31000).unwrap();
+        let connection =
+            UdpConnection::new(&[socket_addr], peer_id, peer_port, Duration::from_secs(1));
 
         let result = connection.next_addr().await;
         assert_eq!(Some(&socket_addr), result);
@@ -489,13 +520,14 @@ mod tests {
 
     #[test]
     fn test_announce() {
-        init_logger();
+        init_logger!();
         let runtime = Runtime::new().expect("expected a runtime");
         let torrent_info_data = read_test_file_to_bytes("debian-udp.torrent");
         let torrent_info = TorrentMetadata::try_from(torrent_info_data.as_slice()).unwrap();
         let peer_id = PeerId::new();
+        let peer_port = available_port!(6881, 31000).unwrap();
         let addrs: Vec<SocketAddr> = get_tracker_addresses(&torrent_info);
-        let mut connection = UdpConnection::new(&addrs, peer_id, Duration::from_secs(1));
+        let mut connection = UdpConnection::new(&addrs, peer_id, peer_port, Duration::from_secs(1));
 
         runtime
             .block_on(connection.start())

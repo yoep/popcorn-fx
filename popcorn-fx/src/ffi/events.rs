@@ -1,12 +1,12 @@
 use log::trace;
 
-use popcorn_fx_core::core::events::LOWEST_ORDER;
+use popcorn_fx_core::core::event::LOWEST_ORDER;
 
 use crate::ffi::{EventC, EventCCallback};
 use crate::PopcornFX;
 
 /// Publish a new application event over the FFI layer.
-/// This will invoke the [popcorn_fx_core::core::events::EventPublisher] publisher on the backend.
+/// This will invoke the [popcorn_fx_core::core::event::EventPublisher] publisher on the backend.
 ///
 /// _Please keep in mind that the consumption of the event chain is not communicated over the FFI layer_
 #[no_mangle]
@@ -64,7 +64,7 @@ mod test {
     use log::info;
     use tempfile::tempdir;
 
-    use popcorn_fx_core::core::events::{Event, DEFAULT_ORDER};
+    use popcorn_fx_core::core::event::{Event, DEFAULT_ORDER};
     use popcorn_fx_core::into_c_string;
     use popcorn_fx_core::testing::init_logger;
 

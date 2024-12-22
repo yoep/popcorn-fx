@@ -834,7 +834,7 @@ mod tests {
     use std::sync::Arc;
 
     use crate::core::media::{Episode, Images, MovieOverview, ShowOverview};
-    use crate::core::playlists::{PlaylistItem, PlaylistMedia, PlaylistSubtitle};
+    use crate::core::playlist::{PlaylistItem, PlaylistMedia, PlaylistSubtitle};
     use crate::testing::MockTorrentStream;
 
     use super::*;

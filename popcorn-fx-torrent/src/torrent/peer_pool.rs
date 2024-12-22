@@ -202,6 +202,8 @@ impl PeerPool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::torrent::TorrentFlags;
+    use crate::{create_peer_pair, create_torrent};
     use popcorn_fx_core::init_logger;
 
     #[tokio::test]
@@ -221,5 +223,52 @@ mod tests {
         drop(permit);
         let result = pool.is_permit_available();
         assert_eq!(true, result, "expected a permit to have been available");
+    }
+
+    #[tokio::test]
+    async fn test_peer_pool_add_available_peer_addrs() {
+        init_logger!();
+        let expected_result = vec![SocketAddr::from(([127, 0, 0, 1], 1900))];
+        let pool = PeerPool::new(TorrentHandle::new(), 2, 1);
+
+        pool.add_available_peer_addrs(expected_result.clone()).await;
+        let result = pool.available_peer_addrs_len().await;
+        assert_eq!(1, result, "expected the address to have been added");
+
+        let result = pool.take_available_peer_addrs(1).await;
+        assert_eq!(expected_result, result);
+    }
+
+    #[test]
+    fn test_peer_pool_clean() {
+        init_logger!();
+        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let torrent = create_torrent!(
+            "debian-udp.torrent",
+            temp_path,
+            TorrentFlags::none(),
+            vec![]
+        );
+        let context = torrent.instance().unwrap();
+        let runtime = context.runtime();
+        let (peer1, peer2) = create_peer_pair!(&torrent);
+        let pool = PeerPool::new(TorrentHandle::new(), 2, 1);
+
+        runtime.block_on(pool.add_peer(Box::new(peer1)));
+        runtime.block_on(pool.add_peer(Box::new(peer2)));
+        let result = runtime.block_on(pool.peers.read()).len();
+        assert_eq!(
+            2, result,
+            "expected the peers to have been added to the pool"
+        );
+
+        runtime.block_on(async {
+            pool.peers.read().await.get(0).unwrap().close().await;
+        });
+        runtime.block_on(pool.clean());
+
+        let result = runtime.block_on(pool.peers.read()).len();
+        assert_ne!(2, result);
     }
 }

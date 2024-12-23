@@ -108,7 +108,7 @@ impl TorrentOperation for TorrentTrackersOperation {
 mod tests {
     use super::*;
     use crate::create_torrent;
-    use crate::torrent::{TorrentEvent, TorrentFlags};
+    use crate::torrent::{TorrentConfig, TorrentEvent, TorrentFlags};
     use popcorn_fx_core::core::callback::Callback;
     use popcorn_fx_core::init_logger;
     use std::sync::mpsc::channel;
@@ -121,7 +121,13 @@ mod tests {
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let uri = "magnet:?xt=urn:btih:2C6B6858D61DA9543D4231A71DB4B1C9264B0685&dn=Ubuntu%2022.04%20LTS&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce";
-        let torrent = create_torrent!(uri, temp_path, TorrentFlags::none(), vec![]);
+        let torrent = create_torrent!(
+            uri,
+            temp_path,
+            TorrentFlags::none(),
+            TorrentConfig::default(),
+            vec![]
+        );
         let inner = torrent.instance().unwrap();
         let runtime = inner.runtime();
         let (tx, rx) = channel();
@@ -157,7 +163,13 @@ mod tests {
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let uri = "debian-udp.torrent";
-        let torrent = create_torrent!(uri, temp_path, TorrentFlags::none(), vec![]);
+        let torrent = create_torrent!(
+            uri,
+            temp_path,
+            TorrentFlags::none(),
+            TorrentConfig::default(),
+            vec![]
+        );
         let inner = torrent.instance().unwrap();
         let runtime = inner.runtime();
         let operation = TorrentTrackersOperation::new();

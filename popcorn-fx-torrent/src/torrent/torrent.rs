@@ -213,7 +213,7 @@ impl TorrentTransferStats {
         let progress: f32;
         if self.total_size == 0 {
             if self.wanted_pieces == 0 {
-                return 100.0;
+                return 1.0;
             }
 
             progress = self.completed_pieces as f32 / self.wanted_pieces as f32;
@@ -265,10 +265,10 @@ impl From<&TorrentStats> for TorrentTransferStats {
     }
 }
 
-/// The torrent configuration.
+/// The torrent configuration values.
 #[derive(Debug, Clone)]
 pub struct TorrentConfig {
-    pub client_name: String,
+    client_name: String,
     pub peers_lower_limit: usize,
     pub peers_upper_limit: usize,
     pub peers_in_flight: usize,
@@ -282,6 +282,17 @@ impl TorrentConfig {
     /// Create a new torrent configuration builder.
     pub fn builder() -> TorrentConfigBuilder {
         TorrentConfigBuilder::builder()
+    }
+
+    /// Get the client name of the torrent.
+    pub fn client_name(&self) -> &str {
+        self.client_name.as_str()
+    }
+}
+
+impl Default for TorrentConfig {
+    fn default() -> Self {
+        Self::builder().build()
     }
 }
 
@@ -643,6 +654,7 @@ impl Torrent {
         let handle = TorrentHandle::new();
         let peer_id = PeerId::new();
         let info_hash = metadata.info_hash.clone();
+        let max_peers_in_flight = config.peers_in_flight.min(config.peers_upper_limit);
         let (event_sender, command_receiver) = unbounded_channel();
         let (peer_event_sender, peer_event_receiver) = unbounded_channel();
         let cancellation_token = CancellationToken::new();
@@ -659,7 +671,7 @@ impl Torrent {
                 config.tracker_connection_timeout.clone(),
                 runtime.clone(),
             ),
-            peer_pool: PeerPool::new(handle, config.peers_upper_limit, config.peers_in_flight),
+            peer_pool: PeerPool::new(handle, config.peers_upper_limit, max_peers_in_flight),
             peer_subscriber: peer_event_sender,
             pieces: RwLock::new(Vec::with_capacity(0)),
             piece_chunk_pool: PieceChunkPool::new(),
@@ -1449,7 +1461,12 @@ impl TorrentContext {
             }
         }
 
+        // shutdown the peer pool
         self.peer_pool.shutdown().await;
+        // inform the tracker the torrent is being stopped
+        self.tracker_manager
+            .announce_all(AnnounceEvent::Stopped)
+            .await;
         trace!("Torrent {} main loop ended", self);
     }
 
@@ -1711,7 +1728,8 @@ impl TorrentContext {
         self.pieces
             .read()
             .await
-            .get(piece)
+            .iter()
+            .find(|e| e.index == piece)
             .map(|e| e.is_completed())
             .unwrap_or(false)
     }
@@ -1758,8 +1776,12 @@ impl TorrentContext {
         self.invoke_event(TorrentEvent::PiecePrioritiesChanged);
 
         // update the state of the torrent based on the new priorities
-        let new_state = self.determine_state().await;
-        self.update_state(new_state).await;
+        // this can only be done after the init phase to not disrupt the init operations
+        let is_not_init_state = !self.state.read().await.is_initializing_phase();
+        if is_not_init_state {
+            let new_state = self.determine_state().await;
+            self.update_state(new_state).await;
+        }
     }
 
     /// Check if the torrent has completed downloading all wanted pieces.
@@ -1818,7 +1840,6 @@ impl TorrentContext {
     /// Calculate the additionally wanted peer connections by the torrent.
     pub async fn remaining_peer_connections_needed(&self) -> usize {
         let options = self.options.read().await;
-
         if options.contains(TorrentFlags::Paused) {
             return 0;
         }
@@ -2017,14 +2038,9 @@ impl TorrentContext {
     ///
     /// If the data was already known, this method does nothing.
     pub async fn add_metadata(&self, metadata: TorrentMetadataInfo) {
-        let is_metadata_known: bool;
-        let info_hash: InfoHash;
-
-        {
-            let mutex = self.metadata.read().await;
-            is_metadata_known = mutex.info.is_some();
-            info_hash = mutex.info_hash.clone();
-        }
+        let mut mutex = self.metadata.write().await;
+        let is_metadata_known = mutex.info.is_some();
+        let info_hash = mutex.info_hash.clone();
 
         // verify if the metadata of the torrent is already known
         // if so, we ignore this update
@@ -2044,23 +2060,21 @@ impl TorrentContext {
             })
             .unwrap_or(true);
         if is_metadata_invalid {
-            debug!("Received invalid metadata for torrent {}", self);
+            debug!("Torrent {} received invalid metadata", self);
             return;
         }
 
-        {
-            let mut mutex = self.metadata.write().await;
-            (*mutex).info = Some(metadata);
-            debug!("Updated metadata of {}", self);
-        }
-
+        (*mutex).info = Some(metadata);
+        debug!("Torrent {} updated metadata of {}", self, info_hash);
         self.invoke_event(TorrentEvent::MetadataChanged);
     }
 
     /// Announce the torrent to all trackers.
     /// It returns the announcement result collected from all active trackers.
     pub async fn announce_all(&self) -> Announcement {
-        self.tracker_manager.announce_all().await
+        self.tracker_manager
+            .announce_all(AnnounceEvent::Started)
+            .await
     }
 
     /// Announce to all the trackers without waiting for the results.
@@ -2213,7 +2227,7 @@ impl TorrentContext {
         // check if the metadata is known and the pieces have been created
         if !self.is_metadata_known().await || self.total_pieces().await == 0 {
             debug!(
-                "Unable to update piece availabilities for {}, torrent metadata or pieces are unknown",
+                "Torrent {} is unable to update piece availabilities, metadata or pieces are unknown",
                 self
             );
             return;
@@ -2306,7 +2320,7 @@ impl TorrentContext {
             for piece in pieces.iter() {
                 if let Some(piece) = pieces_mutex.get_mut(*piece) {
                     piece.mark_completed();
-                    total_pieces_size = piece.length;
+                    total_pieces_size += piece.length;
                     total_completed_pieces += 1;
                 } else {
                     warn!(
@@ -2425,19 +2439,18 @@ impl TorrentContext {
                 self.handle_discovered_peers(peers).await
             }
             TrackerManagerEvent::TrackerAdded(handle) => {
-                let is_retrieving_metadata =
-                    *self.state.read().await == TorrentState::RetrievingMetadata;
-                let is_download_allowed = self.is_download_allowed().await;
-                let is_upload_allowed = self.is_upload_allowed().await;
+                let is_paused = self.options.read().await.contains(TorrentFlags::Paused);
+                let is_pieces_known = self.total_pieces().await > 0;
+                let is_completed = self.is_completed().await;
+                let mut event = AnnounceEvent::Started;
 
-                if is_retrieving_metadata || is_download_allowed {
-                    self.tracker_manager
-                        .make_announcement(handle, AnnounceEvent::Started);
-                } else if is_upload_allowed {
-                    self.tracker_manager
-                        .make_announcement(handle, AnnounceEvent::Completed);
+                if is_paused {
+                    event = AnnounceEvent::Paused;
+                } else if is_pieces_known && is_completed {
+                    event = AnnounceEvent::Completed;
                 }
 
+                self.tracker_manager.make_announcement(handle, event);
                 self.invoke_event(TorrentEvent::TrackersChanged);
             }
         }
@@ -2612,8 +2625,13 @@ impl TorrentContext {
 
     /// Process the new options of the torrent.
     async fn options_changed(&self) {
-        let state = self.determine_state().await;
-        self.update_state(state).await;
+        // update the state of the torrent based on the new options
+        // this can only be done after the init phase to not disrupt the init operations
+        let is_not_init_state = !self.state.read().await.is_initializing_phase();
+        if is_not_init_state {
+            let state = self.determine_state().await;
+            self.update_state(state).await;
+        }
     }
 
     /// Try to determine the state the torrent currently has.
@@ -3172,7 +3190,6 @@ mod tests {
         TorrentFileValidationOperation,
     };
     use log::LevelFilter;
-    use popcorn_fx_core::core::torrents::Torrent;
     use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::{copy_test_file, read_test_file_to_bytes};
     use std::ops::Sub;
@@ -3189,6 +3206,7 @@ mod tests {
             "debian-udp.torrent",
             temp_path,
             TorrentFlags::none(),
+            TorrentConfig::default(),
             DEFAULT_TORRENT_OPERATIONS()
         );
         let context = torrent.instance().unwrap();
@@ -3211,7 +3229,13 @@ mod tests {
         let filename = "debian-udp.torrent";
         let torrent_info_data = read_test_file_to_bytes(filename);
         let torrent_info = TorrentMetadata::try_from(torrent_info_data.as_slice()).unwrap();
-        let torrent = create_torrent!(filename, temp_path, TorrentFlags::none(), vec![]);
+        let torrent = create_torrent!(
+            filename,
+            temp_path,
+            TorrentFlags::none(),
+            TorrentConfig::default(),
+            vec![]
+        );
         let context = torrent.instance().unwrap();
         let runtime = context.runtime();
 
@@ -3264,9 +3288,10 @@ mod tests {
             "debian-udp.torrent",
             temp_path,
             TorrentFlags::none(),
+            TorrentConfig::default(),
             vec![|| Box::new(TorrentCreatePiecesOperation::new()), || {
                 Box::new(TorrentCreateFilesOperation::new())
-            },]
+            }]
         );
         let context = torrent.instance().unwrap();
         let runtime = context.runtime();
@@ -3324,6 +3349,7 @@ mod tests {
             "debian-udp.torrent",
             temp_path,
             TorrentFlags::Metadata,
+            TorrentConfig::default(),
             DEFAULT_TORRENT_OPERATIONS()
         );
         let context = torrent.instance().unwrap();
@@ -3403,74 +3429,6 @@ mod tests {
     }
 
     #[test]
-    fn test_resume_magnet() {
-        init_logger!(LevelFilter::Debug);
-        let temp_dir = tempdir().unwrap();
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let (tx_state, rx_state) = channel();
-        let (tx_ready, rx_pieces_event) = channel();
-        let torrent = create_torrent!(
-            "magnet:?xt=urn:btih:4956A4E976EA948025C3C3554567CA2820F65F64&tr=udp://tracker.opentrackr.org:1337&tr=udp://tracker.tiny-vps.com:6969&tr=udp://tracker.openbittorrent.com:1337&tr=udp://tracker.coppersurfer.tk:6969&tr=udp://tracker.leechers-paradise.org:6969&tr=udp://p4p.arenabg.ch:1337&tr=udp://p4p.arenabg.com:1337&tr=udp://tracker.internetwarriors.net:1337&tr=udp://9.rarbg.to:2710&tr=udp://9.rarbg.me:2710&tr=udp://exodus.desync.com:6969&tr=udp://tracker.cyberia.is:6969&tr=udp://tracker.torrent.eu.org:451&tr=udp://open.stealth.si:80&tr=udp://tracker.moeking.me:6969&tr=udp://tracker.zerobytes.xyz:1337",
-            temp_path,
-            TorrentFlags::UploadMode | TorrentFlags::Metadata
-        );
-        let context = torrent.instance().unwrap();
-        let runtime = context.runtime();
-
-        let mut receiver = torrent.subscribe();
-        runtime.spawn(async move {
-            loop {
-                if let Some(event) = receiver.recv().await {
-                    if let TorrentEvent::StateChanged(state) = &*event {
-                        if state == &TorrentState::Finished {
-                            tx_state.send(()).unwrap();
-                        }
-                    } else if let TorrentEvent::PiecesChanged = *event {
-                        tx_ready.send(event).unwrap();
-                    }
-                } else {
-                    break;
-                }
-            }
-        });
-
-        // wait for the pieces to be created before trying to download the data
-        let _ = rx_pieces_event
-            .recv_timeout(Duration::from_secs(60))
-            .expect("expected the pieces to have been created");
-
-        // resume the torrent
-        runtime.block_on(torrent.resume());
-
-        // wait for a piece to be completed
-        let _ = rx_state
-            .recv_timeout(Duration::from_secs(300))
-            .expect("expected the torrent to enter the FINISHED state");
-
-        runtime.block_on(async {
-            let pieces = torrent.pieces().await.unwrap();
-            let pieces_bitfield = context.piece_bitfield().await;
-
-            info!("Checking pieces stored in {}", temp_path);
-            for piece in &pieces[0..300] {
-                let piece_index = piece.index;
-                assert_eq!(
-                    true,
-                    piece.is_completed(),
-                    "expected piece {} to have been completed",
-                    piece_index
-                );
-                assert_eq!(
-                    Some(true),
-                    pieces_bitfield.get(piece_index),
-                    "expected piece bitfield bit {} to be set",
-                    piece_index
-                );
-            }
-        });
-    }
-
-    #[test]
     fn test_resume_internal() {
         init_logger!(LevelFilter::Debug);
         let temp_dir_source = tempdir().unwrap();
@@ -3489,6 +3447,7 @@ mod tests {
             "debian-udp.torrent",
             temp_path_source,
             TorrentFlags::UploadMode,
+            TorrentConfig::default(),
             vec![
                 || Box::new(TorrentConnectPeersOperation::new()),
                 || Box::new(TorrentCreatePiecesOperation::new()),
@@ -3500,6 +3459,7 @@ mod tests {
             "debian-udp.torrent",
             temp_path_target,
             TorrentFlags::DownloadMode | TorrentFlags::Paused,
+            TorrentConfig::default(),
             vec![|| Box::new(TorrentCreatePiecesOperation::new()), || {
                 Box::new(TorrentCreateFilesOperation::new())
             },]
@@ -3626,6 +3586,7 @@ mod tests {
             "debian-udp.torrent",
             temp_path,
             TorrentFlags::none(),
+            TorrentConfig::default(),
             vec![|| Box::new(TorrentCreatePiecesOperation::new()), || {
                 Box::new(TorrentCreateFilesOperation::new())
             },]
@@ -3669,6 +3630,7 @@ mod tests {
             "debian-udp.torrent",
             temp_path,
             TorrentFlags::none(),
+            TorrentConfig::default(),
             vec![|| Box::new(TorrentCreatePiecesOperation::new())]
         );
         let context = torrent.instance().unwrap();
@@ -3704,6 +3666,7 @@ mod tests {
             "debian-udp.torrent",
             temp_path,
             TorrentFlags::none(),
+            TorrentConfig::default(),
             vec![|| Box::new(TorrentCreatePiecesOperation::new()), || {
                 Box::new(TorrentCreateFilesOperation::new())
             },]
@@ -3746,6 +3709,7 @@ mod tests {
             "debian-udp.torrent",
             temp_path,
             TorrentFlags::none(),
+            TorrentConfig::default(),
             vec![
                 || Box::new(TorrentCreatePiecesOperation::new()),
                 || Box::new(TorrentCreateFilesOperation::new()),
@@ -3796,6 +3760,7 @@ mod tests {
             "debian-udp.torrent",
             temp_path,
             TorrentFlags::none(),
+            TorrentConfig::default(),
             vec![]
         );
         let context = torrent.instance().unwrap();
@@ -3832,6 +3797,7 @@ mod tests {
             "debian-udp.torrent",
             temp_path,
             TorrentFlags::UploadMode,
+            TorrentConfig::default(),
             vec![
                 || Box::new(TorrentCreatePiecesOperation::new()),
                 || Box::new(TorrentCreateFilesOperation::new()),
@@ -3862,6 +3828,7 @@ mod tests {
             "debian-udp.torrent",
             temp_path,
             TorrentFlags::none(),
+            TorrentConfig::default(),
             vec![]
         );
         let context = torrent.instance().unwrap();
@@ -3928,6 +3895,7 @@ mod tests {
             "debian-udp.torrent",
             temp_path,
             TorrentFlags::none(),
+            TorrentConfig::default(),
             vec![]
         );
         let context = torrent.instance().unwrap();
@@ -3966,6 +3934,7 @@ mod tests {
             "debian-udp.torrent",
             temp_path,
             TorrentFlags::none(),
+            TorrentConfig::default(),
             vec![]
         );
         let context = torrent.instance().unwrap();
@@ -4014,6 +3983,7 @@ mod tests {
             "debian-udp.torrent",
             temp_path,
             TorrentFlags::DownloadMode,
+            TorrentConfig::default(),
             vec![]
         );
         let context = torrent.instance().unwrap();

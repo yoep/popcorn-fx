@@ -6,7 +6,6 @@ use std::fmt::{Debug, Formatter};
 use crate::torrent::{PieceIndex, TorrentMetadataInfo};
 use async_trait::async_trait;
 use log::{debug, error, trace, warn};
-use popcorn_fx_core::core::block_in_place;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use std::io::Cursor;
 use tokio::sync::RwLock;
@@ -97,7 +96,7 @@ impl MetadataExtension {
                 .map_err(|e| extension::Error::Io(e.to_string()))?;
 
             trace!(
-                "Sending torrent metadata reject to peer {}, {:?}",
+                "Peer {} sending torrent metadata reject, {:?}",
                 peer,
                 message
             );
@@ -130,8 +129,8 @@ impl MetadataExtension {
             *mutex = Some(calculated_total_pieces);
             total_pieces = Some(calculated_total_pieces);
             debug!(
-                "A total of {} metadata piece request are required for peer {}",
-                calculated_total_pieces, peer
+                "Peer {} requires a total of {} metadata requests",
+                peer, calculated_total_pieces
             );
         }
 
@@ -151,10 +150,12 @@ impl MetadataExtension {
                 let metadata_buffer = self.metadata_buffer.read().await;
                 let metadata: TorrentMetadataInfo =
                     serde_bencode::from_bytes(metadata_buffer.as_ref().unwrap())?;
-                debug!("Received metadata from peer, {:?}", metadata);
+                drop(metadata_buffer);
+                debug!("Peer {} completed metadata requests, {:?}", peer, metadata);
 
                 // update the metadata of the underlying torrent through the peer
                 peer.update_metadata(metadata).await;
+                // make sure the metadata_buffer is released before trying to clear it
                 self.clear_buffer().await;
             } else if self.should_request_metadata(&peer).await {
                 trace!(
@@ -224,7 +225,7 @@ impl MetadataExtension {
             && self.should_request_metadata(peer).await
         {
             if let Err(e) = self.request_metadata(0, peer).await {
-                error!("Failed to request metadata, {}", e);
+                error!("Peer {} failed to request metadata, {}", peer, e);
             }
         }
     }

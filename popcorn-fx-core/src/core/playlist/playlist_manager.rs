@@ -228,7 +228,7 @@ impl InnerPlaylistManager {
         }
 
         self.callbacks.invoke(PlaylistManagerEvent::PlaylistChanged);
-        self.update_state(PlaylistState::Playing);
+        self.update_state(PlaylistState::Playing).await;
         self.play_next().await
     }
 
@@ -241,7 +241,7 @@ impl InnerPlaylistManager {
             trace!("Processing next item in playlist {}", item);
             Some(self.play_item(item).await)
         } else {
-            self.update_state(PlaylistState::Completed);
+            self.update_state(PlaylistState::Completed).await;
             debug!("End of playlist has been reached");
             None
         }
@@ -249,7 +249,7 @@ impl InnerPlaylistManager {
 
     async fn play_item(&self, item: PlaylistItem) -> Handle {
         debug!("Starting playback of next playlist item {}", item);
-        self.update_state(PlaylistState::Playing);
+        self.update_state(PlaylistState::Playing).await;
         let handle = self.loader.load_playlist_item(item).await;
 
         trace!(

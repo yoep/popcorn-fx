@@ -38,9 +38,9 @@ pub enum TorrentError {
     InvalidRequest(String),
     #[error("the specified range {0:?} is invalid")]
     InvalidRange(std::ops::Range<usize>),
-    #[error("a tracker error occurred, {0}")]
+    #[error("tracker error: {0}")]
     Tracker(TrackerError),
-    #[error("a peer error occurred, {0}")]
+    #[error("peer error: {0}")]
     Peer(peer::Error),
     #[error("an io error occurred, {0}")]
     Io(String),

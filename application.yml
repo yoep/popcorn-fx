@@ -9,6 +9,8 @@ popcorn:
       level: warn
     popcorn_fx_core:
       level: warn
+    popcorn_fx_core::core::torrents::stream:
+      level: debug
     popcorn_fx_players:
       level: warn
     popcorn_fx_opensubtitles:

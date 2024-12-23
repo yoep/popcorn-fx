@@ -79,24 +79,37 @@ pub mod tests {
                 $uri,
                 $temp_dir,
                 $options,
+                crate::torrent::TorrentConfig::builder().build(),
                 crate::torrent::DEFAULT_TORRENT_OPERATIONS(),
                 std::sync::Arc::new(tokio::runtime::Runtime::new().unwrap()),
             )
         };
-        ($uri:expr, $temp_dir:expr, $options:expr, $operations:expr) => {
+        ($uri:expr, $temp_dir:expr, $options:expr, $config:expr) => {
             crate::torrent::tests::create_torrent_from_uri(
                 $uri,
                 $temp_dir,
                 $options,
+                $config,
+                crate::torrent::DEFAULT_TORRENT_OPERATIONS(),
+                std::sync::Arc::new(tokio::runtime::Runtime::new().unwrap()),
+            )
+        };
+        ($uri:expr, $temp_dir:expr, $options:expr, $config:expr, $operations:expr) => {
+            crate::torrent::tests::create_torrent_from_uri(
+                $uri,
+                $temp_dir,
+                $options,
+                $config,
                 $operations,
                 std::sync::Arc::new(tokio::runtime::Runtime::new().unwrap()),
             )
         };
-        ($uri:expr, $temp_dir:expr, $options:expr, $operations:expr, $runtime:expr) => {
+        ($uri:expr, $temp_dir:expr, $options:expr, $config:expr, $operations:expr, $runtime:expr) => {
             crate::torrent::tests::create_torrent_from_uri(
                 $uri,
                 $temp_dir,
                 $options,
+                $config,
                 $operations,
                 $runtime,
             )
@@ -109,6 +122,7 @@ pub mod tests {
         uri: &str,
         temp_dir: &str,
         options: TorrentFlags,
+        config: TorrentConfig,
         operations: Vec<TorrentOperationFactory>,
         runtime: Arc<Runtime>,
     ) -> Torrent {
@@ -127,6 +141,7 @@ pub mod tests {
             .metadata(torrent_info)
             .peer_listener_port(available_port!(port_start, 31000).unwrap())
             .options(options)
+            .config(config)
             .operations(operations)
             .storage(Box::new(DefaultTorrentFileStorage::new(temp_dir)))
             .runtime(runtime)
@@ -139,6 +154,7 @@ pub mod tests {
         ($torrent:expr) => {
             crate::torrent::tests::create_peer_pair(
                 $torrent,
+                $torrent,
                 $torrent
                     .instance()
                     .expect("expected a valid torrent context")
@@ -147,26 +163,36 @@ pub mod tests {
             )
         };
         ($torrent:expr, $protocols:expr) => {
-            crate::torrent::tests::create_peer_pair($torrent, $protocols)
+            crate::torrent::tests::create_peer_pair($torrent, $torrent, $protocols)
+        };
+        ($incoming_torrent:expr, $outgoing_torrent:expr, $protocols:expr) => {
+            crate::torrent::tests::create_peer_pair(
+                $incoming_torrent,
+                $outgoing_torrent,
+                $protocols,
+            )
         };
     }
 
     pub fn create_peer_pair(
-        torrent: &Torrent,
+        incoming_torrent: &Torrent,
+        outgoing_torrent: &Torrent,
         protocols: ProtocolExtensionFlags,
     ) -> (TcpPeer, TcpPeer) {
-        let context = torrent.instance().unwrap();
-        let runtime = context.runtime();
+        let incoming_context = incoming_torrent.instance().unwrap();
+        let outgoing_context = outgoing_torrent.instance().unwrap();
+        let incoming_runtime = incoming_context.runtime();
+        let outgoing_runtime = outgoing_context.runtime();
         let port_start = thread_rng().gen_range(6881..10000);
         let port = available_port!(port_start, 31000).unwrap();
         let (tx, rx) = std::sync::mpsc::channel();
-        let extensions = context.extensions();
+        let incoming_extensions = incoming_context.extensions();
+        let outgoing_extensions = outgoing_context.extensions();
 
-        let incoming_context = context.clone();
-        let incoming_runtime = runtime.clone();
-        let incoming_extensions = context.extensions();
-        let mut listener = DefaultPeerListener::new(port, runtime.clone()).unwrap();
-        runtime.spawn(async move {
+        let incoming_context = incoming_context.clone();
+        let incoming_runtime_thread = incoming_runtime.clone();
+        let mut listener = DefaultPeerListener::new(port, incoming_runtime_thread.clone()).unwrap();
+        incoming_runtime.spawn(async move {
             if let Some(peer) = listener.recv().await {
                 tx.send(
                     TcpPeer::new_inbound(
@@ -177,7 +203,7 @@ pub mod tests {
                         protocols.clone(),
                         incoming_extensions,
                         Duration::from_secs(5),
-                        incoming_runtime,
+                        incoming_runtime_thread,
                     )
                     .await,
                 )
@@ -185,16 +211,16 @@ pub mod tests {
             }
         });
 
-        let peer_context = context.clone();
-        let outgoing_peer = runtime
+        let peer_context = outgoing_context.clone();
+        let outgoing_peer = incoming_runtime
             .block_on(TcpPeer::new_outbound(
                 PeerId::new(),
                 SocketAddr::new([127, 0, 0, 1].into(), port),
                 peer_context,
                 protocols,
-                extensions,
+                outgoing_extensions,
                 Duration::from_secs(5),
-                runtime.clone(),
+                outgoing_runtime.clone(),
             ))
             .expect("expected the outgoing connection to succeed");
 
@@ -203,6 +229,6 @@ pub mod tests {
             .expect("expected an incoming peer")
             .expect("expected the incoming connection to succeed");
 
-        (outgoing_peer, incoming_peer)
+        (incoming_peer, outgoing_peer)
     }
 }

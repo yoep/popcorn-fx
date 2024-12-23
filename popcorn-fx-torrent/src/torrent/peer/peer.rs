@@ -16,6 +16,7 @@ use bitmask_enum::bitmask;
 use byteorder::BigEndian;
 use byteorder::ByteOrder;
 use derive_more::Display;
+use futures::future;
 use log::{debug, error, info, trace, warn};
 use popcorn_fx_core::core::callback::{Callback, MultiCallback, Subscriber, Subscription};
 use popcorn_fx_core::core::Handle;
@@ -1489,8 +1490,13 @@ impl PeerContext {
             return;
         }
 
-        let pending_requests = self.client_pending_requests.read().await.len();
         let has_wanted_pieces = self.has_wanted_piece().await;
+        let pending_requests = self.client_pending_requests.read().await.len();
+        let state = self.torrent.state().await;
+        debug!(
+            "Peer {} has {} pending requests, wanted pieces {:?}, torrent state {}",
+            self, pending_requests, has_wanted_pieces, state
+        );
         if pending_requests < MAX_PENDING_PIECES && has_wanted_pieces {
             let is_client_interested = self.is_client_interested().await;
             if !is_client_interested {
@@ -1506,16 +1512,37 @@ impl PeerContext {
 
     /// Informs the enabled extensions of the peer event.
     async fn inform_extensions_of_event(&self, event: PeerEvent) {
+        trace!(
+            "Peer {} handling peer event for extensions with {:?}",
+            self,
+            event
+        );
         let extensions = self.remote_extension_registry().await;
 
         if let Some(extensions) = extensions {
-            for extension in self
+            let futures: Vec<_> = self
                 .extensions
                 .iter()
                 .filter(|e| extensions.contains_key(&e.name().to_string()))
-            {
-                extension.on(&event, &self).await;
-            }
+                .map(|e| e.on(&event, &self))
+                .collect();
+            let total_extensions = futures.len();
+            trace!(
+                "Peer {} is informing a total of {} extensions about event {:?}",
+                self,
+                total_extensions,
+                event
+            );
+            let start_time = Instant::now();
+            future::join_all(futures).await;
+            let elapsed = start_time.elapsed();
+            trace!(
+                "Peer {} invoked {} extensions in {}.{:03}ms",
+                self,
+                total_extensions,
+                elapsed.as_millis(),
+                elapsed.subsec_micros() % 1000
+            );
         }
     }
 
@@ -1806,11 +1833,15 @@ impl PeerContext {
         }
 
         for piece in pieces.iter() {
-            if let Err(e) = self.send(Message::Have(*piece as u32)).await {
-                warn!(
+            match self.send(Message::Have(*piece as u32)).await {
+                Ok(_) => debug!(
+                    "Peer {} notified remote about {} piece availability",
+                    self, piece
+                ),
+                Err(e) => warn!(
                     "Peer {} failed to notify remote peer about {} piece availability, {}",
                     self, piece, e
-                );
+                ),
             }
         }
 
@@ -2269,8 +2300,9 @@ impl PeerContext {
         let message = Message::ExtendedHandshake(ExtendedHandshake {
             m: extension_registry,
             upload_only: is_partial_seed,
-            client: Some(self.torrent.config_lock().read().await.client_name.clone())
-                .filter(|e| !e.is_empty()),
+            client: Some(self.torrent.config_lock().read().await.client_name())
+                .filter(|e| !e.is_empty())
+                .map(|e| e.to_string()),
             regg: None,
             encryption: false,
             metadata_size: None,
@@ -2609,9 +2641,12 @@ mod tests {
     use tempfile::tempdir;
 
     use super::*;
-    use crate::torrent::operation::TorrentCreatePiecesOperation;
+    use crate::torrent::operation::{TorrentCreateFilesOperation, TorrentCreatePiecesOperation};
     use crate::torrent::peer::extension::metadata::MetadataExtension;
-    use crate::torrent::{TorrentFlags, TorrentOperation, TorrentOperationResult};
+    use crate::torrent::{
+        TorrentConfig, TorrentFlags, TorrentOperation, TorrentOperationResult, TorrentState,
+        DEFAULT_TORRENT_PROTOCOL_EXTENSIONS,
+    };
     use crate::{create_peer_pair, create_torrent};
     use popcorn_fx_core::{assert_timeout, init_logger};
 
@@ -2649,9 +2684,16 @@ mod tests {
             "debian-udp.torrent",
             temp_path,
             TorrentFlags::none(),
+            TorrentConfig::default(),
             vec![]
         );
-        let target_torrent = create_torrent!(uri, temp_path, TorrentFlags::Metadata, vec![]);
+        let target_torrent = create_torrent!(
+            uri,
+            temp_path,
+            TorrentFlags::Metadata,
+            TorrentConfig::default(),
+            vec![]
+        );
         let context = target_torrent.instance().unwrap();
         let runtime = context.runtime();
 
@@ -2703,6 +2745,7 @@ mod tests {
             "debian-udp.torrent",
             temp_path,
             TorrentFlags::none(),
+            TorrentConfig::default(),
             vec![]
         );
         let context = torrent.instance().unwrap();
@@ -2751,6 +2794,7 @@ mod tests {
             "debian-udp.torrent",
             temp_path,
             TorrentFlags::none(),
+            TorrentConfig::default(),
             vec![]
         );
         let context = torrent.instance().unwrap();
@@ -2775,6 +2819,104 @@ mod tests {
             torrent_bitfield.len(),
             remote_bitfield.len(),
             "expected the remote bitfield to match the torrent bitfield length"
+        );
+    }
+
+    #[test]
+    fn test_peer_torrent_validating_files() {
+        init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let source_torrent = create_torrent!(
+            "debian-udp.torrent",
+            temp_path,
+            TorrentFlags::UploadMode,
+            TorrentConfig::default(),
+            vec![|| Box::new(TorrentCreatePiecesOperation::new()), || {
+                Box::new(TorrentCreateFilesOperation::new())
+            }]
+        );
+        let target_torrent = create_torrent!(
+            "debian-udp.torrent",
+            temp_path,
+            TorrentFlags::DownloadMode,
+            TorrentConfig::default(),
+            vec![|| Box::new(TorrentCreatePiecesOperation::new()), || {
+                Box::new(TorrentCreateFilesOperation::new())
+            }]
+        );
+        let target_torrent_context = target_torrent.instance().unwrap();
+        let runtime = target_torrent_context.runtime();
+
+        // wait for the pieces/files to have been created
+        runtime.block_on(async {
+            loop {
+                if target_torrent.total_files().await.unwrap_or(0) > 0 {
+                    break;
+                }
+                time::sleep(Duration::from_millis(10)).await
+            }
+        });
+
+        // set the state of the downloading torrent to checking files
+        runtime.block_on(target_torrent_context.update_state(TorrentState::CheckingFiles));
+        // create the peer connections
+        let (incoming_peer, outgoing_peer) = create_peer_pair!(
+            &source_torrent,
+            &target_torrent,
+            DEFAULT_TORRENT_PROTOCOL_EXTENSIONS()
+        );
+
+        // notify that pieces have become available
+        incoming_peer.notify_piece_availability(vec![0, 1, 2, 3]);
+        // wait for the availability to have been processed
+        runtime.block_on(async {
+            loop {
+                if outgoing_peer.inner.remote_pieces.read().await.count_ones() > 0 {
+                    break;
+                }
+                time::sleep(Duration::from_millis(50)).await
+            }
+        });
+
+        // check that the outgoing peer is not trying to download any pieces
+        let pending_requests = runtime
+            .block_on(outgoing_peer.inner.client_pending_requests.read())
+            .len();
+        assert_eq!(
+            0, pending_requests,
+            "expected the downloading peer to not have sent out any requests"
+        );
+
+        // set the state of the downloading torrent to downloading
+        runtime.block_on(target_torrent_context.update_state(TorrentState::Downloading));
+        // notify that pieces have become available
+        incoming_peer.notify_piece_availability(vec![4]);
+        // check that the outgoing peer is trying to download pieces
+        let result = runtime.block_on(async {
+            let mut attempts = 0;
+
+            loop {
+                if outgoing_peer
+                    .inner
+                    .client_pending_requests
+                    .read()
+                    .await
+                    .len()
+                    > 0
+                {
+                    return true;
+                }
+                attempts += 1;
+                if attempts > 10 {
+                    return false;
+                }
+                time::sleep(Duration::from_millis(50)).await;
+            }
+        });
+        assert!(
+            result,
+            "expected the downloading peer to have sent requests"
         );
     }
 

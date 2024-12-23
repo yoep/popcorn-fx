@@ -193,9 +193,9 @@ impl TrackerManager {
     /// # Returns
     ///
     /// Returns the announcement response result.
-    pub async fn announce_all(&self) -> Announcement {
+    pub async fn announce_all(&self, event: AnnounceEvent) -> Announcement {
         let start_time = Instant::now();
-        let result = self.inner.announce_all(AnnounceEvent::Started).await;
+        let result = self.inner.announce_all(event).await;
         let elapsed = start_time.elapsed();
         trace!(
             "Announced to all trackers in {}.{:03} seconds",
@@ -566,7 +566,7 @@ mod tests {
         );
 
         manager.add_tracker_entry(entry).await.unwrap();
-        let result = manager.announce_all().await;
+        let result = manager.announce_all(AnnounceEvent::Started).await;
 
         assert_ne!(0, result.peers.len(), "expected peers to have been found");
     }

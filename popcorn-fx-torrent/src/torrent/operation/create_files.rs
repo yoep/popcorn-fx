@@ -103,11 +103,10 @@ impl TorrentOperation for TorrentCreateFilesOperation {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::torrent::fs::DefaultTorrentFileStorage;
-    use crate::torrent::operation::{TorrentCreatePiecesOperation, TorrentMetadataOperation};
-    use crate::torrent::{Torrent, TorrentMetadata};
+    use crate::create_torrent;
+    use crate::torrent::operation::TorrentCreatePiecesOperation;
+    use crate::torrent::{TorrentConfig, TorrentFlags};
     use popcorn_fx_core::init_logger;
-    use popcorn_fx_core::testing::read_test_file_to_bytes;
     use tempfile::tempdir;
 
     #[tokio::test]
@@ -115,21 +114,25 @@ mod tests {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let torrent_info_data = read_test_file_to_bytes("debian-udp.torrent");
-        let torrent_info = TorrentMetadata::try_from(torrent_info_data.as_slice()).unwrap();
-        let torrent = Torrent::request()
-            .metadata(torrent_info)
-            .peer_listener_port(6881)
-            .operations(vec![|| Box::new(TorrentMetadataOperation::new()), || {
-                Box::new(TorrentCreatePiecesOperation::new())
-            }])
-            .storage(Box::new(DefaultTorrentFileStorage::new(temp_path)))
-            .build()
-            .unwrap();
+        let torrent = create_torrent!(
+            "debian-udp.torrent",
+            temp_path,
+            TorrentFlags::none(),
+            TorrentConfig::default(),
+            vec![]
+        );
+        let context = torrent.instance().unwrap();
+        let create_pieces = TorrentCreatePiecesOperation::new();
         let operation = TorrentCreateFilesOperation::new();
-        let inner = torrent.instance().unwrap();
 
-        let result = operation.execute(&inner).await;
+        let result = create_pieces.execute(&context).await;
+        assert_eq!(
+            TorrentOperationResult::Continue,
+            result,
+            "expected the pieces to have been created"
+        );
+
+        let result = operation.execute(&context).await;
 
         assert_eq!(
             TorrentOperationResult::Continue,
@@ -138,8 +141,33 @@ mod tests {
         );
         assert_eq!(
             1,
-            inner.total_files().await,
+            context.total_files().await,
             "expected the files to have been created"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_execute_no_metadata() {
+        init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let uri = "magnet:?xt=urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7&dn=debian-12.4.0-amd64-DVD-1.iso&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce";
+        let torrent = create_torrent!(
+            uri,
+            temp_path,
+            TorrentFlags::none(),
+            TorrentConfig::default(),
+            vec![]
+        );
+        let context = torrent.instance().unwrap();
+        let operation = TorrentCreateFilesOperation::new();
+
+        let result = operation.execute(&context).await;
+
+        assert_eq!(
+            TorrentOperationResult::Stop,
+            result,
+            "expected the operations chain to stop"
         );
     }
 }

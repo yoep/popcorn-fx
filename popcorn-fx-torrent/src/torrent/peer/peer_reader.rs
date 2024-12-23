@@ -58,7 +58,7 @@ where
 
             select! {
                 _ = self.cancellation_token.cancelled() => break,
-                read_result = self.reader.read(&mut buffer) => {
+                read_result = self.reader.read_exact(&mut buffer) => {
                     match read_result {
                         Ok(0) => {
                             trace!("Peer reader {} EOF", self);

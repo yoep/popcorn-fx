@@ -291,7 +291,7 @@ impl HttpPeerContext {
 mod tests {
     use super::*;
     use crate::create_torrent;
-    use crate::torrent::TorrentFlags;
+    use crate::torrent::{TorrentConfig, TorrentFlags};
     use log::LevelFilter;
     use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::read_test_file_to_bytes;
@@ -306,7 +306,13 @@ mod tests {
         let expected_result =
             Url::parse("https://mirror.com/pub/debian-11.6.0-amd64-netinst.iso/README%25201.md")
                 .unwrap();
-        let torrent = create_torrent!("debian.torrent", temp_path, TorrentFlags::none(), vec![]);
+        let torrent = create_torrent!(
+            "debian.torrent",
+            temp_path,
+            TorrentFlags::none(),
+            TorrentConfig::default(),
+            vec![]
+        );
         let context = torrent.instance().unwrap();
         let runtime = context.runtime();
         let metadata = runtime.block_on(context.metadata());

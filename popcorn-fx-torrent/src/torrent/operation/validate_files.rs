@@ -4,7 +4,7 @@ use crate::torrent::{
 };
 use async_trait::async_trait;
 use futures::future;
-use log::{debug, trace};
+use log::{debug, info, trace};
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::select;
@@ -13,7 +13,7 @@ use tokio_util::sync::{
     CancellationToken, WaitForCancellationFuture, WaitForCancellationFutureOwned,
 };
 
-const CHUNK_VALIDATION_SIZE: usize = 400;
+const CHUNK_VALIDATION_SIZE: usize = 200;
 
 #[derive(Debug, PartialEq)]
 enum ValidationState {
@@ -51,6 +51,7 @@ impl TorrentFileValidationOperation {
             );
 
             let start = Instant::now();
+            let total_files = files.len();
             let futures: Vec<_> = files
                 .into_iter()
                 .map(|file| {
@@ -65,9 +66,10 @@ impl TorrentFileValidationOperation {
             }
 
             let time_taken = start.elapsed();
-            debug!(
-                "Torrent {} has completed file validation in {}.{:03} seconds",
+            info!(
+                "Torrent {} completed {} file validation(s) in {}.{:03} seconds",
                 context,
+                total_files,
                 time_taken.as_secs(),
                 time_taken.subsec_millis()
             );
@@ -199,7 +201,7 @@ mod tests {
     use super::*;
     use crate::create_torrent;
     use crate::torrent::operation::{TorrentCreateFilesOperation, TorrentCreatePiecesOperation};
-    use crate::torrent::TorrentFlags;
+    use crate::torrent::{TorrentConfig, TorrentFlags};
     use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::copy_test_file;
     use std::time::Duration;
@@ -215,6 +217,7 @@ mod tests {
             "debian-udp.torrent",
             temp_path,
             TorrentFlags::none(),
+            TorrentConfig::default(),
             vec![]
         );
         let context = torrent.instance().unwrap();
@@ -238,6 +241,7 @@ mod tests {
             "debian-udp.torrent",
             temp_path,
             TorrentFlags::none(),
+            TorrentConfig::default(),
             vec![]
         );
         let context = torrent.instance().unwrap();
@@ -266,6 +270,7 @@ mod tests {
             "debian-udp.torrent",
             temp_path,
             TorrentFlags::none(),
+            TorrentConfig::default(),
             vec![]
         );
         let context = torrent.instance().unwrap();

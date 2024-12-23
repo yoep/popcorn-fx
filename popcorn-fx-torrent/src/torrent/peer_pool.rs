@@ -30,6 +30,8 @@ impl PeerPool {
     /// The pool limit defines the maximum amount of peer connections that can be active for the torrent.
     /// The maximum in flight sets the maximum amount of peer connections that can be tried to be established at the same moment.
     pub fn new(handle: TorrentHandle, pool_limit: usize, max_in_flight: usize) -> Self {
+        let max_in_flight = max_in_flight.min(pool_limit);
+
         Self {
             handle,
             peers: Default::default(),
@@ -202,9 +204,23 @@ impl PeerPool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::torrent::TorrentFlags;
+    use crate::torrent::{TorrentConfig, TorrentFlags};
     use crate::{create_peer_pair, create_torrent};
-    use popcorn_fx_core::init_logger;
+    use popcorn_fx_core::{assert_timeout, init_logger};
+
+    #[test]
+    fn test_peer_pool_new_max_inflight_larger_than_pool_limit() {
+        init_logger!();
+        let pool_limit = 2;
+        let pool = PeerPool::new(TorrentHandle::new(), pool_limit, 10);
+
+        let result = pool.permits.available_permits();
+
+        assert_eq!(
+            pool_limit, result,
+            "expected the max in flight to not be larger than the pool limit"
+        );
+    }
 
     #[tokio::test]
     async fn test_peer_pool_is_permit_available() {
@@ -248,6 +264,7 @@ mod tests {
             "debian-udp.torrent",
             temp_path,
             TorrentFlags::none(),
+            TorrentConfig::default(),
             vec![]
         );
         let context = torrent.instance().unwrap();

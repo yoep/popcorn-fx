@@ -140,8 +140,8 @@ impl TorrentConnectPeersOperation {
                     }
                     Err(e) => {
                         debug!(
-                            "Failed to create peer connection for torrent {}, {}",
-                            handle_info, e
+                            "Torrent {} failed to connect to {}, {}",
+                            handle_info, peer_addr, e
                         );
                         drop(permit);
                     }
@@ -214,7 +214,7 @@ impl TorrentOperation for TorrentConnectPeersOperation {
 mod tests {
     use super::*;
     use crate::create_torrent;
-    use crate::torrent::TorrentFlags;
+    use crate::torrent::{TorrentConfig, TorrentFlags};
     use popcorn_fx_core::init_logger;
     use tempfile::tempdir;
 
@@ -225,7 +225,13 @@ mod tests {
         let temp_path = temp_dir.path().to_str().unwrap();
         let expected_result = vec![Url::parse("https://archive.org/download/").unwrap()];
         let uri = "magnet:?xt=urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7&dn=debian-12.4.0-amd64-DVD-1.iso&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce&ws=https%3A%2F%2Farchive.org%2Fdownload%2F";
-        let torrent = create_torrent!(uri, temp_path, TorrentFlags::none(), vec![]);
+        let torrent = create_torrent!(
+            uri,
+            temp_path,
+            TorrentFlags::none(),
+            TorrentConfig::default(),
+            vec![]
+        );
         let context = torrent.instance().unwrap();
         let runtime = context.runtime();
         let operation = TorrentConnectPeersOperation::new();
@@ -242,7 +248,13 @@ mod tests {
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let uri = "magnet:?xt=urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7&dn=debian-12.4.0-amd64-DVD-1.iso&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce";
-        let torrent = create_torrent!(uri, temp_path, TorrentFlags::none(), vec![]);
+        let torrent = create_torrent!(
+            uri,
+            temp_path,
+            TorrentFlags::none(),
+            TorrentConfig::default(),
+            vec![]
+        );
         let context = torrent.instance().unwrap();
         let runtime = context.runtime();
         let operation = TorrentConnectPeersOperation::new();

@@ -2108,14 +2108,14 @@ dependencies = [
 
 [[package]]
 name = "mockall"
-version = "0.13.0"
+version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d4c28b3fb6d753d28c20e826cd46ee611fda1cf3cde03a443a974043247c065a"
+checksum = "39a6bfcc6c8c7eed5ee98b9c3e33adc726054389233e201c95dab2d41a3839d2"
 dependencies = [
  "cfg-if",
  "downcast",
  "fragile",
- "mockall_derive 0.13.0",
+ "mockall_derive 0.13.1",
  "predicates",
  "predicates-tree",
 ]
@@ -2134,9 +2134,9 @@ dependencies = [
 
 [[package]]
 name = "mockall_derive"
-version = "0.13.0"
+version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "341014e7f530314e9a1fdbc7400b244efea7122662c96bfa248c31da5bfb2020"
+checksum = "25ca3004c2efe9011bd4e461bd8256445052b9615405b4f7ea43fc8ca5c20898"
 dependencies = [
  "cfg-if",
  "proc-macro2",
@@ -2560,7 +2560,7 @@ dependencies = [
  "directories",
  "log",
  "log4rs",
- "mockall 0.13.0",
+ "mockall 0.12.1",
  "popcorn-fx-core",
  "serde",
  "serde_yaml",
@@ -2590,7 +2590,7 @@ dependencies = [
  "local-ip-address",
  "log",
  "log4rs",
- "mockall 0.13.0",
+ "mockall 0.13.1",
  "percent-encoding",
  "popcorn-fx-core",
  "rand",
@@ -2640,7 +2640,7 @@ dependencies = [
  "futures",
  "libc",
  "log",
- "mockall 0.13.0",
+ "mockall 0.13.1",
  "popcorn-fx-core",
  "souvlaki",
  "tokio",
@@ -2703,7 +2703,7 @@ dependencies = [
  "hex-literal",
  "itertools 0.13.0",
  "log",
- "mockall 0.13.0",
+ "mockall 0.13.1",
  "percent-encoding",
  "popcorn-fx-core",
  "rand",

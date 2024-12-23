@@ -2,7 +2,9 @@ use crate::torrent::peer::extension::{
     Extension, ExtensionName, ExtensionNumber, ExtensionRegistry, Extensions,
 };
 use crate::torrent::peer::peer_reader::{PeerReader, PeerReaderEvent};
-use crate::torrent::peer::protocol::{ExtendedHandshake, Handshake, Message, Piece, Request};
+use crate::torrent::peer::protocol::{
+    ExtendedHandshake, Handshake, HashRequest, Message, Piece, Request,
+};
 use crate::torrent::peer::{Error, PeerId, Result};
 use crate::torrent::{
     calculate_byte_rate, CompactIp, InfoHash, PieceIndex, TorrentContext, TorrentEvent,
@@ -14,7 +16,7 @@ use bitmask_enum::bitmask;
 use byteorder::BigEndian;
 use byteorder::ByteOrder;
 use derive_more::Display;
-use log::{debug, error, trace, warn};
+use log::{debug, error, info, trace, warn};
 use popcorn_fx_core::core::callback::{Callback, MultiCallback, Subscriber, Subscription};
 use popcorn_fx_core::core::Handle;
 use std::cmp::Ordering;
@@ -275,6 +277,8 @@ pub struct RemotePeer {
     pub protocol_extensions: ProtocolExtensionFlags,
     pub extensions: ExtensionRegistry,
     pub client_name: Option<String>,
+    /// Indicates that the connection has been upgraded to v2
+    pub is_v2: bool,
 }
 
 #[derive(Clone, PartialEq)]
@@ -546,7 +550,7 @@ impl TcpPeer {
             .is_protocol_enabled(ProtocolExtensionFlags::LTEP)
             .await
         {
-            trace!("Exchanging extended handshake with peer {}", self);
+            trace!("Peer {} exchanging extended handshake", self);
             self.inner
                 .send_command_event(PeerCommandEvent::State(PeerState::Handshake));
             if let Err(e) = self.inner.send_extended_handshake().await {
@@ -886,10 +890,18 @@ impl Default for PeerTransferStats {
 }
 
 /// The piece that should be requested from the remote peer.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug)]
 pub struct RequestPieceData {
     /// The piece index to request
     pub piece: PieceIndex,
+    /// The acquired permit from the torrent to download the data
+    pub permit: OwnedSemaphorePermit,
+}
+
+impl PartialEq for RequestPieceData {
+    fn eq(&self, other: &Self) -> bool {
+        self.piece.eq(&other.piece)
+    }
 }
 
 /// The internal peer command events which are executed on the main loop of the peer.
@@ -1263,6 +1275,7 @@ impl PeerContext {
             Message::ExtendedHandshake(handshake) => {
                 self.update_extended_handshake(handshake).await
             }
+            Message::HashRequest(request) => self.handle_hash_request(request).await,
             _ => warn!("Message not yet implemented for {:?}", message),
         }
     }
@@ -1332,10 +1345,12 @@ impl PeerContext {
                 }
             }
         } else {
+            let piece = request.index;
             debug!(
                 "Peer {} is unable to provide piece {} data, torrent doesn't have the piece data available",
-                self, request.index
+                self, piece
             );
+
             self.send_reject_request(request).await;
         }
     }
@@ -1395,9 +1410,9 @@ impl PeerContext {
                     self.torrent.piece_part_completed(part, piece.data);
                 } else {
                     debug!(
-                    "Received invalid piece part {:?} data from {}, received data len {} and expected {}",
-                        part,
+                    "Peer {} received invalid piece part {:?} data, received data length {}, expected length {}",
                         self,
+                        part,
                         piece.data.len(),
                         data_size
                     );
@@ -1420,6 +1435,20 @@ impl PeerContext {
                 "Received piece {} data from peer {} for an unwanted (not queued) request",
                 piece.index, self
             );
+        }
+    }
+
+    /// Handle a received hash request from the remote peer.
+    async fn handle_hash_request(&self, request: HashRequest) {
+        // check if the torrent hash is a v2
+        let metadata = self.torrent.metadata().await;
+        let metadata_version = metadata.metadata_version().unwrap_or(0);
+        if metadata_version != 2 {
+            warn!(
+                "Peer {} is unable to handle hash request for torrent with metadata version {}",
+                self, metadata_version
+            );
+            return;
         }
     }
 
@@ -1573,10 +1602,41 @@ impl PeerContext {
     async fn validate_handshake(&self, buffer: Vec<u8>) -> Result<()> {
         let handshake = Handshake::from_bytes(&self.client.addr, buffer.as_ref())?;
         let info_hash = self.torrent.metadata_lock().read().await.info_hash.clone();
+        let mut v2_enabled = false;
+        let mut is_valid = false;
         trace!("Peer {} received handshake {:?}", self, handshake);
 
-        // verify that the peer sent the correct info hash which we expect
-        if info_hash != handshake.info_hash {
+        // check if v2 support is enabled
+        if self
+            .protocol_extensions
+            .contains(ProtocolExtensionFlags::SupportV2)
+            && handshake
+                .supported_extensions
+                .contains(ProtocolExtensionFlags::SupportV2)
+        {
+            // use the v2 info hash for validation
+            if let Some(v2_hash) = info_hash.v2_as_short() {
+                trace!("Peer {} is validating v2 handshake {:?}", self, v2_hash);
+                if v2_hash == handshake.info_hash.short_info_hash_bytes() {
+                    debug!("Peer {} has successfully upgraded to v2", self);
+                    v2_enabled = true;
+                    is_valid = true;
+                } else {
+                    debug!(
+                        "Peer {} failed to upgrade to v2, invalid v2 handshake, falling back to v1 handshake validation",
+                        self
+                    );
+                }
+            } else {
+                warn!(
+                    "Peer {} is unable to upgrade to v2, metadata v2 hash is missing",
+                    self
+                )
+            }
+        }
+
+        // check if the v2 handshake didn't succeed and we're using v1 handshake validation
+        if !is_valid && info_hash != handshake.info_hash {
             self.update_state(PeerState::Error).await;
             return Err(Error::Handshake(
                 self.client.addr.clone(),
@@ -1585,7 +1645,11 @@ impl PeerContext {
         }
 
         // store the remote peer information
-        trace!("Updating remote peer information for {}", handshake.peer_id);
+        trace!(
+            "Peer {} is updating remote peer information with {:?}",
+            self,
+            handshake
+        );
         {
             let mut mutex = self.remote.write().await;
             *mutex = Some(RemotePeer {
@@ -1593,6 +1657,7 @@ impl PeerContext {
                 protocol_extensions: handshake.supported_extensions,
                 extensions: ExtensionRegistry::default(),
                 client_name: None,
+                is_v2: v2_enabled,
             });
         }
 
@@ -1798,7 +1863,7 @@ impl PeerContext {
                     "Peer {} updated {}/{} remote available pieces",
                     self,
                     pieces.count_ones(),
-                    self.torrent.total_pieces().await
+                    pieces.len()
                 );
             }
         }
@@ -1948,9 +2013,12 @@ impl PeerContext {
         let is_download_allowed = self.torrent.is_download_allowed().await;
         let is_piece_wanted = self.torrent.is_piece_wanted(&piece).await;
         if is_download_allowed && is_piece_wanted {
-            self.send_command_event(PeerCommandEvent::RequestPieceData(RequestPieceData {
-                piece,
-            }));
+            if let Some(permit) = self.torrent.request_download_permit(&piece).await {
+                self.send_command_event(PeerCommandEvent::RequestPieceData(RequestPieceData {
+                    piece,
+                    permit,
+                }));
+            }
         }
     }
 
@@ -2035,6 +2103,7 @@ impl PeerContext {
             return;
         }
 
+        let permit = request_data.permit;
         let piece = self
             .torrent
             .pieces_lock()
@@ -2043,43 +2112,40 @@ impl PeerContext {
             .get(request_data.piece)
             .cloned();
         if let Some(piece) = piece {
-            // try to obtain a permit before requesting the piece data
-            if let Some(permit) = self.torrent.request_download_permit(&piece.index).await {
-                let mut sent_requests = 0;
-                let requests: Vec<Request> = piece
-                    .parts_to_request()
-                    .into_iter()
-                    .map(|part| Request {
-                        index: piece.index,
-                        begin: part.begin,
-                        length: part.length,
-                    })
-                    .collect();
+            let mut sent_requests = 0;
+            let requests: Vec<Request> = piece
+                .parts_to_request()
+                .into_iter()
+                .map(|part| Request {
+                    index: piece.index,
+                    begin: part.begin,
+                    length: part.length,
+                })
+                .collect();
 
-                trace!(
-                    "Trying to request piece {} data for {}, {:?}",
-                    piece.index,
-                    self,
-                    requests
-                );
-                for request in requests {
-                    if self.send_pending_request(request).await {
-                        sent_requests += 1;
-                    }
+            trace!(
+                "Trying to request piece {} data for {}, {:?}",
+                piece.index,
+                self,
+                requests
+            );
+            for request in requests {
+                if self.send_pending_request(request).await {
+                    sent_requests += 1;
                 }
-
-                if sent_requests > 0 {
-                    // keep the permit as the data requested is in flight until completion, cancellation or rejection
-                    self.client_pending_request_permits
-                        .lock()
-                        .await
-                        .insert(piece.index, permit);
-                    debug!(
-                        "Peer {} requested piece {} data ({} pending requests)",
-                        self, piece.index, sent_requests
-                    );
-                } // otherwise, we'll drop the permit automatically as no data could be requested
             }
+
+            if sent_requests > 0 {
+                // keep the permit as the data requested is in flight until completion, cancellation or rejection
+                self.client_pending_request_permits
+                    .lock()
+                    .await
+                    .insert(piece.index, permit);
+                debug!(
+                    "Peer {} requested piece {} data ({} pending requests)",
+                    self, piece.index, sent_requests
+                );
+            } // otherwise, we'll drop the permit automatically as no data could be requested
         }
     }
 
@@ -2121,9 +2187,12 @@ impl PeerContext {
             self.request_upload_permit_if_needed(true).await;
 
             for piece in wanted_pieces {
-                self.send_command_event(PeerCommandEvent::RequestPieceData(RequestPieceData {
-                    piece,
-                }))
+                if let Some(permit) = self.torrent.request_download_permit(&piece).await {
+                    self.send_command_event(PeerCommandEvent::RequestPieceData(RequestPieceData {
+                        piece,
+                        permit,
+                    }))
+                }
             }
         }
     }
@@ -2154,9 +2223,12 @@ impl PeerContext {
             .collect();
 
         for piece in wanted_fast_pieces {
-            self.send_command_event(PeerCommandEvent::RequestPieceData(RequestPieceData {
-                piece,
-            }))
+            if let Some(permit) = self.torrent.request_download_permit(&piece).await {
+                self.send_command_event(PeerCommandEvent::RequestPieceData(RequestPieceData {
+                    piece,
+                    permit,
+                }))
+            }
         }
     }
 
@@ -2171,12 +2243,14 @@ impl PeerContext {
             .unwrap_or(false)
     }
 
+    /// Try to send the handshake information of our client peer to the remote peer.
     async fn send_handshake(&self) -> Result<()> {
         self.update_state(PeerState::Handshake).await;
         let info_hash = self.torrent.metadata_lock().read().await.info_hash.clone();
+        let protocol_extensions = self.protocol_extensions;
 
-        let handshake = Handshake::new(info_hash, self.client.id, self.protocol_extensions);
-        trace!("Trying to send handshake {:?}", handshake);
+        let handshake = Handshake::new(info_hash, self.client.id, protocol_extensions);
+        debug!("Peer {} is sending handshake {:?}", self, handshake);
         match self
             .send_raw_bytes(TryInto::<Vec<u8>>::try_into(handshake)?, None)
             .await
@@ -2195,7 +2269,8 @@ impl PeerContext {
         let message = Message::ExtendedHandshake(ExtendedHandshake {
             m: extension_registry,
             upload_only: is_partial_seed,
-            client: Some("PopcornFX".to_string()),
+            client: Some(self.torrent.config_lock().read().await.client_name.clone())
+                .filter(|e| !e.is_empty()),
             regg: None,
             encryption: false,
             metadata_size: None,
@@ -2205,6 +2280,7 @@ impl PeerContext {
             ipv6: None,
         });
 
+        debug!("Peer {} is sending extended handshake {:?}", self, message);
         self.send(message).await
     }
 

@@ -5,7 +5,7 @@ use crate::torrent::{
 use async_trait::async_trait;
 use bit_vec::BitVec;
 use derive_more::Display;
-use log::{debug, warn};
+use log::{debug, trace, warn};
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -23,17 +23,16 @@ impl TorrentCreatePiecesOperation {
 
         match self.try_create_pieces(torrent).await {
             Ok(pieces) => {
-                let total_pieces = pieces.len();
-                torrent.update_pieces(pieces).await;
-
-                debug!(
-                    "A total of {} pieces have been created for {}",
-                    total_pieces, torrent
+                trace!(
+                    "Torrent {} created a total of {} pieces",
+                    torrent,
+                    pieces.len()
                 );
+                torrent.update_pieces(pieces).await;
                 true
             }
             Err(e) => {
-                warn!("Failed to create torrent pieces of {}, {}", torrent, e);
+                warn!("Torrent {} failed to create torrent pieces, {}", torrent, e);
                 false
             }
         }
@@ -161,8 +160,8 @@ mod tests {
         let result = operation.execute(&inner).await;
 
         assert_eq!(TorrentOperationResult::Continue, result);
-        assert_ne!(
-            0,
+        assert_eq!(
+            15237,
             torrent.total_pieces().await,
             "expected the pieces to have been created"
         );

@@ -870,6 +870,7 @@ mod tests {
         let handle = Handle::new();
         let mut torrent_stream = MockTorrentStream::new();
         torrent_stream
+            .inner
             .expect_stream_handle()
             .times(1)
             .return_const(handle.clone());
@@ -900,6 +901,7 @@ mod tests {
         let handle = Handle::new();
         let mut torrent_stream = MockTorrentStream::new();
         torrent_stream
+            .inner
             .expect_stream_handle()
             .times(1)
             .return_const(handle.clone());

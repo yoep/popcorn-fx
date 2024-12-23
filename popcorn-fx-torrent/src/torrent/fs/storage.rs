@@ -6,8 +6,6 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
-const CACHE_CLEANUP_AFTER: Duration = Duration::from_secs(3);
-
 /// Trait for handling the torrent file storage.
 /// A [TorrentFileStorage] should always be specific to a single [Torrent].
 ///

@@ -214,6 +214,21 @@ pub enum TorrentInfoFile {
     },
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(untagged)]
+pub enum FileTree {
+    File(FileNode),
+    Dir(BTreeMap<String, FileTree>),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct FileNode {
+    /// Length of the file in bytes.
+    pub length: u64,
+    /// For non-empty files this is the root hash of a merkle tree with a branching factor of 2, constructed from 16KiB blocks of the file.
+    pub pieces_root: String,
+}
+
 /// Metadata of a torrent, including pieces, piece length, file info, etc.
 #[derive(Clone, Serialize, Deserialize, PartialEq)]
 pub struct TorrentMetadataInfo {
@@ -239,7 +254,8 @@ pub struct TorrentMetadataInfo {
     pub private: Option<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
-    /// An integer value, set to 2 to indicate compatibility with the current revision of BEP52. Version 1 is not assigned to avoid confusion with BEP3.
+    /// An integer value, set to 2 to indicate compatibility with the current revision of BEP52.
+    /// Version 1 is not assigned to avoid confusion with BEP3.
     #[serde(
         rename = "meta version",
         default,
@@ -249,6 +265,10 @@ pub struct TorrentMetadataInfo {
     /// Information about the torrent files.
     #[serde(flatten)]
     pub files: TorrentInfoFile,
+    /// A tree of dictionaries where dictionary keys represent UTF-8 encoded path elements.
+    /// See BEP52 for more info
+    #[serde(rename = "file tree", default, skip_serializing_if = "Option::is_none")]
+    pub file_tree: Option<FileTree>,
 }
 
 impl TorrentMetadataInfo {
@@ -366,6 +386,7 @@ pub struct TorrentMetadataInfoBuilder {
     private: Option<i64>,
     source: Option<String>,
     files: Option<TorrentInfoFile>,
+    file_tree: Option<FileTree>,
 }
 
 impl TorrentMetadataInfoBuilder {
@@ -408,6 +429,11 @@ impl TorrentMetadataInfoBuilder {
         self
     }
 
+    pub fn file_tree(mut self, file_tree: FileTree) -> Self {
+        self.file_tree = Some(file_tree);
+        self
+    }
+
     pub fn build(self) -> TorrentMetadataInfo {
         TorrentMetadataInfo {
             pieces: self.pieces.unwrap_or_default(),
@@ -418,6 +444,7 @@ impl TorrentMetadataInfoBuilder {
             source: self.source,
             meta_version: None,
             files: self.files.expect("expected files to be set"),
+            file_tree: self.file_tree,
         }
     }
 }
@@ -496,13 +523,16 @@ impl TorrentMetadata {
         self.name = Some(name.into());
     }
 
-    /// Retrieve the metadata version if known.
+    /// Get the metadata version of the torrent if known.
+    ///
+    /// If the protocol version is v1, it will return `1`.
+    /// If the protocol version is v2, it will return `2`.
     ///
     /// # Returns
     ///
     /// Returns the metadata version of the torrent info if known, else [None].
     pub fn metadata_version(&self) -> Option<u64> {
-        self.info.as_ref().and_then(|e| e.meta_version.clone())
+        self.info.as_ref().map(|e| e.meta_version.unwrap_or(1))
     }
 
     /// Get the trackers in a tiered order for this torrent.
@@ -570,28 +600,30 @@ impl TorrentMetadata {
     ///
     /// Returns the total number of pieces for the torrent.
     pub fn total_pieces(&self) -> Option<usize> {
-        if let Some(metadata) = &self.info {
-            let file_size = metadata.total_size();
-            let piece_length = metadata.piece_length as usize;
-            let expected_pieces = if self.info_hash.has_v2() {
-                metadata.sha256_pieces().len()
-            } else {
-                metadata.sha1_pieces().len()
-            };
+        self.info
+            .as_ref()
+            .map(|metadata| {
+                let file_size = metadata.total_size();
+                let piece_length = metadata.piece_length as usize;
+                let num_pieces = (file_size + piece_length - 1) / piece_length;
 
-            let num_pieces = (file_size + piece_length - 1) / piece_length;
+                let expected_pieces = if self.info_hash.has_v2() {
+                    metadata.sha256_pieces().len()
+                } else {
+                    metadata.sha1_pieces().len()
+                };
 
-            if expected_pieces == num_pieces {
-                return Some(num_pieces);
-            }
-
-            debug!(
-                "Unable to determine pieces, expected {} but got {} instead",
-                expected_pieces, num_pieces
-            );
-        }
-
-        None
+                if expected_pieces == num_pieces {
+                    Some(num_pieces)
+                } else {
+                    debug!(
+                        "Unable to determine pieces, expected {} but got {} instead",
+                        expected_pieces, num_pieces
+                    );
+                    None
+                }
+            })
+            .unwrap_or(None)
     }
 
     /// Calculate the info hash from the metadata of the torrent.
@@ -664,7 +696,7 @@ impl TryFrom<Magnet> for TorrentMetadata {
             builder = builder.url_list(webseeds);
         }
         // extract the info hash
-        builder = builder.info_hash(InfoHash::from_str(value.xt())?);
+        builder = builder.info_hash(InfoHash::try_from_str_slice(value.xt().as_slice())?);
 
         Ok(builder.build())
     }

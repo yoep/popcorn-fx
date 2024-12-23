@@ -22,8 +22,10 @@ Both V1 & V2 of the Bittorrent protocol specification have been implemented.
 - [ ] [BEP29](https://www.bittorrent.org/beps/bep_0029.html) - uTorrent transport protocol
 - [ ] [BEP40](https://www.bittorrent.org/beps/bep_0040.html) - Canonical Peer Priority
 - [x] [BEP47](https://www.bittorrent.org/beps/bep_0047.html) - Padding files and extended file attributes
+- [ ] [BEP48](https://www.bittorrent.org/beps/bep_0048.html) - Tracker Protocol Extension: Scrape
 - [ ] [BEP52](https://www.bittorrent.org/beps/bep_0052.html) - The BitTorrent Protocol Specification v2
 - [x] [BEP53](https://www.bittorrent.org/beps/bep_0053.html) - Magnets
+- [ ] [BEP54](https://www.bittorrent.org/beps/bep_0054.html) - The lt_donthave extension
 - [ ] [BEP55](https://www.bittorrent.org/beps/bep_0055.html) - Holepunch extension
 
 ## Installation
@@ -47,8 +49,12 @@ use popcorn_fx_torrents::torrents::{DefaultSession, Session};
 
 fn main() {
   let runtime = Arc::new(Runtime::new().unwrap());
-  // always provide a tokio runtime which is used to run all async operation in the background
-  let session : Session = DefaultSession::new(runtime);
+  // it's recommended, but not required, to provide a shared runtime
+  let session: Session = DefaultSession::builder()
+    .base_path("/torrent/location/directory")
+    .client_name("MyClient")
+    .runtime(shared_runtime)
+    .build();
 }
 ```
 

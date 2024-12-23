@@ -1,11 +1,10 @@
-use log::{trace, warn};
-use std::ptr;
-
-use popcorn_fx_core::core::playlist::{Playlist, PlaylistItem};
-use popcorn_fx_core::{from_c_vec, into_c_owned};
-
 use crate::ffi::{CArray, PlaylistItemC, PlaylistManagerCallbackC, PlaylistManagerEventC};
 use crate::PopcornFX;
+use log::{trace, warn};
+use popcorn_fx_core::core::block_in_place_runtime;
+use popcorn_fx_core::core::playlist::{Playlist, PlaylistItem};
+use popcorn_fx_core::{from_c_vec, into_c_owned};
+use std::ptr;
 
 /// Play a playlist from C by converting it to the Rust data structure and starting playback asynchronously.
 ///
@@ -33,14 +32,20 @@ pub extern "C" fn play_playlist(
         .collect();
 
     trace!("Starting playlist from C for {:?}", playlist);
-    popcorn_fx
-        .playlist_manager()
-        .play(playlist)
-        .map(|e| e.value() as *const i64)
-        .unwrap_or_else(|| {
-            warn!("Failed to start playlist from C");
-            ptr::null()
-        })
+    block_in_place_runtime(
+        async {
+            popcorn_fx
+                .playlist_manager()
+                .play(playlist)
+                .await
+                .map(|e| e.value() as *const i64)
+                .unwrap_or_else(|| {
+                    warn!("Failed to start playlist from C");
+                    ptr::null()
+                })
+        },
+        popcorn_fx.runtime(),
+    )
 }
 
 /// Play the next item in the playlist from C.
@@ -59,11 +64,17 @@ pub extern "C" fn play_playlist(
 #[no_mangle]
 pub extern "C" fn play_next_playlist_item(popcorn_fx: &mut PopcornFX) -> *const i64 {
     trace!("Playing next item in playlist from C");
-    popcorn_fx
-        .playlist_manager()
-        .play_next()
-        .map(|e| e.value() as *const i64)
-        .unwrap_or(ptr::null())
+    block_in_place_runtime(
+        async {
+            popcorn_fx
+                .playlist_manager()
+                .play_next()
+                .await
+                .map(|e| e.value() as *const i64)
+                .unwrap_or(ptr::null())
+        },
+        popcorn_fx.runtime(),
+    )
 }
 
 /// Stop the playback of the current playlist from C.
@@ -124,14 +135,20 @@ pub extern "C" fn register_playlist_manager_callback(
 #[no_mangle]
 pub extern "C" fn playlist(popcorn_fx: &mut PopcornFX) -> *mut CArray<PlaylistItemC> {
     trace!("Retrieving playlist from C");
-    let vec: Vec<PlaylistItemC> = popcorn_fx
-        .playlist_manager()
-        .playlist()
-        .items
-        .into_iter()
-        .map(|e| PlaylistItemC::from(e))
-        .collect();
-    into_c_owned(CArray::from(vec))
+    block_in_place_runtime(
+        async {
+            let vec: Vec<PlaylistItemC> = popcorn_fx
+                .playlist_manager()
+                .playlist()
+                .await
+                .items
+                .into_iter()
+                .map(|e| PlaylistItemC::from(e))
+                .collect();
+            into_c_owned(CArray::from(vec))
+        },
+        popcorn_fx.runtime(),
+    )
 }
 
 /// Dispose of a playlist item.
@@ -181,7 +198,7 @@ mod test {
 
     use popcorn_fx_core::core::playlist::{PlaylistManagerEvent, PlaylistState};
     use popcorn_fx_core::testing::init_logger;
-    use popcorn_fx_core::{into_c_owned, into_c_string};
+    use popcorn_fx_core::{init_logger, into_c_owned, into_c_string};
 
     use crate::test::default_args;
 
@@ -189,7 +206,7 @@ mod test {
 
     #[test]
     fn test_play_playlist() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let item = PlaylistItemC::from(PlaylistItem {
@@ -234,7 +251,7 @@ mod test {
 
     #[test]
     fn test_play_next_playlist_item() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut playlist = CArray::from(vec![
@@ -273,7 +290,7 @@ mod test {
 
     #[test]
     fn test_stop_playlist() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(default_args(temp_path));
@@ -305,13 +322,16 @@ mod test {
 
         stop_playlist(&mut instance);
 
-        let result = instance.playlist_manager().has_next();
+        let result = instance
+            .runtime()
+            .block_on(instance.playlist_manager().has_next());
+
         assert_eq!(false, result, "expected the playlist to be empty");
     }
 
     #[test]
     fn test_dispose_playlist_item() {
-        init_logger();
+        init_logger!();
         let item = Box::new(PlaylistItemC {
             url: into_c_string("http://my_url".to_string()),
             title: into_c_string("Foo Bar".to_string()),
@@ -332,7 +352,7 @@ mod test {
 
     #[test]
     fn test_dispose_playlist_set() {
-        init_logger();
+        init_logger!();
         let item = PlaylistItemC {
             url: into_c_string("http://my_url".to_string()),
             title: into_c_string("Foo Bar".to_string()),

@@ -1036,16 +1036,16 @@ mod test {
 
     use tokio::runtime::Runtime;
 
-    use crate::assert_timeout;
     use crate::core::cache::CacheExecutionError;
     use crate::core::media::{MediaError, MovieOverview};
-    use crate::testing::{copy_test_file, init_logger, read_test_file_to_bytes};
+    use crate::testing::{copy_test_file, read_test_file_to_bytes};
+    use crate::{assert_timeout, init_logger};
 
     use super::*;
 
     #[test]
     fn test_execute_cache_not_present_and_operation_successful() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let cache_manager = Arc::new(
@@ -1104,7 +1104,7 @@ mod test {
 
     #[test]
     fn test_execute_cache_not_present_and_operation_failed() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let cache_manager = Arc::new(
@@ -1149,7 +1149,7 @@ mod test {
 
     #[test]
     fn test_execute_cache_is_present_and_type_is_cache_first() {
-        init_logger();
+        init_logger!();
         let filename = "simple.jpg";
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -1197,7 +1197,7 @@ mod test {
 
     #[test]
     fn test_execute_cache_is_present_and_type_is_cache_last() {
-        init_logger();
+        init_logger!();
         let filename = "simple.jpg";
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -1250,7 +1250,7 @@ mod test {
 
     #[test]
     fn test_execute_serializer() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let cache_manager = Arc::new(
@@ -1297,7 +1297,7 @@ mod test {
 
     #[test]
     fn test_execute_serializer_error() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let cache_manager = Arc::new(
@@ -1364,7 +1364,7 @@ mod test {
 
     #[test]
     fn test_run_cleanup() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let test_filepath = copy_test_file(temp_path, "simple.jpg", Some("cache/simple.jpg"));
@@ -1399,7 +1399,7 @@ mod test {
 
     #[test]
     fn test_run_cleanup_non_existing_entry() {
-        init_logger();
+        init_logger!();
         let cache_entry = "foo";
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();

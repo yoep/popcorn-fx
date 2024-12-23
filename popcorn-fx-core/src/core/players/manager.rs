@@ -977,8 +977,11 @@ mod tests {
         let stream_handle = Handle::new();
         let (tx, rx) = channel();
         let mut stream = MockTorrentStream::new();
-        stream.expect_handle().return_const(torrent_handle);
-        stream.expect_stream_handle().return_const(stream_handle);
+        stream.inner.expect_handle().return_const(torrent_handle);
+        stream
+            .inner
+            .expect_stream_handle()
+            .return_const(stream_handle);
         let stream = Arc::new(Box::new(stream) as Box<dyn TorrentStream>);
         let request: Arc<Box<dyn PlayRequest>> = Arc::new(Box::new(PlayMediaRequest {
             base: PlayUrlRequest {

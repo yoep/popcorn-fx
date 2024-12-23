@@ -13,9 +13,8 @@ use crate::torrent::peer::ProtocolExtensionFlags;
 use crate::torrent::torrent::Torrent;
 use crate::torrent::{
     ExtensionFactories, ExtensionFactory, InfoHash, TorrentConfig, TorrentError, TorrentEvent,
-    TorrentFlags, TorrentHandle, TorrentMetadata, TorrentOperation, TorrentOperationFactory,
-    TorrentOperations, DEFAULT_TORRENT_EXTENSIONS, DEFAULT_TORRENT_OPERATIONS,
-    DEFAULT_TORRENT_PROTOCOL_EXTENSIONS,
+    TorrentFlags, TorrentHandle, TorrentMetadata, TorrentOperationFactory,
+    DEFAULT_TORRENT_EXTENSIONS, DEFAULT_TORRENT_OPERATIONS, DEFAULT_TORRENT_PROTOCOL_EXTENSIONS,
 };
 use async_trait::async_trait;
 use derive_more::Display;
@@ -195,20 +194,27 @@ impl DefaultSession {
     /// # Example
     ///
     /// ```rust,no_run
-    ///
     /// use std::sync::Arc;
     /// use tokio::runtime::Runtime;
     /// use popcorn_fx_torrent::torrent::{DefaultSession, Result};
     /// use popcorn_fx_torrent::torrent::peer::extension::metadata::MetadataExtension;
+    /// use popcorn_fx_torrent::torrent::peer::ProtocolExtensionFlags;
     ///
     /// fn new_torrent_session(shared_runtime: Arc<Runtime>) -> Result<DefaultSession> {
     ///     DefaultSession::builder()
     ///         .base_path("/torrent/location/directory")
+    ///         .client_name("MyClient")
+    ///         .protocol_extensions(ProtocolExtensionFlags::LTEP | ProtocolExtensionFlags::Fast)
     ///         .extensions(vec![|| Box::new(MetadataExtension::new())])
     ///         .runtime(shared_runtime)
     ///         .build()
     /// }
     /// ```
+    ///
+    /// # Panics
+    ///
+    /// The `build` function of the builder will panic if the `base path` or `client name` is not set.
+    /// Everything else is optional and uses default settings if not set.
     pub fn builder() -> SessionBuilder {
         SessionBuilder::new()
     }
@@ -218,19 +224,21 @@ impl DefaultSession {
     /// # Arguments
     ///
     /// * `base_path` - The base path to use for storing torrent data.
+    /// * `client_name` - The client name of the session.
+    /// * `protocol_extensions` - The protocol extensions to use for this session.
     /// * `extensions` - The peer extensions to use for this session.
-    /// * `torrent_operations` - The torrent operations to use for this session.
-    /// * `request_strategies` - The request strategies to use for this session.
+    /// * `operations` - The torrent operations to use for this session.
     /// * `runtime` - The tokio runtime to use for this session.
     ///
     /// # Returns
     ///
     /// Returns the session when initialized successfully or an error on failure.
-    pub async fn new<P: AsRef<Path>>(
+    pub async fn new<P: AsRef<Path>, S: AsRef<str>>(
         base_path: P,
+        client_name: S,
         protocol_extensions: ProtocolExtensionFlags,
         extensions: ExtensionFactories,
-        torrent_operations: Vec<TorrentOperationFactory>,
+        operations: Vec<TorrentOperationFactory>,
         runtime: Arc<Runtime>,
     ) -> Result<Self> {
         trace!("Trying to create a new torrent session");
@@ -238,9 +246,10 @@ impl DefaultSession {
         let inner = Arc::new(
             InnerSession::new(
                 torrent_storage_location,
+                client_name.as_ref().to_string(),
                 protocol_extensions,
                 extensions,
-                torrent_operations,
+                operations,
             )
             .await?,
         );
@@ -294,7 +303,7 @@ impl DefaultSession {
         }
 
         let info_hash = torrent_info.info_hash.clone();
-        let mut config = TorrentConfig::builder();
+        let mut config = TorrentConfig::builder().client_name(self.inner.client_name.as_str());
 
         if let Some(peer_timeout) = peer_timeout {
             config = config.peer_connection_timeout(peer_timeout);
@@ -370,6 +379,7 @@ impl Session for DefaultSession {
                         .options(TorrentFlags::none())
                         .config(
                             TorrentConfig::builder()
+                                .client_name(self.inner.client_name.as_str())
                                 .peers_lower_limit(0)
                                 .peers_upper_limit(0)
                                 .peer_connection_timeout(Duration::from_secs(0))
@@ -500,9 +510,10 @@ impl Callbacks<SessionEvent> for DefaultSession {
 #[derive(Debug, Default)]
 pub struct SessionBuilder {
     base_path: Option<PathBuf>,
+    client_name: Option<String>,
     protocol_extensions: Option<ProtocolExtensionFlags>,
     extension_factories: Option<ExtensionFactories>,
-    torrent_operation: Option<Vec<TorrentOperationFactory>>,
+    operation_factories: Option<Vec<TorrentOperationFactory>>,
     runtime: Option<Arc<Runtime>>,
 }
 
@@ -514,6 +525,13 @@ impl SessionBuilder {
     /// Set the base path for the torrent storage of the session.
     pub fn base_path<P: AsRef<Path>>(mut self, base_path: P) -> Self {
         self.base_path = Some(base_path.as_ref().to_path_buf());
+        self
+    }
+
+    /// Set the client name for the session.
+    /// This is the name of the client that is exchanged with peers that support `LTEP`.
+    pub fn client_name<S: AsRef<str>>(mut self, client_name: S) -> Self {
+        self.client_name = Some(client_name.as_ref().to_string());
         self
     }
 
@@ -539,9 +557,18 @@ impl SessionBuilder {
         self
     }
 
-    /// Set the torrent operations for the session.
-    pub fn torrent_operations(mut self, torrent_operations: Vec<TorrentOperationFactory>) -> Self {
-        self.torrent_operation = Some(torrent_operations);
+    /// Add an operation to the session.
+    pub fn operation(mut self, operation: TorrentOperationFactory) -> Self {
+        self.operation_factories
+            .get_or_insert(Vec::new())
+            .push(operation);
+        self
+    }
+
+    /// Set the torrent operation factories for the session.
+    /// These are the operations which are executed on the main loop of the torrent.
+    pub fn operations(mut self, torrent_operations: Vec<TorrentOperationFactory>) -> Self {
+        self.operation_factories = Some(torrent_operations);
         self
     }
 
@@ -553,8 +580,15 @@ impl SessionBuilder {
 
     /// Create a new torrent session from this builder.
     /// The only required field within this builder is the base path for the torrent storage.
+    ///
+    /// # Panics
+    ///
+    /// The method panics if the `base path` or `client name` is not set.
     pub async fn build(self) -> Result<DefaultSession> {
         let base_path = self.base_path.expect("expected the base path to be set");
+        let client_name = self
+            .client_name
+            .expect("expected the client name to be set");
         let protocol_extensions = self
             .protocol_extensions
             .unwrap_or_else(DEFAULT_TORRENT_PROTOCOL_EXTENSIONS);
@@ -562,7 +596,7 @@ impl SessionBuilder {
             .extension_factories
             .unwrap_or_else(DEFAULT_TORRENT_EXTENSIONS);
         let torrent_operations = self
-            .torrent_operation
+            .operation_factories
             .unwrap_or_else(DEFAULT_TORRENT_OPERATIONS);
         let runtime = self.runtime.unwrap_or_else(|| {
             Arc::new(
@@ -577,6 +611,7 @@ impl SessionBuilder {
 
         DefaultSession::new(
             base_path,
+            client_name,
             protocol_extensions,
             extensions,
             torrent_operations,
@@ -593,6 +628,8 @@ struct InnerSession {
     handle: SessionHandle,
     /// The base path for the torrent storage of the session
     base_path: RwLock<PathBuf>,
+    /// The client name of the session, exchanged with peers that support `LTEP`
+    client_name: String,
     /// The currently active torrents within the session
     torrents: RwLock<HashMap<InfoHash, Torrent>>,
     /// The enabled protocol extensions of the session
@@ -608,6 +645,7 @@ struct InnerSession {
 impl InnerSession {
     async fn new(
         base_path: PathBuf,
+        client_name: String,
         protocol_extensions: ProtocolExtensionFlags,
         extensions: ExtensionFactories,
         torrent_operations: Vec<TorrentOperationFactory>,
@@ -615,6 +653,7 @@ impl InnerSession {
         Ok(Self {
             handle: Default::default(),
             base_path: RwLock::new(base_path),
+            client_name,
             protocol_extensions,
             extension_factories: extensions,
             torrent_operations,
@@ -773,6 +812,7 @@ pub mod tests {
             .block_on(
                 DefaultSession::builder()
                     .base_path(temp_path)
+                    .client_name("test")
                     .runtime(runtime.clone())
                     .build(),
             )
@@ -797,6 +837,7 @@ pub mod tests {
             .block_on(
                 DefaultSession::builder()
                     .base_path(temp_path)
+                    .client_name("test")
                     .runtime(runtime.clone())
                     .build(),
             )
@@ -824,6 +865,7 @@ pub mod tests {
             .block_on(
                 DefaultSession::builder()
                     .base_path(temp_path)
+                    .client_name("test")
                     .extensions(vec![])
                     .runtime(runtime.clone())
                     .build(),
@@ -852,6 +894,7 @@ pub mod tests {
             .block_on(
                 DefaultSession::builder()
                     .base_path(temp_path)
+                    .client_name("test")
                     .extensions(vec![])
                     .runtime(runtime.clone())
                     .build(),
@@ -877,6 +920,7 @@ pub mod tests {
             .block_on(
                 DefaultSession::builder()
                     .base_path(temp_path)
+                    .client_name("test")
                     .extensions(vec![])
                     .runtime(runtime.clone())
                     .build(),
@@ -913,6 +957,7 @@ pub mod tests {
             .block_on(
                 DefaultSession::builder()
                     .base_path(temp_path)
+                    .client_name("test")
                     .extensions(vec![])
                     .runtime(runtime.clone())
                     .build(),
@@ -944,6 +989,7 @@ pub mod tests {
             .block_on(
                 DefaultSession::builder()
                     .base_path(temp_path)
+                    .client_name("test")
                     .extensions(vec![])
                     .runtime(runtime.clone())
                     .build(),

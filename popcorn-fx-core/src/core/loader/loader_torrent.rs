@@ -1,14 +1,13 @@
 use std::fmt::{Debug, Formatter};
-use std::sync::mpsc::Sender;
 use std::sync::Arc;
 
 use async_trait::async_trait;
 use derive_more::Display;
 use log::{debug, trace};
-use tokio_util::sync::CancellationToken;
 
 use crate::core::config::ApplicationConfig;
 use crate::core::loader;
+use crate::core::loader::task::LoadingTaskContext;
 use crate::core::loader::{
     CancellationResult, LoadingData, LoadingError, LoadingEvent, LoadingState, LoadingStrategy,
 };
@@ -47,15 +46,12 @@ impl LoadingStrategy for TorrentLoadingStrategy {
     async fn process(
         &self,
         mut data: LoadingData,
-        event_channel: Sender<LoadingEvent>,
-        _: CancellationToken,
+        context: &LoadingTaskContext,
     ) -> loader::LoadingResult {
         if let Some(uri) = data.url.as_ref() {
             if let Some(torrent_file_info) = data.torrent_file_info.as_ref() {
                 trace!("Processing torrent info of {:?}", torrent_file_info);
-                event_channel
-                    .send(LoadingEvent::StateChanged(LoadingState::Connecting))
-                    .unwrap();
+                context.send_event(LoadingEvent::StateChanged(LoadingState::Connecting));
 
                 match self
                     .torrent_manager
@@ -89,13 +85,12 @@ mod tests {
     use std::sync::mpsc::channel;
     use std::time::Duration;
 
-    use crate::core::block_in_place;
     use crate::core::loader::LoadingResult;
     use crate::core::playlist::{PlaylistItem, PlaylistTorrent};
     use crate::core::torrents::{
         MockTorrent, MockTorrentManager, Torrent, TorrentHandle, TorrentInfo,
     };
-    use crate::init_logger;
+    use crate::{create_loading_task, init_logger};
 
     use super::*;
 
@@ -125,15 +120,16 @@ mod tests {
             },
         };
         let data = LoadingData::from(item);
-        let (tx_event, _) = channel();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let settings = Arc::new(ApplicationConfig::builder().storage(temp_path).build());
         let torrent_manager = MockTorrentManager::new();
+        let task = create_loading_task!();
+        let context = task.context();
+        let runtime = context.runtime();
         let strategy = TorrentLoadingStrategy::new(Arc::new(Box::new(torrent_manager)), settings);
 
-        let result =
-            block_in_place(strategy.process(data.clone(), tx_event, CancellationToken::new()));
+        let result = runtime.block_on(strategy.process(data.clone(), &*context));
 
         assert_eq!(LoadingResult::Ok(data), result);
     }
@@ -168,9 +164,12 @@ mod tests {
             .returning(move |e| {
                 tx.send(e.to_string()).unwrap();
             });
+        let task = create_loading_task!();
+        let context = task.context();
+        let runtime = context.runtime();
         let strategy = TorrentLoadingStrategy::new(Arc::new(Box::new(torrent_manager)), settings);
 
-        let result = block_in_place(strategy.cancel(data));
+        let result = runtime.block_on(strategy.cancel(data));
         if let Ok(result) = result {
             assert!(
                 result.torrent.is_none(),

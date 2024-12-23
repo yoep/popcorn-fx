@@ -170,6 +170,7 @@ impl DefaultTorrentManager {
             .block_on(
                 DefaultSession::builder()
                     .base_path(settings.user_settings().torrent_settings.directory())
+                    .client_name("PopcornFX")
                     .runtime(runtime.clone())
                     .build(),
             )
@@ -577,42 +578,6 @@ mod test {
             .expect("expected the torrent info to have been returned");
 
         assert_eq!(expected_result, result)
-    }
-
-    #[test]
-    fn test_create() {
-        init_logger!();
-        let temp_dir = tempfile::tempdir().unwrap();
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let runtime = Arc::new(Runtime::new().unwrap());
-        // let uri = "magnet:?xt=urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7&dn=debian-12.4.0-amd64-DVD-1.iso&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce";
-        let uri = "magnet:?xt=urn:btih:95EF921A3E1128F65CDD7B85E87D738249FA94A1&tr=udp://tracker.opentrackr.org:1337&tr=udp://tracker.tiny-vps.com:6969&tr=udp://tracker.openbittorrent.com:1337&tr=udp://tracker.coppersurfer.tk:6969&tr=udp://tracker.leechers-paradise.org:6969&tr=udp://p4p.arenabg.ch:1337&tr=udp://p4p.arenabg.com:1337&tr=udp://tracker.internetwarriors.net:1337&tr=udp://9.rarbg.to:2710&tr=udp://9.rarbg.me:2710&tr=udp://exodus.desync.com:6969&tr=udp://tracker.cyberia.is:6969&tr=udp://tracker.torrent.eu.org:451&tr=udp://open.stealth.si:80&tr=udp://tracker.moeking.me:6969&tr=udp://tracker.zerobytes.xyz:1337";
-        let settings = default_config(temp_path, CleaningMode::Off);
-        let event_publisher = Arc::new(EventPublisher::default());
-        let (tx, rx) = channel();
-        let manager =
-            DefaultTorrentManager::new(settings, event_publisher.clone(), runtime.clone()).unwrap();
-
-        let torrent_info = runtime
-            .block_on(manager.info(uri))
-            .expect("expected the torrent info to have been returned");
-        let torrent_file = torrent_info
-            .largest_file()
-            .expect("expected a file to be returned");
-
-        let torrent = runtime
-            .block_on(manager.create(uri, &torrent_file, true))
-            .expect("expected the torrent to have been created");
-
-        torrent.add_callback(Box::new(move |event| {
-            if let torrents::TorrentEvent::PieceFinished(piece) = event {
-                info!("Received piece finished event for piece {}", piece);
-                tx.send(()).unwrap()
-            }
-        }));
-
-        rx.recv_timeout(Duration::from_secs(120))
-            .expect("expected the download to have been started");
     }
 
     #[test]

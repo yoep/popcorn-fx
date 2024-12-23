@@ -324,6 +324,7 @@ impl PopcornFX {
             player_manager.clone(),
             event_publisher.clone(),
             media_loader.clone(),
+            runtime.clone(),
         ));
         let tracking_provider = Arc::new(Box::new(
             TraktProvider::new(settings.clone(), runtime.clone()).unwrap(),
@@ -518,7 +519,7 @@ impl PopcornFX {
     }
 
     /// Retrieve the given runtime pool from this Popcorn FX instance.
-    pub fn runtime(&self) -> &Runtime {
+    pub fn runtime(&self) -> &Arc<Runtime> {
         &self.runtime
     }
 

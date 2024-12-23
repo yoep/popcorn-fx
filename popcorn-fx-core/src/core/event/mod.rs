@@ -1,7 +1,7 @@
-pub use event::*;
+pub use events::*;
 pub use player_events::*;
 pub use publisher::*;
 
-mod event;
+mod events;
 mod player_events;
 mod publisher;

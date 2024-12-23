@@ -31,8 +31,9 @@ mod torrent;
 mod torrent_metadata;
 mod tracker;
 
-const DEFAULT_TORRENT_PROTOCOL_EXTENSIONS: fn() -> ProtocolExtensionFlags =
-    || ProtocolExtensionFlags::LTEP | ProtocolExtensionFlags::Fast;
+const DEFAULT_TORRENT_PROTOCOL_EXTENSIONS: fn() -> ProtocolExtensionFlags = || {
+    ProtocolExtensionFlags::LTEP | ProtocolExtensionFlags::Fast | ProtocolExtensionFlags::SupportV2
+};
 const DEFAULT_TORRENT_EXTENSIONS: fn() -> ExtensionFactories = || {
     let mut extensions: ExtensionFactories = Vec::new();
 
@@ -156,7 +157,8 @@ pub mod tests {
     ) -> (TcpPeer, TcpPeer) {
         let context = torrent.instance().unwrap();
         let runtime = context.runtime();
-        let port = available_port!(6881, 31000).unwrap();
+        let port_start = thread_rng().gen_range(6881..10000);
+        let port = available_port!(port_start, 31000).unwrap();
         let (tx, rx) = std::sync::mpsc::channel();
         let extensions = context.extensions();
 

@@ -1,9 +1,9 @@
 use crate::torrent::peer::protocol::Message;
-use crate::torrent::peer::{DataTransferStats, Error, PeerClientInfo, PeerHandle};
+use crate::torrent::peer::{DataTransferStats, Error, PeerClientInfo};
 use byteorder::BigEndian;
 use byteorder::ByteOrder;
 use derive_more::Display;
-use log::{error, trace, warn};
+use log::{trace, warn};
 use std::time::Instant;
 use tokio::io::{AsyncRead, AsyncReadExt, BufReader};
 use tokio::select;

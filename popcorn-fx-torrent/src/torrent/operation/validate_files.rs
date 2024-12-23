@@ -9,7 +9,9 @@ use std::sync::Arc;
 use std::time::Instant;
 use tokio::select;
 use tokio::sync::Mutex;
-use tokio_util::sync::CancellationToken;
+use tokio_util::sync::{
+    CancellationToken, WaitForCancellationFuture, WaitForCancellationFutureOwned,
+};
 
 const CHUNK_VALIDATION_SIZE: usize = 400;
 
@@ -49,20 +51,16 @@ impl TorrentFileValidationOperation {
             );
 
             let start = Instant::now();
-            let cancellation_token = context.cancellation_token();
             let futures: Vec<_> = files
                 .into_iter()
                 .map(|file| {
-                    runtime.spawn(Self::validate_file(
-                        context.clone(),
-                        file,
-                        cancellation_token.clone(),
-                    ))
+                    let cancelled = context.cancelled_owned();
+                    runtime.spawn(Self::validate_file(context.clone(), file, cancelled))
                 })
                 .collect();
 
             select! {
-                _ = cancellation_token.cancelled() => return,
+                _ = context.cancelled() => return,
                 _ = future::join_all(futures) => {},
             }
 
@@ -86,7 +84,7 @@ impl TorrentFileValidationOperation {
     async fn validate_file(
         torrent: Arc<TorrentContext>,
         file: File,
-        cancellation_token: CancellationToken,
+        cancelled: WaitForCancellationFutureOwned,
     ) {
         let mut pieces = torrent.file_pieces(&file).await;
         let total_chunks = (pieces.len() + 1) / CHUNK_VALIDATION_SIZE;
@@ -114,7 +112,7 @@ impl TorrentFileValidationOperation {
 
         let total_valid_pieces: usize;
         select! {
-            _ = cancellation_token.cancelled() => return,
+            _ = cancelled => return,
             result = future::join_all(futures) => {
                 total_valid_pieces = result.into_iter().sum::<usize>();
             }

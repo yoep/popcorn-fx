@@ -458,15 +458,15 @@ impl Default for TorrentStreamServerInner {
 mod test {
     use reqwest::Client;
 
-    use crate::assert_timeout_eq;
-    use crate::core::torrents::{MockTorrent, TorrentCallback, TorrentEvent, TorrentState};
-    use crate::testing::{copy_test_file, init_logger, read_test_file_to_string};
+    use crate::core::torrents::{MockTorrent, TorrentState};
+    use crate::testing::{copy_test_file, read_test_file_to_string};
+    use crate::{assert_timeout_eq, init_logger};
 
     use super::*;
 
     #[test]
     fn test_stream_metadata_info() {
-        init_logger();
+        init_logger!();
         let filename = "large-[123].txt";
         let runtime = tokio::runtime::Runtime::new().unwrap();
         let temp_dir = tempfile::tempdir().unwrap();
@@ -532,7 +532,7 @@ mod test {
 
     #[test]
     fn test_stream_metadata_info_not_found() {
-        init_logger();
+        init_logger!();
         let runtime = tokio::runtime::Runtime::new().unwrap();
         let client = Client::builder()
             .build()
@@ -559,7 +559,7 @@ mod test {
 
     #[test]
     fn test_start_stream() {
-        init_logger();
+        init_logger!();
         let filename = "large-[123].txt";
         let runtime = tokio::runtime::Runtime::new().unwrap();
         let temp_dir = tempfile::tempdir().unwrap();
@@ -613,7 +613,7 @@ mod test {
 
     #[test]
     fn test_stop_stream() {
-        init_logger();
+        init_logger!();
         let filename = "large-[123].txt";
         let runtime = tokio::runtime::Runtime::new().unwrap();
         let temp_dir = tempfile::tempdir().unwrap();
@@ -663,7 +663,7 @@ mod test {
 
     #[test]
     fn test_stream_not_found() {
-        init_logger();
+        init_logger!();
         let runtime = tokio::runtime::Runtime::new().unwrap();
         let client = Client::builder()
             .build()

@@ -1,12 +1,11 @@
 use std::fmt::{Debug, Formatter};
-use std::sync::mpsc::Sender;
 use std::sync::Arc;
 
 use async_trait::async_trait;
 use derive_more::Display;
 use log::{debug, error, trace};
-use tokio_util::sync::CancellationToken;
 
+use crate::core::loader::task::LoadingTaskContext;
 use crate::core::loader::{
     CancellationResult, LoadingData, LoadingError, LoadingEvent, LoadingResult, LoadingState,
     LoadingStrategy,
@@ -33,11 +32,9 @@ impl TorrentInfoLoadingStrategy {
     async fn resolve_torrent_info(
         &self,
         url: &str,
-        event_channel: Sender<LoadingEvent>,
+        context: &LoadingTaskContext,
     ) -> Result<TorrentInfo, LoadingError> {
-        event_channel
-            .send(LoadingEvent::StateChanged(LoadingState::Starting))
-            .unwrap();
+        context.send_event(LoadingEvent::StateChanged(LoadingState::Starting));
         match self.torrent_manager.info(url).await {
             Ok(info) => {
                 debug!("Resolved magnet url to {:?}", info);
@@ -119,12 +116,7 @@ impl Debug for TorrentInfoLoadingStrategy {
 
 #[async_trait]
 impl LoadingStrategy for TorrentInfoLoadingStrategy {
-    async fn process(
-        &self,
-        mut data: LoadingData,
-        event_channel: Sender<LoadingEvent>,
-        _: CancellationToken,
-    ) -> LoadingResult {
+    async fn process(&self, mut data: LoadingData, context: &LoadingTaskContext) -> LoadingResult {
         let mut url: Option<String> = None;
 
         if data.torrent_info.is_none() {
@@ -149,9 +141,7 @@ impl LoadingStrategy for TorrentInfoLoadingStrategy {
 
         if let Some(url) = url {
             debug!("Loading torrent information of {}", url);
-            let torrent_info = self
-                .resolve_torrent_info(url.as_str(), event_channel.clone())
-                .await;
+            let torrent_info = self.resolve_torrent_info(url.as_str(), context).await;
 
             match torrent_info {
                 Ok(info) => {
@@ -197,19 +187,17 @@ mod tests {
     use std::sync::mpsc::channel;
     use std::time::Duration;
 
-    use tokio_util::sync::CancellationToken;
-
+    use crate::core::media;
     use crate::core::media::ShowOverview;
     use crate::core::playlist::{PlaylistItem, PlaylistMedia};
     use crate::core::torrents::{MockTorrentManager, TorrentInfo};
-    use crate::core::{block_in_place, media};
-    use crate::testing::init_logger;
+    use crate::{create_loading_task, init_logger};
 
     use super::*;
 
     #[test]
     fn test_process_url() {
-        init_logger();
+        init_logger!();
         let magnet_url = "magnet:?MyTorrent";
         let item = PlaylistItem {
             url: Some(magnet_url.to_string()),
@@ -232,17 +220,18 @@ mod tests {
         };
         let mut data = LoadingData::from(item);
         let (tx, rx) = channel();
-        let (tx_event, _rx_event) = channel();
         let manager_info = info.clone();
         let mut torrent_manager = MockTorrentManager::new();
         torrent_manager.expect_info().returning(move |e| {
             tx.send(e.to_string()).unwrap();
             Ok(manager_info.clone())
         });
+        let task = create_loading_task!();
+        let context = task.context();
+        let runtime = context.runtime();
         let strategy = TorrentInfoLoadingStrategy::new(Arc::new(Box::new(torrent_manager)));
 
-        let result =
-            block_in_place(strategy.process(data.clone(), tx_event, CancellationToken::new()));
+        let result = runtime.block_on(strategy.process(data.clone(), &*context));
         let resolve_url = rx.recv_timeout(Duration::from_millis(200)).unwrap();
         data.url = None;
         data.torrent_info = Some(info);
@@ -253,7 +242,7 @@ mod tests {
 
     #[test]
     fn test_process_media_url() {
-        init_logger();
+        init_logger!();
         let magnet_url = "magnet:?MyFullShowTorrent";
         let expected_torrent_file_info = TorrentFileInfo {
             filename: "MySecondFile".to_string(),
@@ -327,16 +316,18 @@ mod tests {
         };
         let data = LoadingData::from(item);
         let (tx, rx) = channel();
-        let (tx_event, _rx_event) = channel();
         let manager_info = info.clone();
         let mut torrent_manager = MockTorrentManager::new();
         torrent_manager.expect_info().returning(move |e| {
             tx.send(e.to_string()).unwrap();
             Ok(manager_info.clone())
         });
+        let task = create_loading_task!();
+        let context = task.context();
+        let runtime = context.runtime();
         let strategy = TorrentInfoLoadingStrategy::new(Arc::new(Box::new(torrent_manager)));
 
-        let result = block_in_place(strategy.process(data, tx_event, CancellationToken::new()));
+        let result = runtime.block_on(strategy.process(data, &*context));
         let resolve_url = rx.recv_timeout(Duration::from_millis(200)).unwrap();
 
         assert_eq!(magnet_url.to_string(), resolve_url);
@@ -353,7 +344,7 @@ mod tests {
 
     #[test]
     fn test_process_non_magnet_url() {
-        init_logger();
+        init_logger!();
         let magnet_url = "https://www.youtube.com/v/qwe5485";
         let item = PlaylistItem {
             url: Some(magnet_url.to_string()),
@@ -375,17 +366,18 @@ mod tests {
             files: vec![],
         };
         let data = LoadingData::from(item);
-        let (tx_event, _rx_event) = channel();
         let manager_info = info.clone();
         let mut torrent_manager = MockTorrentManager::new();
         torrent_manager
             .expect_info()
             .times(0)
             .returning(move |_| Ok(manager_info.clone()));
+        let task = create_loading_task!();
+        let context = task.context();
+        let runtime = context.runtime();
         let strategy = TorrentInfoLoadingStrategy::new(Arc::new(Box::new(torrent_manager)));
 
-        let result =
-            block_in_place(strategy.process(data.clone(), tx_event, CancellationToken::new()));
+        let result = runtime.block_on(strategy.process(data.clone(), &*context));
         assert_eq!(LoadingResult::Ok(data), result);
     }
 }

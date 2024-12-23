@@ -1,16 +1,13 @@
 use std::fmt::{Debug, Formatter};
-use std::sync::mpsc::Sender;
 use std::sync::Arc;
 
 use async_trait::async_trait;
 use derive_more::Display;
 use log::{debug, trace};
-use tokio_util::sync::CancellationToken;
 
 use crate::core::event::{Event, EventPublisher};
-use crate::core::loader::{
-    CancellationResult, LoadingData, LoadingEvent, LoadingResult, LoadingStrategy,
-};
+use crate::core::loader::task::LoadingTaskContext;
+use crate::core::loader::{CancellationResult, LoadingData, LoadingResult, LoadingStrategy};
 
 /// Represents a loading strategy for handling torrent details.
 ///
@@ -42,12 +39,7 @@ impl Debug for TorrentDetailsLoadingStrategy {
 
 #[async_trait]
 impl LoadingStrategy for TorrentDetailsLoadingStrategy {
-    async fn process(
-        &self,
-        data: LoadingData,
-        _: Sender<LoadingEvent>,
-        _: CancellationToken,
-    ) -> LoadingResult {
+    async fn process(&self, data: LoadingData, _context: &LoadingTaskContext) -> LoadingResult {
         trace!("Processing torrent details strategy for {:?}", data);
         if let Some(torrent_info) = data.torrent_info.as_ref() {
             if let None = data.torrent_file_info.as_ref() {
@@ -74,10 +66,10 @@ mod tests {
     use std::sync::mpsc::channel;
     use std::time::Duration;
 
-    use crate::core::block_in_place;
     use crate::core::loader::loading_chain::DEFAULT_ORDER;
     use crate::core::loader::SubtitleData;
     use crate::core::torrents::TorrentInfo;
+    use crate::create_loading_task;
     use crate::testing::init_logger;
 
     use super::*;
@@ -110,8 +102,10 @@ mod tests {
             torrent_stream: None,
         };
         let (tx, rx) = channel();
-        let (tx_event, _) = channel();
         let event_publisher = Arc::new(EventPublisher::default());
+        let task = create_loading_task!();
+        let context = task.context();
+        let runtime = context.runtime();
         let strategy = TorrentDetailsLoadingStrategy::new(event_publisher.clone());
 
         event_publisher.register(
@@ -122,7 +116,7 @@ mod tests {
             DEFAULT_ORDER,
         );
 
-        let result = block_in_place(strategy.process(data, tx_event, CancellationToken::new()));
+        let result = runtime.block_on(strategy.process(data, &*context));
         assert_eq!(LoadingResult::Completed, result);
 
         let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
@@ -156,9 +150,12 @@ mod tests {
             torrent_stream: None,
         };
         let event_publisher = Arc::new(EventPublisher::default());
+        let task = create_loading_task!();
+        let context = task.context();
+        let runtime = context.runtime();
         let strategy = TorrentDetailsLoadingStrategy::new(event_publisher);
 
-        let result = block_in_place(strategy.cancel(data.clone()));
+        let result = runtime.block_on(strategy.cancel(data.clone()));
 
         assert_eq!(CancellationResult::Ok(data), result);
     }

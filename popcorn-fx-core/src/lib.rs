@@ -246,13 +246,6 @@ pub fn from_c_vec_owned<T>(ptr: *mut T, len: i32) -> Vec<T> {
 
 #[cfg(feature = "testing")]
 pub mod testing {
-    use std::fmt::{Display, Formatter};
-    use std::fs::OpenOptions;
-    use std::io::Read;
-    use std::path::PathBuf;
-    use std::sync::{Once, Weak};
-    use std::{env, fs};
-
     use async_trait::async_trait;
     use log::{debug, trace, LevelFilter};
     use log4rs::append::console::ConsoleAppender;
@@ -260,17 +253,25 @@ pub mod testing {
     use log4rs::encode::pattern::PatternEncoder;
     use log4rs::Config;
     use mockall::mock;
+    use std::fmt::{Display, Formatter};
+    use std::fs::OpenOptions;
+    use std::io::Read;
+    use std::ops::Range;
+    use std::path::PathBuf;
+    use std::sync::{Once, Weak};
+    use std::{env, fs};
     use tempfile::TempDir;
     use url::Url;
 
+    use crate::core::callback::{Callback, Subscriber, Subscription};
     use crate::core::platform::{Platform, PlatformCallback, PlatformData, PlatformInfo};
     use crate::core::playback::MediaNotificationEvent;
     use crate::core::players::{PlayRequest, Player, PlayerEvent, PlayerState};
     use crate::core::subtitles::model::SubtitleInfo;
     use crate::core::subtitles::{SubtitleEvent, SubtitleManager, SubtitlePreference};
     use crate::core::torrents::{
-        Torrent, TorrentEvent, TorrentHandle, TorrentState, TorrentStream, TorrentStreamCallback,
-        TorrentStreamState, TorrentStreamingResourceWrapper,
+        StreamHandle, Torrent, TorrentEvent, TorrentHandle, TorrentState, TorrentStream,
+        TorrentStreamEvent, TorrentStreamState, TorrentStreamingResourceWrapper,
     };
     use crate::core::{torrents, CallbackHandle, Callbacks, CoreCallback, Handle};
 
@@ -476,10 +477,19 @@ pub mod testing {
 
     mock! {
         #[derive(Debug)]
-        pub TorrentStream {}
+        pub InnerTorrentStream {
+            pub fn stream_handle(&self) -> Handle;
+            pub fn url(&self) -> Url;
+            pub fn stream(&self) -> torrents::Result<TorrentStreamingResourceWrapper>;
+            pub fn stream_offset(&self, offset: u64, len: Option<u64>) -> torrents::Result<TorrentStreamingResourceWrapper>;
+            pub async fn stream_state(&self) -> TorrentStreamState;
+            pub fn stop_stream(&self);
+            pub fn subscribe_stream(&self) -> Subscription<TorrentStreamEvent>;
+            pub fn subscribe_stream_with(&self, subscriber: Subscriber<TorrentStreamEvent>);
+        }
 
         #[async_trait]
-        impl Torrent for TorrentStream {
+        impl Torrent for InnerTorrentStream {
             fn handle(&self) -> TorrentHandle;
             async fn file(&self) -> PathBuf;
             async fn has_bytes(&self, bytes: &std::ops::Range<usize>) -> bool;
@@ -491,21 +501,118 @@ pub mod testing {
             async fn state(&self) -> TorrentState;
         }
 
-        #[async_trait]
-        impl TorrentStream for TorrentStream {
-            fn stream_handle(&self) -> Handle;
-            fn url(&self) -> Url;
-            fn stream(&self) -> torrents::Result<TorrentStreamingResourceWrapper>;
-            fn stream_offset(&self, offset: u64, len: Option<u64>) -> torrents::Result<TorrentStreamingResourceWrapper>;
-            fn stream_state(&self) -> TorrentStreamState;
-            fn subscribe_stream(&self, callback: TorrentStreamCallback) -> CallbackHandle;
-            fn unsubscribe_stream(&self, handle: CallbackHandle);
-            fn stop_stream(&self);
+        impl Callback<TorrentEvent> for InnerTorrentStream {
+            fn subscribe(&self) -> Subscription<TorrentEvent>;
+            fn subscribe_with(&self, subscriber: Subscriber<TorrentEvent>);
+        }
+    }
+
+    #[derive(Debug)]
+    pub struct MockTorrentStream {
+        pub inner: MockInnerTorrentStream,
+    }
+
+    impl MockTorrentStream {
+        pub fn new() -> Self {
+            Self {
+                inner: MockInnerTorrentStream::new(),
+            }
+        }
+    }
+
+    #[async_trait]
+    impl Torrent for MockTorrentStream {
+        fn handle(&self) -> TorrentHandle {
+            self.inner.handle()
         }
 
-        impl Callbacks<TorrentEvent> for TorrentStream {
-            fn add_callback(&self, callback: CoreCallback<TorrentEvent>) -> CallbackHandle;
-            fn remove_callback(&self, handle: CallbackHandle);
+        async fn file(&self) -> PathBuf {
+            self.inner.file().await
+        }
+
+        async fn has_bytes(&self, bytes: &Range<usize>) -> bool {
+            self.inner.has_bytes(bytes).await
+        }
+
+        async fn has_piece(&self, piece: usize) -> bool {
+            self.inner.has_piece(piece).await
+        }
+
+        async fn prioritize_bytes(&self, bytes: &Range<usize>) {
+            self.inner.prioritize_bytes(bytes).await
+        }
+
+        async fn prioritize_pieces(&self, pieces: &[u32]) {
+            self.inner.prioritize_pieces(pieces).await
+        }
+
+        async fn total_pieces(&self) -> usize {
+            self.inner.total_pieces().await
+        }
+
+        async fn sequential_mode(&self) {
+            self.inner.sequential_mode().await
+        }
+
+        async fn state(&self) -> TorrentState {
+            self.inner.state().await
+        }
+    }
+
+    #[async_trait]
+    impl TorrentStream for MockTorrentStream {
+        fn stream_handle(&self) -> StreamHandle {
+            self.inner.stream_handle()
+        }
+
+        fn url(&self) -> Url {
+            self.inner.url()
+        }
+
+        fn stream(&self) -> torrents::Result<TorrentStreamingResourceWrapper> {
+            self.inner.stream()
+        }
+
+        fn stream_offset(
+            &self,
+            offset: u64,
+            len: Option<u64>,
+        ) -> torrents::Result<TorrentStreamingResourceWrapper> {
+            self.inner.stream_offset(offset, len)
+        }
+
+        async fn stream_state(&self) -> TorrentStreamState {
+            self.inner.stream_state().await
+        }
+
+        fn stop_stream(&self) {
+            self.inner.stop_stream()
+        }
+    }
+
+    impl Callback<TorrentEvent> for MockTorrentStream {
+        fn subscribe(&self) -> Subscription<TorrentEvent> {
+            self.inner.subscribe()
+        }
+
+        fn subscribe_with(&self, subscriber: Subscriber<TorrentEvent>) {
+            self.inner.subscribe_with(subscriber)
+        }
+    }
+
+    impl Callback<TorrentStreamEvent> for MockTorrentStream {
+        fn subscribe(&self) -> Subscription<TorrentStreamEvent> {
+            self.inner.subscribe_stream()
+        }
+
+        fn subscribe_with(&self, subscriber: Subscriber<TorrentStreamEvent>) {
+            self.inner.subscribe_stream_with(subscriber)
+        }
+    }
+
+    impl Display for MockInnerTorrentStream {
+        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+            write!(f, "MockInnerTorrentStream")
         }
     }
 

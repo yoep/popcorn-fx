@@ -2,13 +2,16 @@ use std::sync::Arc;
 
 use derive_more::Display;
 use log::{debug, info, trace};
+use tokio::runtime::Runtime;
 use tokio::sync::Mutex;
 
 use crate::core::event::{Event, EventPublisher, HIGHEST_ORDER};
 use crate::core::loader::{LoadingHandle, MediaLoader};
 use crate::core::players::{PlayerManager, PlayerManagerEvent, PlayerState};
 use crate::core::playlist::{Playlist, PlaylistItem};
-use crate::core::{block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks, Handle};
+use crate::core::{
+    block_in_place_runtime, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks, Handle,
+};
 
 const PLAYING_NEXT_IN_THRESHOLD_SECONDS: u64 = 60;
 
@@ -39,7 +42,7 @@ pub struct PlayingNextInfo {
 ///
 /// The `PlaylistState` enum is used to indicate the current state of a playlist, such as whether it's idle, playing, stopped, completed, or in an error state.
 #[repr(i32)]
-#[derive(Debug, Display, Clone, PartialOrd, PartialEq)]
+#[derive(Debug, Display, Copy, Clone, PartialOrd, PartialEq)]
 pub enum PlaylistState {
     Idle,
     Playing,
@@ -54,26 +57,19 @@ pub struct PlaylistManager {
 }
 
 impl PlaylistManager {
-    /// Create a new `PlaylistManager` instance.
-    ///
-    /// # Arguments
-    ///
-    /// * `player_manager` - A reference to the player manager.
-    /// * `event_publisher` - A reference to the event publisher.
-    ///
-    /// # Returns
-    ///
-    /// A new `PlaylistManager` instance.
+    /// Create a new playlist manager instance for processing playlist.
     pub fn new(
         player_manager: Arc<Box<dyn PlayerManager>>,
         event_publisher: Arc<EventPublisher>,
         loader: Arc<Box<dyn MediaLoader>>,
+        runtime: Arc<Runtime>,
     ) -> Self {
         let manager = Self {
             inner: Arc::new(InnerPlaylistManager::new(
                 player_manager,
                 event_publisher,
                 loader,
+                runtime,
             )),
         };
 
@@ -81,7 +77,10 @@ impl PlaylistManager {
         manager.inner.event_publisher.register(
             Box::new(move |event| {
                 if let Event::ClosePlayer = event {
-                    if event_manager.is_next_allowed() {
+                    if block_in_place_runtime(
+                        event_manager.is_next_allowed(),
+                        &event_manager.runtime,
+                    ) {
                         debug!("Consuming Event::ClosePlayer, next playlist item will be loaded");
                         return None;
                     }
@@ -94,7 +93,10 @@ impl PlaylistManager {
 
         let listener_manager = manager.inner.clone();
         manager.inner.player_manager.subscribe(Box::new(move |e| {
-            listener_manager.handle_player_event(e);
+            block_in_place_runtime(
+                listener_manager.handle_player_event(e),
+                &listener_manager.runtime,
+            );
         }));
 
         manager
@@ -105,8 +107,8 @@ impl PlaylistManager {
     /// # Returns
     ///
     /// The current playlist.
-    pub fn playlist(&self) -> Playlist {
-        let playlist = block_in_place(self.inner.playlist.lock());
+    pub async fn playlist(&self) -> Playlist {
+        let playlist = self.inner.playlist.lock().await;
         playlist.iter().cloned().collect()
     }
 
@@ -115,8 +117,8 @@ impl PlaylistManager {
     /// # Arguments
     ///
     /// * `playlist` - The playlist to start playing.
-    pub fn play(&self, playlist: Playlist) -> Option<Handle> {
-        self.inner.play(playlist)
+    pub async fn play(&self, playlist: Playlist) -> Option<Handle> {
+        self.inner.play(playlist).await
     }
 
     /// Play the next item in the playlist.
@@ -127,8 +129,8 @@ impl PlaylistManager {
     ///
     /// An `Option` containing a `Handle` representing the playlist item loader;
     /// otherwise, `None` if there are no more items to play or if an error occurred during playback initiation.
-    pub fn play_next(&self) -> Option<Handle> {
-        self.inner.play_next()
+    pub async fn play_next(&self) -> Option<Handle> {
+        self.inner.play_next().await
     }
 
     /// Check if there is a next item in the playlist.
@@ -136,8 +138,8 @@ impl PlaylistManager {
     /// # Returns
     ///
     /// `true` if there is a next item, otherwise `false`.
-    pub fn has_next(&self) -> bool {
-        self.inner.has_next()
+    pub async fn has_next(&self) -> bool {
+        self.inner.has_next().await
     }
 
     /// Retrieve the state of the current playlist.
@@ -145,8 +147,8 @@ impl PlaylistManager {
     /// # Returns
     ///
     /// Returns the [PlaylistState] of the current playlist.
-    pub fn state(&self) -> PlaylistState {
-        self.inner.state()
+    pub async fn state(&self) -> PlaylistState {
+        self.inner.state().await
     }
 
     /// Subscribe to playlist manager events.
@@ -176,7 +178,7 @@ impl PlaylistManager {
     /// This method stops the playback of the current playlist.
     /// If there is no playlist currently playing, it has no effect.
     pub fn stop(&self) {
-        self.inner.stop();
+        block_in_place_runtime(self.inner.stop(), &self.inner.runtime);
     }
 }
 
@@ -191,6 +193,7 @@ struct InnerPlaylistManager {
     state: Arc<Mutex<PlaylistState>>,
     callbacks: CoreCallbacks<PlaylistManagerEvent>,
     event_publisher: Arc<EventPublisher>,
+    runtime: Arc<Runtime>,
 }
 
 impl InnerPlaylistManager {
@@ -198,6 +201,7 @@ impl InnerPlaylistManager {
         player_manager: Arc<Box<dyn PlayerManager>>,
         event_publisher: Arc<EventPublisher>,
         loader: Arc<Box<dyn MediaLoader>>,
+        runtime: Arc<Runtime>,
     ) -> Self {
         let instance = Self {
             playlist: Default::default(),
@@ -209,32 +213,33 @@ impl InnerPlaylistManager {
             state: Arc::new(Mutex::new(PlaylistState::Idle)),
             callbacks: Default::default(),
             event_publisher,
+            runtime,
         };
 
         instance
     }
 
-    fn play(&self, playlist: Playlist) -> Option<Handle> {
+    async fn play(&self, playlist: Playlist) -> Option<Handle> {
         trace!("Starting new playlist with {:?}", playlist);
         {
-            let mut mutex = block_in_place(self.playlist.lock());
+            let mut mutex = self.playlist.lock().await;
             debug!("Replacing playlist with {:?}", playlist);
             *mutex = playlist
         }
 
         self.callbacks.invoke(PlaylistManagerEvent::PlaylistChanged);
         self.update_state(PlaylistState::Playing);
-        self.play_next()
+        self.play_next().await
     }
 
-    fn play_next(&self) -> Option<Handle> {
-        let mut mutex = block_in_place(self.playlist.lock());
+    async fn play_next(&self) -> Option<Handle> {
+        let mut mutex = self.playlist.lock().await;
 
         if let Some(item) = mutex.next() {
             drop(mutex);
 
             trace!("Processing next item in playlist {}", item);
-            Some(self.play_item(item))
+            Some(self.play_item(item).await)
         } else {
             self.update_state(PlaylistState::Completed);
             debug!("End of playlist has been reached");
@@ -242,52 +247,52 @@ impl InnerPlaylistManager {
         }
     }
 
-    fn play_item(&self, item: PlaylistItem) -> Handle {
+    async fn play_item(&self, item: PlaylistItem) -> Handle {
         debug!("Starting playback of next playlist item {}", item);
         self.update_state(PlaylistState::Playing);
-        let handle = self.loader.load_playlist_item(item);
+        let handle = self.loader.load_playlist_item(item).await;
 
         trace!(
             "Updating current playlist item loading handle to {}",
             handle
         );
         let store_handle = handle.clone();
-        let mut mutex = block_in_place(self.loading_handle.lock());
+        let mut mutex = self.loading_handle.lock().await;
         *mutex = Some(store_handle);
 
         handle
     }
 
-    fn has_next(&self) -> bool {
-        let playlist = block_in_place(self.playlist.lock());
+    async fn has_next(&self) -> bool {
+        let playlist = self.playlist.lock().await;
         playlist.has_next()
     }
 
     /// Retrieve a cloned version of the next item without removing it from the playlist.
-    fn next_cloned(&self) -> Option<PlaylistItem> {
-        let mutex = block_in_place(self.playlist.lock());
+    async fn next_cloned(&self) -> Option<PlaylistItem> {
+        let mutex = self.playlist.lock().await;
         mutex.next_as_ref().map(|e| e.clone())
     }
 
-    fn state(&self) -> PlaylistState {
-        let state = block_in_place(self.state.lock());
-        state.clone()
+    /// Get the current state of the playlist.
+    async fn state(&self) -> PlaylistState {
+        *self.state.lock().await
     }
 
-    fn update_state(&self, state: PlaylistState) {
-        Self::update_state_stat(state, self.state.clone(), self.callbacks.clone())
+    async fn update_state(&self, state: PlaylistState) {
+        Self::update_state_stat(state, self.state.clone(), self.callbacks.clone()).await
     }
 
-    fn handle_player_event(&self, event: PlayerManagerEvent) {
+    async fn handle_player_event(&self, event: PlayerManagerEvent) {
         trace!("Processing player manager event {:?}", event);
         match event {
             PlayerManagerEvent::PlayerDurationChanged(e) => {
-                let mut player_duration = block_in_place(self.player_duration.lock());
+                let mut player_duration = self.player_duration.lock().await;
                 debug!("Updating the last known player duration to {}", e);
                 *player_duration = e;
             }
             PlayerManagerEvent::PlayerTimeChanged(time) => {
-                let duration = block_in_place(self.player_duration.lock()).clone();
+                let duration = self.player_duration.lock().await.clone();
 
                 if duration > 0 && time <= duration {
                     let remaining_time = (duration - time) / 1000;
@@ -296,7 +301,7 @@ impl InnerPlaylistManager {
                         "Player has {} seconds remaining within the playback",
                         remaining_time
                     );
-                    if let Some(next_item) = self.next_cloned() {
+                    if let Some(next_item) = self.next_cloned().await {
                         let playing_in: Option<u64>;
 
                         if remaining_time <= PLAYING_NEXT_IN_THRESHOLD_SECONDS {
@@ -306,7 +311,7 @@ impl InnerPlaylistManager {
                         }
 
                         {
-                            let mut mutex = block_in_place(self.player_playing_in.lock());
+                            let mut mutex = self.player_playing_in.lock().await;
                             let invocation_allowed: bool;
 
                             if let Some((last_playing_in, item)) = mutex.as_ref() {
@@ -337,13 +342,15 @@ impl InnerPlaylistManager {
                     }
                 }
             }
-            PlayerManagerEvent::PlayerStateChanged(state) => self.handle_player_state_event(state),
+            PlayerManagerEvent::PlayerStateChanged(state) => {
+                self.handle_player_state_event(state).await
+            }
             _ => {}
         }
     }
 
-    fn handle_player_state_event(&self, new_state: PlayerState) {
-        let duration = block_in_place(self.player_duration.lock()).clone();
+    async fn handle_player_state_event(&self, new_state: PlayerState) {
+        let duration = self.player_duration.lock().await.clone();
 
         match (duration, new_state) {
             (0, _) => trace!(
@@ -351,11 +358,11 @@ impl InnerPlaylistManager {
                 duration
             ),
             (_, PlayerState::Stopped) => {
-                if self.is_next_allowed() {
+                if self.is_next_allowed().await {
                     let next_item: String;
 
                     {
-                        let mutex = block_in_place(self.playlist.lock());
+                        let mutex = self.playlist.lock().await;
                         next_item = mutex
                             .next_as_ref()
                             .map(|e| e.to_string())
@@ -363,7 +370,7 @@ impl InnerPlaylistManager {
                     }
 
                     info!("Starting next playlist item {}", next_item);
-                    self.play_next();
+                    self.play_next().await;
                 } else {
                     debug!("Automatic playback is not allowed to start next playlist item");
                 }
@@ -372,10 +379,10 @@ impl InnerPlaylistManager {
         }
     }
 
-    fn stop(&self) {
+    async fn stop(&self) {
         trace!("Stopping the current playlist");
         {
-            let mut mutex = block_in_place(self.playlist.lock());
+            let mut mutex = self.playlist.lock().await;
             mutex.clear();
             debug!("Active playlist has been cleared");
         }
@@ -383,17 +390,20 @@ impl InnerPlaylistManager {
     }
 
     /// Determine with-either the next item is allowed to be played.
-    fn is_next_allowed(&self) -> bool {
-        let duration = block_in_place(self.player_duration.lock()).clone();
-        let playing_in = block_in_place(self.player_playing_in.lock())
+    async fn is_next_allowed(&self) -> bool {
+        let duration = self.player_duration.lock().await.clone();
+        let playing_in = self
+            .player_playing_in
+            .lock()
+            .await
             .clone()
             .and_then(|(time, _)| time)
             .filter(|e| e <= &PLAYING_NEXT_IN_THRESHOLD_SECONDS);
 
-        self.has_next() && duration > 0 && playing_in.is_some()
+        self.has_next().await && duration > 0 && playing_in.is_some()
     }
 
-    fn update_state_stat(
+    async fn update_state_stat(
         new_state: PlaylistState,
         state: Arc<Mutex<PlaylistState>>,
         callbacks: CoreCallbacks<PlaylistManagerEvent>,
@@ -401,7 +411,7 @@ impl InnerPlaylistManager {
         trace!("Updating playlist state to {}", new_state);
         let event_state = new_state.clone();
         {
-            let mut guard = block_in_place(state.lock());
+            let mut guard = state.lock().await;
             *guard = new_state;
         }
 
@@ -412,20 +422,20 @@ impl InnerPlaylistManager {
 
 #[cfg(test)]
 mod test {
-    use std::sync::mpsc::channel;
-    use std::time::Duration;
-
     use crate::core::event::{DEFAULT_ORDER, LOWEST_ORDER};
     use crate::core::loader::MockMediaLoader;
     use crate::core::players::MockPlayerManager;
     use crate::core::Handle;
-    use crate::testing::init_logger;
+    use crate::init_logger;
+    use std::sync::mpsc::channel;
+    use std::time::Duration;
+    use tokio::runtime::Runtime;
 
     use super::*;
 
     #[test]
     fn test_play() {
-        init_logger();
+        init_logger!();
         let mut playlist = Playlist::default();
         let playlist_item = PlaylistItem {
             url: Some("http://localhost/myvideo.mp4".to_string()),
@@ -454,10 +464,12 @@ mod test {
                 tx.send(e).unwrap();
                 Handle::new()
             });
+        let runtime = Arc::new(Runtime::new().unwrap());
         let manager = PlaylistManager::new(
             player_manager.clone(),
             event_publisher.clone(),
             Arc::new(Box::new(loader)),
+            runtime.clone(),
         );
 
         playlist.add(playlist_item.clone());
@@ -467,7 +479,7 @@ mod test {
                 tx_event.send(e).unwrap();
             }
         }));
-        manager.play(playlist);
+        runtime.block_on(manager.play(playlist));
 
         let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
         assert_eq!(
@@ -485,7 +497,7 @@ mod test {
 
     #[test]
     fn test_has_next() {
-        init_logger();
+        init_logger!();
         let mut playlist = Playlist::default();
         let event_publisher = Arc::new(EventPublisher::default());
         let mut player_manager = Box::new(MockPlayerManager::new());
@@ -497,10 +509,12 @@ mod test {
         loader
             .expect_load_playlist_item()
             .returning(move |_| Handle::new());
+        let runtime = Arc::new(Runtime::new().unwrap());
         let manager = PlaylistManager::new(
             player_manager.clone(),
             event_publisher.clone(),
             Arc::new(Box::new(loader)),
+            runtime.clone(),
         );
 
         playlist.add(PlaylistItem {
@@ -525,17 +539,18 @@ mod test {
             subtitle: Default::default(),
             torrent: Default::default(),
         });
-        manager.play(playlist);
+        runtime.block_on(manager.play(playlist));
 
+        let result = runtime.block_on(manager.has_next());
         assert!(
-            manager.has_next(),
+            result,
             "expected a next playlist item to have been available"
         );
     }
 
     #[test]
     fn test_player_stopped_event() {
-        init_logger();
+        init_logger!();
         let url = "https://www.youtube.com";
         let item1 = "MyFirstItem";
         let item2 = "MySecondItem";
@@ -561,10 +576,12 @@ mod test {
                 tx.send(e).unwrap();
                 Handle::new()
             });
+        let runtime = Arc::new(Runtime::new().unwrap());
         let manager = PlaylistManager::new(
             player_manager.clone(),
             event_publisher.clone(),
             Arc::new(Box::new(loader)),
+            runtime.clone(),
         );
 
         playlist.add(PlaylistItem {
@@ -595,7 +612,7 @@ mod test {
         }));
 
         // start the playlist
-        manager.play(playlist);
+        runtime.block_on(manager.play(playlist));
         let result = rx_manager.recv_timeout(Duration::from_millis(200)).unwrap();
         assert_eq!(PlaylistManagerEvent::PlaylistChanged, result);
 
@@ -617,7 +634,7 @@ mod test {
 
     #[test]
     fn test_player_stopped_event_by_player_during_playback() {
-        init_logger();
+        init_logger!();
         let url = "https://www.youtube.com";
         let item1 = "MyFirstItem";
         let item2 = "MySecondItem";
@@ -639,10 +656,12 @@ mod test {
             .expect_load_playlist_item()
             .times(2)
             .returning(move |_| Handle::new());
+        let runtime = Arc::new(Runtime::new().unwrap());
         let manager = PlaylistManager::new(
             player_manager.clone(),
             event_publisher.clone(),
             Arc::new(Box::new(loader)),
+            runtime.clone(),
         );
 
         playlist.add(PlaylistItem {
@@ -673,7 +692,7 @@ mod test {
         }));
 
         // start the playlist
-        manager.play(playlist);
+        runtime.block_on(manager.play(playlist));
         let result = rx_manager.recv_timeout(Duration::from_millis(200)).unwrap();
         assert_eq!(PlaylistManagerEvent::PlaylistChanged, result);
 
@@ -685,16 +704,13 @@ mod test {
         callback(PlayerManagerEvent::PlayerStateChanged(PlayerState::Stopped));
 
         // verify the playlist item that has been loaded
-        assert_eq!(
-            false,
-            manager.inner.is_next_allowed(),
-            "expected the next item to not be loaded"
-        );
+        let result = runtime.block_on(manager.inner.is_next_allowed());
+        assert_eq!(false, result, "expected the next item to not be loaded");
     }
 
     #[test]
     fn test_close_player_event_next_item() {
-        init_logger();
+        init_logger!();
         let url = "https://www.youtube.com";
         let mut playlist = Playlist::default();
         let (tx_manager, rx_manager) = channel();
@@ -714,10 +730,12 @@ mod test {
         loader
             .expect_load_playlist_item()
             .returning(move |_| Handle::new());
+        let runtime = Arc::new(Runtime::new().unwrap());
         let manager = PlaylistManager::new(
             player_manager.clone(),
             event_publisher.clone(),
             Arc::new(Box::new(loader)),
+            runtime.clone(),
         );
 
         playlist.add(PlaylistItem {
@@ -757,7 +775,7 @@ mod test {
         );
 
         // start the playlist
-        manager.play(playlist);
+        runtime.block_on(manager.play(playlist));
         let result = rx_manager.recv_timeout(Duration::from_millis(200)).unwrap();
         assert_eq!(PlaylistManagerEvent::PlaylistChanged, result);
 
@@ -776,7 +794,7 @@ mod test {
 
     #[test]
     fn test_player_stopped_event_without_known_duration() {
-        init_logger();
+        init_logger!();
         let url = "https://www.youtube.com";
         let item1 = "MyFirstItem";
         let item2 = "MySecondItem";
@@ -802,10 +820,12 @@ mod test {
                 tx.send(e).unwrap();
                 Handle::new()
             });
+        let runtime = Arc::new(Runtime::new().unwrap());
         let manager = PlaylistManager::new(
             player_manager.clone(),
             event_publisher.clone(),
             Arc::new(Box::new(loader)),
+            runtime.clone(),
         );
 
         playlist.add(PlaylistItem {
@@ -836,7 +856,7 @@ mod test {
         }));
 
         // start the playlist
-        manager.play(playlist);
+        runtime.block_on(manager.play(playlist));
         let result = rx_manager.recv_timeout(Duration::from_millis(200)).unwrap();
         assert_eq!(PlaylistManagerEvent::PlaylistChanged, result);
 
@@ -854,7 +874,7 @@ mod test {
 
     #[test]
     fn test_player_time_changed() {
-        init_logger();
+        init_logger!();
         let mut playlist = Playlist::default();
         let playing_next_item = PlaylistItem {
             url: Some("http://localhost/my-video.mp4".to_string()),
@@ -884,10 +904,12 @@ mod test {
         loader
             .expect_load_playlist_item()
             .returning(move |_| Handle::new());
+        let runtime = Arc::new(Runtime::new().unwrap());
         let manager = PlaylistManager::new(
             player_manager.clone(),
             event_publisher.clone(),
             Arc::new(Box::new(loader)),
+            runtime.clone(),
         );
 
         playlist.add(PlaylistItem {
@@ -907,7 +929,7 @@ mod test {
                 tx.send(e).unwrap();
             }
         }));
-        manager.play(playlist);
+        runtime.block_on(manager.play(playlist));
 
         callback.invoke(PlayerManagerEvent::PlayerDurationChanged(100000));
         callback.invoke(PlayerManagerEvent::PlayerTimeChanged(40000));
@@ -941,7 +963,7 @@ mod test {
 
     #[test]
     fn test_stop() {
-        init_logger();
+        init_logger!();
         let mut playlist = Playlist::default();
         let callback = Arc::new(CoreCallbacks::<PlayerManagerEvent>::default());
         let subscribe_callback = callback.clone();
@@ -960,10 +982,12 @@ mod test {
         loader
             .expect_load_playlist_item()
             .returning(move |_| Handle::new());
+        let runtime = Arc::new(Runtime::new().unwrap());
         let manager = PlaylistManager::new(
             player_manager.clone(),
             event_publisher.clone(),
             Arc::new(Box::new(loader)),
+            runtime.clone(),
         );
 
         playlist.add(PlaylistItem {
@@ -999,21 +1023,18 @@ mod test {
             DEFAULT_ORDER,
         );
 
-        let result = manager.play(playlist);
+        let result = runtime.block_on(manager.play(playlist));
         assert!(
             result.is_some(),
             "expected a loader handle to have been returned"
         );
-        assert_eq!(
-            true,
-            manager.has_next(),
-            "expected a next item to have been available"
-        );
+        let result = runtime.block_on(manager.has_next());
+        assert_eq!(true, result, "expected a next item to have been available");
 
         manager.stop();
+        let result = runtime.block_on(manager.has_next());
         assert_eq!(
-            false,
-            manager.has_next(),
+            false, result,
             "expected all playlist items to have been cleared"
         );
 

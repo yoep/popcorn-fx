@@ -93,7 +93,7 @@ mod test {
         MockTorrent, Torrent, TorrentEvent, TorrentFileInfo, TorrentManager, TorrentState,
     };
     use popcorn_fx_core::testing::{copy_test_file, init_logger};
-    use popcorn_fx_core::{assert_timeout_eq, into_c_string};
+    use popcorn_fx_core::{assert_timeout_eq, init_logger, into_c_string};
 
     use crate::ffi::{TorrentC, TorrentFileInfoC};
     use crate::test::{default_args, new_instance};
@@ -156,7 +156,7 @@ mod test {
 
     #[test]
     fn test_cleanup_torrents_directory() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = new_instance(temp_path);
@@ -185,41 +185,6 @@ mod test {
                 .directory
                 .exists(),
             "expected the torrent directory to still exist"
-        );
-    }
-
-    #[test]
-    fn test_remove_torrent_stream_event_callback() {
-        init_logger();
-        let temp_dir = tempdir().unwrap();
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let mut torrent = MockTorrent::new();
-        torrent.expect_file().return_const(PathBuf::from(temp_path));
-        torrent.expect_total_pieces().return_const(10usize);
-        torrent
-            .expect_state()
-            .return_const(TorrentState::Downloading);
-        torrent.expect_prioritize_pieces().return_const(());
-        let torrent = Box::new(torrent) as Box<dyn Torrent>;
-        let mut instance = new_instance(temp_path);
-
-        let stream = instance
-            .torrent_stream_server()
-            .start_stream(torrent)
-            .expect("expected a stream to have been returned")
-            .upgrade()
-            .expect("expected the stream instance to still be valid");
-
-        let stream_handle_value = stream.stream_handle().value();
-        let callback = register_torrent_stream_event_callback(
-            &mut instance,
-            stream_handle_value,
-            torrent_stream_event_callback,
-        ) as i64;
-        remove_torrent_stream_event_callback(
-            &mut instance,
-            stream_handle_value as *const i64,
-            callback as *const i64,
         );
     }
 }

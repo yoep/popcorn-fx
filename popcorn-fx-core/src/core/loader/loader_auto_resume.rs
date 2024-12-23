@@ -1,14 +1,13 @@
 use std::fmt::{Debug, Formatter};
-use std::sync::mpsc::Sender;
 use std::sync::Arc;
 
 use async_trait::async_trait;
 use derive_more::Display;
 use log::{debug, trace};
-use tokio_util::sync::CancellationToken;
 
+use crate::core::loader::task::LoadingTaskContext;
 use crate::core::loader::{
-    CancellationResult, LoadingData, LoadingError, LoadingEvent, LoadingResult, LoadingStrategy,
+    CancellationResult, LoadingData, LoadingError, LoadingResult, LoadingStrategy,
 };
 use crate::core::media::resume::AutoResumeService;
 
@@ -53,17 +52,12 @@ impl Debug for AutoResumeLoadingStrategy {
 
 #[async_trait]
 impl LoadingStrategy for AutoResumeLoadingStrategy {
-    async fn process(
-        &self,
-        mut data: LoadingData,
-        _: Sender<LoadingEvent>,
-        cancel: CancellationToken,
-    ) -> LoadingResult {
+    async fn process(&self, mut data: LoadingData, context: &LoadingTaskContext) -> LoadingResult {
         trace!("Processing auto resume timestamp for {:?}", data);
         let mut id: Option<&str> = None;
         let filename = data.torrent_file_info.as_ref().map(|e| e.filename.as_str());
 
-        if cancel.is_cancelled() {
+        if context.is_cancelled() {
             return LoadingResult::Err(LoadingError::Cancelled);
         }
         if let Some(media) = data.media.as_ref() {
@@ -74,7 +68,7 @@ impl LoadingStrategy for AutoResumeLoadingStrategy {
             id = Some(media.imdb_id());
         }
 
-        if cancel.is_cancelled() {
+        if context.is_cancelled() {
             return LoadingResult::Err(LoadingError::Cancelled);
         }
         trace!(
@@ -103,16 +97,16 @@ mod tests {
     use std::sync::mpsc::channel;
     use std::time::Duration;
 
-    use crate::core::block_in_place;
+    use super::*;
     use crate::core::media::resume::MockAutoResumeService;
     use crate::core::media::MovieOverview;
     use crate::core::playlist::{PlaylistItem, PlaylistMedia, PlaylistSubtitle, PlaylistTorrent};
     use crate::core::torrents::TorrentFileInfo;
-
-    use super::*;
+    use crate::{create_loading_task, init_logger};
 
     #[test]
     fn test_process() {
+        init_logger!();
         let imdb_id = "tt100200";
         let timestamp = 65000u64;
         let filename = "MyFilename.mp4";
@@ -151,7 +145,9 @@ mod tests {
         let data = LoadingData::from(item);
         let (tx, rx) = channel();
         let (tx_filename, rx_filename) = channel();
-        let (tx_event, _rx_event) = channel();
+        let task = create_loading_task!();
+        let context = task.context();
+        let runtime = context.runtime();
         let mut auto_resume = MockAutoResumeService::new();
         auto_resume
             .expect_resume_timestamp()
@@ -165,7 +161,7 @@ mod tests {
             Box::new(auto_resume) as Box<dyn AutoResumeService>
         ));
 
-        let result = block_in_place(strategy.process(data, tx_event, CancellationToken::new()));
+        let result = runtime.block_on(strategy.process(data, &*context));
 
         if let LoadingResult::Ok(result) = result {
             assert_eq!(Some(timestamp), result.auto_resume_timestamp);
@@ -196,6 +192,7 @@ mod tests {
 
     #[test]
     fn test_process_no_media() {
+        init_logger!();
         let timestamp = 86000u64;
         let filename = "FooBar.mp4";
         let item = PlaylistItem {
@@ -223,7 +220,9 @@ mod tests {
         let data = LoadingData::from(item);
         let (tx, rx) = channel();
         let (tx_filename, rx_filename) = channel();
-        let (tx_event, _rx_event) = channel();
+        let task = create_loading_task!();
+        let context = task.context();
+        let runtime = context.runtime();
         let mut auto_resume = MockAutoResumeService::new();
         auto_resume
             .expect_resume_timestamp()
@@ -237,7 +236,7 @@ mod tests {
             Box::new(auto_resume) as Box<dyn AutoResumeService>
         ));
 
-        let result = block_in_place(strategy.process(data, tx_event, CancellationToken::new()));
+        let result = runtime.block_on(strategy.process(data, &*context));
 
         if let LoadingResult::Ok(result) = result {
             assert_eq!(Some(timestamp), result.auto_resume_timestamp);
@@ -264,6 +263,7 @@ mod tests {
 
     #[test]
     fn test_cancel() {
+        init_logger!();
         let url = "http://localhost:8520/video.mp4";
         let title = "LoremIpsumDolor";
         let item = PlaylistItem {
@@ -284,12 +284,15 @@ mod tests {
             },
         };
         let mut data = LoadingData::from(item);
+        let task = create_loading_task!();
+        let context = task.context();
+        let runtime = context.runtime();
         let auto_resume = MockAutoResumeService::new();
         let strategy = AutoResumeLoadingStrategy::new(Arc::new(
             Box::new(auto_resume) as Box<dyn AutoResumeService>
         ));
 
-        let result = block_in_place(strategy.cancel(data.clone()));
+        let result = runtime.block_on(strategy.cancel(data.clone()));
         data.auto_resume_timestamp = None;
 
         assert_eq!(Ok(data), result);

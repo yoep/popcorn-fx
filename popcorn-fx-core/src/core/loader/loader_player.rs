@@ -1,12 +1,11 @@
 use std::fmt::{Debug, Formatter};
-use std::sync::mpsc::Sender;
 use std::sync::Arc;
 
 use async_trait::async_trait;
 use derive_more::Display;
 use log::{debug, info, trace};
-use tokio_util::sync::CancellationToken;
 
+use crate::core::loader::task::LoadingTaskContext;
 use crate::core::loader::{
     CancellationResult, LoadingData, LoadingError, LoadingEvent, LoadingResult, LoadingState,
     LoadingStrategy,
@@ -91,20 +90,13 @@ impl LoadingStrategy for PlayerLoadingStrategy {
     /// # Arguments
     ///
     /// * `item` - The playlist item to process.
-    async fn process(
-        &self,
-        data: LoadingData,
-        event_channel: Sender<LoadingEvent>,
-        _: CancellationToken,
-    ) -> LoadingResult {
+    async fn process(&self, data: LoadingData, context: &LoadingTaskContext) -> LoadingResult {
         if let Some(url) = data.url.as_ref() {
             let url = url.clone();
             debug!("Starting playlist item playback for {}", url);
             return match self.convert(data) {
                 Ok(request) => {
-                    event_channel
-                        .send(LoadingEvent::StateChanged(LoadingState::Playing))
-                        .unwrap();
+                    context.send_event(LoadingEvent::StateChanged(LoadingState::Playing));
                     self.player_manager.play(request).await;
                     info!("Playback started for {}", url);
                     LoadingResult::Completed
@@ -124,22 +116,21 @@ impl LoadingStrategy for PlayerLoadingStrategy {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::mpsc::channel;
-    use std::time::Duration;
-
-    use crate::core::block_in_place;
     use crate::core::loader::LoadingData;
     use crate::core::media::MovieDetails;
     use crate::core::players::MockPlayerManager;
     use crate::core::playlist::{PlaylistItem, PlaylistMedia};
     use crate::core::torrents::TorrentStream;
-    use crate::testing::{init_logger, MockTorrentStream};
+    use crate::testing::MockTorrentStream;
+    use crate::{create_loading_task, init_logger};
+    use std::sync::mpsc::channel;
+    use std::time::Duration;
 
     use super::*;
 
     #[test]
     fn test_process_youtube_url() {
-        init_logger();
+        init_logger!();
         let url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
         let title = "RRoll";
         let item = PlaylistItem {
@@ -155,7 +146,9 @@ mod tests {
         };
         let data = LoadingData::from(item);
         let (tx, rx) = channel();
-        let (tx_event, _rx_event) = channel();
+        let task = create_loading_task!();
+        let context = task.context();
+        let runtime = context.runtime();
         let mut manager = MockPlayerManager::new();
         manager.expect_play().returning(move |e| {
             tx.send(e).unwrap();
@@ -163,7 +156,7 @@ mod tests {
         });
         let strategy = PlayerLoadingStrategy::new(Arc::new(Box::new(manager)));
 
-        block_in_place(strategy.process(data, tx_event, CancellationToken::new()));
+        runtime.block_on(strategy.process(data, &*context));
         let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
 
         assert_eq!(url, result.url());
@@ -172,7 +165,7 @@ mod tests {
 
     #[test]
     fn test_process_media_item() {
-        init_logger();
+        init_logger!();
         let url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
         let title = "RRol";
         let quality = "1080p";
@@ -206,7 +199,9 @@ mod tests {
         let mut data = LoadingData::from(item);
         data.torrent_stream = Some(Arc::downgrade(&stream));
         let (tx, rx) = channel();
-        let (tx_event, _rx_event) = channel();
+        let task = create_loading_task!();
+        let context = task.context();
+        let runtime = context.runtime();
         let mut manager = MockPlayerManager::new();
         manager.expect_play().returning(move |e| {
             tx.send(e).unwrap();
@@ -214,7 +209,7 @@ mod tests {
         });
         let strategy = PlayerLoadingStrategy::new(Arc::new(Box::new(manager)));
 
-        block_in_place(strategy.process(data, tx_event, CancellationToken::new()));
+        runtime.block_on(strategy.process(data, &*context));
         let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
 
         if let Some(result) = result.downcast_ref::<PlayMediaRequest>() {
@@ -239,7 +234,7 @@ mod tests {
 
     #[test]
     fn test_process_media_item_no_torrent_stream() {
-        init_logger();
+        init_logger!();
         let url = "http://localhost:8090/MyVideo.mkv";
         let expected_error_message = "Missing torrent stream for";
         let movie = MovieDetails {
@@ -269,12 +264,14 @@ mod tests {
             torrent: Default::default(),
         };
         let data = LoadingData::from(item);
-        let (tx_event, _rx_event) = channel();
+        let task = create_loading_task!();
+        let context = task.context();
+        let runtime = context.runtime();
         let mut manager = MockPlayerManager::new();
         manager.expect_play().times(0).return_const(());
         let strategy = PlayerLoadingStrategy::new(Arc::new(Box::new(manager)));
 
-        let result = block_in_place(strategy.process(data, tx_event, CancellationToken::new()));
+        let result = runtime.block_on(strategy.process(data, &*context));
 
         if let LoadingResult::Err(err) = result {
             if let LoadingError::InvalidData(e) = err {
@@ -302,7 +299,7 @@ mod tests {
 
     #[test]
     fn test_process_torrent_stream() {
-        init_logger();
+        init_logger!();
         let url = "https://localhost:87445/MyVideo.mkv";
         let title = "streaming title";
         let quality = "1080p";
@@ -324,7 +321,9 @@ mod tests {
         let mut data = LoadingData::from(item);
         data.torrent_stream = Some(Arc::downgrade(&stream));
         let (tx, rx) = channel();
-        let (tx_event, _rx_event) = channel();
+        let task = create_loading_task!();
+        let context = task.context();
+        let runtime = context.runtime();
         let mut manager = MockPlayerManager::new();
         manager.expect_play().returning(move |e| {
             tx.send(e).unwrap();
@@ -332,7 +331,7 @@ mod tests {
         });
         let strategy = PlayerLoadingStrategy::new(Arc::new(Box::new(manager)));
 
-        block_in_place(strategy.process(data, tx_event, CancellationToken::new()));
+        runtime.block_on(strategy.process(data, &*context));
         let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
 
         if let Some(result) = result.downcast_ref::<PlayStreamRequest>() {

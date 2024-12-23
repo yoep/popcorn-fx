@@ -32,16 +32,18 @@ enum class DecorationType : int32_t {
   SeeThroughBackground = 3,
 };
 
-enum class LoadingState : int32_t {
-  Initializing,
-  Starting,
-  RetrievingSubtitles,
-  DownloadingSubtitle,
-  Connecting,
-  Downloading,
-  DownloadFinished,
-  Ready,
-  Playing,
+enum class LoadingState : uint32_t {
+  Initializing = 0,
+  Starting = 1,
+  RetrievingSubtitles = 2,
+  DownloadingSubtitle = 3,
+  RetrievingMetadata = 4,
+  Connecting = 5,
+  Downloading = 6,
+  DownloadFinished = 7,
+  Ready = 8,
+  Playing = 9,
+  Cancelled = 10,
 };
 
 /// The C-compatible logging level for log messages sent over FFI.
@@ -1273,9 +1275,6 @@ struct SubtitleEventC {
 /// The C callback for the subtitle events.
 using SubtitleCallbackC = void(*)(SubtitleEventC);
 
-/// Type alias for a callback that handles torrent stream events.
-using TorrentStreamEventCallback = void(*)(TorrentStreamEventC);
-
 /// Type alias for the C-compatible authorization open function.
 using AuthorizationOpenC = bool(*)(char *uri);
 
@@ -2200,7 +2199,7 @@ CArray<PlaylistItemC> *playlist(PopcornFX *popcorn_fx);
 ByteArray *poster_placeholder(PopcornFX *popcorn_fx);
 
 /// Publish a new application event over the FFI layer.
-/// This will invoke the [popcorn_fx_core::core::events::EventPublisher] publisher on the backend.
+/// This will invoke the [popcorn_fx_core::core::event::EventPublisher] publisher on the backend.
 ///
 /// _Please keep in mind that the consumption of the event chain is not communicated over the FFI layer_
 void publish_event(PopcornFX *popcorn_fx, EventC event);
@@ -2334,21 +2333,6 @@ void register_settings_callback(PopcornFX *popcorn_fx, ApplicationConfigCallback
 /// * `callback` - A function pointer to the C callback function.
 void register_subtitle_callback(PopcornFX *popcorn_fx, SubtitleCallbackC callback);
 
-/// Registers a new torrent stream event callback.
-///
-/// This function registers a callback function to receive torrent stream events.
-///
-/// # Arguments
-///
-/// * `popcorn_fx` - A mutable reference to the PopcornFX instance.
-/// * `stream_handle` - The handle of the torrent stream.
-/// * `callback` - The callback function to be invoked when torrent stream events occur.
-///
-/// # Returns
-///
-/// A pointer to an integer value representing the handle of the registered callback, or a null pointer if registration fails.
-const int64_t *register_torrent_stream_event_callback(PopcornFX *popcorn_fx, int64_t stream_handle, TorrentStreamEventCallback callback);
-
 /// Registers a callback function to handle authorization URI openings from C code.
 ///
 /// # Arguments
@@ -2412,8 +2396,6 @@ void remove_from_watched(PopcornFX *popcorn_fx, const MediaItemC *watchable);
 /// This function removes a player with the specified ID from the PopcornFX player manager.
 /// It converts the `player_id` C string to a Rust String and logs a trace message to indicate the removal.
 void remove_player(PopcornFX *popcorn_fx, char *player_id);
-
-void remove_torrent_stream_event_callback(PopcornFX *popcorn_fx, const int64_t *stream_handle, const int64_t *callback_handle);
 
 /// Reset all available api stats for the movie api.
 /// This will make all disabled api's available again.

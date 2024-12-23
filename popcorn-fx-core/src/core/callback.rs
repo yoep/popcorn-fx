@@ -135,6 +135,11 @@ where
             let mut handles_to_remove = Vec::with_capacity(0);
             let value = Arc::new(value);
 
+            trace!(
+                "Invoking a total of {} callbacks for {:?}",
+                mutex.len(),
+                *value
+            );
             for (handle, callback) in mutex.iter() {
                 if let Err(_) = callback.send(value.clone()) {
                     trace!("Callback {} has been dropped", handle);

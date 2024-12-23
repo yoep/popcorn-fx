@@ -12,6 +12,6 @@ popcorn:
     popcorn_fx_players:
       level: warn
     popcorn_fx_opensubtitles:
-      level: warn
+      level: error
     popcorn_fx_torrent:
       level: debug

@@ -3,7 +3,7 @@ use std::os::raw::c_char;
 use std::ptr;
 
 use popcorn_fx_core::core::loader::{
-    LoaderEvent, LoadingError, LoadingProgress, LoadingStartedEvent, LoadingState,
+    LoadingError, LoadingProgress, LoadingStartedEvent, LoadingState, MediaLoaderEvent,
 };
 use popcorn_fx_core::{from_c_string, into_c_string};
 
@@ -26,17 +26,19 @@ pub enum LoaderEventC {
     LoaderError(i64, LoadingErrorC),
 }
 
-impl From<LoaderEvent> for LoaderEventC {
-    fn from(value: LoaderEvent) -> Self {
+impl From<MediaLoaderEvent> for LoaderEventC {
+    fn from(value: MediaLoaderEvent) -> Self {
         match value {
-            LoaderEvent::LoadingStarted(handle, e) => {
+            MediaLoaderEvent::LoadingStarted(handle, e) => {
                 LoaderEventC::LoadingStarted(handle.value(), LoadingStartedEventC::from(e))
             }
-            LoaderEvent::StateChanged(handle, e) => LoaderEventC::StateChanged(handle.value(), e),
-            LoaderEvent::LoadingError(handle, e) => {
+            MediaLoaderEvent::StateChanged(handle, e) => {
+                LoaderEventC::StateChanged(handle.value(), e)
+            }
+            MediaLoaderEvent::LoadingError(handle, e) => {
                 LoaderEventC::LoaderError(handle.value(), LoadingErrorC::from(e))
             }
-            LoaderEvent::ProgressChanged(handle, e) => {
+            MediaLoaderEvent::ProgressChanged(handle, e) => {
                 LoaderEventC::ProgressChanged(handle.value(), LoadingProgressC::from(e))
             }
         }
@@ -200,7 +202,7 @@ mod tests {
     #[test]
     fn test_loader_event_c_from() {
         let state = LoadingState::Downloading;
-        let event = LoaderEvent::StateChanged(Handle::new(), state.clone());
+        let event = MediaLoaderEvent::StateChanged(Handle::new(), state.clone());
 
         let result = LoaderEventC::from(event);
 

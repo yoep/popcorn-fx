@@ -44,7 +44,7 @@ warp = "0.3.7"
 
 # dev-dependencies
 httpmock = "0.7.0"
-mockall = "0.13.0"
+mockall = "0.13.1"
 tempfile = "3.10.1"
 
 [profile.release]

@@ -7,8 +7,8 @@ use crate::torrent::file::{File, FilePriority};
 use crate::torrent::fs::TorrentFileStorage;
 use crate::torrent::peer::extension::{Extension, Extensions};
 use crate::torrent::peer::{
-    ConnectionType, DefaultPeerListener, Peer, PeerClientInfo, PeerEntry, PeerEvent, PeerHandle,
-    PeerId, PeerListener, PeerState, ProtocolExtensionFlags, TcpPeer,
+    DefaultPeerListener, Peer, PeerClientInfo, PeerEntry, PeerEvent, PeerHandle, PeerId,
+    PeerListener, PeerState, ProtocolExtensionFlags, TcpPeer,
 };
 use crate::torrent::peer_pool::PeerPool;
 use crate::torrent::tracker::{
@@ -39,7 +39,9 @@ use tokio::runtime::Runtime;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::sync::{Notify, OwnedSemaphorePermit, RwLock, RwLockReadGuard, Semaphore};
 use tokio::{select, time};
-use tokio_util::sync::CancellationToken;
+use tokio_util::sync::{
+    CancellationToken, WaitForCancellationFuture, WaitForCancellationFutureOwned,
+};
 use url::Url;
 
 const DEFAULT_PEER_TIMEOUT_SECONDS: u64 = 6;
@@ -49,6 +51,7 @@ const DEFAULT_PEER_UPPER_LIMIT: usize = 200;
 const DEFAULT_PEER_IN_FLIGHT: usize = 25;
 const DEFAULT_PEER_UPLOAD_SLOTS: usize = 50;
 const DEFAULT_MAX_IN_FLIGHT_PIECES: usize = 128;
+const DEFAULT_PEER_CLIENT_NAME: &str = "PopcornFX";
 const PEER_REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// A unique handle identifier of a [Torrent].
@@ -265,6 +268,7 @@ impl From<&TorrentStats> for TorrentTransferStats {
 /// The torrent configuration.
 #[derive(Debug, Clone)]
 pub struct TorrentConfig {
+    pub client_name: String,
     pub peers_lower_limit: usize,
     pub peers_upper_limit: usize,
     pub peers_in_flight: usize,
@@ -283,6 +287,7 @@ impl TorrentConfig {
 
 #[derive(Debug, Default)]
 pub struct TorrentConfigBuilder {
+    client_name: Option<String>,
     peers_lower_limit: Option<usize>,
     peers_upper_limit: Option<usize>,
     peers_in_flight: Option<usize>,
@@ -296,6 +301,12 @@ impl TorrentConfigBuilder {
     /// Create a new torrent configuration builder.
     pub fn builder() -> Self {
         Self::default()
+    }
+
+    /// Set the name of the client.
+    pub fn client_name<S: AsRef<str>>(mut self, name: S) -> Self {
+        self.client_name = Some(name.as_ref().to_string());
+        self
     }
 
     /// Set the lower limit for the number of peers.
@@ -336,6 +347,9 @@ impl TorrentConfigBuilder {
 
     /// Build the torrent configuration.
     pub fn build(self) -> TorrentConfig {
+        let client_name = self
+            .client_name
+            .unwrap_or_else(|| DEFAULT_PEER_CLIENT_NAME.to_string());
         let peers_lower_limit = self.peers_lower_limit.unwrap_or(DEFAULT_PEER_LOWER_LIMIT);
         let peers_upper_limit = self.peers_upper_limit.unwrap_or(DEFAULT_PEER_UPPER_LIMIT);
         let peers_in_flight = self.peers_in_flight.unwrap_or(DEFAULT_PEER_IN_FLIGHT);
@@ -351,6 +365,7 @@ impl TorrentConfigBuilder {
             .unwrap_or(DEFAULT_MAX_IN_FLIGHT_PIECES);
 
         TorrentConfig {
+            client_name,
             peers_lower_limit,
             peers_upper_limit,
             peers_in_flight,
@@ -1460,15 +1475,16 @@ impl TorrentContext {
         self.peer_port
     }
 
-    /// Get an owned instance of the cancellation token of the torrent.
-    /// This token will be cancelled when the torrent is being stopped/dropped.
-    ///
-    /// # Notice
-    ///
-    /// This should only be used to cancel async tasks which have a strong reference to the [TorrentContext].
-    /// **DO NOT** use this to stop/break the torrent.
-    pub fn cancellation_token(&self) -> CancellationToken {
-        self.cancellation_token.clone()
+    /// Returns a Future that gets fulfilled when the torrent is being cancelled/stopped.
+    /// The future will complete immediately if the torrenbt is already cancelled when this method is called.
+    pub fn cancelled(&self) -> WaitForCancellationFuture<'_> {
+        self.cancellation_token.cancelled()
+    }
+
+    /// Returns a Future that gets fulfilled when the torrent is being cancelled/stopped.
+    /// The future will complete immediately if the torrenbt is already cancelled when this method is called.
+    pub fn cancelled_owned(&self) -> WaitForCancellationFutureOwned {
+        self.cancellation_token.clone().cancelled_owned()
     }
 
     /// Get the shared runtime used by the torrent.
@@ -1663,11 +1679,12 @@ impl TorrentContext {
             // don't allow duplicate piece requests which have not timed out
             // the exclusion on this is only during the end-game phase of the torrent
             .filter(|e| {
-                is_end_game
-                    || piece_requests
-                        .get(e)
-                        .filter(|e| e.elapsed() > PEER_REQUEST_TIMEOUT)
-                        .is_none()
+                let should_request_piece = piece_requests
+                    .get(e)
+                    .filter(|e| e.elapsed() <= PEER_REQUEST_TIMEOUT)
+                    .is_none();
+
+                is_end_game || should_request_piece
             })
             .collect()
     }
@@ -2216,7 +2233,8 @@ impl TorrentContext {
 
     /// Set the pieces of the torrent.
     pub async fn update_pieces(&self, pieces: Vec<Piece>) {
-        trace!("Torrent {} updating {} pieces", self, pieces.len());
+        let total_pieces = pieces.len();
+        trace!("Torrent {} updating {} pieces", self, total_pieces);
         {
             let mut mutex = self.pieces.write().await;
             *mutex = pieces;
@@ -2253,6 +2271,10 @@ impl TorrentContext {
             }
         }
 
+        debug!(
+            "Torrent {} updated pieces to a total of {}",
+            self, total_pieces
+        );
         self.update_interested_pieces_stats().await;
         self.invoke_event(TorrentEvent::PiecesChanged);
     }
@@ -2743,6 +2765,23 @@ impl TorrentContext {
             return None;
         }
 
+        // check if the request is already in-flight and not timed-out
+        let is_piece_download_allowed = self
+            .pending_piece_requests
+            .read()
+            .await
+            .get(piece)
+            .filter(|e| e.elapsed() <= PEER_REQUEST_TIMEOUT)
+            .is_none();
+        if !is_piece_download_allowed {
+            trace!(
+                "Torrent {} is already requesting piece {} data",
+                self,
+                piece
+            );
+            return None;
+        }
+
         if let Some(permit) = self
             .request_download_permits
             .clone()
@@ -2923,7 +2962,7 @@ impl TorrentContext {
                     Ok(_) => {
                         let elapsed = start_time.elapsed();
                         let path = PathBuf::from(self.storage.path()).join(file.path);
-                        debug!(
+                        trace!(
                             "Torrent {} wrote piece {} data (size {}) to {:?} in {}.{:03}ms",
                             self,
                             piece.index,
@@ -3012,9 +3051,12 @@ impl TorrentContext {
         }
 
         let total_completed_pieces = Self::total_completed_pieces_with_lock(pieces).await;
-        // if only 3 percent of the pieces are left to be completed
+        // if only 3 percent, counted with a precision of 2 decimals, of the pieces are left to be completed
         // then we enter the end-game phase
-        (total_completed_pieces * 100usize) / total_interested_pieces > 97
+        let percentage_completed_pieces =
+            ((total_completed_pieces as f32 / total_interested_pieces as f32) * 10_000.0).round()
+                / 100.0;
+        percentage_completed_pieces >= 97.0
     }
 
     /// Get the total amount of completed pieces for the torrent.
@@ -3133,6 +3175,7 @@ mod tests {
     use popcorn_fx_core::core::torrents::Torrent;
     use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::{copy_test_file, read_test_file_to_bytes};
+    use std::ops::Sub;
     use std::str::FromStr;
     use std::sync::mpsc::channel;
     use tempfile::tempdir;
@@ -3811,6 +3854,66 @@ mod tests {
     }
 
     #[test]
+    fn test_torrent_is_end_game() {
+        init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let torrent = create_torrent!(
+            "debian-udp.torrent",
+            temp_path,
+            TorrentFlags::none(),
+            vec![]
+        );
+        let context = torrent.instance().unwrap();
+        let runtime = context.runtime();
+        let operation = TorrentCreatePiecesOperation::new();
+
+        let total_pieces = runtime.block_on(async {
+            operation.execute(&context).await;
+            context.total_pieces().await
+        });
+        assert_ne!(0, total_pieces, "expected the pieces to have been created");
+
+        let result = runtime.block_on(context.is_end_game());
+        assert_eq!(
+            false, result,
+            "expected the torrent to not be in the end-game phase"
+        );
+
+        let completed_range_1 = (total_pieces as f64 * 0.90) as usize;
+        runtime.block_on(
+            context.pieces_completed(
+                (0..completed_range_1)
+                    .into_iter()
+                    .map(|e| e as PieceIndex)
+                    .collect(),
+            ),
+        );
+
+        let result = runtime.block_on(context.is_end_game());
+        assert_eq!(
+            false, result,
+            "expected the torrent to not be in the end-game phase"
+        );
+
+        let completed_range_2 = (total_pieces as f64 * 0.98) as usize;
+        runtime.block_on(
+            context.pieces_completed(
+                (completed_range_1..completed_range_2)
+                    .into_iter()
+                    .map(|e| e as PieceIndex)
+                    .collect(),
+            ),
+        );
+
+        let result = runtime.block_on(context.is_end_game());
+        assert_eq!(
+            true, result,
+            "expected the torrent to be in the end-game phase"
+        );
+    }
+
+    #[test]
     fn test_torrent_determine_state() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
@@ -3900,6 +4003,71 @@ mod tests {
             .collect();
         let result = runtime.block_on(context.wanted_pieces());
         assert_eq!(expected_result, result);
+    }
+
+    #[test]
+    fn test_torrent_wanted_request_pieces() {
+        init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let torrent = create_torrent!(
+            "debian-udp.torrent",
+            temp_path,
+            TorrentFlags::DownloadMode,
+            vec![]
+        );
+        let context = torrent.instance().unwrap();
+        let runtime = context.runtime();
+        let operation = TorrentCreatePiecesOperation::new();
+
+        let total_pieces = runtime.block_on(async {
+            operation.execute(&context).await;
+            context.total_pieces().await
+        });
+        assert_ne!(0, total_pieces, "expected the pieces to have been created");
+
+        runtime.block_on(
+            torrent.prioritize_pieces(
+                (100..total_pieces)
+                    .into_iter()
+                    .map(|piece| (piece, PiecePriority::None))
+                    .collect(),
+            ),
+        );
+
+        // acquire some locks
+        let permits = runtime.block_on(async {
+            let mut permits = Vec::new();
+            for piece in (0..10).into_iter().map(|e| e as PieceIndex) {
+                let permit = context
+                    .request_download_permit(&piece)
+                    .await
+                    .expect(format!("expected to get a permit for {} piece", piece).as_str());
+                permits.push(permit);
+            }
+            permits
+        });
+        assert_eq!(10, permits.len(), "expected to acquire 10 permits");
+
+        let expected_wanted_pieces: Vec<PieceIndex> =
+            (10..100).into_iter().map(|e| e as PieceIndex).collect();
+        let wanted_pieces = runtime.block_on(context.wanted_request_pieces());
+        assert_eq!(expected_wanted_pieces, wanted_pieces);
+
+        // update a piece 0 to have timed out
+        runtime.block_on(async {
+            context
+                .pending_piece_requests
+                .write()
+                .await
+                .insert(0, Instant::now().sub(Duration::from_secs(120)));
+        });
+        let wanted_pieces = runtime.block_on(context.wanted_request_pieces());
+        assert_eq!(
+            &0,
+            wanted_pieces.get(0).unwrap(),
+            "expected piece 0 to be requested again after timeout"
+        );
     }
 
     #[test]

@@ -325,13 +325,8 @@ impl Extension for MetadataExtension {
 
 impl Debug for MetadataExtension {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let buffer_len = block_in_place(self.metadata_buffer.read())
-            .as_ref()
-            .map(|e| e.len())
-            .unwrap_or(0);
         f.debug_struct("MetadataExtension")
             .field("total_pieces", &self.total_pieces)
-            .field("metadata_buffer", &format!("[size {}]", buffer_len))
             .finish()
     }
 }

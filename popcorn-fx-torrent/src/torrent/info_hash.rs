@@ -3,7 +3,7 @@ use std::str::FromStr;
 
 use base32::Alphabet;
 use hex::FromHex;
-use log::{debug, trace, warn};
+use log::{debug, error, trace, warn};
 use sha1::{Digest, Sha1};
 use sha2::Sha256;
 
@@ -78,7 +78,7 @@ impl InfoHash {
         self.v2.as_ref().map(|e| e.as_slice())
     }
 
-    /// Retrieve the info hash as a 20-byte array.
+    /// Get the info hash as a 20-byte array.
     /// This will be the v1 hash if present, otherwise the shortened v2 hash to match 20 bytes.
     ///
     /// # Returns
@@ -89,12 +89,28 @@ impl InfoHash {
 
         if let Some(hash) = self.hash_v1() {
             info_hash_bytes = hash;
+        } else if let Some(bytes) = self.v2_as_short() {
+            info_hash_bytes = bytes;
         } else {
-            let v2_hash = self.hash_v2().expect("expected v2 info hash to be present");
-            info_hash_bytes.copy_from_slice(&v2_hash[..20]);
+            error!("Both v1 & v2 info hashes are missing, using empty 20-byte array as fallback");
         }
 
         info_hash_bytes
+    }
+
+    /// Get the v2 info hash as shortened 20-byte array.
+    ///
+    /// # Returns
+    ///
+    /// It returns the v2 hash as a 20-byte array.
+    pub fn v2_as_short(&self) -> Option<Sha1Hash> {
+        if let Some(hash) = self.hash_v2() {
+            let mut info_hash_bytes = [0u8; 20];
+            info_hash_bytes.copy_from_slice(&hash[..20]);
+            return Some(info_hash_bytes);
+        }
+
+        None
     }
 
     /// Try to parse the given hash bytes into an `InfoHash`.
@@ -127,6 +143,45 @@ impl InfoHash {
         Err(TorrentError::InvalidInfoHash(
             "invalid info hash length".to_string(),
         ))
+    }
+
+    /// Try to parse the info hash from multiple str slices.
+    /// This can be used when an info hash might be hybrid and both contain a v1 & v2 hash.
+    pub fn try_from_str_slice(values: &[&str]) -> Result<Self> {
+        if values.is_empty() {
+            return Err(TorrentError::InvalidTopic(
+                "empty topic string slice".to_string(),
+            ));
+        }
+
+        trace!("Parsing info hash from values {:?}", values);
+        let mut v1_hash: Option<Sha1Hash> = None;
+        let mut v2_hash: Option<Vec<u8>> = None;
+
+        for value in values {
+            let segments: Vec<&str> = value.split(':').collect();
+            let info_hash = if segments.len() == 1 {
+                Self::try_from_str_value(value).ok()
+            } else {
+                Self::try_from_str_segments(value, segments).ok()
+            };
+
+            if let Some(info_hash) = info_hash {
+                v1_hash = info_hash.v1.or(v1_hash);
+                v2_hash = info_hash.v2.or(v2_hash);
+            }
+        }
+
+        if v1_hash.is_none() && v2_hash.is_none() {
+            return Err(TorrentError::InvalidTopic(
+                "none of the provided values are valid".to_string(),
+            ));
+        }
+
+        Ok(Self {
+            v1: v1_hash,
+            v2: v2_hash,
+        })
     }
 
     /// Create the info from the given v1 bencoded metadata bytes.
@@ -380,14 +435,14 @@ impl FromStr for InfoHash {
     /// # Returns
     ///
     /// A `Result` containing the `InfoHash` if parsing is successful, or a `TorrentError` if it fails.
-    fn from_str(xt: &str) -> Result<Self> {
-        trace!("Parsing info hash from magnet {}", xt);
-        let segments: Vec<&str> = xt.split(':').collect();
+    fn from_str(value: &str) -> Result<Self> {
+        trace!("Parsing info hash from value {}", value);
+        let segments: Vec<&str> = value.split(':').collect();
 
         if segments.len() == 1 {
-            Self::try_from_str_value(xt)
+            Self::try_from_str_value(value)
         } else {
-            Self::try_from_str_segments(xt, segments)
+            Self::try_from_str_segments(value, segments)
         }
     }
 }
@@ -497,7 +552,7 @@ mod tests {
     use hex_literal::hex;
     use popcorn_fx_core::core::torrents::magnet::Magnet;
     use popcorn_fx_core::init_logger;
-    use popcorn_fx_core::testing::{init_logger, read_test_file_to_bytes};
+    use popcorn_fx_core::testing::read_test_file_to_bytes;
 
     #[test]
     fn test_info_hash_from_metadata_v1() {
@@ -633,5 +688,16 @@ mod tests {
             "CDCDCDCDCDCDCDCDCDCDCDCDCDCDCDCDCDCDCDCDCDCDCDCDCDCDCDCDCDCDCDCD", result,
             "expected the v2 hash to be displayed"
         );
+    }
+
+    #[test]
+    fn test_info_hash_try_from_str_slice() {
+        init_logger!();
+        let magnet= Magnet::from_str("magnet:?xt=urn:btih:631a31dd0a46257d5078c0dee4e66e26f73e42ac&xt=urn:btmh:1220d8dd32ac93357c368556af3ac1d95c9d76bd0dff6fa9833ecdac3d53134efabb&dn=bittorrent-v1-v2-hybrid-test").unwrap();
+
+        let result = InfoHash::try_from_str_slice(magnet.xt().as_slice()).unwrap();
+
+        assert_ne!(None, result.v1, "expected the v1 hash to be present");
+        assert_ne!(None, result.v2, "expected the v2 hash to be present");
     }
 }

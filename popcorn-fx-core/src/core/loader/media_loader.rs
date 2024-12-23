@@ -1,16 +1,9 @@
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::str::FromStr;
 use std::sync::Arc;
 
-use async_trait::async_trait;
-use derive_more::Display;
-use log::{debug, error, info, trace};
-#[cfg(any(test, feature = "testing"))]
-use mockall::automock;
-use thiserror::Error;
-use tokio::runtime::Runtime;
-use tokio::sync::Mutex;
-
+use crate::core::callback::{Callback, MultiCallback, Subscriber, Subscription};
 use crate::core::loader::loading_chain::{LoadingChain, Order};
 use crate::core::loader::task::LoadingTask;
 use crate::core::loader::{LoadingData, LoadingEvent, LoadingStrategy};
@@ -20,7 +13,18 @@ use crate::core::media::{
 use crate::core::playlist::PlaylistItem;
 use crate::core::torrents::magnet::Magnet;
 use crate::core::torrents::{DownloadStatus, Error};
-use crate::core::{block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks, Handle};
+use crate::core::Handle;
+use async_trait::async_trait;
+use derive_more::Display;
+use log::{debug, error, trace};
+#[cfg(any(test, feature = "testing"))]
+pub use mock::*;
+use thiserror::Error;
+use tokio::runtime::Runtime;
+use tokio::select;
+use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
+use tokio::sync::RwLock;
+use tokio_util::sync::CancellationToken;
 
 /// Represents the result of a loading operation.
 ///
@@ -28,21 +32,9 @@ use crate::core::{block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreC
 /// contains a `LoadingError` indicating the reason for the loading failure.
 pub type LoaderResult<T> = Result<T, LoadingError>;
 
-/// A type alias for a callback function that handles loader events.
-///
-/// `LoaderCallback` functions can be registered with the media loader to receive notifications about loader events,
-/// such as loading state changes, progress updates, and errors.
-pub type LoaderCallback = CoreCallback<LoaderEvent>;
-
-/// A type alias for a callback function that handles loading events.
-///
-/// `LoadingCallback` functions can be registered with the loading task to receive notifications about loading events,
-/// such as loading state changes, progress updates, and errors.
-pub type LoadingCallback = CoreCallback<LoadingEvent>;
-
 /// An enum representing events related to media loading.
 #[derive(Debug, Display, Clone, PartialEq)]
-pub enum LoaderEvent {
+pub enum MediaLoaderEvent {
     /// Indicates that loading has started for a media item with the associated event details.
     #[display(fmt = "Loading started for {}", _1)]
     LoadingStarted(LoadingHandle, LoadingStartedEvent),
@@ -72,7 +64,7 @@ pub enum LoadingResult {
 pub type CancellationResult = Result<LoadingData, LoadingError>;
 
 #[repr(u32)]
-#[derive(Debug, Clone, Display, PartialOrd, PartialEq)]
+#[derive(Debug, Copy, Clone, Display, PartialOrd, PartialEq)]
 pub enum LoadingState {
     #[display(fmt = "Loader is initializing")]
     Initializing = 0,
@@ -94,6 +86,8 @@ pub enum LoadingState {
     Ready = 8,
     #[display(fmt = "Loader is playing media")]
     Playing = 9,
+    #[display(fmt = "Loader is cancelled")]
+    Cancelled = 10,
 }
 
 #[derive(Debug, Display, Clone, PartialEq)]
@@ -120,7 +114,7 @@ impl LoadingStartedEvent {
                 return None;
             }
 
-            return Some(images.fanart().to_string());
+            Some(images.fanart().to_string())
         } else {
             if let Some(e) = media.downcast_ref::<MovieDetails>() {
                 Some(e.images().fanart().to_string())
@@ -232,11 +226,11 @@ pub enum LoadingError {
 /// This handle is used to identify and manage individual loading processes.
 pub type LoadingHandle = Handle;
 
-#[cfg_attr(any(test, feature = "testing"), automock)]
 /// A trait for managing media loading in a playlist.
 ///
 /// Media loaders are responsible for coordinating the loading of media items in a playlist, utilizing loading strategies to process and prepare these items before playback.
-pub trait MediaLoader: Debug + Send + Sync {
+#[async_trait]
+pub trait MediaLoader: Debug + Callback<MediaLoaderEvent> + Send + Sync {
     /// Add a new loading strategy to the loading chain at the specified order.
     ///
     /// # Arguments
@@ -245,17 +239,8 @@ pub trait MediaLoader: Debug + Send + Sync {
     /// * `order` - The order at which the strategy should be added.
     fn add(&self, strategy: Box<dyn LoadingStrategy>, order: Order);
 
-    /// Subscribe to loader events and receive notifications when loading events occur.
-    ///
-    /// # Arguments
-    ///
-    /// * `callback` - A callback function to receive loader events.
-    ///
-    /// Returns a `CallbackHandle` representing the subscription to loader events.
-    fn subscribe(&self, callback: LoaderCallback) -> CallbackHandle;
-
     /// Load a torrent magnet url.
-    fn load_url(&self, url: &str) -> LoadingHandle;
+    async fn load_url(&self, url: &str) -> LoadingHandle;
 
     /// Load a media item in the playlist using the media loader.
     ///
@@ -264,7 +249,7 @@ pub trait MediaLoader: Debug + Send + Sync {
     /// * `item` - The playlist item to be loaded.
     ///
     /// Returns a `LoadingHandle` representing the loading process associated with the loaded item.
-    fn load_playlist_item(&self, item: PlaylistItem) -> LoadingHandle;
+    async fn load_playlist_item(&self, item: PlaylistItem) -> LoadingHandle;
 
     /// Get the current loading state for a specific loading process represented by the provided `LoadingHandle`.
     ///
@@ -273,29 +258,11 @@ pub trait MediaLoader: Debug + Send + Sync {
     /// * `handle` - The `LoadingHandle` associated with the loading process.
     ///
     /// Returns an `Option` containing the loading state if the handle is valid; otherwise, `None`.
-    fn state(&self, handle: LoadingHandle) -> Option<LoadingState>;
+    async fn state(&self, handle: LoadingHandle) -> Option<LoadingState>;
 
-    /// Subscribe to loading events for a specific loading process represented by the provided `LoadingHandle`.
-    ///
-    /// # Arguments
-    ///
-    /// * `handle` - The `LoadingHandle` associated with the loading process.
-    /// * `callback` - A callback function to receive loading events for the specified process.
-    ///
-    /// Returns an `Option` containing a `CallbackHandle` representing the subscription if the handle is valid; otherwise, `None`.
-    fn subscribe_loading(
-        &self,
-        handle: LoadingHandle,
-        callback: LoadingCallback,
-    ) -> Option<CallbackHandle>;
-
-    /// Unsubscribe from loading events for a specific loading process represented by the provided `LoadingHandle`.
-    ///
-    /// # Arguments
-    ///
-    /// * `handle` - The `LoadingHandle` associated with the loading process.
-    /// * `callback_handle` - The `CallbackHandle` representing the subscription to be canceled.
-    fn unsubscribe_loading(&self, handle: LoadingHandle, callback_handle: CallbackHandle);
+    /// Subscribe to the loading events of the given loading task handle.
+    /// It returns a subscription if the task is still running, else [None].
+    async fn subscribe_loading(&self, handle: LoadingHandle) -> Option<Subscription<LoadingEvent>>;
 
     /// Cancel the loading process associated with the provided `LoadingHandle`.
     ///
@@ -312,9 +279,20 @@ pub struct DefaultMediaLoader {
 
 impl DefaultMediaLoader {
     pub fn new(loading_chain: Vec<Box<dyn LoadingStrategy>>) -> Self {
-        Self {
-            inner: Arc::new(InnerMediaLoader::new(loading_chain)),
-        }
+        let (event_sender, event_receiver) = unbounded_channel();
+        let (command_sender, command_receiver) = unbounded_channel();
+        let inner = Arc::new(InnerMediaLoader::new(
+            loading_chain,
+            event_sender,
+            command_sender,
+        ));
+
+        let inner_main = inner.clone();
+        inner.runtime.spawn(async move {
+            inner_main.start(event_receiver, command_receiver).await;
+        });
+
+        Self { inner }
     }
 }
 
@@ -324,189 +302,299 @@ impl MediaLoader for DefaultMediaLoader {
         self.inner.add(strategy, order);
     }
 
-    fn subscribe(&self, callback: LoaderCallback) -> CallbackHandle {
-        self.inner.subscribe(callback)
+    async fn load_url(&self, url: &str) -> LoadingHandle {
+        self.inner.load_url(url).await
     }
 
-    fn load_url(&self, url: &str) -> LoadingHandle {
-        self.inner.load_url(url)
+    async fn load_playlist_item(&self, item: PlaylistItem) -> LoadingHandle {
+        self.inner.load_playlist_item(item).await
     }
 
-    fn load_playlist_item(&self, item: PlaylistItem) -> LoadingHandle {
-        self.inner.load_playlist_item(item)
+    async fn state(&self, handle: LoadingHandle) -> Option<LoadingState> {
+        self.inner.task_state(handle).await
     }
 
-    fn state(&self, handle: LoadingHandle) -> Option<LoadingState> {
-        self.inner.state(handle)
-    }
-
-    fn subscribe_loading(
-        &self,
-        handle: LoadingHandle,
-        callback: LoadingCallback,
-    ) -> Option<CallbackHandle> {
-        self.inner.subscribe_loading(handle, callback)
-    }
-
-    fn unsubscribe_loading(&self, handle: LoadingHandle, callback_handle: CallbackHandle) {
-        self.inner.unsubscribe_loading(handle, callback_handle)
+    async fn subscribe_loading(&self, handle: LoadingHandle) -> Option<Subscription<LoadingEvent>> {
+        self.inner.subscribe_loading(handle).await
     }
 
     fn cancel(&self, handle: LoadingHandle) {
-        self.inner.cancel(handle)
+        self.inner
+            .send_command_event(MediaLoaderCommandEvent::Cancel(handle))
     }
+}
+
+impl Callback<MediaLoaderEvent> for DefaultMediaLoader {
+    fn subscribe(&self) -> Subscription<MediaLoaderEvent> {
+        self.inner.callbacks.subscribe()
+    }
+
+    fn subscribe_with(&self, subscriber: Subscriber<MediaLoaderEvent>) {
+        self.inner.callbacks.subscribe_with(subscriber)
+    }
+}
+
+impl Drop for DefaultMediaLoader {
+    fn drop(&mut self) {
+        self.inner.cancellation_token.cancel();
+    }
+}
+
+#[derive(Debug, PartialEq)]
+enum MediaLoaderCommandEvent {
+    /// Cancel the given loading task
+    Cancel(LoadingHandle),
+    /// Cancel all loading tasks
+    CancelAll,
+    /// Indicates that a task has completed loading.
+    TaskCompleted(LoadingHandle),
+    /// Indicates that a loading task has been cancelled.
+    TaskCancelled(LoadingHandle),
 }
 
 #[derive(Debug)]
 struct InnerMediaLoader {
     loading_chain: Arc<LoadingChain>,
-    tasks: Arc<Mutex<Vec<Arc<LoadingTask>>>>,
-    callbacks: CoreCallbacks<LoaderEvent>,
+    tasks: RwLock<HashMap<LoadingHandle, LoadingTask>>,
+    event_sender: UnboundedSender<MediaLoaderEvent>,
+    command_sender: UnboundedSender<MediaLoaderCommandEvent>,
+    callbacks: MultiCallback<MediaLoaderEvent>,
+    cancellation_token: CancellationToken,
     runtime: Arc<Runtime>,
 }
 
 impl InnerMediaLoader {
-    fn new(loading_chain: Vec<Box<dyn LoadingStrategy>>) -> Self {
+    fn new(
+        loading_chain: Vec<Box<dyn LoadingStrategy>>,
+        event_sender: UnboundedSender<MediaLoaderEvent>,
+        command_sender: UnboundedSender<MediaLoaderCommandEvent>,
+    ) -> Self {
+        let runtime = Arc::new(
+            tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .worker_threads(5)
+                .thread_name("media_loader")
+                .build()
+                .expect("expected a new runtime"),
+        );
+
         Self {
             loading_chain: Arc::new(LoadingChain::from(loading_chain)),
-            tasks: Arc::new(Mutex::new(Vec::default())),
-            callbacks: Default::default(),
-            runtime: Arc::new(
-                tokio::runtime::Builder::new_multi_thread()
-                    .enable_all()
-                    .worker_threads(5)
-                    .thread_name("media_loader")
-                    .build()
-                    .expect("expected a new runtime"),
-            ),
+            tasks: RwLock::new(HashMap::new()),
+            event_sender,
+            command_sender,
+            callbacks: MultiCallback::new(runtime.clone()),
+            cancellation_token: Default::default(),
+            runtime,
         }
     }
 
-    fn do_internal_load(&self, data: LoadingData) -> LoadingHandle {
-        let task = Arc::new(LoadingTask::new(
-            self.loading_chain.clone(),
-            self.runtime.clone(),
-        ));
-        let loading_handle = task.handle();
+    async fn start(
+        &self,
+        mut event_receiver: UnboundedReceiver<MediaLoaderEvent>,
+        mut command_receiver: UnboundedReceiver<MediaLoaderCommandEvent>,
+    ) {
+        trace!("Media loader main loop is starting");
+        loop {
+            select! {
+                _ = self.cancellation_token.cancelled() => break,
+                event = event_receiver.recv() => {
+                    if let Some(event) = event {
+                        self.handle_event(event).await;
+                    } else {
+                        break;
+                    }
+                },
+                command = command_receiver.recv() => {
+                    if let Some(event) = command {
+                        self.handle_command_event(event).await;
+                    } else {
+                        break;
+                    }
+                }
+            }
+        }
+        debug!("Media loader main loop ended");
+    }
+
+    /// Handle the given loading task event from a certain task.
+    /// It will delegate the received loading event to the callbacks of the media loader.
+    async fn handle_event(&self, event: MediaLoaderEvent) {
+        self.callbacks.invoke(event);
+    }
+
+    /// Handle the given media loader command event.
+    async fn handle_command_event(&self, event: MediaLoaderCommandEvent) {
+        debug!("Media loader is handling command event {:?}", event);
+        match event {
+            MediaLoaderCommandEvent::Cancel(handle) => self.cancel_task(handle).await,
+            MediaLoaderCommandEvent::CancelAll => self.cancel_all().await,
+            MediaLoaderCommandEvent::TaskCompleted(handle) => self.remove(handle).await,
+            MediaLoaderCommandEvent::TaskCancelled(handle) => self.remove(handle).await,
+        }
+    }
+
+    /// Get the state from the given loading task handle.
+    /// It returns the state when the task was found back, else [None].
+    async fn task_state(&self, task_handle: LoadingHandle) -> Option<LoadingState> {
+        if let Some(task) = self.tasks.read().await.get(&task_handle).as_ref() {
+            return Some(task.state().await);
+        }
+
+        None
+    }
+
+    /// Cancel a specific task if it still exists.
+    /// If the loading task no longer exists, this will be a no-op.
+    async fn cancel_task(&self, handle: LoadingHandle) {
+        if let Some(task) = self.tasks.read().await.get(&handle).as_ref() {
+            task.cancel()
+        } else {
+            debug!("Media loader couldn't find handle {}", handle);
+        }
+    }
+
+    async fn cancel_all(&self) {
+        let tasks = self.tasks.read().await;
+
+        for (handle, task) in tasks.iter() {
+            trace!("Media loader is cancelling loading task {}", handle);
+            task.cancel();
+        }
+    }
+
+    fn add(&self, strategy: Box<dyn LoadingStrategy>, order: Order) {
+        self.loading_chain.add(strategy, order);
+    }
+
+    /// Remove the given loading task from the media loader.
+    async fn remove(&self, handle: LoadingHandle) {
+        self.tasks.write().await.remove(&handle);
+        debug!("Loading task {} has been removed", handle);
+    }
+
+    async fn load_url(&self, url: &str) -> LoadingHandle {
+        trace!("Starting loading procedure for {}", url);
+        self.do_internal_load(LoadingData::from(url)).await
+    }
+
+    async fn load_playlist_item(&self, item: PlaylistItem) -> LoadingHandle {
+        trace!("Starting loading procedure for {}", item);
+        self.do_internal_load(LoadingData::from(item)).await
+    }
+
+    async fn subscribe_loading(&self, handle: LoadingHandle) -> Option<Subscription<LoadingEvent>> {
+        if let Some(task) = self.tasks.read().await.get(&handle).as_ref() {
+            return Some(task.subscribe());
+        }
+
+        None
+    }
+
+    async fn do_internal_load(&self, data: LoadingData) -> LoadingHandle {
+        trace!("Media loader is starting loading task for {:?}", data);
+        let task = LoadingTask::new(self.loading_chain.clone(), self.runtime.clone());
+        let task_handle = task.handle();
         let started_event = LoadingStartedEvent::from(&data);
 
-        let task_to_store = task.clone();
-        {
-            let mut mutex = block_in_place(self.tasks.lock());
-            mutex.push(task_to_store);
-        }
-
-        let task_callback_handle = loading_handle.clone();
-        let task_callbacks = self.callbacks.clone();
-        task.subscribe(Box::new(move |event| {
-            let loader_event: LoaderEvent;
-
-            match event {
-                LoadingEvent::StateChanged(e) => {
-                    loader_event = LoaderEvent::StateChanged(task_callback_handle, e)
-                }
-                LoadingEvent::ProgressChanged(e) => {
-                    loader_event = LoaderEvent::ProgressChanged(task_callback_handle, e)
-                }
-                LoadingEvent::LoadingError(e) => {
-                    loader_event = LoaderEvent::LoadingError(task_callback_handle, e)
-                }
-            }
-
-            task_callbacks.invoke(loader_event);
-        }));
-
-        let tasks = self.tasks.clone();
-        let callbacks = self.callbacks.clone();
+        let mut task_event_receiver = task.subscribe();
+        let task_event_cancel = self.cancellation_token.clone();
+        let task_event_sender = self.event_sender.clone();
+        let task_command_sender = self.command_sender.clone();
         self.runtime.spawn(async move {
-            let task_handle = task.handle();
-            match task.load(data).await {
-                Ok(_) => {
-                    info!("Loading task {} has completed", task_handle);
-                }
-                Err(e) => {
-                    error!("Loading task {} failed, {}", task_handle, e);
-                    callbacks.invoke(LoaderEvent::LoadingError(task_handle, e));
+            loop {
+                select! {
+                    _ = task_event_cancel.cancelled() => break,
+                    event = task_event_receiver.recv() => {
+                        if let Some(event) = event {
+                            Self::handle_task_event(&event, task_handle, &task_event_sender, &task_command_sender);
+                        } else {
+                            break;
+                        }
+                    }
                 }
             }
-
-            trace!("Removing task handle of {}", task_handle);
-            Self::remove_task(task_handle, tasks);
         });
 
-        self.callbacks.invoke(LoaderEvent::LoadingStarted(
-            loading_handle.clone(),
-            started_event,
-        ));
-        loading_handle
+        // start loading the task
+        trace!("Media loader is starting loading task {}", task_handle);
+        task.load(data);
+        self.invoke_event(MediaLoaderEvent::LoadingStarted(task_handle, started_event));
+
+        // store the task
+        self.tasks.write().await.insert(task_handle, task);
+        debug!("Media loader has added loading task {}", task_handle);
+
+        task_handle
     }
 
-    fn remove_task(handle: LoadingHandle, tasks: Arc<Mutex<Vec<Arc<LoadingTask>>>>) {
-        let mut tasks = block_in_place(tasks.lock());
-        let position = tasks.iter().position(|e| e.handle() == handle);
+    fn send_command_event(&self, command: MediaLoaderCommandEvent) {
+        if let Err(_) = self.command_sender.send(command) {
+            debug!("Media loader command channel is closed");
+            self.cancellation_token.cancel();
+        }
+    }
 
-        if let Some(position) = position {
-            let task = tasks.remove(position);
-            debug!("Loading task {} has been removed", task.handle());
+    fn invoke_event(&self, event: MediaLoaderEvent) {
+        self.callbacks.invoke(event);
+    }
+
+    fn handle_task_event(
+        event: &Arc<LoadingEvent>,
+        handle: LoadingHandle,
+        task_event_sender: &UnboundedSender<MediaLoaderEvent>,
+        task_command_sender: &UnboundedSender<MediaLoaderCommandEvent>,
+    ) {
+        let mut media_event: Option<MediaLoaderEvent> = None;
+
+        match &**event {
+            LoadingEvent::StateChanged(state) => {
+                media_event = Some(MediaLoaderEvent::StateChanged(handle, state.clone()));
+            }
+            LoadingEvent::ProgressChanged(progress) => {
+                media_event = Some(MediaLoaderEvent::ProgressChanged(handle, progress.clone()));
+            }
+            LoadingEvent::LoadingError(err) => {
+                media_event = Some(MediaLoaderEvent::LoadingError(handle, err.clone()));
+            }
+            LoadingEvent::Completed => {
+                let _ = task_command_sender.send(MediaLoaderCommandEvent::TaskCompleted(handle));
+            }
+            LoadingEvent::Cancelled => {
+                let _ = task_command_sender.send(MediaLoaderCommandEvent::TaskCompleted(handle));
+            }
+        }
+
+        if let Some(event) = media_event {
+            if let Err(_) = task_event_sender.send(event) {
+                debug!("Media loader event channel is closed");
+            }
         }
     }
 }
 
-#[async_trait]
-impl MediaLoader for InnerMediaLoader {
-    fn add(&self, strategy: Box<dyn LoadingStrategy>, order: Order) {
-        self.loading_chain.add(strategy, order)
-    }
+#[cfg(any(test, feature = "testing"))]
+mod mock {
+    use super::*;
+    use mockall::mock;
 
-    fn subscribe(&self, callback: LoaderCallback) -> CallbackHandle {
-        self.callbacks.add_callback(callback)
-    }
+    mock! {
+        #[derive(Debug)]
+        pub MediaLoader {}
 
-    fn load_url(&self, url: &str) -> LoadingHandle {
-        trace!("Starting loading procedure for {}", url);
-        self.do_internal_load(LoadingData::from(url))
-    }
-
-    fn load_playlist_item(&self, item: PlaylistItem) -> LoadingHandle {
-        trace!("Starting loading procedure for {}", item);
-        self.do_internal_load(LoadingData::from(item))
-    }
-
-    fn state(&self, handle: LoadingHandle) -> Option<LoadingState> {
-        block_in_place(self.tasks.lock())
-            .iter()
-            .find(|e| e.handle() == handle)
-            .map(|e| e.state())
-    }
-
-    fn subscribe_loading(
-        &self,
-        handle: LoadingHandle,
-        callback: LoadingCallback,
-    ) -> Option<CallbackHandle> {
-        let tasks = block_in_place(self.tasks.lock());
-        tasks
-            .iter()
-            .find(|e| e.handle() == handle)
-            .map(|task| task.subscribe(callback))
-    }
-
-    fn unsubscribe_loading(&self, handle: LoadingHandle, callback_handle: CallbackHandle) {
-        if let Some(task) = block_in_place(self.tasks.lock())
-            .iter()
-            .find(|e| e.handle() == handle)
-        {
-            task.unsubscribe(callback_handle)
+        #[async_trait]
+        impl MediaLoader for MediaLoader {
+            fn add(&self, strategy: Box<dyn LoadingStrategy>, order: Order);
+            async fn load_url(&self, url: &str) -> LoadingHandle;
+            async fn load_playlist_item(&self, item: PlaylistItem) -> LoadingHandle;
+            async fn state(&self, handle: LoadingHandle) -> Option<LoadingState>;
+            async fn subscribe_loading(&self, handle: LoadingHandle) -> Option<Subscription<LoadingEvent>>;
+            fn cancel(&self, handle: LoadingHandle);
         }
-    }
 
-    fn cancel(&self, handle: LoadingHandle) {
-        if let Some(task) = block_in_place(self.tasks.lock())
-            .iter()
-            .find(|e| e.handle() == handle)
-        {
-            info!("Cancelling loading task {}", handle);
-            task.cancel()
+        impl Callback<MediaLoaderEvent> for MediaLoader {
+            fn subscribe(&self) -> Subscription<MediaLoaderEvent>;
+            fn subscribe_with(&self, subscriber: Subscriber<MediaLoaderEvent>);
         }
     }
 }
@@ -517,14 +605,15 @@ mod tests {
     use std::time::Duration;
 
     use crate::core::loader::loading_chain::DEFAULT_ORDER;
+    use crate::core::loader::task::LoadingTaskContext;
     use crate::core::loader::{MockLoadingStrategy, SubtitleData};
-    use crate::testing::init_logger;
+    use crate::init_logger;
 
     use super::*;
 
     #[test]
     fn test_load_data_from_str() {
-        init_logger();
+        init_logger!();
         let url = "magnet:?MyTestingUrl";
         let expected_result = LoadingData {
             url: Some(url.to_string()),
@@ -550,7 +639,7 @@ mod tests {
 
     #[test]
     fn test_loading_data_from_playlist_item() {
-        init_logger();
+        init_logger!();
         let item = PlaylistItem {
             url: None,
             title: "MyItemTitle".to_string(),
@@ -590,7 +679,7 @@ mod tests {
 
     #[test]
     fn test_load_playlist_item() {
-        init_logger();
+        init_logger!();
         let item = PlaylistItem {
             url: None,
             title: "LoremIpsum".to_string(),
@@ -605,18 +694,19 @@ mod tests {
         let (tx, rx) = channel();
         let expected_result = LoadingData::from(item.clone());
         let mut strategy = MockLoadingStrategy::new();
-        strategy.expect_process().returning(move |e, _, _| {
+        strategy.expect_process().returning(move |e, _| {
             tx.send(e).unwrap();
             LoadingResult::Completed
         });
         let chain: Vec<Box<dyn LoadingStrategy>> = vec![Box::new(strategy)];
         let loader = DefaultMediaLoader::new(chain);
+        let runtime = &loader.inner.runtime;
 
-        let handle = loader.load_playlist_item(item);
-        assert_eq!(
-            Some(LoadingState::Initializing),
-            loader.state(handle.clone())
-        );
+        let handle = runtime.block_on(loader.load_playlist_item(item));
+        let state = runtime
+            .block_on(loader.state(handle.clone()))
+            .expect("expected a loading state");
+        assert_eq!(LoadingState::Initializing, state);
 
         let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
         assert_eq!(expected_result, result);
@@ -624,7 +714,7 @@ mod tests {
 
     #[test]
     fn test_load_playlist_item_bind_task_events() {
-        init_logger();
+        init_logger!();
         let (tx, rx) = channel();
         let (tx_event, rx_event) = channel();
         let item = PlaylistItem {
@@ -648,27 +738,34 @@ mod tests {
             total_size: 0,
         };
         let mut strategy = MockLoadingStrategy::new();
-        strategy
-            .expect_process()
-            .times(1)
-            .returning(Box::new(move |_, event_channel, _| {
-                tx.send(event_channel).unwrap();
+        let strategy_result = expected_result.clone();
+        strategy.expect_process().times(1).returning(Box::new(
+            move |_, context: &LoadingTaskContext| {
+                context.send_event(LoadingEvent::ProgressChanged(strategy_result.clone()));
+                tx.send(()).unwrap();
                 LoadingResult::Completed
-            }));
+            },
+        ));
         let loader = DefaultMediaLoader::new(vec![]);
 
-        loader.subscribe(Box::new(move |e| {
-            if let LoaderEvent::ProgressChanged(_, e) = e {
-                tx_event.send(e).unwrap();
+        let mut receiver = loader.subscribe();
+        loader.inner.runtime.spawn(async move {
+            loop {
+                if let Some(event) = receiver.recv().await {
+                    if let MediaLoaderEvent::ProgressChanged(_, progress) = &*event {
+                        tx_event.send(progress.clone()).unwrap();
+                        break;
+                    }
+                } else {
+                    break;
+                }
             }
-        }));
+        });
+
         loader.add(Box::new(strategy), DEFAULT_ORDER);
         let _ = loader.load_playlist_item(item);
-        let callback = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        let _ = rx.recv_timeout(Duration::from_millis(200)).unwrap();
 
-        callback
-            .send(LoadingEvent::ProgressChanged(expected_result.clone()))
-            .unwrap();
         let result = rx_event.recv_timeout(Duration::from_millis(200)).unwrap();
         assert_eq!(expected_result, result);
     }

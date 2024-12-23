@@ -29,7 +29,7 @@ pub enum MagnetError {
 /// Represents a Magnet link.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Magnet {
-    pub exact_topic: String,
+    pub exact_topics: Vec<String>,
     pub display_name: Option<String>,
     pub exact_length: Option<u64>,
     pub address_tracker: Vec<String>,
@@ -44,13 +44,8 @@ pub struct Magnet {
 
 impl Magnet {
     /// Gets the 'xt' (exact topic) value from the magnet link.
-    pub fn xt(&self) -> &str {
-        self.exact_topic.as_str()
-    }
-
-    /// Gets the 'xt' info hash information from the magnet link.
-    pub fn info_hash(&self) -> &str {
-        self.xt()
+    pub fn xt(&self) -> Vec<&str> {
+        self.exact_topics.iter().map(|e| e.as_str()).collect()
     }
 
     /// Gets the 'dn' (display name) value from the magnet link, if present.
@@ -219,7 +214,7 @@ impl FromStr for Magnet {
 /// A builder for constructing a `Magnet` struct.
 #[derive(Debug, Clone, Default)]
 pub struct MagnetBuilder {
-    exact_topic: Option<String>,
+    exact_topics: Option<Vec<String>>,
     display_name: Option<String>,
     exact_length: Option<u64>,
     address_tracker: Vec<String>,
@@ -238,12 +233,22 @@ impl MagnetBuilder {
         Self::default()
     }
 
-    /// Sets the exact topic for the magnet link.
+    /// Add the given exact topic to the magnet builder.
     pub fn exact_topic<S>(&mut self, exact_topic: S) -> &mut Self
     where
         S: Into<String>,
     {
-        self.exact_topic = Some(exact_topic.into());
+        self.exact_topics
+            .get_or_insert(Vec::new())
+            .push(exact_topic.into());
+        self
+    }
+
+    /// Set the exact topics for the magnet builder.
+    pub fn exact_topics(&mut self, exact_topics: Vec<String>) -> &mut Self {
+        self.exact_topics
+            .get_or_insert(Vec::new())
+            .extend(exact_topics);
         self
     }
 
@@ -341,9 +346,9 @@ impl MagnetBuilder {
     /// - `Ok(Magnet)`: A `Magnet` instance with the specified configuration.
     /// - `Err(MagnetError::InvalidUri)`: If the exact topic is not set, indicating an invalid magnet link.
     pub fn build(self) -> Result<Magnet> {
-        if let Some(exact_topic) = self.exact_topic {
+        if let Some(exact_topic) = self.exact_topics {
             Ok(Magnet {
-                exact_topic,
+                exact_topics: exact_topic,
                 display_name: self.display_name,
                 exact_length: self.exact_length,
                 address_tracker: self.address_tracker,
@@ -405,21 +410,13 @@ mod tests {
     #[test]
     fn test_magnet_xt() {
         init_logger!();
-        let expected_result = "urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7";
+        let expected_result = vec!["urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7".to_string()];
         let uri = "magnet:?xt=urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7&dn=debian-12.4.0-amd64-DVD-1.iso&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce";
 
         let magnet = Magnet::from_str(uri).unwrap();
 
-        assert_eq!(
-            expected_result,
-            magnet.xt(),
-            "expected the exact topic to match"
-        );
-        assert_eq!(
-            expected_result,
-            magnet.info_hash(),
-            "expected the info hash to match"
-        );
+        let result = magnet.xt();
+        assert_eq!(expected_result, result, "expected the exact topic to match");
     }
 
     #[test]
@@ -427,7 +424,7 @@ mod tests {
         init_logger!();
         let display_name = "Example File Name";
         let magnet = Magnet {
-            exact_topic: "urn:btih:6b0cd35c4a6b724".to_string(),
+            exact_topics: vec!["urn:btih:6b0cd35c4a6b724".to_string()],
             display_name: Some(display_name.to_string()),
             exact_length: Some(8455000),
             address_tracker: vec!["http://tracker.example.com:12345/announce".to_string()],
@@ -453,7 +450,7 @@ mod tests {
             "http://tracker2.example.com:23456/announce".to_string(),
         ];
         let magnet = Magnet {
-            exact_topic: "urn:btih:6b0cd35c4a6b724".to_string(),
+            exact_topics: vec!["urn:btih:6b0cd35c4a6b724".to_string()],
             display_name: None,
             exact_length: Some(8455000),
             address_tracker: expected_result.clone(),
@@ -476,7 +473,7 @@ mod tests {
     fn test_magnet_select_only() {
         let expected_result: Vec<u32> = vec![0, 2, 4, 6, 7, 8];
         let magnet = Magnet {
-            exact_topic: "urn:btih:6b0cd35c4a6b724".to_string(),
+            exact_topics: vec!["urn:btih:6b0cd35c4a6b724".to_string()],
             display_name: None,
             exact_length: None,
             address_tracker: vec![],
@@ -499,7 +496,7 @@ mod tests {
 
     fn create_expected_magnet_from_str() -> Magnet {
         Magnet {
-            exact_topic: "urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7".to_string(),
+            exact_topics: vec!["urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7".to_string()],
             display_name: Some("debian-12.4.0-amd64-DVD-1.iso".to_string()),
             exact_length: None,
             address_tracker: vec![

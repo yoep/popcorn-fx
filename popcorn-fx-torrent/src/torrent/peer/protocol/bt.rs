@@ -4,8 +4,7 @@ use crate::torrent::{CompactIp, InfoHash, PieceIndex, PiecePart};
 use bit_vec::BitVec;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use log::trace;
-use serde::de::Visitor;
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Formatter};
 use std::io::{Cursor, Read, Write};
 use std::net::SocketAddr;
@@ -168,15 +167,22 @@ pub struct Handshake {
 }
 
 impl Handshake {
-    pub fn new(info_hash: InfoHash, peer_id: PeerId, extensions: ProtocolExtensionFlags) -> Self {
-        let mut extensions = extensions;
-
-        if info_hash.has_v2() {
-            extensions |= ProtocolExtensionFlags::SupportV2;
+    pub fn new(
+        info_hash: InfoHash,
+        peer_id: PeerId,
+        mut protocol_extensions: ProtocolExtensionFlags,
+    ) -> Self {
+        // check if v2 support is enabled
+        if protocol_extensions.contains(ProtocolExtensionFlags::SupportV2) {
+            // check if the v2 info hash is unknown, if so, remove the extension
+            let is_v1_only_hash = !info_hash.has_v2();
+            if is_v1_only_hash {
+                protocol_extensions &= !ProtocolExtensionFlags::SupportV2;
+            }
         }
 
         Self {
-            supported_extensions: extensions,
+            supported_extensions: protocol_extensions,
             info_hash,
             peer_id,
         }
@@ -266,15 +272,21 @@ pub enum Message {
     Have(u32),
     Bitfield(BitVec),
     Request(Request),
-    RejectRequest(Request),
     Piece(Piece),
     Cancel(Request),
+    // BEP10
     ExtendedHandshake(ExtendedHandshake),
     ExtendedPayload(ExtensionNumber, Vec<u8>),
+    // BEP6
     HaveAll,
     HaveNone,
+    RejectRequest(Request),
     Suggest(u32),
     AllowedFast(u32),
+    // BEP52
+    HashRequest(HashRequest),
+    Hashes(),
+    HashReject(),
 }
 
 impl Message {
@@ -297,6 +309,9 @@ impl Message {
             Message::HaveNone => MessageType::HaveNone,
             Message::Suggest(_) => MessageType::Suggest,
             Message::AllowedFast(_) => MessageType::AllowedFast,
+            Message::HashRequest(_) => MessageType::HashRequest,
+            Message::Hashes() => MessageType::Hashes,
+            Message::HashReject() => MessageType::HashReject,
         }
     }
 
@@ -392,6 +407,10 @@ impl TryFrom<&[u8]> for Message {
             MessageType::HaveNone => Ok(Message::HaveNone),
             MessageType::Suggest => Ok(Message::Suggest(cursor.read_u32::<BigEndian>()?)),
             MessageType::AllowedFast => Ok(Message::AllowedFast(cursor.read_u32::<BigEndian>()?)),
+            MessageType::HashRequest => {
+                let request = HashRequest::try_from(cursor)?;
+                Ok(Message::HashRequest(request))
+            }
             _ => Err(Error::UnsupportedMessage(msg_type as u8)),
         }
     }
@@ -442,6 +461,13 @@ impl TryInto<Vec<u8>> for Message {
                 buffer.write_u8(extension_number)?;
                 buffer.write_all(&*bytes)?
             }
+            Message::HashRequest(request) => {
+                buffer.write_all(request.pieces_root.as_slice())?;
+                buffer.write_u32::<BigEndian>(request.base_layer)?;
+                buffer.write_u32::<BigEndian>(request.index)?;
+                buffer.write_u32::<BigEndian>(request.length)?;
+                buffer.write_u32::<BigEndian>(request.proof_layers)?;
+            }
             _ => {}
         }
 
@@ -477,6 +503,9 @@ impl Debug for Message {
             Message::HaveNone => f.write_str("HaveNone"),
             Message::Suggest(e) => f.write_fmt(format_args!("Suggest({})", e)),
             Message::AllowedFast(e) => f.write_fmt(format_args!("AllowedFast({})", e)),
+            Message::HashRequest(e) => f.write_fmt(format_args!("HashRequest({:?})", e)),
+            Message::Hashes() => f.write_str("Hashes"),
+            Message::HashReject() => f.write_str("HashReject"),
         }
     }
 }
@@ -603,6 +632,42 @@ impl Debug for Piece {
             .field("begin", &self.begin)
             .field("length", &self.data.len())
             .finish()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct HashRequest {
+    /// The root hash of a file.
+    pub pieces_root: Vec<u8>,
+    /// Defines the lowest requested layer of the hash tree.
+    pub base_layer: u32,
+    /// The offset in hashes of the first requested hash in the base layer.
+    pub index: u32,
+    /// The number of hashes to include from the base layer.
+    pub length: u32,
+    /// The number of ancestor layers to include.
+    pub proof_layers: u32,
+}
+
+impl TryFrom<Cursor<&[u8]>> for HashRequest {
+    type Error = Error;
+
+    fn try_from(mut value: Cursor<&[u8]>) -> Result<Self> {
+        let mut pieces_root = vec![0u8; 32];
+        value.read_exact(&mut pieces_root)?;
+
+        let base_layer = value.read_u32::<BigEndian>()?;
+        let index = value.read_u32::<BigEndian>()?;
+        let length = value.read_u32::<BigEndian>()?;
+        let proof_layer = value.read_u32::<BigEndian>()?;
+
+        Ok(Self {
+            pieces_root,
+            base_layer,
+            index,
+            length,
+            proof_layers: proof_layer,
+        })
     }
 }
 

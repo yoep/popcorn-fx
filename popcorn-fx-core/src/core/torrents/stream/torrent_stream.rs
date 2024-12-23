@@ -721,6 +721,7 @@ impl Stream for DefaultTorrentStreamingResource {
 
 #[cfg(test)]
 mod test {
+    use super::*;
     use crate::core::torrents::{MockTorrent, StreamBytes};
     use crate::init_logger;
     use crate::testing::{copy_test_file, read_test_file_to_string};
@@ -728,8 +729,6 @@ mod test {
     use std::sync::mpsc::channel;
     use std::time::Duration;
     use tokio::runtime;
-
-    use super::*;
 
     #[test]
     fn test_torrent_stream_stream() {
@@ -741,6 +740,7 @@ mod test {
         let url = Url::parse("http://localhost").unwrap();
         let runtime = Arc::new(Runtime::new().unwrap());
         let callbacks = MultiCallback::new(runtime.clone());
+        let subscription_callbacks = callbacks.clone();
         let (tx_ready, rx_ready) = channel();
         mock.expect_file().returning(move || temp_path.clone());
         mock.expect_has_bytes().return_const(true);
@@ -749,15 +749,15 @@ mod test {
         mock.expect_prioritize_pieces().returning(|_: &[u32]| {});
         mock.expect_sequential_mode().returning(|| {});
         mock.expect_state().return_const(TorrentState::Downloading);
-        mock.expect_subscribe().returning(|| {
-            let subscription = callbacks.subscribe();
+        mock.expect_subscribe().returning(move || {
+            let subscription = subscription_callbacks.subscribe();
             tx_ready.send(()).unwrap();
             subscription
         });
         copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
         let torrent_stream = DefaultTorrentStream::new(url, Box::new(mock), runtime);
 
-        let callback = rx_ready.recv_timeout(Duration::from_millis(200)).unwrap();
+        let _ = rx_ready.recv_timeout(Duration::from_millis(200)).unwrap();
         for i in 0..10 {
             callbacks.invoke(TorrentEvent::PieceFinished(i));
         }
@@ -878,7 +878,9 @@ mod test {
         let mut mock = MockTorrent::new();
         let url = Url::parse("http://localhost").unwrap();
         let (tx, rx) = channel();
-        let (tx_c, rx_c) = channel();
+        let runtime = Arc::new(Runtime::new().unwrap());
+        let callbacks = MultiCallback::new(runtime.clone());
+        let subscribe_callbacks = callbacks.clone();
         mock.expect_file().returning(move || temp_path.clone());
         mock.expect_has_bytes().return_const(true);
         mock.expect_has_piece().return_const(false);
@@ -889,23 +891,34 @@ mod test {
             });
         mock.expect_sequential_mode().times(1).returning(|| {});
         mock.expect_state().return_const(TorrentState::Downloading);
-        mock.expect_add_callback().returning(move |callback| {
-            tx_c.send(callback).unwrap();
-            CallbackHandle::new()
-        });
-        let runtime = Arc::new(Runtime::new().unwrap());
-        let stream = DefaultTorrentStream::new(url, Box::new(mock), runtime);
+        mock.expect_subscribe()
+            .returning(move || subscribe_callbacks.subscribe());
+        let stream = DefaultTorrentStream::new(url, Box::new(mock), runtime.clone());
         let expected_pieces: Vec<u32> = vec![0, 1, 2, 3, 4, 5, 6, 7, 97, 98, 99];
 
         let pieces = rx.recv_timeout(Duration::from_millis(200)).unwrap();
         assert_eq!(expected_pieces.clone(), pieces);
 
-        let callback = rx_c.recv_timeout(Duration::from_millis(200)).unwrap();
+        let (tx, rx) = channel();
+        let mut receiver = Callback::<TorrentStreamEvent>::subscribe(&stream);
+        runtime.spawn(async move {
+            loop {
+                if let Some(event) = receiver.recv().await {
+                    if let TorrentStreamEvent::StateChanged(state) = &*event {
+                        tx.send(state.clone()).unwrap();
+                        break;
+                    }
+                } else {
+                    break;
+                }
+            }
+        });
+
         for piece in expected_pieces {
-            callback(TorrentEvent::PieceFinished(piece));
+            callbacks.invoke(TorrentEvent::PieceFinished(piece));
         }
 
-        let state_result = stream.stream_state();
+        let state_result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
         assert_eq!(TorrentStreamState::Streaming, state_result)
     }
 
@@ -924,10 +937,10 @@ mod test {
             .returning(|_: &[u32]| {});
         mock.expect_state().return_const(TorrentState::Completed);
         let runtime = Arc::new(Runtime::new().unwrap());
-        let stream = DefaultTorrentStream::new(url, Box::new(mock), runtime);
+        let stream = DefaultTorrentStream::new(url, Box::new(mock), runtime.clone());
 
         // retrieve the initial streaming state as it should be streaming
-        let result = stream.stream_state();
+        let result = runtime.block_on(stream.stream_state());
 
         assert_eq!(TorrentStreamState::Streaming, result)
     }

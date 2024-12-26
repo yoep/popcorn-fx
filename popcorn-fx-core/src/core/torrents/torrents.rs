@@ -126,17 +126,19 @@ pub trait Torrent: Debug + Display + Callback<TorrentEvent> + Send + Sync {
 /// The torrent information
 #[derive(Debug, Display, Clone, PartialEq)]
 #[display(
-    fmt = "info_hash: {}, uri: {}, name: {}, directory_name: {:?}, total_files: {}",
+    fmt = "handle: {}, info_hash: {}, name: {}, directory_name: {:?}, total_files: {}",
+    handle,
     info_hash,
-    uri,
     name,
     directory_name,
     total_files
 )]
 pub struct TorrentInfo {
+    /// The handle of the underlying torrent
+    pub handle: TorrentHandle,
     /// The info hash of the torrent.
     pub info_hash: String,
-    /// The magnet uri of the torrent
+    /// The uri of the torrent
     pub uri: String,
     /// The name of the torrent
     pub name: String,
@@ -398,8 +400,9 @@ mod test {
             file_index: 0,
         };
         let info = TorrentInfo {
+            handle: Default::default(),
             info_hash: String::new(),
-            uri: String::new(),
+            uri: "".to_string(),
             name: "".to_string(),
             directory_name: Some("torrentDirectory".to_string()),
             total_files: 0,
@@ -430,8 +433,9 @@ mod test {
             file_index: 0,
         };
         let info = TorrentInfo {
+            handle: Default::default(),
             info_hash: String::new(),
-            uri: String::new(),
+            uri: "".to_string(),
             name: "".to_string(),
             directory_name: Some("torrentDirectory".to_string()),
             total_files: 0,
@@ -460,8 +464,9 @@ mod test {
             file_index: 0,
         };
         let info = TorrentInfo {
+            handle: Default::default(),
             info_hash: String::new(),
-            uri: String::new(),
+            uri: "".to_string(),
             name: "".to_string(),
             directory_name: None,
             total_files: 0,

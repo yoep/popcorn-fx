@@ -404,7 +404,7 @@ impl InnerPlayerManager {
                             self.torrent_stream_server
                                 .stop_stream(stream.stream_handle());
                             debug!("Stopping torrent download of {}", stream.handle());
-                            self.torrent_manager.remove(stream.handle());
+                            block_in_place(self.torrent_manager.remove(&stream.handle()));
                         }
                     } else {
                         warn!(

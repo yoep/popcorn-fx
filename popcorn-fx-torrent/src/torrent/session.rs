@@ -12,8 +12,8 @@ use crate::torrent::peer::extension::Extensions;
 use crate::torrent::peer::ProtocolExtensionFlags;
 use crate::torrent::torrent::Torrent;
 use crate::torrent::{
-    ExtensionFactories, ExtensionFactory, InfoHash, TorrentConfig, TorrentError, TorrentEvent,
-    TorrentFlags, TorrentHandle, TorrentMetadata, TorrentOperationFactory,
+    ExtensionFactories, ExtensionFactory, InfoHash, Magnet, TorrentConfig, TorrentError,
+    TorrentEvent, TorrentFlags, TorrentHandle, TorrentMetadata, TorrentOperationFactory,
     DEFAULT_TORRENT_EXTENSIONS, DEFAULT_TORRENT_OPERATIONS, DEFAULT_TORRENT_PROTOCOL_EXTENSIONS,
 };
 use async_trait::async_trait;
@@ -22,7 +22,6 @@ use log::{debug, trace};
 #[cfg(test)]
 pub use mock::*;
 use popcorn_fx_core::core::callback::Callback;
-use popcorn_fx_core::core::torrents::magnet::Magnet;
 use popcorn_fx_core::core::torrents::TorrentHealth;
 use popcorn_fx_core::core::{
     block_in_place_runtime, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks, Handle,
@@ -73,7 +72,7 @@ pub trait Session: Debug + Callbacks<SessionEvent> + Send + Sync {
     /// # Returns
     ///
     /// Returns the torrent if found, else `None`.
-    async fn find_torrent_by_handle(&self, handle: TorrentHandle) -> Option<Torrent>;
+    async fn find_torrent_by_handle(&self, handle: &TorrentHandle) -> Option<Torrent>;
 
     /// Get the torrent based on the given info hash.
     ///
@@ -97,7 +96,7 @@ pub trait Session: Debug + Callbacks<SessionEvent> + Send + Sync {
     /// Returns a result containing the torrent health on success or an error on failure.
     async fn torrent_health_from_info(
         &self,
-        torrent_info: TorrentMetadata,
+        torrent_info: &TorrentMetadata,
     ) -> Result<TorrentHealth>;
 
     /// Get the torrent health information for the given uri.
@@ -117,7 +116,22 @@ pub trait Session: Debug + Callbacks<SessionEvent> + Send + Sync {
     /// Resolve the given uri into torrent information.
     /// The uri can either be a magnet uri or a filepath to a torrent file.
     ///
-    /// This doesn't create any [Torrent] neither does it retrieve the metadata if it's incomplete.
+    /// This doesn't create any underlying [Torrent] neither does it retrieve the metadata if it's incomplete.
+    /// It's just a simple conversion of a `.torrent` file or magnet uri into [TorrentMetadata].
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use popcorn_fx_torrent::torrent::Session;
+    ///
+    /// fn example(session: impl Session) {
+    ///     let magnet_uri = "magnet:?xt=urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7&dn=debian-12.4.0-amd64-DVD-1.iso&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce";
+    ///     let info = session.resolve(magnet_uri);
+    ///     
+    ///     let filepath = "/my/path/example.torrent";
+    ///     let info = session.resolve(magnet_uri);
+    /// }
+    /// ```
     ///
     /// # Arguments
     ///
@@ -175,7 +189,7 @@ pub trait Session: Debug + Callbacks<SessionEvent> + Send + Sync {
     /// # Arguments
     ///
     /// * `handle` - The handle of the torrent to remove.
-    fn remove_torrent(&self, handle: TorrentHandle);
+    async fn remove_torrent(&self, handle: &TorrentHandle);
 }
 
 #[derive(Debug, Display)]
@@ -196,11 +210,11 @@ impl DefaultSession {
     /// ```rust,no_run
     /// use std::sync::Arc;
     /// use tokio::runtime::Runtime;
-    /// use popcorn_fx_torrent::torrent::{DefaultSession, Result};
+    /// use popcorn_fx_torrent::torrent::{DefaultSession, MagnetResult};
     /// use popcorn_fx_torrent::torrent::peer::extension::metadata::MetadataExtension;
     /// use popcorn_fx_torrent::torrent::peer::ProtocolExtensionFlags;
     ///
-    /// fn new_torrent_session(shared_runtime: Arc<Runtime>) -> Result<DefaultSession> {
+    /// fn new_torrent_session(shared_runtime: Arc<Runtime>) -> MagnetResult<DefaultSession> {
     ///     DefaultSession::builder()
     ///         .base_path("/torrent/location/directory")
     ///         .client_name("MyClient")
@@ -256,10 +270,6 @@ impl DefaultSession {
 
         debug!("Created new torrent session {}", inner.handle);
         Ok(Self { inner, runtime })
-    }
-
-    pub async fn torrent(&self, handle: TorrentHandle) -> Option<Torrent> {
-        self.inner.find_torrent_by_handle(handle).await
     }
 
     /// Try to find an existing torrent within the session based on the info hash,
@@ -353,7 +363,7 @@ impl Session for DefaultSession {
         self.inner.handle
     }
 
-    async fn find_torrent_by_handle(&self, handle: TorrentHandle) -> Option<Torrent> {
+    async fn find_torrent_by_handle(&self, handle: &TorrentHandle) -> Option<Torrent> {
         self.inner.find_torrent_by_handle(handle).await
     }
 
@@ -363,7 +373,7 @@ impl Session for DefaultSession {
 
     async fn torrent_health_from_info(
         &self,
-        torrent_info: TorrentMetadata,
+        torrent_info: &TorrentMetadata,
     ) -> Result<TorrentHealth> {
         trace!("Retrieving torrent health for {:?}", torrent_info);
         // try to retrieve the existing torrent based on its info hash
@@ -375,7 +385,7 @@ impl Session for DefaultSession {
             .map_or_else(
                 || {
                     let request = Torrent::request()
-                        .metadata(torrent_info)
+                        .metadata(torrent_info.clone())
                         .options(TorrentFlags::none())
                         .config(
                             TorrentConfig::builder()
@@ -415,13 +425,13 @@ impl Session for DefaultSession {
     async fn torrent_health_from_uri(&self, uri: &str) -> Result<TorrentHealth> {
         trace!("Retrieving torrent health for {:?}", uri);
         let torrent_info = self.resolve(uri)?;
-        self.torrent_health_from_info(torrent_info).await
+        self.torrent_health_from_info(&torrent_info).await
     }
 
     fn resolve(&self, uri: &str) -> Result<TorrentMetadata> {
         trace!("Resolving torrent uri {}", uri);
         Magnet::from_str(uri)
-            .map_err(|e| TorrentError::MagnetParse(e.to_string()))
+            .map_err(|e| TorrentError::Magnet(e))
             .and_then(|e| TorrentMetadata::try_from(e))
             .map(|e| Ok::<TorrentMetadata, TorrentError>(e))
             .unwrap_or_else(|_| {
@@ -490,10 +500,8 @@ impl Session for DefaultSession {
             .await
     }
 
-    fn remove_torrent(&self, handle: TorrentHandle) {
-        let inner = self.inner.clone();
-        self.runtime
-            .spawn(async move { inner.remove_torrent(handle).await });
+    async fn remove_torrent(&self, handle: &TorrentHandle) {
+        self.inner.remove_torrent(handle).await
     }
 }
 
@@ -670,12 +678,12 @@ impl InnerSession {
         self.torrent_operations.clone()
     }
 
-    async fn find_torrent_by_handle(&self, handle: TorrentHandle) -> Option<Torrent> {
+    async fn find_torrent_by_handle(&self, handle: &TorrentHandle) -> Option<Torrent> {
         self.torrents
             .read()
             .await
             .iter()
-            .find(|(_, e)| e.handle() == handle)
+            .find(|(_, e)| e.handle() == *handle)
             .map(|(_, e)| e.clone())
     }
 
@@ -723,13 +731,13 @@ impl InnerSession {
         }
     }
 
-    async fn remove_torrent(&self, handle: TorrentHandle) {
+    async fn remove_torrent(&self, handle: &TorrentHandle) {
         let mut torrent_info_hash: Option<InfoHash> = None;
 
         {
             let mut mutex = self.torrents.write().await;
             for (info_hash, torrent) in mutex.iter() {
-                if torrent.handle() == handle {
+                if torrent.handle() == *handle {
                     torrent_info_hash = Some(info_hash.clone());
                     break;
                 }
@@ -742,7 +750,7 @@ impl InnerSession {
         }
 
         if let Some(_) = torrent_info_hash {
-            self.callbacks.invoke(SessionEvent::TorrentRemoved(handle));
+            self.callbacks.invoke(SessionEvent::TorrentRemoved(*handle));
         }
     }
 }
@@ -769,15 +777,15 @@ mod mock {
         #[async_trait]
         impl Session for Session {
             fn handle(&self) -> SessionHandle;
-            async fn find_torrent_by_handle(&self, handle: TorrentHandle) -> Option<Torrent>;
+            async fn find_torrent_by_handle(&self, handle: &TorrentHandle) -> Option<Torrent>;
             async fn find_torrent_by_info_hash(&self, info_hash: &InfoHash) -> Option<Torrent>;
-            async fn torrent_health_from_info(&self, torrent_info: TorrentMetadata) -> Result<TorrentHealth>;
+            async fn torrent_health_from_info(&self, torrent_info: &TorrentMetadata) -> Result<TorrentHealth>;
             async fn torrent_health_from_uri(&self, uri: &str) -> Result<TorrentHealth>;
             fn resolve(&self, uri: &str) -> Result<TorrentMetadata>;
             async fn fetch_magnet(&self, magnet_uri: &str, timeout: Duration) -> Result<TorrentMetadata>;
             async fn add_torrent_from_uri(&self, uri: &str, options: TorrentFlags) -> Result<Torrent>;
             async fn add_torrent_from_info(&self, torrent_info: TorrentMetadata, options: TorrentFlags) -> Result<Torrent>;
-            fn remove_torrent(&self, handle: TorrentHandle);
+            async fn remove_torrent(&self, handle: &TorrentHandle);
         }
 
         impl Callbacks<SessionEvent> for Session {
@@ -873,7 +881,7 @@ pub mod tests {
             .unwrap();
 
         let result = runtime
-            .block_on(session.torrent_health_from_info(info))
+            .block_on(session.torrent_health_from_info(&info))
             .expect("expected a torrent health");
 
         info!("Got torrent health result {:?}", result);
@@ -902,7 +910,7 @@ pub mod tests {
             .unwrap();
 
         let result = runtime
-            .block_on(session.torrent_health_from_info(info))
+            .block_on(session.torrent_health_from_info(&info))
             .expect("expected a torrent health");
 
         info!("Got torrent health result {:?}", result);
@@ -1007,7 +1015,7 @@ pub mod tests {
         let event = rx.recv_timeout(Duration::from_millis(200)).unwrap();
         assert_eq!(event, SessionEvent::TorrentAdded(handle));
 
-        session.remove_torrent(handle);
+        runtime.block_on(session.remove_torrent(&handle));
         let event = rx.recv_timeout(Duration::from_millis(200)).unwrap();
         assert_eq!(event, SessionEvent::TorrentRemoved(handle));
     }

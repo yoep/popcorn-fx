@@ -1,10 +1,10 @@
-use crate::torrent::{Result, TorrentError};
+use crate::torrent::errors::Result;
+use crate::torrent::TorrentError;
 use base64::prelude::BASE64_STANDARD;
 use base64::Engine;
 use log::{trace, warn};
 use serde::de::{Error, SeqAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::f32::consts::E;
 use std::fmt::Formatter;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 

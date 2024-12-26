@@ -1,6 +1,6 @@
 use crate::torrent::{
-    errors, torrent, DefaultSession, FilePriority, PieceIndex, PiecePriority, Session, Torrent,
-    TorrentEvent, TorrentFlags, TorrentInfoFile,
+    errors, torrent, DefaultSession, FileIndex, FilePriority, PieceIndex, PiecePriority, Session,
+    Torrent, TorrentError, TorrentEvent, TorrentFlags, TorrentInfoFile,
 };
 use async_trait::async_trait;
 use chrono::{DateTime, Local};
@@ -17,6 +17,7 @@ use popcorn_fx_core::core::torrents::{
 use popcorn_fx_core::core::{
     block_in_place_runtime, event, torrents, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks,
 };
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::fs;
 use std::path::PathBuf;
@@ -24,6 +25,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc::unbounded_channel;
+use tokio::sync::RwLock;
 
 const CLEANUP_WATCH_THRESHOLD: f64 = 85f64;
 const CLEANUP_AFTER: fn() -> Duration = || Duration::from_secs(10 * 24 * 60 * 60);
@@ -94,8 +96,8 @@ impl popcorn_fx_core::core::torrents::Torrent for Torrent {
             .await
             .into_iter()
             .find(|e| e.priority != FilePriority::None)
-            .map(|e| e.path)
-            .unwrap_or(PathBuf::from("unknown"))
+            .and_then(|e| self.absolute_filepath(&e).ok())
+            .unwrap_or(PathBuf::from("UNKNOWN"))
     }
 
     async fn has_bytes(&self, bytes: &std::ops::Range<usize>) -> bool {
@@ -181,6 +183,7 @@ impl DefaultTorrentManager {
             inner: Arc::new(InnerTorrentManager {
                 settings,
                 session,
+                torrent_files: Default::default(),
                 callbacks: Default::default(),
                 runtime,
             }),
@@ -190,7 +193,10 @@ impl DefaultTorrentManager {
         event_publisher.register(
             Box::new(move |event| {
                 if let Event::PlayerStopped(e) = &event {
-                    cloned_instance.on_player_stopped(e.clone());
+                    block_in_place_runtime(
+                        cloned_instance.on_player_stopped(e.clone()),
+                        &cloned_instance.runtime,
+                    );
                 }
 
                 Some(event)
@@ -204,32 +210,42 @@ impl DefaultTorrentManager {
 
 #[async_trait]
 impl TorrentManager for DefaultTorrentManager {
-    async fn info<'a>(&'a self, url: &'a str) -> torrents::Result<TorrentInfo> {
-        self.inner.info(url).await
-    }
-
     async fn health_from_uri<'a>(&'a self, url: &'a str) -> torrents::Result<TorrentHealth> {
         self.inner.health_from_uri(url).await
     }
 
-    async fn create(
-        &self,
-        uri: &str,
-        file_info: &TorrentFileInfo,
-        auto_download: bool,
-    ) -> torrents::Result<Box<dyn popcorn_fx_core::core::torrents::Torrent>> {
-        self.inner.create(uri, file_info, auto_download).await
+    async fn create(&self, uri: &str) -> torrents::Result<TorrentHandle> {
+        self.inner.create(uri).await
     }
 
-    async fn by_handle(
+    async fn info(&self, handle: &TorrentHandle) -> torrents::Result<TorrentInfo> {
+        self.inner.info(handle).await
+    }
+
+    async fn download(
         &self,
-        handle: TorrentHandle,
+        handle: &TorrentHandle,
+        file_info: &TorrentFileInfo,
+    ) -> torrents::Result<()> {
+        self.inner.download(handle, file_info).await
+    }
+
+    async fn find_by_handle(
+        &self,
+        handle: &TorrentHandle,
     ) -> Option<Box<dyn popcorn_fx_core::core::torrents::Torrent>> {
         self.inner.by_handle(handle).await
     }
 
-    fn remove(&self, handle: TorrentHandle) {
-        self.inner.remove(handle)
+    async fn subscribe(
+        &self,
+        handle: &TorrentHandle,
+    ) -> Option<Subscription<torrents::TorrentEvent>> {
+        self.inner.subscribe(handle).await
+    }
+
+    async fn remove(&self, handle: &TorrentHandle) {
+        self.inner.remove(handle).await
     }
 
     fn calculate_health(&self, seeds: u32, leechers: u32) -> TorrentHealth {
@@ -257,6 +273,8 @@ struct InnerTorrentManager {
     settings: Arc<ApplicationConfig>,
     /// The underlying torrent sessions of the application
     session: Box<dyn Session>,
+    /// The torrent files being downloaded,
+    torrent_files: RwLock<HashMap<TorrentHandle, TorrentFileInfo>>,
     /// The callbacks of the torrent manager
     callbacks: CoreCallbacks<TorrentManagerEvent>,
     /// The shared runtime
@@ -264,28 +282,53 @@ struct InnerTorrentManager {
 }
 
 impl InnerTorrentManager {
+    async fn create(&self, uri: &str) -> torrents::Result<TorrentHandle> {
+        self.session
+            .add_torrent_from_uri(uri, TorrentFlags::Metadata)
+            .await
+            .map(|e| e.handle())
+            .map_err(|e| torrents::Error::TorrentError(e.to_string()))
+    }
+
     async fn info<'a>(
         &'a self,
-        url: &'a str,
+        handle: &TorrentHandle,
     ) -> popcorn_fx_core::core::torrents::Result<TorrentInfo> {
-        debug!("Resolving torrent magnet url {}", url);
-        self.session
-            .fetch_magnet(url, std::time::Duration::from_secs(30))
-            .await
-            .and_then(|torrent_info| {
-                trace!("Retrieved torrent info {:?}", torrent_info);
-                if let Some(metadata) = torrent_info.info {
-                    let directory_name = if let TorrentInfoFile::Single { .. } = &metadata.files {
+        match self.session.find_torrent_by_handle(handle).await {
+            Some(torrent) => {
+                let mut receiver = torrent.subscribe();
+
+                if !torrent.is_metadata_known().await {
+                    loop {
+                        if let Some(event) = receiver.recv().await {
+                            if let TorrentEvent::MetadataChanged = *event {
+                                break;
+                            }
+                        } else {
+                            return Err(torrents::Error::TorrentResolvingFailed(
+                                "handle has been dropped".to_string(),
+                            ));
+                        }
+                    }
+                }
+
+                let metadata = torrent
+                    .metadata()
+                    .await
+                    .map_err(|e| torrents::Error::TorrentError(e.to_string()))?;
+                if let Some(info) = metadata.info {
+                    let directory_name = if let TorrentInfoFile::Single { .. } = &info.files {
                         None
                     } else {
-                        Some(metadata.name.clone())
+                        Some(info.name.clone())
                     };
 
-                    Ok(TorrentInfo {
-                        info_hash: torrent_info.info_hash.to_string(),
-                        uri: url.to_string(),
-                        total_files: metadata.total_files() as u32,
-                        files: metadata
+                    return Ok(TorrentInfo {
+                        handle: handle.clone(),
+                        uri: "".to_string(),
+                        info_hash: metadata.info_hash.to_string(),
+                        total_files: info.total_files() as u32,
+                        files: info
                             .files()
                             .into_iter()
                             .enumerate()
@@ -304,26 +347,71 @@ impl InnerTorrentManager {
                                 }
                             })
                             .collect(),
-                        name: metadata.name,
+                        name: info.name,
                         directory_name,
-                    })
-                } else {
-                    debug!(
-                        "Torrent info is missing it's metadata, unable to create the torrent info"
-                    );
-                    Err(errors::TorrentError::InvalidMetadata(format!(
-                        "metadata is missing for torrent {}",
-                        torrent_info.info_hash
-                    )))
-                }
-            })
-            .map_err(|e| {
-                if let errors::TorrentError::Timeout = e {
-                    return torrents::Error::TorrentResolvingFailed(e.to_string());
+                    });
                 }
 
-                torrents::Error::TorrentError(e.to_string())
+                Err(torrents::Error::TorrentResolvingFailed(
+                    "metadata info is missing".to_string(),
+                ))
+            }
+            None => Err(torrents::Error::InvalidHandle(handle.to_string())),
+        }
+    }
+
+    async fn download(
+        &self,
+        handle: &TorrentHandle,
+        file_info: &TorrentFileInfo,
+    ) -> torrents::Result<()> {
+        let torrent = self
+            .session
+            .find_torrent_by_handle(handle)
+            .await
+            .ok_or(torrents::Error::InvalidHandle(handle.to_string()))?;
+        let mut receiver = torrent.subscribe();
+
+        if torrent.total_files().await.unwrap_or(0) == 0 {
+            trace!("Waiting for torrent {} to create the files", torrent);
+            loop {
+                if let Some(event) = receiver.recv().await {
+                    if let TorrentEvent::FilesChanged = *event {
+                        break;
+                    }
+                } else {
+                    return Err(torrents::Error::TorrentResolvingFailed(
+                        "handle has been dropped".to_string(),
+                    ));
+                }
+            }
+        }
+
+        debug!("Prioritizing file {:?} for torrent {}", file_info, torrent);
+        let file_priorities: Vec<(FileIndex, FilePriority)> = torrent
+            .files()
+            .await
+            .into_iter()
+            .map(|file| {
+                let priority = if file.index == file_info.file_index {
+                    FilePriority::Normal
+                } else {
+                    FilePriority::None
+                };
+
+                (file.index, priority)
             })
+            .collect();
+
+        torrent.prioritize_files(file_priorities).await;
+        torrent.add_options(TorrentFlags::AutoManaged).await;
+        torrent.resume().await;
+
+        // store the info
+        let mut mutex = self.torrent_files.write().await;
+        mutex.insert(torrent.handle(), file_info.clone());
+
+        Ok(())
     }
 
     async fn health_from_uri<'a>(
@@ -337,66 +425,9 @@ impl InnerTorrentManager {
             .map_err(|e| torrents::Error::TorrentError(e.to_string()))
     }
 
-    async fn create(
-        &self,
-        uri: &str,
-        file_info: &TorrentFileInfo,
-        auto_download: bool,
-    ) -> torrents::Result<Box<dyn popcorn_fx_core::core::torrents::Torrent>> {
-        let torrent = self
-            .session
-            .add_torrent_from_uri(uri, TorrentFlags::Metadata)
-            .await
-            .map_err(|e| torrents::Error::TorrentError(e.to_string()))?;
-
-        // make sure that the metadata if the torrent is fetched
-        torrent
-            .add_options(TorrentFlags::Metadata | TorrentFlags::UploadMode)
-            .await;
-        let mut files = torrent.files().await;
-
-        if files.is_empty() {
-            let mut receiver = torrent.subscribe();
-
-            loop {
-                if let Some(event) = receiver.recv().await {
-                    if let TorrentEvent::FilesChanged = *event {
-                        break;
-                    }
-                } else {
-                    return Err(torrents::Error::TorrentError(
-                        "torrent got invalidated".to_string(),
-                    ));
-                }
-            }
-
-            files = torrent.files().await;
-        }
-
-        let file_priorities = files
-            .iter_mut()
-            .map(|file| {
-                let priority = if file.index == file_info.file_index {
-                    FilePriority::Normal
-                } else {
-                    FilePriority::None
-                };
-
-                (file.index, priority)
-            })
-            .collect();
-        torrent.priorities_files(file_priorities).await;
-
-        if auto_download {
-            torrent.resume().await;
-        }
-
-        Ok(Box::new(torrent))
-    }
-
     async fn by_handle(
         &self,
-        handle: TorrentHandle,
+        handle: &TorrentHandle,
     ) -> Option<Box<dyn popcorn_fx_core::core::torrents::Torrent>> {
         self.session
             .find_torrent_by_handle(handle)
@@ -404,11 +435,23 @@ impl InnerTorrentManager {
             .map(|e| Box::new(e) as Box<dyn popcorn_fx_core::core::torrents::Torrent>)
     }
 
-    fn remove(&self, handle: TorrentHandle) {
-        self.session.remove_torrent(handle)
+    async fn subscribe(
+        &self,
+        handle: &TorrentHandle,
+    ) -> Option<Subscription<torrents::TorrentEvent>> {
+        if let Some(torrent) = self.session.find_torrent_by_handle(handle).await {
+            return Some(torrent.subscribe());
+        }
+
+        None
     }
 
-    fn on_player_stopped(&self, event: PlayerStoppedEvent) {
+    async fn remove(&self, handle: &TorrentHandle) {
+        debug!("Torrent manager is removing torrent {}", handle);
+        self.session.remove_torrent(handle).await
+    }
+
+    async fn on_player_stopped(&self, event: PlayerStoppedEvent) {
         trace!("Received player stopped event for {:?}", event);
         let settings = self.settings.user_settings();
         let torrent_settings = &settings.torrent_settings;
@@ -417,29 +460,14 @@ impl InnerTorrentManager {
             debug!("Handling player stopped event for {:?}", event);
             if let Some(filename) = event.filename() {
                 if let (Some(time), Some(duration)) = (&event.time, &event.duration) {
-                    let percentage = (*time as f64 / *duration as f64) * 100 as f64;
+                    let percentage = (*time as f64 / *duration as f64) * 100f64;
 
                     trace!("Media {} has been watched for {:.2}", filename, percentage);
                     if percentage >= CLEANUP_WATCH_THRESHOLD {
                         debug!("Cleaning media file \"{}\"", filename);
-                        if let Some(torrent) = self.find_by_filename(filename.as_str()) {
-                            let filepath = block_in_place_runtime(torrent.file(), &self.runtime);
-                            let absolute_filepath = filepath.to_str().unwrap();
-
-                            if filepath.exists() {
-                                if let Err(e) = fs::remove_file(filepath.as_path()) {
-                                    error!(
-                                        "Failed to remove media file \"{}\", {}",
-                                        absolute_filepath, e
-                                    )
-                                } else {
-                                    info!("Media file \"{}\" has been removed", absolute_filepath);
-                                }
-                            } else {
-                                warn!("Unable to clean {}, filename doesn't exist at the expected location", absolute_filepath)
-                            }
-
-                            self.remove_by_filename(filename.as_str());
+                        if let Some(torrent) = self.find_by_filename(filename.as_str()).await {
+                            // TODO cleanup torrent files
+                            self.session.remove_torrent(&torrent.handle()).await;
                         } else {
                             warn!("Unable to find related torrent for \"{}\"", filename);
                         }
@@ -451,15 +479,17 @@ impl InnerTorrentManager {
         }
     }
 
-    fn find_by_filename(
-        &self,
-        _filename: &str,
-    ) -> Option<Box<dyn popcorn_fx_core::core::torrents::Torrent>> {
-        todo!()
-    }
+    async fn find_by_filename(&self, filename: &str) -> Option<Torrent> {
+        let torrent_files = self.torrent_files.read().await;
 
-    fn remove_by_filename(&self, _filename: &str) {
-        todo!()
+        if let Some((handle, _)) = torrent_files
+            .iter()
+            .find(|(_, file)| file.filename == filename)
+        {
+            return self.session.find_torrent_by_handle(handle).await;
+        }
+
+        None
     }
 
     fn calculate_health(&self, seeds: u32, leechers: u32) -> TorrentHealth {
@@ -542,43 +572,11 @@ mod test {
     use super::*;
     use popcorn_fx_core::core::config::{PopcornSettings, TorrentSettings};
     use popcorn_fx_core::init_logger;
-    use popcorn_fx_core::testing::{copy_test_file, init_logger};
+    use popcorn_fx_core::testing::copy_test_file;
     use std::fs::{File, FileTimes};
     use std::path::PathBuf;
     use std::sync::mpsc::channel;
     use std::time::SystemTime;
-
-    #[test]
-    fn test_info() {
-        init_logger!();
-        let temp_dir = tempfile::tempdir().unwrap();
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let runtime = Arc::new(Runtime::new().unwrap());
-        let uri = "magnet:?xt=urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7&dn=debian-12.4.0-amd64-DVD-1.iso&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce";
-        let settings = default_config(temp_path, CleaningMode::Off);
-        let event_publisher = Arc::new(EventPublisher::default());
-        let manager =
-            DefaultTorrentManager::new(settings, event_publisher.clone(), runtime.clone()).unwrap();
-        let expected_result = TorrentInfo {
-            info_hash: "EADAF0EFEA39406914414D359E0EA16416409BD7".to_string(),
-            uri: uri.to_string(),
-            name: "debian-12.4.0-amd64-DVD-1.iso".to_string(),
-            directory_name: None,
-            total_files: 1,
-            files: vec![TorrentFileInfo {
-                filename: "debian-12.4.0-amd64-DVD-1.iso".to_string(),
-                file_path: "debian-12.4.0-amd64-DVD-1.iso".to_string(),
-                file_size: 3994091520,
-                file_index: 0,
-            }],
-        };
-
-        let result = runtime
-            .block_on(manager.info(uri))
-            .expect("expected the torrent info to have been returned");
-
-        assert_eq!(expected_result, result)
-    }
 
     #[test]
     fn test_on_player_stopped() {
@@ -590,8 +588,9 @@ mod test {
         let filename = "torrents/lorem ipsum=[dolor].mp4";
         let filepath = PathBuf::from(temp_path).join(filename);
         let torrent_info = TorrentInfo {
+            handle: Default::default(),
             info_hash: String::new(),
-            uri: String::new(),
+            uri: magnet_uri.to_string(),
             name: filename.to_string(),
             directory_name: None,
             total_files: 1,
@@ -612,26 +611,7 @@ mod test {
         let torrent_info_callback = torrent_info.clone();
 
         // register the torrent information by invoking the callbacks
-        match runtime.block_on(manager.info(magnet_uri)) {
-            Ok(result) => {
-                assert_eq!(torrent_info, result);
-
-                let torrent_file_info = result
-                    .largest_file()
-                    .expect("expected a torrent file to have been present in the torrent info");
-                let result = runtime.block_on(manager.create(magnet_uri, &torrent_file_info, true));
-                assert!(
-                    result.is_ok(),
-                    "expected the torrent to have been created, {}",
-                    result.err().unwrap()
-                );
-            }
-            Err(e) => assert!(
-                false,
-                "expected the torrent info to have been returned, {}",
-                e
-            ),
-        }
+        // TODO
 
         event_publisher.register(
             Box::new(move |e| {

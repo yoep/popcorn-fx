@@ -1,10 +1,29 @@
 use crate::torrent::tracker::TrackerError;
 use crate::torrent::{fs, peer, TorrentHandle};
-use serde_bencode::Error;
 use thiserror::Error;
 
 /// The result type for the torrent package.
 pub type Result<T> = std::result::Result<T, TorrentError>;
+
+/// Represents possible errors that can occur when parsing a magnet URI.
+pub type MagnetResult<T> = std::result::Result<T, MagnetError>;
+
+/// Represents possible errors that can occur when parsing a magnet URI.
+#[derive(Debug, Clone, Error, PartialEq)]
+pub enum MagnetError {
+    /// Failed to parse the magnet URI.
+    #[error("failed to parse magnet uri, {0}")]
+    Parse(String),
+    /// The specified magnet URI is invalid.
+    #[error("invalid magnet uri")]
+    InvalidUri,
+    /// The specified file index value is invalid.
+    #[error("value \"{0}\" is invalid")]
+    InvalidValue(String),
+    /// The specified scheme in the magnet URI is not supported.
+    #[error("scheme \"{0}\" is not supported")]
+    UnsupportedScheme(String),
+}
 
 /// The torrent piece specific errors.
 /// These errors can occur when working with [Piece] related operations.
@@ -21,7 +40,7 @@ pub enum PieceError {
 #[derive(Debug, Clone, Error, PartialEq)]
 pub enum TorrentError {
     #[error("failed to parse magnet uri, {0}")]
-    MagnetParse(String),
+    Magnet(MagnetError),
     #[error("failed to parse torrent data, {0}")]
     TorrentParse(String),
     #[error("failed to parse address, {0}")]
@@ -71,7 +90,7 @@ impl From<std::io::Error> for TorrentError {
 }
 
 impl From<serde_bencode::Error> for TorrentError {
-    fn from(error: Error) -> Self {
+    fn from(error: serde_bencode::Error) -> Self {
         TorrentError::TorrentParse(error.to_string())
     }
 }

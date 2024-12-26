@@ -1,17 +1,20 @@
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 
+use crate::core::config::ApplicationConfig;
+use crate::core::loader::task::LoadingTaskContext;
+use crate::core::loader::{
+    CancellationResult, LoadingData, LoadingError, LoadingEvent, LoadingProgress, LoadingState,
+    LoadingStrategy, Result,
+};
+use crate::core::torrents::{
+    Torrent, TorrentEvent, TorrentFileInfo, TorrentHandle, TorrentManager, TorrentState,
+};
+use crate::core::{loader, torrents};
 use async_trait::async_trait;
 use derive_more::Display;
 use log::{debug, trace};
-
-use crate::core::config::ApplicationConfig;
-use crate::core::loader;
-use crate::core::loader::task::LoadingTaskContext;
-use crate::core::loader::{
-    CancellationResult, LoadingData, LoadingError, LoadingEvent, LoadingState, LoadingStrategy,
-};
-use crate::core::torrents::TorrentManager;
+use tokio::select;
 
 #[derive(Display)]
 #[display(fmt = "Torrent loading strategy")]
@@ -28,6 +31,76 @@ impl TorrentLoadingStrategy {
         Self {
             torrent_manager,
             application_settings,
+        }
+    }
+
+    async fn create_torrent_handle(
+        &self,
+        uri: &str,
+        context: &LoadingTaskContext,
+    ) -> Result<TorrentHandle> {
+        select! {
+            _ = context.cancelled() => Err(LoadingError::Cancelled),
+            result = self.torrent_manager.create(uri.as_ref()) => result.map_err(|e| LoadingError::TorrentError(e)),
+        }
+    }
+
+    async fn create_torrent(
+        &self,
+        handle: &TorrentHandle,
+        file: &TorrentFileInfo,
+        context: &LoadingTaskContext,
+    ) -> Result<Box<dyn Torrent>> {
+        debug!("Starting download of {}", file.file_path);
+        let mut receiver =
+            self.torrent_manager
+                .subscribe(&handle)
+                .await
+                .ok_or(LoadingError::TorrentError(torrents::Error::InvalidHandle(
+                    handle.to_string(),
+                )))?;
+        let mut download_future = self.torrent_manager.download(&handle, file);
+
+        loop {
+            select! {
+                _ = context.cancelled() => return Err(LoadingError::Cancelled),
+                Some(event) = receiver.recv() => Self::handle_event(&*event, context),
+                _ = &mut download_future => break,
+            }
+        }
+
+        debug!("Enhancing playlist item with torrent");
+        select! {
+            _ = context.cancelled() => return Err(LoadingError::Cancelled),
+            result = self.torrent_manager.find_by_handle(&handle) =>
+                result.ok_or(LoadingError::TorrentError(torrents::Error::InvalidHandle(handle.to_string()))),
+        }
+    }
+
+    fn handle_event(event: &TorrentEvent, context: &LoadingTaskContext) {
+        match event {
+            TorrentEvent::StateChanged(state) => {
+                match state {
+                    TorrentState::Initializing => {
+                        context.send_event(LoadingEvent::StateChanged(LoadingState::Initializing))
+                    }
+                    TorrentState::RetrievingMetadata => context
+                        .send_event(LoadingEvent::StateChanged(LoadingState::RetrievingMetadata)),
+                    TorrentState::CheckingFiles => {
+                        context.send_event(LoadingEvent::StateChanged(LoadingState::VerifyingFiles))
+                    }
+                    TorrentState::Downloading => {
+                        context.send_event(LoadingEvent::StateChanged(LoadingState::Downloading))
+                    }
+                    TorrentState::Completed => context
+                        .send_event(LoadingEvent::StateChanged(LoadingState::DownloadFinished)),
+                    _ => {}
+                }
+            }
+            TorrentEvent::DownloadStatus(status) => context.send_event(
+                LoadingEvent::ProgressChanged(LoadingProgress::from(status.clone())),
+            ),
+            _ => {}
         }
     }
 }
@@ -48,21 +121,21 @@ impl LoadingStrategy for TorrentLoadingStrategy {
         mut data: LoadingData,
         context: &LoadingTaskContext,
     ) -> loader::LoadingResult {
-        if let Some(uri) = data.url.as_ref() {
+        if let Some(handle) = data.torrent_handle.as_ref() {
             if let Some(torrent_file_info) = data.torrent_file_info.as_ref() {
                 trace!("Processing torrent info of {:?}", torrent_file_info);
                 context.send_event(LoadingEvent::StateChanged(LoadingState::Connecting));
 
                 match self
-                    .torrent_manager
-                    .create(uri.as_ref(), torrent_file_info, true)
+                    .create_torrent(handle, torrent_file_info, context)
                     .await
                 {
                     Ok(torrent) => {
-                        debug!("Enhancing playlist item with torrent");
                         data.torrent = Some(torrent);
                     }
-                    Err(e) => return loader::LoadingResult::Err(LoadingError::TorrentError(e)),
+                    Err(err) => {
+                        return loader::LoadingResult::Err(err);
+                    }
                 }
             }
         }
@@ -73,7 +146,9 @@ impl LoadingStrategy for TorrentLoadingStrategy {
     async fn cancel(&self, mut data: LoadingData) -> CancellationResult {
         if let Some(torrent) = data.torrent.take() {
             debug!("Cancelling the torrent downloading");
-            self.torrent_manager.remove(torrent.handle());
+            let handle = torrent.handle();
+            self.torrent_manager.remove(&handle).await;
+            data.torrent_handle = None;
         }
 
         Ok(data)
@@ -98,9 +173,10 @@ mod tests {
     fn test_process() {
         init_logger!();
         let torrent_info = TorrentInfo {
+            handle: Default::default(),
             info_hash: String::new(),
             uri: String::new(),
-            name: "".to_string(),
+            name: String::new(),
             directory_name: None,
             total_files: 0,
             files: vec![],

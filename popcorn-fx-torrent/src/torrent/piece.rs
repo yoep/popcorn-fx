@@ -98,10 +98,14 @@ impl Piece {
         // create the parts of this piece
         // the parts will represent the requests to peers which need to be made to complete this piece
         for part in 0..num_of_parts {
-            let mut part_length = MAX_PIECE_PART_SIZE;
-            if part * MAX_PIECE_PART_SIZE > length {
-                part_length = length - (part * MAX_PIECE_PART_SIZE);
-            }
+            // calculate the part length.
+            // if this part is the last one, it might be smaller
+            let part_end = (part + 1) * MAX_PIECE_PART_SIZE;
+            let part_length = if part_end > length {
+                length - (part * MAX_PIECE_PART_SIZE)
+            } else {
+                MAX_PIECE_PART_SIZE
+            };
 
             parts.push(PiecePart {
                 piece: index,
@@ -307,7 +311,24 @@ mod tests {
     }
 
     #[test]
-    fn test_increase_availability() {
+    fn test_piece_parts_to_request() {
+        let expected_last_part = PiecePart {
+            piece: 836,
+            part: 117,
+            begin: 1916928,
+            length: 15000,
+        };
+        let piece = Piece::new(InfoHash::default(), 836, 0, 1931928);
+
+        let parts = piece.parts_to_request();
+        assert_eq!(118, parts.len(), "expected to match the number of parts");
+
+        let last_part = parts.last().unwrap();
+        assert_eq!(expected_last_part, **last_part);
+    }
+
+    #[test]
+    fn test_piece_increase_availability() {
         let mut piece = Piece::new(InfoHash::default(), 0, 0, 1024);
         let expected_result = 2;
 
@@ -319,7 +340,7 @@ mod tests {
     }
 
     #[test]
-    fn test_decrease_availability() {
+    fn test_piece_decrease_availability() {
         let mut piece = Piece::new(InfoHash::default(), 0, 0, 1024);
 
         piece.increase_availability();
@@ -331,7 +352,7 @@ mod tests {
     }
 
     #[test]
-    fn test_decrease_availability_overflow() {
+    fn test_piece_decrease_availability_overflow() {
         let mut piece = Piece::new(InfoHash::default(), 0, 0, 1024);
 
         piece.increase_availability();
@@ -343,7 +364,7 @@ mod tests {
     }
 
     #[test]
-    fn test_is_completed() {
+    fn test_piece_is_completed() {
         let mut piece = create_piece(0, 3);
 
         piece.part_completed(0);

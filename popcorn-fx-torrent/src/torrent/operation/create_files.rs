@@ -1,3 +1,4 @@
+use crate::torrent::errors::Result;
 use crate::torrent::{
     File, TorrentCommandEvent, TorrentContext, TorrentError, TorrentOperation,
     TorrentOperationResult, TorrentState,
@@ -40,10 +41,7 @@ impl TorrentCreateFilesOperation {
 
     /// Try to create the files of the torrent.
     /// This operation doesn't store the created files within this torrent.
-    async fn try_create_files(
-        &self,
-        torrent: &TorrentContext,
-    ) -> crate::torrent::Result<Vec<File>> {
+    async fn try_create_files(&self, torrent: &TorrentContext) -> Result<Vec<File>> {
         let info = torrent.metadata().await;
         let is_v2_metadata: bool = info.info_hash.has_v2();
         let metadata = info.info.ok_or(TorrentError::InvalidMetadata(

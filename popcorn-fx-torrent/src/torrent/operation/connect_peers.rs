@@ -1,3 +1,4 @@
+use crate::torrent::errors::Result;
 use crate::torrent::peer::extension::Extensions;
 use crate::torrent::peer::webseed::HttpPeer;
 use crate::torrent::peer::{PeerId, ProtocolExtensionFlags, TcpPeer};
@@ -162,7 +163,7 @@ impl TorrentConnectPeersOperation {
         peer_addr: SocketAddr,
         protocol_extensions: ProtocolExtensionFlags,
         extensions: Extensions,
-    ) -> crate::torrent::Result<TcpPeer> {
+    ) -> Result<TcpPeer> {
         let timeout = torrent.config_lock().read().await.peer_connection_timeout;
         let runtime = torrent.runtime().clone();
         Ok(TcpPeer::new_outbound(

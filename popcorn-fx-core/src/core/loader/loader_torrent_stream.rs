@@ -9,8 +9,8 @@ use tokio::select;
 use crate::core::callback::Callback;
 use crate::core::loader::task::LoadingTaskContext;
 use crate::core::loader::{
-    CancellationResult, LoaderResult, LoadingData, LoadingError, LoadingEvent, LoadingProgress,
-    LoadingResult, LoadingState, LoadingStrategy,
+    CancellationResult, LoadingData, LoadingError, LoadingEvent, LoadingProgress, LoadingResult,
+    LoadingState, LoadingStrategy, Result,
 };
 use crate::core::torrents::{Error, TorrentStreamEvent, TorrentStreamServer, TorrentStreamState};
 
@@ -35,7 +35,7 @@ impl TorrentStreamLoadingStrategy {
         &self,
         event: Arc<TorrentStreamEvent>,
         context: &LoadingTaskContext,
-    ) -> LoaderResult<bool> {
+    ) -> Result<bool> {
         match &*event {
             TorrentStreamEvent::StateChanged(state) => match state {
                 TorrentStreamState::Preparing => {
@@ -81,11 +81,12 @@ impl LoadingStrategy for TorrentStreamLoadingStrategy {
                         data.url = Some(stream.url().to_string());
                         context.send_event(LoadingEvent::StateChanged(LoadingState::Downloading));
 
-                        let mut receiver = Callback::<TorrentStreamEvent>::subscribe(&**stream);
+                        let mut stream_receiver =
+                            Callback::<TorrentStreamEvent>::subscribe(&**stream);
                         loop {
                             select! {
                                 _ = context.cancelled() => break,
-                                event = receiver.recv() => {
+                                event = stream_receiver.recv() => {
                                     if let Some(event) = event {
                                         match self.handle_stream_event(event, context).await {
                                             Ok(ready) => {

@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::str::FromStr;
 use std::sync::Arc;
 
 use crate::core::callback::{Callback, MultiCallback, Subscriber, Subscription};
@@ -11,9 +10,8 @@ use crate::core::media::{
     Episode, Images, MediaIdentifier, MediaOverview, MovieDetails, ShowDetails,
 };
 use crate::core::playlist::PlaylistItem;
-use crate::core::torrents::magnet::Magnet;
-use crate::core::torrents::{DownloadStatus, Error};
-use crate::core::Handle;
+use crate::core::torrents::DownloadStatus;
+use crate::core::{torrents, Handle};
 use async_trait::async_trait;
 use derive_more::Display;
 use log::{debug, error, trace};
@@ -30,7 +28,7 @@ use tokio_util::sync::CancellationToken;
 ///
 /// It is a specialized `Result` type where the success variant contains a value of type `T`, and the error variant
 /// contains a `LoadingError` indicating the reason for the loading failure.
-pub type LoaderResult<T> = Result<T, LoadingError>;
+pub type Result<T> = std::result::Result<T, LoadingError>;
 
 /// An enum representing events related to media loading.
 #[derive(Debug, Display, Clone, PartialEq)]
@@ -61,33 +59,35 @@ pub enum LoadingResult {
 }
 
 /// An enum representing the result of a cancellation operation on loading data.
-pub type CancellationResult = Result<LoadingData, LoadingError>;
+pub type CancellationResult = std::result::Result<LoadingData, LoadingError>;
 
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Display, PartialOrd, PartialEq)]
 pub enum LoadingState {
     #[display(fmt = "Loader is initializing")]
-    Initializing = 0,
+    Initializing,
     #[display(fmt = "Loader is starting")]
-    Starting = 1,
+    Starting,
     #[display(fmt = "Loader is retrieving subtitles")]
-    RetrievingSubtitles = 2,
+    RetrievingSubtitles,
     #[display(fmt = "Loader is downloading a subtitle")]
-    DownloadingSubtitle = 3,
+    DownloadingSubtitle,
     #[display(fmt = "Loader is retrieving the metadata")]
-    RetrievingMetadata = 4,
+    RetrievingMetadata,
+    #[display(fmt = "Loader is verifying the files")]
+    VerifyingFiles,
     #[display(fmt = "Loader is connecting")]
-    Connecting = 5,
+    Connecting,
     #[display(fmt = "Loader is downloading the media")]
-    Downloading = 6,
+    Downloading,
     #[display(fmt = "Loader has finished downloading the media")]
-    DownloadFinished = 7,
+    DownloadFinished,
     #[display(fmt = "Loader is ready to start the playback")]
-    Ready = 8,
+    Ready,
     #[display(fmt = "Loader is playing media")]
-    Playing = 9,
+    Playing,
     #[display(fmt = "Loader is cancelled")]
-    Cancelled = 10,
+    Cancelled,
 }
 
 #[derive(Debug, Display, Clone, PartialEq)]
@@ -137,16 +137,7 @@ impl LoadingStartedEvent {
 
 impl From<&LoadingData> for LoadingStartedEvent {
     fn from(value: &LoadingData) -> Self {
-        let url = value.url.clone();
-        let title = value.title.clone().unwrap_or_else(move || {
-            url.and_then(|e| {
-                Magnet::from_str(e.as_str())
-                    .map(|e| Some(e))
-                    .unwrap_or(None)
-            })
-            .and_then(|e| e.dn().map(|e| e.to_string()))
-            .unwrap_or(String::new())
-        });
+        let title = value.title.clone().unwrap_or(String::new());
 
         Self {
             url: value
@@ -210,7 +201,7 @@ pub enum LoadingError {
     #[error("Failed to parse URL: {0}")]
     ParseError(String),
     #[error("Failed to load torrent, {0}")]
-    TorrentError(Error),
+    TorrentError(torrents::Error),
     #[error("Failed to process media information, {0}")]
     MediaError(String),
     #[error("Loading timed-out, {0}")]
@@ -622,6 +613,7 @@ mod tests {
             thumb: None,
             parent_media: None,
             media: None,
+            torrent_handle: None,
             torrent_info: None,
             torrent_file_info: None,
             quality: None,
@@ -658,6 +650,7 @@ mod tests {
             thumb: None,
             parent_media: None,
             media: None,
+            torrent_handle: None,
             torrent_info: None,
             torrent_file_info: None,
             quality: None,

@@ -69,15 +69,15 @@ mod tests {
     use crate::core::loader::loading_chain::DEFAULT_ORDER;
     use crate::core::loader::SubtitleData;
     use crate::core::torrents::TorrentInfo;
-    use crate::create_loading_task;
-    use crate::testing::init_logger;
+    use crate::{create_loading_task, init_logger};
 
     use super::*;
 
     #[test]
     fn test_process() {
-        init_logger();
+        init_logger!();
         let torrent_info = TorrentInfo {
+            handle: Default::default(),
             info_hash: String::new(),
             uri: String::new(),
             name: "MyTorrentName".to_string(),
@@ -92,6 +92,7 @@ mod tests {
             thumb: None,
             parent_media: None,
             media: None,
+            torrent_handle: None,
             torrent_info: Some(torrent_info.clone()),
             torrent_file_info: None,
             quality: None,
@@ -140,6 +141,7 @@ mod tests {
             thumb: None,
             parent_media: None,
             media: None,
+            torrent_handle: None,
             torrent_info: None,
             torrent_file_info: None,
             quality: None,

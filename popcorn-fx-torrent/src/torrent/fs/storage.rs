@@ -1,9 +1,9 @@
 use crate::torrent::fs::{Error, Result};
 use async_trait::async_trait;
 use std::fmt::Debug;
+use std::io;
 use std::ops::Range;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
 /// Trait for handling the torrent file storage.
@@ -48,8 +48,21 @@ pub trait TorrentFileStorage: Debug + Send + Sync {
     ///
     /// # Returns
     ///
-    /// Returns the bytes read from the file if successful.
+    /// It returns the requested byte range.
     async fn read(&self, filepath: &Path, range: Range<usize>) -> Result<Vec<u8>>;
+
+    /// Reads a specified range of bytes from the torrent filepath,
+    /// padding with `0` if the file is smaller than the requested range.
+    ///
+    /// # Arguments
+    ///
+    /// * `filepath` - The relative filepath within this storage to read from.
+    /// * `range` - The range of bytes to read from the file.
+    ///
+    /// # Returns
+    ///
+    /// It returns the requested byte range, padded with `0`.
+    async fn read_with_padding(&self, filepath: &Path, range: Range<usize>) -> Result<Vec<u8>>;
 
     /// Read all bytes from the torrent filepath.
     ///
@@ -119,6 +132,31 @@ impl DefaultTorrentFileStorage {
             .await?)
     }
 
+    /// Try to read the byte range from the specified file.
+    /// This method applies padding to the missing bytes.
+    async fn internal_read(
+        &self,
+        filepath: &Path,
+        range: Range<usize>,
+    ) -> Result<(usize, Vec<u8>)> {
+        let mut file = self.internal_open(filepath, false).await?;
+        let mut buffer = vec![0u8; range.len()];
+        let mut total_bytes_read = 0;
+
+        file.seek(io::SeekFrom::Start(range.start as u64)).await?;
+        // read data until we reach the end of the requested range
+        while total_bytes_read < range.len() {
+            let bytes_read = file.read(&mut buffer[total_bytes_read..]).await?;
+            total_bytes_read += bytes_read;
+            // if no more data is available, break out of the loop
+            if bytes_read == 0 {
+                break;
+            }
+        }
+
+        Ok((total_bytes_read, buffer))
+    }
+
     /// Get the canonicalized path for the given path.
     /// This function traverses the path components and resolves ".." and "." appropriately.
     /// It returns the resulting path.
@@ -184,14 +222,22 @@ impl TorrentFileStorage for DefaultTorrentFileStorage {
     }
 
     async fn read(&self, filepath: &Path, range: Range<usize>) -> Result<Vec<u8>> {
-        let mut file = self.internal_open(filepath, false).await?;
-        let mut buffer = vec![0u8; range.len()];
+        let expected_bytes = range.len();
+        let (bytes_read, bytes) = self.internal_read(filepath, range).await?;
 
-        file.seek(std::io::SeekFrom::Start(range.start as u64))
-            .await?;
-        file.read_exact(&mut buffer).await?;
+        if bytes_read != expected_bytes {
+            Err(Error::Io(format!(
+                "EOF reached at {}/{}",
+                bytes_read, expected_bytes
+            )))
+        } else {
+            Ok(bytes)
+        }
+    }
 
-        Ok(buffer.to_vec())
+    async fn read_with_padding(&self, filepath: &Path, range: Range<usize>) -> Result<Vec<u8>> {
+        let (_bytes_read, bytes) = self.internal_read(filepath, range).await?;
+        Ok(bytes)
     }
 
     async fn read_to_end(&self, filepath: &Path) -> Result<Vec<u8>> {
@@ -207,6 +253,7 @@ impl TorrentFileStorage for DefaultTorrentFileStorage {
 mod tests {
     use super::*;
     use popcorn_fx_core::init_logger;
+    use popcorn_fx_core::testing::copy_test_file;
     use tempfile::tempdir;
 
     #[tokio::test]
@@ -279,5 +326,49 @@ mod tests {
             .expect("Failed to read file");
         assert_eq!(135, result.len());
         assert_eq!(expected_result, result);
+    }
+
+    #[tokio::test]
+    async fn test_read() {
+        init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let filename = "debian-12.4.0-amd64-DVD-1.iso";
+        copy_test_file(temp_path, "piece-1.iso", Some(filename));
+        let storage = DefaultTorrentFileStorage::new(temp_path);
+
+        let result = storage
+            .read(filename.as_ref(), 0..30)
+            .await
+            .expect("expected the bytes to have been returned");
+        assert_eq!(30, result.len());
+
+        let result = storage.read(filename.as_ref(), 0..512000).await;
+        assert_eq!(
+            Err(Error::Io("EOF reached at 262144/512000".to_string())),
+            result
+        );
+    }
+
+    #[tokio::test]
+    async fn test_read_with_padding() {
+        init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let filename = "debian-12.4.0-amd64-DVD-1.iso";
+        copy_test_file(temp_path, "piece-1.iso", Some(filename));
+        let storage = DefaultTorrentFileStorage::new(temp_path);
+
+        let result = storage
+            .read_with_padding(filename.as_ref(), 0..128)
+            .await
+            .expect("expected the bytes to have been returned");
+        assert_eq!(128, result.len());
+
+        let result = storage
+            .read_with_padding(filename.as_ref(), 0..512000)
+            .await
+            .expect("expected the bytes to have been returned");
+        assert_eq!(512000, result.len());
     }
 }

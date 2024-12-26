@@ -138,6 +138,7 @@ public class LoaderComponent implements Initializable {
             case RETRIEVING_SUBTITLES -> statusText.setText(localeText.get(TorrentMessage.RETRIEVING_SUBTITLES));
             case DOWNLOADING_SUBTITLE -> statusText.setText(localeText.get(TorrentMessage.DOWNLOADING_SUBTITLE));
             case RETRIEVING_METADATA -> statusText.setText(localeText.get(TorrentMessage.RETRIEVING_METADATA));
+            case VERIFYING_FILES -> statusText.setText(localeText.get(TorrentMessage.VERIFYING_FILES));
             case CONNECTING -> statusText.setText(localeText.get(TorrentMessage.CONNECTING));
             case DOWNLOADING -> {
                 progressStatus.setVisible(true);

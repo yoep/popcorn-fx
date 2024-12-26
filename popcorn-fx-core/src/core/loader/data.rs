@@ -18,6 +18,7 @@ pub struct LoadingData {
     pub thumb: Option<String>,
     pub parent_media: Option<Box<dyn MediaIdentifier>>,
     pub media: Option<Box<dyn MediaIdentifier>>,
+    pub torrent_handle: Option<crate::core::torrents::TorrentHandle>,
     pub torrent_info: Option<crate::core::torrents::TorrentInfo>,
     pub torrent_file_info: Option<TorrentFileInfo>,
     pub quality: Option<String>,
@@ -36,6 +37,7 @@ impl PartialEq for LoadingData {
             && self.thumb == other.thumb
             && self.parent_media.is_some() == other.parent_media.is_some()
             && self.media.is_some() == other.media.is_some()
+            && self.torrent_handle == other.torrent_handle
             && self.torrent_info == other.torrent_info
             && self.torrent_file_info == other.torrent_file_info
             && self.quality == other.quality
@@ -67,6 +69,7 @@ impl Clone for LoadingData {
             thumb: self.thumb.clone(),
             parent_media: cloned_parent_media,
             media: cloned_media,
+            torrent_handle: self.torrent_handle.clone(),
             torrent_info: self.torrent_info.clone(),
             torrent_file_info: self.torrent_file_info.clone(),
             quality: self.quality.clone(),
@@ -88,6 +91,7 @@ impl From<&str> for LoadingData {
             thumb: None,
             parent_media: None,
             media: None,
+            torrent_handle: None,
             torrent_info: None,
             torrent_file_info: None,
             quality: None,
@@ -109,6 +113,7 @@ impl From<PlaylistItem> for LoadingData {
             thumb: value.thumb,
             parent_media: value.media.parent,
             media: value.media.media,
+            torrent_handle: None,
             torrent_info: value.torrent.info,
             torrent_file_info: value.torrent.file_info,
             quality: value.quality,
@@ -194,6 +199,7 @@ mod tests {
             thumb: Some(thumb.to_string()),
             parent_media: Some(Box::new(show_overview)),
             media: Some(Box::new(episode)),
+            torrent_handle: None,
             torrent_info: None,
             torrent_file_info: None,
             quality: Some(quality.to_string()),

@@ -1,30 +1,12 @@
-use std::str::FromStr;
-
+use crate::torrent::{MagnetError, MagnetResult};
+use itertools::Itertools;
 use log::{trace, warn};
-use thiserror::Error;
+use std::fmt::{Display, Formatter};
+use std::str::FromStr;
 use url::Url;
 
+/// The scheme identifier of a magnet
 const MAGNET_SCHEME: &str = "magnet";
-
-/// Represents possible errors that can occur when parsing a magnet URI.
-pub type Result<T> = std::result::Result<T, MagnetError>;
-
-/// Represents possible errors that can occur when parsing a magnet URI.
-#[derive(Debug, Clone, Error, PartialEq)]
-pub enum MagnetError {
-    /// Failed to parse the magnet URI.
-    #[error("failed to parse magnet uri, {0}")]
-    Parse(String),
-    /// The specified magnet URI is invalid.
-    #[error("invalid magnet uri")]
-    InvalidUri,
-    /// The specified file index value is invalid.
-    #[error("value \"{0}\" is invalid")]
-    InvalidValue(String),
-    /// The specified scheme in the magnet URI is not supported.
-    #[error("scheme \"{0}\" is not supported")]
-    UnsupportedScheme(String),
-}
 
 /// Represents a Magnet link.
 #[derive(Debug, Clone, PartialEq)]
@@ -32,8 +14,8 @@ pub struct Magnet {
     pub exact_topics: Vec<String>,
     pub display_name: Option<String>,
     pub exact_length: Option<u64>,
-    pub address_tracker: Vec<String>,
-    pub web_seed: Vec<String>,
+    pub tracker_addresses: Vec<String>,
+    pub web_seeds: Vec<String>,
     pub acceptable_source: Vec<String>,
     pub exact_source: Option<String>,
     pub keyword_topic: Option<String>,
@@ -43,6 +25,11 @@ pub struct Magnet {
 }
 
 impl Magnet {
+    /// Get a builder instance for a magnet.
+    pub fn builder() -> MagnetBuilder {
+        MagnetBuilder::builder()
+    }
+
     /// Gets the 'xt' (exact topic) value from the magnet link.
     pub fn xt(&self) -> Vec<&str> {
         self.exact_topics.iter().map(|e| e.as_str()).collect()
@@ -60,7 +47,7 @@ impl Magnet {
 
     /// Gets the 'tr' (address tracker) values from the magnet link.
     pub fn tr(&self) -> &[String] {
-        self.address_tracker.as_slice()
+        self.tracker_addresses.as_slice()
     }
 
     /// Gets the 'tr' tracker values from the magnet link.
@@ -70,7 +57,7 @@ impl Magnet {
 
     /// Gets the 'ws' (web seed) values from the magnet link.
     pub fn ws(&self) -> &[String] {
-        self.web_seed.as_slice()
+        self.web_seeds.as_slice()
     }
 
     /// Gets the 'as' (acceptable source) values from the magnet link.
@@ -99,7 +86,7 @@ impl Magnet {
     }
 
     /// Retrieve the select only indexes from the magnet link, if present.
-    pub fn select_only(&self) -> Result<Option<Vec<u32>>> {
+    pub fn select_only(&self) -> MagnetResult<Option<Vec<u32>>> {
         if let Some(so) = self.so() {
             let mut indexes = Vec::new();
             let sections = so.split(",");
@@ -135,6 +122,54 @@ impl Magnet {
         self.peer.as_ref().map(|e| e.as_str())
     }
 
+    /// Get the magnet as an url.
+    pub fn as_url(&self) -> Url {
+        let topics = self
+            .exact_topics
+            .iter()
+            .map(|topic| format!("xt={}", topic))
+            .join("&");
+        let mut url = Url::from_str(format!("{}:?{}", MAGNET_SCHEME, topics).as_str())
+            .expect("expected the magnet scheme to be valid");
+        let mut params = url.query_pairs_mut();
+
+        if let Some(dn) = self.display_name.as_ref() {
+            params.append_pair("dn", dn.as_str());
+        }
+        if let Some(xl) = self.exact_length.as_ref() {
+            params.append_pair("xl", xl.to_string().as_str());
+        }
+        for tr in self.tracker_addresses.iter() {
+            params.append_pair("tr", tr.as_str());
+        }
+        for ws in self.web_seeds.iter() {
+            params.append_pair("ws", ws.as_str());
+        }
+        for mas in self.acceptable_source.iter() {
+            params.append_pair("as", mas.as_str());
+        }
+        if let Some(xs) = self.exact_source.as_ref() {
+            params.append_pair("xs", xs.as_str());
+        }
+        if let Some(kt) = self.keyword_topic.as_ref() {
+            params.append_pair("kt", kt.as_str());
+        }
+        if let Some(mt) = self.manifest_topic.as_ref() {
+            params.append_pair("mt", mt.as_str());
+        }
+        if let Some(so) = self.select_only.as_ref() {
+            params.append_pair("so", so.as_str());
+        }
+        if let Some(xpe) = self.peer.as_ref() {
+            params.append_pair("x.pe", xpe.as_str());
+        }
+
+        params.finish();
+        drop(params);
+
+        url
+    }
+
     /// Check if the given uri contains an encoded `&` as `&amp`.
     fn contains_encoded_ampersand(uri: &str) -> bool {
         uri.contains("&amp;")
@@ -144,7 +179,7 @@ impl Magnet {
 impl FromStr for Magnet {
     type Err = MagnetError;
 
-    fn from_str(uri: &str) -> Result<Self> {
+    fn from_str(uri: &str) -> MagnetResult<Self> {
         let mut uri = uri.to_string();
 
         // replace any encoded ampersands
@@ -211,14 +246,21 @@ impl FromStr for Magnet {
     }
 }
 
+impl Display for Magnet {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let url = self.as_url();
+        write!(f, "{}", url)
+    }
+}
+
 /// A builder for constructing a `Magnet` struct.
 #[derive(Debug, Clone, Default)]
 pub struct MagnetBuilder {
     exact_topics: Option<Vec<String>>,
     display_name: Option<String>,
     exact_length: Option<u64>,
-    address_tracker: Vec<String>,
-    web_seed: Vec<String>,
+    address_tracker: Option<Vec<String>>,
+    web_seed: Option<Vec<String>>,
     acceptable_source: Vec<String>,
     exact_source: Option<String>,
     keyword_topic: Option<String>,
@@ -267,21 +309,39 @@ impl MagnetBuilder {
         self
     }
 
-    /// Adds an address tracker to the magnet link.
+    /// Add a tracker address to the magnet link.
     pub fn address_tracker<S>(&mut self, address_tracker: S) -> &mut Self
     where
         S: Into<String>,
     {
-        self.address_tracker.push(address_tracker.into());
+        self.address_tracker
+            .get_or_insert(Vec::new())
+            .push(address_tracker.into());
         self
     }
 
-    /// Adds a web seed to the magnet link.
+    /// Set the tracker addresses of the magnet link.
+    pub fn address_trackers(&mut self, address_trackers: Vec<String>) -> &mut Self {
+        self.address_tracker
+            .get_or_insert(Vec::new())
+            .extend(address_trackers);
+        self
+    }
+
+    /// Add a web seed to the magnet link.
     pub fn web_seed<S>(&mut self, web_seed: S) -> &mut Self
     where
         S: Into<String>,
     {
-        self.web_seed.push(web_seed.into());
+        self.web_seed
+            .get_or_insert(Vec::new())
+            .push(web_seed.into());
+        self
+    }
+
+    /// Set the web seed addresses of the magnet link.
+    pub fn web_seeds(&mut self, web_seeds: Vec<String>) -> &mut Self {
+        self.web_seed.get_or_insert(Vec::new()).extend(web_seeds);
         self
     }
 
@@ -345,14 +405,17 @@ impl MagnetBuilder {
     ///
     /// - `Ok(Magnet)`: A `Magnet` instance with the specified configuration.
     /// - `Err(MagnetError::InvalidUri)`: If the exact topic is not set, indicating an invalid magnet link.
-    pub fn build(self) -> Result<Magnet> {
+    pub fn build(self) -> MagnetResult<Magnet> {
         if let Some(exact_topic) = self.exact_topics {
+            let tracker_addresses = self.address_tracker.unwrap_or(Vec::new());
+            let web_seeds = self.web_seed.unwrap_or(Vec::new());
+
             Ok(Magnet {
                 exact_topics: exact_topic,
                 display_name: self.display_name,
                 exact_length: self.exact_length,
-                address_tracker: self.address_tracker,
-                web_seed: self.web_seed,
+                tracker_addresses,
+                web_seeds,
                 acceptable_source: self.acceptable_source,
                 exact_source: self.exact_source,
                 keyword_topic: self.keyword_topic,
@@ -368,9 +431,8 @@ impl MagnetBuilder {
 
 #[cfg(test)]
 mod tests {
-    use crate::init_logger;
-
     use super::*;
+    use popcorn_fx_core::init_logger;
 
     #[test]
     fn test_magnet_from_str() {
@@ -427,8 +489,8 @@ mod tests {
             exact_topics: vec!["urn:btih:6b0cd35c4a6b724".to_string()],
             display_name: Some(display_name.to_string()),
             exact_length: Some(8455000),
-            address_tracker: vec!["http://tracker.example.com:12345/announce".to_string()],
-            web_seed: vec![],
+            tracker_addresses: vec!["http://tracker.example.com:12345/announce".to_string()],
+            web_seeds: vec![],
             acceptable_source: vec![],
             exact_source: None,
             keyword_topic: None,
@@ -453,8 +515,8 @@ mod tests {
             exact_topics: vec!["urn:btih:6b0cd35c4a6b724".to_string()],
             display_name: None,
             exact_length: Some(8455000),
-            address_tracker: expected_result.clone(),
-            web_seed: vec![],
+            tracker_addresses: expected_result.clone(),
+            web_seeds: vec![],
             acceptable_source: vec![],
             exact_source: None,
             keyword_topic: None,
@@ -476,8 +538,8 @@ mod tests {
             exact_topics: vec!["urn:btih:6b0cd35c4a6b724".to_string()],
             display_name: None,
             exact_length: None,
-            address_tracker: vec![],
-            web_seed: vec![],
+            tracker_addresses: vec![],
+            web_seeds: vec![],
             acceptable_source: vec![],
             exact_source: None,
             keyword_topic: None,
@@ -494,12 +556,35 @@ mod tests {
         assert_eq!(expected_result, result)
     }
 
+    #[test]
+    fn test_magnet_as_uri() {
+        init_logger!();
+        let uri = "magnet:?xt=urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7&dn=debian-12.4.0-amd64-DVD-1.iso&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce";
+        let expected_result = Url::from_str(uri).unwrap();
+        let magnet = Magnet::from_str(uri).unwrap();
+
+        let result = magnet.as_url();
+
+        assert_eq!(expected_result, result);
+    }
+
+    #[test]
+    fn test_magnet_to_string() {
+        init_logger!();
+        let uri = "magnet:?xt=urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7&dn=debian-12.4.0-amd64-DVD-1.iso&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce";
+        let magnet = Magnet::from_str(uri).unwrap();
+
+        let result = magnet.to_string();
+
+        assert_eq!(uri, result);
+    }
+
     fn create_expected_magnet_from_str() -> Magnet {
         Magnet {
             exact_topics: vec!["urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7".to_string()],
             display_name: Some("debian-12.4.0-amd64-DVD-1.iso".to_string()),
             exact_length: None,
-            address_tracker: vec![
+            tracker_addresses: vec![
                 "udp://tracker.opentrackr.org:1337".to_string(),
                 "udp://open.stealth.si:80/announce".to_string(),
                 "udp://tracker.torrent.eu.org:451/announce".to_string(),
@@ -509,7 +594,7 @@ mod tests {
                 "udp://exodus.desync.com:6969".to_string(),
                 "udp://open.demonii.com:1337/announce".to_string(),
             ],
-            web_seed: vec![],
+            web_seeds: vec![],
             acceptable_source: vec![],
             exact_source: None,
             keyword_topic: None,

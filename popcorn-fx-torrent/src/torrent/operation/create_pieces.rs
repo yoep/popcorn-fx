@@ -1,10 +1,9 @@
+use crate::torrent::errors::Result;
 use crate::torrent::{
-    InfoHash, Piece, PieceError, PieceIndex, TorrentCommandEvent, TorrentContext,
-    TorrentMetadataInfo, TorrentOperation, TorrentOperationResult, TorrentState,
+    InfoHash, Piece, PieceError, PieceIndex, TorrentContext, TorrentMetadataInfo, TorrentOperation,
+    TorrentOperationResult, TorrentState,
 };
 use async_trait::async_trait;
-use bit_vec::BitVec;
-use derive_more::Display;
 use log::{debug, trace, warn};
 use std::sync::Arc;
 
@@ -44,7 +43,7 @@ impl TorrentCreatePiecesOperation {
     /// # Returns
     ///
     /// Returns the pieces result for the torrent if available, else the error.
-    async fn try_create_pieces(&self, data: &TorrentContext) -> crate::torrent::Result<Vec<Piece>> {
+    async fn try_create_pieces(&self, data: &TorrentContext) -> Result<Vec<Piece>> {
         let info_hash: InfoHash;
         let num_pieces: usize;
         let metadata: TorrentMetadataInfo;

@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 
+use crate::core::callback::Subscription;
 use crate::core::torrents::{Torrent, TorrentFileInfo, TorrentHandle, TorrentHealth, TorrentInfo};
 use crate::core::{torrents, Callbacks, CoreCallback};
 use async_trait::async_trait;
@@ -23,17 +24,6 @@ pub enum TorrentManagerEvent {
 /// The torrent manager stores the active sessions and torrents that are being processed.
 #[async_trait]
 pub trait TorrentManager: Debug + DowncastSync + Callbacks<TorrentManagerEvent> {
-    /// Resolve the given URL into torrent information.
-    ///
-    /// # Arguments
-    ///
-    /// * `url` - The URL to resolve into torrent information.
-    ///
-    /// # Returns
-    ///
-    /// The torrent meta information on success, or a [torrent::TorrentError] if there was an error.
-    async fn info<'a>(&'a self, url: &'a str) -> torrents::Result<TorrentInfo>;
-
     /// Retrieve the health of the torrent based on the given magnet link.
     ///
     /// # Arguments
@@ -45,13 +35,18 @@ pub trait TorrentManager: Debug + DowncastSync + Callbacks<TorrentManagerEvent> 
     /// The torrent health on success, or a [torrent::TorrentError] if there was an error.
     async fn health_from_uri<'a>(&'a self, url: &'a str) -> torrents::Result<TorrentHealth>;
 
-    /// Create a new torrent within the manager for the given info.
-    async fn create(
+    /// Create a new idle torrent within the torrent manager.
+    async fn create(&self, uri: &str) -> torrents::Result<TorrentHandle>;
+
+    /// Retrieve the metadata information of the torrent.
+    async fn info(&self, handle: &TorrentHandle) -> torrents::Result<TorrentInfo>;
+
+    /// Start the download of the given file within the torrent.
+    async fn download(
         &self,
-        uri: &str,
+        handle: &TorrentHandle,
         file_info: &TorrentFileInfo,
-        auto_download: bool,
-    ) -> torrents::Result<Box<dyn Torrent>>;
+    ) -> torrents::Result<()>;
 
     /// Get a torrent by its unique handle.
     ///
@@ -62,14 +57,20 @@ pub trait TorrentManager: Debug + DowncastSync + Callbacks<TorrentManagerEvent> 
     /// # Returns
     ///
     /// An `Option` containing a weak reference to the torrent session if found, or `None` if not found.
-    async fn by_handle(&self, handle: TorrentHandle) -> Option<Box<dyn Torrent>>;
+    async fn find_by_handle(&self, handle: &TorrentHandle) -> Option<Box<dyn Torrent>>;
+
+    /// Subscribe to the events of the given handle.
+    async fn subscribe(
+        &self,
+        handle: &TorrentHandle,
+    ) -> Option<Subscription<torrents::TorrentEvent>>;
 
     /// Remove a torrent session by its unique handle.
     ///
     /// # Arguments
     ///
     /// * `handle` - The unique handle of the torrent session to remove.
-    fn remove(&self, handle: TorrentHandle);
+    async fn remove(&self, handle: &TorrentHandle);
 
     /// Calculate the health of the torrent based on the given seed count and peer count.
     ///
@@ -102,16 +103,13 @@ mod mock {
 
         #[async_trait]
         impl TorrentManager for TorrentManager {
-            async fn info<'a>(&'a self, url: &'a str) -> torrents::Result<TorrentInfo>;
             async fn health_from_uri<'a>(&'a self, url: &'a str) -> torrents::Result<TorrentHealth>;
-            async fn create(
-                &self,
-                uri: &str,
-                file_info: &TorrentFileInfo,
-                auto_download: bool,
-            ) -> torrents::Result<Box<dyn Torrent>>;
-            async fn by_handle(&self, handle: TorrentHandle) -> Option<Box<dyn Torrent>>;
-            fn remove(&self, handle: TorrentHandle);
+            async fn create(&self, uri: &str) -> torrents::Result<TorrentHandle>;
+            async fn info(&self, handle: &TorrentHandle) -> torrents::Result<TorrentInfo>;
+            async fn download(&self, handle: &TorrentHandle, file_info: &TorrentFileInfo) -> torrents::Result<()>;
+            async fn find_by_handle(&self, handle: &TorrentHandle) -> Option<Box<dyn Torrent>>;
+            async fn subscribe(&self, handle: &TorrentHandle) -> Option<Subscription<torrents::TorrentEvent>>;
+            async fn remove(&self, handle: &TorrentHandle);
             fn calculate_health(&self, seeds: u32, leechers: u32) -> TorrentHealth;
             fn cleanup(&self);
         }

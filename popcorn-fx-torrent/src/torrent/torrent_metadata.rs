@@ -1,6 +1,8 @@
+use crate::torrent::errors::{Result, TorrentError};
+use crate::torrent::info_hash::InfoHash;
+use crate::torrent::{errors, magnet, Magnet, Sha1Hash, Sha256Hash};
 use bitmask_enum::bitmask;
 use log::{debug, warn};
-use popcorn_fx_core::core::torrents::magnet::Magnet;
 use serde::de::{Error, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::{BTreeMap, HashMap};
@@ -8,10 +10,6 @@ use std::fmt::{Debug, Display, Formatter};
 use std::path::PathBuf;
 use std::str::FromStr;
 use url::Url;
-
-use crate::torrent::errors::{Result, TorrentError};
-use crate::torrent::info_hash::InfoHash;
-use crate::torrent::{Sha1Hash, Sha256Hash};
 
 /// Represents a list of URLs, which can be single, multiple, or ignored.
 pub type UrlList = Vec<String>;
@@ -457,9 +455,9 @@ impl TorrentMetadataInfoBuilder {
 ///
 /// ```
 /// use std::convert::TryInto;
-/// use crate::popcorn_fx_torrent::torrent::{TorrentMetadata, TorrentError, Result};
+/// use crate::popcorn_fx_torrent::torrent::{TorrentMetadata, TorrentError, MagnetResult};
 ///
-/// fn parse_torrent_data(data: &[u8]) -> Result<TorrentMetadata> {
+/// fn parse_torrent_data(data: &[u8]) -> MagnetResult<TorrentMetadata> {
 ///     let torrent_info: TorrentMetadata = data.try_into()?;
 ///     Ok(torrent_info)
 /// }
@@ -699,6 +697,37 @@ impl TryFrom<Magnet> for TorrentMetadata {
         builder = builder.info_hash(InfoHash::try_from_str_slice(value.xt().as_slice())?);
 
         Ok(builder.build())
+    }
+}
+
+impl TryFrom<&TorrentMetadata> for Magnet {
+    type Error = errors::MagnetError;
+
+    fn try_from(value: &TorrentMetadata) -> errors::MagnetResult<Self> {
+        if let Some(uri) = value.magnet_uri.as_ref() {
+            Magnet::from_str(uri)
+        } else {
+            let mut builder = Magnet::builder();
+            let trackers = value
+                .announce_list
+                .iter()
+                .flat_map(|e| (*e).clone())
+                .flat_map(|e| e)
+                .collect();
+
+            builder
+                .exact_topic(value.info_hash.to_string())
+                .address_trackers(trackers);
+
+            if let Some(name) = value.name() {
+                builder.display_name(name);
+            }
+            if let Some(web_seeds) = value.url_list.as_ref() {
+                builder.web_seeds(web_seeds.clone());
+            }
+
+            builder.build()
+        }
     }
 }
 

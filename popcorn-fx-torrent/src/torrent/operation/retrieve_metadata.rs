@@ -87,8 +87,7 @@ struct MetadataInfo {
 mod tests {
     use super::*;
     use crate::torrent::fs::DefaultTorrentFileStorage;
-    use crate::torrent::{Torrent, TorrentConfig, TorrentMetadata};
-    use popcorn_fx_core::core::torrents::magnet::Magnet;
+    use crate::torrent::{Magnet, Torrent, TorrentConfig, TorrentMetadata};
     use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::read_test_file_to_bytes;
     use std::str::FromStr;

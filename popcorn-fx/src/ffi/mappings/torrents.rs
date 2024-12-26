@@ -3,13 +3,13 @@ use std::ptr;
 
 use log::trace;
 
+use crate::ffi::CArray;
 use popcorn_fx_core::core::torrents::{
     DownloadStatus, Error, TorrentFileInfo, TorrentInfo, TorrentState, TorrentStreamEvent,
     TorrentStreamState,
 };
+use popcorn_fx_core::core::Handle;
 use popcorn_fx_core::{from_c_string, into_c_string};
-
-use crate::ffi::CArray;
 
 /// Type alias for a callback that verifies if the given byte is available.
 pub type HasByteCallbackC = extern "C" fn(i32, *mut u64) -> bool;
@@ -128,7 +128,10 @@ pub struct TorrentC {
 #[repr(C)]
 #[derive(Debug)]
 pub struct TorrentInfoC {
+    /// The underlying torrent handle
+    pub handle: i64,
     pub info_hash: *mut c_char,
+    /// A pointer to a null-terminated C string representing the URI of the torrent.
     pub uri: *mut c_char,
     /// A pointer to a null-terminated C string representing the name of the torrent.
     pub name: *mut c_char,
@@ -155,6 +158,7 @@ impl From<TorrentInfo> for TorrentInfoC {
             .collect();
 
         Self {
+            handle: value.handle.value(),
             info_hash: into_c_string(value.info_hash),
             uri: into_c_string(value.uri),
             name: into_c_string(value.name),
@@ -179,6 +183,7 @@ impl From<TorrentInfoC> for TorrentInfo {
         };
 
         Self {
+            handle: Handle::from(value.handle),
             info_hash: from_c_string(value.info_hash),
             uri: from_c_string(value.uri),
             name: from_c_string(value.name),
@@ -299,8 +304,8 @@ impl From<TorrentStreamEvent> for TorrentStreamEventC {
 mod tests {
     use std::ptr;
 
-    use popcorn_fx_core::into_c_string;
     use popcorn_fx_core::testing::init_logger;
+    use popcorn_fx_core::{init_logger, into_c_string};
 
     use super::*;
 
@@ -311,6 +316,7 @@ mod tests {
         let name = "FooBar54";
         let total_files = 15;
         let info = TorrentInfoC {
+            handle: 666,
             info_hash: into_c_string(handle.to_string()),
             uri: into_c_string(uri.to_string()),
             name: into_c_string(name.to_string()),
@@ -319,6 +325,7 @@ mod tests {
             files: CArray::from(Vec::<TorrentFileInfoC>::new()),
         };
         let expected_result = TorrentInfo {
+            handle: Handle::from(666),
             info_hash: handle.to_string(),
             uri: uri.to_string(),
             name: name.to_string(),
@@ -481,7 +488,7 @@ mod tests {
 
     #[test]
     fn test_torrent_error_c_from() {
-        init_logger();
+        init_logger!();
         let filename = "my-filename";
         let error = Error::FileNotFound(filename.to_string());
 
@@ -500,7 +507,7 @@ mod tests {
 
     #[test]
     fn test_torrent_error_from() {
-        init_logger();
+        init_logger!();
         let filename = "my-filename";
         let resolve_failed_message = "failed to resolve torrent X";
 

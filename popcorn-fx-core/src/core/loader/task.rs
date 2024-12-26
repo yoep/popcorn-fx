@@ -6,7 +6,9 @@ use tokio::select;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::sync::Mutex;
 use tokio::time::Instant;
-use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
+use tokio_util::sync::{
+    CancellationToken, WaitForCancellationFuture, WaitForCancellationFutureOwned,
+};
 
 use crate::core::callback::{Callback, MultiCallback, Subscriber, Subscription};
 use crate::core::loader::loading_chain::LoadingChain;
@@ -179,6 +181,13 @@ impl LoadingTaskContext {
         self.cancellation_token.cancelled()
     }
 
+    /// Returns a Future that gets fulfilled when the loading task is cancelled.
+    ///
+    /// The future will complete immediately if the loading task is already cancelled when this method is called.
+    pub fn cancelled_owned(&self) -> WaitForCancellationFutureOwned {
+        self.cancellation_token.clone().cancelled_owned()
+    }
+
     /// Inform the task about a loading event.
     /// This will send the loading event info to the task subscribers and media loader.
     pub fn send_event(&self, event: LoadingEvent) {
@@ -319,11 +328,11 @@ impl LoadingTaskContext {
                 }
                 let elapsed = start_time.elapsed();
                 debug!(
-                    "Loading task {} strategy {} executed in {}.{:03}s",
+                    "Loading task {} strategy {} executed in {}.{:03}ms",
                     self,
                     strategy,
-                    elapsed.as_secs(),
-                    elapsed.subsec_millis()
+                    elapsed.as_millis(),
+                    elapsed.subsec_micros() % 1000
                 );
             } else {
                 warn!("Loading task {} strategy is no longer in scope", self);
@@ -387,7 +396,6 @@ impl LoadingTaskContext {
 #[cfg(test)]
 mod tests {
     use std::sync::mpsc::{channel, Sender};
-    use std::thread;
     use std::time::Duration;
 
     use super::*;
@@ -714,13 +722,13 @@ mod tests {
         });
         let strat2 = SleepStrategy::new(Duration::from_millis(200));
         let runtime = Arc::new(Runtime::new().unwrap());
-        let task = Arc::new(LoadingTask::new(
+        let task = LoadingTask::new(
             Arc::new(LoadingChain::from(vec![
                 Box::new(strat1) as Box<dyn LoadingStrategy>,
                 Box::new(strat2) as Box<dyn LoadingStrategy>,
             ])),
             runtime.clone(),
-        ));
+        );
 
         task.load(data.clone());
 
@@ -733,5 +741,25 @@ mod tests {
             .recv_timeout(Duration::from_millis(500))
             .expect("expected the cancel fn to have been invoked");
         assert_eq!(data, result);
+    }
+
+    #[test]
+    fn test_loading_task_send_event() {
+        init_logger!();
+        let expected_event = LoadingEvent::StateChanged(LoadingState::Connecting);
+        let runtime = Arc::new(Runtime::new().unwrap());
+        let task = LoadingTask::new(Arc::new(LoadingChain::from(vec![])), runtime.clone());
+        let context = &task.context;
+
+        let mut receiver = task.subscribe();
+        context.send_event(expected_event.clone());
+
+        let result = runtime.block_on(async {
+            select! {
+                _ = time::sleep(Duration::from_millis(500)) => Err(LoadingError::TimeoutError("event receiver timed out".to_string())),
+                Some(event) = receiver.recv() => Ok(event),
+            }
+        }).unwrap();
+        assert_eq!(expected_event, *result);
     }
 }

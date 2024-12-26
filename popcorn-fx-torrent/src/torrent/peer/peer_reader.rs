@@ -4,6 +4,7 @@ use byteorder::BigEndian;
 use byteorder::ByteOrder;
 use derive_more::Display;
 use log::{trace, warn};
+use std::io;
 use std::time::Instant;
 use tokio::io::{AsyncRead, AsyncReadExt, BufReader};
 use tokio::select;
@@ -61,11 +62,11 @@ where
                 read_result = self.reader.read_exact(&mut buffer) => {
                     match read_result {
                         Ok(0) => {
-                            trace!("Peer reader {} EOF", self);
+                            trace!("Peer {} reader received EOF", self);
                             break
                         },
                         Ok(buffer_size) => {
-                            if let Err(e) = self.read_next(&buffer, buffer_size).await {
+                            if let Err(e)  = self.read_next(&buffer, buffer_size).await {
                                 if e != Error::Closed {
                                     warn!("Peer {} failed to read message, {}", self, e);
                                 }
@@ -73,7 +74,9 @@ where
                             }
                         },
                         Err(e) => {
-                            warn!("Peer {} reader encountered an error, {}", self, Error::from(e));
+                            if e.kind() != io::ErrorKind::UnexpectedEof {
+                                warn!("Peer {} reader encountered an error, {}", self, Error::from(e));
+                            }
                             break
                         }
                     }

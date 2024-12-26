@@ -7,7 +7,8 @@ use log::{debug, error, trace, warn};
 use sha1::{Digest, Sha1};
 use sha2::Sha256;
 
-use crate::torrent::{Result, TorrentError};
+use crate::torrent::errors::Result;
+use crate::torrent::TorrentError;
 
 pub const V1_HASH_IDENTIFIER: &str = "btih";
 pub const V2_HASH_IDENTIFIER: &str = "btmh";
@@ -548,9 +549,8 @@ pub enum ProtocolVersion {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::torrent::TorrentMetadata;
+    use crate::torrent::{Magnet, TorrentMetadata};
     use hex_literal::hex;
-    use popcorn_fx_core::core::torrents::magnet::Magnet;
     use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::read_test_file_to_bytes;
 

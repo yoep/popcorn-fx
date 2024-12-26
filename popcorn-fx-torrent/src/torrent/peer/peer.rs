@@ -1021,7 +1021,10 @@ impl PeerContext {
                 Some(event) = peer_reader.recv() => self.handle_reader_event(event).await,
                 Some(event) = event_receiver.recv() => self.handle_command_event(event).await,
                 Some(event) = torrent_receiver.recv() => self.handle_torrent_event(&*event).await,
-                _ = interval.tick() => self.check_for_wanted_pieces().await,
+                _ = interval.tick() => {
+                    self.check_for_wanted_pieces().await;
+                    self.request_upload_permit_if_needed(false).await;
+                },
             }
         }
 
@@ -1127,6 +1130,18 @@ impl PeerContext {
         self.remote_pieces.read().await.clone()
     }
 
+    /// Check if the remote has all pieces available.
+    /// The remote has all pieces if either an `HaveAll` message or completed `Bitfield` has been received by the remote.
+    ///
+    /// It returns true when the remote has all pieces and the metadata is known, else false.
+    pub async fn remote_has_all_pieces(&self) -> bool {
+        let remote_pieces = self.remote_pieces.read().await;
+        let torrent_total_pieces = self.torrent.total_pieces().await;
+
+        // the received bitfield can be greater than the actual total pieces due to byte alignment
+        remote_pieces.len() >= torrent_total_pieces && remote_pieces.all()
+    }
+
     /// Check if the remote peer is a seed.
     /// This means that the remote peer has all pieces available and is seeding the torrent.
     pub async fn is_seed(&self) -> bool {
@@ -1193,12 +1208,13 @@ impl PeerContext {
     /// If it least one piece is available by the remote peer and wanted by the torrent, it returns `true`.
     pub async fn has_wanted_piece(&self) -> bool {
         let mutex = self.client_pending_requests.read().await;
+        let remote_has_all_pieces = self.remote_has_all_pieces().await;
         let remote_pieces = self.remote_pieces.read().await;
         let wanted_pieces = self.torrent.wanted_pieces().await;
 
         wanted_pieces
             .into_iter()
-            .filter(|piece| remote_pieces.get(*piece).unwrap_or(false))
+            .filter(|piece| remote_has_all_pieces || remote_pieces.get(*piece).unwrap_or(false))
             .any(|e| !mutex.contains_key(&e))
     }
 
@@ -1392,6 +1408,7 @@ impl PeerContext {
     /// Process a request which has been rejected by the remote peer.
     /// This can be the case when we've request piece data that is no longer available, or the remote peer cannot serve it at the moment.
     async fn handle_rejected_client_request(&self, request: Request) {
+        debug!("Peer {} remote rejected request {:?}", self, request);
         self.remove_client_pending_request(&request).await;
         self.torrent
             .pending_request_rejected(request.index, request.begin, &self.client)
@@ -1486,16 +1503,19 @@ impl PeerContext {
     /// Check if the remote peer has at least one wanted piece available.
     /// If so, trigger the necessary commands to retrieve this piece.
     async fn check_for_wanted_pieces(&self) {
-        if !self.torrent.is_download_allowed().await {
+        if !self.torrent.is_download_allowed().await || self.torrent.is_completed().await {
             return;
         }
 
         let has_wanted_pieces = self.has_wanted_piece().await;
         let pending_requests = self.client_pending_requests.read().await.len();
         let state = self.torrent.state().await;
-        debug!(
+        trace!(
             "Peer {} has {} pending requests, wanted pieces {:?}, torrent state {}",
-            self, pending_requests, has_wanted_pieces, state
+            self,
+            pending_requests,
+            has_wanted_pieces,
+            state
         );
         if pending_requests < MAX_PENDING_PIECES && has_wanted_pieces {
             let is_client_interested = self.is_client_interested().await;
@@ -1608,11 +1628,6 @@ impl PeerContext {
     /// then we queue the command to try to obtain an upload permit.
     async fn request_upload_permit_if_needed(&self, ignore_remote_interest_state: bool) {
         if *self.client_choke_state.read().await == ChokeState::UnChoked {
-            return;
-        }
-        // if the remote is a seed, don't bother to request an upload permit
-        // as they'll never make any requests
-        if self.is_seed().await {
             return;
         }
 
@@ -1834,9 +1849,10 @@ impl PeerContext {
 
         for piece in pieces.iter() {
             match self.send(Message::Have(*piece as u32)).await {
-                Ok(_) => debug!(
+                Ok(_) => trace!(
                     "Peer {} notified remote about {} piece availability",
-                    self, piece
+                    self,
+                    piece
                 ),
                 Err(e) => warn!(
                     "Peer {} failed to notify remote peer about {} piece availability, {}",
@@ -1860,10 +1876,10 @@ impl PeerContext {
                 let is_metadata_known = self.torrent.is_metadata_known().await;
                 if is_metadata_known && self.torrent.total_pieces().await < piece {
                     warn!(
-                        "Received piece index {} out of range ({}) for {}",
+                        "Peer {} received piece index {} out of range ({})",
+                        self,
                         piece,
-                        mutex.len(),
-                        self
+                        mutex.len()
                     );
                     return;
                 }
@@ -1887,16 +1903,12 @@ impl PeerContext {
         {
             let mut mutex = self.remote_pieces.write().await;
             *mutex = pieces.clone();
-            if pieces.all() {
-                debug!("Peer {} remote has all pieces available", self);
-            } else {
-                debug!(
-                    "Peer {} updated {}/{} remote available pieces",
-                    self,
-                    pieces.count_ones(),
-                    pieces.len()
-                );
-            }
+            debug!(
+                "Peer {} updated {}/{} remote available pieces",
+                self,
+                pieces.count_ones(),
+                pieces.len()
+            );
         }
 
         // notify subscribers about each available piece
@@ -2199,6 +2211,7 @@ impl PeerContext {
             return;
         }
 
+        let remote_has_all_pieces = self.remote_has_all_pieces().await;
         let remote_pieces = self.remote_pieces.read().await;
         let wanted_pieces: Vec<PieceIndex> = self
             .torrent
@@ -2206,7 +2219,7 @@ impl PeerContext {
             .await
             .into_iter()
             // filter out the pieces the remote doesn't have
-            .filter(|e| remote_pieces.get(*e).unwrap_or(false))
+            .filter(|e| remote_has_all_pieces || remote_pieces.get(*e).unwrap_or(false))
             // filter out any pending requests which have already been sent
             .filter(|e| !client_pending_requests.contains_key(e))
             // take a max of X pieces
@@ -2411,9 +2424,10 @@ impl PeerContext {
         let is_fast_allowed = self.is_fast_allowed(&request.index).await;
         if !is_fast_allowed && is_remote_choked {
             trace!(
-                "Trying to request piece {} data from choked peer {}",
+                "Peer {} tried to request piece {} (offset: {}) data from choked remote peer",
+                self,
                 request.index,
-                self
+                request.begin
             );
             return false;
         }
@@ -2426,8 +2440,8 @@ impl PeerContext {
             .unwrap_or(false)
         {
             debug!(
-                "Tried to request duplicate piece {} data from peer {}",
-                request.index, self
+                "Peer {} tried to request duplicate piece {} (offset: {}) data",
+                self, request.index, request.begin
             );
             return false;
         }
@@ -2436,12 +2450,15 @@ impl PeerContext {
             self.send_command_event(PeerCommandEvent::State(PeerState::Downloading));
         }
 
-        if let Err(e) = self.send(Message::Request(request.clone())).await {
-            warn!(
-                "Failed request piece {} data (fast: {:?}) from peer {}, {}",
-                request.index, is_fast_allowed, self, e
-            );
-            return false;
+        match self.send(Message::Request(request.clone())).await {
+            Ok(_) => trace!("Peer {} sent request {:?}", self, request),
+            Err(e) => {
+                warn!(
+                    "Peer {} failed request piece {} (offset: {}) data (fast: {:?}), {}",
+                    self, request.index, request.begin, is_fast_allowed, e
+                );
+                return false;
+            }
         }
 
         // store the pending request

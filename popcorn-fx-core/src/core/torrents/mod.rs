@@ -6,7 +6,6 @@ pub use torrents::*;
 
 pub mod collection;
 mod errors;
-pub mod magnet;
 mod manager;
 pub mod stream;
 mod stream_server;

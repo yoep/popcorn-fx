@@ -486,7 +486,6 @@ struct UdpResponse {
 mod tests {
     use super::*;
     use crate::torrent::TorrentMetadata;
-    use popcorn_fx_core::core::block_in_place;
     use popcorn_fx_core::testing::read_test_file_to_bytes;
     use popcorn_fx_core::{available_port, init_logger};
     use tokio::net::lookup_host;
@@ -526,7 +525,7 @@ mod tests {
         let torrent_info = TorrentMetadata::try_from(torrent_info_data.as_slice()).unwrap();
         let peer_id = PeerId::new();
         let peer_port = available_port!(6881, 31000).unwrap();
-        let addrs: Vec<SocketAddr> = get_tracker_addresses(&torrent_info);
+        let addrs = runtime.block_on(get_tracker_addresses(&torrent_info));
         let mut connection = UdpConnection::new(&addrs, peer_id, peer_port, Duration::from_secs(1));
 
         runtime
@@ -560,19 +559,19 @@ mod tests {
     }
 
     /// Get the unordered tracker addresses of the given torrent info.
-    fn get_tracker_addresses(torrent_info: &TorrentMetadata) -> Vec<SocketAddr> {
-        torrent_info
-            .trackers()
-            .into_iter()
-            .filter_map(|url| {
-                let host = url.host_str().unwrap();
-                let port = url.port().unwrap_or(80);
+    async fn get_tracker_addresses(torrent_info: &TorrentMetadata) -> Vec<SocketAddr> {
+        let mut addresses = Vec::new();
+        for url in torrent_info.trackers().into_iter() {
+            let host = url.host_str().unwrap();
+            let port = url.port().unwrap_or(80);
 
-                block_in_place(lookup_host((host, port)))
-                    .map(|e| e.collect::<Vec<SocketAddr>>())
-                    .ok()
-            })
-            .flatten()
-            .collect()
+            if let Ok(e) = lookup_host((host, port))
+                .await
+                .map(|e| e.collect::<Vec<SocketAddr>>())
+            {
+                addresses.extend(e);
+            }
+        }
+        addresses
     }
 }

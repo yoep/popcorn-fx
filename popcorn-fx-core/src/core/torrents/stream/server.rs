@@ -250,39 +250,37 @@ impl TorrentStreamServerInner {
                     .body(Body::empty())
                     .unwrap())
             }
-            Some(torrent_stream) => {
-                return match torrent_stream.stream() {
-                    Ok(stream) => {
-                        let resource = stream.resource();
-                        let content_range = resource.content_range();
-                        let media_type = match media_type_factory.media_type(filename) {
-                            Ok(e) => e,
-                            Err(e) => {
-                                warn!("Unable to parse media type, {}", e);
-                                MediaType::octet_stream()
-                            }
-                        };
+            Some(torrent_stream) => match torrent_stream.stream() {
+                Ok(stream) => {
+                    let resource = stream.resource();
+                    let content_range = resource.content_range();
+                    let media_type = match media_type_factory.media_type(filename) {
+                        Ok(e) => e,
+                        Err(e) => {
+                            warn!("Unable to parse media type, {}", e);
+                            MediaType::octet_stream()
+                        }
+                    };
 
-                        Ok(Response::builder()
-                            .status(StatusCode::OK)
-                            .header(ACCEPT_RANGES, ACCEPT_RANGES_TYPE)
-                            .header(HEADER_DLNA_TRANSFER_MODE, DLNA_TRANSFER_MODE_TYPE)
-                            .header(CONTENT_RANGE, &content_range)
-                            .header(CONTENT_LENGTH, resource.content_length())
-                            .header(RANGE, &content_range)
-                            .header(CONTENT_TYPE, media_type.to_string())
-                            .body(Body::empty())
-                            .expect("expected a valid response"))
-                    }
-                    Err(e) => {
-                        error!("Failed to start metadata of stream {}, {}", filename, e);
-                        Ok(Response::builder()
-                            .status(StatusCode::NOT_FOUND)
-                            .body(Body::empty())
-                            .unwrap())
-                    }
-                };
-            }
+                    Ok(Response::builder()
+                        .status(StatusCode::OK)
+                        .header(ACCEPT_RANGES, ACCEPT_RANGES_TYPE)
+                        .header(HEADER_DLNA_TRANSFER_MODE, DLNA_TRANSFER_MODE_TYPE)
+                        .header(CONTENT_RANGE, &content_range)
+                        .header(CONTENT_LENGTH, resource.content_length())
+                        .header(RANGE, &content_range)
+                        .header(CONTENT_TYPE, media_type.to_string())
+                        .body(Body::empty())
+                        .expect("expected a valid response"))
+                }
+                Err(e) => {
+                    error!("Failed to start metadata of stream {}, {}", filename, e);
+                    Ok(Response::builder()
+                        .status(StatusCode::NOT_FOUND)
+                        .body(Body::empty())
+                        .unwrap())
+                }
+            },
         }
     }
 

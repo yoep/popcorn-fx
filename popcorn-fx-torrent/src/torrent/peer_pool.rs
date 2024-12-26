@@ -85,8 +85,15 @@ impl PeerPool {
 
     /// Add the given peer addrs to the pool's available peer addrs.
     pub async fn add_available_peer_addrs(&self, addrs: Vec<SocketAddr>) {
+        let peers = self.peers.read().await;
         let mut mutex = self.available_peer_addrs.lock().await;
-        let addrs: Vec<_> = addrs.into_iter().filter(|e| !mutex.contains(e)).collect();
+        let addrs: Vec<_> = addrs
+            .into_iter()
+            // filter out duplicates
+            .filter(|addr| !mutex.contains(addr))
+            // filter out any existing connections
+            .filter(|addr| !peers.iter().any(|peer| peer.addr() == *addr))
+            .collect();
 
         trace!(
             "Adding a total of {} new peer addrs for torrent {}",

@@ -4,6 +4,8 @@ use std::str::FromStr;
 use base32::Alphabet;
 use hex::FromHex;
 use log::{debug, error, trace, warn};
+use serde::de::Visitor;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use sha1::{Digest, Sha1};
 use sha2::Sha256;
 
@@ -371,6 +373,25 @@ impl InfoHash {
     }
 }
 
+impl Serialize for InfoHash {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let bytes = self.short_info_hash_bytes();
+        serializer.serialize_bytes(&bytes)
+    }
+}
+
+impl<'de> Deserialize<'de> for InfoHash {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_any(InfoHashVisitor {})
+    }
+}
+
 impl PartialEq for InfoHash {
     fn eq(&self, other: &Self) -> bool {
         match (&self.v1, &other.v1) {
@@ -546,6 +567,24 @@ pub enum ProtocolVersion {
     V2,
 }
 
+#[derive(Debug)]
+struct InfoHashVisitor;
+
+impl<'de> Visitor<'de> for InfoHashVisitor {
+    type Value = InfoHash;
+
+    fn expecting(&self, f: &mut Formatter) -> std::fmt::Result {
+        write!(f, "expected byte array of length 20")
+    }
+
+    fn visit_bytes<E>(self, value: &[u8]) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        InfoHash::try_from_bytes(value).map_err(|e| serde::de::Error::custom(e))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -699,5 +738,19 @@ mod tests {
 
         assert_ne!(None, result.v1, "expected the v1 hash to be present");
         assert_ne!(None, result.v2, "expected the v2 hash to be present");
+    }
+
+    #[test]
+    fn test_info_hash_deserialize() {
+        init_logger!();
+        let hash = "urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7";
+        let info_hash = InfoHash::from_str(hash).unwrap();
+        let bytes = serde_bencode::to_bytes(&info_hash)
+            .expect("expected the info hash to have been serialized");
+
+        let result = serde_bencode::from_bytes(bytes.as_slice())
+            .expect("Expected the info hash to have been deserialized");
+
+        assert_eq!(info_hash, result);
     }
 }

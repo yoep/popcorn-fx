@@ -4,11 +4,15 @@ use crate::torrent::tracker::udp::UdpConnection;
 use crate::torrent::tracker::{AnnounceEvent, Result, TrackerError};
 use crate::torrent::InfoHash;
 use async_trait::async_trait;
+use byteorder::BigEndian;
 use chrono::{DateTime, Utc};
 use derive_more::Display;
 use log::{debug, trace};
 use popcorn_fx_core::core::Handle;
+use serde::Deserialize;
+use std::collections::HashMap;
 use std::fmt::Debug;
+use std::hash::Hash;
 use std::net::SocketAddr;
 use std::time::Duration;
 use tokio::net::lookup_host;
@@ -18,6 +22,20 @@ use url::Url;
 
 const DEFAULT_CONNECTION_TIMEOUT_SECONDS: u64 = 10;
 const DEFAULT_ANNOUNCEMENT_INTERVAL_SECONDS: u64 = 120;
+
+/// The announcement information for a tracker.
+/// This is the most recent torrent information that should be shared with the tracker.
+#[derive(Debug, Clone)]
+pub struct Announcement {
+    /// The info hash of the torrent
+    pub info_hash: InfoHash,
+    /// The tracker announcement event
+    pub event: AnnounceEvent,
+    /// The number of piece bytes completed by the torrent
+    pub bytes_completed: u64,
+    /// The number of piece bytes remaining to be downloaded by the torrent
+    pub bytes_remaining: u64,
+}
 
 /// Represents the response from a tracker announcement.
 ///
@@ -34,6 +52,24 @@ pub struct AnnounceEntryResponse {
     pub seeders: u64,
     /// A list of addresses (as `SocketAddr`) of peers to connect to.
     pub peers: Vec<SocketAddr>,
+}
+
+/// The metrics result of a tracker scrape operation.
+#[derive(Debug, Default, Clone, Deserialize, PartialEq)]
+pub struct ScrapeResult {
+    /// The file metrics from the scrape result
+    pub files: HashMap<InfoHash, ScrapeFileMetrics>,
+}
+
+/// The metrics of a specific torrent file.
+#[derive(Debug, Default, Clone, Deserialize, PartialEq)]
+pub struct ScrapeFileMetrics {
+    /// The number of active peers that have completed downloading.
+    pub complete: u32,
+    /// The number of active peers that have not completed downloading.
+    pub incomplete: u32,
+    /// The number of peers that have ever completed downloading.
+    pub downloaded: u32,
 }
 
 /// Trait that defines the underlying tracker connection protocol.
@@ -63,12 +99,19 @@ pub trait TrackerConnection: Debug + Send + Sync {
     ///
     /// # Returns
     ///
-    /// A `Result` containing the `Announce` struct with tracker response data or an error if the announcement failed.
-    async fn announce(
-        &self,
-        info_hash: InfoHash,
-        event: AnnounceEvent,
-    ) -> Result<AnnounceEntryResponse>;
+    /// It returns the tracker announcement response for the given announcement.
+    async fn announce(&self, announcement: Announcement) -> Result<AnnounceEntryResponse>;
+
+    /// Scrape the tracker for metrics the given info hashes.
+    ///
+    /// # Arguments
+    ///
+    /// * `hashes` - The info hashes to retrieve the metrics from.
+    ///
+    /// # Returns
+    ///
+    /// It returns the scrape result from the tracker for the given hashes.  
+    async fn scrape(&self, hashes: &[InfoHash]) -> Result<ScrapeResult>;
 
     /// Close the tracker connection and cancel any pending tasks.
     ///
@@ -172,14 +215,10 @@ impl Tracker {
     ///
     /// # Returns
     ///
-    /// Returns the announcement response from the tracker.
-    pub async fn announce(
-        &self,
-        info_hash: InfoHash,
-        event: AnnounceEvent,
-    ) -> Result<AnnounceEntryResponse> {
-        trace!("Announcing {:?} for info hash {}", event, info_hash);
-        match self.connection.announce(info_hash, event).await {
+    /// It returns the announcement response from the tracker.
+    pub async fn announce(&self, announce: Announcement) -> Result<AnnounceEntryResponse> {
+        trace!("Tracker {} is announcing {:?}", self, announce);
+        match self.connection.announce(announce).await {
             Ok(e) => {
                 {
                     let mut mutex = self.last_announcement.write().await;
@@ -194,6 +233,20 @@ impl Tracker {
             }
             Err(e) => Err(e),
         }
+    }
+
+    /// Scrape the tracker for metrics of the given info hashes.
+    ///
+    /// # Arguments
+    ///
+    /// * `hashes` - The info hashes to retrieve the metrics from.
+    ///
+    /// # Returns
+    ///
+    /// It returns the scrape metrics result from the tracker for the given info hashes.
+    pub async fn scrape(&self, hashes: &[InfoHash]) -> Result<ScrapeResult> {
+        trace!("Tracker {} is scraping {:?}", self, hashes);
+        self.connection.scrape(hashes).await
     }
 
     async fn create_connection(
@@ -212,7 +265,12 @@ impl Tracker {
                 connection = Box::new(UdpConnection::new(addrs, peer_id, peer_port, timeout));
             }
             "http" | "https" => {
-                connection = Box::new(HttpConnection::new(url.clone(), peer_id, timeout));
+                connection = Box::new(HttpConnection::new(
+                    url.clone(),
+                    peer_id,
+                    peer_port,
+                    timeout,
+                ));
             }
             _ => return Err(TrackerError::UnsupportedScheme(scheme.to_string())),
         }
@@ -241,7 +299,6 @@ impl Tracker {
 impl Drop for Tracker {
     fn drop(&mut self) {
         self.connection.close();
-        // todo: add announce event stopped
     }
 }
 
@@ -348,7 +405,7 @@ mod tests {
         let data = read_test_file_to_bytes("debian-udp.torrent");
         let info = TorrentMetadata::try_from(data.as_slice()).unwrap();
 
-        let result = execute_tracker_announcement(info).await;
+        let result = execute_tracker_announcement(&info).await;
 
         assert_ne!(
             0,
@@ -363,7 +420,7 @@ mod tests {
         let data = read_test_file_to_bytes("ubuntu-https.torrent");
         let info = TorrentMetadata::try_from(data.as_slice()).unwrap();
 
-        let result = execute_tracker_announcement(info).await;
+        let result = execute_tracker_announcement(&info).await;
 
         assert_ne!(
             0,
@@ -372,22 +429,53 @@ mod tests {
         );
     }
 
-    async fn execute_tracker_announcement(info: TorrentMetadata) -> AnnounceEntryResponse {
-        let peer_id = PeerId::new();
+    #[tokio::test]
+    async fn test_tracker_scrape_udp() {
+        init_logger!();
+        let data = read_test_file_to_bytes("debian-udp.torrent");
+        let info = TorrentMetadata::try_from(data.as_slice()).unwrap();
+        let tracker = create_tracker(&info).await;
+
+        let result = tracker
+            .scrape(&vec![info.info_hash])
+            .await
+            .expect("expected a scrape response");
+
+        assert_eq!(
+            1,
+            result.files.len(),
+            "expected the scrape files to match the files from the info hash"
+        );
+    }
+
+    async fn execute_tracker_announcement(info: &TorrentMetadata) -> AnnounceEntryResponse {
         let tracker_uris = info.tiered_trackers();
-        let tracker_uri = tracker_uris.get(&0).map(|e| e.get(0).unwrap()).unwrap();
         let info_hash = info.info_hash.clone();
-        let tracker = Tracker::builder()
+        let announce = Announcement {
+            info_hash,
+            event: AnnounceEvent::Started,
+            bytes_completed: 0,
+            bytes_remaining: u64::MAX,
+        };
+        let tracker = create_tracker(&info).await;
+
+        tracker
+            .announce(announce)
+            .await
+            .expect("expected the announce to succeed")
+    }
+
+    async fn create_tracker(metadata: &TorrentMetadata) -> Tracker {
+        let peer_id = PeerId::new();
+        let tracker_uris = metadata.tiered_trackers();
+        let tracker_uri = tracker_uris.get(&0).map(|e| e.get(0).unwrap()).unwrap();
+
+        Tracker::builder()
             .url(tracker_uri.clone())
             .peer_id(peer_id)
             .timeout(Duration::from_secs(1))
             .build()
             .await
-            .unwrap();
-
-        tracker
-            .announce(info_hash, AnnounceEvent::Started)
-            .await
-            .expect("expected the announce to succeed")
+            .expect("expected the tracker to have been created")
     }
 }

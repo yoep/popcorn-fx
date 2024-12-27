@@ -30,6 +30,8 @@ pub enum TrackerError {
     Timeout(Url),
     #[error("unable to start trackers, info hash is missing")]
     InfoHashMissing,
+    #[error("unable to execute the operation, no active trackers available")]
+    NoTrackers,
 }
 
 impl From<std::io::Error> for TrackerError {

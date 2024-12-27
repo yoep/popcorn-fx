@@ -410,16 +410,13 @@ impl Session for DefaultSession {
                 |e| Ok(e),
             )?;
 
-        let announcement = torrent.announce().await?;
+        let metrics = torrent.scrape().await?;
 
         debug!(
             "Converting announcement to torrent health for {:?}",
-            announcement
+            metrics
         );
-        Ok(TorrentHealth::from(
-            announcement.total_seeders as u32,
-            announcement.total_leechers as u32,
-        ))
+        Ok(TorrentHealth::from(metrics.complete, metrics.incomplete))
     }
 
     async fn torrent_health_from_uri(&self, uri: &str) -> Result<TorrentHealth> {
@@ -808,7 +805,7 @@ pub mod tests {
     use tempfile::tempdir;
 
     #[test]
-    fn test_find_torrent() {
+    fn test_session_find_torrent() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();

@@ -73,6 +73,18 @@ pub mod tests {
     use std::time::Duration;
     use tokio::runtime::Runtime;
 
+    /// Create the torrent metadata from the given uri.
+    /// The uri can either point to a `.torrent` file or a magnet link.
+    pub fn create_metadata(uri: &str) -> TorrentMetadata {
+        if uri.starts_with("magnet:") {
+            let magnet = Magnet::from_str(uri).unwrap();
+            TorrentMetadata::try_from(magnet).unwrap()
+        } else {
+            let torrent_info_data = read_test_file_to_bytes(uri);
+            TorrentMetadata::try_from(torrent_info_data.as_slice()).unwrap()
+        }
+    }
+
     #[macro_export]
     macro_rules! create_torrent {
         ($uri:expr, $temp_dir:expr, $options:expr) => {
@@ -127,20 +139,13 @@ pub mod tests {
         operations: Vec<TorrentOperationFactory>,
         runtime: Arc<Runtime>,
     ) -> Torrent {
-        let torrent_info: TorrentMetadata;
-
-        if uri.starts_with("magnet:") {
-            let magnet = Magnet::from_str(uri).unwrap();
-            torrent_info = TorrentMetadata::try_from(magnet).unwrap();
-        } else {
-            let torrent_info_data = read_test_file_to_bytes(uri);
-            torrent_info = TorrentMetadata::try_from(torrent_info_data.as_slice()).unwrap();
-        }
-
+        let torrent_info = create_metadata(uri);
         let port_start = thread_rng().gen_range(6881..10000);
+        let port = available_port!(port_start, 31000).unwrap();
+
         Torrent::request()
             .metadata(torrent_info)
-            .peer_listener_port(available_port!(port_start, 31000).unwrap())
+            .peer_listener_port(port)
             .options(options)
             .config(config)
             .operations(operations)

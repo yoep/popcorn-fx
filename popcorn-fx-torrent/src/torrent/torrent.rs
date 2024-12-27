@@ -13,7 +13,8 @@ use crate::torrent::peer::{
 };
 use crate::torrent::peer_pool::PeerPool;
 use crate::torrent::tracker::{
-    AnnounceEvent, Announcement, TrackerEntry, TrackerHandle, TrackerManager, TrackerManagerEvent,
+    AnnounceEvent, AnnouncementResult, TrackerEntry, TrackerHandle, TrackerManager,
+    TrackerManagerEvent,
 };
 use crate::torrent::{
     FileAttributeFlags, FileIndex, Piece, PieceChunkPool, PieceIndex, PiecePart, PiecePriority,
@@ -574,6 +575,17 @@ pub enum TorrentOperationResult {
     Stop,
 }
 
+/// The result metrics from a tracker scrape.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ScrapeMetrics {
+    /// The number of active peers that have completed downloading.
+    pub complete: u32,
+    /// The number of active peers that have not completed downloading.
+    pub incomplete: u32,
+    /// The number of peers that have ever completed downloading.
+    pub downloaded: u32,
+}
+
 #[derive(Debug, Display, Clone, PartialEq)]
 pub enum TorrentEvent {
     /// Invoked when the status of the torrent has changed
@@ -1001,43 +1013,31 @@ impl Torrent {
     /// # Returns
     ///
     /// Returns the announcement information, or [TorrentError::InvalidHandle] when the torrent is invalid.
-    pub async fn announce(&self) -> Result<Announcement> {
+    pub async fn announce(&self) -> Result<AnnouncementResult> {
         let inner = self
             .instance()
             .ok_or(TorrentError::InvalidHandle(self.handle))?;
 
         // try to wait for at least 2 connections
         if inner.active_tracker_connections().await == 0 {
-            let notifier = Arc::new(Notify::new());
-            let mut receiver = inner.subscribe();
-            let cancellation_token = CancellationToken::new();
-
-            let inner_cancel = cancellation_token.clone();
-            let inner_notifier = notifier.clone();
-            inner.runtime.spawn(async move {
-                loop {
-                    select! {
-                        _ = inner_cancel.cancelled() => break,
-                        Some(event) = receiver.recv() => {
-                            if let TorrentEvent::TrackersChanged = *event {
-                                inner_notifier.notify_one();
-                            }
-                        }
-                    }
-                }
-            });
-
-            loop {
-                notifier.notified().await;
-                if inner.active_tracker_connections().await >= 2 {
-                    break;
-                }
-            }
-
-            cancellation_token.cancel();
+            Self::wait_for_trackers(&inner, 2).await;
         }
 
         Ok(inner.announce_all().await)
+    }
+
+    /// Scrape the trackers of the torrent to retrieve the metrics.
+    pub async fn scrape(&self) -> Result<ScrapeMetrics> {
+        let inner = self
+            .instance()
+            .ok_or(TorrentError::InvalidHandle(self.handle))?;
+
+        // try to wait for at least 2 connections
+        if inner.active_tracker_connections().await == 0 {
+            Self::wait_for_trackers(&inner, 2).await;
+        }
+
+        inner.scrape().await
     }
 
     /// Resume the downloading of the torrent data.
@@ -1131,6 +1131,37 @@ impl Torrent {
     /// Get a temporary strong reference to the inner torrent.
     pub(crate) fn instance(&self) -> Option<Arc<TorrentContext>> {
         self.instance.upgrade()
+    }
+
+    /// Wait for the given number of active trackers.
+    async fn wait_for_trackers(inner: &Arc<TorrentContext>, num_of_trackers: usize) {
+        let notifier = Arc::new(Notify::new());
+        let mut receiver = inner.subscribe();
+        let cancellation_token = CancellationToken::new();
+
+        let inner_cancel = cancellation_token.clone();
+        let inner_notifier = notifier.clone();
+        inner.runtime.spawn(async move {
+            loop {
+                select! {
+                    _ = inner_cancel.cancelled() => break,
+                    Some(event) = receiver.recv() => {
+                        if let TorrentEvent::TrackersChanged = *event {
+                            inner_notifier.notify_one();
+                        }
+                    }
+                }
+            }
+        });
+
+        loop {
+            notifier.notified().await;
+            if inner.active_tracker_connections().await >= num_of_trackers {
+                break;
+            }
+        }
+
+        cancellation_token.cancel();
     }
 }
 
@@ -2108,7 +2139,7 @@ impl TorrentContext {
 
     /// Announce the torrent to all trackers.
     /// It returns the announcement result collected from all active trackers.
-    pub async fn announce_all(&self) -> Announcement {
+    pub async fn announce_all(&self) -> AnnouncementResult {
         self.tracker_manager
             .announce_all(AnnounceEvent::Started)
             .await
@@ -2118,6 +2149,29 @@ impl TorrentContext {
     pub async fn make_announce_all(&self) {
         self.tracker_manager
             .make_announcement_to_all(AnnounceEvent::Started)
+    }
+
+    /// Get the scrape metrics result from scraping all trackers for this torrent.
+    pub async fn scrape(&self) -> Result<ScrapeMetrics> {
+        trace!("Torrent {} is scraping trackers", self);
+        match self.tracker_manager.scrape().await {
+            Ok(result) => {
+                let info_hash = self.metadata.read().await.info_hash.clone();
+                if let Some(metrics) = result.files.get(&info_hash) {
+                    Ok(ScrapeMetrics {
+                        complete: metrics.complete,
+                        incomplete: metrics.incomplete,
+                        downloaded: metrics.downloaded,
+                    })
+                } else {
+                    Err(TorrentError::InvalidInfoHash(format!(
+                        "info hash {} not found in scrape result",
+                        info_hash
+                    )))
+                }
+            }
+            Err(e) => Err(TorrentError::Tracker(e)),
+        }
     }
 
     /// Add the given options to the torrent.
@@ -2348,7 +2402,7 @@ impl TorrentContext {
     /// This function doesn't verify if the pieces are actually valid.
     pub async fn pieces_completed(&self, pieces: Vec<PieceIndex>) {
         trace!("Torrent {} marking pieces {:?} as completed", self, pieces);
-        let mut total_pieces_size = 0;
+        let mut total_completed_pieces_size = 0;
         let mut total_completed_pieces = 0;
 
         {
@@ -2357,7 +2411,7 @@ impl TorrentContext {
             for piece in pieces.iter() {
                 if let Some(piece) = pieces_mutex.get_mut(*piece) {
                     piece.mark_completed();
-                    total_pieces_size += piece.length;
+                    total_completed_pieces_size += piece.length;
                     total_completed_pieces += 1;
                 } else {
                     warn!(
@@ -2374,7 +2428,19 @@ impl TorrentContext {
         {
             let mut stats_mutex = self.stats.write().await;
             stats_mutex.completed_pieces += total_completed_pieces;
-            stats_mutex.total_completed_size += total_pieces_size;
+            stats_mutex.total_completed_size += total_completed_pieces_size;
+
+            // inform the trackers about the completed pieces
+            self.tracker_manager
+                .update_bytes_completed(stats_mutex.total_completed_size)
+                .await;
+            self.tracker_manager
+                .update_bytes_remaining(
+                    stats_mutex
+                        .total_size
+                        .saturating_sub(stats_mutex.total_completed_size),
+                )
+                .await;
         }
 
         // inform the subscribers about each completed piece

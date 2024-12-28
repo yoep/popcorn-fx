@@ -584,7 +584,6 @@ impl InnerTrackerManager {
 #[cfg(test)]
 mod tests {
     use popcorn_fx_core::init_logger;
-    use popcorn_fx_core::testing::init_logger;
     use std::str::FromStr;
     use std::sync::mpsc::channel;
     use url::Url;

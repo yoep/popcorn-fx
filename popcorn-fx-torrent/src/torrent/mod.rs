@@ -2,8 +2,11 @@ use crate::torrent::operation::{
     TorrentConnectPeersOperation, TorrentCreateFilesOperation, TorrentCreatePiecesOperation,
     TorrentFileValidationOperation, TorrentMetadataOperation, TorrentTrackersOperation,
 };
+#[cfg(feature = "extension-donthave")]
+use crate::torrent::peer::extension::donthave::DontHaveExtension;
 #[cfg(feature = "extension-metadata")]
 use crate::torrent::peer::extension::metadata::MetadataExtension;
+#[cfg(feature = "extension-pex")]
 use crate::torrent::peer::extension::pex::PexExtension;
 use crate::torrent::peer::ProtocolExtensionFlags;
 pub use compact::*;
@@ -24,6 +27,7 @@ pub mod fs;
 mod info_hash;
 mod magnet;
 mod manager;
+mod merkle;
 pub mod operation;
 pub mod peer;
 mod peer_pool;
@@ -43,6 +47,8 @@ const DEFAULT_TORRENT_EXTENSIONS: fn() -> ExtensionFactories = || {
     extensions.push(|| Box::new(MetadataExtension::new()));
     #[cfg(feature = "extension-pex")]
     extensions.push(|| Box::new(PexExtension::new()));
+    #[cfg(feature = "extension-donthave")]
+    extensions.push(|| Box::new(DontHaveExtension::new()));
 
     extensions
 };

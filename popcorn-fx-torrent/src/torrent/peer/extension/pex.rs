@@ -20,7 +20,7 @@ const EXTENSION_NAME_PEX: &str = "ut_pex";
 
 /// The Peer Exchange message.
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
-pub struct PexMessage {
+struct PexMessage {
     /// The added ipv4 peer addresses
     #[serde(default, with = "crate::torrent::compact::compact_ipv4")]
     pub added: CompactIpv4Addrs,

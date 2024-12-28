@@ -1,3 +1,4 @@
+use crate::torrent::merkle::LEAF_BLOCK_SIZE;
 use crate::torrent::peer::extension::{
     Extension, ExtensionName, ExtensionNumber, ExtensionRegistry, Extensions,
 };
@@ -292,6 +293,8 @@ pub enum PeerEvent {
     StateChanged(PeerState),
     /// Indicates that remote pieces have become available to be downloaded
     RemoteAvailablePieces(Vec<PieceIndex>),
+    /// Indicates that remote pieces have become unavailable and can no longer be downloaded
+    RemoteUnavailablePieces(Vec<PieceIndex>),
     /// Indicates that one or more peers has been discovered by the swarm
     PeersDiscovered(Vec<SocketAddr>),
     /// Indicates that one or more peers are dropped from the swarm
@@ -306,6 +309,9 @@ impl Debug for PeerEvent {
             PeerEvent::StateChanged(state) => write!(f, "StateChanged({:?})", state),
             PeerEvent::RemoteAvailablePieces(pieces) => {
                 write!(f, "RemoteAvailablePieces(len {})", pieces.len())
+            }
+            PeerEvent::RemoteUnavailablePieces(pieces) => {
+                write!(f, "RemoteUnavailablePieces(len {})", pieces.len())
             }
             PeerEvent::PeersDiscovered(peers) => {
                 write!(f, "PeersDiscovered(len {})", peers.len())
@@ -325,6 +331,9 @@ impl Display for PeerEvent {
             PeerEvent::StateChanged(state) => write!(f, "state changed to {}", state),
             PeerEvent::RemoteAvailablePieces(pieces) => {
                 write!(f, "{} remote pieces have become available", pieces.len())
+            }
+            PeerEvent::RemoteUnavailablePieces(pieces) => {
+                write!(f, "{} remote pieces have become unavailable", pieces.len())
             }
             PeerEvent::PeersDiscovered(peers) => {
                 write!(f, "swarm discovered {} peers", peers.len())
@@ -625,6 +634,12 @@ impl TcpPeer {
 
         // store the bitfield of the torrent as initial state
         *self.inner.client_pieces.write().await = bitfield;
+
+        // request missing hashes if needed
+        if self.inner.should_request_hashes().await {
+            self.inner
+                .send_command_event(PeerCommandEvent::RequestMissingHashes);
+        }
 
         self.inner
             .send_command_event(PeerCommandEvent::State(PeerState::Idle));
@@ -932,6 +947,8 @@ pub enum PeerCommandEvent {
     DetermineClientInterestState,
     /// Indicates that a request upload permit should be obtained from the torrent
     RequestUploadPermit,
+    /// Indicates that missing v2 hashes should be requested from the remote peer.
+    RequestMissingHashes,
 }
 
 #[derive(Debug, Display)]
@@ -1183,6 +1200,15 @@ impl PeerContext {
         self.torrent.metadata_lock().read().await.clone()
     }
 
+    /// Check if the remote peer supports v2.
+    pub async fn is_v2_supported(&self) -> bool {
+        if let Some(remote) = self.remote.read().await.as_ref() {
+            return remote.is_v2.clone();
+        }
+
+        false
+    }
+
     /// Update the underlying torrent metadata.
     /// This method can be used by extensions to update the torrent metadata when the current
     /// connection is based on a magnet link.
@@ -1279,7 +1305,7 @@ impl PeerContext {
                 self.update_remote_peer_interest_state(InterestState::NotInterested)
                     .await
             }
-            Message::Have(piece) => self.remote_has_piece(piece as PieceIndex).await,
+            Message::Have(piece) => self.remote_has_piece(piece as PieceIndex, true).await,
             Message::HaveAll => self.update_remote_fast_have(true).await,
             Message::HaveNone => self.update_remote_fast_have(false).await,
             Message::Bitfield(pieces) => self.update_remote_pieces(pieces).await,
@@ -1497,6 +1523,7 @@ impl PeerContext {
                 self.determine_client_interest_state().await
             }
             PeerCommandEvent::RequestUploadPermit => self.request_upload_permit().await,
+            PeerCommandEvent::RequestMissingHashes => self.request_missing_hashes().await,
         }
     }
 
@@ -1527,6 +1554,30 @@ impl PeerContext {
             if is_remote_unchoked {
                 self.send_command_event(PeerCommandEvent::RequestWantedPieces);
             }
+        }
+    }
+
+    /// Check if v2 hashes should be requested for the current torrent.
+    async fn should_request_hashes(&self) -> bool {
+        let metadata = self.torrent.metadata_lock().read().await;
+        if let Some(metadata_version) = metadata.metadata_version() {
+            return metadata_version == 2 && self.is_v2_supported().await;
+        }
+
+        false
+    }
+
+    /// Request any missing hashes from the remote peer.
+    async fn request_missing_hashes(&self) {
+        if let Some(info) = self.torrent.metadata_lock().read().await.info.clone() {
+            trace!("Peer {} is requesting missing v2 hashes", self);
+            let piece_length = info.piece_length as usize;
+            let _base_layer = (piece_length + LEAF_BLOCK_SIZE - 1) / LEAF_BLOCK_SIZE;
+        } else {
+            warn!(
+                "Peer {} is unable to request missing hashes, torrent metadata info is unknown",
+                self
+            );
         }
     }
 
@@ -1868,7 +1919,7 @@ impl PeerContext {
     ///
     /// The range of the piece will be checked against the known pieces of the torrent, if known.
     /// If the piece is out-of-range, the update will be ignored.
-    async fn remote_has_piece(&self, piece: PieceIndex) {
+    pub async fn remote_has_piece(&self, piece: PieceIndex, has_piece: bool) {
         {
             let mut mutex = self.remote_pieces.write().await;
             // ensure the BitVec is large enough to accommodate the piece index
@@ -1889,13 +1940,23 @@ impl PeerContext {
                 mutex.extend(vec![false; additional_len]);
             }
 
-            mutex.set(piece, true);
+            mutex.set(piece, has_piece);
         }
 
-        if !self.is_client_interested().await {
-            self.send_command_event(PeerCommandEvent::DetermineClientInterestState);
+        if has_piece {
+            if !self.is_client_interested().await {
+                self.send_command_event(PeerCommandEvent::DetermineClientInterestState);
+            }
+            self.invoke_event(PeerEvent::RemoteAvailablePieces(vec![piece]));
+        } else {
+            // if fast is not enabled, we need to cancel any pending requests for the piece index
+            // otherwise, it will be explicitly rejected by a fast message
+            if !self.is_protocol_enabled(ProtocolExtensionFlags::Fast).await {
+                self.release_client_pending_request_permit(&piece).await;
+            }
+
+            self.invoke_event(PeerEvent::RemoteUnavailablePieces(vec![piece]));
         }
-        self.invoke_event(PeerEvent::RemoteAvailablePieces(vec![piece]));
     }
 
     /// Update the remote piece availability based on the supplied [BitVec].

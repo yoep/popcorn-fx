@@ -1,6 +1,8 @@
 pub use errors::*;
 pub use extension::*;
 
+#[cfg(feature = "extension-donthave")]
+pub mod donthave;
 mod errors;
 mod extension;
 #[cfg(feature = "extension-holepunch")]

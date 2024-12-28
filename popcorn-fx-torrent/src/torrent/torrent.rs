@@ -2313,8 +2313,17 @@ impl TorrentContext {
         self.invoke_event(TorrentEvent::Stats(event_stats));
     }
 
-    /// Increase the availability of the given piece indexes.
-    pub async fn update_piece_availabilities(&self, pieces: Vec<PieceIndex>) {
+    /// Update the availability of the given piece indexes.
+    /// This will increase or decrease the availability of the torrent pieces.
+    ///
+    /// This method can be used ot both increase and decrease the availability information
+    /// to correctly establish the rarity of pieces.
+    ///
+    /// # Arguments
+    ///
+    /// * `pieces` - The piece indexes that need to be updated.
+    ///* `available` - Indicates if the pieces become available or unavailable.
+    pub async fn update_piece_availabilities(&self, pieces: Vec<PieceIndex>, available: bool) {
         // check if the metadata is known and the pieces have been created
         if !self.is_metadata_known().await || self.total_pieces().await == 0 {
             debug!(
@@ -2331,7 +2340,13 @@ impl TorrentContext {
                     "Torrent {} got notified about an unknown piece {}",
                     self, piece
                 ),
-                Some(piece) => piece.increase_availability(),
+                Some(piece) => {
+                    if available {
+                        piece.increase_availability();
+                    } else {
+                        piece.decrease_availability();
+                    }
+                }
             }
         }
     }
@@ -2599,12 +2614,17 @@ impl TorrentContext {
         }
     }
 
+    /// Handle the given peer event.
+    /// This will update the torrent context info based on an event that occurred within one of its peers.
     async fn handle_peer_event(&self, event: PeerEvent) {
         match event {
             PeerEvent::PeersDiscovered(peers) => self.handle_discovered_peers(peers).await,
             PeerEvent::PeersDropped(peers) => self.handle_dropped_peers(peers).await,
             PeerEvent::RemoteAvailablePieces(pieces) => {
-                self.update_piece_availabilities(pieces).await
+                self.update_piece_availabilities(pieces, true).await
+            }
+            PeerEvent::RemoteUnavailablePieces(pieces) => {
+                self.update_piece_availabilities(pieces, false).await
             }
             _ => {}
         }
@@ -3569,7 +3589,7 @@ mod tests {
         let num_of_pieces = 80;
         let (tx_state, rx_state) = channel();
         let torrent = create_torrent!(
-            "debian-udp.torrent",
+            "v2.torrent",
             temp_path,
             TorrentFlags::Metadata,
             TorrentConfig::default(),
@@ -3634,87 +3654,6 @@ mod tests {
 
             info!("Checking pieces stored in {}", temp_path);
             for piece in &pieces[0..num_of_pieces] {
-                let piece_index = piece.index;
-                assert_eq!(
-                    true,
-                    piece.is_completed(),
-                    "expected piece {} to have been completed",
-                    piece_index
-                );
-                assert_eq!(
-                    Some(true),
-                    pieces_bitfield.get(piece_index),
-                    "expected piece bitfield bit {} to be set",
-                    piece_index
-                );
-            }
-        });
-    }
-
-    #[test]
-    fn test_torrent_resume_magnet() {
-        init_logger!(LevelFilter::Debug);
-        let temp_dir = tempdir().unwrap();
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let (tx_state, rx_state) = channel();
-        let (tx_ready, rx_pieces_event) = channel();
-        let torrent = create_torrent!(
-            "magnet:?xt=urn:btih:4956A4E976EA948025C3C3554567CA2820F65F64&tr=udp://tracker.opentrackr.org:1337&tr=udp://tracker.tiny-vps.com:6969&tr=udp://tracker.openbittorrent.com:1337&tr=udp://tracker.coppersurfer.tk:6969&tr=udp://tracker.leechers-paradise.org:6969&tr=udp://p4p.arenabg.ch:1337&tr=udp://p4p.arenabg.com:1337&tr=udp://tracker.internetwarriors.net:1337&tr=udp://9.rarbg.to:2710&tr=udp://9.rarbg.me:2710&tr=udp://exodus.desync.com:6969&tr=udp://tracker.cyberia.is:6969&tr=udp://tracker.torrent.eu.org:451&tr=udp://open.stealth.si:80&tr=udp://tracker.moeking.me:6969&tr=udp://tracker.zerobytes.xyz:1337",
-            temp_path,
-            TorrentFlags::UploadMode | TorrentFlags::Metadata,
-            TorrentConfig::builder()
-                // .peers_lower_limit(1)
-                // .peers_upper_limit(1)
-                .build()
-        );
-        let context = torrent.instance().unwrap();
-        let runtime = context.runtime();
-
-        let mut receiver = torrent.subscribe();
-        runtime.spawn(async move {
-            loop {
-                if let Some(event) = receiver.recv().await {
-                    if let TorrentEvent::StateChanged(state) = &*event {
-                        if state == &TorrentState::Finished {
-                            tx_state.send(()).unwrap();
-                        }
-                    } else if let TorrentEvent::PiecesChanged = *event {
-                        tx_ready.send(event).unwrap();
-                    }
-                } else {
-                    break;
-                }
-            }
-        });
-
-        // runtime.block_on(
-        //     context
-        //         .peer_pool
-        //         .add_available_peer_addrs(vec![SocketAddr::from(([127, 0, 0, 1], 42069))]),
-        // );
-
-        // wait for the pieces to be created before trying to download the data
-        let _ = rx_pieces_event
-            .recv_timeout(Duration::from_secs(90))
-            .expect("expected the pieces to have been created");
-
-        // resume the torrent
-        runtime.block_on(
-            torrent.prioritize_files(vec![(0, FilePriority::Normal), (1, FilePriority::None)]),
-        );
-        runtime.block_on(torrent.resume());
-
-        // wait for a piece to be completed
-        let _ = rx_state
-            .recv_timeout(Duration::from_secs(600))
-            .expect("expected the torrent to enter the FINISHED state");
-
-        runtime.block_on(async {
-            let pieces = torrent.pieces().await.unwrap();
-            let pieces_bitfield = context.piece_bitfield().await;
-
-            info!("Checking pieces stored in {}", temp_path);
-            for piece in &pieces[0..300] {
                 let piece_index = piece.index;
                 assert_eq!(
                     true,

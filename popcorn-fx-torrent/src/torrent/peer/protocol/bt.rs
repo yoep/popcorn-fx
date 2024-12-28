@@ -285,8 +285,8 @@ pub enum Message {
     AllowedFast(u32),
     // BEP52
     HashRequest(HashRequest),
-    Hashes(),
-    HashReject(),
+    Hashes(Hashes),
+    HashReject(HashRequest),
 }
 
 impl Message {
@@ -310,8 +310,8 @@ impl Message {
             Message::Suggest(_) => MessageType::Suggest,
             Message::AllowedFast(_) => MessageType::AllowedFast,
             Message::HashRequest(_) => MessageType::HashRequest,
-            Message::Hashes() => MessageType::Hashes,
-            Message::HashReject() => MessageType::HashReject,
+            Message::Hashes(_) => MessageType::Hashes,
+            Message::HashReject(_) => MessageType::HashReject,
         }
     }
 
@@ -411,6 +411,14 @@ impl TryFrom<&[u8]> for Message {
                 let request = HashRequest::try_from(cursor)?;
                 Ok(Message::HashRequest(request))
             }
+            MessageType::Hashes => {
+                let hashes = Hashes::try_from(cursor)?;
+                Ok(Message::Hashes(hashes))
+            }
+            MessageType::HashReject => {
+                let request = HashRequest::try_from(cursor)?;
+                Ok(Message::HashReject(request))
+            }
             _ => Err(Error::UnsupportedMessage(msg_type as u8)),
         }
     }
@@ -504,8 +512,8 @@ impl Debug for Message {
             Message::Suggest(e) => f.write_fmt(format_args!("Suggest({})", e)),
             Message::AllowedFast(e) => f.write_fmt(format_args!("AllowedFast({})", e)),
             Message::HashRequest(e) => f.write_fmt(format_args!("HashRequest({:?})", e)),
-            Message::Hashes() => f.write_str("Hashes"),
-            Message::HashReject() => f.write_str("HashReject"),
+            Message::Hashes(e) => f.write_fmt(format_args!("Hashes({:?})", e)),
+            Message::HashReject(e) => f.write_fmt(format_args!("HashReject({:?})", e)),
         }
     }
 }
@@ -521,7 +529,7 @@ pub struct ExtendedHandshake {
     #[serde(
         default,
         skip_serializing_if = "is_false",
-        with = "crate::torrent::peer::protocol::bt::bool_int"
+        with = "crate::torrent::peer::protocol::bt::serde_bool_int"
     )]
     pub upload_only: bool,
     /// Client name and version (as an utf-8 string).
@@ -530,7 +538,7 @@ pub struct ExtendedHandshake {
     pub client: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub regg: Option<i32>,
-    #[serde(default, with = "crate::torrent::peer::protocol::bt::bool_int")]
+    #[serde(default, with = "crate::torrent::peer::protocol::bt::serde_bool_int")]
     pub encryption: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata_size: Option<u32>,
@@ -635,10 +643,16 @@ impl Debug for Piece {
     }
 }
 
+/// The root hash type of torrent v2 file.
+pub type PiecesRoot = [u8; 32];
+
+/// A validation hash of a torrent v2 file.
+pub type Hash = [u8; 32];
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct HashRequest {
     /// The root hash of a file.
-    pub pieces_root: Vec<u8>,
+    pub pieces_root: PiecesRoot,
     /// Defines the lowest requested layer of the hash tree.
     pub base_layer: u32,
     /// The offset in hashes of the first requested hash in the base layer.
@@ -653,25 +667,86 @@ impl TryFrom<Cursor<&[u8]>> for HashRequest {
     type Error = Error;
 
     fn try_from(mut value: Cursor<&[u8]>) -> Result<Self> {
-        let mut pieces_root = vec![0u8; 32];
+        let mut pieces_root = [0u8; 32];
         value.read_exact(&mut pieces_root)?;
 
         let base_layer = value.read_u32::<BigEndian>()?;
         let index = value.read_u32::<BigEndian>()?;
         let length = value.read_u32::<BigEndian>()?;
-        let proof_layer = value.read_u32::<BigEndian>()?;
+        let proof_layers = value.read_u32::<BigEndian>()?;
 
         Ok(Self {
             pieces_root,
             base_layer,
             index,
             length,
-            proof_layers: proof_layer,
+            proof_layers,
         })
     }
 }
 
-mod bool_int {
+#[derive(Clone, PartialEq)]
+pub struct Hashes {
+    /// The root hash of a file.
+    pub pieces_root: PiecesRoot,
+    /// Defines the lowest requested layer of the hash tree.
+    pub base_layer: u32,
+    /// The offset in hashes of the first requested hash in the base layer.
+    pub index: u32,
+    /// The number of hashes to include from the base layer.
+    pub length: u32,
+    /// The number of ancestor layers to include.
+    pub proof_layers: u32,
+    /// The corresponding hashes of the [HashRequest].
+    pub hashes: Vec<Hash>,
+}
+
+impl TryFrom<Cursor<&[u8]>> for Hashes {
+    type Error = Error;
+
+    fn try_from(mut value: Cursor<&[u8]>) -> Result<Self> {
+        let mut pieces_root = [0u8; 32];
+        value.read_exact(&mut pieces_root)?;
+
+        let base_layer = value.read_u32::<BigEndian>()?;
+        let index = value.read_u32::<BigEndian>()?;
+        let length = value.read_u32::<BigEndian>()?;
+        let proof_layers = value.read_u32::<BigEndian>()?;
+
+        let remaining_length = value.remaining();
+        let total_hash = remaining_length / 32;
+        let mut hashes = Vec::with_capacity(total_hash);
+        for _ in 0..total_hash {
+            let mut hash = [0u8; 32];
+            value.read_exact(&mut hash)?;
+            hashes.push(hash);
+        }
+
+        Ok(Self {
+            pieces_root,
+            base_layer,
+            index,
+            length,
+            proof_layers,
+            hashes,
+        })
+    }
+}
+
+impl Debug for Hashes {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Hashes")
+            .field("pieces_root", &self.pieces_root)
+            .field("base_layer", &self.base_layer)
+            .field("index", &self.index)
+            .field("length", &self.length)
+            .field("proof_layer", &self.proof_layers)
+            .field("hashes", &self.hashes.len())
+            .finish()
+    }
+}
+
+mod serde_bool_int {
     use serde::de::Visitor;
     use serde::Deserializer;
     use std::fmt::Formatter;

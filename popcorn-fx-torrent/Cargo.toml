@@ -28,7 +28,7 @@ itertools.workspace = true
 log.workspace = true
 percent-encoding.workspace = true
 rand.workspace = true
-reqwest = { workspace = true, features = ["json", "stream"] }
+reqwest = { workspace = true, features = ["stream"] }
 serde.workspace = true
 serde_bencode = "0.2.4"
 serde_bytes = "0.11.15"
@@ -40,11 +40,12 @@ tokio-util.workspace = true
 url.workspace = true
 
 [features]
-default = ["extension-metadata", "extension-pex", "extension-holepunch"]
+default = ["extension-metadata", "extension-pex", "extension-holepunch", "extension-donthave"]
 
+extension-donthave = []
+extension-holepunch = []
 extension-metadata = []
 extension-pex = []
-extension-holepunch = []
 
 [dev-dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }

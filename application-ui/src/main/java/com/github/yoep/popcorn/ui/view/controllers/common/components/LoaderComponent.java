@@ -128,6 +128,9 @@ public class LoaderComponent implements Initializable {
     //region Functions
 
     private void handleLoaderStateChanged(LoaderState newState) {
+        if (newState == null)
+            return;
+
         switch (newState) {
             case INITIALIZING -> onLoadingInitializing();
             case STARTING -> {

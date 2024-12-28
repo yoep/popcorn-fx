@@ -17,7 +17,7 @@ const METADATA_PIECE_SIZE: usize = 1024 * 16;
 
 /// The BEP9 extension protocol message for the metadata extension.
 #[derive(Serialize, Deserialize, PartialEq)]
-pub struct MetadataExtensionMessage {
+struct MetadataExtensionMessage {
     /// Indicates which part of the metadata this message refers to
     pub piece: PieceIndex,
     /// The size of the additional bytes after the message

@@ -33,17 +33,18 @@ enum class DecorationType : int32_t {
 };
 
 enum class LoadingState : uint32_t {
-  Initializing = 0,
-  Starting = 1,
-  RetrievingSubtitles = 2,
-  DownloadingSubtitle = 3,
-  RetrievingMetadata = 4,
-  Connecting = 5,
-  Downloading = 6,
-  DownloadFinished = 7,
-  Ready = 8,
-  Playing = 9,
-  Cancelled = 10,
+  Initializing,
+  Starting,
+  RetrievingSubtitles,
+  DownloadingSubtitle,
+  RetrievingMetadata,
+  VerifyingFiles,
+  Connecting,
+  Downloading,
+  DownloadFinished,
+  Ready,
+  Playing,
+  Cancelled,
 };
 
 /// The C-compatible logging level for log messages sent over FFI.
@@ -575,7 +576,10 @@ struct CArray {
 
 /// A C-compatible struct representing torrent information.
 struct TorrentInfoC {
+  /// The underlying torrent handle
+  int64_t handle;
   char *info_hash;
+  /// A pointer to a null-terminated C string representing the URI of the torrent.
   char *uri;
   /// A pointer to a null-terminated C string representing the name of the torrent.
   char *name;

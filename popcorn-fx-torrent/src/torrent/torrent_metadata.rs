@@ -1,10 +1,11 @@
 use crate::torrent::errors::{Result, TorrentError};
 use crate::torrent::info_hash::InfoHash;
-use crate::torrent::{errors, magnet, Magnet, Sha1Hash, Sha256Hash};
+use crate::torrent::{errors, Magnet, Sha1Hash, Sha256Hash};
 use bitmask_enum::bitmask;
 use log::{debug, warn};
-use serde::de::{Error, Visitor};
+use serde::de::{Error, MapAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde_bytes::{ByteArray, ByteBuf, Bytes};
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Debug, Display, Formatter};
 use std::path::PathBuf;
@@ -13,6 +14,9 @@ use url::Url;
 
 /// Represents a list of URLs, which can be single, multiple, or ignored.
 pub type UrlList = Vec<String>;
+
+/// Represents the piece layers as a dictionary of strings.
+pub type PieceLayers = HashMap<String, String>;
 
 /// The file attributes of a torrent file.
 /// See BEP47 for more info.
@@ -160,7 +164,7 @@ pub struct TorrentFileInfo {
 
 impl TorrentFileInfo {
     /// Get the path to the torrent file.
-    /// If the file information belongs to a [TorrentInfoFile::Single], the returned path will be empty.
+    /// If the file information belongs to a [TorrentFiles::Single], the returned path will be empty.
     pub fn path(&self) -> PathBuf {
         let empty_vec = Vec::with_capacity(0);
         let segments = self
@@ -177,7 +181,7 @@ impl TorrentFileInfo {
     }
 
     /// Get the segments of the path to the torrent file.
-    /// If the file information belongs to a [TorrentInfoFile::Single], the returned path will be empty.
+    /// If the file information belongs to a [TorrentFiles::Single], the returned path will be empty.
     ///
     /// # Returns
     ///
@@ -198,10 +202,10 @@ impl TorrentFileInfo {
     }
 }
 
-/// Information about a torrent file, which can be a single file or multiple files.
+/// The torrent files information
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(untagged)]
-pub enum TorrentInfoFile {
+pub enum TorrentFiles {
     Single {
         #[serde(flatten)]
         file: TorrentFileInfo,
@@ -210,13 +214,87 @@ pub enum TorrentInfoFile {
         /// List of files within the directory.
         files: Vec<TorrentFileInfo>,
     },
+    FileTree {
+        /// A tree of dictionaries where dictionary keys represent UTF-8 encoded path elements.
+        /// See BEP52 for more info
+        #[serde(rename = "file tree")]
+        file_tree: FileTree,
+    },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(untagged)]
+/// The file tree of a torrent.
+/// These are the merkle roots of a v2 torrent.
+#[derive(Debug, Clone, PartialEq)]
 pub enum FileTree {
     File(FileNode),
-    Dir(BTreeMap<String, FileTree>),
+    Dir(HashMap<String, FileTree>),
+}
+
+impl FileTree {
+    /// Get the total size/length of all files in the tree.
+    pub fn len(&self) -> usize {
+        match self {
+            FileTree::File(node) => node.length as usize,
+            FileTree::Dir(nodes) => nodes.iter().map(|(_, value)| value.len()).sum(),
+        }
+    }
+
+    /// Get the total amount of files in the file tree.
+    pub fn total_files(&self) -> usize {
+        match self {
+            FileTree::File(_) => 1,
+            FileTree::Dir(nodes) => nodes.iter().map(|(_, value)| value.total_files()).sum(),
+        }
+    }
+
+    /// Get the files information of the file tree.
+    pub fn files(&self) -> Vec<TorrentFileInfo> {
+        self.create_files(Vec::new())
+    }
+
+    fn create_files(&self, path: Vec<String>) -> Vec<TorrentFileInfo> {
+        match self {
+            FileTree::Dir(nodes) => nodes
+                .iter()
+                .flat_map(|(key, value)| {
+                    let mut new_path = path.clone();
+                    new_path.push(key.clone());
+                    value.create_files(new_path)
+                })
+                .collect(),
+            FileTree::File(node) => {
+                let path = if !path.is_empty() { Some(path) } else { None };
+
+                vec![TorrentFileInfo {
+                    length: node.length,
+                    path: path.clone(),
+                    path_utf8: path,
+                    md5sum: None,
+                    attr: None,
+                    symlink_path: None,
+                    sha1: None,
+                }]
+            }
+        }
+    }
+}
+
+impl Serialize for FileTree {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serde_file_tree::serialize(&self, serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for FileTree {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        serde_file_tree::deserialize(deserializer)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -224,7 +302,13 @@ pub struct FileNode {
     /// Length of the file in bytes.
     pub length: u64,
     /// For non-empty files this is the root hash of a merkle tree with a branching factor of 2, constructed from 16KiB blocks of the file.
-    pub pieces_root: String,
+    #[serde(
+        rename = "pieces root",
+        default,
+        with = "serde_bytes",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub pieces_root: Option<Vec<u8>>,
 }
 
 /// Metadata of a torrent, including pieces, piece length, file info, etc.
@@ -262,11 +346,7 @@ pub struct TorrentMetadataInfo {
     pub meta_version: Option<u64>,
     /// Information about the torrent files.
     #[serde(flatten)]
-    pub files: TorrentInfoFile,
-    /// A tree of dictionaries where dictionary keys represent UTF-8 encoded path elements.
-    /// See BEP52 for more info
-    #[serde(rename = "file tree", default, skip_serializing_if = "Option::is_none")]
-    pub file_tree: Option<FileTree>,
+    pub files: TorrentFiles,
 }
 
 impl TorrentMetadataInfo {
@@ -312,10 +392,9 @@ impl TorrentMetadataInfo {
     /// Returns the total file size of the torrent in bytes.
     pub fn total_size(&self) -> usize {
         match &self.files {
-            TorrentInfoFile::Single { file } => file.length.clone() as usize,
-            TorrentInfoFile::Multiple { files, .. } => {
-                files.iter().map(|f| f.length as usize).sum()
-            }
+            TorrentFiles::Single { file } => file.length.clone() as usize,
+            TorrentFiles::Multiple { files, .. } => files.iter().map(|f| f.length as usize).sum(),
+            TorrentFiles::FileTree { file_tree } => file_tree.len(),
         }
     }
 
@@ -326,8 +405,9 @@ impl TorrentMetadataInfo {
     /// Returns the total number of files in the torrent.
     pub fn total_files(&self) -> usize {
         match &self.files {
-            TorrentInfoFile::Single { .. } => 1,
-            TorrentInfoFile::Multiple { files } => files.len(),
+            TorrentFiles::Single { .. } => 1,
+            TorrentFiles::Multiple { files } => files.len(),
+            TorrentFiles::FileTree { file_tree } => file_tree.total_files(),
         }
     }
 
@@ -338,8 +418,9 @@ impl TorrentMetadataInfo {
     /// Returns an array of the files of the torrent.
     pub fn files(&self) -> Vec<TorrentFileInfo> {
         match &self.files {
-            TorrentInfoFile::Single { file } => vec![file.clone()],
-            TorrentInfoFile::Multiple { files } => files.clone(),
+            TorrentFiles::Single { file } => vec![file.clone()],
+            TorrentFiles::Multiple { files } => files.clone(),
+            TorrentFiles::FileTree { file_tree } => file_tree.files(),
         }
     }
 
@@ -383,8 +464,7 @@ pub struct TorrentMetadataInfoBuilder {
     name_utf8: Option<String>,
     private: Option<i64>,
     source: Option<String>,
-    files: Option<TorrentInfoFile>,
-    file_tree: Option<FileTree>,
+    files: Option<TorrentFiles>,
 }
 
 impl TorrentMetadataInfoBuilder {
@@ -422,28 +502,29 @@ impl TorrentMetadataInfoBuilder {
         self
     }
 
-    pub fn files(mut self, files: TorrentInfoFile) -> Self {
+    pub fn files(mut self, files: TorrentFiles) -> Self {
         self.files = Some(files);
         self
     }
 
-    pub fn file_tree(mut self, file_tree: FileTree) -> Self {
-        self.file_tree = Some(file_tree);
-        self
-    }
+    pub fn build(self) -> Result<TorrentMetadataInfo> {
+        let name = self.name.ok_or(TorrentError::InvalidMetadata(
+            "name must be set".to_string(),
+        ))?;
+        let files = self.files.ok_or(TorrentError::InvalidMetadata(
+            "files must be set".to_string(),
+        ))?;
 
-    pub fn build(self) -> TorrentMetadataInfo {
-        TorrentMetadataInfo {
+        Ok(TorrentMetadataInfo {
             pieces: self.pieces.unwrap_or_default(),
             piece_length: self.piece_length.unwrap_or_default(),
-            name: self.name.expect("expected name to be set"),
+            name,
             name_utf8: self.name_utf8,
             private: self.private,
             source: self.source,
             meta_version: None,
-            files: self.files.expect("expected files to be set"),
-            file_tree: self.file_tree,
-        }
+            files,
+        })
     }
 }
 
@@ -477,9 +558,13 @@ pub struct TorrentMetadata {
     pub announce: Option<String>,
     /// Metadata specific to the torrent, equivalent to `ti` field in `add_torrent_params`.
     pub info: Option<TorrentMetadataInfo>,
+    /// The size of the info [TorrentMetadataInfo] in bytes.
+    #[serde(skip)]
+    pub info_byte_size: Option<usize>,
     /// A dictionary of strings. For each file in the file tree that is larger than the piece size it contains one string value.
-    #[serde(rename = "piece layers")]
-    pub piece_layers: Option<HashMap<String, String>>,
+    /// See BEP52.
+    #[serde(rename = "piece layers", default, with = "serde_piece_layers")]
+    pub piece_layers: Option<PieceLayers>,
     #[serde(rename = "magnet-uri")]
     pub magnet_uri: Option<String>,
     #[serde(rename = "announce-list")]
@@ -662,6 +747,7 @@ impl TryFrom<&[u8]> for TorrentMetadata {
         // calculate the info hash from the info dict
         let info_bytes = serde_bencode::to_bytes(&torrent_info.info)
             .map_err(|e| TorrentError::TorrentParse(e.to_string()))?;
+        let info_len = info_bytes.len();
         // calculate the info hash based on the metadata version
         let info_hash = if metadata_version == 2 {
             InfoHash::from_metadata_v2(info_bytes)
@@ -670,6 +756,7 @@ impl TryFrom<&[u8]> for TorrentMetadata {
         };
 
         torrent_info.info_hash = info_hash;
+        torrent_info.info_byte_size = Some(info_len);
         Ok(torrent_info)
     }
 }
@@ -940,6 +1027,7 @@ impl TorrentMetadataBuilder {
             name: self.name,
             announce: self.announce,
             info: self.info,
+            info_byte_size: None,
             piece_layers: self.piece_layers,
             magnet_uri: None,
             announce_list: self.announce_list,
@@ -952,6 +1040,168 @@ impl TorrentMetadataBuilder {
                 .info_hash
                 .expect("expected the info hash to be present"),
         }
+    }
+}
+
+#[derive(Debug)]
+struct FileTreeVisitor;
+
+impl<'de> Visitor<'de> for FileTreeVisitor {
+    type Value = FileTree;
+
+    fn expecting(&self, f: &mut Formatter) -> std::fmt::Result {
+        write!(f, "expected a valid bencoded file tree")
+    }
+
+    fn visit_map<A>(self, mut map: A) -> std::result::Result<Self::Value, A::Error>
+    where
+        A: MapAccess<'de>,
+    {
+        let mut file_tree = None;
+
+        while let Some(key) = map.next_key::<String>()? {
+            if key == "" {
+                let file_node = map.next_value::<FileNode>()?;
+                file_tree = Some(FileTree::File(file_node));
+            } else {
+                let tree = map.next_value::<FileTree>()?;
+                if let FileTree::Dir(file_tree_dir) =
+                    file_tree.get_or_insert(FileTree::Dir(Default::default()))
+                {
+                    file_tree_dir.insert(key, tree);
+                } else {
+                    return Err(Error::custom(
+                        "unexpected FileTree value, expected FileTree::Dir",
+                    ));
+                }
+            }
+        }
+
+        match file_tree {
+            Some(e) => Ok(e),
+            None => Err(Error::custom("file tree map is empty")),
+        }
+    }
+}
+
+pub mod serde_file_tree {
+    use super::*;
+    use serde::ser::SerializeMap;
+
+    pub fn serialize<S>(file_tree: &FileTree, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match file_tree {
+            FileTree::File(node) => {
+                let mut map = serializer.serialize_map(Some(1))?;
+                map.serialize_entry("", node)?;
+                map.end()
+            }
+            FileTree::Dir(nodes) => {
+                let mut map = serializer.serialize_map(Some(nodes.len()))?;
+                for (key, value) in nodes {
+                    map.serialize_entry(key, value)?;
+                }
+                map.end()
+            }
+        }
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> std::result::Result<FileTree, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        D::deserialize_map(deserializer, FileTreeVisitor {})
+    }
+}
+
+#[derive(Debug)]
+struct StringBytes(String);
+
+impl<'de> Deserialize<'de> for StringBytes {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_any(StringBytesVisitor {})
+    }
+}
+
+#[derive(Debug)]
+struct StringBytesVisitor;
+
+impl<'de> Visitor<'de> for StringBytesVisitor {
+    type Value = StringBytes;
+
+    fn expecting(&self, f: &mut Formatter) -> std::fmt::Result {
+        write!(f, "expected a string byte array")
+    }
+
+    fn visit_bytes<E>(self, v: &[u8]) -> std::result::Result<Self::Value, E>
+    where
+        E: Error,
+    {
+        Ok(StringBytes(String::from_utf8_lossy(v).to_string()))
+    }
+}
+
+#[derive(Debug)]
+struct PieceLayersVisitor;
+
+impl<'de> Visitor<'de> for PieceLayersVisitor {
+    type Value = PieceLayers;
+
+    fn expecting(&self, f: &mut Formatter) -> std::fmt::Result {
+        write!(f, "expected a dictionary of bytes representing strings")
+    }
+
+    fn visit_map<A>(self, mut map: A) -> std::result::Result<Self::Value, A::Error>
+    where
+        A: MapAccess<'de>,
+    {
+        let mut result = HashMap::new();
+
+        while let Some((key, value)) = map.next_entry::<StringBytes, StringBytes>()? {
+            let key_str = key.0;
+            let value_str = value.0;
+            result.insert(key_str, value_str);
+        }
+
+        Ok(result)
+    }
+}
+
+pub mod serde_piece_layers {
+    use super::*;
+    use serde::ser::SerializeMap;
+
+    pub fn serialize<S>(
+        value: &Option<PieceLayers>,
+        serializer: S,
+    ) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match value {
+            Some(value) => {
+                let mut map = serializer.serialize_map(Some(value.len()))?;
+                for (k, v) in value {
+                    map.serialize_entry(k, v)?;
+                }
+                map.end()
+            }
+            None => serializer.serialize_none(),
+        }
+    }
+
+    pub fn deserialize<'de, D>(
+        deserializer: D,
+    ) -> std::result::Result<Option<PieceLayers>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Ok(Some(deserializer.deserialize_map(PieceLayersVisitor {})?).filter(|e| !e.is_empty()))
     }
 }
 
@@ -1005,13 +1255,13 @@ mod tests {
     }
 
     #[test]
-    fn test_torrent_info_try_from_bytes() {
+    fn test_torrent_info_try_from_bytes_v1() {
         init_logger!();
         let announce = "http://bttracker.debian.org:6969/announce";
         let data = read_test_file_to_bytes("debian.torrent");
         let expected_name = "debian-11.6.0-amd64-netinst.iso";
         let expected_piece_length = 262144;
-        let expected_files = TorrentInfoFile::Single {
+        let expected_files = TorrentFiles::Single {
             file: TorrentFileInfo {
                 length: 406847488,
                 path: None,
@@ -1040,6 +1290,50 @@ mod tests {
             "expected the piece length to match"
         );
         assert_eq!(expected_files, metadata.files);
+    }
+
+    #[test]
+    fn test_torrent_info_try_from_bytes_v2() {
+        init_logger!();
+        let data = read_test_file_to_bytes("v2.torrent");
+        let expected_name = "bittorrent-v2-test";
+        let expected_piece_length = 4194304;
+        let expected_total_files = 11;
+
+        let info =
+            TorrentMetadata::try_from(data.as_slice()).expect("expected the v2 torrent to parse");
+
+        assert_ne!(
+            None, info.info,
+            "expected the metadata to have been present"
+        );
+        let metadata = info.info.unwrap();
+        assert_eq!(
+            expected_name, metadata.name,
+            "expected the piece length to match"
+        );
+        assert_eq!(
+            expected_piece_length, metadata.piece_length,
+            "expected the piece length to match"
+        );
+        assert_eq!(expected_total_files, metadata.total_files());
+    }
+
+    #[test]
+    fn test_torrent_info_files_v2() {
+        init_logger!();
+        let data = read_test_file_to_bytes("v2.torrent");
+
+        let info =
+            TorrentMetadata::try_from(data.as_slice()).expect("expected the v2 torrent to parse");
+        assert_ne!(
+            None, info.info,
+            "expected the metadata to have been present"
+        );
+
+        let metadata = info.info.unwrap();
+        let result = metadata.files();
+        assert_eq!(11, result.len());
     }
 
     #[test]

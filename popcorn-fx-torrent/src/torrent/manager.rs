@@ -1,6 +1,6 @@
 use crate::torrent::{
     errors, torrent, DefaultSession, FileIndex, FilePriority, PieceIndex, PiecePriority, Session,
-    Torrent, TorrentError, TorrentEvent, TorrentFlags, TorrentInfoFile,
+    Torrent, TorrentError, TorrentEvent, TorrentFiles, TorrentFlags,
 };
 use async_trait::async_trait;
 use chrono::{DateTime, Local};
@@ -317,7 +317,7 @@ impl InnerTorrentManager {
                     .await
                     .map_err(|e| torrents::Error::TorrentError(e.to_string()))?;
                 if let Some(info) = metadata.info {
-                    let directory_name = if let TorrentInfoFile::Single { .. } = &info.files {
+                    let directory_name = if let TorrentFiles::Single { .. } = &info.files {
                         None
                     } else {
                         Some(info.name.clone())

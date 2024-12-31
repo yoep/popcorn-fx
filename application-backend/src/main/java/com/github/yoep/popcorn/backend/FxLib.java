@@ -134,8 +134,6 @@ public interface FxLib extends Library {
 
     void register_watched_event_callback(PopcornFx instance, WatchedEventCallback callback);
 
-    void torrent_download_status(PopcornFx instance, String handle, DownloadStatusC.ByValue downloadStatus);
-
     TorrentHealth.ByReference calculate_torrent_health(PopcornFx instance, int seeders, int leechers);
 
     TorrentHealthResult.ByValue torrent_health_from_uri(PopcornFx instance, String uri);

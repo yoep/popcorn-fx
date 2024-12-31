@@ -1585,7 +1585,7 @@ ByteArray *artwork_placeholder(PopcornFX *popcorn_fx);
 /// # Returns
 ///
 /// Returns the health of the torrent.
-TorrentHealth *calculate_torrent_health(PopcornFX *popcorn_fx, uint32_t seeds, uint32_t leechers);
+TorrentHealth *calculate_torrent_health(const PopcornFX *popcorn_fx, uint32_t seeds, uint32_t leechers);
 
 /// Start polling the update channel for new application versions.
 ///
@@ -2579,7 +2579,7 @@ void torrent_collection_remove(PopcornFX *popcorn_fx, char *magnet_uri);
 /// # Returns
 ///
 /// Returns the health of the torrent.
-ResultC<TorrentHealth, TorrentErrorC> torrent_health_from_uri(PopcornFX *popcorn_fx, const char *uri);
+ResultC<TorrentHealth, TorrentErrorC> torrent_health_from_uri(const PopcornFX *popcorn_fx, const char *uri);
 
 /// Initiates the authorization process with the tracking provider.
 ///

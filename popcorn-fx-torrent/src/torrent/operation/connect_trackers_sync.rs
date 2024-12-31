@@ -77,44 +77,32 @@ impl TorrentOperation for TorrentTrackersSyncOperation {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::torrent::fs::DefaultTorrentFileStorage;
-    use crate::torrent::{Torrent, TorrentConfig, TorrentMetadata};
+    use crate::create_torrent;
+    use crate::torrent::{TorrentConfig, TorrentFlags};
     use popcorn_fx_core::init_logger;
-    use popcorn_fx_core::testing::read_test_file_to_bytes;
-    use std::sync::Arc;
-    use std::time::Duration;
     use tempfile::tempdir;
-    use tokio::runtime::Runtime;
 
     #[test]
     fn test_execute() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let torrent_info_data = read_test_file_to_bytes("ubuntu-https.torrent");
-        let torrent_info = TorrentMetadata::try_from(torrent_info_data.as_slice()).unwrap();
-        let runtime = Arc::new(Runtime::new().unwrap());
-        let torrent = Torrent::request()
-            .metadata(torrent_info)
-            .peer_listener_port(9090)
-            .config(
-                TorrentConfig::builder()
-                    .tracker_connection_timeout(Duration::from_secs(1))
-                    .build(),
-            )
-            .storage(Box::new(DefaultTorrentFileStorage::new(temp_path)))
-            .operations(vec![])
-            .runtime(runtime.clone())
-            .build()
-            .unwrap();
-        let inner = torrent.instance().unwrap();
+        let torrent = create_torrent!(
+            "ubuntu-https.torrent",
+            temp_path,
+            TorrentFlags::none(),
+            TorrentConfig::default(),
+            vec![]
+        );
+        let context = torrent.instance().unwrap();
+        let runtime = context.runtime();
         let operation = TorrentTrackersSyncOperation::new();
 
         runtime.block_on(async {
-            let result = operation.execute(&inner).await;
+            let result = operation.execute(&context).await;
             assert_eq!(TorrentOperationResult::Continue, result);
 
-            let result = inner.announce_all().await;
+            let result = context.announce_all().await;
             assert_ne!(
                 0,
                 result.peers.len(),

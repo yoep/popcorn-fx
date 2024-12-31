@@ -13,7 +13,7 @@ use chrono::Utc;
 use derive_more::Display;
 use futures::future;
 use log::{debug, info, trace, warn};
-use popcorn_fx_core::core::callback::{Callback, MultiCallback, Subscriber, Subscription};
+use popcorn_fx_core::core::callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use tokio::runtime::Runtime;
 use tokio::sync::RwLock;
 use tokio::{select, time};
@@ -124,7 +124,7 @@ impl TrackerManager {
             connection_timeout,
             bytes_remaining: RwLock::new(u64::MAX),
             bytes_completed: Default::default(),
-            callbacks: MultiCallback::new(runtime.clone()),
+            callbacks: MultiThreadedCallback::new(runtime.clone()),
             cancellation_token: Default::default(),
         });
 
@@ -328,7 +328,7 @@ struct InnerTrackerManager {
     bytes_completed: RwLock<u64>,
     /// The number of remaining piece bytes that need to be downloaded
     bytes_remaining: RwLock<u64>,
-    callbacks: MultiCallback<TrackerManagerEvent>,
+    callbacks: MultiThreadedCallback<TrackerManagerEvent>,
     cancellation_token: CancellationToken,
 }
 

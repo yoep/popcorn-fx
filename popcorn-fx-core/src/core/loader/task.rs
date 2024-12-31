@@ -10,7 +10,7 @@ use tokio_util::sync::{
     CancellationToken, WaitForCancellationFuture, WaitForCancellationFutureOwned,
 };
 
-use crate::core::callback::{Callback, MultiCallback, Subscriber, Subscription};
+use crate::core::callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use crate::core::loader::loading_chain::LoadingChain;
 use crate::core::loader::{
     LoadingData, LoadingError, LoadingEvent, LoadingHandle, LoadingResult, LoadingState,
@@ -143,7 +143,7 @@ pub struct LoadingTaskContext {
     /// The command event sender of the loading task
     command_sender: UnboundedSender<LoadingCommandEvent>,
     /// The callback of the loading task
-    callbacks: MultiCallback<LoadingEvent>,
+    callbacks: MultiThreadedCallback<LoadingEvent>,
     /// The cancellation token of the task
     cancellation_token: CancellationToken,
     /// The shared runtime of the task
@@ -163,7 +163,7 @@ impl LoadingTaskContext {
             chain,
             event_sender,
             command_sender,
-            callbacks: MultiCallback::new(runtime.clone()),
+            callbacks: MultiThreadedCallback::new(runtime.clone()),
             cancellation_token: Default::default(),
             runtime,
         }

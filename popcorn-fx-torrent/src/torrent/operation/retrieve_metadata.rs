@@ -86,41 +86,27 @@ struct MetadataInfo {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::torrent::fs::DefaultTorrentFileStorage;
-    use crate::torrent::{Magnet, Torrent, TorrentConfig, TorrentMetadata};
+    use crate::create_torrent;
+    use crate::torrent::TorrentConfig;
     use popcorn_fx_core::init_logger;
-    use popcorn_fx_core::testing::read_test_file_to_bytes;
-    use std::str::FromStr;
-    use std::sync::Arc;
-    use std::time::Duration;
     use tempfile::tempdir;
-    use tokio::runtime::Runtime;
 
     #[tokio::test]
     async fn test_execute_metadata_known() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let torrent_info_data = read_test_file_to_bytes("debian-udp.torrent");
-        let torrent_info = TorrentMetadata::try_from(torrent_info_data.as_slice()).unwrap();
-        let runtime = Arc::new(Runtime::new().unwrap());
-        let torrent = Torrent::request()
-            .metadata(torrent_info)
-            .peer_listener_port(6881)
-            .config(
-                TorrentConfig::builder()
-                    .peer_connection_timeout(Duration::from_secs(1))
-                    .tracker_connection_timeout(Duration::from_secs(1))
-                    .build(),
-            )
-            .storage(Box::new(DefaultTorrentFileStorage::new(temp_path)))
-            .runtime(runtime.clone())
-            .build()
-            .unwrap();
+        let torrent = create_torrent!(
+            "debian-udp.torrent",
+            temp_path,
+            TorrentFlags::none(),
+            TorrentConfig::default(),
+            vec![]
+        );
+        let context = torrent.instance().unwrap();
         let operation = TorrentMetadataOperation::new();
-        let inner = torrent.instance().unwrap();
 
-        let result = operation.execute(&inner).await;
+        let result = operation.execute(&context).await;
 
         assert_eq!(TorrentOperationResult::Continue, result);
     }
@@ -131,27 +117,17 @@ mod tests {
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let uri = "magnet:?xt=urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7&dn=debian-12.4.0-amd64-DVD-1.iso&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce";
-        let magnet = Magnet::from_str(uri).unwrap();
-        let torrent_info = TorrentMetadata::try_from(magnet).unwrap();
-        let runtime = Arc::new(Runtime::new().unwrap());
-        let torrent = Torrent::request()
-            .metadata(torrent_info)
-            .options(TorrentFlags::none())
-            .peer_listener_port(6881)
-            .config(
-                TorrentConfig::builder()
-                    .peer_connection_timeout(Duration::from_secs(1))
-                    .tracker_connection_timeout(Duration::from_secs(1))
-                    .build(),
-            )
-            .storage(Box::new(DefaultTorrentFileStorage::new(temp_path)))
-            .runtime(runtime.clone())
-            .build()
-            .unwrap();
-        let inner = torrent.instance().unwrap();
+        let torrent = create_torrent!(
+            uri,
+            temp_path,
+            TorrentFlags::none(),
+            TorrentConfig::default(),
+            vec![]
+        );
+        let context = torrent.instance().unwrap();
         let operation = TorrentMetadataOperation::new();
 
-        let result = operation.execute(&inner).await;
+        let result = operation.execute(&context).await;
 
         assert_eq!(TorrentOperationResult::Stop, result);
     }

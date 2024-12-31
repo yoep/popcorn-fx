@@ -18,7 +18,7 @@ use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 use url::Url;
 
-use crate::core::callback::{Callback, MultiCallback, Subscriber, Subscription};
+use crate::core::callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use crate::core::torrents::{
     DownloadStatus, Error, StreamBytesResult, Torrent, TorrentEvent, TorrentHandle, TorrentState,
     TorrentStream, TorrentStreamEvent, TorrentStreamState, TorrentStreamingResource,
@@ -168,7 +168,7 @@ struct InnerTorrentStream {
     /// The state of this stream
     state: Arc<Mutex<TorrentStreamState>>,
     /// The callbacks for this stream
-    callbacks: MultiCallback<TorrentStreamEvent>,
+    callbacks: MultiThreadedCallback<TorrentStreamEvent>,
     /// The cancellation token of the torrent stream
     cancellation_token: CancellationToken,
     /// The shared runtime of the torrent stream
@@ -185,7 +185,7 @@ impl InnerTorrentStream {
             url,
             preparing_pieces: Arc::new(Mutex::new(prepare_pieces)),
             state: Arc::new(Mutex::new(TorrentStreamState::Preparing)),
-            callbacks: MultiCallback::new(runtime.clone()),
+            callbacks: MultiThreadedCallback::new(runtime.clone()),
             cancellation_token: Default::default(),
             runtime,
         }
@@ -748,7 +748,7 @@ mod test {
         let mut mock = MockTorrent::new();
         let url = Url::parse("http://localhost").unwrap();
         let runtime = Arc::new(Runtime::new().unwrap());
-        let callbacks = MultiCallback::new(runtime.clone());
+        let callbacks = MultiThreadedCallback::new(runtime.clone());
         let subscription_callbacks = callbacks.clone();
         let (tx_ready, rx_ready) = channel();
         mock.expect_file().returning(move || temp_path.clone());
@@ -907,7 +907,7 @@ mod test {
         let url = Url::parse("http://localhost").unwrap();
         let (tx, rx) = channel();
         let runtime = Arc::new(Runtime::new().unwrap());
-        let callbacks = MultiCallback::new(runtime.clone());
+        let callbacks = MultiThreadedCallback::new(runtime.clone());
         let subscribe_callbacks = callbacks.clone();
         mock.expect_file().returning(move || temp_path.clone());
         mock.expect_has_bytes().return_const(true);

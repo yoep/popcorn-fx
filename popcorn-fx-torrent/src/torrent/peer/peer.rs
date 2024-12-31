@@ -19,7 +19,7 @@ use byteorder::ByteOrder;
 use derive_more::Display;
 use futures::future;
 use log::{debug, error, info, trace, warn};
-use popcorn_fx_core::core::callback::{Callback, MultiCallback, Subscriber, Subscription};
+use popcorn_fx_core::core::callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use popcorn_fx_core::core::Handle;
 use std::cmp::Ordering;
 use std::collections::HashMap;
@@ -44,7 +44,7 @@ const MAX_PENDING_PIECES: usize = 3;
 /// The peer's unique identifier handle.
 pub type PeerHandle = Handle;
 
-/// The [Peer] is a connection to connect to a remote peer and exchange piece data of a specific torrent.
+/// The [Peer] is a connection to a remote peer for exchanging piece data of a specific torrent.
 #[async_trait]
 pub trait Peer: Debug + Display + Send + Sync + Callback<PeerEvent> {
     /// Get the unique identifier handle of the peer.
@@ -695,7 +695,7 @@ impl TcpPeer {
             incoming_data_stats: RwLock::new(PeerTransferStats::default()),
             outgoing_data_stats: RwLock::new(PeerTransferStats::default()),
             event_sender,
-            callbacks: MultiCallback::new(runtime.clone()),
+            callbacks: MultiThreadedCallback::new(runtime.clone()),
             cancellation_token: CancellationToken::new(),
             timeout,
             runtime,
@@ -1011,7 +1011,7 @@ pub struct PeerContext {
     /// The sender for internal events
     event_sender: UnboundedSender<PeerCommandEvent>,
     /// The callbacks which are triggered by this peer when an event is raised
-    callbacks: MultiCallback<PeerEvent>,
+    callbacks: MultiThreadedCallback<PeerEvent>,
     /// The timeout of the connection
     timeout: Duration,
     /// The cancellation token to cancel any async task within this peer on closure
@@ -2380,7 +2380,7 @@ impl PeerContext {
             regg: None,
             encryption: false,
             metadata_size: None,
-            port: Some(self.torrent.peer_port() as u32),
+            port: self.torrent.peer_port().map(|e| e as u32),
             your_ip: Some(CompactIp::from(&self.client.addr)),
             ipv4: None,
             ipv6: None,
@@ -2790,7 +2790,7 @@ mod tests {
         });
 
         // create a connection to the source torrent which has the metadata
-        let peer_addr = SocketAddr::from(([127, 0, 0, 1], source_torrent.peer_port()));
+        let peer_addr = SocketAddr::from(([127, 0, 0, 1], source_torrent.peer_port().unwrap()));
         let peer = runtime
             .block_on(TcpPeer::new_outbound(
                 PeerId::new(),

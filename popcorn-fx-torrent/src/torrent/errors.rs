@@ -55,6 +55,8 @@ pub enum TorrentError {
     InvalidHandle(TorrentHandle),
     #[error("the torrent request is invalid, {0}")]
     InvalidRequest(String),
+    #[error("the session is invalid, {0}")]
+    InvalidSession(String),
     #[error("the specified range {0:?} is invalid")]
     InvalidRange(std::ops::Range<usize>),
     #[error("tracker error: {0}")]

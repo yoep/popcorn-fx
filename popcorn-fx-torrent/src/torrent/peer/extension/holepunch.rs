@@ -32,8 +32,4 @@ impl Extension for HolepunchExtension {
     async fn on<'a>(&'a self, _event: &'a PeerEvent, _peer: &'a PeerContext) {
         todo!()
     }
-
-    fn clone_boxed(&self) -> Box<dyn Extension> {
-        Box::new(Self::new())
-    }
 }

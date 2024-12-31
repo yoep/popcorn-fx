@@ -2829,6 +2829,7 @@ dependencies = [
  "bit-vec 0.8.0",
  "bitmask-enum",
  "byteorder",
+ "bytes",
  "chrono",
  "derive_more",
  "futures",

@@ -38,6 +38,7 @@ thiserror.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread", "time"] }
 tokio-util.workspace = true
 url.workspace = true
+bytes = "1.9.0"
 
 [features]
 default = ["extension-metadata", "extension-pex", "extension-holepunch", "extension-donthave"]

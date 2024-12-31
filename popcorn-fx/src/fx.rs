@@ -443,7 +443,7 @@ impl PopcornFX {
     }
 
     /// The torrent manager to create, manage and delete torrents.
-    pub fn torrent_manager(&mut self) -> &Arc<Box<dyn TorrentManager>> {
+    pub fn torrent_manager(&self) -> &Arc<Box<dyn TorrentManager>> {
         &self.torrent_manager
     }
 

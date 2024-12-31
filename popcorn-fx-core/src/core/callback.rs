@@ -1,8 +1,9 @@
 use crate::core::CallbackHandle;
-use log::{debug, trace};
+use log::{debug, trace, warn};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
@@ -23,7 +24,7 @@ pub type Subscriber<T> = UnboundedSender<Arc<T>>;
 ///
 /// use std::sync::Arc;
 /// use tokio::runtime::Runtime;
-/// use popcorn_fx_core::core::callback::{Callback, MultiCallback};
+/// use popcorn_fx_core::core::callback::{Callback, MultiThreadedCallback};
 ///
 /// #[derive(Debug)]
 /// pub enum MyEvent {
@@ -32,7 +33,7 @@ pub type Subscriber<T> = UnboundedSender<Arc<T>>;
 /// }
 ///
 /// async fn register_callback(shared_runtime: Arc<Runtime>) {
-///     let callback = MultiCallback::<MyEvent>::new(shared_runtime);
+///     let callback = MultiThreadedCallback::<MyEvent>::new(shared_runtime);
 ///     let mut receiver = callback.subscribe();
 ///
 ///     let event = receiver.recv().await.unwrap();
@@ -86,14 +87,14 @@ where
 ///
 /// This callback holder will invoke the given events on a separate thread, thus unblocking the caller thread for other tasks.
 #[derive(Debug, Clone)]
-pub struct MultiCallback<T>
+pub struct MultiThreadedCallback<T>
 where
     T: Debug + Send + Sync,
 {
     base: Arc<BaseCallback<T>>,
 }
 
-impl<T> Callback<T> for MultiCallback<T>
+impl<T> Callback<T> for MultiThreadedCallback<T>
 where
     T: Debug + Send + Sync,
 {
@@ -116,7 +117,7 @@ where
     }
 }
 
-impl<T> MultiCallback<T>
+impl<T> MultiThreadedCallback<T>
 where
     T: Debug + Send + Sync + 'static,
 {
@@ -130,9 +131,10 @@ where
     /// Invokes the callback with the given value.
     pub fn invoke(&self, value: T) {
         let inner = self.base.clone();
+        // spawn the invocation operation in a new thread
         self.base.runtime.spawn(async move {
+            let runtime = &inner.runtime;
             let mut mutex = inner.callbacks.lock().expect("failed to acquire lock");
-            let mut handles_to_remove = Vec::with_capacity(0);
             let value = Arc::new(value);
 
             trace!(
@@ -140,12 +142,14 @@ where
                 mutex.len(),
                 *value
             );
-            for (handle, callback) in mutex.iter() {
-                if let Err(_) = callback.send(value.clone()) {
-                    trace!("Callback {} has been dropped", handle);
-                    handles_to_remove.push(handle.clone());
-                }
-            }
+
+            let handles_to_remove: Vec<CallbackHandle> = mutex
+                .iter()
+                .map(|(handle, callback)| {
+                    BaseCallback::invoke_callback(handle, callback, value.clone())
+                })
+                .flat_map(|e| e)
+                .collect();
 
             let total_handles = handles_to_remove.len();
             for handle in handles_to_remove {
@@ -171,11 +175,43 @@ impl<T> BaseCallback<T>
 where
     T: Debug + Send + Sync,
 {
-    pub fn new(runtime: Arc<Runtime>) -> Self {
+    fn new(runtime: Arc<Runtime>) -> Self {
         Self {
             callbacks: Mutex::new(HashMap::new()),
             runtime,
         }
+    }
+
+    /// Try to invoke the callback for the given value.
+    /// This is a convenience method for handling dropped callbacks.
+    ///
+    /// # Returns
+    ///
+    /// It returns the callback handle if the callback has been dropped.
+    fn invoke_callback(
+        handle: &CallbackHandle,
+        callback: &UnboundedSender<Arc<T>>,
+        value: Arc<T>,
+    ) -> Option<CallbackHandle> {
+        let start_time = Instant::now();
+        if let Err(_) = callback.send(value) {
+            trace!("Callback {} has been dropped", handle);
+            return Some(handle.clone());
+        }
+        let elapsed = start_time.elapsed();
+        let message = format!(
+            "Callback {} took {}.{:03}ms to process the invocation",
+            handle,
+            elapsed.as_millis(),
+            elapsed.subsec_micros() % 1000
+        );
+        if elapsed.as_millis() >= 1000 {
+            warn!("{}", message);
+        } else {
+            trace!("{}", message);
+        }
+
+        None
     }
 }
 
@@ -208,7 +244,7 @@ mod tests {
         let runtime = Arc::new(Runtime::new().unwrap());
         let expected_result = Event::Foo;
         let (tx, rx) = channel();
-        let callback = MultiCallback::<Event>::new(runtime.clone());
+        let callback = MultiThreadedCallback::<Event>::new(runtime.clone());
 
         let mut receiver = callback.subscribe();
         runtime.spawn(async move {
@@ -229,7 +265,7 @@ mod tests {
         let runtime = Arc::new(Runtime::new().unwrap());
         let expected_result = Event::Foo;
         let (tx, rx) = channel();
-        let callback = MultiCallback::<Event>::new(runtime.clone());
+        let callback = MultiThreadedCallback::<Event>::new(runtime.clone());
 
         let _ = callback.subscribe();
         let mut receiver = callback.subscribe();

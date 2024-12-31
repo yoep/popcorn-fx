@@ -1,11 +1,19 @@
+pub use discovery::*;
+pub use discovery_tcp::*;
+pub use discovery_utp::*;
 pub use errors::*;
 pub use listener::*;
+pub use listener_tcp::*;
 pub use peer::*;
 pub use peer_id::*;
 
+mod discovery;
+mod discovery_tcp;
+mod discovery_utp;
 mod errors;
 pub mod extension;
 mod listener;
+mod listener_tcp;
 mod peer;
 mod peer_id;
 mod peer_reader;

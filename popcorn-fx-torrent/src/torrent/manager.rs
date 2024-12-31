@@ -1,5 +1,5 @@
 use crate::torrent::{
-    errors, torrent, DefaultSession, FileIndex, FilePriority, PieceIndex, PiecePriority, Session,
+    errors, torrent, FileIndex, FilePriority, FxTorrentSession, PieceIndex, PiecePriority, Session,
     Torrent, TorrentError, TorrentEvent, TorrentFiles, TorrentFlags,
 };
 use async_trait::async_trait;
@@ -167,15 +167,11 @@ impl DefaultTorrentManager {
         event_publisher: Arc<EventPublisher>,
         runtime: Arc<Runtime>,
     ) -> torrents::Result<Self> {
-        let session: Box<dyn Session> = runtime
-            .clone()
-            .block_on(
-                DefaultSession::builder()
-                    .base_path(settings.user_settings().torrent_settings.directory())
-                    .client_name("PopcornFX")
-                    .runtime(runtime.clone())
-                    .build(),
-            )
+        let session: Box<dyn Session> = FxTorrentSession::builder()
+            .base_path(settings.user_settings().torrent_settings.directory())
+            .client_name("PopcornFX")
+            .runtime(runtime.clone())
+            .build()
             .map(|e| Box::new(e))
             .map_err(|e| torrents::Error::TorrentError(e.to_string()))?;
 

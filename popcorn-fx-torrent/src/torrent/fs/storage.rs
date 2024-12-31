@@ -76,12 +76,14 @@ pub trait TorrentFileStorage: Debug + Send + Sync {
     async fn read_to_end(&self, filepath: &Path) -> Result<Vec<u8>>;
 }
 
+/// This is the default file system storage implementation.
+/// It stores torrent data on the current file system.
 #[derive(Debug)]
-pub struct DefaultTorrentFileStorage {
+pub struct TorrentFileSystemStorage {
     base_path: PathBuf,
 }
 
-impl DefaultTorrentFileStorage {
+impl TorrentFileSystemStorage {
     pub fn new<P: AsRef<Path>>(base_path: P) -> Self {
         Self {
             base_path: base_path.as_ref().to_path_buf(),
@@ -187,7 +189,7 @@ impl DefaultTorrentFileStorage {
 }
 
 #[async_trait]
-impl TorrentFileStorage for DefaultTorrentFileStorage {
+impl TorrentFileStorage for TorrentFileSystemStorage {
     fn exists(&self, filepath: &Path) -> bool {
         let absolute_filepath = self.absolute_filepath(filepath);
 
@@ -261,7 +263,7 @@ mod tests {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let storage = DefaultTorrentFileStorage::new(temp_path);
+        let storage = TorrentFileSystemStorage::new(temp_path);
         let filepath = Path::new("test.mp4");
 
         assert_eq!(
@@ -279,7 +281,7 @@ mod tests {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let storage = DefaultTorrentFileStorage::new(temp_path);
+        let storage = TorrentFileSystemStorage::new(temp_path);
 
         assert_eq!(
             true,
@@ -298,7 +300,7 @@ mod tests {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let storage = DefaultTorrentFileStorage::new(temp_path);
+        let storage = TorrentFileSystemStorage::new(temp_path);
         let filepath = Path::new("test.mp4");
 
         let result = storage.open(filepath).await;
@@ -315,7 +317,7 @@ mod tests {
         let data = vec![1, 2, 3, 4, 5, 16, 88];
         let mut expected_result = vec![0; 128];
         expected_result.extend_from_slice(&data);
-        let storage = DefaultTorrentFileStorage::new(temp_path);
+        let storage = TorrentFileSystemStorage::new(temp_path);
 
         let result = storage.write(file, 128, &data).await;
         assert_eq!(Ok(()), result);
@@ -335,7 +337,7 @@ mod tests {
         let temp_path = temp_dir.path().to_str().unwrap();
         let filename = "debian-12.4.0-amd64-DVD-1.iso";
         copy_test_file(temp_path, "piece-1.iso", Some(filename));
-        let storage = DefaultTorrentFileStorage::new(temp_path);
+        let storage = TorrentFileSystemStorage::new(temp_path);
 
         let result = storage
             .read(filename.as_ref(), 0..30)
@@ -357,7 +359,7 @@ mod tests {
         let temp_path = temp_dir.path().to_str().unwrap();
         let filename = "debian-12.4.0-amd64-DVD-1.iso";
         copy_test_file(temp_path, "piece-1.iso", Some(filename));
-        let storage = DefaultTorrentFileStorage::new(temp_path);
+        let storage = TorrentFileSystemStorage::new(temp_path);
 
         let result = storage
             .read_with_padding(filename.as_ref(), 0..128)

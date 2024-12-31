@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 
-use crate::core::callback::{Callback, MultiCallback, Subscriber, Subscription};
+use crate::core::callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use crate::core::loader::loading_chain::{LoadingChain, Order};
 use crate::core::loader::task::LoadingTask;
 use crate::core::loader::{LoadingData, LoadingEvent, LoadingStrategy};
@@ -349,7 +349,7 @@ struct InnerMediaLoader {
     tasks: RwLock<HashMap<LoadingHandle, LoadingTask>>,
     event_sender: UnboundedSender<MediaLoaderEvent>,
     command_sender: UnboundedSender<MediaLoaderCommandEvent>,
-    callbacks: MultiCallback<MediaLoaderEvent>,
+    callbacks: MultiThreadedCallback<MediaLoaderEvent>,
     cancellation_token: CancellationToken,
     runtime: Arc<Runtime>,
 }
@@ -374,7 +374,7 @@ impl InnerMediaLoader {
             tasks: RwLock::new(HashMap::new()),
             event_sender,
             command_sender,
-            callbacks: MultiCallback::new(runtime.clone()),
+            callbacks: MultiThreadedCallback::new(runtime.clone()),
             cancellation_token: Default::default(),
             runtime,
         }

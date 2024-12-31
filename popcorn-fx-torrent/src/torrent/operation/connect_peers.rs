@@ -7,7 +7,7 @@ use crate::torrent::{
 };
 use async_trait::async_trait;
 use futures::future;
-use log::debug;
+use log::{debug, trace, warn};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -73,7 +73,7 @@ impl TorrentConnectPeersOperation {
         // try to add known peers
         let futures: Vec<_> = peer_addrs
             .into_iter()
-            .map(|addr| self.create_tcp_peer(context, addr))
+            .map(|addr| self.create_peer_with_dialers(context, addr))
             .collect();
 
         future::join_all(futures).await;
@@ -110,42 +110,67 @@ impl TorrentConnectPeersOperation {
         }
     }
 
-    async fn create_tcp_peer(&self, context: &Arc<TorrentContext>, peer_addr: SocketAddr) {
+    /// Try to establish the peer connection through the torrent peer dialers.
+    /// This will dial the address for every dialer and create the connection of the first received successful peer connection.
+    async fn create_peer_with_dialers(&self, context: &Arc<TorrentContext>, peer_addr: SocketAddr) {
         if let Some(permit) = context.peer_pool().permit().await {
             let protocol_extensions = context.protocol_extensions();
-            let extensions = context.extensions();
             let event_sender = context.event_sender();
             let peer_id = context.peer_id();
+            let dialers = context.peer_dialers().clone();
 
             let runtime_context = context.clone();
             context.runtime().spawn(async move {
                 let handle_info = runtime_context.handle();
+                let peer_connection_timeout = runtime_context.config_lock().read().await.peer_connection_timeout;
 
                 debug!(
-                    "Torrent {} is trying to create new peer connection to {}",
-                    runtime_context, peer_addr
+                    "Torrent {} is trying to create new peer connection to {} through {} dialers",
+                    runtime_context, peer_addr, dialers.len()
                 );
-                match Self::create_tcp_peer_connection(
-                    runtime_context,
-                    peer_id,
-                    peer_addr,
-                    protocol_extensions,
-                    extensions,
-                )
-                .await
-                {
-                    Ok(peer) => {
-                        drop(permit);
-                        let _ =
-                            event_sender.send(TorrentCommandEvent::PeerConnected(Box::new(peer)));
+                let mut futures : Vec<_> = dialers.iter()
+                    .map(|dialer| {
+                        let extensions = runtime_context.extensions();
+                        
+                        dialer.dial(
+                            peer_id,
+                            peer_addr,
+                            runtime_context.clone(),
+                            protocol_extensions,
+                            extensions,
+                            peer_connection_timeout
+                        )
+                    })
+                    .collect();
+                if futures.is_empty() {
+                    warn!("Torrent {} has no active peer dialers", runtime_context);
+                    return;
+                }
+
+                loop {
+                    let (result, _, remaining) = future::select_all(futures).await;
+                    
+                    match result {
+                        Ok(peer) => {
+                            drop(permit);
+                            let _ = event_sender.send(TorrentCommandEvent::PeerConnected(peer));
+                            break;
+                        }
+                        Err(e) => {
+                            trace!(
+                                "Torrent {} failed to connect with {}, {}",
+                                handle_info, peer_addr, e
+                            );
+                        }
                     }
-                    Err(e) => {
-                        debug!(
-                            "Torrent {} failed to connect to {}, {}",
-                            handle_info, peer_addr, e
-                        );
-                        drop(permit);
+
+                    if remaining.is_empty() {
+                        debug!("Torrent {} failed to connect to {}, none of the peer dialers succeeded", handle_info, peer_addr);
+                        break;
                     }
+
+                    // replace the futures with the remaining uncompleted futures
+                    futures = remaining;
                 }
             });
         } else {
@@ -155,27 +180,6 @@ impl TorrentConnectPeersOperation {
                 .add_available_peer_addrs(vec![peer_addr])
                 .await;
         }
-    }
-
-    async fn create_tcp_peer_connection(
-        torrent: Arc<TorrentContext>,
-        peer_id: PeerId,
-        peer_addr: SocketAddr,
-        protocol_extensions: ProtocolExtensionFlags,
-        extensions: Extensions,
-    ) -> Result<TcpPeer> {
-        let timeout = torrent.config_lock().read().await.peer_connection_timeout;
-        let runtime = torrent.runtime().clone();
-        Ok(TcpPeer::new_outbound(
-            peer_id,
-            peer_addr,
-            torrent,
-            protocol_extensions,
-            extensions,
-            timeout,
-            runtime,
-        )
-        .await?)
     }
 
     fn parse_url(torrent: &Arc<TorrentContext>, url: &String) -> Option<Url> {
@@ -191,7 +195,7 @@ impl TorrentConnectPeersOperation {
 #[async_trait]
 impl TorrentOperation for TorrentConnectPeersOperation {
     fn name(&self) -> &str {
-        "connect peers operation"
+        "create peer connections operation"
     }
 
     async fn execute(&self, torrent: &Arc<TorrentContext>) -> TorrentOperationResult {

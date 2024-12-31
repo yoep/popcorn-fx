@@ -7,7 +7,7 @@ use bit_vec::BitVec;
 use derive_more::Display;
 use log::{debug, warn};
 use percent_encoding::{percent_encode, AsciiSet, NON_ALPHANUMERIC};
-use popcorn_fx_core::core::callback::{Callback, MultiCallback, Subscriber, Subscription};
+use popcorn_fx_core::core::callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use reqwest::redirect::Policy;
 use reqwest::Client;
 use std::net::SocketAddr;
@@ -55,7 +55,7 @@ impl HttpPeer {
             addr,
             stats: RwLock::new(Default::default()),
             torrent,
-            callbacks: MultiCallback::new(runtime.clone()),
+            callbacks: MultiThreadedCallback::new(runtime.clone()),
             cancellation_token: Default::default(),
         });
 
@@ -135,7 +135,7 @@ struct HttpPeerContext {
     addr: SocketAddr,
     stats: RwLock<PeerStats>,
     torrent: Arc<TorrentContext>,
-    callbacks: MultiCallback<PeerEvent>,
+    callbacks: MultiThreadedCallback<PeerEvent>,
     cancellation_token: CancellationToken,
 }
 

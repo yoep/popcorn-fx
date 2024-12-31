@@ -129,30 +129,25 @@ impl TorrentOperation for TorrentCreatePiecesOperation {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::torrent::fs::DefaultTorrentFileStorage;
-    use crate::torrent::{Torrent, TorrentFlags, TorrentMetadata};
+    use crate::create_torrent;
+    use crate::torrent::fs::TorrentFileSystemStorage;
+    use crate::torrent::{Torrent, TorrentConfig, TorrentFlags, TorrentMetadata};
     use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::read_test_file_to_bytes;
-    use std::sync::Arc;
     use tempfile::tempdir;
-    use tokio::runtime::Runtime;
 
     #[tokio::test]
     async fn test_execute_create_pieces() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let torrent_info_data = read_test_file_to_bytes("debian-udp.torrent");
-        let torrent_info = TorrentMetadata::try_from(torrent_info_data.as_slice()).unwrap();
-        let runtime = Arc::new(Runtime::new().unwrap());
-        let torrent = Torrent::request()
-            .metadata(torrent_info)
-            .options(TorrentFlags::none())
-            .peer_listener_port(9666)
-            .storage(Box::new(DefaultTorrentFileStorage::new(temp_path)))
-            .runtime(runtime.clone())
-            .build()
-            .unwrap();
+        let torrent = create_torrent!(
+            "debian-udp.torrent",
+            temp_path,
+            TorrentFlags::none(),
+            TorrentConfig::default(),
+            vec![]
+        );
         let inner = torrent.instance().unwrap();
         let operation = Box::new(TorrentCreatePiecesOperation::new()) as Box<dyn TorrentOperation>;
 
@@ -171,22 +166,21 @@ mod tests {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let torrent_info_data = read_test_file_to_bytes("debian-udp.torrent");
-        let torrent_info = TorrentMetadata::try_from(torrent_info_data.as_slice()).unwrap();
-        let torrent = Torrent::request()
-            .metadata(torrent_info.clone())
-            .options(TorrentFlags::none())
-            .peer_listener_port(8080)
-            .storage(Box::new(DefaultTorrentFileStorage::new(temp_path)))
-            .build()
-            .unwrap();
-        let inner = torrent.instance().unwrap();
+        let torrent = create_torrent!(
+            "debian-udp.torrent",
+            temp_path,
+            TorrentFlags::none(),
+            TorrentConfig::default(),
+            vec![]
+        );
+        let context = torrent.instance().unwrap();
+        let info_hash = context.metadata().await.info_hash.clone();
         let operation = TorrentCreatePiecesOperation::new();
 
-        inner
-            .update_pieces(vec![Piece::new(torrent_info.info_hash.clone(), 0, 0, 1024)])
+        context
+            .update_pieces(vec![Piece::new(info_hash, 0, 0, 1024)])
             .await;
-        let result = operation.execute(&inner).await;
+        let result = operation.execute(&context).await;
 
         assert_eq!(TorrentOperationResult::Continue, result);
         assert_eq!(

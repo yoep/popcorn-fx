@@ -181,10 +181,6 @@ impl Extension for PexExtension {
             self.subscribe_to_torrent(peer)
         }
     }
-
-    fn clone_boxed(&self) -> Box<dyn Extension> {
-        Box::new(Self::new())
-    }
 }
 
 impl Drop for PexExtension {

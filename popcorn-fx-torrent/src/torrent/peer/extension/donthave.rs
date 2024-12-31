@@ -41,8 +41,4 @@ impl Extension for DontHaveExtension {
     async fn on<'a>(&'a self, _: &'a PeerEvent, _: &'a PeerContext) {
         // no-op
     }
-
-    fn clone_boxed(&self) -> Box<dyn Extension> {
-        Box::new(Self::new())
-    }
 }

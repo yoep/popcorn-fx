@@ -1,13 +1,12 @@
 use std::os::raw::c_char;
-use std::ptr;
 
 use log::trace;
 
+use popcorn_fx_core::core::block_in_place_runtime;
 use popcorn_fx_core::core::torrents::TorrentHealth;
-use popcorn_fx_core::core::{block_in_place, Handle};
 use popcorn_fx_core::{from_c_string, into_c_owned};
 
-use crate::ffi::{ResultC, TorrentErrorC, TorrentStreamEventC, TorrentStreamEventCallback};
+use crate::ffi::{ResultC, TorrentErrorC, TorrentStreamEventC};
 use crate::PopcornFX;
 
 /// Calculates the health of a torrent based on its magnet link.
@@ -22,14 +21,15 @@ use crate::PopcornFX;
 /// Returns the health of the torrent.
 #[no_mangle]
 pub extern "C" fn torrent_health_from_uri(
-    popcorn_fx: &mut PopcornFX,
+    popcorn_fx: &PopcornFX,
     uri: *const c_char,
 ) -> ResultC<TorrentHealth, TorrentErrorC> {
     trace!("Retrieving torrent health of uri from C");
     let uri = from_c_string(uri);
+    let runtime = popcorn_fx.runtime();
 
     ResultC::from(
-        block_in_place(popcorn_fx.torrent_manager().health_from_uri(&uri))
+        block_in_place_runtime(popcorn_fx.torrent_manager().health_from_uri(&uri), runtime)
             .map_err(|e| TorrentErrorC::from(e)),
     )
 }
@@ -41,7 +41,7 @@ pub extern "C" fn torrent_health_from_uri(
 /// Returns the health of the torrent.
 #[no_mangle]
 pub extern "C" fn calculate_torrent_health(
-    popcorn_fx: &mut PopcornFX,
+    popcorn_fx: &PopcornFX,
     seeds: u32,
     leechers: u32,
 ) -> *mut TorrentHealth {
@@ -80,79 +80,15 @@ pub extern "C" fn dispose_torrent_health(health: Box<TorrentHealth>) {
 #[cfg(test)]
 mod test {
     use std::path::PathBuf;
-    use std::sync::mpsc::channel;
-    use std::sync::Arc;
-    use std::time::Duration;
 
-    use log::info;
     use tempfile::tempdir;
-    use tokio::sync::Mutex;
 
-    use popcorn_fx_core::core::block_in_place;
-    use popcorn_fx_core::core::torrents::{
-        MockTorrent, Torrent, TorrentEvent, TorrentFileInfo, TorrentManager, TorrentState,
-    };
-    use popcorn_fx_core::testing::{copy_test_file, init_logger};
-    use popcorn_fx_core::{assert_timeout_eq, init_logger, into_c_string};
+    use popcorn_fx_core::testing::copy_test_file;
+    use popcorn_fx_core::{assert_timeout_eq, init_logger};
 
-    use crate::ffi::{TorrentC, TorrentFileInfoC};
-    use crate::test::{default_args, new_instance};
+    use crate::test::new_instance;
 
     use super::*;
-
-    #[no_mangle]
-    extern "C" fn has_bytes_callback(_: i32, _: *mut u64) -> bool {
-        true
-    }
-
-    #[no_mangle]
-    extern "C" fn has_piece_callback(_: u32) -> bool {
-        true
-    }
-
-    #[no_mangle]
-    extern "C" fn total_pieces_callback() -> i32 {
-        10
-    }
-
-    #[no_mangle]
-    extern "C" fn prioritize_bytes_callback(_: i32, _: *mut u64) {}
-
-    #[no_mangle]
-    extern "C" fn prioritize_pieces_callback(_: i32, _: *mut u32) {}
-
-    #[no_mangle]
-    extern "C" fn sequential_mode_callback() {}
-
-    #[no_mangle]
-    extern "C" fn torrent_state_callback() -> TorrentState {
-        TorrentState::Downloading
-    }
-
-    #[no_mangle]
-    extern "C" fn torrent_stream_event_callback(event: TorrentStreamEventC) {
-        info!("Received torrent stream event {:?}", event);
-    }
-
-    #[no_mangle]
-    extern "C" fn torrent_resolve_callback(
-        file_info: TorrentFileInfoC,
-        _: *mut c_char,
-        _: bool,
-    ) -> TorrentC {
-        info!("Received torrent resolve callback for {:?}", file_info);
-        TorrentC {
-            handle: into_c_string("MyHandle"),
-            filepath: into_c_string("/tmp/pmy-path"),
-            has_byte_callback: has_bytes_callback,
-            has_piece_callback,
-            total_pieces: total_pieces_callback,
-            prioritize_bytes: prioritize_bytes_callback,
-            prioritize_pieces: prioritize_pieces_callback,
-            sequential_mode: sequential_mode_callback,
-            torrent_state: torrent_state_callback,
-        }
-    }
 
     #[test]
     fn test_cleanup_torrents_directory() {

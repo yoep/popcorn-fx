@@ -1,30 +1,30 @@
+use crate::core::torrents::{
+    DownloadStatus, Error, StreamBytesResult, Torrent, TorrentEvent, TorrentFileInfo,
+    TorrentHandle, TorrentState, TorrentStream, TorrentStreamEvent, TorrentStreamState,
+    TorrentStreamingResource, TorrentStreamingResourceWrapper,
+};
+use crate::core::{block_in_place_runtime, torrents};
 use async_trait::async_trait;
 use derive_more::Display;
 use futures::Stream;
+use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use fx_handle::Handle;
 use itertools::Itertools;
 use log::{debug, error, info, trace, warn};
 use std::cmp::{max, min};
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::Debug;
 use std::fs;
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::PathBuf;
 use std::pin::Pin;
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use std::task::{Context, Poll};
 use tokio::runtime::Runtime;
 use tokio::select;
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 use url::Url;
-
-use crate::core::callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
-use crate::core::torrents::{
-    DownloadStatus, Error, StreamBytesResult, Torrent, TorrentEvent, TorrentHandle, TorrentState,
-    TorrentStream, TorrentStreamEvent, TorrentStreamState, TorrentStreamingResource,
-    TorrentStreamingResourceWrapper,
-};
-use crate::core::{block_in_place_runtime, torrents, Handle};
 
 /// The default buffer size used while streaming in bytes
 const BUFFER_SIZE: usize = 10000;
@@ -37,79 +37,145 @@ type Buffer = std::ops::Range<usize>;
 ///
 /// It uses a buffer of [BUFFER_SIZE] which is checked for availability through the
 /// [Torrent] before it's returned.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct DefaultTorrentStream {
-    inner: Arc<InnerTorrentStream>,
+    /// The underlying handle of the torrent, also used to identify a torrent stream.
+    handle: TorrentHandle,
+    /// The reference type of the stream.
+    ref_type: StreamRefType,
+    /// The inner torrent stream instance.
+    instance: Weak<TorrentStreamContext>,
 }
 
 impl DefaultTorrentStream {
     pub fn new(url: Url, torrent: Box<dyn Torrent>, runtime: Arc<Runtime>) -> Self {
-        let inner = InnerTorrentStream::new(url, torrent, runtime.clone());
+        let handle = torrent.handle();
+        let inner = Arc::new(TorrentStreamContext::new(url, torrent, runtime.clone()));
         let instance = Self {
-            inner: Arc::new(inner),
+            handle,
+            ref_type: StreamRefType::Owner,
+            instance: Arc::downgrade(&inner),
         };
 
-        let main_inner = instance.inner.clone();
-        let torrent_event_receiver = main_inner.torrent.subscribe();
+        let torrent_event_receiver = inner.torrent.subscribe();
         runtime.spawn(async move {
-            main_inner.start(torrent_event_receiver).await;
+            inner.start(torrent_event_receiver).await;
         });
 
         instance
+    }
+
+    /// Get an underlying instance reference of the torrent stream.
+    fn instance(&self) -> Option<Arc<TorrentStreamContext>> {
+        self.instance.upgrade()
     }
 }
 
 #[async_trait]
 impl Torrent for DefaultTorrentStream {
     fn handle(&self) -> TorrentHandle {
-        self.inner.handle()
+        self.handle
     }
 
-    async fn file(&self) -> PathBuf {
-        self.inner.file().await
+    async fn files(&self) -> Vec<TorrentFileInfo> {
+        if let Some(context) = self.instance() {
+            return context.files().await;
+        }
+
+        Vec::with_capacity(0)
+    }
+
+    async fn active_files(&self) -> Vec<TorrentFileInfo> {
+        if let Some(context) = self.instance() {
+            return context.active_files().await;
+        }
+
+        Vec::with_capacity(0)
+    }
+
+    async fn largest_file(&self) -> Option<TorrentFileInfo> {
+        if let Some(context) = self.instance() {
+            return context.largest_file().await;
+        }
+
+        None
     }
 
     async fn has_bytes(&self, bytes: &std::ops::Range<usize>) -> bool {
-        self.inner.has_bytes(bytes).await
+        if let Some(context) = self.instance() {
+            return context.has_bytes(bytes).await;
+        }
+
+        false
     }
 
     async fn has_piece(&self, piece: usize) -> bool {
-        self.inner.has_piece(piece).await
+        if let Some(context) = self.instance() {
+            return context.has_piece(piece).await;
+        }
+
+        false
     }
 
     async fn prioritize_bytes(&self, bytes: &std::ops::Range<usize>) {
-        self.inner.prioritize_bytes(bytes).await
+        if let Some(context) = self.instance() {
+            context.prioritize_bytes(bytes).await
+        }
     }
 
     async fn prioritize_pieces(&self, pieces: &[u32]) {
-        self.inner.prioritize_pieces(pieces).await
+        if let Some(context) = self.instance() {
+            context.prioritize_pieces(pieces).await
+        }
     }
 
     async fn total_pieces(&self) -> usize {
-        self.inner.total_pieces().await
+        if let Some(context) = self.instance() {
+            return context.total_pieces().await;
+        }
+
+        0
     }
 
     async fn sequential_mode(&self) {
-        self.inner.sequential_mode().await
+        if let Some(context) = self.instance() {
+            context.sequential_mode().await
+        }
     }
 
     async fn state(&self) -> TorrentState {
-        self.inner.state().await
+        if let Some(context) = self.instance() {
+            return context.state().await;
+        }
+
+        TorrentState::Error
     }
 }
 
 #[async_trait]
 impl TorrentStream for DefaultTorrentStream {
     fn stream_handle(&self) -> Handle {
-        self.inner.stream_handle()
+        if let Some(context) = self.instance() {
+            return context.stream_handle();
+        }
+
+        Handle::new()
     }
 
     fn url(&self) -> Url {
-        self.inner.url()
+        if let Some(context) = self.instance() {
+            return context.url();
+        }
+
+        Url::parse("/").unwrap()
     }
 
     fn stream(&self) -> torrents::Result<TorrentStreamingResourceWrapper> {
-        self.inner.stream()
+        if let Some(context) = self.instance() {
+            return context.stream();
+        }
+
+        Err(Error::InvalidHandle(self.handle.to_string()))
     }
 
     fn stream_offset(
@@ -117,47 +183,90 @@ impl TorrentStream for DefaultTorrentStream {
         offset: u64,
         len: Option<u64>,
     ) -> torrents::Result<TorrentStreamingResourceWrapper> {
-        self.inner.stream_offset(offset, len)
+        if let Some(context) = self.instance() {
+            return context.stream_offset(offset, len);
+        }
+
+        Err(Error::InvalidHandle(self.handle.to_string()))
     }
 
     async fn stream_state(&self) -> TorrentStreamState {
-        self.inner.stream_state().await
+        if let Some(context) = self.instance() {
+            return context.stream_state().await;
+        }
+
+        TorrentStreamState::Stopped
     }
 
     fn stop_stream(&self) {
-        self.inner.stop_stream()
+        if let Some(context) = self.instance() {
+            context.stop_stream()
+        }
     }
 }
 
 impl Callback<TorrentEvent> for DefaultTorrentStream {
     fn subscribe(&self) -> Subscription<TorrentEvent> {
-        self.inner.torrent.subscribe()
+        if let Some(context) = self.instance() {
+            return context.subscribe();
+        }
+
+        panic!("Unable to subscribe to a dropped torrent stream")
     }
 
     fn subscribe_with(&self, subscriber: Subscriber<TorrentEvent>) {
-        self.inner.torrent.subscribe_with(subscriber)
+        if let Some(context) = self.instance() {
+            context.subscribe_with(subscriber)
+        }
     }
 }
 
 impl Callback<TorrentStreamEvent> for DefaultTorrentStream {
     fn subscribe(&self) -> Subscription<TorrentStreamEvent> {
-        self.inner.subscribe()
+        if let Some(context) = self.instance() {
+            return context.subscribe();
+        }
+
+        panic!("Unable to subscribe to a dropped torrent stream")
     }
 
     fn subscribe_with(&self, subscriber: Subscriber<TorrentStreamEvent>) {
-        self.inner.subscribe_with(subscriber)
+        if let Some(context) = self.instance() {
+            context.subscribe_with(subscriber)
+        }
     }
 }
 
-impl Display for DefaultTorrentStream {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.inner)
+impl Clone for DefaultTorrentStream {
+    fn clone(&self) -> Self {
+        Self {
+            handle: self.handle,
+            ref_type: StreamRefType::Borrowed,
+            instance: self.instance.clone(),
+        }
     }
+}
+
+impl Drop for DefaultTorrentStream {
+    fn drop(&mut self) {
+        if self.ref_type == StreamRefType::Owner {
+            if let Some(context) = self.instance.upgrade() {
+                context.cancellation_token.cancel();
+            }
+        }
+    }
+}
+
+/// The type of the stream reference.
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum StreamRefType {
+    Owner,
+    Borrowed,
 }
 
 #[derive(Debug, Display)]
 #[display(fmt = "{}", handle)]
-struct InnerTorrentStream {
+struct TorrentStreamContext {
     handle: Handle,
     /// The backing torrent of this stream
     torrent: Arc<Box<dyn Torrent>>,
@@ -175,7 +284,7 @@ struct InnerTorrentStream {
     runtime: Arc<Runtime>,
 }
 
-impl InnerTorrentStream {
+impl TorrentStreamContext {
     fn new(url: Url, torrent: Box<dyn Torrent>, runtime: Arc<Runtime>) -> Self {
         let prepare_pieces = block_in_place_runtime(Self::preparation_pieces(&torrent), &runtime);
 
@@ -314,37 +423,41 @@ impl InnerTorrentStream {
 
     async fn preparation_pieces(torrent: &Box<dyn Torrent>) -> Vec<u32> {
         let total_pieces = torrent.total_pieces().await;
-        trace!(
-            "Calculating preparation pieces of {:?} for a total of {} pieces",
-            torrent.file().await,
-            total_pieces
-        );
-        let number_of_preparation_pieces = max(8, (total_pieces as f32 * 0.08) as u32);
-        let number_of_preparation_pieces =
-            min(number_of_preparation_pieces, (total_pieces - 1) as u32);
-        let start_of_end_piece_index = max(0, total_pieces - 3);
-        let mut pieces = vec![];
+        if let Some(file) = torrent.active_files().await.first() {
+            trace!(
+                "Calculating preparation pieces of {:?} for a total of {} pieces",
+                file,
+                total_pieces
+            );
+            let number_of_preparation_pieces = max(8, (total_pieces as f32 * 0.08) as u32);
+            let number_of_preparation_pieces =
+                min(number_of_preparation_pieces, (total_pieces - 1) as u32);
+            let start_of_end_piece_index = max(0, total_pieces - 3);
+            let mut pieces = vec![];
 
-        // prepare the first 8% of pieces if it doesn't exceed the total pieces
-        for i in 0..number_of_preparation_pieces {
-            pieces.push(i);
+            // prepare the first 8% of pieces if it doesn't exceed the total pieces
+            for i in 0..number_of_preparation_pieces {
+                pieces.push(i);
+            }
+
+            // prepare the last 3 pieces
+            // this is done for determining the video length during streaming
+            for i in start_of_end_piece_index..total_pieces {
+                pieces.push(i as u32);
+            }
+
+            if pieces.is_empty() {
+                warn!("Unable to prepare stream, pieces to prepare couldn't be determined");
+            }
+
+            pieces.into_iter().map(|e| e).unique().collect()
+        } else {
+            Vec::with_capacity(0)
         }
-
-        // prepare the last 3 pieces
-        // this is done for determining the video length during streaming
-        for i in start_of_end_piece_index..total_pieces {
-            pieces.push(i as u32);
-        }
-
-        if pieces.is_empty() {
-            warn!("Unable to prepare stream, pieces to prepare couldn't be determined");
-        }
-
-        pieces.into_iter().map(|e| e).unique().collect()
     }
 }
 
-impl Callback<TorrentEvent> for InnerTorrentStream {
+impl Callback<TorrentEvent> for TorrentStreamContext {
     fn subscribe(&self) -> Subscription<TorrentEvent> {
         self.torrent.subscribe()
     }
@@ -354,7 +467,7 @@ impl Callback<TorrentEvent> for InnerTorrentStream {
     }
 }
 
-impl Callback<TorrentStreamEvent> for InnerTorrentStream {
+impl Callback<TorrentStreamEvent> for TorrentStreamContext {
     fn subscribe(&self) -> Subscription<TorrentStreamEvent> {
         self.callbacks.subscribe()
     }
@@ -365,13 +478,21 @@ impl Callback<TorrentStreamEvent> for InnerTorrentStream {
 }
 
 #[async_trait]
-impl Torrent for InnerTorrentStream {
+impl Torrent for TorrentStreamContext {
     fn handle(&self) -> TorrentHandle {
         self.torrent.handle()
     }
 
-    async fn file(&self) -> PathBuf {
-        self.torrent.file().await
+    async fn files(&self) -> Vec<TorrentFileInfo> {
+        self.torrent.files().await
+    }
+
+    async fn active_files(&self) -> Vec<TorrentFileInfo> {
+        self.torrent.active_files().await
+    }
+
+    async fn largest_file(&self) -> Option<TorrentFileInfo> {
+        self.torrent.largest_file().await
     }
 
     async fn has_bytes(&self, bytes: &std::ops::Range<usize>) -> bool {
@@ -404,7 +525,7 @@ impl Torrent for InnerTorrentStream {
 }
 
 #[async_trait]
-impl TorrentStream for InnerTorrentStream {
+impl TorrentStream for TorrentStreamContext {
     fn stream_handle(&self) -> Handle {
         self.handle.clone()
     }
@@ -501,46 +622,46 @@ impl DefaultTorrentStreamingResource {
             torrent
         );
         futures::executor::block_on(async {
-            let filepath = torrent.file().await;
+            let files = torrent.active_files().await;
+            if let Some(file) = files.first() {
+                let filepath = file.file_path();
 
-            trace!("Opening torrent file {:?}", &filepath);
-            fs::OpenOptions::new()
-                .read(true)
-                .open(&filepath)
-                .map(|mut file| {
-                    let resource_length =
-                        Self::file_bytes(&mut file).expect("expected a file length");
-                    let mut stream_length = match len {
-                        None => resource_length,
-                        Some(e) => e,
-                    };
-                    let stream_end = offset + stream_length;
+                trace!("Opening torrent file {:?}", &filepath);
+                fs::OpenOptions::new()
+                    .read(true)
+                    .open(&filepath)
+                    .map(|mut file| {
+                        let resource_length =
+                            Self::file_bytes(&mut file).expect("expected a file length");
+                        let mut stream_length = len.unwrap_or_else(|| resource_length);
+                        let stream_end = offset + stream_length;
 
-                    if stream_end > resource_length {
-                        warn!(
-                            "Requested stream range ({}-{}) is larger than {} resource length",
-                            &offset, &stream_end, &resource_length
-                        );
-                        stream_length = resource_length - offset;
-                    }
+                        if stream_end > resource_length {
+                            warn!(
+                                "Requested stream range ({}-{}) is larger than {} resource length",
+                                &offset, &stream_end, &resource_length
+                            );
+                            stream_length = resource_length - offset;
+                        }
 
-                    Self {
-                        torrent,
-                        file,
-                        filepath: filepath.clone(),
-                        resource_length,
-                        cursor: offset as usize,
-                        offset,
-                        len: stream_length,
-                        runtime,
-                    }
-                })
-                .map_err(|e| {
-                    warn!("Failed to open torrent file {:?}, {}", &filepath, e);
-                    let file = filepath;
-                    let filepath = file.as_path().to_str().expect("expected a valid path");
-                    Error::FileNotFound(filepath.to_string())
-                })
+                        Self {
+                            torrent,
+                            file,
+                            filepath: PathBuf::from(filepath),
+                            resource_length,
+                            cursor: offset as usize,
+                            offset,
+                            len: stream_length,
+                            runtime,
+                        }
+                    })
+                    .map_err(|e| {
+                        warn!("Failed to open torrent file {:?}, {}", &filepath, e);
+                        Error::FileNotFound(filepath.to_string())
+                    })
+            } else {
+                Err(Error::FileError("No files are active".to_string()))
+            }
         })
     }
 

@@ -1,15 +1,3 @@
-use std::fmt::Debug;
-use std::sync::mpsc::{channel, Sender};
-use std::sync::{Arc, RwLock, Weak};
-
-use async_trait::async_trait;
-use derive_more::Display;
-use log::{debug, error, info, trace, warn};
-#[cfg(any(test, feature = "testing"))]
-use mockall::automock;
-use tokio::runtime::Runtime;
-use tokio::sync::Mutex;
-
 use crate::core::config::ApplicationConfig;
 use crate::core::event::{
     Event, EventPublisher, PlayerChangedEvent, PlayerStartedEvent, PlayerStoppedEvent,
@@ -18,7 +6,18 @@ use crate::core::media::MediaIdentifier;
 use crate::core::players::{PlayMediaRequest, PlayRequest, Player, PlayerEvent, PlayerState};
 use crate::core::screen::ScreenService;
 use crate::core::torrents::{TorrentManager, TorrentStreamServer};
-use crate::core::{block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks};
+use crate::core::{block_in_place, Callbacks, CoreCallback, CoreCallbacks};
+use async_trait::async_trait;
+use derive_more::Display;
+use fx_callback::CallbackHandle;
+use log::{debug, error, info, trace, warn};
+#[cfg(any(test, feature = "testing"))]
+use mockall::automock;
+use std::fmt::Debug;
+use std::sync::mpsc::{channel, Sender};
+use std::sync::{Arc, RwLock, Weak};
+use tokio::runtime::Runtime;
+use tokio::sync::Mutex;
 
 /// An event representing changes to the player manager.
 #[derive(Debug, Clone, Display)]
@@ -396,15 +395,14 @@ impl InnerPlayerManager {
                         trace!("Last known playback request {:?}", e);
                         e
                     }) {
-                        if let Some(stream) = request
+                        if let Some(handle) = request
                             .downcast_ref::<PlayMediaRequest>()
-                            .and_then(|e| e.torrent_stream.upgrade())
+                            .map(|e| e.torrent_stream.stream_handle())
                         {
-                            debug!("Stopping player stream of {}", stream);
-                            self.torrent_stream_server
-                                .stop_stream(stream.stream_handle());
-                            debug!("Stopping torrent download of {}", stream.handle());
-                            block_in_place(self.torrent_manager.remove(&stream.handle()));
+                            debug!("Stopping player stream of {}", handle);
+                            block_in_place(self.torrent_stream_server.stop_stream(handle));
+                            debug!("Stopping torrent download of {}", handle);
+                            block_in_place(self.torrent_manager.remove(&handle));
                         }
                     } else {
                         warn!(
@@ -605,12 +603,6 @@ struct PlayerData {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::mpsc::{channel, RecvTimeoutError};
-    use std::time::Duration;
-
-    use async_trait::async_trait;
-    use tempfile::tempdir;
-
     use crate::core::config::{PlaybackSettings, PopcornSettings};
     use crate::core::event::DEFAULT_ORDER;
     use crate::core::media::MockMediaIdentifier;
@@ -619,8 +611,13 @@ mod tests {
     use crate::core::torrents::{
         MockTorrentManager, MockTorrentStreamServer, TorrentHandle, TorrentStream,
     };
-    use crate::core::{CallbackHandle, Handle};
-    use crate::testing::{init_logger, MockPlayer, MockTorrentStream};
+    use crate::init_logger;
+    use crate::testing::{MockPlayer, MockTorrentStream};
+    use async_trait::async_trait;
+    use fx_handle::Handle;
+    use std::sync::mpsc::{channel, RecvTimeoutError};
+    use std::time::Duration;
+    use tempfile::tempdir;
 
     use super::*;
 
@@ -699,7 +696,7 @@ mod tests {
 
     #[test]
     fn test_active_player() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let player_id = "MyPlayerId";
@@ -735,7 +732,7 @@ mod tests {
 
     #[test]
     fn test_set_active_player() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let player_id = "FooBar654";
@@ -787,7 +784,7 @@ mod tests {
 
     #[test]
     fn test_set_active_player_twice() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let player_id = "FooBar654";
@@ -843,7 +840,7 @@ mod tests {
 
     #[test]
     fn test_set_active_player_switch_listener() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let player2_id = "Id2";
@@ -899,7 +896,7 @@ mod tests {
 
     #[test]
     fn test_register_new_player() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let player_id = "MyPlayerId";
@@ -929,7 +926,7 @@ mod tests {
 
     #[test]
     fn test_register_duplicate_player_id() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let player_id = "SomePlayer123";
@@ -969,7 +966,7 @@ mod tests {
 
     #[test]
     fn test_player_stopped_event() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let player_id = "SomeId123";
@@ -982,7 +979,7 @@ mod tests {
             .inner
             .expect_stream_handle()
             .return_const(stream_handle);
-        let stream = Arc::new(Box::new(stream) as Box<dyn TorrentStream>);
+        let stream = Box::new(stream) as Box<dyn TorrentStream>;
         let request: Arc<Box<dyn PlayRequest>> = Arc::new(Box::new(PlayMediaRequest {
             base: PlayUrlRequest {
                 url: "".to_string(),
@@ -1000,7 +997,7 @@ mod tests {
             parent_media: None,
             media: Box::new(MockMediaIdentifier::new()),
             quality: "".to_string(),
-            torrent_stream: Arc::downgrade(&stream),
+            torrent_stream: stream,
         }));
         let mut player = MockPlayer::new();
         player.expect_id().return_const(player_id.to_string());
@@ -1045,7 +1042,7 @@ mod tests {
 
     #[test]
     fn test_play() {
-        init_logger();
+        init_logger!();
         let url = "MyUrl";
         let title = "FooBar";
         let player_id = "LoremIpsumPlayer";
@@ -1118,7 +1115,7 @@ mod tests {
 
     #[test]
     fn test_remove() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let player_id = "SomePlayer123";

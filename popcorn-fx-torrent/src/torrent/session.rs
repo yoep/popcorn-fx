@@ -1,15 +1,9 @@
-use std::collections::HashMap;
-use std::fmt::Debug;
-use std::io::Read;
-use std::path::{Path, PathBuf};
-use std::str::FromStr;
-use std::sync::Arc;
-use std::time::Duration;
-
 use crate::torrent::errors::Result;
 use crate::torrent::fs::TorrentFileSystemStorage;
 use crate::torrent::operation::TorrentTrackersOperation;
-use crate::torrent::peer::{ProtocolExtensionFlags, TcpPeerDiscovery, TcpPeerListener};
+use crate::torrent::peer::{
+    ProtocolExtensionFlags, TcpPeerDiscovery, TcpPeerListener, UtpPeerDiscovery,
+};
 use crate::torrent::torrent::Torrent;
 use crate::torrent::{
     ExtensionFactories, ExtensionFactory, InfoHash, Magnet, TorrentConfig, TorrentError,
@@ -19,16 +13,24 @@ use crate::torrent::{
 };
 use async_trait::async_trait;
 use derive_more::Display;
+use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use fx_handle::Handle;
 use log::{debug, trace};
-#[cfg(test)]
-pub use mock::*;
 use popcorn_fx_core::available_port;
-use popcorn_fx_core::core::callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use popcorn_fx_core::core::torrents::TorrentHealth;
-use popcorn_fx_core::core::Handle;
+use std::collections::HashMap;
+use std::fmt::Debug;
+use std::io::Read;
+use std::path::{Path, PathBuf};
+use std::str::FromStr;
+use std::sync::Arc;
+use std::time::Duration;
 use tokio::runtime::Runtime;
 use tokio::sync::RwLock;
 use tokio::{select, time};
+
+#[cfg(test)]
+pub use mock::*;
 
 /// A unique handle identifier of a [Session].
 pub type SessionHandle = Handle;
@@ -342,6 +344,7 @@ impl FxTorrentSession {
         let tcp_port = available_port!(6881, 31000)
             .ok_or(TorrentError::Io("no port available".to_string()))?;
         let tcp_peer_listener = TcpPeerListener::new(tcp_port, self.runtime().clone())?;
+        let utp_peer_discovery = UtpPeerDiscovery::new(tcp_port, self.runtime().clone())?;
 
         trace!("Trying to create new torrent for info hash {}", info_hash);
         let torrent = Torrent::try_from(
@@ -349,8 +352,14 @@ impl FxTorrentSession {
                 .metadata(torrent_info)
                 .options(options)
                 .config(config.build())
-                .peer_dialers(vec![Box::new(TcpPeerDiscovery::new())])
-                .peer_listeners(vec![Box::new(tcp_peer_listener)])
+                .peer_dialers(vec![
+                    Box::new(TcpPeerDiscovery::new()),
+                    Box::new(utp_peer_discovery.clone()),
+                ])
+                .peer_listeners(vec![
+                    Box::new(tcp_peer_listener),
+                    Box::new(utp_peer_discovery),
+                ])
                 .protocol_extensions(self.inner.protocol_extensions)
                 .extensions(self.inner.extensions())
                 .operations(self.inner.torrent_operations())

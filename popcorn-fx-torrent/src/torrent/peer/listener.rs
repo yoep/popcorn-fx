@@ -1,7 +1,7 @@
+use crate::torrent::peer::PeerStream;
 use async_trait::async_trait;
 use std::fmt::Debug;
 use std::net::SocketAddr;
-use tokio::net::TcpStream;
 
 /// A received peer entry incoming connection.
 #[derive(Debug)]
@@ -10,15 +10,6 @@ pub struct PeerEntry {
     pub socket_addr: SocketAddr,
     /// The peer incoming tcp stream
     pub stream: PeerStream,
-}
-
-/// The underlying stream of the incoming peer connection
-#[derive(Debug)]
-pub enum PeerStream {
-    /// The peer is a TCP stream
-    Tcp(TcpStream),
-    /// The peer is a UTP stream
-    Utp,
 }
 
 impl PartialEq for PeerStream {

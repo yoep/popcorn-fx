@@ -8,8 +8,8 @@ use crate::torrent::file::{File, FilePriority};
 use crate::torrent::fs::TorrentFileStorage;
 use crate::torrent::peer::extension::Extension;
 use crate::torrent::peer::{
-    Peer, PeerClientInfo, PeerDiscovery, PeerEntry, PeerEvent, PeerHandle, PeerId, PeerListener,
-    PeerStream, ProtocolExtensionFlags, TcpPeer,
+    BitTorrentPeer, Peer, PeerClientInfo, PeerDiscovery, PeerEntry, PeerEvent, PeerHandle, PeerId,
+    PeerListener, ProtocolExtensionFlags,
 };
 use crate::torrent::peer_pool::PeerPool;
 use crate::torrent::tracker::{
@@ -22,11 +22,10 @@ use crate::torrent::{
     DEFAULT_TORRENT_OPERATIONS, DEFAULT_TORRENT_PROTOCOL_EXTENSIONS,
 };
 use async_trait::async_trait;
-use futures::{future, FutureExt, StreamExt};
+use futures::FutureExt;
+use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use fx_handle::Handle;
 use itertools::Itertools;
-use popcorn_fx_core::available_port;
-use popcorn_fx_core::core::callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
-use popcorn_fx_core::core::Handle;
 use sha1::Sha1;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
@@ -2702,34 +2701,29 @@ impl TorrentContext {
             self,
             entry.socket_addr
         );
+        let extensions = self.extensions();
         let timeout = self.config.read().await.peer_connection_timeout;
-        match entry.stream {
-            PeerStream::Tcp(stream) => {
-                let extensions = self.extensions();
 
-                match TcpPeer::new_inbound(
-                    self.peer_id,
-                    entry.socket_addr,
-                    stream,
-                    torrent.clone(),
-                    self.protocol_extensions,
-                    extensions,
-                    timeout,
-                    torrent.runtime.clone(),
-                )
-                .await
-                {
-                    Ok(peer) => {
-                        debug!("Torrent {} established connection with peer {}", self, peer);
-                        self.add_peer(Box::new(peer)).await;
-                    }
-                    Err(e) => debug!(
-                        "Torrent {} failed to accept incoming peer connection {}, {}",
-                        self, entry.socket_addr, e
-                    ),
-                }
+        match BitTorrentPeer::new_inbound(
+            self.peer_id,
+            entry.socket_addr,
+            entry.stream,
+            torrent.clone(),
+            self.protocol_extensions,
+            extensions,
+            timeout,
+            torrent.runtime.clone(),
+        )
+        .await
+        {
+            Ok(peer) => {
+                debug!("Torrent {} established connection with peer {}", self, peer);
+                self.add_peer(Box::new(peer)).await;
             }
-            PeerStream::Utp => {}
+            Err(e) => debug!(
+                "Torrent {} failed to accept incoming peer connection {}, {}",
+                self, entry.socket_addr, e
+            ),
         }
     }
 
@@ -3503,7 +3497,7 @@ mod tests {
     use crate::create_torrent;
     use crate::torrent::operation::{
         TorrentConnectPeersOperation, TorrentCreateFilesOperation, TorrentCreatePiecesOperation,
-        TorrentFileValidationOperation, TorrentMetadataOperation,
+        TorrentFileValidationOperation, TorrentMetadataOperation, TorrentTrackersOperation,
     };
     use crate::torrent::InfoHash;
     use log::LevelFilter;

@@ -31,6 +31,11 @@ impl AutoResumeLoadingStrategy {
     pub fn new(auto_resume: Arc<Box<dyn AutoResumeService>>) -> Self {
         Self { auto_resume }
     }
+
+    /// Normalizes the given value by trimming and converting it to lowercase.
+    fn normalize(value: &str) -> String {
+        value.trim().to_lowercase()
+    }
 }
 
 impl Debug for AutoResumeLoadingStrategy {
@@ -55,7 +60,26 @@ impl LoadingStrategy for AutoResumeLoadingStrategy {
     async fn process(&self, mut data: LoadingData, context: &LoadingTaskContext) -> LoadingResult {
         trace!("Processing auto resume timestamp for {:?}", data);
         let mut id: Option<&str> = None;
-        let filename = data.torrent_file_info.as_ref().map(|e| e.filename.as_str());
+        let mut filename: Option<String> = None;
+
+        // try to get the filename from the torrent
+        if let Some(torrent) = data.torrent.as_ref() {
+            if let Some(torrent_filename) = data.torrent_file.as_ref() {
+                let files = torrent.files().await;
+                filename = files
+                    .into_iter()
+                    .find(|e| {
+                        Self::normalize(e.filename.as_str()) == Self::normalize(torrent_filename)
+                    })
+                    .map(|e| e.filename);
+            } else {
+                // get the largest files from the torrent
+                filename = torrent
+                    .largest_file()
+                    .await
+                    .map(|e| e.filename().to_string());
+            }
+        }
 
         if context.is_cancelled() {
             return LoadingResult::Err(LoadingError::Cancelled);
@@ -76,7 +100,10 @@ impl LoadingStrategy for AutoResumeLoadingStrategy {
             id,
             filename
         );
-        if let Some(timestamp) = self.auto_resume.resume_timestamp(id, filename) {
+        if let Some(timestamp) = self
+            .auto_resume
+            .resume_timestamp(id.map(|e| e.to_string()), filename)
+        {
             debug!("Using auto resume timestamp {} for {:?}", timestamp, data);
             data.auto_resume_timestamp = Some(timestamp)
         } else {

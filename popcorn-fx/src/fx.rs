@@ -52,7 +52,6 @@ use popcorn_fx_core::core::torrents::collection::TorrentCollection;
 use popcorn_fx_core::core::torrents::stream::DefaultTorrentStreamServer;
 use popcorn_fx_core::core::torrents::{TorrentManager, TorrentStreamServer};
 use popcorn_fx_core::core::updater::Updater;
-use popcorn_fx_core::core::{block_in_place, block_in_place_runtime};
 use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
 use popcorn_fx_platform::platform::DefaultPlatform;
 use popcorn_fx_players::chromecast::ChromecastDiscovery;
@@ -315,7 +314,10 @@ impl PopcornFX {
             Box::new(TorrentStreamLoadingStrategy::new(
                 torrent_stream_server.clone(),
             )),
-            Box::new(TorrentDetailsLoadingStrategy::new(event_publisher.clone())),
+            Box::new(TorrentDetailsLoadingStrategy::new(
+                event_publisher.clone(),
+                torrent_manager.clone(),
+            )),
             Box::new(PlayerLoadingStrategy::new(player_manager.clone())),
         ];
         let media_loader =

@@ -2,9 +2,10 @@ use crate::torrent::merkle::LEAF_BLOCK_SIZE;
 use crate::torrent::peer::extension::{
     Extension, ExtensionName, ExtensionNumber, ExtensionRegistry, Extensions,
 };
-use crate::torrent::peer::peer_reader::{PeerReader, PeerReaderEvent};
+use crate::torrent::peer::peer_conn_tcp::TcpConnection;
+use crate::torrent::peer::peer_conn_utp::UtpConnection;
 use crate::torrent::peer::protocol::{
-    ExtendedHandshake, Handshake, HashRequest, Message, Piece, Request,
+    ExtendedHandshake, Handshake, HashRequest, Message, Piece, Request, UtpStream,
 };
 use crate::torrent::peer::{Error, PeerId, Result};
 use crate::torrent::{
@@ -18,26 +19,24 @@ use byteorder::BigEndian;
 use byteorder::ByteOrder;
 use derive_more::Display;
 use futures::future;
-use log::{debug, error, info, trace, warn};
-use popcorn_fx_core::core::callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
-use popcorn_fx_core::core::Handle;
+use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use fx_handle::Handle;
+use log::{debug, error, trace, warn};
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio::io::{split, AsyncRead, AsyncWriteExt, BufWriter, WriteHalf};
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
-use tokio::sync::mpsc::{channel, unbounded_channel, Receiver, UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::sync::{Mutex, OwnedSemaphorePermit, RwLock};
 use tokio::time::timeout;
 use tokio::{select, time};
 use tokio_util::sync::CancellationToken;
 
 const KEEP_ALIVE_SECONDS: u64 = 90;
-const HANDSHAKE_MESSAGE_LEN: usize = 68;
 /// The maximum amount of in-flight pieces a peer can request
 const MAX_PENDING_PIECES: usize = 3;
 
@@ -118,6 +117,61 @@ pub trait Peer: Debug + Display + Send + Sync + Callback<PeerEvent> {
     async fn close(&self);
 }
 
+/// A peer connection is responsible for sending and receiving Bittorrent [Message]s to and from a remote peer.
+#[async_trait]
+pub(crate) trait PeerConn: Debug + Send + Sync {
+    /// Get the connection type of the peer.
+    ///
+    /// # Returns
+    ///
+    /// It returns the underlying connection type of the peer.
+    fn conn_type(&self) -> ConnectionType;
+
+    /// Try to receive the next available Bittorrent [Message] from the remote peer.
+    ///
+    /// # Returns
+    ///
+    /// It returns a message when available, else [None] when the remote peer connection is closed.
+    async fn recv(&self) -> Option<PeerResponse>;
+
+    /// Write the given bytes to the remote peer.
+    ///
+    /// # Returns
+    ///
+    /// It returns an error when writing to the remote peer failed.
+    async fn write<'a>(&'a self, bytes: &'a [u8]) -> Result<()>;
+
+    /// Close the peer connection.
+    ///
+    /// # Returns
+    ///
+    /// It returns an error when the peer connection couldn't be closed gracefully.
+    async fn close(&self) -> Result<()>;
+}
+
+/// The response of a remote peer connection.
+#[derive(Debug, PartialEq)]
+pub(crate) enum PeerResponse {
+    /// The remote peer sent a handshake.
+    Handshake(Handshake),
+    /// The remote peer sent a message.
+    Message(Message, DataTransferStats),
+    /// The remote peer connection encountered an error.
+    Error(Error),
+    /// The remote peer has closed the connection.
+    Closed,
+}
+
+/// The underlying stream implementation of a [Peer] connection.
+/// This stream is used to connect with, or receive from, a remote peer.
+#[derive(Debug)]
+pub enum PeerStream {
+    /// The peer is a TCP stream
+    Tcp(TcpStream),
+    /// The peer is a UTP stream
+    Utp(UtpStream),
+}
+
 /// The choke states of a peer.
 #[repr(u8)]
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq)]
@@ -180,10 +234,24 @@ impl Ord for InterestState {
     }
 }
 
-/// The connection direction type of a peer.
-#[repr(u8)]
+/// The underlying network connection type of a peer.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ConnectionType {
+    Tcp,
+    Utp,
+}
+
+impl Display for ConnectionType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+/// The connection direction type of the peer.
+/// This indicates if the initial established connection with the remote peer was an inbound or outbound connection.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ConnectionDirection {
     Inbound = 0,
     Outbound = 1,
 }
@@ -368,52 +436,117 @@ pub struct PeerClientInfo {
     /// The remote peer address the client is connected to
     pub addr: SocketAddr,
     /// The connection direction of the peer client
-    pub connection_type: ConnectionType,
+    pub connection_type: ConnectionDirection,
 }
 
+/// The BitTorrent peer protocol implementation.
+/// This [Peer] exchanges torrent data with remote peers through the specified BEP3 BitTorrent protocol.
+///
+/// It communicates with remote peers over TCP or uTP, see [PeerConn] for more info.
 #[derive(Debug)]
-pub struct TcpPeer {
+pub struct BitTorrentPeer {
     inner: Arc<PeerContext>,
 }
 
-impl TcpPeer {
+impl BitTorrentPeer {
+    /// Create a new outgoing BitTorrent peer connection for the given network stream.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use std::net::SocketAddr;
+    /// use std::sync::Arc;
+    /// use std::time::Duration;
+    /// use tokio::net::TcpStream;
+    /// use tokio::runtime::Runtime;
+    /// use popcorn_fx_torrent::torrent::peer::{BitTorrentPeer, PeerId, PeerStream, ProtocolExtensionFlags, Result};
+    /// use popcorn_fx_torrent::torrent::peer::extension::Extension;
+    /// use popcorn_fx_torrent::torrent::TorrentContext;
+    ///
+    /// async fn create_new_peer(torrent: Arc<TorrentContext>, shared_runtime: Arc<Runtime>) -> Result<BitTorrentPeer> {
+    ///     let peer_id = PeerId::new();
+    ///     let addr = SocketAddr::from(([127,0,0,1], 6881));
+    ///     let stream = PeerStream::Tcp(TcpStream::connect(addr).await?);
+    ///     let protocol_extensions = ProtocolExtensionFlags::LTEP | ProtocolExtensionFlags::Fast;
+    ///     let extensions : Vec<Box<dyn Extension>> = vec![];
+    ///
+    ///     BitTorrentPeer::new_outbound(
+    ///         peer_id,
+    ///         addr,
+    ///         stream,
+    ///         torrent,
+    ///         protocol_extensions,
+    ///         extensions,
+    ///         Duration::from_secs(10),
+    ///         shared_runtime
+    ///     ).await
+    /// }
+    /// ```
     pub async fn new_outbound(
         peer_id: PeerId,
         addr: SocketAddr,
+        stream: PeerStream,
         torrent: Arc<TorrentContext>,
         protocol_extensions: ProtocolExtensionFlags,
         extensions: Extensions,
         timeout: Duration,
         runtime: Arc<Runtime>,
     ) -> Result<Self> {
-        trace!("Trying outgoing peer connection to {}", addr);
-        select! {
-            _ = time::sleep(timeout) => {
-                Err(Error::Io(format!("failed to connect to {}, connection timed out", addr)))
-            },
-            stream = TcpStream::connect(&addr) => Self::process_connection_stream(peer_id, addr, stream?, ConnectionType::Outbound, torrent, protocol_extensions, extensions, timeout, runtime).await
-        }
+        trace!("Trying to create outgoing peer connection to {}", addr);
+        let connection: Box<dyn PeerConn> = match stream {
+            PeerStream::Tcp(stream) => {
+                Box::new(TcpConnection::new(peer_id, addr, stream, runtime.clone()))
+            }
+            PeerStream::Utp(stream) => Box::new(UtpConnection::new(peer_id, addr, stream)),
+        };
+        Self::process_connection_stream(
+            peer_id,
+            addr,
+            connection,
+            ConnectionDirection::Outbound,
+            torrent,
+            protocol_extensions,
+            extensions,
+            timeout,
+            runtime,
+        )
+        .await
     }
 
+    /// Try to accept a new incoming BitTorrent peer connection for the given network stream.
     pub async fn new_inbound(
         peer_id: PeerId,
         addr: SocketAddr,
-        stream: TcpStream,
+        stream: PeerStream,
         torrent: Arc<TorrentContext>,
         protocol_extensions: ProtocolExtensionFlags,
         extensions: Extensions,
         timeout: Duration,
         runtime: Arc<Runtime>,
     ) -> Result<Self> {
-        trace!(
-            "Trying to receive incoming peer connection from {}",
-            stream.peer_addr()?
-        );
+        let connection: Box<dyn PeerConn> = match stream {
+            PeerStream::Tcp(stream) => {
+                Box::new(TcpConnection::new(peer_id, addr, stream, runtime.clone()))
+            }
+            PeerStream::Utp(stream) => Box::new(UtpConnection::new(peer_id, addr, stream)),
+        };
+
+        trace!("Trying to receive incoming peer connection from {}", addr);
         select! {
             _ = time::sleep(timeout) => {
                 Err(Error::Io(format!("failed to accept connection from {}, connection timed out", addr)))
             },
-            result = Self::process_connection_stream(peer_id, addr, stream, ConnectionType::Inbound, torrent, protocol_extensions, extensions, timeout, runtime) => result
+            result = Self::process_connection_stream(
+                peer_id,
+                addr,
+                connection,
+                ConnectionDirection::Inbound,
+                torrent,
+                protocol_extensions,
+                extensions,
+                timeout,
+                runtime
+            ) => result
         }
     }
 
@@ -422,7 +555,7 @@ impl TcpPeer {
     /// # Returns
     ///
     /// Returns the connection type of the peer.
-    pub fn connection_type(&self) -> ConnectionType {
+    pub fn connection_type(&self) -> ConnectionDirection {
         self.inner.client.connection_type
     }
 
@@ -649,27 +782,26 @@ impl TcpPeer {
     async fn process_connection_stream(
         peer_id: PeerId,
         addr: SocketAddr,
-        stream: TcpStream,
-        connection_type: ConnectionType,
+        connection: Box<dyn PeerConn>,
+        connection_type: ConnectionDirection,
         torrent: Arc<TorrentContext>,
         protocol_extensions: ProtocolExtensionFlags,
         extensions: Extensions,
         timeout: Duration,
         runtime: Arc<Runtime>,
     ) -> Result<Self> {
-        let (reader, writer) = split(stream);
-        let (reader_sender, peer_reader_receiver) = channel(20);
         let (event_sender, event_receiver) = unbounded_channel();
         let extension_registry = Self::create_extension_registry(&extensions);
         let peer_handle = PeerHandle::new();
         let total_pieces = torrent.total_pieces().await;
+        let client = PeerClientInfo {
+            handle: peer_handle,
+            id: peer_id,
+            addr,
+            connection_type,
+        };
         let inner = Arc::new(PeerContext {
-            client: PeerClientInfo {
-                handle: peer_handle,
-                id: peer_id,
-                addr,
-                connection_type,
-            },
+            client,
             // the remote information is unknown until the handshake has been completed
             remote: RwLock::new(None),
             torrent,
@@ -691,7 +823,7 @@ impl TcpPeer {
             client_pending_request_permits: Mutex::new(HashMap::with_capacity(0)),
             remote_pending_requests: RwLock::new(Vec::with_capacity(0)),
             remote_pending_request_permit: Mutex::new(None),
-            writer: Mutex::new(Some(BufWriter::new(writer))),
+            connection,
             incoming_data_stats: RwLock::new(PeerTransferStats::default()),
             outgoing_data_stats: RwLock::new(PeerTransferStats::default()),
             event_sender,
@@ -701,14 +833,8 @@ impl TcpPeer {
             runtime,
         });
         let peer = Self { inner };
-        let mut peer_reader = PeerReader::new(
-            peer.inner.client.clone(),
-            reader,
-            reader_sender,
-            peer.inner.cancellation_token.clone(),
-        );
 
-        if connection_type == ConnectionType::Outbound {
+        if connection_type == ConnectionDirection::Outbound {
             // as this is an outgoing connection, we're the once who initiate the handshake
             peer.inner.send_handshake().await?;
         }
@@ -716,46 +842,50 @@ impl TcpPeer {
         // retrieve the incoming handshake from the reader
         // as the handshake is always 68 bytes long, we request a buffer of 68 bytes from the reader
         trace!("Peer {} is awaiting the remote handshake", peer);
-        let bytes =
-            Self::try_receive_handshake(&peer.inner.client.addr, &mut peer_reader, timeout).await?;
-        peer.inner.validate_handshake(bytes).await?;
+        let handshake =
+            Self::try_receive_handshake(&peer.inner.client.addr, &peer.inner.connection, timeout)
+                .await?;
+        peer.inner.validate_handshake(handshake).await?;
 
-        if connection_type == ConnectionType::Inbound {
+        if connection_type == ConnectionDirection::Inbound {
             // as this is an incoming connection, we need to send our own handshake after receiving the peer handshake
             peer.inner.send_handshake().await?;
         }
 
-        // start the peer read loop in a new thread
-        // this moves the ownership of PeerReader to a new thread
-        peer.inner.runtime.spawn(async move {
-            peer_reader.start_read_loop().await;
-        });
-
         // start the main loop of the inner peer
         let main_loop = peer.inner.clone();
         let torrent_receiver = peer.inner.torrent.subscribe();
-        peer.inner.runtime.spawn(async move {
-            main_loop
-                .start(peer_reader_receiver, event_receiver, torrent_receiver)
-                .await
-        });
+        peer.inner
+            .runtime
+            .spawn(async move { main_loop.start(event_receiver, torrent_receiver).await });
 
         peer.send_initial_messages().await?;
         Ok(peer)
     }
 
     /// Try to receive/read the incoming handshake from the remote peer.
-    async fn try_receive_handshake<R: AsyncRead + Unpin>(
+    async fn try_receive_handshake(
         addr: &SocketAddr,
-        reader: &mut PeerReader<R>,
+        connection: &Box<dyn PeerConn>,
         timeout: Duration,
-    ) -> Result<Vec<u8>> {
+    ) -> Result<Handshake> {
         select! {
             _ = time::sleep(timeout) => Err(Error::Handshake(
                 addr.clone(),
                 format!("handshake has timed out after {}.{:03} seconds", timeout.as_secs(), timeout.subsec_millis())
             )),
-            bytes = reader.read(HANDSHAKE_MESSAGE_LEN) => bytes,
+            result = connection.recv() => {
+                if let Some(message) = result {
+                    match message {
+                        PeerResponse::Handshake(handshake) => Ok(handshake),
+                        PeerResponse::Error(e) => Err(e),
+                        PeerResponse::Closed => Err(Error::Closed),
+                        _ => Err(Error::Handshake(addr.clone(), "invalid handshake received".to_string())),
+                    }
+                } else {
+                    Err(Error::Closed)
+                }
+            },
         }
     }
 
@@ -782,7 +912,7 @@ impl TcpPeer {
 }
 
 #[async_trait]
-impl Peer for TcpPeer {
+impl Peer for BitTorrentPeer {
     fn handle(&self) -> PeerHandle {
         self.inner.client.handle
     }
@@ -825,7 +955,7 @@ impl Peer for TcpPeer {
     }
 }
 
-impl Callback<PeerEvent> for TcpPeer {
+impl Callback<PeerEvent> for BitTorrentPeer {
     fn subscribe(&self) -> Subscription<PeerEvent> {
         self.inner.subscribe()
     }
@@ -835,20 +965,20 @@ impl Callback<PeerEvent> for TcpPeer {
     }
 }
 
-impl Display for TcpPeer {
+impl Display for BitTorrentPeer {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.inner)
     }
 }
 
-impl PartialEq for TcpPeer {
+impl PartialEq for BitTorrentPeer {
     fn eq(&self, other: &Self) -> bool {
         self.inner.client == other.inner.client
     }
 }
 
 /// Information about transferred data over the peer connection.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct DataTransferStats {
     /// The total amount of bytes that have been transferred
     pub transferred_bytes: usize,
@@ -952,7 +1082,7 @@ pub enum PeerCommandEvent {
 }
 
 #[derive(Debug, Display)]
-#[display(fmt = "{}", client)]
+#[display(fmt = "{}:{}", "connection.conn_type()", client)]
 pub struct PeerContext {
     /// The client information of the peer
     client: PeerClientInfo,
@@ -1000,8 +1130,8 @@ pub struct PeerContext {
     /// The permit of the peer to upload pieces to the remote peer.
     remote_pending_request_permit: Mutex<Option<OwnedSemaphorePermit>>,
 
-    /// The TCP write connection to the remote peer
-    writer: Mutex<Option<BufWriter<WriteHalf<TcpStream>>>>,
+    /// The underlying peer connection
+    connection: Box<dyn PeerConn>,
 
     /// The data transfer info of the incoming channel (from the remote peer)
     incoming_data_stats: RwLock<PeerTransferStats>,
@@ -1025,7 +1155,6 @@ impl PeerContext {
     /// It handles the peer reader events and processing of the pending requests.
     async fn start(
         &self,
-        mut peer_reader: Receiver<PeerReaderEvent>,
         mut event_receiver: UnboundedReceiver<PeerCommandEvent>,
         mut torrent_receiver: Subscription<TorrentEvent>,
     ) {
@@ -1035,7 +1164,7 @@ impl PeerContext {
             select! {
                 _ = self.cancellation_token.cancelled() => break,
                 _ = time::sleep(Duration::from_secs(KEEP_ALIVE_SECONDS)) => self.send_keep_alive().await,
-                Some(event) = peer_reader.recv() => self.handle_reader_event(event).await,
+                Some(event) = self.connection.recv() => self.handle_reader_event(event).await,
                 Some(event) = event_receiver.recv() => self.handle_command_event(event).await,
                 Some(event) = torrent_receiver.recv() => self.handle_torrent_event(&*event).await,
                 _ = interval.tick() => {
@@ -1245,10 +1374,10 @@ impl PeerContext {
     }
 
     /// Handle events that are sent from the peer reader.
-    async fn handle_reader_event(&self, event: PeerReaderEvent) {
+    async fn handle_reader_event(&self, event: PeerResponse) {
         match event {
-            PeerReaderEvent::Closed => self.close(CloseReason::Remote).await,
-            PeerReaderEvent::Message(message, data_transfer) => {
+            PeerResponse::Closed => self.close(CloseReason::Remote).await,
+            PeerResponse::Message(message, data_transfer) => {
                 self.update_read_data_transfer_stats(&message, data_transfer)
                     .await;
 
@@ -1280,6 +1409,11 @@ impl PeerContext {
                     self.handle_received_message(message).await
                 }
             }
+            PeerResponse::Error(e) => {
+                debug!("Peer {} encountered an error, {}", self, e);
+                self.update_state(PeerState::Error).await;
+            }
+            _ => {}
         }
     }
 
@@ -1692,8 +1826,7 @@ impl PeerContext {
         }
     }
 
-    async fn validate_handshake(&self, buffer: Vec<u8>) -> Result<()> {
-        let handshake = Handshake::from_bytes(&self.client.addr, buffer.as_ref())?;
+    async fn validate_handshake(&self, handshake: Handshake) -> Result<()> {
         let info_hash = self.torrent.metadata_lock().read().await.info_hash.clone();
         let mut v2_enabled = false;
         let mut is_valid = false;
@@ -2445,19 +2578,14 @@ impl PeerContext {
         bytes: T,
         piece_data_size: Option<usize>,
     ) -> Result<()> {
-        let mut mutex = self.writer.lock().await;
-        let writer = mutex.as_mut().ok_or(Error::Closed)?;
         let msg_length = bytes.as_ref().len();
 
         let start_time = Instant::now();
         timeout(self.timeout, async {
             trace!("Sending a total of {} bytes to peer {}", msg_length, self);
-            writer.write_all(bytes.as_ref()).await?;
-            writer.flush().await?;
-            Ok::<(), Error>(())
+            self.connection.write(bytes.as_ref()).await
         })
         .await??;
-        drop(mutex);
         let elapsed = start_time.elapsed();
 
         // update the connection stats
@@ -2678,8 +2806,8 @@ impl PeerContext {
         // clear any permits as they cannot be completed from now on
         self.client_pending_requests.write().await.clear();
         self.client_pending_request_permits.lock().await.clear();
-        // close the writer half to end the TcpStream
-        let _ = self.writer.lock().await.take();
+        // close underlying connection
+        let _ = self.connection.close().await;
         // notify any subscribers
         self.update_state(PeerState::Closed).await;
         // notify the torrent that this peer is being closed
@@ -2790,11 +2918,14 @@ mod tests {
         });
 
         // create a connection to the source torrent which has the metadata
+        let peer_id = PeerId::new();
         let peer_addr = SocketAddr::from(([127, 0, 0, 1], source_torrent.peer_port().unwrap()));
+        let stream = runtime.block_on(TcpStream::connect(peer_addr)).unwrap();
         let peer = runtime
-            .block_on(TcpPeer::new_outbound(
-                PeerId::new(),
+            .block_on(BitTorrentPeer::new_outbound(
+                peer_id,
                 peer_addr,
+                PeerStream::Tcp(stream),
                 context.clone(),
                 context.protocol_extensions(),
                 vec![Box::new(MetadataExtension::new())],

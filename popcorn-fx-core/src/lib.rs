@@ -247,6 +247,8 @@ pub fn from_c_vec_owned<T>(ptr: *mut T, len: i32) -> Vec<T> {
 #[cfg(feature = "testing")]
 pub mod testing {
     use async_trait::async_trait;
+    use fx_callback::{Callback, CallbackHandle, Subscriber, Subscription};
+    use fx_handle::Handle;
     use log::{debug, trace, LevelFilter};
     use log4rs::append::console::ConsoleAppender;
     use log4rs::config::{Appender, Logger, Root};
@@ -263,17 +265,16 @@ pub mod testing {
     use tempfile::TempDir;
     use url::Url;
 
-    use crate::core::callback::{Callback, Subscriber, Subscription};
     use crate::core::platform::{Platform, PlatformCallback, PlatformData, PlatformInfo};
     use crate::core::playback::MediaNotificationEvent;
     use crate::core::players::{PlayRequest, Player, PlayerEvent, PlayerState};
     use crate::core::subtitles::model::SubtitleInfo;
     use crate::core::subtitles::{SubtitleEvent, SubtitleManager, SubtitlePreference};
     use crate::core::torrents::{
-        StreamHandle, Torrent, TorrentEvent, TorrentHandle, TorrentState, TorrentStream,
-        TorrentStreamEvent, TorrentStreamState, TorrentStreamingResourceWrapper,
+        StreamHandle, Torrent, TorrentEvent, TorrentFileInfo, TorrentHandle, TorrentState,
+        TorrentStream, TorrentStreamEvent, TorrentStreamState, TorrentStreamingResourceWrapper,
     };
-    use crate::core::{torrents, CallbackHandle, Callbacks, CoreCallback, Handle};
+    use crate::core::{torrents, Callbacks, CoreCallback};
 
     static INIT: Once = Once::new();
 
@@ -300,8 +301,9 @@ pub mod testing {
                 .appender(Appender::builder().build("stdout", Box::new(ConsoleAppender::builder()
                     .encoder(Box::new(PatternEncoder::new("\x1B[37m{d(%Y-%m-%d %H:%M:%S%.3f)}\x1B[0m {h({l:>5.5})} \x1B[35m{I:>6.6}\x1B[0m \x1B[37m---\x1B[0m \x1B[37m[{T:>15.15}]\x1B[0m \x1B[36m{t:<60.60}\x1B[0m \x1B[37m:\x1B[0m {m}{n}")))
                     .build())))
-                .logger(Logger::builder().build("httpmock::server", LevelFilter::Debug))
                 .logger(Logger::builder().build("async_io", LevelFilter::Info))
+                .logger(Logger::builder().build("fx_callback", LevelFilter::Info))
+                .logger(Logger::builder().build("httpmock::server", LevelFilter::Debug))
                 .logger(Logger::builder().build("hyper", LevelFilter::Info))
                 .logger(Logger::builder().build("hyper_util", LevelFilter::Info))
                 .logger(Logger::builder().build("mdns_sd", LevelFilter::Info))
@@ -491,7 +493,9 @@ pub mod testing {
         #[async_trait]
         impl Torrent for InnerTorrentStream {
             fn handle(&self) -> TorrentHandle;
-            async fn file(&self) -> PathBuf;
+            async fn files(&self) -> Vec<TorrentFileInfo>;
+            async fn active_files(&self) -> Vec<TorrentFileInfo>;
+            async fn largest_file(&self) -> Option<TorrentFileInfo>;
             async fn has_bytes(&self, bytes: &std::ops::Range<usize>) -> bool;
             async fn has_piece(&self, piece: usize) -> bool;
             async fn prioritize_bytes(&self, bytes: &std::ops::Range<usize>);
@@ -525,35 +529,33 @@ pub mod testing {
         fn handle(&self) -> TorrentHandle {
             self.inner.handle()
         }
-
-        async fn file(&self) -> PathBuf {
-            self.inner.file().await
+        async fn files(&self) -> Vec<TorrentFileInfo> {
+            self.inner.files().await
         }
-
+        async fn active_files(&self) -> Vec<TorrentFileInfo> {
+            self.inner.active_files().await
+        }
+        async fn largest_file(&self) -> Option<TorrentFileInfo> {
+            self.inner.largest_file().await
+        }
         async fn has_bytes(&self, bytes: &Range<usize>) -> bool {
             self.inner.has_bytes(bytes).await
         }
-
         async fn has_piece(&self, piece: usize) -> bool {
             self.inner.has_piece(piece).await
         }
-
         async fn prioritize_bytes(&self, bytes: &Range<usize>) {
             self.inner.prioritize_bytes(bytes).await
         }
-
         async fn prioritize_pieces(&self, pieces: &[u32]) {
             self.inner.prioritize_pieces(pieces).await
         }
-
         async fn total_pieces(&self) -> usize {
             self.inner.total_pieces().await
         }
-
         async fn sequential_mode(&self) {
             self.inner.sequential_mode().await
         }
-
         async fn state(&self) -> TorrentState {
             self.inner.state().await
         }
@@ -747,7 +749,6 @@ mod test {
     use tempfile::TempDir;
 
     use crate::core::config::{ApplicationConfig, PopcornProperties, ProviderProperties};
-    use crate::testing::init_logger;
 
     use super::*;
 
@@ -840,7 +841,7 @@ mod test {
 
     #[test]
     fn test_from_c_vec() {
-        init_logger();
+        init_logger!();
         let value = Example { a: 25 };
         let array = vec![value.clone()];
 
@@ -857,7 +858,7 @@ mod test {
 
     #[test]
     fn test_from_c_vec_owned() {
-        init_logger();
+        init_logger!();
         let value = Example { a: 25 };
         let array = vec![value.clone()];
 

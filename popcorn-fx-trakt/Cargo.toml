@@ -17,6 +17,7 @@ popcorn-fx-core = { path = "../popcorn-fx-core" }
 async-trait.workspace = true
 chrono.workspace = true
 derive_more.workspace = true
+fx-callback.workspace = true
 itertools.workspace = true
 log.workspace = true
 oauth2.workspace = true

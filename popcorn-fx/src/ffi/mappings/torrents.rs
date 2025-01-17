@@ -1,15 +1,13 @@
-use std::os::raw::c_char;
-use std::ptr;
-
-use log::trace;
-
 use crate::ffi::CArray;
+use fx_handle::Handle;
+use log::trace;
 use popcorn_fx_core::core::torrents::{
     DownloadStatus, Error, TorrentFileInfo, TorrentInfo, TorrentState, TorrentStreamEvent,
     TorrentStreamState,
 };
-use popcorn_fx_core::core::Handle;
 use popcorn_fx_core::{from_c_string, into_c_string};
+use std::os::raw::c_char;
+use std::ptr;
 
 /// Type alias for a callback that verifies if the given byte is available.
 pub type HasByteCallbackC = extern "C" fn(i32, *mut u64) -> bool;

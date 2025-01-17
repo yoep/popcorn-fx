@@ -239,12 +239,10 @@ impl Drop for DefaultPlatform {
 
 #[cfg(test)]
 mod test {
+    use mockall::mock;
+    use popcorn_fx_core::init_logger;
     use std::sync::mpsc::channel;
     use std::time::Duration;
-
-    use mockall::mock;
-
-    use popcorn_fx_core::testing::init_logger;
 
     use super::*;
 
@@ -263,7 +261,7 @@ mod test {
 
     #[test]
     fn test_disable_screensaver() {
-        init_logger();
+        init_logger!();
         let mut sys_platform = MockDummySystemPlatform::new();
         sys_platform.expect_disable_screensaver().returning(|| true);
         sys_platform.expect_enable_screensaver().returning(|| false);
@@ -281,7 +279,7 @@ mod test {
 
     #[test]
     fn test_enable_screensaver() {
-        init_logger();
+        init_logger!();
         let mut sys_platform = MockDummySystemPlatform::new();
         sys_platform.expect_enable_screensaver().returning(|| true);
         let platform = DefaultPlatform {
@@ -298,7 +296,7 @@ mod test {
 
     #[test]
     fn test_drop_default_platform() {
-        init_logger();
+        init_logger!();
         let mut sys_platform = MockDummySystemPlatform::new();
         sys_platform
             .expect_enable_screensaver()
@@ -337,7 +335,7 @@ mod test {
 
     #[test]
     fn test_platform_notify_media_event() {
-        init_logger();
+        init_logger!();
         let platform = DefaultPlatform::default();
 
         // notify the system about a new media playback

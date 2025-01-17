@@ -1,26 +1,23 @@
 use crate::torrent::{
-    errors, torrent, FileIndex, FilePriority, FxTorrentSession, PieceIndex, PiecePriority, Session,
-    Torrent, TorrentError, TorrentEvent, TorrentFiles, TorrentFlags,
+    File, FileIndex, FilePriority, FxTorrentSession, PieceIndex, PiecePriority, Session, Torrent,
+    TorrentEvent, TorrentFileInfo, TorrentFiles, TorrentFlags,
 };
 use async_trait::async_trait;
 use chrono::{DateTime, Local};
+use fx_callback::{Callback, CallbackHandle, Subscriber, Subscription};
 use itertools::Itertools;
-use log::{debug, error, info, trace, warn};
-use popcorn_fx_core::core::callback::{Callback, Subscriber, Subscription};
+use log::{debug, error, trace, warn};
 use popcorn_fx_core::core::config::{ApplicationConfig, CleaningMode, TorrentSettings};
 use popcorn_fx_core::core::event::{Event, EventPublisher, PlayerStoppedEvent};
 use popcorn_fx_core::core::storage::Storage;
 use popcorn_fx_core::core::torrents::{
-    DownloadStatus, TorrentFileInfo, TorrentHandle, TorrentHealth, TorrentInfo, TorrentManager,
-    TorrentManagerEvent, TorrentState,
+    DownloadStatus, TorrentHandle, TorrentHealth, TorrentInfo, TorrentManager, TorrentManagerEvent,
 };
 use popcorn_fx_core::core::{
-    block_in_place_runtime, event, torrents, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks,
+    block_in_place_runtime, event, torrents, Callbacks, CoreCallback, CoreCallbacks,
 };
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::fs;
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Runtime;
@@ -39,7 +36,9 @@ impl crate::torrent::Torrent {
                     Some(event) => {
                         let callback_event = match &*event {
                             TorrentEvent::StateChanged(e) => {
-                                Some(torrents::TorrentEvent::StateChanged(TorrentState::from(e)))
+                                Some(torrents::TorrentEvent::StateChanged(
+                                    torrents::TorrentState::from(e),
+                                ))
                             }
                             TorrentEvent::PieceCompleted(e) => {
                                 Some(torrents::TorrentEvent::PieceFinished(*e as u32))
@@ -90,14 +89,37 @@ impl popcorn_fx_core::core::torrents::Torrent for Torrent {
         self.handle()
     }
 
-    async fn file(&self) -> PathBuf {
-        // try to find the first file with a priority
+    async fn files(&self) -> Vec<torrents::TorrentFileInfo> {
         self.files()
             .await
             .into_iter()
-            .find(|e| e.priority != FilePriority::None)
-            .and_then(|e| self.absolute_filepath(&e).ok())
-            .unwrap_or(PathBuf::from("UNKNOWN"))
+            .map(|file| torrents::TorrentFileInfo::from(file))
+            .collect()
+    }
+
+    async fn active_files(&self) -> Vec<torrents::TorrentFileInfo> {
+        self.files()
+            .await
+            .into_iter()
+            .filter(|file| file.priority != FilePriority::None)
+            .map(|file| torrents::TorrentFileInfo::from(file))
+            .collect()
+    }
+
+    async fn largest_file(&self) -> Option<torrents::TorrentFileInfo> {
+        let mut result: Option<File> = None;
+
+        for file in self.files().await {
+            if let Some(current) = result.as_ref() {
+                if current.length < file.length {
+                    result = Some(file);
+                }
+            } else {
+                result = Some(file);
+            }
+        }
+
+        result.map(|e| torrents::TorrentFileInfo::from(e))
     }
 
     async fn has_bytes(&self, bytes: &std::ops::Range<usize>) -> bool {
@@ -130,13 +152,13 @@ impl popcorn_fx_core::core::torrents::Torrent for Torrent {
         self.add_options(TorrentFlags::SequentialDownload).await
     }
 
-    async fn state(&self) -> TorrentState {
+    async fn state(&self) -> torrents::TorrentState {
         let state = self.state().await;
-        TorrentState::from(&state)
+        torrents::TorrentState::from(&state)
     }
 }
 
-impl From<&crate::torrent::TorrentState> for TorrentState {
+impl From<&crate::torrent::TorrentState> for torrents::TorrentState {
     fn from(value: &crate::torrent::TorrentState) -> Self {
         match value {
             crate::torrent::TorrentState::Initializing => torrents::TorrentState::Initializing,
@@ -149,6 +171,33 @@ impl From<&crate::torrent::TorrentState> for TorrentState {
             crate::torrent::TorrentState::Seeding => torrents::TorrentState::Completed,
             crate::torrent::TorrentState::Paused => torrents::TorrentState::Paused,
             crate::torrent::TorrentState::Error => torrents::TorrentState::Error,
+        }
+    }
+}
+
+impl From<File> for torrents::TorrentFileInfo {
+    fn from(value: File) -> Self {
+        let file_path = value.path;
+        torrents::TorrentFileInfo {
+            filename: file_path
+                .file_name()
+                .map(|e| e.to_string_lossy().to_string())
+                .unwrap_or(String::new()),
+            file_path: file_path.to_string_lossy().to_string(),
+            file_size: value.length as u64,
+            file_index: value.index,
+        }
+    }
+}
+
+impl From<TorrentFileInfo> for torrents::TorrentFileInfo {
+    fn from(value: TorrentFileInfo) -> Self {
+        let file_path = value.path.as_ref().cloned().unwrap_or(Vec::new());
+        torrents::TorrentFileInfo {
+            filename: file_path.iter().last().cloned().unwrap_or(String::new()),
+            file_path: file_path.iter().join("/"),
+            file_size: value.length,
+            file_index: 0,
         }
     }
 }
@@ -210,7 +259,7 @@ impl TorrentManager for DefaultTorrentManager {
         self.inner.health_from_uri(url).await
     }
 
-    async fn create(&self, uri: &str) -> torrents::Result<TorrentHandle> {
+    async fn create(&self, uri: &str) -> torrents::Result<Box<dyn torrents::Torrent>> {
         self.inner.create(uri).await
     }
 
@@ -218,12 +267,8 @@ impl TorrentManager for DefaultTorrentManager {
         self.inner.info(handle).await
     }
 
-    async fn download(
-        &self,
-        handle: &TorrentHandle,
-        file_info: &TorrentFileInfo,
-    ) -> torrents::Result<()> {
-        self.inner.download(handle, file_info).await
+    async fn download(&self, handle: &TorrentHandle, filename: &str) -> torrents::Result<()> {
+        self.inner.download(handle, filename).await
     }
 
     async fn find_by_handle(
@@ -270,7 +315,7 @@ struct InnerTorrentManager {
     /// The underlying torrent sessions of the application
     session: Box<dyn Session>,
     /// The torrent files being downloaded,
-    torrent_files: RwLock<HashMap<TorrentHandle, TorrentFileInfo>>,
+    torrent_files: RwLock<HashMap<TorrentHandle, String>>,
     /// The callbacks of the torrent manager
     callbacks: CoreCallbacks<TorrentManagerEvent>,
     /// The shared runtime
@@ -278,18 +323,15 @@ struct InnerTorrentManager {
 }
 
 impl InnerTorrentManager {
-    async fn create(&self, uri: &str) -> torrents::Result<TorrentHandle> {
+    async fn create(&self, uri: &str) -> torrents::Result<Box<dyn torrents::Torrent>> {
         self.session
             .add_torrent_from_uri(uri, TorrentFlags::Metadata)
             .await
-            .map(|e| e.handle())
+            .map(|e| Box::new(e) as Box<dyn torrents::Torrent>)
             .map_err(|e| torrents::Error::TorrentError(e.to_string()))
     }
 
-    async fn info<'a>(
-        &'a self,
-        handle: &TorrentHandle,
-    ) -> popcorn_fx_core::core::torrents::Result<TorrentInfo> {
+    async fn info<'a>(&'a self, handle: &TorrentHandle) -> torrents::Result<TorrentInfo> {
         match self.session.find_torrent_by_handle(handle).await {
             Some(torrent) => {
                 let mut receiver = torrent.subscribe();
@@ -329,18 +371,9 @@ impl InnerTorrentManager {
                             .into_iter()
                             .enumerate()
                             .map(|(index, file)| {
-                                let file_path = file.path.as_ref().cloned().unwrap_or(Vec::new());
-
-                                TorrentFileInfo {
-                                    filename: file_path
-                                        .iter()
-                                        .last()
-                                        .cloned()
-                                        .unwrap_or(String::new()),
-                                    file_path: file_path.iter().join("/"),
-                                    file_size: file.length,
-                                    file_index: index,
-                                }
+                                let mut file = torrents::TorrentFileInfo::from(file);
+                                file.file_index = index;
+                                file
                             })
                             .collect(),
                         name: info.name,
@@ -356,11 +389,7 @@ impl InnerTorrentManager {
         }
     }
 
-    async fn download(
-        &self,
-        handle: &TorrentHandle,
-        file_info: &TorrentFileInfo,
-    ) -> torrents::Result<()> {
+    async fn download(&self, handle: &TorrentHandle, filename: &str) -> torrents::Result<()> {
         let torrent = self
             .session
             .find_torrent_by_handle(handle)
@@ -383,17 +412,18 @@ impl InnerTorrentManager {
             }
         }
 
-        debug!("Prioritizing file {:?} for torrent {}", file_info, torrent);
+        debug!("Prioritizing file {:?} for torrent {}", filename, torrent);
         let file_priorities: Vec<(FileIndex, FilePriority)> = torrent
             .files()
             .await
             .into_iter()
             .map(|file| {
-                let priority = if file.index == file_info.file_index {
-                    FilePriority::Normal
-                } else {
-                    FilePriority::None
-                };
+                let priority =
+                    if Self::normalize(file.filename().as_str()) == Self::normalize(filename) {
+                        FilePriority::Normal
+                    } else {
+                        FilePriority::None
+                    };
 
                 (file.index, priority)
             })
@@ -405,7 +435,7 @@ impl InnerTorrentManager {
 
         // store the info
         let mut mutex = self.torrent_files.write().await;
-        mutex.insert(torrent.handle(), file_info.clone());
+        mutex.insert(torrent.handle(), filename.to_string());
 
         Ok(())
     }
@@ -480,7 +510,7 @@ impl InnerTorrentManager {
 
         if let Some((handle, _)) = torrent_files
             .iter()
-            .find(|(_, file)| file.filename == filename)
+            .find(|(_, file_filename)| *file_filename == filename)
         {
             return self.session.find_torrent_by_handle(handle).await;
         }
@@ -548,6 +578,11 @@ impl InnerTorrentManager {
             }
         }
     }
+
+    /// Normalize the given value.
+    fn normalize(value: &str) -> String {
+        value.trim().to_lowercase()
+    }
 }
 
 impl Drop for InnerTorrentManager {
@@ -590,7 +625,7 @@ mod test {
             name: filename.to_string(),
             directory_name: None,
             total_files: 1,
-            files: vec![TorrentFileInfo {
+            files: vec![torrents::TorrentFileInfo {
                 filename: "lorem ipsum=[dolor].mp4".to_string(),
                 file_path: filepath.to_str().unwrap().to_string(),
                 file_size: 28000,

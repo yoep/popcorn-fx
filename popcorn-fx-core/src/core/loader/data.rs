@@ -1,9 +1,7 @@
-use std::sync::Weak;
-
-use crate::core::media::{MediaIdentifier, TorrentInfo};
+use crate::core::media::MediaIdentifier;
 use crate::core::playlist::PlaylistItem;
 use crate::core::subtitles::model::{Subtitle, SubtitleInfo};
-use crate::core::torrents::{Torrent, TorrentFileInfo, TorrentStream};
+use crate::core::torrents::Torrent;
 
 /// A structure representing loading data for a media item.
 ///
@@ -18,15 +16,13 @@ pub struct LoadingData {
     pub thumb: Option<String>,
     pub parent_media: Option<Box<dyn MediaIdentifier>>,
     pub media: Option<Box<dyn MediaIdentifier>>,
-    pub torrent_handle: Option<crate::core::torrents::TorrentHandle>,
-    pub torrent_info: Option<crate::core::torrents::TorrentInfo>,
-    pub torrent_file_info: Option<TorrentFileInfo>,
     pub quality: Option<String>,
     pub auto_resume_timestamp: Option<u64>,
     pub subtitle: SubtitleData,
-    pub media_torrent_info: Option<TorrentInfo>,
+    /// The torrent information associated with the media item.
     pub torrent: Option<Box<dyn Torrent>>,
-    pub torrent_stream: Option<Weak<Box<dyn TorrentStream>>>,
+    /// The filename of the torrent that needs to be loaded
+    pub torrent_file: Option<String>,
 }
 
 impl PartialEq for LoadingData {
@@ -37,13 +33,10 @@ impl PartialEq for LoadingData {
             && self.thumb == other.thumb
             && self.parent_media.is_some() == other.parent_media.is_some()
             && self.media.is_some() == other.media.is_some()
-            && self.torrent_handle == other.torrent_handle
-            && self.torrent_info == other.torrent_info
-            && self.torrent_file_info == other.torrent_file_info
             && self.quality == other.quality
             && self.auto_resume_timestamp == other.auto_resume_timestamp
             && self.torrent.is_some() == other.torrent.is_some()
-            && self.torrent_stream.is_some() == other.torrent_stream.is_some()
+            && self.torrent_file == other.torrent_file
     }
 
     fn ne(&self, other: &Self) -> bool {
@@ -69,15 +62,11 @@ impl Clone for LoadingData {
             thumb: self.thumb.clone(),
             parent_media: cloned_parent_media,
             media: cloned_media,
-            torrent_handle: self.torrent_handle.clone(),
-            torrent_info: self.torrent_info.clone(),
-            torrent_file_info: self.torrent_file_info.clone(),
             quality: self.quality.clone(),
             auto_resume_timestamp: self.auto_resume_timestamp,
             subtitle: self.subtitle.clone(),
-            media_torrent_info: self.media_torrent_info.clone(),
             torrent: None,
-            torrent_stream: self.torrent_stream.clone(),
+            torrent_file: self.torrent_file.clone(),
         }
     }
 }
@@ -91,15 +80,11 @@ impl From<&str> for LoadingData {
             thumb: None,
             parent_media: None,
             media: None,
-            torrent_handle: None,
-            torrent_info: None,
-            torrent_file_info: None,
             quality: None,
             auto_resume_timestamp: None,
             subtitle: SubtitleData::default(),
-            media_torrent_info: None,
             torrent: None,
-            torrent_stream: None,
+            torrent_file: None,
         }
     }
 }
@@ -113,9 +98,6 @@ impl From<PlaylistItem> for LoadingData {
             thumb: value.thumb,
             parent_media: value.media.parent,
             media: value.media.media,
-            torrent_handle: None,
-            torrent_info: value.torrent.info,
-            torrent_file_info: value.torrent.file_info,
             quality: value.quality,
             auto_resume_timestamp: value.auto_resume_timestamp,
             subtitle: SubtitleData {
@@ -123,9 +105,8 @@ impl From<PlaylistItem> for LoadingData {
                 info: value.subtitle.info,
                 subtitle: None,
             },
-            media_torrent_info: None,
             torrent: None,
-            torrent_stream: None,
+            torrent_file: None,
         }
     }
 }
@@ -199,15 +180,11 @@ mod tests {
             thumb: Some(thumb.to_string()),
             parent_media: Some(Box::new(show_overview)),
             media: Some(Box::new(episode)),
-            torrent_handle: None,
-            torrent_info: None,
-            torrent_file_info: None,
             quality: Some(quality.to_string()),
             auto_resume_timestamp: None,
             subtitle: SubtitleData::default(),
-            media_torrent_info: None,
             torrent: None,
-            torrent_stream: None,
+            torrent_file: None,
         };
 
         let result = LoadingData::from(item);

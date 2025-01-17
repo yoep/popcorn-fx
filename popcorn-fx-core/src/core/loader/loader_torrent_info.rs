@@ -11,7 +11,8 @@ use crate::core::media::{
 };
 use crate::core::torrents;
 use crate::core::torrents::{
-    TorrentEvent, TorrentFileInfo, TorrentHandle, TorrentInfo, TorrentManager, TorrentState,
+    Torrent, TorrentEvent, TorrentFileInfo, TorrentHandle, TorrentInfo, TorrentManager,
+    TorrentState,
 };
 use async_trait::async_trait;
 use derive_more::Display;
@@ -19,6 +20,7 @@ use log::{debug, error, trace};
 use tokio::select;
 
 const MAGNET_PREFIX: &str = "magnet:?";
+const TORRENT_EXTENSION: &str = ".torrent";
 
 /// Represent the loading strategy for loading the torrent information from a media item or a magnet link.
 #[derive(Display)]
@@ -36,14 +38,19 @@ impl TorrentInfoLoadingStrategy {
         &self,
         url: &str,
         context: &LoadingTaskContext,
-    ) -> Result<(TorrentHandle, TorrentInfo)> {
+    ) -> Result<(Box<dyn Torrent>, TorrentInfo)> {
         context.send_event(LoadingEvent::StateChanged(LoadingState::Starting));
         // create the torrent
         match self.torrent_manager.create(url).await {
-            Ok(handle) => {
-                let mut receiver = self.torrent_manager.subscribe(&handle).await.ok_or(
-                    LoadingError::TorrentError(torrents::Error::InvalidHandle(handle.to_string())),
-                )?;
+            Ok(torrent) => {
+                let mut receiver = self
+                    .torrent_manager
+                    .subscribe(&torrent.handle())
+                    .await
+                    .ok_or(LoadingError::TorrentError(torrents::Error::InvalidHandle(
+                        torrent.handle().to_string(),
+                    )))?;
+                let handle = torrent.handle();
                 let mut info_future = self.torrent_manager.info(&handle);
 
                 loop {
@@ -51,7 +58,7 @@ impl TorrentInfoLoadingStrategy {
                         _ = context.cancelled() => return Err(LoadingError::Cancelled),
                         Some(event) = receiver.recv() => Self::handle_torrent_event(&*event, context),
                         info = &mut info_future => return info
-                            .map(|e| (handle, e))
+                            .map(|e| (torrent, e))
                             .map_err(|e| LoadingError::TorrentError(e)),
                     }
                 }
@@ -161,24 +168,19 @@ impl LoadingStrategy for TorrentInfoLoadingStrategy {
     async fn process(&self, mut data: LoadingData, context: &LoadingTaskContext) -> LoadingResult {
         let mut url: Option<String> = None;
 
-        if data.torrent_info.is_none() {
-            trace!(
-                "Processing item url {:?} for torrent loading strategy",
+        // check if the url is either a torrent Magnet or torrent file
+        if let Some(item_url) = data
+            .url
+            .as_ref()
+            .filter(|url| url.starts_with(MAGNET_PREFIX) || url.ends_with(TORRENT_EXTENSION))
+            .cloned()
+        {
+            url = Some(item_url);
+        } else {
+            debug!(
+                "Playlist item url {:?} is not a magnet, torrent loading is skipped",
                 data.url
             );
-            if let Some(item_url) = data
-                .url
-                .as_ref()
-                .filter(|url| url.starts_with(MAGNET_PREFIX))
-                .cloned()
-            {
-                url = Some(item_url);
-            } else {
-                debug!(
-                    "Playlist item url {:?} is not a magnet, torrent loading is skipped",
-                    data.url
-                );
-            }
         }
 
         if let Some(url) = url {
@@ -186,7 +188,7 @@ impl LoadingStrategy for TorrentInfoLoadingStrategy {
             let torrent_info = self.resolve_torrent_info(url.as_str(), context).await;
 
             match torrent_info {
-                Ok((handle, info)) => {
+                Ok((torrent, info)) => {
                     if let Some(media) = data.media.as_ref() {
                         if let Some(quality) = data.quality.as_ref() {
                             trace!(
@@ -200,7 +202,7 @@ impl LoadingStrategy for TorrentInfoLoadingStrategy {
                             {
                                 Ok(torrent_file) => {
                                     debug!("Updating torrent file info to {}", torrent_file);
-                                    data.torrent_file_info = Some(torrent_file);
+                                    data.torrent_file = Some(torrent_file.filename);
                                 }
                                 Err(e) => return LoadingResult::Err(e),
                             }
@@ -209,8 +211,7 @@ impl LoadingStrategy for TorrentInfoLoadingStrategy {
 
                     debug!("Updating torrent info to {:?}", info);
                     data.url = None; // remove the original url as the item has been enhanced with the data of it
-                    data.torrent_handle = Some(handle);
-                    data.torrent_info = Some(info);
+                    data.torrent = Some(torrent);
                 }
                 Err(e) => return LoadingResult::Err(e),
             }
@@ -220,12 +221,12 @@ impl LoadingStrategy for TorrentInfoLoadingStrategy {
     }
 
     async fn cancel(&self, mut data: LoadingData) -> CancellationResult {
-        if let Some(handle) = data.torrent_handle.take() {
+        if let Some(torrent) = data.torrent.take() {
             debug!(
                 "Torrent info loader is cancelling torrent {} for loading task",
-                handle
+                torrent.handle()
             );
-            self.cancel_torrent(&handle).await;
+            self.cancel_torrent(&torrent.handle()).await;
         }
 
         Ok(data)
@@ -237,7 +238,7 @@ mod tests {
     use crate::core::media;
     use crate::core::media::ShowOverview;
     use crate::core::playlist::{PlaylistItem, PlaylistMedia};
-    use crate::core::torrents::{MockTorrentManager, TorrentInfo};
+    use crate::core::torrents::{MockTorrent, MockTorrentManager, TorrentInfo};
     use crate::{create_loading_task, init_logger};
     use std::sync::mpsc::channel;
     use std::time::Duration;
@@ -270,6 +271,8 @@ mod tests {
             subtitle: Default::default(),
             torrent: Default::default(),
         });
+        let mut torrent = MockTorrent::new();
+        torrent.expect_handle().return_const(expected_handle);
         let (tx_uri, rx_uri) = channel();
         let (tx_handle, rx_handle) = channel();
         let (_txs, rxs) = unbounded_channel();
@@ -280,7 +283,7 @@ mod tests {
             .times(1)
             .returning(move |uri| {
                 tx_uri.send(uri.to_string()).unwrap();
-                Ok(expected_handle.clone())
+                Ok(Box::new(torrent))
             });
         torrent_manager.expect_info().returning(move |handle| {
             tx_handle.send(*handle).unwrap();
@@ -295,10 +298,8 @@ mod tests {
         let strategy = TorrentInfoLoadingStrategy::new(Arc::new(Box::new(torrent_manager)));
 
         let result = runtime.block_on(strategy.process(data.clone(), &*context));
-        data.url = None;
-        data.torrent_handle = Some(expected_handle);
-        data.torrent_info = Some(info);
-        assert_eq!(LoadingResult::Ok(data), result);
+        assert_eq!(None, data.url, "expected url to be None");
+        assert!(data.torrent.is_some(), "expected torrent to be Some");
 
         let result_url = rx_uri.recv_timeout(Duration::from_millis(200)).unwrap();
         assert_eq!(magnet_url.to_string(), result_url);
@@ -400,7 +401,10 @@ mod tests {
 
         assert_eq!(magnet_url.to_string(), resolve_url);
         if let LoadingResult::Ok(result) = result {
-            assert_eq!(Some(expected_torrent_file_info), result.torrent_file_info);
+            assert!(
+                result.torrent_file.is_some(),
+                "expected torrent file to be Some"
+            );
         } else {
             assert!(
                 false,

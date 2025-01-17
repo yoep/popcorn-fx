@@ -1,8 +1,3 @@
-use std::collections::HashMap;
-use std::fmt::Debug;
-use std::sync::Arc;
-
-use crate::core::callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use crate::core::loader::loading_chain::{LoadingChain, Order};
 use crate::core::loader::task::LoadingTask;
 use crate::core::loader::{LoadingData, LoadingEvent, LoadingStrategy};
@@ -10,13 +5,18 @@ use crate::core::media::{
     Episode, Images, MediaIdentifier, MediaOverview, MovieDetails, ShowDetails,
 };
 use crate::core::playlist::PlaylistItem;
+use crate::core::torrents;
 use crate::core::torrents::DownloadStatus;
-use crate::core::{torrents, Handle};
 use async_trait::async_trait;
 use derive_more::Display;
+use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use fx_handle::Handle;
 use log::{debug, error, trace};
 #[cfg(any(test, feature = "testing"))]
 pub use mock::*;
+use std::collections::HashMap;
+use std::fmt::Debug;
+use std::sync::Arc;
 use thiserror::Error;
 use tokio::runtime::Runtime;
 use tokio::select;
@@ -613,14 +613,10 @@ mod tests {
             thumb: None,
             parent_media: None,
             media: None,
-            torrent_handle: None,
-            torrent_info: None,
-            torrent_file_info: None,
             quality: None,
             auto_resume_timestamp: None,
-            media_torrent_info: None,
             torrent: None,
-            torrent_stream: None,
+            torrent_file: None,
             subtitle: SubtitleData::default(),
         };
 
@@ -650,9 +646,6 @@ mod tests {
             thumb: None,
             parent_media: None,
             media: None,
-            torrent_handle: None,
-            torrent_info: None,
-            torrent_file_info: None,
             quality: None,
             auto_resume_timestamp: None,
             subtitle: SubtitleData {
@@ -660,9 +653,8 @@ mod tests {
                 info: None,
                 subtitle: None,
             },
-            media_torrent_info: None,
             torrent: None,
-            torrent_stream: None,
+            torrent_file: None,
         };
 
         let result = LoadingData::from(item);

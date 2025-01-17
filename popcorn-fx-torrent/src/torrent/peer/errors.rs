@@ -25,6 +25,9 @@ pub enum Error {
     /// Indicates that the protocol version is unsupported
     #[error("unsupported version {0}")]
     UnsupportedVersion(u32),
+    /// Indicates that a given extensions is not supported
+    #[error("extension number {0} is not supported")]
+    UnsupportedExtensions(u8),
     /// Indicates that the handshake failed
     #[error("handshake with {0} failed, {1}")]
     Handshake(SocketAddr, String),
@@ -51,5 +54,19 @@ impl From<io::Error> for Error {
 impl From<Elapsed> for Error {
     fn from(error: Elapsed) -> Self {
         Error::Io(error.to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_error_from_io() {
+        let error = io::Error::from(io::ErrorKind::UnexpectedEof);
+
+        let result = Error::from(error);
+
+        assert_eq!(Error::Io(io::ErrorKind::UnexpectedEof.to_string()), result);
     }
 }

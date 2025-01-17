@@ -1,4 +1,3 @@
-use crate::torrent::TorrentOperation;
 pub use connect_peers::*;
 pub use connect_trackers::*;
 pub use connect_trackers_sync::*;

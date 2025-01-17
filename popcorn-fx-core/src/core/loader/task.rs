@@ -1,4 +1,9 @@
+use crate::core::loader::loading_chain::LoadingChain;
+use crate::core::loader::{
+    LoadingData, LoadingError, LoadingEvent, LoadingHandle, LoadingResult, LoadingState,
+};
 use derive_more::Display;
+use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use log::{debug, error, info, trace, warn};
 use std::sync::Arc;
 use tokio::runtime::Runtime;
@@ -8,12 +13,6 @@ use tokio::sync::Mutex;
 use tokio::time::Instant;
 use tokio_util::sync::{
     CancellationToken, WaitForCancellationFuture, WaitForCancellationFutureOwned,
-};
-
-use crate::core::callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
-use crate::core::loader::loading_chain::LoadingChain;
-use crate::core::loader::{
-    LoadingData, LoadingError, LoadingEvent, LoadingHandle, LoadingResult, LoadingState,
 };
 
 /// Represents a task responsible for loading media items in a playlist.

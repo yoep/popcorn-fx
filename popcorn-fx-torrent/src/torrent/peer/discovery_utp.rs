@@ -1,13 +1,15 @@
 use crate::torrent::peer::extension::Extensions;
-use crate::torrent::peer::protocol::UtpSocket;
+use crate::torrent::peer::protocol::{UtpSocket, UtpStream};
 use crate::torrent::peer::{
-    Error, Peer, PeerDiscovery, PeerEntry, PeerId, PeerListener, ProtocolExtensionFlags, Result,
+    BitTorrentPeer, Error, Peer, PeerDiscovery, PeerEntry, PeerId, PeerListener, PeerStream,
+    ProtocolExtensionFlags, Result,
 };
 use crate::torrent::TorrentContext;
 use async_trait::async_trait;
 use derive_more::Display;
+use futures::FutureExt;
+use fx_handle::Handle;
 use log::{debug, trace};
-use popcorn_fx_core::core::Handle;
 use std::net::SocketAddr;
 use std::sync::{mpsc, Arc};
 use std::time::Duration;
@@ -20,11 +22,11 @@ use tokio_util::sync::CancellationToken;
 pub type UtpPeerDiscoveryHandle = Handle;
 
 #[derive(Debug, Clone)]
-pub struct UtpPeerDialerListener {
+pub struct UtpPeerDiscovery {
     inner: Arc<InnerUtpPeerDiscovery>,
 }
 
-impl UtpPeerDialerListener {
+impl UtpPeerDiscovery {
     /// Create a new uTP peer discovery instance on the given port.
     pub fn new(port: u16, runtime: Arc<Runtime>) -> Result<Self> {
         let (tx_ready, rx) = mpsc::channel();
@@ -53,13 +55,19 @@ impl UtpPeerDialerListener {
 }
 
 #[async_trait]
-impl PeerListener for UtpPeerDialerListener {
+impl PeerListener for UtpPeerDiscovery {
     fn port(&self) -> u16 {
         self.inner.port
     }
 
     async fn recv(&mut self) -> Option<PeerEntry> {
-        None
+        match self.inner.recv().await {
+            None => None,
+            Some(stream) => Some(PeerEntry {
+                socket_addr: stream.addr(),
+                stream: PeerStream::Utp(stream),
+            }),
+        }
     }
 
     fn close(&self) {
@@ -68,7 +76,7 @@ impl PeerListener for UtpPeerDialerListener {
 }
 
 #[async_trait]
-impl PeerDiscovery for UtpPeerDialerListener {
+impl PeerDiscovery for UtpPeerDiscovery {
     async fn dial(
         &self,
         peer_id: PeerId,
@@ -77,16 +85,29 @@ impl PeerDiscovery for UtpPeerDialerListener {
         protocol_extensions: ProtocolExtensionFlags,
         extensions: Extensions,
         connection_timeout: Duration,
-    ) -> crate::torrent::peer::Result<Box<dyn Peer>> {
+    ) -> Result<Box<dyn Peer>> {
         let socket_mutex = self.inner.sockets.read().await;
         let socket = socket_mutex
             .iter()
             .find(|e| e.addr().is_ipv4() == peer_addr.is_ipv4());
 
         if let Some(socket) = socket {
-            socket.connect(peer_addr).await?;
+            let runtime = torrent.runtime().clone();
+            let stream = socket.connect(peer_addr).await?;
 
-            return Err(Error::Io("not yet implemented".to_string()));
+            return Ok(Box::new(
+                BitTorrentPeer::new_outbound(
+                    peer_id,
+                    peer_addr,
+                    PeerStream::Utp(stream),
+                    torrent,
+                    protocol_extensions,
+                    extensions,
+                    connection_timeout,
+                    runtime,
+                )
+                .await?,
+            ));
         }
 
         Err(Error::Io(format!(
@@ -96,7 +117,7 @@ impl PeerDiscovery for UtpPeerDialerListener {
     }
 }
 
-impl Drop for UtpPeerDialerListener {
+impl Drop for UtpPeerDiscovery {
     fn drop(&mut self) {
         self.close();
     }
@@ -132,6 +153,23 @@ impl InnerUtpPeerDiscovery {
             }
             Err(e) => self.send(Err(e), ready_sender),
         }
+    }
+
+    async fn recv(&self) -> Option<UtpStream> {
+        let sockets = self.sockets.read().await;
+
+        let mut futures = sockets.iter().map(|e| e.recv());
+        if let Some(first) = futures.next().map(|e| e.fuse()) {
+            return match first.await {
+                Some(stream) => Some(stream),
+                None => {
+                    debug!("Utp discovery {} no streams available", self);
+                    None
+                }
+            };
+        }
+
+        None
     }
 
     async fn try_create_listeners(
@@ -192,7 +230,7 @@ mod tests {
         let port = available_port!(31000, 32000).unwrap();
         let runtime = Arc::new(Runtime::new().unwrap());
 
-        let result = UtpPeerDialerListener::new(port, runtime);
+        let result = UtpPeerDiscovery::new(port, runtime);
         assert_eq!(
             true,
             result.is_ok(),
@@ -211,7 +249,7 @@ mod tests {
         let temp_path = temp_dir.path().to_str().unwrap();
         let runtime = Arc::new(Runtime::new().unwrap());
         let port = available_port!(11000, 12000).unwrap();
-        let discovery = UtpPeerDialerListener::new(port, runtime.clone()).unwrap();
+        let discovery = UtpPeerDiscovery::new(port, runtime.clone()).unwrap();
         let torrent = create_torrent!(
             "debian-udp.torrent",
             temp_path,

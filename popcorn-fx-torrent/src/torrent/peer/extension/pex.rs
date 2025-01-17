@@ -1,13 +1,13 @@
 use crate::torrent::peer::extension::{Error, Extension, ExtensionNumber, Result};
 use crate::torrent::peer::protocol::Message;
 use crate::torrent::peer::{
-    ConnectionType, PeerClientInfo, PeerCommandEvent, PeerContext, PeerEvent,
+    ConnectionDirection, PeerClientInfo, PeerCommandEvent, PeerContext, PeerEvent,
 };
 use crate::torrent::{CompactIpv4Addrs, CompactIpv6Addrs, TorrentEvent};
 use async_trait::async_trait;
 use bitmask_enum::bitmask;
+use fx_callback::Callback;
 use log::{debug, warn};
-use popcorn_fx_core::core::callback::Callback;
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -277,7 +277,7 @@ impl InnerPexPool {
     async fn peer_added(&self, peer: &PeerClientInfo) {
         let mut flags = PexFlag::none();
 
-        if peer.connection_type == ConnectionType::Outbound {
+        if peer.connection_type == ConnectionDirection::Outbound {
             flags |= PexFlag::OutgoingConnection;
         }
 
@@ -290,7 +290,7 @@ impl InnerPexPool {
     async fn peer_removed(&self, peer: &PeerClientInfo) {
         let mut flags = PexFlag::none();
 
-        if peer.connection_type == ConnectionType::Outbound {
+        if peer.connection_type == ConnectionDirection::Outbound {
             flags |= PexFlag::OutgoingConnection;
         }
 

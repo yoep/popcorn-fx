@@ -1,12 +1,10 @@
-use std::os::raw::c_char;
-
-use log::{trace, warn};
-
-use popcorn_fx_core::core::{block_in_place_runtime, Handle};
-use popcorn_fx_core::from_c_string;
-
 use crate::ffi::{LoaderEventC, LoaderEventCallback, LoadingHandleC};
 use crate::PopcornFX;
+use fx_handle::Handle;
+use log::{trace, warn};
+use popcorn_fx_core::core::block_in_place_runtime;
+use popcorn_fx_core::from_c_string;
+use std::os::raw::c_char;
 
 /// Register a loader event callback to receive loader state change events.
 ///

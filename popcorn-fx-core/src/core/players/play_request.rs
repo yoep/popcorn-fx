@@ -1,15 +1,14 @@
-use std::fmt::Formatter;
-use std::fmt::{Debug, Display};
-use std::sync::Weak;
-
 use derive_more::Display;
 use downcast_rs::{impl_downcast, DowncastSync};
 #[cfg(any(test, feature = "testing"))]
 use mockall::automock;
+use std::fmt::Formatter;
+use std::fmt::{Debug, Display};
 
 use crate::core::loader::LoadingData;
 use crate::core::media::MediaIdentifier;
 use crate::core::subtitles::model::{Subtitle, SubtitleInfo};
+use crate::core::torrents::stream::DefaultTorrentStream;
 use crate::core::torrents::TorrentStream;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -286,7 +285,7 @@ impl PlayUrlRequestBuilder {
 }
 
 /// Represents a request for streaming media.
-#[derive(Debug, Display, Clone)]
+#[derive(Debug, Display)]
 #[display(fmt = "{}", base)]
 pub struct PlayStreamRequest {
     /// The base play request for URL-based media.
@@ -294,7 +293,7 @@ pub struct PlayStreamRequest {
     /// The quality of the media.
     pub quality: Option<String>,
     /// The torrent stream being used to stream the media item.
-    pub torrent_stream: Weak<Box<dyn TorrentStream>>,
+    pub torrent_stream: Box<dyn TorrentStream>,
 }
 
 impl PlayStreamRequest {
@@ -374,8 +373,10 @@ impl From<LoadingData> for PlayStreamRequest {
         if let Some(e) = value.quality {
             builder = builder.quality(e.as_str());
         }
-        if let Some(e) = value.torrent_stream {
-            builder = builder.torrent_stream(e);
+        if let Some(torrent) = value.torrent {
+            if let Ok(stream) = torrent.downcast::<DefaultTorrentStream>() {
+                builder = builder.torrent_stream(stream);
+            }
         }
         if subtitles_enabled {
             if let Some(e) = value.subtitle.subtitle {
@@ -400,7 +401,7 @@ pub struct PlayStreamRequestBuilder {
     subtitle_info: Option<SubtitleInfo>,
     subtitle: Option<Subtitle>,
     quality: Option<String>,
-    torrent_stream: Option<Weak<Box<dyn TorrentStream>>>,
+    torrent_stream: Option<Box<dyn TorrentStream>>,
 }
 
 impl PlayStreamRequestBuilder {
@@ -488,7 +489,7 @@ impl PlayStreamRequestBuilder {
     }
 
     /// Sets the torrent stream of the media.
-    pub fn torrent_stream(mut self, torrent_stream: Weak<Box<dyn TorrentStream>>) -> Self {
+    pub fn torrent_stream(mut self, torrent_stream: Box<dyn TorrentStream>) -> Self {
         self.torrent_stream = Some(torrent_stream);
         self
     }
@@ -540,7 +541,7 @@ pub struct PlayMediaRequest {
     /// The quality information for the media.
     pub quality: String,
     /// The torrent stream that is being used to stream the media item
-    pub torrent_stream: Weak<Box<dyn TorrentStream>>,
+    pub torrent_stream: Box<dyn TorrentStream>,
 }
 
 impl PlayMediaRequest {
@@ -593,24 +594,6 @@ impl PlayRequest for PlayMediaRequest {
     }
 }
 
-impl Clone for PlayMediaRequest {
-    fn clone(&self) -> Self {
-        Self {
-            base: self.base.clone(),
-            parent_media: self
-                .parent_media
-                .as_ref()
-                .and_then(|e| e.clone_identifier()),
-            media: self
-                .media
-                .clone_identifier()
-                .expect("expected the media identifier to have been cloned"),
-            quality: self.quality.clone(),
-            torrent_stream: self.torrent_stream.clone(),
-        }
-    }
-}
-
 impl From<LoadingData> for PlayMediaRequest {
     fn from(value: LoadingData) -> Self {
         let subtitles_enabled = value.subtitle.enabled.unwrap_or(false);
@@ -653,8 +636,10 @@ impl From<LoadingData> for PlayMediaRequest {
         if let Some(e) = value.quality {
             builder = builder.quality(e.as_str());
         }
-        if let Some(e) = value.torrent_stream {
-            builder = builder.torrent_stream(e);
+        if let Some(e) = value.torrent {
+            if let Ok(stream) = e.downcast::<DefaultTorrentStream>() {
+                builder = builder.torrent_stream(stream);
+            }
         }
         if subtitles_enabled {
             if let Some(e) = value.subtitle.subtitle {
@@ -687,7 +672,7 @@ pub struct PlayMediaRequestBuilder {
     media: Option<Box<dyn MediaIdentifier>>,
     parent_media: Option<Box<dyn MediaIdentifier>>,
     quality: Option<String>,
-    torrent_stream: Option<Weak<Box<dyn TorrentStream>>>,
+    torrent_stream: Option<Box<dyn TorrentStream>>,
 }
 
 impl PlayMediaRequestBuilder {
@@ -787,7 +772,7 @@ impl PlayMediaRequestBuilder {
     }
 
     /// Sets the torrent stream of the media.
-    pub fn torrent_stream(mut self, torrent_stream: Weak<Box<dyn TorrentStream>>) -> Self {
+    pub fn torrent_stream(mut self, torrent_stream: Box<dyn TorrentStream>) -> Self {
         self.torrent_stream = Some(torrent_stream);
         self
     }
@@ -831,8 +816,6 @@ impl PlayMediaRequestBuilder {
 #[cfg(test)]
 mod tests {
     use crate::core::loader::SubtitleData;
-    use std::sync::Arc;
-
     use crate::core::media::{Episode, Images, MovieOverview, ShowOverview};
     use crate::core::playlist::{PlaylistItem, PlaylistMedia, PlaylistSubtitle};
     use crate::testing::MockTorrentStream;
@@ -886,15 +869,11 @@ mod tests {
             thumb: None,
             parent_media: None,
             media: None,
-            torrent_handle: None,
-            torrent_info: None,
-            torrent_file_info: None,
             quality: None,
             auto_resume_timestamp: Some(auto_resume.clone()),
             subtitle: SubtitleData::default(),
-            media_torrent_info: None,
             torrent: None,
-            torrent_stream: None,
+            torrent_file: None,
         };
         let expected_result = PlayUrlRequest {
             url: url.to_string(),
@@ -941,7 +920,7 @@ mod tests {
             thumb: None,
             torrents: Default::default(),
         };
-        let stream = Arc::new(Box::new(MockTorrentStream::new()) as Box<dyn TorrentStream>);
+        let stream = Box::new(MockTorrentStream::new()) as Box<dyn TorrentStream>;
         let expected_result = PlayMediaRequest {
             base: PlayUrlRequest {
                 url: url.to_string(),
@@ -959,7 +938,7 @@ mod tests {
             parent_media: Some(Box::new(show.clone())),
             media: Box::new(episode.clone()),
             quality: quality.to_string(),
-            torrent_stream: Arc::downgrade(&stream),
+            torrent_stream: stream.clone(),
         };
 
         let result = PlayMediaRequestBuilder::builder()
@@ -969,7 +948,7 @@ mod tests {
             .quality(quality)
             .parent_media(Box::new(show))
             .media(Box::new(episode))
-            .torrent_stream(Arc::downgrade(&stream))
+            .torrent_stream(stream)
             .build();
 
         assert_eq!(expected_result, result)
@@ -1010,9 +989,9 @@ mod tests {
             },
             torrent: Default::default(),
         };
-        let stream = Arc::new(Box::new(MockTorrentStream::new()) as Box<dyn TorrentStream>);
+        let stream = MockTorrentStream::new();
         let mut data = LoadingData::from(item);
-        data.torrent_stream = Some(Arc::downgrade(&stream));
+        data.torrent = Some(Box::new(stream.clone()));
         let expected_result = PlayMediaRequest {
             base: PlayUrlRequest {
                 url: url.to_string(),
@@ -1030,7 +1009,7 @@ mod tests {
             parent_media: None,
             media: Box::new(media),
             quality: quality.to_string(),
-            torrent_stream: Arc::downgrade(&stream),
+            torrent_stream: stream,
         };
 
         let result = PlayMediaRequest::from(data);
@@ -1082,9 +1061,9 @@ mod tests {
             },
             torrent: Default::default(),
         };
-        let stream = Arc::new(Box::new(MockTorrentStream::new()) as Box<dyn TorrentStream>);
+        let stream = MockTorrentStream::new();
         let mut data = LoadingData::from(item);
-        data.torrent_stream = Some(Arc::downgrade(&stream));
+        data.torrent = Some(Box::new(stream.clone()));
         let expected_result = PlayMediaRequest {
             base: PlayUrlRequest {
                 url: url.to_string(),
@@ -1102,7 +1081,7 @@ mod tests {
             parent_media: Some(Box::new(media)),
             media: Box::new(episode),
             quality: quality.to_string(),
-            torrent_stream: Arc::downgrade(&stream),
+            torrent_stream: stream,
         };
 
         let result = PlayMediaRequest::from(data);
@@ -1122,9 +1101,6 @@ mod tests {
             thumb: Some(thumb.to_string()),
             parent_media: None,
             media: None,
-            torrent_handle: None,
-            torrent_info: None,
-            torrent_file_info: None,
             quality: None,
             auto_resume_timestamp: None,
             subtitle: SubtitleData {
@@ -1132,9 +1108,8 @@ mod tests {
                 info: None,
                 subtitle: None,
             },
-            media_torrent_info: None,
             torrent: None,
-            torrent_stream: None,
+            torrent_file: None,
         };
         let expected = PlayUrlRequest {
             url: url.to_string(),

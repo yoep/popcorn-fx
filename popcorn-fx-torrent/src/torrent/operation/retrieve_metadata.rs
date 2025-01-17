@@ -1,7 +1,6 @@
-use crate::torrent::{TorrentCommandEvent, TorrentFlags, TorrentOperationResult};
 use crate::torrent::{TorrentContext, TorrentOperation, TorrentState};
+use crate::torrent::{TorrentFlags, TorrentOperationResult};
 use async_trait::async_trait;
-use derive_more::Display;
 use log::trace;
 use std::sync::Arc;
 use tokio::sync::Mutex;

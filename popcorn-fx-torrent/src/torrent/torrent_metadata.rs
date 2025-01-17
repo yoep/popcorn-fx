@@ -5,7 +5,6 @@ use bitmask_enum::bitmask;
 use log::{debug, warn};
 use serde::de::{Error, MapAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use serde_bytes::{ByteArray, ByteBuf, Bytes};
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Debug, Display, Formatter};
 use std::path::PathBuf;

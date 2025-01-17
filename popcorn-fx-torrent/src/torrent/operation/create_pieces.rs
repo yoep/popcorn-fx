@@ -4,7 +4,7 @@ use crate::torrent::{
     TorrentOperationResult, TorrentState,
 };
 use async_trait::async_trait;
-use log::{debug, trace, warn};
+use log::{trace, warn};
 use std::sync::Arc;
 
 #[derive(Debug)]

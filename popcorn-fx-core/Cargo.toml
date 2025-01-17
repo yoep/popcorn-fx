@@ -15,11 +15,14 @@ crate-type = ["rlib"]
 async-trait.workspace = true
 bytes.workspace = true
 chrono = { workspace = true, features = ["serde"] }
+clap = { version = "4.5.7", features = ["derive"] }
 derive_more.workspace = true
 directories.workspace = true
 downcast-rs.workspace = true
 flate2 = "1"
 futures.workspace = true
+fx-callback.workspace = true
+fx-handle.workspace = true
 html-escape = "0"
 itertools.workspace = true
 local-ip-address.workspace = true
@@ -43,7 +46,6 @@ tokio-stream = { workspace = true }
 tokio-util = { workspace = true }
 url.workspace = true
 warp.workspace = true
-clap = { version = "4.5.7", features = ["derive"] }
 
 [dev-dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }

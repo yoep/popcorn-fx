@@ -27,7 +27,7 @@ pub trait AutoResumeService: Debug + Send + Sync {
     /// Retrieve the resume timestamp for the given media id and/or filename.
     ///
     /// It retrieves the timestamp when found, else [None].
-    fn resume_timestamp<'a>(&self, id: Option<&'a str>, filename: Option<&'a str>) -> Option<u64>;
+    fn resume_timestamp(&self, id: Option<String>, filename: Option<String>) -> Option<u64>;
 
     /// Handle a player stopped event.
     /// The event should contain the information of the player before it stopped.
@@ -49,7 +49,7 @@ impl DefaultAutoResumeService {
 }
 
 impl AutoResumeService for DefaultAutoResumeService {
-    fn resume_timestamp<'a>(&self, id: Option<&'a str>, filename: Option<&'a str>) -> Option<u64> {
+    fn resume_timestamp(&self, id: Option<String>, filename: Option<String>) -> Option<u64> {
         self.inner.resume_timestamp(id, filename)
     }
 
@@ -69,7 +69,7 @@ impl AutoResumeService for DefaultAutoResumeService {
 ///
 /// let auto_resume_service = DefaultAutoResumeService::builder()
 ///     .storage_directory("my-storage-directory")
-///     .event_publisher(Arc::new(EventPublisher::new()))
+///     .event_publisher(Arc::new(EventPublisher::default()))
 ///     .build();
 /// ```
 #[derive(Default)]
@@ -100,7 +100,7 @@ impl DefaultAutoResumeServiceBuilder {
     ///
     /// let auto_resume_service = DefaultAutoResumeService::builder()
     ///     .storage_directory("my-storage-directory")
-    ///     .event_publisher(Arc::new(EventPublisher::new()))
+    ///     .event_publisher(Arc::new(EventPublisher::default()))
     ///     .build();
     /// ```
     pub fn event_publisher(mut self, event_publisher: Arc<EventPublisher>) -> Self {
@@ -209,7 +209,7 @@ impl InnerAutoResumeService {
 }
 
 impl AutoResumeService for InnerAutoResumeService {
-    fn resume_timestamp<'a>(&self, id: Option<&'a str>, filename: Option<&'a str>) -> Option<u64> {
+    fn resume_timestamp(&self, id: Option<String>, filename: Option<String>) -> Option<u64> {
         match futures::executor::block_on(self.load_resume_cache()) {
             Ok(_) => {
                 debug!(
@@ -227,7 +227,7 @@ impl AutoResumeService for InnerAutoResumeService {
                             "Searching for auto resume timestamp with filename {}",
                             filename
                         );
-                        match cache.find_filename(filename) {
+                        match cache.find_filename(filename.as_str()) {
                             None => {}
                             Some(e) => {
                                 info!(
@@ -242,7 +242,7 @@ impl AutoResumeService for InnerAutoResumeService {
 
                     if let Some(id) = id {
                         trace!("Searching for auto resume timestamp with id {}", id);
-                        match cache.find_id(id) {
+                        match cache.find_id(id.as_str()) {
                             None => {}
                             Some(e) => {
                                 info!(
@@ -346,7 +346,7 @@ mod test {
 
     #[test]
     fn test_resume_timestamp_filename() {
-        init_logger();
+        init_logger!();
         let filename = "Lorem.mp4";
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -355,7 +355,7 @@ mod test {
             .build();
         copy_test_file(temp_path, "auto-resume.json", None);
 
-        let result = service.resume_timestamp(None, Some(filename));
+        let result = service.resume_timestamp(None, Some(filename.to_string()));
 
         match result {
             Some(e) => assert_eq!(19826, e),
@@ -365,7 +365,7 @@ mod test {
 
     #[test]
     fn test_resume_timestamp_filename_not_found() {
-        init_logger();
+        init_logger!();
         let filename = "random-video-not-known.mkv";
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -373,14 +373,14 @@ mod test {
             .storage_directory(temp_path)
             .build();
 
-        let result = service.resume_timestamp(None, Some(filename));
+        let result = service.resume_timestamp(None, Some(filename.to_string()));
 
         assert_eq!(None, result)
     }
 
     #[test]
     fn test_resume_timestamp_id() {
-        init_logger();
+        init_logger!();
         let id = "110999";
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -389,7 +389,7 @@ mod test {
             .build();
         copy_test_file(temp_path, "auto-resume.json", None);
 
-        let result = service.resume_timestamp(Some(id), None);
+        let result = service.resume_timestamp(Some(id.to_string()), None);
 
         match result {
             Some(e) => assert_eq!(19826, e),
@@ -399,7 +399,7 @@ mod test {
 
     #[test]
     fn test_resume_timestamp_no_data_passed() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let service = DefaultAutoResumeService::builder()
@@ -413,7 +413,7 @@ mod test {
 
     #[test]
     fn test_player_stopped_ignore_playback_shorter_than_5_mins() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let service = DefaultAutoResumeService::builder()
@@ -427,14 +427,14 @@ mod test {
         };
 
         service.player_stopped(&event);
-        let result = service.resume_timestamp(None, Some("ipsum.mp4"));
+        let result = service.resume_timestamp(None, Some("ipsum.mp4".to_string()));
 
         assert_eq!(None, result)
     }
 
     #[test]
     fn test_player_stopped_add_resume_data() {
-        init_logger();
+        init_logger!();
         let id = "tt0000111";
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -456,7 +456,7 @@ mod test {
 
         service.player_stopped(&event);
         let result = service
-            .resume_timestamp(Some(id), None)
+            .resume_timestamp(Some(id.to_string()), None)
             .expect("expected a timestamp to be returned");
 
         assert_eq!(expected_timestamp, result)
@@ -464,7 +464,7 @@ mod test {
 
     #[test]
     fn test_player_stopped_remove_resume_data() {
-        init_logger();
+        init_logger!();
         let id = "tt0000111";
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -485,14 +485,14 @@ mod test {
         };
 
         service.player_stopped(&event);
-        let result = service.resume_timestamp(Some(id), None);
+        let result = service.resume_timestamp(Some(id.to_string()), None);
 
         assert_eq!(None, result)
     }
 
     #[test]
     fn test_player_stopped_save_data() {
-        init_logger();
+        init_logger!();
         let id = "tt00001212";
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();

@@ -131,15 +131,15 @@ impl DataInstaller for DefaultDataInstaller {
 
 #[cfg(test)]
 mod test {
+    use popcorn_fx_core::init_logger;
+    use popcorn_fx_core::testing::copy_test_file;
     use tempfile::tempdir;
-
-    use popcorn_fx_core::testing::{copy_test_file, init_logger};
 
     use super::*;
 
     #[test]
     fn test_prepare_already_initialized() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = PathBuf::from(temp_dir.path());
         copy_test_file(temp_path.to_str().unwrap(), "launcher.yml", None);
@@ -155,7 +155,7 @@ mod test {
 
     #[test]
     fn test_prepare_missing_installation_data() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let installer = DefaultDataInstaller {
             data_path: PathBuf::from(temp_dir.path()),
@@ -180,7 +180,7 @@ mod test {
 
     #[test]
     fn test_prepare() {
-        init_logger();
+        init_logger!();
         let filename = "launcher.yml";
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let installation_path = PathBuf::from(temp_dir.path()).join(INITIAL_INSTALL_DIRECTORY);

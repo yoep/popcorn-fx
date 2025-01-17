@@ -1,11 +1,8 @@
+use fx_callback::CallbackHandle;
+use fx_handle::Handle;
+use log::{debug, info, trace, warn};
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::{Arc, Mutex};
-
-use log::{debug, info, trace, warn};
-
-use crate::core::Handle;
-
-pub type CallbackHandle = Handle;
 
 pub trait Callbacks<E>
 where

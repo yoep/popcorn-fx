@@ -8,6 +8,7 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use chrono::{Local, Utc};
+use fx_callback::CallbackHandle;
 use log::{debug, error, info, trace, warn};
 use oauth2::basic::{BasicClient, BasicTokenResponse};
 use oauth2::reqwest::async_http_client;
@@ -31,9 +32,7 @@ use popcorn_fx_core::core::media::tracking::{
     AuthorizationError, OpenAuthorization, TrackingError, TrackingEvent, TrackingProvider,
 };
 use popcorn_fx_core::core::media::MediaIdentifier;
-use popcorn_fx_core::core::{
-    block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks,
-};
+use popcorn_fx_core::core::{block_in_place, Callbacks, CoreCallback, CoreCallbacks};
 
 use crate::trakt::{AddToWatchList, Movie, MovieId, WatchedMovie};
 

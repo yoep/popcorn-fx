@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use derive_more::Display;
+use fx_callback::CallbackHandle;
 use log::{debug, error, trace};
 use rupnp::{Device, Service};
 use tokio::runtime::Runtime;
@@ -21,9 +22,7 @@ use popcorn_fx_core::core::subtitles::SubtitleServer;
 use popcorn_fx_core::core::utils::time::{
     parse_millis_from_time, parse_str_from_time, parse_time_from_millis, parse_time_from_str,
 };
-use popcorn_fx_core::core::{
-    block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks,
-};
+use popcorn_fx_core::core::{block_in_place, Callbacks, CoreCallback, CoreCallbacks};
 
 use crate::dlna;
 use crate::dlna::models::{PositionInfo, TransportInfo, UpnpEvent};

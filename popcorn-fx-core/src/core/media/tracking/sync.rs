@@ -1,16 +1,15 @@
-use std::result;
-use std::sync::Arc;
-
-use derive_more::Display;
-use log::{debug, error, info, trace};
-use thiserror::Error;
-use tokio::runtime::Runtime;
-use tokio::sync::Mutex;
-
+use crate::core::block_in_place;
 use crate::core::config::{ApplicationConfig, MediaTrackingSyncState};
 use crate::core::media::tracking::{TrackingError, TrackingEvent, TrackingProvider};
 use crate::core::media::watched::WatchedService;
-use crate::core::{block_in_place, CallbackHandle};
+use derive_more::Display;
+use fx_callback::CallbackHandle;
+use log::{debug, error, info, trace};
+use std::result;
+use std::sync::Arc;
+use thiserror::Error;
+use tokio::runtime::Runtime;
+use tokio::sync::Mutex;
 
 /// Represents the state of synchronization.
 #[derive(Debug, Display, Clone, PartialEq)]
@@ -295,23 +294,20 @@ impl InnerSyncMediaTracking {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::mpsc::channel;
-    use std::time::Duration;
-
-    use mockall::predicate;
-
-    use crate::assert_timeout_eq;
     use crate::core::media::tracking::MockTrackingProvider;
     use crate::core::media::watched::MockWatchedService;
     use crate::core::media::{MediaIdentifier, MockMediaIdentifier};
-    use crate::core::Handle;
-    use crate::testing::init_logger;
+    use crate::{assert_timeout_eq, init_logger};
+    use fx_handle::Handle;
+    use mockall::predicate;
+    use std::sync::mpsc::channel;
+    use std::time::Duration;
 
     use super::*;
 
     #[test]
     fn test_new_is_authorized() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let config = Arc::new(ApplicationConfig::builder().storage(temp_path).build());
@@ -360,7 +356,7 @@ mod tests {
 
     #[test]
     fn test_drop() {
-        init_logger();
+        init_logger!();
         let handle = Handle::new();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -390,7 +386,7 @@ mod tests {
 
     #[test]
     fn test_start_sync() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let config = Arc::new(ApplicationConfig::builder().storage(temp_path).build());
@@ -431,7 +427,7 @@ mod tests {
 
     #[test]
     fn test_sync_watched_movies_error() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let config = Arc::new(ApplicationConfig::builder().storage(temp_path).build());
@@ -472,7 +468,7 @@ mod tests {
 
     #[test]
     fn test_authorization_state_changed() {
-        init_logger();
+        init_logger!();
         let (tx, rx) = channel();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();

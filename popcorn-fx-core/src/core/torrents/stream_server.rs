@@ -1,14 +1,13 @@
+use crate::core::torrents;
+use crate::core::torrents::{Torrent, TorrentStream, TorrentStreamEvent};
 use async_trait::async_trait;
 use derive_more::Display;
 use downcast_rs::{impl_downcast, DowncastSync};
+use fx_callback::Subscription;
+use fx_handle::Handle;
 #[cfg(any(test, feature = "testing"))]
 use mockall::automock;
 use std::fmt::Debug;
-use std::sync::Weak;
-
-use crate::core::callback::Subscription;
-use crate::core::torrents::{Torrent, TorrentStream, TorrentStreamEvent};
-use crate::core::{torrents, Handle};
 
 /// The state of the torrent stream server.
 #[derive(Debug, Clone, Display, PartialEq)]
@@ -40,17 +39,17 @@ pub trait TorrentStreamServer: Debug + DowncastSync {
     /// # Returns
     ///
     /// A result containing a weak reference to the started torrent stream, or an error if the stream could not be started.
-    fn start_stream(
+    async fn start_stream(
         &self,
         torrent: Box<dyn Torrent>,
-    ) -> torrents::Result<Weak<Box<dyn TorrentStream>>>;
+    ) -> torrents::Result<Box<dyn TorrentStream>>;
 
     /// Stop a torrent stream.
     ///
     /// # Arguments
     ///
     /// * `handle` - An identifier for the torrent stream to stop.
-    fn stop_stream(&self, handle: Handle);
+    async fn stop_stream(&self, handle: Handle);
 
     /// Subscribe to events from a torrent stream.
     ///

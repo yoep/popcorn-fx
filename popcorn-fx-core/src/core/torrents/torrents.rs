@@ -1,12 +1,12 @@
-use crate::core::Handle;
 use async_trait::async_trait;
 use derive_more::Display;
+use downcast_rs::{impl_downcast, DowncastSync};
+use fx_callback::Callback;
+use fx_handle::Handle;
 use log::{debug, trace};
-
-use crate::core::callback::Callback;
 #[cfg(any(test, feature = "testing"))]
 pub use mock::*;
-use std::fmt::{Debug, Display};
+use std::fmt::Debug;
 use std::path::PathBuf;
 
 /// A unique handle identifier of a [Torrent].
@@ -81,12 +81,21 @@ pub struct DownloadStatus {
 /// The torrent describes the meta-info of a shared file that can be queried over the network.
 /// It allows for action such as downloading the shared file to the local system.
 #[async_trait]
-pub trait Torrent: Debug + Display + Callback<TorrentEvent> + Send + Sync {
+pub trait Torrent: Debug + DowncastSync + Callback<TorrentEvent> + Send + Sync {
     /// Get the unique identifier handle of the torrent.
     fn handle(&self) -> TorrentHandle;
 
-    /// The absolute path to this torrent file.
-    async fn file(&self) -> PathBuf;
+    /// Get the files of the torrent.
+    /// It might return an empty array if the metadata is unknown.
+    async fn files(&self) -> Vec<TorrentFileInfo>;
+
+    /// Get all files which are being downloaded by the torrent.
+    /// It might return an empty array if the metadata is unknown or if all files are ignored.
+    async fn active_files(&self) -> Vec<TorrentFileInfo>;
+
+    /// Get the largest file of the torrent.
+    /// It returns [None] if the metadata is currently unknown of the torrent.
+    async fn largest_file(&self) -> Option<TorrentFileInfo>;
 
     /// Check if the given bytes are available within the torrent.
     /// This will check if the underlying pieces that contain the given byte range are downloaded, validated and written to storage.
@@ -122,6 +131,7 @@ pub trait Torrent: Debug + Display + Callback<TorrentEvent> + Send + Sync {
     /// It returns an owned instance of the state.
     async fn state(&self) -> TorrentState;
 }
+impl_downcast!(sync Torrent);
 
 /// The torrent information
 #[derive(Debug, Display, Clone, PartialEq)]
@@ -349,7 +359,7 @@ impl TorrentHealth {
 #[cfg(any(test, feature = "testing"))]
 mod mock {
     use super::*;
-    use crate::core::callback::{Subscriber, Subscription};
+    use fx_callback::{Subscriber, Subscription};
     use mockall::mock;
     use std::fmt::{Display, Formatter};
     use std::ops::Range;
@@ -361,7 +371,9 @@ mod mock {
         #[async_trait]
         impl Torrent for Torrent {
             fn handle(&self) -> TorrentHandle;
-            async fn file(&self) -> PathBuf;
+            async fn files(&self) -> Vec<TorrentFileInfo>;
+            async fn active_files(&self) -> Vec<TorrentFileInfo>;
+            async fn largest_file(&self) -> Option<TorrentFileInfo>;
             async fn has_bytes(&self, bytes: &Range<usize>) -> bool;
             async fn has_piece(&self, piece: usize) -> bool;
             async fn prioritize_bytes(&self, bytes: &Range<usize>);

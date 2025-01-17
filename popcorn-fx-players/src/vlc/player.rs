@@ -11,6 +11,7 @@ use chbs::prelude::ToScheme;
 use chbs::probability::Probability;
 use chbs::word::{WordList, WordSampler};
 use derive_more::Display;
+use fx_callback::CallbackHandle;
 use log::{debug, error, info, trace, warn};
 use reqwest::header::HeaderMap;
 use reqwest::{Client, ClientBuilder, Error, Response};
@@ -26,9 +27,7 @@ use url::Url;
 use popcorn_fx_core::core::players::{PlayRequest, Player, PlayerEvent, PlayerState};
 use popcorn_fx_core::core::subtitles::matcher::SubtitleMatcher;
 use popcorn_fx_core::core::subtitles::{SubtitleManager, SubtitleProvider};
-use popcorn_fx_core::core::{
-    block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks,
-};
+use popcorn_fx_core::core::{block_in_place, Callbacks, CoreCallback, CoreCallbacks};
 
 use crate::vlc::VlcStatus;
 

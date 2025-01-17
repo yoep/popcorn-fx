@@ -28,7 +28,7 @@ impl PlatformMac {
         let prevent_sleep = CFString::new("PreventUserIdleSystemSleep");
         let reason = CFString::new("Media playback application is active");
         #[allow(unused_mut)]
-            let mut id = Box::new(u32::MIN);
+        let mut id = Box::new(u32::MIN);
 
         unsafe {
             debug!(
@@ -73,15 +73,14 @@ impl SystemPlatform for PlatformMac {
 
 #[cfg(test)]
 mod test {
-    use popcorn_fx_core::testing::init_logger;
-
     use crate::platform::SystemPlatform;
+    use popcorn_fx_core::init_logger;
 
     use super::PlatformMac;
 
     #[test]
     fn disable_screensaver_macos_should_return_true() {
-        init_logger();
+        init_logger!();
         let platform = PlatformMac::default();
 
         assert_eq!(true, platform.disable_screensaver());
@@ -89,7 +88,7 @@ mod test {
 
     #[test]
     fn enable_screensaver_macos_should_return_true() {
-        init_logger();
+        init_logger!();
         let platform = PlatformMac::default();
 
         assert_eq!(
@@ -102,7 +101,7 @@ mod test {
 
     #[test]
     fn test_window_handle() {
-        init_logger();
+        init_logger!();
         let platform = PlatformMac::default();
 
         assert_eq!(None, platform.window_handle())

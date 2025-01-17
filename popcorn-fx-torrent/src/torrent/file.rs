@@ -28,6 +28,12 @@ pub struct File {
 }
 
 impl File {
+    /// Get the filename of the file.
+    pub fn filename(&self) -> String {
+        Self::filename_from_path(&self.path)
+            .unwrap_or_else(|| Self::filename_from_path(&self.info.path()).unwrap_or(String::new()))
+    }
+
     /// Check if the file contains some bytes from the given piece.
     /// It returns true when at least 1 byte overlaps with the given piece, else false.
     pub fn contains(&self, piece: &Piece) -> bool {
@@ -91,6 +97,14 @@ impl File {
     /// Get the file attributes of the torrent file.
     pub fn attributes(&self) -> FileAttributeFlags {
         self.info.attr.unwrap_or(FileAttributeFlags::default())
+    }
+
+    fn filename_from_path(path: &PathBuf) -> Option<String> {
+        if let Some(filename) = path.file_name() {
+            filename.to_str().map(|e| e.to_string())
+        } else {
+            None
+        }
     }
 }
 

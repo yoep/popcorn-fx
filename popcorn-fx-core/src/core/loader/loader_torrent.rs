@@ -7,9 +7,7 @@ use crate::core::loader::{
     CancellationResult, LoadingData, LoadingError, LoadingEvent, LoadingProgress, LoadingState,
     LoadingStrategy, Result,
 };
-use crate::core::torrents::{
-    Torrent, TorrentEvent, TorrentFileInfo, TorrentHandle, TorrentManager, TorrentState,
-};
+use crate::core::torrents::{Torrent, TorrentEvent, TorrentManager, TorrentState};
 use crate::core::{loader, torrents};
 use async_trait::async_trait;
 use derive_more::Display;
@@ -38,7 +36,7 @@ impl TorrentLoadingStrategy {
         &self,
         uri: &str,
         context: &LoadingTaskContext,
-    ) -> Result<TorrentHandle> {
+    ) -> Result<Box<dyn Torrent>> {
         select! {
             _ = context.cancelled() => Err(LoadingError::Cancelled),
             result = self.torrent_manager.create(uri.as_ref()) => result.map_err(|e| LoadingError::TorrentError(e)),
@@ -47,11 +45,12 @@ impl TorrentLoadingStrategy {
 
     async fn create_torrent(
         &self,
-        handle: &TorrentHandle,
-        file: &TorrentFileInfo,
+        torrent: &Box<dyn Torrent>,
+        torrent_filename: &str,
         context: &LoadingTaskContext,
     ) -> Result<Box<dyn Torrent>> {
-        debug!("Starting download of {}", file.file_path);
+        debug!("Starting download of {}", torrent_filename);
+        let handle = torrent.handle();
         let mut receiver =
             self.torrent_manager
                 .subscribe(&handle)
@@ -59,7 +58,7 @@ impl TorrentLoadingStrategy {
                 .ok_or(LoadingError::TorrentError(torrents::Error::InvalidHandle(
                     handle.to_string(),
                 )))?;
-        let mut download_future = self.torrent_manager.download(&handle, file);
+        let mut download_future = self.torrent_manager.download(&handle, torrent_filename);
 
         loop {
             select! {
@@ -121,13 +120,13 @@ impl LoadingStrategy for TorrentLoadingStrategy {
         mut data: LoadingData,
         context: &LoadingTaskContext,
     ) -> loader::LoadingResult {
-        if let Some(handle) = data.torrent_handle.as_ref() {
-            if let Some(torrent_file_info) = data.torrent_file_info.as_ref() {
-                trace!("Processing torrent info of {:?}", torrent_file_info);
+        if let Some(torrent) = data.torrent.as_ref() {
+            if let Some(torrent_filename) = data.torrent_file.as_ref() {
+                trace!("Processing torrent info of {:?}", torrent_filename);
                 context.send_event(LoadingEvent::StateChanged(LoadingState::Connecting));
 
                 match self
-                    .create_torrent(handle, torrent_file_info, context)
+                    .create_torrent(torrent, torrent_filename.as_str(), context)
                     .await
                 {
                     Ok(torrent) => {
@@ -148,7 +147,6 @@ impl LoadingStrategy for TorrentLoadingStrategy {
             debug!("Cancelling the torrent downloading");
             let handle = torrent.handle();
             self.torrent_manager.remove(&handle).await;
-            data.torrent_handle = None;
         }
 
         Ok(data)

@@ -71,8 +71,8 @@ pub mod tests {
     use super::*;
     use crate::torrent::fs::TorrentFileSystemStorage;
     use crate::torrent::peer::{
-        PeerDiscovery, PeerId, PeerListener, PeerStream, TcpPeer, TcpPeerDiscovery,
-        TcpPeerListener, UtpPeerDialerListener,
+        BitTorrentPeer, PeerDiscovery, PeerId, PeerListener, PeerStream, TcpPeerDiscovery,
+        TcpPeerListener, UtpPeerDiscovery,
     };
     use popcorn_fx_core::available_port;
     use popcorn_fx_core::testing::read_test_file_to_bytes;
@@ -81,6 +81,7 @@ pub mod tests {
     use std::str::FromStr;
     use std::sync::Arc;
     use std::time::Duration;
+    use tokio::net::TcpStream;
     use tokio::runtime::Runtime;
 
     /// Create the torrent metadata from the given uri.
@@ -221,19 +222,19 @@ pub mod tests {
         let mut rng = thread_rng();
         let tcp_port_start = rng.gen_range(6881..10000);
         let utp_port_start = rng.gen_range(6881..10000);
-        let utp_discovery = UtpPeerDialerListener::new(
+        let utp_discovery = UtpPeerDiscovery::new(
             available_port!(utp_port_start, 31000).unwrap(),
             runtime.clone(),
         )
         .unwrap();
         let listeners: Vec<Box<dyn PeerListener>> = vec![
-            Box::new(
-                TcpPeerListener::new(
-                    available_port!(tcp_port_start, 31000).unwrap(),
-                    runtime.clone(),
-                )
-                .unwrap(),
-            ),
+            // Box::new(
+            //     TcpPeerListener::new(
+            //         available_port!(tcp_port_start, 31000).unwrap(),
+            //         runtime.clone(),
+            //     )
+            //     .unwrap(),
+            // ),
             Box::new(utp_discovery.clone()),
         ];
         let dialers: Vec<Box<dyn PeerDiscovery>> =
@@ -273,7 +274,7 @@ pub mod tests {
         incoming_torrent: &Torrent,
         outgoing_torrent: &Torrent,
         protocols: ProtocolExtensionFlags,
-    ) -> (TcpPeer, TcpPeer) {
+    ) -> (BitTorrentPeer, BitTorrentPeer) {
         let incoming_context = incoming_torrent.instance().unwrap();
         let outgoing_context = outgoing_torrent.instance().unwrap();
         let incoming_runtime = incoming_context.runtime();
@@ -291,10 +292,10 @@ pub mod tests {
                 match peer.stream {
                     PeerStream::Tcp(stream) => tx
                         .send(
-                            TcpPeer::new_inbound(
+                            BitTorrentPeer::new_inbound(
                                 PeerId::new(),
                                 peer.socket_addr,
-                                stream,
+                                PeerStream::Tcp(stream),
                                 incoming_context,
                                 protocols.clone(),
                                 extensions,
@@ -304,17 +305,34 @@ pub mod tests {
                             .await,
                         )
                         .unwrap(),
-                    PeerStream::Utp => {}
+                    PeerStream::Utp(stream) => tx
+                        .send(
+                            BitTorrentPeer::new_inbound(
+                                PeerId::new(),
+                                peer.socket_addr,
+                                PeerStream::Utp(stream),
+                                incoming_context,
+                                protocols.clone(),
+                                extensions,
+                                Duration::from_secs(5),
+                                incoming_runtime_thread,
+                            )
+                            .await,
+                        )
+                        .unwrap(),
                 }
             }
         });
 
         let peer_context = outgoing_context.clone();
         let outgoing_extensions = outgoing_context.extensions();
+        let addr = SocketAddr::new([127, 0, 0, 1].into(), port);
+        let stream = incoming_runtime.block_on(TcpStream::connect(addr)).unwrap();
         let outgoing_peer = incoming_runtime
-            .block_on(TcpPeer::new_outbound(
+            .block_on(BitTorrentPeer::new_outbound(
                 PeerId::new(),
-                SocketAddr::new([127, 0, 0, 1].into(), port),
+                addr,
+                PeerStream::Tcp(stream),
                 peer_context,
                 protocols,
                 outgoing_extensions,
@@ -346,11 +364,8 @@ pub mod tests {
                 .unwrap(),
             ),
             Box::new(
-                UtpPeerDialerListener::new(
-                    available_port!(utp_port_start, 31000).unwrap(),
-                    runtime,
-                )
-                .unwrap(),
+                UtpPeerDiscovery::new(available_port!(utp_port_start, 31000).unwrap(), runtime)
+                    .unwrap(),
             ),
         ]
     }

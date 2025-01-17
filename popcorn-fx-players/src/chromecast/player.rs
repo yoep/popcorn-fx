@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use derive_more::Display;
+use fx_callback::CallbackHandle;
 use log::{debug, error, trace, warn};
 use rust_cast::channels::heartbeat::HeartbeatResponse;
 use rust_cast::channels::media::{MediaResponse, Status, StatusEntry};
@@ -18,11 +19,9 @@ use tokio_util::sync::CancellationToken;
 use popcorn_fx_core::core::players::{
     PlayRequest, PlaySubtitleRequest, Player, PlayerEvent, PlayerState,
 };
-use popcorn_fx_core::core::subtitles::model::{Subtitle, SubtitleType};
+use popcorn_fx_core::core::subtitles::model::SubtitleType;
 use popcorn_fx_core::core::subtitles::SubtitleServer;
-use popcorn_fx_core::core::{
-    block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks,
-};
+use popcorn_fx_core::core::{block_in_place, Callbacks, CoreCallback, CoreCallbacks};
 
 use crate::chromecast;
 use crate::chromecast::device::{FxCastDevice, DEFAULT_RECEIVER};
@@ -1155,7 +1154,7 @@ mod tests {
     use popcorn_fx_core::core::media::MovieOverview;
     use popcorn_fx_core::core::players::{PlayMediaRequest, PlayUrlRequest};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
-    use popcorn_fx_core::core::subtitles::model::SubtitleInfo;
+    use popcorn_fx_core::core::subtitles::model::{Subtitle, SubtitleInfo};
     use popcorn_fx_core::core::subtitles::MockSubtitleProvider;
     use popcorn_fx_core::testing::init_logger;
     use rust_cast::channels::media::StatusEntry;

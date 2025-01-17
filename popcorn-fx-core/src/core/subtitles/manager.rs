@@ -1,16 +1,15 @@
-use std::fmt::Debug;
-use std::sync::Arc;
-
-use async_trait::async_trait;
-use derive_more::Display;
-use log::{debug, error, info, trace};
-use tokio::sync::Mutex;
-
 use crate::core::config::ApplicationConfig;
 use crate::core::storage::Storage;
 use crate::core::subtitles::language::SubtitleLanguage;
 use crate::core::subtitles::model::SubtitleInfo;
-use crate::core::{block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks};
+use crate::core::{block_in_place, Callbacks, CoreCallback, CoreCallbacks};
+use async_trait::async_trait;
+use derive_more::Display;
+use fx_callback::CallbackHandle;
+use log::{debug, error, info, trace};
+use std::fmt::Debug;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 /// The callback to listen on events of the subtitle manager.
 pub type SubtitleCallback = CoreCallback<SubtitleEvent>;

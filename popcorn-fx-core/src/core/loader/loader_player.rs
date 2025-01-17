@@ -48,7 +48,7 @@ impl PlayerLoadingStrategy {
     fn convert(&self, data: LoadingData) -> Result<Box<dyn PlayRequest>, LoadingError> {
         if data.media.is_some() {
             trace!("Trying to start media playback for {:?}", data);
-            return if data.torrent_stream.is_some() {
+            return if data.torrent.is_some() {
                 Ok(Box::new(PlayMediaRequest::from(data)))
             } else {
                 Err(LoadingError::InvalidData(format!(
@@ -56,7 +56,7 @@ impl PlayerLoadingStrategy {
                     data.media
                 )))
             };
-        } else if data.torrent_stream.is_some() {
+        } else if data.torrent.is_some() {
             trace!("Trying to start torrent stream playback for {:?}", data);
             return Ok(Box::new(PlayStreamRequest::from(data)));
         }
@@ -181,7 +181,7 @@ mod tests {
             trailer: "".to_string(),
             torrents: Default::default(),
         };
-        let stream = Arc::new(Box::new(MockTorrentStream::new()) as Box<dyn TorrentStream>);
+        let stream = Box::new(MockTorrentStream::new()) as Box<dyn Torrent>;
         let item = PlaylistItem {
             url: Some(url.to_string()),
             title: "RRoll".to_string(),
@@ -197,7 +197,7 @@ mod tests {
             torrent: Default::default(),
         };
         let mut data = LoadingData::from(item);
-        data.torrent_stream = Some(Arc::downgrade(&stream));
+        data.torrent = Some(stream);
         let (tx, rx) = channel();
         let task = create_loading_task!();
         let context = task.context();
@@ -303,7 +303,7 @@ mod tests {
         let url = "https://localhost:87445/MyVideo.mkv";
         let title = "streaming title";
         let quality = "1080p";
-        let stream = Arc::new(Box::new(MockTorrentStream::new()) as Box<dyn TorrentStream>);
+        let stream = Box::new(MockTorrentStream::new()) as Box<dyn Torrent>;
         let item = PlaylistItem {
             url: Some(url.to_string()),
             title: title.to_string(),
@@ -319,7 +319,7 @@ mod tests {
             torrent: Default::default(),
         };
         let mut data = LoadingData::from(item);
-        data.torrent_stream = Some(Arc::downgrade(&stream));
+        data.torrent = Some(stream);
         let (tx, rx) = channel();
         let task = create_loading_task!();
         let context = task.context();

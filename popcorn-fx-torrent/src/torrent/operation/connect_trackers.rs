@@ -109,7 +109,7 @@ mod tests {
     use super::*;
     use crate::create_torrent;
     use crate::torrent::{TorrentConfig, TorrentEvent, TorrentFlags};
-    use popcorn_fx_core::core::callback::Callback;
+    use fx_callback::Callback;
     use popcorn_fx_core::init_logger;
     use std::sync::mpsc::channel;
     use std::time::Duration;

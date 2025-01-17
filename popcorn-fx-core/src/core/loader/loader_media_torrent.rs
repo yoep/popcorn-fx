@@ -99,7 +99,7 @@ impl LoadingStrategy for MediaTorrentUrlLoadingStrategy {
                     let url = torrent_info.url().to_string();
                     debug!("Updating playlist item url to {} for media {}", url, media);
                     data.url = Some(url.clone());
-                    data.media_torrent_info = Some(torrent_info);
+                    data.torrent_file = torrent_info.file().map(|e| e.clone());
                     info!("Loading media url {}", url);
                 } else {
                     return LoadingResult::Err(LoadingError::MediaError(format!(
@@ -182,7 +182,6 @@ mod tests {
 
         if let LoadingResult::Ok(result) = result {
             assert_eq!(Some(torrent_url.to_string()), result.url);
-            assert_eq!(Some(torrent_info), result.media_torrent_info);
         } else {
             assert!(
                 false,

@@ -1,17 +1,17 @@
-use std::{env, thread};
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus};
 use std::str::FromStr;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
+use std::{env, thread};
 
 use directories::BaseDirs;
-use log::{debug, error, LevelFilter, trace, warn};
+use log::{debug, error, trace, warn, LevelFilter};
 use log4rs::append::console::ConsoleAppender;
 use log4rs::config::{Appender, Root};
-use log4rs::Config;
 use log4rs::encode::pattern::PatternEncoder;
+use log4rs::Config;
 use thiserror::Error;
 
 use popcorn_fx_core::core::launcher::LauncherOptions;
@@ -404,13 +404,10 @@ impl BootstrapperBuilder {
 
 #[cfg(test)]
 mod test {
-    use tempfile::tempdir;
-
-    use popcorn_fx_core::testing::init_logger;
-
-    use crate::data_installer::{DataInstallerError, MockDataInstaller};
-
     use super::*;
+    use crate::data_installer::{DataInstallerError, MockDataInstaller};
+    use popcorn_fx_core::init_logger;
+    use tempfile::tempdir;
 
     #[tokio::test]
     async fn test_initialize_logger() {
@@ -426,7 +423,7 @@ mod test {
 
     #[test]
     fn test_builder_disable_logger() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
 
@@ -440,7 +437,7 @@ mod test {
 
     #[test]
     fn test_launch() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut data_installer = MockDataInstaller::new();
@@ -465,7 +462,7 @@ mod test {
 
     #[test]
     fn test_launch_prepare_failure() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut data_installer = MockDataInstaller::new();
@@ -496,7 +493,7 @@ mod test {
 
     #[test]
     fn test_launch_failure() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut data_installer = MockDataInstaller::new();
@@ -525,7 +522,7 @@ mod test {
 
     #[test]
     fn test_build_process_path() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let data_path = PathBuf::from(temp_path);

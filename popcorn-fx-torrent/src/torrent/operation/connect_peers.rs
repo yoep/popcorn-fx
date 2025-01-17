@@ -1,7 +1,4 @@
-use crate::torrent::errors::Result;
-use crate::torrent::peer::extension::Extensions;
 use crate::torrent::peer::webseed::HttpPeer;
-use crate::torrent::peer::{PeerId, ProtocolExtensionFlags, TcpPeer};
 use crate::torrent::{
     TorrentCommandEvent, TorrentContext, TorrentOperation, TorrentOperationResult,
 };

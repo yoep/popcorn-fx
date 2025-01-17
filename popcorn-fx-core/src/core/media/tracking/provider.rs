@@ -1,15 +1,11 @@
-use std::fmt::Debug;
-
+use crate::core::media::MediaIdentifier;
+use crate::core::{Callbacks, CoreCallback};
 use async_trait::async_trait;
 use derive_more::Display;
 #[cfg(any(test, feature = "testing"))]
-use mockall::mock;
+pub use mock::*;
+use std::fmt::Debug;
 use thiserror::Error;
-
-use crate::core::media::MediaIdentifier;
-#[cfg(any(test, feature = "testing"))]
-use crate::core::CallbackHandle;
-use crate::core::{Callbacks, CoreCallback};
 
 /// Represents errors that can occur during authorization.
 #[derive(Debug, Clone, Error, PartialEq)]
@@ -95,22 +91,28 @@ pub trait TrackingProvider: Debug + Callbacks<TrackingEvent> + Send + Sync {
 }
 
 #[cfg(any(test, feature = "testing"))]
-mock! {
-    #[derive(Debug)]
-    pub TrackingProvider {}
+pub mod mock {
+    use super::*;
+    use fx_callback::CallbackHandle;
+    use mockall::mock;
 
-    #[async_trait]
-    impl TrackingProvider for TrackingProvider {
-        fn register_open_authorization(&self, open_callback: OpenAuthorization);
-        fn is_authorized(&self) -> bool;
-        async fn authorize(&self) -> Result<(), AuthorizationError>;
-        async fn disconnect(&self);
-        async fn add_watched_movies(&self, movie_ids: Vec<String>) -> Result<(), TrackingError>;
-        async fn watched_movies(&self) -> Result<Vec<Box<dyn MediaIdentifier>>, TrackingError>;
-    }
+    mock! {
+        #[derive(Debug)]
+        pub TrackingProvider {}
 
-    impl Callbacks<TrackingEvent> for TrackingProvider {
-        fn add_callback(&self, callback: CoreCallback<TrackingEvent>) -> CallbackHandle;
-        fn remove_callback(&self, handle: CallbackHandle);
+        #[async_trait]
+        impl TrackingProvider for TrackingProvider {
+            fn register_open_authorization(&self, open_callback: OpenAuthorization);
+            fn is_authorized(&self) -> bool;
+            async fn authorize(&self) -> Result<(), AuthorizationError>;
+            async fn disconnect(&self);
+            async fn add_watched_movies(&self, movie_ids: Vec<String>) -> Result<(), TrackingError>;
+            async fn watched_movies(&self) -> Result<Vec<Box<dyn MediaIdentifier>>, TrackingError>;
+        }
+
+        impl Callbacks<TrackingEvent> for TrackingProvider {
+            fn add_callback(&self, callback: CoreCallback<TrackingEvent>) -> CallbackHandle;
+            fn remove_callback(&self, handle: CallbackHandle);
+        }
     }
 }

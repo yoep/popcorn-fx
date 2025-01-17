@@ -1,10 +1,8 @@
 use crate::torrent::errors::Result;
 use crate::torrent::{
-    File, TorrentCommandEvent, TorrentContext, TorrentError, TorrentOperation,
-    TorrentOperationResult, TorrentState,
+    File, TorrentContext, TorrentError, TorrentOperation, TorrentOperationResult, TorrentState,
 };
 use async_trait::async_trait;
-use derive_more::Display;
 use log::{debug, warn};
 use std::path::PathBuf;
 use std::sync::Arc;

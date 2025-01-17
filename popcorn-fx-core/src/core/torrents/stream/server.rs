@@ -1,10 +1,20 @@
+use crate::core::torrents;
+use crate::core::torrents::stream::torrent_stream::DefaultTorrentStream;
+use crate::core::torrents::stream::{MediaType, MediaTypeFactory, Range};
+use crate::core::torrents::{
+    Error, Torrent, TorrentStream, TorrentStreamEvent, TorrentStreamServer,
+    TorrentStreamServerState,
+};
+use crate::core::utils::network::available_socket;
 use async_trait::async_trait;
+use fx_callback::{Callback, Subscription};
+use fx_handle::Handle;
 use hyper::Body;
 use itertools::Itertools;
 use log::{debug, error, info, trace, warn};
 use std::collections::HashMap;
 use std::net::SocketAddr;
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 use tokio::sync::{Mutex, MutexGuard};
 use url::Url;
 use warp::http::header::{
@@ -13,16 +23,6 @@ use warp::http::header::{
 use warp::http::{HeaderValue, Response, StatusCode};
 use warp::hyper::HeaderMap;
 use warp::{hyper, Filter, Rejection};
-
-use crate::core::callback::{Callback, Subscription};
-use crate::core::torrents::stream::torrent_stream::DefaultTorrentStream;
-use crate::core::torrents::stream::{MediaType, MediaTypeFactory, Range};
-use crate::core::torrents::{
-    Error, Torrent, TorrentStream, TorrentStreamEvent, TorrentStreamServer,
-    TorrentStreamServerState,
-};
-use crate::core::utils::network::available_socket;
-use crate::core::{block_in_place, torrents, Handle};
 
 const SERVER_PROTOCOL: &str = "http";
 const SERVER_VIDEO_PATH: &str = "video";
@@ -39,7 +39,8 @@ const DLNA_CONTENT_FEATURES: &str =
 const PLAIN_TEXT_TYPE: &str = "text/plain";
 
 /// The active streams type of the stream server.
-type Streams = HashMap<String, Arc<Box<dyn TorrentStream>>>;
+/// This is a map between the hosted url path and the underlying torrent stream.
+type Streams = HashMap<String, Box<dyn TorrentStream>>;
 
 /// The default server implementation for streaming torrents over HTTP.
 #[derive(Debug)]
@@ -59,15 +60,15 @@ impl TorrentStreamServer for DefaultTorrentStreamServer {
         self.inner.state()
     }
 
-    fn start_stream(
+    async fn start_stream(
         &self,
         torrent: Box<dyn Torrent>,
-    ) -> torrents::Result<Weak<Box<dyn TorrentStream>>> {
-        self.inner.start_stream(torrent)
+    ) -> torrents::Result<Box<dyn TorrentStream>> {
+        self.inner.start_stream(torrent).await
     }
 
-    fn stop_stream(&self, handle: Handle) {
-        self.inner.stop_stream(handle)
+    async fn stop_stream(&self, handle: Handle) {
+        self.inner.stop_stream(handle).await
     }
 
     async fn subscribe(&self, handle: Handle) -> Option<Subscription<TorrentStreamEvent>> {
@@ -191,13 +192,11 @@ impl TorrentStreamServerInner {
                         let video_length = resource.total_length();
                         let content_range = resource.content_range().to_string();
                         let mut status = StatusCode::PARTIAL_CONTENT;
-                        let media_type = match media_type_factory.media_type(filename) {
-                            Ok(e) => e,
-                            Err(e) => {
+                        let media_type =
+                            media_type_factory.media_type(filename).unwrap_or_else(|e| {
                                 warn!("Unable to parse media type, {}", e);
                                 MediaType::octet_stream()
-                            }
-                        };
+                            });
 
                         if resource.offset() > video_length {
                             return Ok(Self::request_not_satisfiable_response());
@@ -355,51 +354,55 @@ impl TorrentStreamServer for TorrentStreamServerInner {
         mutex.clone()
     }
 
-    fn start_stream(
+    async fn start_stream(
         &self,
         torrent: Box<dyn Torrent>,
-    ) -> torrents::Result<Weak<Box<dyn TorrentStream>>> {
-        let mut mutex = block_in_place(self.streams.lock());
-        let filepath = block_in_place(torrent.file());
-        let filename = filepath
-            .file_name()
-            .expect("expected a valid filename")
-            .to_str()
-            .unwrap();
+    ) -> torrents::Result<Box<dyn TorrentStream>> {
+        let mut streams = self.streams.lock().await;
+        let files = torrent.active_files().await;
+        let handle = torrent.handle();
 
-        if mutex.contains_key(filename) {
-            debug!(
-                "Torrent stream already exists for {}, ignoring stream creation",
-                filename
-            );
-            return Ok(mutex.get(filename).map(|e| Arc::downgrade(e)).unwrap());
-        }
+        if let Some(file) = files.first() {
+            let filename = file.filename();
+            let filepath = file.file_path();
 
-        trace!("Creating new torrent stream for {:?}", torrent);
-        match self.build_url(filename) {
-            Ok(url) => {
-                debug!("Starting url stream for {}", &url);
-                let stream = Arc::new(Box::new(DefaultTorrentStream::new(
-                    url,
-                    torrent,
-                    self.runtime.clone(),
-                )) as Box<dyn TorrentStream>);
-                let stream_ref = Arc::downgrade(&stream);
+            if streams.contains_key(filename) {
+                debug!(
+                    "Torrent stream already exists for {}, ignoring stream creation",
+                    filename
+                );
 
-                mutex.insert(filename.to_string(), stream);
-
-                Ok(stream_ref)
+                return streams
+                    .get(filename)
+                    .and_then(|e| {
+                        e.downcast_ref::<DefaultTorrentStream>()
+                            .map(|e| Box::new(e.clone()) as Box<dyn TorrentStream>)
+                    })
+                    .ok_or(Error::InvalidHandle(handle.to_string()));
             }
-            Err(e) => {
-                warn!("Torrent stream url creation failed, {}", e);
-                Err(Error::InvalidUrl(filepath.to_str().unwrap().to_string()))
+
+            trace!("Creating new torrent stream for {:?}", torrent);
+            match self.build_url(filename) {
+                Ok(url) => {
+                    debug!("Starting url stream for {}", &url);
+                    let stream = DefaultTorrentStream::new(url, torrent, self.runtime.clone());
+                    let stream_borrowed = stream.clone();
+                    streams.insert(filename.to_string(), Box::new(stream));
+                    Ok(Box::new(stream_borrowed))
+                }
+                Err(e) => {
+                    warn!("Torrent stream url creation failed, {}", e);
+                    Err(Error::InvalidUrl(filepath.to_string()))
+                }
             }
+        } else {
+            Err(Error::InvalidHandle(handle.to_string()))
         }
     }
 
-    fn stop_stream(&self, handle: Handle) {
+    async fn stop_stream(&self, handle: Handle) {
         trace!("Stopping torrent stream handle {}", handle);
-        let mut mutex = block_in_place(self.streams.lock());
+        let mut mutex = self.streams.lock().await;
 
         if let Some(filename) = mutex
             .iter()
@@ -423,7 +426,7 @@ impl TorrentStreamServer for TorrentStreamServerInner {
 
         if let Some((_, stream)) = position.and_then(|e| mutex.iter().nth(e)) {
             debug!("Subscribing callback to stream handle {}", handle);
-            return Some(Callback::<TorrentStreamEvent>::subscribe(&***stream));
+            return Some(Callback::<TorrentStreamEvent>::subscribe(&**stream));
         }
 
         warn!("Unable to subscribe to {}, stream handle not found", handle);

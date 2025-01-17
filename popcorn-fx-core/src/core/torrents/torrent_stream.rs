@@ -1,13 +1,14 @@
+use crate::core::torrents;
+use crate::core::torrents::{DownloadStatus, Torrent};
 use async_trait::async_trait;
 use derive_more::Display;
+use downcast_rs::{impl_downcast, DowncastSync};
 use futures::Stream;
+use fx_callback::Callback;
+use fx_handle::Handle;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use url::Url;
-
-use crate::core::callback::Callback;
-use crate::core::torrents::{DownloadStatus, Torrent};
-use crate::core::{torrents, Handle};
 
 /// The unique identifier handle of a stream.
 pub type StreamHandle = Handle;
@@ -55,7 +56,7 @@ pub enum TorrentStreamEvent {
 /// This trait defines methods for retrieving stream details, streaming torrent content,
 /// and managing the stream state.
 #[async_trait]
-pub trait TorrentStream: Torrent + Callback<TorrentStreamEvent> {
+pub trait TorrentStream: Torrent + Callback<TorrentStreamEvent> + DowncastSync {
     /// Get the stream handle of this stream.
     ///
     /// Returns the stream handle of this stream.
@@ -96,6 +97,7 @@ pub trait TorrentStream: Torrent + Callback<TorrentStreamEvent> {
     /// and stopping the underlying [Torrent] process.
     fn stop_stream(&self);
 }
+impl_downcast!(sync TorrentStream);
 
 /// The streaming resource of a [TorrentStream].
 /// It allows a [Torrent] to be streamed over HTTP.

@@ -5,9 +5,9 @@ use crate::torrent::{PieceIndex, TorrentContext, TorrentFileInfo, TorrentMetadat
 use async_trait::async_trait;
 use bit_vec::BitVec;
 use derive_more::Display;
+use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use log::{debug, warn};
 use percent_encoding::{percent_encode, AsciiSet, NON_ALPHANUMERIC};
-use popcorn_fx_core::core::callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use reqwest::redirect::Policy;
 use reqwest::Client;
 use std::net::SocketAddr;
@@ -27,6 +27,7 @@ const URL_ENCODE_RESERVED: &AsciiSet = &NON_ALPHANUMERIC
     .remove(b'~')
     .remove(b'.');
 
+/// The HTTP peer, also known as webseed, implementation that exchanges data with a HTTP server.
 #[derive(Debug, Display)]
 #[display(fmt = "{}", inner)]
 pub struct HttpPeer {

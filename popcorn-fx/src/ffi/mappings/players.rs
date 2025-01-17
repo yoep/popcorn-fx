@@ -1,23 +1,19 @@
-use std::fmt::{Debug, Formatter};
-use std::os::raw::c_char;
-use std::ptr;
-use std::sync::{Arc, Weak};
-
+use crate::ffi::{PlayerChangedEventC, SubtitleInfoC};
 use async_trait::async_trait;
 use derive_more::Display;
+use fx_callback::CallbackHandle;
 use log::trace;
-use tokio::sync::Mutex;
-
 use popcorn_fx_core::core::players::{
     PlayMediaRequest, PlayRequest, PlayStreamRequest, PlaySubtitleRequest, PlayUrlRequest, Player,
     PlayerEvent, PlayerManagerEvent, PlayerState,
 };
-use popcorn_fx_core::core::{
-    block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks,
-};
+use popcorn_fx_core::core::{block_in_place, Callbacks, CoreCallback, CoreCallbacks};
 use popcorn_fx_core::{from_c_string, from_c_vec, into_c_owned, into_c_string, into_c_vec};
-
-use crate::ffi::{PlayerChangedEventC, SubtitleInfoC};
+use std::fmt::{Debug, Formatter};
+use std::os::raw::c_char;
+use std::ptr;
+use std::sync::{Arc, Weak};
+use tokio::sync::Mutex;
 
 /// A C-compatible callback function type for player manager events.
 pub type PlayerManagerEventCallback = extern "C" fn(PlayerManagerEventC);
@@ -546,11 +542,7 @@ impl From<&PlayStreamRequest> for PlayRequestC {
         } else {
             ptr::null_mut()
         };
-        let stream_handle = if let Some(e) = value.torrent_stream.upgrade() {
-            into_c_owned(e.stream_handle().value())
-        } else {
-            ptr::null_mut()
-        };
+        let stream_handle = into_c_owned(value.torrent_stream.stream_handle().value());
 
         Self {
             url: into_c_string(value.base.url.clone()),
@@ -597,11 +589,7 @@ impl From<&PlayMediaRequest> for PlayRequestC {
         } else {
             ptr::null_mut()
         };
-        let stream_handle = if let Some(e) = value.torrent_stream.upgrade() {
-            into_c_owned(e.stream_handle().value())
-        } else {
-            ptr::null_mut()
-        };
+        let stream_handle = into_c_owned(value.torrent_stream.stream_handle().value());
 
         Self {
             url: into_c_string(value.base.url.clone()),
@@ -657,10 +645,10 @@ mod tests {
 
     use log::info;
 
+    use fx_handle::Handle;
     use popcorn_fx_core::core::media::MovieOverview;
     use popcorn_fx_core::core::players::PlayerChange;
     use popcorn_fx_core::core::torrents::TorrentStream;
-    use popcorn_fx_core::core::Handle;
     use popcorn_fx_core::testing::{init_logger, MockPlayer, MockTorrentStream};
     use popcorn_fx_core::{from_c_owned, from_c_vec};
 
@@ -874,13 +862,13 @@ mod tests {
             .expect_stream_handle()
             .times(1)
             .return_const(handle.clone());
-        let torrent_stream = Arc::new(Box::new(torrent_stream) as Box<dyn TorrentStream>);
+        let torrent_stream = Box::new(torrent_stream) as Box<dyn TorrentStream>;
         let request = PlayStreamRequest::builder()
             .url(url)
             .title(title)
             .thumb(thumb)
             .background(background)
-            .torrent_stream(Arc::downgrade(&torrent_stream))
+            .torrent_stream(torrent_stream)
             .build();
 
         let result = PlayRequestC::from(&request);
@@ -905,7 +893,7 @@ mod tests {
             .expect_stream_handle()
             .times(1)
             .return_const(handle.clone());
-        let torrent_stream = Arc::new(Box::new(torrent_stream) as Box<dyn TorrentStream>);
+        let torrent_stream = Box::new(torrent_stream) as Box<dyn TorrentStream>;
         let movie = MovieOverview {
             title: "".to_string(),
             imdb_id: "".to_string(),
@@ -919,7 +907,7 @@ mod tests {
             .thumb(thumb)
             .background(background)
             .media(Box::new(movie))
-            .torrent_stream(Arc::downgrade(&torrent_stream))
+            .torrent_stream(torrent_stream)
             .build();
 
         let result = PlayRequestC::from(&request);

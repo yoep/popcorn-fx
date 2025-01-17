@@ -1,11 +1,15 @@
 use crate::torrent::peer::discovery::PeerDiscovery;
 use crate::torrent::peer::extension::Extensions;
-use crate::torrent::peer::{Peer, PeerId, ProtocolExtensionFlags, Result, TcpPeer};
+use crate::torrent::peer::{
+    BitTorrentPeer, Error, Peer, PeerId, PeerStream, ProtocolExtensionFlags, Result,
+};
 use crate::torrent::TorrentContext;
 use async_trait::async_trait;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::net::TcpStream;
+use tokio::{select, time};
 
 /// A peer dialer which establishes TCP peer connections.
 #[derive(Debug)]
@@ -15,6 +19,32 @@ impl TcpPeerDiscovery {
     /// Create a new tcp connection peer dialer.
     pub fn new() -> Self {
         Self {}
+    }
+
+    /// Try to create a new BitTorrent peer from the given TCP stream.
+    async fn create_peer_from_stream(
+        peer_id: PeerId,
+        peer_addr: SocketAddr,
+        stream: TcpStream,
+        torrent: Arc<TorrentContext>,
+        protocol_extensions: ProtocolExtensionFlags,
+        extensions: Extensions,
+        connection_timeout: Duration,
+    ) -> Result<Box<dyn Peer>> {
+        let runtime = torrent.runtime().clone();
+        Ok(Box::new(
+            BitTorrentPeer::new_outbound(
+                peer_id,
+                peer_addr,
+                PeerStream::Tcp(stream),
+                torrent,
+                protocol_extensions,
+                extensions,
+                connection_timeout,
+                runtime,
+            )
+            .await?,
+        ))
     }
 }
 
@@ -29,19 +59,13 @@ impl PeerDiscovery for TcpPeerDiscovery {
         extensions: Extensions,
         connection_timeout: Duration,
     ) -> Result<Box<dyn Peer>> {
-        let runtime = torrent.runtime().clone();
-        Ok(Box::new(
-            TcpPeer::new_outbound(
-                peer_id,
-                peer_addr,
-                torrent,
-                protocol_extensions,
-                extensions,
-                connection_timeout,
-                runtime,
-            )
-            .await?,
-        ))
+        select! {
+            _ = time::sleep(connection_timeout) => {
+                Err(Error::Io(format!("failed to connect to {}, connection timed out", peer_addr)))
+            },
+            stream = TcpStream::connect(&peer_addr) =>
+                Self::create_peer_from_stream(peer_id, peer_addr, stream?, torrent, protocol_extensions, extensions, connection_timeout).await,
+        }
     }
 }
 

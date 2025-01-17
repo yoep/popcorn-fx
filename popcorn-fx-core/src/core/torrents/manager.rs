@@ -1,11 +1,11 @@
 use std::fmt::Debug;
 
-use crate::core::callback::Subscription;
-use crate::core::torrents::{Torrent, TorrentFileInfo, TorrentHandle, TorrentHealth, TorrentInfo};
+use crate::core::torrents::{Torrent, TorrentHandle, TorrentHealth, TorrentInfo};
 use crate::core::{torrents, Callbacks, CoreCallback};
 use async_trait::async_trait;
 use derive_more::Display;
 use downcast_rs::{impl_downcast, DowncastSync};
+use fx_callback::Subscription;
 #[cfg(any(test, feature = "testing"))]
 pub use mock::*;
 
@@ -36,17 +36,13 @@ pub trait TorrentManager: Debug + DowncastSync + Callbacks<TorrentManagerEvent> 
     async fn health_from_uri<'a>(&'a self, url: &'a str) -> torrents::Result<TorrentHealth>;
 
     /// Create a new idle torrent within the torrent manager.
-    async fn create(&self, uri: &str) -> torrents::Result<TorrentHandle>;
+    async fn create(&self, uri: &str) -> torrents::Result<Box<dyn Torrent>>;
 
     /// Retrieve the metadata information of the torrent.
     async fn info(&self, handle: &TorrentHandle) -> torrents::Result<TorrentInfo>;
 
     /// Start the download of the given file within the torrent.
-    async fn download(
-        &self,
-        handle: &TorrentHandle,
-        file_info: &TorrentFileInfo,
-    ) -> torrents::Result<()>;
+    async fn download(&self, handle: &TorrentHandle, filename: &str) -> torrents::Result<()>;
 
     /// Get a torrent by its unique handle.
     ///
@@ -94,7 +90,7 @@ impl_downcast!(sync TorrentManager);
 #[cfg(any(test, feature = "testing"))]
 mod mock {
     use super::*;
-    use crate::core::CallbackHandle;
+    use fx_callback::CallbackHandle;
     use mockall::mock;
 
     mock! {
@@ -104,9 +100,9 @@ mod mock {
         #[async_trait]
         impl TorrentManager for TorrentManager {
             async fn health_from_uri<'a>(&'a self, url: &'a str) -> torrents::Result<TorrentHealth>;
-            async fn create(&self, uri: &str) -> torrents::Result<TorrentHandle>;
+            async fn create(&self, uri: &str) -> torrents::Result<Box<dyn Torrent>>;
             async fn info(&self, handle: &TorrentHandle) -> torrents::Result<TorrentInfo>;
-            async fn download(&self, handle: &TorrentHandle, file_info: &TorrentFileInfo) -> torrents::Result<()>;
+            async fn download(&self, handle: &TorrentHandle, filename: &str) -> torrents::Result<()>;
             async fn find_by_handle(&self, handle: &TorrentHandle) -> Option<Box<dyn Torrent>>;
             async fn subscribe(&self, handle: &TorrentHandle) -> Option<Subscription<torrents::TorrentEvent>>;
             async fn remove(&self, handle: &TorrentHandle);

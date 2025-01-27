@@ -213,7 +213,7 @@ mod tests {
     use super::*;
     use crate::torrent::{TorrentConfig, TorrentFlags};
     use crate::{create_peer_pair, create_torrent};
-    use popcorn_fx_core::{assert_timeout, init_logger};
+    use popcorn_fx_core::init_logger;
 
     #[test]
     fn test_peer_pool_new_max_inflight_larger_than_pool_limit() {

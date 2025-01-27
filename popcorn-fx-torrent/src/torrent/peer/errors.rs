@@ -8,7 +8,7 @@ use tokio::time::error::Elapsed;
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// Indicates that an error occurred while communicating with a peer
-#[derive(Debug, Clone, Error, PartialEq)]
+#[derive(Debug, Error)]
 pub enum Error {
     /// Indicates that the peer id is invalid
     #[error("peer id is invalid")]
@@ -19,6 +19,9 @@ pub enum Error {
     /// Indicates that an invalid piece index has been received
     #[error("piece index {0} is invalid")]
     InvalidPiece(PieceIndex),
+    /// Indicates that the peer is in an invalid state.
+    #[error("invalid state {0}")]
+    InvalidState(String),
     /// Indicates that a received message is unsupported
     #[error("unsupported message type {0}")]
     UnsupportedMessage(u8),
@@ -36,7 +39,7 @@ pub enum Error {
     Parsing(String),
     /// Indicates that an io error occurred
     #[error("an io error occurred, {0}")]
-    Io(String),
+    Io(io::Error),
     /// Indicates that the given port number is in use
     #[error("port {0} is already in use")]
     PortUnavailable(u16),
@@ -45,15 +48,35 @@ pub enum Error {
     Closed,
 }
 
+impl PartialEq for Error {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Error::InvalidPeerId, Error::InvalidPeerId) => true,
+            (Error::InvalidLength(_, _), Error::InvalidLength(_, _)) => true,
+            (Error::InvalidPiece(_), Error::InvalidPiece(_)) => true,
+            (Error::InvalidState(_), Error::InvalidState(_)) => true,
+            (Error::UnsupportedMessage(_), Error::UnsupportedMessage(_)) => true,
+            (Error::UnsupportedVersion(_), Error::UnsupportedVersion(_)) => true,
+            (Error::UnsupportedExtensions(_), Error::UnsupportedExtensions(_)) => true,
+            (Error::Handshake(_, _), Error::Handshake(_, _)) => true,
+            (Error::Parsing(_), Error::Parsing(_)) => true,
+            (Error::Io(_), Error::Io(_)) => true,
+            (Error::PortUnavailable(_), Error::PortUnavailable(_)) => true,
+            (Error::Closed, Error::Closed) => true,
+            _ => false,
+        }
+    }
+}
+
 impl From<io::Error> for Error {
     fn from(error: io::Error) -> Self {
-        Error::Io(error.to_string())
+        Error::Io(error)
     }
 }
 
 impl From<Elapsed> for Error {
     fn from(error: Elapsed) -> Self {
-        Error::Io(error.to_string())
+        Error::Io(io::Error::new(io::ErrorKind::TimedOut, error))
     }
 }
 
@@ -67,6 +90,10 @@ mod tests {
 
         let result = Error::from(error);
 
-        assert_eq!(Error::Io(io::ErrorKind::UnexpectedEof.to_string()), result);
+        if let Error::Io(_) = result {
+            return;
+        } else {
+            assert!(false, "expected Error::Io, got {:?} instead", result)
+        }
     }
 }

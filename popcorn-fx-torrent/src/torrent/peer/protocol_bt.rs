@@ -529,7 +529,7 @@ pub struct ExtendedHandshake {
     #[serde(
         default,
         skip_serializing_if = "is_false",
-        with = "crate::torrent::peer::protocol::bt::serde_bool_int"
+        with = "crate::torrent::peer::protocol_bt::serde_bool_int"
     )]
     pub upload_only: bool,
     /// Client name and version (as an utf-8 string).
@@ -538,7 +538,7 @@ pub struct ExtendedHandshake {
     pub client: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub regg: Option<i32>,
-    #[serde(default, with = "crate::torrent::peer::protocol::bt::serde_bool_int")]
+    #[serde(default, with = "crate::torrent::peer::protocol_bt::serde_bool_int")]
     pub encryption: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata_size: Option<u32>,

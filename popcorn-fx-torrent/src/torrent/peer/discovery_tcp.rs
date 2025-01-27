@@ -5,6 +5,7 @@ use crate::torrent::peer::{
 };
 use crate::torrent::TorrentContext;
 use async_trait::async_trait;
+use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -61,7 +62,7 @@ impl PeerDiscovery for TcpPeerDiscovery {
     ) -> Result<Box<dyn Peer>> {
         select! {
             _ = time::sleep(connection_timeout) => {
-                Err(Error::Io(format!("failed to connect to {}, connection timed out", peer_addr)))
+                Err(Error::Io(io::Error::new(io::ErrorKind::TimedOut, format!("connection with {} timed out", peer_addr))))
             },
             stream = TcpStream::connect(&peer_addr) =>
                 Self::create_peer_from_stream(peer_id, peer_addr, stream?, torrent, protocol_extensions, extensions, connection_timeout).await,

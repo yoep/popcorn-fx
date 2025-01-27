@@ -37,7 +37,7 @@ pub enum PieceError {
     InvalidChunkSize(usize, usize),
 }
 
-#[derive(Debug, Clone, Error, PartialEq)]
+#[derive(Debug, Error, PartialEq)]
 pub enum TorrentError {
     #[error("failed to parse magnet uri, {0}")]
     Magnet(MagnetError),
@@ -112,6 +112,7 @@ impl From<fs::Error> for TorrentError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io;
 
     #[test]
     fn test_torrent_error_from_tracker_error() {
@@ -127,19 +128,16 @@ mod tests {
 
     #[test]
     fn test_torrent_error_from_peer_error() {
-        let err = peer::Error::Io("foo bar".to_string());
+        let err = peer::Error::InvalidPeerId;
 
         let result: TorrentError = err.into();
 
-        assert_eq!(
-            result,
-            TorrentError::Peer(peer::Error::Io("foo bar".to_string()))
-        );
+        assert_eq!(result, TorrentError::Peer(peer::Error::InvalidPeerId));
     }
 
     #[test]
     fn test_torrent_error_from_io_error() {
-        let err = std::io::Error::new(std::io::ErrorKind::Other, "foo bar");
+        let err = io::Error::new(io::ErrorKind::Other, "foo bar");
 
         let result: TorrentError = err.into();
 

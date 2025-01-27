@@ -447,7 +447,6 @@ mod tests {
     }
 
     async fn execute_tracker_announcement(info: &TorrentMetadata) -> AnnounceEntryResponse {
-        let tracker_uris = info.tiered_trackers();
         let info_hash = info.info_hash.clone();
         let announce = Announcement {
             info_hash,

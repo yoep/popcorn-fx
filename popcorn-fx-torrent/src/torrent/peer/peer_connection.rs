@@ -1,4 +1,5 @@
-use crate::torrent::peer::protocol::{Handshake, Message};
+use crate::torrent::peer::protocol_bt::{Handshake, Message};
+use crate::torrent::peer::protocol_utp::UtpStream;
 use crate::torrent::peer::{
     ConnectionType, DataTransferStats, Error, PeerConn, PeerId, PeerResponse, Result,
 };
@@ -7,11 +8,12 @@ use byteorder::BigEndian;
 use byteorder::ByteOrder;
 use derive_more::Display;
 use log::{trace, warn};
+use std::fmt::Debug;
 use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Instant;
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt, BufReader, BufWriter, WriteHalf};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufReader, WriteHalf};
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
 use tokio::select;
@@ -22,19 +24,33 @@ use tokio_util::sync::CancellationToken;
 /// The bytes length of an expected handshake message
 const HANDSHAKE_MESSAGE_LENGTH: usize = 68;
 
-#[derive(Debug)]
-pub struct TcpConnection {
-    /// The tcp remote connection address.
+#[derive(Debug, Display)]
+#[display(fmt = "{}[{}]", id, addr)]
+pub struct PeerConnection<W>
+where
+    W: AsyncWrite + Debug + Send,
+{
+    /// The unique peer id of the connection
+    id: PeerId,
+    /// The remote peer address
     addr: SocketAddr,
-    /// The receiver of the peer reader
+    /// The receiver of the peer connection reader
     receiver: Mutex<UnboundedReceiver<PeerReaderEvent>>,
-    /// The writer of the tcp connection
-    writer: Mutex<Option<BufWriter<WriteHalf<TcpStream>>>>,
+    /// The writer of the connection
+    writer: PeerWriter<W>,
     cancellation_token: CancellationToken,
 }
 
-impl TcpConnection {
-    pub fn new(id: PeerId, addr: SocketAddr, stream: TcpStream, runtime: Arc<Runtime>) -> Self {
+impl<W> PeerConnection<W>
+where
+    W: AsyncWrite + Debug + Send,
+{
+    pub fn new_tcp(
+        id: PeerId,
+        addr: SocketAddr,
+        stream: TcpStream,
+        runtime: Arc<Runtime>,
+    ) -> PeerConnection<TcpStream> {
         let cancellation_token = CancellationToken::new();
         let (sender, receiver) = unbounded_channel();
         let (reader, writer) = tokio::io::split(stream);
@@ -42,21 +58,43 @@ impl TcpConnection {
         let mut reader = PeerReader::new(id, addr, reader, sender, cancellation_token.clone());
         runtime.spawn(async move { reader.start_read_loop().await });
 
-        Self {
+        PeerConnection::<TcpStream> {
+            id,
             addr,
             receiver: Mutex::new(receiver),
-            writer: Mutex::new(Some(BufWriter::new(writer))),
+            writer: PeerWriter::new(writer),
+            cancellation_token,
+        }
+    }
+
+    pub fn new_utp(
+        id: PeerId,
+        addr: SocketAddr,
+        stream: UtpStream,
+        runtime: Arc<Runtime>,
+    ) -> PeerConnection<UtpStream> {
+        let cancellation_token = CancellationToken::new();
+        let (sender, receiver) = unbounded_channel();
+        let (reader, writer) = tokio::io::split(stream);
+
+        let mut reader = PeerReader::new(id, addr, reader, sender, cancellation_token.clone());
+        runtime.spawn(async move { reader.start_read_loop().await });
+
+        PeerConnection::<UtpStream> {
+            id,
+            addr,
+            receiver: Mutex::new(receiver),
+            writer: PeerWriter::new(writer),
             cancellation_token,
         }
     }
 }
 
 #[async_trait]
-impl PeerConn for TcpConnection {
-    fn conn_type(&self) -> ConnectionType {
-        ConnectionType::Tcp
-    }
-
+impl<W> PeerConn for PeerConnection<W>
+where
+    W: AsyncWrite + Debug + Send,
+{
     async fn recv(&self) -> Option<PeerResponse> {
         if let Some(event) = self.receiver.lock().await.recv().await {
             return Some(match event {
@@ -78,19 +116,58 @@ impl PeerConn for TcpConnection {
     }
 
     async fn write<'a>(&'a self, bytes: &'a [u8]) -> Result<()> {
-        let mut mutex = self.writer.lock().await;
-        let writer = mutex.as_mut().ok_or(Error::Closed)?;
+        self.writer.write(bytes).await
+    }
+
+    async fn close(&self) -> Result<()> {
+        trace!("Peer {} connection is closing", self);
+        self.cancellation_token.cancel();
+        self.writer.shutdown().await;
+        Ok(())
+    }
+}
+
+impl<W> Drop for PeerConnection<W>
+where
+    W: AsyncWrite + Debug + Send,
+{
+    fn drop(&mut self) {
+        trace!("Peer {} connection is being dropped", self);
+        self.cancellation_token.cancel();
+    }
+}
+
+#[derive(Debug)]
+struct PeerWriter<W>
+where
+    W: AsyncWrite + Debug,
+{
+    writer: Mutex<WriteHalf<W>>,
+}
+
+impl<W> PeerWriter<W>
+where
+    W: AsyncWrite + Debug,
+{
+    fn new(writer: WriteHalf<W>) -> Self {
+        Self {
+            writer: Mutex::new(writer),
+        }
+    }
+
+    async fn write<'a>(&'a self, bytes: &'a [u8]) -> Result<()> {
+        let mut writer = self.writer.lock().await;
         writer.write_all(bytes.as_ref()).await?;
         writer.flush().await?;
         Ok(())
     }
 
-    async fn close(&self) -> Result<()> {
-        self.cancellation_token.cancel();
-        let _ = self.writer.lock().await.take();
-        Ok(())
+    async fn shutdown(&self) {
+        let _ = self.writer.lock().await.shutdown().await;
     }
 }
+
+unsafe impl<W> Send for PeerWriter<W> where W: AsyncWrite + Debug {}
 
 /// The events of the peer reader.
 #[derive(Debug, Clone)]
@@ -205,7 +282,7 @@ where
         match read_result {
             Ok(0) => Err(Error::Closed),
             Ok(_) => Ok(buffer),
-            Err(e) => Err(Error::Io(e.to_string())),
+            Err(e) => Err(Error::Io(e)),
         }
     }
 

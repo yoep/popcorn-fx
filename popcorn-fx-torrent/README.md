@@ -1,9 +1,8 @@
-# FXTorrent
+# FX-Torrent
 
-A rust native torrent implementation used within the PopcornFX application.
-It's based on the `libtorrent` library for functionality and naming convention.
-
-Both V1 & V2 of the Bittorrent protocol specification have been implemented.
+FX-Torrent is the most complete BitTorrent implementation fully written in Rust, which supports both Linux, MacOS and Windows. 
+It supports most of the Bittorrent protocol specification, 
+and is based on the `libtorrent` library for functionality and naming convention.
 
 ## Features
 

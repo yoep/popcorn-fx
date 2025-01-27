@@ -116,6 +116,16 @@ impl InfoHash {
         None
     }
 
+    /// Get the v1 hash as a hex encoded string.
+    fn v1_as_str(&self) -> Option<String> {
+        self.v1.as_ref().map(|e| hex::encode(e).to_uppercase())
+    }
+
+    /// Get the v2 hash as a hex encoded string.
+    fn v2_as_str(&self) -> Option<String> {
+        self.v2.as_ref().map(|e| hex::encode(e).to_uppercase())
+    }
+
     /// Try to parse the given hash bytes into an `InfoHash`.
     /// This should only be used by peer implementations or piece calculations,
     /// which want to validate an incoming handshake or piece data.
@@ -235,7 +245,6 @@ impl InfoHash {
             v2_hash = Some(v2_hasher.to_vec());
         }
 
-        trace!("Info hash v1: {:?}, v2: {:?} ", v1_hash, v2_hash);
         Self {
             v1: Some(v1_hash),
             v2: v2_hash,
@@ -295,7 +304,6 @@ impl InfoHash {
 
         let mut hash = [0u8; 20];
         hash.copy_from_slice(&topic_bytes[..20]);
-        trace!("Info hash v1: {:?}", hash);
         Ok(Self {
             v1: Some(hash),
             v2: None,
@@ -411,21 +419,19 @@ impl PartialEq for InfoHash {
 impl Debug for InfoHash {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("InfoHash")
-            .field("v1", &self.v1.as_ref().map(|e| hex::encode(e)))
-            .field("v2", &self.v2.as_ref().map(|e| hex::encode(e)))
+            .field("v1", &self.v1_as_str())
+            .field("v2", &self.v2_as_str())
             .finish()
     }
 }
 
 impl Display for InfoHash {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        if let Some(v1) = &self.v1 {
-            write!(f, "{}", hex::encode(v1).to_uppercase())
-        } else if let Some(v2) = &self.v2 {
-            write!(f, "{}", hex::encode(v2).to_uppercase())
-        } else {
-            write!(f, "INVALID INFO HASH")
-        }
+        let hash = self
+            .v1_as_str()
+            .unwrap_or_else(|| self.v2_as_str().unwrap_or("INVALID INFO HASH".to_string()));
+
+        write!(f, "{}", hash)
     }
 }
 
@@ -732,7 +738,7 @@ mod tests {
     #[test]
     fn test_info_hash_try_from_str_slice() {
         init_logger!();
-        let magnet= Magnet::from_str("magnet:?xt=urn:btih:631a31dd0a46257d5078c0dee4e66e26f73e42ac&xt=urn:btmh:1220d8dd32ac93357c368556af3ac1d95c9d76bd0dff6fa9833ecdac3d53134efabb&dn=bittorrent-v1-v2-hybrid-test").unwrap();
+        let magnet = Magnet::from_str("magnet:?xt=urn:btih:631a31dd0a46257d5078c0dee4e66e26f73e42ac&xt=urn:btmh:1220d8dd32ac93357c368556af3ac1d95c9d76bd0dff6fa9833ecdac3d53134efabb&dn=bittorrent-v1-v2-hybrid-test").unwrap();
 
         let result = InfoHash::try_from_str_slice(magnet.xt().as_slice()).unwrap();
 

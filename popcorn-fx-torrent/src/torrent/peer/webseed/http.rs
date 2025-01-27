@@ -1,15 +1,18 @@
 use crate::torrent::peer::{
-    Error, Peer, PeerClientInfo, PeerEvent, PeerHandle, PeerState, PeerStats, Result,
+    ConnectionDirection, Error, Peer, PeerClientInfo, PeerEvent, PeerHandle, PeerId, PeerState,
+    PeerStats, Result,
 };
 use crate::torrent::{PieceIndex, TorrentContext, TorrentFileInfo, TorrentMetadata};
 use async_trait::async_trait;
 use bit_vec::BitVec;
 use derive_more::Display;
 use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use fx_handle::Handle;
 use log::{debug, warn};
 use percent_encoding::{percent_encode, AsciiSet, NON_ALPHANUMERIC};
 use reqwest::redirect::Policy;
 use reqwest::Client;
+use std::io;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -36,10 +39,11 @@ pub struct HttpPeer {
 
 impl HttpPeer {
     pub fn new(url: Url, torrent: Arc<TorrentContext>, runtime: Arc<Runtime>) -> Result<Self> {
+        let handle = Handle::new();
         let client = Client::builder()
             .redirect(Policy::limited(3))
             .build()
-            .map_err(|e| Error::Io(e.to_string()))?;
+            .map_err(|e| Error::Io(io::Error::new(io::ErrorKind::Other, e)))?;
         let addr = url
             .socket_addrs(|| match url.scheme() {
                 "http" => Some(80),
@@ -50,8 +54,14 @@ impl HttpPeer {
             .pop()
             .unwrap_or(SocketAddr::from(([120, 0, 0, 1], 80)));
         let inner = Arc::new(HttpPeerContext {
-            handle: Default::default(),
+            handle,
             client,
+            client_info: PeerClientInfo {
+                handle,
+                id: PeerId::new(),
+                addr,
+                connection_type: ConnectionDirection::Outbound,
+            },
             url,
             addr,
             stats: RwLock::new(Default::default()),
@@ -78,7 +88,7 @@ impl Peer for HttpPeer {
     }
 
     fn client(&self) -> PeerClientInfo {
-        todo!()
+        self.inner.client_info.clone()
     }
 
     fn addr(&self) -> SocketAddr {
@@ -128,10 +138,11 @@ impl Drop for HttpPeer {
 }
 
 #[derive(Debug, Display)]
-#[display(fmt = "{}", url)]
+#[display(fmt = "{}", client_info)]
 struct HttpPeerContext {
     handle: PeerHandle,
     client: Client,
+    client_info: PeerClientInfo,
     url: Url,
     addr: SocketAddr,
     stats: RwLock<PeerStats>,
@@ -194,7 +205,7 @@ impl HttpPeerContext {
                     .header("Range", format!("bytes={}-{}", range_start, range_end))
                     .send()
                     .await
-                    .map_err(|e| Error::Io(e.to_string()))?;
+                    .map_err(|e| Error::Io(io::Error::new(io::ErrorKind::Other, e)))?;
                 let mut stats = self.stats.write().await;
                 stats.download += response.content_length().unwrap_or(0) as usize;
 
@@ -202,7 +213,7 @@ impl HttpPeerContext {
                     let body = response
                         .bytes()
                         .await
-                        .map_err(|e| Error::Io(e.to_string()))?;
+                        .map_err(|e| Error::Io(io::Error::new(io::ErrorKind::Other, e)))?;
                     stats.download_useful += body.len();
 
                     // loop over each part that needs to be completed and fetch it from the body
@@ -210,9 +221,12 @@ impl HttpPeerContext {
                         let data_len = body.len();
                         let part_end = part.begin + part.length;
                         if part_end > data_len {
-                            return Err(Error::Io(format!(
-                                "part end {} is out of bound for response data length {}",
-                                part_end, data_len
+                            return Err(Error::Io(io::Error::new(
+                                io::ErrorKind::InvalidData,
+                                format!(
+                                    "part end {} is out of bound for response data length {}",
+                                    part_end, data_len
+                                ),
                             )));
                         }
 
@@ -221,9 +235,12 @@ impl HttpPeerContext {
                             .piece_part_completed(part.clone(), data.to_vec());
                     }
                 } else {
-                    return Err(Error::Io(format!(
-                        "expected status 200, but got {:?} instead",
-                        response.status()
+                    return Err(Error::Io(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        format!(
+                            "expected status 200, but got {:?} instead",
+                            response.status()
+                        ),
                     )));
                 }
             }
@@ -281,9 +298,9 @@ impl HttpPeerContext {
             return Ok(path);
         }
 
-        Err(Error::Io(format!(
-            "unable to create filepath for {:?}",
-            file
+        Err(Error::Io(io::Error::new(
+            io::ErrorKind::Other,
+            format!("unable to create filepath for {:?}", file),
         )))
     }
 }

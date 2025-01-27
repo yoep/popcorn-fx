@@ -1,5 +1,5 @@
 use crate::torrent::peer::extension::Extensions;
-use crate::torrent::peer::protocol::{UtpSocket, UtpStream};
+use crate::torrent::peer::protocol_utp::{UtpSocket, UtpStream};
 use crate::torrent::peer::{
     BitTorrentPeer, Error, Peer, PeerDiscovery, PeerEntry, PeerId, PeerListener, PeerStream,
     ProtocolExtensionFlags, Result,
@@ -10,6 +10,7 @@ use derive_more::Display;
 use futures::FutureExt;
 use fx_handle::Handle;
 use log::{debug, trace};
+use std::io;
 use std::net::SocketAddr;
 use std::sync::{mpsc, Arc};
 use std::time::Duration;
@@ -110,9 +111,9 @@ impl PeerDiscovery for UtpPeerDiscovery {
             ));
         }
 
-        Err(Error::Io(format!(
-            "support for address \"{}\" has been disabled",
-            peer_addr
+        Err(Error::Io(io::Error::new(
+            io::ErrorKind::Unsupported,
+            format!("support for address \"{}\" has been disabled", peer_addr),
         )))
     }
 }
@@ -200,7 +201,10 @@ impl InnerUtpPeerDiscovery {
         }
 
         if sockets.is_empty() {
-            return Err(Error::Io("failed to create any uTP socket".to_string()));
+            return Err(Error::Io(io::Error::new(
+                io::ErrorKind::Other,
+                "no uTP socket created",
+            )));
         }
 
         Ok(sockets)

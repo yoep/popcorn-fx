@@ -228,13 +228,13 @@ pub mod tests {
         )
         .unwrap();
         let listeners: Vec<Box<dyn PeerListener>> = vec![
-            // Box::new(
-            //     TcpPeerListener::new(
-            //         available_port!(tcp_port_start, 31000).unwrap(),
-            //         runtime.clone(),
-            //     )
-            //     .unwrap(),
-            // ),
+            Box::new(
+                TcpPeerListener::new(
+                    available_port!(tcp_port_start, 31000).unwrap(),
+                    runtime.clone(),
+                )
+                .unwrap(),
+            ),
             Box::new(utp_discovery.clone()),
         ];
         let dialers: Vec<Box<dyn PeerDiscovery>> =
@@ -248,7 +248,7 @@ pub mod tests {
     #[macro_export]
     macro_rules! create_peer_pair {
         ($torrent:expr) => {
-            crate::torrent::tests::create_peer_pair(
+            crate::torrent::tests::create_tcp_peer_pair(
                 $torrent,
                 $torrent,
                 $torrent
@@ -259,10 +259,10 @@ pub mod tests {
             )
         };
         ($torrent:expr, $protocols:expr) => {
-            crate::torrent::tests::create_peer_pair($torrent, $torrent, $protocols)
+            crate::torrent::tests::create_tcp_peer_pair($torrent, $torrent, $protocols)
         };
         ($incoming_torrent:expr, $outgoing_torrent:expr, $protocols:expr) => {
-            crate::torrent::tests::create_peer_pair(
+            crate::torrent::tests::create_tcp_peer_pair(
                 $incoming_torrent,
                 $outgoing_torrent,
                 $protocols,
@@ -270,7 +270,7 @@ pub mod tests {
         };
     }
 
-    pub fn create_peer_pair(
+    pub fn create_tcp_peer_pair(
         incoming_torrent: &Torrent,
         outgoing_torrent: &Torrent,
         protocols: ProtocolExtensionFlags,
@@ -289,37 +289,21 @@ pub mod tests {
         let mut listener = TcpPeerListener::new(port, incoming_runtime_thread.clone()).unwrap();
         incoming_runtime.spawn(async move {
             if let Some(peer) = listener.recv().await {
-                match peer.stream {
-                    PeerStream::Tcp(stream) => tx
-                        .send(
-                            BitTorrentPeer::new_inbound(
-                                PeerId::new(),
-                                peer.socket_addr,
-                                PeerStream::Tcp(stream),
-                                incoming_context,
-                                protocols.clone(),
-                                extensions,
-                                Duration::from_secs(5),
-                                incoming_runtime_thread,
-                            )
-                            .await,
+                if let PeerStream::Tcp(stream) = peer.stream {
+                    tx.send(
+                        BitTorrentPeer::new_inbound(
+                            PeerId::new(),
+                            peer.socket_addr,
+                            PeerStream::Tcp(stream),
+                            incoming_context,
+                            protocols.clone(),
+                            extensions,
+                            Duration::from_secs(5),
+                            incoming_runtime_thread,
                         )
-                        .unwrap(),
-                    PeerStream::Utp(stream) => tx
-                        .send(
-                            BitTorrentPeer::new_inbound(
-                                PeerId::new(),
-                                peer.socket_addr,
-                                PeerStream::Utp(stream),
-                                incoming_context,
-                                protocols.clone(),
-                                extensions,
-                                Duration::from_secs(5),
-                                incoming_runtime_thread,
-                            )
-                            .await,
-                        )
-                        .unwrap(),
+                        .await,
+                    )
+                    .unwrap()
                 }
             }
         });

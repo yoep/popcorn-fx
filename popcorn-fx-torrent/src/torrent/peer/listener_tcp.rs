@@ -80,7 +80,7 @@ impl TcpPeerListener {
                 ready_sender.send(Ok(())).unwrap();
             }
             Err(e) => {
-                ready_sender.send(Err(Error::Io(e.to_string()))).unwrap();
+                ready_sender.send(Err(e)).unwrap();
                 return;
             }
         }

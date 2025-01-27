@@ -1,5 +1,5 @@
 use crate::torrent::peer::extension::{Extension, ExtensionNumber};
-use crate::torrent::peer::protocol::Message;
+use crate::torrent::peer::protocol_bt::Message;
 use crate::torrent::peer::{extension, PeerContext, PeerEvent};
 use std::fmt::{Debug, Formatter};
 

@@ -2,11 +2,11 @@ use crate::torrent::merkle::LEAF_BLOCK_SIZE;
 use crate::torrent::peer::extension::{
     Extension, ExtensionName, ExtensionNumber, ExtensionRegistry, Extensions,
 };
-use crate::torrent::peer::peer_conn_tcp::TcpConnection;
-use crate::torrent::peer::peer_conn_utp::UtpConnection;
-use crate::torrent::peer::protocol::{
-    ExtendedHandshake, Handshake, HashRequest, Message, Piece, Request, UtpStream,
+use crate::torrent::peer::peer_connection::PeerConnection;
+use crate::torrent::peer::protocol_bt::{
+    ExtendedHandshake, Handshake, HashRequest, Message, Piece, Request,
 };
+use crate::torrent::peer::protocol_utp::UtpStream;
 use crate::torrent::peer::{Error, PeerId, Result};
 use crate::torrent::{
     calculate_byte_rate, CompactIp, InfoHash, PieceIndex, TorrentContext, TorrentEvent,
@@ -25,6 +25,7 @@ use log::{debug, error, trace, warn};
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
+use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -120,13 +121,6 @@ pub trait Peer: Debug + Display + Send + Sync + Callback<PeerEvent> {
 /// A peer connection is responsible for sending and receiving Bittorrent [Message]s to and from a remote peer.
 #[async_trait]
 pub(crate) trait PeerConn: Debug + Send + Sync {
-    /// Get the connection type of the peer.
-    ///
-    /// # Returns
-    ///
-    /// It returns the underlying connection type of the peer.
-    fn conn_type(&self) -> ConnectionType;
-
     /// Try to receive the next available Bittorrent [Message] from the remote peer.
     ///
     /// # Returns
@@ -494,10 +488,18 @@ impl BitTorrentPeer {
     ) -> Result<Self> {
         trace!("Trying to create outgoing peer connection to {}", addr);
         let connection: Box<dyn PeerConn> = match stream {
-            PeerStream::Tcp(stream) => {
-                Box::new(TcpConnection::new(peer_id, addr, stream, runtime.clone()))
-            }
-            PeerStream::Utp(stream) => Box::new(UtpConnection::new(peer_id, addr, stream)),
+            PeerStream::Tcp(stream) => Box::new(PeerConnection::<TcpStream>::new_tcp(
+                peer_id,
+                addr,
+                stream,
+                runtime.clone(),
+            )),
+            PeerStream::Utp(stream) => Box::new(PeerConnection::<UtpStream>::new_utp(
+                peer_id,
+                addr,
+                stream,
+                runtime.clone(),
+            )),
         };
         Self::process_connection_stream(
             peer_id,
@@ -525,16 +527,24 @@ impl BitTorrentPeer {
         runtime: Arc<Runtime>,
     ) -> Result<Self> {
         let connection: Box<dyn PeerConn> = match stream {
-            PeerStream::Tcp(stream) => {
-                Box::new(TcpConnection::new(peer_id, addr, stream, runtime.clone()))
-            }
-            PeerStream::Utp(stream) => Box::new(UtpConnection::new(peer_id, addr, stream)),
+            PeerStream::Tcp(stream) => Box::new(PeerConnection::<TcpStream>::new_tcp(
+                peer_id,
+                addr,
+                stream,
+                runtime.clone(),
+            )),
+            PeerStream::Utp(stream) => Box::new(PeerConnection::<UtpStream>::new_utp(
+                peer_id,
+                addr,
+                stream,
+                runtime.clone(),
+            )),
         };
 
         trace!("Trying to receive incoming peer connection from {}", addr);
         select! {
             _ = time::sleep(timeout) => {
-                Err(Error::Io(format!("failed to accept connection from {}, connection timed out", addr)))
+                Err(Error::Io(io::Error::new(io::ErrorKind::TimedOut, format!("connection from {} timed out", addr))))
             },
             result = Self::process_connection_stream(
                 peer_id,
@@ -1082,7 +1092,7 @@ pub enum PeerCommandEvent {
 }
 
 #[derive(Debug, Display)]
-#[display(fmt = "{}:{}", "connection.conn_type()", client)]
+#[display(fmt = "{}", client)]
 pub struct PeerContext {
     /// The client information of the peer
     client: PeerClientInfo,
@@ -1617,7 +1627,7 @@ impl PeerContext {
     }
 
     /// Handle a received hash request from the remote peer.
-    async fn handle_hash_request(&self, request: HashRequest) {
+    async fn handle_hash_request(&self, _request: HashRequest) {
         // check if the torrent hash is a v2
         let metadata = self.torrent.metadata().await;
         let metadata_version = metadata.metadata_version().unwrap_or(0);
@@ -2581,11 +2591,7 @@ impl PeerContext {
         let msg_length = bytes.as_ref().len();
 
         let start_time = Instant::now();
-        timeout(self.timeout, async {
-            trace!("Sending a total of {} bytes to peer {}", msg_length, self);
-            self.connection.write(bytes.as_ref()).await
-        })
-        .await??;
+        timeout(self.timeout, self.connection.write(bytes.as_ref())).await??;
         let elapsed = start_time.elapsed();
 
         // update the connection stats
@@ -2844,27 +2850,70 @@ impl Drop for PeerContext {
 
 #[cfg(test)]
 mod tests {
-    use tempfile::tempdir;
-
     use super::*;
     use crate::torrent::operation::{TorrentCreateFilesOperation, TorrentCreatePiecesOperation};
     use crate::torrent::peer::extension::metadata::MetadataExtension;
+    use crate::torrent::peer::tests::{create_utp_peer_pair, create_utp_socket_pair};
     use crate::torrent::{
         TorrentConfig, TorrentFlags, TorrentOperation, TorrentOperationResult, TorrentState,
         DEFAULT_TORRENT_PROTOCOL_EXTENSIONS,
     };
-    use crate::{create_peer_pair, create_torrent};
+    use crate::{create_peer_pair, create_torrent, create_utp_socket};
     use popcorn_fx_core::{assert_timeout, init_logger};
+    use tempfile::tempdir;
 
     #[test]
-    fn test_peer_new() {
+    fn test_peer_new_tcp() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let torrent = create_torrent!("debian-udp.torrent", temp_path, TorrentFlags::none());
+        let torrent = create_torrent!(
+            "debian-udp.torrent",
+            temp_path,
+            TorrentFlags::none(),
+            TorrentConfig::default(),
+            vec![]
+        );
         let context = torrent.instance().unwrap();
         let runtime = context.runtime();
         let (outgoing, incoming) = create_peer_pair!(&torrent);
+
+        let result = runtime.block_on(incoming.state());
+        assert_ne!(PeerState::Error, result);
+        assert_ne!(PeerState::Closed, result);
+
+        runtime.block_on(incoming.close());
+        let result = runtime.block_on(incoming.state());
+        assert_eq!(PeerState::Closed, result);
+        assert_timeout!(
+            Duration::from_secs(1),
+            PeerState::Closed == runtime.block_on(outgoing.state()),
+            "expected the outgoing connection to be closed"
+        );
+    }
+
+    #[test]
+    fn test_peer_new_utp() {
+        init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let torrent = create_torrent!(
+            "debian-udp.torrent",
+            temp_path,
+            TorrentFlags::none(),
+            TorrentConfig::default(),
+            vec![]
+        );
+        let context = torrent.instance().unwrap();
+        let runtime = context.runtime();
+        let (incoming_socket, outgoing_socket) = create_utp_socket_pair();
+        let (outgoing, incoming) = create_utp_peer_pair(
+            &incoming_socket,
+            &outgoing_socket,
+            &torrent,
+            &torrent,
+            DEFAULT_TORRENT_PROTOCOL_EXTENSIONS(),
+        );
 
         let result = runtime.block_on(incoming.state());
         assert_ne!(PeerState::Error, result);

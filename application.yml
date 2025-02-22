@@ -10,12 +10,12 @@ popcorn:
     popcorn_fx_core:
       level: warn
     popcorn_fx_core::core::loader:
-      level: info
+      level: debug
     popcorn_fx_core::core::torrents:
-      level: info
+      level: debug
     popcorn_fx_players:
       level: warn
     popcorn_fx_opensubtitles:
       level: error
     popcorn_fx_torrent:
-      level: debug
+      level: info

@@ -150,13 +150,13 @@ mod test {
     use std::time::Duration;
 
     use crate::core::media::MediaError;
-    use crate::testing::init_logger;
+    use crate::init_logger;
 
     use super::*;
 
     #[tokio::test]
     async fn test_cache_first() {
-        init_logger();
+        init_logger!();
 
         match CacheFirstStrategy::execute(async { Ok(vec![0]) }, async {
             Err(CacheExecutionError::Operation(
@@ -203,7 +203,7 @@ mod test {
 
     #[tokio::test]
     async fn test_cache_last() {
-        init_logger();
+        init_logger!();
         let (tx, rx) = channel();
 
         let _ = CacheLastStrategy::execute(

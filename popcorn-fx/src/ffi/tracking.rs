@@ -114,8 +114,7 @@ mod tests {
 
     use popcorn_fx_core::core::block_in_place;
     use popcorn_fx_core::core::config::Tracker;
-    use popcorn_fx_core::testing::init_logger;
-    use popcorn_fx_core::{assert_timeout_eq, from_c_string};
+    use popcorn_fx_core::{assert_timeout_eq, from_c_string, init_logger};
 
     use crate::test::new_instance;
 
@@ -132,7 +131,7 @@ mod tests {
 
     #[test]
     fn test_register_tracking_authorization_open() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = new_instance(temp_path);
@@ -142,7 +141,7 @@ mod tests {
 
     #[test]
     fn test_register_tracking_provider_callback() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = new_instance(temp_path);
@@ -152,7 +151,7 @@ mod tests {
 
     #[test]
     fn test_tracking_is_authorized() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = new_instance(temp_path);
@@ -164,7 +163,7 @@ mod tests {
 
     #[test]
     fn test_tracking_authorize() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let (tx, rx) = channel();
@@ -211,7 +210,7 @@ mod tests {
 
     #[test]
     fn test_tracking_disconnect() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = new_instance(temp_path);

@@ -80,13 +80,13 @@ impl SubtitleMatcher {
 
 #[cfg(test)]
 mod test {
-    use crate::testing::init_logger;
+    use crate::init_logger;
 
     use super::*;
 
     #[test]
     fn test_from_string() {
-        init_logger();
+        init_logger!();
         let name = Some("lorem".to_string());
         let quality = Some("1080p".to_string());
         let expected_result = SubtitleMatcher {
@@ -101,7 +101,7 @@ mod test {
 
     #[test]
     fn test_from_string_with_int_value_only() {
-        init_logger();
+        init_logger!();
         let name = Some("ipsum".to_string());
         let quality = Some("720".to_string());
         let expected_result = SubtitleMatcher {

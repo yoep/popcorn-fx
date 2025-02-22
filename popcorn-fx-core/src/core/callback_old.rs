@@ -167,14 +167,11 @@ where
 
 #[cfg(test)]
 mod test {
+    use super::*;
+    use crate::init_logger;
+    use derive_more::Display;
     use std::sync::mpsc::channel;
     use std::time::Duration;
-
-    use derive_more::Display;
-
-    use crate::testing::init_logger;
-
-    use super::*;
 
     #[derive(Debug, Display, PartialEq, Clone)]
     struct Event {
@@ -201,7 +198,7 @@ mod test {
 
     #[test]
     fn test_remove() {
-        init_logger();
+        init_logger!();
         let callbacks = CoreCallbacks::<Event>::default();
 
         let id = callbacks.add_callback(Box::new(move |_| {}));
@@ -216,7 +213,7 @@ mod test {
 
     #[test]
     fn test_remove_unknown_id() {
-        init_logger();
+        init_logger!();
         let callbacks = CoreCallbacks::<Event>::default();
 
         callbacks.remove_callback(Handle::new());

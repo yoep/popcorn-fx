@@ -13,8 +13,6 @@ pub enum Error {
     InvalidUrl(String),
     #[error("Torrent file {0} cannot be found")]
     FileNotFound(String),
-    #[error("Torrent file encountered an error, {0}")]
-    FileError(String),
     #[error("Torrent stream has invalid state {0}")]
     InvalidStreamState(TorrentStreamState),
     #[error("Torrent handle {0} is not valid")]
@@ -25,4 +23,6 @@ pub enum Error {
     TorrentCollectionLoadingFailed(String),
     #[error("{0}")]
     TorrentError(String),
+    #[error("an io error occurred, {0}")]
+    Io(String),
 }

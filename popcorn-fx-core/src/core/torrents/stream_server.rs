@@ -35,6 +35,7 @@ pub trait TorrentStreamServer: Debug + DowncastSync {
     /// # Arguments
     ///
     /// * `torrent` - A boxed trait object implementing `Torrent` to be streamed.
+    /// * `filename` - The filename within the torrent to start streaming.
     ///
     /// # Returns
     ///
@@ -42,6 +43,7 @@ pub trait TorrentStreamServer: Debug + DowncastSync {
     async fn start_stream(
         &self,
         torrent: Box<dyn Torrent>,
+        filename: &str,
     ) -> torrents::Result<Box<dyn TorrentStream>>;
 
     /// Stop a torrent stream.

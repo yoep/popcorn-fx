@@ -32,11 +32,11 @@ impl<T, E> From<ResultC<T, E>> for Result<T, E> {
 mod tests {
     use super::*;
     use popcorn_fx_core::core::torrents::Error;
-    use popcorn_fx_core::testing::init_logger;
+    use popcorn_fx_core::init_logger;
 
     #[test]
     fn test_result_c_from() {
-        init_logger();
+        init_logger!();
         let result = Ok(1);
 
         let result_c: ResultC<i32, Error> = ResultC::from(result);
@@ -46,7 +46,7 @@ mod tests {
 
     #[test]
     fn test_result_from() {
-        init_logger();
+        init_logger!();
         let result_c = ResultC::Ok(1);
 
         let result: Result<i32, Error> = Result::from(result_c);

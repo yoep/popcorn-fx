@@ -147,15 +147,15 @@ impl TorrentCollection {
 
 #[cfg(test)]
 mod test {
-    use tempfile::tempdir;
-
+    use crate::init_logger;
     use crate::testing::{copy_test_file, init_logger};
+    use tempfile::tempdir;
 
     use super::*;
 
     #[test]
     fn test_is_stored() {
-        init_logger();
+        init_logger!();
         let magnet_uri = "magnet:?MyMagnetUri1";
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -169,7 +169,7 @@ mod test {
 
     #[test]
     fn test_insert_new_item() {
-        init_logger();
+        init_logger!();
         let name = "MyMagnet";
         let uri = "magnet:?LoremIpsumConn";
         let temp_dir = tempdir().unwrap();
@@ -191,7 +191,7 @@ mod test {
 
     #[test]
     fn test_remove_magnet_uri() {
-        init_logger();
+        init_logger!();
         let uri = "magnet:?MyMagnetUri1";
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();

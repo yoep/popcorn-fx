@@ -50,8 +50,7 @@ pub extern "C" fn retrieve_provider_sort_by(
 mod test {
     use tempfile::tempdir;
 
-    use popcorn_fx_core::{from_c_owned, from_c_vec, into_c_string};
-    use popcorn_fx_core::testing::init_logger;
+    use popcorn_fx_core::{from_c_owned, from_c_vec, init_logger, into_c_string};
 
     use crate::test::default_args;
 
@@ -59,7 +58,7 @@ mod test {
 
     #[test]
     fn test_retrieve_provider_genres() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(default_args(temp_path));
@@ -81,7 +80,7 @@ mod test {
 
     #[test]
     fn test_retrieve_provider_genres_unknown_name() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(default_args(temp_path));
@@ -96,7 +95,7 @@ mod test {
 
     #[test]
     fn test_retrieve_provider_sort_by() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(default_args(temp_path));

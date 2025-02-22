@@ -1,6 +1,6 @@
 use crate::torrent::peer::{
-    ConnectionDirection, Error, Peer, PeerClientInfo, PeerEvent, PeerHandle, PeerId, PeerState,
-    PeerStats, Result,
+    ConnectionDirection, ConnectionProtocol, Error, Peer, PeerClientInfo, PeerEvent, PeerHandle,
+    PeerId, PeerState, PeerStats, Result,
 };
 use crate::torrent::{PieceIndex, TorrentContext, TorrentFileInfo, TorrentMetadata};
 use async_trait::async_trait;
@@ -61,6 +61,7 @@ impl HttpPeer {
                 id: PeerId::new(),
                 addr,
                 connection_type: ConnectionDirection::Outbound,
+                connection_protocol: ConnectionProtocol::Http,
             },
             url,
             addr,

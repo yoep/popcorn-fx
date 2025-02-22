@@ -6,6 +6,7 @@ use async_trait::async_trait;
 use futures::future;
 use log::{debug, error, info, trace, warn};
 use std::cmp::min;
+use std::ops::Range;
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::select;
@@ -40,36 +41,49 @@ impl TorrentFileValidationOperation {
         let runtime = torrent.runtime().clone();
 
         torrent.runtime().spawn(async move {
-            debug!(
-                "Torrent {} is validating files {:?}",
-                context,
-                files
-                    .iter()
-                    .map(|e| e.path.to_string_lossy())
-                    .collect::<Vec<_>>(),
-            );
+            if let Some(pieces) = context.pieces().await {
+                debug!(
+                    "Torrent {} is validating files {:?}",
+                    context,
+                    files
+                        .iter()
+                        .map(|e| e.torrent_path.to_string_lossy())
+                        .collect::<Vec<_>>(),
+                );
 
-            let start = Instant::now();
-            let total_files = files.len();
-            let futures: Vec<_> = files
-                .into_iter()
-                .filter(|file| context.file_exists(file))
-                .map(|file| runtime.spawn(Self::validate_file(context.clone(), file)))
-                .collect();
+                let start = Instant::now();
+                let (total_chunks, pieces_per_chunk) = Self::calculate_chunks(pieces.as_slice());
+                let futures: Vec<_> = (0..total_chunks)
+                    .into_iter()
+                    .map(|chunk| {
+                        runtime.spawn(Self::validate_chunk(
+                            context.clone(),
+                            chunk,
+                            pieces_per_chunk,
+                        ))
+                    })
+                    .collect();
 
-            select! {
-                _ = context.cancelled() => return,
-                _ = future::join_all(futures) => {},
+                select! {
+                    _ = context.cancelled() => return,
+                    _ = future::join_all(futures) => {},
+                }
+
+                let time_taken = start.elapsed();
+                info!(
+                    "Torrent {} completed {} file validation(s) in {}.{:03} seconds",
+                    context,
+                    files.len(),
+                    time_taken.as_secs(),
+                    time_taken.subsec_millis()
+                );
+            } else {
+                warn!(
+                    "Torrent {} failed to start file validation, pieces are unknown",
+                    context
+                );
             }
 
-            let time_taken = start.elapsed();
-            info!(
-                "Torrent {} completed {} file validation(s) in {}.{:03} seconds",
-                context,
-                total_files,
-                time_taken.as_secs(),
-                time_taken.subsec_millis()
-            );
             *state.lock().await = ValidationState::Validated;
             let new_state = context.determine_state().await;
             context.send_command_event(TorrentCommandEvent::State(new_state));
@@ -78,65 +92,28 @@ impl TorrentFileValidationOperation {
         *self.state.lock().await = ValidationState::Validating;
     }
 
-    /// Validate the given file of the torrent.
-    /// The file will be validated into multiple parallel chunks.
-    async fn validate_file(torrent: Arc<TorrentContext>, file: File) {
-        let mut pieces = torrent.file_pieces(&file).await;
-        let (total_chunks, pieces_per_chunk) = Self::calculate_chunks(pieces.as_slice());
-        let total_pieces = pieces.len();
+    async fn validate_chunk(torrent: Arc<TorrentContext>, chunk: usize, pieces_per_chunk: usize) {
+        let mut pieces: Vec<Piece>;
+        let piece_range: Range<usize>;
+        let total_pieces: usize;
 
-        trace!(
-            "Torrent {} is validating {} pieces for file {:?}",
-            torrent,
-            pieces.len(),
-            file.path
-        );
-
-        let mut total_valid_pieces = 0;
-        for chunk in 0..total_chunks {
-            let end = pieces.len().min(pieces_per_chunk);
-
-            select! {
-                _ = torrent.cancelled() => return,
-                valid_pieces = Self::validate_file_chunk(
-                    &torrent,
-                    &file,
-                    pieces_per_chunk * chunk,
-                    pieces_per_chunk,
-                    total_pieces,
-                    pieces.drain(..end).collect(),
-                ) => total_valid_pieces += valid_pieces,
-            }
+        {
+            let mutex = torrent.pieces_lock().read().await;
+            total_pieces = mutex.len();
+            piece_range =
+                chunk * pieces_per_chunk..((chunk + 1) * pieces_per_chunk).min(total_pieces);
+            pieces = torrent.pieces_lock().read().await.as_slice()[piece_range]
+                .iter()
+                .map(|e| e.clone())
+                .collect()
         }
 
-        debug!(
-            "Torrent {} validated {:?} with {} valid pieces",
-            torrent, file.path, total_valid_pieces
-        );
-    }
+        let mut valid_pieces = 0;
+        let range_start = pieces.first().map(|e| e.torrent_range().start).unwrap_or(0);
+        let range_end = pieces.last().map(|e| e.torrent_range().end).unwrap_or(0);
+        let torrent_range = range_start..range_end;
 
-    /// Validate a chunk of pieces for the given file.
-    /// At the end of the chunk validation, an intermediate update will be sent to the torrent.
-    async fn validate_file_chunk(
-        context: &Arc<TorrentContext>,
-        file: &File,
-        chunk_offset: usize,
-        pieces_per_chunk: usize,
-        total_pieces: usize,
-        pieces: Vec<Piece>,
-    ) -> usize {
-        let range_start = pieces.first().map(|e| e.offset).unwrap_or(0);
-        let range_end = pieces
-            .last()
-            .map(|e| e.offset + e.length)
-            .unwrap_or(0)
-            .min(file.length); // make sure we don't exceed the file size if the last piece overlaps with multiple files
-        let pieces_end = chunk_offset + pieces_per_chunk.min(pieces.len());
-
-        match context
-            .read_file_bytes_with_padding(file, range_start..range_end)
-            .await
-        {
+        match torrent.read_bytes_with_padding(torrent_range.clone()).await {
             Ok(bytes) => {
                 let start_time = Instant::now();
                 let futures: Vec<_> = pieces
@@ -153,7 +130,7 @@ impl TorrentFileValidationOperation {
                         Some((piece, piece_bytes.to_vec()))
                     })
                     .map(|(piece, piece_bytes)| {
-                        context.runtime().spawn(async move {
+                        torrent.runtime().spawn(async move {
                             (
                                 TorrentContext::validate_piece_data(&piece, &piece_bytes),
                                 piece,
@@ -166,11 +143,11 @@ impl TorrentFileValidationOperation {
 
                 let completed_pieces: Vec<PieceIndex>;
                 select! {
-                    _ = context.cancelled() => return 0,
+                    _ = torrent.cancelled() => return,
                     result = future::join_all(futures) => {
                         completed_pieces = result.into_iter()
                             .flat_map(|e| e
-                                .map_err(|err| error!("Torrent {} validation error, {}", context, err))
+                                .map_err(|err| error!("Torrent {} validation error, {}", torrent, err))
                                 .ok())
                             .filter(|(e, _)| *e)
                             .map(|(_, piece)| piece.index)
@@ -179,30 +156,24 @@ impl TorrentFileValidationOperation {
                 }
                 let elapsed = start_time.elapsed();
                 trace!(
-                    "Torrent {} validated chunk [{}-{}]/{} for {:?} in {}.{:03}ms",
-                    context,
-                    chunk_offset,
-                    pieces_end,
-                    total_pieces,
-                    file.path,
+                    "Torrent {} validated chunk {:?} in {}.{:03}ms",
+                    torrent,
+                    torrent_range,
                     elapsed.as_millis(),
                     elapsed.subsec_micros() % 1000
                 );
-                let valid_pieces = completed_pieces.len();
+                valid_pieces += completed_pieces.len();
 
                 // inform the torrent about the validated pieces of this chunk
                 if !completed_pieces.is_empty() {
-                    context.pieces_completed(completed_pieces).await;
+                    torrent.pieces_completed(completed_pieces).await;
                 }
-
-                valid_pieces
             }
             Err(e) => {
                 warn!(
-                    "Torrent {} failed to validate chunk [{}-{}]/{} for {:?}, {}",
-                    context, chunk_offset, pieces_end, total_pieces, file.path, e
+                    "Torrent {} failed to validate chunk {:?}, {}",
+                    torrent, torrent_range, e
                 );
-                0
             }
         }
     }

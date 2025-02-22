@@ -49,20 +49,17 @@ impl TorrentCreateFilesOperation {
         let mut offset = 0;
         let mut files = vec![];
 
-        for (index, file) in metadata.files().into_iter().enumerate() {
-            let file_length = file.length as usize;
-            let mut path = PathBuf::new().join(metadata.name());
-
-            for path_section in file.path_segments() {
-                path = path.join(path_section);
-            }
+        for (index, file_info) in metadata.files().into_iter().enumerate() {
+            let file_length = file_info.length as usize;
+            let torrent_path = metadata.path(&file_info);
+            let io_path = Self::io_path(torrent, &torrent_path);
 
             files.push(File {
                 index,
-                path,
+                torrent_path,
+                io_path,
                 offset,
-                length: file.length as usize,
-                info: file,
+                info: file_info,
                 priority: Default::default(),
             });
 
@@ -76,6 +73,12 @@ impl TorrentCreateFilesOperation {
         }
 
         Ok(files)
+    }
+
+    /// Get the filepath of the file within the storage device.
+    /// This returns the absolute path of the file within the storage device.
+    fn io_path(torrent: &TorrentContext, torrent_path: &PathBuf) -> PathBuf {
+        PathBuf::from(torrent.storage_path()).join(torrent_path.as_path())
     }
 }
 
@@ -165,5 +168,26 @@ mod tests {
             result,
             "expected the operations chain to stop"
         );
+    }
+
+    #[test]
+    fn test_io_path() {
+        init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let torrent_path = PathBuf::from("MyTorrentDir/TorrentFile.mp4");
+        let torrent = create_torrent!(
+            "debian-udp.torrent",
+            temp_path,
+            TorrentFlags::none(),
+            TorrentConfig::default(),
+            vec![]
+        );
+        let context = torrent.instance().unwrap();
+        let expected_result = temp_dir.path().join(torrent_path.as_path());
+
+        let result = TorrentCreateFilesOperation::io_path(&*context, &torrent_path);
+
+        assert_eq!(expected_result, result);
     }
 }

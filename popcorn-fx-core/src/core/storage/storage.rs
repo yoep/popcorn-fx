@@ -717,6 +717,7 @@ mod test {
     use tokio::runtime::Runtime;
 
     use crate::core::config::{PopcornSettings, SubtitleSettings, UiSettings};
+    use crate::init_logger;
     use crate::testing::{
         copy_test_file, init_logger, read_temp_dir_file_as_bytes, read_temp_dir_file_as_string,
         read_test_file_to_bytes,
@@ -737,7 +738,7 @@ mod test {
 
     #[test]
     fn test_read_settings() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         copy_test_file(temp_path, "settings.json", None);
@@ -757,7 +758,7 @@ mod test {
 
     #[test]
     fn test_write() {
-        init_logger();
+        init_logger!();
         let filename = "test";
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -776,7 +777,7 @@ mod test {
 
     #[test]
     fn test_write_async() {
-        init_logger();
+        init_logger!();
         let filename = "test.json";
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -801,7 +802,7 @@ mod test {
 
     #[test]
     fn test_write_invalid_storage() {
-        init_logger();
+        init_logger!();
         let storage = Storage {
             base_path: PathBuf::from("/invalid/file/path"),
         };
@@ -821,7 +822,7 @@ mod test {
 
     #[test]
     fn test_clean_directory() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         copy_test_file(temp_path, "auto-resume.json", None);
@@ -834,7 +835,7 @@ mod test {
 
     #[test]
     fn test_clean_directory_non_existing_path() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
 
@@ -850,7 +851,7 @@ mod test {
 
     #[test]
     fn test_exists() {
-        init_logger();
+        init_logger!();
         let filename = "auto-resume.json";
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -868,7 +869,7 @@ mod test {
 
     #[test]
     fn test_binary_storage_read() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let filename = "simple.jpg";
@@ -886,7 +887,7 @@ mod test {
 
     #[test]
     fn test_binary_storage_write() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let filename = "my-simple-test.jpg";
@@ -905,7 +906,7 @@ mod test {
 
     #[test]
     fn test_delete_path() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let path = copy_test_file(temp_path, "simple.jpg", None);
@@ -918,7 +919,7 @@ mod test {
 
     #[test]
     fn test_delete() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let filepath = copy_test_file(temp_path, "image.png", None);
@@ -941,7 +942,7 @@ mod test {
 
     #[test]
     fn test_delete_non_existing_path() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let filepath = PathBuf::from(temp_path).join("image.png");

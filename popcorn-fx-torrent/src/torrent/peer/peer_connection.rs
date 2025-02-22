@@ -1,7 +1,6 @@
-use crate::torrent::peer::protocol_bt::{Handshake, Message};
-use crate::torrent::peer::protocol_utp::UtpStream;
+use crate::torrent::peer::protocol::{Handshake, Message, UtpStream};
 use crate::torrent::peer::{
-    ConnectionType, DataTransferStats, Error, PeerConn, PeerId, PeerResponse, Result,
+    ConnectionProtocol, DataTransferStats, Error, PeerConn, PeerId, PeerResponse, Result,
 };
 use async_trait::async_trait;
 use byteorder::BigEndian;
@@ -34,6 +33,8 @@ where
     id: PeerId,
     /// The remote peer address
     addr: SocketAddr,
+    /// The underlying protocol being used within the connection
+    protocol: ConnectionProtocol,
     /// The receiver of the peer connection reader
     receiver: Mutex<UnboundedReceiver<PeerReaderEvent>>,
     /// The writer of the connection
@@ -51,16 +52,25 @@ where
         stream: TcpStream,
         runtime: Arc<Runtime>,
     ) -> PeerConnection<TcpStream> {
+        let protocol = ConnectionProtocol::Tcp;
         let cancellation_token = CancellationToken::new();
         let (sender, receiver) = unbounded_channel();
         let (reader, writer) = tokio::io::split(stream);
 
-        let mut reader = PeerReader::new(id, addr, reader, sender, cancellation_token.clone());
+        let mut reader = PeerReader::new(
+            id,
+            addr,
+            protocol,
+            reader,
+            sender,
+            cancellation_token.clone(),
+        );
         runtime.spawn(async move { reader.start_read_loop().await });
 
         PeerConnection::<TcpStream> {
             id,
             addr,
+            protocol,
             receiver: Mutex::new(receiver),
             writer: PeerWriter::new(writer),
             cancellation_token,
@@ -73,16 +83,25 @@ where
         stream: UtpStream,
         runtime: Arc<Runtime>,
     ) -> PeerConnection<UtpStream> {
+        let protocol = ConnectionProtocol::Utp;
         let cancellation_token = CancellationToken::new();
         let (sender, receiver) = unbounded_channel();
         let (reader, writer) = tokio::io::split(stream);
 
-        let mut reader = PeerReader::new(id, addr, reader, sender, cancellation_token.clone());
+        let mut reader = PeerReader::new(
+            id,
+            addr,
+            protocol,
+            reader,
+            sender,
+            cancellation_token.clone(),
+        );
         runtime.spawn(async move { reader.start_read_loop().await });
 
         PeerConnection::<UtpStream> {
             id,
             addr,
+            protocol,
             receiver: Mutex::new(receiver),
             writer: PeerWriter::new(writer),
             cancellation_token,
@@ -95,6 +114,10 @@ impl<W> PeerConn for PeerConnection<W>
 where
     W: AsyncWrite + Debug + Send,
 {
+    fn protocol(&self) -> ConnectionProtocol {
+        self.protocol
+    }
+
     async fn recv(&self) -> Option<PeerResponse> {
         if let Some(event) = self.receiver.lock().await.recv().await {
             return Some(match event {
@@ -116,7 +139,11 @@ where
     }
 
     async fn write<'a>(&'a self, bytes: &'a [u8]) -> Result<()> {
-        self.writer.write(bytes).await
+        // make sure that we interrupt any writing operations if the connection is forcefully closed
+        select! {
+            _ = self.cancellation_token.cancelled() => Err(Error::Closed),
+            result = self.writer.write(bytes) => result,
+        }
     }
 
     async fn close(&self) -> Result<()> {
@@ -182,13 +209,14 @@ enum PeerReaderEvent {
 
 /// The peer reader is a buffered reader which reads messages from the peer connection stream.
 #[derive(Debug, Display)]
-#[display(fmt = "{}[{}]", id, addr)]
+#[display(fmt = "{}[{}:{}]", id, protocol, addr)]
 struct PeerReader<R>
 where
     R: AsyncRead + Unpin,
 {
     id: PeerId,
     addr: SocketAddr,
+    protocol: ConnectionProtocol,
     reader: BufReader<R>,
     sender: UnboundedSender<PeerReaderEvent>,
     cancellation_token: CancellationToken,
@@ -202,6 +230,7 @@ where
     fn new(
         id: PeerId,
         addr: SocketAddr,
+        protocol: ConnectionProtocol,
         reader: R,
         sender: UnboundedSender<PeerReaderEvent>,
         cancellation_token: CancellationToken,
@@ -209,6 +238,7 @@ where
         Self {
             id,
             addr,
+            protocol,
             reader: BufReader::new(reader),
             sender,
             cancellation_token,
@@ -225,8 +255,7 @@ where
                 match read_result {
                     Ok(buffer) => {
                         Self::send (
-                            self.id,
-                            &self.addr,
+                            self.to_string().as_str(),
                             &self.sender,
                             PeerReaderEvent::Handshake(buffer)
                         );
@@ -267,7 +296,8 @@ where
         }
 
         trace!("Peer {} main reader loop ended", self);
-        Self::send(self.id, &self.addr, &self.sender, PeerReaderEvent::Closed);
+        let self_info = self.to_string();
+        Self::send(self_info.as_str(), &self.sender, PeerReaderEvent::Closed);
     }
 
     /// Try to read a specific number of bytes from the stream.
@@ -299,15 +329,13 @@ where
 
         // we want to unblock the reader thread as soon as possible
         // so we're going to move this whole process into a new separate thread
-        let id = self.id.clone();
-        let addr = self.addr.clone();
+        let self_info = self.to_string();
         let sender = self.sender.clone();
         tokio::spawn(async move {
             match Message::try_from(bytes.as_ref()) {
                 Ok(msg) => {
                     Self::send(
-                        id,
-                        &addr,
+                        self_info.as_str(),
                         &sender,
                         PeerReaderEvent::Message(
                             msg,
@@ -319,8 +347,8 @@ where
                     );
                 }
                 Err(e) => warn!(
-                    "Peer {}[{}] reader received invalid message payload, {}",
-                    id, addr, e
+                    "Peer {} reader received invalid message payload, {}",
+                    self_info, e
                 ),
             }
         });
@@ -328,14 +356,112 @@ where
         Ok(())
     }
 
-    fn send(
-        id: PeerId,
-        addr: &SocketAddr,
-        sender: &UnboundedSender<PeerReaderEvent>,
-        event: PeerReaderEvent,
-    ) {
+    fn send(self_info: &str, sender: &UnboundedSender<PeerReaderEvent>, event: PeerReaderEvent) {
         if let Err(e) = sender.send(event) {
-            warn!("Peer {}[{}] reader failed to send event, {}", id, addr, e)
+            warn!("Peer {} reader failed to send event, {}", self_info, e)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::create_utp_socket_pair;
+    use crate::torrent::peer::protocol::tests::UtpPacketCaptureExtension;
+    use crate::torrent::peer::protocol::Piece;
+    use crate::torrent::peer::tests::create_utp_stream_pair;
+    use crate::torrent::peer::ProtocolExtensionFlags;
+    use crate::torrent::InfoHash;
+    use popcorn_fx_core::init_logger;
+    use std::str::FromStr;
+
+    #[test]
+    fn test_peer_connection_utp_receive() {
+        init_logger!();
+        let data = "Mauris venenatis malesuada tellus vel imperdiet. Pellentesque quis blandit tellus. Aenean commodo neque id sem dictum aliquam at vel arcu.";
+        let hash = "urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7";
+        let info_hash = InfoHash::from_str(hash).unwrap();
+        let peer_id = PeerId::new();
+        let protocol_extension_flags = ProtocolExtensionFlags::LTEP;
+        let runtime = Arc::new(Runtime::new().unwrap());
+        let incoming_capture = UtpPacketCaptureExtension::new();
+        let outgoing_capture = UtpPacketCaptureExtension::new();
+        let (incoming_socket, outgoing_socket) = create_utp_socket_pair!(
+            vec![Box::new(incoming_capture.clone())],
+            vec![Box::new(outgoing_capture.clone())],
+            runtime.clone()
+        );
+        let (incoming_stream, mut outgoing_stream) =
+            create_utp_stream_pair(&incoming_socket, &outgoing_socket);
+        let connection = PeerConnection::<UtpStream>::new_utp(
+            peer_id,
+            incoming_stream.addr(),
+            incoming_stream,
+            runtime.clone(),
+        );
+
+        // write the handshake to the receiving connection
+        let handshake = Handshake::new(info_hash.clone(), peer_id, protocol_extension_flags);
+        let handshake_bytes = TryInto::<Vec<u8>>::try_into(handshake).unwrap();
+        runtime
+            .block_on(outgoing_stream.write_all(&handshake_bytes))
+            .unwrap();
+        runtime.block_on(outgoing_stream.flush()).unwrap();
+
+        // try to get the handshake from the receiving stream
+        let result = runtime
+            .block_on(connection.recv())
+            .expect("expected to receive the handshake");
+        if let PeerResponse::Handshake(result) = result {
+            assert_eq!(
+                info_hash, result.info_hash,
+                "expected the info hash to match"
+            );
+            assert_eq!(peer_id, result.peer_id, "expected the peer id to match");
+            assert_eq!(
+                protocol_extension_flags, result.supported_extensions,
+                "expected the supported protocol extensions to match"
+            );
+        } else {
+            assert!(
+                false,
+                "expected PeerResponse::Handshake, but got {:?} instead",
+                result
+            );
+        }
+
+        // write some random data to the receiving connection
+        let message = Message::Piece(Piece {
+            index: 0,
+            begin: 0,
+            data: data.as_bytes().to_vec(),
+        });
+        let bytes = message_as_bytes(&message);
+        runtime.block_on(outgoing_stream.write_all(&bytes)).unwrap();
+        runtime.block_on(outgoing_stream.flush()).unwrap();
+
+        // try to read the message from the receiving stream
+        let result = runtime
+            .block_on(connection.recv())
+            .expect("expected to receive the message");
+        if let PeerResponse::Message(result, _) = result {
+            assert_eq!(message, result, "expected the message to match");
+        } else {
+            assert!(
+                false,
+                "expected PeerResponse::Message, but got {:?} instead",
+                result
+            );
+        }
+    }
+
+    fn message_as_bytes(message: &Message) -> Vec<u8> {
+        let mut bytes = vec![0u8; 4];
+        let message_bytes = TryInto::<Vec<u8>>::try_into(message.clone()).unwrap();
+
+        BigEndian::write_u32(&mut bytes[..4], message_bytes.len() as u32);
+        bytes.extend_from_slice(message_bytes.as_slice());
+
+        bytes
     }
 }

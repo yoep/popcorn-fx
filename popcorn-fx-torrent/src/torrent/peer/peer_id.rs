@@ -1,8 +1,6 @@
-use std::fmt::{Debug, Display, Formatter};
-
-use rand::Rng;
-
 use crate::torrent::peer::{Error, Result};
+use rand::Rng;
+use std::fmt::{Debug, Display, Formatter};
 
 const ID_PREFIX: &str = "-RW0082-";
 
@@ -60,9 +58,9 @@ impl PeerId {
     ///
     /// A `String` representing the generated peer ID.
     fn generate_peer_id() -> String {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let suffix: String = (0..12)
-            .map(|_| rng.gen_range(b'0'..=b'9') as char)
+            .map(|_| rng.random_range(b'0'..=b'9') as char)
             .collect();
 
         format!("{}{}", ID_PREFIX, suffix)

@@ -217,7 +217,7 @@ impl Debug for SubtitlesLoadingStrategy {
 
 #[async_trait]
 impl LoadingStrategy for SubtitlesLoadingStrategy {
-    async fn process(&self, mut data: LoadingData, context: &LoadingTaskContext) -> LoadingResult {
+    async fn process(&self, data: &mut LoadingData, context: &LoadingTaskContext) -> LoadingResult {
         if data.subtitle.enabled.unwrap_or(false) {
             trace!("Subtitle manager state {:?}", self.subtitle_manager);
             if context.is_cancelled() {
@@ -230,7 +230,7 @@ impl LoadingStrategy for SubtitlesLoadingStrategy {
             if subtitle_preference == SubtitlePreference::Language(SubtitleLanguage::Custom)
                 && data.subtitle.info.is_some()
             {
-                return LoadingResult::Ok(data);
+                return LoadingResult::Ok;
             }
 
             // check if the subtitle preference is disabled
@@ -243,7 +243,7 @@ impl LoadingStrategy for SubtitlesLoadingStrategy {
 
                 if subtitle_preference == SubtitlePreference::Language(SubtitleLanguage::None) {
                     trace!("Processing subtitle info for {:?}", data);
-                    self.update_to_default_subtitle(&mut data).await;
+                    self.update_to_default_subtitle(data).await;
                 } else {
                     debug!(
                         "Current subtitle preference {:?} for {:?}",
@@ -289,7 +289,7 @@ impl LoadingStrategy for SubtitlesLoadingStrategy {
         if context.is_cancelled() {
             return LoadingResult::Err(LoadingError::Cancelled);
         }
-        LoadingResult::Ok(data)
+        LoadingResult::Ok
     }
 
     async fn cancel(&self, data: LoadingData) -> CancellationResult {
@@ -307,7 +307,6 @@ mod tests {
     use crate::core::loader::LoadingResult;
     use crate::core::playlist::{PlaylistItem, PlaylistMedia, PlaylistSubtitle, PlaylistTorrent};
     use crate::core::subtitles::{MockSubtitleProvider, SubtitleFile};
-    use crate::core::torrents::TorrentFileInfo;
     use crate::testing::MockSubtitleManager;
     use crate::{create_loading_task, init_logger};
 
@@ -345,7 +344,7 @@ mod tests {
             },
             torrent: Default::default(),
         };
-        let data = LoadingData::from(playlist_item);
+        let mut data = LoadingData::from(playlist_item);
         let (tx, rx) = channel();
         let mut provider = MockSubtitleProvider::new();
         provider
@@ -384,8 +383,8 @@ mod tests {
             Arc::new(Box::new(manager)),
         );
 
-        let result = runtime.block_on(loader.process(data.clone(), &*context));
-        assert_eq!(LoadingResult::Ok(data), result);
+        let result = runtime.block_on(loader.process(&mut data, &*context));
+        assert_eq!(LoadingResult::Ok, result);
 
         let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
         assert_eq!(movie_details, result);
@@ -395,12 +394,6 @@ mod tests {
     fn test_process_filename_subtitles() {
         init_logger!();
         let filename = "MyTIFile";
-        let torrent_file_info = TorrentFileInfo {
-            filename: filename.to_string(),
-            file_path: "/tmp/some/random/path".to_string(),
-            file_size: 845000,
-            file_index: 12,
-        };
         let playlist_item = PlaylistItem {
             url: None,
             title: "".to_string(),
@@ -414,11 +407,10 @@ mod tests {
                 info: None,
             },
             torrent: PlaylistTorrent {
-                info: None,
-                file_info: Some(torrent_file_info.clone()),
+                filename: Some(filename.to_string()),
             },
         };
-        let data = LoadingData::from(playlist_item);
+        let mut data = LoadingData::from(playlist_item);
         let (tx, rx) = channel();
         let mut provider = MockSubtitleProvider::new();
         provider
@@ -457,8 +449,8 @@ mod tests {
             Arc::new(Box::new(manager)),
         );
 
-        let result = runtime.block_on(loader.process(data.clone(), &*context));
-        assert_eq!(LoadingResult::Ok(data), result);
+        let result = runtime.block_on(loader.process(&mut data, &*context));
+        assert_eq!(LoadingResult::Ok, result);
 
         let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
         assert_eq!(filename.to_string(), result);
@@ -496,7 +488,7 @@ mod tests {
             },
             torrent: Default::default(),
         };
-        let data = LoadingData::from(playlist_item);
+        let mut data = LoadingData::from(playlist_item);
         let mut provider = MockSubtitleProvider::new();
         provider
             .expect_movie_subtitles()
@@ -512,9 +504,9 @@ mod tests {
         let runtime = context.runtime();
         let loader = SubtitlesLoadingStrategy::new(Arc::new(Box::new(provider)), manager);
 
-        let result = runtime.block_on(loader.process(data.clone(), &*context));
+        let result = runtime.block_on(loader.process(&mut data, &*context));
 
-        assert_eq!(LoadingResult::Ok(data), result);
+        assert_eq!(LoadingResult::Ok, result);
     }
 
     #[test]
@@ -531,7 +523,7 @@ mod tests {
             subtitle: Default::default(),
             torrent: Default::default(),
         };
-        let data = LoadingData::from(playlist_item);
+        let mut data = LoadingData::from(playlist_item);
         let mut provider = MockSubtitleProvider::new();
         provider
             .expect_movie_subtitles()
@@ -557,8 +549,8 @@ mod tests {
             Arc::new(Box::new(manager)),
         );
 
-        let result = runtime.block_on(loader.process(data.clone(), &*context));
-        assert_eq!(LoadingResult::Ok(data), result);
+        let result = runtime.block_on(loader.process(&mut data, &*context));
+        assert_eq!(LoadingResult::Ok, result);
     }
 
     #[test]
@@ -587,7 +579,7 @@ mod tests {
             },
             torrent: Default::default(),
         };
-        let data = LoadingData::from(playlist_item);
+        let mut data = LoadingData::from(playlist_item);
         let mut provider = MockSubtitleProvider::new();
         provider
             .expect_movie_subtitles()
@@ -613,8 +605,8 @@ mod tests {
             Arc::new(Box::new(manager)),
         );
 
-        let result = runtime.block_on(loader.process(data.clone(), &*context));
-        assert_eq!(LoadingResult::Ok(data), result);
+        let result = runtime.block_on(loader.process(&mut data, &*context));
+        assert_eq!(LoadingResult::Ok, result);
     }
 
     #[test]

@@ -17,3 +17,4 @@ assets/windows/vlc/plugins/
 assets/windows/vlc/vlc-*/
 
 **/*.iml
+**/Cargo.lock

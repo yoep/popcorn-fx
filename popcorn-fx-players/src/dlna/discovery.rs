@@ -5,8 +5,8 @@ use async_trait::async_trait;
 use derive_more::Display;
 use futures::StreamExt;
 use log::{debug, error, info, trace, warn};
-use rupnp::Device;
 use rupnp::http::uri::InvalidUri;
+use rupnp::Device;
 use ssdp_client::{Error, SearchResponse, SearchTarget, URN};
 use tokio::runtime::Runtime;
 use tokio::sync::Mutex;
@@ -17,8 +17,8 @@ use popcorn_fx_core::core::block_in_place;
 use popcorn_fx_core::core::players::PlayerManager;
 use popcorn_fx_core::core::subtitles::SubtitleServer;
 
+use crate::dlna::{errors, DlnaError, DlnaPlayer};
 use crate::{Discovery, DiscoveryState};
-use crate::dlna::{DlnaError, DlnaPlayer, errors};
 
 pub(crate) const SSDP_QUERY_URN: URN = URN::device("schemas-upnp-org", "MediaRenderer", 1);
 pub(crate) const AV_TRANSPORT: URN = URN::service("schemas-upnp-org", "AVTransport", 1);
@@ -263,23 +263,18 @@ impl InnerDlnaDiscovery {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::mpsc::channel;
-
+    use super::*;
+    use crate::dlna::tests::{MockUdpServer, DEFAULT_SSDP_DESCRIPTION_RESPONSE};
     use httpmock::Method::GET;
     use httpmock::MockServer;
-
-    use popcorn_fx_core::assert_timeout;
     use popcorn_fx_core::core::players::{MockPlayerManager, Player};
     use popcorn_fx_core::core::subtitles::MockSubtitleProvider;
-    use popcorn_fx_core::testing::init_logger;
-
-    use crate::dlna::tests::{DEFAULT_SSDP_DESCRIPTION_RESPONSE, MockUdpServer};
-
-    use super::*;
+    use popcorn_fx_core::{assert_timeout, init_logger};
+    use std::sync::mpsc::channel;
 
     #[test]
     fn test_state() {
-        init_logger();
+        init_logger!();
         let runtime = Arc::new(Runtime::new().unwrap());
         let player_manager = MockPlayerManager::new();
         let subtitle_provider = MockSubtitleProvider::new();
@@ -298,7 +293,7 @@ mod tests {
 
     #[test]
     fn test_execute_search() {
-        init_logger();
+        init_logger!();
         let runtime = Arc::new(Runtime::new().unwrap());
         let server = MockServer::start();
         server.mock(|when, then| {
@@ -341,7 +336,7 @@ mod tests {
 
     #[test]
     fn test_stop_discovery() {
-        init_logger();
+        init_logger!();
         let runtime = Arc::new(Runtime::new().unwrap());
         let mut player_manager = MockPlayerManager::new();
         player_manager.expect_add_player().return_const(true);

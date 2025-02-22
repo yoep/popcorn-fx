@@ -45,11 +45,13 @@ impl PlayerLoadingStrategy {
     /// # Returns
     ///
     /// A result containing a boxed `PlayRequest` if successful, or a `LoadingError` if an error occurs.
-    fn convert(&self, data: LoadingData) -> Result<Box<dyn PlayRequest>, LoadingError> {
+    fn convert(&self, data: &mut LoadingData) -> Result<Box<dyn PlayRequest>, LoadingError> {
         if data.media.is_some() {
             trace!("Trying to start media playback for {:?}", data);
             return if data.torrent.is_some() {
-                Ok(Box::new(PlayMediaRequest::from(data)))
+                PlayMediaRequest::try_from(data)
+                    .map(|e| Box::new(e) as Box<dyn PlayRequest>)
+                    .map_err(|e| LoadingError::ParseError(e.to_string()))
             } else {
                 Err(LoadingError::InvalidData(format!(
                     "Missing torrent stream for {:?}",
@@ -58,11 +60,15 @@ impl PlayerLoadingStrategy {
             };
         } else if data.torrent.is_some() {
             trace!("Trying to start torrent stream playback for {:?}", data);
-            return Ok(Box::new(PlayStreamRequest::from(data)));
+            return PlayStreamRequest::try_from(data)
+                .map(|e| Box::new(e) as Box<dyn PlayRequest>)
+                .map_err(|e| LoadingError::ParseError(e.to_string()));
         }
 
         trace!("Starting URL playback for {:?}", data);
-        Ok(Box::new(PlayUrlRequest::from(data)))
+        PlayUrlRequest::try_from(data)
+            .map(|e| Box::new(e) as Box<dyn PlayRequest>)
+            .map_err(|e| LoadingError::ParseError(e.to_string()))
     }
 }
 
@@ -90,7 +96,7 @@ impl LoadingStrategy for PlayerLoadingStrategy {
     /// # Arguments
     ///
     /// * `item` - The playlist item to process.
-    async fn process(&self, data: LoadingData, context: &LoadingTaskContext) -> LoadingResult {
+    async fn process(&self, data: &mut LoadingData, context: &LoadingTaskContext) -> LoadingResult {
         if let Some(url) = data.url.as_ref() {
             let url = url.clone();
             debug!("Starting playlist item playback for {}", url);
@@ -106,7 +112,7 @@ impl LoadingStrategy for PlayerLoadingStrategy {
         }
 
         debug!("No playlist item url is present, playback won't be started");
-        LoadingResult::Ok(data)
+        LoadingResult::Ok
     }
 
     async fn cancel(&self, data: LoadingData) -> CancellationResult {
@@ -116,13 +122,13 @@ impl LoadingStrategy for PlayerLoadingStrategy {
 
 #[cfg(test)]
 mod tests {
-    use crate::core::loader::LoadingData;
+    use crate::core::loader::{LoadingData, TorrentData};
     use crate::core::media::MovieDetails;
     use crate::core::players::MockPlayerManager;
     use crate::core::playlist::{PlaylistItem, PlaylistMedia};
-    use crate::core::torrents::TorrentStream;
     use crate::testing::MockTorrentStream;
     use crate::{create_loading_task, init_logger};
+
     use std::sync::mpsc::channel;
     use std::time::Duration;
 
@@ -144,7 +150,7 @@ mod tests {
             subtitle: Default::default(),
             torrent: Default::default(),
         };
-        let data = LoadingData::from(item);
+        let mut data = LoadingData::from(item);
         let (tx, rx) = channel();
         let task = create_loading_task!();
         let context = task.context();
@@ -156,7 +162,7 @@ mod tests {
         });
         let strategy = PlayerLoadingStrategy::new(Arc::new(Box::new(manager)));
 
-        runtime.block_on(strategy.process(data, &*context));
+        runtime.block_on(strategy.process(&mut data, &*context));
         let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
 
         assert_eq!(url, result.url());
@@ -181,7 +187,6 @@ mod tests {
             trailer: "".to_string(),
             torrents: Default::default(),
         };
-        let stream = Box::new(MockTorrentStream::new()) as Box<dyn Torrent>;
         let item = PlaylistItem {
             url: Some(url.to_string()),
             title: "RRoll".to_string(),
@@ -197,7 +202,7 @@ mod tests {
             torrent: Default::default(),
         };
         let mut data = LoadingData::from(item);
-        data.torrent = Some(stream);
+        data.torrent = Some(TorrentData::Stream(Box::new(MockTorrentStream::new())));
         let (tx, rx) = channel();
         let task = create_loading_task!();
         let context = task.context();
@@ -209,7 +214,7 @@ mod tests {
         });
         let strategy = PlayerLoadingStrategy::new(Arc::new(Box::new(manager)));
 
-        runtime.block_on(strategy.process(data, &*context));
+        runtime.block_on(strategy.process(&mut data, &*context));
         let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
 
         if let Some(result) = result.downcast_ref::<PlayMediaRequest>() {
@@ -263,7 +268,7 @@ mod tests {
             subtitle: Default::default(),
             torrent: Default::default(),
         };
-        let data = LoadingData::from(item);
+        let mut data = LoadingData::from(item);
         let task = create_loading_task!();
         let context = task.context();
         let runtime = context.runtime();
@@ -271,7 +276,7 @@ mod tests {
         manager.expect_play().times(0).return_const(());
         let strategy = PlayerLoadingStrategy::new(Arc::new(Box::new(manager)));
 
-        let result = runtime.block_on(strategy.process(data, &*context));
+        let result = runtime.block_on(strategy.process(&mut data, &*context));
 
         if let LoadingResult::Err(err) = result {
             if let LoadingError::InvalidData(e) = err {
@@ -303,7 +308,6 @@ mod tests {
         let url = "https://localhost:87445/MyVideo.mkv";
         let title = "streaming title";
         let quality = "1080p";
-        let stream = Box::new(MockTorrentStream::new()) as Box<dyn Torrent>;
         let item = PlaylistItem {
             url: Some(url.to_string()),
             title: title.to_string(),
@@ -319,7 +323,7 @@ mod tests {
             torrent: Default::default(),
         };
         let mut data = LoadingData::from(item);
-        data.torrent = Some(stream);
+        data.torrent = Some(TorrentData::Stream(Box::new(MockTorrentStream::new())));
         let (tx, rx) = channel();
         let task = create_loading_task!();
         let context = task.context();
@@ -331,15 +335,11 @@ mod tests {
         });
         let strategy = PlayerLoadingStrategy::new(Arc::new(Box::new(manager)));
 
-        runtime.block_on(strategy.process(data, &*context));
+        runtime.block_on(strategy.process(&mut data, &*context));
         let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
 
         if let Some(result) = result.downcast_ref::<PlayStreamRequest>() {
             assert_eq!(Some(quality.to_string()), result.quality());
-            assert!(
-                result.torrent_stream.upgrade().is_some(),
-                "expected Some(torrent_stream), but got None instead"
-            );
         } else {
             assert!(
                 false,

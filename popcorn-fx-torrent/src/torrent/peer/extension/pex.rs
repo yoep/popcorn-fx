@@ -1,5 +1,5 @@
 use crate::torrent::peer::extension::{Error, Extension, ExtensionNumber, Result};
-use crate::torrent::peer::protocol_bt::Message;
+use crate::torrent::peer::protocol::Message;
 use crate::torrent::peer::{
     ConnectionDirection, PeerClientInfo, PeerCommandEvent, PeerContext, PeerEvent,
 };

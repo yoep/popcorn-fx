@@ -571,13 +571,14 @@ mod tests {
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::core::subtitles::model::SubtitleInfo;
     use popcorn_fx_core::core::subtitles::{MockSubtitleProvider, SubtitlePreference};
-    use popcorn_fx_core::testing::{init_logger, MockSubtitleManager};
+    use popcorn_fx_core::init_logger;
+    use popcorn_fx_core::testing::MockSubtitleManager;
 
     use super::*;
 
     #[test]
     fn test_id() {
-        init_logger();
+        init_logger!();
         let manager = MockSubtitleManager::new();
         let provider = MockSubtitleProvider::new();
         let player = VlcPlayer::builder()
@@ -590,7 +591,7 @@ mod tests {
 
     #[test]
     fn test_name() {
-        init_logger();
+        init_logger!();
         let manager = MockSubtitleManager::new();
         let provider = MockSubtitleProvider::new();
         let player = VlcPlayer::builder()
@@ -603,7 +604,7 @@ mod tests {
 
     #[test]
     fn test_description() {
-        init_logger();
+        init_logger!();
         let manager = MockSubtitleManager::new();
         let provider = MockSubtitleProvider::new();
         let player = VlcPlayer::builder()
@@ -616,7 +617,7 @@ mod tests {
 
     #[test]
     fn test_graphic_resource() {
-        init_logger();
+        init_logger!();
         let manager = MockSubtitleManager::new();
         let provider = MockSubtitleProvider::new();
         let player = VlcPlayer::builder()
@@ -632,7 +633,7 @@ mod tests {
 
     #[test]
     fn test_state() {
-        init_logger();
+        init_logger!();
         let manager = MockSubtitleManager::new();
         let provider = MockSubtitleProvider::new();
         let player = VlcPlayer::builder()
@@ -645,7 +646,7 @@ mod tests {
 
     #[test]
     fn test_play() {
-        init_logger();
+        init_logger!();
         let title = "FooBarTitle";
         let language = SubtitleLanguage::Finnish;
         let mut request = MockPlayRequest::new();
@@ -698,7 +699,7 @@ mod tests {
 
     #[test]
     fn test_stop() {
-        init_logger();
+        init_logger!();
         let server = MockServer::start();
         let mock = server.mock(move |when, then| {
             when.method(GET)
@@ -740,7 +741,7 @@ mod tests {
 
     #[test]
     fn test_check_status() {
-        init_logger();
+        init_logger!();
         let server = MockServer::start();
         server.mock(|when, then| {
             when.method(GET).path(STATUS_URI);
@@ -791,7 +792,7 @@ mod tests {
 
     #[test]
     fn test_pause() {
-        init_logger();
+        init_logger!();
         let server = MockServer::start();
         let mock = server.mock(move |when, then| {
             when.method(GET)
@@ -814,7 +815,7 @@ mod tests {
 
     #[test]
     fn test_resume() {
-        init_logger();
+        init_logger!();
         let server = MockServer::start();
         let mock = server.mock(move |when, then| {
             when.method(GET)
@@ -837,7 +838,7 @@ mod tests {
 
     #[test]
     fn test_seek() {
-        init_logger();
+        init_logger!();
         let server = MockServer::start();
         let mock = server.mock(move |when, then| {
             when.method(GET)
@@ -861,7 +862,7 @@ mod tests {
 
     #[test]
     fn test_seek_time_invalid() {
-        init_logger();
+        init_logger!();
         let server = MockServer::start();
         let mock = server.mock(move |when, then| {
             when.method(GET)

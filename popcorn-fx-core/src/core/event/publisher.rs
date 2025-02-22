@@ -216,13 +216,13 @@ mod test {
     use std::time::Duration;
 
     use crate::core::event::PlayerStoppedEvent;
-    use crate::testing::init_logger;
+    use crate::init_logger;
 
     use super::*;
 
     #[test]
     fn test_event_publisher_register() {
-        init_logger();
+        init_logger!();
         let publisher = EventPublisher::default();
 
         // Register a new event consumer
@@ -236,7 +236,7 @@ mod test {
 
     #[test]
     fn test_event_publisher_publish() {
-        init_logger();
+        init_logger!();
         let (tx, rx) = channel();
         let event = PlayerStoppedEvent {
             url: "http://localhost/video.mkv".to_string(),
@@ -266,7 +266,7 @@ mod test {
 
     #[test]
     fn test_event_publisher_publish_multiple_consumers() {
-        init_logger();
+        init_logger!();
         let (tx_callback1, rx_callback1) = channel();
         let (tx_callback2, rx_callback2) = channel();
         let publisher = EventPublisher::default();
@@ -309,7 +309,7 @@ mod test {
 
     #[test]
     fn test_event_publisher_publish_event_consumed() {
-        init_logger();
+        init_logger!();
         let (tx_callback1, rx_callback1) = channel();
         let (tx_callback2, rx_callback2) = channel();
         let publisher = EventPublisher::default();

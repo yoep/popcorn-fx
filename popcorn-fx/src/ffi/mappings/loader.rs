@@ -195,9 +195,8 @@ impl From<LoadingProgress> for LoadingProgressC {
 
 #[cfg(test)]
 mod tests {
-    use popcorn_fx_core::core::Handle;
-
     use super::*;
+    use fx_handle::Handle;
 
     #[test]
     fn test_loader_event_c_from() {

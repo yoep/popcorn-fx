@@ -12,8 +12,8 @@ use url::Url;
 
 use crate::core::cache::{CacheManager, CacheOptions, CacheType};
 use crate::core::config::EnhancerProperties;
-use crate::core::media::{Category, Episode, MediaDetails, ShowDetails};
 use crate::core::media::providers::enhancers::Enhancer;
+use crate::core::media::{Category, Episode, MediaDetails, ShowDetails};
 
 const CACHE_NAME: &str = "thumb_enhancer";
 
@@ -162,13 +162,14 @@ mod test {
     use tokio::runtime::Runtime;
 
     use crate::core::media::{Episode, Images, MovieDetails, ShowDetails};
-    use crate::testing::{init_logger, read_test_file_to_string};
+    use crate::init_logger;
+    use crate::testing::read_test_file_to_string;
 
     use super::*;
 
     #[test]
     fn test_supports() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let cache_manager = Arc::new(CacheManager::builder().storage_path(temp_path).build());
@@ -191,7 +192,7 @@ mod test {
 
     #[test]
     fn test_enhance_details_show_details() {
-        init_logger();
+        init_logger!();
         let tvdb_id = "9435216";
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -248,7 +249,7 @@ mod test {
 
     #[test]
     fn test_enhance_details_movie_details() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let cache_manager = Arc::new(CacheManager::builder().storage_path(temp_path).build());

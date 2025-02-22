@@ -644,8 +644,8 @@ mod test {
 
     use popcorn_fx_core::core::config::{DecorationType, SubtitleFamily};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
-    use popcorn_fx_core::from_c_owned;
-    use popcorn_fx_core::testing::{copy_test_file, init_logger};
+    use popcorn_fx_core::testing::copy_test_file;
+    use popcorn_fx_core::{from_c_owned, init_logger};
 
     use crate::fx::PopcornFxArgs;
 
@@ -693,7 +693,7 @@ mod test {
 
     #[test]
     fn test_dispose_popcorn_fx() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let instance = PopcornFX::new(default_args(temp_path));
@@ -751,7 +751,7 @@ mod test {
 
     #[test]
     fn test_torrent_collection_all() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(default_args(temp_path));
@@ -764,7 +764,7 @@ mod test {
 
     #[test]
     fn test_register_settings_callback() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let subtitle_c = SubtitleSettingsC::from(&SubtitleSettings::new(
@@ -784,7 +784,7 @@ mod test {
 
     #[test]
     fn test_update_subtitle_settings() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(default_args(temp_path));
@@ -815,7 +815,7 @@ mod test {
 
     #[test]
     fn test_dispose_favorites() {
-        init_logger();
+        init_logger!();
         let movies = vec![MovieOverviewC::from(MovieOverview {
             title: "Foo".to_string(),
             imdb_id: "tt112233".to_string(),

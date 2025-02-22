@@ -463,13 +463,13 @@ impl Drop for StyledTextC {
 #[cfg(test)]
 mod test {
     use popcorn_fx_core::core::subtitles::model::SubtitleInfo;
-    use popcorn_fx_core::testing::init_logger;
+    use popcorn_fx_core::init_logger;
 
     use super::*;
 
     #[test]
     fn test_subtitle_info_set_from() {
-        init_logger();
+        init_logger!();
         let subtitle = SubtitleInfo::builder()
             .imdb_id("tt111000")
             .language(SubtitleLanguage::French)
@@ -486,7 +486,7 @@ mod test {
 
     #[test]
     fn test_subtitle_file_from() {
-        init_logger();
+        init_logger!();
         let name = "lorem".to_string();
         let url = "ipsum".to_string();
         let subtitle_c = SubtitleFileC {
@@ -510,7 +510,7 @@ mod test {
 
     #[test]
     fn test_subtitle_info_with_files() {
-        init_logger();
+        init_logger!();
         let subtitle = SubtitleInfo::builder()
             .imdb_id("tt22222233")
             .language(SubtitleLanguage::Italian)
@@ -531,7 +531,7 @@ mod test {
 
     #[test]
     fn test_subtitle_info_without_files() {
-        init_logger();
+        init_logger!();
         let subtitle = SubtitleInfo::builder()
             .imdb_id("tt8788777")
             .language(SubtitleLanguage::Spanish)
@@ -545,7 +545,7 @@ mod test {
 
     #[test]
     fn test_subtitle_info_none() {
-        init_logger();
+        init_logger!();
         let info = SubtitleInfo::none();
 
         let subtitle_info_c = SubtitleInfoC::from(info.clone());
@@ -557,7 +557,7 @@ mod test {
 
     #[test]
     fn test_subtitle_from() {
-        init_logger();
+        init_logger!();
         let subtitle = create_simple_subtitle();
 
         let subtitle_c = SubtitleC::from(subtitle.clone());
@@ -568,7 +568,7 @@ mod test {
 
     #[test]
     fn test_from_subtitle_event() {
-        init_logger();
+        init_logger!();
         let preference = SubtitlePreference::Language(SubtitleLanguage::None);
         let info_event = SubtitleEvent::PreferenceChanged(preference.clone());
         let expected_result = SubtitleEventC::PreferenceChanged(preference);

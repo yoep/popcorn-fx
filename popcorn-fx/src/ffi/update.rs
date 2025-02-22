@@ -109,8 +109,7 @@ mod test {
     use httpmock::MockServer;
     use tempfile::tempdir;
 
-    use popcorn_fx_core::{from_c_owned, from_c_string};
-    use popcorn_fx_core::testing::init_logger;
+    use popcorn_fx_core::{from_c_owned, from_c_string, init_logger};
 
     use crate::test::default_args;
 
@@ -118,7 +117,7 @@ mod test {
 
     #[test]
     fn test_version_info() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let server = MockServer::start();
@@ -161,7 +160,7 @@ mod test {
 
     #[test]
     fn test_check_for_updates() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(default_args(temp_path));
@@ -171,7 +170,7 @@ mod test {
 
     #[test]
     fn test_update_state() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(default_args(temp_path));
@@ -187,7 +186,7 @@ mod test {
 
     #[test]
     fn test_download_update() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(default_args(temp_path));

@@ -1,5 +1,5 @@
 use crate::torrent::peer::extension::Extensions;
-use crate::torrent::peer::protocol_utp::{UtpSocket, UtpStream};
+use crate::torrent::peer::protocol::{UtpSocket, UtpStream};
 use crate::torrent::peer::{
     BitTorrentPeer, Error, Peer, PeerDiscovery, PeerEntry, PeerId, PeerListener, PeerStream,
     ProtocolExtensionFlags, Result,
@@ -185,7 +185,7 @@ impl InnerUtpPeerDiscovery {
         let mut sockets = Vec::new();
 
         for addr in addrs {
-            match UtpSocket::new(addr, timeout, runtime.clone()).await {
+            match UtpSocket::new(addr, timeout, vec![], runtime.clone()).await {
                 Ok(socket) => {
                     trace!("Created uTP socket for {}, {:?}", addr, socket);
                     sockets.push(socket)

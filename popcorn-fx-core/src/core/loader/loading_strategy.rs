@@ -50,7 +50,7 @@ pub trait LoadingStrategy: Debug + Display + Send + Sync {
     /// A `LoadingResult` indicating the outcome of processing.
     async fn process(
         &self,
-        data: LoadingData,
+        data: &mut LoadingData,
         context: &LoadingTaskContext,
     ) -> crate::core::loader::LoadingResult;
 

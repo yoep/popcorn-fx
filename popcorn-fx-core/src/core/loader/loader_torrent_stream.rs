@@ -1,12 +1,10 @@
 use crate::core::loader::task::LoadingTaskContext;
 use crate::core::loader::{
     CancellationResult, LoadingData, LoadingError, LoadingEvent, LoadingProgress, LoadingResult,
-    LoadingState, LoadingStrategy, Result,
+    LoadingState, LoadingStrategy, Result, TorrentData,
 };
 use crate::core::torrents::stream::DefaultTorrentStream;
-use crate::core::torrents::{
-    Error, Torrent, TorrentStream, TorrentStreamEvent, TorrentStreamServer, TorrentStreamState,
-};
+use crate::core::torrents::{Error, TorrentStreamEvent, TorrentStreamServer, TorrentStreamState};
 use async_trait::async_trait;
 use derive_more::Display;
 use fx_callback::Callback;
@@ -71,65 +69,68 @@ impl Debug for TorrentStreamLoadingStrategy {
 
 #[async_trait]
 impl LoadingStrategy for TorrentStreamLoadingStrategy {
-    async fn process(&self, mut data: LoadingData, context: &LoadingTaskContext) -> LoadingResult {
-        if let Some(torrent) = data.torrent.take() {
-            trace!("Processing torrent stream for {:?}", torrent);
-            context.send_event(LoadingEvent::StateChanged(LoadingState::Starting));
-            match self.torrent_stream_server.start_stream(torrent).await {
-                Ok(stream) => {
-                    trace!("Updating playlist item url to stream {}", stream.url());
-                    data.url = Some(stream.url().to_string());
-                    context.send_event(LoadingEvent::StateChanged(LoadingState::Downloading));
+    async fn process(&self, data: &mut LoadingData, context: &LoadingTaskContext) -> LoadingResult {
+        // check if the current loading data can be streamed as a torrent
+        if let Some(filename) = data.torrent_file.as_ref() {
+            if let Some(TorrentData::Torrent(torrent)) = data.torrent.take() {
+                trace!("Processing torrent stream for {:?}", torrent);
+                context.send_event(LoadingEvent::StateChanged(LoadingState::Starting));
+                match self
+                    .torrent_stream_server
+                    .start_stream(torrent, filename)
+                    .await
+                {
+                    Ok(stream) => {
+                        trace!("Updating playlist item url to stream {}", stream.url());
+                        data.url = Some(stream.url().to_string());
+                        context.send_event(LoadingEvent::StateChanged(LoadingState::Downloading));
 
-                    let mut stream_receiver = Callback::<TorrentStreamEvent>::subscribe(&*stream);
-                    loop {
-                        select! {
-                            _ = context.cancelled() => break,
-                            event = stream_receiver.recv() => {
-                                if let Some(event) = event {
-                                    match self.handle_stream_event(event, context).await {
-                                        Ok(ready) => {
-                                            if ready {
-                                                break;
-                                            }
-                                        },
-                                        Err(e) => return LoadingResult::Err(e),
+                        let mut stream_receiver =
+                            Callback::<TorrentStreamEvent>::subscribe(&*stream);
+                        loop {
+                            select! {
+                                _ = context.cancelled() => break,
+                                event = stream_receiver.recv() => {
+                                    if let Some(event) = event {
+                                        match self.handle_stream_event(event, context).await {
+                                            Ok(ready) => {
+                                                if ready {
+                                                    break;
+                                                }
+                                            },
+                                            Err(e) => return LoadingResult::Err(e),
+                                        }
+                                    } else {
+                                        break;
                                     }
-                                } else {
-                                    break;
                                 }
                             }
                         }
-                    }
 
-                    match stream.downcast::<DefaultTorrentStream>() {
-                        Ok(stream) => data.torrent = Some(stream as Box<dyn Torrent>),
-                        Err(e) => {
-                            return LoadingResult::Err(LoadingError::ParseError(format!(
-                                "expected DefaultTorrentStream, got {:?} instead",
-                                e
-                            )));
+                        match stream.downcast::<DefaultTorrentStream>() {
+                            Ok(stream) => data.torrent = Some(TorrentData::Stream(stream)),
+                            Err(e) => {
+                                return LoadingResult::Err(LoadingError::ParseError(format!(
+                                    "expected DefaultTorrentStream, got {:?} instead",
+                                    e
+                                )));
+                            }
                         }
                     }
+                    Err(e) => return LoadingResult::Err(LoadingError::TorrentError(e)),
                 }
-                Err(e) => return LoadingResult::Err(LoadingError::TorrentError(e)),
             }
         }
 
-        LoadingResult::Ok(data)
+        LoadingResult::Ok
     }
 
     async fn cancel(&self, mut data: LoadingData) -> CancellationResult {
-        if let Some(torrent) = data.torrent.take() {
-            if let Some(stream) = torrent.downcast_ref::<DefaultTorrentStream>() {
-                let handle = stream.stream_handle();
-
-                trace!("Cancelling torrent download & stream for {}", handle);
-                self.torrent_stream_server.stop_stream(handle).await;
-                debug!("Stream {} loading has been cancelled", handle);
-            } else {
-                data.torrent = Some(torrent);
-            }
+        if let Some(TorrentData::Stream(stream)) = data.torrent.take() {
+            let handle = stream.stream_handle();
+            trace!("Cancelling torrent download & stream for {}", handle);
+            self.torrent_stream_server.stop_stream(handle).await;
+            debug!("Stream {} loading has been cancelled", handle);
         }
 
         Ok(data)
@@ -138,7 +139,6 @@ impl LoadingStrategy for TorrentStreamLoadingStrategy {
 
 #[cfg(test)]
 mod tests {
-    use crate::core::playlist::PlaylistItem;
     use crate::core::torrents::{MockTorrentStreamServer, TorrentHandle};
     use crate::testing::MockTorrentStream;
     use crate::{create_loading_task, init_logger};
@@ -149,28 +149,48 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_process_torrent_file_unknown() {
+        init_logger!();
+        let mut data = create_loading_data(MockTorrentStream::new());
+        let mut stream_server = MockTorrentStreamServer::new();
+        stream_server.expect_start_stream().times(0);
+        let task = create_loading_task!();
+        let context = task.context();
+        let runtime = context.runtime();
+        let strategy = TorrentStreamLoadingStrategy {
+            torrent_stream_server: Arc::new(Box::new(stream_server) as Box<dyn TorrentStreamServer>),
+        };
+
+        // when no specific torrent file has been specified,
+        // the torrent stream should never be started even when a torrent is present
+        let result = runtime.block_on(strategy.process(&mut data, &*context));
+
+        if let LoadingResult::Ok = result {
+            assert!(
+                data.torrent.is_some(),
+                "expected the torrent data to be present"
+            );
+        } else {
+            assert!(
+                false,
+                "expected LoadingResult::Ok, but got {:?} instead",
+                result
+            );
+        }
+    }
+
+    #[test]
     fn test_cancel() {
         init_logger!();
         let handle = TorrentHandle::new();
         let stream_handle = Handle::new();
-        let mut data = LoadingData::from(PlaylistItem {
-            url: None,
-            title: "MyStream".to_string(),
-            caption: None,
-            thumb: None,
-            media: Default::default(),
-            quality: None,
-            auto_resume_timestamp: None,
-            subtitle: Default::default(),
-            torrent: Default::default(),
-        });
         let mut stream = MockTorrentStream::new();
         stream.inner.expect_handle().return_const(handle);
         stream
             .inner
             .expect_stream_handle()
             .return_const(stream_handle.clone());
-        data.torrent = Some(Box::new(stream));
+        let data = create_loading_data(stream);
         let (tx, rx) = channel();
         let mut stream_server = MockTorrentStreamServer::new();
         stream_server
@@ -202,5 +222,21 @@ mod tests {
 
         let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
         assert_eq!(stream_handle, result);
+    }
+
+    fn create_loading_data(stream: MockTorrentStream) -> LoadingData {
+        LoadingData {
+            url: None,
+            title: None,
+            caption: None,
+            thumb: None,
+            parent_media: None,
+            media: None,
+            quality: None,
+            auto_resume_timestamp: None,
+            subtitle: Default::default(),
+            torrent: Some(TorrentData::Stream(Box::new(stream))),
+            torrent_file: None,
+        }
     }
 }

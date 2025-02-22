@@ -24,8 +24,8 @@ clap = { version = "4.5", features = ["derive"] }
 derive_more.workspace = true
 directories.workspace = true
 futures.workspace = true
-fx-handle = "0.1.0"
-fx-callback = "0.1.0"
+fx-handle.workspace = true
+fx-callback.workspace = true
 itertools.workspace = true
 log.workspace = true
 log4rs = { version = "1.3", features = ["console_writer", "rolling_file_appender", "compound_policy"] }

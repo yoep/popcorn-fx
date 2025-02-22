@@ -128,7 +128,7 @@ impl<'de> Visitor<'de> for FileAttributeFlagVisitor {
 pub struct TorrentFileInfo {
     /// Length of the file in bytes.
     pub length: u64,
-    /// Path of the file.
+    /// Path of the file within the torrent.
     /// This is never present in a single torrent file.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub path: Option<Vec<String>>,
@@ -162,7 +162,7 @@ pub struct TorrentFileInfo {
 }
 
 impl TorrentFileInfo {
-    /// Get the path to the torrent file.
+    /// Get the path to the file within the torrent.
     /// If the file information belongs to a [TorrentFiles::Single], the returned path will be empty.
     pub fn path(&self) -> PathBuf {
         let empty_vec = Vec::with_capacity(0);
@@ -384,12 +384,12 @@ impl TorrentMetadataInfo {
             .collect()
     }
 
-    /// Get the total file size of the torrent.
+    /// Get the total file length/size of the torrent.
     ///
     /// # Returns
     ///
     /// Returns the total file size of the torrent in bytes.
-    pub fn total_size(&self) -> usize {
+    pub fn len(&self) -> usize {
         match &self.files {
             TorrentFiles::Single { file } => file.length.clone() as usize,
             TorrentFiles::Multiple { files, .. } => files.iter().map(|f| f.length as usize).sum(),
@@ -437,6 +437,20 @@ impl TorrentMetadataInfo {
         } else {
             Ok(InfoHash::from_metadata_v1(metadata_bytes))
         }
+    }
+
+    /// Get the path of the given file within the torrent.
+    /// This will calculate the torrent path based on the file path segments.
+    ///
+    /// # Returns
+    ///
+    /// It returns the torrent filepath of the given file.
+    pub fn path(&self, file: &TorrentFileInfo) -> PathBuf {
+        let mut path = PathBuf::new().join(self.name());
+        for path_section in file.path_segments() {
+            path = path.join(path_section);
+        }
+        path
     }
 }
 
@@ -685,7 +699,7 @@ impl TorrentMetadata {
         self.info
             .as_ref()
             .map(|metadata| {
-                let file_size = metadata.total_size();
+                let file_size = metadata.len();
                 let piece_length = metadata.piece_length as usize;
                 let num_pieces = (file_size + piece_length - 1) / piece_length;
 
@@ -810,6 +824,11 @@ impl TryFrom<&TorrentMetadata> for Magnet {
             }
             if let Some(web_seeds) = value.url_list.as_ref() {
                 builder.web_seeds(web_seeds.clone());
+            }
+            if let Some(metadata) = value.info.as_ref() {
+                if let Some(source) = metadata.source.as_ref() {
+                    builder.exact_source(source);
+                }
             }
 
             builder.build()
@@ -1207,6 +1226,7 @@ pub mod serde_piece_layers {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::torrent::operation::TorrentCreateFilesOperation;
     use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::read_test_file_to_bytes;
     use std::str::FromStr;
@@ -1445,6 +1465,36 @@ mod tests {
             sha1: None,
         };
         let result = file.path_segments();
+        assert_eq!(expected_result, result);
+    }
+
+    #[test]
+    fn test_torrent_metadata_info_path() {
+        let file_info = TorrentFileInfo {
+            length: 0,
+            path: Some(vec!["TorrentFile.mp4".to_string()]),
+            path_utf8: None,
+            md5sum: None,
+            attr: None,
+            symlink_path: None,
+            sha1: None,
+        };
+        let metadata = TorrentMetadataInfo {
+            piece_length: 0,
+            pieces: vec![],
+            name: "MyTorrentDir".to_string(),
+            name_utf8: None,
+            private: None,
+            source: None,
+            meta_version: None,
+            files: TorrentFiles::Multiple {
+                files: vec![file_info.clone()],
+            },
+        };
+        let expected_result = PathBuf::from("MyTorrentDir/TorrentFile.mp4");
+
+        let result = metadata.path(&file_info);
+
         assert_eq!(expected_result, result);
     }
 }

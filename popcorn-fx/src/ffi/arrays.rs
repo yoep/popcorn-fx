@@ -35,18 +35,18 @@ mod tests {
     use tempfile::tempdir;
 
     use popcorn_fx_core::core::media::{Images, ShowOverview};
-    use popcorn_fx_core::from_c_owned;
-    use popcorn_fx_core::testing::{init_logger, read_test_file_to_bytes};
+    use popcorn_fx_core::testing::read_test_file_to_bytes;
+    use popcorn_fx_core::{from_c_owned, init_logger};
 
     use crate::ffi::{load_fanart, MediaItemC};
-    use crate::PopcornFX;
     use crate::test::default_args;
+    use crate::PopcornFX;
 
     use super::*;
 
     #[test]
     fn test_dispose_byte_array() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let expected_result = read_test_file_to_bytes("image.jpg");
@@ -76,7 +76,7 @@ mod tests {
 
     #[test]
     fn test_dispose_string_array() {
-        init_logger();
+        init_logger!();
         let values = vec!["Foo".to_string(), "Bar".to_string()];
         let array = StringArray::from(values);
 

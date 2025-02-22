@@ -9,12 +9,11 @@ use popcorn_fx_core::core::playlist::{
     PlaylistSubtitle, PlaylistTorrent,
 };
 use popcorn_fx_core::core::subtitles::model::SubtitleInfo;
-use popcorn_fx_core::core::torrents::{TorrentFileInfo, TorrentInfo};
 use popcorn_fx_core::{
     from_c_into_boxed, from_c_owned, from_c_string, into_c_owned, into_c_string,
 };
 
-use crate::ffi::{MediaItemC, SubtitleInfoC, TorrentFileInfoC, TorrentInfoC};
+use crate::ffi::{MediaItemC, SubtitleInfoC};
 
 /// The callback function type for playlist manager events in C.
 ///
@@ -46,10 +45,8 @@ pub struct PlaylistItemC {
     pub subtitles_enabled: bool,
     /// A pointer to the subtitle information for the playlist item, if available, else [ptr::null_mut()].
     pub subtitle_info: *mut SubtitleInfoC,
-    /// A pointer to the torrent information for the playlist item, if applicable, else [ptr::null_mut()].
-    pub torrent_info: *mut TorrentInfoC,
-    /// A pointer to the torrent file information for the playlist item, if applicable, else [ptr::null_mut()].
-    pub torrent_file_info: *mut TorrentFileInfoC,
+    /// A pointer to the torrent filename for the playlist item, if applicable, else [ptr::null_mut()].
+    pub torrent_filename: *mut c_char,
 }
 
 impl PlaylistItemC {
@@ -128,15 +125,8 @@ impl From<PlaylistItemC> for PlaylistItem {
         } else {
             None
         };
-        let torrent_info = if !value.torrent_info.is_null() {
-            let torrent_info_c = from_c_owned(value.torrent_info);
-            Some(TorrentInfo::from(torrent_info_c))
-        } else {
-            None
-        };
-        let torrent_file_info = if !value.torrent_file_info.is_null() {
-            let torrent_file_info_c = from_c_owned(value.torrent_file_info);
-            Some(TorrentFileInfo::from(torrent_file_info_c))
+        let torrent_filename = if !value.torrent_filename.is_null() {
+            Some(from_c_string(value.torrent_filename))
         } else {
             None
         };
@@ -157,8 +147,7 @@ impl From<PlaylistItemC> for PlaylistItem {
                 info: subtitle_info,
             },
             torrent: PlaylistTorrent {
-                info: torrent_info,
-                file_info: torrent_file_info,
+                filename: torrent_filename,
             },
         }
     }
@@ -196,6 +185,11 @@ impl From<PlaylistItem> for PlaylistItemC {
         } else {
             ptr::null_mut()
         };
+        let torrent_filename = if let Some(e) = value.torrent.filename {
+            into_c_string(e)
+        } else {
+            ptr::null_mut()
+        };
 
         Self {
             url,
@@ -208,8 +202,7 @@ impl From<PlaylistItem> for PlaylistItemC {
             auto_resume_timestamp,
             subtitles_enabled: value.subtitle.enabled,
             subtitle_info,
-            torrent_info: ptr::null_mut(),
-            torrent_file_info: ptr::null_mut(),
+            torrent_filename,
         }
     }
 }
@@ -296,6 +289,7 @@ mod test {
             images: Default::default(),
             rating: None,
         };
+        let torrent_filename = "FooBar.mp4";
         let item = PlaylistItemC {
             url: into_c_string(url.to_string()),
             title: into_c_string(title.to_string()),
@@ -312,8 +306,7 @@ mod test {
                 files: ptr::null_mut(),
                 len: 0,
             }),
-            torrent_info: ptr::null_mut(),
-            torrent_file_info: ptr::null_mut(),
+            torrent_filename: into_c_string(torrent_filename),
         };
         let expected_result = PlaylistItem {
             url: Some(url.to_string()),
@@ -336,8 +329,7 @@ mod test {
                 ),
             },
             torrent: PlaylistTorrent {
-                info: None,
-                file_info: None,
+                filename: Some(torrent_filename.to_string()),
             },
         };
 
@@ -404,8 +396,7 @@ mod test {
             auto_resume_timestamp: into_c_owned(auto_resume_timestamp.clone()),
             subtitles_enabled: true,
             subtitle_info: ptr::null_mut(),
-            torrent_info: ptr::null_mut(),
-            torrent_file_info: ptr::null_mut(),
+            torrent_filename: ptr::null_mut(),
         };
         let expected_result = PlaylistItem {
             url: Some(url.to_string()),

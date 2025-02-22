@@ -275,13 +275,14 @@ mod test {
         UiScale, UiSettings,
     };
     use crate::core::media::Category;
+    use crate::init_logger;
     use crate::testing::{copy_test_file, init_logger};
 
     use super::*;
 
     #[test]
     fn test_update_preference_language() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let settings = default_settings(temp_path, false);
@@ -295,7 +296,7 @@ mod test {
 
     #[test]
     fn test_update_preference_disabled() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let settings = default_settings(temp_path, false);
@@ -309,7 +310,7 @@ mod test {
 
     #[test]
     fn test_reset() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let settings = default_settings(temp_path, false);
@@ -327,7 +328,7 @@ mod test {
 
     #[test]
     fn test_select_or_default_select_for_default_subtitle_language() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let settings = default_settings(temp_path, true);
@@ -345,7 +346,7 @@ mod test {
 
     #[test]
     fn test_select_or_default_select_for_interface_language() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let settings = default_settings(temp_path, true);
@@ -370,7 +371,7 @@ mod test {
 
     #[test]
     fn test_drop_cleanup_subtitles() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let settings = default_settings(temp_path, true);

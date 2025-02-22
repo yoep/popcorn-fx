@@ -81,7 +81,7 @@ mod tests {
     use tempfile::tempdir;
 
     use popcorn_fx_core::core::media::{Genre, SortBy};
-    use popcorn_fx_core::testing::init_logger;
+    use popcorn_fx_core::init_logger;
 
     use crate::test::default_args;
 
@@ -89,7 +89,7 @@ mod tests {
 
     #[test]
     fn test_retrieve_available_favorites() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(default_args(temp_path));

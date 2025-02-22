@@ -246,6 +246,16 @@ pub fn from_c_vec_owned<T>(ptr: *mut T, len: i32) -> Vec<T> {
 
 #[cfg(feature = "testing")]
 pub mod testing {
+    use crate::core::platform::{Platform, PlatformCallback, PlatformData, PlatformInfo};
+    use crate::core::playback::MediaNotificationEvent;
+    use crate::core::players::{PlayRequest, Player, PlayerEvent, PlayerState};
+    use crate::core::subtitles::model::SubtitleInfo;
+    use crate::core::subtitles::{SubtitleEvent, SubtitleManager, SubtitlePreference};
+    use crate::core::torrents::{
+        StreamHandle, Torrent, TorrentEvent, TorrentHandle, TorrentState, TorrentStream,
+        TorrentStreamEvent, TorrentStreamState, TorrentStreamingResourceWrapper,
+    };
+    use crate::core::{torrents, Callbacks, CoreCallback};
     use async_trait::async_trait;
     use fx_callback::{Callback, CallbackHandle, Subscriber, Subscription};
     use fx_handle::Handle;
@@ -255,6 +265,8 @@ pub mod testing {
     use log4rs::encode::pattern::PatternEncoder;
     use log4rs::Config;
     use mockall::mock;
+    use popcorn_fx_torrent::torrent;
+    use popcorn_fx_torrent::torrent::TorrentStats;
     use std::fmt::{Display, Formatter};
     use std::fs::OpenOptions;
     use std::io::Read;
@@ -264,17 +276,6 @@ pub mod testing {
     use std::{env, fs};
     use tempfile::TempDir;
     use url::Url;
-
-    use crate::core::platform::{Platform, PlatformCallback, PlatformData, PlatformInfo};
-    use crate::core::playback::MediaNotificationEvent;
-    use crate::core::players::{PlayRequest, Player, PlayerEvent, PlayerState};
-    use crate::core::subtitles::model::SubtitleInfo;
-    use crate::core::subtitles::{SubtitleEvent, SubtitleManager, SubtitlePreference};
-    use crate::core::torrents::{
-        StreamHandle, Torrent, TorrentEvent, TorrentFileInfo, TorrentHandle, TorrentState,
-        TorrentStream, TorrentStreamEvent, TorrentStreamState, TorrentStreamingResourceWrapper,
-    };
-    use crate::core::{torrents, Callbacks, CoreCallback};
 
     static INIT: Once = Once::new();
 
@@ -482,8 +483,8 @@ pub mod testing {
         pub InnerTorrentStream {
             pub fn stream_handle(&self) -> Handle;
             pub fn url(&self) -> Url;
-            pub fn stream(&self) -> torrents::Result<TorrentStreamingResourceWrapper>;
-            pub fn stream_offset(&self, offset: u64, len: Option<u64>) -> torrents::Result<TorrentStreamingResourceWrapper>;
+            pub async fn stream(&self) -> torrents::Result<TorrentStreamingResourceWrapper>;
+            pub async fn stream_offset(&self, offset: u64, len: Option<u64>) -> torrents::Result<TorrentStreamingResourceWrapper>;
             pub async fn stream_state(&self) -> TorrentStreamState;
             pub fn stop_stream(&self);
             pub fn subscribe_stream(&self) -> Subscription<TorrentStreamEvent>;
@@ -493,9 +494,8 @@ pub mod testing {
         #[async_trait]
         impl Torrent for InnerTorrentStream {
             fn handle(&self) -> TorrentHandle;
-            async fn files(&self) -> Vec<TorrentFileInfo>;
-            async fn active_files(&self) -> Vec<TorrentFileInfo>;
-            async fn largest_file(&self) -> Option<TorrentFileInfo>;
+            async fn files(&self) -> Vec<torrent::File>;
+            async fn largest_file(&self) -> Option<torrent::File>;
             async fn has_bytes(&self, bytes: &std::ops::Range<usize>) -> bool;
             async fn has_piece(&self, piece: usize) -> bool;
             async fn prioritize_bytes(&self, bytes: &std::ops::Range<usize>);
@@ -503,6 +503,7 @@ pub mod testing {
             async fn total_pieces(&self) -> usize;
             async fn sequential_mode(&self);
             async fn state(&self) -> TorrentState;
+            async fn stats(&self) -> TorrentStats;
         }
 
         impl Callback<TorrentEvent> for InnerTorrentStream {
@@ -529,13 +530,10 @@ pub mod testing {
         fn handle(&self) -> TorrentHandle {
             self.inner.handle()
         }
-        async fn files(&self) -> Vec<TorrentFileInfo> {
+        async fn files(&self) -> Vec<torrent::File> {
             self.inner.files().await
         }
-        async fn active_files(&self) -> Vec<TorrentFileInfo> {
-            self.inner.active_files().await
-        }
-        async fn largest_file(&self) -> Option<TorrentFileInfo> {
+        async fn largest_file(&self) -> Option<torrent::File> {
             self.inner.largest_file().await
         }
         async fn has_bytes(&self, bytes: &Range<usize>) -> bool {
@@ -559,6 +557,9 @@ pub mod testing {
         async fn state(&self) -> TorrentState {
             self.inner.state().await
         }
+        async fn stats(&self) -> TorrentStats {
+            self.inner.stats().await
+        }
     }
 
     #[async_trait]
@@ -571,16 +572,16 @@ pub mod testing {
             self.inner.url()
         }
 
-        fn stream(&self) -> torrents::Result<TorrentStreamingResourceWrapper> {
-            self.inner.stream()
+        async fn stream(&self) -> torrents::Result<TorrentStreamingResourceWrapper> {
+            self.inner.stream().await
         }
 
-        fn stream_offset(
+        async fn stream_offset(
             &self,
             offset: u64,
             len: Option<u64>,
         ) -> torrents::Result<TorrentStreamingResourceWrapper> {
-            self.inner.stream_offset(offset, len)
+            self.inner.stream_offset(offset, len).await
         }
 
         async fn stream_state(&self) -> TorrentStreamState {

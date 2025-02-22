@@ -201,13 +201,14 @@ mod test {
     use crate::core::media::watched::DefaultWatchedService;
     use crate::core::media::watched::MockWatchedService;
     use crate::core::media::{Images, MovieOverview, ShowOverview};
-    use crate::testing::{copy_test_file, init_logger};
+    use crate::init_logger;
+    use crate::testing::copy_test_file;
 
     use super::*;
 
     #[test]
     fn test_retrieve_return_stored_favorites() {
-        init_logger();
+        init_logger!();
         let imdb_id = "tt21215466";
         let genre = Genre::all();
         let sort_by = SortBy::new("watched".to_string(), String::new());
@@ -237,7 +238,7 @@ mod test {
 
     #[test]
     fn test_retrieve_return_stored_favorites_movies() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let genre = Genre::new("movies".to_string(), "Movies".to_string());
@@ -336,7 +337,7 @@ mod test {
 
     #[test]
     fn test_sort_by_should_order_movie_before_show() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a temp directory");
         let resource_path = temp_dir.path().to_str().unwrap();
         let favorites = MockFavoriteService::new();
@@ -370,7 +371,7 @@ mod test {
 
     #[test]
     fn test_sort_by_should_order_unwatched_before_watched() {
-        init_logger();
+        init_logger!();
         let watched_id = "tt0000001".to_string();
         let movie_watched = Box::new(MovieOverview::new(
             String::new(),

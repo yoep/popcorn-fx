@@ -133,7 +133,7 @@ mod test {
 
     #[test]
     fn test_disable_screensaver() {
-        init_logger();
+        init_logger!();
         let platform = PlatformLinux::default();
 
         let _ = platform.disable_screensaver();

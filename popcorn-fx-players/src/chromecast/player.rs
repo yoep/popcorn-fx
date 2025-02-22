@@ -1149,28 +1149,26 @@ impl PlayRequest for TranscodingPlayRequest {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::mpsc::channel;
-
+    use super::*;
+    use crate::chromecast::device::MockFxCastDevice;
+    use crate::chromecast::tests::TestInstance;
+    use crate::chromecast::transcode::{MockTranscoder, TranscodeOutput, TranscodeType};
     use popcorn_fx_core::core::media::MovieOverview;
     use popcorn_fx_core::core::players::{PlayMediaRequest, PlayUrlRequest};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::core::subtitles::model::{Subtitle, SubtitleInfo};
     use popcorn_fx_core::core::subtitles::MockSubtitleProvider;
-    use popcorn_fx_core::testing::init_logger;
+    use popcorn_fx_core::init_logger;
+    use popcorn_fx_core::testing::MockTorrentStream;
     use rust_cast::channels::media::StatusEntry;
     use rust_cast::channels::receiver::Volume;
     use rust_cast::channels::{media, receiver};
     use serde_json::Number;
-
-    use crate::chromecast::device::MockFxCastDevice;
-    use crate::chromecast::tests::TestInstance;
-    use crate::chromecast::transcode::{MockTranscoder, TranscodeOutput, TranscodeType};
-
-    use super::*;
+    use std::sync::mpsc::channel;
 
     #[test]
     fn test_player_new() {
-        init_logger();
+        init_logger!();
         let subtitle_provider = MockSubtitleProvider::new();
         let transcoder = MockTranscoder::new();
         let runtime = Runtime::new().unwrap();
@@ -1196,7 +1194,7 @@ mod tests {
 
     #[test]
     fn test_player_id() {
-        init_logger();
+        init_logger!();
         let mut test_instance = TestInstance::new_player(Box::new(|| create_default_device()));
         let player = test_instance.player.take().unwrap();
 
@@ -1207,7 +1205,7 @@ mod tests {
 
     #[test]
     fn test_player_name() {
-        init_logger();
+        init_logger!();
         let mut test_instance = TestInstance::new_player(Box::new(|| create_default_device()));
         let player = test_instance.player.take().unwrap();
 
@@ -1218,7 +1216,7 @@ mod tests {
 
     #[test]
     fn test_player_description() {
-        init_logger();
+        init_logger!();
         let mut test_instance = TestInstance::new_player(Box::new(|| create_default_device()));
         let player = test_instance.player.take().unwrap();
 
@@ -1229,7 +1227,7 @@ mod tests {
 
     #[test]
     fn test_player_graphic_resource() {
-        init_logger();
+        init_logger!();
         let mut test_instance = TestInstance::new_player(Box::new(|| create_default_device()));
         let player = test_instance.player.take().unwrap();
 
@@ -1240,7 +1238,7 @@ mod tests {
 
     #[test]
     fn test_player_state() {
-        init_logger();
+        init_logger!();
         let mut test_instance = TestInstance::new_player(Box::new(|| create_default_device()));
         let player = test_instance.player.take().unwrap();
 
@@ -1251,7 +1249,7 @@ mod tests {
 
     #[test]
     fn test_player_play() {
-        init_logger();
+        init_logger!();
         let url = "http://localhost:8900/my-video.mkv";
         let (tx_command, rx_command) = channel::<LoadCommand>();
         let mut test_instance = TestInstance::new_player(Box::new(move || {
@@ -1324,7 +1322,7 @@ mod tests {
             parent_media: None,
             media: Box::new(movie),
             quality: "720p".to_string(),
-            torrent_stream: Default::default(),
+            torrent_stream: Box::new(MockTorrentStream::new()),
         });
         let (tx, rx) = channel();
         let player = test_instance.player.take().unwrap();
@@ -1348,7 +1346,7 @@ mod tests {
 
     #[test]
     fn test_player_pause() {
-        init_logger();
+        init_logger!();
         let transport_id = "FooBar";
         let (tx, rx) = channel();
         let mut test_instance = TestInstance::new_player(Box::new(move || {
@@ -1384,7 +1382,7 @@ mod tests {
 
     #[test]
     fn test_player_resume() {
-        init_logger();
+        init_logger!();
         let mut test_instance = TestInstance::new_player(Box::new(|| create_default_device()));
         let player = test_instance.player.take().unwrap();
 
@@ -1393,7 +1391,7 @@ mod tests {
 
     #[test]
     fn test_player_seek() {
-        init_logger();
+        init_logger!();
         let transport_id = "LoremIpsum";
         let (tx, rx) = channel();
         let mut test_instance = TestInstance::new_player(Box::new(move || {
@@ -1428,7 +1426,7 @@ mod tests {
 
     #[test]
     fn test_player_stop() {
-        init_logger();
+        init_logger!();
         let session_id = "Bar";
         let (tx, rx) = channel();
         let mut test_instance = TestInstance::new_player(Box::new(move || {
@@ -1464,7 +1462,7 @@ mod tests {
 
     #[test]
     fn test_player_handle_event_message() {
-        init_logger();
+        init_logger!();
         let original_url = "http://localhost:9876/my-video.mp4";
         let transcoding_url = "http://localhost:9875/my-transcoded-video.mp4";
         let subtitle_url = "http://localhost:9876/my-subtitle.srt";
@@ -1598,7 +1596,7 @@ mod tests {
 
     #[test]
     fn test_player_handle_event_error() {
-        init_logger();
+        init_logger!();
         let mut test_instance = create_default_test_instance();
         let player = test_instance.player.take().unwrap();
 
@@ -1614,7 +1612,7 @@ mod tests {
 
     #[test]
     fn test_player_start_app_already_running() {
-        init_logger();
+        init_logger!();
         let session_id = "MySessionId123456";
         let transport_id = "MyTransportId";
         let mut test_instance = TestInstance::new_player(Box::new(move || {

@@ -89,7 +89,7 @@ test: test-java test-cargo ## Test the application code
 build-cargo: ## Build the rust part of the application
 	$(info Using lib extension: $(EXTENSION))
 	$(info Building cargo packages)
-	@cargo build --features ffi
+	@cargo build --features ffi --profile dev
 
 build-cargo-debug: build-cargo ## The alias for build-cargo which build the rust part of the application in debug profile
 

@@ -141,9 +141,9 @@ mod test {
     use httpmock::MockServer;
     use tempfile::tempdir;
 
-    use popcorn_fx_core::{from_c_owned, from_c_vec, into_c_string};
     use popcorn_fx_core::core::media::{Images, MovieDetails, ShowDetails};
-    use popcorn_fx_core::testing::{init_logger, read_test_file_to_bytes};
+    use popcorn_fx_core::testing::read_test_file_to_bytes;
+    use popcorn_fx_core::{from_c_owned, from_c_vec, init_logger, into_c_string};
 
     use crate::test::default_args;
 
@@ -151,7 +151,7 @@ mod test {
 
     #[test]
     fn test_default_poster() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(default_args(temp_path));
@@ -164,7 +164,7 @@ mod test {
 
     #[test]
     fn test_load_fanart() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let expected_result = read_test_file_to_bytes("image.jpg");
@@ -199,7 +199,7 @@ mod test {
 
     #[test]
     fn test_load_poster() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let expected_result = read_test_file_to_bytes("image.jpg");
@@ -238,7 +238,7 @@ mod test {
 
     #[test]
     fn test_load_image() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let expected_result = read_test_file_to_bytes("image.jpg");

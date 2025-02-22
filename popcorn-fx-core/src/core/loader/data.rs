@@ -1,7 +1,13 @@
 use crate::core::media::MediaIdentifier;
 use crate::core::playlist::PlaylistItem;
 use crate::core::subtitles::model::{Subtitle, SubtitleInfo};
-use crate::core::torrents::Torrent;
+use crate::core::torrents::{
+    Torrent, TorrentEvent, TorrentHandle, TorrentState, TorrentStats, TorrentStream,
+};
+use async_trait::async_trait;
+use fx_callback::{Callback, Subscriber, Subscription};
+use popcorn_fx_torrent::torrent;
+use std::ops::Range;
 
 /// A structure representing loading data for a media item.
 ///
@@ -20,7 +26,7 @@ pub struct LoadingData {
     pub auto_resume_timestamp: Option<u64>,
     pub subtitle: SubtitleData,
     /// The torrent information associated with the media item.
-    pub torrent: Option<Box<dyn Torrent>>,
+    pub torrent: Option<TorrentData>,
     /// The filename of the torrent that needs to be loaded
     pub torrent_file: Option<String>,
 }
@@ -106,7 +112,118 @@ impl From<PlaylistItem> for LoadingData {
                 subtitle: None,
             },
             torrent: None,
-            torrent_file: None,
+            torrent_file: value.torrent.filename,
+        }
+    }
+}
+
+/// The torrent loading data identifying a torrent or torrent stream.
+#[derive(Debug)]
+pub enum TorrentData {
+    Torrent(Box<dyn Torrent>),
+    Stream(Box<dyn TorrentStream>),
+}
+
+impl TorrentData {
+    /// Check if the torrent data is a torrent stream.
+    /// Returns true if the torrent data is a torrent stream.
+    pub fn is_stream(&self) -> bool {
+        matches!(self, TorrentData::Stream(_))
+    }
+}
+
+impl Callback<TorrentEvent> for TorrentData {
+    fn subscribe(&self) -> Subscription<TorrentEvent> {
+        match self {
+            TorrentData::Torrent(e) => e.subscribe(),
+            TorrentData::Stream(e) => e.subscribe(),
+        }
+    }
+
+    fn subscribe_with(&self, subscriber: Subscriber<TorrentEvent>) {
+        match self {
+            TorrentData::Torrent(e) => e.subscribe_with(subscriber),
+            TorrentData::Stream(e) => e.subscribe_with(subscriber),
+        }
+    }
+}
+
+#[async_trait]
+impl Torrent for TorrentData {
+    fn handle(&self) -> TorrentHandle {
+        match self {
+            TorrentData::Torrent(e) => e.handle(),
+            TorrentData::Stream(e) => e.handle(),
+        }
+    }
+
+    async fn files(&self) -> Vec<torrent::File> {
+        match self {
+            TorrentData::Torrent(e) => e.files().await,
+            TorrentData::Stream(e) => e.files().await,
+        }
+    }
+
+    async fn largest_file(&self) -> Option<torrent::File> {
+        match self {
+            TorrentData::Torrent(e) => e.largest_file().await,
+            TorrentData::Stream(e) => e.largest_file().await,
+        }
+    }
+
+    async fn has_bytes(&self, bytes: &Range<usize>) -> bool {
+        match self {
+            TorrentData::Torrent(e) => e.has_bytes(bytes).await,
+            TorrentData::Stream(e) => e.has_bytes(bytes).await,
+        }
+    }
+
+    async fn has_piece(&self, piece: usize) -> bool {
+        match self {
+            TorrentData::Torrent(e) => e.has_piece(piece).await,
+            TorrentData::Stream(e) => e.has_piece(piece).await,
+        }
+    }
+
+    async fn prioritize_bytes(&self, bytes: &Range<usize>) {
+        match self {
+            TorrentData::Torrent(e) => e.prioritize_bytes(bytes).await,
+            TorrentData::Stream(e) => e.prioritize_bytes(bytes).await,
+        }
+    }
+
+    async fn prioritize_pieces(&self, pieces: &[u32]) {
+        match self {
+            TorrentData::Torrent(e) => e.prioritize_pieces(pieces).await,
+            TorrentData::Stream(e) => e.prioritize_pieces(pieces).await,
+        }
+    }
+
+    async fn total_pieces(&self) -> usize {
+        match self {
+            TorrentData::Torrent(e) => e.total_pieces().await,
+            TorrentData::Stream(e) => e.total_pieces().await,
+        }
+    }
+
+    async fn sequential_mode(&self) {
+        match self {
+            TorrentData::Torrent(e) => e.sequential_mode().await,
+            TorrentData::Stream(e) => e.sequential_mode().await,
+        }
+    }
+
+    async fn state(&self) -> TorrentState {
+        match self {
+            TorrentData::Torrent(e) => e.state().await,
+            TorrentData::Stream(e) => e.state().await,
+        }
+    }
+
+    async fn stats(&self) -> TorrentStats {
+        match self {
+            TorrentData::Torrent(e) => e.stats().await,
+            TorrentData::Stream(e) => e.stats().await,
         }
     }
 }

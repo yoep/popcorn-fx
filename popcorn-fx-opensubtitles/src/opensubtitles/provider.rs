@@ -10,17 +10,17 @@ use derive_more::Display;
 use futures::StreamExt;
 use itertools::Itertools;
 use log::{debug, error, info, trace, warn};
-use reqwest::{Client, ClientBuilder, Response, StatusCode, Url};
 use reqwest::header::HeaderMap;
+use reqwest::{Client, ClientBuilder, Response, StatusCode, Url};
 use tokio::fs::OpenOptions;
 
 use popcorn_fx_core::core::config::ApplicationConfig;
 use popcorn_fx_core::core::media::*;
-use popcorn_fx_core::core::subtitles::{Result, SubtitleError, SubtitleFile, SubtitleProvider};
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
 use popcorn_fx_core::core::subtitles::matcher::SubtitleMatcher;
 use popcorn_fx_core::core::subtitles::model::{Subtitle, SubtitleInfo, SubtitleType};
 use popcorn_fx_core::core::subtitles::parsers::Parser;
+use popcorn_fx_core::core::subtitles::{Result, SubtitleError, SubtitleFile, SubtitleProvider};
 
 use crate::opensubtitles::model::*;
 
@@ -744,7 +744,8 @@ mod test {
     use popcorn_fx_core::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage::English;
     use popcorn_fx_core::core::subtitles::parsers::{SrtParser, VttParser};
-    use popcorn_fx_core::testing::{copy_test_file, init_logger, read_test_file_to_string};
+    use popcorn_fx_core::init_logger;
+    use popcorn_fx_core::testing::{copy_test_file, read_test_file_to_string};
 
     use super::*;
 
@@ -801,7 +802,7 @@ mod test {
 
     #[test]
     fn test_movie_subtitles() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let settings = Arc::new(ApplicationConfig::builder().storage(temp_path).build());
@@ -827,7 +828,7 @@ mod test {
 
     #[test]
     fn test_movie_subtitles_search_2_subtitles() {
-        init_logger();
+        init_logger!();
         let (server, settings) = start_mock_server();
         let movie1 = MovieDetails::new(
             "lorem".to_string(),
@@ -878,7 +879,7 @@ mod test {
 
     #[test]
     fn test_episode_subtitles() {
-        init_logger();
+        init_logger!();
         let (server, settings) = start_mock_server();
         let show = ShowDetails::new(
             "tt4236770".to_string(),
@@ -935,7 +936,7 @@ mod test {
 
     #[test]
     fn test_filename_subtitles() {
-        init_logger();
+        init_logger!();
         let (server, settings) = start_mock_server();
         let filename = "House.of.the.Dragon.S01E01.HMAX.WEBRip.x264-XEN0N.mkv".to_string();
         let service = OpensubtitlesProvider::builder().settings(settings).build();
@@ -964,7 +965,7 @@ mod test {
 
     #[test]
     fn test_download_should_return_the_expected_subtitle() {
-        init_logger();
+        init_logger!();
         let (server, settings) = start_mock_server();
         let temp_dir = settings
             .user_settings()
@@ -1034,7 +1035,7 @@ mod test {
 
     #[test]
     fn test_download_should_create_subtitle_directory() {
-        init_logger();
+        init_logger!();
         let subdirectory = "subtitles";
         let (server, settings) = start_mock_server_with_subtitle_dir(Some(subdirectory));
         let temp_dir = settings
@@ -1097,7 +1098,7 @@ mod test {
 
     #[test]
     fn test_download_when_subtitle_file_exists_should_return_existing_file() {
-        init_logger();
+        init_logger!();
         let test_file = "subtitle_existing.srt";
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -1174,7 +1175,7 @@ mod test {
 
     #[test]
     fn test_parse_valid_file() {
-        init_logger();
+        init_logger!();
         let test_file = "subtitle_example.srt";
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -1207,7 +1208,7 @@ mod test {
 
     #[test]
     fn test_subtitle_file_name_missing_extension_in_file() {
-        init_logger();
+        init_logger!();
         let file = OpenSubtitlesFile::new_with_filename(0, "my-filename".to_string());
         let attributes = OpenSubtitlesAttributes::new("123".to_string(), "".to_string());
         let expected_result = "my-filename.srt".to_string();
@@ -1219,7 +1220,7 @@ mod test {
 
     #[test]
     fn test_subtitle_file_name_missing_extension_in_release() {
-        init_logger();
+        init_logger!();
         let file = OpenSubtitlesFile {
             file_id: 687,
             cd_number: None,
@@ -1235,7 +1236,7 @@ mod test {
 
     #[test]
     fn test_subtitle_file_name_too_long_extension() {
-        init_logger();
+        init_logger!();
         let file = OpenSubtitlesFile::new_with_filename(0, "lorem.XviD-DEViSE".to_string());
         let attributes = OpenSubtitlesAttributes::new("123".to_string(), "".to_string());
         let expected_result = "lorem.XviD-DEViSE.srt".to_string();
@@ -1247,7 +1248,7 @@ mod test {
 
     #[test]
     fn test_subtitle_file_name_too_short_extension() {
-        init_logger();
+        init_logger!();
         let file = OpenSubtitlesFile::new_with_filename(0, "lorem.en".to_string());
         let attributes = OpenSubtitlesAttributes::new("123".to_string(), "".to_string());
         let expected_result = "lorem.en.srt".to_string();

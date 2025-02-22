@@ -423,8 +423,8 @@ mod tests {
 
     use popcorn_fx_core::core::players::{PlayerManagerEvent, PlayerState};
     use popcorn_fx_core::core::Callbacks;
-    use popcorn_fx_core::testing::{init_logger, MockPlayer};
-    use popcorn_fx_core::{from_c_owned, from_c_vec, into_c_string, into_c_vec};
+    use popcorn_fx_core::testing::MockPlayer;
+    use popcorn_fx_core::{from_c_owned, from_c_vec, init_logger, into_c_string, into_c_vec};
 
     use crate::ffi::PlayRequestC;
     use crate::test::default_args;
@@ -458,7 +458,7 @@ mod tests {
 
     #[test]
     fn test_active_player() {
-        init_logger();
+        init_logger!();
         let player_id = "Lorem";
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -487,7 +487,7 @@ mod tests {
 
     #[test]
     fn test_players() {
-        init_logger();
+        init_logger!();
         let player_id = "MyPlayerId999";
         let graphic_resource_vec = vec![80, 20];
         let temp_dir = tempdir().expect("expected a temp dir to be created");
@@ -522,7 +522,7 @@ mod tests {
 
     #[test]
     fn test_player_by_id() {
-        init_logger();
+        init_logger!();
         let player_id = "MyId666";
         let name = "VlcPlayer";
         let graphic_resource_vec = vec![155, 30, 16];
@@ -559,7 +559,7 @@ mod tests {
 
     #[test]
     fn test_register_player() {
-        init_logger();
+        init_logger!();
         let player_id = "Id123";
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -591,7 +591,7 @@ mod tests {
 
     #[test]
     fn test_remove_player() {
-        init_logger();
+        init_logger!();
         let player_id = "Id123";
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -623,7 +623,7 @@ mod tests {
 
     #[test]
     fn test_invoke_player_event() {
-        init_logger();
+        init_logger!();
         let expected_result = 240;
         let player = PlayerWrapper::from(PlayerRegistrationC {
             id: ptr::null_mut(),
@@ -663,7 +663,7 @@ mod tests {
 
     #[test]
     fn test_player_pause() {
-        init_logger();
+        init_logger!();
         let player_id = "TestPlayer";
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -683,7 +683,7 @@ mod tests {
 
     #[test]
     fn test_player_resume() {
-        init_logger();
+        init_logger!();
         let player_id = "TestPlayer";
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -703,7 +703,7 @@ mod tests {
 
     #[test]
     fn test_player_seek() {
-        init_logger();
+        init_logger!();
         let player_id = "TestPlayer";
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -723,7 +723,7 @@ mod tests {
 
     #[test]
     fn test_player_stop() {
-        init_logger();
+        init_logger!();
         let player_id = "TestPlayer";
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -743,7 +743,7 @@ mod tests {
 
     #[test]
     fn test_dispose_player_manager_event() {
-        init_logger();
+        init_logger!();
         let event = PlayerManagerEventC::from(PlayerManagerEvent::PlayerTimeChanged(20000));
 
         dispose_player_manager_event(event);
@@ -751,7 +751,7 @@ mod tests {
 
     #[test]
     fn test_dispose_player_event_value() {
-        init_logger();
+        init_logger!();
         let event = PlayerEventC::DurationChanged(20000);
 
         dispose_player_event_value(event);
@@ -759,7 +759,7 @@ mod tests {
 
     #[test]
     fn test_dispose_player_pointer() {
-        init_logger();
+        init_logger!();
         let player_id = "TestPlayer";
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -779,7 +779,7 @@ mod tests {
 
     #[test]
     fn test_dispose_player() {
-        init_logger();
+        init_logger!();
         let mut player = MockPlayer::new();
         player.expect_id().return_const("MyPlayerId".to_string());
         player.expect_name().return_const("MyPlayer".to_string());

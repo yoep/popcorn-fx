@@ -65,8 +65,7 @@ mod test {
     use tempfile::tempdir;
 
     use popcorn_fx_core::core::event::{Event, DEFAULT_ORDER};
-    use popcorn_fx_core::into_c_string;
-    use popcorn_fx_core::testing::init_logger;
+    use popcorn_fx_core::{init_logger, into_c_string};
 
     use crate::ffi::{CArray, TorrentInfoC};
     use crate::test::default_args;
@@ -79,7 +78,7 @@ mod test {
 
     #[test]
     fn test_publish() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let (tx, rx) = channel();
@@ -101,7 +100,7 @@ mod test {
 
     #[test]
     fn test_register_event_callback() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let (tx, rx) = channel();
@@ -125,6 +124,7 @@ mod test {
     #[test]
     fn test_dispose_event_value() {
         dispose_event_value(EventC::TorrentDetailsLoaded(TorrentInfoC {
+            handle: 0,
             info_hash: into_c_string("MyHandle".to_string()),
             uri: into_c_string("magnet:?Lorem".to_string()),
             name: into_c_string("Foo".to_string()),

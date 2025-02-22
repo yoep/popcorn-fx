@@ -559,7 +559,7 @@ mod tests {
 
     use popcorn_fx_core::core::players::PlayUrlRequestBuilder;
     use popcorn_fx_core::core::subtitles::MockSubtitleProvider;
-    use popcorn_fx_core::testing::init_logger;
+    use popcorn_fx_core::init_logger;
 
     use crate::dlna::tests::DEFAULT_SSDP_DESCRIPTION_RESPONSE;
     use crate::dlna::AV_TRANSPORT;
@@ -611,7 +611,7 @@ mod tests {
 
     #[test]
     fn test_id() {
-        init_logger();
+        init_logger!();
         let instance = new_test_instance();
         let player = instance.player_instance();
 
@@ -622,7 +622,7 @@ mod tests {
 
     #[test]
     fn test_name() {
-        init_logger();
+        init_logger!();
         let instance = new_test_instance();
         let player = instance.player_instance();
 
@@ -633,7 +633,7 @@ mod tests {
 
     #[test]
     fn test_description() {
-        init_logger();
+        init_logger!();
         let instance = new_test_instance();
         let player = instance.player_instance();
 
@@ -644,7 +644,7 @@ mod tests {
 
     #[test]
     fn test_graphic_resource() {
-        init_logger();
+        init_logger!();
         let instance = new_test_instance();
         let player = instance.player_instance();
 
@@ -655,7 +655,7 @@ mod tests {
 
     #[test]
     fn test_state() {
-        init_logger();
+        init_logger!();
         let instance = new_test_instance();
         let player = instance.player_instance();
 
@@ -666,7 +666,7 @@ mod tests {
 
     #[test]
     fn test_play() {
-        init_logger();
+        init_logger!();
         let request = Box::new(
             PlayUrlRequestBuilder::builder()
                 .url("http://localhost/my-video.mp4")
@@ -705,7 +705,7 @@ mod tests {
 
     #[test]
     fn test_pause() {
-        init_logger();
+        init_logger!();
         let instance = new_test_instance();
         let pause_mock = instance.server().mock(|when, then| {
             when.method(POST)
@@ -730,7 +730,7 @@ mod tests {
 
     #[test]
     fn test_resume() {
-        init_logger();
+        init_logger!();
         let instance = new_test_instance();
         let resume_mock = instance.server().mock(|when, then| {
             when.method(POST)
@@ -755,7 +755,7 @@ mod tests {
 
     #[test]
     fn test_seek() {
-        init_logger();
+        init_logger!();
         let instance = new_test_instance();
         let seek_mock = instance.server().mock(|when, then| {
             when.method(POST)
@@ -788,7 +788,7 @@ mod tests {
 
     #[test]
     fn test_stop() {
-        init_logger();
+        init_logger!();
         let instance = new_test_instance();
         let stop_mock = instance.server().mock(|when, then| {
             when.method(POST)
@@ -818,7 +818,7 @@ mod tests {
 
     #[test]
     fn test_poll_event_info_position_info() {
-        init_logger();
+        init_logger!();
         let instance = new_test_instance();
         let _ = create_init_mock(&instance);
         instance.server().mock(|when, then| {
@@ -871,7 +871,7 @@ mod tests {
 
     #[test]
     fn test_poll_event_info_transport_info() {
-        init_logger();
+        init_logger!();
         let instance = new_test_instance();
         let _ = create_init_mock(&instance);
         instance.server().mock(|when, then| {

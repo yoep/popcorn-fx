@@ -75,7 +75,7 @@ impl TorrentCreatePiecesOperation {
             Vec::new()
         };
         let mut pieces = Vec::with_capacity(num_pieces);
-        let total_file_size = metadata.total_size();
+        let total_file_size = metadata.len();
         let piece_length = metadata.piece_length as usize;
         let mut last_piece_length = total_file_size % piece_length;
         let mut offset = 0;

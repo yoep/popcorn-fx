@@ -10,6 +10,7 @@ use crate::core::loader::{
     CancellationResult, LoadingData, LoadingError, LoadingResult, LoadingStrategy,
 };
 use crate::core::media::resume::AutoResumeService;
+use crate::core::torrents::Torrent;
 
 /// Represents a strategy for loading auto resume timestamps.
 #[derive(Display)]
@@ -33,8 +34,8 @@ impl AutoResumeLoadingStrategy {
     }
 
     /// Normalizes the given value by trimming and converting it to lowercase.
-    fn normalize(value: &str) -> String {
-        value.trim().to_lowercase()
+    fn normalize<S: AsRef<str>>(value: S) -> String {
+        value.as_ref().trim().to_lowercase()
     }
 }
 
@@ -57,7 +58,7 @@ impl Debug for AutoResumeLoadingStrategy {
 
 #[async_trait]
 impl LoadingStrategy for AutoResumeLoadingStrategy {
-    async fn process(&self, mut data: LoadingData, context: &LoadingTaskContext) -> LoadingResult {
+    async fn process(&self, data: &mut LoadingData, context: &LoadingTaskContext) -> LoadingResult {
         trace!("Processing auto resume timestamp for {:?}", data);
         let mut id: Option<&str> = None;
         let mut filename: Option<String> = None;
@@ -68,10 +69,8 @@ impl LoadingStrategy for AutoResumeLoadingStrategy {
                 let files = torrent.files().await;
                 filename = files
                     .into_iter()
-                    .find(|e| {
-                        Self::normalize(e.filename.as_str()) == Self::normalize(torrent_filename)
-                    })
-                    .map(|e| e.filename);
+                    .find(|e| Self::normalize(e.filename()) == Self::normalize(torrent_filename))
+                    .map(|e| e.filename());
             } else {
                 // get the largest files from the torrent
                 filename = torrent
@@ -110,7 +109,7 @@ impl LoadingStrategy for AutoResumeLoadingStrategy {
             debug!("No auto resume timestamp could be found for {:?}", data);
         }
 
-        LoadingResult::Ok(data)
+        LoadingResult::Ok
     }
 
     async fn cancel(&self, mut data: LoadingData) -> CancellationResult {
@@ -121,15 +120,18 @@ impl LoadingStrategy for AutoResumeLoadingStrategy {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::mpsc::channel;
-    use std::time::Duration;
-
     use super::*;
+    use crate::core::loader::TorrentData;
     use crate::core::media::resume::MockAutoResumeService;
     use crate::core::media::MovieOverview;
     use crate::core::playlist::{PlaylistItem, PlaylistMedia, PlaylistSubtitle, PlaylistTorrent};
-    use crate::core::torrents::TorrentFileInfo;
+    use crate::core::torrents::MockTorrent;
     use crate::{create_loading_task, init_logger};
+    use popcorn_fx_torrent::torrent;
+    use popcorn_fx_torrent::torrent::TorrentFileInfo;
+    use std::path::PathBuf;
+    use std::sync::mpsc::channel;
+    use std::time::Duration;
 
     #[test]
     fn test_process() {
@@ -160,16 +162,15 @@ mod tests {
                 info: None,
             },
             torrent: PlaylistTorrent {
-                info: None,
-                file_info: Some(TorrentFileInfo {
-                    filename: filename.to_string(),
-                    file_path: "".to_string(),
-                    file_size: 1254788,
-                    file_index: 0,
-                }),
+                filename: Some(filename.to_string()),
             },
         };
-        let data = LoadingData::from(item);
+        let mut torrent = MockTorrent::new();
+        torrent
+            .expect_files()
+            .returning(|| vec![create_file(filename)]);
+        let mut data = LoadingData::from(item);
+        data.torrent = Some(TorrentData::Torrent(Box::new(torrent)));
         let (tx, rx) = channel();
         let (tx_filename, rx_filename) = channel();
         let task = create_loading_task!();
@@ -188,10 +189,10 @@ mod tests {
             Box::new(auto_resume) as Box<dyn AutoResumeService>
         ));
 
-        let result = runtime.block_on(strategy.process(data, &*context));
+        let result = runtime.block_on(strategy.process(&mut data, &*context));
 
-        if let LoadingResult::Ok(result) = result {
-            assert_eq!(Some(timestamp), result.auto_resume_timestamp);
+        if let LoadingResult::Ok = result {
+            assert_eq!(Some(timestamp), data.auto_resume_timestamp);
 
             let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
             assert_eq!(
@@ -235,16 +236,15 @@ mod tests {
                 info: None,
             },
             torrent: PlaylistTorrent {
-                info: None,
-                file_info: Some(TorrentFileInfo {
-                    filename: filename.to_string(),
-                    file_path: "".to_string(),
-                    file_size: 1254788,
-                    file_index: 0,
-                }),
+                filename: Some(filename.to_string()),
             },
         };
-        let data = LoadingData::from(item);
+        let mut torrent = MockTorrent::new();
+        torrent
+            .expect_files()
+            .returning(|| vec![create_file(filename)]);
+        let mut data = LoadingData::from(item);
+        data.torrent = Some(TorrentData::Torrent(Box::new(torrent)));
         let (tx, rx) = channel();
         let (tx_filename, rx_filename) = channel();
         let task = create_loading_task!();
@@ -263,10 +263,10 @@ mod tests {
             Box::new(auto_resume) as Box<dyn AutoResumeService>
         ));
 
-        let result = runtime.block_on(strategy.process(data, &*context));
+        let result = runtime.block_on(strategy.process(&mut data, &*context));
 
-        if let LoadingResult::Ok(result) = result {
-            assert_eq!(Some(timestamp), result.auto_resume_timestamp);
+        if let LoadingResult::Ok = result {
+            assert_eq!(Some(timestamp), data.auto_resume_timestamp);
 
             let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
             assert_eq!(None, result, "expected no media id to have been given");
@@ -305,10 +305,7 @@ mod tests {
                 enabled: false,
                 info: None,
             },
-            torrent: PlaylistTorrent {
-                info: None,
-                file_info: None,
-            },
+            torrent: PlaylistTorrent { filename: None },
         };
         let mut data = LoadingData::from(item);
         let task = create_loading_task!();
@@ -323,5 +320,24 @@ mod tests {
         data.auto_resume_timestamp = None;
 
         assert_eq!(Ok(data), result);
+    }
+
+    fn create_file(filename: &str) -> torrent::File {
+        torrent::File {
+            index: 0,
+            torrent_path: PathBuf::from(filename),
+            io_path: Default::default(),
+            offset: 0,
+            info: TorrentFileInfo {
+                length: 0,
+                path: None,
+                path_utf8: None,
+                md5sum: None,
+                attr: None,
+                symlink_path: None,
+                sha1: None,
+            },
+            priority: Default::default(),
+        }
     }
 }

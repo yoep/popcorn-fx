@@ -649,8 +649,8 @@ mod tests {
     use popcorn_fx_core::core::media::MovieOverview;
     use popcorn_fx_core::core::players::PlayerChange;
     use popcorn_fx_core::core::torrents::TorrentStream;
-    use popcorn_fx_core::testing::{init_logger, MockPlayer, MockTorrentStream};
-    use popcorn_fx_core::{from_c_owned, from_c_vec};
+    use popcorn_fx_core::testing::{MockPlayer, MockTorrentStream};
+    use popcorn_fx_core::{from_c_owned, from_c_vec, init_logger};
 
     use super::*;
 
@@ -681,7 +681,7 @@ mod tests {
 
     #[test]
     fn test_from_player() {
-        init_logger();
+        init_logger!();
         let player_id = "FooBar123";
         let player_name = "foo";
         let player_description = "lorem ipsum dolor";
@@ -714,7 +714,7 @@ mod tests {
 
     #[test]
     fn test_from_player_for_wrapper() {
-        init_logger();
+        init_logger!();
         let state = PlayerState::Stopped;
         let player = Arc::new(Box::new(PlayerWrapper {
             id: "".to_string(),
@@ -743,7 +743,7 @@ mod tests {
 
     #[test]
     fn from_players() {
-        init_logger();
+        init_logger!();
         let player_id = "player123";
         let player = PlayerC {
             id: into_c_string(player_id.to_string()),
@@ -766,7 +766,7 @@ mod tests {
 
     #[test]
     fn test_from_player_c() {
-        init_logger();
+        init_logger!();
         let player_id = "InternalPlayerId";
         let player_name = "InternalPlayerName";
         let description = "Lorem ipsum dolor esta";

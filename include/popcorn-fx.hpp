@@ -501,8 +501,7 @@ struct ByteArray {
   int32_t len;
 };
 
-/// Represents the health statistics of a torrent.
-struct TorrentHealth {
+struct TorrentHealthC {
   /// The health state of the torrent.
   TorrentHealthState state;
   /// The ratio of uploaded data to downloaded data for the torrent.
@@ -906,10 +905,8 @@ struct PlaylistItemC {
   bool subtitles_enabled;
   /// A pointer to the subtitle information for the playlist item, if available, else [ptr::null_mut()].
   SubtitleInfoC *subtitle_info;
-  /// A pointer to the torrent information for the playlist item, if applicable, else [ptr::null_mut()].
-  TorrentInfoC *torrent_info;
-  /// A pointer to the torrent file information for the playlist item, if applicable, else [ptr::null_mut()].
-  TorrentFileInfoC *torrent_file_info;
+  /// A pointer to the torrent filename for the playlist item, if applicable, else [ptr::null_mut()].
+  char *torrent_filename;
 };
 
 /// A C-compatible struct representing information about the next item to be played.
@@ -1452,8 +1449,6 @@ struct TorrentErrorC {
     InvalidUrl,
     /// Represents an error indicating a file not found.
     FileNotFound,
-    /// Represents a generic file-related error.
-    FileError,
     /// Represents an error indicating an invalid stream state.
     InvalidStreamState,
     /// Represents an error indicating an invalid handle.
@@ -1464,6 +1459,8 @@ struct TorrentErrorC {
     TorrentCollectionLoadingFailed,
     /// Represent a general torrent error failure
     Torrent,
+    /// Represent an io error
+    Io,
   };
 
   struct InvalidUrl_Body {
@@ -1471,10 +1468,6 @@ struct TorrentErrorC {
   };
 
   struct FileNotFound_Body {
-    char *_0;
-  };
-
-  struct FileError_Body {
     char *_0;
   };
 
@@ -1498,16 +1491,20 @@ struct TorrentErrorC {
     char *_0;
   };
 
+  struct Io_Body {
+    char *_0;
+  };
+
   Tag tag;
   union {
     InvalidUrl_Body invalid_url;
     FileNotFound_Body file_not_found;
-    FileError_Body file_error;
     InvalidStreamState_Body invalid_stream_state;
     InvalidHandle_Body invalid_handle;
     TorrentResolvingFailed_Body torrent_resolving_failed;
     TorrentCollectionLoadingFailed_Body torrent_collection_loading_failed;
     Torrent_Body torrent;
+    Io_Body io;
   };
 };
 
@@ -1585,7 +1582,7 @@ ByteArray *artwork_placeholder(PopcornFX *popcorn_fx);
 /// # Returns
 ///
 /// Returns the health of the torrent.
-TorrentHealth *calculate_torrent_health(const PopcornFX *popcorn_fx, uint32_t seeds, uint32_t leechers);
+TorrentHealthC *calculate_torrent_health(const PopcornFX *popcorn_fx, uint32_t seeds, uint32_t leechers);
 
 /// Start polling the update channel for new application versions.
 ///
@@ -1817,7 +1814,7 @@ void dispose_subtitle_preference(Box<SubtitlePreference> subtitle_preference);
 /// Dispose the [TorrentCollectionSet] from memory.
 void dispose_torrent_collection(Box<TorrentCollectionSet> collection_set);
 
-void dispose_torrent_health(Box<TorrentHealth> health);
+void dispose_torrent_health(Box<TorrentHealthC> health);
 
 void dispose_torrent_stream_event_value(TorrentStreamEventC event);
 
@@ -2579,7 +2576,7 @@ void torrent_collection_remove(PopcornFX *popcorn_fx, char *magnet_uri);
 /// # Returns
 ///
 /// Returns the health of the torrent.
-ResultC<TorrentHealth, TorrentErrorC> torrent_health_from_uri(const PopcornFX *popcorn_fx, const char *uri);
+ResultC<TorrentHealthC, TorrentErrorC> torrent_health_from_uri(const PopcornFX *popcorn_fx, const char *uri);
 
 /// Initiates the authorization process with the tracking provider.
 ///

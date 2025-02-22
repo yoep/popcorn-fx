@@ -115,6 +115,10 @@ impl PlaylistManager {
     /// # Arguments
     ///
     /// * `playlist` - The playlist to start playing.
+    ///
+    /// # Returns
+    ///
+    /// It returns the current loading handle of the next playlist item that is being loaded.
     pub async fn play(&self, playlist: Playlist) -> Option<Handle> {
         self.inner.play(playlist).await
     }
@@ -175,8 +179,8 @@ impl PlaylistManager {
     ///
     /// This method stops the playback of the current playlist.
     /// If there is no playlist currently playing, it has no effect.
-    pub fn stop(&self) {
-        block_in_place_runtime(self.inner.stop(), &self.inner.runtime);
+    pub async fn stop(&self) {
+        self.inner.stop().await
     }
 }
 
@@ -221,7 +225,6 @@ impl InnerPlaylistManager {
         trace!("Starting new playlist with {:?}", playlist);
         {
             let mut mutex = self.playlist.lock().await;
-            debug!("Replacing playlist with {:?}", playlist);
             *mutex = playlist
         }
 
@@ -423,7 +426,6 @@ mod test {
     use crate::core::event::{DEFAULT_ORDER, LOWEST_ORDER};
     use crate::core::loader::MockMediaLoader;
     use crate::core::players::MockPlayerManager;
-    use crate::core::Handle;
     use crate::init_logger;
     use std::sync::mpsc::channel;
     use std::time::Duration;
@@ -1029,7 +1031,7 @@ mod test {
         let result = runtime.block_on(manager.has_next());
         assert_eq!(true, result, "expected a next item to have been available");
 
-        manager.stop();
+        runtime.block_on(manager.stop());
         let result = runtime.block_on(manager.has_next());
         assert_eq!(
             false, result,

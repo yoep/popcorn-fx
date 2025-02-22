@@ -6,7 +6,6 @@ use log::trace;
 use popcorn_fx_core::core::event::{Event, PlayerChangedEvent};
 use popcorn_fx_core::core::playback::PlaybackState;
 use popcorn_fx_core::core::players::PlayerChange;
-use popcorn_fx_core::core::torrents::TorrentInfo;
 use popcorn_fx_core::{from_c_string, into_c_string};
 
 use crate::ffi::TorrentInfoC;
@@ -54,9 +53,6 @@ impl EventC {
             }
             EventC::LoadingStarted => Some(Event::LoadingStarted),
             EventC::LoadingCompleted => Some(Event::LoadingCompleted),
-            EventC::TorrentDetailsLoaded(e) => {
-                Some(Event::TorrentDetailsLoaded(TorrentInfo::from(e)))
-            }
             EventC::ClosePlayer => Some(Event::ClosePlayer),
             _ => None,
         }
@@ -144,7 +140,7 @@ impl From<PlayerChangedEventC> for PlayerChangedEvent {
 
 #[cfg(test)]
 mod test {
-    use popcorn_fx_core::testing::init_logger;
+    use popcorn_fx_core::init_logger;
 
     use super::*;
 
@@ -173,7 +169,7 @@ mod test {
 
     #[test]
     fn test_from_playback_state_changed() {
-        init_logger();
+        init_logger!();
 
         if let Event::PlaybackStateChanged(state) =
             EventC::PlaybackStateChanged(PlaybackState::BUFFERING)

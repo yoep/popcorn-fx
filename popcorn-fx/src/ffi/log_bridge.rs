@@ -28,8 +28,7 @@ pub extern "C" fn log(target: *mut c_char, message: *mut c_char, level: LogLevel
 
 #[cfg(test)]
 mod test {
-    use popcorn_fx_core::into_c_string;
-    use popcorn_fx_core::testing::init_logger;
+    use popcorn_fx_core::{init_logger, into_c_string};
 
     use crate::ffi::LogLevel::{Debug, Error, Info, Trace, Warn};
 
@@ -37,7 +36,7 @@ mod test {
 
     #[test]
     fn test_log() {
-        init_logger();
+        init_logger!();
 
         log(
             into_c_string("ffi::test1".to_string()),

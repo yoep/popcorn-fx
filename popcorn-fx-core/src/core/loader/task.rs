@@ -5,6 +5,7 @@ use crate::core::loader::{
 use derive_more::Display;
 use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use log::{debug, error, info, trace, warn};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 use tokio::select;
@@ -121,10 +122,8 @@ impl Drop for LoadingTask {
 enum LoadingCommandEvent {
     /// Start loading the given data through the chain
     Load(LoadingData),
-    /// Cancel the loading of the given data through the chain
-    Cancel(LoadingData),
     /// Indicates that the loading task has ended
-    Done,
+    Finished,
 }
 
 /// The context information of a loading task.
@@ -190,6 +189,7 @@ impl LoadingTaskContext {
     /// Inform the task about a loading event.
     /// This will send the loading event info to the task subscribers and media loader.
     pub fn send_event(&self, event: LoadingEvent) {
+        trace!("Loading task {} is invoking event {}", self, event);
         if let Err(_) = self.event_sender.send(event) {
             debug!("Loading task {} event sender channel has been closed", self);
             self.cancellation_token.cancel();
@@ -234,10 +234,6 @@ impl LoadingTaskContext {
         debug!("Loading task {} main loop ended", self);
     }
 
-    fn handle(&self) -> LoadingHandle {
-        self.handle.clone()
-    }
-
     async fn handle_event(&self, event: LoadingEvent) {
         debug!("Loading task {} received event {:?}", self, event);
         if let LoadingEvent::StateChanged(state) = &event {
@@ -263,11 +259,7 @@ impl LoadingTaskContext {
                 });
                 false
             }
-            LoadingCommandEvent::Cancel(data) => {
-                self.cancel(data).await;
-                false
-            }
-            LoadingCommandEvent::Done => true,
+            LoadingCommandEvent::Finished => true,
         }
     }
 
@@ -297,46 +289,35 @@ impl LoadingTaskContext {
             if let Some(strategy) = strategy.upgrade() {
                 trace!("Loading task {} executing {}", self, strategy);
                 let start_time = Instant::now();
-                let cancellation_data = data.clone();
+
                 select! {
-                    _ = self.cancellation_token.cancelled() => {
-                        trace!("Loading task {} is being cancelled", self);
-                        self.send_command_event(LoadingCommandEvent::Cancel(cancellation_data));
-                        break;
-                    },
-                    result = strategy.process(data, &self) => {
-                        match result {
-                            LoadingResult::Ok(updated_data) => data = updated_data,
-                            LoadingResult::Completed => {
-                                debug!("Loading strategies have been completed");
-                                self.invoke_event(LoadingEvent::Completed);
-                                self.send_command_event(LoadingCommandEvent::Done);
-                                return;
-                            }
-                            LoadingResult::Err(err) => {
-                                error!(
-                                    "An unexpected error occurred while loading playlist item, {}",
-                                    err
-                                );
-                                self.invoke_event(LoadingEvent::LoadingError(err));
-                                self.send_command_event(LoadingCommandEvent::Done);
-                                return;
-                            }
+                    _ = self.cancellation_token.cancelled() => break,
+                    result = strategy.process(&mut data, &self) => {
+                        let elapsed = start_time.elapsed();
+                        debug!(
+                            "Loading task {} strategy {} executed in {}.{:03}ms",
+                            self,
+                            strategy,
+                            elapsed.as_millis(),
+                            elapsed.subsec_micros() % 1000
+                        );
+
+                        if self.handle_process_result(result) {
+                            break;
                         }
                     }
                 }
-                let elapsed = start_time.elapsed();
-                debug!(
-                    "Loading task {} strategy {} executed in {}.{:03}ms",
-                    self,
-                    strategy,
-                    elapsed.as_millis(),
-                    elapsed.subsec_micros() % 1000
-                );
             } else {
                 warn!("Loading task {} strategy is no longer in scope", self);
                 break;
             }
+        }
+
+        // check if the loading has been cancelled
+        // if so, we undo any changes made by the strategies
+        if self.cancellation_token.is_cancelled() {
+            trace!("Loading task {} is being cancelled", self);
+            self.cancel(data).await;
         }
     }
 
@@ -374,7 +355,32 @@ impl LoadingTaskContext {
         self.update_state(LoadingState::Cancelled).await;
         self.invoke_event(LoadingEvent::LoadingError(LoadingError::Cancelled));
         self.invoke_event(LoadingEvent::Cancelled);
-        self.send_command_event(LoadingCommandEvent::Done);
+        self.send_command_event(LoadingCommandEvent::Finished);
+    }
+
+    /// Handle the [LoadingResult] of a strategy which has been processed.
+    ///
+    /// # Returns
+    ///
+    /// It returns `true` when the loading task chain should be ended.
+    fn handle_process_result(&self, result: LoadingResult) -> bool {
+        match result {
+            LoadingResult::Ok => false,
+            LoadingResult::Completed => {
+                debug!("Loading task {} strategies have been completed", self);
+                self.invoke_event(LoadingEvent::Completed);
+                self.send_command_event(LoadingCommandEvent::Finished);
+                true
+            }
+            LoadingResult::Err(err) => {
+                if err != LoadingError::Cancelled {
+                    error!("Loading task {} encountered an error, {}", self, err);
+                    self.invoke_event(LoadingEvent::LoadingError(err));
+                    self.send_command_event(LoadingCommandEvent::Finished);
+                }
+                true
+            }
+        }
     }
 
     fn invoke_event(&self, event: LoadingEvent) {
@@ -397,14 +403,16 @@ mod tests {
     use std::sync::mpsc::{channel, Sender};
     use std::time::Duration;
 
+    use async_trait::async_trait;
+    use derive_more::Display;
+    use tokio::time;
+
     use super::*;
+    use crate::core::block_in_place_runtime;
     use crate::core::loader::LoadingError;
     use crate::core::loader::{CancellationResult, LoadingStrategy, MockLoadingStrategy};
     use crate::core::playlist::PlaylistItem;
     use crate::init_logger;
-    use async_trait::async_trait;
-    use derive_more::Display;
-    use tokio::time;
 
     #[derive(Debug, Display)]
     #[display(fmt = "CancelStrategy")]
@@ -415,18 +423,23 @@ mod tests {
 
     #[async_trait]
     impl LoadingStrategy for CancelStrategy {
-        async fn process(&self, _: LoadingData, context: &LoadingTaskContext) -> LoadingResult {
+        async fn process(
+            &self,
+            _: &mut LoadingData,
+            context: &LoadingTaskContext,
+        ) -> LoadingResult {
             self.initiated.send(()).unwrap();
 
-            loop {
-                select! {
-                    _ = context.cancelled() => break,
-                    _ = time::sleep(Duration::from_millis(50)) => {},
-                }
+            select! {
+                _ = context.cancelled() => {
+                    info!("CancelStrategy context is being cancelled");
+                    if let Err(e) = self.cancelled.send(true) {
+                        error!("Failed to send cancellation result, {}", e);
+                    }
+                    LoadingResult::Err(LoadingError::Cancelled)
+                },
+                _ = time::sleep(Duration::from_millis(750)) => LoadingResult::Completed,
             }
-
-            self.cancelled.send(true).unwrap();
-            LoadingResult::Completed
         }
 
         async fn cancel(&self, data: LoadingData) -> CancellationResult {
@@ -450,7 +463,7 @@ mod tests {
     impl LoadingStrategy for SleepStrategy {
         async fn process(
             &self,
-            _data: LoadingData,
+            _data: &mut LoadingData,
             _context: &LoadingTaskContext,
         ) -> LoadingResult {
             time::sleep(self.duration).await;
@@ -492,6 +505,7 @@ mod tests {
             .times(1)
             .returning(move |_, context| {
                 context.send_event(LoadingEvent::StateChanged(LoadingState::Downloading));
+                block_in_place_runtime(time::sleep(Duration::from_millis(100)), context.runtime());
                 LoadingResult::Completed
             });
         let runtime = Arc::new(Runtime::new().unwrap());
@@ -501,12 +515,12 @@ mod tests {
             ])),
             runtime.clone(),
         );
-        let runtime = Runtime::new().unwrap();
 
         let mut receiver = task.subscribe();
         runtime.spawn(async move {
             loop {
                 if let Some(event) = receiver.recv().await {
+                    debug!("Received task event {:?}", event);
                     if let LoadingEvent::StateChanged(state) = &*event {
                         // the first event is always initializing, so ignore it
                         if *state != LoadingState::Initializing {
@@ -517,6 +531,7 @@ mod tests {
                     break;
                 }
             }
+            debug!("Task event receiver loop ended");
         });
 
         task.load(data);
@@ -546,7 +561,7 @@ mod tests {
             .expect_process()
             .times(1)
             .returning(move |data, _| {
-                tx_data.send(data).unwrap();
+                tx_data.send(data.clone()).unwrap();
                 LoadingResult::Completed
             });
         let runtime = Arc::new(Runtime::new().unwrap());
@@ -684,7 +699,7 @@ mod tests {
         task.load(data);
 
         let _ = rx
-            .recv_timeout(Duration::from_millis(500))
+            .recv_timeout(Duration::from_millis(250))
             .expect("expected the strategy process to have been started");
         task.cancel();
 
@@ -711,9 +726,9 @@ mod tests {
         let (tx, rx) = channel();
         let (tx_cancel, rx_cancel) = channel();
         let mut strat1 = MockLoadingStrategy::new();
-        strat1.expect_process().times(1).returning(move |e, _| {
+        strat1.expect_process().times(1).returning(move |_, _| {
             tx.send(()).unwrap();
-            LoadingResult::Ok(e)
+            LoadingResult::Ok
         });
         strat1.expect_cancel().times(1).returning(move |e| {
             tx_cancel.send(e.clone()).unwrap();

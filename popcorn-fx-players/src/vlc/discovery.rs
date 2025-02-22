@@ -10,8 +10,8 @@ use popcorn_fx_core::core::block_in_place;
 use popcorn_fx_core::core::players::PlayerManager;
 use popcorn_fx_core::core::subtitles::{SubtitleManager, SubtitleProvider};
 
-use crate::{Discovery, DiscoveryError, DiscoveryState};
 use crate::vlc::VlcPlayer;
+use crate::{Discovery, DiscoveryError, DiscoveryState};
 
 /// VLC discovery service responsible for searching and registering an external VLC player.
 #[derive(Debug, Display)]
@@ -121,7 +121,8 @@ mod tests {
     use popcorn_fx_core::core::block_in_place;
     use popcorn_fx_core::core::players::MockPlayerManager;
     use popcorn_fx_core::core::subtitles::MockSubtitleProvider;
-    use popcorn_fx_core::testing::{init_logger, MockSubtitleManager};
+    use popcorn_fx_core::init_logger;
+    use popcorn_fx_core::testing::MockSubtitleManager;
 
     use crate::vlc::VLC_ID;
 
@@ -129,7 +130,7 @@ mod tests {
 
     #[test]
     fn test_start_discovery() {
-        init_logger();
+        init_logger!();
         let manager = MockSubtitleManager::new();
         let provider = MockSubtitleProvider::new();
         let (tx, rx) = channel();
@@ -156,7 +157,7 @@ mod tests {
 
     #[test]
     fn test_stop_discovery() {
-        init_logger();
+        init_logger!();
         let manager = MockSubtitleManager::new();
         let provider = MockSubtitleProvider::new();
         let player_manager = MockPlayerManager::new();

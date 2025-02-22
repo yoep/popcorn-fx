@@ -296,7 +296,7 @@ mod tests {
 
     use popcorn_fx_core::core::players::MockPlayerManager;
     use popcorn_fx_core::core::subtitles::MockSubtitleProvider;
-    use popcorn_fx_core::testing::init_logger;
+    use popcorn_fx_core::init_logger;
 
     use crate::chromecast::tests::TestInstance;
 
@@ -304,7 +304,7 @@ mod tests {
 
     #[test]
     fn test_state() {
-        init_logger();
+        init_logger!();
         let runtime = Arc::new(Runtime::new().unwrap());
         let player_manager = MockPlayerManager::new();
         let subtitle_provider = MockSubtitleProvider::new();
@@ -322,7 +322,7 @@ mod tests {
 
     #[test]
     fn test_start_discovery() {
-        init_logger();
+        init_logger!();
         let mut player_buf = vec![];
         let (tx, rx) = channel();
         let mut player_manager = MockPlayerManager::new();
@@ -360,7 +360,7 @@ mod tests {
 
     #[test]
     fn test_stop_discovery() {
-        init_logger();
+        init_logger!();
         let runtime = Arc::new(Runtime::new().unwrap());
         let player_manager = MockPlayerManager::new();
         let mut test_instance = TestInstance::new_mdns();

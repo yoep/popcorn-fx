@@ -212,13 +212,14 @@ mod test {
     use tokio::runtime::Runtime;
 
     use crate::core::media::{Images, MovieOverview, ShowOverview};
-    use crate::testing::{init_logger, read_test_file_to_bytes};
+    use crate::init_logger;
+    use crate::testing::read_test_file_to_bytes;
 
     use super::*;
 
     #[test]
     fn test_default_poster() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let cache_manager = Arc::new(CacheManager::builder().storage_path(temp_path).build());
@@ -229,7 +230,7 @@ mod test {
 
     #[test]
     fn test_load_fanart() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let server = MockServer::start();
@@ -261,7 +262,7 @@ mod test {
 
     #[test]
     fn test_load_fanart_invalid_url() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let media = Box::new(MovieOverview {
@@ -287,7 +288,7 @@ mod test {
 
     #[test]
     fn test_load_fanart_invalid_response() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let server = MockServer::start();
@@ -318,7 +319,7 @@ mod test {
 
     #[test]
     fn test_load_poster() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let server = MockServer::start();
@@ -352,7 +353,7 @@ mod test {
 
     #[test]
     fn test_load_url() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let server = MockServer::start();

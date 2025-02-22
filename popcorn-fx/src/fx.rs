@@ -50,7 +50,7 @@ use popcorn_fx_core::core::subtitles::{
 };
 use popcorn_fx_core::core::torrents::collection::TorrentCollection;
 use popcorn_fx_core::core::torrents::stream::DefaultTorrentStreamServer;
-use popcorn_fx_core::core::torrents::{TorrentManager, TorrentStreamServer};
+use popcorn_fx_core::core::torrents::{FxTorrentManager, TorrentManager, TorrentStreamServer};
 use popcorn_fx_core::core::updater::Updater;
 use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
 use popcorn_fx_platform::platform::DefaultPlatform;
@@ -58,7 +58,6 @@ use popcorn_fx_players::chromecast::ChromecastDiscovery;
 use popcorn_fx_players::dlna::DlnaDiscovery;
 use popcorn_fx_players::vlc::VlcDiscovery;
 use popcorn_fx_players::Discovery;
-use popcorn_fx_torrent::torrent::DefaultTorrentManager;
 use popcorn_fx_trakt::trakt::TraktProvider;
 
 static INIT: Once = Once::new();
@@ -252,7 +251,7 @@ impl PopcornFX {
         ));
         // TODO: handle creation failures in a better way
         let torrent_manager = Arc::new(Box::new(
-            DefaultTorrentManager::new(settings.clone(), event_publisher.clone(), runtime.clone())
+            FxTorrentManager::new(settings.clone(), event_publisher.clone(), runtime.clone())
                 .expect("expected a torrent manager to have been created"),
         ) as Box<dyn TorrentManager>);
         let torrent_stream_server = Arc::new(
@@ -702,7 +701,8 @@ mod test {
     use popcorn_fx_core::core::config::{ApplicationConfigEvent, LoggingProperties};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::core::subtitles::SubtitlePreference;
-    use popcorn_fx_core::testing::{copy_test_file, init_logger};
+    use popcorn_fx_core::init_logger;
+    use popcorn_fx_core::testing::copy_test_file;
 
     use crate::test::default_args;
 
@@ -710,7 +710,7 @@ mod test {
 
     #[test]
     fn test_popcorn_fx_new() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut popcorn_fx = PopcornFX::new(default_args(temp_path));
@@ -728,7 +728,7 @@ mod test {
 
     #[test]
     fn test_popcorn_fx_favorite() {
-        init_logger();
+        init_logger!();
         let id = "tt00000021544";
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -741,7 +741,7 @@ mod test {
 
     #[test]
     fn test_popcorn_fx_auto_resume() {
-        init_logger();
+        init_logger!();
         let filename = "something-totally_random123qwe.mp4";
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -749,14 +749,14 @@ mod test {
 
         let result = popcorn_fx
             .auto_resume_service()
-            .resume_timestamp(None, Some(filename));
+            .resume_timestamp(None, Some(filename.to_string()));
 
         assert_eq!(None, result)
     }
 
     #[test]
     fn test_popcorn_fx_torrent_collection() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut popcorn_fx = PopcornFX::new(default_args(temp_path));
@@ -770,7 +770,7 @@ mod test {
 
     #[test]
     fn test_popcorn_fx_reload_settings() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let (tx, rx) = channel();

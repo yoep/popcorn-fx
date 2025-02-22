@@ -5,10 +5,10 @@ use itertools::Itertools;
 use log::{debug, info, trace, warn};
 use tokio::runtime::Runtime;
 
-use crate::core::media::{MediaIdentifier, MediaType, MovieDetails, ShowDetails};
-use crate::core::media::favorites::FavoriteService;
 use crate::core::media::favorites::model::Favorites;
+use crate::core::media::favorites::FavoriteService;
 use crate::core::media::providers::ProviderManager;
+use crate::core::media::{MediaIdentifier, MediaType, MovieDetails, ShowDetails};
 
 const UPDATE_CACHE_INTERVAL: fn() -> Duration = || Duration::hours(72);
 
@@ -226,16 +226,16 @@ impl InnerCacheUpdater {
 mod test {
     use std::sync::mpsc::channel;
 
-    use crate::core::media::{MediaOverview, MovieOverview};
     use crate::core::media::favorites::MockFavoriteService;
     use crate::core::media::providers::MockMediaDetailsProvider;
-    use crate::testing::init_logger;
+    use crate::core::media::{MediaOverview, MovieOverview};
+    use crate::init_logger;
 
     use super::*;
 
     #[test]
     fn test_update_cache() {
-        init_logger();
+        init_logger!();
         let movie_id = "tt12121222";
         let title = "Lorem ipsum";
         let year = "2010";

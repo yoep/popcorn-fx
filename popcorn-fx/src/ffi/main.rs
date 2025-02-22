@@ -71,8 +71,7 @@ pub extern "C" fn version() -> *mut c_char {
 mod test {
     use tempfile::tempdir;
 
-    use popcorn_fx_core::{from_c_string_owned, into_c_vec};
-    use popcorn_fx_core::testing::init_logger;
+    use popcorn_fx_core::{from_c_string_owned, init_logger, into_c_vec};
 
     use crate::test::default_args;
 
@@ -100,7 +99,7 @@ mod test {
 
     #[test]
     fn test_discover_external_players() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(default_args(temp_path));
@@ -110,7 +109,7 @@ mod test {
 
     #[test]
     fn test_dispose_popcorn_fx() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let instance = PopcornFX::new(default_args(temp_path));

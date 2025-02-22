@@ -306,13 +306,14 @@ mod test {
     use tempfile::tempdir;
 
     use crate::core::media::{Images, MovieOverview, Rating};
-    use crate::testing::{copy_test_file, init_logger};
+    use crate::init_logger;
+    use crate::testing::copy_test_file;
 
     use super::*;
 
     #[test]
     fn test_is_liked_when_favorable_is_not_liked_should_return_false() {
-        init_logger();
+        init_logger!();
         let imdb_id = String::from("tt9387250");
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -326,7 +327,7 @@ mod test {
 
     #[test]
     fn test_is_liked_when_favorable_is_liked_should_return_true() {
-        init_logger();
+        init_logger!();
         let imdb_id = String::from("tt1156398");
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -340,7 +341,7 @@ mod test {
 
     #[test]
     fn test_find_id() {
-        init_logger();
+        init_logger!();
         let imdb_id = String::from("tt8111666");
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -360,7 +361,7 @@ mod test {
 
     #[test]
     fn test_all() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         copy_test_file(temp_path, "favorites.json", None);
@@ -378,7 +379,7 @@ mod test {
 
     #[test]
     fn test_add_new_movie_item() {
-        init_logger();
+        init_logger!();
         let imdb_id = "tt12345678";
         let title = "lorem ipsum";
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
@@ -405,7 +406,7 @@ mod test {
 
     #[test]
     fn test_add_new_show_item() {
-        init_logger();
+        init_logger!();
         let imdb_id = "tt12345678";
         let title = "lorem ipsum";
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
@@ -436,7 +437,7 @@ mod test {
 
     #[test]
     fn test_remove_favorite_media() {
-        init_logger();
+        init_logger!();
         let imdb_id = "tt12345666";
         let title = "lorem ipsum";
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
@@ -457,7 +458,7 @@ mod test {
 
     #[test]
     fn test_favorites() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         copy_test_file(temp_path, "favorites.json", None);
@@ -489,7 +490,7 @@ mod test {
 
     #[test]
     fn test_register_when_add_is_called_should_invoke_callback() {
-        init_logger();
+        init_logger!();
         let id = "tt1122333";
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -517,7 +518,7 @@ mod test {
 
     #[test]
     fn test_update() {
-        init_logger();
+        init_logger!();
         let movie_id = "tt111122244";
         let show_id = "tt111125555";
         let temp_dir = tempdir().expect("expected a tempt dir to be created");

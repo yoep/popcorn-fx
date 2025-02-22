@@ -9,12 +9,12 @@ use tokio::sync::Mutex;
 
 use crate::core::cache::{CacheExecutionError, CacheManager};
 use crate::core::config::ApplicationConfig;
+use crate::core::media::providers::utils::available_uris;
+use crate::core::media::providers::{BaseProvider, MediaDetailsProvider, MediaProvider};
 use crate::core::media::{
     Category, Genre, MediaDetails, MediaError, MediaOverview, MediaType, ShowDetails, ShowOverview,
     SortBy,
 };
-use crate::core::media::providers::{BaseProvider, MediaDetailsProvider, MediaProvider};
-use crate::core::media::providers::utils::available_uris;
 
 const PROVIDER_NAME: &str = "series";
 const SEARCH_RESOURCE_NAME: &str = "shows";
@@ -203,14 +203,15 @@ mod test {
 
     use crate::core::cache::CacheManagerBuilder;
     use crate::core::media::MediaIdentifier;
+    use crate::init_logger;
     use crate::test::start_mock_server;
-    use crate::testing::{init_logger, read_test_file_to_string};
+    use crate::testing::read_test_file_to_string;
 
     use super::*;
 
     #[test]
     fn test_retrieve() {
-        init_logger();
+        init_logger!();
         let genre = Genre::all();
         let sort_by = SortBy::new("trending".to_string(), "".to_string());
         let temp_dir = tempfile::tempdir().unwrap();
@@ -244,7 +245,7 @@ mod test {
 
     #[test]
     fn test_retrieve_details() {
-        init_logger();
+        init_logger!();
         let imdb_id = "tt2861424".to_string();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();

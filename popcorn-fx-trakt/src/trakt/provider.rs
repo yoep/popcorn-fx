@@ -452,7 +452,7 @@ mod tests {
 
     use popcorn_fx_core::core::config::{PopcornProperties, PopcornSettings, TrackingSettings};
     use popcorn_fx_core::core::media::MediaType;
-    use popcorn_fx_core::testing::init_logger;
+    use popcorn_fx_core::init_logger;
 
     use super::*;
 
@@ -460,7 +460,7 @@ mod tests {
 
     #[test]
     fn test_new() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let runtime = Arc::new(Runtime::new().unwrap());
@@ -475,7 +475,7 @@ mod tests {
 
     #[test]
     fn test_is_authorized() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let runtime = Arc::new(Runtime::new().unwrap());
@@ -510,7 +510,7 @@ mod tests {
 
     #[test]
     fn test_is_authorized_tracker_settings_not_present() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let runtime = Arc::new(Runtime::new().unwrap());
@@ -536,7 +536,7 @@ mod tests {
 
     #[test]
     fn test_authorize() {
-        init_logger();
+        init_logger!();
         let expected_code = "MyAuthCodeResult";
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -640,7 +640,7 @@ mod tests {
 
     #[test]
     fn test_disconnect() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let runtime = Arc::new(Runtime::new().unwrap());
@@ -673,7 +673,7 @@ mod tests {
 
     #[test]
     fn test_watched_movies() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let runtime = Arc::new(Runtime::new().unwrap());

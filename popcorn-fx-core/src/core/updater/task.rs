@@ -162,7 +162,7 @@ impl UpdateTaskBuilder {
 mod test {
     use tempfile::tempdir;
 
-    use crate::testing::init_logger;
+    use crate::init_logger;
 
     use super::*;
 
@@ -180,7 +180,7 @@ mod test {
 
     #[test]
     fn test_set_archive_location_is_none() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut update = UpdateTask::builder()
@@ -198,7 +198,7 @@ mod test {
 
     #[test]
     fn test_set_archive_location_is_some() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut update = UpdateTask::builder()

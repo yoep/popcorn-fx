@@ -250,13 +250,13 @@ impl CacheEntry {
 
 #[cfg(test)]
 mod test {
-    use crate::testing::init_logger;
+    use crate::init_logger;
 
     use super::*;
 
     #[test]
     fn test_info_key_known() {
-        init_logger();
+        init_logger!();
         let cache_name = "lorem";
         let key = "ipsum";
         let filename = "my-filename.cache";
@@ -283,7 +283,7 @@ mod test {
 
     #[test]
     fn test_info_key_unknown() {
-        init_logger();
+        init_logger!();
         let cache_name = "dolor";
         let key = "ipsum";
         let cache = CacheInfo {
@@ -295,7 +295,7 @@ mod test {
 
     #[test]
     fn test_is_expired() {
-        init_logger();
+        init_logger!();
         let entry = CacheEntry {
             key: "".to_string(),
             path: "".to_string(),
@@ -309,7 +309,7 @@ mod test {
 
     #[test]
     fn test_add() {
-        init_logger();
+        init_logger!();
         let name = "lorEm";
         let key = "Ipsum::doLor";
         let entry = CacheEntry::new(key, "/tmp/test", &Duration::days(1));
@@ -340,7 +340,7 @@ mod test {
 
     #[test]
     fn test_remove() {
-        init_logger();
+        init_logger!();
         let name = "lorEm";
         let key = "Ipsum::doLor";
         let mut info = CacheInfo::default();
@@ -357,7 +357,7 @@ mod test {
 
     #[test]
     fn test_filename() {
-        init_logger();
+        init_logger!();
         let entry = CacheEntry::new("lorem", "/tmp/my-file.cache", &Duration::days(1));
 
         assert_eq!("my-file.cache".to_string(), entry.filename())
@@ -365,7 +365,7 @@ mod test {
 
     #[test]
     fn test_normalize() {
-        init_logger();
+        init_logger!();
         let value = "Lorem IpsuM";
         let expected_value = "loremipsum";
 
@@ -374,7 +374,7 @@ mod test {
 
     #[test]
     fn test_expired() {
-        init_logger();
+        init_logger!();
         let expired_entry = CacheEntry {
             key: "ipsum".to_string(),
             path: "".to_string(),

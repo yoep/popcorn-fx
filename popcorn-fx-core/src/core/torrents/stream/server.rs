@@ -63,8 +63,9 @@ impl TorrentStreamServer for DefaultTorrentStreamServer {
     async fn start_stream(
         &self,
         torrent: Box<dyn Torrent>,
+        filename: &str,
     ) -> torrents::Result<Box<dyn TorrentStream>> {
-        self.inner.start_stream(torrent).await
+        self.inner.start_stream(torrent, filename).await
     }
 
     async fn stop_stream(&self, handle: Handle) {
@@ -114,7 +115,7 @@ impl TorrentStreamServerInner {
 
                     async move {
                         let mutex = streams.lock().await;
-                        Self::handle_video_request(mutex, factory, filename.as_str(), headers)
+                        Self::handle_video_request(mutex, factory, filename.as_str(), headers).await
                     }
                 });
             let head = warp::head().and(warp::path!("video" / String)).and_then(
@@ -125,7 +126,7 @@ impl TorrentStreamServerInner {
 
                     async move {
                         let mutex = streams.lock().await;
-                        Self::handle_video_metadata_request(mutex, factory, filename.as_str())
+                        Self::handle_video_metadata_request(mutex, factory, filename.as_str()).await
                     }
                 },
             );
@@ -155,8 +156,8 @@ impl TorrentStreamServerInner {
         });
     }
 
-    fn handle_video_request(
-        mutex: MutexGuard<Streams>,
+    async fn handle_video_request(
+        mutex: MutexGuard<'_, Streams>,
         media_type_factory: Arc<MediaTypeFactory>,
         filename: &str,
         headers: HeaderMap,
@@ -181,8 +182,8 @@ impl TorrentStreamServerInner {
                         .unwrap()
                 );
                 let stream = match range {
-                    None => torrent_stream.stream(),
-                    Some(e) => torrent_stream.stream_offset(e.start, e.end),
+                    None => torrent_stream.stream().await,
+                    Some(e) => torrent_stream.stream_offset(e.start, e.end).await,
                 };
 
                 match stream {
@@ -235,8 +236,8 @@ impl TorrentStreamServerInner {
         }
     }
 
-    fn handle_video_metadata_request(
-        mutex: MutexGuard<Streams>,
+    async fn handle_video_metadata_request(
+        mutex: MutexGuard<'_, Streams>,
         media_type_factory: Arc<MediaTypeFactory>,
         filename: &str,
     ) -> Result<warp::reply::Response, Rejection> {
@@ -249,17 +250,14 @@ impl TorrentStreamServerInner {
                     .body(Body::empty())
                     .unwrap())
             }
-            Some(torrent_stream) => match torrent_stream.stream() {
+            Some(torrent_stream) => match torrent_stream.stream().await {
                 Ok(stream) => {
                     let resource = stream.resource();
                     let content_range = resource.content_range();
-                    let media_type = match media_type_factory.media_type(filename) {
-                        Ok(e) => e,
-                        Err(e) => {
-                            warn!("Unable to parse media type, {}", e);
-                            MediaType::octet_stream()
-                        }
-                    };
+                    let media_type = media_type_factory.media_type(filename).unwrap_or_else(|e| {
+                        warn!("Unable to parse media type, {}", e);
+                        MediaType::octet_stream()
+                    });
 
                     Ok(Response::builder()
                         .status(StatusCode::OK)
@@ -357,23 +355,33 @@ impl TorrentStreamServer for TorrentStreamServerInner {
     async fn start_stream(
         &self,
         torrent: Box<dyn Torrent>,
+        filename: &str,
     ) -> torrents::Result<Box<dyn TorrentStream>> {
         let mut streams = self.streams.lock().await;
-        let files = torrent.active_files().await;
+        let files = torrent.files().await;
         let handle = torrent.handle();
 
-        if let Some(file) = files.first() {
-            let filename = file.filename();
-            let filepath = file.file_path();
+        // check if the handle is still valid and the files could be successfully retrieved
+        if files.is_empty() {
+            return Err(Error::InvalidHandle(handle.to_string()));
+        }
 
-            if streams.contains_key(filename) {
+        // try to find the specified filename within the torrent
+        if let Some(file) = files
+            .into_iter()
+            .find(|e| e.filename().to_lowercase() == filename.to_lowercase())
+        {
+            let filename = file.filename();
+            let filepath = file.io_path.clone();
+
+            if streams.contains_key(&filename) {
                 debug!(
                     "Torrent stream already exists for {}, ignoring stream creation",
                     filename
                 );
 
                 return streams
-                    .get(filename)
+                    .get(&filename)
                     .and_then(|e| {
                         e.downcast_ref::<DefaultTorrentStream>()
                             .map(|e| Box::new(e.clone()) as Box<dyn TorrentStream>)
@@ -382,21 +390,27 @@ impl TorrentStreamServer for TorrentStreamServerInner {
             }
 
             trace!("Creating new torrent stream for {:?}", torrent);
-            match self.build_url(filename) {
+            match self.build_url(&filename) {
                 Ok(url) => {
                     debug!("Starting url stream for {}", &url);
-                    let stream = DefaultTorrentStream::new(url, torrent, self.runtime.clone());
+                    let stream =
+                        DefaultTorrentStream::new(url, torrent, &filename, self.runtime.clone());
                     let stream_borrowed = stream.clone();
                     streams.insert(filename.to_string(), Box::new(stream));
                     Ok(Box::new(stream_borrowed))
                 }
                 Err(e) => {
                     warn!("Torrent stream url creation failed, {}", e);
-                    Err(Error::InvalidUrl(filepath.to_string()))
+                    Err(Error::InvalidUrl(
+                        filepath
+                            .to_str()
+                            .map(|e| e.to_string())
+                            .unwrap_or("INVALID".to_string()),
+                    ))
                 }
             }
         } else {
-            Err(Error::InvalidHandle(handle.to_string()))
+            Err(Error::FileNotFound(filename.to_string()))
         }
     }
 
@@ -457,35 +471,50 @@ impl Default for TorrentStreamServerInner {
 
 #[cfg(test)]
 mod test {
-    use reqwest::Client;
-
-    use crate::core::torrents::{MockTorrent, TorrentState};
-    use crate::testing::{copy_test_file, read_test_file_to_string};
-    use crate::{assert_timeout_eq, init_logger};
-
     use super::*;
+    use crate::core::torrents::{MockTorrent, TorrentHandle, TorrentState, TorrentStreamState};
+    use crate::testing::{copy_test_file, read_test_file_to_string};
+    use crate::{assert_timeout, assert_timeout_eq, init_logger};
+    use fx_callback::MultiThreadedCallback;
+    use popcorn_fx_torrent::torrent;
+    use popcorn_fx_torrent::torrent::{TorrentEvent, TorrentFileInfo, TorrentStats};
+    use reqwest::Client;
+    use std::path::PathBuf;
+    use tokio::runtime::Runtime;
 
     #[test]
     fn test_stream_metadata_info() {
         init_logger!();
         let filename = "large-[123].txt";
-        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let total_pieces: usize = 10;
         let temp_dir = tempfile::tempdir().unwrap();
         let file = temp_dir.path().join(filename);
         let client = Client::builder()
             .build()
             .expect("Client should have been created");
+        let runtime = Arc::new(Runtime::new().unwrap());
         let server = DefaultTorrentStreamServer::default();
+        let callback = MultiThreadedCallback::<TorrentEvent>::new(runtime.clone());
+        let callback_receiver = callback.subscribe();
         let mut torrent = MockTorrent::new();
-        torrent.expect_file().returning(move || file.clone());
+        torrent.expect_handle().return_const(TorrentHandle::new());
+        torrent
+            .expect_files()
+            .returning(move || create_torrent_files(&file));
         torrent.expect_has_bytes().return_const(true);
         torrent.expect_has_piece().returning(|_: usize| true);
-        torrent.expect_total_pieces().returning(|| 10);
+        torrent.expect_total_pieces().return_const(total_pieces);
         torrent.expect_prioritize_pieces().returning(|_: &[u32]| {});
         torrent.expect_sequential_mode().returning(|| {});
         torrent
             .expect_state()
             .return_const(TorrentState::Downloading);
+        torrent
+            .expect_stats()
+            .returning(|| create_incomplete_stats());
+        torrent
+            .expect_subscribe()
+            .return_once(move || callback_receiver);
         let torrent = Box::new(torrent) as Box<dyn Torrent>;
         copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
 
@@ -494,11 +523,20 @@ mod test {
             TorrentStreamServerState::Running,
             server.state()
         );
-        let stream = server
-            .start_stream(torrent)
+        let stream = runtime
+            .block_on(server.start_stream(torrent, filename))
             .expect("expected the torrent stream to have started");
 
-        let stream = stream.upgrade().unwrap();
+        // inform about the pieces that have been completed
+        for i in 0..total_pieces {
+            callback.invoke(TorrentEvent::PieceCompleted(i));
+        }
+        assert_timeout!(
+            Duration::from_millis(250),
+            runtime.block_on(stream.stream_state()) == TorrentStreamState::Streaming,
+            "expected the stream to have been streaming"
+        );
+
         assert_eq!("/video/large-%5B123%5D.txt", stream.url().path());
         let result = runtime.block_on(async {
             let response = client
@@ -562,23 +600,37 @@ mod test {
     fn test_start_stream() {
         init_logger!();
         let filename = "large-[123].txt";
-        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let total_pieces: usize = 10;
+        let runtime = Arc::new(Runtime::new().unwrap());
         let temp_dir = tempfile::tempdir().unwrap();
         let file = temp_dir.path().join(filename);
         let client = Client::builder()
             .build()
             .expect("Client should have been created");
         let server = DefaultTorrentStreamServer::default();
+        let callback = MultiThreadedCallback::new(runtime.clone());
+        let torrent_handle = TorrentHandle::new();
+        let callback_receiver = callback.subscribe();
         let mut torrent = MockTorrent::new();
-        torrent.expect_file().returning(move || file.clone());
+        torrent.expect_handle().return_const(torrent_handle);
+        torrent
+            .expect_subscribe()
+            .times(1)
+            .return_once(move || callback_receiver);
+        torrent
+            .expect_files()
+            .returning(move || create_torrent_files(&file));
         torrent.expect_has_bytes().return_const(true);
         torrent.expect_has_piece().returning(|_: usize| true);
-        torrent.expect_total_pieces().returning(|| 10);
+        torrent.expect_total_pieces().return_const(total_pieces);
         torrent.expect_prioritize_pieces().returning(|_: &[u32]| {});
         torrent.expect_sequential_mode().returning(|| {});
         torrent
             .expect_state()
             .return_const(TorrentState::Downloading);
+        torrent
+            .expect_stats()
+            .returning(|| create_incomplete_stats());
         let torrent = Box::new(torrent) as Box<dyn Torrent>;
         copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
         let expected_result = read_test_file_to_string(filename).replace("\r\n", "\n");
@@ -588,12 +640,23 @@ mod test {
             TorrentStreamServerState::Running,
             server.state()
         );
-        let stream = server
-            .start_stream(torrent)
+        let stream = runtime
+            .block_on(server.start_stream(torrent, filename))
             .expect("expected the torrent stream to have started");
+
+        // inform about the pieces that have been completed
+        for i in 0..total_pieces {
+            callback.invoke(TorrentEvent::PieceCompleted(i));
+        }
+        assert_timeout!(
+            Duration::from_millis(250),
+            runtime.block_on(stream.stream_state()) == TorrentStreamState::Streaming,
+            "expected the stream to have been streaming"
+        );
+
         let result = runtime.block_on(async {
             let response = client
-                .get(stream.upgrade().unwrap().url())
+                .get(stream.url())
                 .header(RANGE.as_str(), "bytes=0-50000")
                 .send()
                 .await
@@ -616,20 +679,30 @@ mod test {
     fn test_stop_stream() {
         init_logger!();
         let filename = "large-[123].txt";
-        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let total_pieces = 15usize;
+        let runtime = Arc::new(Runtime::new().unwrap());
         let temp_dir = tempfile::tempdir().unwrap();
         let file = temp_dir.path().join(filename);
         let client = Client::builder()
             .build()
             .expect("Client should have been created");
+        let callback = MultiThreadedCallback::new(runtime.clone());
+        let callback_receiver = callback.subscribe();
         let server = DefaultTorrentStreamServer::default();
         let mut torrent = MockTorrent::new();
-        torrent.expect_file().returning(move || file.clone());
-        torrent.expect_total_pieces().returning(|| 10);
+        torrent.expect_handle().return_const(TorrentHandle::new());
+        torrent
+            .expect_files()
+            .returning(move || create_torrent_files(&file));
+        torrent.expect_total_pieces().return_const(total_pieces);
         torrent.expect_prioritize_pieces().returning(|_: &[u32]| {});
         torrent
             .expect_state()
             .return_const(TorrentState::Downloading);
+        torrent
+            .expect_subscribe()
+            .times(1)
+            .return_once(move || callback_receiver);
         let torrent = Box::new(torrent) as Box<dyn Torrent>;
         copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
 
@@ -638,12 +711,12 @@ mod test {
             TorrentStreamServerState::Running,
             server.state()
         );
-        let stream = server
-            .start_stream(torrent)
+        let stream = runtime
+            .block_on(server.start_stream(torrent, filename))
             .expect("expected the torrent stream to have started");
-        let stream_url = stream.upgrade().unwrap().url();
+        let stream_url = stream.url();
 
-        server.stop_stream(stream.upgrade().unwrap().stream_handle());
+        runtime.block_on(server.stop_stream(stream.stream_handle()));
         let result = runtime.block_on(async {
             let response = client
                 .get(stream_url)
@@ -655,17 +728,13 @@ mod test {
             response.status()
         });
 
-        assert!(
-            stream.upgrade().is_none(),
-            "expected the stream reference to have been dropped"
-        );
         assert_eq!(reqwest::StatusCode::NOT_FOUND, result)
     }
 
     #[test]
     fn test_stream_not_found() {
         init_logger!();
-        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let runtime = Runtime::new().unwrap();
         let client = Client::builder()
             .build()
             .expect("Client should have been created");
@@ -695,5 +764,45 @@ mod test {
             "lorem ipsum=[dolor].txt",
             TorrentStreamServerInner::url_decode("lorem%20ipsum%3D%5Bdolor%5D.txt")
         )
+    }
+
+    fn create_torrent_files(file: &PathBuf) -> Vec<torrent::File> {
+        vec![torrent::File {
+            index: 0,
+            torrent_path: file.clone(),
+            io_path: file.clone(),
+            offset: 0,
+            info: TorrentFileInfo {
+                length: 0,
+                path: None,
+                path_utf8: None,
+                md5sum: None,
+                attr: None,
+                symlink_path: None,
+                sha1: None,
+            },
+            priority: Default::default(),
+        }]
+    }
+
+    fn create_incomplete_stats() -> TorrentStats {
+        TorrentStats {
+            upload: 0,
+            upload_rate: 0,
+            upload_useful: 0,
+            upload_useful_rate: 0,
+            download: 0,
+            download_rate: 0,
+            download_useful: 0,
+            download_useful_rate: 0,
+            total_uploaded: 0,
+            total_downloaded: 0,
+            total_downloaded_useful: 0,
+            wanted_pieces: 10,
+            completed_pieces: 2,
+            total_size: 10000,
+            total_completed_size: 2000,
+            total_peers: 10,
+        }
     }
 }

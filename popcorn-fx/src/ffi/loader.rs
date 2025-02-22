@@ -92,22 +92,14 @@ pub extern "C" fn dispose_loader_event_value(event: LoaderEventC) {
 
 #[cfg(test)]
 mod tests {
-    use std::ptr;
-    use std::sync::mpsc::channel;
-    use std::time::Duration;
-
     use log::info;
     use tempfile::tempdir;
 
-    use popcorn_fx_core::core::loader::{
-        LoadingResult, LoadingState, MockLoadingStrategy, HIGHEST_ORDER,
-    };
+    use popcorn_fx_core::core::loader::LoadingState;
     use popcorn_fx_core::core::media::MovieDetails;
     use popcorn_fx_core::core::playlist::{PlaylistItem, PlaylistMedia};
-    use popcorn_fx_core::testing::init_logger;
     use popcorn_fx_core::{init_logger, into_c_string};
 
-    use crate::ffi::CArray;
     use crate::test::default_args;
 
     use super::*;

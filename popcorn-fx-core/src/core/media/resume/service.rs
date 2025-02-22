@@ -340,6 +340,7 @@ mod test {
     use tempfile::tempdir;
 
     use crate::core::media::{MediaIdentifier, MovieOverview};
+    use crate::init_logger;
     use crate::testing::{copy_test_file, init_logger, read_temp_dir_file_as_string};
 
     use super::*;

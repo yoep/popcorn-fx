@@ -211,13 +211,14 @@ mod test {
     use std::time::Duration;
 
     use crate::core::event::PlayerStoppedEvent;
-    use crate::testing::{init_logger, MockDummyPlatformData};
+    use crate::init_logger;
+    use crate::testing::MockDummyPlatformData;
 
     use super::*;
 
     #[test]
     fn test_platform_event_toggle_playback() {
-        init_logger();
+        init_logger!();
         let (tx, rx) = channel();
         let (tx_ce, rx_ce) = channel();
         let mut platform = MockDummyPlatformData::new();
@@ -246,7 +247,7 @@ mod test {
 
     #[test]
     fn test_platform_event_forward() {
-        init_logger();
+        init_logger!();
         let (tx, rx) = channel();
         let (tx_ce, rx_ce) = channel();
         let mut platform = MockDummyPlatformData::new();
@@ -275,7 +276,7 @@ mod test {
 
     #[test]
     fn test_on_player_started_event() {
-        init_logger();
+        init_logger!();
         let (tx, rx) = channel();
         let mut platform = MockDummyPlatformData::new();
         platform.expect_register().returning(|_| {});
@@ -314,7 +315,7 @@ mod test {
 
     #[test]
     fn test_on_player_stopped_event() {
-        init_logger();
+        init_logger!();
         let (tx, rx) = channel();
         let mut platform = MockDummyPlatformData::new();
         platform.expect_register().returning(|_| {});
@@ -340,7 +341,7 @@ mod test {
 
     #[test]
     fn test_on_playback_state_changed_event() {
-        init_logger();
+        init_logger!();
         let (tx, rx) = channel();
         let mut platform = MockDummyPlatformData::new();
         platform.expect_register().returning(|_| {});

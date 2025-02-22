@@ -17,23 +17,22 @@ mod listener_tcp;
 mod peer;
 mod peer_connection;
 mod peer_id;
-mod protocol_bt;
-mod protocol_utp;
+mod protocol;
 pub mod webseed;
 
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::torrent::peer::protocol_utp::UtpSocket;
-    use crate::torrent::Torrent;
-    use popcorn_fx_core::available_port;
-    use rand::{thread_rng, Rng};
+    use crate::torrent::peer::protocol::{UtpSocket, UtpSocketExtensions, UtpStream};
+    use crate::torrent::{available_port, Torrent};
+    use rand::{rng, Rng};
     use std::net::SocketAddr;
     use std::sync::mpsc::channel;
     use std::sync::Arc;
     use std::time::Duration;
     use tokio::runtime::Runtime;
 
+    /// Create a new uTP socket.
     #[macro_export]
     macro_rules! create_utp_socket {
         ($runtime:expr) => {
@@ -44,13 +43,41 @@ pub mod tests {
         };
     }
 
+    /// Create a new uTP socket pair which don't overlap with port ranges.
+    #[macro_export]
+    macro_rules! create_utp_socket_pair {
+        () => {
+            crate::torrent::peer::tests::create_utp_socket_pair(
+                vec![],
+                vec![],
+                std::sync::Arc::new(tokio::runtime::Runtime::new().unwrap()),
+            )
+        };
+        ($runtime:expr) => {
+            crate::torrent::peer::tests::create_utp_socket_pair(vec![], vec![], $runtime)
+        };
+        ($incoming_extensions:expr, $outgoing_extensions:expr, $runtime:expr) => {
+            crate::torrent::peer::tests::create_utp_socket_pair(
+                $incoming_extensions,
+                $outgoing_extensions,
+                $runtime,
+            )
+        };
+    }
+
     pub fn create_utp_socket(runtime: Arc<Runtime>) -> UtpSocket {
-        let port = available_port!(thread_rng().gen_range(6881..20000), 31000).unwrap();
+        let port_start = rng().random_range(6881..20000);
+        let port = available_port(port_start, 31000).unwrap();
         let addr = SocketAddr::from(([127, 0, 0, 1], port));
 
         runtime
             .clone()
-            .block_on(UtpSocket::new(addr, Duration::from_secs(1), runtime))
+            .block_on(UtpSocket::new(
+                addr,
+                Duration::from_secs(1),
+                vec![],
+                runtime,
+            ))
             .expect("expected an utp socket")
     }
 
@@ -59,7 +86,12 @@ pub mod tests {
 
         runtime
             .clone()
-            .block_on(UtpSocket::new(addr, Duration::from_secs(1), runtime))
+            .block_on(UtpSocket::new(
+                addr,
+                Duration::from_secs(1),
+                vec![],
+                runtime,
+            ))
             .expect("expected an utp socket")
     }
 
@@ -95,7 +127,7 @@ pub mod tests {
                 incoming_context,
                 protocols,
                 incoming_extensions,
-                Duration::from_secs(5),
+                Duration::from_secs(50),
                 incoming_runtime,
             )
             .await
@@ -112,7 +144,7 @@ pub mod tests {
                 outgoing_context.clone(),
                 protocols,
                 outgoing_extensions,
-                Duration::from_secs(5),
+                Duration::from_secs(50),
                 runtime.clone(),
             ))
             .expect("expected an outgoing uTP peer");
@@ -122,30 +154,51 @@ pub mod tests {
         (incoming_peer, outgoing_peer)
     }
 
-    pub fn create_utp_socket_pair() -> (UtpSocket, UtpSocket) {
-        let runtime = Arc::new(Runtime::new().unwrap());
-        let mut rng = thread_rng();
+    pub fn create_utp_socket_pair(
+        incoming_extensions: UtpSocketExtensions,
+        outgoing_extensions: UtpSocketExtensions,
+        runtime: Arc<Runtime>,
+    ) -> (UtpSocket, UtpSocket) {
+        let mut rng = rng();
 
-        let port = available_port!(rng.gen_range(20000..21000), 21000).unwrap();
+        let port = available_port(rng.random_range(20000..21000), 21000).unwrap();
         let addr = SocketAddr::from(([127, 0, 0, 1], port));
         let left = runtime
             .block_on(UtpSocket::new(
                 addr,
                 Duration::from_secs(2),
+                incoming_extensions,
                 runtime.clone(),
             ))
             .expect("expected a new utp socket");
 
-        let port = available_port!(rng.gen_range(21000..22000), 22000).unwrap();
+        let port = available_port(rng.random_range(21000..22000), 22000).unwrap();
         let addr = SocketAddr::from(([127, 0, 0, 1], port));
         let right = runtime
             .block_on(UtpSocket::new(
                 addr,
                 Duration::from_secs(2),
+                outgoing_extensions,
                 runtime.clone(),
             ))
             .expect("expected a new utp socket");
 
         (left, right)
+    }
+
+    pub fn create_utp_stream_pair(
+        incoming: &UtpSocket,
+        outgoing: &UtpSocket,
+    ) -> (UtpStream, UtpStream) {
+        let runtime = outgoing.context().runtime();
+        let target_addr = incoming.addr();
+        let outgoing_stream = runtime
+            .block_on(outgoing.connect(target_addr))
+            .expect("expected an outgoing utp stream");
+        let incoming_stream = runtime
+            .block_on(incoming.recv())
+            .expect("expected an incoming uTP stream");
+
+        (incoming_stream, outgoing_stream)
     }
 }

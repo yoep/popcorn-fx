@@ -155,9 +155,13 @@ impl Piece {
         !self.completed_parts.all() && !self.completed_parts.none()
     }
 
-    /// Get the range of the piece bytes relative to the torrent.
-    /// It returns the byte range within the torrent.
-    pub fn torrent_byte_range(&self) -> std::ops::Range<usize> {
+    /// Get the byte range of the piece within the torrent.
+    ///
+    /// # Returns
+    ///
+    /// It returns a `Range<usize>` indicating the piece's position in bytes within the torrent,
+    /// starting from its offset and extending to its length.
+    pub fn torrent_range(&self) -> std::ops::Range<usize> {
         self.offset..(self.offset + self.length)
     }
 

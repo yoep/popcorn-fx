@@ -6,7 +6,6 @@ use log::{debug, info};
 
 use crate::core::media::MediaIdentifier;
 use crate::core::subtitles::model::SubtitleInfo;
-use crate::core::torrents::{TorrentFileInfo, TorrentInfo};
 
 /// A struct representing a playlist of media items.
 #[derive(Debug, Default)]
@@ -140,8 +139,8 @@ pub struct PlaylistSubtitle {
 
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct PlaylistTorrent {
-    pub info: Option<TorrentInfo>,
-    pub file_info: Option<TorrentFileInfo>,
+    /// The filename of the torrent that needs to be played.
+    pub filename: Option<String>,
 }
 
 /// Represents an item in a playlist, which can be a media file, a stream URL, or other media content.
@@ -212,12 +211,11 @@ pub struct PlaylistItemBuilder {
     thumb: Option<String>,
     parent_media: Option<Box<dyn MediaIdentifier>>,
     media: Option<Box<dyn MediaIdentifier>>,
-    torrent_info: Option<TorrentInfo>,
-    torrent_file_info: Option<TorrentFileInfo>,
     quality: Option<String>,
     auto_resume_timestamp: Option<u64>,
     subtitles_enabled: Option<bool>,
     subtitle_info: Option<SubtitleInfo>,
+    torrent_filename: Option<String>,
 }
 
 impl PlaylistItemBuilder {
@@ -262,18 +260,6 @@ impl PlaylistItemBuilder {
         self
     }
 
-    /// Sets the torrent information associated with the playlist item.
-    pub fn torrent_info(mut self, torrent_info: TorrentInfo) -> Self {
-        self.torrent_info = Some(torrent_info);
-        self
-    }
-
-    /// Sets the torrent file information associated with the playlist item.
-    pub fn torrent_file_info(mut self, torrent_file_info: TorrentFileInfo) -> Self {
-        self.torrent_file_info = Some(torrent_file_info);
-        self
-    }
-
     /// Sets the quality of the playlist item.
     pub fn quality<T: ToString>(mut self, quality: T) -> Self {
         self.quality = Some(quality.to_string());
@@ -295,6 +281,12 @@ impl PlaylistItemBuilder {
     /// Sets the subtitle information associated with the playlist item.
     pub fn subtitle_info(mut self, subtitle_info: SubtitleInfo) -> Self {
         self.subtitle_info = Some(subtitle_info);
+        self
+    }
+
+    /// Sets the torrent filename of the playlist item.
+    pub fn torrent_filename<T: ToString>(mut self, filename: T) -> Self {
+        self.torrent_filename = Some(filename.to_string());
         self
     }
 
@@ -320,8 +312,7 @@ impl PlaylistItemBuilder {
                 info: self.subtitle_info,
             },
             torrent: PlaylistTorrent {
-                info: self.torrent_info,
-                file_info: self.torrent_file_info,
+                filename: self.torrent_filename,
             },
         }
     }
@@ -330,7 +321,7 @@ impl PlaylistItemBuilder {
 #[cfg(test)]
 mod test {
     use crate::core::media::MovieOverview;
-    use crate::testing::init_logger;
+    use crate::init_logger;
 
     use super::*;
 
@@ -359,10 +350,7 @@ mod test {
                 enabled: false,
                 info: None,
             },
-            torrent: PlaylistTorrent {
-                info: None,
-                file_info: None,
-            },
+            torrent: PlaylistTorrent { filename: None },
         });
 
         assert!(
@@ -398,10 +386,7 @@ mod test {
                 enabled: false,
                 info: None,
             },
-            torrent: PlaylistTorrent {
-                info: None,
-                file_info: None,
-            },
+            torrent: PlaylistTorrent { filename: None },
         };
 
         playlist.add(playlist_item.clone());
@@ -442,10 +427,7 @@ mod test {
                 enabled: false,
                 info: None,
             },
-            torrent: PlaylistTorrent {
-                info: None,
-                file_info: None,
-            },
+            torrent: PlaylistTorrent { filename: None },
         });
         assert!(
             playlist
@@ -490,10 +472,7 @@ mod test {
                 enabled: false,
                 info: None,
             },
-            torrent: PlaylistTorrent {
-                info: None,
-                file_info: None,
-            },
+            torrent: PlaylistTorrent { filename: None },
         });
         assert!(
             playlist.has_next(),
@@ -532,10 +511,7 @@ mod test {
                 enabled: false,
                 info: None,
             },
-            torrent: PlaylistTorrent {
-                info: None,
-                file_info: None,
-            },
+            torrent: PlaylistTorrent { filename: None },
         });
         let result = playlist.next();
         assert!(
@@ -550,7 +526,7 @@ mod test {
 
     #[test]
     fn test_from_playlist_item() {
-        init_logger();
+        init_logger!();
         let item = PlaylistItem {
             url: None,
             title: "FooBar".to_string(),
@@ -566,10 +542,7 @@ mod test {
                 enabled: false,
                 info: None,
             },
-            torrent: PlaylistTorrent {
-                info: None,
-                file_info: None,
-            },
+            torrent: PlaylistTorrent { filename: None },
         };
 
         let result = Playlist::from(item.clone());
@@ -595,10 +568,7 @@ mod test {
                 enabled: false,
                 info: None,
             },
-            torrent: PlaylistTorrent {
-                info: None,
-                file_info: None,
-            },
+            torrent: PlaylistTorrent { filename: None },
         });
 
         let result = playlist.iter();
@@ -628,10 +598,7 @@ mod test {
                 enabled: false,
                 info: None,
             },
-            torrent: PlaylistTorrent {
-                info: None,
-                file_info: None,
-            },
+            torrent: PlaylistTorrent { filename: None },
         }]
         .into_iter()
         .collect();

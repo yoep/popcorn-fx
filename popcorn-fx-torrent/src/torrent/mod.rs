@@ -3,10 +3,11 @@ pub use errors::*;
 pub use file::*;
 pub use info_hash::*;
 pub use magnet::*;
-pub use manager::*;
 pub use piece::*;
 pub use session::*;
+use std::net::{SocketAddr, TcpListener};
 pub use torrent::*;
+pub use torrent_health::*;
 pub use torrent_metadata::*;
 
 mod compact;
@@ -15,7 +16,6 @@ mod file;
 pub mod fs;
 mod info_hash;
 mod magnet;
-mod manager;
 mod merkle;
 pub mod operation;
 pub mod peer;
@@ -23,6 +23,7 @@ mod peer_pool;
 mod piece;
 mod session;
 mod torrent;
+mod torrent_health;
 mod torrent_metadata;
 mod tracker;
 
@@ -66,6 +67,60 @@ const DEFAULT_TORRENT_OPERATIONS: fn() -> Vec<TorrentOperationFactory> = || {
     ]
 };
 
+/// Retrieves an available port on the local machine.
+///
+/// This function searches for an available port on all network interfaces at the time of invocation.
+/// However, it's important to note that while a port may be available when retrieved, it may become
+/// unavailable by the time you attempt to bind to it, as this function does not reserve the port.
+///
+/// # Arguments
+///
+/// * `lower_bound` - The lower bound of the available port range.
+/// * `upper_bound` - The upper bound of the available port range.
+///
+/// # Returns
+///
+/// Returns an available port if one is found, else `None`.
+pub(crate) fn available_port(lower_bound: u16, upper_bound: u16) -> Option<u16> {
+    let supported_ports: Vec<u16> = (lower_bound..=upper_bound).collect();
+
+    for port in supported_ports {
+        let socket: SocketAddr = ([0, 0, 0, 0], port).into();
+        if TcpListener::bind(socket).is_ok() {
+            return Some(port);
+        }
+    }
+
+    None
+}
+
+/// Retrieves an available port on the local machine.
+///
+/// This function searches for an available port on all network interfaces at the time of invocation.
+/// However, it's important to note that while a port may be available when retrieved, it may become
+/// unavailable by the time you attempt to bind to it, as this function does not reserve the port.
+///
+/// # Arguments
+///
+/// * `lower_bound` - The lower bound of the available port range (optional, default = 1000).
+/// * `upper_bound` - The upper bound of the available port range (optional, default = [u16::MAX]).
+///
+/// # Returns
+///
+/// Returns an available port if one is found, else `None`.
+#[macro_export]
+macro_rules! available_port {
+    ($lower_bound:expr, $upper_bound:expr) => {
+        crate::torrent::available_port($lower_bound, $upper_bound)
+    };
+    ($lower_bound:expr) => {
+        crate::torrent::available_port($lower_bound, u16::MAX)
+    };
+    () => {
+        crate::torrent::available_port(1000, u16::MAX)
+    };
+}
+
 #[cfg(test)]
 pub mod tests {
     use super::*;
@@ -74,9 +129,8 @@ pub mod tests {
         BitTorrentPeer, PeerDiscovery, PeerId, PeerListener, PeerStream, TcpPeerDiscovery,
         TcpPeerListener, UtpPeerDiscovery,
     };
-    use popcorn_fx_core::available_port;
     use popcorn_fx_core::testing::read_test_file_to_bytes;
-    use rand::{thread_rng, Rng};
+    use rand::{rng, Rng};
     use std::net::SocketAddr;
     use std::str::FromStr;
     use std::sync::Arc;
@@ -219,18 +273,18 @@ pub mod tests {
         operations: Vec<TorrentOperationFactory>,
     ) -> Torrent {
         let runtime = Arc::new(Runtime::new().unwrap());
-        let mut rng = thread_rng();
-        let tcp_port_start = rng.gen_range(6881..10000);
-        let utp_port_start = rng.gen_range(6881..10000);
+        let mut rng = rng();
+        let tcp_port_start = rng.random_range(6881..10000);
+        let utp_port_start = rng.random_range(6881..10000);
         let utp_discovery = UtpPeerDiscovery::new(
-            available_port!(utp_port_start, 31000).unwrap(),
+            available_port(utp_port_start, 31000).unwrap(),
             runtime.clone(),
         )
         .unwrap();
         let listeners: Vec<Box<dyn PeerListener>> = vec![
             Box::new(
                 TcpPeerListener::new(
-                    available_port!(tcp_port_start, 31000).unwrap(),
+                    available_port(tcp_port_start, 31000).unwrap(),
                     runtime.clone(),
                 )
                 .unwrap(),
@@ -279,7 +333,7 @@ pub mod tests {
         let outgoing_context = outgoing_torrent.instance().unwrap();
         let incoming_runtime = incoming_context.runtime();
         let outgoing_runtime = outgoing_context.runtime();
-        let port_start = thread_rng().gen_range(6881..10000);
+        let port_start = rng().random_range(6881..10000);
         let port = available_port!(port_start, 31000).unwrap();
         let (tx, rx) = std::sync::mpsc::channel();
 
@@ -335,9 +389,9 @@ pub mod tests {
 
     /// Create the default test peer listeners
     pub fn default_listeners(runtime: Arc<Runtime>) -> Vec<Box<dyn PeerListener>> {
-        let mut rng = thread_rng();
-        let tcp_port_start = rng.gen_range(6881..10000);
-        let utp_port_start = rng.gen_range(6881..10000);
+        let mut rng = rng();
+        let tcp_port_start = rng.random_range(6881..10000);
+        let utp_port_start = rng.random_range(6881..10000);
 
         vec![
             Box::new(

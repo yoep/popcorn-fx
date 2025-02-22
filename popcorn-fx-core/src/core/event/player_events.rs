@@ -153,7 +153,7 @@ mod test {
 
     use crate::core::media::{Episode, Images, Rating, ShowOverview};
     use crate::core::players::PlayUrlRequestBuilder;
-    use crate::testing::init_logger;
+    use crate::init_logger;
 
     use super::*;
 
@@ -189,7 +189,7 @@ mod test {
 
     #[test]
     fn test_player_stopped_event_clone_with_episode() {
-        init_logger();
+        init_logger!();
         let media = Episode {
             season: 1,
             episode: 1,

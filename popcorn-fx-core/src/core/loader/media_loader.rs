@@ -6,7 +6,6 @@ use crate::core::media::{
 };
 use crate::core::playlist::PlaylistItem;
 use crate::core::torrents;
-use crate::core::torrents::DownloadStatus;
 use async_trait::async_trait;
 use derive_more::Display;
 use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
@@ -14,6 +13,7 @@ use fx_handle::Handle;
 use log::{debug, error, trace};
 #[cfg(any(test, feature = "testing"))]
 pub use mock::*;
+use popcorn_fx_torrent::torrent::TorrentStats;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -51,7 +51,7 @@ pub enum MediaLoaderEvent {
 #[derive(Debug, Clone, PartialEq)]
 pub enum LoadingResult {
     /// Indicates that processing was successful and provides the resulting `PlaylistItem`.
-    Ok(LoadingData),
+    Ok,
     /// Indicates that processing has completed.
     Completed,
     /// Indicates an error during processing and includes an associated `LoadingError`.
@@ -181,34 +181,34 @@ pub struct LoadingProgress {
     pub total_size: usize,
 }
 
-impl From<DownloadStatus> for LoadingProgress {
-    fn from(value: DownloadStatus) -> Self {
+impl From<TorrentStats> for LoadingProgress {
+    fn from(value: TorrentStats) -> Self {
         Self {
-            progress: value.progress,
-            seeds: value.seeds,
-            peers: value.peers,
-            download_speed: value.download_speed,
-            upload_speed: value.upload_speed,
-            downloaded: value.downloaded,
+            progress: value.progress(),
+            seeds: value.total_peers,
+            peers: value.total_peers,
+            download_speed: value.download_useful_rate,
+            upload_speed: value.upload_useful_rate,
+            downloaded: value.total_completed_size as u64,
             total_size: value.total_size,
         }
     }
 }
 
-/// Represents an error that may occur during media item loading.
+/// Represents an error that may occur while a media item is being loaded.
 #[derive(Debug, Clone, PartialEq, Error)]
 pub enum LoadingError {
-    #[error("Failed to parse URL: {0}")]
+    #[error("failed to parse URL: {0}")]
     ParseError(String),
-    #[error("Failed to load torrent, {0}")]
+    #[error("failed to load torrent, {0}")]
     TorrentError(torrents::Error),
-    #[error("Failed to process media information, {0}")]
+    #[error("failed to process media information, {0}")]
     MediaError(String),
-    #[error("Loading timed-out, {0}")]
+    #[error("loading timed-out, {0}")]
     TimeoutError(String),
-    #[error("Loading data is invalid, {0}")]
+    #[error("loading data is invalid, {0}")]
     InvalidData(String),
-    #[error("Loading task has been cancelled")]
+    #[error("loading task has been cancelled")]
     Cancelled,
 }
 
@@ -592,13 +592,14 @@ mod mock {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::mpsc::channel;
-    use std::time::Duration;
-
+    use crate::core::block_in_place_runtime;
     use crate::core::loader::loading_chain::DEFAULT_ORDER;
     use crate::core::loader::task::LoadingTaskContext;
     use crate::core::loader::{MockLoadingStrategy, SubtitleData};
     use crate::init_logger;
+    use std::sync::mpsc::channel;
+    use std::time::Duration;
+    use tokio::time;
 
     use super::*;
 
@@ -680,7 +681,7 @@ mod tests {
         let expected_result = LoadingData::from(item.clone());
         let mut strategy = MockLoadingStrategy::new();
         strategy.expect_process().returning(move |e, _| {
-            tx.send(e).unwrap();
+            tx.send(e.clone()).unwrap();
             LoadingResult::Completed
         });
         let chain: Vec<Box<dyn LoadingStrategy>> = vec![Box::new(strategy)];
@@ -724,17 +725,19 @@ mod tests {
         };
         let mut strategy = MockLoadingStrategy::new();
         let strategy_result = expected_result.clone();
-        strategy.expect_process().times(1).returning(Box::new(
-            move |_, context: &LoadingTaskContext| {
+        strategy.expect_process().times(1).return_once(
+            move |_: &mut LoadingData, context: &LoadingTaskContext| {
                 context.send_event(LoadingEvent::ProgressChanged(strategy_result.clone()));
                 tx.send(()).unwrap();
+                block_in_place_runtime(time::sleep(Duration::from_millis(100)), context.runtime());
                 LoadingResult::Completed
             },
-        ));
-        let loader = DefaultMediaLoader::new(vec![]);
+        );
+        let loader = DefaultMediaLoader::new(vec![Box::new(strategy)]);
+        let runtime = &loader.inner.runtime;
 
         let mut receiver = loader.subscribe();
-        loader.inner.runtime.spawn(async move {
+        runtime.spawn(async move {
             loop {
                 if let Some(event) = receiver.recv().await {
                     if let MediaLoaderEvent::ProgressChanged(_, progress) = &*event {
@@ -747,11 +750,10 @@ mod tests {
             }
         });
 
-        loader.add(Box::new(strategy), DEFAULT_ORDER);
-        let _ = loader.load_playlist_item(item);
-        let _ = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        let _ = runtime.block_on(loader.load_playlist_item(item));
+        let _ = rx.recv_timeout(Duration::from_millis(500)).unwrap();
 
-        let result = rx_event.recv_timeout(Duration::from_millis(200)).unwrap();
+        let result = rx_event.recv_timeout(Duration::from_millis(500)).unwrap();
         assert_eq!(expected_result, result);
     }
 }

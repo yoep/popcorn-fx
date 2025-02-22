@@ -271,13 +271,13 @@ mod test {
     use reqwest::{Client, Url};
 
     use crate::core::subtitles::MockSubtitleProvider;
-    use crate::testing::init_logger;
+    use crate::init_logger;
 
     use super::*;
 
     #[test]
     fn test_state() {
-        init_logger();
+        init_logger!();
         let provider: Box<MockSubtitleProvider> = Box::new(MockSubtitleProvider::new());
         let server = SubtitleServer::new(Arc::new(provider as Box<dyn SubtitleProvider>));
 
@@ -288,7 +288,7 @@ mod test {
 
     #[test]
     fn test_subtitle_is_served() {
-        init_logger();
+        init_logger!();
         let runtime = tokio::runtime::Runtime::new().unwrap();
         let mut provider: Box<MockSubtitleProvider> = Box::new(MockSubtitleProvider::new());
         let subtitle = Subtitle::new(vec![], None, "my-subtitle - heavy.srt".to_string());
@@ -336,7 +336,7 @@ mod test {
 
     #[test]
     fn test_subtitle_not_being_served() {
-        init_logger();
+        init_logger!();
         let filename = "lorem.srt";
         let runtime = tokio::runtime::Runtime::new().unwrap();
         let provider: Box<MockSubtitleProvider> = Box::new(MockSubtitleProvider::new());
@@ -366,7 +366,7 @@ mod test {
 
     #[test]
     fn test_build_url_escape_characters() {
-        init_logger();
+        init_logger!();
         let provider: Box<MockSubtitleProvider> = Box::new(MockSubtitleProvider::new());
         let server = SubtitleServer::new(Arc::new(provider as Box<dyn SubtitleProvider>));
         let expected_result = format!(

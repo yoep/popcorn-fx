@@ -42,13 +42,13 @@ mod test {
     use crate::core::config::{
         PopcornProperties, PopcornSettings, ProviderProperties, ServerSettings,
     };
-    use crate::testing::init_logger;
+    use crate::init_logger;
 
     use super::*;
 
     #[test]
     fn test_available_uris_provider_available() {
-        init_logger();
+        init_logger!();
         let api_server = "http://lorem".to_string();
         let provider = "http://ipsum".to_string();
         let provider_name = "my-provider".to_string();
@@ -91,7 +91,7 @@ mod test {
 
     #[test]
     fn test_available_uris_provider_not_available() {
-        init_logger();
+        init_logger!();
         let api_server = "https://www.google.com".to_string();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();

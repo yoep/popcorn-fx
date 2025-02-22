@@ -7,7 +7,7 @@ use crate::torrent::peer::{
 use crate::torrent::torrent::Torrent;
 use crate::torrent::{
     ExtensionFactories, ExtensionFactory, InfoHash, Magnet, TorrentConfig, TorrentError,
-    TorrentEvent, TorrentFlags, TorrentHandle, TorrentMetadata, TorrentOperation,
+    TorrentEvent, TorrentFlags, TorrentHandle, TorrentHealth, TorrentMetadata, TorrentOperation,
     TorrentOperationFactory, DEFAULT_TORRENT_EXTENSIONS, DEFAULT_TORRENT_OPERATIONS,
     DEFAULT_TORRENT_PROTOCOL_EXTENSIONS,
 };
@@ -16,8 +16,6 @@ use derive_more::Display;
 use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use fx_handle::Handle;
 use log::{debug, trace};
-use popcorn_fx_core::available_port;
-use popcorn_fx_core::core::torrents::TorrentHealth;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::io::Read;
@@ -29,6 +27,7 @@ use tokio::runtime::Runtime;
 use tokio::sync::RwLock;
 use tokio::{select, time};
 
+use crate::available_port;
 #[cfg(test)]
 pub use mock::*;
 
@@ -344,7 +343,7 @@ impl FxTorrentSession {
         let tcp_port = available_port!(6881, 31000)
             .ok_or(TorrentError::Io("no port available".to_string()))?;
         let tcp_peer_listener = TcpPeerListener::new(tcp_port, self.runtime().clone())?;
-        let utp_peer_discovery = UtpPeerDiscovery::new(tcp_port, self.runtime().clone())?;
+        // let utp_peer_discovery = UtpPeerDiscovery::new(tcp_port, self.runtime().clone())?;
 
         trace!("Trying to create new torrent for info hash {}", info_hash);
         let torrent = Torrent::try_from(
@@ -354,11 +353,11 @@ impl FxTorrentSession {
                 .config(config.build())
                 .peer_dialers(vec![
                     Box::new(TcpPeerDiscovery::new()),
-                    Box::new(utp_peer_discovery.clone()),
+                    // Box::new(utp_peer_discovery.clone()),
                 ])
                 .peer_listeners(vec![
                     Box::new(tcp_peer_listener),
-                    Box::new(utp_peer_discovery),
+                    // Box::new(utp_peer_discovery),
                 ])
                 .protocol_extensions(self.inner.protocol_extensions)
                 .extensions(self.inner.extensions())
@@ -751,12 +750,6 @@ impl InnerSession {
             .map(|e| e.clone())
     }
 
-    async fn find_handle_by_info_hash(&self, info_hash: &InfoHash) -> Option<TorrentHandle> {
-        (*self.torrents.read().await)
-            .get(info_hash)
-            .map(|e| e.handle())
-    }
-
     /// Add or replace the torrent in the session based on the info hash.
     ///
     /// ## Caution
@@ -847,8 +840,8 @@ pub mod tests {
     use std::time::Duration;
 
     use super::*;
+    use crate::torrent::TorrentHealthState;
     use log::info;
-    use popcorn_fx_core::core::torrents::TorrentHealthState;
     use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::{read_test_file_to_bytes, test_resource_filepath};
     use tempfile::tempdir;
@@ -877,7 +870,7 @@ pub mod tests {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let uri = "magnet:?xt=urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7&dn=debian-12.4.0-amd64-DVD-1.iso&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce";
+        let uri = "magnet:?xt=urn:btih:2C6B6858D61DA9543D4231A71DB4B1C9264B0685&dn=Ubuntu%2022.04%20LTS&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce";
         let session = create_session(temp_path);
         let runtime = session.runtime();
 
@@ -1022,7 +1015,7 @@ pub mod tests {
         FxTorrentSession::builder()
             .base_path(temp_path)
             .client_name("test")
-            .extensions(vec![])
+            .extensions(DEFAULT_TORRENT_EXTENSIONS())
             .runtime(Arc::new(Runtime::new().unwrap()))
             .build()
             .expect("expected a session to have been created")

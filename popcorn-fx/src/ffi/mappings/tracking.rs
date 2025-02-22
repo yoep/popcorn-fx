@@ -28,13 +28,13 @@ impl From<TrackingEvent> for TrackingEventC {
 
 #[cfg(test)]
 mod tests {
-    use popcorn_fx_core::testing::init_logger;
+    use popcorn_fx_core::init_logger;
 
     use super::*;
 
     #[test]
     fn test_from_tracking_event() {
-        init_logger();
+        init_logger!();
 
         let result = TrackingEventC::from(TrackingEvent::AuthorizationStateChanged(true));
 

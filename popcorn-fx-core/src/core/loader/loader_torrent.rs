@@ -5,7 +5,7 @@ use crate::core::config::ApplicationConfig;
 use crate::core::loader::task::LoadingTaskContext;
 use crate::core::loader::{
     CancellationResult, LoadingData, LoadingError, LoadingEvent, LoadingProgress, LoadingState,
-    LoadingStrategy, Result,
+    LoadingStrategy, Result, TorrentData,
 };
 use crate::core::torrents::{Torrent, TorrentEvent, TorrentManager, TorrentState};
 use crate::core::{loader, torrents};
@@ -32,17 +32,6 @@ impl TorrentLoadingStrategy {
         }
     }
 
-    async fn create_torrent_handle(
-        &self,
-        uri: &str,
-        context: &LoadingTaskContext,
-    ) -> Result<Box<dyn Torrent>> {
-        select! {
-            _ = context.cancelled() => Err(LoadingError::Cancelled),
-            result = self.torrent_manager.create(uri.as_ref()) => result.map_err(|e| LoadingError::TorrentError(e)),
-        }
-    }
-
     async fn create_torrent(
         &self,
         torrent: &Box<dyn Torrent>,
@@ -51,13 +40,14 @@ impl TorrentLoadingStrategy {
     ) -> Result<Box<dyn Torrent>> {
         debug!("Starting download of {}", torrent_filename);
         let handle = torrent.handle();
-        let mut receiver =
-            self.torrent_manager
-                .subscribe(&handle)
-                .await
-                .ok_or(LoadingError::TorrentError(torrents::Error::InvalidHandle(
-                    handle.to_string(),
-                )))?;
+        let mut receiver = self
+            .torrent_manager
+            .find_by_handle(&handle)
+            .await
+            .map(|e| e.subscribe())
+            .ok_or(LoadingError::TorrentError(torrents::Error::InvalidHandle(
+                handle.to_string(),
+            )))?;
         let mut download_future = self.torrent_manager.download(&handle, torrent_filename);
 
         loop {
@@ -91,14 +81,14 @@ impl TorrentLoadingStrategy {
                     TorrentState::Downloading => {
                         context.send_event(LoadingEvent::StateChanged(LoadingState::Downloading))
                     }
-                    TorrentState::Completed => context
+                    TorrentState::Finished => context
                         .send_event(LoadingEvent::StateChanged(LoadingState::DownloadFinished)),
                     _ => {}
                 }
             }
-            TorrentEvent::DownloadStatus(status) => context.send_event(
-                LoadingEvent::ProgressChanged(LoadingProgress::from(status.clone())),
-            ),
+            TorrentEvent::Stats(status) => context.send_event(LoadingEvent::ProgressChanged(
+                LoadingProgress::from(status.clone()),
+            )),
             _ => {}
         }
     }
@@ -117,10 +107,10 @@ impl Debug for TorrentLoadingStrategy {
 impl LoadingStrategy for TorrentLoadingStrategy {
     async fn process(
         &self,
-        mut data: LoadingData,
+        data: &mut LoadingData,
         context: &LoadingTaskContext,
     ) -> loader::LoadingResult {
-        if let Some(torrent) = data.torrent.as_ref() {
+        if let Some(TorrentData::Torrent(torrent)) = data.torrent.as_ref() {
             if let Some(torrent_filename) = data.torrent_file.as_ref() {
                 trace!("Processing torrent info of {:?}", torrent_filename);
                 context.send_event(LoadingEvent::StateChanged(LoadingState::Connecting));
@@ -130,7 +120,7 @@ impl LoadingStrategy for TorrentLoadingStrategy {
                     .await
                 {
                     Ok(torrent) => {
-                        data.torrent = Some(torrent);
+                        data.torrent = Some(TorrentData::Torrent(torrent));
                     }
                     Err(err) => {
                         return loader::LoadingResult::Err(err);
@@ -139,7 +129,7 @@ impl LoadingStrategy for TorrentLoadingStrategy {
             }
         }
 
-        loader::LoadingResult::Ok(data)
+        loader::LoadingResult::Ok
     }
 
     async fn cancel(&self, mut data: LoadingData) -> CancellationResult {
@@ -160,9 +150,7 @@ mod tests {
 
     use crate::core::loader::LoadingResult;
     use crate::core::playlist::{PlaylistItem, PlaylistTorrent};
-    use crate::core::torrents::{
-        MockTorrent, MockTorrentManager, Torrent, TorrentHandle, TorrentInfo,
-    };
+    use crate::core::torrents::{MockTorrent, MockTorrentManager, Torrent, TorrentHandle};
     use crate::{create_loading_task, init_logger};
 
     use super::*;
@@ -170,17 +158,9 @@ mod tests {
     #[test]
     fn test_process() {
         init_logger!();
-        let torrent_info = TorrentInfo {
-            handle: Default::default(),
-            info_hash: String::new(),
-            uri: String::new(),
-            name: String::new(),
-            directory_name: None,
-            total_files: 0,
-            files: vec![],
-        };
+        let magnet_uri = "magnet:?xt=urn:btih:9a5c24e8164dfe5a98d2437b7f4d6ec9a7e2e045&dn=Another%20Example%20File&tr=http%3A%2F%2Ftracker.anotherexample.com%3A56789%2Fannounce&xl=987654321&sf=Another%20Folder";
         let item = PlaylistItem {
-            url: Some("".to_string()),
+            url: Some(magnet_uri.to_string()),
             title: "Lorem ipsum".to_string(),
             caption: None,
             thumb: None,
@@ -188,12 +168,9 @@ mod tests {
             quality: None,
             auto_resume_timestamp: None,
             subtitle: Default::default(),
-            torrent: PlaylistTorrent {
-                info: Some(torrent_info.clone()),
-                file_info: None,
-            },
+            torrent: PlaylistTorrent { filename: None },
         };
-        let data = LoadingData::from(item);
+        let mut data = LoadingData::from(item);
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let settings = Arc::new(ApplicationConfig::builder().storage(temp_path).build());
@@ -203,9 +180,9 @@ mod tests {
         let runtime = context.runtime();
         let strategy = TorrentLoadingStrategy::new(Arc::new(Box::new(torrent_manager)), settings);
 
-        let result = runtime.block_on(strategy.process(data.clone(), &*context));
+        let result = runtime.block_on(strategy.process(&mut data, &*context));
 
-        assert_eq!(LoadingResult::Ok(data), result);
+        assert_eq!(LoadingResult::Ok, result);
     }
 
     #[test]
@@ -226,7 +203,7 @@ mod tests {
         let mut torrent = MockTorrent::new();
         torrent.expect_handle().return_const(handle);
         let torrent = Box::new(torrent) as Box<dyn Torrent>;
-        data.torrent = Some(torrent);
+        data.torrent = Some(TorrentData::Torrent(torrent));
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let settings = Arc::new(ApplicationConfig::builder().storage(temp_path).build());

@@ -8,7 +8,7 @@ use regex::Regex;
 
 use crate::core::subtitles::cue::{SubtitleCue, SubtitleCueBuilder};
 use crate::core::subtitles::error::SubtitleParseError;
-use crate::core::subtitles::parsers::{NEWLINE, Parser, StyleParser};
+use crate::core::subtitles::parsers::{Parser, StyleParser, NEWLINE};
 use crate::core::utils::time::{parse_millis_from_time, parse_time_from_millis};
 
 const TIME_SEPARATOR: &str = "-->";
@@ -169,7 +169,7 @@ impl Parser for SrtParser {
                 output.push_str(self.style_parser.to_line_string(line).as_str());
                 output.push_str(NEWLINE);
             }
-            
+
             // always add an empty line at the end
             output.push_str(NEWLINE);
         }
@@ -209,7 +209,7 @@ impl ParserStage {
 #[cfg(test)]
 mod test {
     use crate::core::subtitles::cue::{StyledText, SubtitleLine};
-    use crate::testing::init_logger;
+    use crate::init_logger;
 
     use super::*;
 
@@ -227,7 +227,7 @@ mod test {
 
     #[test]
     fn test_srt_parser_parse_single_cue() {
-        init_logger();
+        init_logger!();
         let mut reader = BufReader::new(
             r#"1
 00:00:30,296 --> 00:00:34,790
@@ -254,7 +254,7 @@ mod test {
 
     #[test]
     fn test_srt_parser_parse_multiple_cues() {
-        init_logger();
+        init_logger!();
         let mut reader = BufReader::new(
             r#"1526
 02:12:21,051 --> 02:12:22,951
@@ -333,7 +333,7 @@ The <i>Black Pearl</i> is yours."#
 
     #[test]
     fn test_parse_raw() {
-        init_logger();
+        init_logger!();
         let cues = vec![SubtitleCue::new(
             "1".to_string(),
             30000,

@@ -470,7 +470,7 @@ mod tests {
         Tracker::builder()
             .url(tracker_uri.clone())
             .peer_id(peer_id)
-            .timeout(Duration::from_secs(1))
+            .timeout(Duration::from_secs(2))
             .build()
             .await
             .expect("expected the tracker to have been created")

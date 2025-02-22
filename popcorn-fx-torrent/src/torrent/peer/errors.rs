@@ -43,6 +43,9 @@ pub enum Error {
     /// Indicates that the given port number is in use
     #[error("port {0} is already in use")]
     PortUnavailable(u16),
+    /// Indicates that the given payload is too large
+    #[error("the payload exceeds the maximum size of {0}")]
+    TooLarge(usize),
     /// Indicates that the peer connection is closed
     #[error("the peer connection is closed")]
     Closed,

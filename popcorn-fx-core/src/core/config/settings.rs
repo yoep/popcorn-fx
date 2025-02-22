@@ -103,13 +103,13 @@ impl From<&str> for PopcornSettings {
 mod test {
     use crate::core::config::{DecorationType, SubtitleFamily};
     use crate::core::subtitles::language::SubtitleLanguage;
-    use crate::testing::init_logger;
+    use crate::init_logger;
 
     use super::*;
 
     #[test]
     fn test_settings_from_str_when_valid_should_return_expected_result() {
-        init_logger();
+        init_logger!();
         let value = r#"{
   "subtitle_settings": {
     "directory": "my-path/to-subtitles",
@@ -145,7 +145,7 @@ mod test {
 
     #[test]
     fn test_settings_from_str_when_invalid_should_return_defaults() {
-        init_logger();
+        init_logger!();
         let value = "{something: \"value\"}";
         let expected_result = PopcornSettings::default();
 

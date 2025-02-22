@@ -491,24 +491,23 @@ impl ApplicationConfigBuilder {
 
 #[cfg(test)]
 mod test {
-    use std::path::PathBuf;
-    use std::sync::mpsc::channel;
-    use std::time::Duration;
-
-    use tempfile::tempdir;
-
     use crate::core::config::{
         CleaningMode, DecorationType, Quality, SubtitleFamily, SubtitleSettings, UiScale,
     };
     use crate::core::media::Category;
     use crate::core::subtitles::language::SubtitleLanguage;
-    use crate::testing::{copy_test_file, init_logger, read_temp_dir_file_as_string};
+    use crate::init_logger;
+    use crate::testing::{copy_test_file, read_temp_dir_file_as_string};
+    use std::path::PathBuf;
+    use std::sync::mpsc::channel;
+    use std::time::Duration;
+    use tempfile::tempdir;
 
     use super::*;
 
     #[test]
     fn test_new_should_return_valid_instance() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let result = ApplicationConfig::builder().storage(temp_path).build();
@@ -519,7 +518,7 @@ mod test {
 
     #[test]
     fn test_new_auto_should_read_settings() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         copy_test_file(temp_path, "settings.json", None);
@@ -548,7 +547,7 @@ mod test {
 
     #[test]
     fn test_new_auto_settings_do_not_exist() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let application = ApplicationConfig::builder().storage(temp_path).build();
@@ -561,7 +560,7 @@ mod test {
 
     #[test]
     fn test_reload_settings() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let (tx, rx) = channel();
@@ -595,7 +594,7 @@ mod test {
 
     #[test]
     fn test_reload_subtitle_settings() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let (tx, rx) = channel();
@@ -648,7 +647,7 @@ mod test {
 
     #[test]
     fn test_update_subtitle() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let directory = "/tmp/lorem/subtitles";
@@ -687,7 +686,7 @@ mod test {
 
     #[test]
     fn test_update_torrent() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let directory = "/tmp/lorem/torrents";
@@ -724,7 +723,7 @@ mod test {
 
     #[test]
     fn test_update_ui() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let settings = UiSettings {
@@ -757,7 +756,7 @@ mod test {
 
     #[test]
     fn test_update_server() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let settings = ServerSettings {
@@ -789,7 +788,7 @@ mod test {
 
     #[test]
     fn test_save() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let application = ApplicationConfig {

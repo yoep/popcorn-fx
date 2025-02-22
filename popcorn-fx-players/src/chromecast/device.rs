@@ -226,15 +226,13 @@ impl Debug for DefaultCastDevice {
 
 #[cfg(test)]
 mod tests {
-    use popcorn_fx_core::testing::init_logger;
-
-    use crate::chromecast::tests::TestInstance;
-
     use super::*;
+    use crate::chromecast::tests::TestInstance;
+    use popcorn_fx_core::init_logger;
 
     #[test]
     fn test_default_cast_device_new() {
-        init_logger();
+        init_logger!();
         let test_instance = TestInstance::new_mdns();
         let addr = test_instance.mdns().unwrap().addr.ip();
         let port = test_instance.mdns().unwrap().addr.port();
@@ -250,7 +248,7 @@ mod tests {
 
     #[test]
     fn test_default_cast_device_connect() {
-        init_logger();
+        init_logger!();
         let test_instance = TestInstance::new_mdns();
         let addr = test_instance.mdns().unwrap().addr.ip();
         let port = test_instance.mdns().unwrap().addr.port();
@@ -261,7 +259,7 @@ mod tests {
 
     #[test]
     fn test_default_cast_device_ping() {
-        init_logger();
+        init_logger!();
         let test_instance = TestInstance::new_mdns();
         let addr = test_instance.mdns().unwrap().addr.ip();
         let port = test_instance.mdns().unwrap().addr.port();
@@ -273,7 +271,7 @@ mod tests {
     #[test]
     #[ignore]
     fn test_default_cast_device_launch() {
-        init_logger();
+        init_logger!();
         let test_instance = TestInstance::new_mdns();
         let addr = test_instance.mdns().unwrap().addr.ip();
         let port = test_instance.mdns().unwrap().addr.port();
@@ -284,7 +282,7 @@ mod tests {
 
     #[test]
     fn test_default_cast_device_broadcast() {
-        init_logger();
+        init_logger!();
         let test_instance = TestInstance::new_mdns();
         let addr = test_instance.mdns().unwrap().addr.ip();
         let port = test_instance.mdns().unwrap().addr.port();
@@ -296,7 +294,7 @@ mod tests {
 
     #[test]
     fn test_pong() {
-        init_logger();
+        init_logger!();
         let test_instance = TestInstance::new_mdns();
         let addr = test_instance.mdns().unwrap().addr.ip();
         let port = test_instance.mdns().unwrap().addr.port();
@@ -314,7 +312,7 @@ mod tests {
     #[test]
     #[ignore]
     fn test_default_cast_device_play() {
-        init_logger();
+        init_logger!();
         let test_instance = TestInstance::new_mdns();
         let addr = test_instance.mdns().unwrap().addr.ip();
         let port = test_instance.mdns().unwrap().addr.port();
@@ -326,7 +324,7 @@ mod tests {
     #[test]
     #[ignore]
     fn test_default_cast_device_media_status() {
-        init_logger();
+        init_logger!();
         let test_instance = TestInstance::new_mdns();
         let mdns = test_instance.mdns().unwrap();
         let addr = mdns.addr.ip();
@@ -356,7 +354,7 @@ mod tests {
     #[test]
     #[ignore]
     fn test_default_cast_device_status() {
-        init_logger();
+        init_logger!();
         let test_instance = TestInstance::new_mdns();
         let addr = test_instance.mdns().unwrap().addr.ip();
         let port = test_instance.mdns().unwrap().addr.port();

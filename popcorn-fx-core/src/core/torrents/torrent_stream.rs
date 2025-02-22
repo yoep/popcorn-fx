@@ -1,11 +1,12 @@
 use crate::core::torrents;
-use crate::core::torrents::{DownloadStatus, Torrent};
+use crate::core::torrents::Torrent;
 use async_trait::async_trait;
 use derive_more::Display;
 use downcast_rs::{impl_downcast, DowncastSync};
 use futures::Stream;
 use fx_callback::Callback;
 use fx_handle::Handle;
+use popcorn_fx_torrent::torrent::TorrentStats;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use url::Url;
@@ -48,7 +49,7 @@ pub enum TorrentStreamEvent {
     ///
     /// * `DownloadStatus` - The download status of the torrent stream.
     #[display(fmt = "Torrent stream download status changed to {}", _0)]
-    DownloadStatus(DownloadStatus),
+    DownloadStatus(TorrentStats),
 }
 
 /// A trait for a torrent stream that provides access to torrent streaming information.
@@ -72,7 +73,7 @@ pub trait TorrentStream: Torrent + Callback<TorrentStreamEvent> + DowncastSync {
     /// as most streaming servers require the [Stream] to have a known size.
     ///
     /// Returns the stream of the torrent bytes or the [torrents::Error] that occurred.
-    fn stream(&self) -> torrents::Result<TorrentStreamingResourceWrapper>;
+    async fn stream(&self) -> torrents::Result<TorrentStreamingResourceWrapper>;
 
     /// Stream the torrent contents as a byte array with the given offset and length.
     /// The actual [Stream] implementation is wrapped in the [TorrentStreamingResourceWrapper],
@@ -84,7 +85,7 @@ pub trait TorrentStream: Torrent + Callback<TorrentStreamEvent> + DowncastSync {
     /// * `len` - The length of the content to stream (optional).
     ///
     /// Returns the stream of the torrent bytes or the [torrents::Error] that occurred.
-    fn stream_offset(
+    async fn stream_offset(
         &self,
         offset: u64,
         len: Option<u64>,

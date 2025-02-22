@@ -416,15 +416,15 @@ mod test {
 
     use tempfile::tempdir;
 
-    use crate::assert_timeout;
     use crate::core::media::{Images, MovieOverview, ShowOverview};
-    use crate::testing::{copy_test_file, init_logger};
+    use crate::testing::copy_test_file;
+    use crate::{assert_timeout, init_logger};
 
     use super::*;
 
     #[test]
     fn test_is_watched_when_item_is_watched_should_return_true() {
-        init_logger();
+        init_logger!();
         let imdb_id = "tt548723".to_string();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -439,7 +439,7 @@ mod test {
 
     #[test]
     fn test_is_watched_when_item_is_not_watched_should_return_false() {
-        init_logger();
+        init_logger!();
         let imdb_id = "tt548766".to_string();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -454,7 +454,7 @@ mod test {
 
     #[test]
     fn test_is_watched_boxed() {
-        init_logger();
+        init_logger!();
         let imdb_id = "tt541345".to_string();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -469,7 +469,7 @@ mod test {
 
     #[test]
     fn test_all() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let service = DefaultWatchedService::new(temp_path, Arc::new(EventPublisher::default()));
@@ -485,7 +485,7 @@ mod test {
 
     #[test]
     fn test_add_movie() {
-        init_logger();
+        init_logger!();
         let imdb_id = "tt548795".to_string();
         let resource_directory = tempdir().unwrap();
         let resource_path = resource_directory.path().to_str().unwrap();
@@ -503,7 +503,7 @@ mod test {
 
     #[test]
     fn test_add_show() {
-        init_logger();
+        init_logger!();
         let imdb_id = "tt88877554".to_string();
         let temp_dir = tempdir().unwrap();
         let resource_path = temp_dir.path().to_str().unwrap();
@@ -529,7 +529,7 @@ mod test {
 
     #[test]
     fn test_register_when_add_is_called_should_invoke_callbacks() {
-        init_logger();
+        init_logger!();
         let id = "tt8744557";
         let temp_dir = tempdir().unwrap();
         let resource_path = temp_dir.path().to_str().unwrap();
@@ -561,7 +561,7 @@ mod test {
 
     #[test]
     fn test_register_when_remove_is_called_should_invoke_callbacks() {
-        init_logger();
+        init_logger!();
         let id = "tt8744557";
         let temp_dir = tempdir().unwrap();
         let resource_path = temp_dir.path().to_str().unwrap();
@@ -590,7 +590,7 @@ mod test {
 
     #[test]
     fn test_on_player_stopped_watched() {
-        init_logger();
+        init_logger!();
         let imdb_id = "tt12455512";
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -619,7 +619,7 @@ mod test {
 
     #[test]
     fn test_on_player_stopped_not_fully_watched() {
-        init_logger();
+        init_logger!();
         let imdb_id = "tt0001212";
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();

@@ -1,11 +1,11 @@
 use log::{debug, trace, warn};
 
 use crate::core::media;
+use crate::core::media::providers::enhancers::Enhancer;
+use crate::core::media::providers::{MediaDetailsProvider, MediaProvider};
 use crate::core::media::{
     Category, Genre, MediaDetails, MediaError, MediaIdentifier, MediaOverview, MediaType, SortBy,
 };
-use crate::core::media::providers::{MediaDetailsProvider, MediaProvider};
-use crate::core::media::providers::enhancers::Enhancer;
 
 /// Manages the available [MediaProvider]'s that can be used to retrieve [Media] items.
 /// Multiple providers for the same [Category] can be registered to overrule an existing one.
@@ -197,11 +197,11 @@ mod test {
 
     use crate::core::cache::CacheManagerBuilder;
     use crate::core::config::ApplicationConfig;
-    use crate::core::media::{Episode, ShowDetails, ShowOverview};
     use crate::core::media::providers::enhancers::MockEnhancer;
     use crate::core::media::providers::MockMediaDetailsProvider;
     use crate::core::media::providers::ShowProvider;
-    use crate::testing::init_logger;
+    use crate::core::media::{Episode, ShowDetails, ShowOverview};
+    use crate::init_logger;
 
     use super::*;
 
@@ -231,7 +231,7 @@ mod test {
 
     #[test]
     fn test_get_supported_category() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let settings = Arc::new(ApplicationConfig::builder().storage(temp_path).build());
@@ -268,7 +268,7 @@ mod test {
 
     #[test]
     fn test_enhance_details() {
-        init_logger();
+        init_logger!();
         let imdb_id = "tt000001";
         let thumb = "http://localhost/thumb.png";
         let media_identifier = Box::new(ShowOverview {

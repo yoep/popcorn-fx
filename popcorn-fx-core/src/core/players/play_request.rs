@@ -1,15 +1,14 @@
+use crate::core::loader::{LoadingData, TorrentData};
+use crate::core::media::MediaIdentifier;
+use crate::core::players::RequestError;
+use crate::core::subtitles::model::{Subtitle, SubtitleInfo};
+use crate::core::torrents::TorrentStream;
 use derive_more::Display;
 use downcast_rs::{impl_downcast, DowncastSync};
 #[cfg(any(test, feature = "testing"))]
 use mockall::automock;
 use std::fmt::Formatter;
 use std::fmt::{Debug, Display};
-
-use crate::core::loader::LoadingData;
-use crate::core::media::MediaIdentifier;
-use crate::core::subtitles::model::{Subtitle, SubtitleInfo};
-use crate::core::torrents::stream::DefaultTorrentStream;
-use crate::core::torrents::TorrentStream;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct PlaySubtitleRequest {
@@ -156,32 +155,31 @@ where
     }
 }
 
-impl From<LoadingData> for PlayUrlRequest {
-    fn from(value: LoadingData) -> Self {
+impl TryFrom<&mut LoadingData> for PlayUrlRequest {
+    type Error = RequestError;
+
+    fn try_from(value: &mut LoadingData) -> Result<Self, Self::Error> {
+        let url = value.url.take().ok_or(RequestError::UrlMissing)?;
+        let title = value.title.take().ok_or(RequestError::TitleMissing)?;
         let subtitles_enabled = value.subtitle.enabled.unwrap_or(false);
         let mut builder = PlayUrlRequestBuilder::builder()
-            .url(
-                value
-                    .url
-                    .expect("expected an url to have been present")
-                    .as_str(),
-            )
-            .title(value.title.unwrap_or(String::new()).as_str())
+            .url(url)
+            .title(title)
             .subtitles_enabled(subtitles_enabled);
 
-        if let Some(e) = value.thumb {
+        if let Some(e) = value.thumb.take() {
             builder = builder.thumb(e.as_str());
         }
         if let Some(e) = value.auto_resume_timestamp {
             builder = builder.auto_resume_timestamp(e);
         }
         if subtitles_enabled {
-            if let Some(e) = value.subtitle.subtitle {
+            if let Some(e) = value.subtitle.subtitle.take() {
                 builder = builder.subtitle(e);
             }
         }
 
-        builder.build()
+        Ok(builder.build())
     }
 }
 
@@ -343,48 +341,40 @@ impl PartialEq for PlayStreamRequest {
     }
 }
 
-impl From<LoadingData> for PlayStreamRequest {
-    fn from(value: LoadingData) -> Self {
+impl TryFrom<&mut LoadingData> for PlayStreamRequest {
+    type Error = RequestError;
+
+    fn try_from(value: &mut LoadingData) -> Result<Self, Self::Error> {
+        let url = value.url.take().ok_or(RequestError::UrlMissing)?;
+        let title = value.title.take().ok_or(RequestError::TitleMissing)?;
         let subtitles_enabled = value.subtitle.enabled.unwrap_or(false);
         let mut builder = Self::builder()
-            .url(
-                value
-                    .url
-                    .expect("expected a url to have been present")
-                    .as_str(),
-            )
-            .title(
-                value
-                    .title
-                    .expect("expected a title to have been present")
-                    .as_str(),
-            )
+            .url(url)
+            .title(title)
             .subtitles_enabled(subtitles_enabled);
 
-        if let Some(e) = value.caption {
+        if let Some(e) = value.caption.take() {
             builder = builder.caption(e);
         }
-        if let Some(e) = value.thumb {
+        if let Some(e) = value.thumb.take() {
             builder = builder.thumb(e);
         }
         if let Some(e) = value.auto_resume_timestamp {
             builder = builder.auto_resume_timestamp(e);
         }
-        if let Some(e) = value.quality {
+        if let Some(e) = value.quality.take() {
             builder = builder.quality(e.as_str());
         }
-        if let Some(torrent) = value.torrent {
-            if let Ok(stream) = torrent.downcast::<DefaultTorrentStream>() {
-                builder = builder.torrent_stream(stream);
-            }
+        if let Some(TorrentData::Stream(stream)) = value.torrent.take() {
+            builder = builder.torrent_stream(stream);
         }
         if subtitles_enabled {
-            if let Some(e) = value.subtitle.subtitle {
+            if let Some(e) = value.subtitle.subtitle.take() {
                 builder = builder.subtitle(e);
             }
         }
 
-        builder.build()
+        Ok(builder.build())
     }
 }
 
@@ -594,66 +584,51 @@ impl PlayRequest for PlayMediaRequest {
     }
 }
 
-impl From<LoadingData> for PlayMediaRequest {
-    fn from(value: LoadingData) -> Self {
+impl TryFrom<&mut LoadingData> for PlayMediaRequest {
+    type Error = RequestError;
+
+    fn try_from(value: &mut LoadingData) -> Result<Self, Self::Error> {
+        let url = value.url.take().ok_or(RequestError::UrlMissing)?;
+        let title = value.title.take().ok_or(RequestError::TitleMissing)?;
         let subtitles_enabled = value.subtitle.enabled.unwrap_or(false);
+        let media = value.media.take().ok_or(RequestError::MediaMissing)?;
         let mut builder = Self::builder()
-            .url(
-                value
-                    .url
-                    .expect("expected a url to have been present")
-                    .as_str(),
-            )
-            .title(
-                value
-                    .title
-                    .expect("expected a title to have been present")
-                    .as_str(),
-            )
+            .url(url)
+            .title(title)
             .subtitles_enabled(subtitles_enabled);
 
-        if let Some(e) = value.caption {
+        if let Some(e) = value.caption.take() {
             builder = builder.caption(e);
         }
-        if let Some(e) = value.thumb {
+        if let Some(e) = value.thumb.take() {
             builder = builder.thumb(e);
-        }
-        if let Some(media_identifier) = value.media.as_ref() {
-            if let Some(media) = media_identifier.into_overview() {
-                builder = builder.background(media.images().fanart());
-            }
         }
         if let Some(e) = value.auto_resume_timestamp {
             builder = builder.auto_resume_timestamp(e);
         }
-        if let Some(media_identifier) = value.parent_media {
+        if let Some(media) = media.into_overview() {
+            builder = builder.background(media.images().fanart());
+        }
+        if let Some(media_identifier) = value.parent_media.take() {
             if let Some(media) = media_identifier.into_overview() {
                 builder = builder.background(media.images().fanart());
             }
 
             builder = builder.parent_media(media_identifier);
         }
-        if let Some(e) = value.quality {
+        if let Some(e) = value.quality.take() {
             builder = builder.quality(e.as_str());
         }
-        if let Some(e) = value.torrent {
-            if let Ok(stream) = e.downcast::<DefaultTorrentStream>() {
-                builder = builder.torrent_stream(stream);
-            }
+        if let Some(TorrentData::Stream(stream)) = value.torrent.take() {
+            builder = builder.torrent_stream(stream);
         }
         if subtitles_enabled {
-            if let Some(e) = value.subtitle.subtitle {
+            if let Some(e) = value.subtitle.subtitle.take() {
                 builder = builder.subtitle(e);
             }
         }
 
-        builder
-            .media(
-                value
-                    .media
-                    .expect("expected a media item to have been present"),
-            )
-            .build()
+        Ok(builder.media(media).build())
     }
 }
 
@@ -862,7 +837,7 @@ mod tests {
         let url = "http://localhost:8090/my-video.mkv";
         let title = "MyVideoItem";
         let auto_resume = 50000u64;
-        let data = LoadingData {
+        let mut data = LoadingData {
             url: Some(url.to_string()),
             title: Some(title.to_string()),
             caption: None,
@@ -889,9 +864,9 @@ mod tests {
             },
         };
 
-        let result = PlayUrlRequest::from(data);
+        let result = PlayUrlRequest::try_from(&mut data);
 
-        assert_eq!(expected_result, result);
+        assert_eq!(Ok(expected_result), result);
     }
 
     #[test]
@@ -920,7 +895,6 @@ mod tests {
             thumb: None,
             torrents: Default::default(),
         };
-        let stream = Box::new(MockTorrentStream::new()) as Box<dyn TorrentStream>;
         let expected_result = PlayMediaRequest {
             base: PlayUrlRequest {
                 url: url.to_string(),
@@ -938,7 +912,7 @@ mod tests {
             parent_media: Some(Box::new(show.clone())),
             media: Box::new(episode.clone()),
             quality: quality.to_string(),
-            torrent_stream: stream.clone(),
+            torrent_stream: Box::new(MockTorrentStream::new()),
         };
 
         let result = PlayMediaRequestBuilder::builder()
@@ -948,7 +922,7 @@ mod tests {
             .quality(quality)
             .parent_media(Box::new(show))
             .media(Box::new(episode))
-            .torrent_stream(stream)
+            .torrent_stream(Box::new(MockTorrentStream::new()))
             .build();
 
         assert_eq!(expected_result, result)
@@ -989,9 +963,8 @@ mod tests {
             },
             torrent: Default::default(),
         };
-        let stream = MockTorrentStream::new();
         let mut data = LoadingData::from(item);
-        data.torrent = Some(Box::new(stream.clone()));
+        data.torrent = Some(TorrentData::Stream(Box::new(MockTorrentStream::new())));
         let expected_result = PlayMediaRequest {
             base: PlayUrlRequest {
                 url: url.to_string(),
@@ -1009,12 +982,12 @@ mod tests {
             parent_media: None,
             media: Box::new(media),
             quality: quality.to_string(),
-            torrent_stream: stream,
+            torrent_stream: Box::new(MockTorrentStream::new()),
         };
 
-        let result = PlayMediaRequest::from(data);
+        let result = PlayMediaRequest::try_from(&mut data);
 
-        assert_eq!(expected_result, result)
+        assert_eq!(Ok(expected_result), result)
     }
 
     #[test]
@@ -1061,9 +1034,8 @@ mod tests {
             },
             torrent: Default::default(),
         };
-        let stream = MockTorrentStream::new();
         let mut data = LoadingData::from(item);
-        data.torrent = Some(Box::new(stream.clone()));
+        data.torrent = Some(TorrentData::Stream(Box::new(MockTorrentStream::new())));
         let expected_result = PlayMediaRequest {
             base: PlayUrlRequest {
                 url: url.to_string(),
@@ -1081,12 +1053,12 @@ mod tests {
             parent_media: Some(Box::new(media)),
             media: Box::new(episode),
             quality: quality.to_string(),
-            torrent_stream: stream,
+            torrent_stream: Box::new(MockTorrentStream::new()),
         };
 
-        let result = PlayMediaRequest::from(data);
+        let result = PlayMediaRequest::try_from(&mut data);
 
-        assert_eq!(expected_result, result)
+        assert_eq!(Ok(expected_result), result)
     }
 
     #[test]
@@ -1094,7 +1066,7 @@ mod tests {
         let url = "http://localhost:8080/movie.mp4";
         let title = "FooBar";
         let thumb = "http://localhost:8080/thumbnail.jpg";
-        let data = LoadingData {
+        let mut data = LoadingData {
             url: Some(url.to_string()),
             title: Some(title.to_string()),
             caption: None,
@@ -1125,8 +1097,8 @@ mod tests {
             },
         };
 
-        let result = PlayUrlRequest::from(data);
+        let result = PlayUrlRequest::try_from(&mut data);
 
-        assert_eq!(expected, result);
+        assert_eq!(Ok(expected), result);
     }
 }

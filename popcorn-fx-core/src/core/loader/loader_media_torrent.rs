@@ -43,7 +43,7 @@ impl Debug for MediaTorrentUrlLoadingStrategy {
 
 #[async_trait]
 impl LoadingStrategy for MediaTorrentUrlLoadingStrategy {
-    async fn process(&self, mut data: LoadingData, context: &LoadingTaskContext) -> LoadingResult {
+    async fn process(&self, data: &mut LoadingData, context: &LoadingTaskContext) -> LoadingResult {
         if let Some(media) = data.media.as_ref() {
             if let Some(quality) = data.quality.as_ref() {
                 debug!(
@@ -110,7 +110,7 @@ impl LoadingStrategy for MediaTorrentUrlLoadingStrategy {
             }
         }
 
-        LoadingResult::Ok(data)
+        LoadingResult::Ok
     }
 
     async fn cancel(&self, data: LoadingData) -> CancellationResult {
@@ -172,16 +172,16 @@ mod tests {
             subtitle: Default::default(),
             torrent: Default::default(),
         };
-        let data = LoadingData::from(item);
+        let mut data = LoadingData::from(item);
         let task = create_loading_task!();
         let context = task.context();
         let runtime = context.runtime();
         let strategy = MediaTorrentUrlLoadingStrategy::new();
 
-        let result = runtime.block_on(strategy.process(data, &*context));
+        let result = runtime.block_on(strategy.process(&mut data, &*context));
 
-        if let LoadingResult::Ok(result) = result {
-            assert_eq!(Some(torrent_url.to_string()), result.url);
+        if let LoadingResult::Ok = result {
+            assert_eq!(Some(torrent_url.to_string()), data.url);
         } else {
             assert!(
                 false,

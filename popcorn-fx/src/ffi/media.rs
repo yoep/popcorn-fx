@@ -2,10 +2,10 @@ use std::os::raw::c_char;
 
 use log::{debug, error, info, trace};
 
-use popcorn_fx_core::{from_c_string, from_c_vec};
 use popcorn_fx_core::core::media::{
     Category, MediaType, MovieDetails, MovieOverview, ShowDetails, ShowOverview,
 };
+use popcorn_fx_core::{from_c_string, from_c_vec};
 
 use crate::ffi::{
     GenreC, MediaErrorC, MediaItemC, MediaResult, MediaSetC, MediaSetResult, SortByC,
@@ -202,8 +202,8 @@ mod test {
 
     use popcorn_fx_core::core::config::ProviderProperties;
     use popcorn_fx_core::core::media::{Genre, SortBy};
-    use popcorn_fx_core::into_c_string;
-    use popcorn_fx_core::testing::{init_logger, read_test_file_to_bytes};
+    use popcorn_fx_core::testing::read_test_file_to_bytes;
+    use popcorn_fx_core::{init_logger, into_c_string};
 
     use crate::test::default_args;
 
@@ -211,7 +211,7 @@ mod test {
 
     #[test]
     fn test_retrieve_available_movies() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let genre = GenreC::from(Genre::all());
@@ -234,7 +234,7 @@ mod test {
 
     #[test]
     fn test_retrieve_available_movies_error() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let genre = GenreC::from(Genre::all());
@@ -259,7 +259,7 @@ mod test {
 
     #[test]
     fn test_reset_movie_apis() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(default_args(temp_path));
@@ -269,7 +269,7 @@ mod test {
 
     #[test]
     fn test_retrieve_available_shows() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let genre = GenreC::from(Genre::all());
@@ -292,7 +292,7 @@ mod test {
 
     #[test]
     fn test_retrieve_available_shows_error() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let genre = GenreC::from(Genre::all());
@@ -317,7 +317,7 @@ mod test {
 
     #[test]
     fn test_retrieve_media_details() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let server = MockServer::start();
@@ -370,7 +370,7 @@ mod test {
 
     #[test]
     fn test_retrieve_media_details_error() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let imdb_id = "tt0000003";
@@ -402,7 +402,7 @@ mod test {
 
     #[test]
     fn test_dispose_media_items() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(default_args(temp_path));

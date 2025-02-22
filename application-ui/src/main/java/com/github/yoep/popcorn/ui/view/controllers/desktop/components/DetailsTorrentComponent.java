@@ -202,8 +202,7 @@ public class DetailsTorrentComponent implements Initializable {
                 .title(fileInfo.getFilename())
                 .subtitlesEnabled(true)
                 .subtitleInfo(subtitleInfo)
-                .torrentInfo(torrentInfo)
-                .torrentFileInfo(fileInfo)
+                .torrentFilename(fileInfo.getFilename())
                 .build());
         playlistManager.play(playlist);
     }

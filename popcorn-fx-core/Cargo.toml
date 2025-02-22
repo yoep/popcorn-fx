@@ -12,10 +12,12 @@ crate-type = ["rlib"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+popcorn-fx-torrent = { path = "../popcorn-fx-torrent" }
+
 async-trait.workspace = true
 bytes.workspace = true
 chrono = { workspace = true, features = ["serde"] }
-clap = { version = "4.5.7", features = ["derive"] }
+clap = { version = "4.5", features = ["derive"] }
 derive_more.workspace = true
 directories.workspace = true
 downcast-rs.workspace = true

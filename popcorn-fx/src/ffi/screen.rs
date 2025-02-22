@@ -71,9 +71,8 @@ pub extern "C" fn register_fullscreen_callback(
 #[cfg(test)]
 mod tests {
     use log::info;
+    use popcorn_fx_core::init_logger;
     use tempfile::tempdir;
-
-    use popcorn_fx_core::testing::init_logger;
 
     use crate::test::default_args;
 
@@ -90,7 +89,7 @@ mod tests {
 
     #[test]
     fn test_register_is_fullscreen_callback() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(default_args(temp_path));
@@ -103,7 +102,7 @@ mod tests {
 
     #[test]
     fn test_register_fullscreen_callback() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(default_args(temp_path));

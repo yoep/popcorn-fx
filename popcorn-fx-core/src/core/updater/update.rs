@@ -958,21 +958,21 @@ mod test {
     use httpmock::MockServer;
     use tempfile::tempdir;
 
-    use crate::assert_timeout_eq;
     use crate::core::config::PopcornProperties;
     use crate::core::platform::{PlatformInfo, PlatformType};
     use crate::core::updater::PatchInfo;
     use crate::testing::{
-        copy_test_file, init_logger, read_temp_dir_file_as_bytes, read_temp_dir_file_as_string,
+        copy_test_file, read_temp_dir_file_as_bytes, read_temp_dir_file_as_string,
         read_test_file_to_bytes, read_test_file_to_string, test_resource_filepath,
         MockDummyPlatformData,
     };
+    use crate::{assert_timeout_eq, init_logger};
 
     use super::*;
 
     #[test]
     fn test_poll_version() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let (server, settings) = create_server_and_settings(temp_path);
@@ -1032,7 +1032,7 @@ mod test {
 
     #[test]
     fn test_poll_older_version() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let (server, settings) = create_server_and_settings(temp_path);
@@ -1075,7 +1075,7 @@ mod test {
 
     #[test]
     fn test_poll_newer_version() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let (server, settings) = create_server_and_settings(temp_path);
@@ -1120,7 +1120,7 @@ mod test {
 
     #[test]
     fn test_poll_download_link_unavailable() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let (server, settings) = create_server_and_settings(temp_path);
@@ -1161,7 +1161,7 @@ mod test {
 
     #[test]
     fn test_download_application() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let (server, settings) = create_server_and_settings(temp_path);
@@ -1225,7 +1225,7 @@ mod test {
 
     #[test]
     fn test_download_runtime() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let (server, settings) = create_server_and_settings(temp_path);
@@ -1289,7 +1289,7 @@ mod test {
 
     #[test]
     fn test_download_not_found() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let (server, settings) = create_server_and_settings(temp_path);
@@ -1346,7 +1346,7 @@ mod test {
 
     #[test]
     fn test_install_no_update() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let (server, settings) = create_server_and_settings(temp_path);
@@ -1378,7 +1378,7 @@ mod test {
 
     #[test]
     fn test_install_update_application() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let application_patch_filepath = temp_dir.path().join("99.0.0").join("test.txt");
@@ -1459,7 +1459,7 @@ mod test {
 
     #[test]
     fn test_install_update() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let runtime_patch_filepath = temp_dir.path().join("runtimes").join("runtime.txt");
@@ -1537,7 +1537,7 @@ mod test {
 
     #[test]
     fn test_clean_updates_directory() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let updates_directory = temp_dir.path().join(UPDATE_DIRECTORY);
@@ -1586,7 +1586,7 @@ mod test {
 
     #[test]
     fn test_check_for_updates() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let (tx, rx) = channel();
@@ -1667,7 +1667,7 @@ mod test {
 
     #[tokio::test]
     async fn test_update_version_info_invalid_application_version() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let settings = create_simple_settings(temp_path);
@@ -1705,7 +1705,7 @@ mod test {
 
     #[test]
     fn test_builder_callback() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let (tx, rx) = channel();
@@ -1733,7 +1733,7 @@ mod test {
 
     #[test]
     fn test_register_callback() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let (tx, rx) = channel();
@@ -1762,7 +1762,7 @@ mod test {
 
     #[test]
     fn test_updater_builder_debug() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let builder = UpdaterBuilder::default()

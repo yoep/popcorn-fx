@@ -1,6 +1,6 @@
 use std::fmt::{Debug, Formatter};
 
-use downcast_rs::{DowncastSync, impl_downcast};
+use downcast_rs::{impl_downcast, DowncastSync};
 use log::{debug, trace, warn};
 #[cfg(any(test, feature = "testing"))]
 use mockall::automock;
@@ -116,13 +116,13 @@ mod tests {
     use std::sync::mpsc::channel;
     use std::time::Duration;
 
-    use crate::testing::init_logger;
+    use crate::init_logger;
 
     use super::*;
 
     #[test]
     fn test_is_fullscreen() {
-        init_logger();
+        init_logger!();
         let (tx, rx) = channel();
         let service = DefaultScreenService::new();
 
@@ -141,7 +141,7 @@ mod tests {
 
     #[test]
     fn test_toggle_fullscreen() {
-        init_logger();
+        init_logger!();
         let (tx, rx) = channel();
         let service = DefaultScreenService::new();
 
@@ -158,7 +158,7 @@ mod tests {
 
     #[test]
     fn test_fullscreen() {
-        init_logger();
+        init_logger!();
         let (tx, rx) = channel();
         let service = DefaultScreenService::new();
 

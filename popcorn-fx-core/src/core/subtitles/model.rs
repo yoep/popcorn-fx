@@ -410,7 +410,7 @@ impl PartialEq for Subtitle {
 
 #[cfg(test)]
 mod test {
-    use crate::testing::init_logger;
+    use crate::init_logger;
 
     use super::*;
 
@@ -543,7 +543,7 @@ mod test {
 
     #[test]
     fn test_subtitle_file_quality_present() {
-        init_logger();
+        init_logger!();
         let file_id = 49060;
         let name = "Frozen.2.2019.1080p.WEBRip.x264.AAC-[YTS.MX]".to_string();
         let expected_result = 1080;
@@ -565,7 +565,7 @@ mod test {
 
     #[test]
     fn test_subtitle_file_quality_not_present() {
-        init_logger();
+        init_logger!();
         let file_id = 49060;
         let name = "Frozen.II.2019.DVDScr.XVID.AC3.HQ.Hive-CM8".to_string();
 
@@ -626,7 +626,7 @@ mod test {
 
     #[test]
     fn subtitle_info_best_matching_file() {
-        init_logger();
+        init_logger!();
         let filename = "Lorem.S02E11.720p.AMZN.WEBRip.x264-GalaxyTV.mkv";
         let quality = Some(720);
         let expected_file = SubtitleFile::builder()

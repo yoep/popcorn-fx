@@ -259,7 +259,7 @@ mod test {
     use std::cmp::Ordering;
 
     use crate::core::subtitles::SubtitleFile;
-    use crate::testing::init_logger;
+    use crate::init_logger;
 
     #[test]
     fn test_ordering_quality() {
@@ -361,7 +361,7 @@ mod test {
 
     #[test]
     fn test_build_no_quality_set() {
-        init_logger();
+        init_logger!();
         let name = "MyFilename.720p.srt";
 
         let result = SubtitleFile::builder()

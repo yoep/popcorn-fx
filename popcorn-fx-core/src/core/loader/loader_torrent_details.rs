@@ -10,7 +10,7 @@ use crate::core::loader::task::LoadingTaskContext;
 use crate::core::loader::{
     CancellationResult, LoadingData, LoadingError, LoadingResult, LoadingStrategy,
 };
-use crate::core::torrents::TorrentManager;
+use crate::core::torrents::{Torrent, TorrentManager};
 
 /// Represents a loading strategy for handling torrent details.
 ///
@@ -49,7 +49,7 @@ impl Debug for TorrentDetailsLoadingStrategy {
 
 #[async_trait]
 impl LoadingStrategy for TorrentDetailsLoadingStrategy {
-    async fn process(&self, data: LoadingData, _context: &LoadingTaskContext) -> LoadingResult {
+    async fn process(&self, data: &mut LoadingData, context: &LoadingTaskContext) -> LoadingResult {
         trace!("Processing torrent details strategy for {:?}", data);
         if let Some(torrent) = data.torrent.as_ref() {
             // check if a specific file has been set to be loaded
@@ -58,8 +58,16 @@ impl LoadingStrategy for TorrentDetailsLoadingStrategy {
                 let handle = torrent.handle();
                 return match self.torrent_manager.info(&handle).await {
                     Ok(torrent_info) => {
+                        debug!(
+                            "Loading task {} loaded torrent details, {:?}",
+                            context, torrent_info
+                        );
+                        // remove the torrent from the manager
+                        self.torrent_manager.remove(&handle).await;
+                        // inform the event publisher about the torrent details
                         self.event_publisher
-                            .publish(Event::TorrentDetailsLoaded(torrent_info.clone()));
+                            .publish(Event::TorrentDetailsLoaded(torrent_info));
+                        // end the loading task
                         LoadingResult::Completed
                     }
                     Err(e) => LoadingResult::Err(LoadingError::TorrentError(e)),
@@ -71,7 +79,7 @@ impl LoadingStrategy for TorrentDetailsLoadingStrategy {
             debug!("No torrent information present, torrent details won't be loaded");
         }
 
-        LoadingResult::Ok(data)
+        LoadingResult::Ok
     }
 
     async fn cancel(&self, mut data: LoadingData) -> CancellationResult {
@@ -92,8 +100,8 @@ mod tests {
     use std::time::Duration;
 
     use crate::core::loader::loading_chain::DEFAULT_ORDER;
-    use crate::core::loader::SubtitleData;
-    use crate::core::torrents::{MockTorrentManager, TorrentHandle, TorrentInfo};
+    use crate::core::loader::{SubtitleData, TorrentData};
+    use crate::core::torrents::{MockTorrent, MockTorrentManager, TorrentHandle, TorrentInfo};
     use crate::{create_loading_task, init_logger};
 
     use super::*;
@@ -110,7 +118,10 @@ mod tests {
             total_files: 5,
             files: vec![],
         };
-        let data = LoadingData {
+        let torrent_handle = TorrentHandle::new();
+        let mut torrent = MockTorrent::new();
+        torrent.expect_handle().return_const(torrent_handle);
+        let mut data = LoadingData {
             url: None,
             title: Some("MyTorrentDetails".to_string()),
             caption: None,
@@ -120,17 +131,27 @@ mod tests {
             quality: None,
             auto_resume_timestamp: None,
             subtitle: SubtitleData::default(),
-            torrent: None,
+            torrent: Some(TorrentData::Torrent(Box::new(torrent))),
             torrent_file: None,
         };
         let (tx, rx) = channel();
         let event_publisher = Arc::new(EventPublisher::default());
-        let torrent_manager =
-            Arc::new(Box::new(MockTorrentManager::new()) as Box<dyn TorrentManager>);
+        let mut torrent_manager = MockTorrentManager::new();
+        let torrent_manager_handle = torrent_handle.clone();
+        let torrent_manager_torrent_info = torrent_info.clone();
+        torrent_manager.expect_remove().return_const(());
+        torrent_manager
+            .expect_info()
+            .withf(move |e| *e == torrent_manager_handle)
+            .times(1)
+            .returning(move |_| Ok(torrent_manager_torrent_info.clone()));
         let task = create_loading_task!();
         let context = task.context();
         let runtime = context.runtime();
-        let strategy = TorrentDetailsLoadingStrategy::new(event_publisher.clone(), torrent_manager);
+        let strategy = TorrentDetailsLoadingStrategy::new(
+            event_publisher.clone(),
+            Arc::new(Box::new(torrent_manager)),
+        );
 
         event_publisher.register(
             Box::new(move |event| {
@@ -140,7 +161,7 @@ mod tests {
             DEFAULT_ORDER,
         );
 
-        let result = runtime.block_on(strategy.process(data, &*context));
+        let result = runtime.block_on(strategy.process(&mut data, &*context));
         assert_eq!(LoadingResult::Completed, result);
 
         let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
@@ -159,6 +180,8 @@ mod tests {
     fn test_cancel() {
         init_logger!();
         let torrent_handle = TorrentHandle::new();
+        let mut torrent = MockTorrent::new();
+        torrent.expect_handle().return_const(torrent_handle);
         let data = LoadingData {
             url: None,
             title: Some("MyTorrentDetails".to_string()),
@@ -169,7 +192,7 @@ mod tests {
             quality: None,
             auto_resume_timestamp: None,
             subtitle: SubtitleData::default(),
-            torrent: None,
+            torrent: Some(TorrentData::Torrent(Box::new(torrent))),
             torrent_file: None,
         };
         let (tx, rx) = channel();
@@ -187,7 +210,7 @@ mod tests {
             Arc::new(Box::new(torrent_manager)),
         );
 
-        let result = runtime.block_on(strategy.cancel(data.clone()));
+        let result = runtime.block_on(strategy.cancel(data));
 
         if let Ok(_) = result {
             let result = rx.recv_timeout(Duration::from_millis(100)).unwrap();

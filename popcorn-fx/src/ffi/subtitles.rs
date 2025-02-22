@@ -235,8 +235,8 @@ mod test {
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::core::subtitles::model::Subtitle;
     use popcorn_fx_core::core::subtitles::SubtitleFile;
-    use popcorn_fx_core::testing::{copy_test_file, init_logger};
-    use popcorn_fx_core::{from_c_owned, from_c_vec};
+    use popcorn_fx_core::testing::copy_test_file;
+    use popcorn_fx_core::{from_c_owned, from_c_vec, init_logger};
 
     use crate::test::new_instance;
 
@@ -249,7 +249,7 @@ mod test {
 
     #[test]
     fn test_retrieve_subtitle_preference() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let preference = SubtitlePreference::Language(SubtitleLanguage::Danish);
@@ -267,7 +267,7 @@ mod test {
 
     #[test]
     fn test_update_subtitle_preference() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let preference = SubtitlePreference::Language(SubtitleLanguage::French);
@@ -282,7 +282,7 @@ mod test {
 
     #[test]
     fn test_default_subtitle_options() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = new_instance(temp_path);
@@ -299,7 +299,7 @@ mod test {
 
     #[test]
     fn test_subtitle_none() {
-        init_logger();
+        init_logger!();
 
         let result = from_c_owned(subtitle_none());
 
@@ -308,7 +308,7 @@ mod test {
 
     #[test]
     fn test_subtitle_custom() {
-        init_logger();
+        init_logger!();
 
         let result = from_c_owned(subtitle_custom());
 
@@ -317,7 +317,7 @@ mod test {
 
     #[test]
     fn test_register_subtitle_callback() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = new_instance(temp_path);
@@ -330,7 +330,7 @@ mod test {
 
     #[test]
     fn test_cleanup_subtitles_directory() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = new_instance(temp_path);
@@ -356,7 +356,7 @@ mod test {
 
     #[test]
     fn test_select_or_default_subtitle() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = new_instance(temp_path);
@@ -380,7 +380,7 @@ mod test {
 
     #[test]
     fn test_dispose_subtitle_info_set() {
-        init_logger();
+        init_logger!();
         let set = SubtitleInfoSet::from(vec![
             SubtitleInfoC::from(SubtitleInfo::none()),
             SubtitleInfoC::from(SubtitleInfo::custom()),
@@ -391,7 +391,7 @@ mod test {
 
     #[test]
     fn test_dispose_subtitle_info() {
-        init_logger();
+        init_logger!();
         let info = from_c_owned(subtitle_none());
 
         dispose_subtitle_info(Box::new(info));
@@ -426,7 +426,7 @@ mod test {
 
     #[test]
     fn test_dispose_subtitle_preference() {
-        init_logger();
+        init_logger!();
         let preference = SubtitlePreference::Language(SubtitleLanguage::Finnish);
 
         dispose_subtitle_preference(Box::new(preference));

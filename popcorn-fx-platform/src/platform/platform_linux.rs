@@ -123,7 +123,7 @@ impl Default for PlatformLinux {
 
 #[cfg(test)]
 mod test {
-    use popcorn_fx_core::testing::init_logger;
+    use popcorn_fx_core::init_logger;
 
     use crate::platform::platform_linux::PlatformLinux;
     use crate::platform::SystemPlatform;

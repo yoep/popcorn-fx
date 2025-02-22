@@ -62,8 +62,6 @@ class PlaylistItemTest {
                 .autoResumeTimestamp(1000L)
                 .subtitlesEnabled(true)
                 .subtitleInfo(SubtitleInfo.ByReference.from(subtitleInfo))
-                .torrentInfo(torrentInfo)
-                .torrentFileInfo(torrentFileInfo)
                 .build();
         var expectedResult = com.github.yoep.popcorn.backend.playlists.model.PlaylistItem.builder()
                 .url(url)
@@ -72,8 +70,6 @@ class PlaylistItemTest {
                 .autoResumeTimestamp(1000L)
                 .subtitlesEnabled(true)
                 .subtitleInfo(subtitleInfo)
-                .torrentInfo(ffiItem.getTorrentInfo())
-                .torrentFileInfo(ffiItem.getTorrentFileInfo())
                 .build();
 
         var result = com.github.yoep.popcorn.backend.playlists.model.PlaylistItem.from(ffiItem);

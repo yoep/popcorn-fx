@@ -119,7 +119,7 @@ impl Default for PlatformWin {
 
 #[cfg(test)]
 mod test {
-    use popcorn_fx_core::testing::init_logger;
+    use popcorn_fx_core::init_logger;
 
     use super::*;
 

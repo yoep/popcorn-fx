@@ -62,17 +62,13 @@ default = [
     "cache",
     "launcher",
     "loader",
-    "media",
     "platform",
-    "playback",
 ]
 
 cache = []
 launcher = []
 loader = []
-media = []
 platform = []
-playback = []
 testing = [
     "log4rs",
     "tempfile",

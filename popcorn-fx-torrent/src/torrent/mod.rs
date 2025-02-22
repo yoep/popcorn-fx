@@ -130,6 +130,7 @@ pub mod tests {
         TcpPeerListener, UtpPeerDiscovery,
     };
     use popcorn_fx_core::testing::read_test_file_to_bytes;
+    use rand::prelude::ThreadRng;
     use rand::{rng, Rng};
     use std::net::SocketAddr;
     use std::str::FromStr;
@@ -274,23 +275,15 @@ pub mod tests {
     ) -> Torrent {
         let runtime = Arc::new(Runtime::new().unwrap());
         let mut rng = rng();
-        let tcp_port_start = rng.random_range(6881..10000);
+        let tcp_peer = create_tcp_peer(&mut rng, &runtime);
         let utp_port_start = rng.random_range(11000..13000);
         let utp_discovery = UtpPeerDiscovery::new(
             available_port(utp_port_start, 15000).unwrap(),
             runtime.clone(),
         )
         .unwrap();
-        let listeners: Vec<Box<dyn PeerListener>> = vec![
-            Box::new(
-                TcpPeerListener::new(
-                    available_port(tcp_port_start, 11000).unwrap(),
-                    runtime.clone(),
-                )
-                .unwrap(),
-            ),
-            Box::new(utp_discovery.clone()),
-        ];
+        let listeners: Vec<Box<dyn PeerListener>> =
+            vec![Box::new(tcp_peer), Box::new(utp_discovery.clone())];
         let dialers: Vec<Box<dyn PeerDiscovery>> =
             vec![Box::new(TcpPeerDiscovery::new()), Box::new(utp_discovery)];
 
@@ -406,5 +399,17 @@ pub mod tests {
                     .unwrap(),
             ),
         ]
+    }
+
+    fn create_tcp_peer(rng: &mut ThreadRng, runtime: &Arc<Runtime>) -> TcpPeerListener {
+        loop {
+            let tcp_port_start = rng.random_range(6881..10000);
+            if let Ok(peer) = TcpPeerListener::new(
+                available_port(tcp_port_start, 11000).unwrap(),
+                runtime.clone(),
+            ) {
+                return peer;
+            }
+        }
     }
 }

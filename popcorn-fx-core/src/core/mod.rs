@@ -10,11 +10,9 @@ pub mod images;
 pub mod launcher;
 #[cfg(feature = "loader")]
 pub mod loader;
-#[cfg(feature = "media")]
 pub mod media;
 #[cfg(feature = "platform")]
 pub mod platform;
-#[cfg(feature = "playback")]
 pub mod playback;
 pub mod players;
 pub mod playlist;

@@ -71,6 +71,7 @@ public class HealthService {
         if (healthFuture != null && !healthFuture.isDone()) {
             log.trace("Cancelling current health request");
             healthFuture.cancel(true);
+            healthFuture = null;
         }
     }
 

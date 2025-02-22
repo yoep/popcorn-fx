@@ -1,5 +1,5 @@
 use std::path::{Path, PathBuf};
-use std::process::{Command, ExitStatus};
+use std::process::{Command, ExitStatus, Stdio};
 use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -190,7 +190,10 @@ impl Bootstrapper {
         command
             .arg("-jar")
             .arg(jar_path.to_str().unwrap())
-            .args(self.args.clone());
+            .args(self.args.clone())
+            .stdin(Stdio::inherit())
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit());
 
         command
     }

@@ -31,11 +31,4 @@ public interface TorrentFileInfo extends Serializable, Comparable<TorrentFileInf
      * @return Returns the file index.
      */
     int getFileIndex();
-
-    /**
-     * Get the torrent info of this torrent file.
-     *
-     * @return Returns the torrent info.
-     */
-    TorrentInfo getTorrentInfo();
 }

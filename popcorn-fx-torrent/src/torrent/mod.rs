@@ -275,16 +275,16 @@ pub mod tests {
         let runtime = Arc::new(Runtime::new().unwrap());
         let mut rng = rng();
         let tcp_port_start = rng.random_range(6881..10000);
-        let utp_port_start = rng.random_range(6881..10000);
+        let utp_port_start = rng.random_range(11000..13000);
         let utp_discovery = UtpPeerDiscovery::new(
-            available_port(utp_port_start, 31000).unwrap(),
+            available_port(utp_port_start, 15000).unwrap(),
             runtime.clone(),
         )
         .unwrap();
         let listeners: Vec<Box<dyn PeerListener>> = vec![
             Box::new(
                 TcpPeerListener::new(
-                    available_port(tcp_port_start, 31000).unwrap(),
+                    available_port(tcp_port_start, 11000).unwrap(),
                     runtime.clone(),
                 )
                 .unwrap(),

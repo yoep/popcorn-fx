@@ -64,16 +64,22 @@ impl TorrentFileValidationOperation {
                     })
                     .collect();
 
+                let valid_pieces: usize;
                 select! {
                     _ = context.cancelled() => return,
-                    _ = future::join_all(futures) => {},
+                    result = future::join_all(futures) => {
+                        valid_pieces = result.into_iter()
+                            .map(|e| e.unwrap_or(0))
+                            .sum();
+                    },
                 }
 
                 let time_taken = start.elapsed();
                 info!(
-                    "Torrent {} completed {} file validation(s) in {}.{:03} seconds",
+                    "Torrent {} completed {} file validation(s) ({} valid chunks) in {}.{:03} seconds",
                     context,
                     files.len(),
+                    valid_pieces,
                     time_taken.as_secs(),
                     time_taken.subsec_millis()
                 );
@@ -92,8 +98,18 @@ impl TorrentFileValidationOperation {
         *self.state.lock().await = ValidationState::Validating;
     }
 
-    async fn validate_chunk(torrent: Arc<TorrentContext>, chunk: usize, pieces_per_chunk: usize) {
-        let mut pieces: Vec<Piece>;
+    /// Validate a chunk of pieces from the torrent.
+    /// This will retrieve the underlying bytes of the pieces from the storage device and validate if the piece has been completed.
+    ///
+    /// # Returns
+    ///
+    /// It returns the total number of valid pieces within the chunk.
+    async fn validate_chunk(
+        torrent: Arc<TorrentContext>,
+        chunk: usize,
+        pieces_per_chunk: usize,
+    ) -> usize {
+        let pieces: Vec<Piece>;
         let piece_range: Range<usize>;
         let total_pieces: usize;
 
@@ -143,7 +159,7 @@ impl TorrentFileValidationOperation {
 
                 let completed_pieces: Vec<PieceIndex>;
                 select! {
-                    _ = torrent.cancelled() => return,
+                    _ = torrent.cancelled() => return valid_pieces,
                     result = future::join_all(futures) => {
                         completed_pieces = result.into_iter()
                             .flat_map(|e| e
@@ -168,12 +184,15 @@ impl TorrentFileValidationOperation {
                 if !completed_pieces.is_empty() {
                     torrent.pieces_completed(completed_pieces).await;
                 }
+
+                valid_pieces
             }
             Err(e) => {
                 warn!(
                     "Torrent {} failed to validate chunk {:?}, {}",
                     torrent, torrent_range, e
                 );
+                0
             }
         }
     }

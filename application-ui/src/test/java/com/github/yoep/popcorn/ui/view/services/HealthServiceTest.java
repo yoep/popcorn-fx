@@ -2,6 +2,7 @@ package com.github.yoep.popcorn.ui.view.services;
 
 import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentHealthResult;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentHealth;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
@@ -17,6 +18,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 
@@ -35,17 +37,20 @@ class HealthServiceTest {
     void testCalculateHealth_whenInvoked_shouldCallCalculateHealthOnTorrentService() {
         var seeds = 10;
         var peers = 20;
+        var expectedResult = new TorrentHealth.ByReference();
+        when(fxLib.calculate_torrent_health(isA(PopcornFx.class), isA(Integer.class), isA(Integer.class))).thenReturn(expectedResult);
 
-        healthService.calculateHealth(seeds, peers);
+        var result = healthService.calculateHealth(seeds, peers);
 
         verify(fxLib).calculate_torrent_health(instance, seeds, peers);
+        assertEquals(expectedResult, result);
     }
 
     @Test
     void testGetTorrentHealth_whenPreviousFutureIsStillRunning_shouldCancelPreviousFuture() {
         var firstUrl = "lorem";
         var secondUrl = "ipsum";
-        when(fxLib.calculate_torrent_health(eq(instance), anyInt(), anyInt()))
+        lenient().when(fxLib.calculate_torrent_health(eq(instance), anyInt(), anyInt()))
                 .thenAnswer(invocation -> {
                     // how to sleep thread
                     try {
@@ -65,20 +70,21 @@ class HealthServiceTest {
     }
 
     @Test
-    void testOnLoadMediaTorrent_whenPreviousFutureIsStillRunning_shouldCancelPreviousFuture() throws ExecutionException, InterruptedException,
-            TimeoutException {
+    void testOnLoadMediaTorrent_whenPreviousFutureIsStillRunning_shouldCancelPreviousFuture() {
         var firstUrl = "lorem";
         var wait = new CompletableFuture<Void>();
+        lenient().doAnswer(invocations -> {
+            Thread.sleep(1000);
+            return new TorrentHealthResult.ByValue();
+        }).when(fxLib).torrent_health_from_uri(isA(PopcornFx.class), isA(String.class));
         eventPublisher.register(CloseDetailsEvent.class, event -> {
             wait.complete(null);
             return null;
         }, EventPublisher.LOWEST_ORDER);
 
-        healthService.getTorrentHealth(firstUrl);
-        var future = healthService.healthFuture;
+        var future = healthService.getTorrentHealth(firstUrl);
         eventPublisher.publish(new CloseDetailsEvent(this));
 
-        wait.get(200, TimeUnit.MILLISECONDS);
         assertTrue(future.isCancelled());
     }
 }

@@ -63,7 +63,6 @@ class PopcornTimeStarterTest {
         ioc.registerInstance(fxLib);
         ioc.registerInstance(popcornFx);
         ioc.registerInstance(applicationConfig);
-        PopcornTimeStarter.INIT_TORRENT_SERVICES.set(false);
 
         PopcornTimeStarter.onInit(ioc);
         var result = ioc.getInstance(PopcornPlayer.class);

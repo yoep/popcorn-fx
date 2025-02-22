@@ -14,7 +14,6 @@ use tokio_util::sync::CancellationToken;
 pub struct TcpPeerListener {
     port: u16,
     receiver: UnboundedReceiver<PeerEntry>,
-    runtime: Arc<Runtime>,
     cancellation_token: CancellationToken,
 }
 
@@ -57,7 +56,6 @@ impl TcpPeerListener {
         Ok(Self {
             port,
             receiver,
-            runtime,
             cancellation_token,
         })
     }

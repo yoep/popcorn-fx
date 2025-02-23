@@ -148,7 +148,8 @@ impl TorrentCollection {
 #[cfg(test)]
 mod test {
     use crate::init_logger;
-    use crate::testing::{copy_test_file, init_logger};
+    use crate::testing::copy_test_file;
+
     use tempfile::tempdir;
 
     use super::*;

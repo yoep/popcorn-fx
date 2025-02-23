@@ -267,7 +267,6 @@ impl Drop for InnerSubtitleManager {
 #[cfg(test)]
 mod test {
     use std::path::PathBuf;
-
     use tempfile::tempdir;
 
     use crate::core::config::{
@@ -276,7 +275,7 @@ mod test {
     };
     use crate::core::media::Category;
     use crate::init_logger;
-    use crate::testing::{copy_test_file, init_logger};
+    use crate::testing::copy_test_file;
 
     use super::*;
 

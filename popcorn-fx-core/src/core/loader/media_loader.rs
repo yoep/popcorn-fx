@@ -593,15 +593,43 @@ mod mock {
 #[cfg(test)]
 mod tests {
     use crate::core::block_in_place_runtime;
-    use crate::core::loader::loading_chain::DEFAULT_ORDER;
     use crate::core::loader::task::LoadingTaskContext;
     use crate::core::loader::{MockLoadingStrategy, SubtitleData};
     use crate::init_logger;
-    use std::sync::mpsc::channel;
+    use std::sync::mpsc::{channel, Sender};
     use std::time::Duration;
     use tokio::time;
 
     use super::*;
+
+    #[derive(Debug, Display)]
+    #[display(fmt = "WaitLoadingStrategy")]
+    struct WaitLoadingStrategy {
+        sender: Sender<LoadingData>,
+    }
+
+    impl WaitLoadingStrategy {
+        fn new(sender: Sender<LoadingData>) -> Self {
+            Self { sender }
+        }
+    }
+
+    #[async_trait]
+    impl LoadingStrategy for WaitLoadingStrategy {
+        async fn process(
+            &self,
+            data: &mut LoadingData,
+            context: &LoadingTaskContext,
+        ) -> LoadingResult {
+            self.sender.send(data.clone()).unwrap();
+            time::sleep(Duration::from_secs(1)).await;
+            LoadingResult::Completed
+        }
+
+        async fn cancel(&self, data: LoadingData) -> CancellationResult {
+            Ok(data)
+        }
+    }
 
     #[test]
     fn test_load_data_from_str() {
@@ -679,11 +707,7 @@ mod tests {
         };
         let (tx, rx) = channel();
         let expected_result = LoadingData::from(item.clone());
-        let mut strategy = MockLoadingStrategy::new();
-        strategy.expect_process().returning(move |e, _| {
-            tx.send(e.clone()).unwrap();
-            LoadingResult::Completed
-        });
+        let strategy = WaitLoadingStrategy::new(tx);
         let chain: Vec<Box<dyn LoadingStrategy>> = vec![Box::new(strategy)];
         let loader = DefaultMediaLoader::new(chain);
         let runtime = &loader.inner.runtime;

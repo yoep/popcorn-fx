@@ -719,7 +719,7 @@ mod test {
     use crate::core::config::{PopcornSettings, SubtitleSettings, UiSettings};
     use crate::init_logger;
     use crate::testing::{
-        copy_test_file, init_logger, read_temp_dir_file_as_bytes, read_temp_dir_file_as_string,
+        copy_test_file, read_temp_dir_file_as_bytes, read_temp_dir_file_as_string,
         read_test_file_to_bytes,
     };
 

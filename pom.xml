@@ -367,6 +367,7 @@
                         --add-opens application.backend/com.github.yoep.popcorn.backend.subtitles.ffi=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend.subtitles.model=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend.subtitles=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.torrent=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend.updater=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend.utils=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend=ALL-UNNAMED

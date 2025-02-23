@@ -5,7 +5,7 @@ import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
-import com.github.yoep.popcorn.backend.adapters.torrent.TorrentStreamListener;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
@@ -141,15 +141,15 @@ class PlayerExternalComponentServiceTest {
 
     @Test
     void testOnPlayerTorrent_whenDownloadStatusIsChanged_shouldInvokedListeners() {
-        var streamListenerHolder = new AtomicReference<TorrentStreamListener>();
+        var streamListenerHolder = new AtomicReference<TorrentListener>();
         var streamHandle = new Handle(123L);
         var downloadStatus = mock(DownloadStatus.class);
         var playerListener = mock(PlayerExternalListener.class);
         var request = mock(PlayRequest.class);
         doAnswer(invocation -> {
-            streamListenerHolder.set(invocation.getArgument(1, TorrentStreamListener.class));
+            streamListenerHolder.set(invocation.getArgument(1, TorrentListener.class));
             return null;
-        }).when(torrentService).addListener(isA(Handle.class), isA(TorrentStreamListener.class));
+        }).when(torrentService).addListener(isA(Handle.class), isA(TorrentListener.class));
         when(request.getStreamHandle()).thenReturn(Optional.of(streamHandle));
         service.addListener(playerListener);
 
@@ -175,6 +175,6 @@ class PlayerExternalComponentServiceTest {
         listener.onPlayerPlaybackChanged(request);
 
         verify(playerListener).onRequestChanged(request);
-        verify(torrentService).addListener(eq(streamHandle), isA(TorrentStreamListener.class));
+        verify(torrentService).addListener(eq(streamHandle), isA(TorrentListener.class));
     }
 }

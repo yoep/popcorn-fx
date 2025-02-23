@@ -199,6 +199,26 @@ enum class TorrentHealthState : uint32_t {
   Excellent,
 };
 
+/// The states of the torrent
+enum class TorrentState : uint8_t {
+  /// The torrent is being initialized
+  Initializing,
+  /// The torrent is trying to retrieve the metadata from peers.
+  RetrievingMetadata,
+  /// The torrent has not started its download yet, and is currently checking existing files.
+  CheckingFiles,
+  /// The torrent is being downloaded. This is the state most torrents will be in most of the time.
+  Downloading,
+  /// In this state the torrent has finished downloading but still doesn't have the entire torrent.
+  Finished,
+  /// In this state the torrent has finished downloading and is a pure seeder.
+  Seeding,
+  /// The torrent is currently paused and no longer executing any operations.
+  Paused,
+  /// The torrent encountered an unrecoverable error.
+  Error,
+};
+
 /// The state of the [TorrentStream].
 enum class TorrentStreamState : int32_t {
   /// The initial state of the torrent stream.
@@ -831,7 +851,7 @@ struct PlayRequestC {
   uint64_t *auto_resume_timestamp;
   /// The stream handle pointer of the play request.
   /// This handle can be used to retrieve more information about the underlying stream.
-  int64_t *stream_handle;
+  int64_t *torrent_handle;
   /// The subtitle playback information for this request
   PlaySubtitleRequestC subtitle;
 };
@@ -1044,17 +1064,17 @@ struct DownloadStatusC {
   uint64_t total_size;
 };
 
-/// Represents a torrent stream event in C-compatible form.
-struct TorrentStreamEventC {
+/// Represents a torrent event in C-compatible form.
+struct TorrentEventC {
   enum class Tag {
-    /// Indicates a change in the state of the torrent stream.
+    /// Indicates a change in the state of the torrent.
     StateChanged,
-    /// Indicates a change in the download status of the torrent stream.
+    /// Indicates a change in the metric statics of the torrent.
     DownloadStatus,
   };
 
   struct StateChanged_Body {
-    TorrentStreamState _0;
+    TorrentState _0;
   };
 
   struct DownloadStatus_Body {
@@ -1275,6 +1295,9 @@ struct SubtitleEventC {
 
 /// The C callback for the subtitle events.
 using SubtitleCallbackC = void(*)(SubtitleEventC);
+
+/// Type alias for a callback that handles torrent stream events.
+using TorrentEventCallback = void(*)(TorrentEventC);
 
 /// Type alias for the C-compatible authorization open function.
 using AuthorizationOpenC = bool(*)(char *uri);
@@ -1816,7 +1839,7 @@ void dispose_torrent_collection(Box<TorrentCollectionSet> collection_set);
 
 void dispose_torrent_health(Box<TorrentHealthC> health);
 
-void dispose_torrent_stream_event_value(TorrentStreamEventC event);
+void dispose_torrent_stream_event_value(TorrentEventC event);
 
 /// Disposes a tracking event value.
 ///
@@ -2333,6 +2356,9 @@ void register_settings_callback(PopcornFX *popcorn_fx, ApplicationConfigCallback
 /// * `popcorn_fx` - A mutable reference to a `PopcornFX` instance.
 /// * `callback` - A function pointer to the C callback function.
 void register_subtitle_callback(PopcornFX *popcorn_fx, SubtitleCallbackC callback);
+
+/// Register a new callback for torrent events.
+void register_torrent_event_callback(PopcornFX *popcorn_fx, int64_t handle, TorrentEventCallback callback);
 
 /// Registers a callback function to handle authorization URI openings from C code.
 ///

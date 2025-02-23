@@ -7,12 +7,14 @@ popcorn:
   loggers:
     popcorn_fx:
       level: warn
+    popcorn_fx::ffi:
+      level: warn
     popcorn_fx_core:
       level: warn
     popcorn_fx_core::core::loader:
-      level: debug
+      level: info
     popcorn_fx_core::core::torrents:
-      level: debug
+      level: info
     popcorn_fx_players:
       level: warn
     popcorn_fx_opensubtitles:

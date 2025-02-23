@@ -10,8 +10,8 @@ use downcast_rs::{impl_downcast, DowncastSync};
 use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use log::{debug, error, trace, warn};
 use popcorn_fx_torrent::torrent::{
-    FileIndex, FilePriority, FxTorrentSession, Magnet, Session, TorrentEvent, TorrentFiles,
-    TorrentFlags, TorrentHealth, TorrentState,
+    FileIndex, FilePriority, FxTorrentSession, Magnet, Session, TorrentError, TorrentEvent,
+    TorrentFiles, TorrentFlags, TorrentHealth, TorrentState,
 };
 use std::collections::HashMap;
 use std::fmt::Debug;

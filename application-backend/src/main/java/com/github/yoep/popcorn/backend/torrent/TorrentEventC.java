@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.backend.torrent;
 
 import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentStreamState;
+import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentState;
 import com.sun.jna.FromNativeContext;
 import com.sun.jna.NativeMapped;
 import com.sun.jna.Structure;
@@ -18,8 +18,8 @@ import java.util.Optional;
 @ToString
 @EqualsAndHashCode(callSuper = false)
 @Structure.FieldOrder({"tag", "union"})
-public class TorrentStreamEventC extends Structure implements Closeable {
-    public static class ByValue extends TorrentStreamEventC implements Structure.ByValue {
+public class TorrentEventC extends Structure implements Closeable {
+    public static class ByValue extends TorrentEventC implements Structure.ByValue {
         @Override
         public void close() {
             super.close();
@@ -28,7 +28,7 @@ public class TorrentStreamEventC extends Structure implements Closeable {
     }
 
     public Tag tag;
-    public TorrentStreamEventCUnion union;
+    public TorrentEventCUnion union;
 
     @Override
     public void read() {
@@ -54,7 +54,7 @@ public class TorrentStreamEventC extends Structure implements Closeable {
     @ToString
     @FieldOrder({"state"})
     public static class StateChanged_Body extends Structure implements Closeable {
-        public TorrentStreamState state;
+        public TorrentState state;
 
         @Override
         public void close() {
@@ -77,8 +77,7 @@ public class TorrentStreamEventC extends Structure implements Closeable {
     @Getter
     @ToString
     @EqualsAndHashCode(callSuper = false)
-    public static class TorrentStreamEventCUnion extends Union implements Closeable {
-
+    public static class TorrentEventCUnion extends Union implements Closeable {
         public StateChanged_Body stateChanged_body;
         public DownloadStatus_Body downloadStatus_body;
 

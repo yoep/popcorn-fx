@@ -463,7 +463,7 @@ pub struct PlayRequestC {
     pub auto_resume_timestamp: *mut u64,
     /// The stream handle pointer of the play request.
     /// This handle can be used to retrieve more information about the underlying stream.
-    pub stream_handle: *mut i64,
+    pub torrent_handle: *mut i64,
     /// The subtitle playback information for this request
     pub subtitle: PlaySubtitleRequestC,
 }
@@ -506,7 +506,7 @@ impl From<&PlayUrlRequest> for PlayRequestC {
             quality,
             auto_resume_timestamp,
             subtitle: PlaySubtitleRequestC::from(value.subtitle()),
-            stream_handle: ptr::null_mut(),
+            torrent_handle: ptr::null_mut(),
         }
     }
 }
@@ -542,7 +542,7 @@ impl From<&PlayStreamRequest> for PlayRequestC {
         } else {
             ptr::null_mut()
         };
-        let stream_handle = into_c_owned(value.torrent_stream.stream_handle().value());
+        let torrent_handle = into_c_owned(value.torrent_stream.handle().value());
 
         Self {
             url: into_c_string(value.base.url.clone()),
@@ -552,7 +552,7 @@ impl From<&PlayStreamRequest> for PlayRequestC {
             background,
             quality,
             auto_resume_timestamp,
-            stream_handle,
+            torrent_handle,
             subtitle: PlaySubtitleRequestC::from(value.subtitle()),
         }
     }
@@ -589,7 +589,7 @@ impl From<&PlayMediaRequest> for PlayRequestC {
         } else {
             ptr::null_mut()
         };
-        let stream_handle = into_c_owned(value.torrent_stream.stream_handle().value());
+        let torrent_handle = into_c_owned(value.torrent_stream.handle().value());
 
         Self {
             url: into_c_string(value.base.url.clone()),
@@ -599,7 +599,7 @@ impl From<&PlayMediaRequest> for PlayRequestC {
             background,
             quality,
             auto_resume_timestamp,
-            stream_handle,
+            torrent_handle,
             subtitle: PlaySubtitleRequestC::from(value.subtitle()),
         }
     }
@@ -859,7 +859,7 @@ mod tests {
         let mut torrent_stream = MockTorrentStream::new();
         torrent_stream
             .inner
-            .expect_stream_handle()
+            .expect_handle()
             .times(1)
             .return_const(handle.clone());
         let torrent_stream = Box::new(torrent_stream) as Box<dyn TorrentStream>;
@@ -877,7 +877,7 @@ mod tests {
         assert_eq!(title.to_string(), from_c_string(result.title));
         assert_eq!(thumb.to_string(), from_c_string(result.thumb));
         assert_eq!(background.to_string(), from_c_string(result.background));
-        assert_eq!(handle.value(), from_c_owned(result.stream_handle));
+        assert_eq!(handle.value(), from_c_owned(result.torrent_handle));
     }
 
     #[test]
@@ -890,7 +890,7 @@ mod tests {
         let mut torrent_stream = MockTorrentStream::new();
         torrent_stream
             .inner
-            .expect_stream_handle()
+            .expect_handle()
             .times(1)
             .return_const(handle.clone());
         let torrent_stream = Box::new(torrent_stream) as Box<dyn TorrentStream>;
@@ -916,6 +916,6 @@ mod tests {
         assert_eq!(title.to_string(), from_c_string(result.title));
         assert_eq!(thumb.to_string(), from_c_string(result.thumb));
         assert_eq!(background.to_string(), from_c_string(result.background));
-        assert_eq!(handle.value(), from_c_owned(result.stream_handle));
+        assert_eq!(handle.value(), from_c_owned(result.torrent_handle));
     }
 }

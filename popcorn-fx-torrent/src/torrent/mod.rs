@@ -402,13 +402,18 @@ pub mod tests {
     }
 
     fn create_tcp_peer(rng: &mut ThreadRng, runtime: &Arc<Runtime>) -> TcpPeerListener {
+        let mut port = available_port(rng.random_range(6881..10000), 11000).unwrap();
+        let mut attempts = 0;
         loop {
-            let tcp_port_start = rng.random_range(6881..10000);
-            if let Ok(peer) = TcpPeerListener::new(
-                available_port(tcp_port_start, 11000).unwrap(),
-                runtime.clone(),
-            ) {
-                return peer;
+            match TcpPeerListener::new(port, runtime.clone()) {
+                Ok(peer) => return peer,
+                Err(e) => {
+                    port += 1;
+                    attempts += 1;
+                    if attempts > 5 {
+                        panic!("failed to create a tcp peer listener, {}", e);
+                    }
+                }
             }
         }
     }

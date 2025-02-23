@@ -10,14 +10,10 @@ import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
-import com.github.yoep.popcorn.backend.adapters.torrent.TorrentStreamListener;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
-import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentStreamState;
-import com.github.yoep.popcorn.backend.lib.Handle;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import lombok.extern.slf4j.Slf4j;
-
-import java.util.Optional;
 
 @Slf4j
 public class PlayerControlsService extends AbstractListenerService<PlayerControlsListener> {
@@ -28,9 +24,7 @@ public class PlayerControlsService extends AbstractListenerService<PlayerControl
 
     private final PlaybackListener playbackListener = createPlaybackListener();
     private final PlayerListener playerListener = createPlayerListener();
-    private final TorrentStreamListener torrentStreamListener = createStreamListener();
-
-    private Handle lastKnownCallbackHandle;
+    private final TorrentListener torrentListener = createStreamListener();
 
     public PlayerControlsService(PopcornPlayer player, ScreenService screenService, VideoService videoService, TorrentService torrentService) {
         this.player = player;
@@ -106,11 +100,7 @@ public class PlayerControlsService extends AbstractListenerService<PlayerControl
     private void onPlayRequest(PlayRequest request) {
         invokeListeners(e -> e.onSubtitleStateChanged(request.isSubtitlesEnabled()));
 
-        Optional.ofNullable(lastKnownCallbackHandle)
-                .ifPresent(torrentService::removeListener);
-        lastKnownCallbackHandle = request.getStreamHandle()
-                .map(e -> torrentService.addListener(e, torrentStreamListener))
-                .orElse(null);
+        request.getStreamHandle().ifPresent(e -> torrentService.addListener(e, torrentListener));
     }
 
     private void onPlayerStateChanged(PlayerState state) {
@@ -167,13 +157,8 @@ public class PlayerControlsService extends AbstractListenerService<PlayerControl
         };
     }
 
-    private TorrentStreamListener createStreamListener() {
-        return new TorrentStreamListener() {
-            @Override
-            public void onStateChanged(TorrentStreamState newState) {
-                // no-op
-            }
-
+    private TorrentListener createStreamListener() {
+        return new TorrentListener() {
             @Override
             public void onDownloadStatus(DownloadStatus downloadStatus) {
                 onStreamProgressChanged(downloadStatus);

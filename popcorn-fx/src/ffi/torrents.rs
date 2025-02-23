@@ -1,8 +1,9 @@
-use crate::ffi::{ResultC, TorrentErrorC, TorrentHealthC, TorrentStreamEventC};
+use crate::ffi::{ResultC, TorrentErrorC, TorrentEventC, TorrentEventCallback, TorrentHealthC};
 use crate::PopcornFX;
-use log::trace;
+use log::{trace, warn};
 use popcorn_fx_core::core::block_in_place_runtime;
 use popcorn_fx_core::{from_c_string, into_c_owned};
+use popcorn_fx_torrent::torrent::TorrentHandle;
 use std::os::raw::c_char;
 
 /// Calculates the health of a torrent based on its magnet link.
@@ -54,6 +55,38 @@ pub extern "C" fn calculate_torrent_health(
     into_c_owned(TorrentHealthC::from(health))
 }
 
+/// Register a new callback for torrent events.
+#[no_mangle]
+pub extern "C" fn register_torrent_event_callback(
+    popcorn_fx: &mut PopcornFX,
+    handle: i64,
+    callback: TorrentEventCallback,
+) {
+    trace!("Registering torrent event callback from C");
+    let handle = TorrentHandle::from(handle);
+    let runtime = popcorn_fx.runtime();
+
+    match block_in_place_runtime(
+        popcorn_fx.torrent_manager().find_by_handle(&handle),
+        runtime,
+    ) {
+        None => warn!("Failed to find torrent {} for event callback", handle),
+        Some(torrent) => {
+            let mut receiver = torrent.subscribe();
+            runtime.spawn(async move {
+                while let Some(event) = receiver.recv().await {
+                    match TorrentEventC::try_from(&*event) {
+                        Ok(e) => callback(e),
+                        Err(e) => {
+                            warn!("Failed to convert torrent event to C: {}", e);
+                        }
+                    }
+                }
+            });
+        }
+    }
+}
+
 /// Clean the torrents directory.
 /// This will remove all existing torrents from the system.
 #[no_mangle]
@@ -63,7 +96,7 @@ pub extern "C" fn cleanup_torrents_directory(popcorn_fx: &mut PopcornFX) {
 }
 
 #[no_mangle]
-pub extern "C" fn dispose_torrent_stream_event_value(event: TorrentStreamEventC) {
+pub extern "C" fn dispose_torrent_stream_event_value(event: TorrentEventC) {
     trace!("Disposing torrent stream event from C {:?}", event);
     drop(event);
 }

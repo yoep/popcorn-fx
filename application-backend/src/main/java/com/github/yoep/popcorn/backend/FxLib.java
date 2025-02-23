@@ -37,9 +37,8 @@ import com.github.yoep.popcorn.backend.subtitles.ffi.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.ffi.SubtitleInfoSet;
 import com.github.yoep.popcorn.backend.subtitles.ffi.SubtitlePreference;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
-import com.github.yoep.popcorn.backend.torrent.DownloadStatusC;
-import com.github.yoep.popcorn.backend.torrent.TorrentStreamEventC;
-import com.github.yoep.popcorn.backend.torrent.TorrentStreamEventCallback;
+import com.github.yoep.popcorn.backend.torrent.TorrentEventCallback;
+import com.github.yoep.popcorn.backend.torrent.TorrentEventC;
 import com.github.yoep.popcorn.backend.torrent.collection.StoredTorrentSet;
 import com.github.yoep.popcorn.backend.updater.UpdateCallback;
 import com.github.yoep.popcorn.backend.updater.UpdateState;
@@ -137,6 +136,8 @@ public interface FxLib extends Library {
     TorrentHealth.ByReference calculate_torrent_health(PopcornFx instance, int seeders, int leechers);
 
     TorrentHealthResult.ByValue torrent_health_from_uri(PopcornFx instance, String uri);
+
+    void register_torrent_event_callback(PopcornFx instance, Long handle, TorrentEventCallback callback);
 
     void publish_event(PopcornFx instance, EventC.ByValue event);
 
@@ -304,7 +305,7 @@ public interface FxLib extends Library {
 
     void dispose_playlist_manager_event_value(PlaylistManagerEvent.ByValue event);
 
-    void dispose_torrent_stream_event_value(TorrentStreamEventC.ByValue event);
+    void dispose_torrent_stream_event_value(TorrentEventC.ByValue event);
 
     void dispose_torrent_health(TorrentHealth.ByReference health);
 

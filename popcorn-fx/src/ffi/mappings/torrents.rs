@@ -5,43 +5,14 @@ use popcorn_fx_core::core::torrents::{
 };
 use popcorn_fx_core::into_c_string;
 use popcorn_fx_torrent::torrent;
-use popcorn_fx_torrent::torrent::{TorrentHealth, TorrentHealthState, TorrentStats};
+use popcorn_fx_torrent::torrent::{
+    TorrentError, TorrentEvent, TorrentHealth, TorrentHealthState, TorrentStats,
+};
 use std::os::raw::c_char;
 use std::ptr;
 
-/// Type alias for a callback that verifies if the given byte is available.
-pub type HasByteCallbackC = extern "C" fn(i32, *mut u64) -> bool;
-
-/// Type alias for a callback that verifies if the given piece is available.
-pub type HasPieceCallbackC = extern "C" fn(u32) -> bool;
-
-/// Type alias for a callback that retrieves the total pieces of the torrent.
-pub type TotalPiecesCallbackC = extern "C" fn() -> i32;
-
-/// Type alias for a callback that prioritizes bytes.
-pub type PrioritizeBytesCallbackC = extern "C" fn(i32, *mut u64);
-
-/// Type alias for a callback that prioritizes pieces.
-pub type PrioritizePiecesCallbackC = extern "C" fn(i32, *mut u32);
-
-/// Type alias for a callback that updates the torrent mode to sequential.
-pub type SequentialModeCallbackC = extern "C" fn();
-
-/// Type alias for a callback that retrieves the torrent state.
-pub type TorrentStateCallbackC = extern "C" fn() -> TorrentState;
-
-/// Type alias for a callback that resolves torrent information and starts a download.
-pub type ResolveTorrentCallback = extern "C" fn(
-    file_info: TorrentFileInfoC,
-    torrent_directory: *mut c_char,
-    auto_start_download: bool,
-) -> TorrentC;
-
-/// Type alias for a callback that cancels a torrent download.
-pub type CancelTorrentCallback = extern "C" fn(*mut c_char);
-
 /// Type alias for a callback that handles torrent stream events.
-pub type TorrentStreamEventCallback = extern "C" fn(TorrentStreamEventC);
+pub type TorrentEventCallback = extern "C" fn(TorrentEventC);
 
 /// A C-compatible enum representing various errors related to torrents.
 #[repr(C)]
@@ -83,23 +54,6 @@ impl From<Error> for TorrentErrorC {
             Error::Io(e) => TorrentErrorC::Io(into_c_string(e)),
         }
     }
-}
-
-/// The C compatible abi struct for a [Torrent].
-/// This currently uses callbacks as it's a wrapper around a torrent implementation provided through C.
-#[repr(C)]
-#[derive(Debug, Clone)]
-pub struct TorrentC {
-    pub handle: *mut c_char,
-    /// The filepath to the torrent file
-    pub filepath: *mut c_char,
-    pub has_byte_callback: HasByteCallbackC,
-    pub has_piece_callback: HasPieceCallbackC,
-    pub total_pieces: TotalPiecesCallbackC,
-    pub prioritize_bytes: PrioritizeBytesCallbackC,
-    pub prioritize_pieces: PrioritizePiecesCallbackC,
-    pub sequential_mode: SequentialModeCallbackC,
-    pub torrent_state: TorrentStateCallbackC,
 }
 
 /// A C-compatible struct representing torrent information.
@@ -200,29 +154,35 @@ impl From<TorrentStats> for DownloadStatusC {
             peers: value.total_peers as u32,
             download_speed: value.download_useful_rate as u32,
             upload_speed: value.upload_useful_rate as u32,
-            downloaded: value.total_downloaded_useful as u64,
+            downloaded: value.total_completed_size as u64,
             total_size: value.total_size as u64,
         }
     }
 }
 
-/// Represents a torrent stream event in C-compatible form.
+/// Represents a torrent event in C-compatible form.
 #[repr(C)]
 #[derive(Debug)]
-pub enum TorrentStreamEventC {
-    /// Indicates a change in the state of the torrent stream.
-    StateChanged(TorrentStreamState),
-    /// Indicates a change in the download status of the torrent stream.
+pub enum TorrentEventC {
+    /// Indicates a change in the state of the torrent.
+    StateChanged(TorrentState),
+    /// Indicates a change in the metric statics of the torrent.
     DownloadStatus(DownloadStatusC),
 }
 
-impl From<TorrentStreamEvent> for TorrentStreamEventC {
-    fn from(value: TorrentStreamEvent) -> Self {
+impl TryFrom<&TorrentEvent> for TorrentEventC {
+    type Error = TorrentError;
+
+    fn try_from(value: &TorrentEvent) -> Result<Self, Self::Error> {
         match value {
-            TorrentStreamEvent::StateChanged(e) => TorrentStreamEventC::StateChanged(e),
-            TorrentStreamEvent::DownloadStatus(e) => {
-                TorrentStreamEventC::DownloadStatus(DownloadStatusC::from(e))
-            }
+            TorrentEvent::StateChanged(e) => Ok(TorrentEventC::StateChanged(*e)),
+            TorrentEvent::Stats(e) => Ok(TorrentEventC::DownloadStatus(DownloadStatusC::from(
+                e.clone(),
+            ))),
+            _ => Err(TorrentError::TorrentParse(format!(
+                "torrent event {:?} is not support",
+                value
+            ))),
         }
     }
 }
@@ -362,65 +322,6 @@ mod tests {
             "expected the file length/size to match"
         );
         assert_eq!(file_index as u32, result.file_index);
-    }
-
-    #[test]
-    fn test_torrent_stream_event_c_from() {
-        let state = TorrentStreamState::Streaming;
-        let event = TorrentStreamEvent::StateChanged(state.clone());
-
-        let result = TorrentStreamEventC::from(event);
-
-        if let TorrentStreamEventC::StateChanged(result) = result {
-            assert_eq!(state, result)
-        } else {
-            assert!(
-                false,
-                "expected TorrentStreamEventC::StateChanged, but got {:?} instead",
-                result
-            )
-        }
-
-        let status = TorrentStats {
-            upload: 0,
-            upload_rate: 0,
-            upload_useful: 0,
-            upload_useful_rate: 16,
-            download: 0,
-            download_rate: 0,
-            download_useful: 0,
-            download_useful_rate: 13,
-            total_uploaded: 0,
-            total_downloaded: 0,
-            total_downloaded_useful: 8200,
-            wanted_pieces: 10,
-            completed_pieces: 1,
-            total_size: 20000,
-            total_completed_size: 0,
-            total_peers: 5,
-        };
-        let expected_result = DownloadStatusC {
-            progress: 0.1,
-            seeds: 5,
-            peers: 5,
-            download_speed: 13,
-            upload_speed: 16,
-            downloaded: 8200,
-            total_size: 20000,
-        };
-        let event = TorrentStreamEvent::DownloadStatus(status);
-
-        let result = TorrentStreamEventC::from(event);
-
-        if let TorrentStreamEventC::DownloadStatus(result) = result {
-            assert_eq!(expected_result, result)
-        } else {
-            assert!(
-                false,
-                "expected TorrentStreamEventC::DownloadStatus, but got {:?} instead",
-                result
-            )
-        }
     }
 
     #[test]

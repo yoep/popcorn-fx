@@ -16,7 +16,6 @@ module application.backend {
     exports com.github.yoep.popcorn.backend.adapters.player.state;
     exports com.github.yoep.popcorn.backend.adapters.player;
     exports com.github.yoep.popcorn.backend.adapters.screen;
-    exports com.github.yoep.popcorn.backend.adapters.torrent.listeners;
     exports com.github.yoep.popcorn.backend.adapters.torrent.model;
     exports com.github.yoep.popcorn.backend.adapters.torrent.state;
     exports com.github.yoep.popcorn.backend.adapters.torrent;

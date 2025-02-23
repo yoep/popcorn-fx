@@ -18,7 +18,7 @@ use url::Url;
 use crate::core::config::ApplicationConfig;
 use crate::core::launcher::LauncherOptions;
 use crate::core::platform::PlatformData;
-use crate::core::storage::Storage;
+use crate::core::storage::{Storage, StorageError};
 use crate::core::updater::task::UpdateTask;
 use crate::core::updater::{UpdateError, VersionInfo};
 use crate::core::{updater, Callbacks, CoreCallback, CoreCallbacks};
@@ -942,7 +942,13 @@ impl Drop for InnerUpdater {
                 "Cleaned updates directory located at {:?}",
                 self.update_directory_path()
             ),
-            Err(e) => warn!("Failed to clean the updates directory, {}", e),
+            Err(e) => {
+                if let StorageError::NotFound(e) = e {
+                    debug!("Unable to clean updates directory, {}", e);
+                } else {
+                    warn!("Unable to clean updates directory, {}", e)
+                }
+            }
         }
     }
 }

@@ -124,20 +124,21 @@ macro_rules! available_port {
 #[cfg(test)]
 pub mod tests {
     use super::*;
+
     use crate::torrent::fs::TorrentFileSystemStorage;
     use crate::torrent::peer::{
-        BitTorrentPeer, PeerDiscovery, PeerId, PeerListener, PeerStream, TcpPeerDiscovery,
-        TcpPeerListener, UtpPeerDiscovery,
+        BitTorrentPeer, PeerDiscovery, PeerId, PeerStream, TcpPeerDiscovery, UtpPeerDiscovery,
     };
+
     use popcorn_fx_core::testing::read_test_file_to_bytes;
     use rand::prelude::ThreadRng;
     use rand::{rng, Rng};
     use std::net::SocketAddr;
     use std::str::FromStr;
-    use std::sync::Arc;
     use std::time::Duration;
     use tokio::net::TcpStream;
-    use tokio::runtime::Runtime;
+    use tokio::select;
+    use tokio::sync::mpsc::{channel, Receiver};
 
     /// Create the torrent metadata from the given uri.
     /// The uri can either point to a `.torrent` file or a magnet link.
@@ -154,142 +155,124 @@ pub mod tests {
     #[macro_export]
     macro_rules! create_torrent {
         ($uri:expr, $temp_dir:expr, $options:expr) => {
-            crate::torrent::tests::create_torrent_with_default_dialers_and_listeners(
+            crate::torrent::tests::create_torrent_with_default_discoveries(
                 $uri,
                 $temp_dir,
                 $options,
                 crate::torrent::TorrentConfig::builder().build(),
                 crate::torrent::DEFAULT_TORRENT_OPERATIONS(),
             )
+            .await
         };
         ($uri:expr, $temp_dir:expr, $options:expr, $config:expr) => {
-            crate::torrent::tests::create_torrent_with_default_dialers_and_listeners(
+            crate::torrent::tests::create_torrent_with_default_discoveries(
                 $uri,
                 $temp_dir,
                 $options,
                 $config,
                 crate::torrent::DEFAULT_TORRENT_OPERATIONS(),
             )
+            .await
         };
         ($uri:expr, $temp_dir:expr, $options:expr, $config:expr, $operations:expr) => {
-            crate::torrent::tests::create_torrent_with_default_dialers_and_listeners(
+            crate::torrent::tests::create_torrent_with_default_discoveries(
                 $uri,
                 $temp_dir,
                 $options,
                 $config,
                 $operations,
             )
+            .await
         };
-        ($uri:expr, $temp_dir:expr, $options:expr, $config:expr, $operations:expr, $dialers:expr) => {
-            crate::torrent::tests::create_torrent_with_default_listeners(
-                $uri,
-                $temp_dir,
-                $options,
-                $config,
-                $operations,
-                $dialers,
-            )
-        };
-        ($uri:expr, $temp_dir:expr, $options:expr, $config:expr, $operations:expr, $dialers:expr, $listeners:expr) => {
+        ($uri:expr, $temp_dir:expr, $options:expr, $config:expr, $operations:expr, $discoveries:expr) => {
             crate::torrent::tests::create_torrent_from_uri(
                 $uri,
                 $temp_dir,
                 $options,
                 $config,
                 $operations,
-                $dialers,
-                $listeners,
-                std::sync::Arc::new(tokio::runtime::Runtime::new().unwrap()),
+                $discoveries,
             )
-        };
-        ($uri:expr, $temp_dir:expr, $options:expr, $config:expr, $operations:expr, $dialers:expr, $listeners:expr, $runtime:expr) => {
-            crate::torrent::tests::create_torrent_from_uri(
-                $uri,
-                $temp_dir,
-                $options,
-                $config,
-                $operations,
-                $dialers,
-                $listeners,
-                $runtime,
-            )
+            .await
         };
     }
 
     /// Create a new torrent instance from the given uri.
     /// The uri can either be a [Magnet] uri or a filename to a torrent file within the testing resources.
-    pub fn create_torrent_from_uri(
+    pub async fn create_torrent_from_uri(
         uri: &str,
         temp_dir: &str,
         options: TorrentFlags,
         config: TorrentConfig,
         operations: Vec<TorrentOperationFactory>,
         discoveries: Vec<Box<dyn PeerDiscovery>>,
-        listeners: Vec<Box<dyn PeerListener>>,
-        runtime: Arc<Runtime>,
     ) -> Torrent {
         let torrent_info = create_metadata(uri);
-
-        Torrent::request()
+        let mut request = Torrent::request();
+        request
             .metadata(torrent_info)
-            .peer_dialers(discoveries)
-            .peer_listeners(listeners)
+            .peer_discoveries(discoveries)
             .options(options)
             .config(config)
             .operations(operations.iter().map(|e| e()).collect())
-            .storage(Box::new(TorrentFileSystemStorage::new(temp_dir)))
-            .runtime(runtime)
-            .build()
-            .unwrap()
+            .storage(Box::new(TorrentFileSystemStorage::new(temp_dir)));
+        request.build().unwrap()
     }
 
-    pub fn create_torrent_with_default_listeners(
-        uri: &str,
-        temp_dir: &str,
-        options: TorrentFlags,
-        config: TorrentConfig,
-        operations: Vec<TorrentOperationFactory>,
-        discoveries: Vec<Box<dyn PeerDiscovery>>,
-    ) -> Torrent {
-        let runtime = Arc::new(Runtime::new().unwrap());
-        let listeners = default_listeners(runtime.clone());
-
-        create_torrent_from_uri(
-            uri,
-            temp_dir,
-            options,
-            config,
-            operations,
-            discoveries,
-            listeners,
-            runtime,
-        )
-    }
-
-    pub fn create_torrent_with_default_dialers_and_listeners(
+    pub async fn create_torrent_with_default_discoveries(
         uri: &str,
         temp_dir: &str,
         options: TorrentFlags,
         config: TorrentConfig,
         operations: Vec<TorrentOperationFactory>,
     ) -> Torrent {
-        let runtime = Arc::new(Runtime::new().unwrap());
         let mut rng = rng();
-        let tcp_peer = create_tcp_peer(&mut rng, &runtime);
-        let utp_port_start = rng.random_range(11000..13000);
-        let utp_discovery = UtpPeerDiscovery::new(
-            available_port(utp_port_start, 15000).unwrap(),
-            runtime.clone(),
-        )
-        .unwrap();
-        let listeners: Vec<Box<dyn PeerListener>> =
-            vec![Box::new(tcp_peer), Box::new(utp_discovery.clone())];
-        let dialers: Vec<Box<dyn PeerDiscovery>> =
-            vec![Box::new(TcpPeerDiscovery::new()), Box::new(utp_discovery)];
+        let tcp_discovery = create_tcp_peer_discovery(&mut rng).await;
+        let utp_discovery =
+            UtpPeerDiscovery::new(available_port(rng.random_range(11000..13000), 15000).unwrap())
+                .unwrap();
+        let discoveries: Vec<Box<dyn PeerDiscovery>> =
+            vec![Box::new(tcp_discovery), Box::new(utp_discovery)];
 
-        create_torrent_from_uri(
-            uri, temp_dir, options, config, operations, dialers, listeners, runtime,
-        )
+        create_torrent_from_uri(uri, temp_dir, options, config, operations, discoveries).await
+    }
+
+    /// Receive a message from the given receiver, or panic if the timeout is reached.
+    #[macro_export]
+    macro_rules! recv_timeout {
+        ($receiver:expr, $timeout:expr) => {
+            crate::torrent::tests::recv_timeout(
+                $receiver,
+                $timeout,
+                "expected to receive an instance",
+            )
+            .await
+        };
+        ($receiver:expr, $timeout:expr, $message:expr) => {
+            crate::torrent::tests::recv_timeout($receiver, $timeout, $message).await
+        };
+    }
+
+    /// Receive a message from the given receiver, or panic if the timeout is reached.
+    ///
+    /// # Arguments
+    ///
+    /// * `receiver` - The receiver to receive the message from.
+    /// * `timeout` - The timeout to wait for the message.
+    /// * `message` - The message to print if the timeout is reached.
+    ///
+    /// # Returns
+    ///
+    /// It returns the received instance of `T`.
+    pub(crate) async fn recv_timeout<T>(
+        receiver: &mut Receiver<T>,
+        timeout: Duration,
+        message: &str,
+    ) -> T {
+        select! {
+            _ = tokio::time::sleep(timeout) => panic!("receiver timed-out, {}", message),
+            result = receiver.recv() => result.expect(message)
+        }
     }
 
     #[macro_export]
@@ -304,9 +287,10 @@ pub mod tests {
                     .protocol_extensions()
                     .clone(),
             )
+            .await
         };
         ($torrent:expr, $protocols:expr) => {
-            crate::torrent::tests::create_tcp_peer_pair($torrent, $torrent, $protocols)
+            crate::torrent::tests::create_tcp_peer_pair($torrent, $torrent, $protocols).await
         };
         ($incoming_torrent:expr, $outgoing_torrent:expr, $protocols:expr) => {
             crate::torrent::tests::create_tcp_peer_pair(
@@ -314,27 +298,25 @@ pub mod tests {
                 $outgoing_torrent,
                 $protocols,
             )
+            .await
         };
     }
 
-    pub fn create_tcp_peer_pair(
+    pub async fn create_tcp_peer_pair(
         incoming_torrent: &Torrent,
         outgoing_torrent: &Torrent,
         protocols: ProtocolExtensionFlags,
     ) -> (BitTorrentPeer, BitTorrentPeer) {
         let incoming_context = incoming_torrent.instance().unwrap();
         let outgoing_context = outgoing_torrent.instance().unwrap();
-        let incoming_runtime = incoming_context.runtime();
-        let outgoing_runtime = outgoing_context.runtime();
         let port_start = rng().random_range(6881..10000);
         let port = available_port!(port_start, 31000).unwrap();
-        let (tx, rx) = std::sync::mpsc::channel();
+        let (tx, mut rx) = channel(1);
 
         let incoming_context = incoming_context.clone();
         let extensions = incoming_context.extensions();
-        let incoming_runtime_thread = incoming_runtime.clone();
-        let mut listener = TcpPeerListener::new(port, incoming_runtime_thread.clone()).unwrap();
-        incoming_runtime.spawn(async move {
+        let listener = TcpPeerDiscovery::new(port).await.unwrap();
+        tokio::spawn(async move {
             if let Some(peer) = listener.recv().await {
                 if let PeerStream::Tcp(stream) = peer.stream {
                     tx.send(
@@ -346,10 +328,10 @@ pub mod tests {
                             protocols.clone(),
                             extensions,
                             Duration::from_secs(5),
-                            incoming_runtime_thread,
                         )
                         .await,
                     )
+                    .await
                     .unwrap()
                 }
             }
@@ -358,54 +340,30 @@ pub mod tests {
         let peer_context = outgoing_context.clone();
         let outgoing_extensions = outgoing_context.extensions();
         let addr = SocketAddr::new([127, 0, 0, 1].into(), port);
-        let stream = incoming_runtime.block_on(TcpStream::connect(addr)).unwrap();
-        let outgoing_peer = incoming_runtime
-            .block_on(BitTorrentPeer::new_outbound(
-                PeerId::new(),
-                addr,
-                PeerStream::Tcp(stream),
-                peer_context,
-                protocols,
-                outgoing_extensions,
-                Duration::from_secs(5),
-                outgoing_runtime.clone(),
-            ))
-            .expect("expected the outgoing connection to succeed");
+        let stream = TcpStream::connect(addr).await.unwrap();
+        let outgoing_peer = BitTorrentPeer::new_outbound(
+            PeerId::new(),
+            addr,
+            PeerStream::Tcp(stream),
+            peer_context,
+            protocols,
+            outgoing_extensions,
+            Duration::from_secs(5),
+        )
+        .await
+        .expect("expected the outgoing connection to succeed");
 
-        let incoming_peer = rx
-            .recv_timeout(Duration::from_secs(1))
-            .expect("expected an incoming peer")
-            .expect("expected the incoming connection to succeed");
-
+        let incoming_peer =
+            recv_timeout!(&mut rx, Duration::from_secs(1), "expected an incoming peer")
+                .expect("expected an incoming peer");
         (incoming_peer, outgoing_peer)
     }
 
-    /// Create the default test peer listeners
-    pub fn default_listeners(runtime: Arc<Runtime>) -> Vec<Box<dyn PeerListener>> {
-        let mut rng = rng();
-        let tcp_port_start = rng.random_range(6881..10000);
-        let utp_port_start = rng.random_range(6881..10000);
-
-        vec![
-            Box::new(
-                TcpPeerListener::new(
-                    available_port!(tcp_port_start, 31000).unwrap(),
-                    runtime.clone(),
-                )
-                .unwrap(),
-            ),
-            Box::new(
-                UtpPeerDiscovery::new(available_port!(utp_port_start, 31000).unwrap(), runtime)
-                    .unwrap(),
-            ),
-        ]
-    }
-
-    fn create_tcp_peer(rng: &mut ThreadRng, runtime: &Arc<Runtime>) -> TcpPeerListener {
+    async fn create_tcp_peer_discovery(rng: &mut ThreadRng) -> TcpPeerDiscovery {
         let mut port = available_port(rng.random_range(6881..10000), 11000).unwrap();
         let mut attempts = 0;
         loop {
-            match TcpPeerListener::new(port, runtime.clone()) {
+            match TcpPeerDiscovery::new(port).await {
                 Ok(peer) => return peer,
                 Err(e) => {
                     port += 1;

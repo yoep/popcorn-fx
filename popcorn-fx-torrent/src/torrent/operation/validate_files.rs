@@ -38,9 +38,8 @@ impl TorrentFileValidationOperation {
     async fn validate_files(&self, torrent: &Arc<TorrentContext>, files: Vec<File>) {
         let state = self.state.clone();
         let context = torrent.clone();
-        let runtime = torrent.runtime().clone();
 
-        torrent.runtime().spawn(async move {
+        tokio::spawn(async move {
             if let Some(pieces) = context.pieces().await {
                 debug!(
                     "Torrent {} is validating files {:?}",
@@ -56,7 +55,7 @@ impl TorrentFileValidationOperation {
                 let futures: Vec<_> = (0..total_chunks)
                     .into_iter()
                     .map(|chunk| {
-                        runtime.spawn(Self::validate_chunk(
+                        tokio::spawn(Self::validate_chunk(
                             context.clone(),
                             chunk,
                             pieces_per_chunk,
@@ -146,7 +145,7 @@ impl TorrentFileValidationOperation {
                         Some((piece, piece_bytes.to_vec()))
                     })
                     .map(|(piece, piece_bytes)| {
-                        torrent.runtime().spawn(async move {
+                        tokio::spawn(async move {
                             (
                                 TorrentContext::validate_piece_data(&piece, &piece_bytes),
                                 piece,
@@ -248,11 +247,10 @@ mod tests {
     use popcorn_fx_core::testing::copy_test_file;
     use std::time::Duration;
     use tempfile::tempdir;
-    use tokio::runtime::Runtime;
     use tokio::time;
 
-    #[test]
-    fn test_execute_state_validating() {
+    #[tokio::test]
+    async fn test_execute_state_validating() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -261,22 +259,20 @@ mod tests {
             temp_path,
             TorrentFlags::none(),
             TorrentConfig::default(),
+            vec![],
             vec![]
         );
         let context = torrent.instance().unwrap();
-        let runtime = context.runtime();
         let operation = TorrentFileValidationOperation::new();
 
-        runtime.block_on(async {
-            *operation.state.lock().await = ValidationState::Validating;
-        });
-        let result = runtime.block_on(operation.execute(&context));
+        *operation.state.lock().await = ValidationState::Validating;
+        let result = operation.execute(&context).await;
 
         assert_eq!(TorrentOperationResult::Stop, result);
     }
 
-    #[test]
-    fn test_execute_state_validated() {
+    #[tokio::test]
+    async fn test_execute_state_validated() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -285,22 +281,20 @@ mod tests {
             temp_path,
             TorrentFlags::none(),
             TorrentConfig::default(),
+            vec![],
             vec![]
         );
         let context = torrent.instance().unwrap();
-        let runtime = context.runtime();
         let operation = TorrentFileValidationOperation::new();
 
-        runtime.block_on(async {
-            *operation.state.lock().await = ValidationState::Validated;
-        });
-        let result = runtime.block_on(operation.execute(&context));
+        *operation.state.lock().await = ValidationState::Validated;
+        let result = operation.execute(&context).await;
 
         assert_eq!(TorrentOperationResult::Continue, result);
     }
 
-    #[test]
-    fn test_execute() {
+    #[tokio::test]
+    async fn test_execute() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -314,49 +308,45 @@ mod tests {
             temp_path,
             TorrentFlags::none(),
             TorrentConfig::default(),
+            vec![],
             vec![]
         );
         let context = torrent.instance().unwrap();
-        let runtime = context.runtime();
         let operation = TorrentFileValidationOperation::new();
 
         // create pieces & files
-        create_pieces_and_files(&context, runtime);
+        create_pieces_and_files(&context).await;
 
         // validate the file
-        runtime.block_on(async {
-            select! {
-                _ = time::sleep(Duration::from_secs(25)) => {},
-                _ = async {
-                    loop {
-                        if operation.execute(&context).await == TorrentOperationResult::Continue {
-                            break;
-                        }
-                        time::sleep(Duration::from_millis(50)).await;
+        select! {
+            _ = time::sleep(Duration::from_secs(25)) => {},
+            _ = async {
+                loop {
+                    if operation.execute(&context).await == TorrentOperationResult::Continue {
+                        break;
                     }
-                } => {},
-            };
+                    time::sleep(Duration::from_millis(50)).await;
+                }
+            } => {},
+        }
 
-            let result = operation.execute(&context).await;
-            assert_eq!(TorrentOperationResult::Continue, result);
-        });
+        let result = operation.execute(&context).await;
+        assert_eq!(TorrentOperationResult::Continue, result);
 
-        runtime.block_on(async {
-            let pieces = context.pieces_lock().read().await;
-            for piece in 0..30 {
-                assert_eq!(
-                    true,
-                    pieces.get(piece).unwrap().is_completed(),
-                    "expected piece {} to be completed",
-                    piece
-                );
-                assert_eq!(
-                    true,
-                    context.has_piece(piece).await,
-                    "expected piece bitfield {} to be completed",
-                    piece
-                );
-            }
+        let pieces = context.pieces_lock().read().await;
+        for piece in 0..30 {
+            assert_eq!(
+                true,
+                pieces.get(piece).unwrap().is_completed(),
+                "expected piece {} to be completed",
+                piece
+            );
+            assert_eq!(
+                true,
+                context.has_piece(piece).await,
+                "expected piece bitfield {} to be completed",
+                piece
+            );
 
             let result = context.stats().await;
             assert_eq!(
@@ -367,11 +357,11 @@ mod tests {
                 0, result.total_completed_size,
                 "expected total completed size to be > 0"
             );
-        });
+        }
     }
 
-    #[test]
-    fn test_calculate_chunks() {
+    #[tokio::test]
+    async fn test_calculate_chunks() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -380,16 +370,16 @@ mod tests {
             temp_path,
             TorrentFlags::none(),
             TorrentConfig::default(),
+            vec![],
             vec![]
         );
         let context = torrent.instance().unwrap();
-        let runtime = context.runtime();
 
         // create pieces & files
-        create_pieces_and_files(&context, runtime);
+        create_pieces_and_files(&context).await;
 
         // get the pieces from the torrent and calculate the chunks
-        let pieces = runtime.block_on(context.pieces_lock().read());
+        let pieces = context.pieces_lock().read().await;
         let (total_chunks, pieces_per_chunk) =
             TorrentFileValidationOperation::calculate_chunks(pieces.as_slice());
 
@@ -397,14 +387,12 @@ mod tests {
         assert_eq!(190, pieces_per_chunk);
     }
 
-    fn create_pieces_and_files(context: &Arc<TorrentContext>, runtime: &Arc<Runtime>) {
-        runtime.block_on(async {
-            let piece_operation = TorrentCreatePiecesOperation::new();
-            let file_operation = TorrentCreateFilesOperation::new();
+    async fn create_pieces_and_files(context: &Arc<TorrentContext>) {
+        let piece_operation = TorrentCreatePiecesOperation::new();
+        let file_operation = TorrentCreateFilesOperation::new();
 
-            // create the pieces and files
-            let _ = piece_operation.execute(&context).await;
-            let _ = file_operation.execute(&context).await;
-        });
+        // create the pieces and files
+        let _ = piece_operation.execute(&context).await;
+        let _ = file_operation.execute(&context).await;
     }
 }

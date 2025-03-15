@@ -100,6 +100,7 @@ mod tests {
             temp_path,
             TorrentFlags::none(),
             TorrentConfig::default(),
+            vec![],
             vec![]
         );
         let context = torrent.instance().unwrap();
@@ -121,6 +122,7 @@ mod tests {
             temp_path,
             TorrentFlags::none(),
             TorrentConfig::default(),
+            vec![],
             vec![]
         );
         let context = torrent.instance().unwrap();

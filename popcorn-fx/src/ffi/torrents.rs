@@ -92,7 +92,10 @@ pub extern "C" fn register_torrent_event_callback(
 #[no_mangle]
 pub extern "C" fn cleanup_torrents_directory(popcorn_fx: &mut PopcornFX) {
     trace!("Cleaning torrents directory from C");
-    popcorn_fx.torrent_manager().cleanup();
+    let torrent_manager = popcorn_fx.torrent_manager().clone();
+    popcorn_fx.runtime().spawn(async move {
+        torrent_manager.cleanup().await;
+    });
 }
 
 #[no_mangle]
@@ -110,7 +113,7 @@ pub extern "C" fn dispose_torrent_health(health: Box<TorrentHealthC>) {
 #[cfg(test)]
 mod test {
     use std::path::PathBuf;
-
+    use std::time::Duration;
     use tempfile::tempdir;
 
     use popcorn_fx_core::testing::copy_test_file;
@@ -143,9 +146,16 @@ mod test {
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = new_instance(temp_path);
-        let mut torrent_settings = instance.settings().user_settings().torrent_settings;
+        let settings = instance.settings().clone();
+        let mut torrent_settings = block_in_place_runtime(
+            settings.user_settings_ref(|e| e.torrent_settings.clone()),
+            instance.runtime(),
+        );
         torrent_settings.directory = PathBuf::from(temp_path);
-        instance.settings().update_torrent(torrent_settings);
+        block_in_place_runtime(
+            settings.update_torrent(torrent_settings.clone()),
+            instance.runtime(),
+        );
         let filepath = copy_test_file(
             temp_path,
             "example.mp4",
@@ -154,19 +164,26 @@ mod test {
 
         cleanup_torrents_directory(&mut instance);
 
-        assert_timeout_eq!(
-            Duration::from_millis(200),
-            false,
-            PathBuf::from(filepath.clone()).exists()
+        block_in_place_runtime(
+            async {
+                assert_timeout_eq!(
+                    Duration::from_millis(500),
+                    false,
+                    PathBuf::from(filepath.clone()).exists()
+                );
+            },
+            instance.runtime(),
         );
-        assert_eq!(
-            true,
+
+        let result = block_in_place_runtime(
             instance
                 .settings()
-                .user_settings()
-                .torrent_settings
-                .directory
-                .exists(),
+                .user_settings_ref(|e| e.torrent_settings.directory.clone()),
+            instance.runtime(),
+        )
+        .exists();
+        assert_eq!(
+            true, result,
             "expected the torrent directory to still exist"
         );
     }

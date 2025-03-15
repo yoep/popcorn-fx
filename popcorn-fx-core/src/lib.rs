@@ -256,6 +256,7 @@ pub mod testing {
         TorrentStreamEvent, TorrentStreamState, TorrentStreamingResourceWrapper,
     };
     use crate::core::{torrents, Callbacks, CoreCallback};
+
     use async_trait::async_trait;
     use fx_callback::{Callback, CallbackHandle, Subscriber, Subscription};
     use fx_handle::Handle;
@@ -273,8 +274,11 @@ pub mod testing {
     use std::ops::Range;
     use std::path::PathBuf;
     use std::sync::{Once, Weak};
+    use std::time::Duration;
     use std::{env, fs};
     use tempfile::TempDir;
+    use tokio::select;
+    use tokio::sync::mpsc::UnboundedReceiver;
     use url::Url;
 
     static INIT: Once = Once::new();
@@ -288,11 +292,6 @@ pub mod testing {
         () => {
             popcorn_fx_core::testing::init_logger_level(log::LevelFilter::Trace)
         };
-    }
-
-    #[deprecated(note = "Use init_logger! macro instead")]
-    pub fn init_logger() {
-        init_logger_level(LevelFilter::Trace)
     }
 
     /// Initializes the logger with the specified log level.
@@ -437,8 +436,8 @@ pub mod testing {
             fn name(&self) -> &str;
             fn description(&self) -> &str;
             fn graphic_resource(&self) -> Vec<u8>;
-            fn state(&self) -> PlayerState;
-            fn request(&self) -> Option<Weak<Box<dyn PlayRequest>>>;
+            async fn state(&self) -> PlayerState;
+            async fn request(&self) -> Option<Weak<Box<dyn PlayRequest>>>;
             async fn play(&self, request: Box<dyn PlayRequest>);
             fn pause(&self);
             fn resume(&self);
@@ -446,9 +445,9 @@ pub mod testing {
             fn stop(&self);
         }
 
-        impl Callbacks<PlayerEvent> for Player {
-            fn add_callback(&self, callback: CoreCallback<PlayerEvent>) -> CallbackHandle;
-            fn remove_callback(&self, handle: CallbackHandle);
+        impl Callback<PlayerEvent> for Player {
+            fn subscribe(&self) -> Subscription<PlayerEvent>;
+            fn subscribe_with(&self, subscriber: Subscriber<PlayerEvent>);
         }
     }
 
@@ -464,12 +463,12 @@ pub mod testing {
 
         #[async_trait]
         impl SubtitleManager for SubtitleManager {
-            fn preference(&self) -> SubtitlePreference;
+            async fn preference(&self) -> SubtitlePreference;
             async fn preference_async(&self) -> SubtitlePreference;
-            fn update_preference(&self, preference: SubtitlePreference);
-            fn select_or_default(&self, subtitles: &[SubtitleInfo]) -> SubtitleInfo;
-            fn reset(&self);
-            fn cleanup(&self);
+            async fn update_preference(&self, preference: SubtitlePreference);
+            async fn select_or_default(&self, subtitles: &[SubtitleInfo]) -> SubtitleInfo;
+            async fn reset(&self);
+            async fn cleanup(&self);
         }
 
          impl Callbacks<SubtitleEvent> for SubtitleManager {
@@ -662,20 +661,16 @@ pub mod testing {
     #[macro_export]
     macro_rules! assert_timeout {
         ($timeout:expr, $condition:expr) => {{
-            use std::thread;
-            use std::time::{Duration, Instant};
-
-            let start_time = Instant::now();
-            let timeout: Duration = $timeout;
-
-            let result = loop {
-                if $condition {
-                    break true;
-                }
-                if start_time.elapsed() >= timeout {
-                    break false;
-                }
-                thread::sleep(Duration::from_millis(10));
+            let result = tokio::select! {
+                _ = tokio::time::sleep($timeout) => false,
+                result = async {
+                    loop {
+                        if $condition {
+                            return true;
+                        }
+                        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+                    }
+                } => result,
             };
 
             if !result {
@@ -683,20 +678,17 @@ pub mod testing {
             }
         }};
         ($timeout:expr, $condition:expr, $message:expr) => {{
-            use std::thread;
-            use std::time::{Duration, Instant};
+            let result = tokio::select! {
+                _ = tokio::time::sleep($timeout) => false,
+                result = async {
+                    loop {
+                        if $condition {
+                            return true;
+                        }
 
-            let start_time = Instant::now();
-            let timeout: Duration = $timeout;
-
-            let result = loop {
-                if $condition {
-                    break true;
-                }
-                if start_time.elapsed() >= timeout {
-                    break false;
-                }
-                thread::sleep(Duration::from_millis(10));
+                        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+                    }
+                } => result,
             };
 
             if !result {
@@ -712,22 +704,19 @@ pub mod testing {
     #[macro_export]
     macro_rules! assert_timeout_eq {
         ($timeout:expr, $left:expr, $right:expr) => {{
-            use std::thread;
-            use std::time::{Duration, Instant};
+            let mut actual_value = $right;
+            let result = tokio::select! {
+                _ = tokio::time::sleep($timeout) => false,
+                result = async {
+                    loop {
+                        actual_value = $right;
+                        if $left == actual_value {
+                            return true;
+                        }
 
-            let start_time = Instant::now();
-            let timeout: Duration = $timeout;
-            let mut actual_value;
-
-            let result = loop {
-                actual_value = $right;
-                if $left == actual_value {
-                    break true;
-                }
-                if start_time.elapsed() >= timeout {
-                    break false;
-                }
-                thread::sleep(Duration::from_millis(10));
+                        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+                    }
+                } => result,
             };
 
             if !result {
@@ -739,12 +728,45 @@ pub mod testing {
             }
         }};
     }
+
+    /// Receive a message from the given receiver, or panic if the timeout is reached.
+    #[macro_export]
+    macro_rules! recv_timeout {
+        ($receiver:expr, $timeout:expr) => {
+            $crate::testing::recv_timeout($receiver, $timeout, "expected to receive an instance")
+                .await
+        };
+        ($receiver:expr, $timeout:expr, $message:expr) => {
+            $crate::testing::recv_timeout($receiver, $timeout, $message).await
+        };
+    }
+
+    /// Receive a message from the given receiver, or panic if the timeout is reached.
+    ///
+    /// # Arguments
+    ///
+    /// * `receiver` - The receiver to receive the message from.
+    /// * `timeout` - The timeout to wait for the message.
+    /// * `message` - The message to print if the timeout is reached.
+    ///
+    /// # Returns
+    ///
+    /// It returns the received instance of `T`.
+    pub async fn recv_timeout<T>(
+        receiver: &mut UnboundedReceiver<T>,
+        timeout: Duration,
+        message: &str,
+    ) -> T {
+        select! {
+            _ = tokio::time::sleep(timeout) => panic!("receiver timed-out after {}ms, {}", timeout.as_millis(), message),
+            result = receiver.recv() => result.expect(message)
+        }
+    }
 }
 
 #[cfg(test)]
 mod test {
     use std::collections::HashMap;
-    use std::sync::Arc;
 
     use httpmock::MockServer;
     use tempfile::TempDir;
@@ -753,22 +775,20 @@ mod test {
 
     use super::*;
 
-    pub fn start_mock_server(temp_dir: &TempDir) -> (MockServer, Arc<ApplicationConfig>) {
+    pub fn start_mock_server(temp_dir: &TempDir) -> (MockServer, ApplicationConfig) {
         let server = MockServer::start();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(
-            ApplicationConfig::builder()
-                .storage(temp_path)
-                .properties(PopcornProperties {
-                    loggers: Default::default(),
-                    update_channel: String::new(),
-                    providers: create_providers(&server),
-                    enhancers: Default::default(),
-                    subtitle: Default::default(),
-                    tracking: Default::default(),
-                })
-                .build(),
-        );
+        let settings = ApplicationConfig::builder()
+            .storage(temp_path)
+            .properties(PopcornProperties {
+                loggers: Default::default(),
+                update_channel: String::new(),
+                providers: create_providers(&server),
+                enhancers: Default::default(),
+                subtitle: Default::default(),
+                tracking: Default::default(),
+            })
+            .build();
 
         (server, settings)
     }

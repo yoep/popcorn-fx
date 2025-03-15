@@ -102,6 +102,7 @@ impl LoadingStrategy for AutoResumeLoadingStrategy {
         if let Some(timestamp) = self
             .auto_resume
             .resume_timestamp(id.map(|e| e.to_string()), filename)
+            .await
         {
             debug!("Using auto resume timestamp {} for {:?}", timestamp, data);
             data.auto_resume_timestamp = Some(timestamp)
@@ -121,20 +122,22 @@ impl LoadingStrategy for AutoResumeLoadingStrategy {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     use crate::core::loader::TorrentData;
     use crate::core::media::resume::MockAutoResumeService;
     use crate::core::media::MovieOverview;
     use crate::core::playlist::{PlaylistItem, PlaylistMedia, PlaylistSubtitle, PlaylistTorrent};
     use crate::core::torrents::MockTorrent;
-    use crate::{create_loading_task, init_logger};
+    use crate::{create_loading_task, init_logger, recv_timeout};
+
     use popcorn_fx_torrent::torrent;
     use popcorn_fx_torrent::torrent::TorrentFileInfo;
     use std::path::PathBuf;
-    use std::sync::mpsc::channel;
     use std::time::Duration;
+    use tokio::sync::mpsc::unbounded_channel;
 
-    #[test]
-    fn test_process() {
+    #[tokio::test]
+    async fn test_process() {
         init_logger!();
         let imdb_id = "tt100200";
         let timestamp = 65000u64;
@@ -171,11 +174,10 @@ mod tests {
             .returning(|| vec![create_file(filename)]);
         let mut data = LoadingData::from(item);
         data.torrent = Some(TorrentData::Torrent(Box::new(torrent)));
-        let (tx, rx) = channel();
-        let (tx_filename, rx_filename) = channel();
+        let (tx, mut rx) = unbounded_channel();
+        let (tx_filename, mut rx_filename) = unbounded_channel();
         let task = create_loading_task!();
         let context = task.context();
-        let runtime = context.runtime();
         let mut auto_resume = MockAutoResumeService::new();
         auto_resume
             .expect_resume_timestamp()
@@ -189,21 +191,19 @@ mod tests {
             Box::new(auto_resume) as Box<dyn AutoResumeService>
         ));
 
-        let result = runtime.block_on(strategy.process(&mut data, &*context));
+        let result = strategy.process(&mut data, &*context).await;
 
         if let LoadingResult::Ok = result {
             assert_eq!(Some(timestamp), data.auto_resume_timestamp);
 
-            let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+            let result = recv_timeout!(&mut rx, Duration::from_millis(200));
             assert_eq!(
                 Some(imdb_id.to_string()),
                 result,
                 "expected the media id to have been given"
             );
 
-            let result = rx_filename
-                .recv_timeout(Duration::from_millis(200))
-                .unwrap();
+            let result = recv_timeout!(&mut rx_filename, Duration::from_millis(200));
             assert_eq!(
                 Some(filename.to_string()),
                 result,
@@ -218,8 +218,8 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_process_no_media() {
+    #[tokio::test]
+    async fn test_process_no_media() {
         init_logger!();
         let timestamp = 86000u64;
         let filename = "FooBar.mp4";
@@ -245,11 +245,10 @@ mod tests {
             .returning(|| vec![create_file(filename)]);
         let mut data = LoadingData::from(item);
         data.torrent = Some(TorrentData::Torrent(Box::new(torrent)));
-        let (tx, rx) = channel();
-        let (tx_filename, rx_filename) = channel();
+        let (tx, mut rx) = unbounded_channel();
+        let (tx_filename, mut rx_filename) = unbounded_channel();
         let task = create_loading_task!();
         let context = task.context();
-        let runtime = context.runtime();
         let mut auto_resume = MockAutoResumeService::new();
         auto_resume
             .expect_resume_timestamp()
@@ -263,17 +262,15 @@ mod tests {
             Box::new(auto_resume) as Box<dyn AutoResumeService>
         ));
 
-        let result = runtime.block_on(strategy.process(&mut data, &*context));
+        let result = strategy.process(&mut data, &*context).await;
 
         if let LoadingResult::Ok = result {
             assert_eq!(Some(timestamp), data.auto_resume_timestamp);
 
-            let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+            let result = recv_timeout!(&mut rx, Duration::from_millis(200));
             assert_eq!(None, result, "expected no media id to have been given");
 
-            let result = rx_filename
-                .recv_timeout(Duration::from_millis(200))
-                .unwrap();
+            let result = recv_timeout!(&mut rx_filename, Duration::from_millis(200));
             assert_eq!(
                 Some(filename.to_string()),
                 result,
@@ -288,8 +285,8 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_cancel() {
+    #[tokio::test]
+    async fn test_cancel() {
         init_logger!();
         let url = "http://localhost:8520/video.mp4";
         let title = "LoremIpsumDolor";
@@ -308,15 +305,12 @@ mod tests {
             torrent: PlaylistTorrent { filename: None },
         };
         let mut data = LoadingData::from(item);
-        let task = create_loading_task!();
-        let context = task.context();
-        let runtime = context.runtime();
         let auto_resume = MockAutoResumeService::new();
         let strategy = AutoResumeLoadingStrategy::new(Arc::new(
             Box::new(auto_resume) as Box<dyn AutoResumeService>
         ));
 
-        let result = runtime.block_on(strategy.cancel(data.clone()));
+        let result = strategy.cancel(data.clone()).await;
         data.auto_resume_timestamp = None;
 
         assert_eq!(Ok(data), result);

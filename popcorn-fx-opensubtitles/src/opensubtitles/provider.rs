@@ -3,7 +3,6 @@ use std::ffi::OsStr;
 use std::fs;
 use std::fs::File;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
 use async_trait::async_trait;
 use derive_more::Display;
@@ -36,7 +35,7 @@ const DEFAULT_FILENAME_EXTENSION: &str = ".srt";
 #[derive(Debug, Display)]
 #[display(fmt = "Opensubtitles subtitle provider")]
 pub struct OpensubtitlesProvider {
-    settings: Arc<ApplicationConfig>,
+    settings: ApplicationConfig,
     client: Client,
     parsers: HashMap<SubtitleType, Box<dyn Parser>>,
 }
@@ -52,9 +51,9 @@ impl OpensubtitlesProvider {
     /// use popcorn_fx_core::core::config::ApplicationConfig;
     /// use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
     ///
-    /// let settings = Arc::new(ApplicationConfig::builder()
+    /// let settings = ApplicationConfig::builder()
     ///     .storage("storage/path")
-    ///     .build());
+    ///     .build();
     /// let provider = OpensubtitlesProvider::builder()
     ///     .settings(settings)
     ///     .build();
@@ -413,8 +412,10 @@ impl OpensubtitlesProvider {
     /// Retrieve the storage [Path] for the given subtitle file.
     async fn storage_file(&self, file: &SubtitleFile) -> PathBuf {
         let file_name = file.name();
-        let settings = self.settings.user_settings();
-        let settings = settings.subtitle().clone();
+        let settings = self
+            .settings
+            .user_settings_ref(|e| e.subtitle().clone())
+            .await;
 
         settings.directory().join(file_name)
     }
@@ -622,7 +623,7 @@ impl SubtitleProvider for OpensubtitlesProvider {
 
 #[derive(Default)]
 pub struct OpensubtitlesProviderBuilder {
-    settings: Option<Arc<ApplicationConfig>>,
+    settings: Option<ApplicationConfig>,
     parsers: HashMap<SubtitleType, Box<dyn Parser>>,
     insecure: bool,
 }
@@ -638,14 +639,14 @@ impl OpensubtitlesProviderBuilder {
     /// use popcorn_fx_core::core::config::ApplicationConfig;
     /// use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
     ///
-    /// let settings = Arc::new(ApplicationConfig::builder()
+    /// let settings = ApplicationConfig::builder()
     ///     .storage("storage/path")
-    ///     .build());
+    ///     .build();
     /// let provider = OpensubtitlesProvider::builder()
     ///     .settings(settings)
     ///     .build();
     /// ```
-    pub fn settings(mut self, settings: Arc<ApplicationConfig>) -> Self {
+    pub fn settings(mut self, settings: ApplicationConfig) -> Self {
         self.settings = Some(settings);
         self
     }
@@ -702,9 +703,9 @@ impl OpensubtitlesProviderBuilder {
     /// use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
     ///
     /// let srt_parser: Box<dyn Parser> = Box::new(SrtParser::new());
-    /// let settings = Arc::new(ApplicationConfig::builder()
+    /// let settings = ApplicationConfig::builder()
     ///     .storage("storage/path")
-    ///     .build());
+    ///     .build();
     /// let provider = OpensubtitlesProvider::builder()
     ///     .settings(settings)
     ///     .with_parser(SubtitleType::Srt, srt_parser)
@@ -738,7 +739,6 @@ impl OpensubtitlesProviderBuilder {
 mod test {
     use httpmock::Method::{GET, POST};
     use httpmock::MockServer;
-    use tokio::runtime;
 
     use popcorn_fx_core::core::config::*;
     use popcorn_fx_core::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
@@ -749,69 +749,66 @@ mod test {
 
     use super::*;
 
-    fn start_mock_server() -> (MockServer, Arc<ApplicationConfig>) {
+    fn start_mock_server() -> (MockServer, ApplicationConfig) {
         start_mock_server_with_subtitle_dir(None)
     }
 
     fn start_mock_server_with_subtitle_dir(
         subdirectory: Option<&str>,
-    ) -> (MockServer, Arc<ApplicationConfig>) {
+    ) -> (MockServer, ApplicationConfig) {
         let server = MockServer::start();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(
-            ApplicationConfig::builder()
-                .storage(temp_path)
-                .properties(PopcornProperties {
-                    loggers: Default::default(),
-                    update_channel: String::new(),
-                    providers: Default::default(),
-                    enhancers: Default::default(),
-                    subtitle: SubtitleProperties {
-                        url: server.url(""),
-                        user_agent: String::new(),
-                        api_token: String::new(),
-                    },
-                    tracking: Default::default(),
-                })
-                .settings(PopcornSettings {
-                    subtitle_settings: SubtitleSettings {
-                        directory: PathBuf::from(temp_path)
-                            .join(subdirectory.or_else(|| Some("")).unwrap())
-                            .to_str()
-                            .unwrap()
-                            .to_string(),
-                        auto_cleaning_enabled: false,
-                        default_subtitle: English,
-                        font_family: SubtitleFamily::Arial,
-                        font_size: 28,
-                        decoration: DecorationType::None,
-                        bold: false,
-                    },
-                    ui_settings: Default::default(),
-                    server_settings: Default::default(),
-                    torrent_settings: Default::default(),
-                    playback_settings: Default::default(),
-                    tracking_settings: Default::default(),
-                })
-                .build(),
-        );
+        let settings = ApplicationConfig::builder()
+            .storage(temp_path)
+            .properties(PopcornProperties {
+                loggers: Default::default(),
+                update_channel: String::new(),
+                providers: Default::default(),
+                enhancers: Default::default(),
+                subtitle: SubtitleProperties {
+                    url: server.url(""),
+                    user_agent: String::new(),
+                    api_token: String::new(),
+                },
+                tracking: Default::default(),
+            })
+            .settings(PopcornSettings {
+                subtitle_settings: SubtitleSettings {
+                    directory: PathBuf::from(temp_path)
+                        .join(subdirectory.or_else(|| Some("")).unwrap())
+                        .to_str()
+                        .unwrap()
+                        .to_string(),
+                    auto_cleaning_enabled: false,
+                    default_subtitle: English,
+                    font_family: SubtitleFamily::Arial,
+                    font_size: 28,
+                    decoration: DecorationType::None,
+                    bold: false,
+                },
+                ui_settings: Default::default(),
+                server_settings: Default::default(),
+                torrent_settings: Default::default(),
+                playback_settings: Default::default(),
+                tracking_settings: Default::default(),
+            })
+            .build();
 
         (server, settings)
     }
 
-    #[test]
-    fn test_movie_subtitles() {
+    #[tokio::test]
+    async fn test_movie_subtitles() {
         init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(ApplicationConfig::builder().storage(temp_path).build());
+        let settings = ApplicationConfig::builder().storage(temp_path).build();
         let imdb_id = "tt1156398".to_string();
         let movie = MovieDetails::new("lorem".to_string(), imdb_id.clone(), "2021".to_string());
         let service = OpensubtitlesProvider::builder().settings(settings).build();
-        let runtime = runtime::Runtime::new().unwrap();
 
-        let result = runtime.block_on(service.movie_subtitles(&movie));
+        let result = service.movie_subtitles(&movie).await;
 
         match result {
             Ok(subtitles) => {
@@ -826,8 +823,8 @@ mod test {
         }
     }
 
-    #[test]
-    fn test_movie_subtitles_search_2_subtitles() {
+    #[tokio::test]
+    async fn test_movie_subtitles_search_2_subtitles() {
         init_logger!();
         let (server, settings) = start_mock_server();
         let movie1 = MovieDetails::new(
@@ -857,15 +854,12 @@ mod test {
                 .header("content-type", "application/json")
                 .body(read_test_file_to_string("search_result_tt12003946.json"));
         });
-        let runtime = runtime::Runtime::new().unwrap();
 
-        let result = runtime.block_on(async {
-            service
-                .movie_subtitles(&movie1)
-                .await
-                .expect("Expected the first search to succeed");
-            service.movie_subtitles(&movie2).await
-        });
+        service
+            .movie_subtitles(&movie1)
+            .await
+            .expect("Expected the first search to succeed");
+        let result = service.movie_subtitles(&movie2).await;
 
         match result {
             Ok(subtitles) => {
@@ -877,8 +871,8 @@ mod test {
         }
     }
 
-    #[test]
-    fn test_episode_subtitles() {
+    #[tokio::test]
+    async fn test_episode_subtitles() {
         init_logger!();
         let (server, settings) = start_mock_server();
         let show = ShowDetails::new(
@@ -911,9 +905,8 @@ mod test {
             .imdb_id("tt2861424")
             .language(English)
             .build();
-        let runtime = runtime::Runtime::new().unwrap();
 
-        let result = runtime.block_on(service.episode_subtitles(&show, &episode));
+        let result = service.episode_subtitles(&show, &episode).await;
 
         match result {
             Ok(subtitles) => {
@@ -934,8 +927,8 @@ mod test {
         }
     }
 
-    #[test]
-    fn test_filename_subtitles() {
+    #[tokio::test]
+    async fn test_filename_subtitles() {
         init_logger!();
         let (server, settings) = start_mock_server();
         let filename = "House.of.the.Dragon.S01E01.HMAX.WEBRip.x264-XEN0N.mkv".to_string();
@@ -948,9 +941,8 @@ mod test {
                 .header("content-type", "application/json")
                 .body(read_test_file_to_string("search_result_episode.json"));
         });
-        let runtime = runtime::Runtime::new().unwrap();
 
-        let result = runtime.block_on(service.file_subtitles(&filename));
+        let result = service.file_subtitles(&filename).await;
 
         match result {
             Ok(subtitles) => assert!(
@@ -963,17 +955,13 @@ mod test {
         }
     }
 
-    #[test]
-    fn test_download_should_return_the_expected_subtitle() {
+    #[tokio::test]
+    async fn test_download_should_return_the_expected_subtitle() {
         init_logger!();
         let (server, settings) = start_mock_server();
         let temp_dir = settings
-            .user_settings()
-            .subtitle()
-            .directory()
-            .to_str()
-            .unwrap()
-            .to_string();
+            .user_settings_ref(|e| e.subtitle().directory.clone())
+            .await;
         let service = OpensubtitlesProvider::builder()
             .settings(settings)
             .with_parser(SubtitleType::Srt, Box::new(SrtParser::new()))
@@ -1024,27 +1012,23 @@ mod test {
             Some(subtitle_info.clone()),
             expected_file.to_str().unwrap().to_string(),
         );
-        let runtime = runtime::Runtime::new().unwrap();
 
-        let result = runtime
-            .block_on(service.download_and_parse(&subtitle_info, &matcher))
+        let result = service
+            .download_and_parse(&subtitle_info, &matcher)
+            .await
             .unwrap();
 
         assert_eq!(expected_result, result)
     }
 
-    #[test]
-    fn test_download_should_create_subtitle_directory() {
+    #[tokio::test]
+    async fn test_download_should_create_subtitle_directory() {
         init_logger!();
         let subdirectory = "subtitles";
         let (server, settings) = start_mock_server_with_subtitle_dir(Some(subdirectory));
         let temp_dir = settings
-            .user_settings()
-            .subtitle()
-            .directory()
-            .to_str()
-            .unwrap()
-            .to_string();
+            .user_settings_ref(|e| e.subtitle().directory.clone())
+            .await;
         let service = OpensubtitlesProvider::builder()
             .settings(settings)
             .with_parser(SubtitleType::Srt, Box::new(SrtParser::new()))
@@ -1079,10 +1063,10 @@ mod test {
                 .header("content-type", "text")
                 .body(read_test_file_to_string("subtitle_example.srt"));
         });
-        let runtime = runtime::Runtime::new().unwrap();
 
-        let _ = runtime
-            .block_on(service.download_and_parse(&subtitle_info, &matcher))
+        let _ = service
+            .download_and_parse(&subtitle_info, &matcher)
+            .await
             .expect("expected the download to succeed");
 
         // the temp_dir already contains the subdirectory
@@ -1096,8 +1080,8 @@ mod test {
         );
     }
 
-    #[test]
-    fn test_download_when_subtitle_file_exists_should_return_existing_file() {
+    #[tokio::test]
+    async fn test_download_when_subtitle_file_exists_should_return_existing_file() {
         init_logger!();
         let test_file = "subtitle_existing.srt";
         let temp_dir = tempfile::tempdir().unwrap();
@@ -1124,12 +1108,10 @@ mod test {
             playback_settings: Default::default(),
             tracking_settings: Default::default(),
         };
-        let settings = Arc::new(
-            ApplicationConfig::builder()
-                .storage(temp_path)
-                .settings(popcorn_settings)
-                .build(),
-        );
+        let settings = ApplicationConfig::builder()
+            .storage(temp_path)
+            .settings(popcorn_settings)
+            .build();
         let destination = copy_test_file(temp_path, test_file, None);
         let service = OpensubtitlesProvider::builder()
             .settings(settings)
@@ -1163,23 +1145,23 @@ mod test {
             Some(subtitle_info.clone()),
             destination.clone(),
         );
-        let runtime = runtime::Runtime::new().unwrap();
 
-        let result = runtime
-            .block_on(service.download_and_parse(&subtitle_info, &matcher))
+        let result = service
+            .download_and_parse(&subtitle_info, &matcher)
+            .await
             .unwrap();
 
         assert_eq!(expected_result, result);
         assert_eq!(&expected_cues, result.cues())
     }
 
-    #[test]
-    fn test_parse_valid_file() {
+    #[tokio::test]
+    async fn test_parse_valid_file() {
         init_logger!();
         let test_file = "subtitle_example.srt";
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(ApplicationConfig::builder().storage(temp_path).build());
+        let settings = ApplicationConfig::builder().storage(temp_path).build();
         let service = OpensubtitlesProvider::builder()
             .settings(settings)
             .with_parser(SubtitleType::Srt, Box::new(SrtParser::new()))
@@ -1258,8 +1240,8 @@ mod test {
         assert_eq!(expected_result, result)
     }
 
-    #[test]
-    fn test_convert_to_vtt() {
+    #[tokio::test]
+    async fn test_convert_to_vtt() {
         let subtitle = Subtitle::new(
             vec![SubtitleCue::new(
                 "1".to_string(),
@@ -1277,7 +1259,7 @@ mod test {
         );
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(ApplicationConfig::builder().storage(temp_path).build());
+        let settings = ApplicationConfig::builder().storage(temp_path).build();
         let service = OpensubtitlesProvider::builder()
             .settings(settings)
             .with_parser(SubtitleType::Vtt, Box::new(VttParser::default()))

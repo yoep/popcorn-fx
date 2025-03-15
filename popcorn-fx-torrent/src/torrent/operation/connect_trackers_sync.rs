@@ -79,8 +79,8 @@ mod tests {
     use popcorn_fx_core::init_logger;
     use tempfile::tempdir;
 
-    #[test]
-    fn test_execute() {
+    #[tokio::test]
+    async fn test_execute() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -89,22 +89,20 @@ mod tests {
             temp_path,
             TorrentFlags::none(),
             TorrentConfig::default(),
+            vec![],
             vec![]
         );
         let context = torrent.instance().unwrap();
-        let runtime = context.runtime();
         let operation = TorrentTrackersSyncOperation::new();
 
-        runtime.block_on(async {
-            let result = operation.execute(&context).await;
-            assert_eq!(TorrentOperationResult::Continue, result);
+        let result = operation.execute(&context).await;
+        assert_eq!(TorrentOperationResult::Continue, result);
 
-            let result = context.announce_all().await;
-            assert_ne!(
-                0,
-                result.peers.len(),
-                "expected to have discovered some peers"
-            );
-        });
+        let result = context.announce_all().await;
+        assert_ne!(
+            0,
+            result.peers.len(),
+            "expected to have discovered some peers"
+        );
     }
 }

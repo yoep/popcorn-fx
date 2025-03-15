@@ -18,13 +18,13 @@ use tokio::select;
 #[display(fmt = "Torrent loading strategy")]
 pub struct TorrentLoadingStrategy {
     torrent_manager: Arc<Box<dyn TorrentManager>>,
-    application_settings: Arc<ApplicationConfig>,
+    application_settings: ApplicationConfig,
 }
 
 impl TorrentLoadingStrategy {
     pub fn new(
         torrent_manager: Arc<Box<dyn TorrentManager>>,
-        application_settings: Arc<ApplicationConfig>,
+        application_settings: ApplicationConfig,
     ) -> Self {
         Self {
             torrent_manager,
@@ -145,18 +145,17 @@ impl LoadingStrategy for TorrentLoadingStrategy {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::mpsc::channel;
-    use std::time::Duration;
-
     use crate::core::loader::LoadingResult;
     use crate::core::playlist::{PlaylistItem, PlaylistTorrent};
     use crate::core::torrents::{MockTorrent, MockTorrentManager, Torrent, TorrentHandle};
-    use crate::{create_loading_task, init_logger};
+    use crate::{create_loading_task, init_logger, recv_timeout};
+    use std::time::Duration;
+    use tokio::sync::mpsc::unbounded_channel;
 
     use super::*;
 
-    #[test]
-    fn test_process() {
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_process() {
         init_logger!();
         let magnet_uri = "magnet:?xt=urn:btih:9a5c24e8164dfe5a98d2437b7f4d6ec9a7e2e045&dn=Another%20Example%20File&tr=http%3A%2F%2Ftracker.anotherexample.com%3A56789%2Fannounce&xl=987654321&sf=Another%20Folder";
         let item = PlaylistItem {
@@ -173,20 +172,19 @@ mod tests {
         let mut data = LoadingData::from(item);
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(ApplicationConfig::builder().storage(temp_path).build());
+        let settings = ApplicationConfig::builder().storage(temp_path).build();
         let torrent_manager = MockTorrentManager::new();
         let task = create_loading_task!();
         let context = task.context();
-        let runtime = context.runtime();
         let strategy = TorrentLoadingStrategy::new(Arc::new(Box::new(torrent_manager)), settings);
 
-        let result = runtime.block_on(strategy.process(&mut data, &*context));
+        let result = strategy.process(&mut data, &*context).await;
 
         assert_eq!(LoadingResult::Ok, result);
     }
 
-    #[test]
-    fn test_cancel() {
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_cancel() {
         init_logger!();
         let handle = TorrentHandle::new();
         let mut data = LoadingData::from(PlaylistItem {
@@ -206,8 +204,8 @@ mod tests {
         data.torrent = Some(TorrentData::Torrent(torrent));
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(ApplicationConfig::builder().storage(temp_path).build());
-        let (tx, rx) = channel();
+        let settings = ApplicationConfig::builder().storage(temp_path).build();
+        let (tx, mut rx) = unbounded_channel();
         let mut torrent_manager = MockTorrentManager::new();
         torrent_manager
             .expect_remove()
@@ -215,12 +213,9 @@ mod tests {
             .returning(move |e| {
                 tx.send(e.to_string()).unwrap();
             });
-        let task = create_loading_task!();
-        let context = task.context();
-        let runtime = context.runtime();
         let strategy = TorrentLoadingStrategy::new(Arc::new(Box::new(torrent_manager)), settings);
 
-        let result = runtime.block_on(strategy.cancel(data));
+        let result = strategy.cancel(data).await;
         if let Ok(result) = result {
             assert!(
                 result.torrent.is_none(),
@@ -234,7 +229,7 @@ mod tests {
             );
         }
 
-        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        let result = recv_timeout!(&mut rx, Duration::from_millis(200));
         assert_eq!(handle.to_string(), result);
     }
 }

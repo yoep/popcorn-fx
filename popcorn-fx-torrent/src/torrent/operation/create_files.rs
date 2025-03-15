@@ -118,6 +118,7 @@ mod tests {
             temp_path,
             TorrentFlags::none(),
             TorrentConfig::default(),
+            vec![],
             vec![]
         );
         let context = torrent.instance().unwrap();
@@ -156,6 +157,7 @@ mod tests {
             temp_path,
             TorrentFlags::none(),
             TorrentConfig::default(),
+            vec![],
             vec![]
         );
         let context = torrent.instance().unwrap();
@@ -170,8 +172,8 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_io_path() {
+    #[tokio::test]
+    async fn test_io_path() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -181,6 +183,7 @@ mod tests {
             temp_path,
             TorrentFlags::none(),
             TorrentConfig::default(),
+            vec![],
             vec![]
         );
         let context = torrent.instance().unwrap();

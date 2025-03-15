@@ -15,7 +15,7 @@ mod tests {
 
     use log::{debug, error};
     use socket2::{Protocol, SockAddr};
-    use tokio::runtime::Runtime;
+    use tokio::select;
     use tokio::sync::Mutex;
     use tokio_util::sync::CancellationToken;
 
@@ -53,13 +53,13 @@ mod tests {
     impl SsdpServer {
         pub fn start(&self) {
             let inner = self.inner.clone();
-            self.inner.runtime.spawn(async move {
+            tokio::spawn(async move {
                 loop {
                     if inner.cancellation_token.is_cancelled() {
                         break;
                     }
 
-                    tokio::select! {
+                    select! {
                         _ = inner.cancellation_token.cancelled() => break,
                         (resp, temp_buf) = inner.receive() => {
                             inner.handle_socket_packet(resp, temp_buf).await;
@@ -81,7 +81,6 @@ mod tests {
         upnp_server_addr: SocketAddr,
         invocations: Arc<Mutex<u32>>,
         cancellation_token: CancellationToken,
-        runtime: Arc<Runtime>,
     }
 
     impl InnerSsdpServer {
@@ -138,7 +137,6 @@ EXT:\r
 
     #[derive(Debug, Default)]
     pub struct MockUdpServer {
-        runtime: Option<Arc<Runtime>>,
         device_name: Option<String>,
         upnp_server_addr: Option<SocketAddr>,
     }
@@ -146,11 +144,6 @@ EXT:\r
     impl MockUdpServer {
         pub fn new() -> Self {
             Self::default()
-        }
-
-        pub fn runtime(mut self, runtime: Arc<Runtime>) -> Self {
-            self.runtime = Some(runtime);
-            self
         }
 
         pub fn device_name<S: Into<String>>(mut self, device_name: S) -> Self {
@@ -164,9 +157,6 @@ EXT:\r
         }
 
         pub fn build(self) -> SsdpServer {
-            let runtime = self
-                .runtime
-                .unwrap_or_else(|| Arc::new(Runtime::new().expect("expected a runtime")));
             let cancellation_token = CancellationToken::new();
             let invocations = Arc::new(Mutex::new(0));
             let upnp_server_addr = self
@@ -195,7 +185,6 @@ EXT:\r
                     upnp_server_addr,
                     invocations,
                     cancellation_token,
-                    runtime,
                 }),
             };
 

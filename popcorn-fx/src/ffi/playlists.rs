@@ -1,5 +1,6 @@
 use crate::ffi::{CArray, PlaylistItemC, PlaylistManagerCallbackC, PlaylistManagerEventC};
 use crate::PopcornFX;
+use fx_callback::Callback;
 use log::{trace, warn};
 use popcorn_fx_core::core::block_in_place_runtime;
 use popcorn_fx_core::core::playlist::{Playlist, PlaylistItem};
@@ -115,13 +116,14 @@ pub extern "C" fn register_playlist_manager_callback(
     callback: PlaylistManagerCallbackC,
 ) {
     trace!("Registering new C callback for playlist manager events");
-    popcorn_fx
-        .playlist_manager()
-        .subscribe(Box::new(move |event| {
+    let mut receiver = popcorn_fx.playlist_manager().subscribe();
+    popcorn_fx.runtime().spawn(async move {
+        while let Some(event) = receiver.recv().await {
             trace!("Invoking playlist manager C event for {:?}", event);
-            let event = PlaylistManagerEventC::from(event);
+            let event = PlaylistManagerEventC::from((*event).clone());
             callback(event);
-        }));
+        }
+    });
 }
 
 /// Retrieves the playlist from PopcornFX.
@@ -225,13 +227,16 @@ mod test {
         let (tx_state, rx_state) = channel();
         let mut instance = PopcornFX::new(default_args(temp_path));
 
-        instance
-            .playlist_manager()
-            .subscribe(Box::new(move |e| match e {
-                PlaylistManagerEvent::PlaylistChanged => tx.send(e).unwrap(),
-                PlaylistManagerEvent::StateChanged(state) => tx_state.send(state).unwrap(),
-                _ => {}
-            }));
+        let mut receiver = instance.playlist_manager().subscribe();
+        instance.runtime().spawn(async move {
+            while let Some(event) = receiver.recv().await {
+                match &*event {
+                    PlaylistManagerEvent::PlaylistChanged => tx.send((*event).clone()).unwrap(),
+                    PlaylistManagerEvent::StateChanged(state) => tx_state.send(*state).unwrap(),
+                    _ => {}
+                }
+            }
+        });
         play_playlist(&mut instance, &mut playlist);
 
         let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
@@ -289,7 +294,8 @@ mod test {
     }
 
     // TODO: fix timeout when a certain struct is being dropped at the end of the test
-    // #[test]
+    #[test]
+    #[ignore]
     fn test_stop_playlist() {
         init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");

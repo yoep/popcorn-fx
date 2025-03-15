@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use log::{debug, error, trace, warn};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::core::storage::StorageError;
 use crate::core::{block_in_place, storage};
@@ -348,6 +348,26 @@ impl BaseStorage {
             })
     }
 
+    pub async fn read_open_async(&self) -> storage::Result<tokio::fs::File> {
+        trace!("Opening storage file {}", self.absolute_path());
+        tokio::fs::OpenOptions::new()
+            .read(true)
+            .create(self.create)
+            .truncate(false)
+            .open(self.path.as_path())
+            .await
+            .map_err(|e| {
+                let absolute_path = self.absolute_path();
+                trace!("File {} couldn't be opened, {}", absolute_path, e);
+
+                if e.kind() == ErrorKind::NotFound {
+                    StorageError::NotFound(absolute_path.to_string())
+                } else {
+                    StorageError::ReadingFailed(absolute_path.to_string(), e.to_string())
+                }
+            })
+    }
+
     pub fn write_open(&self) -> storage::Result<File> {
         self.create_parent_directories_if_needed()?;
 
@@ -451,6 +471,33 @@ impl SerializerStorage {
         trace!("Application file {:?} exists", &self.base.absolute_path());
         let mut data = String::new();
         file.read_to_string(&mut data).map_err(|e| {
+            StorageError::ReadingFailed(self.base.absolute_path().to_string(), e.to_string())
+        })?;
+
+        match serde_json::from_str::<T>(data.as_str()) {
+            Ok(e) => {
+                debug!("File {} has been loaded", self.base.absolute_path());
+                Ok(e)
+            }
+            Err(e) => {
+                debug!("File {} is invalid, {}", self.base.absolute_path(), &e);
+                Err(StorageError::ReadingFailed(
+                    self.base.absolute_path().to_string(),
+                    e.to_string(),
+                ))
+            }
+        }
+    }
+
+    pub async fn read_async<T>(self) -> storage::Result<T>
+    where
+        T: Serialize + DeserializeOwned,
+    {
+        let mut file = self.base.read_open_async().await?;
+
+        trace!("Application file {:?} exists", &self.base.absolute_path());
+        let mut data = String::new();
+        file.read_to_string(&mut data).await.map_err(|e| {
             StorageError::ReadingFailed(self.base.absolute_path().to_string(), e.to_string())
         })?;
 

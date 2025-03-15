@@ -60,7 +60,8 @@ impl SubtitlesLoadingStrategy {
         if let Ok(subtitles) = subtitles {
             let subtitle = self
                 .subtitle_manager
-                .select_or_default(subtitles.as_slice());
+                .select_or_default(subtitles.as_slice())
+                .await;
 
             debug!("Updating subtitle to {} for {:?}", subtitle, data);
             data.subtitle.info = Some(subtitle);
@@ -252,7 +253,7 @@ impl LoadingStrategy for SubtitlesLoadingStrategy {
                     if data.subtitle.info.is_none() {
                         if let Ok(subtitles) = self.retrieve_available_subtitles(&data).await {
                             data.subtitle.info =
-                                Some(self.subtitle_manager.select_or_default(&subtitles));
+                                Some(self.subtitle_manager.select_or_default(&subtitles).await);
                         }
                     }
                 }
@@ -294,26 +295,26 @@ impl LoadingStrategy for SubtitlesLoadingStrategy {
 
     async fn cancel(&self, data: LoadingData) -> CancellationResult {
         debug!("Cancelling the subtitle loader");
-        self.subtitle_manager.reset();
+        self.subtitle_manager.reset().await;
         Ok(data)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::sync::mpsc::channel;
     use std::time::Duration;
+    use tokio::sync::mpsc::unbounded_channel;
 
     use crate::core::loader::LoadingResult;
     use crate::core::playlist::{PlaylistItem, PlaylistMedia, PlaylistSubtitle, PlaylistTorrent};
     use crate::core::subtitles::{MockSubtitleProvider, SubtitleFile};
     use crate::testing::MockSubtitleManager;
-    use crate::{create_loading_task, init_logger};
+    use crate::{create_loading_task, init_logger, recv_timeout};
 
     use super::*;
 
-    #[test]
-    fn test_process_movie_subtitles() {
+    #[tokio::test]
+    async fn test_process_movie_subtitles() {
         init_logger!();
         let movie_details = MovieDetails {
             title: "MyMovieTitle".to_string(),
@@ -345,7 +346,7 @@ mod tests {
             torrent: Default::default(),
         };
         let mut data = LoadingData::from(playlist_item);
-        let (tx, rx) = channel();
+        let (tx, mut rx) = unbounded_channel();
         let mut provider = MockSubtitleProvider::new();
         provider
             .expect_movie_subtitles()
@@ -377,21 +378,20 @@ mod tests {
             .returning(|_| SubtitleInfo::none());
         let task = create_loading_task!();
         let context = task.context();
-        let runtime = context.runtime();
         let loader = SubtitlesLoadingStrategy::new(
             Arc::new(Box::new(provider)),
             Arc::new(Box::new(manager)),
         );
 
-        let result = runtime.block_on(loader.process(&mut data, &*context));
+        let result = loader.process(&mut data, &*context).await;
         assert_eq!(LoadingResult::Ok, result);
 
-        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        let result = recv_timeout!(&mut rx, Duration::from_millis(200));
         assert_eq!(movie_details, result);
     }
 
-    #[test]
-    fn test_process_filename_subtitles() {
+    #[tokio::test]
+    async fn test_process_filename_subtitles() {
         init_logger!();
         let filename = "MyTIFile";
         let playlist_item = PlaylistItem {
@@ -411,7 +411,7 @@ mod tests {
             },
         };
         let mut data = LoadingData::from(playlist_item);
-        let (tx, rx) = channel();
+        let (tx, mut rx) = unbounded_channel();
         let mut provider = MockSubtitleProvider::new();
         provider
             .expect_movie_subtitles()
@@ -443,21 +443,20 @@ mod tests {
             .returning(|_| SubtitleInfo::none());
         let task = create_loading_task!();
         let context = task.context();
-        let runtime = context.runtime();
         let loader = SubtitlesLoadingStrategy::new(
             Arc::new(Box::new(provider)),
             Arc::new(Box::new(manager)),
         );
 
-        let result = runtime.block_on(loader.process(&mut data, &*context));
+        let result = loader.process(&mut data, &*context).await;
         assert_eq!(LoadingResult::Ok, result);
 
-        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        let result = recv_timeout!(&mut rx, Duration::from_millis(200));
         assert_eq!(filename.to_string(), result);
     }
 
-    #[test]
-    fn test_process_subtitle_manager_disabled() {
+    #[tokio::test]
+    async fn test_process_subtitle_manager_disabled() {
         init_logger!();
         let movie = Box::new(MovieDetails {
             title: "".to_string(),
@@ -501,16 +500,15 @@ mod tests {
         let manager = Arc::new(Box::new(manager) as Box<dyn SubtitleManager>);
         let task = create_loading_task!();
         let context = task.context();
-        let runtime = context.runtime();
         let loader = SubtitlesLoadingStrategy::new(Arc::new(Box::new(provider)), manager);
 
-        let result = runtime.block_on(loader.process(&mut data, &*context));
+        let result = loader.process(&mut data, &*context).await;
 
         assert_eq!(LoadingResult::Ok, result);
     }
 
-    #[test]
-    fn test_process_playlist_subtitles_disabled() {
+    #[tokio::test]
+    async fn test_process_playlist_subtitles_disabled() {
         init_logger!();
         let playlist_item = PlaylistItem {
             url: None,
@@ -543,18 +541,17 @@ mod tests {
             .return_const(SubtitlePreference::Disabled);
         let task = create_loading_task!();
         let context = task.context();
-        let runtime = context.runtime();
         let loader = SubtitlesLoadingStrategy::new(
             Arc::new(Box::new(provider)),
             Arc::new(Box::new(manager)),
         );
 
-        let result = runtime.block_on(loader.process(&mut data, &*context));
+        let result = loader.process(&mut data, &*context).await;
         assert_eq!(LoadingResult::Ok, result);
     }
 
-    #[test]
-    fn test_process_custom_subtitle() {
+    #[tokio::test]
+    async fn test_process_custom_subtitle() {
         init_logger!();
         let playlist_item = PlaylistItem {
             url: None,
@@ -599,18 +596,17 @@ mod tests {
             .return_const(SubtitlePreference::Language(SubtitleLanguage::Custom));
         let task = create_loading_task!();
         let context = task.context();
-        let runtime = context.runtime();
         let loader = SubtitlesLoadingStrategy::new(
             Arc::new(Box::new(provider)),
             Arc::new(Box::new(manager)),
         );
 
-        let result = runtime.block_on(loader.process(&mut data, &*context));
+        let result = loader.process(&mut data, &*context).await;
         assert_eq!(LoadingResult::Ok, result);
     }
 
-    #[test]
-    fn test_cancel() {
+    #[tokio::test]
+    async fn test_cancel() {
         init_logger!();
         let data = LoadingData::from(PlaylistItem {
             url: None,
@@ -633,12 +629,9 @@ mod tests {
         let mut manager = MockSubtitleManager::new();
         manager.expect_reset().times(1).return_const(());
         let manager = Arc::new(Box::new(manager) as Box<dyn SubtitleManager>);
-        let task = create_loading_task!();
-        let context = task.context();
-        let runtime = context.runtime();
         let loader = SubtitlesLoadingStrategy::new(Arc::new(Box::new(provider)), manager);
 
-        let result = runtime.block_on(loader.cancel(data.clone()));
+        let result = loader.cancel(data.clone()).await;
         assert_eq!(Ok(data), result);
     }
 }

@@ -14,7 +14,6 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::net::UdpSocket;
-use tokio::runtime::Runtime;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::sync::{Mutex, RwLock};
 use tokio::{select, time};
@@ -255,7 +254,6 @@ impl UtpSocket {
         addr: SocketAddr,
         timeout: Duration,
         extensions: UtpSocketExtensions,
-        runtime: Arc<Runtime>,
     ) -> Result<Self> {
         let port = addr.port();
         let socket = UdpSocket::bind(addr).await?;
@@ -275,14 +273,11 @@ impl UtpSocket {
             extensions: Arc::new(extensions),
             timeout,
             cancellation_token,
-            runtime,
         });
 
         // start the main loop of the socket a new thread
         let inner_main_loop = inner.clone();
-        inner
-            .runtime
-            .spawn(async move { inner_main_loop.start(&inner_main_loop).await });
+        tokio::spawn(async move { inner_main_loop.start(&inner_main_loop).await });
 
         Ok(Self { inner })
     }
@@ -317,7 +312,6 @@ impl UtpSocket {
             self.inner.clone(),
             message_receiver,
             self.inner.extensions(),
-            self.inner.runtime.clone(),
         )
         .await?;
 
@@ -328,7 +322,7 @@ impl UtpSocket {
         Ok(stream)
     }
 
-    /// Try to receive the next incoming uTP stream of the socket.
+    /// Receive the next incoming uTP stream of the socket.
     /// These streams can only be received by one caller at a time.
     ///
     /// It returns the next uTP stream if available, else [None].
@@ -374,8 +368,6 @@ pub(crate) struct UtpSocketContext {
     timeout: Duration,
     /// The termination cancellation token
     cancellation_token: CancellationToken,
-    /// The shared runtime of the socket
-    runtime: Arc<Runtime>,
 }
 
 impl UtpSocketContext {
@@ -403,7 +395,6 @@ impl UtpSocketContext {
                 }
             }
         }
-
         debug!("Utp socket {} main loop ended", self);
     }
 
@@ -444,12 +435,6 @@ impl UtpSocketContext {
     pub async fn close_connection(&self, key: UtpConnId) {
         let mut connections = self.connections.write().await;
         connections.remove(&key);
-    }
-
-    /// Get the underlying runtime reference of the socket.
-    #[cfg(test)]
-    pub fn runtime(&self) -> &Arc<Runtime> {
-        &self.runtime
     }
 
     /// Handle a received packet payload from the socket.
@@ -541,7 +526,6 @@ impl UtpSocketContext {
             ack_number,
             message_receiver,
             self.extensions(),
-            self.runtime.clone(),
         )
         .await
         {
@@ -657,68 +641,61 @@ mod tests {
         assert_eq!(packet, result);
     }
 
-    #[test]
-    fn test_udp_socket_new() {
+    #[tokio::test]
+    async fn test_udp_socket_new() {
         init_logger!();
         let port = available_port!(23000, 24000).unwrap();
         let addr = SocketAddr::from(([0, 0, 0, 0], port));
-        let runtime = Arc::new(Runtime::new().unwrap());
 
-        let socket_runtime = runtime.clone();
-        let result = runtime
-            .block_on(UtpSocket::new(
-                addr,
-                Duration::from_secs(1),
-                vec![],
-                socket_runtime,
-            ))
+        let result = UtpSocket::new(addr, Duration::from_secs(1), vec![])
+            .await
             .expect("expected an uTP socket");
 
         assert_eq!(addr, result.addr());
     }
 
-    #[test]
-    fn test_utp_socket_connect() {
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_utp_socket_connect() {
         init_logger!();
+        let expected_result = UtpStreamState::Connected;
         let (incoming, outgoing) = create_utp_socket_pair!();
-        let runtime = &outgoing.inner.runtime;
 
         let target_addr = incoming.addr();
-        let outgoing_stream = runtime
-            .block_on(outgoing.connect(target_addr))
+        let outgoing_stream = outgoing
+            .connect(target_addr)
+            .await
             .expect("expected an utp stream");
 
-        let expected_result = UtpStreamState::Connected;
         assert_timeout!(
-            Duration::from_millis(500),
-            expected_result == runtime.block_on(outgoing_stream.state()),
-            "expected the stream to be connected"
+            Duration::from_secs(1),
+            expected_result == outgoing_stream.state().await,
+            "expected the outgoing stream to be connected"
         );
 
-        let _incoming_stream = runtime
-            .block_on(incoming.recv())
-            .expect("expected an uTP stream");
-        let result = runtime.block_on(outgoing_stream.state());
-        assert_eq!(UtpStreamState::Connected, result);
+        let incoming_stream = incoming.recv().await.expect("expected an uTP stream");
+        assert_timeout!(
+            Duration::from_secs(1),
+            expected_result == incoming_stream.state().await,
+            "expected the incoming stream to be connected"
+        );
     }
 
-    #[test]
-    fn test_utp_socket_close_connection() {
+    #[tokio::test]
+    async fn test_utp_socket_close_connection() {
         init_logger!();
         let id = UtpConnId::new();
-        let runtime = Arc::new(Runtime::new().unwrap());
         let (tx, mut rx) = unbounded_channel();
-        let socket = create_utp_socket(runtime.clone());
+        let socket = create_utp_socket().await;
         let context = socket.context();
 
         {
-            let mut connections = runtime.block_on(context.connections.write());
+            let mut connections = context.connections.write().await;
             connections.insert(id, tx);
         }
 
         // close the connection based on it's id
-        runtime.block_on(context.close_connection(id));
-        let result = runtime.block_on(context.connections.read());
+        context.close_connection(id).await;
+        let result = context.connections.read().await;
         assert_eq!(
             0,
             result.len(),
@@ -726,7 +703,7 @@ mod tests {
         );
 
         // check if the receiver is correctly closed
-        let result = runtime.block_on(rx.recv());
+        let result = rx.recv().await;
         assert_eq!(None, result);
     }
 }

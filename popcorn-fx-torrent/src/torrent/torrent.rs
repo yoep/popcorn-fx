@@ -4,7 +4,7 @@ use crate::torrent::fs::TorrentFileStorage;
 use crate::torrent::peer::extension::Extension;
 use crate::torrent::peer::{
     BitTorrentPeer, Peer, PeerClientInfo, PeerDiscovery, PeerEntry, PeerEvent, PeerHandle, PeerId,
-    PeerListener, ProtocolExtensionFlags,
+    ProtocolExtensionFlags,
 };
 use crate::torrent::peer_pool::PeerPool;
 use crate::torrent::tracker::{
@@ -20,7 +20,8 @@ use async_trait::async_trait;
 use bit_vec::BitVec;
 use bitmask_enum::bitmask;
 use derive_more::Display;
-use futures::FutureExt;
+use futures::stream::FuturesUnordered;
+use futures::StreamExt;
 use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use fx_handle::Handle;
 use itertools::Itertools;
@@ -36,7 +37,6 @@ use std::slice::Iter;
 use std::sync::{Arc, Weak};
 use std::time::{Duration, Instant};
 use std::{io, mem};
-use tokio::runtime::Runtime;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::sync::{Notify, OwnedSemaphorePermit, RwLock, RwLockReadGuard, Semaphore};
 use tokio::{select, time};
@@ -390,24 +390,30 @@ impl TorrentConfigBuilder {
 /// # Examples
 ///
 /// ```rust,no_run
+/// use std::sync::Arc;
 /// use std::time::Duration;
+/// use tokio::runtime::Runtime;
 /// use popcorn_fx_torrent::torrent::{Torrent, TorrentFlags, TorrentMetadata, TorrentRequest, MagnetResult, ExtensionFactories};
 /// use popcorn_fx_torrent::torrent::fs::TorrentFileStorage;
 /// use popcorn_fx_torrent::torrent::peer::extension::Extensions;
-/// use popcorn_fx_torrent::torrent::peer::PeerListener;
+/// use popcorn_fx_torrent::torrent::peer::{PeerDiscovery, TcpPeerDiscovery};
 ///
 /// fn create_new_torrent(
 ///     metadata: TorrentMetadata,
 ///     extensions: ExtensionFactories,
-///     listener: Box<dyn PeerListener>,
 ///     storage: Box<dyn TorrentFileStorage>
 /// ) -> MagnetResult<Torrent> {
+///     // create a shared runtime
+///     let runtime = Arc::new(Runtime::new().unwrap());
+///     // create a tcp peer discovery for dialing and accepting tpc connections
+///     let peer_discovery = TcpPeerDiscovery::new(6881);
 ///     let request = Torrent::request()
 ///         .metadata(metadata)
-///         .options(TorrentFlags::Metadata)
+///         .options(TorrentFlags::AutoManaged)
 ///         .extensions(extensions)
 ///         .storage(storage)
-///         .peer_listener(listener);
+///         .peer_discovery(Box::new(peer_discovery))
+///         .runtime(runtime);
 ///
 ///     Torrent::try_from(request)
 /// }
@@ -420,12 +426,8 @@ pub struct TorrentRequest {
     options: Option<TorrentFlags>,
     /// The torrent configuration
     config: Option<TorrentConfig>,
-    /// The peer outgoing connection dialers for the torrent.
-    /// These are used to establish outgoing connections.
-    peer_dialers: Option<Vec<Box<dyn PeerDiscovery>>>,
-    /// The peer incoming connection listeners for the torrent.
-    /// These are used to accept incoming connections.
-    peer_listeners: Option<Vec<Box<dyn PeerListener>>>,
+    /// The discovery strategies for peer connections.
+    peer_discoveries: Option<Vec<Box<dyn PeerDiscovery>>>,
     /// The protocol extensions that should be enabled
     protocol_extensions: Option<ProtocolExtensionFlags>,
     /// The factories for creating the peer extensions that should be enabled for this torrent
@@ -434,92 +436,72 @@ pub struct TorrentRequest {
     storage: Option<Box<dyn TorrentFileStorage>>,
     /// The operations used by the torrent for processing data
     operations: Option<Vec<Box<dyn TorrentOperation>>>,
-    /// The underlying Tokio runtime to use for asynchronous operations
-    runtime: Option<Arc<Runtime>>,
 }
 
 impl TorrentRequest {
     /// Set the torrent metadata
-    pub fn metadata(mut self, metadata: TorrentMetadata) -> Self {
+    pub fn metadata(&mut self, metadata: TorrentMetadata) -> &mut Self {
         self.metadata = Some(metadata);
         self
     }
 
     /// Set the torrent options
-    pub fn options(mut self, options: TorrentFlags) -> Self {
+    pub fn options(&mut self, options: TorrentFlags) -> &mut Self {
         self.options = Some(options);
         self
     }
 
     /// Set the torrent configuration
-    pub fn config(mut self, config: TorrentConfig) -> Self {
+    pub fn config(&mut self, config: TorrentConfig) -> &mut Self {
         self.config = Some(config);
         self
     }
 
     /// Add the given peer dialer to the torrent.
-    pub fn peer_dialer(mut self, dialer: Box<dyn PeerDiscovery>) -> Self {
-        self.peer_dialers.get_or_insert(Vec::new()).push(dialer);
+    pub fn peer_discovery(&mut self, dialer: Box<dyn PeerDiscovery>) -> &mut Self {
+        self.peer_discoveries.get_or_insert(Vec::new()).push(dialer);
         self
     }
 
     /// Set the given peer dialers of the torrent.
-    pub fn peer_dialers(mut self, dialers: Vec<Box<dyn PeerDiscovery>>) -> Self {
-        self.peer_dialers = Some(dialers);
-        self
-    }
-
-    /// Add the given peer listener to the torrent.
-    pub fn peer_listener(mut self, listener: Box<dyn PeerListener>) -> Self {
-        self.peer_listeners.get_or_insert(Vec::new()).push(listener);
-        self
-    }
-
-    /// Set the given peer listeners of the torrent.
-    pub fn peer_listeners(mut self, listeners: Vec<Box<dyn PeerListener>>) -> Self {
-        self.peer_listeners = Some(listeners);
+    pub fn peer_discoveries(&mut self, dialers: Vec<Box<dyn PeerDiscovery>>) -> &mut Self {
+        self.peer_discoveries = Some(dialers);
         self
     }
 
     /// Set the protocol extensions that should be enabled
-    pub fn protocol_extensions(mut self, extensions: ProtocolExtensionFlags) -> Self {
+    pub fn protocol_extensions(&mut self, extensions: ProtocolExtensionFlags) -> &mut Self {
         self.protocol_extensions = Some(extensions);
         self
     }
 
     /// Add the given extension factory that should be activated.
-    pub fn extension(mut self, extension: ExtensionFactory) -> Self {
+    pub fn extension(&mut self, extension: ExtensionFactory) -> &mut Self {
         self.extensions.get_or_insert(Vec::new()).push(extension);
         self
     }
 
     /// Set the extension factories that should be activated for this torrent
-    pub fn extensions(mut self, extensions: ExtensionFactories) -> Self {
+    pub fn extensions(&mut self, extensions: ExtensionFactories) -> &mut Self {
         self.extensions = Some(extensions);
         self
     }
 
     /// Set the underlying storage for storing the torrent file data.
-    pub fn storage(mut self, storage: Box<dyn TorrentFileStorage>) -> Self {
+    pub fn storage(&mut self, storage: Box<dyn TorrentFileStorage>) -> &mut Self {
         self.storage = Some(storage);
         self
     }
 
     /// Add the operation to the torrent for processing data.
-    pub fn operation(mut self, operation: Box<dyn TorrentOperation>) -> Self {
+    pub fn operation(&mut self, operation: Box<dyn TorrentOperation>) -> &mut Self {
         self.operations.get_or_insert(Vec::new()).push(operation);
         self
     }
 
     /// Set the operations used by the torrent for processing data
-    pub fn operations(mut self, operations: Vec<Box<dyn TorrentOperation>>) -> Self {
+    pub fn operations(&mut self, operations: Vec<Box<dyn TorrentOperation>>) -> &mut Self {
         self.operations = Some(operations);
-        self
-    }
-
-    /// Set the underlying Tokio runtime to use for asynchronous operations
-    pub fn runtime(mut self, runtime: Arc<Runtime>) -> Self {
-        self.runtime = Some(runtime);
         self
     }
 
@@ -537,8 +519,7 @@ impl TryFrom<TorrentRequest> for Torrent {
         let metadata = request.metadata.ok_or(TorrentError::InvalidRequest(
             "metadata is missing".to_string(),
         ))?;
-        let peer_dialers = request.peer_dialers.unwrap_or(Vec::with_capacity(0));
-        let peer_listeners = request.peer_listeners.unwrap_or(Vec::with_capacity(0));
+        let peer_discoveries = request.peer_discoveries.unwrap_or(Vec::with_capacity(0));
         let protocol_extensions = request
             .protocol_extensions
             .unwrap_or_else(DEFAULT_TORRENT_PROTOCOL_EXTENSIONS);
@@ -555,21 +536,16 @@ impl TryFrom<TorrentRequest> for Torrent {
         let operations = request
             .operations
             .unwrap_or_else(|| DEFAULT_TORRENT_OPERATIONS().iter().map(|e| e()).collect());
-        let runtime = request
-            .runtime
-            .unwrap_or_else(|| Arc::new(Runtime::new().expect("expected a new runtime")));
 
         Ok(Self::new(
             metadata,
-            peer_dialers,
-            peer_listeners,
+            peer_discoveries,
             protocol_extensions,
             extensions,
             options,
             config,
             storage,
             operations,
-            runtime,
         ))
     }
 }
@@ -679,19 +655,17 @@ impl Torrent {
 
     fn new(
         metadata: TorrentMetadata,
-        peer_dialers: Vec<Box<dyn PeerDiscovery>>,
-        peer_listeners: Vec<Box<dyn PeerListener>>,
+        peer_discoveries: Vec<Box<dyn PeerDiscovery>>,
         protocol_extensions: ProtocolExtensionFlags,
         extensions: ExtensionFactories,
         options: TorrentFlags,
         config: TorrentConfig,
         storage: Box<dyn TorrentFileStorage>,
         operations: Vec<Box<dyn TorrentOperation>>,
-        runtime: Arc<Runtime>,
     ) -> Self {
         let handle = TorrentHandle::new();
         let peer_id = PeerId::new();
-        let peer_ports: Vec<u16> = peer_listeners.iter().map(|e| e.port()).collect();
+        let peer_ports: Vec<u16> = peer_discoveries.iter().map(|e| e.port()).collect();
         let info_hash = metadata.info_hash.clone();
         let max_peers_in_flight = config.peers_in_flight.min(config.peers_upper_limit);
         let (event_sender, command_receiver) = unbounded_channel();
@@ -706,13 +680,12 @@ impl Torrent {
             tracker_manager: TrackerManager::new(
                 peer_id,
                 peer_ports.first().map(|e| *e).unwrap_or(0),
-                info_hash,
+                info_hash.clone(),
                 config.tracker_connection_timeout.clone(),
-                runtime.clone(),
             ),
             peer_pool: PeerPool::new(handle, config.peers_upper_limit, max_peers_in_flight),
             peer_subscriber,
-            peer_dialers: Arc::new(peer_dialers),
+            peer_discoveries: Arc::new(peer_discoveries),
             pieces: RwLock::new(Vec::with_capacity(0)),
             piece_chunk_pool: PieceChunkPool::new(),
             pending_piece_requests: Default::default(),
@@ -727,9 +700,8 @@ impl Torrent {
             config: RwLock::new(config),
             stats: RwLock::new(InternalTorrentStats::default()),
             event_sender,
-            callbacks: MultiThreadedCallback::new(runtime.clone()),
+            callbacks: MultiThreadedCallback::new(),
             cancellation_token,
-            runtime,
         });
 
         let torrent = Self {
@@ -741,22 +713,17 @@ impl Torrent {
 
         // create a new separate thread which manages the internal torrent resources
         // this thread is automatically cancelled when the torrent is dropped
-        let loop_runtime = context.runtime.clone();
-        loop_runtime.spawn(async move {
+        tokio::spawn(async move {
             // start the main loop of the torrent
-            let handle = context.handle();
             context
-                .start(
-                    &context,
-                    operations,
-                    command_receiver,
-                    peer_event_receiver,
-                    PeerListeners::new(handle, peer_listeners),
-                )
+                .start(&context, operations, command_receiver, peer_event_receiver)
                 .await;
         });
 
-        info!("Torrent {} created with location {:?}", torrent, location);
+        info!(
+            "Torrent {} (info hash {}) created with storage location {:?}",
+            torrent, info_hash, location
+        );
         torrent
     }
 
@@ -1178,7 +1145,7 @@ impl Torrent {
 
         let inner_cancel = cancellation_token.clone();
         let inner_notifier = notifier.clone();
-        inner.runtime.spawn(async move {
+        tokio::spawn(async move {
             loop {
                 select! {
                     _ = inner_cancel.cancelled() => break,
@@ -1257,6 +1224,7 @@ impl Drop for Torrent {
         // we need to make sure that any running threads are cancelled on the inner torrent
         if self.ref_type == TorrentRefType::Owner {
             if let Some(context) = self.instance.upgrade() {
+                trace!("Dropping torrent {}", self.handle);
                 context.cancellation_token.cancel();
             }
         }
@@ -1426,53 +1394,6 @@ impl Default for InternalTorrentStats {
     }
 }
 
-/// A holder type for all [PeerListener]'s.
-/// It takes multiple listeners for which it waits for one of them to receive an incoming connection.
-#[derive(Debug, Display)]
-#[display(fmt = "{}", handle)]
-struct PeerListeners {
-    handle: TorrentHandle,
-    listeners: Vec<Box<dyn PeerListener>>,
-}
-
-impl PeerListeners {
-    /// Create a new set of peer listeners.
-    fn new(handle: TorrentHandle, listeners: Vec<Box<dyn PeerListener>>) -> Self {
-        Self { handle, listeners }
-    }
-
-    /// Receive the next available incoming peer connection entry.
-    /// It returns [None] when all peer listeners have been closed.
-    async fn recv(&mut self) -> Option<PeerEntry> {
-        if self.listeners.is_empty() {
-            warn!("Torrent {} has no active peer listener", self);
-            return None;
-        }
-
-        let handle = self.handle;
-        let mut futures = self.listeners.iter_mut().map(|l| l.recv());
-        if let Some(first) = futures.next().map(|e| e.fuse()) {
-            return match first.await {
-                Some(peer_entry) => Some(peer_entry),
-                None => {
-                    debug!("Torrent {} no peer listener result available", handle);
-                    None
-                }
-            };
-        }
-
-        None
-    }
-}
-
-impl Drop for PeerListeners {
-    fn drop(&mut self) {
-        for listener in &mut self.listeners {
-            listener.close();
-        }
-    }
-}
-
 /// The torrent context data.
 /// This context can be shared by multiple [Torrent] instances, but only one [Torrent] instance can own the context.
 #[derive(Debug)]
@@ -1493,8 +1414,8 @@ pub struct TorrentContext {
     peer_pool: PeerPool,
     /// The sender which is shared between all peers to inform the torrent of a [PeerEvent].
     peer_subscriber: Subscriber<PeerEvent>,
-    /// The peer dialers to create outgoing connections
-    peer_dialers: Arc<Vec<Box<dyn PeerDiscovery>>>,
+    /// The peer discoveries for creating outgoing and accepting incoming connections
+    peer_discoveries: Arc<Vec<Box<dyn PeerDiscovery>>>,
 
     /// The pieces of the torrent, these are only known if the metadata is available
     pieces: RwLock<Vec<Piece>>,
@@ -1533,8 +1454,6 @@ pub struct TorrentContext {
     callbacks: MultiThreadedCallback<TorrentEvent>,
     /// The main loop cancellation token
     cancellation_token: CancellationToken,
-    /// The shared runtime used by the torrent
-    runtime: Arc<Runtime>,
 }
 
 impl TorrentContext {
@@ -1546,7 +1465,6 @@ impl TorrentContext {
         operations: Vec<Box<dyn TorrentOperation>>,
         mut command_receiver: UnboundedReceiver<TorrentCommandEvent>,
         mut peer_event_receiver: UnboundedReceiver<Arc<PeerEvent>>,
-        mut peer_listeners: PeerListeners,
     ) {
         let mut tracker_event_receiver = self.tracker_manager.subscribe();
         // the interval used to execute periodic torrent operations
@@ -1559,6 +1477,12 @@ impl TorrentContext {
             _ = Self::execute_operations_chain(context, &operations) => {}
         }
 
+        let mut peer_connections = FuturesUnordered::from_iter(
+            self.peer_discoveries
+                .iter()
+                .map(|e| self.accept_connections(e, context)),
+        )
+        .fuse();
         loop {
             select! {
                 _ = self.cancellation_token.cancelled() => break,
@@ -1571,8 +1495,8 @@ impl TorrentContext {
                     }
                 }
                 Some(event) = tracker_event_receiver.recv() => self.handle_tracker_event((*event).clone()).await,
-                Some(entry) = peer_listeners.recv() => self.handle_incoming_peer_connection(&context, entry).await,
                 Some(event) = peer_event_receiver.recv() => self.handle_peer_event((*event).clone()).await,
+                Some(_) = peer_connections.next() => {},
                 _ = operations_tick.tick() => {
                     Self::execute_operations_chain(context, &operations).await;
                     self.update_stats().await;
@@ -1627,7 +1551,7 @@ impl TorrentContext {
 
     /// Get the peer dialers for establishing outgoing peer connections of the torrent.
     pub fn peer_dialers(&self) -> &Arc<Vec<Box<dyn PeerDiscovery>>> {
-        &self.peer_dialers
+        &self.peer_discoveries
     }
 
     /// Returns a Future that gets fulfilled when the torrent is being cancelled/stopped.
@@ -1640,11 +1564,6 @@ impl TorrentContext {
     /// The future will complete immediately if the torrenbt is already cancelled when this method is called.
     pub fn cancelled_owned(&self) -> WaitForCancellationFutureOwned {
         self.cancellation_token.clone().cancelled_owned()
-    }
-
-    /// Get the shared runtime used by the torrent.
-    pub fn runtime(&self) -> &Arc<Runtime> {
-        &self.runtime
     }
 
     /// Get the enabled protocol extensions for the torrent.
@@ -2191,7 +2110,7 @@ impl TorrentContext {
     async fn wanted_pieces_iter<'a>(
         &'a self,
         mutex: &'a RwLockReadGuard<'a, Vec<Piece>>,
-    ) -> Filter<Iter<Piece>, fn(&&'a Piece) -> bool> {
+    ) -> Filter<Iter<'a, Piece>, fn(&&'a Piece) -> bool> {
         mutex
             .iter()
             .filter(|e| e.priority != PiecePriority::None && !e.is_completed())
@@ -2744,7 +2663,6 @@ impl TorrentContext {
             self.protocol_extensions,
             extensions,
             timeout,
-            torrent.runtime.clone(),
         )
         .await
         {
@@ -3409,6 +3327,17 @@ impl TorrentContext {
         }
     }
 
+    /// Accept incoming connections discovered by the peer discovery.
+    async fn accept_connections(
+        &self,
+        discovery: &Box<dyn PeerDiscovery>,
+        context: &Arc<TorrentContext>,
+    ) {
+        while let Some(entry) = discovery.recv().await {
+            self.handle_incoming_peer_connection(context, entry).await;
+        }
+    }
+
     /// Get the peer extensions of the torrent.
     /// These extensions should be activated for each established peer connection of the torrent.
     pub fn extensions(&self) -> Vec<Box<dyn Extension>> {
@@ -3607,22 +3536,24 @@ pub(crate) fn calculate_byte_rate(bytes: usize, elapsed_micro_secs: u128) -> u64
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::create_torrent;
+
     use crate::torrent::operation::{
         TorrentConnectPeersOperation, TorrentCreateFilesOperation, TorrentCreatePiecesOperation,
-        TorrentFileValidationOperation, TorrentMetadataOperation, TorrentTrackersOperation,
+        TorrentFileValidationOperation,
     };
     use crate::torrent::InfoHash;
+    use crate::{create_torrent, recv_timeout};
+
     use log::LevelFilter;
     use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::{copy_test_file, read_test_file_to_bytes};
     use std::ops::Sub;
     use std::str::FromStr;
-    use std::sync::mpsc::channel;
     use tempfile::tempdir;
+    use tokio::sync::mpsc::channel;
 
-    #[test]
-    fn test_torrent_announce() {
+    #[tokio::test]
+    async fn test_torrent_announce() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -3633,10 +3564,8 @@ mod tests {
             TorrentConfig::default(),
             DEFAULT_TORRENT_OPERATIONS()
         );
-        let context = torrent.instance().unwrap();
-        let runtime = context.runtime();
 
-        let result = runtime.block_on(torrent.announce()).unwrap();
+        let result = torrent.announce().await.unwrap();
 
         assert_ne!(
             0, result.total_seeders,
@@ -3645,8 +3574,8 @@ mod tests {
         assert_ne!(0, result.peers.len(), "expected peers to have been found");
     }
 
-    #[test]
-    fn test_torrent_metadata() {
+    #[tokio::test]
+    async fn test_torrent_metadata() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -3660,31 +3589,27 @@ mod tests {
             TorrentConfig::default(),
             vec![]
         );
-        let context = torrent.instance().unwrap();
-        let runtime = context.runtime();
 
-        let metadata = runtime.block_on(torrent.metadata()).unwrap();
+        let metadata = torrent.metadata().await.unwrap();
 
         assert_eq!(torrent_info, metadata);
     }
 
-    #[test]
-    fn test_torrent_retrieve_metadata() {
+    #[tokio::test]
+    async fn test_torrent_retrieve_metadata() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let (tx, rx) = channel();
+        let (tx, mut rx) = channel(1);
         let uri = "magnet:?xt=urn:btih:2C6B6858D61DA9543D4231A71DB4B1C9264B0685&dn=Ubuntu%2022.04%20LTS&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce";
         let torrent = create_torrent!(uri, temp_path, TorrentFlags::Metadata);
-        let context = torrent.instance().unwrap();
-        let runtime = context.runtime();
 
         let mut receiver = torrent.subscribe();
-        runtime.spawn(async move {
+        tokio::spawn(async move {
             loop {
                 if let Some(event) = receiver.recv().await {
                     if let TorrentEvent::MetadataChanged = *event {
-                        tx.send(()).unwrap();
+                        tx.send(()).await.unwrap();
                         break;
                     }
                 } else {
@@ -3693,8 +3618,12 @@ mod tests {
             }
         });
 
-        let _ = rx.recv_timeout(Duration::from_secs(30)).unwrap();
-        let result = runtime.block_on(torrent.metadata()).unwrap();
+        recv_timeout!(
+            &mut rx,
+            Duration::from_secs(30),
+            "expected to receive a MetadataChanged event"
+        );
+        let result = torrent.metadata().await.unwrap();
 
         assert_ne!(
             None, result.info,
@@ -3702,8 +3631,8 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_torrent_prioritize_pieces() {
+    #[tokio::test]
+    async fn test_torrent_prioritize_pieces() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -3716,23 +3645,23 @@ mod tests {
             vec![]
         );
         let context = torrent.instance().unwrap();
-        let runtime = context.runtime();
 
         // create the pieces
-        runtime.block_on(operation.execute(&context));
+        operation.execute(&context).await;
 
         // only request the first piece
-        let mut priorities = runtime.block_on(torrent.piece_priorities());
+        let mut priorities = torrent.piece_priorities().await;
         priorities[8].1 = PiecePriority::High;
         priorities[9].1 = PiecePriority::High;
         for priority in &mut priorities[10..] {
             priority.1 = PiecePriority::None;
         }
-        runtime.block_on(torrent.prioritize_pieces(priorities));
+        torrent.prioritize_pieces(priorities).await;
 
         // check the new priorities of the pieces
-        let result = runtime
-            .block_on(torrent.pieces())
+        let result = torrent
+            .pieces()
+            .await
             .expect("expected the pieces to be present");
         for piece in 0..8 {
             let priority = PiecePriority::Normal;
@@ -3761,7 +3690,7 @@ mod tests {
 
         // check the wanted pieces
         let expected_wanted_pieces = vec![8, 9, 0, 1, 2, 3, 4, 5, 6, 7];
-        let result = runtime.block_on(context.wanted_pieces());
+        let result = context.wanted_pieces().await;
         assert_eq!(
             expected_wanted_pieces, result,
             "expected only piece 0 to be wanted"
@@ -3769,15 +3698,15 @@ mod tests {
 
         // check the interested pieces
         let expected_interested_pieces = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-        let result = runtime.block_on(context.interested_pieces());
+        let result = context.interested_pieces().await;
         assert_eq!(
             expected_interested_pieces, result,
             "expected only piece 0 to be interested"
         );
     }
 
-    #[test]
-    fn test_torrent_total_wanted_pieces() {
+    #[tokio::test]
+    async fn test_torrent_total_wanted_pieces() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -3791,24 +3720,23 @@ mod tests {
             vec![]
         );
         let context = torrent.instance().unwrap();
-        let runtime = context.runtime();
 
-        runtime.block_on(operation.execute(&context));
+        operation.execute(&context).await;
 
         // only request the first piece
-        let mut priorities = runtime.block_on(torrent.piece_priorities());
+        let mut priorities = torrent.piece_priorities().await;
         for priority in &mut priorities[expected_result..] {
             priority.1 = PiecePriority::None;
         }
-        runtime.block_on(torrent.prioritize_pieces(priorities));
+        torrent.prioritize_pieces(priorities).await;
 
         // check the total wanted pieces
-        let result = runtime.block_on(context.total_wanted_pieces());
+        let result = context.total_wanted_pieces().await;
         assert_eq!(expected_result, result);
     }
 
-    #[test]
-    fn test_torrent_resume_internal() {
+    #[tokio::test]
+    async fn test_torrent_resume_internal() {
         init_logger!(LevelFilter::Debug);
         let temp_dir_source = tempdir().unwrap();
         let temp_path_source = temp_dir_source.path().to_str().unwrap();
@@ -3821,7 +3749,7 @@ mod tests {
             Some("debian-12.4.0-amd64-DVD-1.iso"),
         );
         let expected_file_data = read_test_file_to_bytes("piece-1_30.iso");
-        let (tx_state, rx_state) = channel();
+        let (tx_state, mut rx_state) = channel(1);
         let source_torrent = create_torrent!(
             "debian-udp.torrent",
             temp_path_source,
@@ -3837,67 +3765,62 @@ mod tests {
             vec![]
         );
         let source_context = source_torrent.instance().unwrap();
-        let runtime = source_context.runtime();
 
         // initialize the source torrent
         let operation = TorrentCreatePiecesOperation::new();
-        let result = runtime.block_on(operation.execute(&source_context));
+        let result = operation.execute(&source_context).await;
         assert_eq!(TorrentOperationResult::Continue, result);
         let operation = TorrentCreateFilesOperation::new();
-        let result = runtime.block_on(operation.execute(&source_context));
+        let result = operation.execute(&source_context).await;
         assert_eq!(TorrentOperationResult::Continue, result);
         let operation = TorrentFileValidationOperation::new();
-        let result = runtime.block_on(async {
-            select! {
-                _ = time::sleep(Duration::from_secs(10)) => TorrentOperationResult::Stop,
-                result = async {
-                    loop {
-                        let result = operation.execute(&source_context).await;
-                        if result == TorrentOperationResult::Continue {
-                            return result;
-                        }
+        let result = select! {
+            _ = time::sleep(Duration::from_secs(10)) => TorrentOperationResult::Stop,
+            result = async {
+                loop {
+                    let result = operation.execute(&source_context).await;
+                    if result == TorrentOperationResult::Continue {
+                        return result;
                     }
-                } => result,
-            }
-        });
+                }
+            } => result,
+        };
         assert_eq!(TorrentOperationResult::Continue, result);
 
         // initialize the target torrent
         let target_context = target_torrent.instance().unwrap();
         let operation = TorrentCreatePiecesOperation::new();
-        let result = runtime.block_on(operation.execute(&target_context));
+        let result = operation.execute(&target_context).await;
         assert_eq!(TorrentOperationResult::Continue, result);
         let operation = TorrentCreateFilesOperation::new();
-        let result = runtime.block_on(operation.execute(&target_context));
+        let result = operation.execute(&target_context).await;
         assert_eq!(TorrentOperationResult::Continue, result);
-        runtime.block_on(async {
-            target_context
-                .update_state(target_context.determine_state().await)
-                .await;
-        });
+        target_context
+            .update_state(target_context.determine_state().await)
+            .await;
 
         // only request the first X amount of pieces
-        let total_pieces = runtime.block_on(target_torrent.total_pieces());
-        runtime.block_on(
-            target_torrent.prioritize_pieces(
+        let total_pieces = target_torrent.total_pieces().await;
+        target_torrent
+            .prioritize_pieces(
                 (num_of_pieces..total_pieces)
                     .into_iter()
                     .map(|piece| (piece, PiecePriority::None))
                     .collect(),
-            ),
-        );
+            )
+            .await;
 
         // resume the target torrent to fetch data from the source torrent
-        runtime.block_on(target_torrent.resume());
+        target_torrent.resume().await;
 
         // listen to the finished event
         let mut receiver = target_torrent.subscribe();
-        runtime.spawn(async move {
+        tokio::spawn(async move {
             loop {
                 if let Some(event) = receiver.recv().await {
                     if let TorrentEvent::StateChanged(state) = &*event {
                         if state == &TorrentState::Finished {
-                            tx_state.send(()).unwrap();
+                            tx_state.send(()).await.unwrap();
                         }
                     }
                 } else {
@@ -3908,52 +3831,56 @@ mod tests {
 
         // connect the source torrent to the target torrent
         let source_context = source_torrent.instance().unwrap();
-        runtime.block_on(source_context.peer_pool().add_available_peer_addrs(vec![
-            SocketAddr::from(([127, 0, 0, 1], target_torrent.peer_port().unwrap())),
-        ]));
+        source_context
+            .peer_pool()
+            .add_available_peer_addrs(vec![SocketAddr::from((
+                [127, 0, 0, 1],
+                target_torrent.peer_port().unwrap(),
+            ))])
+            .await;
 
         // wait for all pieces to be completed (finished state)
-        let _ = rx_state
-            .recv_timeout(Duration::from_secs(90))
-            .expect("expected the torrent to enter the FINISHED state");
+        recv_timeout!(
+            &mut rx_state,
+            Duration::from_secs(90),
+            "expected the torrent to enter the FINISHED state"
+        );
 
         // validate the pieces and received data
-        runtime.block_on(async {
-            let pieces = target_torrent
-                .pieces()
-                .await
-                .expect("expected the pieces to have been created");
-            let target_context = target_torrent.instance().unwrap();
-            let pieces_bitfield = target_context.piece_bitfield().await;
+        let pieces = target_torrent
+            .pieces()
+            .await
+            .expect("expected the pieces to have been created");
+        let target_context = target_torrent.instance().unwrap();
+        let pieces_bitfield = target_context.piece_bitfield().await;
 
-            for piece in &pieces[0..num_of_pieces] {
-                let piece_index = piece.index;
-                assert_eq!(
-                    true,
-                    piece.is_completed(),
-                    "expected piece {} to have been completed",
-                    piece_index
-                );
-                assert_eq!(
-                    Some(true),
-                    pieces_bitfield.get(piece_index),
-                    "expected piece bitfield bit {} to be set",
-                    piece_index
-                );
-            }
+        for piece in &pieces[0..num_of_pieces] {
+            let piece_index = piece.index;
+            assert_eq!(
+                true,
+                piece.is_completed(),
+                "expected piece {} to have been completed",
+                piece_index
+            );
+            assert_eq!(
+                Some(true),
+                pieces_bitfield.get(piece_index),
+                "expected piece bitfield bit {} to be set",
+                piece_index
+            );
+        }
 
-            // read the torrent file
-            let files = target_torrent.files().await;
-            let result = target_torrent
-                .read_file_to_end(files.get(0).expect("expected file index 0 to be present"))
-                .await
-                .unwrap();
-            assert_eq!(expected_file_data, result);
-        });
+        // read the torrent file
+        let files = target_torrent.files().await;
+        let result = target_torrent
+            .read_file_to_end(files.get(0).expect("expected file index 0 to be present"))
+            .await
+            .unwrap();
+        assert_eq!(expected_file_data, result);
     }
 
-    #[test]
-    fn test_torrent_piece_part() {
+    #[tokio::test]
+    async fn test_torrent_piece_part() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -3963,7 +3890,7 @@ mod tests {
             begin: 16384,
             length: 16384,
         };
-        let (tx, rx) = channel();
+        let (tx, mut rx) = channel(1);
         let torrent = create_torrent!(
             "debian-udp.torrent",
             temp_path,
@@ -3974,14 +3901,13 @@ mod tests {
             },]
         );
         let context = torrent.instance().unwrap();
-        let runtime = context.runtime();
 
         let mut receiver = torrent.subscribe();
-        runtime.spawn(async move {
+        tokio::spawn(async move {
             loop {
                 if let Some(event) = receiver.recv().await {
                     if let TorrentEvent::PiecesChanged = *event {
-                        tx.send(()).unwrap();
+                        tx.send(()).await.unwrap();
                     }
                 } else {
                     break;
@@ -3989,22 +3915,24 @@ mod tests {
             }
         });
 
-        let _ = rx
-            .recv_timeout(Duration::from_millis(200))
-            .expect("expected the pieces to have been created");
+        recv_timeout!(
+            &mut rx,
+            Duration::from_millis(200),
+            "expected the pieces to be created"
+        );
 
-        let result = runtime.block_on(context.piece_part(0, 16000));
+        let result = context.piece_part(0, 16000).await;
         assert_eq!(
             None, result,
             "expected no piece part to be returned for invalid begin"
         );
 
-        let result = runtime.block_on(context.piece_part(0, 16384));
+        let result = context.piece_part(0, 16384).await;
         assert_eq!(Some(expected_piece_part), result, "expected the piece part");
     }
 
-    #[test]
-    fn test_torrent_create_pieces() {
+    #[tokio::test]
+    async fn test_torrent_create_pieces() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -4015,16 +3943,14 @@ mod tests {
             TorrentConfig::default(),
             vec![|| Box::new(TorrentCreatePiecesOperation::new())]
         );
-        let context = torrent.instance().unwrap();
-        let runtime = context.runtime();
-        let (tx, rx) = channel();
+        let (tx, mut rx) = channel(1);
 
         let mut receiver = torrent.subscribe();
-        runtime.spawn(async move {
+        tokio::spawn(async move {
             loop {
                 if let Some(event) = receiver.recv().await {
                     if let TorrentEvent::PiecesChanged = *event {
-                        tx.send(event).unwrap();
+                        tx.send(()).await.unwrap();
                     }
                 } else {
                     break;
@@ -4033,14 +3959,18 @@ mod tests {
         });
 
         // wait for the pieces changed event
-        let _ = rx.recv_timeout(Duration::from_millis(250)).unwrap();
-        let pieces = runtime.block_on(torrent.pieces()).unwrap();
+        recv_timeout!(
+            &mut rx,
+            Duration::from_millis(200),
+            "expected the pieces to be created"
+        );
+        let pieces = torrent.pieces().await.unwrap();
 
         assert_ne!(0, pieces.len(), "expected the pieces to have been created");
     }
 
-    #[test]
-    fn test_torrent_create_files() {
+    #[tokio::test]
+    async fn test_torrent_create_files() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -4053,16 +3983,15 @@ mod tests {
                 Box::new(TorrentCreateFilesOperation::new())
             },]
         );
-        let context = torrent.instance().unwrap();
-        let runtime = context.runtime();
-        let (tx, rx) = channel();
+        let (tx, mut rx) = channel(1);
 
+        // wait for the pieces changed event
         let mut receiver = torrent.subscribe();
-        runtime.spawn(async move {
+        tokio::spawn(async move {
             loop {
                 if let Some(event) = receiver.recv().await {
                     if let TorrentEvent::FilesChanged = *event {
-                        tx.send(event).unwrap();
+                        tx.send(()).await.unwrap();
                     }
                 } else {
                     break;
@@ -4070,15 +3999,18 @@ mod tests {
             }
         });
 
-        // wait for the pieces changed event
-        let _ = rx.recv_timeout(Duration::from_millis(250)).unwrap();
-        let files = runtime.block_on(torrent.files());
+        let _ = recv_timeout!(
+            &mut rx,
+            Duration::from_millis(200),
+            "expected the files to be created"
+        );
+        let files = torrent.files().await;
 
         assert_eq!(1, files.len(), "expected the files to have been created");
     }
 
-    #[test]
-    fn test_torrent_is_completed() {
+    #[tokio::test]
+    async fn test_torrent_is_completed() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -4098,19 +4030,17 @@ mod tests {
                 || Box::new(TorrentFileValidationOperation::new()),
             ]
         );
-        let context = torrent.instance().unwrap();
-        let runtime = context.runtime();
-        let (tx, rx) = channel();
+        let (tx, mut rx) = channel(1);
 
         let mut receiver = torrent.subscribe();
-        runtime.spawn(async move {
+        tokio::spawn(async move {
             loop {
                 if let Some(event) = receiver.recv().await {
                     if let TorrentEvent::StateChanged(state) = &*event {
                         if state != &TorrentState::Initializing
                             && state != &TorrentState::CheckingFiles
                         {
-                            tx.send(()).unwrap();
+                            tx.send(()).await.unwrap();
                         }
                     }
                 } else {
@@ -4120,21 +4050,25 @@ mod tests {
         });
 
         // wait for the expected state
-        let _ = rx.recv_timeout(Duration::from_millis(5000)).unwrap();
+        recv_timeout!(
+            &mut rx,
+            Duration::from_millis(5000),
+            "expected the torrent to be initialized"
+        );
 
         // prioritize the first 30 pieces
-        let mut priorities = runtime.block_on(torrent.piece_priorities());
+        let mut priorities = torrent.piece_priorities().await;
         for priority in &mut priorities[30..] {
             priority.1 = PiecePriority::None;
         }
-        runtime.block_on(torrent.prioritize_pieces(priorities));
+        torrent.prioritize_pieces(priorities).await;
 
-        let result = runtime.block_on(torrent.is_completed());
+        let result = torrent.is_completed().await;
         assert_eq!(true, result, "expected the torrent to be completed");
     }
 
-    #[test]
-    fn test_torrent_is_download_allowed() {
+    #[tokio::test]
+    async fn test_torrent_is_download_allowed() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -4146,36 +4080,38 @@ mod tests {
             vec![|| Box::new(TorrentCreatePiecesOperation::new())]
         );
         let context = torrent.instance().unwrap();
-        let runtime = context.runtime();
 
         let mut receiver = torrent.subscribe();
 
-        let result = runtime.block_on(context.is_download_allowed());
+        let result = context.is_download_allowed().await;
         assert_eq!(false, result, "expected downloading to not be allowed");
 
-        let result = runtime.block_on(async {
+        let result = async {
             context.add_options(TorrentFlags::DownloadMode).await;
             // wait for the state change event
             let _ = receiver.recv().await;
             context.is_download_allowed().await
-        });
+        }
+        .await;
         assert_eq!(false, result, "expected downloading to not be allowed");
 
-        let result = runtime.block_on(async {
+        let result = async {
             context.update_state(TorrentState::Finished).await;
             context.is_download_allowed().await
-        });
+        }
+        .await;
         assert_eq!(true, result, "expected downloading to be allowed");
 
-        let result = runtime.block_on(async {
+        let result = async {
             context.add_options(TorrentFlags::Paused).await;
             context.is_download_allowed().await
-        });
+        }
+        .await;
         assert_eq!(false, result, "expected downloading to not be allowed");
     }
 
-    #[test]
-    fn test_torrent_is_upload_allowed() {
+    #[tokio::test]
+    async fn test_torrent_is_upload_allowed() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -4191,22 +4127,23 @@ mod tests {
             ]
         );
         let context = torrent.instance().unwrap();
-        let runtime = context.runtime();
 
-        let result = runtime.block_on(context.is_upload_allowed());
+        let result = context.is_upload_allowed().await;
         assert_eq!(true, result, "expected uploading to be allowed");
 
-        runtime.block_on(torrent.add_options(TorrentFlags::Paused));
-        let result = runtime.block_on(context.is_upload_allowed());
+        torrent.add_options(TorrentFlags::Paused).await;
+        let result = context.is_upload_allowed().await;
         assert_eq!(false, result, "expected uploading to not be allowed");
 
-        runtime.block_on(torrent.remove_options(TorrentFlags::Paused | TorrentFlags::UploadMode));
-        let result = runtime.block_on(context.is_upload_allowed());
+        torrent
+            .remove_options(TorrentFlags::Paused | TorrentFlags::UploadMode)
+            .await;
+        let result = context.is_upload_allowed().await;
         assert_eq!(false, result, "expected uploading to not be allowed");
     }
 
-    #[test]
-    fn test_torrent_is_end_game() {
+    #[tokio::test]
+    async fn test_torrent_is_end_game() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -4218,56 +4155,53 @@ mod tests {
             vec![]
         );
         let context = torrent.instance().unwrap();
-        let runtime = context.runtime();
         let operation = TorrentCreatePiecesOperation::new();
 
-        let total_pieces = runtime.block_on(async {
-            operation.execute(&context).await;
-            context.total_pieces().await
-        });
+        operation.execute(&context).await;
+        let total_pieces = context.total_pieces().await;
         assert_ne!(0, total_pieces, "expected the pieces to have been created");
 
-        let result = runtime.block_on(context.is_end_game());
+        let result = context.is_end_game().await;
         assert_eq!(
             false, result,
             "expected the torrent to not be in the end-game phase"
         );
 
         let completed_range_1 = (total_pieces as f64 * 0.90) as usize;
-        runtime.block_on(
-            context.pieces_completed(
+        context
+            .pieces_completed(
                 (0..completed_range_1)
                     .into_iter()
                     .map(|e| e as PieceIndex)
                     .collect(),
-            ),
-        );
+            )
+            .await;
 
-        let result = runtime.block_on(context.is_end_game());
+        let result = context.is_end_game().await;
         assert_eq!(
             false, result,
             "expected the torrent to not be in the end-game phase"
         );
 
         let completed_range_2 = (total_pieces as f64 * 0.98) as usize;
-        runtime.block_on(
-            context.pieces_completed(
+        context
+            .pieces_completed(
                 (completed_range_1..completed_range_2)
                     .into_iter()
                     .map(|e| e as PieceIndex)
                     .collect(),
-            ),
-        );
+            )
+            .await;
 
-        let result = runtime.block_on(context.is_end_game());
+        let result = context.is_end_game().await;
         assert_eq!(
             true, result,
             "expected the torrent to be in the end-game phase"
         );
     }
 
-    #[test]
-    fn test_torrent_determine_state() {
+    #[tokio::test]
+    async fn test_torrent_determine_state() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -4285,34 +4219,27 @@ mod tests {
             vec![]
         );
         let context = torrent.instance().unwrap();
-        let runtime = context.runtime();
 
-        let result = runtime.block_on(context.determine_state());
+        let result = context.determine_state().await;
         assert_eq!(TorrentState::Initializing, result);
 
-        let result = runtime.block_on(async {
-            context.update_pieces(pieces).await;
-            context.determine_state().await
-        });
+        context.update_pieces(pieces).await;
+        let result = context.determine_state().await;
         assert_eq!(TorrentState::Finished, result);
 
-        let result = runtime.block_on(async {
-            context.add_options(TorrentFlags::UploadMode).await;
-            context.determine_state().await
-        });
+        context.add_options(TorrentFlags::UploadMode).await;
+        let result = context.determine_state().await;
         assert_eq!(TorrentState::Seeding, result);
 
-        let result = runtime.block_on(async {
-            context.remove_options(TorrentFlags::UploadMode).await;
-            context.add_options(TorrentFlags::DownloadMode).await;
-            context.update_state(TorrentState::Paused).await;
-            context.determine_state().await
-        });
+        context.remove_options(TorrentFlags::UploadMode).await;
+        context.add_options(TorrentFlags::DownloadMode).await;
+        context.update_state(TorrentState::Paused).await;
+        let result = context.determine_state().await;
         assert_eq!(TorrentState::Downloading, result);
     }
 
-    #[test]
-    fn test_torrent_wanted_pieces() {
+    #[tokio::test]
+    async fn test_torrent_wanted_pieces() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -4324,44 +4251,41 @@ mod tests {
             vec![]
         );
         let context = torrent.instance().unwrap();
-        let runtime = context.runtime();
         let operation = TorrentCreatePiecesOperation::new();
 
-        let total_pieces = runtime.block_on(async {
-            operation.execute(&context).await;
-            context.total_pieces().await
-        });
+        operation.execute(&context).await;
+        let total_pieces = context.total_pieces().await;
         assert_ne!(0, total_pieces, "expected the pieces to have been created");
 
-        runtime.block_on(
-            torrent.prioritize_pieces(
+        torrent
+            .prioritize_pieces(
                 (30..total_pieces)
                     .into_iter()
                     .map(|piece| (piece, PiecePriority::None))
                     .collect(),
-            ),
-        );
+            )
+            .await;
 
         let expected_result: Vec<PieceIndex> = (0..30)
             .into_iter()
             .map(|piece| piece as PieceIndex)
             .collect();
-        let result = runtime.block_on(context.wanted_pieces());
+        let result = context.wanted_pieces().await;
         assert_eq!(expected_result, result);
 
-        runtime.block_on(
-            context.pieces_completed((0..2).into_iter().map(|e| e as PieceIndex).collect()),
-        );
+        context
+            .pieces_completed((0..2).into_iter().map(|e| e as PieceIndex).collect())
+            .await;
         let expected_result: Vec<PieceIndex> = (2..30)
             .into_iter()
             .map(|piece| piece as PieceIndex)
             .collect();
-        let result = runtime.block_on(context.wanted_pieces());
+        let result = context.wanted_pieces().await;
         assert_eq!(expected_result, result);
     }
 
-    #[test]
-    fn test_torrent_wanted_request_pieces() {
+    #[tokio::test]
+    async fn test_torrent_wanted_request_pieces() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -4373,26 +4297,23 @@ mod tests {
             vec![]
         );
         let context = torrent.instance().unwrap();
-        let runtime = context.runtime();
         let operation = TorrentCreatePiecesOperation::new();
 
-        let total_pieces = runtime.block_on(async {
-            operation.execute(&context).await;
-            context.total_pieces().await
-        });
+        operation.execute(&context).await;
+        let total_pieces = context.total_pieces().await;
         assert_ne!(0, total_pieces, "expected the pieces to have been created");
 
-        runtime.block_on(
-            torrent.prioritize_pieces(
+        torrent
+            .prioritize_pieces(
                 (100..total_pieces)
                     .into_iter()
                     .map(|piece| (piece, PiecePriority::None))
                     .collect(),
-            ),
-        );
+            )
+            .await;
 
         // acquire some locks
-        let permits = runtime.block_on(async {
+        let permits = async {
             // update the torrent state to a "download allowed" state
             context.update_state(TorrentState::Downloading).await;
             // start requesting permits
@@ -4405,23 +4326,22 @@ mod tests {
                 permits.push(permit);
             }
             permits
-        });
+        }
+        .await;
         assert_eq!(10, permits.len(), "expected to acquire 10 permits");
 
         let expected_wanted_pieces: Vec<PieceIndex> =
             (10..100).into_iter().map(|e| e as PieceIndex).collect();
-        let wanted_pieces = runtime.block_on(context.wanted_request_pieces());
+        let wanted_pieces = context.wanted_request_pieces().await;
         assert_eq!(expected_wanted_pieces, wanted_pieces);
 
         // update a piece 0 to have timed out
-        runtime.block_on(async {
-            context
-                .pending_piece_requests
-                .write()
-                .await
-                .insert(0, Instant::now().sub(Duration::from_secs(120)));
-        });
-        let wanted_pieces = runtime.block_on(context.wanted_request_pieces());
+        context
+            .pending_piece_requests
+            .write()
+            .await
+            .insert(0, Instant::now().sub(Duration::from_secs(120)));
+        let wanted_pieces = context.wanted_request_pieces().await;
         assert_eq!(
             &0,
             wanted_pieces.get(0).unwrap(),
@@ -4429,13 +4349,13 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_torrent_update_state() {
+    #[tokio::test]
+    async fn test_torrent_update_state() {
         init_logger!();
         let expected_state = TorrentState::Paused;
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let (tx, rx) = channel();
+        let (tx, mut rx) = channel(1);
         let torrent = create_torrent!(
             "debian-udp.torrent",
             temp_path,
@@ -4444,15 +4364,14 @@ mod tests {
             vec![]
         );
         let context = torrent.instance().unwrap();
-        let runtime = context.runtime();
 
         // subscribe to the events of the torrent
         let mut receiver = torrent.subscribe();
-        runtime.spawn(async move {
+        tokio::spawn(async move {
             loop {
                 if let Some(event) = receiver.recv().await {
                     if let TorrentEvent::StateChanged(state) = &*event {
-                        tx.send(*state).unwrap();
+                        tx.send(state.clone()).await.unwrap();
                         break;
                     }
                 } else {
@@ -4461,17 +4380,19 @@ mod tests {
             }
         });
 
-        runtime.block_on(context.update_state(expected_state));
+        context.update_state(expected_state).await;
 
-        let result = rx
-            .recv_timeout(Duration::from_millis(200))
-            .expect("expected a state change event");
+        let result = recv_timeout!(
+            &mut rx,
+            Duration::from_millis(200),
+            "expected a state change event"
+        );
         assert_eq!(
             expected_state, result,
             "expected the state change event to match the new state"
         );
 
-        let result = runtime.block_on(torrent.state());
+        let result = torrent.state().await;
         assert_eq!(
             expected_state, result,
             "expected the state function to match the new state"

@@ -5,15 +5,16 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use derive_more::Display;
-use fx_callback::CallbackHandle;
+use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use log::{debug, error, trace, warn};
 use rust_cast::channels::heartbeat::HeartbeatResponse;
 use rust_cast::channels::media::{MediaResponse, Status, StatusEntry};
 use rust_cast::channels::receiver::{Application, CastDeviceApp};
 use rust_cast::{channels, ChannelMessage};
-use tokio::runtime::Runtime;
+use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::sync::{Mutex, RwLock};
-use tokio::{runtime, time};
+use tokio::time::{interval, Interval};
+use tokio::{select, time};
 use tokio_util::sync::CancellationToken;
 
 use popcorn_fx_core::core::players::{
@@ -21,7 +22,6 @@ use popcorn_fx_core::core::players::{
 };
 use popcorn_fx_core::core::subtitles::model::SubtitleType;
 use popcorn_fx_core::core::subtitles::SubtitleServer;
-use popcorn_fx_core::core::{block_in_place, Callbacks, CoreCallback, CoreCallbacks};
 
 use crate::chromecast;
 use crate::chromecast::device::{FxCastDevice, DEFAULT_RECEIVER};
@@ -60,10 +60,10 @@ impl<D: FxCastDevice> ChromecastPlayer<D> {
         subtitle_server: Arc<SubtitleServer>,
         transcoder: Arc<Box<dyn Transcoder>>,
         heartbeat_seconds: u64,
-        runtime: Arc<Runtime>,
     ) -> chromecast::Result<Self> {
         let name = name.into();
         let cast_address = cast_address.into();
+        let (command_sender, command_receiver) = unbounded_channel();
 
         trace!(
             "Trying to establish connection with Chromecast device {} on {}:{}...",
@@ -97,52 +97,27 @@ impl<D: FxCastDevice> ChromecastPlayer<D> {
             cast_media_session_id: Default::default(),
             subtitle_server,
             transcoder,
-            callbacks: Default::default(),
-            runtime,
+            command_sender,
+            callbacks: MultiThreadedCallback::new(),
             status_check_token: Default::default(),
-            shutdown_token: Default::default(),
+            cancellation_token: Default::default(),
         });
 
         let inner = instance.clone();
-        let cancellation_token = instance.shutdown_token.clone();
-        instance.runtime.spawn(Self::start_heartbeat(
-            inner,
-            cancellation_token,
-            heartbeat_seconds,
-        ));
+        tokio::spawn(async move {
+            inner
+                .start(
+                    command_receiver,
+                    interval(Duration::from_secs(heartbeat_seconds)),
+                )
+                .await;
+        });
 
         Ok(Self { inner: instance })
     }
 
     pub fn builder() -> ChromecastPlayerBuilder<D> {
         ChromecastPlayerBuilder::builder()
-    }
-
-    async fn start_heartbeat(
-        inner: Arc<InnerChromecastPlayer<D>>,
-        cancellation_token: CancellationToken,
-        heartbeat_seconds: u64,
-    ) {
-        loop {
-            if cancellation_token.is_cancelled() {
-                break;
-            }
-
-            let ping_result: chromecast::Result<()>;
-
-            {
-                let mutex = inner.cast_device.read().await;
-                trace!("Sending Chromecast {} heartbeat", inner.name);
-                ping_result = mutex.ping();
-            }
-
-            if let Err(e) = ping_result {
-                warn!("Failed to ping Chromecast {}, {}", inner.name, e);
-            }
-            time::sleep(Duration::from_secs(heartbeat_seconds)).await;
-        }
-
-        debug!("Chromecast {} heartbeat has been stopped", inner.name);
     }
 
     async fn start_message_handler(
@@ -184,16 +159,6 @@ impl<D: FxCastDevice> ChromecastPlayer<D> {
     }
 }
 
-impl<D: FxCastDevice> Callbacks<PlayerEvent> for ChromecastPlayer<D> {
-    fn add_callback(&self, callback: CoreCallback<PlayerEvent>) -> CallbackHandle {
-        self.inner.add_callback(callback)
-    }
-
-    fn remove_callback(&self, handle: CallbackHandle) {
-        self.inner.remove_callback(handle)
-    }
-}
-
 #[async_trait]
 impl<D: FxCastDevice + 'static> Player for ChromecastPlayer<D> {
     fn id(&self) -> &str {
@@ -212,12 +177,12 @@ impl<D: FxCastDevice + 'static> Player for ChromecastPlayer<D> {
         GRAPHIC_RESOURCE.to_vec()
     }
 
-    fn state(&self) -> PlayerState {
-        self.inner.state()
+    async fn state(&self) -> PlayerState {
+        self.inner.state().await
     }
 
-    fn request(&self) -> Option<Weak<Box<dyn PlayRequest>>> {
-        let mutex = block_in_place(self.inner.request.lock());
+    async fn request(&self) -> Option<Weak<Box<dyn PlayRequest>>> {
+        let mutex = self.inner.request.lock().await;
         mutex.as_ref().map(|e| Arc::downgrade(e))
     }
 
@@ -225,7 +190,7 @@ impl<D: FxCastDevice + 'static> Player for ChromecastPlayer<D> {
         trace!(
             "Starting Chromecast {} playback for {:?}",
             self.name(),
-            self.request()
+            request
         );
         self.inner.update_state_async(PlayerState::Loading).await;
 
@@ -242,20 +207,22 @@ impl<D: FxCastDevice + 'static> Player for ChromecastPlayer<D> {
                 // self.inner.runtime.spawn(Self::start_message_handler(inner, cancellation_token));
 
                 // serve the chromecast subtitle if one is present
-                let subtitle_url = request
-                    .subtitle()
-                    .subtitle
-                    .as_ref()
-                    .map(|e| e.clone())
-                    .and_then(
-                        |e| match self.inner.subtitle_server.serve(e, SubtitleType::Vtt) {
-                            Ok(e) => Some(e),
-                            Err(e) => {
-                                error!("Failed to serve subtitle, {}", e);
-                                None
-                            }
-                        },
-                    );
+                let subtitle_url = if let Some(subtitle) = request.subtitle().subtitle.as_ref() {
+                    match self
+                        .inner
+                        .subtitle_server
+                        .serve(subtitle.clone(), SubtitleType::Vtt)
+                        .await
+                    {
+                        Ok(url) => Some(url),
+                        Err(e) => {
+                            error!("Failed to serve subtitle: {}", e);
+                            None
+                        }
+                    }
+                } else {
+                    None
+                };
 
                 if let Err(e) = self.inner.load(&app, &request, subtitle_url).await {
                     error!("Failed to load Chromecast media, {}", e);
@@ -265,9 +232,7 @@ impl<D: FxCastDevice + 'static> Player for ChromecastPlayer<D> {
 
                 debug!("Starting Chromecast {} playback", self.name());
                 let token = self.inner.generate_status_token().await;
-                self.inner
-                    .runtime
-                    .spawn(Self::start_status_updates(self.inner.clone(), token));
+                tokio::spawn(Self::start_status_updates(self.inner.clone(), token));
                 self.inner.resume().await;
 
                 {
@@ -284,20 +249,44 @@ impl<D: FxCastDevice + 'static> Player for ChromecastPlayer<D> {
     }
 
     fn pause(&self) {
-        block_in_place(self.inner.pause())
+        self.inner.send_command(ChromecastPlayerCommand::Pause);
     }
 
     fn resume(&self) {
-        block_in_place(self.inner.resume())
+        self.inner.send_command(ChromecastPlayerCommand::Resume);
     }
 
     fn seek(&self, time: u64) {
-        block_in_place(self.inner.seek(time))
+        self.inner.send_command(ChromecastPlayerCommand::Seek(time));
     }
 
     fn stop(&self) {
-        block_in_place(self.inner.stop())
+        self.inner.send_command(ChromecastPlayerCommand::Stop);
     }
+}
+
+impl<D: FxCastDevice + 'static> Callback<PlayerEvent> for ChromecastPlayer<D> {
+    fn subscribe(&self) -> Subscription<PlayerEvent> {
+        self.inner.callbacks.subscribe()
+    }
+
+    fn subscribe_with(&self, subscriber: Subscriber<PlayerEvent>) {
+        self.inner.callbacks.subscribe_with(subscriber)
+    }
+}
+
+impl<D: FxCastDevice + 'static> Drop for ChromecastPlayer<D> {
+    fn drop(&mut self) {
+        self.inner.cancellation_token.cancel();
+    }
+}
+
+#[derive(Debug, PartialEq)]
+enum ChromecastPlayerCommand {
+    Pause,
+    Resume,
+    Seek(u64),
+    Stop,
 }
 
 pub struct ChromecastPlayerBuilder<D: FxCastDevice> {
@@ -310,7 +299,6 @@ pub struct ChromecastPlayerBuilder<D: FxCastDevice> {
     subtitle_server: Option<Arc<SubtitleServer>>,
     transcoder: Option<Arc<Box<dyn Transcoder>>>,
     heartbeat_seconds: Option<u64>,
-    runtime: Option<Arc<Runtime>>,
 }
 
 impl<D: FxCastDevice> ChromecastPlayerBuilder<D> {
@@ -325,7 +313,6 @@ impl<D: FxCastDevice> ChromecastPlayerBuilder<D> {
             subtitle_server: None,
             transcoder: None,
             heartbeat_seconds: None,
-            runtime: None,
         }
     }
 
@@ -374,11 +361,6 @@ impl<D: FxCastDevice> ChromecastPlayerBuilder<D> {
         self
     }
 
-    pub fn runtime(mut self, runtime: Arc<Runtime>) -> Self {
-        self.runtime = Some(runtime);
-        self
-    }
-
     pub fn build(self) -> chromecast::Result<ChromecastPlayer<D>> {
         let id = self.id.expect("expected an id to be set");
         let name = self.name.expect("expected a name to be set");
@@ -400,16 +382,6 @@ impl<D: FxCastDevice> ChromecastPlayerBuilder<D> {
             warn!("No transcoder set, using no-op transcoder");
             Arc::new(Box::new(NoOpTranscoder {}))
         });
-        let runtime = self.runtime.unwrap_or_else(|| {
-            Arc::new(
-                runtime::Builder::new_multi_thread()
-                    .enable_all()
-                    .worker_threads(2)
-                    .thread_name(format!("chromecast-{}", name))
-                    .build()
-                    .expect("failed to create runtime"),
-            )
-        });
 
         ChromecastPlayer::new(
             id,
@@ -421,7 +393,6 @@ impl<D: FxCastDevice> ChromecastPlayerBuilder<D> {
             subtitle_server,
             transcoder,
             heartbeat_seconds,
-            runtime,
         )
     }
 }
@@ -440,16 +411,40 @@ struct InnerChromecastPlayer<D: FxCastDevice> {
     cast_media_session_id: Mutex<Option<i32>>,
     subtitle_server: Arc<SubtitleServer>,
     transcoder: Arc<Box<dyn Transcoder>>,
-    callbacks: CoreCallbacks<PlayerEvent>,
-    runtime: Arc<Runtime>,
     status_check_token: Mutex<CancellationToken>,
-    shutdown_token: CancellationToken,
+    command_sender: UnboundedSender<ChromecastPlayerCommand>,
+    callbacks: MultiThreadedCallback<PlayerEvent>,
+    cancellation_token: CancellationToken,
 }
 
 impl<D: FxCastDevice> InnerChromecastPlayer<D> {
-    fn state(&self) -> PlayerState {
-        let mutex = block_in_place(self.state.lock());
-        mutex.clone()
+    async fn start(
+        &self,
+        mut command_receiver: UnboundedReceiver<ChromecastPlayerCommand>,
+        mut heartbeat_interval: Interval,
+    ) {
+        loop {
+            select! {
+                _ = self.cancellation_token.cancelled() => break,
+                Some(command) = command_receiver.recv() => self.handle_command(command).await,
+                _ = heartbeat_interval.tick() => self.send_heartbeat().await,
+            }
+        }
+        self.stop().await;
+        debug!("Chromecast player main loop ended");
+    }
+
+    async fn handle_command(&self, command: ChromecastPlayerCommand) {
+        match command {
+            ChromecastPlayerCommand::Pause => self.pause().await,
+            ChromecastPlayerCommand::Resume => self.resume().await,
+            ChromecastPlayerCommand::Seek(time) => self.seek(time).await,
+            ChromecastPlayerCommand::Stop => self.stop().await,
+        }
+    }
+
+    async fn state(&self) -> PlayerState {
+        *self.state.lock().await
     }
 
     async fn update_state_async(&self, state: PlayerState) {
@@ -527,6 +522,20 @@ impl<D: FxCastDevice> InnerChromecastPlayer<D> {
         .await
     }
 
+    async fn send_heartbeat(&self) {
+        let ping_result: chromecast::Result<()>;
+
+        {
+            let mutex = self.cast_device.read().await;
+            trace!("Sending Chromecast {} heartbeat", self.name);
+            ping_result = mutex.ping();
+        }
+
+        if let Err(e) = ping_result {
+            warn!("Failed to ping Chromecast {}, {}", self.name, e);
+        }
+    }
+
     async fn start_transcoding(&self) {
         let mut mutex = self.request.lock().await;
         // don't keep the cast_app lock as it will cause issues when trying to resume the media playback
@@ -547,7 +556,7 @@ impl<D: FxCastDevice> InnerChromecastPlayer<D> {
                         // serve the chromecast subtitle if one is present
                         let subtitle_url: Option<String>;
                         if request.subtitle().enabled {
-                            subtitle_url = self.subtitle_url(&request);
+                            subtitle_url = self.subtitle_url(&request).await;
                         } else {
                             subtitle_url = None;
                         }
@@ -638,8 +647,8 @@ impl<D: FxCastDevice> InnerChromecastPlayer<D> {
 
     async fn stop_app(&self) -> chromecast::Result<()> {
         self.try_command(|| async {
-            let mut mutex = block_in_place(self.cast_app.lock());
-            let cast_device = block_in_place(self.cast_device.read());
+            let mut mutex = self.cast_app.lock().await;
+            let cast_device = self.cast_device.read().await;
 
             if let Some(app) = mutex.take() {
                 debug!("Stopping chromecast app {:?}", app);
@@ -840,19 +849,18 @@ impl<D: FxCastDevice> InnerChromecastPlayer<D> {
     /// # Returns
     ///
     /// The subtitle URL if available, or `None` if the subtitle is not present or could not be served.
-    fn subtitle_url(&self, request: &Box<dyn PlayRequest>) -> Option<String> {
-        request
-            .subtitle()
-            .subtitle
-            .as_ref()
-            .map(|e| e.clone())
-            .and_then(|e| match self.subtitle_server.serve(e, SubtitleType::Vtt) {
+    async fn subtitle_url(&self, request: &Box<dyn PlayRequest>) -> Option<String> {
+        if let Some(url) = request.subtitle().subtitle.as_ref().cloned() {
+            match self.subtitle_server.serve(url, SubtitleType::Vtt).await {
                 Ok(e) => Some(e),
                 Err(e) => {
                     error!("Failed to serve subtitle, {}", e);
                     None
                 }
-            })
+            }
+        } else {
+            None
+        }
     }
 
     async fn handle_event(&self, event: chromecast::Result<ChannelMessage>) {
@@ -985,6 +993,12 @@ impl<D: FxCastDevice> InnerChromecastPlayer<D> {
         Ok(())
     }
 
+    fn send_command(&self, command: ChromecastPlayerCommand) {
+        if let Err(e) = self.command_sender.send(command) {
+            debug!("Chromecast player failed to send command, {}", e);
+        }
+    }
+
     fn request_to_media_payload(
         request: &Box<dyn PlayRequest>,
         subtitle_url: Option<String>,
@@ -1065,16 +1079,6 @@ impl<D: FxCastDevice> InnerChromecastPlayer<D> {
     }
 }
 
-impl<D: FxCastDevice> Callbacks<PlayerEvent> for InnerChromecastPlayer<D> {
-    fn add_callback(&self, callback: CoreCallback<PlayerEvent>) -> CallbackHandle {
-        self.callbacks.add_callback(callback)
-    }
-
-    fn remove_callback(&self, handle: CallbackHandle) {
-        self.callbacks.remove_callback(handle)
-    }
-}
-
 impl<D: FxCastDevice> Debug for InnerChromecastPlayer<D> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("InnerChromecastPlayer")
@@ -1087,16 +1091,8 @@ impl<D: FxCastDevice> Debug for InnerChromecastPlayer<D> {
             .field("cast_port", &self.cast_port)
             .field("cast_app", &self.cast_app)
             .field("callbacks", &self.callbacks)
-            .field("runtime", &self.runtime)
-            .field("cancellation_token", &self.shutdown_token)
+            .field("cancellation_token", &self.cancellation_token)
             .finish()
-    }
-}
-
-impl<D: FxCastDevice> Drop for InnerChromecastPlayer<D> {
-    fn drop(&mut self) {
-        block_in_place(self.stop());
-        self.shutdown_token.cancel();
     }
 }
 
@@ -1158,20 +1154,20 @@ mod tests {
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::core::subtitles::model::{Subtitle, SubtitleInfo};
     use popcorn_fx_core::core::subtitles::MockSubtitleProvider;
-    use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::MockTorrentStream;
+    use popcorn_fx_core::{assert_timeout, init_logger, recv_timeout};
     use rust_cast::channels::media::StatusEntry;
     use rust_cast::channels::receiver::Volume;
     use rust_cast::channels::{media, receiver};
     use serde_json::Number;
     use std::sync::mpsc::channel;
+    use tokio::sync::mpsc::unbounded_channel;
 
-    #[test]
-    fn test_player_new() {
+    #[tokio::test]
+    async fn test_player_new() {
         init_logger!();
         let subtitle_provider = MockSubtitleProvider::new();
         let transcoder = MockTranscoder::new();
-        let runtime = Runtime::new().unwrap();
 
         let result = ChromecastPlayer::new(
             "MyChromecastId",
@@ -1183,7 +1179,6 @@ mod tests {
             Arc::new(SubtitleServer::new(Arc::new(Box::new(subtitle_provider)))),
             Arc::new(Box::new(transcoder)),
             500,
-            Arc::new(runtime),
         );
 
         if let Ok(_) = result {
@@ -1192,8 +1187,8 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_player_id() {
+    #[tokio::test]
+    async fn test_player_id() {
         init_logger!();
         let mut test_instance = TestInstance::new_player(Box::new(|| create_default_device()));
         let player = test_instance.player.take().unwrap();
@@ -1203,8 +1198,8 @@ mod tests {
         assert_eq!("MyChromecastId", result);
     }
 
-    #[test]
-    fn test_player_name() {
+    #[tokio::test]
+    async fn test_player_name() {
         init_logger!();
         let mut test_instance = TestInstance::new_player(Box::new(|| create_default_device()));
         let player = test_instance.player.take().unwrap();
@@ -1214,8 +1209,8 @@ mod tests {
         assert_eq!("MyChromecastName", result);
     }
 
-    #[test]
-    fn test_player_description() {
+    #[tokio::test]
+    async fn test_player_description() {
         init_logger!();
         let mut test_instance = TestInstance::new_player(Box::new(|| create_default_device()));
         let player = test_instance.player.take().unwrap();
@@ -1225,8 +1220,8 @@ mod tests {
         assert_eq!(DESCRIPTION, result);
     }
 
-    #[test]
-    fn test_player_graphic_resource() {
+    #[tokio::test]
+    async fn test_player_graphic_resource() {
         init_logger!();
         let mut test_instance = TestInstance::new_player(Box::new(|| create_default_device()));
         let player = test_instance.player.take().unwrap();
@@ -1236,19 +1231,19 @@ mod tests {
         assert_eq!(GRAPHIC_RESOURCE.to_vec(), result);
     }
 
-    #[test]
-    fn test_player_state() {
+    #[tokio::test]
+    async fn test_player_state() {
         init_logger!();
         let mut test_instance = TestInstance::new_player(Box::new(|| create_default_device()));
         let player = test_instance.player.take().unwrap();
 
-        let result = player.state();
+        let result = player.state().await;
 
         assert_eq!(PlayerState::Ready, result);
     }
 
-    #[test]
-    fn test_player_play() {
+    #[tokio::test]
+    async fn test_player_play() {
         init_logger!();
         let url = "http://localhost:8900/my-video.mkv";
         let (tx_command, rx_command) = channel::<LoadCommand>();
@@ -1324,31 +1319,38 @@ mod tests {
             quality: "720p".to_string(),
             torrent_stream: Box::new(MockTorrentStream::new()),
         });
-        let (tx, rx) = channel();
+        let (tx, mut rx) = unbounded_channel();
         let player = test_instance.player.take().unwrap();
 
-        player.add_callback(Box::new(move |event| {
-            if let PlayerEvent::StateChanged(state) = event {
-                tx.send(state).unwrap();
+        let mut receiver = player.subscribe();
+        tokio::spawn(async move {
+            loop {
+                if let Some(event) = receiver.recv().await {
+                    if let PlayerEvent::StateChanged(state) = &*event {
+                        tx.send(*state).unwrap();
+                    }
+                } else {
+                    break;
+                }
             }
-        }));
-        test_instance.runtime.block_on(player.play(request));
+        });
+        player.play(request).await;
 
-        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        let result = recv_timeout!(&mut rx, Duration::from_millis(200));
         assert_eq!(PlayerState::Loading, result);
 
-        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        let result = recv_timeout!(&mut rx, Duration::from_millis(200));
         assert_eq!(PlayerState::Playing, result);
 
         let command = rx_command.recv_timeout(Duration::from_millis(200)).unwrap();
         assert_eq!(url.to_string(), command.media.url);
     }
 
-    #[test]
-    fn test_player_pause() {
+    #[tokio::test]
+    async fn test_player_pause() {
         init_logger!();
         let transport_id = "FooBar";
-        let (tx, rx) = channel();
+        let (tx, mut rx) = unbounded_channel();
         let mut test_instance = TestInstance::new_player(Box::new(move || {
             let mut device = create_default_device();
             let sender = tx.clone();
@@ -1363,7 +1365,7 @@ mod tests {
         }));
         let player = test_instance.player.take().unwrap();
 
-        *block_in_place(player.inner.cast_app.lock()) = Some(Application {
+        *player.inner.cast_app.lock().await = Some(Application {
             app_id: "MyAppId".to_string(),
             session_id: "MySessionId".to_string(),
             transport_id: transport_id.to_string(),
@@ -1371,17 +1373,21 @@ mod tests {
             display_name: "".to_string(),
             status_text: "".to_string(),
         });
-        *block_in_place(player.inner.cast_media_session_id.lock()) = Some(1);
+        *player.inner.cast_media_session_id.lock().await = Some(1);
 
         player.pause();
-        assert_eq!(PlayerState::Paused, player.state());
+        assert_timeout!(
+            Duration::from_millis(200),
+            player.state().await == PlayerState::Paused,
+            "expected the player to be paused"
+        );
 
-        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        let result = recv_timeout!(&mut rx, Duration::from_millis(200));
         assert_eq!(transport_id.to_string(), result);
     }
 
-    #[test]
-    fn test_player_resume() {
+    #[tokio::test]
+    async fn test_player_resume() {
         init_logger!();
         let mut test_instance = TestInstance::new_player(Box::new(|| create_default_device()));
         let player = test_instance.player.take().unwrap();
@@ -1389,11 +1395,11 @@ mod tests {
         player.resume();
     }
 
-    #[test]
-    fn test_player_seek() {
+    #[tokio::test]
+    async fn test_player_seek() {
         init_logger!();
         let transport_id = "LoremIpsum";
-        let (tx, rx) = channel();
+        let (tx, mut rx) = unbounded_channel();
         let mut test_instance = TestInstance::new_player(Box::new(move || {
             let mut device = create_default_device();
             let sender = tx.clone();
@@ -1408,7 +1414,7 @@ mod tests {
         }));
         let player = test_instance.player.take().unwrap();
 
-        *block_in_place(player.inner.cast_app.lock()) = Some(Application {
+        *player.inner.cast_app.lock().await = Some(Application {
             app_id: "Foo".to_string(),
             session_id: "Bar".to_string(),
             transport_id: transport_id.to_string(),
@@ -1416,16 +1422,16 @@ mod tests {
             display_name: "".to_string(),
             status_text: "".to_string(),
         });
-        *block_in_place(player.inner.cast_media_session_id.lock()) = Some(1);
+        *player.inner.cast_media_session_id.lock().await = Some(1);
 
         player.seek(14000);
 
-        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        let result = recv_timeout!(&mut rx, Duration::from_millis(200));
         assert_eq!(Some(14f32), result);
     }
 
-    #[test]
-    fn test_player_stop() {
+    #[tokio::test]
+    async fn test_player_stop() {
         init_logger!();
         let session_id = "Bar";
         let (tx, rx) = channel();
@@ -1443,7 +1449,7 @@ mod tests {
         }));
         let player = test_instance.player.take().unwrap();
 
-        *block_in_place(player.inner.cast_app.lock()) = Some(Application {
+        *player.inner.cast_app.lock().await = Some(Application {
             app_id: "Foo".to_string(),
             session_id: session_id.to_string(),
             transport_id: "Dolor".to_string(),
@@ -1451,17 +1457,21 @@ mod tests {
             display_name: "".to_string(),
             status_text: "".to_string(),
         });
-        *block_in_place(player.inner.cast_media_session_id.lock()) = Some(1);
+        *player.inner.cast_media_session_id.lock().await = Some(1);
 
         player.stop();
-        assert_eq!(PlayerState::Stopped, player.state());
+        assert_timeout!(
+            Duration::from_millis(250),
+            player.state().await == PlayerState::Stopped,
+            "expected the player to be stopped"
+        );
 
         let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
         assert_eq!(session_id, result);
     }
 
-    #[test]
-    fn test_player_handle_event_message() {
+    #[tokio::test]
+    async fn test_player_handle_event_message() {
         init_logger!();
         let original_url = "http://localhost:9876/my-video.mp4";
         let transcoding_url = "http://localhost:9875/my-transcoded-video.mp4";
@@ -1505,7 +1515,7 @@ mod tests {
             .expect_convert()
             .times(2)
             .return_const(Ok(subtitle_url.to_string()));
-        let (tx, rx) = channel();
+        let (tx, mut rx) = unbounded_channel();
         let mut transcoder = MockTranscoder::new();
         transcoder.expect_transcode().times(1).returning(move |e| {
             tx.send(e.to_string()).unwrap();
@@ -1570,20 +1580,19 @@ mod tests {
             Box::new(transcoder),
         );
         let player = test_instance.player.take().unwrap();
-        let runtime = test_instance.runtime.clone();
 
-        runtime.block_on(player.play(request));
-        runtime.block_on(
-            player
-                .inner
-                .handle_event(Ok(ChannelMessage::Media(response))),
-        );
+        player.play(request).await;
+        player
+            .inner
+            .handle_event(Ok(ChannelMessage::Media(response)))
+            .await;
 
-        let transcode_url = rx.recv_timeout(Duration::from_millis(250)).unwrap();
+        let transcode_url = recv_timeout!(&mut rx, Duration::from_millis(250));
         assert_eq!(original_url, transcode_url);
 
         let request_url = player
             .request()
+            .await
             .and_then(|e| e.upgrade())
             .map(|e| e.url().to_string())
             .unwrap();
@@ -1594,24 +1603,23 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_player_handle_event_error() {
+    #[tokio::test]
+    async fn test_player_handle_event_error() {
         init_logger!();
         let mut test_instance = create_default_test_instance();
         let player = test_instance.player.take().unwrap();
 
-        test_instance.runtime.block_on(
-            player
-                .inner
-                .handle_event(Err(ChromecastError::Connection("FooBar".to_string()))),
-        );
-        let result = player.state();
+        player
+            .inner
+            .handle_event(Err(ChromecastError::Connection("FooBar".to_string())))
+            .await;
+        let result = player.state().await;
 
         assert_eq!(PlayerState::Error, result);
     }
 
-    #[test]
-    fn test_player_start_app_already_running() {
+    #[tokio::test]
+    async fn test_player_start_app_already_running() {
         init_logger!();
         let session_id = "MySessionId123456";
         let transport_id = "MyTransportId";
@@ -1647,10 +1655,7 @@ mod tests {
         }));
         let player = test_instance.player.take().unwrap();
 
-        let result = test_instance
-            .runtime
-            .block_on(player.inner.start_app())
-            .unwrap();
+        let result = player.inner.start_app().await.unwrap();
 
         assert_eq!(
             CastDeviceApp::DefaultMediaReceiver.to_string(),

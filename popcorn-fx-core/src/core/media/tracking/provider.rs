@@ -1,11 +1,12 @@
 use crate::core::media::MediaIdentifier;
-use crate::core::{Callbacks, CoreCallback};
 use async_trait::async_trait;
 use derive_more::Display;
-#[cfg(any(test, feature = "testing"))]
-pub use mock::*;
+use fx_callback::Callback;
 use std::fmt::Debug;
 use thiserror::Error;
+
+#[cfg(test)]
+pub use mock::*;
 
 /// Represents errors that can occur during authorization.
 #[derive(Debug, Clone, Error, PartialEq)]
@@ -41,9 +42,6 @@ pub enum TrackingError {
 /// A type alias for a function that opens an authorization URI.
 pub type OpenAuthorization = Box<dyn Fn(String) -> bool + Send + Sync>;
 
-/// Type alias for the callback function for tracking events.
-pub type TrackingCallback = CoreCallback<TrackingEvent>;
-
 /// Represents events related to tracking.
 #[derive(Debug, Clone, Display)]
 pub enum TrackingEvent {
@@ -54,7 +52,7 @@ pub enum TrackingEvent {
 
 /// The `TrackingProvider` trait allows tracking of watched media items with third-party media tracking providers.
 #[async_trait]
-pub trait TrackingProvider: Debug + Callbacks<TrackingEvent> + Send + Sync {
+pub trait TrackingProvider: Debug + Callback<TrackingEvent> + Send + Sync {
     /// Registers a callback function for opening authorization URIs.
     fn register_open_authorization(&self, open_callback: OpenAuthorization);
 
@@ -63,7 +61,7 @@ pub trait TrackingProvider: Debug + Callbacks<TrackingEvent> + Send + Sync {
     /// # Returns
     ///
     /// Returns `true` when the user has authorized this tracker, otherwise `false`.
-    fn is_authorized(&self) -> bool;
+    async fn is_authorized(&self) -> bool;
 
     /// Authorizes access to the tracking provider.
     async fn authorize(&self) -> Result<(), AuthorizationError>;
@@ -90,10 +88,10 @@ pub trait TrackingProvider: Debug + Callbacks<TrackingEvent> + Send + Sync {
     async fn watched_movies(&self) -> Result<Vec<Box<dyn MediaIdentifier>>, TrackingError>;
 }
 
-#[cfg(any(test, feature = "testing"))]
-pub mod mock {
+#[cfg(test)]
+mod mock {
     use super::*;
-    use fx_callback::CallbackHandle;
+    use fx_callback::{Subscriber, Subscription};
     use mockall::mock;
 
     mock! {
@@ -103,16 +101,16 @@ pub mod mock {
         #[async_trait]
         impl TrackingProvider for TrackingProvider {
             fn register_open_authorization(&self, open_callback: OpenAuthorization);
-            fn is_authorized(&self) -> bool;
+            async fn is_authorized(&self) -> bool;
             async fn authorize(&self) -> Result<(), AuthorizationError>;
             async fn disconnect(&self);
             async fn add_watched_movies(&self, movie_ids: Vec<String>) -> Result<(), TrackingError>;
             async fn watched_movies(&self) -> Result<Vec<Box<dyn MediaIdentifier>>, TrackingError>;
         }
 
-        impl Callbacks<TrackingEvent> for TrackingProvider {
-            fn add_callback(&self, callback: CoreCallback<TrackingEvent>) -> CallbackHandle;
-            fn remove_callback(&self, handle: CallbackHandle);
+        impl Callback<TrackingEvent> for TrackingProvider {
+            fn subscribe(&self) -> Subscription<TrackingEvent>;
+            fn subscribe_with(&self, subscriber: Subscriber<TrackingEvent>);
         }
     }
 }

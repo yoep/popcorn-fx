@@ -139,31 +139,31 @@ impl LoadingStrategy for TorrentStreamLoadingStrategy {
 
 #[cfg(test)]
 mod tests {
-    use crate::core::torrents::{MockTorrentStreamServer, TorrentHandle};
-    use crate::testing::MockTorrentStream;
-    use crate::{create_loading_task, init_logger};
-    use fx_handle::Handle;
-    use std::sync::mpsc::channel;
-    use std::time::Duration;
-
     use super::*;
 
-    #[test]
-    fn test_process_torrent_file_unknown() {
+    use crate::core::torrents::{MockTorrentStreamServer, TorrentHandle};
+    use crate::testing::MockTorrentStream;
+    use crate::{create_loading_task, init_logger, recv_timeout};
+
+    use fx_handle::Handle;
+    use std::time::Duration;
+    use tokio::sync::mpsc::unbounded_channel;
+
+    #[tokio::test]
+    async fn test_process_torrent_file_unknown() {
         init_logger!();
         let mut data = create_loading_data(MockTorrentStream::new());
         let mut stream_server = MockTorrentStreamServer::new();
         stream_server.expect_start_stream().times(0);
         let task = create_loading_task!();
         let context = task.context();
-        let runtime = context.runtime();
         let strategy = TorrentStreamLoadingStrategy {
             torrent_stream_server: Arc::new(Box::new(stream_server) as Box<dyn TorrentStreamServer>),
         };
 
         // when no specific torrent file has been specified,
         // the torrent stream should never be started even when a torrent is present
-        let result = runtime.block_on(strategy.process(&mut data, &*context));
+        let result = strategy.process(&mut data, &*context).await;
 
         if let LoadingResult::Ok = result {
             assert!(
@@ -179,8 +179,8 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_cancel() {
+    #[tokio::test]
+    async fn test_cancel() {
         init_logger!();
         let handle = TorrentHandle::new();
         let stream_handle = Handle::new();
@@ -191,7 +191,7 @@ mod tests {
             .expect_stream_handle()
             .return_const(stream_handle.clone());
         let data = create_loading_data(stream);
-        let (tx, rx) = channel();
+        let (tx, mut rx) = unbounded_channel();
         let mut stream_server = MockTorrentStreamServer::new();
         stream_server
             .expect_stop_stream()
@@ -199,14 +199,11 @@ mod tests {
             .returning(move |e| {
                 tx.send(e).unwrap();
             });
-        let task = create_loading_task!();
-        let context = task.context();
-        let runtime = context.runtime();
         let strategy = TorrentStreamLoadingStrategy {
             torrent_stream_server: Arc::new(Box::new(stream_server) as Box<dyn TorrentStreamServer>),
         };
 
-        let result = runtime.block_on(strategy.cancel(data));
+        let result = strategy.cancel(data).await;
         if let Ok(result) = result {
             assert!(
                 result.torrent.is_none(),
@@ -220,7 +217,7 @@ mod tests {
             )
         }
 
-        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        let result = recv_timeout!(&mut rx, Duration::from_millis(200));
         assert_eq!(stream_handle, result);
     }
 

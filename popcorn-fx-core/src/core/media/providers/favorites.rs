@@ -31,13 +31,12 @@ impl FavoritesProvider {
     ///
     /// ```no_run
     /// use std::sync::Arc;
+    /// use popcorn_fx_core::core::media::favorites::FavoriteService;
     /// use popcorn_fx_core::core::media::providers::FavoritesProvider;
+    /// use popcorn_fx_core::core::media::watched::WatchedService;
     ///
-    /// fn example() -> FavoritesProvider {
-    ///     let favorites = Arc::new(XXX);
-    ///     let watched = Arc::new(XXX);
-    ///
-    ///     FavoritesProvider::new(favorites.clone(), watched.clone())
+    /// fn example(favorites: Arc<Box<dyn FavoriteService>>, watched_service: Arc<Box<dyn WatchedService>>) -> FavoritesProvider {    ///
+    ///     FavoritesProvider::new(favorites.clone(), watched_service.clone())
     /// }
     /// ```
     ///
@@ -151,7 +150,7 @@ impl MediaProvider for FavoritesProvider {
         category == &Category::Favorites
     }
 
-    fn reset_api(&self) {
+    async fn reset_api(&self) {
         // no-op
     }
 
@@ -168,7 +167,7 @@ impl MediaProvider for FavoritesProvider {
             return Ok(vec![]);
         }
 
-        match self.favorites.all() {
+        match self.favorites.all().await {
             Ok(favorites) => {
                 let total_favorites = favorites.len();
                 trace!("Filtering a total of {} favorites", total_favorites);
@@ -197,7 +196,7 @@ mod test {
 
     use crate::core::event::EventPublisher;
     use crate::core::media;
-    use crate::core::media::favorites::{DefaultFavoriteService, MockFavoriteService};
+    use crate::core::media::favorites::{FXFavoriteService, MockFavoriteService};
     use crate::core::media::watched::DefaultWatchedService;
     use crate::core::media::watched::MockWatchedService;
     use crate::core::media::{Images, MovieOverview, ShowOverview};
@@ -206,8 +205,8 @@ mod test {
 
     use super::*;
 
-    #[test]
-    fn test_retrieve_return_stored_favorites() {
+    #[tokio::test]
+    async fn test_retrieve_return_stored_favorites() {
         init_logger!();
         let imdb_id = "tt21215466";
         let genre = Genre::all();
@@ -227,17 +226,17 @@ mod test {
             Arc::new(Box::new(favorites)),
             Arc::new(Box::new(MockWatchedService::new())),
         );
-        let runtime = tokio::runtime::Runtime::new().expect("expected a new runtime");
 
-        let result = runtime
-            .block_on(provider.retrieve(&genre, &sort_by, &keywords, 1))
+        let result = provider
+            .retrieve(&genre, &sort_by, &keywords, 1)
+            .await
             .expect("expected the favorites to have been returned");
 
         assert_eq!(1, result.len())
     }
 
-    #[test]
-    fn test_retrieve_return_stored_favorites_movies() {
+    #[tokio::test]
+    async fn test_retrieve_return_stored_favorites_movies() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -245,17 +244,17 @@ mod test {
         let sort_by = SortBy::new("watched".to_string(), String::new());
         let keywords = "".to_string();
         copy_test_file(temp_path, "favorites2.json", Some("favorites.json"));
-        let favorites = DefaultFavoriteService::new(temp_path);
+        let favorites = FXFavoriteService::new(temp_path);
         let mut watched_service = MockWatchedService::new();
         watched_service.expect_is_watched().return_const(false);
         let provider = FavoritesProvider::new(
             Arc::new(Box::new(favorites)),
             Arc::new(Box::new(watched_service)),
         );
-        let runtime = tokio::runtime::Runtime::new().expect("expected a new runtime");
 
-        let result = runtime
-            .block_on(provider.retrieve(&genre, &sort_by, &keywords, 1))
+        let result = provider
+            .retrieve(&genre, &sort_by, &keywords, 1)
+            .await
             .expect("expected the favorites to have been returned");
 
         assert_eq!(21, result.len())
@@ -335,8 +334,8 @@ mod test {
         assert_eq!(false, result)
     }
 
-    #[test]
-    fn test_sort_by_should_order_movie_before_show() {
+    #[tokio::test]
+    async fn test_sort_by_should_order_movie_before_show() {
         init_logger!();
         let temp_dir = tempdir().expect("expected a temp directory");
         let resource_path = temp_dir.path().to_str().unwrap();
@@ -345,7 +344,7 @@ mod test {
             Arc::new(Box::new(favorites)),
             Arc::new(Box::new(DefaultWatchedService::new(
                 resource_path,
-                Arc::new(EventPublisher::default()),
+                EventPublisher::default(),
             ))),
         );
         let sort_by = SortBy::new(SORT_TITLE_KEY.to_string(), String::new());

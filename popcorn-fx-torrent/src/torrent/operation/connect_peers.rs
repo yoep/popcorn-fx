@@ -79,17 +79,16 @@ impl TorrentConnectPeersOperation {
     async fn create_http_peer(&self, context: &Arc<TorrentContext>, url: Url) {
         if let Some(permit) = context.peer_pool().permit().await {
             let event_sender = context.event_sender();
-            let runtime = context.runtime().clone();
 
             let runtime_context = context.clone();
-            context.runtime().spawn(async move {
+            tokio::spawn(async move {
                 let handle_info = runtime_context.handle();
 
                 debug!(
                     "Torrent {} is trying to create webseed peer connection to {}",
                     runtime_context, url
                 );
-                match HttpPeer::new(url, runtime_context, runtime) {
+                match HttpPeer::new(url, runtime_context) {
                     Ok(peer) => {
                         drop(permit);
                         let _ =
@@ -117,25 +116,32 @@ impl TorrentConnectPeersOperation {
             let dialers = context.peer_dialers().clone();
 
             let runtime_context = context.clone();
-            context.runtime().spawn(async move {
+            tokio::spawn(async move {
                 let handle_info = runtime_context.handle();
-                let peer_connection_timeout = runtime_context.config_lock().read().await.peer_connection_timeout;
+                let peer_connection_timeout = runtime_context
+                    .config_lock()
+                    .read()
+                    .await
+                    .peer_connection_timeout;
 
                 debug!(
                     "Torrent {} is trying to create new peer connection to {} through {} dialers",
-                    runtime_context, peer_addr, dialers.len()
+                    runtime_context,
+                    peer_addr,
+                    dialers.len()
                 );
-                let mut futures : Vec<_> = dialers.iter()
+                let mut futures: Vec<_> = dialers
+                    .iter()
                     .map(|dialer| {
                         let extensions = runtime_context.extensions();
-                        
+
                         dialer.dial(
                             peer_id,
                             peer_addr,
                             runtime_context.clone(),
                             protocol_extensions,
                             extensions,
-                            peer_connection_timeout
+                            peer_connection_timeout,
                         )
                     })
                     .collect();
@@ -146,7 +152,7 @@ impl TorrentConnectPeersOperation {
 
                 loop {
                     let (result, _, remaining) = future::select_all(futures).await;
-                    
+
                     match result {
                         Ok(peer) => {
                             drop(permit);
@@ -156,7 +162,9 @@ impl TorrentConnectPeersOperation {
                         Err(e) => {
                             trace!(
                                 "Torrent {} failed to connect with {}, {}",
-                                handle_info, peer_addr, e
+                                handle_info,
+                                peer_addr,
+                                e
                             );
                         }
                     }
@@ -220,8 +228,8 @@ mod tests {
     use popcorn_fx_core::init_logger;
     use tempfile::tempdir;
 
-    #[test]
-    fn test_create_webseed_urls() {
+    #[tokio::test]
+    async fn test_create_webseed_urls() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -232,20 +240,20 @@ mod tests {
             temp_path,
             TorrentFlags::none(),
             TorrentConfig::default(),
+            vec![],
             vec![]
         );
         let context = torrent.instance().unwrap();
-        let runtime = context.runtime();
         let operation = TorrentConnectPeersOperation::new();
 
-        runtime.block_on(operation.create_webseed_urls(&context));
-        let result = runtime.block_on(operation.webseed_urls.lock());
+        operation.create_webseed_urls(&context).await;
+        let result = operation.webseed_urls.lock().await;
 
         assert_eq!(Some(expected_result), *result);
     }
 
-    #[test]
-    fn test_execute() {
+    #[tokio::test]
+    async fn test_execute() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -255,13 +263,13 @@ mod tests {
             temp_path,
             TorrentFlags::none(),
             TorrentConfig::default(),
+            vec![],
             vec![]
         );
         let context = torrent.instance().unwrap();
-        let runtime = context.runtime();
         let operation = TorrentConnectPeersOperation::new();
 
-        let result = runtime.block_on(operation.execute(&context));
+        let result = operation.execute(&context).await;
 
         assert_eq!(TorrentOperationResult::Continue, result);
     }

@@ -166,7 +166,10 @@ pub extern "C" fn retrieve_media_details(
 #[no_mangle]
 pub extern "C" fn reset_movie_apis(popcorn_fx: &mut PopcornFX) {
     trace!("Resetting the movie api providers from C");
-    popcorn_fx.providers().reset_api(&Category::Movies)
+    let providers = popcorn_fx.providers().clone();
+    popcorn_fx
+        .runtime()
+        .spawn(async move { providers.reset_api(&Category::Movies).await });
 }
 
 /// Dispose of a C-compatible media set.

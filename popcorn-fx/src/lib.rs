@@ -1,15 +1,17 @@
 extern crate core;
 
+use fx_callback::Callback;
+use log::{debug, error, info, trace, warn};
 use std::os::raw::c_char;
 use std::{mem, ptr};
 
-use log::{debug, error, info, trace, warn};
-
+#[cfg(feature = "ffi")]
+use crate::ffi::*;
 pub use fx::*;
+use popcorn_fx_core::core::block_in_place_runtime;
 use popcorn_fx_core::core::config::{
     PlaybackSettings, ServerSettings, SubtitleSettings, TorrentSettings, UiSettings,
 };
-use popcorn_fx_core::core::media::favorites::FavoriteCallback;
 use popcorn_fx_core::core::media::watched::WatchedCallback;
 use popcorn_fx_core::core::media::*;
 use popcorn_fx_core::core::subtitles::matcher::SubtitleMatcher;
@@ -17,9 +19,6 @@ use popcorn_fx_core::core::subtitles::model::SubtitleInfo;
 use popcorn_fx_core::{
     from_c_into_boxed, from_c_owned, from_c_string, from_c_vec, into_c_owned, into_c_string,
 };
-
-#[cfg(feature = "ffi")]
-use crate::ffi::*;
 
 #[cfg(feature = "ffi")]
 pub mod ffi;
@@ -141,7 +140,10 @@ pub extern "C" fn filename_subtitles(
 /// This will remove any selected [SubtitleInfo] or custom subtitle file.
 #[no_mangle]
 pub extern "C" fn reset_subtitle(popcorn_fx: &mut PopcornFX) {
-    popcorn_fx.subtitle_manager().reset()
+    let subtitle_manager = popcorn_fx.subtitle_manager().clone();
+    popcorn_fx.runtime().spawn(async move {
+        subtitle_manager.reset().await;
+    });
 }
 
 /// Download the given [SubtitleInfo] based on the best match according to the [SubtitleMatcher].
@@ -215,7 +217,10 @@ pub extern "C" fn download_and_parse_subtitle(
 /// This will make all disabled api's available again.
 #[no_mangle]
 pub extern "C" fn reset_show_apis(popcorn_fx: &mut PopcornFX) {
-    popcorn_fx.providers().reset_api(&Category::Series)
+    let providers = popcorn_fx.providers().clone();
+    popcorn_fx
+        .runtime()
+        .spawn(async move { providers.reset_api(&Category::Series).await });
 }
 
 /// Verify if the given media item is liked/favorite of the user.
@@ -231,7 +236,9 @@ pub extern "C" fn is_media_liked(popcorn_fx: &mut PopcornFX, favorite: &mut Medi
             false
         }
         Some(media) => {
-            let liked = popcorn_fx.favorite_service().is_liked_dyn(&media);
+            let favorite_service = popcorn_fx.favorite_service().clone();
+            let liked =
+                block_in_place_runtime(favorite_service.is_liked_dyn(&media), popcorn_fx.runtime());
             trace!(
                 "Liked state is {} for {} {}",
                 &liked,
@@ -249,7 +256,8 @@ pub extern "C" fn is_media_liked(popcorn_fx: &mut PopcornFX, favorite: &mut Medi
 /// It will return an array of favorites on success, else [ptr::null_mut].
 #[no_mangle]
 pub extern "C" fn retrieve_all_favorites(popcorn_fx: &mut PopcornFX) -> *mut VecFavoritesC {
-    match popcorn_fx.favorite_service().all() {
+    let favorite_service = popcorn_fx.favorite_service().clone();
+    match block_in_place_runtime(favorite_service.all(), popcorn_fx.runtime()) {
         Ok(e) => favorites_to_c(e),
         Err(e) => {
             error!("Failed to retrieve favorites, {}", e);
@@ -291,9 +299,9 @@ pub extern "C" fn add_to_favorites(popcorn_fx: &mut PopcornFX, favorite: &MediaI
         return;
     }
 
-    match popcorn_fx.favorite_service().add(media) {
-        Ok(_) => {}
-        Err(e) => error!("{}", e),
+    let favorite_service = popcorn_fx.favorite_service().clone();
+    if let Err(e) = block_in_place_runtime(favorite_service.add(media), popcorn_fx.runtime()) {
+        error!("{}", e);
     }
 }
 
@@ -302,7 +310,10 @@ pub extern "C" fn add_to_favorites(popcorn_fx: &mut PopcornFX, favorite: &MediaI
 pub extern "C" fn remove_from_favorites(popcorn_fx: &mut PopcornFX, favorite: &MediaItemC) {
     match favorite.as_identifier() {
         None => error!("Unable to remove favorite, all FavoriteC fields are null"),
-        Some(e) => popcorn_fx.favorite_service().remove(e),
+        Some(e) => {
+            let favorite_service = popcorn_fx.favorite_service().clone();
+            block_in_place_runtime(favorite_service.remove(e), popcorn_fx.runtime());
+        }
     }
 }
 
@@ -313,11 +324,12 @@ pub extern "C" fn register_favorites_event_callback<'a>(
     callback: extern "C" fn(FavoriteEventC),
 ) {
     trace!("Wrapping C callback for FavoriteCallback");
-    let wrapper: FavoriteCallback = Box::new(move |event| {
-        callback(FavoriteEventC::from(event));
+    let mut receiver = popcorn_fx.favorite_service().subscribe();
+    popcorn_fx.runtime().spawn(async move {
+        while let Some(event) = receiver.recv().await {
+            callback(FavoriteEventC::from((*event).clone()));
+        }
     });
-
-    popcorn_fx.favorite_service().register(wrapper)
 }
 
 /// Verify if the given media item is watched by the user.
@@ -446,9 +458,11 @@ pub extern "C" fn torrent_collection_is_stored(
         "Checking if magnet uri is stored for {}",
         magnet_uri.as_str()
     );
-    popcorn_fx
-        .torrent_collection()
-        .is_stored(magnet_uri.as_str())
+    let torrent_collection = popcorn_fx.torrent_collection().clone();
+    block_in_place_runtime(
+        torrent_collection.is_stored(magnet_uri.as_str()),
+        popcorn_fx.runtime(),
+    )
 }
 
 /// Retrieve all stored magnets from the torrent collection.
@@ -456,7 +470,9 @@ pub extern "C" fn torrent_collection_is_stored(
 #[no_mangle]
 pub extern "C" fn torrent_collection_all(popcorn_fx: &mut PopcornFX) -> *mut TorrentCollectionSet {
     trace!("Retrieving torrent collection magnets");
-    match popcorn_fx.torrent_collection().all() {
+    let torrent_collection = popcorn_fx.torrent_collection().clone();
+    let runtime = popcorn_fx.runtime();
+    match block_in_place_runtime(torrent_collection.all(), runtime) {
         Ok(e) => {
             let set = TorrentCollectionSet::from(e);
             into_c_owned(set)
@@ -479,9 +495,11 @@ pub extern "C" fn torrent_collection_add(
     let magnet_uri = from_c_string(magnet_uri);
     trace!("Adding magnet {} to torrent collection", magnet_uri);
 
-    popcorn_fx
-        .torrent_collection()
-        .insert(name.as_str(), magnet_uri.as_str());
+    let torrent_collection = popcorn_fx.torrent_collection().clone();
+    block_in_place_runtime(
+        torrent_collection.insert(name.as_str(), magnet_uri.as_str()),
+        popcorn_fx.runtime(),
+    );
 }
 
 /// Remove the given magnet uri from the torrent collection.
@@ -490,7 +508,11 @@ pub extern "C" fn torrent_collection_remove(popcorn_fx: &mut PopcornFX, magnet_u
     let magnet_uri = from_c_string(magnet_uri);
     trace!("Removing magnet {} from torrent collection", magnet_uri);
 
-    popcorn_fx.torrent_collection().remove(magnet_uri.as_str());
+    let torrent_collection = popcorn_fx.torrent_collection().clone();
+    block_in_place_runtime(
+        torrent_collection.remove(magnet_uri.as_str()),
+        popcorn_fx.runtime(),
+    );
 }
 
 /// Retrieve the application settings.
@@ -498,8 +520,9 @@ pub extern "C" fn torrent_collection_remove(popcorn_fx: &mut PopcornFX, magnet_u
 #[no_mangle]
 pub extern "C" fn application_settings(popcorn_fx: &mut PopcornFX) -> *mut PopcornSettingsC {
     trace!("Retrieving application settings");
-    let mutex = popcorn_fx.settings();
-    into_c_owned(PopcornSettingsC::from(mutex.user_settings()))
+    let application_config = popcorn_fx.settings().clone();
+    let settings = block_in_place_runtime(application_config.user_settings(), popcorn_fx.runtime());
+    into_c_owned(PopcornSettingsC::from(settings))
 }
 
 /// Reload the settings of the application.
@@ -515,14 +538,19 @@ pub extern "C" fn register_settings_callback(
     popcorn_fx: &mut PopcornFX,
     callback: ApplicationConfigCallbackC,
 ) {
-    trace!("Registering application settings callback");
+    trace!("Registering application settings callback from C");
     let wrapper = Box::new(move |event| {
         let event_c = ApplicationConfigEventC::from(event);
         trace!("Invoking ApplicationConfigEventC {:?}", event_c);
         callback(event_c)
     });
 
-    popcorn_fx.settings().register(wrapper);
+    let mut receiver = popcorn_fx.settings().subscribe();
+    popcorn_fx.runtime().spawn(async move {
+        while let Some(event) = receiver.recv().await {
+            wrapper((*event).clone());
+        }
+    });
 }
 
 /// Update the subtitle settings with the new value.
@@ -536,7 +564,10 @@ pub extern "C" fn update_subtitle_settings(
         subtitle_settings
     );
     let subtitle = SubtitleSettings::from(subtitle_settings);
-    popcorn_fx.settings().update_subtitle(subtitle);
+    block_in_place_runtime(
+        popcorn_fx.settings().update_subtitle(subtitle),
+        popcorn_fx.runtime(),
+    );
 }
 
 /// Update the torrent settings with the new value.
@@ -547,7 +578,10 @@ pub extern "C" fn update_torrent_settings(
 ) {
     trace!("Updating the torrent settings from {:?}", torrent_settings);
     let settings = TorrentSettings::from(torrent_settings);
-    popcorn_fx.settings().update_torrent(settings);
+    block_in_place_runtime(
+        popcorn_fx.settings().update_torrent(settings),
+        popcorn_fx.runtime(),
+    );
 }
 
 /// Update the ui settings with the new value.
@@ -555,7 +589,10 @@ pub extern "C" fn update_torrent_settings(
 pub extern "C" fn update_ui_settings(popcorn_fx: &mut PopcornFX, settings: UiSettingsC) {
     trace!("Updating the ui settings from {:?}", settings);
     let settings = UiSettings::from(settings);
-    popcorn_fx.settings().update_ui(settings);
+    block_in_place_runtime(
+        popcorn_fx.settings().update_ui(settings),
+        popcorn_fx.runtime(),
+    );
 }
 
 /// Update the server settings with the new value.
@@ -563,7 +600,10 @@ pub extern "C" fn update_ui_settings(popcorn_fx: &mut PopcornFX, settings: UiSet
 pub extern "C" fn update_server_settings(popcorn_fx: &mut PopcornFX, settings: ServerSettingsC) {
     trace!("Updating the server settings from {:?}", settings);
     let settings = ServerSettings::from(settings);
-    popcorn_fx.settings().update_server(settings);
+    block_in_place_runtime(
+        popcorn_fx.settings().update_server(settings),
+        popcorn_fx.runtime(),
+    );
 }
 
 /// Update the playback settings with the new value.
@@ -574,7 +614,10 @@ pub extern "C" fn update_playback_settings(
 ) {
     trace!("Updating the playback settings from {:?}", settings);
     let settings = PlaybackSettings::from(settings);
-    popcorn_fx.settings().update_playback(settings);
+    block_in_place_runtime(
+        popcorn_fx.settings().update_playback(settings),
+        popcorn_fx.runtime(),
+    );
 }
 
 /// Dispose of a C-compatible MediaItemC value wrapped in a Box.
@@ -678,13 +721,20 @@ mod test {
     pub fn new_instance(temp_path: &str) -> PopcornFX {
         let instance = PopcornFX::new(default_args(temp_path));
         let config = instance.settings();
-        config.user_settings().subtitle_settings.directory = PathBuf::from(temp_path)
+        let settings = block_in_place_runtime(config.user_settings(), instance.runtime());
+        let mut subtitle_settings = settings.subtitle_settings;
+        subtitle_settings.directory = PathBuf::from(temp_path)
             .join("subtitles")
             .to_str()
             .unwrap()
             .to_string();
-        config.user_settings().torrent_settings.directory =
-            PathBuf::from(temp_path).join("torrents");
+        block_in_place_runtime(
+            config.update_subtitle(subtitle_settings),
+            instance.runtime(),
+        );
+        let mut torrent_settings = settings.torrent_settings;
+        torrent_settings.directory = PathBuf::from(temp_path).join("torrents");
+        block_in_place_runtime(config.update_torrent(torrent_settings), instance.runtime());
         instance
     }
 
@@ -799,10 +849,14 @@ mod test {
         };
 
         update_subtitle_settings(&mut instance, SubtitleSettingsC::from(&settings));
-        let config = instance.settings().user_settings();
-        let result = config.subtitle();
+        let config = instance.settings().clone();
 
-        assert_eq!(&settings, result)
+        let result = block_in_place_runtime(
+            config.user_settings_ref(|e| e.subtitle().clone()),
+            instance.runtime(),
+        );
+
+        assert_eq!(settings, result)
     }
 
     #[test]

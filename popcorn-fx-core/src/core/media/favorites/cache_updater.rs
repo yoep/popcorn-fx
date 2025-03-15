@@ -3,7 +3,6 @@ use std::sync::Arc;
 use chrono::{Duration, Local};
 use itertools::Itertools;
 use log::{debug, info, trace, warn};
-use tokio::runtime::Runtime;
 
 use crate::core::media::favorites::model::Favorites;
 use crate::core::media::favorites::FavoriteService;
@@ -16,69 +15,47 @@ const UPDATE_CACHE_INTERVAL: fn() -> Duration = || Duration::hours(72);
 /// It makes use of the [Provider] for retrieving the latest information.
 #[derive(Debug)]
 pub struct FavoriteCacheUpdater {
-    inner: Arc<InnerCacheUpdater>,
-    runtime: Arc<Runtime>,
+    _inner: Arc<InnerCacheUpdater>,
 }
 
 impl FavoriteCacheUpdater {
+    /// Creates a new `FavoriteCacheUpdater` instance by using a builder.
     pub fn builder() -> FavoriteCacheUpdaterBuilder {
         FavoriteCacheUpdaterBuilder::default()
     }
 
-    fn start_cache_update_check(&self) {
-        let inner = self.inner.clone();
-        self.runtime.spawn(async move {
-            match inner.cache() {
-                Some(cache) => {
-                    let last_update_diff = Local::now() - cache.last_update();
-
-                    trace!(
-                        "Favorite cache last updated {} hours ago",
-                        last_update_diff.num_hours()
-                    );
-                    if last_update_diff >= UPDATE_CACHE_INTERVAL() {
-                        debug!(
-                            "Starting favorite cache update, last updated {} hours ago",
-                            last_update_diff.num_hours()
-                        );
-                        let updated_items = inner.update_media_items(cache).await;
-                        let total_items = updated_items.len();
-                        debug!("Retrieved a total of {} updated media items", total_items);
-                        inner.service.update(updated_items);
-                        info!("Updated a total of {} favorite media items", total_items)
-                    } else {
-                        debug!("Favorites are already up-to-date, not updating cache");
-                    }
-                }
-                None => debug!("No favorites cache available to update"),
-            }
+    /// Creates a new `FavoriteCacheUpdater` instance.
+    ///
+    /// # Arguments
+    ///
+    /// * `favorite_service` - The favorite service implementing the `FavoriteService` trait.
+    /// * `provider_manager` - The provider manager used to retrieve the latest information.
+    pub fn new(
+        favorite_service: Arc<Box<dyn FavoriteService>>,
+        provider_manager: Arc<ProviderManager>,
+    ) -> Self {
+        let inner = Arc::new(InnerCacheUpdater {
+            service: favorite_service.clone(),
+            providers: provider_manager,
         });
+
+        let inner_main = inner.clone();
+        tokio::spawn(async move {
+            inner_main.start().await;
+        });
+
+        Self { _inner: inner }
     }
 }
 
 /// Builder for creating a `FavoriteCacheUpdater` instance.
 #[derive(Debug, Default)]
 pub struct FavoriteCacheUpdaterBuilder {
-    runtime: Option<Arc<Runtime>>,
     favorite_service: Option<Arc<Box<dyn FavoriteService>>>,
     provider_manager: Option<Arc<ProviderManager>>,
 }
 
 impl FavoriteCacheUpdaterBuilder {
-    /// Sets the Tokio runtime to be used by the `FavoriteCacheUpdater`.
-    ///
-    /// # Arguments
-    ///
-    /// * `runtime` - The Tokio `Runtime` instance to be used.
-    ///
-    /// # Returns
-    ///
-    /// The updated `FavoriteCacheUpdaterBuilder` instance.
-    pub fn runtime(mut self, runtime: Arc<Runtime>) -> Self {
-        self.runtime = Some(runtime);
-        self
-    }
-
     /// Sets the favorite service to be used by the `FavoriteCacheUpdater`.
     ///
     /// # Arguments
@@ -120,35 +97,22 @@ impl FavoriteCacheUpdaterBuilder {
     /// # Example
     ///
     /// ```no_run
-    /// use popcorn_fx_core::core::media::favorites::FavoriteCacheUpdaterBuilder;
+    /// use std::sync::Arc;
+    /// use popcorn_fx_core::core::media::favorites::{FavoriteCacheUpdater, FavoriteCacheUpdaterBuilder, FavoriteService};
+    /// use popcorn_fx_core::core::media::providers::ProviderManager;
     ///
-    /// let builder = FavoriteCacheUpdaterBuilder::default()
-    ///     .runtime(runtime)
-    ///     .favorite_service(favorite_service)
-    ///     .provider_manager(provider_manager);
-    ///
-    /// let updater = builder.build();
+    /// fn example(favorite_service: Arc<Box<dyn FavoriteService>>, provider_manager: Arc<ProviderManager>) -> FavoriteCacheUpdater {
+    ///      FavoriteCacheUpdaterBuilder::default()
+    ///         .favorite_service(favorite_service)
+    ///         .provider_manager(provider_manager)
+    ///         .build()
+    /// }
     /// ```
-    ///
-    /// This example demonstrates how to use the `FavoriteCacheUpdaterBuilder` to create a new `FavoriteCacheUpdater` instance. The `runtime`, `favorite_service`, and `provider_manager` fields are set using the builder methods. After calling `build()`, the builder creates and returns the `FavoriteCacheUpdater` instance.
     pub fn build(self) -> FavoriteCacheUpdater {
-        let runtime = self
-            .runtime
-            .or_else(|| Some(Arc::new(Runtime::new().unwrap())))
-            .unwrap();
         let favorite_service = self.favorite_service.expect("Favorite service is not set");
         let provider_manager = self.provider_manager.expect("Provider manager is not set");
 
-        let instance = FavoriteCacheUpdater {
-            runtime,
-            inner: Arc::new(InnerCacheUpdater {
-                service: favorite_service.clone(),
-                providers: provider_manager,
-            }),
-        };
-
-        instance.start_cache_update_check();
-        instance
+        FavoriteCacheUpdater::new(favorite_service, provider_manager)
     }
 }
 
@@ -161,9 +125,36 @@ struct InnerCacheUpdater {
 }
 
 impl InnerCacheUpdater {
+    async fn start(&self) {
+        match self.cache().await {
+            Some(cache) => {
+                let last_update_diff = Local::now() - cache.last_update();
+
+                trace!(
+                    "Favorite cache last updated {} hours ago",
+                    last_update_diff.num_hours()
+                );
+                if last_update_diff >= UPDATE_CACHE_INTERVAL() {
+                    debug!(
+                        "Starting favorite cache update, last updated {} hours ago",
+                        last_update_diff.num_hours()
+                    );
+                    let updated_items = self.update_media_items(cache).await;
+                    let total_items = updated_items.len();
+                    debug!("Retrieved a total of {} updated media items", total_items);
+                    self.service.update(updated_items).await;
+                    info!("Updated a total of {} favorite media items", total_items)
+                } else {
+                    debug!("Favorites are already up-to-date, not updating cache");
+                }
+            }
+            None => debug!("No favorites cache available to update"),
+        }
+    }
+
     /// Retrieve a cached [Favorites] instance
-    fn cache(&self) -> Option<Favorites> {
-        self.service.favorites()
+    async fn cache(&self) -> Option<Favorites> {
+        self.service.favorites().await
     }
 
     async fn update_media_items(&self, cache: Favorites) -> Vec<Box<dyn MediaIdentifier>> {
@@ -224,17 +215,37 @@ impl InnerCacheUpdater {
 
 #[cfg(test)]
 mod test {
-    use std::sync::mpsc::channel;
-
     use crate::core::media::favorites::MockFavoriteService;
     use crate::core::media::providers::MockMediaDetailsProvider;
     use crate::core::media::{MediaOverview, MovieOverview};
-    use crate::init_logger;
+    use crate::{init_logger, recv_timeout};
+    use tokio::sync::mpsc::unbounded_channel;
 
     use super::*;
 
-    #[test]
-    fn test_update_cache() {
+    #[tokio::test]
+    async fn test_new() {
+        init_logger!();
+        let (tx, mut rx) = unbounded_channel();
+        let mut favorites = MockFavoriteService::new();
+        favorites.expect_favorites().times(1).return_once(move || {
+            tx.send(()).unwrap();
+            None
+        });
+        let provider_manager = ProviderManager::builder().build();
+
+        let _updater =
+            FavoriteCacheUpdater::new(Arc::new(Box::new(favorites)), Arc::new(provider_manager));
+
+        let _ = recv_timeout!(
+            &mut rx,
+            std::time::Duration::from_millis(200),
+            "expected the cache to have been checked"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_update_cache() {
         init_logger!();
         let movie_id = "tt12121222";
         let title = "Lorem ipsum";
@@ -259,7 +270,7 @@ mod test {
                     torrents: Default::default(),
                 }))
             });
-        let (tx, rx) = channel();
+        let (tx, mut rx) = unbounded_channel();
         let mut favorites = MockFavoriteService::new();
         favorites.expect_favorites().returning(|| {
             Some(Favorites {
@@ -286,9 +297,11 @@ mod test {
             ))
             .build();
 
-        let updated_items = rx
-            .recv_timeout(core::time::Duration::from_millis(200))
-            .expect("expected to receive updated media items");
+        let updated_items = recv_timeout!(
+            &mut rx,
+            std::time::Duration::from_millis(200),
+            "expected to receive updated media items"
+        );
         let movies = updated_items
             .into_iter()
             .map(|e| e.into_any().downcast::<MovieOverview>().unwrap())

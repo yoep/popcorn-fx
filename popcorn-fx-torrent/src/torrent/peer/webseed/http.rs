@@ -17,7 +17,6 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::runtime::Runtime;
 use tokio::select;
 use tokio::sync::RwLock;
 use tokio::time::interval;
@@ -38,7 +37,7 @@ pub struct HttpPeer {
 }
 
 impl HttpPeer {
-    pub fn new(url: Url, torrent: Arc<TorrentContext>, runtime: Arc<Runtime>) -> Result<Self> {
+    pub fn new(url: Url, torrent: Arc<TorrentContext>) -> Result<Self> {
         let handle = Handle::new();
         let client = Client::builder()
             .redirect(Policy::limited(3))
@@ -67,12 +66,12 @@ impl HttpPeer {
             addr,
             stats: RwLock::new(Default::default()),
             torrent,
-            callbacks: MultiThreadedCallback::new(runtime.clone()),
+            callbacks: MultiThreadedCallback::new(),
             cancellation_token: Default::default(),
         });
 
         let main_inner = inner.clone();
-        runtime.spawn(async move { main_inner.start().await });
+        tokio::spawn(async move { main_inner.start().await });
 
         Ok(Self { inner })
     }
@@ -309,16 +308,17 @@ impl HttpPeerContext {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     use crate::create_torrent;
     use crate::torrent::{TorrentConfig, TorrentFlags};
-    use log::LevelFilter;
+
     use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::read_test_file_to_bytes;
     use tempfile::tempdir;
 
-    #[test]
-    fn test_http_peer_create_request_url() {
-        init_logger!(LevelFilter::Debug);
+    #[tokio::test]
+    async fn test_http_peer_create_request_url() {
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let url = Url::parse("https://mirror.com/pub/").unwrap();
@@ -330,11 +330,11 @@ mod tests {
             temp_path,
             TorrentFlags::none(),
             TorrentConfig::default(),
+            vec![],
             vec![]
         );
         let context = torrent.instance().unwrap();
-        let runtime = context.runtime();
-        let metadata = runtime.block_on(context.metadata());
+        let metadata = context.metadata().await;
         let file = TorrentFileInfo {
             length: 0,
             path: Some(vec!["README 1.md".to_string()]),
@@ -344,8 +344,7 @@ mod tests {
             symlink_path: None,
             sha1: None,
         };
-        let peer =
-            HttpPeer::new(url, context.clone(), runtime.clone()).expect("expected an http peer");
+        let peer = HttpPeer::new(url, context.clone()).expect("expected an http peer");
 
         let result = peer
             .inner

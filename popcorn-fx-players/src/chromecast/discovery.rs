@@ -6,12 +6,12 @@ use derive_more::Display;
 use itertools::Itertools;
 use log::{debug, info, trace, warn};
 use mdns_sd::{ServiceDaemon, ServiceEvent, ServiceInfo};
-use tokio::runtime::Runtime;
-use tokio::sync::Mutex;
-
-use popcorn_fx_core::core::block_in_place;
 use popcorn_fx_core::core::players::PlayerManager;
 use popcorn_fx_core::core::subtitles::SubtitleServer;
+use tokio::select;
+use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
+use tokio::sync::Mutex;
+use tokio_util::sync::CancellationToken;
 
 use crate::chromecast::device::DefaultCastDevice;
 use crate::chromecast::player::ChromecastPlayer;
@@ -38,21 +38,26 @@ impl ChromecastDiscovery {
         service_daemon: ServiceDaemon,
         player_manager: Arc<Box<dyn PlayerManager>>,
         subtitle_server: Arc<SubtitleServer>,
-        runtime: Arc<Runtime>,
     ) -> Self {
+        let (command_sender, command_receiver) = unbounded_channel();
         let transcoder = Arc::new(Self::resolve_transcoder());
+        let inner = Arc::new(InnerChromecastDiscovery {
+            player_manager,
+            service_daemon,
+            transcoder,
+            subtitle_server,
+            discovered_devices: Default::default(),
+            state: Mutex::new(DiscoveryState::Stopped),
+            command_sender,
+            cancellation_token: Default::default(),
+        });
 
-        Self {
-            inner: Arc::new(InnerChromecastDiscovery {
-                player_manager,
-                service_daemon,
-                transcoder,
-                subtitle_server,
-                discovered_devices: Default::default(),
-                state: Mutex::new(DiscoveryState::Stopped),
-                runtime,
-            }),
-        }
+        let inner_main = inner.clone();
+        tokio::spawn(async move {
+            inner_main.start(command_receiver).await;
+        });
+
+        Self { inner }
     }
 
     #[cfg(feature = "transcoder")]
@@ -76,9 +81,8 @@ impl ChromecastDiscovery {
 
 #[async_trait]
 impl Discovery for ChromecastDiscovery {
-    fn state(&self) -> DiscoveryState {
-        let mutex = block_in_place(self.inner.state.lock());
-        mutex.clone()
+    async fn state(&self) -> DiscoveryState {
+        *self.inner.state.lock().await
     }
 
     async fn start_discovery(&self) -> crate::Result<()> {
@@ -97,9 +101,9 @@ impl Discovery for ChromecastDiscovery {
                 .browse(SERVICE_TYPE)
                 .map_err(|e| DiscoveryError::Initialization(e.to_string()))?;
 
-            self.inner.update_state_async(DiscoveryState::Running).await;
+            self.inner.update_state(DiscoveryState::Running).await;
             let inner = self.inner.clone();
-            self.inner.runtime.spawn(async move {
+            tokio::spawn(async move {
                 trace!("Starting the Chromecast MDNS discovery service receiver");
                 while let Ok(event) = receiver.recv() {
                     inner.handle_event(event).await;
@@ -114,34 +118,17 @@ impl Discovery for ChromecastDiscovery {
     }
 
     fn stop_discovery(&self) -> crate::Result<()> {
-        trace!("Stopping Chromecast device discovery");
-        let state: DiscoveryState;
-
-        {
-            let mutex = block_in_place(self.inner.state.lock());
-            state = mutex.clone();
-        }
-
-        if state == DiscoveryState::Running {
-            trace!("Stopping the Chromecast MDNS discovery service");
-            self.inner
-                .service_daemon
-                .stop_browse(SERVICE_TYPE)
-                .map_err(|e| DiscoveryError::Terminate(e.to_string()))?;
-            block_in_place(self.inner.update_state_async(DiscoveryState::Stopped));
-            debug!("Chromecast device discovery has been stopped");
-        } else {
-            trace!("Unable to stop Chromecast discovery because it is not running");
-        }
-
+        let _ = self
+            .inner
+            .command_sender
+            .send(ChromecastDiscoveryCommand::Stop);
         Ok(())
     }
 }
 
 impl Drop for ChromecastDiscovery {
     fn drop(&mut self) {
-        trace!("Dropping {:?}", self);
-        let _ = self.stop_discovery();
+        self.inner.cancellation_token.cancel();
     }
 }
 
@@ -151,7 +138,6 @@ impl Drop for ChromecastDiscovery {
 pub struct ChromecastDiscoveryBuilder {
     player_manager: Option<Arc<Box<dyn PlayerManager>>>,
     subtitle_server: Option<Arc<SubtitleServer>>,
-    runtime: Option<Arc<Runtime>>,
 }
 
 impl ChromecastDiscoveryBuilder {
@@ -160,31 +146,24 @@ impl ChromecastDiscoveryBuilder {
         Self::default()
     }
 
-    pub fn runtime(mut self, runtime: Arc<Runtime>) -> Self {
-        self.runtime = Some(runtime);
-        self
-    }
-
+    /// Set the player manager to register new discovered instances.
     pub fn player_manager(mut self, player_manager: Arc<Box<dyn PlayerManager>>) -> Self {
         self.player_manager = Some(player_manager);
         self
     }
 
+    /// Set the subtitle server to use for providing subtitles to the player.
     pub fn subtitle_server(mut self, subtitle_server: Arc<SubtitleServer>) -> Self {
         self.subtitle_server = Some(subtitle_server);
         self
     }
 
+    /// Build a new chromecast device discovery instance.
+    ///
+    /// # Panics
+    ///
+    /// This function panics when the underlying service daemon couldn't be created.
     pub fn build(self) -> ChromecastDiscovery {
-        let runtime = self.runtime.unwrap_or_else(|| {
-            Arc::new(
-                tokio::runtime::Builder::new_multi_thread()
-                    .enable_all()
-                    .thread_name("chromecast-discovery")
-                    .build()
-                    .expect("expected a new runtime"),
-            )
-        });
         let service_daemon = ServiceDaemon::new().expect("Failed to create daemon");
 
         ChromecastDiscovery::new(
@@ -193,9 +172,13 @@ impl ChromecastDiscoveryBuilder {
                 .expect("expected a player manager to have been set"),
             self.subtitle_server
                 .expect("expected a subtitle server to have been set"),
-            runtime,
         )
     }
+}
+
+#[derive(Debug, PartialEq)]
+enum ChromecastDiscoveryCommand {
+    Stop,
 }
 
 struct InnerChromecastDiscovery {
@@ -205,12 +188,52 @@ struct InnerChromecastDiscovery {
     subtitle_server: Arc<SubtitleServer>,
     discovered_devices: Mutex<Vec<String>>,
     state: Mutex<DiscoveryState>,
-    runtime: Arc<Runtime>,
+    command_sender: UnboundedSender<ChromecastDiscoveryCommand>,
+    cancellation_token: CancellationToken,
 }
 
 impl InnerChromecastDiscovery {
-    async fn update_state_async(&self, state: DiscoveryState) {
-        let mut mutex = block_in_place(self.state.lock());
+    async fn start(&self, mut command_receiver: UnboundedReceiver<ChromecastDiscoveryCommand>) {
+        loop {
+            select! {
+                _ = self.cancellation_token.cancelled() => break,
+                Some(command) = command_receiver.recv() => self.handle_command(command).await,
+            }
+        }
+        self.stop_discovery().await;
+        debug!("Chromecast discovery main loop ended");
+    }
+
+    async fn handle_command(&self, command: ChromecastDiscoveryCommand) {
+        match command {
+            ChromecastDiscoveryCommand::Stop => self.stop_discovery().await,
+        }
+    }
+
+    async fn stop_discovery(&self) {
+        trace!("Stopping Chromecast device discovery");
+        let state: DiscoveryState;
+
+        {
+            let mutex = self.state.lock().await;
+            state = mutex.clone();
+        }
+
+        if state == DiscoveryState::Running {
+            trace!("Stopping the Chromecast MDNS discovery service");
+            let _ = self
+                .service_daemon
+                .stop_browse(SERVICE_TYPE)
+                .map_err(|e| DiscoveryError::Terminate(e.to_string()));
+            self.update_state(DiscoveryState::Stopped).await;
+            debug!("Chromecast device discovery has been stopped");
+        } else {
+            trace!("Unable to stop Chromecast discovery because it is not running");
+        }
+    }
+
+    async fn update_state(&self, state: DiscoveryState) {
+        let mut mutex = self.state.lock().await;
         debug!("Updating Chromecast discovery state to {:?}", state);
         *mutex = state.clone();
         info!("Chromecast discovery state changed to {:?}", state);
@@ -284,47 +307,43 @@ impl Debug for InnerChromecastDiscovery {
             .field("subtitle_server", &self.subtitle_server)
             .field("discovered_devices", &self.discovered_devices)
             .field("state", &self.state)
-            .field("runtime", &self.runtime)
             .finish()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::sync::mpsc::channel;
-    use std::time::Duration;
-
     use popcorn_fx_core::core::players::MockPlayerManager;
     use popcorn_fx_core::core::subtitles::MockSubtitleProvider;
-    use popcorn_fx_core::init_logger;
+    use popcorn_fx_core::{assert_timeout, init_logger, recv_timeout};
+    use std::time::Duration;
+    use tokio::sync::mpsc::unbounded_channel;
 
     use crate::chromecast::tests::TestInstance;
 
     use super::*;
 
-    #[test]
-    fn test_state() {
+    #[tokio::test]
+    async fn test_state() {
         init_logger!();
-        let runtime = Arc::new(Runtime::new().unwrap());
         let player_manager = MockPlayerManager::new();
         let subtitle_provider = MockSubtitleProvider::new();
         let subtitle_server = Arc::new(SubtitleServer::new(Arc::new(Box::new(subtitle_provider))));
         let discovery = ChromecastDiscovery::builder()
             .player_manager(Arc::new(Box::new(player_manager)))
-            .runtime(runtime.clone())
             .subtitle_server(subtitle_server)
             .build();
 
-        let result = discovery.state();
+        let result = discovery.state().await;
 
         assert_eq!(DiscoveryState::Stopped, result);
     }
 
-    #[test]
-    fn test_start_discovery() {
+    #[tokio::test]
+    async fn test_start_discovery() {
         init_logger!();
         let mut player_buf = vec![];
-        let (tx, rx) = channel();
+        let (tx, mut rx) = unbounded_channel();
         let mut player_manager = MockPlayerManager::new();
         player_manager.expect_add_player().returning(move |e| {
             debug!("--- Received Chromecast player: {:?}", e);
@@ -335,22 +354,18 @@ mod tests {
             }
             true
         });
-        let mut test_instance = TestInstance::new_mdns();
+        let mut test_instance = TestInstance::new_mdns().await;
         let mdns = test_instance.mdns.take().unwrap();
         let subtitle_provider = MockSubtitleProvider::new();
         let subtitle_server = Arc::new(SubtitleServer::new(Arc::new(Box::new(subtitle_provider))));
         let discovery = ChromecastDiscovery::builder()
             .player_manager(Arc::new(Box::new(player_manager)))
-            .runtime(test_instance.runtime.clone())
             .subtitle_server(subtitle_server)
             .build();
 
-        test_instance
-            .runtime
-            .block_on(discovery.start_discovery())
-            .unwrap();
+        discovery.start_discovery().await.unwrap();
 
-        let result = rx.recv_timeout(Duration::from_secs(3)).unwrap();
+        let result = recv_timeout!(&mut rx, Duration::from_secs(3));
         info!("--- Chromecast player received: {:?}", result);
         discovery.stop_discovery().unwrap();
 
@@ -358,26 +373,28 @@ mod tests {
         mdns.daemon.shutdown().unwrap();
     }
 
-    #[test]
-    fn test_stop_discovery() {
+    #[tokio::test]
+    async fn test_stop_discovery() {
         init_logger!();
-        let runtime = Arc::new(Runtime::new().unwrap());
         let player_manager = MockPlayerManager::new();
-        let mut test_instance = TestInstance::new_mdns();
+        let mut test_instance = TestInstance::new_mdns().await;
         let mdns = test_instance.mdns.take().unwrap();
         let subtitle_provider = MockSubtitleProvider::new();
         let subtitle_server = Arc::new(SubtitleServer::new(Arc::new(Box::new(subtitle_provider))));
         let discovery = ChromecastDiscovery::builder()
             .player_manager(Arc::new(Box::new(player_manager)))
-            .runtime(runtime.clone())
             .subtitle_server(subtitle_server)
             .build();
 
-        runtime.block_on(discovery.start_discovery()).unwrap();
+        discovery.start_discovery().await.unwrap();
         let result = discovery.stop_discovery();
 
         assert_eq!(Ok(()), result);
-        assert_eq!(DiscoveryState::Stopped, discovery.state());
+        assert_timeout!(
+            Duration::from_millis(200),
+            discovery.state().await == DiscoveryState::Stopped,
+            "expected the discovery to have been stopped"
+        );
         mdns.daemon.shutdown().unwrap();
     }
 }

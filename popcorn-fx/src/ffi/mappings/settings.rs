@@ -21,7 +21,9 @@ pub type ApplicationConfigCallbackC = extern "C" fn(ApplicationConfigEventC);
 #[derive(Debug, PartialEq)]
 pub enum ApplicationConfigEventC {
     /// Invoked when the application settings have been reloaded or loaded
-    SettingsLoaded,
+    Loaded,
+    /// Invoked when the application settings have been saved
+    Saved,
     /// Invoked when the subtitle settings have been changed
     SubtitleSettingsChanged(SubtitleSettingsC),
     /// Invoked when the torrent settings have been changed
@@ -39,7 +41,8 @@ pub enum ApplicationConfigEventC {
 impl From<ApplicationConfigEvent> for ApplicationConfigEventC {
     fn from(value: ApplicationConfigEvent) -> Self {
         match value {
-            ApplicationConfigEvent::SettingsLoaded => ApplicationConfigEventC::SettingsLoaded,
+            ApplicationConfigEvent::Loaded => ApplicationConfigEventC::Loaded,
+            ApplicationConfigEvent::Saved => ApplicationConfigEventC::Saved,
             ApplicationConfigEvent::SubtitleSettingsChanged(e) => {
                 ApplicationConfigEventC::SubtitleSettingsChanged(SubtitleSettingsC::from(&e))
             }
@@ -385,13 +388,13 @@ mod test {
             decoration: DecorationType::None,
             bold: false,
         };
-        let loaded_event = ApplicationConfigEvent::SettingsLoaded;
+        let loaded_event = ApplicationConfigEvent::Loaded;
         let subtitle_event = ApplicationConfigEvent::SubtitleSettingsChanged(subtitle.clone());
 
         let loaded_result = ApplicationConfigEventC::from(loaded_event);
         let subtitle_result = ApplicationConfigEventC::from(subtitle_event);
 
-        assert_eq!(ApplicationConfigEventC::SettingsLoaded, loaded_result);
+        assert_eq!(ApplicationConfigEventC::Loaded, loaded_result);
         match subtitle_result {
             ApplicationConfigEventC::SubtitleSettingsChanged(result) => {
                 let subtitle_result = SubtitleSettings::from(result);

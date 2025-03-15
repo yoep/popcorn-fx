@@ -18,7 +18,6 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 use thiserror::Error;
-use tokio::runtime::Runtime;
 use tokio::select;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::sync::RwLock;
@@ -279,7 +278,7 @@ impl DefaultMediaLoader {
         ));
 
         let inner_main = inner.clone();
-        inner.runtime.spawn(async move {
+        tokio::spawn(async move {
             inner_main.start(event_receiver, command_receiver).await;
         });
 
@@ -351,7 +350,6 @@ struct InnerMediaLoader {
     command_sender: UnboundedSender<MediaLoaderCommandEvent>,
     callbacks: MultiThreadedCallback<MediaLoaderEvent>,
     cancellation_token: CancellationToken,
-    runtime: Arc<Runtime>,
 }
 
 impl InnerMediaLoader {
@@ -360,23 +358,13 @@ impl InnerMediaLoader {
         event_sender: UnboundedSender<MediaLoaderEvent>,
         command_sender: UnboundedSender<MediaLoaderCommandEvent>,
     ) -> Self {
-        let runtime = Arc::new(
-            tokio::runtime::Builder::new_multi_thread()
-                .enable_all()
-                .worker_threads(5)
-                .thread_name("media_loader")
-                .build()
-                .expect("expected a new runtime"),
-        );
-
         Self {
             loading_chain: Arc::new(LoadingChain::from(loading_chain)),
             tasks: RwLock::new(HashMap::new()),
             event_sender,
             command_sender,
-            callbacks: MultiThreadedCallback::new(runtime.clone()),
+            callbacks: MultiThreadedCallback::new(),
             cancellation_token: Default::default(),
-            runtime,
         }
     }
 
@@ -484,7 +472,7 @@ impl InnerMediaLoader {
 
     async fn do_internal_load(&self, data: LoadingData) -> LoadingHandle {
         trace!("Media loader is starting loading task for {:?}", data);
-        let task = LoadingTask::new(self.loading_chain.clone(), self.runtime.clone());
+        let task = LoadingTask::new(self.loading_chain.clone());
         let task_handle = task.handle();
         let started_event = LoadingStartedEvent::from(&data);
 
@@ -492,7 +480,7 @@ impl InnerMediaLoader {
         let task_event_cancel = self.cancellation_token.clone();
         let task_event_sender = self.event_sender.clone();
         let task_command_sender = self.command_sender.clone();
-        self.runtime.spawn(async move {
+        tokio::spawn(async move {
             loop {
                 select! {
                     _ = task_event_cancel.cancelled() => break,
@@ -592,44 +580,13 @@ mod mock {
 
 #[cfg(test)]
 mod tests {
-    use crate::core::block_in_place_runtime;
-    use crate::core::loader::task::LoadingTaskContext;
-    use crate::core::loader::{MockLoadingStrategy, SubtitleData};
-    use crate::init_logger;
-    use std::sync::mpsc::{channel, Sender};
-    use std::time::Duration;
-    use tokio::time;
-
     use super::*;
 
-    #[derive(Debug, Display)]
-    #[display(fmt = "WaitLoadingStrategy")]
-    struct WaitLoadingStrategy {
-        sender: Sender<LoadingData>,
-    }
+    use crate::core::loader::tests::TestingLoadingStrategy;
+    use crate::core::loader::SubtitleData;
+    use crate::{init_logger, recv_timeout};
 
-    impl WaitLoadingStrategy {
-        fn new(sender: Sender<LoadingData>) -> Self {
-            Self { sender }
-        }
-    }
-
-    #[async_trait]
-    impl LoadingStrategy for WaitLoadingStrategy {
-        async fn process(
-            &self,
-            data: &mut LoadingData,
-            context: &LoadingTaskContext,
-        ) -> LoadingResult {
-            self.sender.send(data.clone()).unwrap();
-            time::sleep(Duration::from_secs(1)).await;
-            LoadingResult::Completed
-        }
-
-        async fn cancel(&self, data: LoadingData) -> CancellationResult {
-            Ok(data)
-        }
-    }
+    use std::time::Duration;
 
     #[test]
     fn test_load_data_from_str() {
@@ -691,8 +648,8 @@ mod tests {
         assert_eq!(expected_result, result);
     }
 
-    #[test]
-    fn test_load_playlist_item() {
+    #[tokio::test]
+    async fn test_load_playlist_item() {
         init_logger!();
         let item = PlaylistItem {
             url: None,
@@ -705,28 +662,26 @@ mod tests {
             subtitle: Default::default(),
             torrent: Default::default(),
         };
-        let (tx, rx) = channel();
+        let (tx, mut rx) = unbounded_channel();
         let expected_result = LoadingData::from(item.clone());
-        let strategy = WaitLoadingStrategy::new(tx);
+        let strategy = TestingLoadingStrategy::builder().data_sender(tx).build();
         let chain: Vec<Box<dyn LoadingStrategy>> = vec![Box::new(strategy)];
         let loader = DefaultMediaLoader::new(chain);
-        let runtime = &loader.inner.runtime;
 
-        let handle = runtime.block_on(loader.load_playlist_item(item));
-        let state = runtime
-            .block_on(loader.state(handle.clone()))
+        let handle = loader.load_playlist_item(item).await;
+        let state = loader
+            .state(handle.clone())
+            .await
             .expect("expected a loading state");
         assert_eq!(LoadingState::Initializing, state);
 
-        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        let result = recv_timeout!(&mut rx, Duration::from_millis(200));
         assert_eq!(expected_result, result);
     }
 
-    #[test]
-    fn test_load_playlist_item_bind_task_events() {
+    #[tokio::test]
+    async fn test_load_playlist_item_bind_task_events() {
         init_logger!();
-        let (tx, rx) = channel();
-        let (tx_event, rx_event) = channel();
         let item = PlaylistItem {
             url: None,
             title: "".to_string(),
@@ -747,21 +702,17 @@ mod tests {
             downloaded: 0,
             total_size: 0,
         };
-        let mut strategy = MockLoadingStrategy::new();
-        let strategy_result = expected_result.clone();
-        strategy.expect_process().times(1).return_once(
-            move |_: &mut LoadingData, context: &LoadingTaskContext| {
-                context.send_event(LoadingEvent::ProgressChanged(strategy_result.clone()));
-                tx.send(()).unwrap();
-                block_in_place_runtime(time::sleep(Duration::from_millis(100)), context.runtime());
-                LoadingResult::Completed
-            },
-        );
+        let (tx_data, mut rx_data) = unbounded_channel();
+        let (tx_event, mut rx_event) = unbounded_channel();
+        let strategy = TestingLoadingStrategy::builder()
+            .data_sender(tx_data)
+            .event(LoadingEvent::ProgressChanged(expected_result.clone()))
+            .delay(Duration::from_millis(150))
+            .build();
         let loader = DefaultMediaLoader::new(vec![Box::new(strategy)]);
-        let runtime = &loader.inner.runtime;
 
         let mut receiver = loader.subscribe();
-        runtime.spawn(async move {
+        tokio::spawn(async move {
             loop {
                 if let Some(event) = receiver.recv().await {
                     if let MediaLoaderEvent::ProgressChanged(_, progress) = &*event {
@@ -774,10 +725,14 @@ mod tests {
             }
         });
 
-        let _ = runtime.block_on(loader.load_playlist_item(item));
-        let _ = rx.recv_timeout(Duration::from_millis(500)).unwrap();
+        let _ = loader.load_playlist_item(item).await;
+        let _ = recv_timeout!(
+            &mut rx_data,
+            Duration::from_millis(500),
+            "expected the loading process to have been started"
+        );
 
-        let result = rx_event.recv_timeout(Duration::from_millis(500)).unwrap();
+        let result = recv_timeout!(&mut rx_event, Duration::from_millis(500));
         assert_eq!(expected_result, result);
     }
 }

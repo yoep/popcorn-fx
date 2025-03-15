@@ -1226,7 +1226,7 @@ pub mod serde_piece_layers {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::torrent::operation::TorrentCreateFilesOperation;
+
     use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::read_test_file_to_bytes;
     use std::str::FromStr;

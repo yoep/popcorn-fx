@@ -1,8 +1,6 @@
 use crate::ffi::CArray;
 use log::trace;
-use popcorn_fx_core::core::torrents::{
-    Error, TorrentInfo, TorrentState, TorrentStreamEvent, TorrentStreamState,
-};
+use popcorn_fx_core::core::torrents::{Error, TorrentInfo, TorrentState, TorrentStreamState};
 use popcorn_fx_core::into_c_string;
 use popcorn_fx_torrent::torrent;
 use popcorn_fx_torrent::torrent::{

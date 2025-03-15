@@ -201,7 +201,7 @@ impl SubtitleInfo {
             return match files.into_iter().next() {
                 None => {
                     warn!(
-                        "No subtitle file found matching {}, using best matching item instead",
+                        "No subtitle found matching filename \"{}\", using best matching item instead",
                         name
                     );
                     match self.files().unwrap().iter().sorted().next() {

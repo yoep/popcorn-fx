@@ -1,14 +1,16 @@
+use crate::core::event::{Error, Event, Result};
+
+use fx_handle::Handle;
+use log::{debug, error, info, trace, warn};
 use std::cmp::Ordering;
 use std::fmt;
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
-
-use log::{debug, info, trace};
-use tokio::runtime::Runtime;
-use tokio::sync::Mutex;
-
-use crate::core::block_in_place;
-use crate::core::event::Event;
+use std::time::Duration;
+use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
+use tokio::sync::{oneshot, Mutex};
+use tokio::{select, time};
+use tokio_util::sync::CancellationToken;
 
 /// The highest order for events, this priority will be first invoked
 pub const HIGHEST_ORDER: Order = i32::MIN;
@@ -17,37 +19,70 @@ pub const DEFAULT_ORDER: Order = 0;
 /// The lowest order for events, this priority will be last invoked
 pub const LOWEST_ORDER: Order = i32::MAX;
 
-/// The event callback type which handles callbacks for events within Popcorn FX.
-/// This is a generic type that can be reused within the [crate::core::event] package.
-///
-/// The callback uses a chain methodology which means it keeps invoking the chain of consumers/listeners for as long as event is being returned.
-/// Returning [None] as a result for the callback, will stop the chain from being invoked.
-///
-/// # Examples
-///
-/// ## Continue invoking the chain
-///
-/// ```no_run
-/// use popcorn_fx_core::core::event::{Event, EventCallback};
-///
-/// let continue_consumer: EventCallback = Box::new(|event| {
-///     // do something with the event
-///     // use the Clone trait if you want to the store the event information
-///     Some(event)
-/// });
-/// ```
-///
-/// ## Stop the chain
-///
-/// ```no_run
-/// use popcorn_fx_core::core::event::{Event, EventCallback};
-///
-/// let stop_consumer: EventCallback = Box::new(|event| {
-///     // consume the event and prevent the chain from continuing
-///     None
-/// });
-/// ```
-pub type EventCallback = Box<dyn Fn(Event) -> Option<Event> + Send>;
+/// The event callback unique identifier.
+type EventCallbackHandle = Handle;
+/// The event for registering a new event callback.
+type RegistrationEvent = (UnboundedSender<EventHandler>, Order);
+
+/// The event callback receiver for events published to the event chain.
+pub type EventCallback = UnboundedReceiver<EventHandler>;
+
+#[derive(Debug)]
+pub struct EventHandler {
+    event: Option<Event>,
+    response: Option<oneshot::Sender<Option<Event>>>,
+}
+
+impl EventHandler {
+    fn new(event: Event) -> (Self, oneshot::Receiver<Option<Event>>) {
+        let (tx, rx) = oneshot::channel();
+        (
+            Self {
+                event: Some(event),
+                response: Some(tx),
+            },
+            rx,
+        )
+    }
+
+    /// Get the reference to the event that was published.
+    pub fn event_ref(&self) -> Option<&Event> {
+        self.event.as_ref()
+    }
+
+    /// Get the event that was published, consuming the event from the handler.
+    pub fn take(&mut self) -> Option<Event> {
+        self.event.take()
+    }
+
+    /// Continue with the next callback in the event chain.
+    /// This allows the publisher to continue or stop processing the event chain.
+    pub fn next(&mut self) {
+        let event = self.event.take();
+        self.next_with(event);
+    }
+
+    /// Stop the event chain by consuming the event.
+    /// This will make the event publisher stop processing the event chain.
+    pub fn stop(&mut self) {
+        let _ = self.event.take();
+        self.next_with(None);
+    }
+
+    /// Continue with the next callback in the event chain with the given event.
+    /// This allows the publisher to continue or stop processing the event chain.
+    fn next_with(&mut self, event: Option<Event>) {
+        if let Some(response) = self.response.take() {
+            let _ = response.send(event);
+        }
+    }
+}
+
+impl Drop for EventHandler {
+    fn drop(&mut self) {
+        self.next();
+    }
+}
 
 /// The event ordering priority type that determines the order in which the event consumers/listeners will be invoked.
 pub type Order = i32;
@@ -78,21 +113,41 @@ pub type Order = i32;
 /// use popcorn_fx_core::core::event::{Event, EventPublisher, HIGHEST_ORDER};
 /// let publisher = EventPublisher::default();
 ///
-/// publisher.register(Box::new(|event|Some(event)), HIGHEST_ORDER);
+/// let callback = publisher.subscribe(HIGHEST_ORDER);
 /// ```
+#[derive(Debug, Clone)]
 pub struct EventPublisher {
-    /// The callbacks that need to be invoked for the listener
-    callbacks: Arc<Mutex<Vec<EventCallbackHolder>>>,
-    runtime: Runtime,
+    inner: Arc<InnerEventPublisher>,
 }
 
 impl EventPublisher {
-    /// Register a new event consumer/listener with the `EventPublisher`.
+    /// Create a new event publisher instance.
+    pub fn new() -> Self {
+        let (sender, receiver) = unbounded_channel();
+        let inner = Arc::new(InnerEventPublisher {
+            sender,
+            callbacks: Default::default(),
+            cancellation_token: Default::default(),
+        });
+
+        let inner_main = inner.clone();
+        tokio::spawn(async move {
+            inner_main.start(receiver).await;
+        });
+
+        Self { inner }
+    }
+
+    /// Create a new event subscription with the `EventPublisher`.
+    /// This receiver of the subscription will receive all events published to the `EventPublisher`.
     ///
     /// # Arguments
     ///
-    /// * `callback` - The event callback to register.
-    /// * `order` - The ordering priority for the callback. Lower values indicate higher priority.
+    /// * `order` - The ordering priority for receiving events. Lower values indicate higher priority.
+    ///
+    /// # Returns
+    ///
+    /// It returns the event receiver when the publisher has not yet been closed, else [Error::Closed].
     ///
     /// # Examples
     ///
@@ -102,22 +157,23 @@ impl EventPublisher {
     /// use popcorn_fx_core::core::event;
     /// use popcorn_fx_core::core::event::{Event, EventPublisher, EventCallback, Order};
     ///
-    /// let event_publisher = EventPublisher::default();
-    /// let callback: EventCallback = Box::new(|event| {
-    ///     // Handle the event
-    ///     Some(event)
-    /// });
-    ///
-    /// event_publisher.register(callback, event::HIGHEST_ORDER);
+    /// async fn example(event_publisher: EventPublisher) {
+    ///     let mut callback = event_publisher.subscribe(event::HIGHEST_ORDER).unwrap();
+    ///     let event = callback.recv().await;
+    /// }
     /// ```
-    pub fn register(&self, callback: EventCallback, order: Order) {
-        trace!("Registering a new callback to the EventPublisher");
-        let callbacks = self.callbacks.clone();
-        let mut mutex = block_in_place(callbacks.lock());
+    pub fn subscribe(&self, order: Order) -> Result<EventCallback> {
+        if self.inner.cancellation_token.is_cancelled() {
+            return Err(Error::Closed);
+        }
 
-        mutex.push(EventCallbackHolder { order, callback });
-        mutex.sort();
-        debug!("Added event callback, new total callbacks {}", mutex.len());
+        let (sender, receiver) = unbounded_channel();
+        let _ = self
+            .inner
+            .sender
+            .send(EventPublisherCommand::Registration((sender, order)));
+
+        Ok(receiver)
     }
 
     /// Publish a new application event.
@@ -128,57 +184,128 @@ impl EventPublisher {
     ///
     /// * `event` - The event to publish.
     pub fn publish(&self, event: Event) {
-        let callbacks = self.callbacks.clone();
-        self.runtime.spawn(async move {
-            let invocations = callbacks.lock().await;
-            info!("Publishing event {}", event);
-            let mut arg = event;
+        let _ = self.inner.sender.send(EventPublisherCommand::Event(event));
+    }
 
-            debug!(
-                "Invoking a total of {} callbacks for the event publisher",
-                invocations.len()
-            );
-            trace!("Invoking callbacks {:?}", invocations);
-            for invocation in invocations.iter() {
-                if let Some(event) = (invocation.callback)(arg) {
-                    arg = event;
-                } else {
-                    debug!("Event publisher chain has been interrupted");
-                    break;
-                }
-            }
-        });
+    /// Close the event publisher from publishing any new events.
+    /// This will terminate the event loop.
+    pub fn close(&self) {
+        self.inner.cancellation_token.cancel()
     }
 }
 
 impl Default for EventPublisher {
     fn default() -> Self {
-        Self {
-            callbacks: Arc::new(Default::default()),
-            runtime: tokio::runtime::Builder::new_multi_thread()
-                .enable_all()
-                .worker_threads(2)
-                .thread_name("events")
-                .build()
-                .expect("expected a new runtime"),
-        }
+        Self::new()
     }
 }
 
-impl Debug for EventPublisher {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mutex = block_in_place(self.callbacks.lock());
-        f.debug_struct("EventPublisher")
-            .field("callbacks", &mutex.len())
-            .finish()
+enum EventPublisherCommand {
+    Registration(RegistrationEvent),
+    Event(Event),
+}
+
+#[derive(Debug)]
+struct InnerEventPublisher {
+    sender: UnboundedSender<EventPublisherCommand>,
+    callbacks: Mutex<Vec<EventCallbackHolder>>,
+    cancellation_token: CancellationToken,
+}
+
+impl InnerEventPublisher {
+    /// Start the main internal loop of the event publisher.
+    /// This loop will handle every published event until it is cancelled.
+    async fn start(&self, mut receiver: UnboundedReceiver<EventPublisherCommand>) {
+        loop {
+            select! {
+                _ = self.cancellation_token.cancelled() => break,
+                Some(command) = receiver.recv() => self.handle_command_event(command).await,
+            }
+        }
+
+        debug!("Event publisher main loop ended");
+    }
+
+    async fn handle_command_event(&self, command: EventPublisherCommand) {
+        match command {
+            EventPublisherCommand::Registration((sender, order)) => {
+                self.handle_callback_registration(sender, order).await
+            }
+            EventPublisherCommand::Event(event) => self.handle_event(event).await,
+        }
+    }
+
+    async fn handle_event(&self, event: Event) {
+        let invocations = self.callbacks.lock().await;
+        let mut invocations_to_remove = vec![];
+        info!("Publishing event {}", event);
+        let mut event = event;
+
+        debug!(
+            "Invoking a total of {} callbacks for the event publisher",
+            invocations.len()
+        );
+        trace!("Invoking callbacks {:?}", invocations);
+        for invocation in invocations.iter() {
+            let (event_handler, receiver) = EventHandler::new(event);
+            if let Err(mut e) = invocation.sender.send(event_handler) {
+                event = e.0.take().expect("expected the event to still be present");
+                invocations_to_remove.push(invocation.handle);
+                continue;
+            }
+
+            select! {
+                _ = time::sleep(Duration::from_secs(60)) => {
+                    error!("Event publisher callback invocation timed out");
+                    break;
+                }
+                result = receiver => {
+                    match result {
+                        Ok(result) => {
+                            match result {
+                                None => {
+                                    debug!("Event publisher chain has been interrupted");
+                                    break;
+                                }
+                                Some(result) => event = result,
+                            }
+                        },
+                        Err(_) => {
+                            warn!("Event publisher callback invocation failed, response channel closed");
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    async fn handle_callback_registration(
+        &self,
+        sender: UnboundedSender<EventHandler>,
+        order: Order,
+    ) {
+        trace!("Registering a new callback to the EventPublisher");
+        let mut callbacks = self.callbacks.lock().await;
+        callbacks.push(EventCallbackHolder {
+            handle: Default::default(),
+            order,
+            sender,
+        });
+        callbacks.sort();
+        debug!(
+            "Added event callback, new total callbacks {}",
+            callbacks.len()
+        );
     }
 }
 
 /// The holder is responsible for storing the ordering information of callbacks.
 /// It will order the callbacks based on the [Order] value.
 struct EventCallbackHolder {
-    pub order: Order,
-    pub callback: EventCallback,
+    handle: EventCallbackHandle,
+    order: Order,
+    sender: UnboundedSender<EventHandler>,
 }
 
 impl PartialEq for EventCallbackHolder {
@@ -212,32 +339,58 @@ impl Debug for EventCallbackHolder {
 
 #[cfg(test)]
 mod test {
-    use std::sync::mpsc::channel;
-    use std::time::Duration;
-
     use crate::core::event::PlayerStoppedEvent;
-    use crate::init_logger;
+    use crate::{assert_timeout, init_logger, recv_timeout};
+
+    use std::time::Duration;
+    use tokio::time;
 
     use super::*;
 
-    #[test]
-    fn test_event_publisher_register() {
+    #[tokio::test]
+    async fn test_event_publisher_register() {
         init_logger!();
         let publisher = EventPublisher::default();
 
         // Register a new event consumer
-        let callback = Box::new(|e| Some(e));
-        publisher.register(callback, DEFAULT_ORDER);
+        let _callback = publisher
+            .subscribe(DEFAULT_ORDER)
+            .expect("expected to receive a callback receiver");
 
         // Check if the event consumer is registered
-        let callbacks = block_in_place(publisher.callbacks.lock());
-        assert_eq!(callbacks.len(), 1);
+        let callbacks = &publisher.inner.callbacks;
+        assert_timeout!(
+            Duration::from_millis(200),
+            callbacks.lock().await.len() == 1,
+            "expected the callback to have been registered"
+        );
     }
 
-    #[test]
-    fn test_event_publisher_publish() {
+    #[tokio::test]
+    async fn test_event_publisher_register_closed() {
         init_logger!();
-        let (tx, rx) = channel();
+        let publisher = EventPublisher::default();
+
+        // close the publisher
+        publisher.close();
+
+        // try to register a new callback receiver
+        let result = publisher.subscribe(DEFAULT_ORDER);
+        if let Err(result) = result {
+            assert_eq!(
+                Error::Closed,
+                result,
+                "expected the publisher to have been closed"
+            );
+        } else {
+            assert!(false, "expected Err, but got {:?} instead", result);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_event_publisher_publish() {
+        init_logger!();
+        let (tx, mut rx) = unbounded_channel();
         let event = PlayerStoppedEvent {
             url: "http://localhost/video.mkv".to_string(),
             media: None,
@@ -247,109 +400,185 @@ mod test {
         let publisher = EventPublisher::default();
 
         // Register a new event consumer that handles PlayerStopped events
-        let callback: EventCallback = Box::new(move |event| {
-            if let Event::PlayerStopped(stopped_event) = &event {
-                tx.send(stopped_event.clone()).unwrap();
+        let mut callback = publisher.subscribe(DEFAULT_ORDER).unwrap();
+        tokio::spawn(async move {
+            loop {
+                if let Some(mut handler) = callback.recv().await {
+                    if let Some(Event::PlayerStopped(stopped_event)) = handler.event_ref() {
+                        tx.send(stopped_event.clone()).unwrap();
+                    }
+
+                    // return the original event to continue the event chain
+                    handler.next();
+                } else {
+                    break;
+                }
             }
-            // return the original event to continue the event chain
-            Some(event)
         });
-        publisher.register(callback, DEFAULT_ORDER);
 
         // Publish a new PlayerStopped event
         publisher.publish(Event::PlayerStopped(event.clone()));
-        let event_result = rx.recv_timeout(Duration::from_millis(100)).unwrap();
+        let event_result = recv_timeout!(&mut rx, Duration::from_millis(100));
 
         // Check if the event consumer is invoked with the correct event
         assert_eq!(event, event_result)
     }
 
-    #[test]
-    fn test_event_publisher_publish_multiple_consumers() {
+    #[tokio::test]
+    async fn test_event_publisher_publish_multiple_consumers() {
         init_logger!();
-        let (tx_callback1, rx_callback1) = channel();
-        let (tx_callback2, rx_callback2) = channel();
+        let (tx_callback1, mut rx_callback1) = unbounded_channel();
+        let (tx_callback2, mut rx_callback2) = unbounded_channel();
         let publisher = EventPublisher::default();
 
         // Register two event consumers that handle PlayerStarted and PlayerStopped events, respectively
-        let callback1: EventCallback = Box::new(move |event| {
-            if let Event::PlayerStopped(event) = &event {
-                tx_callback1.send(event.clone()).unwrap();
+        let mut callback1 = publisher.subscribe(LOWEST_ORDER).unwrap();
+        let mut callback2 = publisher.subscribe(HIGHEST_ORDER).unwrap();
+
+        tokio::spawn(async move {
+            loop {
+                if let Some(mut handler) = callback1.recv().await {
+                    if let Some(Event::PlayerStopped(event)) = handler.event_ref() {
+                        tx_callback1.send(event.clone()).unwrap();
+                    }
+
+                    handler.next();
+                } else {
+                    break;
+                }
             }
-            Some(event)
         });
-        let callback2: EventCallback = Box::new(move |event| {
-            if let Event::PlayerStopped(event) = &event {
-                tx_callback2.send(event.clone()).unwrap();
+        tokio::spawn(async move {
+            loop {
+                if let Some(mut handler) = callback2.recv().await {
+                    if let Some(Event::PlayerStopped(event)) = handler.event_ref() {
+                        tx_callback2.send(event.clone()).unwrap();
+                    }
+
+                    handler.next();
+                } else {
+                    break;
+                }
             }
-            Some(event)
         });
-        publisher.register(callback1, LOWEST_ORDER);
-        publisher.register(callback2, HIGHEST_ORDER);
 
         // Publish a new PlayerStopped event
-        let event = PlayerStoppedEvent {
-            url: "http://localhost/video.mkv".to_string(),
-            media: None,
-            time: Some(140000),
-            duration: Some(2000000),
-        };
+        let event = create_player_stopped_event();
         publisher.publish(Event::PlayerStopped(event.clone()));
 
         // Check if the event consumers are invoked in the correct order
-        let callback1_result = rx_callback1
-            .recv_timeout(Duration::from_millis(100))
-            .unwrap();
-        let callback2_result = rx_callback2
-            .recv_timeout(Duration::from_millis(100))
-            .unwrap();
+        let callback1_result = recv_timeout!(&mut rx_callback1, Duration::from_millis(100));
+        let callback2_result = recv_timeout!(&mut rx_callback2, Duration::from_millis(100));
         assert_eq!(event, callback1_result);
         assert_eq!(event, callback2_result);
     }
 
-    #[test]
-    fn test_event_publisher_publish_event_consumed() {
+    #[tokio::test]
+    async fn test_event_publisher_publish_event_consumed() {
         init_logger!();
-        let (tx_callback1, rx_callback1) = channel();
-        let (tx_callback2, rx_callback2) = channel();
+        let (tx_callback1, mut rx_callback1) = unbounded_channel();
+        let (tx_callback2, mut rx_callback2) = unbounded_channel();
         let publisher = EventPublisher::default();
 
         // Register two event consumers that handle PlayerStarted and PlayerStopped events, respectively
-        let callback1: EventCallback = Box::new(move |event| {
-            match &event {
-                Event::PlayerStopped(event) => tx_callback1.send(event.clone()).unwrap(),
-                _ => {}
+        let mut callback1 = publisher.subscribe(LOWEST_ORDER).unwrap();
+        let mut callback2 = publisher.subscribe(HIGHEST_ORDER).unwrap();
+
+        tokio::spawn(async move {
+            loop {
+                if let Some(mut handler) = callback1.recv().await {
+                    if let Some(Event::PlayerStopped(event)) = handler.event_ref() {
+                        tx_callback1.send(event.clone()).unwrap();
+                    }
+
+                    handler.next();
+                } else {
+                    break;
+                }
             }
-            Some(event)
         });
-        let callback2: EventCallback = Box::new(move |event| {
-            match &event {
-                Event::PlayerStopped(event) => tx_callback2.send(event.clone()).unwrap(),
-                _ => {}
+        tokio::spawn(async move {
+            loop {
+                if let Some(mut handler) = callback2.recv().await {
+                    if let Some(Event::PlayerStopped(event)) = handler.event_ref() {
+                        tx_callback2.send(event.clone()).unwrap();
+                    }
+
+                    handler.stop();
+                } else {
+                    break;
+                }
             }
-            None
         });
-        publisher.register(callback1, LOWEST_ORDER);
-        publisher.register(callback2, HIGHEST_ORDER);
 
         // Publish a new PlayerStopped event
-        let event = PlayerStoppedEvent {
-            url: "https::/localhost:8457/my_video.mkv".to_string(),
-            media: None,
-            time: None,
-            duration: None,
-        };
+        let event = create_player_stopped_event();
         publisher.publish(Event::PlayerStopped(event.clone()));
 
         // Check if the event consumers are invoked in the correct order
-        let callback2_result = rx_callback2
-            .recv_timeout(Duration::from_millis(100))
-            .unwrap();
-        let callback1_result = rx_callback1.recv_timeout(Duration::from_millis(100));
+        let callback2_result = recv_timeout!(&mut rx_callback2, Duration::from_millis(200));
         assert_eq!(event, callback2_result);
-        assert!(
-            callback1_result.is_err(),
+        let callback1_result = select! {
+            _ = time::sleep(Duration::from_millis(100)) => false,
+            _ = rx_callback1.recv() => true
+        };
+        assert_eq!(
+            false, callback1_result,
             "expected the rx_callback1 to not have been invoked"
         );
+    }
+
+    #[tokio::test]
+    async fn test_close() {
+        init_logger!();
+        let (tx, mut rx) = unbounded_channel();
+        let publisher = EventPublisher::default();
+
+        // Register a new event consumer that handles PlayerStopped events
+        let mut callback = publisher.subscribe(DEFAULT_ORDER).unwrap();
+        tokio::spawn(async move {
+            loop {
+                if let Some(mut handler) = callback.recv().await {
+                    tx.send(
+                        handler
+                            .take()
+                            .expect("expected the event to be present within the handler"),
+                    )
+                    .unwrap();
+                    handler.stop();
+                } else {
+                    break;
+                }
+            }
+        });
+
+        // close the event publisher
+        publisher.close();
+        let closed = select! {
+            _ = time::sleep(Duration::from_millis(200)) => false,
+            _ = publisher.inner.sender.closed() => true,
+        };
+        assert_eq!(true, closed, "expected the event publisher to be closed");
+
+        // publish a new event after closure
+        publisher.publish(Event::PlayerStopped(create_player_stopped_event()));
+
+        let event_result = select! {
+            _ = time::sleep(Duration::from_millis(100)) => false,
+            Some(_) = rx.recv() => true
+        };
+        assert_eq!(
+            false, event_result,
+            "expected the event consumer to not have been invoked after closure"
+        );
+    }
+
+    fn create_player_stopped_event() -> PlayerStoppedEvent {
+        PlayerStoppedEvent {
+            url: "https::/localhost:8457/my_video.mkv".to_string(),
+            media: None,
+            time: Some(10000),
+            duration: Some(15000),
+        }
     }
 }

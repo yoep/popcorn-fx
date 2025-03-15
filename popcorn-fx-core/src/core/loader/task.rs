@@ -5,9 +5,7 @@ use crate::core::loader::{
 use derive_more::Display;
 use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use log::{debug, error, info, trace, warn};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use tokio::runtime::Runtime;
 use tokio::select;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::sync::Mutex;
@@ -38,18 +36,13 @@ impl LoadingTask {
     /// # Returns
     ///
     /// A new `LoadingTask` instance.
-    pub fn new(chain: Arc<LoadingChain>, runtime: Arc<Runtime>) -> Self {
+    pub fn new(chain: Arc<LoadingChain>) -> Self {
         let (event_sender, event_receiver) = unbounded_channel();
         let (command_sender, command_receiver) = unbounded_channel();
-        let inner = Arc::new(LoadingTaskContext::new(
-            chain,
-            event_sender,
-            command_sender,
-            runtime.clone(),
-        ));
+        let inner = Arc::new(LoadingTaskContext::new(chain, event_sender, command_sender));
 
         let event_inner = inner.clone();
-        runtime.spawn(async move {
+        tokio::spawn(async move {
             event_inner
                 .start(&event_inner, event_receiver, command_receiver)
                 .await;
@@ -62,11 +55,6 @@ impl LoadingTask {
     /// Get an owned instance of the task handle.
     pub fn handle(&self) -> LoadingHandle {
         self.context.handle
-    }
-
-    /// Get the task handle as reference.
-    pub fn handle_as_ref(&self) -> &LoadingHandle {
-        &self.context.handle
     }
 
     /// Get the current loading state of the task.
@@ -97,6 +85,7 @@ impl LoadingTask {
     }
 
     /// Get the loading task context.
+    #[cfg(test)]
     pub fn context(&self) -> &Arc<LoadingTaskContext> {
         &self.context
     }
@@ -144,8 +133,6 @@ pub struct LoadingTaskContext {
     callbacks: MultiThreadedCallback<LoadingEvent>,
     /// The cancellation token of the task
     cancellation_token: CancellationToken,
-    /// The shared runtime of the task
-    runtime: Arc<Runtime>,
 }
 
 impl LoadingTaskContext {
@@ -153,7 +140,6 @@ impl LoadingTaskContext {
         chain: Arc<LoadingChain>,
         event_sender: UnboundedSender<LoadingEvent>,
         command_sender: UnboundedSender<LoadingCommandEvent>,
-        runtime: Arc<Runtime>,
     ) -> Self {
         Self {
             handle: Default::default(),
@@ -161,9 +147,8 @@ impl LoadingTaskContext {
             chain,
             event_sender,
             command_sender,
-            callbacks: MultiThreadedCallback::new(runtime.clone()),
+            callbacks: MultiThreadedCallback::new(),
             cancellation_token: Default::default(),
-            runtime,
         }
     }
 
@@ -194,11 +179,6 @@ impl LoadingTaskContext {
             debug!("Loading task {} event sender channel has been closed", self);
             self.cancellation_token.cancel();
         }
-    }
-
-    /// Get the underlying runtime that is being used for loading the task.
-    pub fn runtime(&self) -> &Arc<Runtime> {
-        &self.runtime
     }
 
     /// Start the loading task main chain loop.
@@ -254,7 +234,7 @@ impl LoadingTaskContext {
         match event {
             LoadingCommandEvent::Load(data) => {
                 let load_context = context.clone();
-                self.runtime.spawn(async move {
+                tokio::spawn(async move {
                     load_context.load(data).await;
                 });
                 false
@@ -331,7 +311,7 @@ impl LoadingTaskContext {
         );
         for index in (0..strategies.len()).rev() {
             if let Some(strategy) = strategies.get(index).and_then(|e| e.upgrade()) {
-                trace!("Cancelling {}", strategy);
+                trace!("Loading task {} is executing cancel for {}", self, strategy);
                 match strategy.cancel(data).await {
                     Ok(new_data) => data = new_data,
                     Err(e) => {
@@ -400,92 +380,28 @@ impl LoadingTaskContext {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::mpsc::{channel, Sender};
     use std::time::Duration;
 
-    use async_trait::async_trait;
-    use derive_more::Display;
     use tokio::time;
 
     use super::*;
-    use crate::core::block_in_place_runtime;
+
+    use crate::core::loader::tests::TestingLoadingStrategy;
     use crate::core::loader::LoadingError;
-    use crate::core::loader::{CancellationResult, LoadingStrategy, MockLoadingStrategy};
+    use crate::core::loader::{LoadingStrategy, MockLoadingStrategy};
     use crate::core::playlist::PlaylistItem;
-    use crate::init_logger;
+    use crate::{init_logger, recv_timeout};
 
-    #[derive(Debug, Display)]
-    #[display(fmt = "CancelStrategy")]
-    struct CancelStrategy {
-        pub initiated: Sender<()>,
-        pub cancelled: Sender<bool>,
-    }
-
-    #[async_trait]
-    impl LoadingStrategy for CancelStrategy {
-        async fn process(
-            &self,
-            _: &mut LoadingData,
-            context: &LoadingTaskContext,
-        ) -> LoadingResult {
-            self.initiated.send(()).unwrap();
-
-            select! {
-                _ = context.cancelled() => {
-                    info!("CancelStrategy context is being cancelled");
-                    if let Err(e) = self.cancelled.send(true) {
-                        error!("Failed to send cancellation result, {}", e);
-                    }
-                    LoadingResult::Err(LoadingError::Cancelled)
-                },
-                _ = time::sleep(Duration::from_millis(750)) => LoadingResult::Completed,
-            }
-        }
-
-        async fn cancel(&self, data: LoadingData) -> CancellationResult {
-            Ok(data)
-        }
-    }
-
-    #[derive(Debug, Display)]
-    #[display(fmt = "SleepStrategy")]
-    struct SleepStrategy {
-        duration: Duration,
-    }
-
-    impl SleepStrategy {
-        fn new(timeout: Duration) -> Self {
-            Self { duration: timeout }
-        }
-    }
-
-    #[async_trait]
-    impl LoadingStrategy for SleepStrategy {
-        async fn process(
-            &self,
-            _data: &mut LoadingData,
-            _context: &LoadingTaskContext,
-        ) -> LoadingResult {
-            time::sleep(self.duration).await;
-            LoadingResult::Completed
-        }
-
-        async fn cancel(&self, data: LoadingData) -> CancellationResult {
-            Ok(data)
-        }
-    }
-
-    #[test]
-    fn test_handle() {
+    #[tokio::test]
+    async fn test_handle() {
         init_logger!();
-        let runtime = Arc::new(Runtime::new().unwrap());
-        let task = LoadingTask::new(Arc::new(LoadingChain::from(vec![])), runtime.clone());
+        let task = LoadingTask::new(Arc::new(LoadingChain::from(vec![])));
 
         assert_ne!(task.handle().value(), 0i64);
     }
 
-    #[test]
-    fn test_state() {
+    #[tokio::test]
+    async fn test_state() {
         init_logger!();
         let data = LoadingData::from(PlaylistItem {
             url: None,
@@ -498,26 +414,17 @@ mod tests {
             subtitle: Default::default(),
             torrent: Default::default(),
         });
-        let (tx, rx) = channel();
-        let mut strategy = MockLoadingStrategy::new();
-        strategy
-            .expect_process()
-            .times(1)
-            .returning(move |_, context| {
-                context.send_event(LoadingEvent::StateChanged(LoadingState::Downloading));
-                block_in_place_runtime(time::sleep(Duration::from_millis(100)), context.runtime());
-                LoadingResult::Completed
-            });
-        let runtime = Arc::new(Runtime::new().unwrap());
-        let task = LoadingTask::new(
-            Arc::new(LoadingChain::from(vec![
-                Box::new(strategy) as Box<dyn LoadingStrategy>
-            ])),
-            runtime.clone(),
-        );
+        let (tx, mut rx) = unbounded_channel();
+        let strategy = TestingLoadingStrategy::builder()
+            .event(LoadingEvent::StateChanged(LoadingState::Downloading))
+            .delay(Duration::from_millis(200))
+            .build();
+        let task = LoadingTask::new(Arc::new(LoadingChain::from(vec![
+            Box::new(strategy) as Box<dyn LoadingStrategy>
+        ])));
 
         let mut receiver = task.subscribe();
-        runtime.spawn(async move {
+        tokio::spawn(async move {
             loop {
                 if let Some(event) = receiver.recv().await {
                     debug!("Received task event {:?}", event);
@@ -536,12 +443,12 @@ mod tests {
 
         task.load(data);
 
-        let result = rx.recv_timeout(Duration::from_millis(500)).unwrap();
+        let result = recv_timeout!(&mut rx, Duration::from_millis(500));
         assert_eq!(LoadingState::Downloading, result);
     }
 
-    #[test]
-    fn test_load() {
+    #[tokio::test]
+    async fn test_load() {
         init_logger!();
         let data = LoadingData::from(PlaylistItem {
             url: None,
@@ -554,27 +461,17 @@ mod tests {
             subtitle: Default::default(),
             torrent: Default::default(),
         });
-        let (tx_data, rx_data) = channel();
-        let (tx_completed, rx_completed) = channel();
-        let mut strategy = MockLoadingStrategy::new();
-        strategy
-            .expect_process()
-            .times(1)
-            .returning(move |data, _| {
-                tx_data.send(data.clone()).unwrap();
-                LoadingResult::Completed
-            });
-        let runtime = Arc::new(Runtime::new().unwrap());
-        let task = LoadingTask::new(
-            Arc::new(LoadingChain::from(vec![
-                Box::new(strategy) as Box<dyn LoadingStrategy>
-            ])),
-            runtime.clone(),
-        );
-        let context = task.context();
+        let (tx_data, mut rx_data) = unbounded_channel();
+        let (tx_completed, mut rx_completed) = unbounded_channel();
+        let strategy = TestingLoadingStrategy::builder()
+            .data_sender(tx_data)
+            .build();
+        let task = LoadingTask::new(Arc::new(LoadingChain::from(vec![
+            Box::new(strategy) as Box<dyn LoadingStrategy>
+        ])));
 
         let mut receiver = task.subscribe();
-        runtime.spawn(async move {
+        tokio::spawn(async move {
             loop {
                 if let Some(event) = receiver.recv().await {
                     if let LoadingEvent::Completed = &*event {
@@ -589,18 +486,22 @@ mod tests {
 
         task.load(data.clone());
 
-        let _ = rx_completed
-            .recv_timeout(Duration::from_millis(500))
-            .expect("expected the loading task to complete");
+        recv_timeout!(
+            &mut rx_completed,
+            Duration::from_millis(500),
+            "expected the loading task to complete"
+        );
 
-        let result = rx_data
-            .recv_timeout(Duration::from_millis(200))
-            .expect("expected the process to have received data");
+        let result = recv_timeout!(
+            &mut rx_data,
+            Duration::from_millis(200),
+            "expected the process to have received data"
+        );
         assert_eq!(data, result);
     }
 
-    #[test]
-    fn test_cancel_should_return_cancelled_error() {
+    #[tokio::test]
+    async fn test_cancel_should_return_cancelled_error() {
         init_logger!();
         let data = LoadingData::from(PlaylistItem {
             url: None,
@@ -613,20 +514,18 @@ mod tests {
             subtitle: Default::default(),
             torrent: Default::default(),
         });
-        let strategy = SleepStrategy::new(Duration::from_secs(50));
-        let (tx, rx) = channel();
-        let (tx_error, rx_error) = channel();
-        let (tx_cancelled, rx_cancelled) = channel();
-        let runtime = Arc::new(Runtime::new().unwrap());
-        let task = LoadingTask::new(
-            Arc::new(LoadingChain::from(vec![
-                Box::new(strategy) as Box<dyn LoadingStrategy>
-            ])),
-            runtime.clone(),
-        );
+        let strategy = TestingLoadingStrategy::builder()
+            .delay(Duration::from_secs(30))
+            .build();
+        let (tx, mut rx) = unbounded_channel();
+        let (tx_error, mut rx_error) = unbounded_channel();
+        let (tx_cancelled, mut rx_cancelled) = unbounded_channel();
+        let task = LoadingTask::new(Arc::new(LoadingChain::from(vec![
+            Box::new(strategy) as Box<dyn LoadingStrategy>
+        ])));
 
         let mut receiver = task.subscribe();
-        runtime.spawn(async move {
+        tokio::spawn(async move {
             loop {
                 if let Some(event) = receiver.recv().await {
                     match &*event {
@@ -647,29 +546,35 @@ mod tests {
 
         task.load(data);
 
-        let _ = rx
-            .recv_timeout(Duration::from_secs(500))
-            .expect("expected the task to start");
+        recv_timeout!(
+            &mut rx,
+            Duration::from_secs(500),
+            "expected the task to start"
+        );
         task.cancel();
 
-        let result = rx_error
-            .recv_timeout(Duration::from_millis(500))
-            .expect("expected a LoadingError");
+        let result = recv_timeout!(
+            &mut rx_error,
+            Duration::from_secs(500),
+            "expected a LoadingError"
+        );
         assert_eq!(
             LoadingError::Cancelled,
             result,
             "expected the cancelled error"
         );
 
-        let _ = rx_cancelled
-            .recv_timeout(Duration::from_millis(500))
-            .expect("expected a cancelled event");
-        let result = runtime.block_on(task.state());
+        recv_timeout!(
+            &mut rx_cancelled,
+            Duration::from_secs(500),
+            "expected a cancelled event"
+        );
+        let result = task.state().await;
         assert_eq!(LoadingState::Cancelled, result);
     }
 
-    #[test]
-    fn test_cancel_should_cancel_strategy_token() {
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_cancel_should_cancel_strategy_token() {
         init_logger!();
         let data = LoadingData::from(PlaylistItem {
             url: None,
@@ -682,35 +587,48 @@ mod tests {
             subtitle: Default::default(),
             torrent: Default::default(),
         });
-        let (tx, rx) = channel();
-        let (tx_cancelled, rx_cancelled) = channel();
-        let strategy = CancelStrategy {
-            initiated: tx,
-            cancelled: tx_cancelled,
-        };
-        let runtime = Arc::new(Runtime::new().unwrap());
-        let task = LoadingTask::new(
-            Arc::new(LoadingChain::from(vec![
-                Box::new(strategy) as Box<dyn LoadingStrategy>
-            ])),
-            runtime.clone(),
-        );
+        let (tx_data, mut rx_data) = unbounded_channel();
+        let (tx_event, mut rx_event) = unbounded_channel();
+        let strategy = TestingLoadingStrategy::builder()
+            .data_sender(tx_data)
+            .delay(Duration::from_secs(1))
+            .build();
+        let task = LoadingTask::new(Arc::new(LoadingChain::from(vec![
+            Box::new(strategy) as Box<dyn LoadingStrategy>
+        ])));
+
+        let mut receiver = task.subscribe();
+        tokio::spawn(async move {
+            loop {
+                if let Some(event) = receiver.recv().await {
+                    if let LoadingEvent::Cancelled = &*event {
+                        tx_event.send(()).unwrap();
+                        break;
+                    }
+                } else {
+                    break;
+                }
+            }
+        });
 
         task.load(data);
 
-        let _ = rx
-            .recv_timeout(Duration::from_millis(250))
-            .expect("expected the strategy process to have been started");
+        let _ = recv_timeout!(
+            &mut rx_data,
+            Duration::from_millis(250),
+            "expected the strategy process to have been started"
+        );
         task.cancel();
 
-        let result = rx_cancelled
-            .recv_timeout(Duration::from_millis(750))
-            .unwrap();
-        assert!(result, "expected the strategy to have been cancelled");
+        let _ = recv_timeout!(
+            &mut rx_event,
+            Duration::from_millis(500),
+            "expected the loading task to have sent the cancelled event"
+        );
     }
 
-    #[test]
-    fn test_cancel_should_call_cancel_when_executed() {
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_cancel_should_call_cancel_when_executed() {
         init_logger!();
         let data = LoadingData::from(PlaylistItem {
             url: None,
@@ -723,57 +641,64 @@ mod tests {
             subtitle: Default::default(),
             torrent: Default::default(),
         });
-        let (tx, rx) = channel();
-        let (tx_cancel, rx_cancel) = channel();
-        let mut strat1 = MockLoadingStrategy::new();
-        strat1.expect_process().times(1).returning(move |_, _| {
-            tx.send(()).unwrap();
-            LoadingResult::Ok
-        });
-        strat1.expect_cancel().times(1).returning(move |e| {
-            tx_cancel.send(e.clone()).unwrap();
-            Ok(e)
-        });
-        let strat2 = SleepStrategy::new(Duration::from_millis(200));
-        let runtime = Arc::new(Runtime::new().unwrap());
-        let task = LoadingTask::new(
-            Arc::new(LoadingChain::from(vec![
-                Box::new(strat1) as Box<dyn LoadingStrategy>,
-                Box::new(strat2) as Box<dyn LoadingStrategy>,
-            ])),
-            runtime.clone(),
-        );
+        let (tx_data, mut rx_data) = unbounded_channel();
+        let (tx_cancel_1, mut rx_cancel_1) = unbounded_channel();
+        let (tx_cancel_2, mut rx_cancel_2) = unbounded_channel();
+        let strategy1 = TestingLoadingStrategy::builder()
+            .data_sender(tx_data)
+            .cancel_sender(tx_cancel_1)
+            .build();
+        MockLoadingStrategy::new();
+        let strategy2 = TestingLoadingStrategy::builder()
+            .delay(Duration::from_secs(1))
+            .cancel_sender(tx_cancel_2)
+            .build();
+        let task = LoadingTask::new(Arc::new(LoadingChain::from(vec![
+            Box::new(strategy1) as Box<dyn LoadingStrategy>,
+            Box::new(strategy2) as Box<dyn LoadingStrategy>,
+        ])));
 
+        // start loading the task data
         task.load(data.clone());
 
-        let _ = rx
-            .recv_timeout(Duration::from_millis(500))
-            .expect("expected the strategy process to have been started");
+        // wait for the first strategy to be started before cancelling the task
+        let result = recv_timeout!(
+            &mut rx_data,
+            Duration::from_millis(500),
+            "expected the 1st strategy process to have been started"
+        );
+        assert_eq!(data, result, "expected the loading data to match");
         task.cancel();
 
-        let result = rx_cancel
-            .recv_timeout(Duration::from_millis(500))
-            .expect("expected the cancel fn to have been invoked");
-        assert_eq!(data, result);
+        // check the cancel invocation on the 1st strategy
+        let _ = recv_timeout!(
+            &mut rx_cancel_1,
+            Duration::from_millis(500),
+            "expected the cancel fn to have been invoked on the 1st strategy"
+        );
+
+        // check the cancel invocation on the 2nd strategy
+        let _ = recv_timeout!(
+            &mut rx_cancel_2,
+            Duration::from_millis(500),
+            "expected the cancel fn to have been invoked on the 2nd strategy"
+        );
     }
 
-    #[test]
-    fn test_loading_task_send_event() {
+    #[tokio::test]
+    async fn test_loading_task_send_event() {
         init_logger!();
         let expected_event = LoadingEvent::StateChanged(LoadingState::Connecting);
-        let runtime = Arc::new(Runtime::new().unwrap());
-        let task = LoadingTask::new(Arc::new(LoadingChain::from(vec![])), runtime.clone());
+        let task = LoadingTask::new(Arc::new(LoadingChain::from(vec![])));
         let context = &task.context;
 
         let mut receiver = task.subscribe();
         context.send_event(expected_event.clone());
 
-        let result = runtime.block_on(async {
-            select! {
-                _ = time::sleep(Duration::from_millis(500)) => Err(LoadingError::TimeoutError("event receiver timed out".to_string())),
-                Some(event) = receiver.recv() => Ok(event),
-            }
-        }).unwrap();
+        let result = select! {
+            _ = time::sleep(Duration::from_millis(500)) => Err(LoadingError::TimeoutError("event receiver timed out".to_string())),
+            Some(event) = receiver.recv() => Ok(event),
+        }.expect("expected to receive an event");
         assert_eq!(expected_event, *result);
     }
 }

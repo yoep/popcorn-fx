@@ -30,7 +30,6 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::net::TcpStream;
-use tokio::runtime::Runtime;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::sync::{Mutex, OwnedSemaphorePermit, RwLock};
 use tokio::time::timeout;
@@ -464,7 +463,7 @@ impl BitTorrentPeer {
     /// use popcorn_fx_torrent::torrent::peer::extension::Extension;
     /// use popcorn_fx_torrent::torrent::TorrentContext;
     ///
-    /// async fn create_new_peer(torrent: Arc<TorrentContext>, shared_runtime: Arc<Runtime>) -> Result<BitTorrentPeer> {
+    /// async fn create_new_peer(torrent: Arc<TorrentContext>) -> Result<BitTorrentPeer> {
     ///     let peer_id = PeerId::new();
     ///     let addr = SocketAddr::from(([127,0,0,1], 6881));
     ///     let stream = PeerStream::Tcp(TcpStream::connect(addr).await?);
@@ -479,7 +478,6 @@ impl BitTorrentPeer {
     ///         protocol_extensions,
     ///         extensions,
     ///         Duration::from_secs(10),
-    ///         shared_runtime
     ///     ).await
     /// }
     /// ```
@@ -491,22 +489,15 @@ impl BitTorrentPeer {
         protocol_extensions: ProtocolExtensionFlags,
         extensions: Extensions,
         timeout: Duration,
-        runtime: Arc<Runtime>,
     ) -> Result<Self> {
         trace!("Trying to create outgoing peer connection to {}", addr);
         let connection: Box<dyn PeerConn> = match stream {
-            PeerStream::Tcp(stream) => Box::new(PeerConnection::<TcpStream>::new_tcp(
-                peer_id,
-                addr,
-                stream,
-                runtime.clone(),
-            )),
-            PeerStream::Utp(stream) => Box::new(PeerConnection::<UtpStream>::new_utp(
-                peer_id,
-                addr,
-                stream,
-                runtime.clone(),
-            )),
+            PeerStream::Tcp(stream) => {
+                Box::new(PeerConnection::<TcpStream>::new_tcp(peer_id, addr, stream))
+            }
+            PeerStream::Utp(stream) => {
+                Box::new(PeerConnection::<UtpStream>::new_utp(peer_id, addr, stream))
+            }
         };
         let connection_protocol = connection.protocol();
 
@@ -520,7 +511,6 @@ impl BitTorrentPeer {
             protocol_extensions,
             extensions,
             timeout,
-            runtime,
         )
         .await
     }
@@ -534,21 +524,14 @@ impl BitTorrentPeer {
         protocol_extensions: ProtocolExtensionFlags,
         extensions: Extensions,
         timeout: Duration,
-        runtime: Arc<Runtime>,
     ) -> Result<Self> {
         let connection: Box<dyn PeerConn> = match stream {
-            PeerStream::Tcp(stream) => Box::new(PeerConnection::<TcpStream>::new_tcp(
-                peer_id,
-                addr,
-                stream,
-                runtime.clone(),
-            )),
-            PeerStream::Utp(stream) => Box::new(PeerConnection::<UtpStream>::new_utp(
-                peer_id,
-                addr,
-                stream,
-                runtime.clone(),
-            )),
+            PeerStream::Tcp(stream) => {
+                Box::new(PeerConnection::<TcpStream>::new_tcp(peer_id, addr, stream))
+            }
+            PeerStream::Utp(stream) => {
+                Box::new(PeerConnection::<UtpStream>::new_utp(peer_id, addr, stream))
+            }
         };
         let connection_protocol = connection.protocol();
 
@@ -567,7 +550,6 @@ impl BitTorrentPeer {
                 protocol_extensions,
                 extensions,
                 timeout,
-                runtime
             ) => result
         }
     }
@@ -811,7 +793,6 @@ impl BitTorrentPeer {
         protocol_extensions: ProtocolExtensionFlags,
         extensions: Extensions,
         timeout: Duration,
-        runtime: Arc<Runtime>,
     ) -> Result<Self> {
         let (event_sender, event_receiver) = unbounded_channel();
         let extension_registry = Self::create_extension_registry(&extensions);
@@ -851,10 +832,9 @@ impl BitTorrentPeer {
             incoming_data_stats: RwLock::new(PeerTransferStats::default()),
             outgoing_data_stats: RwLock::new(PeerTransferStats::default()),
             event_sender,
-            callbacks: MultiThreadedCallback::new(runtime.clone()),
+            callbacks: MultiThreadedCallback::new(),
             cancellation_token: CancellationToken::new(),
             timeout,
-            runtime,
         });
         let peer = Self { inner };
 
@@ -879,9 +859,7 @@ impl BitTorrentPeer {
         // start the main loop of the inner peer
         let main_loop = peer.inner.clone();
         let torrent_receiver = peer.inner.torrent.subscribe();
-        peer.inner
-            .runtime
-            .spawn(async move { main_loop.start(event_receiver, torrent_receiver).await });
+        tokio::spawn(async move { main_loop.start(event_receiver, torrent_receiver).await });
 
         peer.send_initial_messages().await?;
         Ok(peer)
@@ -1043,8 +1021,6 @@ struct PeerTransferStats {
     /// The actual useful total bytes that have been transferred during the lifetime of the connection.
     /// This only counts the actual piece payload data that has been transferred and excludes everything of the Bittorrent message protocol.
     total_transferred_bytes_useful: u64,
-    /// The time the stats where scraped
-    scraped_at: Instant,
 }
 
 impl Default for PeerTransferStats {
@@ -1054,7 +1030,6 @@ impl Default for PeerTransferStats {
             transferred_bytes_useful: 0,
             total_transferred_bytes: 0,
             total_transferred_bytes_useful: 0,
-            scraped_at: Instant::now(),
         }
     }
 }
@@ -1170,8 +1145,6 @@ pub struct PeerContext {
     timeout: Duration,
     /// The cancellation token to cancel any async task within this peer on closure
     cancellation_token: CancellationToken,
-    /// The shared runtime instance
-    runtime: Arc<Runtime>,
 }
 
 impl PeerContext {
@@ -2869,6 +2842,7 @@ impl Drop for PeerContext {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     use crate::torrent::operation::{TorrentCreateFilesOperation, TorrentCreatePiecesOperation};
     use crate::torrent::peer::extension::metadata::MetadataExtension;
     use crate::torrent::peer::protocol::tests::UtpPacketCaptureExtension;
@@ -2878,11 +2852,13 @@ mod tests {
         DEFAULT_TORRENT_PROTOCOL_EXTENSIONS,
     };
     use crate::{create_peer_pair, create_torrent, create_utp_socket_pair};
+
     use popcorn_fx_core::{assert_timeout, init_logger};
     use tempfile::tempdir;
+    use tokio::sync::mpsc::channel;
 
-    #[test]
-    fn test_peer_new_tcp() {
+    #[tokio::test]
+    async fn test_peer_new_tcp() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -2893,27 +2869,26 @@ mod tests {
             TorrentConfig::default(),
             vec![]
         );
-        let context = torrent.instance().unwrap();
-        let runtime = context.runtime();
         let (outgoing, incoming) = create_peer_pair!(&torrent);
 
-        let result = runtime.block_on(incoming.state());
+        let result = incoming.state().await;
         assert_ne!(PeerState::Error, result);
         assert_ne!(PeerState::Closed, result);
 
-        runtime.block_on(incoming.close());
-        let result = runtime.block_on(incoming.state());
+        incoming.close().await;
+        let result = incoming.state().await;
         assert_eq!(PeerState::Closed, result);
         assert_timeout!(
             Duration::from_secs(1),
-            PeerState::Closed == runtime.block_on(outgoing.state()),
+            PeerState::Closed == outgoing.state().await,
             "expected the outgoing connection to be closed"
         );
     }
 
     // TODO: fix the utp peer creation process
-    // #[test]
-    fn test_peer_new_utp() {
+    #[ignore]
+    #[tokio::test]
+    async fn test_peer_new_utp() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -2924,14 +2899,11 @@ mod tests {
             TorrentConfig::default(),
             vec![]
         );
-        let context = torrent.instance().unwrap();
-        let runtime = context.runtime();
         let incoming_capture = UtpPacketCaptureExtension::new();
         let outgoing_capture = UtpPacketCaptureExtension::new();
         let (incoming_socket, outgoing_socket) = create_utp_socket_pair!(
             vec![Box::new(incoming_capture.clone())],
-            vec![Box::new(outgoing_capture.clone())],
-            runtime.clone()
+            vec![Box::new(outgoing_capture.clone())]
         );
         let (outgoing, incoming) = create_utp_peer_pair(
             &incoming_socket,
@@ -2939,24 +2911,25 @@ mod tests {
             &torrent,
             &torrent,
             DEFAULT_TORRENT_PROTOCOL_EXTENSIONS(),
-        );
+        )
+        .await;
 
-        let result = runtime.block_on(incoming.state());
+        let result = incoming.state().await;
         assert_ne!(PeerState::Error, result);
         assert_ne!(PeerState::Closed, result);
 
-        runtime.block_on(incoming.close());
-        let result = runtime.block_on(incoming.state());
+        incoming.close().await;
+        let result = incoming.state().await;
         assert_eq!(PeerState::Closed, result);
         assert_timeout!(
             Duration::from_secs(1),
-            PeerState::Closed == runtime.block_on(outgoing.state()),
+            PeerState::Closed == outgoing.state().await,
             "expected the outgoing connection to be closed"
         );
     }
 
-    #[test]
-    fn test_peer_retrieve_metadata() {
+    #[tokio::test]
+    async fn test_peer_retrieve_metadata() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -2976,15 +2949,14 @@ mod tests {
             vec![]
         );
         let context = target_torrent.instance().unwrap();
-        let runtime = context.runtime();
 
-        let (tx, rx) = std::sync::mpsc::channel();
+        let (tx, mut rx) = channel(1);
         let mut receiver = target_torrent.subscribe();
-        runtime.spawn(async move {
+        tokio::spawn(async move {
             loop {
                 if let Some(event) = receiver.recv().await {
                     if let TorrentEvent::MetadataChanged = *event {
-                        tx.send(()).unwrap();
+                        tx.send(()).await.unwrap();
                     }
                 } else {
                     break;
@@ -2995,32 +2967,32 @@ mod tests {
         // create a connection to the source torrent which has the metadata
         let peer_id = PeerId::new();
         let peer_addr = SocketAddr::from(([127, 0, 0, 1], source_torrent.peer_port().unwrap()));
-        let stream = runtime.block_on(TcpStream::connect(peer_addr)).unwrap();
-        let peer = runtime
-            .block_on(BitTorrentPeer::new_outbound(
-                peer_id,
-                peer_addr,
-                PeerStream::Tcp(stream),
-                context.clone(),
-                context.protocol_extensions(),
-                vec![Box::new(MetadataExtension::new())],
-                Duration::from_secs(5),
-                runtime.clone(),
-            ))
-            .expect("expected the outbound connection to have been created");
+        let stream = TcpStream::connect(peer_addr).await.unwrap();
+        let peer = BitTorrentPeer::new_outbound(
+            peer_id,
+            peer_addr,
+            PeerStream::Tcp(stream),
+            context.clone(),
+            context.protocol_extensions(),
+            vec![Box::new(MetadataExtension::new())],
+            Duration::from_secs(5),
+        )
+        .await
+        .expect("expected the outbound connection to have been created");
         assert_timeout!(
             Duration::from_secs(1),
-            PeerState::Handshake != runtime.block_on(peer.state()),
+            PeerState::Handshake != peer.state().await,
             "expected the peer handshake to have been completed"
         );
 
-        let _ = rx
-            .recv_timeout(Duration::from_secs(5))
-            .expect("expected the metadata to have been retrieved");
+        select! {
+            _ = time::sleep(Duration::from_secs(5)) => assert!(false, "expected the metadata to have been retrieved"),
+            result = rx.recv() => assert!(result.is_some(), "expected some metadata to have been retrieved"),
+        }
     }
 
-    #[test]
-    fn test_peer_has_wanted_piece() {
+    #[tokio::test]
+    async fn test_peer_has_wanted_piece() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -3033,22 +3005,21 @@ mod tests {
             vec![]
         );
         let context = torrent.instance().unwrap();
-        let runtime = context.runtime();
         let (outgoing, incoming) = create_peer_pair!(&torrent);
         let incoming_context = &incoming.inner;
 
         // create the pieces for the torrent
         let operation = TorrentCreatePiecesOperation::new();
-        let result = runtime.block_on(operation.execute(&context));
+        let result = operation.execute(&context).await;
         assert_eq!(TorrentOperationResult::Continue, result);
 
-        let (tx, rx) = std::sync::mpsc::channel();
+        let (tx, mut rx) = channel(1);
         let mut receiver = incoming.subscribe();
-        runtime.spawn(async move {
+        tokio::spawn(async move {
             loop {
                 if let Some(event) = receiver.recv().await {
                     if let PeerEvent::RemoteAvailablePieces(pieces) = (*event).clone() {
-                        tx.send(pieces).unwrap();
+                        tx.send(pieces).await.unwrap();
                         break;
                     }
                 } else {
@@ -3060,17 +3031,18 @@ mod tests {
         // notify the other peer we have "fake" pieces
         outgoing.notify_piece_availability(expected_pieces.clone());
 
-        let result = rx
-            .recv_timeout(Duration::from_secs(2))
-            .expect("expected to have received the RemoteAvailablePieces event");
+        let result = select! {
+            _ = time::sleep(Duration::from_secs(2)) => panic!("expected to have received the RemoteAvailablePieces event"),
+            result = rx.recv() => result.unwrap(),
+        };
         assert_eq!(vec![0], result);
 
-        let result = runtime.block_on(incoming_context.has_wanted_piece());
+        let result = incoming_context.has_wanted_piece().await;
         assert_eq!(true, result, "expected the remote to have wanted pieces");
     }
 
-    #[test]
-    fn test_peer_torrent_pieces_changed() {
+    #[tokio::test]
+    async fn test_peer_torrent_pieces_changed() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -3082,23 +3054,22 @@ mod tests {
             vec![]
         );
         let context = torrent.instance().unwrap();
-        let runtime = context.runtime();
         let (outgoing, _incoming) = create_peer_pair!(&torrent);
 
         // create the pieces for the torrent
         let operation = TorrentCreatePiecesOperation::new();
-        let result = runtime.block_on(operation.execute(&context));
+        let result = operation.execute(&context).await;
         assert_eq!(TorrentOperationResult::Continue, result);
 
         // check if both the client & remote piece bitfield have been updated
-        let torrent_bitfield = runtime.block_on(context.piece_bitfield());
+        let torrent_bitfield = context.piece_bitfield().await;
         let peer_context = &outgoing.inner;
         assert_timeout!(
             Duration::from_secs(1),
-            torrent_bitfield == *runtime.block_on(peer_context.client_pieces.read()),
+            torrent_bitfield == *peer_context.client_pieces.read().await,
             "expected the peer client bitfield to match the torrent bitfield"
         );
-        let remote_bitfield = runtime.block_on(peer_context.remote_piece_bitfield());
+        let remote_bitfield = peer_context.remote_piece_bitfield().await;
         assert_eq!(
             torrent_bitfield.len(),
             remote_bitfield.len(),
@@ -3106,8 +3077,8 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_peer_torrent_validating_files() {
+    #[tokio::test]
+    async fn test_peer_torrent_validating_files() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -3130,20 +3101,30 @@ mod tests {
             }]
         );
         let target_torrent_context = target_torrent.instance().unwrap();
-        let runtime = target_torrent_context.runtime();
 
         // wait for the pieces/files to have been created
-        runtime.block_on(async {
+        let (tx, mut rx) = channel(1);
+        let mut receiver = target_torrent.subscribe();
+        tokio::spawn(async move {
             loop {
-                if target_torrent.total_files().await.unwrap_or(0) > 0 {
+                if let Some(event) = receiver.recv().await {
+                    if let TorrentEvent::FilesChanged = *event {
+                        tx.send(()).await.unwrap();
+                    }
+                } else {
                     break;
                 }
-                time::sleep(Duration::from_millis(10)).await
             }
         });
+        select! {
+            _ = time::sleep(Duration::from_secs(2)) => panic!("expected to have received the FilesChanged event"),
+            _ = rx.recv() => (),
+        }
 
         // set the state of the downloading torrent to checking files
-        runtime.block_on(target_torrent_context.update_state(TorrentState::CheckingFiles));
+        target_torrent_context
+            .update_state(TorrentState::CheckingFiles)
+            .await;
         // create the peer connections
         let (incoming_peer, outgoing_peer) = create_peer_pair!(
             &source_torrent,
@@ -3154,18 +3135,19 @@ mod tests {
         // notify that pieces have become available
         incoming_peer.notify_piece_availability(vec![0, 1, 2, 3]);
         // wait for the availability to have been processed
-        runtime.block_on(async {
-            loop {
-                if outgoing_peer.inner.remote_pieces.read().await.count_ones() > 0 {
-                    break;
-                }
-                time::sleep(Duration::from_millis(50)).await
+        loop {
+            if outgoing_peer.inner.remote_pieces.read().await.count_ones() > 0 {
+                break;
             }
-        });
+            time::sleep(Duration::from_millis(50)).await
+        }
 
         // check that the outgoing peer is not trying to download any pieces
-        let pending_requests = runtime
-            .block_on(outgoing_peer.inner.client_pending_requests.read())
+        let pending_requests = outgoing_peer
+            .inner
+            .client_pending_requests
+            .read()
+            .await
             .len();
         assert_eq!(
             0, pending_requests,
@@ -3173,11 +3155,13 @@ mod tests {
         );
 
         // set the state of the downloading torrent to downloading
-        runtime.block_on(target_torrent_context.update_state(TorrentState::Downloading));
+        target_torrent_context
+            .update_state(TorrentState::Downloading)
+            .await;
         // notify that pieces have become available
         incoming_peer.notify_piece_availability(vec![4]);
         // check that the outgoing peer is trying to download pieces
-        let result = runtime.block_on(async {
+        let result = async {
             let mut attempts = 0;
 
             loop {
@@ -3197,7 +3181,8 @@ mod tests {
                 }
                 time::sleep(Duration::from_millis(50)).await;
             }
-        });
+        }
+        .await;
         assert!(
             result,
             "expected the downloading peer to have sent requests"

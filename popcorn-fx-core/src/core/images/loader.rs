@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use async_trait::async_trait;
 use chrono::Duration;
 use log::{debug, trace, warn};
@@ -81,7 +79,7 @@ pub trait ImageLoader {
 #[derive(Debug)]
 pub struct DefaultImageLoader {
     client: Client,
-    cache_manager: Arc<CacheManager>,
+    cache_manager: CacheManager,
 }
 
 impl DefaultImageLoader {
@@ -94,7 +92,7 @@ impl DefaultImageLoader {
     /// # Returns
     ///
     /// A new `DefaultImageLoader` instance.
-    pub fn new(cache_manager: Arc<CacheManager>) -> Self {
+    pub fn new(cache_manager: CacheManager) -> Self {
         Self {
             client: Client::builder().build().expect("expected a new client"),
             cache_manager,
@@ -209,7 +207,6 @@ mod test {
     use httpmock::Method::GET;
     use httpmock::MockServer;
     use tempfile::tempdir;
-    use tokio::runtime::Runtime;
 
     use crate::core::media::{Images, MovieOverview, ShowOverview};
     use crate::init_logger;
@@ -217,19 +214,19 @@ mod test {
 
     use super::*;
 
-    #[test]
-    fn test_default_poster() {
+    #[tokio::test]
+    async fn test_default_poster() {
         init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let cache_manager = Arc::new(CacheManager::builder().storage_path(temp_path).build());
+        let cache_manager = CacheManager::builder().storage_path(temp_path).build();
         let loader = DefaultImageLoader::new(cache_manager);
 
         assert_eq!(POSTER_PLACEHOLDER.to_vec(), loader.default_poster())
     }
 
-    #[test]
-    fn test_load_fanart() {
+    #[tokio::test]
+    async fn test_load_fanart() {
         init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -250,18 +247,16 @@ mod test {
                 banner: "".to_string(),
             },
         }) as Box<dyn MediaOverview>;
-        let cache_manager = Arc::new(CacheManager::builder().storage_path(temp_path).build());
+        let cache_manager = CacheManager::builder().storage_path(temp_path).build();
         let loader = DefaultImageLoader::new(cache_manager);
-        let runtime = Runtime::new().unwrap();
 
-        let (result, _) =
-            runtime.block_on(async move { (loader.load_fanart(&media).await, loader) });
+        let (result, _) = (loader.load_fanart(&media).await, loader);
 
         assert_eq!(expected_result, result)
     }
 
-    #[test]
-    fn test_load_fanart_invalid_url() {
+    #[tokio::test]
+    async fn test_load_fanart_invalid_url() {
         init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -276,18 +271,16 @@ mod test {
                 banner: "".to_string(),
             },
         }) as Box<dyn MediaOverview>;
-        let cache_manager = Arc::new(CacheManager::builder().storage_path(temp_path).build());
+        let cache_manager = CacheManager::builder().storage_path(temp_path).build();
         let loader = DefaultImageLoader::new(cache_manager);
-        let runtime = Runtime::new().unwrap();
 
-        let (result, _) =
-            runtime.block_on(async move { (loader.load_fanart(&media).await, loader) });
+        let (result, _) = (loader.load_fanart(&media).await, loader);
 
         assert_eq!(BACKGROUND_HOLDER, result)
     }
 
-    #[test]
-    fn test_load_fanart_invalid_response() {
+    #[tokio::test]
+    async fn test_load_fanart_invalid_response() {
         init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -307,18 +300,16 @@ mod test {
                 banner: "".to_string(),
             },
         }) as Box<dyn MediaOverview>;
-        let cache_manager = Arc::new(CacheManager::builder().storage_path(temp_path).build());
+        let cache_manager = CacheManager::builder().storage_path(temp_path).build();
         let loader = DefaultImageLoader::new(cache_manager);
-        let runtime = Runtime::new().unwrap();
 
-        let (result, _) =
-            runtime.block_on(async move { (loader.load_fanart(&media).await, loader) });
+        let (result, _) = (loader.load_fanart(&media).await, loader);
 
         assert_eq!(BACKGROUND_HOLDER, result)
     }
 
-    #[test]
-    fn test_load_poster() {
+    #[tokio::test]
+    async fn test_load_poster() {
         init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -341,18 +332,16 @@ mod test {
             },
             rating: None,
         }) as Box<dyn MediaOverview>;
-        let cache_manager = Arc::new(CacheManager::builder().storage_path(temp_path).build());
+        let cache_manager = CacheManager::builder().storage_path(temp_path).build();
         let loader = DefaultImageLoader::new(cache_manager);
-        let runtime = Runtime::new().unwrap();
 
-        let (result, _) =
-            runtime.block_on(async move { (loader.load_poster(&media).await, loader) });
+        let (result, _) = (loader.load_poster(&media).await, loader);
 
         assert_eq!(expected_result, result)
     }
 
-    #[test]
-    fn test_load_url() {
+    #[tokio::test]
+    async fn test_load_url() {
         init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -363,12 +352,10 @@ mod test {
             then.status(200).body(expected_result.as_slice());
         });
         let url = server.url("/my-image.png");
-        let cache_manager = Arc::new(CacheManager::builder().storage_path(temp_path).build());
+        let cache_manager = CacheManager::builder().storage_path(temp_path).build();
         let loader = DefaultImageLoader::new(cache_manager);
-        let runtime = Runtime::new().unwrap();
 
-        let (result, _) =
-            runtime.block_on(async move { (loader.load(url.as_str()).await, loader) });
+        let (result, _) = (loader.load(url.as_str()).await, loader);
 
         assert_eq!(Some(expected_result), result)
     }

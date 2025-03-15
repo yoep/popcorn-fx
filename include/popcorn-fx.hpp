@@ -1224,7 +1224,9 @@ using PlaylistManagerCallbackC = void(*)(PlaylistManagerEventC);
 struct ApplicationConfigEventC {
   enum class Tag {
     /// Invoked when the application settings have been reloaded or loaded
-    SettingsLoaded,
+    Loaded,
+    /// Invoked when the application settings have been saved
+    Saved,
     /// Invoked when the subtitle settings have been changed
     SubtitleSettingsChanged,
     /// Invoked when the torrent settings have been changed

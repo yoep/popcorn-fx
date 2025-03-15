@@ -2,8 +2,6 @@ pub use discovery::*;
 pub use discovery_tcp::*;
 pub use discovery_utp::*;
 pub use errors::*;
-pub use listener::*;
-pub use listener_tcp::*;
 pub use peer::*;
 pub use peer_id::*;
 
@@ -12,8 +10,6 @@ mod discovery_tcp;
 mod discovery_utp;
 mod errors;
 pub mod extension;
-mod listener;
-mod listener_tcp;
 mod peer;
 mod peer_connection;
 mod peer_id;
@@ -23,14 +19,15 @@ pub mod webseed;
 #[cfg(test)]
 pub mod tests {
     use super::*;
+
     use crate::torrent::peer::protocol::{UtpSocket, UtpSocketExtensions, UtpStream};
     use crate::torrent::{available_port, Torrent};
+
+    use crate::recv_timeout;
     use rand::{rng, Rng};
     use std::net::SocketAddr;
-    use std::sync::mpsc::channel;
-    use std::sync::Arc;
     use std::time::Duration;
-    use tokio::runtime::Runtime;
+    use tokio::sync::mpsc::channel;
 
     /// Create a new uTP socket.
     #[macro_export]
@@ -47,55 +44,36 @@ pub mod tests {
     #[macro_export]
     macro_rules! create_utp_socket_pair {
         () => {
-            crate::torrent::peer::tests::create_utp_socket_pair(
-                vec![],
-                vec![],
-                std::sync::Arc::new(tokio::runtime::Runtime::new().unwrap()),
-            )
+            crate::torrent::peer::tests::create_utp_socket_pair(vec![], vec![]).await
         };
-        ($runtime:expr) => {
-            crate::torrent::peer::tests::create_utp_socket_pair(vec![], vec![], $runtime)
-        };
-        ($incoming_extensions:expr, $outgoing_extensions:expr, $runtime:expr) => {
+        ($incoming_extensions:expr, $outgoing_extensions:expr) => {
             crate::torrent::peer::tests::create_utp_socket_pair(
                 $incoming_extensions,
                 $outgoing_extensions,
-                $runtime,
             )
+            .await
         };
     }
 
-    pub fn create_utp_socket(runtime: Arc<Runtime>) -> UtpSocket {
+    pub async fn create_utp_socket() -> UtpSocket {
         let port_start = rng().random_range(6881..20000);
         let port = available_port(port_start, 31000).unwrap();
         let addr = SocketAddr::from(([127, 0, 0, 1], port));
 
-        runtime
-            .clone()
-            .block_on(UtpSocket::new(
-                addr,
-                Duration::from_secs(1),
-                vec![],
-                runtime,
-            ))
+        UtpSocket::new(addr, Duration::from_secs(1), vec![])
+            .await
             .expect("expected an utp socket")
     }
 
-    pub fn create_utp_socket_with_port(port: u16, runtime: Arc<Runtime>) -> UtpSocket {
+    pub async fn create_utp_socket_with_port(port: u16) -> UtpSocket {
         let addr = SocketAddr::from(([127, 0, 0, 1], port));
 
-        runtime
-            .clone()
-            .block_on(UtpSocket::new(
-                addr,
-                Duration::from_secs(1),
-                vec![],
-                runtime,
-            ))
+        UtpSocket::new(addr, Duration::from_secs(1), vec![])
+            .await
             .expect("expected an utp socket")
     }
 
-    pub fn create_utp_peer_pair(
+    pub async fn create_utp_peer_pair(
         incoming_socket: &UtpSocket,
         outgoing_socket: &UtpSocket,
         incoming_torrent: &Torrent,
@@ -104,22 +82,22 @@ pub mod tests {
     ) -> (BitTorrentPeer, BitTorrentPeer) {
         let incoming_context = incoming_torrent.instance().unwrap();
         let outgoing_context = outgoing_torrent.instance().unwrap();
-        let runtime = outgoing_context.runtime();
-        let (tx, rx) = channel();
+        let (tx, mut rx) = channel(1);
 
         // create the uTP stream pair
-        let outgoing_stream = runtime
-            .block_on(outgoing_socket.connect(incoming_socket.addr()))
+        let outgoing_stream = outgoing_socket
+            .connect(incoming_socket.addr())
+            .await
             .expect("expected an outgoing utp stream");
-        let incoming_stream = runtime
-            .block_on(incoming_socket.recv())
+        let incoming_stream = incoming_socket
+            .recv()
+            .await
             .expect("expected an incoming uTP stream");
 
         // create the incoming uTP peer handler thread
         let incoming_extensions = incoming_context.extensions();
-        let incoming_runtime = runtime.clone();
         let incoming_addr = outgoing_socket.addr();
-        runtime.spawn(async move {
+        tokio::spawn(async move {
             let peer = BitTorrentPeer::new_inbound(
                 PeerId::new(),
                 incoming_addr,
@@ -128,75 +106,63 @@ pub mod tests {
                 protocols,
                 incoming_extensions,
                 Duration::from_secs(50),
-                incoming_runtime,
             )
             .await
             .expect("expected an incoming uTP peer");
-            tx.send(peer).unwrap();
+            tx.send(peer).await.unwrap();
         });
 
         let outgoing_extensions = outgoing_context.extensions();
-        let outgoing_peer = runtime
-            .block_on(BitTorrentPeer::new_outbound(
-                PeerId::new(),
-                incoming_socket.addr(),
-                PeerStream::Utp(outgoing_stream),
-                outgoing_context.clone(),
-                protocols,
-                outgoing_extensions,
-                Duration::from_secs(50),
-                runtime.clone(),
-            ))
-            .expect("expected an outgoing uTP peer");
+        let outgoing_peer = BitTorrentPeer::new_outbound(
+            PeerId::new(),
+            incoming_socket.addr(),
+            PeerStream::Utp(outgoing_stream),
+            outgoing_context.clone(),
+            protocols,
+            outgoing_extensions,
+            Duration::from_secs(50),
+        )
+        .await
+        .expect("expected an outgoing uTP peer");
 
-        let incoming_peer = rx.recv_timeout(Duration::from_secs(1)).unwrap();
+        let incoming_peer = recv_timeout!(&mut rx, Duration::from_secs(1));
 
         (incoming_peer, outgoing_peer)
     }
 
-    pub fn create_utp_socket_pair(
+    pub async fn create_utp_socket_pair(
         incoming_extensions: UtpSocketExtensions,
         outgoing_extensions: UtpSocketExtensions,
-        runtime: Arc<Runtime>,
     ) -> (UtpSocket, UtpSocket) {
         let mut rng = rng();
 
         let port = available_port(rng.random_range(20000..21000), 21000).unwrap();
         let addr = SocketAddr::from(([127, 0, 0, 1], port));
-        let left = runtime
-            .block_on(UtpSocket::new(
-                addr,
-                Duration::from_secs(2),
-                incoming_extensions,
-                runtime.clone(),
-            ))
+        let left = UtpSocket::new(addr, Duration::from_secs(2), incoming_extensions)
+            .await
             .expect("expected a new utp socket");
 
         let port = available_port(rng.random_range(21000..22000), 22000).unwrap();
         let addr = SocketAddr::from(([127, 0, 0, 1], port));
-        let right = runtime
-            .block_on(UtpSocket::new(
-                addr,
-                Duration::from_secs(2),
-                outgoing_extensions,
-                runtime.clone(),
-            ))
+        let right = UtpSocket::new(addr, Duration::from_secs(2), outgoing_extensions)
+            .await
             .expect("expected a new utp socket");
 
         (left, right)
     }
 
-    pub fn create_utp_stream_pair(
+    pub async fn create_utp_stream_pair(
         incoming: &UtpSocket,
         outgoing: &UtpSocket,
     ) -> (UtpStream, UtpStream) {
-        let runtime = outgoing.context().runtime();
         let target_addr = incoming.addr();
-        let outgoing_stream = runtime
-            .block_on(outgoing.connect(target_addr))
+        let outgoing_stream = outgoing
+            .connect(target_addr)
+            .await
             .expect("expected an outgoing utp stream");
-        let incoming_stream = runtime
-            .block_on(incoming.recv())
+        let incoming_stream = incoming
+            .recv()
+            .await
             .expect("expected an incoming uTP stream");
 
         (incoming_stream, outgoing_stream)

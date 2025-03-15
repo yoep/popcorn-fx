@@ -1,9 +1,7 @@
 use crate::torrent::errors::Result;
 use crate::torrent::fs::TorrentFileSystemStorage;
 use crate::torrent::operation::TorrentTrackersOperation;
-use crate::torrent::peer::{
-    ProtocolExtensionFlags, TcpPeerDiscovery, TcpPeerListener, UtpPeerDiscovery,
-};
+use crate::torrent::peer::{ProtocolExtensionFlags, TcpPeerDiscovery};
 use crate::torrent::torrent::Torrent;
 use crate::torrent::{
     ExtensionFactories, ExtensionFactory, InfoHash, Magnet, TorrentConfig, TorrentError,
@@ -11,6 +9,7 @@ use crate::torrent::{
     TorrentOperationFactory, DEFAULT_TORRENT_EXTENSIONS, DEFAULT_TORRENT_OPERATIONS,
     DEFAULT_TORRENT_PROTOCOL_EXTENSIONS,
 };
+
 use async_trait::async_trait;
 use derive_more::Display;
 use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
@@ -23,7 +22,6 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::runtime::Runtime;
 use tokio::sync::RwLock;
 use tokio::{select, time};
 
@@ -272,7 +270,6 @@ impl FxTorrentSession {
         protocol_extensions: ProtocolExtensionFlags,
         extensions: ExtensionFactories,
         operations: Vec<TorrentOperationFactory>,
-        runtime: Arc<Runtime>,
     ) -> Result<Self> {
         trace!("Trying to create a new torrent session");
         let torrent_storage_location = base_path.as_ref().to_path_buf();
@@ -282,7 +279,6 @@ impl FxTorrentSession {
             protocol_extensions,
             extensions,
             operations,
-            runtime,
         )?);
 
         debug!("Created new torrent session {}", inner.handle);
@@ -340,31 +336,24 @@ impl FxTorrentSession {
         }
 
         let storage_path = self.inner.base_path.read().await.clone();
-        let tcp_port = available_port!(6881, 31000)
+        let port = available_port!(6881, 32000)
             .ok_or(TorrentError::Io("no port available".to_string()))?;
-        let tcp_peer_listener = TcpPeerListener::new(tcp_port, self.runtime().clone())?;
-        // let utp_peer_discovery = UtpPeerDiscovery::new(tcp_port, self.runtime().clone())?;
-
         trace!("Trying to create new torrent for info hash {}", info_hash);
-        let torrent = Torrent::try_from(
-            Torrent::request()
-                .metadata(torrent_info)
-                .options(options)
-                .config(config.build())
-                .peer_dialers(vec![
-                    Box::new(TcpPeerDiscovery::new()),
-                    // Box::new(utp_peer_discovery.clone()),
-                ])
-                .peer_listeners(vec![
-                    Box::new(tcp_peer_listener),
-                    // Box::new(utp_peer_discovery),
-                ])
-                .protocol_extensions(self.inner.protocol_extensions)
-                .extensions(self.inner.extensions())
-                .operations(self.inner.torrent_operations())
-                .storage(Box::new(TorrentFileSystemStorage::new(storage_path)))
-                .runtime(self.runtime().clone()),
-        )?;
+        let tcp_peer_discovery = TcpPeerDiscovery::new(port).await?;
+        let mut request = Torrent::request();
+        request
+            .metadata(torrent_info)
+            .options(options)
+            .config(config.build())
+            .peer_discoveries(vec![
+                Box::new(tcp_peer_discovery),
+                // Box::new(UtpPeerDiscovery::new(port).await?),
+            ])
+            .protocol_extensions(self.inner.protocol_extensions)
+            .extensions(self.inner.extensions())
+            .operations(self.inner.torrent_operations())
+            .storage(Box::new(TorrentFileSystemStorage::new(storage_path)));
+        let torrent = Torrent::try_from(request)?;
         let result_torrent = torrent.clone();
 
         self.inner
@@ -384,11 +373,6 @@ impl FxTorrentSession {
                 }
             }
         }
-    }
-
-    /// Get the shared runtime instance of the session.
-    fn runtime(&self) -> &Arc<Runtime> {
-        &self.inner.runtime
     }
 }
 
@@ -420,7 +404,8 @@ impl Session for FxTorrentSession {
         {
             Some(e) => e,
             None => {
-                let request = Torrent::request()
+                let mut request = Torrent::request();
+                request
                     .metadata(torrent_info.clone())
                     .options(TorrentFlags::none())
                     .config(
@@ -437,8 +422,7 @@ impl Session for FxTorrentSession {
                     .operations(vec![Box::new(TorrentTrackersOperation::new())])
                     .storage(Box::new(TorrentFileSystemStorage::new(
                         &self.inner.base_path.read().await.clone(),
-                    )))
-                    .runtime(self.inner.runtime.clone());
+                    )));
 
                 Torrent::try_from(request)?
             }
@@ -563,7 +547,6 @@ pub struct FxSessionBuilder {
     protocol_extensions: Option<ProtocolExtensionFlags>,
     extension_factories: Option<ExtensionFactories>,
     operation_factories: Option<Vec<TorrentOperationFactory>>,
-    runtime: Option<Arc<Runtime>>,
 }
 
 impl FxSessionBuilder {
@@ -573,26 +556,29 @@ impl FxSessionBuilder {
     }
 
     /// Set the path location for the torrent file data storage of the session.
-    pub fn base_path<P: AsRef<Path>>(mut self, base_path: P) -> Self {
+    pub fn base_path<P: AsRef<Path>>(&mut self, base_path: P) -> &mut Self {
         self.base_path = Some(base_path.as_ref().to_path_buf());
         self
     }
 
     /// Set the client name for the session.
     /// This is the name of the client that is exchanged with peers that support `LTEP`.
-    pub fn client_name<S: AsRef<str>>(mut self, client_name: S) -> Self {
+    pub fn client_name<S: AsRef<str>>(&mut self, client_name: S) -> &mut Self {
         self.client_name = Some(client_name.as_ref().to_string());
         self
     }
 
     /// Set the protocol extensions for the session.
-    pub fn protocol_extensions(mut self, protocol_extensions: ProtocolExtensionFlags) -> Self {
+    pub fn protocol_extensions(
+        &mut self,
+        protocol_extensions: ProtocolExtensionFlags,
+    ) -> &mut Self {
         self.protocol_extensions = Some(protocol_extensions);
         self
     }
 
     /// Add an extension to the session.
-    pub fn extension(mut self, extension: ExtensionFactory) -> Self {
+    pub fn extension(&mut self, extension: ExtensionFactory) -> &mut Self {
         self.extension_factories
             .get_or_insert(Vec::new())
             .push(extension);
@@ -600,7 +586,7 @@ impl FxSessionBuilder {
     }
 
     /// Set the extensions for the session.
-    pub fn extensions(mut self, extensions: ExtensionFactories) -> Self {
+    pub fn extensions(&mut self, extensions: ExtensionFactories) -> &mut Self {
         self.extension_factories
             .get_or_insert(Vec::new())
             .extend(extensions);
@@ -608,7 +594,7 @@ impl FxSessionBuilder {
     }
 
     /// Add an operation to the session.
-    pub fn operation(mut self, operation: TorrentOperationFactory) -> Self {
+    pub fn operation(&mut self, operation: TorrentOperationFactory) -> &mut Self {
         self.operation_factories
             .get_or_insert(Vec::new())
             .push(operation);
@@ -617,14 +603,8 @@ impl FxSessionBuilder {
 
     /// Set the torrent operation factories for the session.
     /// These are the operations which are executed on the main loop of the torrent.
-    pub fn operations(mut self, torrent_operations: Vec<TorrentOperationFactory>) -> Self {
+    pub fn operations(&mut self, torrent_operations: Vec<TorrentOperationFactory>) -> &mut Self {
         self.operation_factories = Some(torrent_operations);
-        self
-    }
-
-    /// Set the runtime for the session.
-    pub fn runtime(mut self, runtime: Arc<Runtime>) -> Self {
-        self.runtime = Some(runtime);
         self
     }
 
@@ -653,19 +633,6 @@ impl FxSessionBuilder {
         let torrent_operations = self
             .operation_factories
             .unwrap_or_else(DEFAULT_TORRENT_OPERATIONS);
-        let runtime = match self.runtime {
-            Some(e) => e,
-            None => Arc::new(
-                tokio::runtime::Builder::new_multi_thread()
-                    .enable_all()
-                    .worker_threads(25)
-                    .thread_name("torrent-session")
-                    .build()
-                    .map_err(|e| {
-                        TorrentError::InvalidSession(format!("expected a new runtime, {}", e))
-                    })?,
-            ),
-        };
 
         FxTorrentSession::new(
             base_path,
@@ -673,7 +640,6 @@ impl FxSessionBuilder {
             protocol_extensions,
             extensions,
             torrent_operations,
-            runtime,
         )
     }
 }
@@ -697,8 +663,6 @@ struct InnerSession {
     torrent_operations: Vec<TorrentOperationFactory>,
     /// The event callbacks of the session
     callbacks: MultiThreadedCallback<SessionEvent>,
-    /// The shared runtime of the session
-    runtime: Arc<Runtime>,
 }
 
 impl InnerSession {
@@ -708,7 +672,6 @@ impl InnerSession {
         protocol_extensions: ProtocolExtensionFlags,
         extensions: ExtensionFactories,
         torrent_operations: Vec<TorrentOperationFactory>,
-        runtime: Arc<Runtime>,
     ) -> Result<Self> {
         Ok(Self {
             handle: Default::default(),
@@ -718,8 +681,7 @@ impl InnerSession {
             extension_factories: extensions,
             torrent_operations,
             torrents: Default::default(),
-            callbacks: MultiThreadedCallback::new(runtime.clone()),
-            runtime,
+            callbacks: MultiThreadedCallback::new(),
         })
     }
 
@@ -836,18 +798,19 @@ mod mock {
 
 #[cfg(test)]
 pub mod tests {
-    use std::sync::mpsc::channel;
-    use std::time::Duration;
-
     use super::*;
+
     use crate::torrent::TorrentHealthState;
+
     use log::info;
     use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::{read_test_file_to_bytes, test_resource_filepath};
+    use std::time::Duration;
     use tempfile::tempdir;
+    use tokio::sync::mpsc::channel;
 
-    #[test]
-    fn test_session_find_torrent() {
+    #[tokio::test]
+    async fn test_session_find_torrent() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -855,27 +818,27 @@ pub mod tests {
         let info = TorrentMetadata::try_from(data.as_slice()).unwrap();
         let info_hash = info.info_hash.clone();
         let session = create_session(temp_path);
-        let runtime = session.runtime();
 
-        let _ = runtime
-            .block_on(session.add_torrent_from_info(info, TorrentFlags::default()))
+        let _ = session
+            .add_torrent_from_info(info, TorrentFlags::default())
+            .await
             .expect("expected the torrent to have been added");
-        let result = runtime.block_on(session.find_torrent_by_info_hash(&info_hash));
+        let result = session.find_torrent_by_info_hash(&info_hash).await;
 
         assert_ne!(None, result);
     }
 
-    #[test]
-    fn test_session_fetch_magnet() {
+    #[tokio::test]
+    async fn test_session_fetch_magnet() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let uri = "magnet:?xt=urn:btih:2C6B6858D61DA9543D4231A71DB4B1C9264B0685&dn=Ubuntu%2022.04%20LTS&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce";
         let session = create_session(temp_path);
-        let runtime = session.runtime();
 
-        let result = runtime
-            .block_on(session.fetch_magnet(uri, Duration::from_secs(30)))
+        let result = session
+            .fetch_magnet(uri, Duration::from_secs(30))
+            .await
             .unwrap();
 
         assert_ne!(
@@ -884,18 +847,18 @@ pub mod tests {
         );
     }
 
-    #[test]
-    fn test_session_torrent_health_from_file() {
+    #[tokio::test]
+    async fn test_session_torrent_health_from_file() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let data = read_test_file_to_bytes("debian-udp.torrent");
         let info = TorrentMetadata::try_from(data.as_slice()).unwrap();
         let session = create_session(temp_path);
-        let runtime = session.runtime();
 
-        let result = runtime
-            .block_on(session.torrent_health_from_info(&info))
+        let result = session
+            .torrent_health_from_info(&info)
+            .await
             .expect("expected a torrent health");
 
         info!("Got torrent health result {:?}", result);
@@ -903,8 +866,8 @@ pub mod tests {
         assert_ne!(0, result.seeds, "expected seeders to have been found");
     }
 
-    #[test]
-    fn test_session_torrent_health_from_magnet() {
+    #[tokio::test]
+    async fn test_session_torrent_health_from_magnet() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -912,10 +875,10 @@ pub mod tests {
         let magnet = Magnet::from_str(uri).unwrap();
         let info = TorrentMetadata::try_from(magnet).unwrap();
         let session = create_session(temp_path);
-        let runtime = session.runtime();
 
-        let result = runtime
-            .block_on(session.torrent_health_from_info(&info))
+        let result = session
+            .torrent_health_from_info(&info)
+            .await
             .expect("expected a torrent health");
 
         info!("Got torrent health result {:?}", result);
@@ -923,8 +886,8 @@ pub mod tests {
         assert_ne!(0, result.seeds, "expected seeders to have been found");
     }
 
-    #[test]
-    fn test_session_resolve() {
+    #[tokio::test]
+    async fn test_session_resolve() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -947,76 +910,86 @@ pub mod tests {
         assert_eq!(expected_info_hash, result.info_hash);
     }
 
-    #[test]
-    fn test_session_add_torrent() {
+    #[tokio::test]
+    async fn test_session_add_torrent() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let data = read_test_file_to_bytes("debian.torrent");
         let info = TorrentMetadata::try_from(data.as_slice()).unwrap();
-        let (tx, rx) = channel();
+        let (tx, mut rx) = channel(1);
         let session = create_session(temp_path);
-        let runtime = session.runtime();
 
         let mut receiver = session.subscribe();
-        runtime.spawn(async move {
+        tokio::spawn(async move {
             loop {
                 if let Some(event) = receiver.recv().await {
-                    tx.send((*event).clone()).unwrap();
+                    let _ = tx.send((*event).clone()).await;
                 } else {
                     break;
                 }
             }
         });
 
-        let torrent = runtime
-            .block_on(session.add_torrent_from_info(info, TorrentFlags::default()))
+        let torrent = session
+            .add_torrent_from_info(info, TorrentFlags::default())
+            .await
             .expect("expected a torrent handle");
 
-        let event = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        let event = select! {
+            _ = tokio::time::sleep(Duration::from_millis(200)) => panic!("receive event timed out"),
+            event = rx.recv() => event.unwrap(),
+        };
         assert_eq!(event, SessionEvent::TorrentAdded(torrent.handle()));
     }
 
-    #[test]
-    fn test_session_remove_torrent() {
+    #[tokio::test]
+    async fn test_session_remove_torrent() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let data = read_test_file_to_bytes("debian.torrent");
         let info = TorrentMetadata::try_from(data.as_slice()).unwrap();
-        let (tx, rx) = channel();
+        let (tx, mut rx) = channel(2);
         let session = create_session(temp_path);
-        let runtime = session.runtime();
 
         let mut receiver = session.subscribe();
-        runtime.spawn(async move {
+        tokio::spawn(async move {
             loop {
                 if let Some(event) = receiver.recv().await {
-                    tx.send((*event).clone()).unwrap();
+                    let _ = tx.send((*event).clone()).await;
                 } else {
                     break;
                 }
             }
         });
-        let torrent = runtime
-            .block_on(session.add_torrent_from_info(info, TorrentFlags::default()))
+        let torrent = session
+            .add_torrent_from_info(info, TorrentFlags::default())
+            .await
             .expect("expected a torrent handle");
         let handle = torrent.handle();
 
-        let event = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        let event = select! {
+            _ = tokio::time::sleep(Duration::from_millis(200)) => panic!("receive event timed out"),
+            event = rx.recv() => event.unwrap(),
+        };
         assert_eq!(event, SessionEvent::TorrentAdded(handle));
 
-        runtime.block_on(session.remove_torrent(&handle));
-        let event = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        session.remove_torrent(&handle).await;
+        let event = select! {
+            _ = tokio::time::sleep(Duration::from_millis(200)) => panic!("receive event timed out"),
+            event = rx.recv() => event.unwrap(),
+        };
         assert_eq!(event, SessionEvent::TorrentRemoved(handle));
     }
 
     fn create_session(temp_path: &str) -> FxTorrentSession {
-        FxTorrentSession::builder()
+        let mut session = FxTorrentSession::builder();
+        session
             .base_path(temp_path)
             .client_name("test")
-            .extensions(DEFAULT_TORRENT_EXTENSIONS())
-            .runtime(Arc::new(Runtime::new().unwrap()))
+            .extensions(DEFAULT_TORRENT_EXTENSIONS());
+        session
             .build()
             .expect("expected a session to have been created")
     }

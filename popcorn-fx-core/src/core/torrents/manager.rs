@@ -1,27 +1,27 @@
 use crate::core::config::{ApplicationConfig, CleaningMode, TorrentSettings};
-use crate::core::event::{Event, EventPublisher, PlayerStoppedEvent};
+use crate::core::event::{Event, EventCallback, EventHandler, EventPublisher, PlayerStoppedEvent};
 use crate::core::storage::Storage;
-use crate::core::torrents::{Result, Torrent, TorrentHandle, TorrentInfo};
-use crate::core::{block_in_place_runtime, event, torrents};
+use crate::core::torrents::{Error, Result, Torrent, TorrentHandle, TorrentInfo};
+use crate::core::{event, torrents};
 use async_trait::async_trait;
 use chrono::{DateTime, Local};
 use derive_more::Display;
 use downcast_rs::{impl_downcast, DowncastSync};
 use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use log::{debug, error, trace, warn};
+#[cfg(any(test, feature = "testing"))]
+pub use mock::*;
 use popcorn_fx_torrent::torrent::{
-    FileIndex, FilePriority, FxTorrentSession, Magnet, Session, TorrentError, TorrentEvent,
-    TorrentFiles, TorrentFlags, TorrentHealth, TorrentState,
+    FileIndex, FilePriority, FxTorrentSession, Magnet, Session, TorrentEvent, TorrentFiles,
+    TorrentFlags, TorrentHealth, TorrentState,
 };
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::runtime::Runtime;
+use tokio::select;
 use tokio::sync::RwLock;
-
-#[cfg(any(test, feature = "testing"))]
-pub use mock::*;
+use tokio_util::sync::CancellationToken;
 
 const CLEANUP_WATCH_THRESHOLD: f64 = 85f64;
 const CLEANUP_AFTER: fn() -> Duration = || Duration::from_secs(10 * 24 * 60 * 60);
@@ -91,7 +91,7 @@ pub trait TorrentManager: Debug + DowncastSync + Callback<TorrentManagerEvent> {
     /// Cleanup the torrents directory.
     ///
     /// This operation removes all torrents from the filesystem.
-    fn cleanup(&self);
+    async fn cleanup(&self);
 }
 impl_downcast!(sync TorrentManager);
 
@@ -104,45 +104,32 @@ pub struct FxTorrentManager {
 }
 
 impl FxTorrentManager {
-    pub fn new(
-        settings: Arc<ApplicationConfig>,
-        event_publisher: Arc<EventPublisher>,
-        runtime: Arc<Runtime>,
-    ) -> torrents::Result<Self> {
-        let session: Box<dyn Session> = FxTorrentSession::builder()
-            .base_path(settings.user_settings().torrent_settings.directory())
-            .client_name("PopcornFX")
-            .runtime(runtime.clone())
+    pub async fn new(settings: ApplicationConfig, event_publisher: EventPublisher) -> Result<Self> {
+        let mut session = FxTorrentSession::builder();
+        session
+            .base_path(settings.user_settings().await.torrent_settings.directory())
+            .client_name("PopcornFX");
+        let session: Box<dyn Session> = session
             .build()
             .map(|e| Box::new(e))
-            .map_err(|e| torrents::Error::TorrentError(e.to_string()))?;
+            .map_err(|e| Error::TorrentError(e.to_string()))?;
+        let inner = Arc::new(InnerTorrentManager {
+            settings,
+            session,
+            torrent_files: Default::default(),
+            callbacks: MultiThreadedCallback::new(),
+            cancellation_token: Default::default(),
+        });
 
-        let instance = Self {
-            inner: Arc::new(InnerTorrentManager {
-                settings,
-                session,
-                torrent_files: Default::default(),
-                callbacks: MultiThreadedCallback::new(runtime.clone()),
-                runtime,
-            }),
-        };
+        let event_receiver = event_publisher
+            .subscribe(event::DEFAULT_ORDER - 10)
+            .map_err(|e| Error::TorrentError(e.to_string()))?;
+        let main_loop = inner.clone();
+        tokio::spawn(async move {
+            main_loop.start(event_receiver).await;
+        });
 
-        let cloned_instance = instance.inner.clone();
-        event_publisher.register(
-            Box::new(move |event| {
-                if let Event::PlayerStopped(e) = &event {
-                    block_in_place_runtime(
-                        cloned_instance.on_player_stopped(e.clone()),
-                        &cloned_instance.runtime,
-                    );
-                }
-
-                Some(event)
-            }),
-            event::DEFAULT_ORDER - 10,
-        );
-
-        Ok(instance)
+        Ok(Self { inner })
     }
 }
 
@@ -176,8 +163,8 @@ impl TorrentManager for FxTorrentManager {
         self.inner.calculate_health(seeds, leechers)
     }
 
-    fn cleanup(&self) {
-        self.inner.cleanup()
+    async fn cleanup(&self) {
+        self.inner.cleanup().await
     }
 }
 
@@ -191,21 +178,46 @@ impl Callback<TorrentManagerEvent> for FxTorrentManager {
     }
 }
 
+impl Drop for FxTorrentManager {
+    fn drop(&mut self) {
+        self.inner.cancellation_token.cancel();
+    }
+}
+
 #[derive(Debug)]
 struct InnerTorrentManager {
     /// The settings of the application
-    settings: Arc<ApplicationConfig>,
+    settings: ApplicationConfig,
     /// The underlying torrent sessions of the application
     session: Box<dyn Session>,
     /// The torrent files being downloaded,
     torrent_files: RwLock<HashMap<TorrentHandle, String>>,
     /// The callbacks of the torrent manager
     callbacks: MultiThreadedCallback<TorrentManagerEvent>,
-    /// The shared runtime
-    runtime: Arc<Runtime>,
+    cancellation_token: CancellationToken,
 }
 
 impl InnerTorrentManager {
+    async fn start(&self, mut event_receiver: EventCallback) {
+        loop {
+            select! {
+                _ = self.cancellation_token.cancelled() => break,
+                Some(event) = event_receiver.recv() => self.handle_event(event).await,
+            }
+        }
+
+        self.on_shutdown().await;
+        debug!("Torrent manager main loop ended");
+    }
+
+    async fn handle_event(&self, mut handler: EventHandler) {
+        if let Some(Event::PlayerStopped(event)) = handler.event_ref() {
+            self.on_player_stopped(event.clone()).await;
+        }
+
+        handler.next();
+    }
+
     async fn create(&self, uri: &str) -> Result<Box<dyn Torrent>> {
         trace!(
             "Torrent manager is creating torrent from magnet link {}",
@@ -337,7 +349,7 @@ impl InnerTorrentManager {
 
     async fn on_player_stopped(&self, event: PlayerStoppedEvent) {
         trace!("Received player stopped event for {:?}", event);
-        let settings = self.settings.user_settings();
+        let settings = self.settings.user_settings().await;
         let torrent_settings = &settings.torrent_settings;
 
         if torrent_settings.cleaning_mode == CleaningMode::Watched {
@@ -383,10 +395,24 @@ impl InnerTorrentManager {
         TorrentHealth::from(seeds, leechers)
     }
 
-    fn cleanup(&self) {
-        let settings = self.settings.user_settings();
-        let settings = settings.torrent();
-        Self::clean_directory(settings);
+    async fn on_shutdown(&self) {
+        let settings = self
+            .settings
+            .user_settings_ref(|e| e.torrent().clone())
+            .await;
+        match settings.cleaning_mode {
+            CleaningMode::OnShutdown => Self::clean_directory(&settings),
+            CleaningMode::Watched => Self::clean_directory_after(&settings),
+            _ => {}
+        }
+    }
+
+    async fn cleanup(&self) {
+        let settings = self
+            .settings
+            .user_settings_ref(|e| e.torrent().clone())
+            .await;
+        Self::clean_directory(&settings);
     }
 
     /// Wait for the torrent files to be created.
@@ -486,19 +512,6 @@ impl InnerTorrentManager {
     }
 }
 
-impl Drop for InnerTorrentManager {
-    fn drop(&mut self) {
-        let settings = self.settings.user_settings();
-        let settings = settings.torrent();
-
-        match settings.cleaning_mode {
-            CleaningMode::OnShutdown => Self::clean_directory(settings),
-            CleaningMode::Watched => Self::clean_directory_after(settings),
-            _ => {}
-        }
-    }
-}
-
 #[cfg(any(test, feature = "testing"))]
 mod mock {
     use super::*;
@@ -518,7 +531,7 @@ mod mock {
             async fn find_by_handle(&self, handle: &TorrentHandle) -> Option<Box<dyn Torrent>>;
             async fn remove(&self, handle: &TorrentHandle);
             fn calculate_health(&self, seeds: u32, leechers: u32) -> TorrentHealth;
-            fn cleanup(&self);
+            async fn cleanup(&self);
         }
 
         impl Callback<TorrentManagerEvent> for TorrentManager {
@@ -531,27 +544,29 @@ mod mock {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     use crate::core::config::PopcornSettings;
-    use crate::init_logger;
     use crate::testing::copy_test_file;
+    use crate::{assert_timeout, init_logger};
+
     use std::fs::{File, FileTimes};
     use std::path::PathBuf;
     use std::time::SystemTime;
 
-    #[test]
-    fn test_torrent_manager_cleanup() {
+    #[tokio::test]
+    async fn test_torrent_manager_cleanup() {
         init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let runtime = Arc::new(Runtime::new().unwrap());
         let settings = default_config(temp_path, CleaningMode::Off);
-        let manager =
-            FxTorrentManager::new(settings, Arc::new(EventPublisher::default()), runtime).unwrap();
+        let manager = FxTorrentManager::new(settings, EventPublisher::default())
+            .await
+            .unwrap();
 
         // copy some contents into the torrent working dir
         let filepath = copy_test_file(temp_path, "simple.txt", Some("torrents/debian.torrent"));
         // start the cleanup process
-        manager.cleanup();
+        manager.cleanup().await;
 
         let path_buf = PathBuf::from(filepath);
         assert_eq!(
@@ -561,15 +576,15 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_torrent_manager_drop_cleaning_disabled() {
+    #[tokio::test]
+    async fn test_torrent_manager_drop_cleaning_disabled() {
         init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let runtime = Arc::new(Runtime::new().unwrap());
         let settings = default_config(temp_path, CleaningMode::Off);
-        let manager =
-            FxTorrentManager::new(settings, Arc::new(EventPublisher::default()), runtime).unwrap();
+        let manager = FxTorrentManager::new(settings, EventPublisher::default())
+            .await
+            .unwrap();
 
         // copy some contents into the torrent working dir
         let filepath = copy_test_file(temp_path, "simple.txt", Some("torrents/debian.torrent"));
@@ -579,56 +594,45 @@ mod tests {
         assert_eq!(true, PathBuf::from(filepath).exists())
     }
 
-    #[test]
-    fn test_torrent_manager_drop_cleaning_mode_set_to_on_shutdown() {
+    #[tokio::test]
+    async fn test_torrent_manager_drop_cleaning_mode_set_to_on_shutdown() {
         init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let runtime = Arc::new(Runtime::new().unwrap());
         let settings = default_config(temp_path, CleaningMode::OnShutdown);
-        let manager = FxTorrentManager::new(
-            settings.clone(),
-            Arc::new(EventPublisher::default()),
-            runtime,
-        )
-        .unwrap();
+        let manager = FxTorrentManager::new(settings.clone(), EventPublisher::default())
+            .await
+            .unwrap();
 
         // copy some contents into the torrent working dir
-        let filepath = copy_test_file(temp_path, "simple.txt", Some("torrents/debian.torrent"));
+        let _filepath = copy_test_file(temp_path, "simple.txt", Some("torrents/debian.torrent"));
         // trigger the automatic cleaning process
         drop(manager);
 
-        assert_eq!(
-            true,
-            settings
-                .user_settings()
-                .torrent_settings
-                .directory
-                .read_dir()
-                .unwrap()
-                .next()
-                .is_none()
-        )
+        let result = settings
+            .user_settings_ref(|e| e.torrent_settings.directory.clone())
+            .await;
+        assert_timeout!(
+            Duration::from_millis(200),
+            result.read_dir().unwrap().next().is_none(),
+            "Expected the directory to be empty"
+        );
     }
 
-    #[test]
-    fn test_torrent_manager_drop_cleaning_mode_set_to_watched() {
+    #[tokio::test]
+    async fn test_torrent_manager_drop_cleaning_mode_set_to_watched() {
         init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let runtime = Arc::new(Runtime::new().unwrap());
         let settings = default_config(temp_path, CleaningMode::Watched);
         let _ = copy_test_file(
             temp_path,
             "simple.txt",
             Some("torrents/my-torrent/debian.torrent"),
         );
-        let manager = FxTorrentManager::new(
-            settings.clone(),
-            Arc::new(EventPublisher::default()),
-            runtime,
-        )
-        .unwrap();
+        let manager = FxTorrentManager::new(settings.clone(), EventPublisher::default())
+            .await
+            .unwrap();
         let modified = Local::now() - chrono::Duration::days(10);
 
         let file =
@@ -641,38 +645,33 @@ mod tests {
         .unwrap();
         drop(manager);
 
-        assert_eq!(
-            true,
-            settings
-                .user_settings()
-                .torrent_settings
-                .directory
-                .read_dir()
-                .unwrap()
-                .next()
-                .is_none()
-        )
+        let result = settings
+            .user_settings_ref(|e| e.torrent_settings.directory.clone())
+            .await;
+        assert_timeout!(
+            Duration::from_millis(200),
+            result.read_dir().unwrap().next().is_none(),
+            "Expected the directory to be empty"
+        );
     }
 
-    fn default_config(temp_path: &str, cleaning_mode: CleaningMode) -> Arc<ApplicationConfig> {
-        Arc::new(
-            ApplicationConfig::builder()
-                .storage(temp_path)
-                .settings(PopcornSettings {
-                    subtitle_settings: Default::default(),
-                    ui_settings: Default::default(),
-                    server_settings: Default::default(),
-                    torrent_settings: TorrentSettings {
-                        directory: PathBuf::from(temp_path).join("torrents"),
-                        cleaning_mode,
-                        connections_limit: 0,
-                        download_rate_limit: 0,
-                        upload_rate_limit: 0,
-                    },
-                    playback_settings: Default::default(),
-                    tracking_settings: Default::default(),
-                })
-                .build(),
-        )
+    fn default_config(temp_path: &str, cleaning_mode: CleaningMode) -> ApplicationConfig {
+        ApplicationConfig::builder()
+            .storage(temp_path)
+            .settings(PopcornSettings {
+                subtitle_settings: Default::default(),
+                ui_settings: Default::default(),
+                server_settings: Default::default(),
+                torrent_settings: TorrentSettings {
+                    directory: PathBuf::from(temp_path).join("torrents"),
+                    cleaning_mode,
+                    connections_limit: 0,
+                    download_rate_limit: 0,
+                    upload_rate_limit: 0,
+                },
+                playback_settings: Default::default(),
+                tracking_settings: Default::default(),
+            })
+            .build()
     }
 }

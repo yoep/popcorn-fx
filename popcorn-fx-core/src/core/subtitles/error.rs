@@ -10,34 +10,34 @@ pub type Result<T> = std::result::Result<T, SubtitleError>;
 #[derive(PartialEq, Debug, Clone, Error)]
 pub enum SubtitleError {
     /// Failed to create a valid URL.
-    #[error("Failed to create valid URL: {0}")]
+    #[error("failed to create valid URL: {0}")]
     InvalidUrl(String),
     /// Failed to retrieve available subtitles.
-    #[error("Failed to retrieve available subtitles: {0}")]
+    #[error("failed to retrieve available subtitles: {0}")]
     SearchFailed(String),
     /// Failed to download the subtitle file.
-    #[error("Failed to download subtitle {0}: {1}")]
+    #[error("failed to download subtitle {0}: {1}")]
     DownloadFailed(String, String),
     /// IO error occurred while handling the subtitle.
-    #[error("Failed to write subtitle file to {0}: {1}")]
+    #[error("failed to write subtitle file to {0}: {1}")]
     IO(String, String),
     /// Failed to parse the subtitle file.
-    #[error("Failed to parse file {0}: {1}")]
+    #[error("failed to parse file {0}: {1}")]
     ParseFileError(String, String),
     /// Failed to parse the subtitle URL.
-    #[error("Failed to parse URL: {0}")]
+    #[error("failed to parse URL: {0}")]
     ParseUrlError(String),
     /// Subtitle conversion failed.
-    #[error("Subtitle conversion to {0} failed: {1}")]
+    #[error("subtitle conversion to {0} failed: {1}")]
     ConversionFailed(SubtitleType, String),
     /// Subtitle type is not supported.
-    #[error("Subtitle type {0} is not supported")]
+    #[error("subtitle type {0} is not supported")]
     TypeNotSupported(SubtitleType),
     /// No available subtitle files found.
-    #[error("No available subtitle files found")]
+    #[error("no available subtitle files found")]
     NoFilesFound,
     /// Invalid subtitle file.
-    #[error("File {0} is invalid: {1}")]
+    #[error("file {0} is invalid: {1}")]
     InvalidFile(String, String),
 }
 

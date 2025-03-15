@@ -3,7 +3,7 @@ use log::{debug, info};
 use serde::{Deserialize, Serialize};
 
 /// The collection information of magnet torrents.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct Collection {
     /// The stored magnet torrents
     pub torrents: Vec<MagnetInfo>,

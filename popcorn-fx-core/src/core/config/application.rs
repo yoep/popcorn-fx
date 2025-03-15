@@ -1,28 +1,30 @@
-use derive_more::Display;
-use log::{debug, error, info, trace, warn};
-use tokio::sync::{Mutex, MutexGuard};
-
 use crate::core::config::{
-    ConfigError, PlaybackSettings, PopcornProperties, PopcornSettings, ServerSettings,
-    SubtitleSettings, TorrentSettings, Tracker, TrackingSettings, UiSettings,
+    ConfigError, MediaTrackingSyncState, PlaybackSettings, PopcornProperties, PopcornSettings,
+    ServerSettings, SubtitleSettings, TorrentSettings, Tracker, TrackingSettings, UiSettings,
 };
 use crate::core::storage::Storage;
-use crate::core::{block_in_place, Callbacks, CoreCallback, CoreCallbacks};
+use derive_more::Display;
+use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use log::{debug, error, info, trace, warn};
+use std::sync::Arc;
+use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
+use tokio::sync::{Mutex, RwLock};
+use tokio_util::sync::CancellationToken;
 
 const DEFAULT_SETTINGS_FILENAME: &str = "settings.json";
 
 /// The config result type for all results returned by the config package.
 pub type Result<T> = std::result::Result<T, ConfigError>;
 
-/// The callback type for the settings.
-pub type ApplicationConfigCallback = CoreCallback<ApplicationConfigEvent>;
-
 /// The events that can occur within the application settings.
 #[derive(Debug, Clone, Display)]
 pub enum ApplicationConfigEvent {
     /// Invoked when the settings have been loaded or reloaded
     #[display(fmt = "Settings have been loaded")]
-    SettingsLoaded,
+    Loaded,
+    /// Invoked when the settings have been saved
+    #[display(fmt = "Settings have been saved")]
+    Saved,
     /// Invoked when any of the subtitle settings have been changed
     #[display(fmt = "Subtitle settings have been changed")]
     SubtitleSettingsChanged(SubtitleSettings),
@@ -49,32 +51,56 @@ pub enum ApplicationConfigEvent {
 /// The [PopcornProperties] are static options that don't change during the lifecycle of the application.
 /// The [PopcornSettings] on the other hand might change during the application lifecycle
 /// as it contains the user preferences.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ApplicationConfig {
-    /// The storage to use for reading the settings
-    pub storage: Storage,
-    /// The static application properties
-    properties: Mutex<PopcornProperties>,
-    /// The user settings for the application
-    settings: Mutex<PopcornSettings>,
-    /// The callbacks for this application config
-    callbacks: CoreCallbacks<ApplicationConfigEvent>,
+    inner: Arc<InnerApplicationConfig>,
 }
 
 impl ApplicationConfig {
+    /// Creates a new [ApplicationConfig] with the specified parameters.
+    ///
+    /// # Arguments
+    ///
+    /// * `storage` - The [Storage] instance to use for storing and retrieving data.
+    /// * `properties` - The static [PopcornProperties] of the application.
+    /// * `settings` - The initial [PopcornSettings] of the application, if none given, defaults to [PopcornSettings::default].
+    /// * `settings_save_on_change` - Whether to save the settings on change or not.
+    pub fn new(
+        storage: Storage,
+        properties: PopcornProperties,
+        settings: Option<PopcornSettings>,
+        settings_save_on_change: bool,
+    ) -> Self {
+        let (command_sender, command_receiver) = unbounded_channel();
+        let inner = Arc::new(InnerApplicationConfig {
+            storage,
+            properties,
+            settings: RwLock::new(settings.unwrap_or(PopcornSettings::default())),
+            settings_save_on_change,
+            callbacks: MultiThreadedCallback::new(),
+            command_sender,
+            cancellation_token: Default::default(),
+        });
+
+        let inner_main = inner.clone();
+        tokio::spawn(async move {
+            inner_main.start(command_receiver).await;
+        });
+
+        Self { inner }
+    }
+
     /// Creates a new `ApplicationConfigBuilder` with which a new [ApplicationConfig] can be
     /// initialized.
     ///
     /// # Examples
     ///
     /// ```no_run
-    /// use popcorn_fx_core::core::config::{ApplicationConfig, ApplicationConfigCallback, PopcornProperties};
+    /// use popcorn_fx_core::core::config::{ApplicationConfig, PopcornProperties};
     ///
-    /// let callback: ApplicationConfigCallback = Box::new(());
     /// let config = ApplicationConfig::builder()
     ///     .storage("storage-path") // This field is required and will panic when not set
     ///     .properties(PopcornProperties::default())
-    ///     .with_callback(callback)
     ///     .build();
     /// ```
     pub fn builder() -> ApplicationConfigBuilder {
@@ -82,42 +108,52 @@ impl ApplicationConfig {
     }
 
     /// The popcorn properties of the application.
-    /// These are static and won't change during the lifetime of the application.
+    /// These are static and can't be changed during the lifetime of the application.
     pub fn properties(&self) -> PopcornProperties {
-        let mutex = block_in_place(self.properties.lock());
-        mutex.clone()
+        self.properties_ref().clone()
     }
 
-    /// Get a reference to the mutex guarding the static application properties.
-    pub fn properties_ref(&self) -> MutexGuard<PopcornProperties> {
-        block_in_place(self.properties.lock())
-    }
-
-    /// The popcorn user settings of the application.
-    /// These are mutable and can be changed during the lifetime of the application.
-    /// They're most of the time managed by the user based on preferences.
-    pub fn user_settings(&self) -> PopcornSettings {
-        block_in_place(self.user_settings_async())
+    /// Get a reference to the static application properties.
+    pub fn properties_ref(&self) -> &PopcornProperties {
+        &self.inner.properties
     }
 
     /// The popcorn user settings of the application.
     /// These are mutable and can be changed during the lifetime of the application.
     /// They're most of the time managed by the user based on preferences.
-    pub async fn user_settings_async(&self) -> PopcornSettings {
-        self.settings.lock().await.clone()
+    pub async fn user_settings(&self) -> PopcornSettings {
+        (*self.inner.settings.read().await).clone()
     }
 
-    /// Get a reference to the mutex guarding the user settings for the application.
-    pub fn user_settings_ref(&self) -> MutexGuard<PopcornSettings> {
-        block_in_place(self.settings.lock())
+    /// Read the user settings and get the specified value from the settings.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use popcorn_fx_core::core::config::ApplicationConfig;
+    ///
+    /// async fn example(config: &ApplicationConfig) -> bool {
+    ///     config.user_settings_ref(|e| e.ui_settings.maximized).await
+    /// }
+    /// ```
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - A function that takes a read guard to the settings and returns the desired value.
+    ///
+    /// # Returns
+    ///
+    /// It returns the value returned by the function.
+    pub async fn user_settings_ref<O>(&self, f: impl FnOnce(&PopcornSettings) -> O) -> O {
+        f(&*self.inner.settings.read().await)
     }
 
     /// Update the subtitle settings of the application.
     /// The update will be ignored if no fields have been changed.
-    pub fn update_subtitle(&self, settings: SubtitleSettings) {
+    pub async fn update_subtitle(&self, settings: SubtitleSettings) {
         let mut subtitle_settings: Option<SubtitleSettings> = None;
         {
-            let mut mutex = block_in_place(self.settings.lock());
+            let mut mutex = self.inner.settings.write().await;
             if mutex.subtitle_settings != settings {
                 mutex.subtitle_settings = settings;
                 subtitle_settings = Some(mutex.subtitle().clone());
@@ -126,18 +162,20 @@ impl ApplicationConfig {
         }
 
         if let Some(settings) = subtitle_settings {
-            self.callbacks
+            self.inner
                 .invoke(ApplicationConfigEvent::SubtitleSettingsChanged(settings));
-            self.save();
+            if self.inner.settings_save_on_change {
+                self.inner.send_command(ApplicationConfigCommand::Save);
+            }
         }
     }
 
     /// Update the torrent settings of the application.
     /// The update will be ignored if no fields have been changed.
-    pub fn update_torrent(&self, settings: TorrentSettings) {
+    pub async fn update_torrent(&self, settings: TorrentSettings) {
         let mut torrent_settings: Option<TorrentSettings> = None;
         {
-            let mut mutex = block_in_place(self.settings.lock());
+            let mut mutex = self.inner.settings.write().await;
             if mutex.torrent_settings != settings {
                 mutex.torrent_settings = settings;
                 torrent_settings = Some(mutex.torrent().clone());
@@ -146,18 +184,20 @@ impl ApplicationConfig {
         }
 
         if let Some(settings) = torrent_settings {
-            self.callbacks
+            self.inner
                 .invoke(ApplicationConfigEvent::TorrentSettingsChanged(settings));
-            self.save();
+            if self.inner.settings_save_on_change {
+                self.inner.send_command(ApplicationConfigCommand::Save);
+            }
         }
     }
 
     /// Update the ui settings of the application.
     /// The update will be ignored if no fields have been changed.
-    pub fn update_ui(&self, settings: UiSettings) {
+    pub async fn update_ui(&self, settings: UiSettings) {
         let mut ui_settings: Option<UiSettings> = None;
         {
-            let mut mutex = block_in_place(self.settings.lock());
+            let mut mutex = self.inner.settings.write().await;
             if mutex.ui_settings != settings {
                 mutex.ui_settings = settings;
                 ui_settings = Some(mutex.ui().clone());
@@ -166,18 +206,20 @@ impl ApplicationConfig {
         }
 
         if let Some(settings) = ui_settings {
-            self.callbacks
+            self.inner
                 .invoke(ApplicationConfigEvent::UiSettingsChanged(settings));
-            self.save();
+            if self.inner.settings_save_on_change {
+                self.inner.send_command(ApplicationConfigCommand::Save);
+            }
         }
     }
 
     /// Update the api server settings of the application.
     /// The update will be ignored if no fields have been changed.
-    pub fn update_server(&self, settings: ServerSettings) {
+    pub async fn update_server(&self, settings: ServerSettings) {
         let mut server_settings: Option<ServerSettings> = None;
         {
-            let mut mutex = block_in_place(self.settings.lock());
+            let mut mutex = self.inner.settings.write().await;
             if mutex.server_settings != settings {
                 mutex.server_settings = settings;
                 server_settings = Some(mutex.server().clone());
@@ -186,19 +228,21 @@ impl ApplicationConfig {
         }
 
         if let Some(settings) = server_settings {
-            self.callbacks
+            self.inner
                 .invoke(ApplicationConfigEvent::ServerSettingsChanged(settings));
-            self.save();
+            if self.inner.settings_save_on_change {
+                self.inner.send_command(ApplicationConfigCommand::Save);
+            }
         }
     }
 
     /// Update the playback settings of the application.
     /// The update will be ignored if no fields have been changed.
-    pub fn update_playback(&self, settings: PlaybackSettings) {
+    pub async fn update_playback(&self, settings: PlaybackSettings) {
         trace!("Updating playback settings");
         let mut playback_settings: Option<PlaybackSettings> = None;
         {
-            let mut mutex = block_in_place(self.settings.lock());
+            let mut mutex = self.inner.settings.write().await;
             if mutex.playback_settings != settings {
                 mutex.playback_settings = settings;
                 playback_settings = Some(mutex.playback().clone());
@@ -207,36 +251,58 @@ impl ApplicationConfig {
         }
 
         if let Some(settings) = playback_settings {
-            self.callbacks
+            self.inner
                 .invoke(ApplicationConfigEvent::PlaybackSettingsChanged(settings));
-            self.save();
+            if self.inner.settings_save_on_change {
+                self.inner.send_command(ApplicationConfigCommand::Save);
+            }
         }
     }
 
     /// Update the tracking settings of the application.
     /// This will update an individual tracker of the application without affecting any other trackers.
-    pub fn update_tracker(&self, name: &str, tracker: Tracker) {
+    pub async fn update_tracker(&self, name: &str, tracker: Tracker) {
         trace!("Updating tracker info of {}", name);
         let settings: TrackingSettings;
         {
-            let mut mutex = block_in_place(self.settings.lock());
+            let mut mutex = self.inner.settings.write().await;
             mutex.tracking_mut().update(name, tracker);
             settings = mutex.tracking().clone();
         }
         debug!("Tracking settings of {} have been updated", name);
 
-        self.callbacks
+        self.inner
             .invoke(ApplicationConfigEvent::TrackingSettingsChanged(settings));
-        self.save();
+        if self.inner.settings_save_on_change {
+            self.inner.send_command(ApplicationConfigCommand::Save);
+        }
+    }
+
+    /// Update the state the currently configured tracker.
+    pub async fn update_tracker_state(&self, state: MediaTrackingSyncState) {
+        trace!("Updating the tracker state to {}", state);
+        let settings: TrackingSettings;
+        {
+            let mut mutex = self.inner.settings.write().await;
+            mutex.tracking_mut().update_state(state);
+            settings = mutex.tracking().clone();
+        }
+        debug!("Tracking settings have been updated");
+
+        self.inner
+            .invoke(ApplicationConfigEvent::TrackingSettingsChanged(settings));
+        if self.inner.settings_save_on_change {
+            self.inner.send_command(ApplicationConfigCommand::Save);
+        }
     }
 
     /// Remove a specific tracker from the application.
     /// This will only remove the specified tracker when present, it not, not callbacks will be triggered.
-    pub fn remove_tracker(&self, name: &str) {
+    pub async fn remove_tracker(&self, name: &str) {
         trace!("Removing tracker info of {}", name);
         let mut settings: Option<TrackingSettings> = None;
         {
-            let mut mutex = block_in_place(self.settings.lock());
+            let mut mutex = self.inner.settings.write().await;
             if mutex.tracking_mut().remove(name) {
                 settings = Some(mutex.tracking().clone());
             }
@@ -244,9 +310,11 @@ impl ApplicationConfig {
         debug!("Tracking settings of {} have been updated", name);
 
         if let Some(settings) = settings {
-            self.callbacks
+            self.inner
                 .invoke(ApplicationConfigEvent::TrackingSettingsChanged(settings));
-            self.save();
+            if self.inner.settings_save_on_change {
+                self.inner.send_command(ApplicationConfigCommand::Save);
+            }
         } else {
             trace!(
                 "Tracker {} wasn't found, not triggering TrackingSettingsChanged callback",
@@ -257,93 +325,22 @@ impl ApplicationConfig {
 
     /// Reload the application config.
     pub fn reload(&self) {
-        trace!("Reloading application settings");
-        match self
-            .storage
-            .options()
-            .serializer(DEFAULT_SETTINGS_FILENAME)
-            .read::<PopcornSettings>()
-        {
-            Ok(e) => {
-                debug!("Application settings have been read from storage");
-                let old_settings: PopcornSettings;
-                let new_settings: PopcornSettings;
-
-                {
-                    let mut mutex = block_in_place(self.settings.lock());
-                    old_settings = mutex.clone();
-
-                    *mutex = e;
-                    new_settings = mutex.clone();
-                    info!("Settings have been reloaded");
-                }
-
-                // start invoking events
-                self.callbacks
-                    .invoke(ApplicationConfigEvent::SettingsLoaded);
-
-                if old_settings.subtitle_settings != new_settings.subtitle_settings {
-                    self.callbacks
-                        .invoke(ApplicationConfigEvent::SubtitleSettingsChanged(
-                            new_settings.subtitle().clone(),
-                        ));
-                }
-                if old_settings.torrent_settings != new_settings.torrent_settings {
-                    self.callbacks
-                        .invoke(ApplicationConfigEvent::TorrentSettingsChanged(
-                            new_settings.torrent().clone(),
-                        ))
-                }
-                if old_settings.ui_settings != new_settings.ui_settings {
-                    self.callbacks
-                        .invoke(ApplicationConfigEvent::UiSettingsChanged(
-                            new_settings.ui().clone(),
-                        ))
-                }
-                if old_settings.server_settings != new_settings.server_settings {
-                    self.callbacks
-                        .invoke(ApplicationConfigEvent::ServerSettingsChanged(
-                            new_settings.server().clone(),
-                        ))
-                }
-                if old_settings.playback_settings != new_settings.playback_settings {
-                    self.callbacks
-                        .invoke(ApplicationConfigEvent::PlaybackSettingsChanged(
-                            new_settings.playback().clone(),
-                        ))
-                }
-            }
-            Err(e) => warn!("Failed to reload settings from storage, {}", e),
-        }
+        self.inner.send_command(ApplicationConfigCommand::Reload);
     }
 
-    /// Register a new callback with this instance.
-    pub fn register(&self, callback: ApplicationConfigCallback) {
-        self.callbacks.add_callback(callback);
+    /// Save the application configuration to the storage device.
+    pub async fn save(&self) {
+        self.inner.save().await
+    }
+}
+
+impl Callback<ApplicationConfigEvent> for ApplicationConfig {
+    fn subscribe(&self) -> Subscription<ApplicationConfigEvent> {
+        self.inner.callbacks.subscribe()
     }
 
-    /// Save the application settings.
-    pub fn save(&self) {
-        block_in_place(self.save_async())
-    }
-
-    pub async fn save_async(&self) {
-        let settings = self.user_settings();
-        self.internal_save(&settings).await
-    }
-
-    async fn internal_save(&self, settings: &PopcornSettings) {
-        trace!("Saving application settings {:?}", settings);
-        match self
-            .storage
-            .options()
-            .serializer(DEFAULT_SETTINGS_FILENAME)
-            .write_async(settings)
-            .await
-        {
-            Ok(_) => info!("Settings have been saved"),
-            Err(e) => error!("Failed to save settings, {}", e),
-        }
+    fn subscribe_with(&self, subscriber: Subscriber<ApplicationConfigEvent>) {
+        self.inner.callbacks.subscribe_with(subscriber)
     }
 }
 
@@ -351,17 +348,17 @@ impl PartialEq for ApplicationConfig {
     fn eq(&self, other: &Self) -> bool {
         let properties = self.properties_ref();
         let other_properties = other.properties_ref();
-        let settings = self.user_settings_ref();
-        let other_settings = other.user_settings_ref();
 
-        *properties == *other_properties && *settings == *other_settings
+        *properties == *other_properties
     }
 }
 
 impl Drop for ApplicationConfig {
     fn drop(&mut self) {
-        debug!("Saving settings on exit");
-        self.save()
+        trace!("Application config is being dropped");
+        if Arc::strong_count(&self.inner) <= 2 {
+            self.inner.cancellation_token.cancel();
+        }
     }
 }
 
@@ -371,7 +368,7 @@ pub struct ApplicationConfigBuilder {
     storage: Option<Storage>,
     properties: Option<PopcornProperties>,
     settings: Option<PopcornSettings>,
-    callbacks: CoreCallbacks<ApplicationConfigEvent>,
+    settings_save_on_change: Option<bool>,
 }
 
 impl ApplicationConfigBuilder {
@@ -426,21 +423,9 @@ impl ApplicationConfigBuilder {
         self
     }
 
-    /// Adds an additional callback to the `CoreCallbacks` object for the application config.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use popcorn_fx_core::core::config::{ApplicationConfig, ApplicationConfigCallback};
-    ///
-    /// let callback: ApplicationConfigCallback=Box::new(());
-    /// let config = ApplicationConfig::builder()
-    ///     .storage("storage/path")
-    ///     .with_callback(callback)
-    ///     .build();
-    /// ```
-    pub fn with_callback(self, callback: ApplicationConfigCallback) -> Self {
-        self.callbacks.add_callback(callback);
+    /// Sets whether to save the settings on change or not.
+    pub fn settings_save_on_change(mut self, save_on_change: bool) -> Self {
+        self.settings_save_on_change = Some(save_on_change);
         self
     }
 
@@ -462,29 +447,169 @@ impl ApplicationConfigBuilder {
     /// ```
     pub fn build(self) -> ApplicationConfig {
         let storage = self.storage.expect("storage path has not been set");
-        let settings = self.settings
-            .or_else(|| {
-                match storage.options()
-                    .serializer(DEFAULT_SETTINGS_FILENAME)
-                    .read::<PopcornSettings>() {
-                    Ok(e) => Some(e),
-                    Err(e) => {
-                        warn!("Failed to read settings from storage, using default settings instead, {}", e);
-                        Some(PopcornSettings::default())
-                    }
-                }
-            })
-            .unwrap();
         let properties = self
             .properties
             .or_else(|| Some(PopcornProperties::new_auto()))
             .unwrap();
 
-        ApplicationConfig {
+        ApplicationConfig::new(
             storage,
-            properties: Mutex::new(properties),
-            settings: Mutex::new(settings),
-            callbacks: self.callbacks,
+            properties,
+            self.settings,
+            self.settings_save_on_change.unwrap_or(true),
+        )
+    }
+}
+
+#[derive(Debug, PartialEq)]
+enum ApplicationConfigCommand {
+    /// Save the application configuration to the storage.
+    Save,
+    /// Reload the application configuration settings from the storage.
+    Reload,
+}
+
+#[derive(Debug)]
+struct InnerApplicationConfig {
+    /// The storage to use for reading the settings
+    storage: Storage,
+    /// The static application properties
+    properties: PopcornProperties,
+    /// The user settings for the application
+    settings: RwLock<PopcornSettings>,
+    /// Whether to save the settings on change
+    settings_save_on_change: bool,
+    /// The callbacks for this application config
+    callbacks: MultiThreadedCallback<ApplicationConfigEvent>,
+    /// The async command sender.
+    command_sender: UnboundedSender<ApplicationConfigCommand>,
+    cancellation_token: CancellationToken,
+}
+
+impl InnerApplicationConfig {
+    /// Start the main loop of the application configuration.
+    /// This will load the settings from the storage and start listening commands.
+    async fn start(&self, mut command_receiver: UnboundedReceiver<ApplicationConfigCommand>) {
+        {
+            let mut settings = self.settings.write().await;
+            if *settings == PopcornSettings::default() {
+                match self
+                    .storage
+                    .options()
+                    .serializer(DEFAULT_SETTINGS_FILENAME)
+                    .read_async::<PopcornSettings>()
+                    .await
+                {
+                    Ok(e) => {
+                        *settings = e;
+                        self.invoke(ApplicationConfigEvent::Loaded);
+                    }
+                    Err(e) => warn!(
+                        "Failed to read settings from storage, using default settings instead, {}",
+                        e
+                    ),
+                }
+            }
+        }
+
+        loop {
+            tokio::select! {
+                _ = self.cancellation_token.cancelled() => break,
+                Some(command) = command_receiver.recv() => self.handle_command(command).await,
+            }
+        }
+        self.save().await;
+        debug!("Application config main loop ended");
+    }
+
+    async fn handle_command(&self, command: ApplicationConfigCommand) {
+        match command {
+            ApplicationConfigCommand::Save => self.save().await,
+            ApplicationConfigCommand::Reload => self.reload().await,
+        }
+    }
+
+    async fn save(&self) {
+        let settings = self.settings.read().await;
+        trace!("Application settings are being saved, {:?}", settings);
+        match self
+            .storage
+            .options()
+            .serializer(DEFAULT_SETTINGS_FILENAME)
+            .write_async(&*settings)
+            .await
+        {
+            Ok(_) => {
+                info!("Application settings have been saved");
+                self.invoke(ApplicationConfigEvent::Saved);
+            }
+            Err(e) => error!("Application settings failed to save, {}", e),
+        }
+    }
+
+    async fn reload(&self) {
+        trace!("Reloading the application configuration settings");
+        match self
+            .storage
+            .options()
+            .serializer(DEFAULT_SETTINGS_FILENAME)
+            .read_async::<PopcornSettings>()
+            .await
+        {
+            Ok(e) => {
+                debug!("Application settings have been read from storage");
+                let old_settings: PopcornSettings;
+                let new_settings: PopcornSettings;
+
+                {
+                    let mut mutex = self.settings.write().await;
+                    old_settings = mutex.clone();
+
+                    *mutex = e;
+                    new_settings = mutex.clone();
+                    info!("Settings have been reloaded");
+                }
+
+                // start invoking events
+                self.invoke(ApplicationConfigEvent::Loaded);
+
+                if old_settings.subtitle_settings != new_settings.subtitle_settings {
+                    self.invoke(ApplicationConfigEvent::SubtitleSettingsChanged(
+                        new_settings.subtitle().clone(),
+                    ));
+                }
+                if old_settings.torrent_settings != new_settings.torrent_settings {
+                    self.invoke(ApplicationConfigEvent::TorrentSettingsChanged(
+                        new_settings.torrent().clone(),
+                    ))
+                }
+                if old_settings.ui_settings != new_settings.ui_settings {
+                    self.invoke(ApplicationConfigEvent::UiSettingsChanged(
+                        new_settings.ui().clone(),
+                    ))
+                }
+                if old_settings.server_settings != new_settings.server_settings {
+                    self.invoke(ApplicationConfigEvent::ServerSettingsChanged(
+                        new_settings.server().clone(),
+                    ))
+                }
+                if old_settings.playback_settings != new_settings.playback_settings {
+                    self.invoke(ApplicationConfigEvent::PlaybackSettingsChanged(
+                        new_settings.playback().clone(),
+                    ))
+                }
+            }
+            Err(e) => warn!("Failed to reload settings from storage, {}", e),
+        }
+    }
+
+    fn invoke(&self, event: ApplicationConfigEvent) {
+        self.callbacks.invoke(event);
+    }
+
+    fn send_command(&self, command: ApplicationConfigCommand) {
+        if let Err(e) = self.command_sender.send(command) {
+            debug!("Application config failed to send command, {}", e);
         }
     }
 }
@@ -496,17 +621,17 @@ mod test {
     };
     use crate::core::media::Category;
     use crate::core::subtitles::language::SubtitleLanguage;
-    use crate::init_logger;
-    use crate::testing::{copy_test_file, read_temp_dir_file_as_string};
+    use crate::testing::copy_test_file;
+    use crate::{init_logger, recv_timeout};
+
     use std::path::PathBuf;
-    use std::sync::mpsc::channel;
     use std::time::Duration;
     use tempfile::tempdir;
 
     use super::*;
 
-    #[test]
-    fn test_new_should_return_valid_instance() {
+    #[tokio::test]
+    async fn test_new_should_return_valid_instance() {
         init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -516,12 +641,13 @@ mod test {
         assert_eq!(&expected_result, result.properties().subtitle().url())
     }
 
-    #[test]
-    fn test_new_auto_should_read_settings() {
+    #[tokio::test]
+    async fn test_new_auto_should_read_settings() {
         init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         copy_test_file(temp_path, "settings.json", None);
+        let (tx, mut rx) = unbounded_channel();
         let application = ApplicationConfig::builder().storage(temp_path).build();
         let expected_result = PopcornSettings {
             subtitle_settings: SubtitleSettings::new(
@@ -540,70 +666,82 @@ mod test {
             tracking_settings: Default::default(),
         };
 
-        let result = application.user_settings();
+        let mut receiver = application.subscribe();
+        tokio::spawn(async move {
+            while let Some(event) = receiver.recv().await {
+                if let ApplicationConfigEvent::Loaded = &*event {
+                    tx.send(()).unwrap();
+                }
+            }
+        });
+
+        let _ = recv_timeout!(&mut rx, Duration::from_millis(250));
+        let result = application.user_settings().await;
 
         assert_eq!(expected_result, result)
     }
 
-    #[test]
-    fn test_new_auto_settings_do_not_exist() {
+    #[tokio::test]
+    async fn test_new_auto_settings_do_not_exist() {
         init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let application = ApplicationConfig::builder().storage(temp_path).build();
         let expected_result = PopcornSettings::default();
 
-        let result = application.user_settings();
+        let result = application.user_settings().await;
 
         assert_eq!(expected_result, result)
     }
 
-    #[test]
-    fn test_reload_settings() {
+    #[tokio::test]
+    async fn test_reload_settings() {
         init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let (tx, rx) = channel();
-        let application = ApplicationConfig {
-            storage: Storage::from(temp_path),
-            properties: Default::default(),
-            settings: Default::default(),
-            callbacks: Default::default(),
-        };
+        let (tx, mut rx) = unbounded_channel();
+        let application = ApplicationConfig::builder().storage(temp_path).build();
         application
+            .inner
             .storage
             .options()
             .serializer(DEFAULT_SETTINGS_FILENAME)
-            .write(&PopcornSettings::default())
+            .write_async(&PopcornSettings::default())
+            .await
             .expect("expected the test file to have been written");
 
-        application.register(Box::new(move |event| {
-            tx.send(event).unwrap();
-        }));
-        application.reload();
-        let result = rx.recv_timeout(Duration::from_millis(100)).unwrap();
+        let mut receiver = application.subscribe();
+        tokio::spawn(async move {
+            while let Some(event) = receiver.recv().await {
+                match &*event {
+                    ApplicationConfigEvent::Loaded => tx.send((*event).clone()).unwrap(),
+                    _ => {}
+                }
+            }
+        });
 
+        // wait for the initial load
+        let _ = recv_timeout!(&mut rx, Duration::from_millis(250));
+
+        // reload the settings
+        application.reload();
+
+        let result = recv_timeout!(&mut rx, Duration::from_millis(250));
         match result {
-            ApplicationConfigEvent::SettingsLoaded => {}
-            _ => assert!(
-                false,
-                "expected ApplicationConfigEvent::SettingsLoaded event"
-            ),
+            ApplicationConfigEvent::Loaded => {}
+            _ => assert!(false, "expected ApplicationConfigEvent::Loaded event"),
         }
     }
 
-    #[test]
-    fn test_reload_subtitle_settings() {
+    #[tokio::test]
+    async fn test_reload_subtitle_settings() {
         init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let (tx, rx) = channel();
-        let application = ApplicationConfig {
-            storage: Storage::from(temp_path),
-            properties: Default::default(),
-            settings: Default::default(),
-            callbacks: Default::default(),
-        };
+        let (tx, mut rx) = unbounded_channel();
+        let (tx_loaded, mut rx_loaded) = unbounded_channel();
+        copy_test_file(temp_path, "settings.json", None);
+        let application = ApplicationConfig::builder().storage(temp_path).build();
         let expected_result = SubtitleSettings {
             directory: "my-directory".to_string(),
             auto_cleaning_enabled: false,
@@ -613,11 +751,34 @@ mod test {
             decoration: DecorationType::None,
             bold: true,
         };
+
+        let mut receiver = application.subscribe();
+        tokio::spawn(async move {
+            while let Some(event) = receiver.recv().await {
+                match &*event {
+                    ApplicationConfigEvent::Loaded => tx_loaded.send(()).unwrap(),
+                    ApplicationConfigEvent::SubtitleSettingsChanged(_) => {
+                        tx.send((*event).clone()).unwrap();
+                    }
+                    _ => {}
+                }
+            }
+        });
+
+        // wait for the initial settings to be loaded
+        let _ = recv_timeout!(
+            &mut rx_loaded,
+            Duration::from_millis(250),
+            "expected the settings to have been loaded"
+        );
+
+        // modify the application settings in the storage
         application
+            .inner
             .storage
             .options()
             .serializer(DEFAULT_SETTINGS_FILENAME)
-            .write(&PopcornSettings {
+            .write_async(&PopcornSettings {
                 subtitle_settings: expected_result.clone(),
                 ui_settings: Default::default(),
                 server_settings: Default::default(),
@@ -625,15 +786,17 @@ mod test {
                 playback_settings: Default::default(),
                 tracking_settings: Default::default(),
             })
+            .await
             .expect("expected the test file to have been written");
 
-        application.register(Box::new(move |event| match event {
-            ApplicationConfigEvent::SubtitleSettingsChanged(_) => tx.send(event).unwrap(),
-            _ => {}
-        }));
+        // reload the application settings from the storage
         application.reload();
-        let result = rx.recv_timeout(Duration::from_millis(100)).unwrap();
 
+        let result = recv_timeout!(
+            &mut rx,
+            Duration::from_millis(250),
+            "expected a subtitle settings change"
+        );
         match result {
             ApplicationConfigEvent::SubtitleSettingsChanged(settings) => {
                 assert_eq!(expected_result, settings)
@@ -645,13 +808,13 @@ mod test {
         }
     }
 
-    #[test]
-    fn test_update_subtitle() {
+    #[tokio::test]
+    async fn test_update_subtitle() {
         init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let directory = "/tmp/lorem/subtitles";
-        let settings = SubtitleSettings {
+        let expected_settings = SubtitleSettings {
             directory: directory.to_string(),
             auto_cleaning_enabled: true,
             default_subtitle: SubtitleLanguage::Polish,
@@ -660,22 +823,24 @@ mod test {
             decoration: DecorationType::None,
             bold: false,
         };
-        let application = ApplicationConfig {
-            storage: Storage::from(temp_path),
-            properties: Default::default(),
-            settings: Default::default(),
-            callbacks: Default::default(),
-        };
-        let (tx, rx) = channel();
+        let application = ApplicationConfig::builder().storage(temp_path).build();
+        let (tx, mut rx) = unbounded_channel();
 
-        application.register(Box::new(move |event| tx.send(event).unwrap()));
-        application.update_subtitle(settings.clone());
-        let result = rx.recv_timeout(Duration::from_millis(100)).unwrap();
+        let mut reciever = application.subscribe();
+        tokio::spawn(async move {
+            while let Some(event) = reciever.recv().await {
+                tx.send((*event).clone()).unwrap();
+            }
+        });
 
+        application.update_subtitle(expected_settings.clone()).await;
+
+        let result = recv_timeout!(&mut rx, Duration::from_millis(100));
         match result {
             ApplicationConfigEvent::SubtitleSettingsChanged(result) => {
-                assert_eq!(settings, result);
-                assert_eq!(settings, application.user_settings().subtitle_settings);
+                let settings = application.user_settings().await;
+                assert_eq!(expected_settings, result);
+                assert_eq!(expected_settings, settings.subtitle_settings);
             }
             _ => assert!(
                 false,
@@ -684,8 +849,8 @@ mod test {
         }
     }
 
-    #[test]
-    fn test_update_torrent() {
+    #[tokio::test]
+    async fn test_update_torrent() {
         init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -697,22 +862,23 @@ mod test {
             download_rate_limit: 0,
             upload_rate_limit: 0,
         };
-        let application = ApplicationConfig {
-            storage: Storage::from(temp_path),
-            properties: Default::default(),
-            settings: Default::default(),
-            callbacks: Default::default(),
-        };
-        let (tx, rx) = channel();
+        let application = ApplicationConfig::builder().storage(temp_path).build();
+        let (tx, mut rx) = unbounded_channel();
 
-        application.register(Box::new(move |event| tx.send(event).unwrap()));
-        application.update_torrent(settings.clone());
-        let result = rx.recv_timeout(Duration::from_millis(100)).unwrap();
+        let mut reciever = application.subscribe();
+        tokio::spawn(async move {
+            while let Some(event) = reciever.recv().await {
+                tx.send((*event).clone()).unwrap();
+            }
+        });
 
+        application.update_torrent(settings.clone()).await;
+
+        let result = recv_timeout!(&mut rx, Duration::from_millis(100));
         match result {
             ApplicationConfigEvent::TorrentSettingsChanged(result) => {
                 assert_eq!(settings, result);
-                assert_eq!(settings, application.user_settings().torrent_settings);
+                assert_eq!(settings, application.user_settings().await.torrent_settings);
             }
             _ => assert!(
                 false,
@@ -721,8 +887,8 @@ mod test {
         }
     }
 
-    #[test]
-    fn test_update_ui() {
+    #[tokio::test]
+    async fn test_update_ui() {
         init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -733,51 +899,53 @@ mod test {
             maximized: false,
             native_window_enabled: false,
         };
-        let application = ApplicationConfig {
-            storage: Storage::from(temp_path),
-            properties: Default::default(),
-            settings: Default::default(),
-            callbacks: Default::default(),
-        };
-        let (tx, rx) = channel();
+        let application = ApplicationConfig::builder().storage(temp_path).build();
+        let (tx, mut rx) = unbounded_channel();
 
-        application.register(Box::new(move |event| tx.send(event).unwrap()));
-        application.update_ui(settings.clone());
-        let result = rx.recv_timeout(Duration::from_millis(100)).unwrap();
+        let mut reciever = application.subscribe();
+        tokio::spawn(async move {
+            while let Some(event) = reciever.recv().await {
+                tx.send((*event).clone()).unwrap();
+            }
+        });
 
+        application.update_ui(settings.clone()).await;
+
+        let result = recv_timeout!(&mut rx, Duration::from_millis(100));
         match result {
             ApplicationConfigEvent::UiSettingsChanged(result) => {
                 assert_eq!(settings, result);
-                assert_eq!(settings, application.user_settings().ui_settings);
+                assert_eq!(settings, application.user_settings().await.ui_settings);
             }
             _ => assert!(false, "expected ApplicationConfigEvent::UiSettingsChanged"),
         }
     }
 
-    #[test]
-    fn test_update_server() {
+    #[tokio::test]
+    async fn test_update_server() {
         init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let settings = ServerSettings {
             api_server: Some("http://localhost:8080".to_string()),
         };
-        let application = ApplicationConfig {
-            storage: Storage::from(temp_path),
-            properties: Default::default(),
-            settings: Default::default(),
-            callbacks: Default::default(),
-        };
-        let (tx, rx) = channel();
+        let application = ApplicationConfig::builder().storage(temp_path).build();
+        let (tx, mut rx) = unbounded_channel();
 
-        application.register(Box::new(move |event| tx.send(event).unwrap()));
-        application.update_server(settings.clone());
-        let result = rx.recv_timeout(Duration::from_millis(100)).unwrap();
+        let mut reciever = application.subscribe();
+        tokio::spawn(async move {
+            while let Some(event) = reciever.recv().await {
+                tx.send((*event).clone()).unwrap();
+            }
+        });
 
+        application.update_server(settings.clone()).await;
+
+        let result = recv_timeout!(&mut rx, Duration::from_millis(100));
         match result {
             ApplicationConfigEvent::ServerSettingsChanged(result) => {
                 assert_eq!(settings, result);
-                assert_eq!(settings, application.user_settings().server_settings);
+                assert_eq!(settings, application.user_settings().await.server_settings);
             }
             _ => assert!(
                 false,
@@ -786,17 +954,11 @@ mod test {
         }
     }
 
-    #[test]
-    fn test_save() {
+    #[tokio::test]
+    async fn test_save() {
         init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let application = ApplicationConfig {
-            storage: Storage::from(temp_path),
-            properties: Default::default(),
-            settings: Default::default(),
-            callbacks: Default::default(),
-        };
         let playback = PlaybackSettings {
             quality: Some(Quality::P1080),
             fullscreen: true,
@@ -805,15 +967,23 @@ mod test {
         let server = ServerSettings {
             api_server: Some("http://localhost:8080".to_string()),
         };
+        let application = ApplicationConfig::builder()
+            .storage(temp_path)
+            .settings_save_on_change(false)
+            .build();
 
-        application.update_server(server.clone());
-        application.update_playback(playback.clone());
-        application.save();
+        application.update_server(server.clone()).await;
+        application.update_playback(playback.clone()).await;
+        application.save().await;
 
-        let result = read_temp_dir_file_as_string(&temp_dir, DEFAULT_SETTINGS_FILENAME);
-        assert!(!result.is_empty(), "expected a non-empty json file");
-
-        let settings: PopcornSettings = serde_json::from_str(result.as_str()).unwrap();
+        let settings: PopcornSettings = application
+            .inner
+            .storage
+            .options()
+            .serializer(DEFAULT_SETTINGS_FILENAME)
+            .read_async()
+            .await
+            .unwrap();
         assert_eq!(server, settings.server_settings);
         assert_eq!(playback, settings.playback_settings);
     }

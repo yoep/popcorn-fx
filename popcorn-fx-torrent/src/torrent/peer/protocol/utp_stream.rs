@@ -18,7 +18,6 @@ use std::sync::Arc;
 use std::task::{Context, Poll, Waker};
 use std::time::{Duration, Instant};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
-use tokio::runtime::Runtime;
 use tokio::select;
 use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::sync::{Mutex, MutexGuard, RwLock};
@@ -196,7 +195,6 @@ impl UtpStream {
         socket: Arc<UtpSocketContext>,
         message_receiver: UnboundedReceiver<Packet>,
         extensions: Arc<UtpSocketExtensions>,
-        runtime: Arc<Runtime>,
     ) -> Result<Self> {
         let seq_number = 1;
         let inner = Self::new(
@@ -210,7 +208,7 @@ impl UtpStream {
         );
 
         let inner_main_loop = inner.clone();
-        runtime.spawn(async move {
+        tokio::spawn(async move {
             inner_main_loop.start(message_receiver).await;
         });
 
@@ -227,7 +225,6 @@ impl UtpStream {
         ack_number: u16,
         message_receiver: UnboundedReceiver<Packet>,
         extensions: Arc<UtpSocketExtensions>,
-        runtime: Arc<Runtime>,
     ) -> Result<Self> {
         let inner = Self::new(
             key,
@@ -240,7 +237,7 @@ impl UtpStream {
         );
 
         let inner_main_loop = inner.clone();
-        runtime.spawn(async move {
+        tokio::spawn(async move {
             inner_main_loop.start(message_receiver).await;
         });
 
@@ -580,7 +577,7 @@ impl UtpStreamContext {
 
     /// Process the stream extensions for the given packet of the remote peer.
     async fn process_incoming_extensions(&self, packet: &mut Packet) {
-        for extension in self.extensions.iter() {
+        for extension in self.extensions().iter() {
             extension.incoming(packet, &self).await;
         }
     }
@@ -773,7 +770,7 @@ impl UtpStreamContext {
             message.into_packet(seq_number, ack_number, timestamp_difference, window_size);
 
         // process the extensions
-        for extension in self.extensions.iter() {
+        for extension in self.extensions().iter() {
             extension.outgoing(&mut packet, &self).await;
         }
 
@@ -1064,14 +1061,14 @@ fn is_less_than(a: u16, b: u16) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::create_utp_socket_pair;
+
     use crate::torrent::peer::protocol::tests::UtpPacketCaptureExtension;
-    use crate::torrent::peer::protocol::UtpSocket;
     use crate::torrent::peer::tests::{create_utp_socket, create_utp_stream_pair};
+    use crate::{create_utp_socket_pair, recv_timeout};
+
     use popcorn_fx_core::{assert_timeout, init_logger};
-    use std::sync::mpsc::channel;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
-    use tokio::sync::mpsc::unbounded_channel;
+    use tokio::sync::mpsc::{channel, unbounded_channel};
 
     #[test]
     fn test_state_type_from_message() {
@@ -1098,35 +1095,34 @@ mod tests {
         assert_eq!(StateType::Fin, result);
     }
 
-    #[test]
-    fn test_utp_stream_new_incoming() {
+    #[tokio::test]
+    async fn test_utp_stream_new_incoming() {
         init_logger!();
         let initial_sequence_number = 1u16;
         let (_sender, receiver) = unbounded_channel();
-        let runtime = Arc::new(Runtime::new().unwrap());
-        let socket = create_utp_socket(runtime.clone());
+        let socket = create_utp_socket().await;
         let context = socket.context();
         let capture = UtpPacketCaptureExtension::new();
 
-        let result = runtime
-            .block_on(UtpStream::new_incoming(
-                UtpConnId::new(),
-                SocketAddr::from(socket.addr()),
-                context.clone(),
-                initial_sequence_number,
-                receiver,
-                Arc::new(vec![Box::new(capture.clone())]),
-                runtime.clone(),
-            ))
-            .expect("expected an uTP stream to have been created");
+        let result = UtpStream::new_incoming(
+            UtpConnId::new(),
+            SocketAddr::from(socket.addr()),
+            context.clone(),
+            initial_sequence_number,
+            receiver,
+            Arc::new(vec![Box::new(capture.clone())]),
+        )
+        .await
+        .expect("expected an uTP stream to have been created");
 
         // check the initial sequence number
-        let outgoing_packet = runtime
-            .block_on(capture.outgoing_packets())
+        let outgoing_packet = capture
+            .outgoing_packets()
+            .await
             .get(0)
             .cloned()
             .expect("expected an outgoing packet to have been sent");
-        let seq_number_result = *runtime.block_on(result.inner.seq_number.lock());
+        let seq_number_result = *result.inner.seq_number.lock().await;
         assert_ne!(
             1u16, seq_number_result,
             "expected our own seq_number to be random picked"
@@ -1137,7 +1133,7 @@ mod tests {
         );
 
         // check the initial remote ack number
-        let ack_number_result = *runtime.block_on(result.inner.ack_number.lock());
+        let ack_number_result = *result.inner.ack_number.lock().await;
         assert_eq!(
             1u16, ack_number_result,
             "expected the initial remote ack_number to match"
@@ -1149,33 +1145,31 @@ mod tests {
 
         // check the initial last_ack_number which should be one less than the initial state seq_number
         let expected_last_ack = seq_number_result - 1;
-        let last_ack_result = *runtime.block_on(result.inner.last_ack_number.lock());
+        let last_ack_result = *result.inner.last_ack_number.lock().await;
         assert_eq!(
             expected_last_ack, last_ack_result,
             "expected the remote last acknowledged number to match"
         );
     }
 
-    #[test]
-    fn test_utp_stream_handle_received_packet_ack_syn_sent() {
+    #[tokio::test]
+    async fn test_utp_stream_handle_received_packet_ack_syn_sent() {
         init_logger!();
         let sequence_number = 64;
         let (_sender, receiver) = unbounded_channel();
-        let runtime = Arc::new(Runtime::new().unwrap());
-        let socket = create_utp_socket(runtime.clone());
+        let socket = create_utp_socket().await;
         let context = socket.context();
         let capture = UtpPacketCaptureExtension::new();
 
-        let stream = runtime
-            .block_on(UtpStream::new_outgoing(
-                UtpConnId::new(),
-                SocketAddr::from(socket.addr()),
-                context.clone(),
-                receiver,
-                Arc::new(vec![Box::new(capture.clone())]),
-                runtime.clone(),
-            ))
-            .expect("expected an uTP stream to have been created");
+        let stream = UtpStream::new_outgoing(
+            UtpConnId::new(),
+            SocketAddr::from(socket.addr()),
+            context.clone(),
+            receiver,
+            Arc::new(vec![Box::new(capture.clone())]),
+        )
+        .await
+        .expect("expected an uTP stream to have been created");
 
         let packet = Packet {
             state_type: StateType::State,
@@ -1188,15 +1182,16 @@ mod tests {
             acknowledge_number: 1,
             payload: vec![],
         };
-        runtime.block_on(stream.inner.handle_received_packet(packet));
+        stream.inner.handle_received_packet(packet).await;
 
         // check the current ack number
-        let incoming_packet = runtime
-            .block_on(capture.incoming_packets())
+        let incoming_packet = capture
+            .incoming_packets()
+            .await
             .get(0)
             .cloned()
             .expect("expected to have received an incoming syn ack packet");
-        let result = *runtime.block_on(stream.inner.ack_number.lock());
+        let result = *stream.inner.ack_number.lock().await;
         assert_eq!(sequence_number, result, "expected the ack number of the remote peer to have been set to the incoming sequence number");
         assert_eq!(
             incoming_packet.sequence_number, result,
@@ -1204,7 +1199,7 @@ mod tests {
         );
 
         // check the pending outgoing packets
-        let result = runtime.block_on(stream.inner.pending_outgoing_packets.read());
+        let result = stream.inner.pending_outgoing_packets.read().await;
         assert_eq!(
             0,
             result.len(),
@@ -1213,26 +1208,24 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_utp_stream_handle_received_message_state_update() {
+    #[tokio::test]
+    async fn test_utp_stream_handle_received_message_state_update() {
         init_logger!();
         let expected_sequence_number = 13;
         let (_sender, receiver) = unbounded_channel();
-        let runtime = Arc::new(Runtime::new().unwrap());
-        let socket = create_utp_socket(runtime.clone());
+        let socket = create_utp_socket().await;
         let context = socket.context();
 
-        let stream = runtime
-            .block_on(UtpStream::new_incoming(
-                UtpConnId::new(),
-                SocketAddr::from(socket.addr()),
-                context.clone(),
-                expected_sequence_number,
-                receiver,
-                Arc::new(vec![Box::new(UtpPacketCaptureExtension::new())]),
-                runtime.clone(),
-            ))
-            .expect("expected an uTP stream to have been created");
+        let stream = UtpStream::new_incoming(
+            UtpConnId::new(),
+            SocketAddr::from(socket.addr()),
+            context.clone(),
+            expected_sequence_number,
+            receiver,
+            Arc::new(vec![Box::new(UtpPacketCaptureExtension::new())]),
+        )
+        .await
+        .expect("expected an uTP stream to have been created");
 
         let packet = Packet {
             state_type: StateType::State,
@@ -1246,49 +1239,49 @@ mod tests {
             payload: vec![],
         };
         let message = Message::try_from(&packet).unwrap();
-        runtime.block_on(stream.inner.update_state(UtpStreamState::Connected));
-        runtime.block_on(stream.inner.handle_received_message(message, packet));
+        stream.inner.update_state(UtpStreamState::Connected).await;
+        stream.inner.handle_received_message(message, packet).await;
 
-        let ack_number = *runtime.block_on(stream.inner.ack_number.lock());
+        let ack_number = *stream.inner.ack_number.lock().await;
         assert_eq!(
             expected_sequence_number, ack_number,
             "expected the ack number to not have been updated"
         );
     }
 
-    #[test]
-    fn test_utp_stream_connection_pairing() {
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_utp_stream_connection_pairing() {
         init_logger!();
         let expected_outgoing_syn_sequence_number = 1u16;
-        let runtime = Arc::new(Runtime::new().unwrap());
         let incoming_capture = UtpPacketCaptureExtension::new();
         let outgoing_capture = UtpPacketCaptureExtension::new();
         let (incoming, outgoing) = create_utp_socket_pair!(
             vec![Box::new(incoming_capture.clone())],
-            vec![Box::new(outgoing_capture.clone())],
-            runtime.clone()
+            vec![Box::new(outgoing_capture.clone())]
         );
-        let (incoming_stream, outgoing_stream) = create_utp_stream_pair(&incoming, &outgoing);
+        let (incoming_stream, outgoing_stream) = create_utp_stream_pair(&incoming, &outgoing).await;
 
         assert_timeout!(
             Duration::from_millis(500),
-            UtpStreamState::Connected == *runtime.block_on(incoming_stream.inner.state.read()),
+            UtpStreamState::Connected == *incoming_stream.inner.state.read().await,
             "expected the incoming stream to be connected"
         );
         assert_timeout!(
             Duration::from_millis(500),
-            UtpStreamState::Connected == *runtime.block_on(outgoing_stream.inner.state.read()),
+            UtpStreamState::Connected == *outgoing_stream.inner.state.read().await,
             "expected the outgoing stream to be connected"
         );
 
         // check the outgoing_stream packets
-        let outgoing_packet = runtime
-            .block_on(outgoing_capture.outgoing_packets())
+        let outgoing_packet = outgoing_capture
+            .outgoing_packets()
+            .await
             .get(0)
             .cloned()
             .expect("expected to have sent a packet");
-        let incoming_packet = runtime
-            .block_on(outgoing_capture.incoming_packets())
+        let incoming_packet = outgoing_capture
+            .incoming_packets()
+            .await
             .get(0)
             .cloned()
             .expect("expected to have received a packet");
@@ -1312,8 +1305,9 @@ mod tests {
         );
 
         // check the incoming_stream packets
-        let outgoing_packet = runtime
-            .block_on(incoming_capture.outgoing_packets())
+        let outgoing_packet = incoming_capture
+            .outgoing_packets()
+            .await
             .get(0)
             .cloned()
             .expect("expected to have sent a packet");
@@ -1332,48 +1326,42 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_utp_stream_outgoing_write_incoming_read() {
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_utp_stream_outgoing_write_incoming_read() {
         init_logger!();
         let expected_result = "Nullam varius felis in massa eleifend consectetur.";
-        let runtime = Arc::new(Runtime::new().unwrap());
         let incoming_capture = UtpPacketCaptureExtension::new();
         let outgoing_capture = UtpPacketCaptureExtension::new();
         let (incoming, outgoing) = create_utp_socket_pair!(
             vec![Box::new(incoming_capture.clone())],
-            vec![Box::new(outgoing_capture.clone())],
-            runtime.clone()
+            vec![Box::new(outgoing_capture.clone())]
         );
         let (mut incoming_stream, mut outgoing_stream) =
-            create_utp_stream_pair(&incoming, &outgoing);
-        let (tx, rx) = channel();
+            create_utp_stream_pair(&incoming, &outgoing).await;
+        let (tx, mut rx) = channel(1);
 
         assert_timeout!(
             Duration::from_millis(500),
-            UtpStreamState::Connected == *runtime.block_on(outgoing_stream.inner.state.read()),
+            UtpStreamState::Connected == *outgoing_stream.inner.state.read().await,
             "expected the stream to be connected"
         );
 
-        runtime.spawn(async move {
+        tokio::spawn(async move {
             let mut buffer = vec![0u8; expected_result.as_bytes().len()];
             let result_buffer_len = incoming_stream
                 .read_exact(&mut buffer)
                 .await
                 .expect("expected a message to have been received");
-            tx.send((result_buffer_len, buffer)).unwrap();
+            tx.send((result_buffer_len, buffer)).await.unwrap();
         });
 
         let bytes = expected_result.as_bytes();
         let bytes_len = bytes.len();
-        runtime.block_on(async {
-            outgoing_stream.write(bytes).await.unwrap();
-            outgoing_stream.flush().await.unwrap();
-        });
+        outgoing_stream.write(bytes).await.unwrap();
+        outgoing_stream.flush().await.unwrap();
 
         // check the outgoing packets of the outgoing_stream
-        let outgoing_packets = runtime
-            .block_on(outgoing_capture.outgoing_packets())
-            .clone();
+        let outgoing_packets = outgoing_capture.outgoing_packets().await.clone();
         let syn_packet = outgoing_packets
             .get(0)
             .expect("expected an outgoing syn packet");
@@ -1400,7 +1388,7 @@ mod tests {
         );
 
         // check the read result of the receiving stream
-        let (result_buffer_len, buffer) = rx.recv_timeout(Duration::from_millis(500)).unwrap();
+        let (result_buffer_len, buffer) = recv_timeout!(&mut rx, Duration::from_millis(500));
         let result = String::from_utf8(buffer).unwrap();
         assert_eq!(
             bytes_len, result_buffer_len,
@@ -1409,9 +1397,7 @@ mod tests {
         assert_eq!(expected_result, result);
 
         // check the outgoing packets of the incoming_stream
-        let outgoing_packets = runtime
-            .block_on(incoming_capture.outgoing_packets())
-            .clone();
+        let outgoing_packets = incoming_capture.outgoing_packets().await.clone();
         let syn_ack_packet = outgoing_packets
             .get(0)
             .expect("expected initial syn ack packet");
@@ -1436,39 +1422,36 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_utp_stream_outgoing_read_incoming_write() {
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_utp_stream_outgoing_read_incoming_write() {
         init_logger!();
         let expected_result = "Lorem ipsum dolor sit amet, consectetur adipiscing elit.";
-        let runtime = Arc::new(Runtime::new().unwrap());
-        let (incoming, outgoing) = create_utp_socket_pair!(runtime.clone());
+        let (incoming, outgoing) = create_utp_socket_pair!();
         let (mut incoming_stream, mut outgoing_stream) =
-            create_utp_stream_pair(&incoming, &outgoing);
-        let (tx, rx) = channel();
+            create_utp_stream_pair(&incoming, &outgoing).await;
+        let (tx, mut rx) = channel(1);
 
         assert_timeout!(
             Duration::from_millis(500),
-            UtpStreamState::Connected == *runtime.block_on(outgoing_stream.inner.state.read()),
+            UtpStreamState::Connected == *outgoing_stream.inner.state.read().await,
             "expected the stream to be connected"
         );
 
-        runtime.spawn(async move {
+        tokio::spawn(async move {
             let mut buffer = vec![0u8; expected_result.as_bytes().len()];
             let result_buffer_len = outgoing_stream
                 .read_exact(&mut buffer)
                 .await
                 .expect("expected a message to have been received");
-            tx.send((result_buffer_len, buffer)).unwrap();
+            tx.send((result_buffer_len, buffer)).await.unwrap();
         });
 
         let bytes = expected_result.as_bytes();
         let bytes_len = bytes.len();
-        runtime.block_on(async {
-            incoming_stream.write(bytes).await.unwrap();
-            incoming_stream.flush().await.unwrap();
-        });
+        incoming_stream.write(bytes).await.unwrap();
+        incoming_stream.flush().await.unwrap();
 
-        let (result_buffer_len, buffer) = rx.recv_timeout(Duration::from_millis(500)).unwrap();
+        let (result_buffer_len, buffer) = recv_timeout!(&mut rx, Duration::from_millis(500));
         let result = String::from_utf8(buffer).unwrap();
         assert_eq!(
             bytes_len, result_buffer_len,
@@ -1477,42 +1460,43 @@ mod tests {
         assert_eq!(expected_result, result);
     }
 
-    #[test]
-    fn test_utp_stream_close() {
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_utp_stream_close() {
         init_logger!();
-        let runtime = Arc::new(Runtime::new().unwrap());
-        let (incoming, outgoing) = create_utp_socket_pair!(runtime.clone());
-        let (incoming_stream, outgoing_stream) = create_utp_stream_pair(&incoming, &outgoing);
+        let (incoming, outgoing) = create_utp_socket_pair!();
+        let (incoming_stream, outgoing_stream) = create_utp_stream_pair(&incoming, &outgoing).await;
 
         // close the outgoing stream
-        runtime
-            .block_on(outgoing_stream.close())
+        outgoing_stream
+            .close()
+            .await
             .expect("expected the stream to close");
 
         // check if the incoming stream has also been closed
         assert_timeout!(
-            Duration::from_millis(500),
-            UtpStreamState::Closed == *runtime.block_on(incoming_stream.inner.state.read()),
+            Duration::from_secs(1),
+            UtpStreamState::Closed == *incoming_stream.inner.state.read().await,
             "expected the stream to be closed"
         );
     }
 
-    #[test]
-    fn test_utp_stream_shutdown() {
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_utp_stream_shutdown() {
         init_logger!();
-        let runtime = Arc::new(Runtime::new().unwrap());
-        let (incoming, outgoing) = create_utp_socket_pair!(runtime.clone());
-        let (incoming_stream, mut outgoing_stream) = create_utp_stream_pair(&incoming, &outgoing);
+        let (incoming, outgoing) = create_utp_socket_pair!();
+        let (incoming_stream, mut outgoing_stream) =
+            create_utp_stream_pair(&incoming, &outgoing).await;
 
         // close the stream through the shutdown fn
-        runtime
-            .block_on(outgoing_stream.shutdown())
+        outgoing_stream
+            .shutdown()
+            .await
             .expect("expected the stream to close");
 
         // check if the incoming stream has also been closed
         assert_timeout!(
             Duration::from_millis(500),
-            UtpStreamState::Closed == *runtime.block_on(incoming_stream.inner.state.read()),
+            UtpStreamState::Closed == *incoming_stream.inner.state.read().await,
             "expected the stream to be closed"
         );
     }

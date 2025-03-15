@@ -1,16 +1,14 @@
+use crate::core::players::PlayRequest;
+use async_trait::async_trait;
+use derive_more::Display;
+use downcast_rs::{impl_downcast, DowncastSync};
+use fx_callback::Callback;
 use std::fmt::{Debug, Display};
 use std::sync::Weak;
 
-use async_trait::async_trait;
-use derive_more::Display;
-use downcast_rs::{DowncastSync, impl_downcast};
-
-use crate::core::Callbacks;
-use crate::core::players::PlayRequest;
-
 /// A trait representing a Popcorn FX supported media player for media playback.
 #[async_trait]
-pub trait Player: Debug + Display + DowncastSync + Callbacks<PlayerEvent> {
+pub trait Player: Debug + Display + DowncastSync + Callback<PlayerEvent> {
     /// Get the unique identifier of the player.
     ///
     /// # Returns
@@ -45,14 +43,14 @@ pub trait Player: Debug + Display + DowncastSync + Callbacks<PlayerEvent> {
     /// # Returns
     ///
     /// The current state of the player.
-    fn state(&self) -> PlayerState;
+    async fn state(&self) -> PlayerState;
 
     /// Get the current playback request, if any.
     ///
     /// # Returns
     ///
     /// An optional weak reference to the current playback request.
-    fn request(&self) -> Option<Weak<Box<dyn PlayRequest>>>;
+    async fn request(&self) -> Option<Weak<Box<dyn PlayRequest>>>;
 
     /// Start playback with the given request.
     ///
@@ -88,7 +86,7 @@ impl PartialEq for dyn Player {
 
 /// An enumeration representing the possible states of a player.
 #[repr(i32)]
-#[derive(Debug, Display, Clone, PartialEq)]
+#[derive(Debug, Display, Copy, Clone, PartialEq)]
 pub enum PlayerState {
     Unknown = -1,
     Ready = 0,

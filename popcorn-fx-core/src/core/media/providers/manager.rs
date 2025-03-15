@@ -82,7 +82,7 @@ impl ProviderManager {
     }
 
     /// Reset the api statics and re-enable all disabled api's.
-    pub fn reset_api(&self, category: &Category) {
+    pub async fn reset_api(&self, category: &Category) {
         trace!("Starting reset of api provider for category {}", category);
         match self.provider(category) {
             None => {
@@ -93,7 +93,7 @@ impl ProviderManager {
             }
             Some(provider) => {
                 debug!("Resetting api provider {}", provider);
-                provider.reset_api()
+                provider.reset_api().await
             }
         }
     }
@@ -191,10 +191,6 @@ impl ProviderManagerBuilder {
 
 #[cfg(test)]
 mod test {
-    use std::sync::Arc;
-
-    use tokio::runtime::Runtime;
-
     use crate::core::cache::CacheManagerBuilder;
     use crate::core::config::ApplicationConfig;
     use crate::core::media::providers::enhancers::MockEnhancer;
@@ -229,19 +225,17 @@ mod test {
         }
     }
 
-    #[test]
-    fn test_get_supported_category() {
+    #[tokio::test]
+    async fn test_get_supported_category() {
         init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let settings = Arc::new(ApplicationConfig::builder().storage(temp_path).build());
-        let cache_manager = Arc::new(
-            CacheManagerBuilder::default()
-                .storage_path(temp_path)
-                .build(),
-        );
+        let settings = ApplicationConfig::builder().storage(temp_path).build();
+        let cache_manager = CacheManagerBuilder::default()
+            .storage_path(temp_path)
+            .build();
         let provider: Box<dyn MediaProvider> =
-            Box::new(ShowProvider::new(settings, cache_manager, false));
+            Box::new(ShowProvider::new(&settings, cache_manager, false).await);
         let manager = ProviderManagerBuilder::new()
             .with_provider(provider)
             .build();
@@ -266,8 +260,8 @@ mod test {
         )
     }
 
-    #[test]
-    fn test_enhance_details() {
+    #[tokio::test]
+    async fn test_enhance_details() {
         init_logger!();
         let imdb_id = "tt000001";
         let thumb = "http://localhost/thumb.png";
@@ -329,10 +323,10 @@ mod test {
             .with_details_provider(Box::new(provider))
             .with_enhancer(Box::new(enhancer))
             .build();
-        let runtime = Runtime::new().unwrap();
 
-        let media = runtime
-            .block_on(manager.retrieve_details(&media_identifier))
+        let media = manager
+            .retrieve_details(&media_identifier)
+            .await
             .expect("expected a media item to be returned")
             .into_any()
             .downcast::<ShowDetails>()

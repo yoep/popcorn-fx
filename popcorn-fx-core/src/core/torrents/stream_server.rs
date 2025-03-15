@@ -28,7 +28,7 @@ pub trait TorrentStreamServer: Debug + DowncastSync {
     /// # Returns
     ///
     /// The current state of the torrent stream server.
-    fn state(&self) -> TorrentStreamServerState;
+    async fn state(&self) -> TorrentStreamServerState;
 
     /// Start streaming a torrent.
     ///

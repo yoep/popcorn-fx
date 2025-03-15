@@ -18,7 +18,7 @@ use crate::core::torrents::{Torrent, TorrentManager};
 #[derive(Display)]
 #[display(fmt = "Torrent details loading strategy")]
 pub struct TorrentDetailsLoadingStrategy {
-    event_publisher: Arc<EventPublisher>,
+    event_publisher: EventPublisher,
     torrent_manager: Arc<Box<dyn TorrentManager>>,
 }
 
@@ -29,7 +29,7 @@ impl TorrentDetailsLoadingStrategy {
     ///
     /// * `event_publisher` - An `EventPublisher` for publishing events related to torrent details.
     pub fn new(
-        event_publisher: Arc<EventPublisher>,
+        event_publisher: EventPublisher,
         torrent_manager: Arc<Box<dyn TorrentManager>>,
     ) -> Self {
         Self {
@@ -96,18 +96,18 @@ impl LoadingStrategy for TorrentDetailsLoadingStrategy {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::mpsc::channel;
     use std::time::Duration;
+    use tokio::sync::mpsc::unbounded_channel;
 
     use crate::core::loader::loading_chain::DEFAULT_ORDER;
     use crate::core::loader::{SubtitleData, TorrentData};
     use crate::core::torrents::{MockTorrent, MockTorrentManager, TorrentHandle, TorrentInfo};
-    use crate::{create_loading_task, init_logger};
+    use crate::{create_loading_task, init_logger, recv_timeout};
 
     use super::*;
 
-    #[test]
-    fn test_process() {
+    #[tokio::test]
+    async fn test_process() {
         init_logger!();
         let torrent_info = TorrentInfo {
             handle: Default::default(),
@@ -134,8 +134,8 @@ mod tests {
             torrent: Some(TorrentData::Torrent(Box::new(torrent))),
             torrent_file: None,
         };
-        let (tx, rx) = channel();
-        let event_publisher = Arc::new(EventPublisher::default());
+        let (tx, mut rx) = unbounded_channel();
+        let event_publisher = EventPublisher::default();
         let mut torrent_manager = MockTorrentManager::new();
         let torrent_manager_handle = torrent_handle.clone();
         let torrent_manager_torrent_info = torrent_info.clone();
@@ -147,24 +147,23 @@ mod tests {
             .returning(move |_| Ok(torrent_manager_torrent_info.clone()));
         let task = create_loading_task!();
         let context = task.context();
-        let runtime = context.runtime();
         let strategy = TorrentDetailsLoadingStrategy::new(
             event_publisher.clone(),
             Arc::new(Box::new(torrent_manager)),
         );
 
-        event_publisher.register(
-            Box::new(move |event| {
-                tx.send(event).unwrap();
-                None
-            }),
-            DEFAULT_ORDER,
-        );
+        let mut callback = event_publisher.subscribe(DEFAULT_ORDER).unwrap();
+        tokio::spawn(async move {
+            if let Some(mut handler) = callback.recv().await {
+                tx.send(handler.take().unwrap()).unwrap();
+                handler.next();
+            }
+        });
 
-        let result = runtime.block_on(strategy.process(&mut data, &*context));
+        let result = strategy.process(&mut data, &*context).await;
         assert_eq!(LoadingResult::Completed, result);
 
-        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        let result = recv_timeout!(&mut rx, Duration::from_millis(200));
         if let Event::TorrentDetailsLoaded(result) = result {
             assert_eq!(torrent_info, result);
         } else {
@@ -176,8 +175,8 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_cancel() {
+    #[tokio::test]
+    async fn test_cancel() {
         init_logger!();
         let torrent_handle = TorrentHandle::new();
         let mut torrent = MockTorrent::new();
@@ -195,25 +194,22 @@ mod tests {
             torrent: Some(TorrentData::Torrent(Box::new(torrent))),
             torrent_file: None,
         };
-        let (tx, rx) = channel();
-        let event_publisher = Arc::new(EventPublisher::default());
+        let (tx, mut rx) = unbounded_channel();
+        let event_publisher = EventPublisher::default();
         let mut torrent_manager = MockTorrentManager::new();
         torrent_manager
             .expect_remove()
             .times(1)
             .returning(move |handle| tx.send(handle.clone()).unwrap());
-        let task = create_loading_task!();
-        let context = task.context();
-        let runtime = context.runtime();
         let strategy = TorrentDetailsLoadingStrategy::new(
             event_publisher,
             Arc::new(Box::new(torrent_manager)),
         );
 
-        let result = runtime.block_on(strategy.cancel(data));
+        let result = strategy.cancel(data).await;
 
         if let Ok(_) = result {
-            let result = rx.recv_timeout(Duration::from_millis(100)).unwrap();
+            let result = recv_timeout!(&mut rx, Duration::from_millis(100));
             assert_eq!(torrent_handle, result);
         } else {
             assert!(false, "expected Ok, got {:?} instead", result);

@@ -10,11 +10,9 @@ use log::{trace, warn};
 use std::fmt::Debug;
 use std::io;
 use std::net::SocketAddr;
-use std::sync::Arc;
 use std::time::Instant;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufReader, WriteHalf};
 use tokio::net::TcpStream;
-use tokio::runtime::Runtime;
 use tokio::select;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::sync::Mutex;
@@ -46,12 +44,7 @@ impl<W> PeerConnection<W>
 where
     W: AsyncWrite + Debug + Send,
 {
-    pub fn new_tcp(
-        id: PeerId,
-        addr: SocketAddr,
-        stream: TcpStream,
-        runtime: Arc<Runtime>,
-    ) -> PeerConnection<TcpStream> {
+    pub fn new_tcp(id: PeerId, addr: SocketAddr, stream: TcpStream) -> PeerConnection<TcpStream> {
         let protocol = ConnectionProtocol::Tcp;
         let cancellation_token = CancellationToken::new();
         let (sender, receiver) = unbounded_channel();
@@ -65,7 +58,7 @@ where
             sender,
             cancellation_token.clone(),
         );
-        runtime.spawn(async move { reader.start_read_loop().await });
+        tokio::spawn(async move { reader.start_read_loop().await });
 
         PeerConnection::<TcpStream> {
             id,
@@ -77,12 +70,7 @@ where
         }
     }
 
-    pub fn new_utp(
-        id: PeerId,
-        addr: SocketAddr,
-        stream: UtpStream,
-        runtime: Arc<Runtime>,
-    ) -> PeerConnection<UtpStream> {
+    pub fn new_utp(id: PeerId, addr: SocketAddr, stream: UtpStream) -> PeerConnection<UtpStream> {
         let protocol = ConnectionProtocol::Utp;
         let cancellation_token = CancellationToken::new();
         let (sender, receiver) = unbounded_channel();
@@ -96,7 +84,7 @@ where
             sender,
             cancellation_token.clone(),
         );
-        runtime.spawn(async move { reader.start_read_loop().await });
+        tokio::spawn(async move { reader.start_read_loop().await });
 
         PeerConnection::<UtpStream> {
             id,
@@ -366,51 +354,47 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::create_utp_socket_pair;
+
     use crate::torrent::peer::protocol::tests::UtpPacketCaptureExtension;
     use crate::torrent::peer::protocol::Piece;
     use crate::torrent::peer::tests::create_utp_stream_pair;
     use crate::torrent::peer::ProtocolExtensionFlags;
     use crate::torrent::InfoHash;
+    use crate::{available_port, create_utp_socket_pair};
+
     use popcorn_fx_core::init_logger;
     use std::str::FromStr;
+    use tokio::net::TcpListener;
 
-    #[test]
-    fn test_peer_connection_utp_receive() {
+    #[tokio::test]
+    async fn test_peer_connection_utp_receive() {
         init_logger!();
         let data = "Mauris venenatis malesuada tellus vel imperdiet. Pellentesque quis blandit tellus. Aenean commodo neque id sem dictum aliquam at vel arcu.";
         let hash = "urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7";
         let info_hash = InfoHash::from_str(hash).unwrap();
         let peer_id = PeerId::new();
         let protocol_extension_flags = ProtocolExtensionFlags::LTEP;
-        let runtime = Arc::new(Runtime::new().unwrap());
         let incoming_capture = UtpPacketCaptureExtension::new();
         let outgoing_capture = UtpPacketCaptureExtension::new();
         let (incoming_socket, outgoing_socket) = create_utp_socket_pair!(
             vec![Box::new(incoming_capture.clone())],
-            vec![Box::new(outgoing_capture.clone())],
-            runtime.clone()
+            vec![Box::new(outgoing_capture.clone())]
         );
         let (incoming_stream, mut outgoing_stream) =
-            create_utp_stream_pair(&incoming_socket, &outgoing_socket);
-        let connection = PeerConnection::<UtpStream>::new_utp(
-            peer_id,
-            incoming_stream.addr(),
-            incoming_stream,
-            runtime.clone(),
-        );
+            create_utp_stream_pair(&incoming_socket, &outgoing_socket).await;
+        let connection =
+            PeerConnection::<UtpStream>::new_utp(peer_id, incoming_stream.addr(), incoming_stream);
 
         // write the handshake to the receiving connection
         let handshake = Handshake::new(info_hash.clone(), peer_id, protocol_extension_flags);
         let handshake_bytes = TryInto::<Vec<u8>>::try_into(handshake).unwrap();
-        runtime
-            .block_on(outgoing_stream.write_all(&handshake_bytes))
-            .unwrap();
-        runtime.block_on(outgoing_stream.flush()).unwrap();
+        outgoing_stream.write_all(&handshake_bytes).await.unwrap();
+        outgoing_stream.flush().await.unwrap();
 
         // try to get the handshake from the receiving stream
-        let result = runtime
-            .block_on(connection.recv())
+        let result = connection
+            .recv()
+            .await
             .expect("expected to receive the handshake");
         if let PeerResponse::Handshake(result) = result {
             assert_eq!(
@@ -437,12 +421,13 @@ mod tests {
             data: data.as_bytes().to_vec(),
         });
         let bytes = message_as_bytes(&message);
-        runtime.block_on(outgoing_stream.write_all(&bytes)).unwrap();
-        runtime.block_on(outgoing_stream.flush()).unwrap();
+        outgoing_stream.write_all(&bytes).await.unwrap();
+        outgoing_stream.flush().await.unwrap();
 
         // try to read the message from the receiving stream
-        let result = runtime
-            .block_on(connection.recv())
+        let result = connection
+            .recv()
+            .await
             .expect("expected to receive the message");
         if let PeerResponse::Message(result, _) = result {
             assert_eq!(message, result, "expected the message to match");
@@ -453,6 +438,37 @@ mod tests {
                 result
             );
         }
+    }
+
+    #[tokio::test]
+    async fn test_peer_connection_shutdown() {
+        init_logger!();
+        let message = "Lorem ipsum dolor";
+        let port = available_port!(30000, 31000).unwrap();
+        let socket_addr = SocketAddr::from(([127, 0, 0, 1], port));
+        let incoming = TcpListener::bind(socket_addr)
+            .await
+            .expect("expected the tcp listener to bind");
+
+        tokio::spawn(async move { while let Ok((_stream, _addr)) = incoming.accept().await {} });
+
+        let outgoing_stream = TcpStream::connect(socket_addr)
+            .await
+            .expect("expected to create an outgoing connection");
+        let connection =
+            PeerConnection::<TcpStream>::new_tcp(PeerId::new(), socket_addr, outgoing_stream);
+
+        connection
+            .close()
+            .await
+            .expect("expected the connection to close");
+        let result = connection.write(message.as_bytes()).await;
+
+        assert_eq!(
+            Err(Error::Closed),
+            result,
+            "expected the connection write function to return Error::Closed"
+        );
     }
 
     fn message_as_bytes(message: &Message) -> Vec<u8> {

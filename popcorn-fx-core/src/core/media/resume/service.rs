@@ -1,17 +1,20 @@
-use std::fmt::Debug;
-use std::path::PathBuf;
-use std::sync::Arc;
-
-use log::{debug, error, info, trace, warn};
-#[cfg(any(test, feature = "testing"))]
-use mockall::automock;
-use tokio::sync::Mutex;
-
-use crate::core::event::{Event, EventPublisher, PlayerStoppedEvent, HIGHEST_ORDER};
+use crate::core::event::{
+    Event, EventCallback, EventHandler, EventPublisher, PlayerStoppedEvent, HIGHEST_ORDER,
+};
+use crate::core::media;
 use crate::core::media::resume::AutoResume;
 use crate::core::media::MediaError;
 use crate::core::storage::{Storage, StorageError};
-use crate::core::{block_in_place, media};
+use async_trait::async_trait;
+use log::{debug, error, info, trace, warn};
+#[cfg(any(test, feature = "testing"))]
+use mockall::automock;
+use std::fmt::Debug;
+use std::path::PathBuf;
+use std::sync::Arc;
+use tokio::select;
+use tokio::sync::Mutex;
+use tokio_util::sync::CancellationToken;
 
 const FILENAME: &str = "auto-resume.json";
 /// The minimum duration a video playback should have
@@ -23,17 +26,18 @@ const RESUME_PERCENTAGE_THRESHOLD: u32 = 85;
 /// The auto-resume service which handles the resume timestamp for video playbacks.
 /// It stores the last known timestamp when needed based on a player stopped event.
 #[cfg_attr(any(test, feature = "testing"), automock)]
+#[async_trait]
 pub trait AutoResumeService: Debug + Send + Sync {
     /// Retrieve the resume timestamp for the given media id and/or filename.
     ///
     /// It retrieves the timestamp when found, else [None].
-    fn resume_timestamp(&self, id: Option<String>, filename: Option<String>) -> Option<u64>;
+    async fn resume_timestamp(&self, id: Option<String>, filename: Option<String>) -> Option<u64>;
 
     /// Handle a player stopped event.
     /// The event should contain the information of the player before it stopped.
     ///
     /// When a video playback wasn't finished, it will be stored for later use.
-    fn player_stopped(&self, event: &PlayerStoppedEvent);
+    async fn player_stopped(&self, event: &PlayerStoppedEvent);
 }
 
 /// The default auto-resume service for Popcorn FX.
@@ -48,13 +52,14 @@ impl DefaultAutoResumeService {
     }
 }
 
+#[async_trait]
 impl AutoResumeService for DefaultAutoResumeService {
-    fn resume_timestamp(&self, id: Option<String>, filename: Option<String>) -> Option<u64> {
-        self.inner.resume_timestamp(id, filename)
+    async fn resume_timestamp(&self, id: Option<String>, filename: Option<String>) -> Option<u64> {
+        self.inner.resume_timestamp(id, filename).await
     }
 
-    fn player_stopped(&self, event: &PlayerStoppedEvent) {
-        self.inner.player_stopped(event)
+    async fn player_stopped(&self, event: &PlayerStoppedEvent) {
+        self.inner.player_stopped(event).await
     }
 }
 
@@ -69,13 +74,13 @@ impl AutoResumeService for DefaultAutoResumeService {
 ///
 /// let auto_resume_service = DefaultAutoResumeService::builder()
 ///     .storage_directory("my-storage-directory")
-///     .event_publisher(Arc::new(EventPublisher::default()))
+///     .event_publisher(EventPublisher::default())
 ///     .build();
 /// ```
 #[derive(Default)]
 pub struct DefaultAutoResumeServiceBuilder {
     storage_directory: Option<String>,
-    event_publisher: Option<Arc<EventPublisher>>,
+    event_publisher: Option<EventPublisher>,
 }
 
 impl DefaultAutoResumeServiceBuilder {
@@ -100,10 +105,10 @@ impl DefaultAutoResumeServiceBuilder {
     ///
     /// let auto_resume_service = DefaultAutoResumeService::builder()
     ///     .storage_directory("my-storage-directory")
-    ///     .event_publisher(Arc::new(EventPublisher::default()))
+    ///     .event_publisher(EventPublisher::default())
     ///     .build();
     /// ```
-    pub fn event_publisher(mut self, event_publisher: Arc<EventPublisher>) -> Self {
+    pub fn event_publisher(mut self, event_publisher: EventPublisher) -> Self {
         self.event_publisher = Some(event_publisher);
         self
     }
@@ -122,20 +127,18 @@ impl DefaultAutoResumeServiceBuilder {
                         .as_str(),
                 )),
                 cache: Mutex::new(None),
+                cancellation_token: Default::default(),
             }),
         };
 
         if let Some(event_publisher) = self.event_publisher {
             let inner = instance.inner.clone();
-            event_publisher.register(
-                Box::new(move |event| {
-                    if let Event::PlayerStopped(player_stopped) = &event {
-                        inner.player_stopped(player_stopped);
-                    }
-                    Some(event)
-                }),
-                HIGHEST_ORDER + 10,
-            );
+            let callback = event_publisher
+                .subscribe(HIGHEST_ORDER + 10)
+                .expect("expected to receive a callback");
+            tokio::spawn(async move {
+                inner.start(callback).await;
+            });
         } else {
             warn!("No EventPublisher configured for DefaultAutoResumeService, unable to automatically detect PlayerStopped events");
         }
@@ -148,9 +151,32 @@ impl DefaultAutoResumeServiceBuilder {
 struct InnerAutoResumeService {
     storage: Mutex<Storage>,
     cache: Mutex<Option<AutoResume>>,
+    cancellation_token: CancellationToken,
 }
 
 impl InnerAutoResumeService {
+    async fn start(&self, mut event_receiver: EventCallback) {
+        loop {
+            select! {
+                _ = self.cancellation_token.cancelled() => break,
+                Some(handler) = event_receiver.recv() => self.handle_event(handler).await,
+            }
+        }
+
+        match self.cache.lock().await.as_ref() {
+            None => {}
+            Some(e) => self.save_async(e).await,
+        }
+        debug!("Auto-resume service main loop ended");
+    }
+
+    async fn handle_event(&self, mut handler: EventHandler) {
+        if let Some(Event::PlayerStopped(player_stopped)) = handler.event_ref() {
+            self.player_stopped(player_stopped).await;
+        }
+        handler.next();
+    }
+
     async fn load_resume_cache(&self) -> media::Result<()> {
         let mut cache = self.cache.lock().await;
 
@@ -190,10 +216,6 @@ impl InnerAutoResumeService {
         }
     }
 
-    fn save(&self, resume: &AutoResume) {
-        block_in_place(self.save_async(resume))
-    }
-
     async fn save_async(&self, resume: &AutoResume) {
         let mutex = self.storage.lock().await;
         match mutex
@@ -206,57 +228,53 @@ impl InnerAutoResumeService {
             Err(e) => error!("Failed to save auto-resume, {}", e),
         }
     }
-}
 
-impl AutoResumeService for InnerAutoResumeService {
-    fn resume_timestamp(&self, id: Option<String>, filename: Option<String>) -> Option<u64> {
-        match futures::executor::block_on(self.load_resume_cache()) {
+    async fn resume_timestamp(&self, id: Option<String>, filename: Option<String>) -> Option<u64> {
+        match self.load_resume_cache().await {
             Ok(_) => {
                 debug!(
                     "Retrieving auto-resume info for id: {:?}, filename: {:?}",
                     &id, &filename
                 );
-                tokio::task::block_in_place(|| {
-                    let mutex = self.cache.blocking_lock();
-                    let cache = mutex.as_ref().expect("expected the auto-resume cache");
+                let mutex = self.cache.lock().await;
+                let cache = mutex.as_ref().expect("expected the auto-resume cache");
 
-                    // always search first on the filename as it might be more correct
-                    // than the id which might have been watched on a different quality
-                    if let Some(filename) = filename {
-                        trace!(
-                            "Searching for auto resume timestamp with filename {}",
-                            filename
-                        );
-                        match cache.find_filename(filename.as_str()) {
-                            None => {}
-                            Some(e) => {
-                                info!(
-                                    "Found resume timestamp {} for {}",
-                                    e.last_known_timestamp(),
-                                    filename
-                                );
-                                return Some(*e.last_known_timestamp());
-                            }
+                // always search first on the filename as it might be more correct
+                // than the id which might have been watched on a different quality
+                if let Some(filename) = filename {
+                    trace!(
+                        "Searching for auto resume timestamp with filename {}",
+                        filename
+                    );
+                    match cache.find_filename(filename.as_str()) {
+                        None => {}
+                        Some(e) => {
+                            info!(
+                                "Found resume timestamp {} for {}",
+                                e.last_known_timestamp(),
+                                filename
+                            );
+                            return Some(*e.last_known_timestamp());
                         }
                     }
+                }
 
-                    if let Some(id) = id {
-                        trace!("Searching for auto resume timestamp with id {}", id);
-                        match cache.find_id(id.as_str()) {
-                            None => {}
-                            Some(e) => {
-                                info!(
-                                    "Found resume timestamp {} for {}",
-                                    e.last_known_timestamp(),
-                                    id
-                                );
-                                return Some(*e.last_known_timestamp());
-                            }
+                if let Some(id) = id {
+                    trace!("Searching for auto resume timestamp with id {}", id);
+                    match cache.find_id(id.as_str()) {
+                        None => {}
+                        Some(e) => {
+                            info!(
+                                "Found resume timestamp {} for {}",
+                                e.last_known_timestamp(),
+                                id
+                            );
+                            return Some(*e.last_known_timestamp());
                         }
                     }
+                }
 
-                    None
-                })
+                None
             }
             Err(e) => {
                 error!("Failed to retrieve auto-resume info, {}", e);
@@ -265,7 +283,7 @@ impl AutoResumeService for InnerAutoResumeService {
         }
     }
 
-    fn player_stopped(&self, event: &PlayerStoppedEvent) {
+    async fn player_stopped(&self, event: &PlayerStoppedEvent) {
         trace!("Received player stop event {:?}", event);
         if let (Some(time), Some(duration)) = (event.time(), event.duration()) {
             if duration < &VIDEO_DURATION_THRESHOLD {
@@ -277,9 +295,9 @@ impl AutoResumeService for InnerAutoResumeService {
                 return;
             }
 
-            match futures::executor::block_on(self.load_resume_cache()) {
+            match self.load_resume_cache().await {
                 Ok(_) => {
-                    let mut mutex = futures::executor::block_on(self.cache.lock());
+                    let mut mutex = self.cache.lock().await;
                     let cache = mutex.as_mut().expect("expected the cache to be available");
                     let percentage_watched = ((*time as f64 / *duration as f64) * 100f64) as u32;
                     let path = PathBuf::from(event.url());
@@ -311,7 +329,7 @@ impl AutoResumeService for InnerAutoResumeService {
                         cache.remove(id, filename);
                     }
 
-                    self.save(cache)
+                    self.save_async(cache).await;
                 }
                 Err(e) => {
                     error!("Failed to store the resume timestamp, {}", e)
@@ -323,30 +341,18 @@ impl AutoResumeService for InnerAutoResumeService {
     }
 }
 
-impl Drop for InnerAutoResumeService {
-    fn drop(&mut self) {
-        let mutex = self.cache.blocking_lock();
-        let cache = mutex.as_ref();
-
-        match cache {
-            None => {}
-            Some(e) => self.save(e),
-        }
-    }
-}
-
 #[cfg(test)]
 mod test {
     use tempfile::tempdir;
 
     use crate::core::media::{MediaIdentifier, MovieOverview};
     use crate::init_logger;
-    use crate::testing::{copy_test_file, init_logger, read_temp_dir_file_as_string};
+    use crate::testing::{copy_test_file, read_temp_dir_file_as_string};
 
     use super::*;
 
-    #[test]
-    fn test_resume_timestamp_filename() {
+    #[tokio::test]
+    async fn test_resume_timestamp_filename() {
         init_logger!();
         let filename = "Lorem.mp4";
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
@@ -356,7 +362,9 @@ mod test {
             .build();
         copy_test_file(temp_path, "auto-resume.json", None);
 
-        let result = service.resume_timestamp(None, Some(filename.to_string()));
+        let result = service
+            .resume_timestamp(None, Some(filename.to_string()))
+            .await;
 
         match result {
             Some(e) => assert_eq!(19826, e),
@@ -364,8 +372,8 @@ mod test {
         }
     }
 
-    #[test]
-    fn test_resume_timestamp_filename_not_found() {
+    #[tokio::test]
+    async fn test_resume_timestamp_filename_not_found() {
         init_logger!();
         let filename = "random-video-not-known.mkv";
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
@@ -374,13 +382,15 @@ mod test {
             .storage_directory(temp_path)
             .build();
 
-        let result = service.resume_timestamp(None, Some(filename.to_string()));
+        let result = service
+            .resume_timestamp(None, Some(filename.to_string()))
+            .await;
 
         assert_eq!(None, result)
     }
 
-    #[test]
-    fn test_resume_timestamp_id() {
+    #[tokio::test]
+    async fn test_resume_timestamp_id() {
         init_logger!();
         let id = "110999";
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
@@ -390,7 +400,7 @@ mod test {
             .build();
         copy_test_file(temp_path, "auto-resume.json", None);
 
-        let result = service.resume_timestamp(Some(id.to_string()), None);
+        let result = service.resume_timestamp(Some(id.to_string()), None).await;
 
         match result {
             Some(e) => assert_eq!(19826, e),
@@ -398,8 +408,8 @@ mod test {
         }
     }
 
-    #[test]
-    fn test_resume_timestamp_no_data_passed() {
+    #[tokio::test]
+    async fn test_resume_timestamp_no_data_passed() {
         init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -407,13 +417,13 @@ mod test {
             .storage_directory(temp_path)
             .build();
 
-        let result = service.resume_timestamp(None, None);
+        let result = service.resume_timestamp(None, None).await;
 
         assert_eq!(None, result)
     }
 
-    #[test]
-    fn test_player_stopped_ignore_playback_shorter_than_5_mins() {
+    #[tokio::test]
+    async fn test_player_stopped_ignore_playback_shorter_than_5_mins() {
         init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -427,14 +437,16 @@ mod test {
             duration: Some(120000),
         };
 
-        service.player_stopped(&event);
-        let result = service.resume_timestamp(None, Some("ipsum.mp4".to_string()));
+        service.player_stopped(&event).await;
+        let result = service
+            .resume_timestamp(None, Some("ipsum.mp4".to_string()))
+            .await;
 
         assert_eq!(None, result)
     }
 
-    #[test]
-    fn test_player_stopped_add_resume_data() {
+    #[tokio::test]
+    async fn test_player_stopped_add_resume_data() {
         init_logger!();
         let id = "tt0000111";
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
@@ -455,16 +467,17 @@ mod test {
             duration: Some(350000),
         };
 
-        service.player_stopped(&event);
+        service.player_stopped(&event).await;
         let result = service
             .resume_timestamp(Some(id.to_string()), None)
+            .await
             .expect("expected a timestamp to be returned");
 
         assert_eq!(expected_timestamp, result)
     }
 
-    #[test]
-    fn test_player_stopped_remove_resume_data() {
+    #[tokio::test]
+    async fn test_player_stopped_remove_resume_data() {
         init_logger!();
         let id = "tt0000111";
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
@@ -485,14 +498,14 @@ mod test {
             duration: Some(600000),
         };
 
-        service.player_stopped(&event);
-        let result = service.resume_timestamp(Some(id.to_string()), None);
+        service.player_stopped(&event).await;
+        let result = service.resume_timestamp(Some(id.to_string()), None).await;
 
         assert_eq!(None, result)
     }
 
-    #[test]
-    fn test_player_stopped_save_data() {
+    #[tokio::test]
+    async fn test_player_stopped_save_data() {
         init_logger!();
         let id = "tt00001212";
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
@@ -513,7 +526,7 @@ mod test {
         };
         let expected_result = "{\"video_timestamps\":[{\"id\":\"tt00001212\",\"filename\":\"already-started-watching.mkv\",\"last_known_time\":20000}]}";
 
-        service.player_stopped(&event);
+        service.player_stopped(&event).await;
         let result = read_temp_dir_file_as_string(&temp_dir, FILENAME).replace("\r\n", "\n");
 
         assert_eq!(expected_result, result.as_str())

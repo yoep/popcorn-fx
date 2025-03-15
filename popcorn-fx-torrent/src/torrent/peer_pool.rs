@@ -262,8 +262,8 @@ mod tests {
         assert_eq!(expected_result, result);
     }
 
-    #[test]
-    fn test_peer_pool_clean() {
+    #[tokio::test]
+    async fn test_peer_pool_clean() {
         init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -274,25 +274,21 @@ mod tests {
             TorrentConfig::default(),
             vec![]
         );
-        let context = torrent.instance().unwrap();
-        let runtime = context.runtime();
         let (peer1, peer2) = create_peer_pair!(&torrent);
         let pool = PeerPool::new(TorrentHandle::new(), 2, 1);
 
-        runtime.block_on(pool.add_peer(Box::new(peer1)));
-        runtime.block_on(pool.add_peer(Box::new(peer2)));
-        let result = runtime.block_on(pool.peers.read()).len();
+        pool.add_peer(Box::new(peer1)).await;
+        pool.add_peer(Box::new(peer2)).await;
+        let result = pool.peers.read().await.len();
         assert_eq!(
             2, result,
             "expected the peers to have been added to the pool"
         );
 
-        runtime.block_on(async {
-            pool.peers.read().await.get(0).unwrap().close().await;
-        });
-        runtime.block_on(pool.clean());
+        pool.peers.read().await.get(0).unwrap().close().await;
+        pool.clean().await;
 
-        let result = runtime.block_on(pool.peers.read()).len();
+        let result = pool.peers.read().await.len();
         assert_ne!(2, result);
     }
 }

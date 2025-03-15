@@ -1,15 +1,15 @@
-use crate::core::event::{Event, EventPublisher, HIGHEST_ORDER};
+use crate::core::event::{Event, EventCallback, EventHandler, EventPublisher, HIGHEST_ORDER};
 use crate::core::loader::{LoadingHandle, MediaLoader};
 use crate::core::players::{PlayerManager, PlayerManagerEvent, PlayerState};
 use crate::core::playlist::{Playlist, PlaylistItem};
-use crate::core::{block_in_place_runtime, Callbacks, CoreCallback, CoreCallbacks};
 use derive_more::Display;
-use fx_callback::CallbackHandle;
+use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use fx_handle::Handle;
 use log::{debug, info, trace};
 use std::sync::Arc;
-use tokio::runtime::Runtime;
+use tokio::select;
 use tokio::sync::Mutex;
+use tokio_util::sync::CancellationToken;
 
 const PLAYING_NEXT_IN_THRESHOLD_SECONDS: u64 = 60;
 
@@ -50,6 +50,7 @@ pub enum PlaylistState {
 }
 
 /// The manager responsible for handling playlists and player events.
+#[derive(Debug, Clone)]
 pub struct PlaylistManager {
     inner: Arc<InnerPlaylistManager>,
 }
@@ -58,44 +59,27 @@ impl PlaylistManager {
     /// Create a new playlist manager instance for processing playlist.
     pub fn new(
         player_manager: Arc<Box<dyn PlayerManager>>,
-        event_publisher: Arc<EventPublisher>,
+        event_publisher: EventPublisher,
         loader: Arc<Box<dyn MediaLoader>>,
-        runtime: Arc<Runtime>,
     ) -> Self {
         let manager = Self {
             inner: Arc::new(InnerPlaylistManager::new(
                 player_manager,
                 event_publisher,
                 loader,
-                runtime,
             )),
         };
 
-        let event_manager = manager.inner.clone();
-        manager.inner.event_publisher.register(
-            Box::new(move |event| {
-                if let Event::ClosePlayer = event {
-                    if block_in_place_runtime(
-                        event_manager.is_next_allowed(),
-                        &event_manager.runtime,
-                    ) {
-                        debug!("Consuming Event::ClosePlayer, next playlist item will be loaded");
-                        return None;
-                    }
-                }
-
-                Some(event)
-            }),
-            HIGHEST_ORDER + 10,
-        );
-
-        let listener_manager = manager.inner.clone();
-        manager.inner.player_manager.subscribe(Box::new(move |e| {
-            block_in_place_runtime(
-                listener_manager.handle_player_event(e),
-                &listener_manager.runtime,
-            );
-        }));
+        let inner_main = manager.inner.clone();
+        let callback = manager
+            .inner
+            .event_publisher
+            .subscribe(HIGHEST_ORDER + 10)
+            .expect("expected to be able to subscribe");
+        let player_event_receiver = manager.inner.player_manager.subscribe();
+        tokio::spawn(async move {
+            inner_main.start(callback, player_event_receiver).await;
+        });
 
         manager
     }
@@ -153,34 +137,22 @@ impl PlaylistManager {
         self.inner.state().await
     }
 
-    /// Subscribe to playlist manager events.
-    ///
-    /// # Arguments
-    ///
-    /// * `callback` - The callback function to be invoked when playlist manager events occur.
-    ///
-    /// # Returns
-    ///
-    /// An identifier for the subscription, which can be used to unsubscribe later.
-    pub fn subscribe(&self, callback: CoreCallback<PlaylistManagerEvent>) -> CallbackHandle {
-        self.inner.callbacks.add_callback(callback)
-    }
-
-    /// Unsubscribe from playlist manager events.
-    ///
-    /// # Arguments
-    ///
-    /// * `callback_id` - The identifier of the subscription to be removed.
-    pub fn unsubscribe(&self, handle: CallbackHandle) {
-        self.inner.callbacks.remove_callback(handle)
-    }
-
     /// Stop the playback of the playlist.
     ///
     /// This method stops the playback of the current playlist.
     /// If there is no playlist currently playing, it has no effect.
     pub async fn stop(&self) {
         self.inner.stop().await
+    }
+}
+
+impl Callback<PlaylistManagerEvent> for PlaylistManager {
+    fn subscribe(&self) -> Subscription<PlaylistManagerEvent> {
+        self.inner.callbacks.subscribe()
+    }
+
+    fn subscribe_with(&self, subscriber: Subscriber<PlaylistManagerEvent>) {
+        self.inner.callbacks.subscribe_with(subscriber)
     }
 }
 
@@ -193,17 +165,16 @@ struct InnerPlaylistManager {
     loader: Arc<Box<dyn MediaLoader>>,
     loading_handle: Arc<Mutex<Option<LoadingHandle>>>,
     state: Arc<Mutex<PlaylistState>>,
-    callbacks: CoreCallbacks<PlaylistManagerEvent>,
-    event_publisher: Arc<EventPublisher>,
-    runtime: Arc<Runtime>,
+    callbacks: MultiThreadedCallback<PlaylistManagerEvent>,
+    event_publisher: EventPublisher,
+    cancellation_token: CancellationToken,
 }
 
 impl InnerPlaylistManager {
     fn new(
         player_manager: Arc<Box<dyn PlayerManager>>,
-        event_publisher: Arc<EventPublisher>,
+        event_publisher: EventPublisher,
         loader: Arc<Box<dyn MediaLoader>>,
-        runtime: Arc<Runtime>,
     ) -> Self {
         let instance = Self {
             playlist: Default::default(),
@@ -213,12 +184,42 @@ impl InnerPlaylistManager {
             loader,
             loading_handle: Arc::new(Mutex::new(None)),
             state: Arc::new(Mutex::new(PlaylistState::Idle)),
-            callbacks: Default::default(),
+            callbacks: MultiThreadedCallback::new(),
             event_publisher,
-            runtime,
+            cancellation_token: Default::default(),
         };
 
         instance
+    }
+
+    /// Start the main loop of the playlist manager.
+    /// This loop will handle any command that needs to be processed for the playlist manager.
+    async fn start(
+        &self,
+        mut event_receiver: EventCallback,
+        mut player_event_receiver: Subscription<PlayerManagerEvent>,
+    ) {
+        loop {
+            select! {
+                _ = self.cancellation_token.cancelled() => break,
+                Some(handler) = event_receiver.recv() => self.handle_event(handler).await,
+                Some(event) = player_event_receiver.recv() => self.handle_player_event((*event).clone()).await
+            }
+        }
+
+        debug!("Playlist manager main loop ended");
+    }
+
+    async fn handle_event(&self, mut handler: EventHandler) {
+        if let Some(event) = handler.event_ref() {
+            if let Event::ClosePlayer = event {
+                if self.is_next_allowed().await {
+                    debug!("Consuming Event::ClosePlayer, next playlist item will be loaded");
+                    handler.stop();
+                }
+            }
+            handler.next();
+        }
     }
 
     async fn play(&self, playlist: Playlist) -> Option<Handle> {
@@ -281,7 +282,7 @@ impl InnerPlaylistManager {
     }
 
     async fn update_state(&self, state: PlaylistState) {
-        Self::update_state_stat(state, self.state.clone(), self.callbacks.clone()).await
+        Self::update_state_stat(state, &self.state, &self.callbacks).await
     }
 
     async fn handle_player_event(&self, event: PlayerManagerEvent) {
@@ -406,8 +407,8 @@ impl InnerPlaylistManager {
 
     async fn update_state_stat(
         new_state: PlaylistState,
-        state: Arc<Mutex<PlaylistState>>,
-        callbacks: CoreCallbacks<PlaylistManagerEvent>,
+        state: &Arc<Mutex<PlaylistState>>,
+        callbacks: &MultiThreadedCallback<PlaylistManagerEvent>,
     ) {
         trace!("Updating playlist state to {}", new_state);
         let event_state = new_state.clone();
@@ -423,18 +424,20 @@ impl InnerPlaylistManager {
 
 #[cfg(test)]
 mod test {
+    use super::*;
+
     use crate::core::event::{DEFAULT_ORDER, LOWEST_ORDER};
     use crate::core::loader::MockMediaLoader;
     use crate::core::players::MockPlayerManager;
-    use crate::init_logger;
-    use std::sync::mpsc::channel;
+    use crate::{init_logger, recv_timeout};
+
+    use fx_callback::{Callback, MultiThreadedCallback};
     use std::time::Duration;
-    use tokio::runtime::Runtime;
+    use tokio::sync::mpsc::unbounded_channel;
+    use tokio::time;
 
-    use super::*;
-
-    #[test]
-    fn test_play() {
+    #[tokio::test]
+    async fn test_play() {
         init_logger!();
         let mut playlist = Playlist::default();
         let playlist_item = PlaylistItem {
@@ -448,14 +451,17 @@ mod test {
             subtitle: Default::default(),
             torrent: Default::default(),
         };
-        let event_publisher = Arc::new(EventPublisher::default());
+        let event_publisher = EventPublisher::default();
+        let callbacks = MultiThreadedCallback::<PlayerManagerEvent>::new();
+        let player_manager_subscription = callbacks.subscribe();
         let mut player_manager = Box::new(MockPlayerManager::new());
         player_manager
             .expect_subscribe()
-            .return_const(Handle::new());
+            .times(1)
+            .return_once(move || player_manager_subscription);
         let player_manager = Arc::new(player_manager as Box<dyn PlayerManager>);
-        let (tx, rx) = channel();
-        let (tx_event, rx_event) = channel();
+        let (tx, mut rx) = unbounded_channel();
+        let (tx_event, mut rx_event) = unbounded_channel();
         let mut loader = MockMediaLoader::new();
         loader
             .expect_load_playlist_item()
@@ -464,30 +470,35 @@ mod test {
                 tx.send(e).unwrap();
                 Handle::new()
             });
-        let runtime = Arc::new(Runtime::new().unwrap());
         let manager = PlaylistManager::new(
             player_manager.clone(),
             event_publisher.clone(),
             Arc::new(Box::new(loader)),
-            runtime.clone(),
         );
 
         playlist.add(playlist_item.clone());
 
-        manager.subscribe(Box::new(move |e| {
-            if let PlaylistManagerEvent::PlaylistChanged = e {
-                tx_event.send(e).unwrap();
+        let mut receiver = manager.subscribe();
+        tokio::spawn(async move {
+            loop {
+                if let Some(event) = receiver.recv().await {
+                    if let PlaylistManagerEvent::PlaylistChanged = &*event {
+                        tx_event.send((*event).clone()).unwrap();
+                    }
+                } else {
+                    break;
+                }
             }
-        }));
-        runtime.block_on(manager.play(playlist));
+        });
+        manager.play(playlist).await;
 
-        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        let result = recv_timeout!(&mut rx, Duration::from_millis(200));
         assert_eq!(
             playlist_item, result,
             "expected the load_playlist_item to have been called"
         );
 
-        let result = rx_event.recv_timeout(Duration::from_millis(200)).unwrap();
+        let result = recv_timeout!(&mut rx_event, Duration::from_millis(200));
         assert_eq!(
             PlaylistManagerEvent::PlaylistChanged,
             result,
@@ -495,26 +506,27 @@ mod test {
         );
     }
 
-    #[test]
-    fn test_has_next() {
+    #[tokio::test]
+    async fn test_has_next() {
         init_logger!();
         let mut playlist = Playlist::default();
-        let event_publisher = Arc::new(EventPublisher::default());
+        let event_publisher = EventPublisher::default();
+        let callbacks = MultiThreadedCallback::new();
+        let player_manager_subscription = callbacks.subscribe();
         let mut player_manager = Box::new(MockPlayerManager::new());
         player_manager
             .expect_subscribe()
-            .return_const(Handle::new());
+            .times(1)
+            .return_once(move || player_manager_subscription);
         let player_manager = Arc::new(player_manager as Box<dyn PlayerManager>);
         let mut loader = MockMediaLoader::new();
         loader
             .expect_load_playlist_item()
             .returning(move |_| Handle::new());
-        let runtime = Arc::new(Runtime::new().unwrap());
         let manager = PlaylistManager::new(
             player_manager.clone(),
             event_publisher.clone(),
             Arc::new(Box::new(loader)),
-            runtime.clone(),
         );
 
         playlist.add(PlaylistItem {
@@ -539,34 +551,32 @@ mod test {
             subtitle: Default::default(),
             torrent: Default::default(),
         });
-        runtime.block_on(manager.play(playlist));
+        manager.play(playlist).await;
 
-        let result = runtime.block_on(manager.has_next());
+        let result = manager.has_next().await;
         assert!(
             result,
             "expected a next playlist item to have been available"
         );
     }
 
-    #[test]
-    fn test_player_stopped_event() {
+    #[tokio::test]
+    async fn test_player_stopped_event() {
         init_logger!();
         let url = "https://www.youtube.com";
         let item1 = "MyFirstItem";
         let item2 = "MySecondItem";
         let mut playlist = Playlist::default();
-        let (tx, rx) = channel();
-        let (tx_manager, rx_manager) = channel();
-        let (tx_player_manager, rx_player_manager) = channel();
-        let event_publisher = Arc::new(EventPublisher::default());
+        let (tx, mut rx) = unbounded_channel();
+        let (tx_manager, mut rx_manager) = unbounded_channel();
+        let event_publisher = EventPublisher::default();
+        let callbacks = MultiThreadedCallback::new();
+        let player_manager_subscription = callbacks.subscribe();
         let mut player_manager = Box::new(MockPlayerManager::new());
         player_manager
             .expect_subscribe()
             .times(1)
-            .returning(move |e| {
-                tx_player_manager.send(e).unwrap();
-                Handle::new()
-            });
+            .return_once(move || player_manager_subscription);
         let player_manager = Arc::new(player_manager as Box<dyn PlayerManager>);
         let mut loader = MockMediaLoader::new();
         loader
@@ -576,12 +586,10 @@ mod test {
                 tx.send(e).unwrap();
                 Handle::new()
             });
-        let runtime = Arc::new(Runtime::new().unwrap());
         let manager = PlaylistManager::new(
             player_manager.clone(),
             event_publisher.clone(),
             Arc::new(Box::new(loader)),
-            runtime.clone(),
         );
 
         playlist.add(PlaylistItem {
@@ -607,61 +615,61 @@ mod test {
             torrent: Default::default(),
         });
 
-        manager.subscribe(Box::new(move |e| {
-            tx_manager.send(e).unwrap();
-        }));
+        let mut receiver = manager.subscribe();
+        tokio::spawn(async move {
+            loop {
+                if let Some(event) = receiver.recv().await {
+                    tx_manager.send((*event).clone()).unwrap()
+                } else {
+                    break;
+                }
+            }
+        });
 
         // start the playlist
-        runtime.block_on(manager.play(playlist));
-        let result = rx_manager.recv_timeout(Duration::from_millis(200)).unwrap();
+        manager.play(playlist).await;
+        let result = recv_timeout!(&mut rx_manager, Duration::from_millis(200));
         assert_eq!(PlaylistManagerEvent::PlaylistChanged, result);
 
         // verify the playlist item that has been loaded
-        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        let result = recv_timeout!(&mut rx, Duration::from_millis(200));
         assert_eq!(item1.to_string(), result.title);
 
-        let callback = rx_player_manager
-            .recv_timeout(Duration::from_millis(200))
-            .expect("Expected the playlist manager to subscribe to the player manager");
-        callback(PlayerManagerEvent::PlayerDurationChanged(50000));
-        callback(PlayerManagerEvent::PlayerTimeChanged(40000));
-        callback(PlayerManagerEvent::PlayerStateChanged(PlayerState::Stopped));
+        callbacks.invoke(PlayerManagerEvent::PlayerDurationChanged(50000));
+        callbacks.invoke(PlayerManagerEvent::PlayerTimeChanged(40000));
+        callbacks.invoke(PlayerManagerEvent::PlayerStateChanged(PlayerState::Stopped));
 
         // verify the playlist item that has been loaded
-        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        let result = recv_timeout!(&mut rx, Duration::from_millis(200));
         assert_eq!(item2.to_string(), result.title);
     }
 
-    #[test]
-    fn test_player_stopped_event_by_player_during_playback() {
+    #[tokio::test]
+    async fn test_player_stopped_event_by_player_during_playback() {
         init_logger!();
         let url = "https://www.youtube.com";
         let item1 = "MyFirstItem";
         let item2 = "MySecondItem";
         let mut playlist = Playlist::default();
-        let (tx_manager, rx_manager) = channel();
-        let (tx_player_manager, rx_player_manager) = channel();
-        let event_publisher = Arc::new(EventPublisher::default());
+        let (tx_manager, mut rx_manager) = unbounded_channel();
+        let event_publisher = EventPublisher::default();
+        let callbacks = MultiThreadedCallback::new();
+        let player_manager_subscription = callbacks.subscribe();
         let mut player_manager = Box::new(MockPlayerManager::new());
         player_manager
             .expect_subscribe()
             .times(1)
-            .returning(move |e| {
-                tx_player_manager.send(e).unwrap();
-                Handle::new()
-            });
+            .return_once(move || player_manager_subscription);
         let player_manager = Arc::new(player_manager as Box<dyn PlayerManager>);
         let mut loader = MockMediaLoader::new();
         loader
             .expect_load_playlist_item()
             .times(2)
             .returning(move |_| Handle::new());
-        let runtime = Arc::new(Runtime::new().unwrap());
         let manager = PlaylistManager::new(
             player_manager.clone(),
             event_publisher.clone(),
             Arc::new(Box::new(loader)),
-            runtime.clone(),
         );
 
         playlist.add(PlaylistItem {
@@ -687,55 +695,55 @@ mod test {
             torrent: Default::default(),
         });
 
-        manager.subscribe(Box::new(move |e| {
-            tx_manager.send(e).unwrap();
-        }));
+        let mut receiver = manager.subscribe();
+        tokio::spawn(async move {
+            loop {
+                if let Some(event) = receiver.recv().await {
+                    tx_manager.send((*event).clone()).unwrap()
+                } else {
+                    break;
+                }
+            }
+        });
 
         // start the playlist
-        runtime.block_on(manager.play(playlist));
-        let result = rx_manager.recv_timeout(Duration::from_millis(200)).unwrap();
+        manager.play(playlist).await;
+        let result = recv_timeout!(&mut rx_manager, Duration::from_millis(200));
         assert_eq!(PlaylistManagerEvent::PlaylistChanged, result);
 
-        let callback = rx_player_manager
-            .recv_timeout(Duration::from_millis(200))
-            .expect("Expected the playlist manager to subscribe to the player manager");
-        callback(PlayerManagerEvent::PlayerDurationChanged(120000));
-        callback(PlayerManagerEvent::PlayerTimeChanged(40000));
-        callback(PlayerManagerEvent::PlayerStateChanged(PlayerState::Stopped));
+        callbacks.invoke(PlayerManagerEvent::PlayerDurationChanged(120000));
+        callbacks.invoke(PlayerManagerEvent::PlayerTimeChanged(40000));
+        callbacks.invoke(PlayerManagerEvent::PlayerStateChanged(PlayerState::Stopped));
 
         // verify the playlist item that has been loaded
-        let result = runtime.block_on(manager.inner.is_next_allowed());
+        let result = manager.inner.is_next_allowed().await;
         assert_eq!(false, result, "expected the next item to not be loaded");
     }
 
-    #[test]
-    fn test_close_player_event_next_item() {
+    #[tokio::test]
+    async fn test_close_player_event_next_item() {
         init_logger!();
         let url = "https://www.youtube.com";
         let mut playlist = Playlist::default();
-        let (tx_manager, rx_manager) = channel();
-        let (tx_event, rx_event) = channel();
-        let (tx_player_manager, rx_player_manager) = channel();
-        let event_publisher = Arc::new(EventPublisher::default());
+        let (tx_manager, mut rx_manager) = unbounded_channel();
+        let (tx_event, mut rx_event) = unbounded_channel();
+        let event_publisher = EventPublisher::default();
+        let callbacks = MultiThreadedCallback::new();
+        let player_manager_subscription = callbacks.subscribe();
         let mut player_manager = Box::new(MockPlayerManager::new());
         player_manager
             .expect_subscribe()
             .times(1)
-            .returning(move |e| {
-                tx_player_manager.send(e).unwrap();
-                Handle::new()
-            });
+            .return_once(move || player_manager_subscription);
         let player_manager = Arc::new(player_manager as Box<dyn PlayerManager>);
         let mut loader = MockMediaLoader::new();
         loader
             .expect_load_playlist_item()
             .returning(move |_| Handle::new());
-        let runtime = Arc::new(Runtime::new().unwrap());
         let manager = PlaylistManager::new(
             player_manager.clone(),
             event_publisher.clone(),
             Arc::new(Box::new(loader)),
-            runtime.clone(),
         );
 
         playlist.add(PlaylistItem {
@@ -761,56 +769,67 @@ mod test {
             torrent: Default::default(),
         });
 
-        manager.subscribe(Box::new(move |e| {
-            tx_manager.send(e).unwrap();
-        }));
-        event_publisher.register(
-            Box::new(move |event| {
-                if let Event::ClosePlayer = event {
-                    tx_event.send(event.clone()).unwrap();
+        let mut receiver = manager.subscribe();
+        tokio::spawn(async move {
+            loop {
+                if let Some(event) = receiver.recv().await {
+                    tx_manager.send((*event).clone()).unwrap()
+                } else {
+                    break;
                 }
-                Some(event)
-            }),
-            LOWEST_ORDER,
-        );
+            }
+        });
+        let mut callback = event_publisher.subscribe(LOWEST_ORDER).unwrap();
+        tokio::spawn(async move {
+            loop {
+                if let Some(mut handler) = callback.recv().await {
+                    if let Some(Event::ClosePlayer) = handler.event_ref() {
+                        tx_event.send(handler.take()).unwrap();
+                        break;
+                    }
+                    handler.next();
+                } else {
+                    break;
+                }
+            }
+        });
 
         // start the playlist
-        runtime.block_on(manager.play(playlist));
-        let result = rx_manager.recv_timeout(Duration::from_millis(200)).unwrap();
+        manager.play(playlist).await;
+        let result = recv_timeout!(&mut rx_manager, Duration::from_millis(200));
         assert_eq!(PlaylistManagerEvent::PlaylistChanged, result);
 
-        let callback = rx_player_manager
-            .recv_timeout(Duration::from_millis(200))
-            .expect("Expected the playlist manager to subscribe to the player manager");
-        callback(PlayerManagerEvent::PlayerDurationChanged(120000));
-        callback(PlayerManagerEvent::PlayerTimeChanged(100000));
+        callbacks.invoke(PlayerManagerEvent::PlayerDurationChanged(120000));
+        callbacks.invoke(PlayerManagerEvent::PlayerTimeChanged(100000));
+        time::sleep(Duration::from_millis(50)).await;
         event_publisher.publish(Event::ClosePlayer);
-        let result = rx_event.recv_timeout(Duration::from_millis(100));
-        assert!(
-            result.is_err(),
+
+        let result = select! {
+            _ = time::sleep(Duration::from_millis(100)) => false,
+            Some(_) = rx_event.recv() => true,
+        };
+        assert_eq!(
+            false, result,
             "expected the close player event to have been consumed"
         );
     }
 
-    #[test]
-    fn test_player_stopped_event_without_known_duration() {
+    #[tokio::test]
+    async fn test_player_stopped_event_without_known_duration() {
         init_logger!();
         let url = "https://www.youtube.com";
         let item1 = "MyFirstItem";
         let item2 = "MySecondItem";
-        let mut playlist = Playlist::default();
-        let (tx, rx) = channel();
-        let (tx_manager, rx_manager) = channel();
-        let (tx_player_manager, rx_player_manager) = channel();
-        let event_publisher = Arc::new(EventPublisher::default());
+        let (tx, mut rx) = unbounded_channel();
+        let (tx_manager, mut rx_manager) = unbounded_channel();
+        let event_publisher = EventPublisher::default();
+        let callbacks = MultiThreadedCallback::new();
+        let player_manager_subscription = callbacks.subscribe();
         let mut player_manager = Box::new(MockPlayerManager::new());
         player_manager
             .expect_subscribe()
             .times(1)
-            .returning(move |e| {
-                tx_player_manager.send(e).unwrap();
-                Handle::new()
-            });
+            .return_once(move || player_manager_subscription);
         let player_manager = Arc::new(player_manager as Box<dyn PlayerManager>);
         let mut loader = MockMediaLoader::new();
         loader
@@ -820,14 +839,13 @@ mod test {
                 tx.send(e).unwrap();
                 Handle::new()
             });
-        let runtime = Arc::new(Runtime::new().unwrap());
         let manager = PlaylistManager::new(
             player_manager.clone(),
             event_publisher.clone(),
             Arc::new(Box::new(loader)),
-            runtime.clone(),
         );
 
+        let mut playlist = Playlist::default();
         playlist.add(PlaylistItem {
             url: Some(url.to_string()),
             title: item1.to_string(),
@@ -851,29 +869,29 @@ mod test {
             torrent: Default::default(),
         });
 
-        manager.subscribe(Box::new(move |e| {
-            tx_manager.send(e).unwrap();
-        }));
+        let mut receiver = manager.subscribe();
+        tokio::spawn(async move {
+            while let Some(event) = receiver.recv().await {
+                tx_manager.send((*event).clone()).unwrap()
+            }
+        });
 
         // start the playlist
-        runtime.block_on(manager.play(playlist));
-        let result = rx_manager.recv_timeout(Duration::from_millis(200)).unwrap();
+        manager.play(playlist).await;
+        let result = recv_timeout!(&mut rx_manager, Duration::from_millis(200));
         assert_eq!(PlaylistManagerEvent::PlaylistChanged, result);
 
         // verify the playlist item that has been loaded
-        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        let result = recv_timeout!(&mut rx, Duration::from_millis(200));
         assert_eq!(item1.to_string(), result.title);
 
-        let callback = rx_player_manager
-            .recv_timeout(Duration::from_millis(200))
-            .expect("Expected the playlist manager to subscribe to the player manager");
-        callback(PlayerManagerEvent::PlayerTimeChanged(100000));
-        callback(PlayerManagerEvent::PlayerStateChanged(PlayerState::Stopped));
+        callbacks.invoke(PlayerManagerEvent::PlayerTimeChanged(100000));
+        callbacks.invoke(PlayerManagerEvent::PlayerStateChanged(PlayerState::Stopped));
         // should not invoke any events, otherwise, the MockPlayerManager will fail at this point due to too many calls
     }
 
-    #[test]
-    fn test_player_time_changed() {
+    #[tokio::test]
+    async fn test_player_time_changed() {
         init_logger!();
         let mut playlist = Playlist::default();
         let playing_next_item = PlaylistItem {
@@ -887,29 +905,23 @@ mod test {
             subtitle: Default::default(),
             torrent: Default::default(),
         };
-        let callback = Arc::new(CoreCallbacks::<PlayerManagerEvent>::default());
-        let subscribe_callback = callback.clone();
-        let event_publisher = Arc::new(EventPublisher::default());
-        let mut player_manager = Box::new(MockPlayerManager::new());
+        let event_publisher = EventPublisher::default();
+        let callbacks = MultiThreadedCallback::new();
+        let player_manager_subscription = callbacks.subscribe();
+        let mut player_manager = MockPlayerManager::new();
         player_manager
             .expect_subscribe()
             .times(1)
-            .returning(move |e| {
-                subscribe_callback.add_callback(e);
-                Handle::new()
-            });
-        let (tx, rx) = channel();
-        let player_manager = Arc::new(player_manager as Box<dyn PlayerManager>);
+            .return_once(move || player_manager_subscription);
+        let (tx, mut rx) = unbounded_channel();
         let mut loader = MockMediaLoader::new();
         loader
             .expect_load_playlist_item()
             .returning(move |_| Handle::new());
-        let runtime = Arc::new(Runtime::new().unwrap());
         let manager = PlaylistManager::new(
-            player_manager.clone(),
+            Arc::new(Box::new(player_manager)),
             event_publisher.clone(),
             Arc::new(Box::new(loader)),
-            runtime.clone(),
         );
 
         playlist.add(PlaylistItem {
@@ -924,16 +936,22 @@ mod test {
             torrent: Default::default(),
         });
         playlist.add(playing_next_item.clone());
-        manager.subscribe(Box::new(move |e| {
-            if let PlaylistManagerEvent::PlayingNext(_) = &e {
-                tx.send(e).unwrap();
-            }
-        }));
-        runtime.block_on(manager.play(playlist));
 
-        callback.invoke(PlayerManagerEvent::PlayerDurationChanged(100000));
-        callback.invoke(PlayerManagerEvent::PlayerTimeChanged(40000));
-        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        let mut receiver = manager.subscribe();
+        tokio::spawn(async move {
+            while let Some(event) = receiver.recv().await {
+                if let PlaylistManagerEvent::PlayingNext(_) = &*event {
+                    tx.send((*event).clone()).unwrap();
+                }
+            }
+        });
+
+        let result = manager.play(playlist).await;
+        assert_ne!(None, result, "expected to receive a playlist handle");
+
+        callbacks.invoke(PlayerManagerEvent::PlayerDurationChanged(100000));
+        callbacks.invoke(PlayerManagerEvent::PlayerTimeChanged(40000));
+        let result = recv_timeout!(&mut rx, Duration::from_millis(200));
 
         if let PlaylistManagerEvent::PlayingNext(e) = result {
             assert_eq!(playing_next_item, e.item);
@@ -946,8 +964,8 @@ mod test {
             )
         }
 
-        callback.invoke(PlayerManagerEvent::PlayerTimeChanged(35000));
-        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        callbacks.invoke(PlayerManagerEvent::PlayerTimeChanged(35000));
+        let result = recv_timeout!(&mut rx, Duration::from_millis(200));
 
         if let PlaylistManagerEvent::PlayingNext(e) = result {
             assert_eq!(playing_next_item, e.item);
@@ -961,33 +979,28 @@ mod test {
         }
     }
 
-    #[test]
-    fn test_stop() {
+    #[tokio::test]
+    async fn test_stop() {
         init_logger!();
         let mut playlist = Playlist::default();
-        let callback = Arc::new(CoreCallbacks::<PlayerManagerEvent>::default());
-        let subscribe_callback = callback.clone();
-        let event_publisher = Arc::new(EventPublisher::default());
+        let event_publisher = EventPublisher::default();
+        let callbacks = MultiThreadedCallback::new();
+        let player_manager_subscription = callbacks.subscribe();
         let mut player_manager = Box::new(MockPlayerManager::new());
         player_manager
             .expect_subscribe()
             .times(1)
-            .returning(move |e| {
-                subscribe_callback.add_callback(e);
-                Handle::new()
-            });
-        let (tx, rx) = channel();
+            .return_once(move || player_manager_subscription);
+        let (tx, mut rx) = unbounded_channel();
         let player_manager = Arc::new(player_manager as Box<dyn PlayerManager>);
         let mut loader = MockMediaLoader::new();
         loader
             .expect_load_playlist_item()
             .returning(move |_| Handle::new());
-        let runtime = Arc::new(Runtime::new().unwrap());
         let manager = PlaylistManager::new(
             player_manager.clone(),
             event_publisher.clone(),
             Arc::new(Box::new(loader)),
-            runtime.clone(),
         );
 
         playlist.add(PlaylistItem {
@@ -1013,32 +1026,34 @@ mod test {
             torrent: Default::default(),
         });
 
-        event_publisher.register(
-            Box::new(move |event| {
-                if let Event::ClosePlayer = event {
-                    tx.send(event.clone()).unwrap();
+        let mut callback = event_publisher.subscribe(DEFAULT_ORDER).unwrap();
+        tokio::spawn(async move {
+            loop {
+                if let Some(mut handler) = callback.recv().await {
+                    if let Some(Event::ClosePlayer) = handler.event_ref() {
+                        tx.send(handler.take()).unwrap();
+                    }
+                    handler.next();
                 }
-                Some(event)
-            }),
-            DEFAULT_ORDER,
-        );
+            }
+        });
 
-        let result = runtime.block_on(manager.play(playlist));
+        let result = manager.play(playlist).await;
         assert!(
             result.is_some(),
             "expected a loader handle to have been returned"
         );
-        let result = runtime.block_on(manager.has_next());
+        let result = manager.has_next().await;
         assert_eq!(true, result, "expected a next item to have been available");
 
-        runtime.block_on(manager.stop());
-        let result = runtime.block_on(manager.has_next());
+        manager.stop().await;
+        let result = manager.has_next().await;
         assert_eq!(
             false, result,
             "expected all playlist items to have been cleared"
         );
 
-        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        let result = recv_timeout!(&mut rx, Duration::from_millis(200)).unwrap();
         assert_eq!(Event::ClosePlayer, result);
     }
 }

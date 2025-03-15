@@ -107,16 +107,18 @@ impl TorrentOperation for TorrentTrackersOperation {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::create_torrent;
+
     use crate::torrent::{TorrentConfig, TorrentEvent, TorrentFlags};
+    use crate::{create_torrent, recv_timeout};
+
     use fx_callback::Callback;
     use popcorn_fx_core::init_logger;
-    use std::sync::mpsc::channel;
     use std::time::Duration;
     use tempfile::tempdir;
+    use tokio::sync::mpsc::channel;
 
-    #[test]
-    fn test_execute_metadata_info_unknown() {
+    #[tokio::test]
+    async fn test_execute_metadata_info_unknown() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -126,19 +128,19 @@ mod tests {
             temp_path,
             TorrentFlags::none(),
             TorrentConfig::default(),
+            vec![],
             vec![]
         );
         let inner = torrent.instance().unwrap();
-        let runtime = inner.runtime();
-        let (tx, rx) = channel();
+        let (tx, mut rx) = channel(10);
         let operation = TorrentTrackersOperation::new();
 
         let mut receiver = torrent.subscribe();
-        runtime.spawn(async move {
+        tokio::spawn(async move {
             loop {
                 if let Some(event) = receiver.recv().await {
                     if let TorrentEvent::TrackersChanged = *event {
-                        tx.send(()).unwrap();
+                        tx.send(()).await.unwrap();
                         break;
                     }
                 } else {
@@ -147,18 +149,20 @@ mod tests {
             }
         });
 
-        let result = runtime.block_on(operation.execute(&inner));
+        let result = operation.execute(&inner).await;
         assert_eq!(TorrentOperationResult::Stop, result, "expected the chain to stop if the metadata is unknown and no tracker connections have yet been established");
 
-        let _ = rx
-            .recv_timeout(Duration::from_secs(2))
-            .expect("expected a tracker connection to have been established");
-        let result = runtime.block_on(operation.execute(&inner));
+        recv_timeout!(
+            &mut rx,
+            Duration::from_secs(2),
+            "expected a tracker connection to have been established"
+        );
+        let result = operation.execute(&inner).await;
         assert_eq!(TorrentOperationResult::Continue, result);
     }
 
-    #[test]
-    fn test_execute_metadata_info_known() {
+    #[tokio::test]
+    async fn test_execute_metadata_info_known() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -168,13 +172,13 @@ mod tests {
             temp_path,
             TorrentFlags::none(),
             TorrentConfig::default(),
+            vec![],
             vec![]
         );
         let inner = torrent.instance().unwrap();
-        let runtime = inner.runtime();
         let operation = TorrentTrackersOperation::new();
 
-        let result = runtime.block_on(operation.execute(&inner));
+        let result = operation.execute(&inner).await;
         assert_eq!(
             TorrentOperationResult::Continue,
             result,

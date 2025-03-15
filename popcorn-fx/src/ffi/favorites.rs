@@ -1,8 +1,8 @@
 use std::os::raw::c_char;
 use std::ptr;
 
-use log::{error, info, trace};
-
+use log::{debug, error, info, trace};
+use popcorn_fx_core::core::block_in_place_runtime;
 use popcorn_fx_core::core::media::Category;
 use popcorn_fx_core::from_c_string;
 
@@ -56,17 +56,14 @@ pub extern "C" fn retrieve_available_favorites(
         sort_by,
         page
     );
-    match popcorn_fx
-        .runtime()
-        .block_on(popcorn_fx.providers().retrieve(
-            &Category::Favorites,
-            &genre,
-            &sort_by,
-            &keywords,
-            page,
-        )) {
+    let providers = popcorn_fx.providers().clone();
+    match block_in_place_runtime(
+        providers.retrieve(&Category::Favorites, &genre, &sort_by, &keywords, page),
+        popcorn_fx.runtime(),
+    ) {
         Ok(e) => {
-            info!("Retrieved a total of {} favorites, {:?}", e.len(), &e);
+            info!("Retrieved a total of {} favorites", e.len());
+            debug!("Favorite items {:?}", e);
             favorites_to_c(e)
         }
         Err(e) => {

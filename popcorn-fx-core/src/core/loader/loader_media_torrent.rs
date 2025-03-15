@@ -127,8 +127,8 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    fn test_process_movie() {
+    #[tokio::test]
+    async fn test_process_movie() {
         init_logger!();
         let quality = "720p";
         let torrent_url = "magnet:?MyUrl";
@@ -175,10 +175,9 @@ mod tests {
         let mut data = LoadingData::from(item);
         let task = create_loading_task!();
         let context = task.context();
-        let runtime = context.runtime();
         let strategy = MediaTorrentUrlLoadingStrategy::new();
 
-        let result = runtime.block_on(strategy.process(&mut data, &*context));
+        let result = strategy.process(&mut data, &*context).await;
 
         if let LoadingResult::Ok = result {
             assert_eq!(Some(torrent_url.to_string()), data.url);
@@ -191,8 +190,8 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_cancel() {
+    #[tokio::test]
+    async fn test_cancel() {
         init_logger!();
         let url = "http://localhost:9090/DolorEsta.mp4";
         let title = "FooBar";
@@ -208,12 +207,9 @@ mod tests {
             torrent: Default::default(),
         };
         let data = LoadingData::from(item);
-        let task = create_loading_task!();
-        let context = task.context();
-        let runtime = context.runtime();
         let strategy = MediaTorrentUrlLoadingStrategy::new();
 
-        let result = runtime.block_on(strategy.cancel(data.clone()));
+        let result = strategy.cancel(data.clone()).await;
 
         assert_eq!(Ok(data), result);
     }

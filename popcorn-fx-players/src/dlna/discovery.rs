@@ -8,12 +8,10 @@ use log::{debug, error, info, trace, warn};
 use rupnp::http::uri::InvalidUri;
 use rupnp::Device;
 use ssdp_client::{Error, SearchResponse, SearchTarget, URN};
-use tokio::runtime::Runtime;
 use tokio::sync::Mutex;
 use tokio::time;
 use tokio_util::sync::CancellationToken;
 
-use popcorn_fx_core::core::block_in_place;
 use popcorn_fx_core::core::players::PlayerManager;
 use popcorn_fx_core::core::subtitles::SubtitleServer;
 
@@ -25,11 +23,10 @@ pub(crate) const AV_TRANSPORT: URN = URN::service("schemas-upnp-org", "AVTranspo
 const DEFAULT_INTERVAL_SECONDS: u64 = 120;
 
 /// Represents a DLNA discovery service responsible for discovering DLNA devices within the local network.
-#[derive(Display)]
+#[derive(Display, Clone)]
 #[display(fmt = "DLNA device discovery")]
 pub struct DlnaDiscovery {
     inner: Arc<InnerDlnaDiscovery>,
-    runtime: Arc<Runtime>,
 }
 
 impl DlnaDiscovery {
@@ -41,18 +38,18 @@ impl DlnaDiscovery {
 
 #[async_trait]
 impl Discovery for DlnaDiscovery {
-    fn state(&self) -> DiscoveryState {
-        self.inner.state()
+    async fn state(&self) -> DiscoveryState {
+        self.inner.state().await
     }
 
     async fn start_discovery(&self) -> crate::Result<()> {
-        let state = self.inner.state();
+        let state = self.inner.state().await;
 
         if state != DiscoveryState::Running {
             debug!("Starting DLNA devices discovery");
             let inner = self.inner.clone();
-            self.runtime.spawn(async move {
-                inner.update_state(DiscoveryState::Running);
+            tokio::spawn(async move {
+                inner.update_state(DiscoveryState::Running).await;
                 loop {
                     if inner.cancel_token.is_cancelled() {
                         break;
@@ -67,7 +64,7 @@ impl Discovery for DlnaDiscovery {
                     }
                     time::sleep(Duration::from_secs(inner.interval_seconds)).await;
                 }
-                inner.update_state(DiscoveryState::Stopped);
+                inner.update_state(DiscoveryState::Stopped).await;
             });
 
             Ok(())
@@ -77,9 +74,7 @@ impl Discovery for DlnaDiscovery {
     }
 
     fn stop_discovery(&self) -> crate::Result<()> {
-        let state = self.inner.state();
-
-        if state == DiscoveryState::Running && !self.inner.cancel_token.is_cancelled() {
+        if !self.inner.cancel_token.is_cancelled() {
             trace!("Stopping DLNA devices discovery");
             self.inner.cancel_token.cancel();
         }
@@ -99,7 +94,6 @@ impl Drop for DlnaDiscovery {
 pub struct DlnaDiscoveryBuilder {
     player_manager: Option<Arc<Box<dyn PlayerManager>>>,
     subtitle_server: Option<Arc<SubtitleServer>>,
-    runtime: Option<Arc<Runtime>>,
     interval_seconds: Option<u64>,
 }
 
@@ -107,12 +101,6 @@ impl DlnaDiscoveryBuilder {
     /// Creates a new instance of the builder.
     pub fn builder() -> Self {
         Self::default()
-    }
-
-    /// Sets the runtime for the DLNA discovery.
-    pub fn runtime(mut self, runtime: Arc<Runtime>) -> Self {
-        self.runtime = Some(runtime);
-        self
     }
 
     /// Sets the interval between DLNA discovery checks, in seconds.
@@ -139,9 +127,6 @@ impl DlnaDiscoveryBuilder {
     ///
     /// Panics if the player manager is not set.
     pub fn build(self) -> DlnaDiscovery {
-        let runtime = self
-            .runtime
-            .unwrap_or_else(|| Arc::new(Runtime::new().expect("expected a valid runtime")));
         let interval_seconds = self.interval_seconds.unwrap_or(DEFAULT_INTERVAL_SECONDS);
 
         DlnaDiscovery {
@@ -157,7 +142,6 @@ impl DlnaDiscoveryBuilder {
                 state: Mutex::new(DiscoveryState::Stopped),
                 cancel_token: Default::default(),
             }),
-            runtime,
         }
     }
 }
@@ -172,13 +156,12 @@ struct InnerDlnaDiscovery {
 }
 
 impl InnerDlnaDiscovery {
-    fn state(&self) -> DiscoveryState {
-        let mutex = block_in_place(self.state.lock());
-        mutex.clone()
+    async fn state(&self) -> DiscoveryState {
+        *self.state.lock().await
     }
 
-    fn update_state(&self, state: DiscoveryState) {
-        let mut mutex = block_in_place(self.state.lock());
+    async fn update_state(&self, state: DiscoveryState) {
+        let mut mutex = self.state.lock().await;
         trace!("Updating DLNA server state to {:?}", state);
         *mutex = state.clone();
         info!("DLNA discovery state changed to {}", state);
@@ -272,29 +255,26 @@ mod tests {
     use popcorn_fx_core::{assert_timeout, init_logger};
     use std::sync::mpsc::channel;
 
-    #[test]
-    fn test_state() {
+    #[tokio::test]
+    async fn test_state() {
         init_logger!();
-        let runtime = Arc::new(Runtime::new().unwrap());
         let player_manager = MockPlayerManager::new();
         let subtitle_provider = MockSubtitleProvider::new();
         let subtitle_server = Arc::new(SubtitleServer::new(Arc::new(Box::new(subtitle_provider))));
         let server = DlnaDiscovery::builder()
-            .runtime(runtime.clone())
             .interval_seconds(1)
             .player_manager(Arc::new(Box::new(player_manager)))
             .subtitle_server(subtitle_server)
             .build();
 
-        let result = server.state();
+        let result = server.state().await;
 
         assert_eq!(DiscoveryState::Stopped, result);
     }
 
-    #[test]
-    fn test_execute_search() {
+    #[tokio::test]
+    async fn test_execute_search() {
         init_logger!();
-        let runtime = Arc::new(Runtime::new().unwrap());
         let server = MockServer::start();
         server.mock(|when, then| {
             when.method(GET).path("/description.xml");
@@ -316,40 +296,36 @@ mod tests {
         let subtitle_provider = MockSubtitleProvider::new();
         let subtitle_server = Arc::new(SubtitleServer::new(Arc::new(Box::new(subtitle_provider))));
         let _dlna_server = MockUdpServer::new()
-            .runtime(runtime.clone())
             .device_name("test")
             .upnp_server_addr(server.address().clone())
             .build();
         let server = DlnaDiscovery::builder()
-            .runtime(runtime.clone())
             .interval_seconds(1)
             .player_manager(Arc::new(Box::new(player_manager)))
             .subtitle_server(subtitle_server)
             .build();
 
-        let result = runtime.block_on(server.inner.execute_search());
+        let result = server.inner.execute_search().await;
         assert_eq!(false, result.is_err(), "expected no error");
 
         let player = rx.recv_timeout(Duration::from_millis(200)).unwrap();
         assert_eq!("test", player.name());
     }
 
-    #[test]
-    fn test_stop_discovery() {
+    #[tokio::test]
+    async fn test_stop_discovery() {
         init_logger!();
-        let runtime = Arc::new(Runtime::new().unwrap());
         let mut player_manager = MockPlayerManager::new();
         player_manager.expect_add_player().return_const(true);
         let subtitle_provider = MockSubtitleProvider::new();
         let subtitle_server = Arc::new(SubtitleServer::new(Arc::new(Box::new(subtitle_provider))));
         let server = DlnaDiscovery::builder()
-            .runtime(runtime.clone())
             .interval_seconds(1)
             .player_manager(Arc::new(Box::new(player_manager)))
             .subtitle_server(subtitle_server)
             .build();
 
-        let result = runtime.block_on(server.start_discovery());
+        let result = server.start_discovery().await;
         assert_eq!(
             true,
             result.is_ok(),
@@ -357,7 +333,7 @@ mod tests {
         );
         assert_timeout!(
             Duration::from_millis(200),
-            DiscoveryState::Running == server.inner.state()
+            DiscoveryState::Running == server.inner.state().await
         );
 
         server.stop_discovery().unwrap();
@@ -368,7 +344,7 @@ mod tests {
         );
         assert_timeout!(
             Duration::from_millis(1500),
-            DiscoveryState::Stopped == server.inner.state()
+            DiscoveryState::Stopped == server.inner.state().await
         );
     }
 }

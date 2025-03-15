@@ -234,19 +234,18 @@ mod tests {
     use crate::core::media::ShowOverview;
     use crate::core::playlist::{PlaylistItem, PlaylistMedia};
     use crate::core::torrents::{MockTorrent, MockTorrentManager, TorrentInfo};
-    use crate::{create_loading_task, init_logger};
+    use crate::{create_loading_task, init_logger, recv_timeout};
 
     use fx_callback::{Callback, MultiThreadedCallback};
     use mockall::predicate::eq;
     use popcorn_fx_torrent::torrent::TorrentFileInfo;
     use std::path::PathBuf;
-    use std::sync::mpsc::channel;
     use std::time::Duration;
     use tempfile::tempdir;
-    use tokio::runtime::Runtime;
+    use tokio::sync::mpsc::unbounded_channel;
 
-    #[test]
-    fn test_process_url() {
+    #[tokio::test]
+    async fn test_process_url() {
         init_logger!();
         let magnet_url = "magnet:?MyTorrent";
         let expected_handle = TorrentHandle::new();
@@ -270,10 +269,10 @@ mod tests {
             subtitle: Default::default(),
             torrent: Default::default(),
         });
-        let (tx_uri, rx_uri) = channel();
-        let (tx_handle, rx_handle) = channel();
+        let (tx_uri, mut rx_uri) = unbounded_channel();
+        let (tx_handle, mut rx_handle) = unbounded_channel();
         let manager_info = info.clone();
-        let callback = MultiThreadedCallback::new(Arc::new(Runtime::new().unwrap()));
+        let callback = MultiThreadedCallback::new();
         let mut torrent = MockTorrent::new();
         torrent.expect_handle().return_const(expected_handle);
         torrent
@@ -293,11 +292,10 @@ mod tests {
         });
         let task = create_loading_task!();
         let context = task.context();
-        let runtime = context.runtime();
         let strategy = TorrentInfoLoadingStrategy::new(Arc::new(Box::new(torrent_manager)));
 
         // process the data, which should load the magnet url into a Torrent
-        let result = runtime.block_on(strategy.process(&mut data, &*context));
+        let result = strategy.process(&mut data, &*context).await;
         if let LoadingResult::Ok = result {
             assert_eq!(None, data.url, "expected url to be None");
             assert!(data.torrent.is_some(), "expected torrent to be Some");
@@ -309,15 +307,22 @@ mod tests {
             );
         }
 
-        let result_url = rx_uri.recv_timeout(Duration::from_millis(200)).unwrap();
-        assert_eq!(magnet_url.to_string(), result_url);
+        let result_url = recv_timeout!(&mut rx_uri, Duration::from_millis(200));
+        assert_eq!(
+            magnet_url.to_string(),
+            result_url,
+            "expected the magnet url to match"
+        );
 
-        let result_handle = rx_handle.recv_timeout(Duration::from_millis(200)).unwrap();
-        assert_eq!(expected_handle, result_handle);
+        let result_handle = recv_timeout!(&mut rx_handle, Duration::from_millis(200));
+        assert_eq!(
+            expected_handle, result_handle,
+            "expected the torrent handle to match"
+        );
     }
 
-    #[test]
-    fn test_process_media_url() {
+    #[tokio::test]
+    async fn test_process_media_url() {
         init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let filename = "MySecondFile";
@@ -414,12 +419,11 @@ mod tests {
             ],
         };
         let mut data = LoadingData::from(item);
-        let (tx, rx) = channel();
+        let (tx, mut rx) = unbounded_channel();
         let manager_info = info.clone();
         let task = create_loading_task!();
         let context = task.context();
-        let runtime = context.runtime();
-        let callback = MultiThreadedCallback::<TorrentEvent>::new(runtime.clone());
+        let callback = MultiThreadedCallback::<TorrentEvent>::new();
         let mut torrent = MockTorrent::new();
         torrent.expect_handle().return_const(TorrentHandle::new());
         torrent
@@ -440,10 +444,11 @@ mod tests {
 
         let strategy = TorrentInfoLoadingStrategy::new(Arc::new(Box::new(torrent_manager)));
 
-        let result = runtime.block_on(strategy.process(&mut data, &*context));
-        let resolve_url = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        let result = strategy.process(&mut data, &*context).await;
 
+        let resolve_url = recv_timeout!(&mut rx, Duration::from_millis(200));
         assert_eq!(magnet_url.to_string(), resolve_url);
+
         if let LoadingResult::Ok = result {
             assert!(
                 data.torrent_file.is_some(),
@@ -458,8 +463,8 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_process_non_magnet_url() {
+    #[tokio::test]
+    async fn test_process_non_magnet_url() {
         init_logger!();
         let magnet_url = "https://www.youtube.com/v/qwe5485";
         let item = PlaylistItem {
@@ -491,10 +496,9 @@ mod tests {
             .returning(move |_| Ok(manager_info.clone()));
         let task = create_loading_task!();
         let context = task.context();
-        let runtime = context.runtime();
         let strategy = TorrentInfoLoadingStrategy::new(Arc::new(Box::new(torrent_manager)));
 
-        let result = runtime.block_on(strategy.process(&mut data, &*context));
+        let result = strategy.process(&mut data, &*context).await;
         assert_eq!(LoadingResult::Ok, result);
     }
 }

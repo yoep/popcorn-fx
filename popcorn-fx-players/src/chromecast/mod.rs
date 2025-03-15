@@ -20,14 +20,12 @@ mod tests {
 
     use log::{debug, error, warn};
     use mdns_sd::{ServiceDaemon, ServiceInfo};
-    use popcorn_fx_core::core::block_in_place;
     use protobuf::{EnumOrUnknown, Message};
     use rust_cast::cast::cast_channel;
     use rust_cast::cast::cast_channel::cast_message::{PayloadType, ProtocolVersion};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::tcp::WriteHalf;
     use tokio::net::{TcpListener, TcpStream};
-    use tokio::runtime::Runtime;
     use tokio::sync::RwLock;
     use tokio_rustls::rustls::pki_types::PrivateKeyDer;
     use tokio_rustls::{rustls, TlsAcceptor};
@@ -50,8 +48,8 @@ mod tests {
     }
 
     impl MdnsInstance {
-        pub fn add_response(&self, namespace: impl Into<String>, payload: impl Into<String>) {
-            let mut mutex = block_in_place(self.responses.write());
+        pub async fn add_response(&self, namespace: impl Into<String>, payload: impl Into<String>) {
+            let mut mutex = self.responses.write().await;
             mutex.insert(namespace.into(), payload.into());
         }
     }
@@ -68,16 +66,14 @@ mod tests {
     pub struct TestInstance {
         pub mdns: Option<MdnsInstance>,
         pub player: Option<ChromecastPlayer<MockFxCastDevice>>,
-        pub runtime: Arc<Runtime>,
         pub cancel_token: CancellationToken,
     }
 
     impl TestInstance {
-        pub fn new_mdns() -> Self {
+        pub async fn new_mdns() -> Self {
             let mut instance = Self::new();
-            let listener = instance
-                .runtime
-                .block_on(TcpListener::bind("0.0.0.0:0"))
+            let listener = TcpListener::bind("0.0.0.0:0")
+                .await
                 .expect("expected a TCP address to be bound");
             let socket_addr = listener.local_addr().expect("expected a valid socket");
             let addr = SocketAddr::new(ip_addr(), socket_addr.port());
@@ -86,7 +82,7 @@ mod tests {
 
             let thread_responses = responses.clone();
             let thread_cancel = instance.cancel_token.clone();
-            instance.runtime.spawn(async move {
+            tokio::spawn(async move {
                 let config = rustls::ServerConfig::builder()
                     .with_no_client_auth()
                     .with_single_cert(
@@ -172,12 +168,9 @@ mod tests {
         }
 
         fn new() -> Self {
-            let runtime = Arc::new(Runtime::new().unwrap());
-
             Self {
                 mdns: None,
                 player: None,
-                runtime,
                 cancel_token: Default::default(),
             }
         }

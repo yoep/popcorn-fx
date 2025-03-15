@@ -1,34 +1,137 @@
-use log::{debug, error, info, trace, warn};
-use tokio::sync::Mutex;
-
 use crate::core::storage::{Storage, StorageError};
+use crate::core::torrents;
 use crate::core::torrents::collection::{Collection, MagnetInfo};
 use crate::core::torrents::Error;
-use crate::core::{block_in_place, torrents};
+use log::{debug, error, info, trace, warn};
+use std::sync::Arc;
+use tokio::select;
+use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
+use tokio::sync::RwLock;
+use tokio_util::sync::CancellationToken;
 
 const FILENAME: &str = "torrent-collection.json";
 
 /// The torrent collections stores magnet uri information.
 /// This information can be queried later on for more information about the torrent itself.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TorrentCollection {
-    storage: Storage,
-    cache: Mutex<Option<Collection>>,
+    inner: Arc<InnerTorrentCollection>,
 }
 
 impl TorrentCollection {
+    /// Create a new torrent collection.
+    /// The collection will be stored within the storage directory location.
+    ///
+    /// # Arguments
+    ///
+    /// * `storage_directory` - The absolute path to store the torrent collection in.
+    ///
+    /// # Returns
+    ///
+    /// It returns a new torrent collection.
     pub fn new(storage_directory: &str) -> Self {
-        Self {
+        let (command_sender, command_receiver) = unbounded_channel();
+        let inner = Arc::new(InnerTorrentCollection {
             storage: Storage::from(storage_directory),
-            cache: Mutex::new(None),
-        }
+            cache: RwLock::new(None),
+            command_sender,
+            cancellation_token: Default::default(),
+        });
+
+        let inner_main = inner.clone();
+        tokio::spawn(async move {
+            inner_main.start(command_receiver).await;
+        });
+
+        Self { inner }
     }
 
     /// Verify if the given uri is already stored.
-    pub fn is_stored(&self, uri: &str) -> bool {
-        match futures::executor::block_on(self.load_collection_cache()) {
+    pub async fn is_stored(&self, uri: &str) -> bool {
+        self.inner.is_stored(uri).await
+    }
+
+    /// Retrieve all stored magnets as owned instances.
+    /// It returns the array of available [MagnetInfo] items, else the [Error].
+    pub async fn all(&self) -> torrents::Result<Vec<MagnetInfo>> {
+        match self.inner.load_collection_cache().await {
             Ok(_) => {
-                let mutex = self.cache.blocking_lock();
+                let mutex = self.inner.cache.read().await;
+                let cache = mutex.as_ref().expect("expected the cache to be present");
+
+                Ok(cache.torrents.clone())
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    /// Insert the given magnet info into the collection.
+    pub async fn insert(&self, name: &str, magnet_uri: &str) {
+        match self.inner.load_collection_cache().await {
+            Ok(_) => {
+                let mut mutex = self.inner.cache.write().await;
+                let cache = mutex.as_mut().expect("expected the cache to be present");
+
+                cache.insert(name, magnet_uri);
+                self.inner.send_command(TorrentCollectionCommand::Save);
+            }
+            Err(e) => {
+                error!("Failed to load torrent collection, {}", e);
+            }
+        }
+    }
+
+    /// Remove the given magnet uri from the collection.
+    pub async fn remove(&self, magnet_uri: &str) {
+        match self.inner.load_collection_cache().await {
+            Ok(_) => {
+                let mut mutex = self.inner.cache.write().await;
+                let cache = mutex.as_mut().expect("expected the cache to be present");
+
+                cache.remove(magnet_uri);
+                self.inner.send_command(TorrentCollectionCommand::Save);
+            }
+            Err(e) => error!("Failed to remove the magnet from the collection, {}", e),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+enum TorrentCollectionCommand {
+    /// Save the current torrent collection to the storage device.
+    Save,
+}
+
+#[derive(Debug)]
+struct InnerTorrentCollection {
+    storage: Storage,
+    cache: RwLock<Option<Collection>>,
+    command_sender: UnboundedSender<TorrentCollectionCommand>,
+    cancellation_token: CancellationToken,
+}
+
+impl InnerTorrentCollection {
+    async fn start(&self, mut receiver: UnboundedReceiver<TorrentCollectionCommand>) {
+        loop {
+            select! {
+                _ = self.cancellation_token.cancelled() => break,
+                Some(command) = receiver.recv() => self.handle_command(command).await,
+            }
+        }
+        self.save().await;
+        debug!("Torrent collection main loop ended");
+    }
+
+    async fn handle_command(&self, command: TorrentCollectionCommand) {
+        match command {
+            TorrentCollectionCommand::Save => self.save().await,
+        }
+    }
+
+    async fn is_stored(&self, uri: &str) -> bool {
+        match self.load_collection_cache().await {
+            Ok(_) => {
+                let mutex = self.cache.read().await;
                 let cache = mutex.as_ref().expect("expected the cache to be loaded");
 
                 cache.contains(uri)
@@ -40,52 +143,23 @@ impl TorrentCollection {
         }
     }
 
-    /// Retrieve all stored magnets as owned instances.
-    /// It returns the array of available [MagnetInfo] items, else the [Error].
-    pub fn all(&self) -> torrents::Result<Vec<MagnetInfo>> {
-        match futures::executor::block_on(self.load_collection_cache()) {
-            Ok(_) => {
-                let mutex = self.cache.blocking_lock();
-                let cache = mutex.as_ref().expect("expected the cache to be present");
-
-                Ok(cache.torrents.clone())
-            }
-            Err(e) => Err(e),
-        }
-    }
-
-    /// Insert the given magnet info into the collection.
-    pub fn insert(&self, name: &str, magnet_uri: &str) {
-        match futures::executor::block_on(self.load_collection_cache()) {
-            Ok(_) => {
-                let mut mutex = self.cache.blocking_lock();
-                let cache = mutex.as_mut().expect("expected the cache to be present");
-
-                cache.insert(name, magnet_uri);
-                self.save(cache);
-            }
-            Err(e) => {
-                error!("Failed to load torrent collection, {}", e);
-            }
-        }
-    }
-
-    /// Remove the given magnet uri from the collection.
-    pub fn remove(&self, magnet_uri: &str) {
-        match futures::executor::block_on(self.load_collection_cache()) {
-            Ok(_) => {
-                let mut mutex = self.cache.blocking_lock();
-                let cache = mutex.as_mut().expect("expected the cache to be present");
-
-                cache.remove(magnet_uri);
-                self.save(cache);
-            }
-            Err(e) => error!("Failed to remove the magnet from the collection, {}", e),
+    async fn save(&self) {
+        trace!("Torrent collection is saving collection");
+        let collection = self.cache.read().await;
+        match self
+            .storage
+            .options()
+            .serializer(FILENAME)
+            .write_async(&*collection)
+            .await
+        {
+            Ok(_) => info!("Torrent collection data has been saved"),
+            Err(e) => error!("Failed to save torrent collection, {}", e),
         }
     }
 
     async fn load_collection_cache(&self) -> torrents::Result<()> {
-        let mut cache = self.cache.lock().await;
+        let mut cache = self.cache.write().await;
 
         if cache.is_none() {
             trace!("Loading torrent collection cache");
@@ -127,20 +201,9 @@ impl TorrentCollection {
         }
     }
 
-    fn save(&self, collection: &Collection) {
-        block_in_place(self.save_async(collection))
-    }
-
-    async fn save_async(&self, collection: &Collection) {
-        match self
-            .storage
-            .options()
-            .serializer(FILENAME)
-            .write_async(collection)
-            .await
-        {
-            Ok(_) => info!("Torrent collection data has been saved"),
-            Err(e) => error!("Failed to save torrent collection, {}", e),
+    fn send_command(&self, command: TorrentCollectionCommand) {
+        if let Err(e) = self.command_sender.send(command) {
+            debug!("Torrent collection failed to send command, {}", e);
         }
     }
 }
@@ -154,8 +217,8 @@ mod test {
 
     use super::*;
 
-    #[test]
-    fn test_is_stored() {
+    #[tokio::test]
+    async fn test_is_stored() {
         init_logger!();
         let magnet_uri = "magnet:?MyMagnetUri1";
         let temp_dir = tempdir().unwrap();
@@ -163,13 +226,13 @@ mod test {
         let collection = TorrentCollection::new(temp_path);
         copy_test_file(temp_path, "torrent-collection.json", None);
 
-        let result = collection.is_stored(magnet_uri);
+        let result = collection.is_stored(magnet_uri).await;
 
         assert_eq!(true, result)
     }
 
-    #[test]
-    fn test_insert_new_item() {
+    #[tokio::test]
+    async fn test_insert_new_item() {
         init_logger!();
         let name = "MyMagnet";
         let uri = "magnet:?LoremIpsumConn";
@@ -181,17 +244,20 @@ mod test {
             magnet_uri: uri.to_string(),
         }];
 
-        collection.insert(name, uri);
+        collection.insert(name, uri).await;
 
-        let result = collection.is_stored(uri);
+        let result = collection.is_stored(uri).await;
         assert_eq!(true, result);
 
-        let magnets = collection.all().expect("expected magnet to be returned");
+        let magnets = collection
+            .all()
+            .await
+            .expect("expected magnet to be returned");
         assert_eq!(expected_result, magnets)
     }
 
-    #[test]
-    fn test_remove_magnet_uri() {
+    #[tokio::test]
+    async fn test_remove_magnet_uri() {
         init_logger!();
         let uri = "magnet:?MyMagnetUri1";
         let temp_dir = tempdir().unwrap();
@@ -203,9 +269,10 @@ mod test {
             magnet_uri: "magnet:?MyMagnet2MagnetUrl".to_string(),
         }];
 
-        collection.remove(uri);
+        collection.remove(uri).await;
         let result = collection
             .all()
+            .await
             .expect("expected the magnets to be returned");
 
         assert_eq!(expected_result, result)

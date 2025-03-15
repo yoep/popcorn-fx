@@ -31,7 +31,7 @@ pub enum DiscoveryError {
 pub type Result<T> = std::result::Result<T, DiscoveryError>;
 
 /// Represents the states of a discovery process.
-#[derive(Debug, Display, Clone, PartialEq)]
+#[derive(Debug, Display, Copy, Clone, PartialEq)]
 pub enum DiscoveryState {
     /// Indicates that the discovery process is running.
     #[display(fmt = "Running")]
@@ -48,7 +48,7 @@ pub enum DiscoveryState {
 #[async_trait]
 pub trait Discovery: Display + Send + Sync {
     /// Returns the current state of the discovery process.
-    fn state(&self) -> DiscoveryState;
+    async fn state(&self) -> DiscoveryState;
 
     /// Starts the discovery process.
     ///

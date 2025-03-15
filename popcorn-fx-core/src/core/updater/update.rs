@@ -7,29 +7,29 @@ use std::sync::Arc;
 use derive_more::Display;
 use flate2::read::GzDecoder;
 use futures::StreamExt;
+use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use log::{debug, error, info, trace, warn};
 use reqwest::{Client, ClientBuilder, Response, StatusCode};
 use semver::Version;
 use tar::Archive;
-use tokio::runtime::Runtime;
+use tokio::select;
+use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::sync::Mutex;
+use tokio_util::sync::CancellationToken;
 use url::Url;
 
 use crate::core::config::ApplicationConfig;
 use crate::core::launcher::LauncherOptions;
 use crate::core::platform::PlatformData;
 use crate::core::storage::{Storage, StorageError};
+use crate::core::updater;
 use crate::core::updater::task::UpdateTask;
 use crate::core::updater::{UpdateError, VersionInfo};
-use crate::core::{updater, Callbacks, CoreCallback, CoreCallbacks};
 use crate::VERSION;
 
 const UPDATE_INFO_FILE: &str = "versions.json";
 const UPDATE_DIRECTORY: &str = "updates";
 const RUNTIMES_DIRECTORY: &str = "runtimes";
-
-/// A type representing a callback function that can handle update events.
-pub type UpdateCallback = CoreCallback<UpdateEvent>;
 
 /// Represents the events that can occur during an update process.
 #[derive(Debug, Clone, Display)]
@@ -100,6 +100,30 @@ impl Updater {
         UpdaterBuilder::default()
     }
 
+    pub fn new(
+        settings: ApplicationConfig,
+        platform: Arc<Box<dyn PlatformData>>,
+        data_path: &str,
+        insecure: bool,
+    ) -> Self {
+        let (command_sender, command_receiver) = unbounded_channel();
+        let inner = Arc::new(InnerUpdater::new(
+            settings,
+            insecure,
+            platform,
+            data_path,
+            command_sender,
+        ));
+
+        let inner_main = inner.clone();
+        tokio::spawn(async move {
+            inner_main.start(command_receiver).await;
+        });
+        inner.send_command(UpdaterCommand::Poll);
+
+        Self { inner }
+    }
+
     /// Retrieve the version information from the update channel.
     ///
     /// This will return the cached info if present and otherwise poll the channel for the info.
@@ -116,8 +140,8 @@ impl Updater {
     /// # Returns
     ///
     /// The current update state.
-    pub fn state(&self) -> UpdateState {
-        self.inner.state()
+    pub async fn state(&self) -> UpdateState {
+        self.inner.state().await
     }
 
     /// Poll the [PopcornProperties] for a new version.
@@ -129,15 +153,6 @@ impl Updater {
     /// Returns when the action is completed or returns an error when the polling failed.
     pub async fn poll(&self) -> updater::Result<VersionInfo> {
         self.inner.poll().await
-    }
-
-    /// Register a new callback for events of the updater.
-    ///
-    /// # Arguments
-    ///
-    /// * `callback` - the callback to be registered.
-    pub fn register(&self, callback: UpdateCallback) {
-        self.inner.register(callback)
     }
 
     /// Download the latest update version of the application if available.
@@ -159,28 +174,35 @@ impl Updater {
     /// # Returns
     ///
     /// An error when the update installation failed to start.
-    pub fn install(&self) -> updater::Result<()> {
-        self.inner.install(self.inner.clone())
+    pub async fn install(&self) -> updater::Result<()> {
+        self.inner.install(self.inner.clone()).await
     }
 
     /// Poll the update channel for new versions.
     ///
     /// If the updater state is [UpdateState::CheckingForNewVersion], then the call will be ignored.
-    pub fn check_for_updates(&self) {
-        if self.inner.state() == UpdateState::CheckingForNewVersion {
+    pub async fn check_for_updates(&self) {
+        if self.inner.state().await == UpdateState::CheckingForNewVersion {
             debug!("Updater is already checking for new version, ignoring check_for_updates");
             return;
         }
+        self.inner.send_command(UpdaterCommand::Poll);
+    }
+}
 
-        self.start_polling()
+impl Callback<UpdateEvent> for Updater {
+    fn subscribe(&self) -> Subscription<UpdateEvent> {
+        self.inner.callbacks.subscribe()
     }
 
-    /// Start polling the update channel on a new thread.
-    fn start_polling(&self) {
-        let updater = self.inner.clone();
-        self.inner
-            .runtime
-            .spawn(async move { updater.poll().await });
+    fn subscribe_with(&self, subscriber: Subscriber<UpdateEvent>) {
+        self.inner.callbacks.subscribe_with(subscriber)
+    }
+}
+
+impl Drop for Updater {
+    fn drop(&mut self) {
+        self.inner.cancellation_token.cancel();
     }
 }
 
@@ -193,22 +215,15 @@ impl Updater {
 /// use std::sync::{Arc};
 /// use tokio::sync::Mutex;
 /// use popcorn_fx_core::core::config::ApplicationConfig;
-/// use popcorn_fx_core::core::updater::{UpdateCallback, UpdateEvent, UpdaterBuilder};
+/// use popcorn_fx_core::core::updater::{UpdateEvent, UpdaterBuilder};
 ///
-/// let config = Arc::new(Mutex::new(ApplicationConfig::default()));
+/// let config = ApplicationConfig::builder().build();
 /// let platform = Arc::new(Box::new(MyPlatformData));
-///
-/// let callback = UpdateCallback::new(|event| {
-///     if let UpdateEvent::UpdateAvailable(version) = event {
-///         println!("New update available: {}", version);
-///     }
-/// });
 ///
 /// let builder = UpdaterBuilder::default()
 ///     .settings(config)
 ///     .platform(platform)
-///     .data_path("~/.local/share/popcorn-fx")
-///     .with_callback(callback);
+///     .data_path("~/.local/share/popcorn-fx");
 ///
 /// let updater = builder.build();
 /// ```
@@ -217,17 +232,15 @@ impl Updater {
 /// It then uses the builder to construct an `Updater` instance, which is returned and can be used to check for and install updates.
 #[derive(Default)]
 pub struct UpdaterBuilder {
-    settings: Option<Arc<ApplicationConfig>>,
+    settings: Option<ApplicationConfig>,
     insecure: bool,
     platform: Option<Arc<Box<dyn PlatformData>>>,
     data_path: Option<String>,
-    callbacks: Vec<UpdateCallback>,
-    runtime: Option<Arc<Runtime>>,
 }
 
 impl UpdaterBuilder {
     /// Sets the application settings for the updater.
-    pub fn settings(mut self, settings: Arc<ApplicationConfig>) -> Self {
+    pub fn settings(mut self, settings: ApplicationConfig) -> Self {
         self.settings = Some(settings);
         self
     }
@@ -250,18 +263,6 @@ impl UpdaterBuilder {
         self
     }
 
-    /// Adds an update callback to the updater.
-    pub fn with_callback(mut self, callback: UpdateCallback) -> Self {
-        self.callbacks.push(callback);
-        self
-    }
-
-    /// Sets the Tokio runtime for the updater.
-    pub fn runtime(mut self, runtime: Arc<Runtime>) -> Self {
-        self.runtime = Some(runtime);
-        self
-    }
-
     /// Constructs a new updater and starts polling the update channel.
     ///
     /// This method constructs a new `Updater` instance using the settings, platform, storage path, and callbacks configured
@@ -276,21 +277,12 @@ impl UpdaterBuilder {
     /// - `platform`
     /// - `data_path`
     pub fn build(self) -> Updater {
-        let instance = Updater {
-            inner: Arc::new(InnerUpdater::new(
-                self.settings.expect("Settings are not set"),
-                self.insecure,
-                self.platform.expect("Platform is not set"),
-                self.data_path.expect("Data path is not set").as_str(),
-                self.callbacks,
-                self.runtime
-                    .or_else(|| Some(Arc::new(Runtime::new().unwrap())))
-                    .unwrap(),
-            )),
-        };
+        let settings = self.settings.expect("Settings are not set");
+        let platform = self.platform.expect("Platform is not set");
+        let data_path = self.data_path.expect("Data path is not set");
+        let insecure = self.insecure;
 
-        instance.start_polling();
-        instance
+        Updater::new(settings, platform, data_path.as_str(), insecure)
     }
 }
 
@@ -301,9 +293,14 @@ impl Debug for UpdaterBuilder {
             .field("insecure", &self.insecure)
             .field("platform", &self.platform)
             .field("storage_path", &self.data_path)
-            .field("runtime", &self.runtime)
             .finish()
     }
+}
+
+#[derive(Debug, PartialEq)]
+enum UpdaterCommand {
+    Poll,
+    Clean,
 }
 
 /// Manages the update process by handling configurations, platform-specific data,
@@ -311,7 +308,7 @@ impl Debug for UpdaterBuilder {
 #[derive(Debug)]
 struct InnerUpdater {
     /// The application configuration.
-    settings: Arc<ApplicationConfig>,
+    settings: ApplicationConfig,
     /// The Operating System specific data used for updates.
     platform: Arc<Box<dyn PlatformData>>,
     /// The client used for polling the information
@@ -320,31 +317,24 @@ struct InnerUpdater {
     cache: Mutex<Option<VersionInfo>>,
     /// The last know state of the updater
     state: Mutex<UpdateState>,
-    runtime: Arc<Runtime>,
     /// The event callbacks for the updater
-    callbacks: CoreCallbacks<UpdateEvent>,
+    callbacks: MultiThreadedCallback<UpdateEvent>,
     data_path: PathBuf,
     download_progress: Mutex<Option<DownloadProgress>>,
     tasks: Mutex<Vec<UpdateTask>>,
     launcher_options: LauncherOptions,
+    command_sender: UnboundedSender<UpdaterCommand>,
+    cancellation_token: CancellationToken,
 }
 
 impl InnerUpdater {
     fn new(
-        settings: Arc<ApplicationConfig>,
+        settings: ApplicationConfig,
         insecure: bool,
         platform: Arc<Box<dyn PlatformData>>,
         data_path: &str,
-        callbacks: Vec<UpdateCallback>,
-        runtime: Arc<Runtime>,
+        command_sender: UnboundedSender<UpdaterCommand>,
     ) -> Self {
-        let core_callbacks: CoreCallbacks<UpdateEvent> = Default::default();
-
-        // add the given callbacks to the initial list
-        for callback in callbacks.into_iter() {
-            core_callbacks.add_callback(callback);
-        }
-
         Self {
             settings,
             platform,
@@ -354,12 +344,37 @@ impl InnerUpdater {
                 .unwrap(),
             cache: Mutex::new(None),
             state: Mutex::new(UpdateState::CheckingForNewVersion),
-            runtime,
-            callbacks: core_callbacks,
+            callbacks: MultiThreadedCallback::new(),
             data_path: PathBuf::from(data_path),
             download_progress: Default::default(),
             tasks: Default::default(),
             launcher_options: LauncherOptions::new(data_path),
+            command_sender,
+            cancellation_token: Default::default(),
+        }
+    }
+
+    async fn start(&self, mut command_receiver: UnboundedReceiver<UpdaterCommand>) {
+        loop {
+            select! {
+                _ = self.cancellation_token.cancelled() => break,
+                Some(command) = command_receiver.recv() => self.handle_command(command).await,
+            }
+        }
+
+        self.cleanup().await;
+    }
+
+    async fn handle_command(&self, command: UpdaterCommand) {
+        match command {
+            UpdaterCommand::Poll => match self.poll().await {
+                Ok(_) => debug!("Updater has polled latest application information"),
+                Err(e) => warn!(
+                    "Updater failed to poll latest application information, {}",
+                    e
+                ),
+            },
+            UpdaterCommand::Clean => self.cleanup().await,
         }
     }
 
@@ -375,8 +390,8 @@ impl InnerUpdater {
         Ok(mutex.as_ref().unwrap().clone())
     }
 
-    fn state(&self) -> UpdateState {
-        let mutex = self.state.blocking_lock();
+    async fn state(&self) -> UpdateState {
+        let mutex = self.state.lock().await;
         mutex.clone()
     }
 
@@ -704,18 +719,17 @@ impl InnerUpdater {
         }
     }
 
-    fn install(&self, inner: Arc<InnerUpdater>) -> updater::Result<()> {
+    async fn install(&self, inner: Arc<InnerUpdater>) -> updater::Result<()> {
         trace!("Starting installer");
-        let mutex = self.state.blocking_lock();
+        let mutex = self.state.lock().await;
 
         if let UpdateState::DownloadFinished = *mutex {
             debug!(
                 "Starting update installation from {:?}",
                 self.update_directory_path()
             );
-            let runtime = inner.runtime.clone();
 
-            runtime.spawn(async move {
+            tokio::spawn(async move {
                 match Self::execute_installation(inner.clone()).await {
                     Ok(_) => {
                         info!("Update installation finished, restart required");
@@ -785,10 +799,6 @@ impl InnerUpdater {
         debug!("Launcher options have been updated");
 
         Ok(())
-    }
-
-    fn register(&self, callback: UpdateCallback) {
-        self.callbacks.add_callback(callback);
     }
 
     /// Verify if an application update is available for the current platform.
@@ -887,6 +897,27 @@ impl InnerUpdater {
         false
     }
 
+    /// Clean the updates directory
+    async fn cleanup(&self) {
+        trace!(
+            "Starting cleanup of update directory located at {:?}",
+            self.update_directory_path()
+        );
+        match Storage::clean_directory(self.update_directory_path()) {
+            Ok(_) => info!(
+                "Cleaned updates directory located at {:?}",
+                self.update_directory_path()
+            ),
+            Err(e) => {
+                if let StorageError::NotFound(e) = e {
+                    debug!("Unable to clean updates directory, {}", e);
+                } else {
+                    warn!("Unable to clean updates directory, {}", e)
+                }
+            }
+        }
+    }
+
     /// Retrieve the current platform identifier which can be used to get the correct binary from the update channel.
     ///
     /// It returns the identifier as `platform.arch`
@@ -916,6 +947,12 @@ impl InnerUpdater {
         self.data_path.join(UPDATE_DIRECTORY)
     }
 
+    fn send_command(&self, command: UpdaterCommand) {
+        if let Err(e) = self.command_sender.send(command) {
+            debug!("Updater failed to send command, {}", e);
+        }
+    }
+
     fn convert_download_link_to_url(link: Option<&String>) -> updater::Result<Url> {
         match link {
             None => Err(UpdateError::PlatformUpdateUnavailable),
@@ -931,38 +968,10 @@ impl InnerUpdater {
     }
 }
 
-impl Drop for InnerUpdater {
-    fn drop(&mut self) {
-        trace!(
-            "Starting cleanup of update directory located at {:?}",
-            self.update_directory_path()
-        );
-        match Storage::clean_directory(self.update_directory_path()) {
-            Ok(_) => info!(
-                "Cleaned updates directory located at {:?}",
-                self.update_directory_path()
-            ),
-            Err(e) => {
-                if let StorageError::NotFound(e) = e {
-                    debug!("Unable to clean updates directory, {}", e);
-                } else {
-                    warn!("Unable to clean updates directory, {}", e)
-                }
-            }
-        }
-    }
-}
-
 #[cfg(test)]
 mod test {
     use std::collections::HashMap;
-    use std::sync::mpsc::channel;
     use std::time::Duration;
-    use std::{fs, thread};
-
-    use httpmock::Method::{GET, HEAD};
-    use httpmock::MockServer;
-    use tempfile::tempdir;
 
     use crate::core::config::PopcornProperties;
     use crate::core::platform::{PlatformInfo, PlatformType};
@@ -972,12 +981,16 @@ mod test {
         read_test_file_to_bytes, read_test_file_to_string, test_resource_filepath,
         MockDummyPlatformData,
     };
-    use crate::{assert_timeout_eq, init_logger};
+    use crate::{assert_timeout, assert_timeout_eq, init_logger, recv_timeout};
+    use httpmock::Method::{GET, HEAD};
+    use httpmock::MockServer;
+    use tempfile::tempdir;
+    use tokio::sync::mpsc::unbounded_channel;
 
     use super::*;
 
-    #[test]
-    fn test_poll_version() {
+    #[tokio::test]
+    async fn test_poll_version() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -1005,7 +1018,6 @@ mod test {
                 );
         });
         let platform = default_platform_info();
-        let runtime = Runtime::new().unwrap();
         let updater = Updater::builder()
             .settings(settings)
             .platform(platform)
@@ -1029,15 +1041,16 @@ mod test {
             },
         };
 
-        let result = runtime
-            .block_on(async { updater.version_info().await })
+        let result = updater
+            .version_info()
+            .await
             .expect("expected the poll to succeed");
 
         assert_eq!(expected_result, result)
     }
 
-    #[test]
-    fn test_poll_older_version() {
+    #[tokio::test]
+    async fn test_poll_older_version() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -1062,16 +1075,22 @@ mod test {
                 );
         });
         let platform = default_platform_info();
-        let (tx, rx) = channel();
-        let _updater = Updater::builder()
+        let (tx, mut rx) = unbounded_channel();
+        let updater = Updater::builder()
             .settings(settings)
             .platform(platform)
             .data_path(temp_path)
             .insecure(false)
-            .with_callback(Box::new(move |event| tx.send(event).unwrap()))
             .build();
 
-        let event = rx.recv_timeout(Duration::from_millis(100)).unwrap();
+        let mut receiver = updater.subscribe();
+        tokio::spawn(async move {
+            while let Some(event) = receiver.recv().await {
+                tx.send((*event).clone()).unwrap()
+            }
+        });
+
+        let event = recv_timeout!(&mut rx, Duration::from_millis(100));
 
         match event {
             UpdateEvent::StateChanged(result) => assert_eq!(UpdateState::NoUpdateAvailable, result),
@@ -1079,8 +1098,8 @@ mod test {
         }
     }
 
-    #[test]
-    fn test_poll_newer_version() {
+    #[tokio::test]
+    async fn test_poll_newer_version() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -1120,12 +1139,12 @@ mod test {
         assert_timeout_eq!(
             Duration::from_millis(500),
             UpdateState::UpdateAvailable,
-            updater.state()
+            updater.state().await
         );
     }
 
-    #[test]
-    fn test_poll_download_link_unavailable() {
+    #[tokio::test]
+    async fn test_poll_download_link_unavailable() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -1161,12 +1180,12 @@ mod test {
         assert_timeout_eq!(
             Duration::from_millis(500),
             UpdateState::NoUpdateAvailable,
-            updater.state()
+            updater.state().await
         );
     }
 
-    #[test]
-    fn test_download_application() {
+    #[tokio::test]
+    async fn test_download_application() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -1204,7 +1223,6 @@ mod test {
                 .body_from_file(test_resource_filepath(filename).to_str().unwrap());
         });
         let platform = default_platform_info();
-        let runtime = Runtime::new().unwrap();
         let updater = Updater::builder()
             .settings(settings)
             .platform(platform)
@@ -1217,11 +1235,12 @@ mod test {
         assert_timeout_eq!(
             Duration::from_millis(200),
             UpdateState::UpdateAvailable,
-            updater.state()
+            updater.state().await
         );
 
-        let _ = runtime
-            .block_on(async { updater.download().await })
+        let _ = updater
+            .download()
+            .await
             .expect("expected the download to succeed");
         let result =
             read_temp_dir_file_as_string(&temp_dir, format!("updates/{}", filename).as_str());
@@ -1229,8 +1248,8 @@ mod test {
         assert_eq!(expected_result, result)
     }
 
-    #[test]
-    fn test_download_runtime() {
+    #[tokio::test]
+    async fn test_download_runtime() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -1268,7 +1287,6 @@ mod test {
                 .body_from_file(test_resource_filepath(filename).to_str().unwrap());
         });
         let platform = default_platform_info();
-        let runtime = Runtime::new().unwrap();
         let updater = Updater::builder()
             .settings(settings)
             .platform(platform)
@@ -1281,11 +1299,12 @@ mod test {
         assert_timeout_eq!(
             Duration::from_millis(200),
             UpdateState::UpdateAvailable,
-            updater.state()
+            updater.state().await
         );
 
-        let _ = runtime
-            .block_on(async { updater.download().await })
+        let _ = updater
+            .download()
+            .await
             .expect("expected the download to succeed");
         let result =
             read_temp_dir_file_as_bytes(&temp_dir, format!("updates/{}", filename).as_str());
@@ -1293,8 +1312,8 @@ mod test {
         assert_eq!(expected_result, result)
     }
 
-    #[test]
-    fn test_download_not_found() {
+    #[tokio::test]
+    async fn test_download_not_found() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -1324,7 +1343,6 @@ mod test {
             then.status(302);
         });
         let platform = default_platform_info();
-        let runtime = Runtime::new().unwrap();
         let updater = Updater::builder()
             .settings(settings)
             .platform(platform)
@@ -1336,10 +1354,10 @@ mod test {
         assert_timeout_eq!(
             Duration::from_millis(200),
             UpdateState::UpdateAvailable,
-            updater.state()
+            updater.state().await
         );
 
-        let result = runtime.block_on(async { updater.download().await });
+        let result = updater.download().await;
 
         assert!(result.is_err(), "expected the download to return an error");
         match result.err().unwrap() {
@@ -1350,27 +1368,32 @@ mod test {
         }
     }
 
-    #[test]
-    fn test_install_no_update() {
+    #[tokio::test]
+    async fn test_install_no_update() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let (server, settings) = create_server_and_settings(temp_path);
         no_update_response(&server);
         let platform = default_platform_info();
-        let (tx, rx) = channel();
+        let (tx, mut rx) = unbounded_channel();
         let updater = Updater::builder()
             .settings(settings)
             .platform(platform)
             .data_path(temp_path)
             .insecure(false)
-            .with_callback(Box::new(move |event| tx.send(event).unwrap()))
             .build();
 
-        rx.recv_timeout(Duration::from_millis(300))
-            .expect("expected the state changed event");
+        let mut receiver = updater.subscribe();
+        tokio::spawn(async move {
+            while let Some(event) = receiver.recv().await {
+                tx.send((*event).clone()).unwrap()
+            }
+        });
 
-        if let Err(result) = updater.install() {
+        let _ = recv_timeout!(&mut rx, Duration::from_millis(300));
+
+        if let Err(result) = updater.install().await {
             match result {
                 UpdateError::UpdateNotAvailable(state) => {
                     assert_eq!(UpdateState::NoUpdateAvailable, state)
@@ -1382,8 +1405,8 @@ mod test {
         }
     }
 
-    #[test]
-    fn test_install_update_application() {
+    #[tokio::test]
+    async fn test_install_update_application() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -1429,22 +1452,21 @@ mod test {
             .data_path(temp_path)
             .insecure(false)
             .build();
-        let runtime = Runtime::new().unwrap();
 
         // wait for the UpdateAvailable state
         assert_timeout_eq!(
             Duration::from_millis(200),
             UpdateState::UpdateAvailable,
-            updater.state()
+            updater.state().await
         );
 
         // download the update
-        if let Err(err) = runtime.block_on(updater.download()) {
+        if let Err(err) = updater.download().await {
             assert!(false, "expected the download to succeed, {}", err);
         }
 
         // install the update
-        if let Err(err) = updater.install() {
+        if let Err(err) = updater.install().await {
             assert!(false, "expected the installation to succeed, {}", err);
         }
 
@@ -1452,7 +1474,7 @@ mod test {
         assert_timeout_eq!(
             Duration::from_millis(200),
             UpdateState::InstallationFinished,
-            updater.state()
+            updater.state().await
         );
 
         // verify if the patch file exists
@@ -1463,8 +1485,8 @@ mod test {
         );
     }
 
-    #[test]
-    fn test_install_update() {
+    #[tokio::test]
+    async fn test_install_update() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -1507,22 +1529,21 @@ mod test {
             .data_path(temp_path)
             .insecure(false)
             .build();
-        let runtime = Runtime::new().unwrap();
 
         // wait for the UpdateAvailable state
         assert_timeout_eq!(
             Duration::from_millis(200),
             UpdateState::UpdateAvailable,
-            updater.state()
+            updater.state().await
         );
 
         // download the update
-        if let Err(err) = runtime.block_on(updater.download()) {
+        if let Err(err) = updater.download().await {
             assert!(false, "expected the download to succeed, {}", err);
         }
 
         // install the update
-        if let Err(err) = updater.install() {
+        if let Err(err) = updater.install().await {
             assert!(false, "expected the installation to succeed, {}", err);
         }
 
@@ -1530,7 +1551,7 @@ mod test {
         assert_timeout_eq!(
             Duration::from_millis(200),
             UpdateState::InstallationFinished,
-            updater.state()
+            updater.state().await
         );
 
         // verify if the patch file exists
@@ -1541,8 +1562,8 @@ mod test {
         );
     }
 
-    #[test]
-    fn test_clean_updates_directory() {
+    #[tokio::test]
+    async fn test_clean_updates_directory() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -1550,19 +1571,17 @@ mod test {
         let filename = "popcorn-time_99.0.0.deb";
         let platform_mock = MockDummyPlatformData::new();
         let platform = Arc::new(Box::new(platform_mock) as Box<dyn PlatformData>);
-        let settings = Arc::new(
-            ApplicationConfig::builder()
-                .storage(temp_path)
-                .properties(PopcornProperties {
-                    loggers: Default::default(),
-                    update_channel: String::new(),
-                    providers: Default::default(),
-                    enhancers: Default::default(),
-                    subtitle: Default::default(),
-                    tracking: Default::default(),
-                })
-                .build(),
-        );
+        let settings = ApplicationConfig::builder()
+            .storage(temp_path)
+            .properties(PopcornProperties {
+                loggers: Default::default(),
+                update_channel: String::new(),
+                providers: Default::default(),
+                enhancers: Default::default(),
+                subtitle: Default::default(),
+                tracking: Default::default(),
+            })
+            .build();
         let updater = Updater::builder()
             .settings(settings)
             .platform(platform)
@@ -1572,30 +1591,28 @@ mod test {
         copy_test_file(updates_directory.to_str().unwrap(), filename, None);
 
         // wait for the polling to complete
-        while updater.state() == UpdateState::CheckingForNewVersion {
-            info!("Waiting for update poll to complete");
-            thread::sleep(Duration::from_millis(50));
-        }
+        assert_timeout!(
+            Duration::from_millis(1500),
+            updater.state().await == UpdateState::CheckingForNewVersion,
+            "expected the version updates to have been polled"
+        );
 
         // drop the updater to start the cleanup
         drop(updater);
 
-        let dir = fs::read_dir(&updates_directory).unwrap();
-        let mut num_files = 0;
-        for file in dir {
-            warn!("Found remaining file {:?}", file);
-            num_files += 1;
-        }
-
-        assert_eq!(0, num_files);
+        assert_timeout!(
+            Duration::from_millis(500),
+            updates_directory.read_dir().unwrap().next().is_none(),
+            "expected the updates directory to have been cleaned"
+        );
     }
 
-    #[test]
-    fn test_check_for_updates() {
+    #[tokio::test]
+    async fn test_check_for_updates() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let (tx, rx) = channel();
+        let (tx, mut rx) = unbounded_channel();
         let (server, settings) = create_server_and_settings(temp_path);
         let mut first_mock = server.mock(move |when, then| {
             when.method(GET).path(format!("/{}", UPDATE_INFO_FILE));
@@ -1622,13 +1639,16 @@ mod test {
             .insecure(false)
             .build();
 
-        updater.register(Box::new(move |event| {
-            if let UpdateEvent::StateChanged(state) = event {
-                tx.send(state).unwrap();
+        let mut receiver = updater.subscribe();
+        tokio::spawn(async move {
+            while let Some(event) = receiver.recv().await {
+                if let UpdateEvent::StateChanged(state) = &*event {
+                    tx.send(state.clone()).unwrap()
+                }
             }
-        }));
+        });
 
-        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        let result = recv_timeout!(&mut rx, Duration::from_millis(200));
         assert_eq!(UpdateState::NoUpdateAvailable, result);
         first_mock.delete();
         server.mock(|when, then| {
@@ -1663,11 +1683,11 @@ mod test {
             then.status(302);
         });
 
-        updater.check_for_updates();
+        updater.check_for_updates().await;
 
-        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        let result = recv_timeout!(&mut rx, Duration::from_millis(200));
         assert_eq!(UpdateState::CheckingForNewVersion, result);
-        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        let result = recv_timeout!(&mut rx, Duration::from_millis(200));
         assert_eq!(UpdateState::UpdateAvailable, result);
     }
 
@@ -1709,40 +1729,12 @@ mod test {
         }
     }
 
-    #[test]
-    fn test_builder_callback() {
+    #[tokio::test]
+    async fn test_builder_callback() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let (tx, rx) = channel();
-        let (server, settings) = create_server_and_settings(temp_path);
-        no_update_response(&server);
-        let platform = default_platform_info();
-        let _updater = Updater::builder()
-            .settings(settings)
-            .platform(platform)
-            .with_callback(Box::new(move |event| match event {
-                UpdateEvent::StateChanged(_) => tx.send(event).unwrap(),
-                _ => {}
-            }))
-            .data_path(temp_path)
-            .insecure(false)
-            .build();
-
-        let event = rx.recv_timeout(Duration::from_millis(300)).unwrap();
-
-        match event {
-            UpdateEvent::StateChanged(_) => {}
-            _ => assert!(false, "expected UpdateEvent::StateChanged event"),
-        }
-    }
-
-    #[test]
-    fn test_register_callback() {
-        init_logger!();
-        let temp_dir = tempdir().unwrap();
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let (tx, rx) = channel();
+        let (tx, mut rx) = unbounded_channel();
         let (server, settings) = create_server_and_settings(temp_path);
         no_update_response(&server);
         let platform = default_platform_info();
@@ -1753,21 +1745,56 @@ mod test {
             .insecure(false)
             .build();
 
-        updater.register(Box::new(move |event| match event {
-            UpdateEvent::StateChanged(_) => tx.send(event).unwrap(),
-            _ => {}
-        }));
+        let mut receiver = updater.subscribe();
+        tokio::spawn(async move {
+            while let Some(event) = receiver.recv().await {
+                if let UpdateEvent::StateChanged(_) = &*event {
+                    tx.send((*event).clone()).unwrap()
+                }
+            }
+        });
 
-        let event = rx.recv_timeout(Duration::from_millis(300)).unwrap();
-
+        let event = recv_timeout!(&mut rx, Duration::from_millis(300));
         match event {
             UpdateEvent::StateChanged(_) => {}
             _ => assert!(false, "expected UpdateEvent::StateChanged event"),
         }
     }
 
-    #[test]
-    fn test_updater_builder_debug() {
+    #[tokio::test]
+    async fn test_register_callback() {
+        init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let (tx, mut rx) = unbounded_channel();
+        let (server, settings) = create_server_and_settings(temp_path);
+        no_update_response(&server);
+        let platform = default_platform_info();
+        let updater = Updater::builder()
+            .settings(settings)
+            .platform(platform)
+            .data_path(temp_path)
+            .insecure(false)
+            .build();
+
+        let mut receiver = updater.subscribe();
+        tokio::spawn(async move {
+            while let Some(event) = receiver.recv().await {
+                if let UpdateEvent::StateChanged(_) = &*event {
+                    tx.send((*event).clone()).unwrap()
+                }
+            }
+        });
+
+        let event = recv_timeout!(&mut rx, Duration::from_millis(300));
+        match event {
+            UpdateEvent::StateChanged(_) => {}
+            _ => assert!(false, "expected UpdateEvent::StateChanged event"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_updater_builder_debug() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -1775,8 +1802,7 @@ mod test {
             .settings(create_simple_settings(temp_path))
             .platform(default_platform_info())
             .data_path(temp_path)
-            .insecure(false)
-            .runtime(Arc::new(Runtime::new().unwrap()));
+            .insecure(false);
 
         let debug_output = format!("{:?}", builder);
 
@@ -1785,7 +1811,6 @@ mod test {
         assert!(debug_output.contains("insecure: false"));
         assert!(debug_output.contains("platform: Some"));
         assert!(debug_output.contains("storage_path: Some"));
-        assert!(debug_output.contains("runtime: Some"));
     }
 
     fn default_platform_info() -> Arc<Box<dyn PlatformData>> {
@@ -1819,41 +1844,37 @@ mod test {
         });
     }
 
-    fn create_simple_settings(temp_path: &str) -> Arc<ApplicationConfig> {
-        Arc::new(
+    fn create_simple_settings(temp_path: &str) -> ApplicationConfig {
+        ApplicationConfig::builder()
+            .storage(temp_path)
+            .properties(PopcornProperties {
+                loggers: Default::default(),
+                update_channel: "http://localhost:8080/update.json".to_string(),
+                providers: Default::default(),
+                enhancers: Default::default(),
+                subtitle: Default::default(),
+                tracking: Default::default(),
+            })
+            .build()
+    }
+
+    fn create_server_and_settings(temp_path: &str) -> (MockServer, ApplicationConfig) {
+        let server = MockServer::start();
+        let update_channel = server.url("");
+
+        (
+            server,
             ApplicationConfig::builder()
                 .storage(temp_path)
                 .properties(PopcornProperties {
                     loggers: Default::default(),
-                    update_channel: "http://localhost:8080/update.json".to_string(),
+                    update_channel,
                     providers: Default::default(),
                     enhancers: Default::default(),
                     subtitle: Default::default(),
                     tracking: Default::default(),
                 })
                 .build(),
-        )
-    }
-
-    fn create_server_and_settings(temp_path: &str) -> (MockServer, Arc<ApplicationConfig>) {
-        let server = MockServer::start();
-        let update_channel = server.url("");
-
-        (
-            server,
-            Arc::new(
-                ApplicationConfig::builder()
-                    .storage(temp_path)
-                    .properties(PopcornProperties {
-                        loggers: Default::default(),
-                        update_channel,
-                        providers: Default::default(),
-                        enhancers: Default::default(),
-                        subtitle: Default::default(),
-                        tracking: Default::default(),
-                    })
-                    .build(),
-            ),
         )
     }
 }

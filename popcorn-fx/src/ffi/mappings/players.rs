@@ -1,13 +1,13 @@
 use crate::ffi::{PlayerChangedEventC, SubtitleInfoC};
 use async_trait::async_trait;
 use derive_more::Display;
-use fx_callback::CallbackHandle;
+use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use log::trace;
+use popcorn_fx_core::core::block_in_place;
 use popcorn_fx_core::core::players::{
     PlayMediaRequest, PlayRequest, PlayStreamRequest, PlaySubtitleRequest, PlayUrlRequest, Player,
     PlayerEvent, PlayerManagerEvent, PlayerState,
 };
-use popcorn_fx_core::core::{block_in_place, Callbacks, CoreCallback, CoreCallbacks};
 use popcorn_fx_core::{from_c_string, from_c_vec, into_c_owned, into_c_string, into_c_vec};
 use std::fmt::{Debug, Formatter};
 use std::os::raw::c_char;
@@ -86,8 +86,8 @@ pub struct PlayerC {
     pub embedded_playback_supported: bool,
 }
 
-impl From<Arc<Box<dyn Player>>> for PlayerC {
-    fn from(value: Arc<Box<dyn Player>>) -> Self {
+impl PlayerC {
+    pub async fn from(value: Arc<Box<dyn Player>>) -> Self {
         trace!("Converting Player to PlayerC");
         let id = into_c_string(value.id().to_string());
         let name = into_c_string(value.name().to_string());
@@ -102,6 +102,7 @@ impl From<Arc<Box<dyn Player>>> for PlayerC {
         } else {
             false
         };
+        let state = value.state().await;
 
         Self {
             id,
@@ -109,7 +110,7 @@ impl From<Arc<Box<dyn Player>>> for PlayerC {
             description,
             graphic_resource,
             graphic_resource_len,
-            state: value.state().clone(),
+            state,
             embedded_playback_supported,
         }
     }
@@ -162,22 +163,12 @@ pub struct PlayerWrapper {
     seek_callback: Mutex<Box<dyn Fn(u64) + Send + Sync>>,
     stop_callback: Mutex<Box<dyn Fn() + Send + Sync>>,
     play_request: Mutex<Option<Arc<Box<dyn PlayRequest>>>>,
-    callbacks: CoreCallbacks<PlayerEvent>,
+    callbacks: MultiThreadedCallback<PlayerEvent>,
 }
 
 impl PlayerWrapper {
     pub fn invoke(&self, event: PlayerEvent) {
         self.callbacks.invoke(event);
-    }
-}
-
-impl Callbacks<PlayerEvent> for PlayerWrapper {
-    fn add_callback(&self, callback: CoreCallback<PlayerEvent>) -> CallbackHandle {
-        self.callbacks.add_callback(callback)
-    }
-
-    fn remove_callback(&self, callback_id: CallbackHandle) {
-        self.callbacks.remove_callback(callback_id)
     }
 }
 
@@ -199,12 +190,12 @@ impl Player for PlayerWrapper {
         self.graphic_resource.clone()
     }
 
-    fn state(&self) -> PlayerState {
-        self.state.clone()
+    async fn state(&self) -> PlayerState {
+        self.state
     }
 
-    fn request(&self) -> Option<Weak<Box<dyn PlayRequest>>> {
-        let mutex = block_in_place(self.play_request.lock());
+    async fn request(&self) -> Option<Weak<Box<dyn PlayRequest>>> {
+        let mutex = self.play_request.lock().await;
         mutex.as_ref().map(|e| Arc::downgrade(e))
     }
 
@@ -250,6 +241,16 @@ impl Player for PlayerWrapper {
             let callback = block_in_place(self.stop_callback.lock());
             callback();
         }
+    }
+}
+
+impl Callback<PlayerEvent> for PlayerWrapper {
+    fn subscribe(&self) -> Subscription<PlayerEvent> {
+        self.callbacks.subscribe()
+    }
+
+    fn subscribe_with(&self, subscriber: Subscriber<PlayerEvent>) {
+        self.callbacks.subscribe_with(subscriber)
     }
 }
 
@@ -307,7 +308,7 @@ impl From<PlayerRegistrationC> for PlayerWrapper {
             seek_callback: Mutex::new(seek_callback),
             stop_callback: Mutex::new(stop_callback),
             play_request: Default::default(),
-            callbacks: Default::default(),
+            callbacks: MultiThreadedCallback::new(),
         }
     }
 }
@@ -679,8 +680,8 @@ mod tests {
         info!("Player stop C callback invoked");
     }
 
-    #[test]
-    fn test_from_player() {
+    #[tokio::test]
+    async fn test_from_player() {
         init_logger!();
         let player_id = "FooBar123";
         let player_name = "foo";
@@ -702,7 +703,7 @@ mod tests {
             .return_const(PlayerState::Playing);
         let player = Arc::new(Box::new(mock_player) as Box<dyn Player>);
 
-        let result = PlayerC::from(player);
+        let result = PlayerC::from(player).await;
 
         let bytes = from_c_vec(result.graphic_resource, result.graphic_resource_len);
         assert_eq!(player_id.to_string(), from_c_string(result.id));
@@ -712,8 +713,8 @@ mod tests {
         assert_eq!(PlayerState::Playing, result.state);
     }
 
-    #[test]
-    fn test_from_player_for_wrapper() {
+    #[tokio::test]
+    async fn test_from_player_for_wrapper() {
         init_logger!();
         let state = PlayerState::Stopped;
         let player = Arc::new(Box::new(PlayerWrapper {
@@ -729,10 +730,10 @@ mod tests {
             seek_callback: Mutex::new(Box::new(|_| {})),
             stop_callback: Mutex::new(Box::new(|| {})),
             play_request: Default::default(),
-            callbacks: Default::default(),
+            callbacks: MultiThreadedCallback::new(),
         }) as Box<dyn Player>);
 
-        let result = PlayerC::from(player);
+        let result = PlayerC::from(player).await;
 
         assert_eq!(state, result.state);
         assert_eq!(

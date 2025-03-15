@@ -1,12 +1,13 @@
-use std::borrow::BorrowMut;
+use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use log::{debug, error, info, trace};
+use reqwest::Url;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::Arc;
-
-use log::{debug, error, info, trace, warn};
-use reqwest::Url;
-use tokio::sync::{Mutex, MutexGuard};
+use tokio::select;
+use tokio::sync::Mutex;
+use tokio_util::sync::CancellationToken;
 use warp::http::header::{
     ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_METHODS, ACCESS_CONTROL_ALLOW_ORIGIN,
     CONTENT_DISPOSITION, CONTENT_TYPE,
@@ -14,58 +15,60 @@ use warp::http::header::{
 use warp::http::{HeaderValue, Response};
 use warp::{Filter, Rejection};
 
+use crate::core::subtitles;
 use crate::core::subtitles::model::{Subtitle, SubtitleType};
 use crate::core::subtitles::{SubtitleError, SubtitleProvider};
 use crate::core::utils::network::available_socket;
-use crate::core::{block_in_place, subtitles};
 
 const SERVER_PROTOCOL: &str = "http";
 const SERVER_SUBTITLE_PATH: &str = "subtitle";
 
-/// The subtitle server state.
-#[derive(Debug, Clone, Eq, PartialEq)]
+/// The state of the server serving subtitles.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ServerState {
     Stopped,
     Running,
     Error,
 }
 
+/// The events of the subtitle server.
+#[derive(Debug, Clone, PartialEq)]
+pub enum SubtitleServerEvent {
+    /// Indicates that the server state has been changed
+    StateChanged(ServerState),
+}
+
 /// The subtitle server is responsible for serving [Subtitle]'s over http.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SubtitleServer {
-    runtime: tokio::runtime::Runtime,
-    socket: Arc<SocketAddr>,
-    subtitles: Arc<Mutex<HashMap<String, DataHolder>>>,
-    provider: Arc<Box<dyn SubtitleProvider>>,
-    state: Arc<Mutex<Option<ServerState>>>,
+    inner: Arc<InnerServer>,
 }
 
 impl SubtitleServer {
+    /// Create a new subtitle server.
     pub fn new(provider: Arc<Box<dyn SubtitleProvider>>) -> Self {
-        let runtime = tokio::runtime::Builder::new_multi_thread()
-            .enable_all()
-            .worker_threads(1)
-            .thread_name("subtitle-server")
-            .build()
-            .expect("expected a new runtime");
         let socket = available_socket();
+        let inner = Arc::new(InnerServer {
+            socket,
+            provider,
+            subtitles: Default::default(),
+            state: Mutex::new(ServerState::Stopped),
+            callbacks: MultiThreadedCallback::new(),
+            cancellation_token: Default::default(),
+        });
 
-        let instance = Self {
-            runtime,
-            socket: Arc::new(socket),
-            subtitles: Arc::new(Mutex::new(HashMap::new())),
-            provider: provider,
-            state: Arc::new(Mutex::new(Some(ServerState::Stopped))),
-        };
+        let inner_main = inner.clone();
+        tokio::spawn(async move {
+            inner_main.start(&inner_main).await;
+        });
 
-        instance.start_subtitle_server();
-        instance
+        Self { inner }
     }
 
     /// Serve the given [Subtitle] as a raw format over HTTP.
     ///
     /// It returns the served url on success, else the error.
-    pub fn serve(
+    pub async fn serve(
         &self,
         subtitle: Subtitle,
         serving_type: SubtitleType,
@@ -85,103 +88,40 @@ impl SubtitleServer {
                 subtitle.file().to_string(),
                 "no extension".to_string(),
             )),
-            Some(base_name) => self.subtitle_to_serving_url(base_name, subtitle, serving_type),
+            Some(base_name) => {
+                self.subtitle_to_serving_url(base_name, subtitle, serving_type)
+                    .await
+            }
         }
     }
 
     /// Retrieve the current state of the subtitle server.
     ///
     /// It returns the state of the server.
-    pub fn state(&self) -> ServerState {
-        let state = self.state.clone();
-        let state_lock = futures::executor::block_on(state.lock());
-
-        match state_lock.as_ref() {
-            None => {
-                warn!("Server state couldn't be retrieved, subtitle server state should always be present");
-                ServerState::Stopped
-            }
-            Some(e) => e.clone(),
-        }
+    pub async fn state(&self) -> ServerState {
+        *self.inner.state.lock().await
     }
 
-    fn start_subtitle_server(&self) {
-        let subtitles = self.subtitles.clone();
-        let socket = self.socket.clone();
-        let state = self.state.clone();
-
-        self.runtime.spawn(async move {
-            let routes = warp::get()
-                .and(warp::path!("subtitle" / String))
-                .and_then(move |subtitle: String| {
-                    let subtitle = percent_encoding::percent_decode(subtitle.as_bytes())
-                        .decode_utf8()
-                        .expect("expected a valid utf8 value")
-                        .to_string();
-                    let subtitles = subtitles.clone();
-                    trace!("Handling request for subtitle filename {}", &subtitle);
-
-                    async move {
-                        let subtitles = subtitles.lock().await;
-                        Self::handle_subtitle_request(subtitles, subtitle)
-                    }
-                })
-                .with(warp::cors().allow_any_origin());
-            let socket = socket.clone();
-
-            trace!(
-                "Starting subtitle server on {}:{}",
-                socket.ip(),
-                socket.port()
-            );
-            let server = warp::serve(routes);
-            let mut state_lock = state.lock().await;
-
-            trace!("Binding subtitle server to socket {:?}", socket);
-            match server.try_bind_ephemeral((socket.ip(), socket.port())) {
-                Ok((_, e)) => {
-                    info!(
-                        "Subtitle server is running on {}:{}",
-                        socket.ip(),
-                        socket.port()
-                    );
-                    let _ = state_lock.borrow_mut().insert(ServerState::Running);
-                    drop(state_lock);
-                    e.await
-                }
-                Err(e) => {
-                    error!("Failed to start subtitle server, {}", e);
-                    let _ = state_lock.borrow_mut().insert(ServerState::Error);
-                }
-            }
-        });
-    }
-
-    fn subtitle_to_serving_url(
+    async fn subtitle_to_serving_url(
         &self,
         filename_base: String,
         subtitle: Subtitle,
         serving_type: SubtitleType,
     ) -> subtitles::Result<String> {
-        match self.provider.convert(subtitle, serving_type.clone()) {
+        match self.inner.provider.convert(subtitle, serving_type.clone()) {
             Ok(data) => {
                 debug!("Converted subtitle for serving");
-                let mutex = self.subtitles.clone();
                 let filename_full = format!("{}.{}", filename_base, &serving_type.extension());
                 let url = self.build_url(&filename_full);
 
                 match url {
                     Ok(result) => {
-                        let execute = async move {
-                            let mut subtitles = mutex.lock().await;
-                            subtitles.insert(
-                                filename_full.clone(),
-                                DataHolder::new(data, serving_type.clone()),
-                            );
-                            debug!("Registered new subtitle entry {}", filename_full);
-                        };
-
-                        block_in_place(execute);
+                        let mut subtitles = self.inner.subtitles.lock().await;
+                        subtitles.insert(
+                            filename_full.clone(),
+                            DataHolder::new(data, serving_type.clone()),
+                        );
+                        debug!("Registered new subtitle entry {}", filename_full);
 
                         info!("Serving new subtitle url {}", &result);
                         Ok(result.to_string())
@@ -194,24 +134,121 @@ impl SubtitleServer {
     }
 
     fn build_url(&self, filename_full: &str) -> Result<Url, url::ParseError> {
-        let host = format!("{}://{}", SERVER_PROTOCOL, self.socket);
+        let host = format!("{}://{}", SERVER_PROTOCOL, self.inner.socket);
         let path = format!("{}/{}", SERVER_SUBTITLE_PATH, filename_full);
         let url = Url::parse(host.as_str())?;
 
         url.join(path.as_str())
     }
+}
+
+impl Callback<SubtitleServerEvent> for SubtitleServer {
+    fn subscribe(&self) -> Subscription<SubtitleServerEvent> {
+        self.inner.callbacks.subscribe()
+    }
+
+    fn subscribe_with(&self, subscriber: Subscriber<SubtitleServerEvent>) {
+        self.inner.callbacks.subscribe_with(subscriber)
+    }
+}
+
+impl Drop for SubtitleServer {
+    fn drop(&mut self) {
+        self.inner.cancellation_token.cancel();
+    }
+}
+
+#[derive(Debug)]
+struct InnerServer {
+    socket: SocketAddr,
+    provider: Arc<Box<dyn SubtitleProvider>>,
+    subtitles: Mutex<HashMap<String, DataHolder>>,
+    state: Mutex<ServerState>,
+    callbacks: MultiThreadedCallback<SubtitleServerEvent>,
+    cancellation_token: CancellationToken,
+}
+
+impl InnerServer {
+    async fn start(&self, subtitle_server: &Arc<InnerServer>) {
+        let route_server = subtitle_server.clone();
+        let routes = warp::get()
+            .and(warp::path!("subtitle" / String))
+            .and_then(move |subtitle: String| {
+                let subtitle = percent_encoding::percent_decode(subtitle.as_bytes())
+                    .decode_utf8()
+                    .expect("expected a valid utf8 value")
+                    .to_string();
+                trace!("Handling request for subtitle filename {}", &subtitle);
+
+                let route_server = route_server.clone();
+                let cancellation_token = route_server.cancellation_token.clone();
+                async move {
+                    select! {
+                        _ = cancellation_token.cancelled() => Err(warp::reject()),
+                        result = route_server.handle_subtitle_request(subtitle) => result,
+                    }
+                }
+            })
+            .with(warp::cors().allow_any_origin());
+
+        trace!(
+            "Starting subtitle server on {}:{}",
+            self.socket.ip(),
+            self.socket.port()
+        );
+        let server = warp::serve(routes);
+
+        trace!("Binding subtitle server to socket {:?}", self.socket);
+        match server.try_bind_ephemeral((self.socket.ip(), self.socket.port())) {
+            Ok((socket, execution)) => {
+                info!("Subtitle server is running on {}", socket);
+                self.update_state(ServerState::Running).await;
+
+                select! {
+                    _ = self.cancellation_token.cancelled() => {},
+                    _ = execution => {},
+                }
+
+                self.update_state(ServerState::Stopped).await;
+            }
+            Err(e) => {
+                error!("Failed to start subtitle server, {}", e);
+                self.update_state(ServerState::Error).await;
+            }
+        }
+    }
+
+    /// Update the server to the given state.
+    /// This will result in a no-op if the current state is the same.
+    async fn update_state(&self, state: ServerState) {
+        let mut mutex = self.state.lock().await;
+        if *mutex == state {
+            return;
+        }
+
+        *mutex = state;
+        debug!("Subtitle server state changed to {:?}", state);
+        self.callbacks
+            .invoke(SubtitleServerEvent::StateChanged(state));
+    }
 
     /// Handle a request send to the subtitle server for the given filename.
     /// It takes a lock on the subtitles and the filename to verify the validity of the request.
     ///
+    /// # Arguments
+    ///
     /// * `subtitles`   - the locked subtitles
     /// * `filename`    - the filename which is requested to being served.
     ///
-    /// If the filename isn't being served, it will return a `404`.
-    fn handle_subtitle_request(
-        subtitles: MutexGuard<HashMap<String, DataHolder>>,
+    /// # Returns
+    ///
+    /// It returns the subtitle filename contents if found, else a `404`.
+    async fn handle_subtitle_request(
+        &self,
         filename: String,
     ) -> Result<Response<String>, Rejection> {
+        let subtitles = self.subtitles.lock().await;
+
         match subtitles.get(filename.as_str()) {
             None => Err(warp::reject()),
             Some(e) => {
@@ -240,10 +277,6 @@ impl SubtitleServer {
     }
 }
 
-unsafe impl Send for SubtitleServer {}
-
-unsafe impl Sync for SubtitleServer {}
-
 /// Holds the raw format data of a [Subtitle] with additional information.
 #[derive(Debug)]
 pub struct DataHolder {
@@ -264,32 +297,30 @@ impl DataHolder {
 
 #[cfg(test)]
 mod test {
-    use std::thread;
     use std::time::Duration;
 
+    use crate::core::subtitles::MockSubtitleProvider;
+    use crate::{init_logger, recv_timeout};
     use reqwest::header::CONTENT_TYPE;
     use reqwest::{Client, Url};
-
-    use crate::core::subtitles::MockSubtitleProvider;
-    use crate::init_logger;
+    use tokio::sync::mpsc::unbounded_channel;
 
     use super::*;
 
-    #[test]
-    fn test_state() {
+    #[tokio::test]
+    async fn test_state() {
         init_logger!();
         let provider: Box<MockSubtitleProvider> = Box::new(MockSubtitleProvider::new());
         let server = SubtitleServer::new(Arc::new(provider as Box<dyn SubtitleProvider>));
 
-        let result = server.state();
+        let result = server.state().await;
 
         assert_eq!(ServerState::Stopped, result)
     }
 
-    #[test]
-    fn test_subtitle_is_served() {
+    #[tokio::test]
+    async fn test_subtitle_is_served() {
         init_logger!();
-        let runtime = tokio::runtime::Runtime::new().unwrap();
         let mut provider: Box<MockSubtitleProvider> = Box::new(MockSubtitleProvider::new());
         let subtitle = Subtitle::new(vec![], None, "my-subtitle - heavy.srt".to_string());
         let client = Client::builder()
@@ -300,14 +331,27 @@ mod test {
                 Ok("lorem ipsum".to_string())
             },
         );
+        let (tx, mut rx) = unbounded_channel();
         let server = SubtitleServer::new(Arc::new(provider as Box<dyn SubtitleProvider>));
 
-        wait_for_server(&server);
+        let mut receiver = server.subscribe();
+        tokio::spawn(async move {
+            while let Some(event) = receiver.recv().await {
+                tx.send((*event).clone()).unwrap();
+            }
+        });
+
+        let result = recv_timeout!(&mut rx, Duration::from_millis(200));
+        assert_eq!(
+            SubtitleServerEvent::StateChanged(ServerState::Running),
+            result
+        );
         let serving_url = server
             .serve(subtitle, SubtitleType::Vtt)
+            .await
             .expect("expected the subtitle to be served");
 
-        let (content_type, body) = runtime.block_on(async {
+        let (content_type, body) = async {
             let response = client
                 .get(Url::parse(serving_url.as_str()).unwrap())
                 .send()
@@ -328,34 +372,44 @@ mod test {
                     response.status().as_u16()
                 )
             }
-        });
+        }
+        .await;
 
         assert_eq!(String::from("lorem ipsum"), body);
         assert_eq!("text/vtt; charset=utf-8", content_type.to_str().unwrap())
     }
 
-    #[test]
-    fn test_subtitle_not_being_served() {
+    #[tokio::test]
+    async fn test_subtitle_not_being_served() {
         init_logger!();
         let filename = "lorem.srt";
-        let runtime = tokio::runtime::Runtime::new().unwrap();
         let provider: Box<MockSubtitleProvider> = Box::new(MockSubtitleProvider::new());
         let client = Client::builder()
             .build()
             .expect("Client should have been created");
+        let (tx, mut rx) = unbounded_channel();
         let server = SubtitleServer::new(Arc::new(provider as Box<dyn SubtitleProvider>));
 
-        wait_for_server(&server);
+        let mut receiver = server.subscribe();
+        tokio::spawn(async move {
+            while let Some(event) = receiver.recv().await {
+                tx.send((*event).clone()).unwrap();
+            }
+        });
+
+        let result = recv_timeout!(&mut rx, Duration::from_millis(200));
+        assert_eq!(
+            SubtitleServerEvent::StateChanged(ServerState::Running),
+            result
+        );
         let serving_url = server.build_url(filename).unwrap();
 
-        let status_code = runtime.block_on(async move {
-            client
-                .get(serving_url)
-                .send()
-                .await
-                .expect("expected a response")
-                .status()
-        });
+        let status_code = client
+            .get(serving_url)
+            .send()
+            .await
+            .expect("expected a response")
+            .status();
 
         assert_eq!(
             404,
@@ -364,27 +418,20 @@ mod test {
         )
     }
 
-    #[test]
-    fn test_build_url_escape_characters() {
+    #[tokio::test]
+    async fn test_build_url_escape_characters() {
         init_logger!();
         let provider: Box<MockSubtitleProvider> = Box::new(MockSubtitleProvider::new());
         let server = SubtitleServer::new(Arc::new(provider as Box<dyn SubtitleProvider>));
         let expected_result = format!(
             "{}://{}/{}/Lorem.S01E16%20720p%20-%20Heavy.vtt",
             SERVER_PROTOCOL,
-            server.socket.to_string(),
+            server.inner.socket.to_string(),
             SERVER_SUBTITLE_PATH
         );
 
         let result = server.build_url("Lorem.S01E16 720p - Heavy.vtt").unwrap();
 
         assert_eq!(expected_result, result.to_string())
-    }
-
-    fn wait_for_server(server: &SubtitleServer) {
-        while server.state() == ServerState::Stopped {
-            info!("Waiting for subtitle server to be started");
-            thread::sleep(Duration::from_millis(50))
-        }
     }
 }

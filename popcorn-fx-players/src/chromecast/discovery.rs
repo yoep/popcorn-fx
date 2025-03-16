@@ -105,7 +105,7 @@ impl Discovery for ChromecastDiscovery {
             let inner = self.inner.clone();
             tokio::spawn(async move {
                 trace!("Starting the Chromecast MDNS discovery service receiver");
-                while let Ok(event) = receiver.recv() {
+                while let Ok(event) = receiver.recv_async().await {
                     inner.handle_event(event).await;
                 }
                 debug!("Chromecast device discovery receiver has been stopped");
@@ -294,7 +294,7 @@ impl InnerChromecastDiscovery {
 
                 Ok(())
             }
-            Err(e) => return Err(e),
+            Err(e) => Err(e),
         }
     }
 }
@@ -339,7 +339,7 @@ mod tests {
         assert_eq!(DiscoveryState::Stopped, result);
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_start_discovery() {
         init_logger!();
         let mut player_buf = vec![];
@@ -373,7 +373,7 @@ mod tests {
         mdns.daemon.shutdown().unwrap();
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_stop_discovery() {
         init_logger!();
         let player_manager = MockPlayerManager::new();

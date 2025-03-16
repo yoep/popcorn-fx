@@ -60,17 +60,17 @@ impl DlnaPlayer {
     /// ```rust,no_run
     /// use rupnp::Device;
     /// use ssdp_client::URN;
+    /// use popcorn_fx_core::core::subtitles::SubtitleServer;
     /// use popcorn_fx_players::dlna::DlnaPlayer;
     /// use std::sync::Arc;
     ///
-    /// #[tokio::main]
-    /// async fn main() {
+    /// async fn example(subtitle_server: Arc<SubtitleServer>) {
     ///     let uri = "upnp://237.84.2.178:1234".parse().unwrap();
     ///     let service_uri = URN::service("schemas-upnp-org", "AVTransport", 1);
     ///     let device = Device::from_url(uri).await.unwrap();
     ///     let service = device.find_service(&service_uri).unwrap().clone();
     ///
-    ///     let player = DlnaPlayer::new(device, service);
+    ///     let player = DlnaPlayer::new(device, service, subtitle_server);
     /// }
     /// ```
     pub fn new(device: Device, service: Service, subtitle_server: Arc<SubtitleServer>) -> Self {
@@ -274,17 +274,13 @@ impl InnerPlayer {
         self.callbacks.invoke(PlayerEvent::StateChanged(state));
     }
 
-    async fn start_event_poller(&self) {
-        trace!("Starting UPnP event poller for {}", self.device.url());
-        {
-            let mut mutex = self.event_poller_activated.lock().await;
-            *mutex = true;
-        }
-    }
-
-    async fn stop_event_poller(&self) {
-        let mut mutex = self.event_poller_activated.lock().await;
-        *mutex = false;
+    async fn update_event_poller_state(&self, running: bool) {
+        trace!(
+            "Updating UPnP event poller state to {} for {}",
+            running,
+            self.device.url()
+        );
+        *self.event_poller_activated.lock().await = running;
     }
 
     async fn execute_action(
@@ -462,7 +458,7 @@ impl InnerPlayer {
 
         trace!("Starting DLNA playback");
         self.resume().await;
-        self.start_event_poller().await;
+        self.update_event_poller_state(true).await;
 
         debug!("DLNA playback has been started for {:?}", request);
         self.update_state(PlayerState::Buffering).await;
@@ -510,7 +506,7 @@ impl InnerPlayer {
 
     async fn stop(&self) {
         let _ = self.execute_action("Stop", UPNP_PLAYER_STOP_PAYLOAD).await;
-        self.stop_event_poller().await;
+        self.update_event_poller_state(false).await;
     }
 
     fn send_command(&self, command: DlnaPlayerCommand) {

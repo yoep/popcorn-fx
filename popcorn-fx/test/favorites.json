@@ -1,0 +1,62 @@
+{
+  "movies": [
+    {
+      "title": "Lorem",
+      "imdb_id": "tt1156398",
+      "year": "2009",
+      "rating": {
+        "percentage": 72,
+        "watching": 1,
+        "votes": 22330,
+        "loved": 0,
+        "hated": 0
+      },
+      "images": {
+        "poster": "http://localhost/img.jpg",
+        "fanart": "http://localhost/img.jpg",
+        "banner": "http://localhost/img.jpg"
+      }
+    }
+  ],
+  "shows": [
+    {
+      "imdb_id": "tt8111666",
+      "tvdb_id": "361753",
+      "title": "Ipsum",
+      "year": "2019",
+      "num_seasons": 3,
+      "images": {
+        "poster": "http://image.tmdb.org/t/p/w500/sWgBv7LV2PRoQgkxwlibdGXKz1S.jpg",
+        "fanart": "http://image.tmdb.org/t/p/w500/9ijMGlJKqcslswWUzTEwScm82Gs.jpg",
+        "banner": "http://image.tmdb.org/t/p/w500/sWgBv7LV2PRoQgkxwlibdGXKz1S.jpg"
+      },
+      "rating": {
+        "percentage": 84,
+        "watching": 35,
+        "votes": 17118,
+        "loved": 0,
+        "hated": 0
+      }
+    },
+    {
+      "imdb_id": "tt1111111",
+      "tvdb_id": "1234567",
+      "title": "Dolor",
+      "year": "2019",
+      "num_seasons": 3,
+      "images": {
+        "poster": "http://image.tmdb.org/t/p/w500/sWgBv7LV2PRoQgkxwlibdGXKz1S.jpg",
+        "fanart": "http://image.tmdb.org/t/p/w500/9ijMGlJKqcslswWUzTEwScm82Gs.jpg",
+        "banner": ""
+      },
+      "rating": {
+        "percentage": 84,
+        "watching": 76,
+        "votes": 17118,
+        "loved": 1300,
+        "hated": 0
+      }
+    }
+  ],
+  "last_cache_update": "2023-01-01T12:15:00.9362723"
+}

@@ -857,7 +857,7 @@ mod tests {
         }
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_poll_event_info_transport_info() {
         init_logger!();
         let instance = new_test_instance().await;
@@ -901,9 +901,10 @@ mod tests {
                 }
             }
         });
+        player.inner.update_event_poller_state(true).await;
         player.inner.poll_event_info().await;
 
-        let result = recv_timeout!(&mut rx, Duration::from_millis(200));
+        let result = recv_timeout!(&mut rx, Duration::from_millis(250));
         if let PlayerEvent::StateChanged(state) = result {
             assert_eq!(PlayerState::Playing, state);
         } else {

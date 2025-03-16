@@ -246,7 +246,7 @@ mod tests {
         );
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_default_cast_device_connect() {
         init_logger!();
         let test_instance = TestInstance::new_mdns().await;
@@ -257,7 +257,7 @@ mod tests {
         let _ = device.connect(DEFAULT_RECEIVER);
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_default_cast_device_ping() {
         init_logger!();
         let test_instance = TestInstance::new_mdns().await;
@@ -269,7 +269,7 @@ mod tests {
     }
 
     #[ignore]
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_default_cast_device_launch() {
         init_logger!();
         let test_instance = TestInstance::new_mdns().await;
@@ -280,7 +280,7 @@ mod tests {
         let _ = device.launch_app(&CastDeviceApp::DefaultMediaReceiver);
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_default_cast_device_broadcast() {
         init_logger!();
         let test_instance = TestInstance::new_mdns().await;
@@ -292,7 +292,7 @@ mod tests {
             device.broadcast_message("urn:x-cast:BroadcastExample", &"ExampleMessage".to_string());
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_pong() {
         init_logger!();
         let test_instance = TestInstance::new_mdns().await;
@@ -353,7 +353,7 @@ mod tests {
     }
 
     #[ignore]
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_default_cast_device_status() {
         init_logger!();
         let test_instance = TestInstance::new_mdns().await;

@@ -270,7 +270,11 @@ impl InnerVlcPlayer {
             select! {
                 _ = self.cancellation_token.cancelled() => break,
                 Some(command) = command_receiver.recv() => self.handle_command(command).await,
-                _ = status_interval.tick() => self.check_status().await,
+                _ = status_interval.tick() => {
+                    if self.should_poll_player_status().await {
+                        self.poll_player_status().await
+                    }
+                },
             }
         }
         self.stop().await;
@@ -294,15 +298,18 @@ impl InnerVlcPlayer {
         .expect("expected a valid uri to have been created")
     }
 
-    async fn check_status(&self) {
+    /// Checks if the player should be polled for current status.
+    ///
+    /// # Returns
+    ///
+    /// It returns `true` if the player should be polled for the current status, `false` otherwise.
+    async fn should_poll_player_status(&self) -> bool {
         let state = *self.state.lock().await;
-        if matches!(
-            state,
-            PlayerState::Stopped | PlayerState::Error | PlayerState::Unknown
-        ) {
-            return;
-        }
+        matches!(state, PlayerState::Playing | PlayerState::Paused)
+    }
 
+    /// Retrieves the current status of the player and updates the internal state accordingly.
+    async fn poll_player_status(&self) {
         trace!("Checking external VLC player status for {:?}", self);
         match self.retrieve_status().await {
             Ok(status) => {
@@ -552,6 +559,8 @@ mod tests {
     use httpmock::Method::GET;
     use httpmock::MockServer;
 
+    use super::*;
+    use crate::tests::wait_for_hit;
     use popcorn_fx_core::core::players::{MockPlayRequest, PlaySubtitleRequest};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::core::subtitles::model::SubtitleInfo;
@@ -559,10 +568,8 @@ mod tests {
     use popcorn_fx_core::testing::MockSubtitleManager;
     use popcorn_fx_core::{assert_timeout, init_logger, recv_timeout};
 
-    use super::*;
-
-    #[test]
-    fn test_id() {
+    #[tokio::test]
+    async fn test_id() {
         init_logger!();
         let manager = MockSubtitleManager::new();
         let provider = MockSubtitleProvider::new();
@@ -574,8 +581,8 @@ mod tests {
         assert_eq!("vlc", player.id());
     }
 
-    #[test]
-    fn test_name() {
+    #[tokio::test]
+    async fn test_name() {
         init_logger!();
         let manager = MockSubtitleManager::new();
         let provider = MockSubtitleProvider::new();
@@ -587,8 +594,8 @@ mod tests {
         assert_eq!("VLC", player.name());
     }
 
-    #[test]
-    fn test_description() {
+    #[tokio::test]
+    async fn test_description() {
         init_logger!();
         let manager = MockSubtitleManager::new();
         let provider = MockSubtitleProvider::new();
@@ -600,8 +607,8 @@ mod tests {
         assert_eq!(VLC_DESCRIPTION, player.description());
     }
 
-    #[test]
-    fn test_graphic_resource() {
+    #[tokio::test]
+    async fn test_graphic_resource() {
         init_logger!();
         let manager = MockSubtitleManager::new();
         let provider = MockSubtitleProvider::new();
@@ -767,7 +774,7 @@ mod tests {
             }
         });
 
-        player.inner.check_status().await;
+        player.inner.poll_player_status().await;
 
         let result = recv_timeout!(
             &mut rx_status,
@@ -791,8 +798,8 @@ mod tests {
         assert_eq!(6300000u64, result);
     }
 
-    #[test]
-    fn test_pause() {
+    #[tokio::test]
+    async fn test_pause() {
         init_logger!();
         let server = MockServer::start();
         let mock = server.mock(move |when, then| {
@@ -811,11 +818,12 @@ mod tests {
 
         player.pause();
 
-        mock.assert();
+        wait_for_hit(&mock).await;
+        mock.assert_async().await;
     }
 
-    #[test]
-    fn test_resume() {
+    #[tokio::test]
+    async fn test_resume() {
         init_logger!();
         let server = MockServer::start();
         let mock = server.mock(move |when, then| {
@@ -834,11 +842,12 @@ mod tests {
 
         player.resume();
 
-        mock.assert();
+        wait_for_hit(&mock).await;
+        mock.assert_async().await;
     }
 
-    #[test]
-    fn test_seek() {
+    #[tokio::test]
+    async fn test_seek() {
         init_logger!();
         let server = MockServer::start();
         let mock = server.mock(move |when, then| {
@@ -858,11 +867,12 @@ mod tests {
 
         player.seek(12000);
 
-        mock.assert();
+        wait_for_hit(&mock).await;
+        mock.assert_async().await;
     }
 
-    #[test]
-    fn test_seek_time_invalid() {
+    #[tokio::test]
+    async fn test_seek_time_invalid() {
         init_logger!();
         let server = MockServer::start();
         let mock = server.mock(move |when, then| {
@@ -882,6 +892,7 @@ mod tests {
 
         player.seek(800);
 
-        mock.assert();
+        wait_for_hit(&mock).await;
+        mock.assert_async().await;
     }
 }

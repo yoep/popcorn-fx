@@ -200,7 +200,11 @@ impl InnerPlayer {
                 _ = self.cancellation_token.cancelled() => break,
                 Some(command) = command_receiver.recv() => self.handle_command(command).await,
                 Some(event) = receiver.recv() => self.handle_event(event).await,
-                _ = interval.tick() => self.poll_event_info().await,
+                _ = interval.tick() => {
+                    if self.should_poll_event_info().await {
+                        self.poll_event_info().await
+                    }
+                },
             }
         }
         self.stop().await;
@@ -306,11 +310,17 @@ impl InnerPlayer {
         }
     }
 
-    async fn poll_event_info(&self) {
-        if !*self.event_poller_activated.lock().await {
-            return;
-        }
+    /// Check if the event information should be polled from the player.
+    ///
+    /// # Returns
+    ///
+    /// It returns `true` if the event information should be polled, `false` otherwise.
+    async fn should_poll_event_info(&self) -> bool {
+        *self.event_poller_activated.lock().await
+    }
 
+    /// Poll the event information from the player.
+    async fn poll_event_info(&self) {
         if let Ok(info) = self
             .execute_action("GetPositionInfo", UPNP_PLAYER_POSITION_PAYLOAD)
             .await
@@ -544,15 +554,16 @@ mod tests {
 
     use httpmock::Method::{GET, POST};
     use httpmock::{Mock, MockServer};
-
     use popcorn_fx_core::core::players::PlayUrlRequestBuilder;
     use popcorn_fx_core::core::subtitles::MockSubtitleProvider;
     use popcorn_fx_core::{init_logger, recv_timeout};
-
-    use crate::dlna::tests::DEFAULT_SSDP_DESCRIPTION_RESPONSE;
-    use crate::dlna::AV_TRANSPORT;
+    use tokio::time;
+    use tokio::time::timeout;
 
     use super::*;
+    use crate::dlna::tests::DEFAULT_SSDP_DESCRIPTION_RESPONSE;
+    use crate::dlna::AV_TRANSPORT;
+    use crate::tests::wait_for_hit;
 
     const RESPONSE_GET_POSITION: &str = r#"<?xml version="1.0"?>
         <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" 
@@ -713,7 +724,8 @@ mod tests {
 
         player.pause();
 
-        pause_mock.assert();
+        wait_for_hit(&pause_mock).await;
+        pause_mock.assert_async().await;
     }
 
     #[tokio::test]
@@ -738,7 +750,8 @@ mod tests {
 
         player.resume();
 
-        resume_mock.assert();
+        wait_for_hit(&resume_mock).await;
+        resume_mock.assert_async().await;
     }
 
     #[tokio::test]
@@ -771,7 +784,8 @@ mod tests {
 
         player.seek(14000);
 
-        seek_mock.assert();
+        wait_for_hit(&seek_mock).await;
+        seek_mock.assert_async().await;
     }
 
     #[tokio::test]
@@ -801,7 +815,9 @@ mod tests {
             false, *result,
             "expected event poller to have been cancelled"
         );
-        stop_mock.assert();
+
+        wait_for_hit(&stop_mock).await;
+        stop_mock.assert_async().await;
     }
 
     #[tokio::test]
@@ -832,6 +848,7 @@ mod tests {
                 }
             }
         });
+
         player.inner.poll_event_info().await;
 
         let result = recv_timeout!(&mut rx_duration, Duration::from_millis(200));
@@ -901,7 +918,6 @@ mod tests {
                 }
             }
         });
-        player.inner.update_event_poller_state(true).await;
         player.inner.poll_event_info().await;
 
         let result = recv_timeout!(&mut rx, Duration::from_millis(250));

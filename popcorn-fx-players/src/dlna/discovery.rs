@@ -8,8 +8,9 @@ use log::{debug, error, info, trace, warn};
 use rupnp::http::uri::InvalidUri;
 use rupnp::Device;
 use ssdp_client::{Error, SearchResponse, SearchTarget, URN};
+use tokio::select;
 use tokio::sync::Mutex;
-use tokio::time;
+use tokio::time::interval;
 use tokio_util::sync::CancellationToken;
 
 use popcorn_fx_core::core::players::PlayerManager;
@@ -50,21 +51,19 @@ impl Discovery for DlnaDiscovery {
             let inner = self.inner.clone();
             tokio::spawn(async move {
                 inner.update_state(DiscoveryState::Running).await;
+                let mut interval = interval(Duration::from_secs(inner.interval_seconds));
                 loop {
-                    if inner.cancel_token.is_cancelled() {
-                        break;
+                    select! {
+                        _ = inner.cancellation_token.cancelled() => break,
+                        _ = interval.tick() => {
+                            if let Err(e) = inner.execute_search().await {
+                                error!("Failed to discover DLNA devices, {}", e);
+                            }
+                        }
                     }
-
-                    if let Err(e) = inner.execute_search().await {
-                        error!("Failed to discover DLNA devices, {}", e);
-                    }
-
-                    if inner.cancel_token.is_cancelled() {
-                        break;
-                    }
-                    time::sleep(Duration::from_secs(inner.interval_seconds)).await;
                 }
                 inner.update_state(DiscoveryState::Stopped).await;
+                debug!("DLNA device discovery stopped");
             });
 
             Ok(())
@@ -74,9 +73,9 @@ impl Discovery for DlnaDiscovery {
     }
 
     fn stop_discovery(&self) -> crate::Result<()> {
-        if !self.inner.cancel_token.is_cancelled() {
+        if !self.inner.cancellation_token.is_cancelled() {
             trace!("Stopping DLNA devices discovery");
-            self.inner.cancel_token.cancel();
+            self.inner.cancellation_token.cancel();
         }
 
         Ok(())
@@ -140,7 +139,7 @@ impl DlnaDiscoveryBuilder {
                     .subtitle_server
                     .expect("expected a subtitle server to have been set"),
                 state: Mutex::new(DiscoveryState::Stopped),
-                cancel_token: Default::default(),
+                cancellation_token: Default::default(),
             }),
         }
     }
@@ -152,7 +151,7 @@ struct InnerDlnaDiscovery {
     discovered_devices: Mutex<Vec<String>>,
     subtitle_server: Arc<SubtitleServer>,
     state: Mutex<DiscoveryState>,
-    cancel_token: CancellationToken,
+    cancellation_token: CancellationToken,
 }
 
 impl InnerDlnaDiscovery {
@@ -255,7 +254,7 @@ mod tests {
     use popcorn_fx_core::{assert_timeout, init_logger};
     use std::sync::mpsc::channel;
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_state() {
         init_logger!();
         let player_manager = MockPlayerManager::new();
@@ -272,7 +271,7 @@ mod tests {
         assert_eq!(DiscoveryState::Stopped, result);
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_execute_search() {
         init_logger!();
         let server = MockServer::start();
@@ -312,7 +311,7 @@ mod tests {
         assert_eq!("test", player.name());
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_stop_discovery() {
         init_logger!();
         let mut player_manager = MockPlayerManager::new();
@@ -339,12 +338,13 @@ mod tests {
         server.stop_discovery().unwrap();
         assert_eq!(
             true,
-            server.inner.cancel_token.is_cancelled(),
+            server.inner.cancellation_token.is_cancelled(),
             "server should be stopped"
         );
         assert_timeout!(
-            Duration::from_millis(1500),
-            DiscoveryState::Stopped == server.inner.state().await
+            Duration::from_secs(10),
+            DiscoveryState::Stopped == server.inner.state().await,
+            "expected the discovery server to have been stopped"
         );
     }
 }

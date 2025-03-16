@@ -262,7 +262,7 @@ mod tests {
         assert_eq!(expected_result, result);
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_peer_pool_clean() {
         init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();

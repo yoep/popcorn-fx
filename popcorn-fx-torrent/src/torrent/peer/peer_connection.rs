@@ -127,6 +127,10 @@ where
     }
 
     async fn write<'a>(&'a self, bytes: &'a [u8]) -> Result<()> {
+        if self.cancellation_token.is_cancelled() {
+            return Err(Error::Closed);
+        }
+
         // make sure that we interrupt any writing operations if the connection is forcefully closed
         select! {
             _ = self.cancellation_token.cancelled() => Err(Error::Closed),

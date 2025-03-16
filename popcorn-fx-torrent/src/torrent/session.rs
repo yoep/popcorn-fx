@@ -4,7 +4,7 @@ use crate::torrent::operation::TorrentTrackersOperation;
 use crate::torrent::peer::{ProtocolExtensionFlags, TcpPeerDiscovery};
 use crate::torrent::torrent::Torrent;
 use crate::torrent::{
-    ExtensionFactories, ExtensionFactory, InfoHash, Magnet, TorrentConfig, TorrentError,
+    peer, ExtensionFactories, ExtensionFactory, InfoHash, Magnet, TorrentConfig, TorrentError,
     TorrentEvent, TorrentFlags, TorrentHandle, TorrentHealth, TorrentMetadata, TorrentOperation,
     TorrentOperationFactory, DEFAULT_TORRENT_EXTENSIONS, DEFAULT_TORRENT_OPERATIONS,
     DEFAULT_TORRENT_PROTOCOL_EXTENSIONS,
@@ -210,7 +210,7 @@ pub trait Session: Debug + Callback<SessionEvent> + Send + Sync {
 ///         .build()
 /// }
 /// ```
-#[derive(Debug, Display)]
+#[derive(Debug, Display, Clone)]
 #[display(fmt = "Session {}", "inner.handle")]
 pub struct FxTorrentSession {
     inner: Arc<InnerSession>,
@@ -246,8 +246,8 @@ impl FxTorrentSession {
     ///
     /// The `build` function of the builder will panic if the `base path` or `client name` is not set.
     /// Everything else is optional and uses default settings if not set.
-    pub fn builder() -> FxSessionBuilder {
-        FxSessionBuilder::new()
+    pub fn builder() -> FxTorrentSessionBuilder {
+        FxTorrentSessionBuilder::new()
     }
 
     /// Create a new torrent sessions.
@@ -259,7 +259,7 @@ impl FxTorrentSession {
     /// * `protocol_extensions` - The protocol extensions to use for this session.
     /// * `extensions` - The peer extensions to use for this session.
     /// * `operations` - The torrent operations to use for this session.
-    /// * `runtime` - The tokio runtime to use for this session.
+    /// * `port_range` - The port range used by torrents of the session to listen on incoming connections.
     ///
     /// # Returns
     ///
@@ -270,6 +270,7 @@ impl FxTorrentSession {
         protocol_extensions: ProtocolExtensionFlags,
         extensions: ExtensionFactories,
         operations: Vec<TorrentOperationFactory>,
+        port_range: std::ops::Range<u16>,
     ) -> Result<Self> {
         trace!("Trying to create a new torrent session");
         let torrent_storage_location = base_path.as_ref().to_path_buf();
@@ -279,6 +280,7 @@ impl FxTorrentSession {
             protocol_extensions,
             extensions,
             operations,
+            port_range,
         )?);
 
         debug!("Created new torrent session {}", inner.handle);
@@ -336,10 +338,8 @@ impl FxTorrentSession {
         }
 
         let storage_path = self.inner.base_path.read().await.clone();
-        let port = available_port!(6881, 32000)
-            .ok_or(TorrentError::Io("no port available".to_string()))?;
         trace!("Trying to create new torrent for info hash {}", info_hash);
-        let tcp_peer_discovery = TcpPeerDiscovery::new(port).await?;
+        let tcp_peer_discovery = self.inner.create_tcp_peer_discovery().await?;
         let mut request = Torrent::request();
         request
             .metadata(torrent_info)
@@ -347,7 +347,7 @@ impl FxTorrentSession {
             .config(config.build())
             .peer_discoveries(vec![
                 Box::new(tcp_peer_discovery),
-                // Box::new(UtpPeerDiscovery::new(port).await?),
+                // Box::new(UtpPeerDiscovery::new(tcp_peer_discovery.port()).await?),
             ])
             .protocol_extensions(self.inner.protocol_extensions)
             .extensions(self.inner.extensions())
@@ -541,15 +541,16 @@ impl Callback<SessionEvent> for FxTorrentSession {
 ///
 /// All other fields make use of defaults when not set.
 #[derive(Debug, Default)]
-pub struct FxSessionBuilder {
+pub struct FxTorrentSessionBuilder {
     base_path: Option<PathBuf>,
     client_name: Option<String>,
     protocol_extensions: Option<ProtocolExtensionFlags>,
     extension_factories: Option<ExtensionFactories>,
     operation_factories: Option<Vec<TorrentOperationFactory>>,
+    port_range: Option<std::ops::Range<u16>>,
 }
 
-impl FxSessionBuilder {
+impl FxTorrentSessionBuilder {
     /// Create a new builder instance to construct a [FxTorrentSession].
     pub fn new() -> Self {
         Self::default()
@@ -608,6 +609,12 @@ impl FxSessionBuilder {
         self
     }
 
+    /// Set the port range which are used by torrents of the session to listen on incoming connections.
+    pub fn port_range(&mut self, port_range: std::ops::Range<u16>) -> &mut Self {
+        self.port_range = Some(port_range);
+        self
+    }
+
     /// Create a new torrent session from this builder.
     /// The only required field within this builder is the base path for the torrent storage.
     ///
@@ -633,6 +640,7 @@ impl FxSessionBuilder {
         let torrent_operations = self
             .operation_factories
             .unwrap_or_else(DEFAULT_TORRENT_OPERATIONS);
+        let port_range = self.port_range.unwrap_or(6881..32000);
 
         FxTorrentSession::new(
             base_path,
@@ -640,6 +648,7 @@ impl FxSessionBuilder {
             protocol_extensions,
             extensions,
             torrent_operations,
+            port_range,
         )
     }
 }
@@ -663,6 +672,8 @@ struct InnerSession {
     torrent_operations: Vec<TorrentOperationFactory>,
     /// The event callbacks of the session
     callbacks: MultiThreadedCallback<SessionEvent>,
+    /// The port range which are used by torrents of the session to listen on incoming connections
+    port_range: std::ops::Range<u16>,
 }
 
 impl InnerSession {
@@ -672,6 +683,7 @@ impl InnerSession {
         protocol_extensions: ProtocolExtensionFlags,
         extensions: ExtensionFactories,
         torrent_operations: Vec<TorrentOperationFactory>,
+        port_range: std::ops::Range<u16>,
     ) -> Result<Self> {
         Ok(Self {
             handle: Default::default(),
@@ -682,6 +694,7 @@ impl InnerSession {
             torrent_operations,
             torrents: Default::default(),
             callbacks: MultiThreadedCallback::new(),
+            port_range,
         })
     }
 
@@ -763,6 +776,40 @@ impl InnerSession {
         if let Some(_) = torrent_info_hash {
             self.callbacks.invoke(SessionEvent::TorrentRemoved(*handle));
         }
+    }
+
+    /// Try to create a TCP peer discovery which listens for incoming connections within the configured port range of the session.
+    /// This function might try multiple times to find a free port and return an error if none is available.
+    ///
+    /// # Returns
+    ///
+    /// It returns a [TcpPeerDiscovery] on success, else the underlying `bind` failure.
+    async fn create_tcp_peer_discovery(&self) -> Result<TcpPeerDiscovery> {
+        const PORT_ERROR_MESSAGE: &str = "network interface has no available ports";
+        let mut attempts = 0;
+        let mut port_start = self.port_range.start;
+
+        while attempts < 3 {
+            let port = available_port!(port_start, self.port_range.end)
+                .ok_or(TorrentError::Io(PORT_ERROR_MESSAGE.to_string()))?;
+
+            return match TcpPeerDiscovery::new(port).await {
+                Ok(e) => Ok(e),
+                Err(peer_err) => {
+                    if let peer::Error::Io(io_err) = &peer_err {
+                        if io_err.kind() != std::io::ErrorKind::AddrInUse {
+                            attempts += 1;
+                            port_start = port;
+                            continue;
+                        }
+                    }
+
+                    Err(TorrentError::Peer(peer_err))
+                }
+            };
+        }
+
+        Err(TorrentError::Io(PORT_ERROR_MESSAGE.to_string()))
     }
 }
 
@@ -922,12 +969,8 @@ pub mod tests {
 
         let mut receiver = session.subscribe();
         tokio::spawn(async move {
-            loop {
-                if let Some(event) = receiver.recv().await {
-                    let _ = tx.send((*event).clone()).await;
-                } else {
-                    break;
-                }
+            while let Some(event) = receiver.recv().await {
+                let _ = tx.send((*event).clone()).await;
             }
         });
 
@@ -955,12 +998,8 @@ pub mod tests {
 
         let mut receiver = session.subscribe();
         tokio::spawn(async move {
-            loop {
-                if let Some(event) = receiver.recv().await {
-                    let _ = tx.send((*event).clone()).await;
-                } else {
-                    break;
-                }
+            while let Some(event) = receiver.recv().await {
+                let _ = tx.send((*event).clone()).await;
             }
         });
         let torrent = session

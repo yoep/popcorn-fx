@@ -2885,8 +2885,6 @@ mod tests {
         );
     }
 
-    // TODO: fix the utp peer creation process
-    #[ignore]
     #[tokio::test]
     async fn test_peer_new_utp() {
         init_logger!();

@@ -115,7 +115,7 @@ mod tests {
     use popcorn_fx_core::init_logger;
     use std::time::Duration;
     use tempfile::tempdir;
-    use tokio::sync::mpsc::channel;
+    use tokio::sync::mpsc::unbounded_channel;
 
     #[tokio::test]
     async fn test_execute_metadata_info_unknown() {
@@ -132,18 +132,14 @@ mod tests {
             vec![]
         );
         let inner = torrent.instance().unwrap();
-        let (tx, mut rx) = channel(10);
+        let (tx, mut rx) = unbounded_channel();
         let operation = TorrentTrackersOperation::new();
 
         let mut receiver = torrent.subscribe();
         tokio::spawn(async move {
-            loop {
-                if let Some(event) = receiver.recv().await {
-                    if let TorrentEvent::TrackersChanged = *event {
-                        tx.send(()).await.unwrap();
-                        break;
-                    }
-                } else {
+            while let Some(event) = receiver.recv().await {
+                if let TorrentEvent::TrackersChanged = *event {
+                    tx.send(()).unwrap();
                     break;
                 }
             }

@@ -20,14 +20,14 @@ pub mod webseed;
 pub mod tests {
     use super::*;
 
+    use crate::recv_timeout;
     use crate::torrent::peer::protocol::{UtpSocket, UtpSocketExtensions, UtpStream};
     use crate::torrent::{available_port, Torrent};
 
-    use crate::recv_timeout;
     use rand::{rng, Rng};
     use std::net::SocketAddr;
     use std::time::Duration;
-    use tokio::sync::mpsc::channel;
+    use tokio::sync::mpsc::unbounded_channel;
 
     /// Create a new uTP socket.
     #[macro_export]
@@ -82,7 +82,7 @@ pub mod tests {
     ) -> (BitTorrentPeer, BitTorrentPeer) {
         let incoming_context = incoming_torrent.instance().unwrap();
         let outgoing_context = outgoing_torrent.instance().unwrap();
-        let (tx, mut rx) = channel(1);
+        let (tx, mut rx) = unbounded_channel();
 
         // create the uTP stream pair
         let outgoing_stream = outgoing_socket
@@ -109,7 +109,7 @@ pub mod tests {
             )
             .await
             .expect("expected an incoming uTP peer");
-            tx.send(peer).await.unwrap();
+            tx.send(peer).unwrap();
         });
 
         let outgoing_extensions = outgoing_context.extensions();

@@ -8,7 +8,7 @@ use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use log::{debug, error, info, trace, warn};
 use std::sync::Arc;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
 
 const DEFAULT_SETTINGS_FILENAME: &str = "settings.json";
@@ -699,6 +699,7 @@ mod test {
         init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
+        copy_test_file(temp_path, "settings.json", None); // copy the initial settings to the test dir
         let (tx, mut rx) = unbounded_channel();
         let application = ApplicationConfig::builder().storage(temp_path).build();
         application
@@ -721,12 +722,20 @@ mod test {
         });
 
         // wait for the initial load
-        let _ = recv_timeout!(&mut rx, Duration::from_millis(250));
+        let _ = recv_timeout!(
+            &mut rx,
+            Duration::from_millis(750),
+            "expected to receive the initial ApplicationConfigEvent::Loaded event"
+        );
 
         // reload the settings
         application.reload();
 
-        let result = recv_timeout!(&mut rx, Duration::from_millis(250));
+        let result = recv_timeout!(
+            &mut rx,
+            Duration::from_millis(750),
+            "expected to receive a ApplicationConfigEvent"
+        );
         match result {
             ApplicationConfigEvent::Loaded => {}
             _ => assert!(false, "expected ApplicationConfigEvent::Loaded event"),

@@ -584,7 +584,7 @@ mod tests {
 
     use popcorn_fx_core::init_logger;
     use std::str::FromStr;
-    use tokio::sync::mpsc::channel;
+    use tokio::sync::mpsc::unbounded_channel;
     use url::Url;
 
     #[tokio::test]
@@ -653,13 +653,13 @@ mod tests {
         let info_hash =
             InfoHash::from_str("urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7").unwrap();
         let entry = TrackerEntry { tier: 0, url };
-        let (tx, mut rx) = channel(1);
+        let (tx, mut rx) = unbounded_channel();
         let manager = TrackerManager::new(peer_id, 6881, info_hash, Duration::from_secs(1));
 
         let mut receiver = manager.subscribe();
         tokio::spawn(async move {
             if let Some(event) = receiver.recv().await {
-                tx.send((*event).clone()).await.unwrap();
+                tx.send((*event).clone()).unwrap();
             }
         });
 

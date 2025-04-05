@@ -250,6 +250,12 @@ impl UtpSocket {
     ///
     /// The address should either be a [std::net::Ipv4Addr] or [std::net::Ipv6Addr] local machine address, and never an external address.
     /// If the socket port is no longer available, the UTP socket cannot be created and an error will be returned.
+    ///
+    /// # Arguments
+    ///
+    /// * `addr` - The socket address to bind the uTP socket to.
+    /// * `timeout` - The connection timeout for the uTP socket.
+    /// * `extensions` - The uTP socket extensions to use.
     pub async fn new(
         addr: SocketAddr,
         timeout: Duration,

@@ -117,12 +117,12 @@ impl InfoHash {
     }
 
     /// Get the v1 hash as a hex encoded string.
-    fn v1_as_str(&self) -> Option<String> {
+    pub fn v1_as_str(&self) -> Option<String> {
         self.v1.as_ref().map(|e| hex::encode(e).to_uppercase())
     }
 
     /// Get the v2 hash as a hex encoded string.
-    fn v2_as_str(&self) -> Option<String> {
+    pub fn v2_as_str(&self) -> Option<String> {
         self.v2.as_ref().map(|e| hex::encode(e).to_uppercase())
     }
 

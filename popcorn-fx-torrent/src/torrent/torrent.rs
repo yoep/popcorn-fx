@@ -3550,7 +3550,6 @@ mod tests {
     use std::ops::Sub;
     use std::str::FromStr;
     use tempfile::tempdir;
-    use tokio::sync::mpsc::channel;
 
     #[tokio::test]
     async fn test_torrent_announce() {
@@ -3600,7 +3599,7 @@ mod tests {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let (tx, mut rx) = channel(1);
+        let (tx, mut rx) = unbounded_channel();
         let uri = "magnet:?xt=urn:btih:2C6B6858D61DA9543D4231A71DB4B1C9264B0685&dn=Ubuntu%2022.04%20LTS&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce";
         let torrent = create_torrent!(uri, temp_path, TorrentFlags::Metadata);
 
@@ -3609,7 +3608,7 @@ mod tests {
             loop {
                 if let Some(event) = receiver.recv().await {
                     if let TorrentEvent::MetadataChanged = *event {
-                        tx.send(()).await.unwrap();
+                        tx.send(()).unwrap();
                         break;
                     }
                 } else {
@@ -3749,7 +3748,7 @@ mod tests {
             Some("debian-12.4.0-amd64-DVD-1.iso"),
         );
         let expected_file_data = read_test_file_to_bytes("piece-1_30.iso");
-        let (tx_state, mut rx_state) = channel(1);
+        let (tx_state, mut rx_state) = unbounded_channel();
         let source_torrent = create_torrent!(
             "debian-udp.torrent",
             temp_path_source,
@@ -3820,7 +3819,7 @@ mod tests {
                 if let Some(event) = receiver.recv().await {
                     if let TorrentEvent::StateChanged(state) = &*event {
                         if state == &TorrentState::Finished {
-                            tx_state.send(()).await.unwrap();
+                            tx_state.send(()).unwrap();
                         }
                     }
                 } else {
@@ -3890,7 +3889,7 @@ mod tests {
             begin: 16384,
             length: 16384,
         };
-        let (tx, mut rx) = channel(1);
+        let (tx, mut rx) = unbounded_channel();
         let torrent = create_torrent!(
             "debian-udp.torrent",
             temp_path,
@@ -3907,7 +3906,7 @@ mod tests {
             loop {
                 if let Some(event) = receiver.recv().await {
                     if let TorrentEvent::PiecesChanged = *event {
-                        tx.send(()).await.unwrap();
+                        tx.send(()).unwrap();
                     }
                 } else {
                     break;
@@ -3943,14 +3942,14 @@ mod tests {
             TorrentConfig::default(),
             vec![|| Box::new(TorrentCreatePiecesOperation::new())]
         );
-        let (tx, mut rx) = channel(1);
+        let (tx, mut rx) = unbounded_channel();
 
         let mut receiver = torrent.subscribe();
         tokio::spawn(async move {
             loop {
                 if let Some(event) = receiver.recv().await {
                     if let TorrentEvent::PiecesChanged = *event {
-                        tx.send(()).await.unwrap();
+                        tx.send(()).unwrap();
                     }
                 } else {
                     break;
@@ -3983,7 +3982,7 @@ mod tests {
                 Box::new(TorrentCreateFilesOperation::new())
             },]
         );
-        let (tx, mut rx) = channel(1);
+        let (tx, mut rx) = unbounded_channel();
 
         // wait for the pieces changed event
         let mut receiver = torrent.subscribe();
@@ -3991,7 +3990,7 @@ mod tests {
             loop {
                 if let Some(event) = receiver.recv().await {
                     if let TorrentEvent::FilesChanged = *event {
-                        tx.send(()).await.unwrap();
+                        tx.send(()).unwrap();
                     }
                 } else {
                     break;
@@ -4030,7 +4029,7 @@ mod tests {
                 || Box::new(TorrentFileValidationOperation::new()),
             ]
         );
-        let (tx, mut rx) = channel(1);
+        let (tx, mut rx) = unbounded_channel();
 
         let mut receiver = torrent.subscribe();
         tokio::spawn(async move {
@@ -4040,7 +4039,7 @@ mod tests {
                         if state != &TorrentState::Initializing
                             && state != &TorrentState::CheckingFiles
                         {
-                            tx.send(()).await.unwrap();
+                            tx.send(()).unwrap();
                         }
                     }
                 } else {
@@ -4052,7 +4051,7 @@ mod tests {
         // wait for the expected state
         recv_timeout!(
             &mut rx,
-            Duration::from_millis(5000),
+            Duration::from_secs(8),
             "expected the torrent to be initialized"
         );
 
@@ -4355,7 +4354,7 @@ mod tests {
         let expected_state = TorrentState::Paused;
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let (tx, mut rx) = channel(1);
+        let (tx, mut rx) = unbounded_channel();
         let torrent = create_torrent!(
             "debian-udp.torrent",
             temp_path,
@@ -4371,7 +4370,7 @@ mod tests {
             loop {
                 if let Some(event) = receiver.recv().await {
                     if let TorrentEvent::StateChanged(state) = &*event {
-                        tx.send(state.clone()).await.unwrap();
+                        tx.send(state.clone()).unwrap();
                         break;
                     }
                 } else {

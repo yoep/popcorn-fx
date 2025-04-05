@@ -307,6 +307,7 @@ pub mod testing {
                 .logger(Logger::builder().build("hyper", LevelFilter::Info))
                 .logger(Logger::builder().build("hyper_util", LevelFilter::Info))
                 .logger(Logger::builder().build("mdns_sd", LevelFilter::Info))
+                .logger(Logger::builder().build("mio", LevelFilter::Info))
                 .logger(Logger::builder().build("neli", LevelFilter::Info))
                 .logger(Logger::builder().build("polling", LevelFilter::Info))
                 .logger(Logger::builder().build("rustls", LevelFilter::Info))

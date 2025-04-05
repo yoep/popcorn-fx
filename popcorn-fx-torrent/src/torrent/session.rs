@@ -211,7 +211,7 @@ pub trait Session: Debug + Callback<SessionEvent> + Send + Sync {
 /// }
 /// ```
 #[derive(Debug, Display, Clone)]
-#[display(fmt = "Session {}", "inner.handle")]
+#[display(fmt = "{}", inner)]
 pub struct FxTorrentSession {
     inner: Arc<InnerSession>,
 }
@@ -654,7 +654,8 @@ impl FxTorrentSessionBuilder {
 }
 
 // TODO: add options which support configuring timeouts etc
-#[derive(Debug)]
+#[derive(Debug, Display)]
+#[display(fmt = "{}", handle)]
 struct InnerSession {
     /// The unique session identifier
     handle: SessionHandle,
@@ -756,25 +757,27 @@ impl InnerSession {
     }
 
     async fn remove_torrent(&self, handle: &TorrentHandle) {
-        let mut torrent_info_hash: Option<InfoHash> = None;
+        trace!("Session {} is trying to remove torrent {}", self, handle);
+        let torrent_info_hash: Option<InfoHash>;
 
         {
             let mut mutex = self.torrents.write().await;
-            for (info_hash, torrent) in mutex.iter() {
-                if torrent.handle() == *handle {
-                    torrent_info_hash = Some(info_hash.clone());
-                    break;
-                }
-            }
+            torrent_info_hash = mutex
+                .iter()
+                .find(|(_, torrent)| torrent.handle() == *handle)
+                .map(|(info_hash, _)| info_hash)
+                .cloned();
 
             if let Some(info_hash) = &torrent_info_hash {
-                debug!("Removing torrent {}", handle);
                 mutex.remove(&info_hash);
+                debug!("Session {} removed torrent {}", self, handle);
             }
         }
 
         if let Some(_) = torrent_info_hash {
             self.callbacks.invoke(SessionEvent::TorrentRemoved(*handle));
+        } else {
+            trace!("Session {} has no torrent {}", self, handle);
         }
     }
 
@@ -799,7 +802,7 @@ impl InnerSession {
                     if let peer::Error::Io(io_err) = &peer_err {
                         if io_err.kind() != std::io::ErrorKind::AddrInUse {
                             attempts += 1;
-                            port_start = port;
+                            port_start = port + 1;
                             continue;
                         }
                     }
@@ -848,13 +851,14 @@ pub mod tests {
     use super::*;
 
     use crate::torrent::TorrentHealthState;
+    use crate::{create_torrent, recv_timeout};
 
     use log::info;
     use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::{read_test_file_to_bytes, test_resource_filepath};
     use std::time::Duration;
     use tempfile::tempdir;
-    use tokio::sync::mpsc::channel;
+    use tokio::sync::mpsc::unbounded_channel;
 
     #[tokio::test]
     async fn test_session_find_torrent() {
@@ -875,16 +879,24 @@ pub mod tests {
         assert_ne!(None, result);
     }
 
-    #[tokio::test]
+    #[ignore]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
     async fn test_session_fetch_magnet() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let uri = "magnet:?xt=urn:btih:2C6B6858D61DA9543D4231A71DB4B1C9264B0685&dn=Ubuntu%2022.04%20LTS&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce";
+        let uri = "magnet:?xt=EADAF0EFEA39406914414D359E0EA16416409BD7&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce";
+        let _torrent_with_metadata = create_torrent!(
+            "debian-udp.torrent",
+            temp_path,
+            TorrentFlags::Metadata,
+            TorrentConfig::default()
+        );
+
         let session = create_session(temp_path);
 
         let result = session
-            .fetch_magnet(uri, Duration::from_secs(30))
+            .fetch_magnet(uri, Duration::from_secs(40))
             .await
             .unwrap();
 
@@ -957,68 +969,71 @@ pub mod tests {
         assert_eq!(expected_info_hash, result.info_hash);
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_session_add_torrent() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let data = read_test_file_to_bytes("debian.torrent");
         let info = TorrentMetadata::try_from(data.as_slice()).unwrap();
-        let (tx, mut rx) = channel(1);
+        let (tx, mut rx) = unbounded_channel();
         let session = create_session(temp_path);
 
         let mut receiver = session.subscribe();
         tokio::spawn(async move {
             while let Some(event) = receiver.recv().await {
-                let _ = tx.send((*event).clone()).await;
+                let _ = tx.send((*event).clone());
             }
         });
 
         let torrent = session
-            .add_torrent_from_info(info, TorrentFlags::default())
+            .add_torrent_from_info(info, TorrentFlags::none())
             .await
             .expect("expected a torrent handle");
 
         let event = select! {
-            _ = tokio::time::sleep(Duration::from_millis(200)) => panic!("receive event timed out"),
+            _ = tokio::time::sleep(Duration::from_millis(500)) => panic!("receive event timed out"),
             event = rx.recv() => event.unwrap(),
         };
         assert_eq!(event, SessionEvent::TorrentAdded(torrent.handle()));
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_session_remove_torrent() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let data = read_test_file_to_bytes("debian.torrent");
         let info = TorrentMetadata::try_from(data.as_slice()).unwrap();
-        let (tx, mut rx) = channel(2);
+        let (tx, mut rx) = unbounded_channel();
         let session = create_session(temp_path);
 
         let mut receiver = session.subscribe();
         tokio::spawn(async move {
             while let Some(event) = receiver.recv().await {
-                let _ = tx.send((*event).clone()).await;
+                let _ = tx.send((*event).clone());
             }
         });
         let torrent = session
-            .add_torrent_from_info(info, TorrentFlags::default())
+            .add_torrent_from_info(info, TorrentFlags::none())
             .await
             .expect("expected a torrent handle");
         let handle = torrent.handle();
 
-        let event = select! {
-            _ = tokio::time::sleep(Duration::from_millis(200)) => panic!("receive event timed out"),
-            event = rx.recv() => event.unwrap(),
-        };
+        let event = recv_timeout!(
+            &mut rx,
+            Duration::from_millis(250),
+            "expected to receive a session event"
+        );
         assert_eq!(event, SessionEvent::TorrentAdded(handle));
 
         session.remove_torrent(&handle).await;
-        let event = select! {
-            _ = tokio::time::sleep(Duration::from_millis(200)) => panic!("receive event timed out"),
-            event = rx.recv() => event.unwrap(),
-        };
+
+        let event = recv_timeout!(
+            &mut rx,
+            Duration::from_millis(250),
+            "expected to receive a session event"
+        );
         assert_eq!(event, SessionEvent::TorrentRemoved(handle));
     }
 

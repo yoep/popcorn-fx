@@ -1068,7 +1068,7 @@ mod tests {
 
     use popcorn_fx_core::{assert_timeout, init_logger};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
-    use tokio::sync::mpsc::{channel, unbounded_channel};
+    use tokio::sync::mpsc::unbounded_channel;
 
     #[test]
     fn test_state_type_from_message() {
@@ -1338,7 +1338,7 @@ mod tests {
         );
         let (mut incoming_stream, mut outgoing_stream) =
             create_utp_stream_pair(&incoming, &outgoing).await;
-        let (tx, mut rx) = channel(1);
+        let (tx, mut rx) = unbounded_channel();
 
         assert_timeout!(
             Duration::from_millis(500),
@@ -1352,7 +1352,7 @@ mod tests {
                 .read_exact(&mut buffer)
                 .await
                 .expect("expected a message to have been received");
-            tx.send((result_buffer_len, buffer)).await.unwrap();
+            tx.send((result_buffer_len, buffer)).unwrap();
         });
 
         let bytes = expected_result.as_bytes();
@@ -1429,7 +1429,7 @@ mod tests {
         let (incoming, outgoing) = create_utp_socket_pair!();
         let (mut incoming_stream, mut outgoing_stream) =
             create_utp_stream_pair(&incoming, &outgoing).await;
-        let (tx, mut rx) = channel(1);
+        let (tx, mut rx) = unbounded_channel();
 
         assert_timeout!(
             Duration::from_millis(500),
@@ -1443,7 +1443,7 @@ mod tests {
                 .read_exact(&mut buffer)
                 .await
                 .expect("expected a message to have been received");
-            tx.send((result_buffer_len, buffer)).await.unwrap();
+            tx.send((result_buffer_len, buffer)).unwrap();
         });
 
         let bytes = expected_result.as_bytes();

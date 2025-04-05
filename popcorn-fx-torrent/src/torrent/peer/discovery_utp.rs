@@ -7,15 +7,17 @@ use crate::torrent::peer::{
 use crate::torrent::TorrentContext;
 use async_trait::async_trait;
 use derive_more::Display;
-use futures::FutureExt;
+use futures::stream::FuturesUnordered;
+use futures::StreamExt;
 use fx_handle::Handle;
-use log::{debug, trace};
+use log::{debug, trace, warn};
 use std::io;
 use std::net::SocketAddr;
-use std::sync::{mpsc, Arc};
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::select;
-use tokio::sync::RwLock;
+use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
+use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 
 /// The unique handle of an uTP peer discovery resource instance.
@@ -28,26 +30,24 @@ pub struct UtpPeerDiscovery {
 
 impl UtpPeerDiscovery {
     /// Create a new uTP peer discovery instance on the given port.
-    pub fn new(port: u16) -> Result<Self> {
-        let (tx_ready, rx) = mpsc::channel();
+    pub async fn new(port: u16) -> Result<Self> {
+        let (sender, receiver) = unbounded_channel();
         let cancellation_token = CancellationToken::new();
+        let sockets =
+            InnerUtpPeerDiscovery::try_create_listeners(port, Duration::from_secs(6)).await?;
         let inner = Arc::new(InnerUtpPeerDiscovery {
             handle: Default::default(),
             port,
-            sockets: Default::default(),
+            sockets,
+            receiver: Mutex::new(receiver),
             connection_timeout: Duration::from_secs(6),
             cancellation_token,
         });
 
         let inner_main_loop = inner.clone();
         tokio::spawn(async move {
-            inner_main_loop.start(tx_ready).await;
+            inner_main_loop.start(sender).await;
         });
-
-        match rx.recv() {
-            Ok(ready) => ready?,
-            Err(_) => return Err(Error::Closed),
-        }
 
         Ok(Self { inner })
     }
@@ -68,8 +68,9 @@ impl PeerDiscovery for UtpPeerDiscovery {
         extensions: Extensions,
         connection_timeout: Duration,
     ) -> Result<Box<dyn Peer>> {
-        let socket_mutex = self.inner.sockets.read().await;
-        let socket = socket_mutex
+        let socket = self
+            .inner
+            .sockets
             .iter()
             .find(|e| e.addr().is_ipv4() == peer_addr.is_ipv4());
 
@@ -97,7 +98,8 @@ impl PeerDiscovery for UtpPeerDiscovery {
     }
 
     async fn recv(&self) -> Option<PeerEntry> {
-        match self.inner.recv().await {
+        let mut receiver = self.inner.receiver.lock().await;
+        match receiver.recv().await {
             None => None,
             Some(stream) => Some(PeerEntry {
                 socket_addr: stream.addr(),
@@ -122,47 +124,42 @@ impl Drop for UtpPeerDiscovery {
 struct InnerUtpPeerDiscovery {
     handle: UtpPeerDiscoveryHandle,
     port: u16,
-    sockets: RwLock<Vec<UtpSocket>>,
+    sockets: Vec<UtpSocket>,
+    receiver: Mutex<UnboundedReceiver<UtpStream>>,
     connection_timeout: Duration,
     cancellation_token: CancellationToken,
 }
 
 impl InnerUtpPeerDiscovery {
     /// Start the main loop of the utp peer discovery.
-    async fn start(&self, ready_sender: mpsc::Sender<Result<()>>) {
-        match Self::try_create_listeners(self.port, self.connection_timeout).await {
-            Ok(sockets) => {
-                debug!("UTP peer discovery {} started on port {}", self, self.port);
-                self.sockets.write().await.extend(sockets);
-                self.send(Ok(()), ready_sender);
-
-                loop {
-                    select! {
-                        _ = self.cancellation_token.cancelled() => break,
-                    }
-                }
-
-                debug!("UTP peer discovery {} main loop ended", self);
+    async fn start(&self, sender: UnboundedSender<UtpStream>) {
+        debug!("UTP peer discovery {} started on port {}", self, self.port);
+        let mut futures = FuturesUnordered::from_iter(
+            self.sockets
+                .iter()
+                .map(|socket| self.accept_connections(socket, sender.clone())),
+        )
+        .fuse();
+        loop {
+            select! {
+                _ = self.cancellation_token.cancelled() => break,
+                Some(_) = futures.next() => {},
             }
-            Err(e) => self.send(Err(e), ready_sender),
         }
+
+        debug!("UTP peer discovery {} main loop ended", self);
     }
 
-    async fn recv(&self) -> Option<UtpStream> {
-        let sockets = self.sockets.read().await;
-
-        let mut futures = sockets.iter().map(|e| e.recv());
-        if let Some(first) = futures.next().map(|e| e.fuse()) {
-            return match first.await {
-                Some(stream) => Some(stream),
-                None => {
-                    debug!("Utp discovery {} no streams available", self);
-                    None
-                }
-            };
+    async fn accept_connections(&self, socket: &UtpSocket, sender: UnboundedSender<UtpStream>) {
+        while let Some(stream) = socket.recv().await {
+            if let Err(e) = sender.send(stream) {
+                warn!(
+                    "UTP peer discovery {} failed to send peer connection, {}",
+                    self, e
+                );
+                break;
+            }
         }
-
-        None
     }
 
     async fn try_create_listeners(port: u16, timeout: Duration) -> Result<Vec<UtpSocket>> {
@@ -197,15 +194,6 @@ impl InnerUtpPeerDiscovery {
 
         Ok(sockets)
     }
-
-    fn send(&self, result: Result<()>, ready_sender: mpsc::Sender<Result<()>>) {
-        if let Err(e) = ready_sender.send(result) {
-            debug!(
-                "UTP peer discovery {} failed to send ready state, {}",
-                self, e
-            );
-        }
-    }
 }
 
 #[cfg(test)]
@@ -223,7 +211,7 @@ mod tests {
         init_logger!();
         let port = available_port!(31000, 32000).unwrap();
 
-        let result = UtpPeerDiscovery::new(port);
+        let result = UtpPeerDiscovery::new(port).await;
         assert_eq!(
             true,
             result.is_ok(),
@@ -241,7 +229,7 @@ mod tests {
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let port = available_port!(11000, 12000).unwrap();
-        let discovery = UtpPeerDiscovery::new(port).unwrap();
+        let discovery = UtpPeerDiscovery::new(port).await.unwrap();
         let torrent = create_torrent!(
             "debian-udp.torrent",
             temp_path,

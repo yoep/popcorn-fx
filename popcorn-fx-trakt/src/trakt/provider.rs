@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use chrono::{Local, Utc};
-use fx_callback::{Callback, CallbackHandle, MultiThreadedCallback, Subscriber, Subscription};
+use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use log::{debug, error, info, trace, warn};
 use oauth2::basic::{BasicClient, BasicTokenResponse};
 use oauth2::reqwest::async_http_client;

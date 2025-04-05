@@ -85,7 +85,7 @@ mod tests {
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let torrent = create_torrent!(
-            "ubuntu-https.torrent",
+            "ubuntu-udp.torrent",
             temp_path,
             TorrentFlags::none(),
             TorrentConfig::default(),

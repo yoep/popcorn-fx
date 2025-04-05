@@ -8,7 +8,7 @@ popcorn:
     popcorn_fx:
       level: warn
     popcorn_fx::ffi:
-      level: debug
+      level: info
     popcorn_fx_core:
       level: info
     popcorn_fx_core::core::loader:

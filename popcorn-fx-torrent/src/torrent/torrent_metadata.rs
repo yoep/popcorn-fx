@@ -1365,10 +1365,27 @@ mod tests {
 
         let info_hash = &result.info_hash;
         assert_eq!(
-            "eadaf0efea39406914414d359e0ea16416409bd7",
-            hex::encode(info_hash.hash_v1().unwrap())
+            Some("eadaf0efea39406914414d359e0ea16416409bd7".to_uppercase()),
+            info_hash.v1_as_str()
         );
         assert_eq!(Some("debian-12.4.0-amd64-DVD-1.iso"), result.name());
+    }
+
+    #[test]
+    fn test_magnet_try_from_torrent_info() {
+        init_logger!();
+        let data = read_test_file_to_bytes("debian-udp.torrent");
+        let expected_result = "magnet:?xt=EADAF0EFEA39406914414D359E0EA16416409BD7&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce";
+        let info = TorrentMetadata::try_from(data.as_slice()).unwrap();
+
+        let magnet = Magnet::try_from(&info).unwrap();
+
+        let result = magnet.to_string();
+        assert_eq!(
+            vec!["EADAF0EFEA39406914414D359E0EA16416409BD7"],
+            magnet.xt()
+        );
+        assert_eq!(expected_result, result.as_str());
     }
 
     #[test]

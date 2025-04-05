@@ -138,7 +138,7 @@ pub mod tests {
     use std::time::Duration;
     use tokio::net::TcpStream;
     use tokio::select;
-    use tokio::sync::mpsc::{channel, Receiver};
+    use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver};
 
     /// Create the torrent metadata from the given uri.
     /// The uri can either point to a `.torrent` file or a magnet link.
@@ -230,6 +230,7 @@ pub mod tests {
         let tcp_discovery = create_tcp_peer_discovery(&mut rng).await;
         let utp_discovery =
             UtpPeerDiscovery::new(available_port(rng.random_range(11000..13000), 15000).unwrap())
+                .await
                 .unwrap();
         let discoveries: Vec<Box<dyn PeerDiscovery>> =
             vec![Box::new(tcp_discovery), Box::new(utp_discovery)];
@@ -265,7 +266,7 @@ pub mod tests {
     ///
     /// It returns the received instance of `T`.
     pub(crate) async fn recv_timeout<T>(
-        receiver: &mut Receiver<T>,
+        receiver: &mut UnboundedReceiver<T>,
         timeout: Duration,
         message: &str,
     ) -> T {
@@ -311,7 +312,7 @@ pub mod tests {
         let outgoing_context = outgoing_torrent.instance().unwrap();
         let port_start = rng().random_range(6881..10000);
         let port = available_port!(port_start, 31000).unwrap();
-        let (tx, mut rx) = channel(1);
+        let (tx, mut rx) = unbounded_channel();
 
         let incoming_context = incoming_context.clone();
         let extensions = incoming_context.extensions();
@@ -331,7 +332,6 @@ pub mod tests {
                         )
                         .await,
                     )
-                    .await
                     .unwrap()
                 }
             }

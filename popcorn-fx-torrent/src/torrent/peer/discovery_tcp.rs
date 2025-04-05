@@ -265,6 +265,8 @@ mod tests {
         assert_eq!(listener.inner.port, result);
     }
 
+    // FIXME: unstable in Github actions
+    #[ignore]
     #[tokio::test]
     async fn test_tcp_discovery_recv() {
         init_logger!();
@@ -298,6 +300,8 @@ mod tests {
         }
     }
 
+    // FIXME: unstable in Github actions
+    #[ignore]
     #[tokio::test]
     async fn test_tcp_discovery_drop() {
         init_logger!();

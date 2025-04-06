@@ -132,7 +132,6 @@ pub mod tests {
     };
 
     use popcorn_fx_core::testing::read_test_file_to_bytes;
-    use rand::{rng, Rng};
     use std::net::SocketAddr;
     use std::str::FromStr;
     use std::time::Duration;

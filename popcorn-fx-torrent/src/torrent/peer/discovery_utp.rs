@@ -12,7 +12,7 @@ use futures::StreamExt;
 use fx_handle::Handle;
 use log::{debug, trace, warn};
 use std::io;
-use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
+use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::select;
@@ -119,7 +119,10 @@ impl PeerDiscovery for UtpPeerDiscovery {
 
         Err(Error::Io(io::Error::new(
             io::ErrorKind::Unsupported,
-            format!("support for address \"{}\" has been disabled", peer_addr),
+            format!(
+                "unable to connect to \"{}\", no compatible uTP socket available",
+                peer_addr
+            ),
         )))
     }
 
@@ -188,40 +191,30 @@ impl InnerUtpPeerDiscovery {
         }
     }
 
+    #[allow(unused_assignments)]
     async fn try_binding_sockets(mut port: u16, timeout: Duration) -> Result<Vec<UtpSocket>> {
         let mut sockets = Vec::new();
+        let addrs = vec![
+            // dual stack support is currently not configurable with tokio UdpSocket
+            // therefore, we currently only support IPv4
+            // SocketAddr::from((Ipv6Addr::UNSPECIFIED, port)),
+            SocketAddr::from((Ipv4Addr::UNSPECIFIED, port)),
+        ];
 
-        // attempt to bind the IPv6 address first in case dual stack is enabled
-        let ipv6_addr = SocketAddr::from((Ipv6Addr::UNSPECIFIED, port));
-        match UtpSocket::new(ipv6_addr, timeout, vec![]).await {
-            Ok(socket) => {
-                trace!("Created uTP IPv6 listener on {}", ipv6_addr);
-                port = socket.addr().port();
-                sockets.push(socket);
-            }
-            Err(e) => {
-                if let Error::Io(io_err) = &e {
-                    if io_err.kind() == io::ErrorKind::AddrInUse {
+        for addr in addrs {
+            match UtpSocket::new(addr, timeout, vec![]).await {
+                Ok(socket) => {
+                    trace!("Created uTP listener on {}", addr);
+                    port = socket.addr().port();
+                    sockets.push(socket);
+                }
+                Err(e) => {
+                    if sockets.is_empty() {
                         return Err(e);
                     }
+
+                    trace!("Failed to bind uTP socket on {}, {}", addr, e)
                 }
-
-                debug!("Failed to bind uTP IPv6 socket on {}, {}", ipv6_addr, e)
-            }
-        }
-
-        let ipv4_addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, port));
-        match UtpSocket::new(ipv4_addr, timeout, vec![]).await {
-            Ok(socket) => {
-                trace!("Created uTP IPv4 listener on {}", ipv4_addr);
-                sockets.push(socket);
-            }
-            Err(e) => {
-                if sockets.is_empty() {
-                    return Err(e);
-                }
-
-                trace!("Failed to bind uTP IPv4 socket on {}, {}", ipv4_addr, e)
             }
         }
 

@@ -126,12 +126,12 @@ pub mod tests {
     use super::*;
 
     use crate::torrent::fs::TorrentFileSystemStorage;
+    use crate::torrent::peer::tests::new_tcp_peer_discovery;
     use crate::torrent::peer::{
-        BitTorrentPeer, PeerDiscovery, PeerId, PeerStream, TcpPeerDiscovery, UtpPeerDiscovery,
+        BitTorrentPeer, PeerDiscovery, PeerId, PeerStream, UtpPeerDiscovery,
     };
 
     use popcorn_fx_core::testing::read_test_file_to_bytes;
-    use rand::prelude::ThreadRng;
     use rand::{rng, Rng};
     use std::net::SocketAddr;
     use std::str::FromStr;
@@ -227,7 +227,7 @@ pub mod tests {
         operations: Vec<TorrentOperationFactory>,
     ) -> Torrent {
         let mut rng = rng();
-        let tcp_discovery = create_tcp_peer_discovery(&mut rng).await;
+        let tcp_discovery = new_tcp_peer_discovery().await.unwrap();
         let utp_discovery =
             UtpPeerDiscovery::new(available_port(rng.random_range(11000..13000), 15000).unwrap())
                 .await
@@ -310,13 +310,12 @@ pub mod tests {
     ) -> (BitTorrentPeer, BitTorrentPeer) {
         let incoming_context = incoming_torrent.instance().unwrap();
         let outgoing_context = outgoing_torrent.instance().unwrap();
-        let port_start = rng().random_range(6881..10000);
-        let port = available_port!(port_start, 31000).unwrap();
         let (tx, mut rx) = unbounded_channel();
 
         let incoming_context = incoming_context.clone();
         let extensions = incoming_context.extensions();
-        let listener = TcpPeerDiscovery::new(port).await.unwrap();
+        let listener = new_tcp_peer_discovery().await.unwrap();
+        let listener_port = listener.port();
         tokio::spawn(async move {
             if let Some(peer) = listener.recv().await {
                 if let PeerStream::Tcp(stream) = peer.stream {
@@ -339,7 +338,7 @@ pub mod tests {
 
         let peer_context = outgoing_context.clone();
         let outgoing_extensions = outgoing_context.extensions();
-        let addr = SocketAddr::new([127, 0, 0, 1].into(), port);
+        let addr = SocketAddr::new([127, 0, 0, 1].into(), listener_port);
         let stream = TcpStream::connect(addr).await.unwrap();
         let outgoing_peer = BitTorrentPeer::new_outbound(
             PeerId::new(),
@@ -357,22 +356,5 @@ pub mod tests {
             recv_timeout!(&mut rx, Duration::from_secs(1), "expected an incoming peer")
                 .expect("expected an incoming peer");
         (incoming_peer, outgoing_peer)
-    }
-
-    async fn create_tcp_peer_discovery(rng: &mut ThreadRng) -> TcpPeerDiscovery {
-        let mut port = available_port(rng.random_range(6881..10000), 11000).unwrap();
-        let mut attempts = 0;
-        loop {
-            match TcpPeerDiscovery::new(port).await {
-                Ok(peer) => return peer,
-                Err(e) => {
-                    port += 1;
-                    attempts += 1;
-                    if attempts > 5 {
-                        panic!("failed to create a tcp peer listener, {}", e);
-                    }
-                }
-            }
-        }
     }
 }

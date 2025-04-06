@@ -19,14 +19,16 @@ pub mod webseed;
 #[cfg(test)]
 pub mod tests {
     use super::*;
+    use std::io;
 
-    use crate::recv_timeout;
     use crate::torrent::peer::protocol::{UtpSocket, UtpSocketExtensions, UtpStream};
     use crate::torrent::{available_port, Torrent};
+    use crate::{available_port, recv_timeout};
 
     use rand::{rng, Rng};
     use std::net::SocketAddr;
     use std::time::Duration;
+    use tokio::net::TcpStream;
     use tokio::sync::mpsc::unbounded_channel;
 
     /// Create a new uTP socket.
@@ -166,5 +168,29 @@ pub mod tests {
             .expect("expected an incoming uTP stream");
 
         (incoming_stream, outgoing_stream)
+    }
+
+    pub async fn new_tcp_peer_discovery() -> Result<TcpPeerDiscovery> {
+        let mut attempts = 0;
+        let mut port = available_port!(rng().random_range(10000..12000), 20000).unwrap();
+
+        while attempts < 5 {
+            return match TcpPeerDiscovery::new(port).await {
+                Ok(e) => Ok(e),
+                Err(e) => {
+                    if let Error::Io(io_err) = &e {
+                        if io_err.kind() == io::ErrorKind::AddrInUse {
+                            attempts += 1;
+                            port += 1;
+                            continue;
+                        }
+                    }
+
+                    Err(e)
+                }
+            };
+        }
+
+        Err(Error::PortUnavailable(port))
     }
 }

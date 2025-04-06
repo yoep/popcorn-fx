@@ -203,6 +203,7 @@ mod tests {
     use crate::torrent::{TorrentConfig, TorrentFlags};
     use crate::{create_torrent, recv_timeout};
 
+    use crate::torrent::peer::tests::new_tcp_peer_discovery;
     use popcorn_fx_core::{available_port, init_logger};
     use tempfile::tempdir;
 
@@ -318,29 +319,5 @@ mod tests {
             }
             Ok(_) => assert!(false, "expected the peer listener to have been closed"),
         }
-    }
-
-    async fn new_tcp_peer_discovery() -> Result<TcpPeerDiscovery> {
-        let mut attempts = 0;
-        let mut port = available_port!(rng().random_range(10000..12000), 20000).unwrap();
-
-        while attempts < 5 {
-            return match TcpPeerDiscovery::new(port).await {
-                Ok(e) => Ok(e),
-                Err(e) => {
-                    if let Error::Io(io_err) = &e {
-                        if io_err.kind() == io::ErrorKind::AddrInUse {
-                            attempts += 1;
-                            port += 1;
-                            continue;
-                        }
-                    }
-
-                    Err(e)
-                }
-            };
-        }
-
-        Err(Error::PortUnavailable(port))
     }
 }

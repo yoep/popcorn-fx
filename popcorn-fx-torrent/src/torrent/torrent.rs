@@ -225,7 +225,7 @@ impl Display for TorrentStats {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "({}%) {}/{}, {}/{} completed pieces, {} peers, up: {}/s, down: {}/s",
+            "({:.2}%) {}/{}, {}/{} completed pieces, {} peers, up: {}/s, down: {}/s",
             self.progress() * 100f32,
             format_bytes(self.total_completed_size),
             format_bytes(self.total_size),

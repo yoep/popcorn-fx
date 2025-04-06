@@ -197,14 +197,13 @@ impl InnerTcpPeerDiscovery {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::{rng, Rng};
 
     use crate::torrent::peer::PeerState;
     use crate::torrent::{TorrentConfig, TorrentFlags};
     use crate::{create_torrent, recv_timeout};
 
     use crate::torrent::peer::tests::new_tcp_peer_discovery;
-    use popcorn_fx_core::{available_port, init_logger};
+    use popcorn_fx_core::init_logger;
     use tempfile::tempdir;
 
     // FIXME: unstable in Github actions

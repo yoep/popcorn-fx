@@ -5,6 +5,7 @@ use std::result;
 use std::sync::mpsc::{channel, Sender};
 use std::time::Duration;
 
+use crate::trakt::{AddToWatchList, Movie, MovieId, WatchedMovie};
 use async_trait::async_trait;
 use chrono::{Local, Utc};
 use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
@@ -15,15 +16,6 @@ use oauth2::{
     AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken, RedirectUrl, TokenResponse,
     TokenUrl,
 };
-use reqwest::header::HeaderMap;
-use reqwest::Client;
-use thiserror::Error;
-use tokio::sync::{oneshot, Mutex};
-use url::Url;
-use warp::http::Response;
-use warp::Filter;
-
-use popcorn_fx_core::core::block_in_place;
 use popcorn_fx_core::core::config::{
     ApplicationConfig, Tracker, TrackingClientProperties, TrackingProperties,
 };
@@ -31,8 +23,13 @@ use popcorn_fx_core::core::media::tracking::{
     AuthorizationError, OpenAuthorization, TrackingError, TrackingEvent, TrackingProvider,
 };
 use popcorn_fx_core::core::media::MediaIdentifier;
-
-use crate::trakt::{AddToWatchList, Movie, MovieId, WatchedMovie};
+use reqwest::header::HeaderMap;
+use reqwest::Client;
+use thiserror::Error;
+use tokio::sync::{oneshot, Mutex};
+use url::Url;
+use warp::http::Response;
+use warp::Filter;
 
 const TRACKING_NAME: &str = "trakt";
 const AUTHORIZED_PORTS: [u16; 5] = [30200u16, 30201u16, 30202u16, 30203u16, 30204u16];
@@ -243,9 +240,9 @@ impl TraktProvider {
 
 #[async_trait]
 impl TrackingProvider for TraktProvider {
-    fn register_open_authorization(&self, open_callback: OpenAuthorization) {
+    async fn register_open_authorization(&self, open_callback: OpenAuthorization) {
         trace!("Updating authorization open callback");
-        let mut mutex = block_in_place(self.open_authorization_callback.lock());
+        let mut mutex = self.open_authorization_callback.lock().await;
         *mutex = open_callback;
         debug!("Callback for opening authorization uri's has been updated");
     }
@@ -449,8 +446,8 @@ mod tests {
 
     const HEADER_APPLICATION_JSON: &str = "application/json";
 
-    #[test]
-    fn test_new() {
+    #[tokio::test]
+    async fn test_new() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -520,7 +517,7 @@ mod tests {
         assert!(!result, "expected the tracker to not have been authorized");
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_authorize() {
         init_logger!();
         let expected_code = "MyAuthCodeResult";
@@ -571,10 +568,12 @@ mod tests {
         let (tx, rx) = channel();
         let trakt = TraktProvider::new(settings).unwrap();
 
-        trakt.register_open_authorization(Box::new(move |uri| {
-            tx.send(uri).unwrap();
-            true
-        }));
+        trakt
+            .register_open_authorization(Box::new(move |uri| {
+                tx.send(uri).unwrap();
+                true
+            }))
+            .await;
 
         tokio::spawn(async move {
             let client = Client::new();

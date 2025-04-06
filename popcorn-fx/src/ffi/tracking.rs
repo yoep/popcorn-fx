@@ -17,12 +17,14 @@ pub extern "C" fn register_tracking_authorization_open(
     callback: AuthorizationOpenC,
 ) {
     trace!("Registering new tracking authorization open callback from C");
-    popcorn_fx
-        .tracking_provider()
-        .register_open_authorization(Box::new(move |uri| {
+    let tracking_provider = popcorn_fx.tracking_provider().clone();
+    block_in_place_runtime(
+        tracking_provider.register_open_authorization(Box::new(move |uri| {
             trace!("Calling tracker authorization open callback for {}", uri);
             callback(into_c_string(uri))
-        }))
+        })),
+        popcorn_fx.runtime(),
+    )
 }
 
 /// Registers a callback function to handle tracking provider events from C code.
@@ -178,9 +180,9 @@ mod tests {
             .user_authorization_uri
             .clone();
 
-        instance
-            .tracking_provider()
-            .register_open_authorization(Box::new(move |url| {
+        let tracking_provider = instance.tracking_provider().clone();
+        block_in_place_runtime(
+            tracking_provider.register_open_authorization(Box::new(move |url| {
                 // execute a callback to stop the authorization process
                 let client = Client::new();
                 let auth_uri = Url::parse(url.as_str()).unwrap();
@@ -202,7 +204,9 @@ mod tests {
 
                 tx.send(url).unwrap();
                 true
-            }));
+            })),
+            instance.runtime(),
+        );
 
         tracking_authorize(&mut instance);
 

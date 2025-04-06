@@ -557,8 +557,6 @@ mod tests {
     use popcorn_fx_core::core::players::PlayUrlRequestBuilder;
     use popcorn_fx_core::core::subtitles::MockSubtitleProvider;
     use popcorn_fx_core::{init_logger, recv_timeout};
-    use tokio::time;
-    use tokio::time::timeout;
 
     use super::*;
     use crate::dlna::tests::DEFAULT_SSDP_DESCRIPTION_RESPONSE;

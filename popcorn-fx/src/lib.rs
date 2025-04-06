@@ -17,7 +17,7 @@ use popcorn_fx_core::core::media::*;
 use popcorn_fx_core::core::subtitles::matcher::SubtitleMatcher;
 use popcorn_fx_core::core::subtitles::model::SubtitleInfo;
 use popcorn_fx_core::{
-    from_c_into_boxed, from_c_owned, from_c_string, from_c_vec, into_c_owned, into_c_string,
+    from_c_into_boxed, from_c_owned, from_c_string, into_c_owned, into_c_string,
 };
 
 #[cfg(feature = "ffi")]

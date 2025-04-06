@@ -54,7 +54,7 @@ pub enum TrackingEvent {
 #[async_trait]
 pub trait TrackingProvider: Debug + Callback<TrackingEvent> + Send + Sync {
     /// Registers a callback function for opening authorization URIs.
-    fn register_open_authorization(&self, open_callback: OpenAuthorization);
+    async fn register_open_authorization(&self, open_callback: OpenAuthorization);
 
     /// Verify if this tracking provider has been authorized.
     ///
@@ -100,7 +100,7 @@ mod mock {
 
         #[async_trait]
         impl TrackingProvider for TrackingProvider {
-            fn register_open_authorization(&self, open_callback: OpenAuthorization);
+            async fn register_open_authorization(&self, open_callback: OpenAuthorization);
             async fn is_authorized(&self) -> bool;
             async fn authorize(&self) -> Result<(), AuthorizationError>;
             async fn disconnect(&self);

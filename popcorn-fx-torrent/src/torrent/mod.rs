@@ -128,7 +128,7 @@ pub mod tests {
     use crate::torrent::fs::TorrentFileSystemStorage;
     use crate::torrent::peer::tests::new_tcp_peer_discovery;
     use crate::torrent::peer::{
-        BitTorrentPeer, PeerDiscovery, PeerId, PeerStream, UtpPeerDiscovery,
+        BitTorrentPeer, PeerDiscovery, PeerId, PeerStream, TcpPeerDiscovery, UtpPeerDiscovery,
     };
 
     use popcorn_fx_core::testing::read_test_file_to_bytes;
@@ -226,12 +226,12 @@ pub mod tests {
         config: TorrentConfig,
         operations: Vec<TorrentOperationFactory>,
     ) -> Torrent {
-        let mut rng = rng();
-        let tcp_discovery = new_tcp_peer_discovery().await.unwrap();
-        let utp_discovery =
-            UtpPeerDiscovery::new(available_port(rng.random_range(11000..13000), 15000).unwrap())
-                .await
-                .unwrap();
+        let tcp_discovery = TcpPeerDiscovery::new()
+            .await
+            .expect("expected a new tcp peer discovery");
+        let utp_discovery = UtpPeerDiscovery::new()
+            .await
+            .expect("expected a new utp peer discovery");
         let discoveries: Vec<Box<dyn PeerDiscovery>> =
             vec![Box::new(tcp_discovery), Box::new(utp_discovery)];
 

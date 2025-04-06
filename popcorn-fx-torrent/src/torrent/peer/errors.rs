@@ -40,9 +40,6 @@ pub enum Error {
     /// Indicates that an io error occurred
     #[error("an io error occurred, {0}")]
     Io(io::Error),
-    /// Indicates that the given port number is in use
-    #[error("port {0} is already in use")]
-    PortUnavailable(u16),
     /// Indicates that the given payload is too large
     #[error("the payload exceeds the maximum size of {0}")]
     TooLarge(usize),
@@ -64,7 +61,6 @@ impl PartialEq for Error {
             (Error::Handshake(_, _), Error::Handshake(_, _)) => true,
             (Error::Parsing(_), Error::Parsing(_)) => true,
             (Error::Io(_), Error::Io(_)) => true,
-            (Error::PortUnavailable(_), Error::PortUnavailable(_)) => true,
             (Error::Closed, Error::Closed) => true,
             _ => false,
         }

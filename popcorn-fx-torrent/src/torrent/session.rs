@@ -796,7 +796,7 @@ impl InnerSession {
             let port = available_port!(port_start, self.port_range.end)
                 .ok_or(TorrentError::Io(PORT_ERROR_MESSAGE.to_string()))?;
 
-            return match TcpPeerDiscovery::new(port).await {
+            return match TcpPeerDiscovery::new_with_port(port).await {
                 Ok(e) => Ok(e),
                 Err(peer_err) => {
                     if let peer::Error::Io(io_err) = &peer_err {

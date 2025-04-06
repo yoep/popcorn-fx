@@ -19,18 +19,15 @@ pub mod webseed;
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use std::io;
 
+    use crate::recv_timeout;
     use crate::torrent::peer::protocol::{UtpSocket, UtpSocketExtensions, UtpStream};
     use crate::torrent::{available_port, Torrent};
-    use crate::{available_port, recv_timeout};
 
-    use log::trace;
     use rand::{rng, Rng};
     use std::net::SocketAddr;
     use std::time::Duration;
     use tokio::sync::mpsc::unbounded_channel;
-    use tokio::time;
 
     /// Create a new uTP socket.
     #[macro_export]
@@ -172,29 +169,6 @@ pub mod tests {
     }
 
     pub async fn new_tcp_peer_discovery() -> Result<TcpPeerDiscovery> {
-        let mut attempts = 0;
-        let mut rng = rng();
-        let mut port = available_port!(rng.random_range(10000..12000), 20000).unwrap();
-
-        while attempts < 5 {
-            return match TcpPeerDiscovery::new(port).await {
-                Ok(e) => Ok(e),
-                Err(e) => {
-                    if let Error::Io(io_err) = &e {
-                        if io_err.kind() == io::ErrorKind::AddrInUse {
-                            trace!("TCP peer discovery port {} is already in use, {}", port, e);
-                            attempts += 1;
-                            port += 1;
-                            time::sleep(Duration::from_millis(rng.random_range(..10))).await;
-                            continue;
-                        }
-                    }
-
-                    Err(e)
-                }
-            };
-        }
-
-        Err(Error::PortUnavailable(port))
+        TcpPeerDiscovery::new().await
     }
 }

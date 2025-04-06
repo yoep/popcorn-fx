@@ -11,7 +11,7 @@ use futures::StreamExt;
 use fx_handle::Handle;
 use log::{debug, trace, warn};
 use std::io;
-use std::net::SocketAddr;
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::{TcpListener, TcpStream};
@@ -30,9 +30,37 @@ pub struct TcpPeerDiscovery {
 }
 
 impl TcpPeerDiscovery {
-    /// Create a new tcp connection peer dialer.
-    pub async fn new(port: u16) -> Result<Self> {
+    /// Create a new TCP peer discovery instance.
+    ///
+    /// It will listen on a random port assigned by the OS.
+    /// If you want to listen on a specific port, use [TcpPeerDiscovery::new_with_port] instead.
+    ///
+    /// # Returns
+    ///
+    /// It returns a new TCP peer discovery instance, else an error when the listener couldn't be bound.
+    pub async fn new() -> Result<Self> {
+        Self::new_with_port(0).await
+    }
+
+    /// Create a new TCP peer discovery instance.
+    ///
+    /// It will listen on the given port.
+    /// If the port is already in use, it will return [Error::Io].
+    ///
+    /// # Returns
+    ///
+    /// It returns a new TCP peer discovery instance, else an error when the listener couldn't be bound.
+    pub async fn new_with_port(port: u16) -> Result<Self> {
         let (sender, receiver) = unbounded_channel();
+        let sockets = InnerTcpPeerDiscovery::try_binding_sockets(port).await?;
+        let port = sockets
+            .get(0)
+            .and_then(|e| e.local_addr().ok())
+            .map(|e| e.port())
+            .ok_or(Error::Io(io::Error::new(
+                io::ErrorKind::Other,
+                "unable to get bound socket port",
+            )))?;
         let inner = Arc::new(InnerTcpPeerDiscovery {
             handle: TcpPeerDiscoveryHandle::new(),
             port,
@@ -40,7 +68,6 @@ impl TcpPeerDiscovery {
             cancellation_token: Default::default(),
         });
 
-        let sockets = InnerTcpPeerDiscovery::try_create_listeners(port).await?;
         let inner_loop = inner.clone();
         tokio::spawn(async move {
             inner_loop.start(sender, sockets).await;
@@ -161,33 +188,37 @@ impl InnerTcpPeerDiscovery {
         }
     }
 
-    async fn try_create_listeners(port: u16) -> Result<Vec<TcpListener>> {
-        let addrs = vec![
-            SocketAddr::from(([0, 0, 0, 0], port)),
-            SocketAddr::from(([0, 0, 0, 0, 0, 0, 0, 0], port)),
-        ];
+    async fn try_binding_sockets(mut port: u16) -> Result<Vec<TcpListener>> {
         let mut sockets = Vec::new();
 
-        for addr in addrs {
-            match TcpListener::bind(addr).await {
-                Ok(socket) => {
-                    trace!("Created TCP listener for {}, {:?}", addr, socket);
-                    sockets.push(socket)
-                }
-                Err(e) => {
-                    if let io::ErrorKind::AddrInUse = e.kind() {
-                        return Err(Error::Io(e));
-                    }
-                    debug!("Failed to create TCP socket for {}, {}", addr, e)
-                }
+        // attempt to bind the IPv6 address first in case dual stack is enabled
+        let ipv6_addr = SocketAddr::from((Ipv6Addr::UNSPECIFIED, port));
+        match TcpListener::bind(ipv6_addr).await {
+            Ok(socket) => {
+                trace!("Bounded TCP IPv6 listener on {}", ipv6_addr);
+                port = socket.local_addr().map(|e| e.port())?; // update port in case it was zero
+                sockets.push(socket);
             }
+            Err(e) if e.kind() == io::ErrorKind::AddrInUse => {
+                return Err(Error::Io(e));
+            }
+            Err(e) => debug!("Failed to bind TCP IPv6 socket on {}, {}", ipv6_addr, e),
         }
 
-        if sockets.is_empty() {
-            return Err(Error::Io(io::Error::new(
-                io::ErrorKind::Other,
-                "no TCP listeners created",
-            )));
+        // then try binding to IPv4 on the same port
+        let ipv4_addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, port));
+        match TcpListener::bind(ipv4_addr).await {
+            Ok(socket) => {
+                trace!("Bounded TCP IPv4 listener on {}", ipv4_addr);
+                sockets.push(socket);
+            }
+            Err(e) => {
+                if sockets.is_empty() {
+                    return Err(Error::Io(e));
+                }
+
+                trace!("Failed to bind TCP IPv4 socket on {}, {}", ipv6_addr, e)
+            }
         }
 
         Ok(sockets)
@@ -198,16 +229,14 @@ impl InnerTcpPeerDiscovery {
 mod tests {
     use super::*;
 
+    use crate::torrent::peer::tests::new_tcp_peer_discovery;
     use crate::torrent::peer::PeerState;
     use crate::torrent::{TorrentConfig, TorrentFlags};
     use crate::{create_torrent, recv_timeout};
 
-    use crate::torrent::peer::tests::new_tcp_peer_discovery;
     use popcorn_fx_core::init_logger;
     use tempfile::tempdir;
 
-    // FIXME: unstable in Github actions
-    #[ignore]
     #[tokio::test]
     async fn test_tcp_discovery_dial() {
         init_logger!();
@@ -235,7 +264,7 @@ mod tests {
         let result = dialer
             .dial(
                 PeerId::new(),
-                SocketAddr::from(([127, 0, 0, 1], listener_port)),
+                SocketAddr::from((Ipv4Addr::LOCALHOST, listener_port)),
                 context.clone(),
                 context.protocol_extensions(),
                 context.extensions(),
@@ -253,8 +282,6 @@ mod tests {
         );
     }
 
-    // FIXME: unstable in Github actions
-    #[ignore]
     #[tokio::test]
     async fn test_tcp_discovery_port() {
         init_logger!();
@@ -265,8 +292,6 @@ mod tests {
         assert_eq!(listener.inner.port, result);
     }
 
-    // FIXME: unstable in Github actions
-    #[ignore]
     #[tokio::test]
     async fn test_tcp_discovery_recv() {
         init_logger!();
@@ -280,7 +305,7 @@ mod tests {
             }
         });
 
-        let addr: SocketAddr = ([127, 0, 0, 1], port).into();
+        let addr: SocketAddr = (Ipv4Addr::LOCALHOST, port).into();
         TcpStream::connect(addr)
             .await
             .expect("expected the connection to succeed");
@@ -300,13 +325,11 @@ mod tests {
         }
     }
 
-    // FIXME: unstable in Github actions
-    #[ignore]
     #[tokio::test]
     async fn test_tcp_discovery_drop() {
         init_logger!();
         let listener = new_tcp_peer_discovery().await.unwrap();
-        let addr: SocketAddr = ([127, 0, 0, 1], listener.port()).into();
+        let addr: SocketAddr = (Ipv4Addr::LOCALHOST, listener.port()).into();
 
         drop(listener);
         time::sleep(Duration::from_millis(100)).await;

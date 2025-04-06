@@ -261,12 +261,12 @@ impl UtpSocket {
         timeout: Duration,
         extensions: UtpSocketExtensions,
     ) -> Result<Self> {
-        let port = addr.port();
         let socket = UdpSocket::bind(addr).await?;
+        let addr = socket.local_addr()?; // get the bound socket address in case port was 0
         let (incoming_stream_sender, incoming_stream_receiver) = unbounded_channel();
         let id = UtpSocketId {
             handle: Default::default(),
-            port,
+            addr,
         };
         let cancellation_token = CancellationToken::new();
         let inner = Arc::new(UtpSocketContext {
@@ -560,12 +560,12 @@ impl UtpSocketContext {
 
 /// The unique identifier of an uTP socket.
 #[derive(Debug, Display, Copy, Clone)]
-#[display(fmt = "{}:{}", handle, port)]
+#[display(fmt = "{}:{}", handle, "addr.port()")]
 pub struct UtpSocketId {
     /// The unique socket handle
     handle: UtpHandle,
-    /// The port on which the socket is listening
-    port: u16,
+    /// The socket address on which the utp socket is listening
+    addr: SocketAddr,
 }
 
 #[cfg(test)]

@@ -12,7 +12,7 @@ use futures::StreamExt;
 use fx_handle::Handle;
 use log::{debug, trace, warn};
 use std::io;
-use std::net::SocketAddr;
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::select;
@@ -29,12 +29,38 @@ pub struct UtpPeerDiscovery {
 }
 
 impl UtpPeerDiscovery {
-    /// Create a new uTP peer discovery instance on the given port.
-    pub async fn new(port: u16) -> Result<Self> {
+    /// Create a new uTP peer discovery instance.
+    ///
+    /// It will listen on a random port assigned by the OS.
+    /// If you want to listen on a specific port, use [UtpPeerDiscovery::new_with_port] instead.
+    ///
+    /// # Returns
+    ///
+    /// It returns a new uTP peer discovery instance, else an error when the listener couldn't be bound.
+    pub async fn new() -> Result<Self> {
+        Self::new_with_port(0).await
+    }
+
+    /// Create a new uTP peer discovery instance.
+    ///
+    /// It will listen on the given port.
+    /// If the port is already in use, it will return [Error::Io].
+    ///
+    /// # Returns
+    ///
+    /// It returns a new uTP peer discovery instance, else an error when the listener couldn't be bound.
+    pub async fn new_with_port(port: u16) -> Result<Self> {
         let (sender, receiver) = unbounded_channel();
         let cancellation_token = CancellationToken::new();
         let sockets =
-            InnerUtpPeerDiscovery::try_create_listeners(port, Duration::from_secs(6)).await?;
+            InnerUtpPeerDiscovery::try_binding_sockets(port, Duration::from_secs(6)).await?;
+        let port = sockets
+            .get(0)
+            .map(|e| e.addr().port())
+            .ok_or(Error::Io(io::Error::new(
+                io::ErrorKind::Other,
+                "unable to get bound socket port",
+            )))?;
         let inner = Arc::new(InnerUtpPeerDiscovery {
             handle: Default::default(),
             port,
@@ -162,34 +188,41 @@ impl InnerUtpPeerDiscovery {
         }
     }
 
-    async fn try_create_listeners(port: u16, timeout: Duration) -> Result<Vec<UtpSocket>> {
-        let addrs = vec![
-            SocketAddr::from(([0, 0, 0, 0], port)),
-            SocketAddr::from(([0, 0, 0, 0, 0, 0, 0, 0], port)),
-        ];
+    async fn try_binding_sockets(mut port: u16, timeout: Duration) -> Result<Vec<UtpSocket>> {
         let mut sockets = Vec::new();
 
-        for addr in addrs {
-            match UtpSocket::new(addr, timeout, vec![]).await {
-                Ok(socket) => {
-                    trace!("Created uTP socket for {}, {:?}", addr, socket);
-                    sockets.push(socket)
-                }
-                Err(e) => {
-                    if let Error::PortUnavailable(_) = e {
+        // attempt to bind the IPv6 address first in case dual stack is enabled
+        let ipv6_addr = SocketAddr::from((Ipv6Addr::UNSPECIFIED, port));
+        match UtpSocket::new(ipv6_addr, timeout, vec![]).await {
+            Ok(socket) => {
+                trace!("Created uTP IPv6 listener on {}", ipv6_addr);
+                port = socket.addr().port();
+                sockets.push(socket);
+            }
+            Err(e) => {
+                if let Error::Io(io_err) = &e {
+                    if io_err.kind() == io::ErrorKind::AddrInUse {
                         return Err(e);
                     }
-
-                    debug!("Failed to create uTP socket for {}, {}", addr, e)
                 }
+
+                debug!("Failed to bind uTP IPv6 socket on {}, {}", ipv6_addr, e)
             }
         }
 
-        if sockets.is_empty() {
-            return Err(Error::Io(io::Error::new(
-                io::ErrorKind::Other,
-                "no uTP socket created",
-            )));
+        let ipv4_addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, port));
+        match UtpSocket::new(ipv4_addr, timeout, vec![]).await {
+            Ok(socket) => {
+                trace!("Created uTP IPv4 listener on {}", ipv4_addr);
+                sockets.push(socket);
+            }
+            Err(e) => {
+                if sockets.is_empty() {
+                    return Err(e);
+                }
+
+                trace!("Failed to bind uTP IPv4 socket on {}, {}", ipv4_addr, e)
+            }
         }
 
         Ok(sockets)
@@ -203,24 +236,27 @@ mod tests {
     use crate::create_torrent;
     use crate::torrent::{TorrentConfig, TorrentFlags};
 
-    use popcorn_fx_core::{available_port, init_logger};
+    use popcorn_fx_core::init_logger;
     use tempfile::tempdir;
 
     #[tokio::test]
     async fn test_utp_discovery_new() {
         init_logger!();
-        let port = available_port!(31000, 32000).unwrap();
 
-        let result = UtpPeerDiscovery::new(port).await;
+        let utp_discovery = UtpPeerDiscovery::new().await;
         assert_eq!(
             true,
-            result.is_ok(),
+            utp_discovery.is_ok(),
             "expected an utp listener, got {:?} instead",
-            result
+            utp_discovery
         );
 
-        let result = result.unwrap();
-        assert_eq!(port, result.port());
+        let result = utp_discovery.unwrap();
+        assert_ne!(
+            0,
+            result.port(),
+            "expected a port number to have been assigned"
+        );
     }
 
     #[tokio::test]
@@ -228,22 +264,27 @@ mod tests {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let port = available_port!(11000, 12000).unwrap();
-        let discovery = UtpPeerDiscovery::new(port).await.unwrap();
+        let listener = UtpPeerDiscovery::new()
+            .await
+            .expect("expected a new utp peer listener");
+        let port = listener.port();
         let torrent = create_torrent!(
             "debian-udp.torrent",
             temp_path,
             TorrentFlags::none(),
             TorrentConfig::default(),
             vec![],
-            vec![Box::new(discovery.clone())]
+            vec![Box::new(listener.clone())]
         );
         let context = torrent.instance().unwrap();
 
-        discovery
+        let dialer = UtpPeerDiscovery::new()
+            .await
+            .expect("expected a new utp peer dialer");
+        dialer
             .dial(
                 PeerId::new(),
-                SocketAddr::from(([127, 0, 0, 1], port)),
+                SocketAddr::from((Ipv4Addr::LOCALHOST, port)),
                 context.clone(),
                 context.protocol_extensions(),
                 context.extensions(),

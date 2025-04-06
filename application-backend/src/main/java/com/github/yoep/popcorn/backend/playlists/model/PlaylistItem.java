@@ -1,7 +1,5 @@
 package com.github.yoep.popcorn.backend.playlists.model;
 
-import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentFileInfo;
-import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
 import com.github.yoep.popcorn.backend.media.MediaItem;
 import com.github.yoep.popcorn.backend.media.providers.Media;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
@@ -20,8 +18,7 @@ public record PlaylistItem(String url,
                            Long autoResumeTimestamp,
                            boolean subtitlesEnabled,
                            SubtitleInfo subtitleInfo,
-                           TorrentInfo torrentInfo,
-                           TorrentFileInfo torrentFileInfo) {
+                           String torrentFilename) {
 
     public Optional<String> getUrl() {
         return Optional.ofNullable(url);
@@ -58,8 +55,7 @@ public record PlaylistItem(String url,
                 .subtitleInfo(Optional.ofNullable(item.subtitleInfo)
                         .map(SubtitleInfo::from)
                         .orElse(null))
-                .torrentInfo(item.torrentInfo)
-                .torrentFileInfo(item.torrentFileInfo)
+                .torrentFilename(item.torrentFilename)
                 .build();
     }
 }

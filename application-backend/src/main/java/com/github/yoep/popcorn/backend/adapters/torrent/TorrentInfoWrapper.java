@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
 @Getter
 @ToString
 @EqualsAndHashCode(callSuper = false)
-@Structure.FieldOrder({"magnetUri", "name", "directoryName", "totalFiles", "files"})
+@Structure.FieldOrder({"handle", "infoHash", "magnetUri", "name", "directoryName", "totalFiles", "files"})
 public class TorrentInfoWrapper extends Structure implements TorrentInfo, Closeable {
     public static class ByValue extends TorrentInfoWrapper implements Structure.ByValue {
         public ByValue() {
@@ -37,6 +37,8 @@ public class TorrentInfoWrapper extends Structure implements TorrentInfo, Closea
         }
     }
 
+    public Integer handle;
+    public String infoHash;
     public String magnetUri;
     public String name;
     public String directoryName;

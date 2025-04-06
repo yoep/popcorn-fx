@@ -1,13 +1,12 @@
 use std::fmt::{Debug, Formatter};
 use std::path::Path;
-use std::sync::mpsc::Sender;
 use std::sync::Arc;
 
 use async_trait::async_trait;
 use derive_more::Display;
 use log::{debug, error, info, trace, warn};
-use tokio_util::sync::CancellationToken;
 
+use crate::core::loader::task::LoadingTaskContext;
 use crate::core::loader::{
     CancellationResult, LoadingData, LoadingError, LoadingEvent, LoadingResult, LoadingState,
     LoadingStrategy,
@@ -61,7 +60,8 @@ impl SubtitlesLoadingStrategy {
         if let Ok(subtitles) = subtitles {
             let subtitle = self
                 .subtitle_manager
-                .select_or_default(subtitles.as_slice());
+                .select_or_default(subtitles.as_slice())
+                .await;
 
             debug!("Updating subtitle to {} for {:?}", subtitle, data);
             data.subtitle.info = Some(subtitle);
@@ -90,10 +90,10 @@ impl SubtitlesLoadingStrategy {
             } else {
                 subtitles = self.handle_movie_subtitles(media).await
             }
-        } else if let Some(file_info) = data.torrent_file_info.as_ref() {
+        } else if let Some(filename) = data.torrent_file.as_ref() {
             subtitles = self
                 .subtitle_provider
-                .file_subtitles(file_info.filename.as_str())
+                .file_subtitles(filename.as_str())
                 .await
         } else {
             warn!("Unable to retrieve subtitles, no information known about the played item");
@@ -178,23 +178,19 @@ impl SubtitlesLoadingStrategy {
         subtitle: &SubtitleInfo,
         data: &LoadingData,
     ) -> Option<Subtitle> {
-        let filename = data
-            .torrent_file_info
-            .clone()
-            .map(|e| e.filename)
-            .or_else(|| {
-                data.url.clone().map(|e| {
-                    debug!("Retrieving filename from url {}", e);
-                    Path::new(e.as_str())
-                        .file_stem()
-                        .and_then(|e| e.to_str())
-                        .unwrap_or_else(|| {
-                            warn!("Unable to retrieve filename from {}", e);
-                            ""
-                        })
-                        .to_string()
-                })
-            });
+        let filename = data.torrent_file.clone().or_else(|| {
+            data.url.clone().map(|e| {
+                debug!("Retrieving filename from url {}", e);
+                Path::new(e.as_str())
+                    .file_stem()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or_else(|| {
+                        warn!("Unable to retrieve filename from {}", e);
+                        ""
+                    })
+                    .to_string()
+            })
+        });
         let matcher = SubtitleMatcher::from_string(filename, data.quality.clone());
 
         match self
@@ -222,15 +218,10 @@ impl Debug for SubtitlesLoadingStrategy {
 
 #[async_trait]
 impl LoadingStrategy for SubtitlesLoadingStrategy {
-    async fn process(
-        &self,
-        mut data: LoadingData,
-        event_channel: Sender<LoadingEvent>,
-        cancel: CancellationToken,
-    ) -> LoadingResult {
+    async fn process(&self, data: &mut LoadingData, context: &LoadingTaskContext) -> LoadingResult {
         if data.subtitle.enabled.unwrap_or(false) {
             trace!("Subtitle manager state {:?}", self.subtitle_manager);
-            if cancel.is_cancelled() {
+            if context.is_cancelled() {
                 return LoadingResult::Err(LoadingError::Cancelled);
             }
 
@@ -240,22 +231,20 @@ impl LoadingStrategy for SubtitlesLoadingStrategy {
             if subtitle_preference == SubtitlePreference::Language(SubtitleLanguage::Custom)
                 && data.subtitle.info.is_some()
             {
-                return LoadingResult::Ok(data);
+                return LoadingResult::Ok;
             }
 
             // check if the subtitle preference is disabled
             // if not, try to download the preferred subtitle
             if subtitle_preference != SubtitlePreference::Disabled {
                 // update the current state to retrieving subtitles
-                event_channel
-                    .send(LoadingEvent::StateChanged(
-                        LoadingState::RetrievingSubtitles,
-                    ))
-                    .unwrap();
+                context.send_event(LoadingEvent::StateChanged(
+                    LoadingState::RetrievingSubtitles,
+                ));
 
                 if subtitle_preference == SubtitlePreference::Language(SubtitleLanguage::None) {
                     trace!("Processing subtitle info for {:?}", data);
-                    self.update_to_default_subtitle(&mut data).await;
+                    self.update_to_default_subtitle(data).await;
                 } else {
                     debug!(
                         "Current subtitle preference {:?} for {:?}",
@@ -264,21 +253,19 @@ impl LoadingStrategy for SubtitlesLoadingStrategy {
                     if data.subtitle.info.is_none() {
                         if let Ok(subtitles) = self.retrieve_available_subtitles(&data).await {
                             data.subtitle.info =
-                                Some(self.subtitle_manager.select_or_default(&subtitles));
+                                Some(self.subtitle_manager.select_or_default(&subtitles).await);
                         }
                     }
                 }
 
                 if let Some(info) = data.subtitle.info.as_ref() {
-                    if cancel.is_cancelled() {
+                    if context.is_cancelled() {
                         return LoadingResult::Err(LoadingError::Cancelled);
                     }
 
-                    event_channel
-                        .send(LoadingEvent::StateChanged(
-                            LoadingState::DownloadingSubtitle,
-                        ))
-                        .unwrap();
+                    context.send_event(LoadingEvent::StateChanged(
+                        LoadingState::DownloadingSubtitle,
+                    ));
                     trace!("Downloading subtitle for {:?}", data);
                     if let Some(subtitle) = self.download_subtitle(&info, &data).await {
                         let subtitle_filename = subtitle.file().to_string();
@@ -288,7 +275,7 @@ impl LoadingStrategy for SubtitlesLoadingStrategy {
                             subtitle_filename, data.url
                         );
 
-                        if cancel.is_cancelled() {
+                        if context.is_cancelled() {
                             return LoadingResult::Err(LoadingError::Cancelled);
                         }
                     }
@@ -300,36 +287,35 @@ impl LoadingStrategy for SubtitlesLoadingStrategy {
             debug!("Subtitles have been disabled for {:?}", data);
         }
 
-        if cancel.is_cancelled() {
+        if context.is_cancelled() {
             return LoadingResult::Err(LoadingError::Cancelled);
         }
-        LoadingResult::Ok(data)
+        LoadingResult::Ok
     }
 
     async fn cancel(&self, data: LoadingData) -> CancellationResult {
         debug!("Cancelling the subtitle loader");
-        self.subtitle_manager.reset();
+        self.subtitle_manager.reset().await;
         Ok(data)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::sync::mpsc::channel;
     use std::time::Duration;
+    use tokio::sync::mpsc::unbounded_channel;
 
-    use crate::core::block_in_place;
     use crate::core::loader::LoadingResult;
-    use crate::core::playlists::{PlaylistItem, PlaylistMedia, PlaylistSubtitle, PlaylistTorrent};
+    use crate::core::playlist::{PlaylistItem, PlaylistMedia, PlaylistSubtitle, PlaylistTorrent};
     use crate::core::subtitles::{MockSubtitleProvider, SubtitleFile};
-    use crate::core::torrents::TorrentFileInfo;
-    use crate::testing::{init_logger, MockSubtitleManager};
+    use crate::testing::MockSubtitleManager;
+    use crate::{create_loading_task, init_logger, recv_timeout};
 
     use super::*;
 
-    #[test]
-    fn test_process_movie_subtitles() {
-        init_logger();
+    #[tokio::test]
+    async fn test_process_movie_subtitles() {
+        init_logger!();
         let movie_details = MovieDetails {
             title: "MyMovieTitle".to_string(),
             imdb_id: "tt112233".to_string(),
@@ -359,9 +345,8 @@ mod tests {
             },
             torrent: Default::default(),
         };
-        let data = LoadingData::from(playlist_item);
-        let (tx, rx) = channel();
-        let (tx_event, _rx_event) = channel();
+        let mut data = LoadingData::from(playlist_item);
+        let (tx, mut rx) = unbounded_channel();
         let mut provider = MockSubtitleProvider::new();
         provider
             .expect_movie_subtitles()
@@ -391,29 +376,24 @@ mod tests {
             .expect_select_or_default()
             .times(1)
             .returning(|_| SubtitleInfo::none());
+        let task = create_loading_task!();
+        let context = task.context();
         let loader = SubtitlesLoadingStrategy::new(
             Arc::new(Box::new(provider)),
             Arc::new(Box::new(manager)),
         );
 
-        let result =
-            block_in_place(loader.process(data.clone(), tx_event, CancellationToken::new()));
-        assert_eq!(LoadingResult::Ok(data), result);
+        let result = loader.process(&mut data, &*context).await;
+        assert_eq!(LoadingResult::Ok, result);
 
-        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        let result = recv_timeout!(&mut rx, Duration::from_millis(200));
         assert_eq!(movie_details, result);
     }
 
-    #[test]
-    fn test_process_filename_subtitles() {
-        init_logger();
+    #[tokio::test]
+    async fn test_process_filename_subtitles() {
+        init_logger!();
         let filename = "MyTIFile";
-        let torrent_file_info = TorrentFileInfo {
-            filename: filename.to_string(),
-            file_path: "/tmp/some/random/path".to_string(),
-            file_size: 845000,
-            file_index: 12,
-        };
         let playlist_item = PlaylistItem {
             url: None,
             title: "".to_string(),
@@ -427,13 +407,11 @@ mod tests {
                 info: None,
             },
             torrent: PlaylistTorrent {
-                info: None,
-                file_info: Some(torrent_file_info.clone()),
+                filename: Some(filename.to_string()),
             },
         };
-        let data = LoadingData::from(playlist_item);
-        let (tx, rx) = channel();
-        let (tx_event, _rx_event) = channel();
+        let mut data = LoadingData::from(playlist_item);
+        let (tx, mut rx) = unbounded_channel();
         let mut provider = MockSubtitleProvider::new();
         provider
             .expect_movie_subtitles()
@@ -463,22 +441,23 @@ mod tests {
             .expect_select_or_default()
             .times(1)
             .returning(|_| SubtitleInfo::none());
+        let task = create_loading_task!();
+        let context = task.context();
         let loader = SubtitlesLoadingStrategy::new(
             Arc::new(Box::new(provider)),
             Arc::new(Box::new(manager)),
         );
 
-        let result =
-            block_in_place(loader.process(data.clone(), tx_event, CancellationToken::new()));
-        assert_eq!(LoadingResult::Ok(data), result);
+        let result = loader.process(&mut data, &*context).await;
+        assert_eq!(LoadingResult::Ok, result);
 
-        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        let result = recv_timeout!(&mut rx, Duration::from_millis(200));
         assert_eq!(filename.to_string(), result);
     }
 
-    #[test]
-    fn test_process_subtitle_manager_disabled() {
-        init_logger();
+    #[tokio::test]
+    async fn test_process_subtitle_manager_disabled() {
+        init_logger!();
         let movie = Box::new(MovieDetails {
             title: "".to_string(),
             imdb_id: "tt112233".to_string(),
@@ -508,8 +487,7 @@ mod tests {
             },
             torrent: Default::default(),
         };
-        let data = LoadingData::from(playlist_item);
-        let (tx_event, _) = channel();
+        let mut data = LoadingData::from(playlist_item);
         let mut provider = MockSubtitleProvider::new();
         provider
             .expect_movie_subtitles()
@@ -520,17 +498,18 @@ mod tests {
             .times(1)
             .return_const(SubtitlePreference::Disabled);
         let manager = Arc::new(Box::new(manager) as Box<dyn SubtitleManager>);
+        let task = create_loading_task!();
+        let context = task.context();
         let loader = SubtitlesLoadingStrategy::new(Arc::new(Box::new(provider)), manager);
 
-        let result =
-            block_in_place(loader.process(data.clone(), tx_event, CancellationToken::new()));
+        let result = loader.process(&mut data, &*context).await;
 
-        assert_eq!(LoadingResult::Ok(data), result);
+        assert_eq!(LoadingResult::Ok, result);
     }
 
-    #[test]
-    fn test_process_playlist_subtitles_disabled() {
-        init_logger();
+    #[tokio::test]
+    async fn test_process_playlist_subtitles_disabled() {
+        init_logger!();
         let playlist_item = PlaylistItem {
             url: None,
             title: "".to_string(),
@@ -542,8 +521,7 @@ mod tests {
             subtitle: Default::default(),
             torrent: Default::default(),
         };
-        let data = LoadingData::from(playlist_item);
-        let (tx_event, _) = channel();
+        let mut data = LoadingData::from(playlist_item);
         let mut provider = MockSubtitleProvider::new();
         provider
             .expect_movie_subtitles()
@@ -561,19 +539,20 @@ mod tests {
         manager
             .expect_preference_async()
             .return_const(SubtitlePreference::Disabled);
+        let task = create_loading_task!();
+        let context = task.context();
         let loader = SubtitlesLoadingStrategy::new(
             Arc::new(Box::new(provider)),
             Arc::new(Box::new(manager)),
         );
 
-        let result =
-            block_in_place(loader.process(data.clone(), tx_event, CancellationToken::new()));
-        assert_eq!(LoadingResult::Ok(data), result);
+        let result = loader.process(&mut data, &*context).await;
+        assert_eq!(LoadingResult::Ok, result);
     }
 
-    #[test]
-    fn test_process_custom_subtitle() {
-        init_logger();
+    #[tokio::test]
+    async fn test_process_custom_subtitle() {
+        init_logger!();
         let playlist_item = PlaylistItem {
             url: None,
             title: "".to_string(),
@@ -597,8 +576,7 @@ mod tests {
             },
             torrent: Default::default(),
         };
-        let data = LoadingData::from(playlist_item);
-        let (tx_event, _) = channel();
+        let mut data = LoadingData::from(playlist_item);
         let mut provider = MockSubtitleProvider::new();
         provider
             .expect_movie_subtitles()
@@ -616,19 +594,20 @@ mod tests {
         manager
             .expect_preference_async()
             .return_const(SubtitlePreference::Language(SubtitleLanguage::Custom));
+        let task = create_loading_task!();
+        let context = task.context();
         let loader = SubtitlesLoadingStrategy::new(
             Arc::new(Box::new(provider)),
             Arc::new(Box::new(manager)),
         );
 
-        let result =
-            block_in_place(loader.process(data.clone(), tx_event, CancellationToken::new()));
-        assert_eq!(LoadingResult::Ok(data), result);
+        let result = loader.process(&mut data, &*context).await;
+        assert_eq!(LoadingResult::Ok, result);
     }
 
-    #[test]
-    fn test_cancel() {
-        init_logger();
+    #[tokio::test]
+    async fn test_cancel() {
+        init_logger!();
         let data = LoadingData::from(PlaylistItem {
             url: None,
             title: "CancelledItem".to_string(),
@@ -652,7 +631,7 @@ mod tests {
         let manager = Arc::new(Box::new(manager) as Box<dyn SubtitleManager>);
         let loader = SubtitlesLoadingStrategy::new(Arc::new(Box::new(provider)), manager);
 
-        let result = block_in_place(loader.cancel(data.clone()));
+        let result = loader.cancel(data.clone()).await;
         assert_eq!(Ok(data), result);
     }
 }

@@ -11,7 +11,6 @@ import java.util.Arrays;
 import java.util.Optional;
 
 @Getter
-@ToString
 @EqualsAndHashCode(callSuper = false)
 @Structure.FieldOrder({"tag", "union"})
 public class TorrentError extends Structure implements Closeable {
@@ -40,10 +39,27 @@ public class TorrentError extends Structure implements Closeable {
         getUnion().close();
     }
 
+    @Override
+    public String toString() {
+        switch (tag) {
+            case INVALID_URL -> {
+                return getUnion().getInvalidUrl_body().getText();
+            }
+            case TORRENT -> {
+                return getUnion().getTorrent_body().getText();
+            }
+            default -> {
+                return getTag().toString();
+            }
+        }
+    }
+
     void updateUnionType() {
         switch (tag) {
             case INVALID_URL -> union.setType(InvalidUrl_Body.class);
             case TORRENT_RESOLVING_FAILED -> union.setType(TorrentResolvingFailed_Body.class);
+            case TORRENT -> union.setType(Torrent_Body.class);
+            case IO -> union.setType(IO_Body.class);
         }
     }
 
@@ -75,6 +91,30 @@ public class TorrentError extends Structure implements Closeable {
 
     @Getter
     @ToString
+    @FieldOrder({"text"})
+    public static class Torrent_Body extends Structure implements Closeable {
+        public String text;
+
+        @Override
+        public void close() {
+            setAutoSynch(false);
+        }
+    }
+
+    @Getter
+    @ToString
+    @FieldOrder({"text"})
+    public static class IO_Body extends Structure implements Closeable {
+        public String text;
+
+        @Override
+        public void close() {
+            setAutoSynch(false);
+        }
+    }
+
+    @Getter
+    @ToString
     @EqualsAndHashCode(callSuper = false)
     public static class TorrentErrorUnion extends Union implements Closeable {
         public static class ByValue extends TorrentErrorUnion implements Structure.ByValue {
@@ -83,6 +123,8 @@ public class TorrentError extends Structure implements Closeable {
 
         public InvalidUrl_Body invalidUrl_body;
         public TorrentResolvingFailed_Body torrentResolvingFailed_body;
+        public Torrent_Body torrent_body;
+        public IO_Body io_body;
 
         @Override
         public void close() {
@@ -91,18 +133,23 @@ public class TorrentError extends Structure implements Closeable {
                     .ifPresent(InvalidUrl_Body::close);
             Optional.ofNullable(torrentResolvingFailed_body)
                     .ifPresent(TorrentResolvingFailed_Body::close);
+            Optional.ofNullable(torrent_body)
+                    .ifPresent(Torrent_Body::close);
+            Optional.ofNullable(io_body)
+                    .ifPresent(IO_Body::close);
         }
     }
 
     public enum Tag implements NativeMapped {
         INVALID_URL,
         FILE_NOT_FOUND,
-        FILE_ERROR,
         INVALID_STREAM_STATE,
         INVALID_MANAGER_STATE,
         INVALID_HANDLE,
         TORRENT_RESOLVING_FAILED,
-        TORRENT_COLLECTION_LOADING_FAILED;
+        TORRENT_COLLECTION_LOADING_FAILED,
+        TORRENT,
+        IO;
 
         @Override
         public Object fromNative(Object nativeValue, FromNativeContext context) {

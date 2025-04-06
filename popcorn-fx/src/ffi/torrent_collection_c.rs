@@ -45,7 +45,8 @@ impl From<MagnetInfo> for MagnetInfoC {
 
 #[cfg(test)]
 mod test {
-    use crate::{from_c_string, from_c_vec};
+    use crate::from_c_string;
+    use popcorn_fx_core::from_c_vec;
 
     use super::*;
 

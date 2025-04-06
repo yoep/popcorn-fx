@@ -1,24 +1,23 @@
-use std::fmt::Debug;
-use std::sync::mpsc::{channel, Sender};
-use std::sync::{Arc, RwLock, Weak};
-
-use async_trait::async_trait;
-use derive_more::Display;
-use log::{debug, error, info, trace, warn};
-#[cfg(any(test, feature = "testing"))]
-use mockall::automock;
-use tokio::runtime::Runtime;
-use tokio::sync::Mutex;
-
 use crate::core::config::ApplicationConfig;
-use crate::core::events::{
+use crate::core::event::{
     Event, EventPublisher, PlayerChangedEvent, PlayerStartedEvent, PlayerStoppedEvent,
 };
 use crate::core::media::MediaIdentifier;
 use crate::core::players::{PlayMediaRequest, PlayRequest, Player, PlayerEvent, PlayerState};
 use crate::core::screen::ScreenService;
 use crate::core::torrents::{TorrentManager, TorrentStreamServer};
-use crate::core::{block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks};
+use async_trait::async_trait;
+use derive_more::Display;
+use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use log::{debug, error, info, trace, warn};
+#[cfg(any(test, feature = "testing"))]
+pub use mock::*;
+use std::fmt::Debug;
+use std::sync::{Arc, RwLock, Weak};
+use tokio::select;
+use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
+use tokio::sync::Mutex;
+use tokio_util::sync::CancellationToken;
 
 /// An event representing changes to the player manager.
 #[derive(Debug, Clone, Display)]
@@ -52,11 +51,37 @@ pub enum PlayerManagerEvent {
     PlayerStateChanged(PlayerState),
 }
 
-/// A callback type for handling `PlayerManagerEvent` events.
-pub type PlayerManagerCallback = CoreCallback<PlayerManagerEvent>;
+impl PartialEq for PlayerManagerEvent {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (
+                PlayerManagerEvent::ActivePlayerChanged(a),
+                PlayerManagerEvent::ActivePlayerChanged(b),
+            ) => a == b,
+            (PlayerManagerEvent::PlayersChanged, PlayerManagerEvent::PlayersChanged) => true,
+            (
+                PlayerManagerEvent::PlayerPlaybackChanged(_),
+                PlayerManagerEvent::PlayerPlaybackChanged(_),
+            ) => true,
+            (
+                PlayerManagerEvent::PlayerDurationChanged(a),
+                PlayerManagerEvent::PlayerDurationChanged(b),
+            ) => a == b,
+            (
+                PlayerManagerEvent::PlayerTimeChanged(a),
+                PlayerManagerEvent::PlayerTimeChanged(b),
+            ) => a == b,
+            (
+                PlayerManagerEvent::PlayerStateChanged(a),
+                PlayerManagerEvent::PlayerStateChanged(b),
+            ) => a == b,
+            _ => false,
+        }
+    }
+}
 
 /// A struct representing changes in the active player.
-#[derive(Debug, Display, Clone)]
+#[derive(Debug, Display, Clone, PartialEq)]
 #[display(fmt = "Active player changed to {}", new_player_id)]
 pub struct PlayerChange {
     pub old_player_id: Option<String>,
@@ -65,20 +90,19 @@ pub struct PlayerChange {
 }
 
 /// A trait for managing multiple players within a multimedia application.
-#[cfg_attr(any(test, feature = "testing"), automock)]
 #[async_trait]
-pub trait PlayerManager: Debug + Send + Sync {
+pub trait PlayerManager: Debug + Callback<PlayerManagerEvent> + Send + Sync {
     /// Get the active player, if any.
     ///
     /// Returns `Some` containing a weak reference to the currently active player, or `None` if there is no active player.
-    fn active_player(&self) -> Option<Weak<Box<dyn Player>>>;
+    async fn active_player(&self) -> Option<Weak<Box<dyn Player>>>;
 
     /// Set the active player by specifying its unique identifier (ID).
     ///
     /// # Arguments
     ///
     /// * `player_id` - A reference to the player ID to set as active.
-    fn set_active_player(&self, player_id: &str);
+    async fn set_active_player(&self, player_id: &str);
 
     /// Get a list of players managed by the manager.
     ///
@@ -110,9 +134,6 @@ pub trait PlayerManager: Debug + Send + Sync {
     /// * `player_id` - The unique identifier of the player to remove.
     fn remove_player(&self, player_id: &str);
 
-    /// Subscribe to receive player manager events through a callback.
-    fn subscribe(&self, callback: PlayerManagerCallback) -> CallbackHandle;
-
     /// Play media content by submitting a play request to the player manager.
     ///
     /// # Arguments
@@ -121,33 +142,13 @@ pub trait PlayerManager: Debug + Send + Sync {
     async fn play(&self, request: Box<dyn PlayRequest>);
 }
 
-/// A wrapper for PlayerEvent with an optional event and shutdown flag.
-///
-/// The `PlayerEventWrapper` is used to wrap a `PlayerEvent` with an optional event payload and a flag to indicate
-/// whether it represents a shutdown signal.
-#[derive(Debug)]
-struct PlayerEventWrapper {
-    event: Option<PlayerEvent>,
-    is_shutdown: bool,
-}
-
-impl From<PlayerEvent> for PlayerEventWrapper {
-    fn from(value: PlayerEvent) -> Self {
-        Self {
-            event: Some(value),
-            is_shutdown: false,
-        }
-    }
-}
-
 /// A player manager for handling player-related tasks.
 ///
 /// The `DefaultPlayerManager` is responsible for managing player-related tasks such as handling player events and
 /// ensuring the proper functioning of the player within the application.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DefaultPlayerManager {
     inner: Arc<InnerPlayerManager>,
-    _runtime: Runtime,
 }
 
 impl DefaultPlayerManager {
@@ -164,53 +165,49 @@ impl DefaultPlayerManager {
     ///
     /// A new `DefaultPlayerManager` instance.
     pub fn new(
-        application_config: Arc<ApplicationConfig>,
-        event_publisher: Arc<EventPublisher>,
+        application_config: ApplicationConfig,
+        event_publisher: EventPublisher,
         torrent_manager: Arc<Box<dyn TorrentManager>>,
         torrent_stream_server: Arc<Box<dyn TorrentStreamServer>>,
         screen_service: Arc<Box<dyn ScreenService>>,
     ) -> Self {
-        let runtime = Runtime::new().unwrap();
-        let (listener_sender, listener_receiver) = channel::<PlayerEventWrapper>();
+        let (player_event_sender, player_event_receiver) = unbounded_channel();
         let inner = Arc::new(InnerPlayerManager::new(
             application_config,
-            listener_sender,
+            player_event_sender,
             event_publisher,
             torrent_manager,
             torrent_stream_server,
             screen_service,
         ));
 
-        let receiver_manager = inner.clone();
-        runtime.spawn(async move {
-            for received in listener_receiver {
-                if let Some(event) = received.event {
-                    receiver_manager.handle_player_event(event);
-                }
-                if received.is_shutdown {
-                    trace!("Received shutdown signal for the player event receiver");
-                    break;
-                }
-            }
-
-            debug!("Player manager event loop has been closed");
+        let inner_main = inner.clone();
+        tokio::spawn(async move {
+            inner_main.start(player_event_receiver).await;
         });
 
-        Self {
-            inner,
-            _runtime: runtime,
-        }
+        Self { inner }
+    }
+}
+
+impl Callback<PlayerManagerEvent> for DefaultPlayerManager {
+    fn subscribe(&self) -> Subscription<PlayerManagerEvent> {
+        self.inner.callbacks.subscribe()
+    }
+
+    fn subscribe_with(&self, subscriber: Subscriber<PlayerManagerEvent>) {
+        self.inner.callbacks.subscribe_with(subscriber)
     }
 }
 
 #[async_trait]
 impl PlayerManager for DefaultPlayerManager {
-    fn active_player(&self) -> Option<Weak<Box<dyn Player>>> {
-        self.inner.active_player()
+    async fn active_player(&self) -> Option<Weak<Box<dyn Player>>> {
+        self.inner.active_player().await
     }
 
-    fn set_active_player(&self, player_id: &str) {
-        self.inner.set_active_player(player_id)
+    async fn set_active_player(&self, player_id: &str) {
+        self.inner.set_active_player(player_id).await
     }
 
     fn players(&self) -> Vec<Weak<Box<dyn Player>>> {
@@ -229,10 +226,6 @@ impl PlayerManager for DefaultPlayerManager {
         self.inner.remove_player(player_id)
     }
 
-    fn subscribe(&self, callback: PlayerManagerCallback) -> CallbackHandle {
-        self.inner.subscribe(callback)
-    }
-
     async fn play(&self, request: Box<dyn PlayRequest>) {
         self.inner.play(request).await
     }
@@ -240,37 +233,32 @@ impl PlayerManager for DefaultPlayerManager {
 
 impl Drop for DefaultPlayerManager {
     fn drop(&mut self) {
-        self.inner
-            .listener_sender
-            .send(PlayerEventWrapper {
-                event: None,
-                is_shutdown: true,
-            })
-            .expect("expected the sender to send a shutdown signal");
+        self.inner.cancellation_token.cancel()
     }
 }
 
 /// A default implementation of the `PlayerManager` trait.
 #[derive(Debug)]
 struct InnerPlayerManager {
-    application_config: Arc<ApplicationConfig>,
+    application_config: ApplicationConfig,
     active_player: Mutex<Option<String>>,
     last_known_player_info: Arc<Mutex<PlayerData>>,
     players: RwLock<Vec<Arc<Box<dyn Player>>>>,
-    listener_id: Mutex<Option<CallbackHandle>>,
-    listener_sender: Sender<PlayerEventWrapper>,
+    player_listener_sender: UnboundedSender<PlayerEvent>,
+    player_listener_cancellation: Mutex<CancellationToken>,
     torrent_manager: Arc<Box<dyn TorrentManager>>,
     torrent_stream_server: Arc<Box<dyn TorrentStreamServer>>,
     screen_service: Arc<Box<dyn ScreenService>>,
-    callbacks: CoreCallbacks<PlayerManagerEvent>,
-    event_publisher: Arc<EventPublisher>,
+    callbacks: MultiThreadedCallback<PlayerManagerEvent>,
+    event_publisher: EventPublisher,
+    cancellation_token: CancellationToken,
 }
 
 impl InnerPlayerManager {
     fn new(
-        application_config: Arc<ApplicationConfig>,
-        listener_sender: Sender<PlayerEventWrapper>,
-        event_publisher: Arc<EventPublisher>,
+        application_config: ApplicationConfig,
+        listener_sender: UnboundedSender<PlayerEvent>,
+        event_publisher: EventPublisher,
         torrent_manager: Arc<Box<dyn TorrentManager>>,
         torrent_stream_server: Arc<Box<dyn TorrentStreamServer>>,
         screen_service: Arc<Box<dyn ScreenService>>,
@@ -280,16 +268,27 @@ impl InnerPlayerManager {
             active_player: Mutex::default(),
             last_known_player_info: Arc::new(Default::default()),
             players: RwLock::default(),
-            listener_id: Default::default(),
-            listener_sender,
+            player_listener_sender: listener_sender,
+            player_listener_cancellation: Mutex::new(CancellationToken::new()),
             torrent_manager,
             torrent_stream_server,
             screen_service,
-            callbacks: CoreCallbacks::default(),
+            callbacks: MultiThreadedCallback::new(),
             event_publisher,
+            cancellation_token: Default::default(),
         };
 
         instance
+    }
+
+    async fn start(&self, mut player_event_receiver: UnboundedReceiver<PlayerEvent>) {
+        loop {
+            select! {
+                _ = self.cancellation_token.cancelled() => break,
+                Some(event) = player_event_receiver.recv() => self.handle_player_event(event).await,
+            }
+        }
+        debug!("Player manager main loop ended");
     }
 
     fn contains(&self, player_id: &str) -> bool {
@@ -300,21 +299,15 @@ impl InnerPlayerManager {
             .any(|e| e.id() == player_id)
     }
 
-    fn update_player_listener(&self, old_player_id: Option<&String>) {
-        if let Some(old_player) = old_player_id
-            .and_then(|player_id| self.by_id(player_id.as_str()))
-            .and_then(|player_ref| player_ref.upgrade())
-        {
-            if let Some(callback_handle) = block_in_place(self.listener_id.lock()).as_ref() {
-                trace!(
-                    "Removing internal player callback handle {}",
-                    callback_handle
-                );
-                old_player.remove(callback_handle.clone());
-            }
-        }
+    async fn update_player_listener(&self) {
+        // cancel the previous event listener loop
+        // this automatically drops the event receiver
+        self.player_listener_cancellation.lock().await.cancel();
 
-        if let Some(new_player) = block_in_place(self.active_player.lock())
+        if let Some(new_player) = self
+            .active_player
+            .lock()
+            .await
             .as_ref()
             .and_then(|e| self.by_id(e.as_str()))
             .and_then(|e| e.upgrade())
@@ -323,32 +316,43 @@ impl InnerPlayerManager {
                 "Registering new internal player callback listener to {}",
                 new_player
             );
-            let sender = self.listener_sender.clone();
-            let callback_handle = new_player.add(Box::new(move |e| {
-                let wrapper = PlayerEventWrapper::from(e);
-                if let Err(e) = sender.send(wrapper) {
-                    error!("Failed to send player event, {}", e);
-                }
-            }));
+            let sender = self.player_listener_sender.clone();
 
-            let mut listener_id = block_in_place(self.listener_id.lock());
-            trace!("Updating listener callback id to {}", callback_handle);
-            *listener_id = Some(callback_handle);
+            // replace the existing event listener cancellation token
+            let cancellation_token = CancellationToken::new();
+            *self.player_listener_cancellation.lock().await = cancellation_token.clone();
+
+            // create a new player event listener
+            let mut event_receiver = new_player.subscribe();
+            tokio::spawn(async move {
+                loop {
+                    select! {
+                        _ = cancellation_token.cancelled() => break,
+                        event = event_receiver.recv() => {
+                            if let Some(event) = event {
+                                let _ = sender.send((*event).clone());
+                            } else {
+                                break;
+                            }
+                        }
+                    }
+                }
+            });
         }
     }
 
-    fn handle_player_event(&self, event: PlayerEvent) {
+    async fn handle_player_event(&self, event: PlayerEvent) {
         match event {
-            PlayerEvent::DurationChanged(e) => self.handle_player_duration_event(e),
-            PlayerEvent::TimeChanged(e) => self.handle_player_time_event(e),
-            PlayerEvent::StateChanged(e) => self.handle_player_state_changed(e),
+            PlayerEvent::DurationChanged(e) => self.handle_player_duration_event(e).await,
+            PlayerEvent::TimeChanged(e) => self.handle_player_time_event(e).await,
+            PlayerEvent::StateChanged(e) => self.handle_player_state_changed(e).await,
             PlayerEvent::VolumeChanged(_) => {}
         }
     }
 
-    fn handle_player_duration_event(&self, new_duration: u64) {
+    async fn handle_player_duration_event(&self, new_duration: u64) {
         if new_duration > 0 {
-            let mut mutex = block_in_place(self.last_known_player_info.lock());
+            let mut mutex = self.last_known_player_info.lock().await;
             trace!("Updating last known player duration to {}", new_duration);
             mutex.duration = Some(new_duration.clone());
         }
@@ -357,9 +361,9 @@ impl InnerPlayerManager {
             .invoke(PlayerManagerEvent::PlayerDurationChanged(new_duration));
     }
 
-    fn handle_player_time_event(&self, new_time: u64) {
+    async fn handle_player_time_event(&self, new_time: u64) {
         if new_time > 0 {
-            let mut mutex = block_in_place(self.last_known_player_info.lock());
+            let mut mutex = self.last_known_player_info.lock().await;
             trace!("Updating last known player time to {}", new_time);
             mutex.time = Some(new_time.clone());
         }
@@ -368,14 +372,14 @@ impl InnerPlayerManager {
             .invoke(PlayerManagerEvent::PlayerTimeChanged(new_time));
     }
 
-    fn handle_player_state_changed(&self, new_state: PlayerState) {
+    async fn handle_player_state_changed(&self, new_state: PlayerState) {
         debug!("Player state changed to {}", new_state);
 
         if let PlayerState::Stopped = &new_state {
             let duration: u64;
 
             {
-                let mut mutex = block_in_place(self.last_known_player_info.lock());
+                let mut mutex = self.last_known_player_info.lock().await;
                 trace!("Last known player info {:?}", mutex);
                 duration = mutex.duration.take().unwrap_or(0);
                 let event = Event::PlayerStopped(PlayerStoppedEvent {
@@ -389,22 +393,23 @@ impl InnerPlayerManager {
                 self.event_publisher.publish(event);
             }
 
-            if let Some(player) = self.active_player().and_then(|e| e.upgrade()) {
+            if let Some(player) = self.active_player().await.and_then(|e| e.upgrade()) {
                 trace!("Last known player duration was {}", duration);
                 if duration > 0 {
-                    if let Some(request) = player.request().and_then(|e| e.upgrade()).map(|e| {
-                        trace!("Last known playback request {:?}", e);
-                        e
-                    }) {
-                        if let Some(stream) = request
+                    if let Some(request) =
+                        player.request().await.and_then(|e| e.upgrade()).map(|e| {
+                            trace!("Last known playback request {:?}", e);
+                            e
+                        })
+                    {
+                        if let Some(handle) = request
                             .downcast_ref::<PlayMediaRequest>()
-                            .and_then(|e| e.torrent_stream.upgrade())
+                            .map(|e| e.torrent_stream.stream_handle())
                         {
-                            debug!("Stopping player stream of {}", stream);
-                            self.torrent_stream_server
-                                .stop_stream(stream.stream_handle());
-                            debug!("Stopping torrent download of {}", stream.handle());
-                            self.torrent_manager.remove(stream.handle());
+                            debug!("Stopping player stream of {}", handle);
+                            self.torrent_stream_server.stop_stream(handle).await;
+                            debug!("Stopping torrent download of {}", handle);
+                            self.torrent_manager.remove(&handle).await;
                         }
                     } else {
                         warn!(
@@ -428,30 +433,28 @@ impl InnerPlayerManager {
             .invoke(PlayerManagerEvent::PlayerStateChanged(new_state))
     }
 
-    fn handle_fullscreen_mode(&self) {
-        let is_fullscreen_enabled: bool;
-        {
-            let settings = self.application_config.user_settings();
-            is_fullscreen_enabled = settings.playback_settings.fullscreen.clone();
-        }
+    async fn handle_fullscreen_mode(&self) {
+        let is_fullscreen_enabled: bool = self
+            .application_config
+            .user_settings_ref(|e| e.playback_settings.fullscreen)
+            .await;
 
         debug!("Playback fullscreen mode is {}", is_fullscreen_enabled);
         if is_fullscreen_enabled {
             self.screen_service.fullscreen(is_fullscreen_enabled);
         }
     }
-}
 
-#[async_trait]
-impl PlayerManager for InnerPlayerManager {
-    fn active_player(&self) -> Option<Weak<Box<dyn Player>>> {
-        block_in_place(self.active_player.lock())
+    async fn active_player(&self) -> Option<Weak<Box<dyn Player>>> {
+        self.active_player
+            .lock()
+            .await
             .as_ref()
             .and_then(|id| self.by_id(id.as_str()))
             .map(|e| e)
     }
 
-    fn set_active_player(&self, player_id: &str) {
+    async fn set_active_player(&self, player_id: &str) {
         if let Some(player) = self.by_id(player_id).and_then(|player| player.upgrade()) {
             trace!("Setting active player to {}", player_id);
             let old_player_id: Option<String>;
@@ -459,7 +462,7 @@ impl PlayerManager for InnerPlayerManager {
 
             // reduce the lock time as much as possible
             {
-                let mut active_player = block_in_place(self.active_player.lock());
+                let mut active_player = self.active_player.lock().await;
 
                 // check the current player id
                 if let Some(active_player) = active_player.as_ref() {
@@ -475,7 +478,7 @@ impl PlayerManager for InnerPlayerManager {
             }
 
             debug!("Updating internal player listener");
-            self.update_player_listener(old_player_id.as_ref());
+            self.update_player_listener().await;
 
             trace!("Publishing player changed event for {}", player_id);
             self.callbacks
@@ -558,10 +561,6 @@ impl PlayerManager for InnerPlayerManager {
         }
     }
 
-    fn subscribe(&self, callback: PlayerManagerCallback) -> CallbackHandle {
-        self.callbacks.add(callback)
-    }
-
     async fn play(&self, request: Box<dyn PlayRequest>) {
         trace!("Processing play request {:?}", request);
         {
@@ -573,7 +572,7 @@ impl PlayerManager for InnerPlayerManager {
             }
         }
 
-        if let Some(player) = self.active_player().and_then(|e| e.upgrade()) {
+        if let Some(player) = self.active_player().await.and_then(|e| e.upgrade()) {
             debug!("Starting playback of {} in {}", request.url(), player);
             let player_started_event = PlayerStartedEvent::from(&request);
 
@@ -581,7 +580,7 @@ impl PlayerManager for InnerPlayerManager {
 
             self.event_publisher
                 .publish(Event::PlayerStarted(player_started_event));
-            if let Some(request) = player.request() {
+            if let Some(request) = player.request().await {
                 // invoke the playback changed event
                 self.callbacks
                     .invoke(PlayerManagerEvent::PlayerPlaybackChanged(request));
@@ -591,7 +590,7 @@ impl PlayerManager for InnerPlayerManager {
         }
 
         // verify if we need to active the fullscreen mode
-        self.handle_fullscreen_mode();
+        self.handle_fullscreen_mode().await;
     }
 }
 
@@ -603,48 +602,80 @@ struct PlayerData {
     time: Option<u64>,
 }
 
+#[cfg(any(test, feature = "testing"))]
+mod mock {
+    use super::*;
+    use fx_callback::{Subscriber, Subscription};
+
+    use mockall::mock;
+
+    mock! {
+        #[derive(Debug)]
+        pub PlayerManager {}
+
+        #[async_trait]
+        impl PlayerManager for PlayerManager {
+            fn add_player(&self, player: Box<dyn Player>) -> bool;
+            fn remove_player(&self, player_id: &str);
+            fn players(&self) -> Vec<Weak<Box<dyn Player>>>;
+            fn by_id(&self, id: &str) -> Option<Weak<Box<dyn Player>>>;
+            async fn active_player(&self) -> Option<Weak<Box<dyn Player>>>;
+            async fn set_active_player(&self, player_id: &str);
+            async fn play(&self, request: Box<dyn PlayRequest>);
+        }
+
+        impl Callback<PlayerManagerEvent> for PlayerManager {
+            fn subscribe(&self) -> Subscription<PlayerManagerEvent>;
+            fn subscribe_with(&self, subscriber: Subscriber<PlayerManagerEvent>);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use std::sync::mpsc::{channel, RecvTimeoutError};
-    use std::time::Duration;
-
-    use async_trait::async_trait;
-    use tempfile::tempdir;
-
     use crate::core::config::{PlaybackSettings, PopcornSettings};
-    use crate::core::events::DEFAULT_ORDER;
+    use crate::core::event::DEFAULT_ORDER;
     use crate::core::media::MockMediaIdentifier;
     use crate::core::players::{PlaySubtitleRequest, PlayUrlRequest, PlayUrlRequestBuilder};
     use crate::core::screen::MockScreenService;
-    use crate::core::torrents::{MockTorrentManager, MockTorrentStreamServer, TorrentStream};
-    use crate::core::{CallbackHandle, Handle};
-    use crate::testing::{init_logger, MockPlayer, MockTorrentStream};
+    use crate::core::torrents::{
+        MockTorrentManager, MockTorrentStreamServer, TorrentHandle, TorrentStream,
+    };
+    use crate::testing::{MockPlayer, MockTorrentStream};
+    use crate::{init_logger, recv_timeout};
 
     use super::*;
+
+    use async_trait::async_trait;
+    use fx_handle::Handle;
+    use std::time::Duration;
+    use tempfile::tempdir;
+    use tokio::sync::mpsc::unbounded_channel;
+    use tokio::{select, time};
 
     #[derive(Debug, Display, Clone)]
     #[display(fmt = "DummyPlayer")]
     struct DummyPlayer {
         id: String,
-        callbacks: CoreCallbacks<PlayerEvent>,
+        callbacks: MultiThreadedCallback<PlayerEvent>,
     }
 
     impl DummyPlayer {
         fn new(id: &str) -> Self {
             Self {
                 id: id.to_string(),
-                callbacks: Default::default(),
+                callbacks: MultiThreadedCallback::new(),
             }
         }
     }
 
-    impl Callbacks<PlayerEvent> for DummyPlayer {
-        fn add(&self, callback: CoreCallback<PlayerEvent>) -> CallbackHandle {
-            self.callbacks.add(callback)
+    impl Callback<PlayerEvent> for DummyPlayer {
+        fn subscribe(&self) -> Subscription<PlayerEvent> {
+            self.callbacks.subscribe()
         }
 
-        fn remove(&self, handle: CallbackHandle) {
-            self.callbacks.remove(handle)
+        fn subscribe_with(&self, subscriber: Subscriber<PlayerEvent>) {
+            self.callbacks.subscribe_with(subscriber)
         }
     }
 
@@ -666,11 +697,11 @@ mod tests {
             Vec::new()
         }
 
-        fn state(&self) -> PlayerState {
+        async fn state(&self) -> PlayerState {
             PlayerState::Unknown
         }
 
-        fn request(&self) -> Option<Weak<Box<dyn PlayRequest>>> {
+        async fn request(&self) -> Option<Weak<Box<dyn PlayRequest>>> {
             todo!()
         }
 
@@ -695,24 +726,27 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_active_player() {
-        init_logger();
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_active_player() {
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let player_id = "MyPlayerId";
         let mut player = MockPlayer::default();
         player.expect_id().return_const(player_id.to_string());
         player.expect_name().return_const("Foo".to_string());
-        player.expect_add().return_const(1245i64);
+        player.expect_subscribe().returning(|| {
+            let (_, rx) = unbounded_channel();
+            rx
+        });
         let player = Box::new(player) as Box<dyn Player>;
         let torrent_manager = MockTorrentManager::new();
         let torrent_stream_server = MockTorrentStreamServer::new();
         let screen_service = Arc::new(Box::new(MockScreenService::new()) as Box<dyn ScreenService>);
-        let settings = Arc::new(ApplicationConfig::builder().storage(temp_path).build());
+        let settings = ApplicationConfig::builder().storage(temp_path).build();
         let manager = DefaultPlayerManager::new(
             settings,
-            Arc::new(EventPublisher::default()),
+            EventPublisher::default(),
             Arc::new(Box::new(torrent_manager)),
             Arc::new(Box::new(torrent_stream_server)),
             screen_service,
@@ -722,8 +756,10 @@ mod tests {
         let player = manager
             .by_id(player_id)
             .expect("expected the player to have been found");
-        manager.set_active_player(player.upgrade().unwrap().id());
-        let result = manager.active_player();
+        manager
+            .set_active_player(player.upgrade().unwrap().id())
+            .await;
+        let result = manager.active_player().await;
 
         assert!(
             result.is_some(),
@@ -731,9 +767,9 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_set_active_player() {
-        init_logger();
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_set_active_player() {
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let player_id = "FooBar654";
@@ -742,14 +778,17 @@ mod tests {
         player
             .expect_name()
             .return_const("FooBar player".to_string());
-        player.expect_add().return_const(1245i64);
+        player.expect_subscribe().returning(|| {
+            let (_, rx) = unbounded_channel();
+            rx
+        });
         let player = Box::new(player) as Box<dyn Player>;
-        let (tx, rx) = channel();
-        let event_publisher = Arc::new(EventPublisher::default());
+        let (tx, mut rx) = unbounded_channel();
+        let event_publisher = EventPublisher::default();
         let torrent_manager = MockTorrentManager::new();
         let torrent_stream_server = MockTorrentStreamServer::new();
         let screen_service = Arc::new(Box::new(MockScreenService::new()) as Box<dyn ScreenService>);
-        let settings = Arc::new(ApplicationConfig::builder().storage(temp_path).build());
+        let settings = ApplicationConfig::builder().storage(temp_path).build();
         let manager = DefaultPlayerManager::new(
             settings,
             event_publisher.clone(),
@@ -758,24 +797,28 @@ mod tests {
             screen_service,
         );
 
-        event_publisher.register(
-            Box::new(move |e| {
-                match &e {
-                    Event::PlayerChanged(id) => tx.send(id.clone()).unwrap(),
-                    _ => {}
+        let mut callback = event_publisher.subscribe(DEFAULT_ORDER).unwrap();
+        tokio::spawn(async move {
+            loop {
+                if let Some(mut handler) = callback.recv().await {
+                    if let Some(Event::PlayerChanged(e)) = handler.event_ref() {
+                        tx.send(e.clone()).unwrap();
+                    }
+                    handler.next();
+                } else {
+                    break;
                 }
-
-                Some(e)
-            }),
-            DEFAULT_ORDER,
-        );
+            }
+        });
         manager.add_player(player);
         let player = manager
             .by_id(player_id)
             .expect("expected the player to have been found");
-        manager.set_active_player(player.upgrade().unwrap().id());
+        manager
+            .set_active_player(player.upgrade().unwrap().id())
+            .await;
 
-        let result = rx.recv_timeout(Duration::from_millis(100)).unwrap();
+        let result = recv_timeout!(&mut rx, Duration::from_millis(100));
         assert_eq!(
             player_id,
             result.new_player_id.as_str(),
@@ -783,9 +826,9 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_set_active_player_twice() {
-        init_logger();
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_set_active_player_twice() {
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let player_id = "FooBar654";
@@ -794,14 +837,17 @@ mod tests {
         player
             .expect_name()
             .return_const("FooBar player".to_string());
-        player.expect_add().return_const(1245i64);
+        player.expect_subscribe().returning(|| {
+            let (_, rx) = unbounded_channel();
+            rx
+        });
         let player = Box::new(player) as Box<dyn Player>;
-        let (tx, rx) = channel();
-        let event_publisher = Arc::new(EventPublisher::default());
+        let (tx, mut rx) = unbounded_channel();
+        let event_publisher = EventPublisher::default();
         let torrent_manager = MockTorrentManager::new();
         let torrent_stream_server = MockTorrentStreamServer::new();
         let screen_service = Arc::new(Box::new(MockScreenService::new()) as Box<dyn ScreenService>);
-        let settings = Arc::new(ApplicationConfig::builder().storage(temp_path).build());
+        let settings = ApplicationConfig::builder().storage(temp_path).build();
         let manager = DefaultPlayerManager::new(
             settings,
             event_publisher.clone(),
@@ -810,49 +856,56 @@ mod tests {
             screen_service,
         );
 
-        event_publisher.register(
-            Box::new(move |e| {
-                match &e {
-                    Event::PlayerChanged(id) => tx.send(id.clone()).unwrap(),
-                    _ => {}
+        let mut callback = event_publisher.subscribe(DEFAULT_ORDER).unwrap();
+        tokio::spawn(async move {
+            loop {
+                if let Some(mut handler) = callback.recv().await {
+                    if let Some(Event::PlayerChanged(e)) = handler.event_ref() {
+                        tx.send(e.clone()).unwrap();
+                    }
+                    handler.next();
+                } else {
+                    break;
                 }
-
-                Some(e)
-            }),
-            DEFAULT_ORDER,
-        );
+            }
+        });
         manager.add_player(player);
         let player = manager
             .by_id(player_id)
             .expect("expected the player to have been found");
 
-        manager.set_active_player(player.upgrade().unwrap().id());
-        rx.recv_timeout(Duration::from_millis(100))
-            .expect("expected the PlayerChanged event to have been published");
+        manager
+            .set_active_player(player.upgrade().unwrap().id())
+            .await;
+        let _ = recv_timeout!(&mut rx, Duration::from_millis(100));
 
-        manager.set_active_player(player.upgrade().unwrap().id());
-        let result = rx.recv_timeout(Duration::from_millis(100));
+        manager
+            .set_active_player(player.upgrade().unwrap().id())
+            .await;
+        let result = select! {
+            _ = time::sleep(Duration::from_millis(100)) => false,
+            Some(_) = rx.recv() => true,
+        };
         assert_eq!(
-            Err(RecvTimeoutError::Timeout),
-            result,
+            false, result,
             "expected the PlayerChanged to only have been published once"
         );
     }
 
-    #[test]
-    fn test_set_active_player_switch_listener() {
-        init_logger();
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_set_active_player_switch_listener() {
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let player2_id = "Id2";
         let player1 = Box::new(DummyPlayer::new("Id1"));
         let player2 = Box::new(DummyPlayer::new(player2_id));
-        let (tx, rx) = channel();
-        let event_publisher = Arc::new(EventPublisher::default());
+        let (tx, mut rx) = unbounded_channel();
+        let event_publisher = EventPublisher::default();
         let torrent_manager = MockTorrentManager::new();
         let torrent_stream_server = MockTorrentStreamServer::new();
         let screen_service = Arc::new(Box::new(MockScreenService::new()) as Box<dyn ScreenService>);
-        let settings = Arc::new(ApplicationConfig::builder().storage(temp_path).build());
+        let settings = ApplicationConfig::builder().storage(temp_path).build();
         let manager = DefaultPlayerManager::new(
             settings,
             event_publisher.clone(),
@@ -861,18 +914,25 @@ mod tests {
             screen_service,
         );
 
-        manager.subscribe(Box::new(move |e| {
-            if let PlayerManagerEvent::PlayerDurationChanged(_) = &e {
-                tx.send(e).unwrap();
+        let mut receiver = manager.subscribe();
+        tokio::spawn(async move {
+            loop {
+                if let Some(event) = receiver.recv().await {
+                    if let PlayerManagerEvent::PlayerDurationChanged(_) = &*event {
+                        tx.send((*event).clone()).unwrap();
+                    }
+                } else {
+                    break;
+                }
             }
-        }));
+        });
         manager.add_player(player1.clone());
         manager.add_player(player2);
-        manager.set_active_player(player1.id());
+        manager.set_active_player(player1.id()).await;
         player1
             .callbacks
             .invoke(PlayerEvent::DurationChanged(25000));
-        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        let result = recv_timeout!(&mut rx, Duration::from_millis(200));
 
         if let PlayerManagerEvent::PlayerDurationChanged(e) = result {
             assert_eq!(
@@ -887,17 +947,20 @@ mod tests {
             )
         }
 
-        manager.set_active_player(player2_id);
+        manager.set_active_player(player2_id).await;
         player1
             .callbacks
             .invoke(PlayerEvent::DurationChanged(25000));
-        let result = rx.recv_timeout(Duration::from_millis(200));
-        assert!(result.is_err(), "expected the PlayerManagerEvent::PlayerDurationChanged to not have been invoked a 2nd time")
+        let result = select! {
+            _ = time::sleep(Duration::from_millis(200)) => false,
+            Some(_) = rx.recv() => true,
+        };
+        assert_eq!(false, result, "expected the PlayerManagerEvent::PlayerDurationChanged to not have been invoked a 2nd time")
     }
 
-    #[test]
-    fn test_register_new_player() {
-        init_logger();
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_register_new_player() {
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let player_id = "MyPlayerId";
@@ -907,10 +970,10 @@ mod tests {
         let torrent_manager = MockTorrentManager::new();
         let torrent_stream_server = MockTorrentStreamServer::new();
         let screen_service = Arc::new(Box::new(MockScreenService::new()) as Box<dyn ScreenService>);
-        let settings = Arc::new(ApplicationConfig::builder().storage(temp_path).build());
+        let settings = ApplicationConfig::builder().storage(temp_path).build();
         let manager = DefaultPlayerManager::new(
             settings,
-            Arc::new(EventPublisher::default()),
+            EventPublisher::default(),
             Arc::new(Box::new(torrent_manager)),
             Arc::new(Box::new(torrent_stream_server)),
             screen_service,
@@ -925,9 +988,9 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_register_duplicate_player_id() {
-        init_logger();
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_register_duplicate_player_id() {
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let player_id = "SomePlayer123";
@@ -940,10 +1003,10 @@ mod tests {
         let torrent_manager = MockTorrentManager::new();
         let torrent_stream_server = MockTorrentStreamServer::new();
         let screen_service = Arc::new(Box::new(MockScreenService::new()) as Box<dyn ScreenService>);
-        let settings = Arc::new(ApplicationConfig::builder().storage(temp_path).build());
+        let settings = ApplicationConfig::builder().storage(temp_path).build();
         let manager = DefaultPlayerManager::new(
             settings,
-            Arc::new(EventPublisher::default()),
+            EventPublisher::default(),
             Arc::new(Box::new(torrent_manager)),
             Arc::new(Box::new(torrent_stream_server)),
             screen_service,
@@ -965,21 +1028,21 @@ mod tests {
         )
     }
 
-    #[test]
-    fn test_player_stopped_event() {
-        init_logger();
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_player_stopped_event() {
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let player_id = "SomeId123";
-        let torrent_handle = "MyTorrentHandle";
+        let torrent_handle = TorrentHandle::new();
         let stream_handle = Handle::new();
-        let (tx, rx) = channel();
         let mut stream = MockTorrentStream::new();
+        stream.inner.expect_handle().return_const(torrent_handle);
         stream
-            .expect_handle()
-            .return_const(torrent_handle.to_string());
-        stream.expect_stream_handle().return_const(stream_handle);
-        let stream = Arc::new(Box::new(stream) as Box<dyn TorrentStream>);
+            .inner
+            .expect_stream_handle()
+            .return_const(stream_handle);
+        let stream = Box::new(stream) as Box<dyn TorrentStream>;
         let request: Arc<Box<dyn PlayRequest>> = Arc::new(Box::new(PlayMediaRequest {
             base: PlayUrlRequest {
                 url: "".to_string(),
@@ -997,15 +1060,17 @@ mod tests {
             parent_media: None,
             media: Box::new(MockMediaIdentifier::new()),
             quality: "".to_string(),
-            torrent_stream: Arc::downgrade(&stream),
+            torrent_stream: stream,
         }));
+        let player_callbacks = MultiThreadedCallback::new();
+        let player_subscription = player_callbacks.subscribe();
         let mut player = MockPlayer::new();
         player.expect_id().return_const(player_id.to_string());
         player.expect_name().return_const("MyPlayer".to_string());
-        player.expect_add().returning(move |e| {
-            tx.send(e).unwrap();
-            Handle::new()
-        });
+        player
+            .expect_subscribe()
+            .times(1)
+            .return_once(move || player_subscription);
         player
             .expect_request()
             .times(1)
@@ -1014,7 +1079,7 @@ mod tests {
         torrent_manager
             .expect_remove()
             .times(1)
-            .withf(move |e| e == torrent_handle)
+            .withf(move |e| e == &torrent_handle)
             .return_const(());
         let mut torrent_stream_server = MockTorrentStreamServer::new();
         torrent_stream_server
@@ -1023,26 +1088,51 @@ mod tests {
             .withf(move |handle| handle.clone() == stream_handle)
             .return_const(());
         let screen_service = Arc::new(Box::new(MockScreenService::new()) as Box<dyn ScreenService>);
-        let settings = Arc::new(ApplicationConfig::builder().storage(temp_path).build());
+        let settings = ApplicationConfig::builder().storage(temp_path).build();
+        let (tx, mut rx) = unbounded_channel();
         let manager = DefaultPlayerManager::new(
             settings,
-            Arc::new(EventPublisher::default()),
+            EventPublisher::default(),
             Arc::new(Box::new(torrent_manager)),
             Arc::new(Box::new(torrent_stream_server)),
             screen_service,
         );
 
+        let mut receiver = manager.subscribe();
+        tokio::spawn(async move {
+            loop {
+                if let Some(event) = receiver.recv().await {
+                    if let PlayerManagerEvent::PlayerStateChanged(_) = &*event {
+                        tx.send((*event).clone()).unwrap()
+                    }
+                } else {
+                    break;
+                }
+            }
+        });
+
         let result = manager.add_player(Box::new(player));
         assert!(result, "expected the player to have been added");
-        manager.set_active_player(player_id);
+        manager.set_active_player(player_id).await;
 
-        let callback = rx.recv_timeout(Duration::from_millis(200)).unwrap();
-        callback(PlayerEvent::StateChanged(PlayerState::Stopped));
+        // invoke an event on the player
+        player_callbacks.invoke(PlayerEvent::StateChanged(PlayerState::Stopped));
+
+        // try to receive the player event through the player manager
+        let result = recv_timeout!(
+            &mut rx,
+            Duration::from_millis(200),
+            "expected to receive a player event"
+        );
+        assert_eq!(
+            PlayerManagerEvent::PlayerStateChanged(PlayerState::Stopped),
+            result
+        );
     }
 
-    #[test]
-    fn test_play() {
-        init_logger();
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_play() {
+        init_logger!();
         let url = "MyUrl";
         let title = "FooBar";
         let player_id = "LoremIpsumPlayer";
@@ -1054,11 +1144,14 @@ mod tests {
         let request_ref = Arc::new(Box::new(request.clone()) as Box<dyn PlayRequest>);
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let (tx, rx) = channel();
+        let (tx, mut rx) = unbounded_channel();
         let mut player = MockPlayer::default();
         player.expect_id().return_const(player_id.to_string());
         player.expect_name().return_const("FooBar".to_string());
-        player.expect_add().returning(|_| Handle::new());
+        player.expect_subscribe().returning(|| {
+            let (_, rx) = unbounded_channel();
+            rx
+        });
         player.expect_play().times(1).returning(move |e| {
             tx.send(e).unwrap();
         });
@@ -1067,7 +1160,7 @@ mod tests {
             .return_const(Arc::downgrade(&request_ref));
         let torrent_manager = MockTorrentManager::new();
         let torrent_stream_server = MockTorrentStreamServer::new();
-        let (tx_screen, rx_screen) = channel();
+        let (tx_screen, mut rx_screen) = unbounded_channel();
         let mut screen_service = MockScreenService::new();
         screen_service
             .expect_fullscreen()
@@ -1075,47 +1168,47 @@ mod tests {
             .returning(move |fullscreen| {
                 tx_screen.send(fullscreen).unwrap();
             });
-        let settings = Arc::new(
-            ApplicationConfig::builder()
-                .storage(temp_path)
-                .settings(PopcornSettings {
-                    subtitle_settings: Default::default(),
-                    ui_settings: Default::default(),
-                    server_settings: Default::default(),
-                    torrent_settings: Default::default(),
-                    playback_settings: PlaybackSettings {
-                        quality: None,
-                        fullscreen: true,
-                        auto_play_next_episode_enabled: false,
-                    },
-                    tracking_settings: Default::default(),
-                })
-                .build(),
-        );
+        let settings = ApplicationConfig::builder()
+            .storage(temp_path)
+            .settings(PopcornSettings {
+                subtitle_settings: Default::default(),
+                ui_settings: Default::default(),
+                server_settings: Default::default(),
+                torrent_settings: Default::default(),
+                playback_settings: PlaybackSettings {
+                    quality: None,
+                    fullscreen: true,
+                    auto_play_next_episode_enabled: false,
+                },
+                tracking_settings: Default::default(),
+            })
+            .build();
         let manager = DefaultPlayerManager::new(
             settings,
-            Arc::new(EventPublisher::default()),
+            EventPublisher::default(),
             Arc::new(Box::new(torrent_manager)),
             Arc::new(Box::new(torrent_stream_server)),
             Arc::new(Box::new(screen_service) as Box<dyn ScreenService>),
         );
 
         manager.add_player(Box::new(player));
-        manager.set_active_player(player_id);
+        manager.set_active_player(player_id).await;
 
-        block_in_place(manager.play(Box::new(request) as Box<dyn PlayRequest>));
-        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        manager
+            .play(Box::new(request) as Box<dyn PlayRequest>)
+            .await;
+        let result = recv_timeout!(&mut rx, Duration::from_millis(200));
 
         assert_eq!(url, result.url());
         assert_eq!(title, result.title());
 
-        let result = rx_screen.recv_timeout(Duration::from_millis(200)).unwrap();
+        let result = recv_timeout!(&mut rx_screen, Duration::from_millis(200));
         assert_eq!(true, result);
     }
 
-    #[test]
-    fn test_remove() {
-        init_logger();
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_remove() {
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let player_id = "SomePlayer123";
@@ -1125,10 +1218,10 @@ mod tests {
         let torrent_manager = MockTorrentManager::new();
         let torrent_stream_server = MockTorrentStreamServer::new();
         let screen_service = Arc::new(Box::new(MockScreenService::new()) as Box<dyn ScreenService>);
-        let settings = Arc::new(ApplicationConfig::builder().storage(temp_path).build());
+        let settings = ApplicationConfig::builder().storage(temp_path).build();
         let manager = DefaultPlayerManager::new(
             settings,
-            Arc::new(EventPublisher::default()),
+            EventPublisher::default(),
             Arc::new(Box::new(torrent_manager)),
             Arc::new(Box::new(torrent_stream_server)),
             screen_service,

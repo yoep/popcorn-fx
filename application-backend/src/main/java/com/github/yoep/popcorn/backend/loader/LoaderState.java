@@ -6,11 +6,12 @@ import com.sun.jna.NativeMapped;
 import java.util.Arrays;
 
 public enum LoaderState implements NativeMapped {
-    IDLE,
     INITIALIZING,
     STARTING,
     RETRIEVING_SUBTITLES,
     DOWNLOADING_SUBTITLE,
+    RETRIEVING_METADATA,
+    VERIFYING_FILES,
     CONNECTING,
     DOWNLOADING,
     DOWNLOAD_FINISHED,

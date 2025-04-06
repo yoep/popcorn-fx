@@ -54,8 +54,7 @@ public class Playlist extends Structure implements Closeable {
             array[i].autoResumeTimestamp = item.autoResumeTimestamp;
             array[i].subtitlesEnabled = item.subtitlesEnabled;
             array[i].subtitleInfo = item.subtitleInfo;
-            array[i].torrentInfo = item.torrentInfo;
-            array[i].torrentFileInfo = item.torrentFileInfo;
+            array[i].torrentFilename = item.torrentFilename;
         }
 
         write();

@@ -63,9 +63,8 @@ pub extern "C" fn is_vlc_video_player_enabled(popcorn_fx: &mut PopcornFX) -> boo
 
 #[cfg(test)]
 mod test {
+    use popcorn_fx_core::init_logger;
     use tempfile::tempdir;
-
-    use popcorn_fx_core::testing::init_logger;
 
     use crate::PopcornFxArgs;
 
@@ -73,7 +72,7 @@ mod test {
 
     #[test]
     fn test_is_youtube_video_player_enabled() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(PopcornFxArgs {
@@ -98,7 +97,7 @@ mod test {
 
     #[test]
     fn test_is_fx_video_player_enabled() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(PopcornFxArgs {
@@ -123,7 +122,7 @@ mod test {
 
     #[test]
     fn test_is_vlc_video_player_enabled() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(PopcornFxArgs {
@@ -148,7 +147,7 @@ mod test {
 
     #[test]
     fn test_is_mouse_disabled() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(PopcornFxArgs {
@@ -173,7 +172,7 @@ mod test {
 
     #[test]
     fn test_is_tv_mode() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(PopcornFxArgs {
@@ -198,7 +197,7 @@ mod test {
 
     #[test]
     fn test_is_maximized() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(PopcornFxArgs {
@@ -223,7 +222,7 @@ mod test {
 
     #[test]
     fn test_is_kiosk_mode() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(PopcornFxArgs {

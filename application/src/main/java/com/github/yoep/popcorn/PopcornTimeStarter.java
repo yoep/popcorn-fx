@@ -9,11 +9,11 @@ import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.lib.FxLibInstance;
 import com.github.yoep.popcorn.backend.lib.PopcornFxInstance;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
+import com.github.yoep.popcorn.backend.torrent.DefaultTorrentService;
 import com.github.yoep.popcorn.ui.ApplicationArgs;
 import com.github.yoep.popcorn.ui.IoC;
 import com.github.yoep.popcorn.ui.PopcornTimeApplication;
 import com.github.yoep.popcorn.ui.PopcornTimePreloader;
-import com.github.yoep.torrent.frostwire.*;
 import com.github.yoep.video.javafx.VideoPlayerFX;
 import com.github.yoep.video.vlc.VideoPlayerVlc;
 import com.github.yoep.video.vlc.discovery.LinuxNativeDiscoveryStrategy;
@@ -24,19 +24,14 @@ import com.sun.jna.StringArray;
 import javafx.application.Application;
 import javafx.application.ConditionalFeature;
 import javafx.application.Platform;
-import org.apache.http.impl.client.DefaultRedirectStrategy;
-import org.apache.http.impl.client.HttpClientBuilder;
 import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
 import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery;
 import uk.co.caprica.vlcj.factory.discovery.strategy.NativeDiscoveryStrategy;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class PopcornTimeStarter {
-    static final AtomicBoolean INIT_TORRENT_SERVICES = new AtomicBoolean(true);
-
     public static void main(String[] args) {
         System.setProperty("jna.encoding", StandardCharsets.UTF_8.name());
         var ioc = PopcornTimeApplication.getIOC();
@@ -80,10 +75,8 @@ public class PopcornTimeStarter {
                 new WindowsNativeDiscoveryStrategy()
         );
 
-        // torrent services
-        if (INIT_TORRENT_SERVICES.get()) {
-            initializeTorrentSession(ioC);
-        }
+        // register torrent service
+        ioC.register(DefaultTorrentService.class);
 
         // vlc video player
         if (applicationConfig.isVlcVideoPlayerEnabled()) {
@@ -114,17 +107,6 @@ public class PopcornTimeStarter {
         } else {
             onInitTv(ioC);
         }
-    }
-
-    private static void initializeTorrentSession(IoC ioC) {
-        var client = HttpClientBuilder.create()
-                .setRedirectStrategy(new DefaultRedirectStrategy())
-                .build();
-
-        ioC.register(TorrentServiceImpl.class);
-        ioC.register(TorrentSessionManagerImpl.class);
-        ioC.register(TorrentSettingsServiceImpl.class);
-        ioC.registerInstance(new TorrentResolverService(ioC.getInstance(TorrentSessionManager.class), client));
     }
 
     private static void onInitDesktop(IoC ioC) {

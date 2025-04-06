@@ -5,13 +5,14 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use derive_more::Display;
+use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use log::{debug, error, trace};
 use rupnp::{Device, Service};
-use tokio::runtime::Runtime;
+use tokio::select;
 use tokio::sync::mpsc::error::SendError;
-use tokio::sync::mpsc::{channel, Sender};
+use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::sync::Mutex;
-use tokio::time;
+use tokio::time::interval;
 use tokio_util::sync::CancellationToken;
 use xml::escape::escape_str_attribute;
 
@@ -20,9 +21,6 @@ use popcorn_fx_core::core::subtitles::model::SubtitleType;
 use popcorn_fx_core::core::subtitles::SubtitleServer;
 use popcorn_fx_core::core::utils::time::{
     parse_millis_from_time, parse_str_from_time, parse_time_from_millis, parse_time_from_str,
-};
-use popcorn_fx_core::core::{
-    block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks,
 };
 
 use crate::dlna;
@@ -61,91 +59,45 @@ impl DlnaPlayer {
     ///
     /// ```rust,no_run
     /// use rupnp::Device;
-    /// use ssdp_client::SearchTarget::URN;
+    /// use ssdp_client::URN;
+    /// use popcorn_fx_core::core::subtitles::SubtitleServer;
     /// use popcorn_fx_players::dlna::DlnaPlayer;
     /// use std::sync::Arc;
     ///
-    /// #[tokio::main]
-    /// async fn main() {
+    /// async fn example(subtitle_server: Arc<SubtitleServer>) {
     ///     let uri = "upnp://237.84.2.178:1234".parse().unwrap();
-    ///     let service_uri =  URN::service("schemas-upnp-org", "AVTransport", 1);
+    ///     let service_uri = URN::service("schemas-upnp-org", "AVTransport", 1);
     ///     let device = Device::from_url(uri).await.unwrap();
-    ///     let service = device.find_service(service_uri).unwrap().clone();
+    ///     let service = device.find_service(&service_uri).unwrap().clone();
     ///
-    ///     let player = DlnaPlayer::new(device, service);
+    ///     let player = DlnaPlayer::new(device, service, subtitle_server);
     /// }
     /// ```
     pub fn new(device: Device, service: Service, subtitle_server: Arc<SubtitleServer>) -> Self {
         let name = device.friendly_name().to_string();
         let id = format!("[{}]{}", device.device_type(), name);
-        let (tx, mut rx) = channel(10);
-        let runtime = tokio::runtime::Builder::new_multi_thread()
-            .enable_all()
-            .worker_threads(2)
-            .thread_name(format!("dlna-{}", name))
-            .build()
-            .expect("expected a new runtime");
+        let (event_sender, event_receiver) = unbounded_channel();
+        let (command_sender, command_receiver) = unbounded_channel();
         let instance = Arc::new(InnerPlayer {
             id,
             device,
             service,
-            event_sender: tx,
+            event_sender,
             request: Default::default(),
             playback_state: Default::default(),
             subtitle_server,
-            callbacks: Default::default(),
             event_poller_activated: Default::default(),
+            command_sender,
+            callbacks: MultiThreadedCallback::new(),
             cancellation_token: Default::default(),
-            runtime,
         });
 
-        let inner_instance = instance.clone();
-        instance.runtime.spawn(async move {
-            loop {
-                tokio::select! {
-                    _ = inner_instance.cancellation_token.cancelled() => break,
-                    result = rx.recv() => {
-                        if let Some(event) = result {
-                            match event {
-                                UpnpEvent::Time(e) => inner_instance.handle_time_event(e).await,
-                                UpnpEvent::State(e) => inner_instance.handle_state_event(e).await,
-                            }
-                        } else {
-                            break;
-                        }
-                    }
-                }
-            }
-
-            debug!("UPnP event stream listener stopped");
-        });
-        let inner_instance = instance.clone();
-        instance.runtime.spawn(async move {
-            loop {
-                if inner_instance.cancellation_token.is_cancelled() {
-                    break;
-                }
-
-                if *inner_instance.event_poller_activated.lock().await {
-                    inner_instance.poll_event_info().await;
-                }
-
-                time::sleep(Duration::from_secs(1)).await;
-            }
-            debug!("UPnP main event poller stopped");
+        let inner_main = instance.clone();
+        tokio::spawn(async move {
+            inner_main.start(command_receiver, event_receiver).await;
         });
 
         Self { inner: instance }
-    }
-}
-
-impl Callbacks<PlayerEvent> for DlnaPlayer {
-    fn add(&self, callback: CoreCallback<PlayerEvent>) -> CallbackHandle {
-        self.inner.add(callback)
-    }
-
-    fn remove(&self, handle: CallbackHandle) {
-        self.inner.remove(handle)
     }
 }
 
@@ -167,12 +119,12 @@ impl Player for DlnaPlayer {
         self.inner.graphic_resource()
     }
 
-    fn state(&self) -> PlayerState {
-        self.inner.state()
+    async fn state(&self) -> PlayerState {
+        self.inner.state().await
     }
 
-    fn request(&self) -> Option<Weak<Box<dyn PlayRequest>>> {
-        self.inner.request()
+    async fn request(&self) -> Option<Weak<Box<dyn PlayRequest>>> {
+        self.inner.request().await
     }
 
     async fn play(&self, request: Box<dyn PlayRequest>) {
@@ -180,20 +132,44 @@ impl Player for DlnaPlayer {
     }
 
     fn pause(&self) {
-        self.inner.pause()
+        self.inner.send_command(DlnaPlayerCommand::Pause)
     }
 
     fn resume(&self) {
-        self.inner.resume()
+        self.inner.send_command(DlnaPlayerCommand::Resume)
     }
 
     fn seek(&self, time: u64) {
-        self.inner.seek(time)
+        self.inner.send_command(DlnaPlayerCommand::Seek(time))
     }
 
     fn stop(&self) {
-        self.inner.stop()
+        self.inner.send_command(DlnaPlayerCommand::Stop)
     }
+}
+
+impl Callback<PlayerEvent> for DlnaPlayer {
+    fn subscribe(&self) -> Subscription<PlayerEvent> {
+        self.inner.callbacks.subscribe()
+    }
+
+    fn subscribe_with(&self, subscriber: Subscriber<PlayerEvent>) {
+        self.inner.callbacks.subscribe_with(subscriber)
+    }
+}
+
+impl Drop for DlnaPlayer {
+    fn drop(&mut self) {
+        self.inner.cancellation_token.cancel();
+    }
+}
+
+#[derive(Debug, PartialEq)]
+enum DlnaPlayerCommand {
+    Pause,
+    Resume,
+    Seek(u64),
+    Stop,
 }
 
 #[derive(Debug, Display)]
@@ -202,18 +178,56 @@ struct InnerPlayer {
     id: String,
     device: Device,
     service: Service,
-    event_sender: Sender<UpnpEvent>,
+    event_sender: UnboundedSender<UpnpEvent>,
     request: Mutex<Option<Arc<Box<dyn PlayRequest>>>>,
     playback_state: Mutex<PlaybackState>,
     subtitle_server: Arc<SubtitleServer>,
-    callbacks: CoreCallbacks<PlayerEvent>,
     event_poller_activated: Mutex<bool>,
+    command_sender: UnboundedSender<DlnaPlayerCommand>,
+    callbacks: MultiThreadedCallback<PlayerEvent>,
     cancellation_token: CancellationToken,
-    runtime: Runtime,
 }
 
 impl InnerPlayer {
-    fn handle_subtitle(&self, request: &Box<dyn PlayRequest>) -> (String, String) {
+    async fn start(
+        &self,
+        mut command_receiver: UnboundedReceiver<DlnaPlayerCommand>,
+        mut receiver: UnboundedReceiver<UpnpEvent>,
+    ) {
+        let mut interval = interval(Duration::from_secs(1));
+        loop {
+            select! {
+                _ = self.cancellation_token.cancelled() => break,
+                Some(command) = command_receiver.recv() => self.handle_command(command).await,
+                Some(event) = receiver.recv() => self.handle_event(event).await,
+                _ = interval.tick() => {
+                    if self.should_poll_event_info().await {
+                        self.poll_event_info().await
+                    }
+                },
+            }
+        }
+        self.stop().await;
+        debug!("UPnP event stream listener stopped");
+    }
+
+    async fn handle_command(&self, command: DlnaPlayerCommand) {
+        match command {
+            DlnaPlayerCommand::Pause => self.pause().await,
+            DlnaPlayerCommand::Resume => self.resume().await,
+            DlnaPlayerCommand::Seek(time) => self.seek(time).await,
+            DlnaPlayerCommand::Stop => self.stop().await,
+        }
+    }
+
+    async fn handle_event(&self, event: UpnpEvent) {
+        match event {
+            UpnpEvent::Time(e) => self.handle_time_event(e).await,
+            UpnpEvent::State(e) => self.handle_state_event(e).await,
+        }
+    }
+
+    async fn handle_subtitle(&self, request: &Box<dyn PlayRequest>) -> (String, String) {
         let mut subtitle_attributes = String::new();
         let mut video_resource_attributes = String::new();
 
@@ -226,6 +240,7 @@ impl InnerPlayer {
             match self
                 .subtitle_server
                 .serve(subtitle.clone(), UPNP_PLAYER_SUBTITLE_FORMAT)
+                .await
             {
                 Ok(subtitle_url) => {
                     debug!("Serving DLNA subtitle at {}", subtitle_url);
@@ -247,14 +262,10 @@ impl InnerPlayer {
             }
         }
 
-        return (subtitle_attributes, video_resource_attributes);
+        (subtitle_attributes, video_resource_attributes)
     }
 
-    fn update_state(&self, state: PlayerState) {
-        block_in_place(self.update_state_async(state))
-    }
-
-    async fn update_state_async(&self, state: PlayerState) {
+    async fn update_state(&self, state: PlayerState) {
         {
             let mut mutex = self.playback_state.lock().await;
             if mutex.state != state {
@@ -267,17 +278,13 @@ impl InnerPlayer {
         self.callbacks.invoke(PlayerEvent::StateChanged(state));
     }
 
-    async fn start_event_poller(&self) {
-        trace!("Starting UPnP event poller for {}", self.device.url());
-        {
-            let mut mutex = self.event_poller_activated.lock().await;
-            *mutex = true;
-        }
-    }
-
-    async fn stop_event_poller(&self) {
-        let mut mutex = self.event_poller_activated.lock().await;
-        *mutex = false;
+    async fn update_event_poller_state(&self, running: bool) {
+        trace!(
+            "Updating UPnP event poller state to {} for {}",
+            running,
+            self.device.url()
+        );
+        *self.event_poller_activated.lock().await = running;
     }
 
     async fn execute_action(
@@ -286,20 +293,33 @@ impl InnerPlayer {
         payload: &str,
     ) -> dlna::Result<HashMap<String, String>> {
         trace!("Executing UPnP {} command with payload {}", action, payload);
-        self.service
+        match self
+            .service
             .action(self.device.url(), action, payload)
             .await
             .map(|e| {
                 trace!("Received command {} response: {:?}", action, e);
                 e
-            })
-            .map_err(|e| {
+            }) {
+            Ok(e) => Ok(e),
+            Err(e) => {
                 error!("Failed to execute {} UPnP action, {}", action, e);
-                self.update_state(PlayerState::Error);
-                dlna::DlnaError::ServiceCommand
-            })
+                self.update_state(PlayerState::Error).await;
+                Err(dlna::DlnaError::ServiceCommand)
+            }
+        }
     }
 
+    /// Check if the event information should be polled from the player.
+    ///
+    /// # Returns
+    ///
+    /// It returns `true` if the event information should be polled, `false` otherwise.
+    async fn should_poll_event_info(&self) -> bool {
+        *self.event_poller_activated.lock().await
+    }
+
+    /// Poll the event information from the player.
     async fn poll_event_info(&self) {
         if let Ok(info) = self
             .execute_action("GetPositionInfo", UPNP_PLAYER_POSITION_PAYLOAD)
@@ -307,7 +327,7 @@ impl InnerPlayer {
         {
             trace!("Received UPnP position info: {:?}", info);
             let event = UpnpEvent::Time(PositionInfo::from(info));
-            if let Err(e) = self.event_sender.send(event).await {
+            if let Err(e) = self.event_sender.send(event) {
                 self.handle_poll_event_error(e).await;
             }
         }
@@ -317,7 +337,7 @@ impl InnerPlayer {
         {
             trace!("Received UPnP transport info: {:?}", info);
             let event = UpnpEvent::State(TransportInfo::from(info));
-            if let Err(e) = self.event_sender.send(event).await {
+            if let Err(e) = self.event_sender.send(event) {
                 self.handle_poll_event_error(e).await;
             }
         }
@@ -357,25 +377,12 @@ impl InnerPlayer {
         let player_state = PlayerState::from(&event.current_transport_state);
 
         if current_state != player_state {
-            self.update_state_async(player_state.clone()).await;
+            self.update_state(player_state.clone()).await;
             self.callbacks
                 .invoke(PlayerEvent::StateChanged(player_state));
         }
     }
-}
 
-impl Callbacks<PlayerEvent> for InnerPlayer {
-    fn add(&self, callback: CoreCallback<PlayerEvent>) -> CallbackHandle {
-        self.callbacks.add(callback)
-    }
-
-    fn remove(&self, handle: CallbackHandle) {
-        self.callbacks.remove(handle)
-    }
-}
-
-#[async_trait]
-impl Player for InnerPlayer {
     fn id(&self) -> &str {
         self.id.as_str()
     }
@@ -392,13 +399,13 @@ impl Player for InnerPlayer {
         DLNA_GRAPHIC_RESOURCE.to_vec()
     }
 
-    fn state(&self) -> PlayerState {
-        let mutex = block_in_place(self.playback_state.lock());
+    async fn state(&self) -> PlayerState {
+        let mutex = self.playback_state.lock().await;
         mutex.state.clone()
     }
 
-    fn request(&self) -> Option<Weak<Box<dyn PlayRequest>>> {
-        let mutex = block_in_place(self.request.lock());
+    async fn request(&self) -> Option<Weak<Box<dyn PlayRequest>>> {
+        let mutex = self.request.lock().await;
         mutex.as_ref().map(|e| Arc::downgrade(e))
     }
 
@@ -410,7 +417,7 @@ impl Player for InnerPlayer {
             .unwrap_or("mpeg".to_string());
 
         // process the playback subtitle information
-        let (subtitle_attributes, video_resource_attributes) = self.handle_subtitle(&request);
+        let (subtitle_attributes, video_resource_attributes) = self.handle_subtitle(&request).await;
 
         let video_resource = format!(
             r#"<res protocolInfo="http-get:*:video/{video_type}:DLNA.ORG_OP=01;DLNA.ORG_FLAGS=01100000000000000000000000000000" {video_attributes}>{video_uri}</res>"#,
@@ -455,20 +462,20 @@ impl Player for InnerPlayer {
             .await
         {
             error!("Failed to initialize UPnP playback, {}", e);
-            self.update_state_async(PlayerState::Error).await;
+            self.update_state(PlayerState::Error).await;
             return;
         }
 
         trace!("Starting DLNA playback");
-        self.resume();
-        self.start_event_poller().await;
+        self.resume().await;
+        self.update_event_poller_state(true).await;
 
         debug!("DLNA playback has been started for {:?}", request);
-        self.update_state_async(PlayerState::Buffering).await;
+        self.update_state(PlayerState::Buffering).await;
 
         if let Some(auto_resume) = request.auto_resume_timestamp() {
             trace!("Auto resuming DLNA playback at {}", auto_resume);
-            self.seek(auto_resume);
+            self.seek(auto_resume).await;
         }
 
         {
@@ -478,52 +485,44 @@ impl Player for InnerPlayer {
         }
     }
 
-    fn pause(&self) {
-        block_in_place(async {
-            let _ = self
-                .execute_action("Pause", UPNP_PLAYER_PAUSE_PAYLOAD)
-                .await;
-        })
+    async fn pause(&self) {
+        let _ = self
+            .execute_action("Pause", UPNP_PLAYER_PAUSE_PAYLOAD)
+            .await;
     }
 
-    fn resume(&self) {
-        block_in_place(async {
-            let _ = self.execute_action("Play", UPNP_PLAYER_PLAY_PAYLOAD).await;
-        })
+    async fn resume(&self) {
+        let _ = self.execute_action("Play", UPNP_PLAYER_PLAY_PAYLOAD).await;
     }
 
-    fn seek(&self, time: u64) {
+    async fn seek(&self, time: u64) {
         let time = parse_time_from_millis(time);
         let time_str = parse_str_from_time(&time);
-        block_in_place(async {
-            let _ = self
-                .execute_action(
-                    "Seek",
-                    format!(
-                        r#"
+        let _ = self
+            .execute_action(
+                "Seek",
+                format!(
+                    r#"
                 <InstanceID>0</InstanceID>
                 <Unit>REL_TIME</Unit>
                 <Target>{}</Target>
             "#,
-                        time_str
-                    )
-                    .as_str(),
+                    time_str
                 )
-                .await;
-        })
+                .as_str(),
+            )
+            .await;
     }
 
-    fn stop(&self) {
-        block_in_place(async {
-            let _ = self.execute_action("Stop", UPNP_PLAYER_STOP_PAYLOAD).await;
-            self.stop_event_poller().await;
-        })
+    async fn stop(&self) {
+        let _ = self.execute_action("Stop", UPNP_PLAYER_STOP_PAYLOAD).await;
+        self.update_event_poller_state(false).await;
     }
-}
 
-impl Drop for InnerPlayer {
-    fn drop(&mut self) {
-        self.cancellation_token.cancel();
+    fn send_command(&self, command: DlnaPlayerCommand) {
+        if let Err(e) = self.command_sender.send(command) {
+            debug!("Dlna player failed to send command, {}", e);
+        }
     }
 }
 
@@ -551,21 +550,18 @@ impl Default for PlaybackState {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::mpsc::channel;
     use std::time::Duration;
 
     use httpmock::Method::{GET, POST};
     use httpmock::{Mock, MockServer};
-    use tokio::runtime::Runtime;
-
     use popcorn_fx_core::core::players::PlayUrlRequestBuilder;
     use popcorn_fx_core::core::subtitles::MockSubtitleProvider;
-    use popcorn_fx_core::testing::init_logger;
-
-    use crate::dlna::tests::DEFAULT_SSDP_DESCRIPTION_RESPONSE;
-    use crate::dlna::AV_TRANSPORT;
+    use popcorn_fx_core::{init_logger, recv_timeout};
 
     use super::*;
+    use crate::dlna::tests::DEFAULT_SSDP_DESCRIPTION_RESPONSE;
+    use crate::dlna::AV_TRANSPORT;
+    use crate::tests::wait_for_hit;
 
     const RESPONSE_GET_POSITION: &str = r#"<?xml version="1.0"?>
         <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" 
@@ -595,7 +591,6 @@ mod tests {
         </s:Envelope>"#;
 
     struct TestInstance {
-        runtime: Arc<Runtime>,
         server: MockServer,
         player: Arc<DlnaPlayer>,
     }
@@ -610,10 +605,10 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_id() {
-        init_logger();
-        let instance = new_test_instance();
+    #[tokio::test]
+    async fn test_id() {
+        init_logger!();
+        let instance = new_test_instance().await;
         let player = instance.player_instance();
 
         let result = player.id();
@@ -621,10 +616,10 @@ mod tests {
         assert_eq!("[urn:schemas-upnp-org:device:MediaRenderer:1]test", result);
     }
 
-    #[test]
-    fn test_name() {
-        init_logger();
-        let instance = new_test_instance();
+    #[tokio::test]
+    async fn test_name() {
+        init_logger!();
+        let instance = new_test_instance().await;
         let player = instance.player_instance();
 
         let result = player.name();
@@ -632,10 +627,10 @@ mod tests {
         assert_eq!("test", result);
     }
 
-    #[test]
-    fn test_description() {
-        init_logger();
-        let instance = new_test_instance();
+    #[tokio::test]
+    async fn test_description() {
+        init_logger!();
+        let instance = new_test_instance().await;
         let player = instance.player_instance();
 
         let result = player.description();
@@ -643,10 +638,10 @@ mod tests {
         assert_eq!(DLNA_PLAYER_DESCRIPTION, result);
     }
 
-    #[test]
-    fn test_graphic_resource() {
-        init_logger();
-        let instance = new_test_instance();
+    #[tokio::test]
+    async fn test_graphic_resource() {
+        init_logger!();
+        let instance = new_test_instance().await;
         let player = instance.player_instance();
 
         let result = player.graphic_resource();
@@ -654,20 +649,20 @@ mod tests {
         assert_eq!(DLNA_GRAPHIC_RESOURCE.to_vec(), result);
     }
 
-    #[test]
-    fn test_state() {
-        init_logger();
-        let instance = new_test_instance();
+    #[tokio::test]
+    async fn test_state() {
+        init_logger!();
+        let instance = new_test_instance().await;
         let player = instance.player_instance();
 
-        let result = player.state();
+        let result = player.state().await;
 
         assert_eq!(PlayerState::Ready, result);
     }
 
-    #[test]
-    fn test_play() {
-        init_logger();
+    #[tokio::test]
+    async fn test_play() {
+        init_logger!();
         let request = Box::new(
             PlayUrlRequestBuilder::builder()
                 .url("http://localhost/my-video.mp4")
@@ -675,7 +670,7 @@ mod tests {
                 .subtitles_enabled(true)
                 .build(),
         );
-        let instance = new_test_instance();
+        let instance = new_test_instance().await;
         let init_mock = create_init_mock(&instance);
         let play_mock = instance.server().mock(|when, then| {
             when.method(POST)
@@ -692,22 +687,23 @@ mod tests {
         });
         let player = instance.player_instance();
 
-        instance.runtime.block_on(player.play(request));
+        player.play(request).await;
 
-        assert_eq!(PlayerState::Buffering, player.state());
+        let result = player.state().await;
+        assert_eq!(PlayerState::Buffering, result);
         assert_eq!(
             true,
-            *block_in_place(player.inner.event_poller_activated.lock()),
+            *player.inner.event_poller_activated.lock().await,
             "expected the event poller to have been activated"
         );
         init_mock.assert();
         play_mock.assert();
     }
 
-    #[test]
-    fn test_pause() {
-        init_logger();
-        let instance = new_test_instance();
+    #[tokio::test]
+    async fn test_pause() {
+        init_logger!();
+        let instance = new_test_instance().await;
         let pause_mock = instance.server().mock(|when, then| {
             when.method(POST)
                 .path("/AVTransport/control")
@@ -726,13 +722,14 @@ mod tests {
 
         player.pause();
 
-        pause_mock.assert();
+        wait_for_hit(&pause_mock).await;
+        pause_mock.assert_async().await;
     }
 
-    #[test]
-    fn test_resume() {
-        init_logger();
-        let instance = new_test_instance();
+    #[tokio::test]
+    async fn test_resume() {
+        init_logger!();
+        let instance = new_test_instance().await;
         let resume_mock = instance.server().mock(|when, then| {
             when.method(POST)
                 .path("/AVTransport/control")
@@ -751,13 +748,14 @@ mod tests {
 
         player.resume();
 
-        resume_mock.assert();
+        wait_for_hit(&resume_mock).await;
+        resume_mock.assert_async().await;
     }
 
-    #[test]
-    fn test_seek() {
-        init_logger();
-        let instance = new_test_instance();
+    #[tokio::test]
+    async fn test_seek() {
+        init_logger!();
+        let instance = new_test_instance().await;
         let seek_mock = instance.server().mock(|when, then| {
             when.method(POST)
                 .path("/AVTransport/control")
@@ -784,13 +782,14 @@ mod tests {
 
         player.seek(14000);
 
-        seek_mock.assert();
+        wait_for_hit(&seek_mock).await;
+        seek_mock.assert_async().await;
     }
 
-    #[test]
-    fn test_stop() {
-        init_logger();
-        let instance = new_test_instance();
+    #[tokio::test]
+    async fn test_stop() {
+        init_logger!();
+        let instance = new_test_instance().await;
         let stop_mock = instance.server().mock(|when, then| {
             when.method(POST)
                 .path("/AVTransport/control")
@@ -809,18 +808,20 @@ mod tests {
 
         player.stop();
 
-        let result = block_in_place(player.inner.event_poller_activated.lock());
+        let result = player.inner.event_poller_activated.lock().await;
         assert_eq!(
             false, *result,
             "expected event poller to have been cancelled"
         );
-        stop_mock.assert();
+
+        wait_for_hit(&stop_mock).await;
+        stop_mock.assert_async().await;
     }
 
-    #[test]
-    fn test_poll_event_info_position_info() {
-        init_logger();
-        let instance = new_test_instance();
+    #[tokio::test]
+    async fn test_poll_event_info_position_info() {
+        init_logger!();
+        let instance = new_test_instance().await;
         let _ = create_init_mock(&instance);
         instance.server().mock(|when, then| {
             when.method(POST).path("/AVTransport/control").header(
@@ -831,23 +832,24 @@ mod tests {
                 .header("Content-Type", "text/xml; charset=\"utf-8\"")
                 .body(RESPONSE_GET_POSITION);
         });
-        let (tx_duration, rx_duration) = channel();
-        let (tx_time, rx_time) = channel();
+        let (tx_duration, mut rx_duration) = unbounded_channel();
+        let (tx_time, mut rx_time) = unbounded_channel();
         let player = instance.player_instance();
 
-        player.add(Box::new(move |event| match &event {
-            PlayerEvent::DurationChanged(_) => tx_duration.send(event).unwrap(),
-            PlayerEvent::TimeChanged(_) => tx_time.send(event).unwrap(),
-            _ => {}
-        }));
-        player
-            .inner
-            .runtime
-            .block_on(player.inner.poll_event_info());
+        let mut receiver = player.subscribe();
+        tokio::spawn(async move {
+            while let Some(event) = receiver.recv().await {
+                match &*event {
+                    PlayerEvent::DurationChanged(_) => tx_duration.send((*event).clone()).unwrap(),
+                    PlayerEvent::TimeChanged(_) => tx_time.send((*event).clone()).unwrap(),
+                    _ => {}
+                }
+            }
+        });
 
-        let result = rx_duration
-            .recv_timeout(Duration::from_millis(200))
-            .unwrap();
+        player.inner.poll_event_info().await;
+
+        let result = recv_timeout!(&mut rx_duration, Duration::from_millis(200));
         if let PlayerEvent::DurationChanged(duration) = result {
             assert_eq!(332000, duration);
         } else {
@@ -858,7 +860,7 @@ mod tests {
             );
         }
 
-        let result = rx_time.recv_timeout(Duration::from_millis(200)).unwrap();
+        let result = recv_timeout!(&mut rx_time, Duration::from_millis(200));
         if let PlayerEvent::TimeChanged(time) = result {
             assert_eq!(135000, time);
         } else {
@@ -870,10 +872,10 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_poll_event_info_transport_info() {
-        init_logger();
-        let instance = new_test_instance();
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_poll_event_info_transport_info() {
+        init_logger!();
+        let instance = new_test_instance().await;
         let _ = create_init_mock(&instance);
         instance.server().mock(|when, then| {
             when.method(POST).path("/AVTransport/control").header(
@@ -902,20 +904,21 @@ mod tests {
                       </s:Body>
                     </s:Envelope>"#);
         });
-        let (tx, rx) = channel();
+        let (tx, mut rx) = unbounded_channel();
         let player = instance.player_instance();
 
-        player.add(Box::new(move |event| {
-            if let PlayerEvent::StateChanged(_) = &event {
-                tx.send(event).unwrap();
+        let mut receiver = player.subscribe();
+        tokio::spawn(async move {
+            while let Some(event) = receiver.recv().await {
+                match &*event {
+                    PlayerEvent::StateChanged(_) => tx.send((*event).clone()).unwrap(),
+                    _ => {}
+                }
             }
-        }));
-        player
-            .inner
-            .runtime
-            .block_on(player.inner.poll_event_info());
+        });
+        player.inner.poll_event_info().await;
 
-        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        let result = recv_timeout!(&mut rx, Duration::from_millis(250));
         if let PlayerEvent::StateChanged(state) = result {
             assert_eq!(PlayerState::Playing, state);
         } else {
@@ -943,8 +946,7 @@ mod tests {
         })
     }
 
-    fn new_test_instance() -> TestInstance {
-        let runtime = Arc::new(Runtime::new().unwrap());
+    async fn new_test_instance() -> TestInstance {
         let server = MockServer::start();
         server.mock(|when, then| {
             when.method(GET).path("/description.xml");
@@ -953,18 +955,12 @@ mod tests {
                 .body(DEFAULT_SSDP_DESCRIPTION_RESPONSE);
         });
         let addr = format!("http://{}/description.xml", server.address());
-        let device = runtime
-            .block_on(Device::from_url(addr.parse().unwrap()))
-            .unwrap();
+        let device = Device::from_url(addr.parse().unwrap()).await.unwrap();
         let service = device.find_service(&AV_TRANSPORT).cloned().unwrap();
         let subtitle_provider = MockSubtitleProvider::new();
         let subtitle_server = Arc::new(SubtitleServer::new(Arc::new(Box::new(subtitle_provider))));
         let player = Arc::new(DlnaPlayer::new(device, service, subtitle_server));
 
-        TestInstance {
-            runtime,
-            server,
-            player,
-        }
+        TestInstance { server, player }
     }
 }

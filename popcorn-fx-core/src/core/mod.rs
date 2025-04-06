@@ -1,24 +1,21 @@
-pub use callback::*;
-pub use handle::*;
+pub use callback_old::*;
 pub use runtime::*;
 
 #[cfg(feature = "cache")]
 pub mod cache;
 pub mod config;
-pub mod events;
+pub mod event;
 pub mod images;
 #[cfg(feature = "launcher")]
 pub mod launcher;
 #[cfg(feature = "loader")]
 pub mod loader;
-#[cfg(feature = "media")]
 pub mod media;
 #[cfg(feature = "platform")]
 pub mod platform;
-#[cfg(feature = "playback")]
 pub mod playback;
 pub mod players;
-pub mod playlists;
+pub mod playlist;
 pub mod screen;
 pub mod storage;
 pub mod subtitles;
@@ -26,6 +23,5 @@ pub mod torrents;
 pub mod updater;
 pub mod utils;
 
-mod callback;
-mod handle;
+mod callback_old;
 mod runtime;

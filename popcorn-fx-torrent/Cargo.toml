@@ -2,7 +2,7 @@
 name = "popcorn-fx-torrent"
 version = "0.8.2"
 edition = "2021"
-rust-version = "1.71"
+rust-version = "1.75"
 publish = false
 license-file = "../LICENSE"
 
@@ -12,18 +12,45 @@ crate-type = ["rlib"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-popcorn-fx-core = { path = "../popcorn-fx-core" }
-
 async-trait.workspace = true
+base32.workspace = true
+base64.workspace = true
+bit-vec = "0.8"
+bitmask-enum = "2.2"
+byteorder = "1.5"
+bytes = "1.10"
 chrono.workspace = true
+derive_more = { workspace = true }
+futures.workspace = true
+fx-callback.workspace = true
+fx-handle.workspace = true
+hex = "0.4.3"
 itertools.workspace = true
 log.workspace = true
+percent-encoding.workspace = true
+rand.workspace = true
+reqwest = { workspace = true, features = ["stream"] }
 serde.workspace = true
-serde_json.workspace = true
-tokio = { workspace = true, features = ["rt-multi-thread"] }
+serde_bencode = "0.2"
+serde_bytes = "0.11"
+sha1 = "0.10.6"
+sha2 = "0.10.8"
+thiserror.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread", "time"] }
+tokio-util.workspace = true
+url.workspace = true
+
+[features]
+default = ["extension-metadata", "extension-pex", "extension-holepunch", "extension-donthave"]
+
+extension-donthave = []
+extension-holepunch = []
+extension-metadata = []
+extension-pex = []
 
 [dev-dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }
 
+hex-literal = "0.4.1"
+mockall.workspace = true
 tempfile.workspace = true
-utime = "0"

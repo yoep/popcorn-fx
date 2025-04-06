@@ -3,6 +3,8 @@ package com.github.yoep.popcorn.backend.adapters.torrent.state;
 import com.sun.jna.FromNativeContext;
 import com.sun.jna.NativeMapped;
 
+import java.util.Arrays;
+
 /**
  * The torrent state.
  */
@@ -10,7 +12,15 @@ public enum TorrentState implements NativeMapped {
     /**
      * The torrent is currently being created.
      */
-    CREATING,
+    INITIALIZING,
+    /**
+     * The torrent is currently verifying the existing files.
+     */
+    VERIFYING_FILES,
+    /**
+     * The torrent is currently retrieving the metadata from peers.
+     */
+    RETRIEVING_METADATA,
     /**
      * The torrent is ready to start the download process.
      */
@@ -39,18 +49,14 @@ public enum TorrentState implements NativeMapped {
 
     @Override
     public Object fromNative(Object nativeValue, FromNativeContext context) {
-        var ordinal = (Integer) nativeValue;
-        if (ordinal == -1)
-            return ERROR;
-
-        return TorrentState.values()[ordinal];
+        return Arrays.stream(values())
+                .filter(e -> e.ordinal() == (int) nativeValue)
+                .findFirst()
+                .orElse(TorrentState.ERROR);
     }
 
     @Override
     public Object toNative() {
-        if (this == ERROR)
-            return -1;
-
         return ordinal();
     }
 

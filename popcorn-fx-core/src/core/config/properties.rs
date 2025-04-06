@@ -409,13 +409,13 @@ pub struct TrackingClientProperties {
 mod test {
     use std::path::MAIN_SEPARATOR;
 
-    use crate::testing::init_logger;
+    use crate::init_logger;
 
     use super::*;
 
     #[test]
     fn test_config_file_path() {
-        init_logger();
+        init_logger!();
         let filename = "lorem";
         let extension = "csv";
         let expected_result = format!(
@@ -433,7 +433,7 @@ mod test {
 
     #[test]
     fn test_from_filename_when_not_found_should_return_defaults() {
-        init_logger();
+        init_logger!();
         let expected_result = PopcornProperties {
             loggers: Default::default(),
             update_channel: "https://raw.githubusercontent.com/yoep/popcorn-fx/master/".to_string(),
@@ -454,7 +454,7 @@ mod test {
 
     #[test]
     fn test_from_str_should_return_parsed_data() {
-        init_logger();
+        init_logger!();
         let config_value = "
 popcorn:
   subtitle:
@@ -481,7 +481,7 @@ popcorn:
 
     #[test]
     fn test_from_str_when_partial_fields_are_present_should_complete_with_defaults() {
-        init_logger();
+        init_logger!();
         let config_value = r#"
 popcorn:
   subtitle:
@@ -506,7 +506,7 @@ popcorn:
 
     #[test]
     fn test_provider_unknown_name() {
-        init_logger();
+        init_logger!();
         let provider = "lorem ipsum";
         let properties = PopcornProperties::default();
 

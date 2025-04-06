@@ -1,9 +1,13 @@
-use std::sync::Weak;
-
-use crate::core::media::{MediaIdentifier, TorrentInfo};
-use crate::core::playlists::PlaylistItem;
+use crate::core::media::MediaIdentifier;
+use crate::core::playlist::PlaylistItem;
 use crate::core::subtitles::model::{Subtitle, SubtitleInfo};
-use crate::core::torrents::{Torrent, TorrentFileInfo, TorrentStream};
+use crate::core::torrents::{
+    Torrent, TorrentEvent, TorrentHandle, TorrentState, TorrentStats, TorrentStream,
+};
+use async_trait::async_trait;
+use fx_callback::{Callback, Subscriber, Subscription};
+use popcorn_fx_torrent::torrent;
+use std::ops::Range;
 
 /// A structure representing loading data for a media item.
 ///
@@ -18,14 +22,13 @@ pub struct LoadingData {
     pub thumb: Option<String>,
     pub parent_media: Option<Box<dyn MediaIdentifier>>,
     pub media: Option<Box<dyn MediaIdentifier>>,
-    pub torrent_info: Option<crate::core::torrents::TorrentInfo>,
-    pub torrent_file_info: Option<TorrentFileInfo>,
     pub quality: Option<String>,
     pub auto_resume_timestamp: Option<u64>,
     pub subtitle: SubtitleData,
-    pub media_torrent_info: Option<TorrentInfo>,
-    pub torrent: Option<Weak<Box<dyn Torrent>>>,
-    pub torrent_stream: Option<Weak<Box<dyn TorrentStream>>>,
+    /// The torrent information associated with the media item.
+    pub torrent: Option<TorrentData>,
+    /// The filename of the torrent that needs to be loaded
+    pub torrent_file: Option<String>,
 }
 
 impl PartialEq for LoadingData {
@@ -36,12 +39,10 @@ impl PartialEq for LoadingData {
             && self.thumb == other.thumb
             && self.parent_media.is_some() == other.parent_media.is_some()
             && self.media.is_some() == other.media.is_some()
-            && self.torrent_info == other.torrent_info
-            && self.torrent_file_info == other.torrent_file_info
             && self.quality == other.quality
             && self.auto_resume_timestamp == other.auto_resume_timestamp
             && self.torrent.is_some() == other.torrent.is_some()
-            && self.torrent_stream.is_some() == other.torrent_stream.is_some()
+            && self.torrent_file == other.torrent_file
     }
 
     fn ne(&self, other: &Self) -> bool {
@@ -67,14 +68,11 @@ impl Clone for LoadingData {
             thumb: self.thumb.clone(),
             parent_media: cloned_parent_media,
             media: cloned_media,
-            torrent_info: self.torrent_info.clone(),
-            torrent_file_info: self.torrent_file_info.clone(),
             quality: self.quality.clone(),
             auto_resume_timestamp: self.auto_resume_timestamp,
             subtitle: self.subtitle.clone(),
-            media_torrent_info: self.media_torrent_info.clone(),
-            torrent: self.torrent.clone(),
-            torrent_stream: self.torrent_stream.clone(),
+            torrent: None,
+            torrent_file: self.torrent_file.clone(),
         }
     }
 }
@@ -88,14 +86,11 @@ impl From<&str> for LoadingData {
             thumb: None,
             parent_media: None,
             media: None,
-            torrent_info: None,
-            torrent_file_info: None,
             quality: None,
             auto_resume_timestamp: None,
             subtitle: SubtitleData::default(),
-            media_torrent_info: None,
             torrent: None,
-            torrent_stream: None,
+            torrent_file: None,
         }
     }
 }
@@ -109,8 +104,6 @@ impl From<PlaylistItem> for LoadingData {
             thumb: value.thumb,
             parent_media: value.media.parent,
             media: value.media.media,
-            torrent_info: value.torrent.info,
-            torrent_file_info: value.torrent.file_info,
             quality: value.quality,
             auto_resume_timestamp: value.auto_resume_timestamp,
             subtitle: SubtitleData {
@@ -118,9 +111,119 @@ impl From<PlaylistItem> for LoadingData {
                 info: value.subtitle.info,
                 subtitle: None,
             },
-            media_torrent_info: None,
             torrent: None,
-            torrent_stream: None,
+            torrent_file: value.torrent.filename,
+        }
+    }
+}
+
+/// The torrent loading data identifying a torrent or torrent stream.
+#[derive(Debug)]
+pub enum TorrentData {
+    Torrent(Box<dyn Torrent>),
+    Stream(Box<dyn TorrentStream>),
+}
+
+impl TorrentData {
+    /// Check if the torrent data is a torrent stream.
+    /// Returns true if the torrent data is a torrent stream.
+    pub fn is_stream(&self) -> bool {
+        matches!(self, TorrentData::Stream(_))
+    }
+}
+
+impl Callback<TorrentEvent> for TorrentData {
+    fn subscribe(&self) -> Subscription<TorrentEvent> {
+        match self {
+            TorrentData::Torrent(e) => e.subscribe(),
+            TorrentData::Stream(e) => e.subscribe(),
+        }
+    }
+
+    fn subscribe_with(&self, subscriber: Subscriber<TorrentEvent>) {
+        match self {
+            TorrentData::Torrent(e) => e.subscribe_with(subscriber),
+            TorrentData::Stream(e) => e.subscribe_with(subscriber),
+        }
+    }
+}
+
+#[async_trait]
+impl Torrent for TorrentData {
+    fn handle(&self) -> TorrentHandle {
+        match self {
+            TorrentData::Torrent(e) => e.handle(),
+            TorrentData::Stream(e) => e.handle(),
+        }
+    }
+
+    async fn files(&self) -> Vec<torrent::File> {
+        match self {
+            TorrentData::Torrent(e) => e.files().await,
+            TorrentData::Stream(e) => e.files().await,
+        }
+    }
+
+    async fn largest_file(&self) -> Option<torrent::File> {
+        match self {
+            TorrentData::Torrent(e) => e.largest_file().await,
+            TorrentData::Stream(e) => e.largest_file().await,
+        }
+    }
+
+    async fn has_bytes(&self, bytes: &Range<usize>) -> bool {
+        match self {
+            TorrentData::Torrent(e) => e.has_bytes(bytes).await,
+            TorrentData::Stream(e) => e.has_bytes(bytes).await,
+        }
+    }
+
+    async fn has_piece(&self, piece: usize) -> bool {
+        match self {
+            TorrentData::Torrent(e) => e.has_piece(piece).await,
+            TorrentData::Stream(e) => e.has_piece(piece).await,
+        }
+    }
+
+    async fn prioritize_bytes(&self, bytes: &Range<usize>) {
+        match self {
+            TorrentData::Torrent(e) => e.prioritize_bytes(bytes).await,
+            TorrentData::Stream(e) => e.prioritize_bytes(bytes).await,
+        }
+    }
+
+    async fn prioritize_pieces(&self, pieces: &[u32]) {
+        match self {
+            TorrentData::Torrent(e) => e.prioritize_pieces(pieces).await,
+            TorrentData::Stream(e) => e.prioritize_pieces(pieces).await,
+        }
+    }
+
+    async fn total_pieces(&self) -> usize {
+        match self {
+            TorrentData::Torrent(e) => e.total_pieces().await,
+            TorrentData::Stream(e) => e.total_pieces().await,
+        }
+    }
+
+    async fn sequential_mode(&self) {
+        match self {
+            TorrentData::Torrent(e) => e.sequential_mode().await,
+            TorrentData::Stream(e) => e.sequential_mode().await,
+        }
+    }
+
+    async fn state(&self) -> TorrentState {
+        match self {
+            TorrentData::Torrent(e) => e.state().await,
+            TorrentData::Stream(e) => e.state().await,
+        }
+    }
+
+    async fn stats(&self) -> TorrentStats {
+        match self {
+            TorrentData::Torrent(e) => e.stats().await,
+            TorrentData::Stream(e) => e.stats().await,
         }
     }
 }
@@ -136,7 +239,7 @@ pub struct SubtitleData {
 mod tests {
     use super::*;
     use crate::core::media::{Episode, ShowOverview};
-    use crate::core::playlists::{PlaylistMedia, PlaylistSubtitle, PlaylistTorrent};
+    use crate::core::playlist::{PlaylistMedia, PlaylistSubtitle, PlaylistTorrent};
 
     #[test]
     fn test_from_str() {
@@ -194,14 +297,11 @@ mod tests {
             thumb: Some(thumb.to_string()),
             parent_media: Some(Box::new(show_overview)),
             media: Some(Box::new(episode)),
-            torrent_info: None,
-            torrent_file_info: None,
             quality: Some(quality.to_string()),
             auto_resume_timestamp: None,
             subtitle: SubtitleData::default(),
-            media_torrent_info: None,
             torrent: None,
-            torrent_stream: None,
+            torrent_file: None,
         };
 
         let result = LoadingData::from(item);

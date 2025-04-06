@@ -9,12 +9,12 @@ use tokio::sync::Mutex;
 
 use crate::core::cache::{CacheExecutionError, CacheManager};
 use crate::core::config::ApplicationConfig;
+use crate::core::media::providers::utils::available_uris;
+use crate::core::media::providers::{BaseProvider, MediaDetailsProvider, MediaProvider};
 use crate::core::media::{
     Category, Genre, MediaDetails, MediaError, MediaOverview, MediaType, ShowDetails, ShowOverview,
     SortBy,
 };
-use crate::core::media::providers::{BaseProvider, MediaDetailsProvider, MediaProvider};
-use crate::core::media::providers::utils::available_uris;
 
 const PROVIDER_NAME: &str = "series";
 const SEARCH_RESOURCE_NAME: &str = "shows";
@@ -33,7 +33,7 @@ const CACHE_NAME: &str = "shows";
 #[derive(Debug, Clone)]
 pub struct ShowProvider {
     base: Arc<Mutex<BaseProvider>>,
-    cache_manager: Arc<CacheManager>,
+    cache_manager: CacheManager,
 }
 
 impl ShowProvider {
@@ -48,12 +48,12 @@ impl ShowProvider {
     /// # Returns
     ///
     /// A new `ShowProvider` instance.
-    pub fn new(
-        settings: Arc<ApplicationConfig>,
-        cache_manager: Arc<CacheManager>,
+    pub async fn new(
+        settings: &ApplicationConfig,
+        cache_manager: CacheManager,
         insecure: bool,
     ) -> Self {
-        let uris = available_uris(&settings, PROVIDER_NAME);
+        let uris = available_uris(&settings, PROVIDER_NAME).await;
 
         Self {
             base: Arc::new(Mutex::new(BaseProvider::new(uris, insecure))),
@@ -65,11 +65,9 @@ impl ShowProvider {
     ///
     /// This method resets the API statistics of the underlying `BaseProvider`,
     /// allowing it to re-enable all disabled URIs.
-    fn internal_api_reset(&self) {
+    async fn internal_api_reset(&self) {
         let base_arc = &self.base.clone();
-        let runtime =
-            tokio::runtime::Runtime::new().expect("expected a runtime to have been created");
-        let mut base = runtime.block_on(base_arc.lock());
+        let mut base = base_arc.lock().await;
 
         base.reset_api_stats();
     }
@@ -87,8 +85,8 @@ impl MediaProvider for ShowProvider {
         category == &Category::Series
     }
 
-    fn reset_api(&self) {
-        self.internal_api_reset()
+    async fn reset_api(&self) {
+        self.internal_api_reset().await
     }
 
     async fn retrieve(
@@ -154,8 +152,8 @@ impl MediaDetailsProvider for ShowProvider {
         media_type == &MediaType::Show
     }
 
-    fn reset_api(&self) {
-        self.internal_api_reset()
+    async fn reset_api(&self) {
+        self.internal_api_reset().await
     }
 
     async fn retrieve_details(
@@ -199,18 +197,18 @@ impl MediaDetailsProvider for ShowProvider {
 #[cfg(test)]
 mod test {
     use httpmock::Method::GET;
-    use tokio::runtime;
 
     use crate::core::cache::CacheManagerBuilder;
     use crate::core::media::MediaIdentifier;
+    use crate::init_logger;
     use crate::test::start_mock_server;
-    use crate::testing::{init_logger, read_test_file_to_string};
+    use crate::testing::read_test_file_to_string;
 
     use super::*;
 
-    #[test]
-    fn test_retrieve() {
-        init_logger();
+    #[tokio::test]
+    async fn test_retrieve() {
+        init_logger!();
         let genre = Genre::all();
         let sort_by = SortBy::new("trending".to_string(), "".to_string());
         let temp_dir = tempfile::tempdir().unwrap();
@@ -227,24 +225,22 @@ mod test {
                 .header("content-type", "application/json")
                 .body(read_test_file_to_string("show-search.json"));
         });
-        let cache_manager = Arc::new(
-            CacheManagerBuilder::default()
-                .storage_path(temp_path)
-                .build(),
-        );
-        let provider = ShowProvider::new(settings, cache_manager, false);
-        let runtime = runtime::Runtime::new().unwrap();
+        let cache_manager = CacheManagerBuilder::default()
+            .storage_path(temp_path)
+            .build();
+        let provider = ShowProvider::new(&settings, cache_manager, false).await;
 
-        let result = runtime
-            .block_on(provider.retrieve(&genre, &sort_by, &String::new(), 1))
+        let result = provider
+            .retrieve(&genre, &sort_by, &String::new(), 1)
+            .await
             .expect("expected no error to have occurred");
 
         assert!(result.len() > 0, "Expected media items to have been found")
     }
 
-    #[test]
-    fn test_retrieve_details() {
-        init_logger();
+    #[tokio::test]
+    async fn test_retrieve_details() {
+        init_logger!();
         let imdb_id = "tt2861424".to_string();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -255,16 +251,14 @@ mod test {
                 .header("content-type", "application/json")
                 .body(read_test_file_to_string("show-details.json"));
         });
-        let cache_manager = Arc::new(
-            CacheManagerBuilder::default()
-                .storage_path(temp_path)
-                .build(),
-        );
-        let provider = ShowProvider::new(settings, cache_manager, false);
-        let runtime = runtime::Runtime::new().unwrap();
+        let cache_manager = CacheManagerBuilder::default()
+            .storage_path(temp_path)
+            .build();
+        let provider = ShowProvider::new(&settings, cache_manager, false).await;
 
-        let result = runtime
-            .block_on(provider.retrieve_details(&imdb_id))
+        let result = provider
+            .retrieve_details(&imdb_id)
+            .await
             .expect("expected the details to have been returned")
             .into_any()
             .downcast::<ShowDetails>()

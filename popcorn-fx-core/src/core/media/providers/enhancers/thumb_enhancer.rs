@@ -1,5 +1,4 @@
 use std::any::TypeId;
-use std::sync::Arc;
 
 use async_trait::async_trait;
 use chrono::Duration;
@@ -12,8 +11,8 @@ use url::Url;
 
 use crate::core::cache::{CacheManager, CacheOptions, CacheType};
 use crate::core::config::EnhancerProperties;
-use crate::core::media::{Category, Episode, MediaDetails, ShowDetails};
 use crate::core::media::providers::enhancers::Enhancer;
+use crate::core::media::{Category, Episode, MediaDetails, ShowDetails};
 
 const CACHE_NAME: &str = "thumb_enhancer";
 
@@ -36,12 +35,12 @@ pub struct ThumbEnhancer {
     /// the regex used to retrieve the thumb
     regex: Regex,
     client: Client,
-    cache_manager: Arc<CacheManager>,
+    cache_manager: CacheManager,
 }
 
 impl ThumbEnhancer {
     /// Create a new episode enhancer which will use TVDB information based on the given enhancer properties.
-    pub fn new(properties: EnhancerProperties, cache_manager: Arc<CacheManager>) -> Self {
+    pub fn new(properties: EnhancerProperties, cache_manager: CacheManager) -> Self {
         Self {
             properties,
             regex: Regex::new("https://artworks.thetvdb.com/banners/([a-zA-Z0-9/\\.]+)").unwrap(),
@@ -159,19 +158,19 @@ impl Enhancer for ThumbEnhancer {
 mod test {
     use httpmock::Method::GET;
     use httpmock::MockServer;
-    use tokio::runtime::Runtime;
 
     use crate::core::media::{Episode, Images, MovieDetails, ShowDetails};
-    use crate::testing::{init_logger, read_test_file_to_string};
+    use crate::init_logger;
+    use crate::testing::read_test_file_to_string;
 
     use super::*;
 
-    #[test]
-    fn test_supports() {
-        init_logger();
+    #[tokio::test]
+    async fn test_supports() {
+        init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let cache_manager = Arc::new(CacheManager::builder().storage_path(temp_path).build());
+        let cache_manager = CacheManager::builder().storage_path(temp_path).build();
         let enhancer = ThumbEnhancer::new(
             EnhancerProperties {
                 uri: "".to_string(),
@@ -189,13 +188,13 @@ mod test {
         );
     }
 
-    #[test]
-    fn test_enhance_details_show_details() {
-        init_logger();
+    #[tokio::test]
+    async fn test_enhance_details_show_details() {
+        init_logger!();
         let tvdb_id = "9435216";
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let cache_manager = Arc::new(CacheManager::builder().storage_path(temp_path).build());
+        let cache_manager = CacheManager::builder().storage_path(temp_path).build();
         let server = MockServer::start();
         let show = Box::new(ShowDetails {
             imdb_id: "tt12124578".to_string(),
@@ -235,10 +234,10 @@ mod test {
             },
             cache_manager,
         );
-        let runtime = Runtime::new().unwrap();
 
-        let result = runtime
-            .block_on(enhancer.enhance_details(show))
+        let result = enhancer
+            .enhance_details(show)
+            .await
             .into_any()
             .downcast::<ShowDetails>()
             .unwrap();
@@ -246,12 +245,12 @@ mod test {
         assert_eq!(Some("https://artworks.thetvdb.com/banners/v4/episode/9435216/screencap/63fd00ab6f23b.jpg".to_string()), result.episodes.get(0).unwrap().thumb)
     }
 
-    #[test]
-    fn test_enhance_details_movie_details() {
-        init_logger();
+    #[tokio::test]
+    async fn test_enhance_details_movie_details() {
+        init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let cache_manager = Arc::new(CacheManager::builder().storage_path(temp_path).build());
+        let cache_manager = CacheManager::builder().storage_path(temp_path).build();
         let movie = Box::new(MovieDetails {
             title: "".to_string(),
             imdb_id: "".to_string(),
@@ -270,10 +269,10 @@ mod test {
             },
             cache_manager,
         );
-        let runtime = Runtime::new().unwrap();
 
-        let _ = runtime
-            .block_on(enhancer.enhance_details(movie))
+        let _ = enhancer
+            .enhance_details(movie)
+            .await
             .into_any()
             .downcast::<MovieDetails>()
             .expect("should have returned to correct same given movie media");

@@ -14,7 +14,6 @@
         <module>application-ui</module>
         <module>application</module>
         <module>player-popcorn</module>
-        <module>torrent-frostwire</module>
         <module>video-javafx</module>
         <module>video-vlc</module>
         <module>video-youtube</module>
@@ -368,6 +367,7 @@
                         --add-opens application.backend/com.github.yoep.popcorn.backend.subtitles.ffi=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend.subtitles.model=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend.subtitles=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.torrent=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend.updater=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend.utils=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend=ALL-UNNAMED
@@ -397,9 +397,6 @@
                         --add-opens player.popcorn/com.github.yoep.player.popcorn.player=ALL-UNNAMED
                         --add-opens player.popcorn/com.github.yoep.player.popcorn.services=ALL-UNNAMED
                         --add-opens player.popcorn/com.github.yoep.player.popcorn.utils=ALL-UNNAMED
-                        --add-opens torrent.frostwire/com.github.yoep.torrent.frostwire.model=ALL-UNNAMED
-                        --add-opens torrent.frostwire/com.github.yoep.torrent.frostwire.wrappers=ALL-UNNAMED
-                        --add-opens torrent.frostwire/com.github.yoep.torrent.frostwire=ALL-UNNAMED
                         --add-opens video.javafx/com.github.yoep.video.javafx=ALL-UNNAMED
                         --add-opens video.vlc/com.github.yoep.video.vlc.discovery=ALL-UNNAMED
                         --add-opens video.vlc/com.github.yoep.video.vlc=ALL-UNNAMED

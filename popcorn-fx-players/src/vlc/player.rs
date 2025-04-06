@@ -11,24 +11,22 @@ use chbs::prelude::ToScheme;
 use chbs::probability::Probability;
 use chbs::word::{WordList, WordSampler};
 use derive_more::Display;
+use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use log::{debug, error, info, trace, warn};
 use reqwest::header::HeaderMap;
 use reqwest::{Client, ClientBuilder, Error, Response};
 use serde_xml_rs::from_str;
 use thiserror::Error;
-use tokio::runtime;
-use tokio::runtime::Runtime;
+use tokio::select;
+use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::sync::Mutex;
-use tokio::time::sleep;
+use tokio::time::interval;
 use tokio_util::sync::CancellationToken;
 use url::Url;
 
 use popcorn_fx_core::core::players::{PlayRequest, Player, PlayerEvent, PlayerState};
 use popcorn_fx_core::core::subtitles::matcher::SubtitleMatcher;
 use popcorn_fx_core::core::subtitles::{SubtitleManager, SubtitleProvider};
-use popcorn_fx_core::core::{
-    block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks,
-};
 
 use crate::vlc::VlcStatus;
 
@@ -49,22 +47,11 @@ const COMMAND_VOLUME: &str = "volume";
 #[display(fmt = "VLC player")]
 pub struct VlcPlayer {
     inner: Arc<InnerVlcPlayer>,
-    cancel_token: Mutex<Option<CancellationToken>>,
 }
 
 impl VlcPlayer {
     pub fn builder() -> VlcPlayerBuilder {
         VlcPlayerBuilder::builder()
-    }
-}
-
-impl Callbacks<PlayerEvent> for VlcPlayer {
-    fn add(&self, callback: CoreCallback<PlayerEvent>) -> CallbackHandle {
-        self.inner.add(callback)
-    }
-
-    fn remove(&self, handle: CallbackHandle) {
-        self.inner.remove(handle)
     }
 }
 
@@ -86,67 +73,48 @@ impl Player for VlcPlayer {
         self.inner.graphic_resource()
     }
 
-    fn state(&self) -> PlayerState {
-        self.inner.state()
+    async fn state(&self) -> PlayerState {
+        self.inner.state().await
     }
 
-    fn request(&self) -> Option<Weak<Box<dyn PlayRequest>>> {
-        self.inner.request()
+    async fn request(&self) -> Option<Weak<Box<dyn PlayRequest>>> {
+        self.inner.request().await
     }
 
     async fn play(&self, request: Box<dyn PlayRequest>) {
         self.inner.play(request).await;
-        let cancel_token = CancellationToken::new();
-
-        {
-            trace!("Creating new cancellation token");
-            let mut mutex = self.cancel_token.lock().await;
-            *mutex = Some(cancel_token.clone());
-        }
-
-        let inner_timer = self.inner.clone();
-        self.inner.runtime.spawn(async move {
-            // initial delay for startup
-            sleep(Duration::from_secs(3)).await;
-
-            while !cancel_token.is_cancelled() {
-                if !inner_timer.check_status().await {
-                    cancel_token.cancel()
-                }
-
-                sleep(Duration::from_secs(1)).await;
-            }
-        });
     }
 
     fn pause(&self) {
-        self.inner.pause()
+        self.inner.send_command(VlcPlayerCommand::Pause)
     }
 
     fn resume(&self) {
-        self.inner.resume()
+        self.inner.send_command(VlcPlayerCommand::Resume)
     }
 
     fn seek(&self, time: u64) {
-        self.inner.seek(time)
+        self.inner.send_command(VlcPlayerCommand::Seek(time))
     }
 
     fn stop(&self) {
-        debug!("Stopping external VLC player with status listener cancellation");
-        {
-            let mut mutex = block_in_place(self.cancel_token.lock());
-            if let Some(cancel_token) = mutex.take() {
-                cancel_token.cancel();
-            }
-        }
+        self.inner.send_command(VlcPlayerCommand::Stop)
+    }
+}
 
-        self.inner.stop()
+impl Callback<PlayerEvent> for VlcPlayer {
+    fn subscribe(&self) -> Subscription<PlayerEvent> {
+        self.inner.callbacks.subscribe()
+    }
+
+    fn subscribe_with(&self, subscriber: Subscriber<PlayerEvent>) {
+        self.inner.callbacks.subscribe_with(subscriber)
     }
 }
 
 impl Drop for VlcPlayer {
     fn drop(&mut self) {
-        self.stop()
+        self.inner.cancellation_token.cancel();
     }
 }
 
@@ -155,12 +123,10 @@ impl Drop for VlcPlayer {
 /// # Example
 ///
 /// ```rust
-/// use tokio::runtime::Runtime;
 /// use popcorn_fx_players::vlc::VlcPlayer;
 ///
-/// let shared_runtime = Runtime::new().unwrap();
 /// VlcPlayer::builder()
-///     .runtime(shared_runtime)
+///     .password("MyPassword")
 ///     .build();
 /// ```
 #[derive(Debug, Default)]
@@ -169,7 +135,6 @@ pub struct VlcPlayerBuilder {
     subtitle_provider: Option<Arc<Box<dyn SubtitleProvider>>>,
     password: Option<String>,
     address: Option<SocketAddr>,
-    runtime: Option<Runtime>,
 }
 
 impl VlcPlayerBuilder {
@@ -205,22 +170,8 @@ impl VlcPlayerBuilder {
         self
     }
 
-    /// Sets the runtime for the VLC player.
-    pub fn runtime(mut self, runtime: Runtime) -> Self {
-        self.runtime = Some(runtime);
-        self
-    }
-
     /// Builds the `VlcPlayer` instance.
     pub fn build(self) -> VlcPlayer {
-        let runtime = Arc::new(self.runtime.unwrap_or_else(|| {
-            runtime::Builder::new_multi_thread()
-                .enable_all()
-                .worker_threads(1)
-                .thread_name("vlc")
-                .build()
-                .expect("expected a new runtime")
-        }));
         let address = self.address.unwrap_or_else(|| {
             let listener =
                 TcpListener::bind("localhost:0").expect("expected a TCP address to be bound");
@@ -249,33 +200,50 @@ impl VlcPlayerBuilder {
             )
             .build()
             .unwrap();
+        let (command_sender, command_receiver) = unbounded_channel();
+        let inner = Arc::new(InnerVlcPlayer {
+            options: format!(
+                "--http-host={} --http-port={} --extraintf=http --http-password={}",
+                VLC_HOST,
+                address.port(),
+                password
+            ),
+            password,
+            client,
+            socket: address,
+            request: Default::default(),
+            process: Default::default(),
+            state: Default::default(),
+            callbacks: MultiThreadedCallback::new(),
+            subtitle_manager: self
+                .subtitle_manager
+                .expect("exself.inner.send_command(VlcPlayerCommand::Pause)pected the subtitle_manager to have been set"),
+            subtitle_provider: self
+                .subtitle_provider
+                .expect("expected the subtitle_provider to have been set"),
+            command_sender,
+            cancellation_token: Default::default(),
+        });
 
-        VlcPlayer {
-            inner: Arc::new(InnerVlcPlayer {
-                options: format!(
-                    "--http-host={} --http-port={} --extraintf=http --http-password={}",
-                    VLC_HOST,
-                    address.port(),
-                    password
-                ),
-                password,
-                client,
-                socket: address,
-                request: Default::default(),
-                process: Default::default(),
-                state: Default::default(),
-                callbacks: Default::default(),
-                runtime,
-                subtitle_manager: self
-                    .subtitle_manager
-                    .expect("expected the subtitle_manager to have been set"),
-                subtitle_provider: self
-                    .subtitle_provider
-                    .expect("expected the subtitle_provider to have been set"),
-            }),
-            cancel_token: Default::default(),
-        }
+        let inner_main = inner.clone();
+        tokio::spawn(async move {
+            inner_main.start(command_receiver).await;
+        });
+
+        VlcPlayer { inner }
     }
+}
+
+#[derive(Debug, PartialEq)]
+enum VlcPlayerCommand {
+    /// Pause the vlc player playback
+    Pause,
+    /// Resume the vlc player playback
+    Resume,
+    /// Seek the given time millis within the playback
+    Seek(u64),
+    /// Stop the current vlc player playback
+    Stop,
 }
 
 #[derive(Debug, Display)]
@@ -288,13 +256,40 @@ struct InnerVlcPlayer {
     request: Mutex<Option<Arc<Box<dyn PlayRequest>>>>,
     process: Mutex<Option<Child>>,
     state: Mutex<PlayerState>,
-    callbacks: CoreCallbacks<PlayerEvent>,
-    runtime: Arc<Runtime>,
+    callbacks: MultiThreadedCallback<PlayerEvent>,
     subtitle_manager: Arc<Box<dyn SubtitleManager>>,
     subtitle_provider: Arc<Box<dyn SubtitleProvider>>,
+    command_sender: UnboundedSender<VlcPlayerCommand>,
+    cancellation_token: CancellationToken,
 }
 
 impl InnerVlcPlayer {
+    async fn start(&self, mut command_receiver: UnboundedReceiver<VlcPlayerCommand>) {
+        let mut status_interval = interval(Duration::from_secs(1));
+        loop {
+            select! {
+                _ = self.cancellation_token.cancelled() => break,
+                Some(command) = command_receiver.recv() => self.handle_command(command).await,
+                _ = status_interval.tick() => {
+                    if self.should_poll_player_status().await {
+                        self.poll_player_status().await
+                    }
+                },
+            }
+        }
+        self.stop().await;
+        debug!("Vpl player main loop ended");
+    }
+
+    async fn handle_command(&self, command: VlcPlayerCommand) {
+        match command {
+            VlcPlayerCommand::Pause => self.pause().await,
+            VlcPlayerCommand::Resume => self.resume().await,
+            VlcPlayerCommand::Seek(time) => self.seek(time).await,
+            VlcPlayerCommand::Stop => self.stop().await,
+        }
+    }
+
     fn build_uri(&self, params: Vec<(&str, &str)>) -> Url {
         Url::parse_with_params(
             format!("http://{}:{}{}", VLC_HOST, self.socket.port(), STATUS_URI).as_str(),
@@ -303,9 +298,20 @@ impl InnerVlcPlayer {
         .expect("expected a valid uri to have been created")
     }
 
-    async fn check_status(&self) -> bool {
+    /// Checks if the player should be polled for current status.
+    ///
+    /// # Returns
+    ///
+    /// It returns `true` if the player should be polled for the current status, `false` otherwise.
+    async fn should_poll_player_status(&self) -> bool {
+        let state = *self.state.lock().await;
+        matches!(state, PlayerState::Playing | PlayerState::Paused)
+    }
+
+    /// Retrieves the current status of the player and updates the internal state accordingly.
+    async fn poll_player_status(&self) {
         trace!("Checking external VLC player status for {:?}", self);
-        return match self.retrieve_status().await {
+        match self.retrieve_status().await {
             Ok(status) => {
                 debug!("Received external VLC status {:?}", status);
                 self.update_state_async(PlayerState::from(status.state))
@@ -316,14 +322,12 @@ impl InnerVlcPlayer {
                     .invoke(PlayerEvent::DurationChanged(status.length * 1000));
                 self.callbacks
                     .invoke(PlayerEvent::VolumeChanged(status.volume));
-                true
             }
             Err(e) => {
-                warn!("Failed to retrieve VLC status, {}", e);
-                self.stop();
-                false
+                warn!("Vlc player failed to retrieve VLC playback status, {}", e);
+                self.stop().await;
             }
-        };
+        }
     }
 
     async fn retrieve_status(&self) -> Result<VlcStatus, VlcError> {
@@ -370,20 +374,7 @@ impl InnerVlcPlayer {
 
         self.callbacks.invoke(PlayerEvent::StateChanged(state));
     }
-}
 
-impl Callbacks<PlayerEvent> for InnerVlcPlayer {
-    fn add(&self, callback: CoreCallback<PlayerEvent>) -> CallbackHandle {
-        self.callbacks.add(callback)
-    }
-
-    fn remove(&self, handle: CallbackHandle) {
-        self.callbacks.remove(handle)
-    }
-}
-
-#[async_trait]
-impl Player for InnerVlcPlayer {
     fn id(&self) -> &str {
         VLC_ID
     }
@@ -400,12 +391,12 @@ impl Player for InnerVlcPlayer {
         VLC_GRAPHIC_RESOURCE.to_vec()
     }
 
-    fn state(&self) -> PlayerState {
-        block_in_place(self.state.lock()).clone()
+    async fn state(&self) -> PlayerState {
+        *self.state.lock().await
     }
 
-    fn request(&self) -> Option<Weak<Box<dyn PlayRequest>>> {
-        let mutex = block_in_place(self.request.lock());
+    async fn request(&self) -> Option<Weak<Box<dyn PlayRequest>>> {
+        let mutex = self.request.lock().await;
         mutex.as_ref().map(|e| Arc::downgrade(e))
     }
 
@@ -456,15 +447,17 @@ impl Player for InnerVlcPlayer {
         }
     }
 
-    fn pause(&self) {
-        block_in_place(self.execute_command(VlcCommand::builder().name(COMMAND_PLAY_PAUSE).build()))
+    async fn pause(&self) {
+        self.execute_command(VlcCommand::builder().name(COMMAND_PLAY_PAUSE).build())
+            .await
     }
 
-    fn resume(&self) {
-        block_in_place(self.execute_command(VlcCommand::builder().name(COMMAND_PLAY_PAUSE).build()))
+    async fn resume(&self) {
+        self.execute_command(VlcCommand::builder().name(COMMAND_PLAY_PAUSE).build())
+            .await
     }
 
-    fn seek(&self, mut time: u64) {
+    async fn seek(&self, mut time: u64) {
         if time <= 999 {
             warn!("Invalid seek time {} given", time);
             time = 0;
@@ -472,20 +465,20 @@ impl Player for InnerVlcPlayer {
             time = time / 1000;
         }
 
-        block_in_place(
-            self.execute_command(VlcCommand::builder().name(COMMAND_SEEK).value(time).build()),
-        )
+        self.execute_command(VlcCommand::builder().name(COMMAND_SEEK).value(time).build())
+            .await
     }
 
-    fn stop(&self) {
-        debug!("Stopping external VLC player");
-        block_in_place(self.execute_command(VlcCommand::builder().name(COMMAND_STOP).build()));
+    async fn stop(&self) {
+        debug!("Vlc player is stopping the current playback");
+        self.execute_command(VlcCommand::builder().name(COMMAND_STOP).build())
+            .await;
 
         {
-            let mut mutex = block_in_place(self.process.lock());
+            let mut mutex = self.process.lock().await;
             if let Some(mut process) = mutex.take() {
                 if let Err(err) = process.kill() {
-                    warn!("Failed to stop VLC process, {}", err);
+                    warn!("VLC player failed to stop the VLC process, {}", err);
                 }
             }
         }
@@ -493,11 +486,11 @@ impl Player for InnerVlcPlayer {
         self.callbacks
             .invoke(PlayerEvent::StateChanged(PlayerState::Stopped));
     }
-}
 
-impl Drop for InnerVlcPlayer {
-    fn drop(&mut self) {
-        self.stop()
+    fn send_command(&self, command: VlcPlayerCommand) {
+        if let Err(e) = self.command_sender.send(command) {
+            debug!("Vlv player failed to send command, {}", e);
+        }
     }
 }
 
@@ -563,22 +556,21 @@ impl VlcCommandBuilder {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::mpsc::channel;
-
     use httpmock::Method::GET;
     use httpmock::MockServer;
 
+    use super::*;
+    use crate::tests::wait_for_hit;
     use popcorn_fx_core::core::players::{MockPlayRequest, PlaySubtitleRequest};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::core::subtitles::model::SubtitleInfo;
     use popcorn_fx_core::core::subtitles::{MockSubtitleProvider, SubtitlePreference};
-    use popcorn_fx_core::testing::{init_logger, MockSubtitleManager};
+    use popcorn_fx_core::testing::MockSubtitleManager;
+    use popcorn_fx_core::{assert_timeout, init_logger, recv_timeout};
 
-    use super::*;
-
-    #[test]
-    fn test_id() {
-        init_logger();
+    #[tokio::test]
+    async fn test_id() {
+        init_logger!();
         let manager = MockSubtitleManager::new();
         let provider = MockSubtitleProvider::new();
         let player = VlcPlayer::builder()
@@ -589,9 +581,9 @@ mod tests {
         assert_eq!("vlc", player.id());
     }
 
-    #[test]
-    fn test_name() {
-        init_logger();
+    #[tokio::test]
+    async fn test_name() {
+        init_logger!();
         let manager = MockSubtitleManager::new();
         let provider = MockSubtitleProvider::new();
         let player = VlcPlayer::builder()
@@ -602,9 +594,9 @@ mod tests {
         assert_eq!("VLC", player.name());
     }
 
-    #[test]
-    fn test_description() {
-        init_logger();
+    #[tokio::test]
+    async fn test_description() {
+        init_logger!();
         let manager = MockSubtitleManager::new();
         let provider = MockSubtitleProvider::new();
         let player = VlcPlayer::builder()
@@ -615,9 +607,9 @@ mod tests {
         assert_eq!(VLC_DESCRIPTION, player.description());
     }
 
-    #[test]
-    fn test_graphic_resource() {
-        init_logger();
+    #[tokio::test]
+    async fn test_graphic_resource() {
+        init_logger!();
         let manager = MockSubtitleManager::new();
         let provider = MockSubtitleProvider::new();
         let player = VlcPlayer::builder()
@@ -631,9 +623,9 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_state() {
-        init_logger();
+    #[tokio::test]
+    async fn test_state() {
+        init_logger!();
         let manager = MockSubtitleManager::new();
         let provider = MockSubtitleProvider::new();
         let player = VlcPlayer::builder()
@@ -641,12 +633,14 @@ mod tests {
             .subtitle_provider(Arc::new(Box::new(provider)))
             .build();
 
-        assert_eq!(PlayerState::Unknown, player.state());
+        let result = player.state().await;
+
+        assert_eq!(PlayerState::Unknown, result);
     }
 
-    #[test]
-    fn test_play() {
-        init_logger();
+    #[tokio::test]
+    async fn test_play() {
+        init_logger!();
         let title = "FooBarTitle";
         let language = SubtitleLanguage::Finnish;
         let mut request = MockPlayRequest::new();
@@ -682,9 +676,9 @@ mod tests {
             .subtitle_provider(Arc::new(Box::new(provider)))
             .build();
 
-        block_in_place(player.play(Box::new(request)));
+        player.play(Box::new(request)).await;
 
-        let result = block_in_place(player.inner.process.lock());
+        let result = player.inner.process.lock().await;
         assert!(
             result.is_some(),
             "expected the VLC process to have been spawned"
@@ -692,14 +686,15 @@ mod tests {
 
         let result = player
             .request()
+            .await
             .and_then(|e| e.upgrade())
             .expect("expected the request to have been stored");
         assert_eq!(title.to_string(), result.title());
     }
 
-    #[test]
-    fn test_stop() {
-        init_logger();
+    #[tokio::test]
+    async fn test_stop() {
+        init_logger!();
         let server = MockServer::start();
         let mock = server.mock(move |when, then| {
             when.method(GET)
@@ -727,21 +722,20 @@ mod tests {
             .address(server.address().clone())
             .build();
 
-        block_in_place(player.play(Box::new(request)));
+        player.play(Box::new(request)).await;
         player.stop();
 
-        let result = block_in_place(player.inner.process.lock());
-        assert!(
-            result.is_none(),
+        assert_timeout!(
+            Duration::from_millis(200),
+            player.inner.process.lock().await.is_none(),
             "expected the VLC process to have been killed"
         );
-
         mock.assert();
     }
 
-    #[test]
-    fn test_check_status() {
-        init_logger();
+    #[tokio::test]
+    async fn test_check_status() {
+        init_logger!();
         let server = MockServer::start();
         server.mock(|when, then| {
             when.method(GET).path(STATUS_URI);
@@ -757,9 +751,9 @@ mod tests {
 </root>"#,
                 );
         });
-        let (tx_status, rx_status) = channel();
-        let (tx_time, rx_time) = channel();
-        let (tx_duration, rx_duration) = channel();
+        let (tx_status, mut rx_status) = unbounded_channel();
+        let (tx_time, mut rx_time) = unbounded_channel();
+        let (tx_duration, mut rx_duration) = unbounded_channel();
         let manager = MockSubtitleManager::new();
         let provider = MockSubtitleProvider::new();
         let player = VlcPlayer::builder()
@@ -768,31 +762,45 @@ mod tests {
             .address(server.address().clone())
             .build();
 
-        player.add(Box::new(move |event| match event {
-            PlayerEvent::DurationChanged(e) => tx_duration.send(e).unwrap(),
-            PlayerEvent::TimeChanged(e) => tx_time.send(e).unwrap(),
-            PlayerEvent::StateChanged(e) => tx_status.send(e).unwrap(),
-            _ => {}
-        }));
+        let mut receiver = player.subscribe();
+        tokio::spawn(async move {
+            while let Some(event) = receiver.recv().await {
+                match &*event {
+                    PlayerEvent::DurationChanged(e) => tx_duration.send(*e).unwrap(),
+                    PlayerEvent::TimeChanged(e) => tx_time.send(*e).unwrap(),
+                    PlayerEvent::StateChanged(e) => tx_status.send(*e).unwrap(),
+                    _ => {}
+                }
+            }
+        });
 
-        let result = block_in_place(player.inner.check_status());
-        assert!(result, "expected the status to have been retrieved");
+        player.inner.poll_player_status().await;
 
-        let result = rx_status.recv_timeout(Duration::from_millis(200)).unwrap();
+        let result = recv_timeout!(
+            &mut rx_status,
+            Duration::from_millis(200),
+            "expected to receive the player state"
+        );
         assert_eq!(PlayerState::Playing, result);
 
-        let result = rx_time.recv_timeout(Duration::from_millis(200)).unwrap();
+        let result = recv_timeout!(
+            &mut rx_time,
+            Duration::from_millis(200),
+            "expected to receive the player time"
+        );
         assert_eq!(1000u64, result);
 
-        let result = rx_duration
-            .recv_timeout(Duration::from_millis(200))
-            .unwrap();
+        let result = recv_timeout!(
+            &mut rx_duration,
+            Duration::from_millis(200),
+            "expected to receive the player duration"
+        );
         assert_eq!(6300000u64, result);
     }
 
-    #[test]
-    fn test_pause() {
-        init_logger();
+    #[tokio::test]
+    async fn test_pause() {
+        init_logger!();
         let server = MockServer::start();
         let mock = server.mock(move |when, then| {
             when.method(GET)
@@ -810,12 +818,13 @@ mod tests {
 
         player.pause();
 
-        mock.assert();
+        wait_for_hit(&mock).await;
+        mock.assert_async().await;
     }
 
-    #[test]
-    fn test_resume() {
-        init_logger();
+    #[tokio::test]
+    async fn test_resume() {
+        init_logger!();
         let server = MockServer::start();
         let mock = server.mock(move |when, then| {
             when.method(GET)
@@ -833,12 +842,13 @@ mod tests {
 
         player.resume();
 
-        mock.assert();
+        wait_for_hit(&mock).await;
+        mock.assert_async().await;
     }
 
-    #[test]
-    fn test_seek() {
-        init_logger();
+    #[tokio::test]
+    async fn test_seek() {
+        init_logger!();
         let server = MockServer::start();
         let mock = server.mock(move |when, then| {
             when.method(GET)
@@ -857,12 +867,13 @@ mod tests {
 
         player.seek(12000);
 
-        mock.assert();
+        wait_for_hit(&mock).await;
+        mock.assert_async().await;
     }
 
-    #[test]
-    fn test_seek_time_invalid() {
-        init_logger();
+    #[tokio::test]
+    async fn test_seek_time_invalid() {
+        init_logger!();
         let server = MockServer::start();
         let mock = server.mock(move |when, then| {
             when.method(GET)
@@ -881,6 +892,7 @@ mod tests {
 
         player.seek(800);
 
-        mock.assert();
+        wait_for_hit(&mock).await;
+        mock.assert_async().await;
     }
 }

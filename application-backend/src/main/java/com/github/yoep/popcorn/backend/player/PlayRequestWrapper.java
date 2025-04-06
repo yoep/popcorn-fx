@@ -13,7 +13,7 @@ import java.util.Optional;
 
 @Getter
 @ToString
-@Structure.FieldOrder({"url", "title", "caption", "thumb", "background", "quality", "autoResumeTimestamp", "streamHandle", "subtitle"})
+@Structure.FieldOrder({"url", "title", "caption", "thumb", "background", "quality", "autoResumeTimestamp", "torrentHandle", "subtitle"})
 public class PlayRequestWrapper extends Structure implements Closeable, PlayRequest {
     public static class ByValue extends PlayRequestWrapper implements Structure.ByValue {
     }
@@ -25,7 +25,7 @@ public class PlayRequestWrapper extends Structure implements Closeable, PlayRequ
     public Pointer background;
     public Pointer quality;
     public Pointer autoResumeTimestamp;
-    public Pointer streamHandle;
+    public Pointer torrentHandle;
     public PlaySubtitleRequest.ByValue subtitle;
 
     private String cachedCaption;
@@ -33,7 +33,7 @@ public class PlayRequestWrapper extends Structure implements Closeable, PlayRequ
     private String cachedBackground;
     private String cachedQuality;
     private Long cachedAutoResumeTimestamp;
-    private Handle cachedStreamHandle;
+    private Handle cachedTorrentHandle;
 
     public boolean isSubtitlesEnabled() {
         return subtitle.enabled == 1;
@@ -66,7 +66,7 @@ public class PlayRequestWrapper extends Structure implements Closeable, PlayRequ
 
     @Override
     public Optional<Handle> getStreamHandle() {
-        return Optional.ofNullable(cachedStreamHandle);
+        return Optional.ofNullable(cachedTorrentHandle);
     }
 
     @Override
@@ -93,7 +93,7 @@ public class PlayRequestWrapper extends Structure implements Closeable, PlayRequ
         this.cachedAutoResumeTimestamp = Optional.ofNullable(autoResumeTimestamp)
                 .map(e -> e.getLong(0))
                 .orElse(null);
-        this.cachedStreamHandle = Optional.ofNullable(streamHandle)
+        this.cachedTorrentHandle = Optional.ofNullable(torrentHandle)
                 .map(e -> e.getLong(0))
                 .map(Handle::new)
                 .orElse(null);

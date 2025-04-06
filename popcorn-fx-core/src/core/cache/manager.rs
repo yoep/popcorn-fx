@@ -3,20 +3,21 @@ use std::future::Future;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use crate::core::cache;
+use crate::core::cache::info::{CacheEntry, CacheInfo};
+use crate::core::cache::strategies::{CacheFirstStrategy, CacheLastStrategy};
+use crate::core::cache::{CacheError, CacheExecutionError, CacheParserError};
+use crate::core::storage::{Storage, StorageError};
 use chrono::Duration;
 use log::{debug, error, trace, warn};
 use ring::digest;
 use ring::digest::digest;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use tokio::runtime::Runtime;
+use tokio::select;
+use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::sync::Mutex;
-
-use crate::core::cache::info::{CacheEntry, CacheInfo};
-use crate::core::cache::strategies::{CacheFirstStrategy, CacheLastStrategy};
-use crate::core::cache::{CacheError, CacheExecutionError, CacheParserError};
-use crate::core::storage::{Storage, StorageError};
-use crate::core::{block_in_place, cache};
+use tokio_util::sync::CancellationToken;
 
 const DIRECTORY: &str = "cache";
 const FILENAME: &str = "cache.json";
@@ -43,10 +44,9 @@ pub struct CacheOptions {
 /// The `CacheManager` is responsible for managing cache operations and providing a convenient API for working with caches.
 ///
 /// It allows you to create, execute, and manage cache operations asynchronously. The `CacheManager` is thread-safe and can be safely shared across multiple threads.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CacheManager {
     inner: Arc<InnerCacheManager>,
-    runtime: Arc<Runtime>,
 }
 
 impl CacheManager {
@@ -60,11 +60,16 @@ impl CacheManager {
     /// # Returns
     ///
     /// A new `CacheManager` instance.
-    pub fn new(storage_path: &str, runtime: Arc<Runtime>) -> Self {
+    pub fn new(storage_path: &str) -> Self {
+        let (command_sender, command_receiver) = unbounded_channel();
         let instance = Self {
-            inner: Arc::new(InnerCacheManager::new(storage_path)),
-            runtime,
+            inner: Arc::new(InnerCacheManager::new(storage_path, command_sender)),
         };
+
+        let inner_main = instance.inner.clone();
+        tokio::spawn(async move {
+            inner_main.start(command_receiver).await;
+        });
 
         instance.run_cleanup();
         instance
@@ -88,8 +93,8 @@ impl CacheManager {
     /// # Examples
     ///
     /// ```no_run
-    /// use tokio::runtime::Runtime;
-    /// use popcorn_fx_core::core::cache::{CacheManager, CacheManagerBuilder, CacheOptions};
+    /// use chrono::Duration;
+    /// use popcorn_fx_core::core::cache::{CacheManager, CacheManagerBuilder, CacheOptions, CacheType};
     ///
     /// let cache_manager = CacheManagerBuilder::default()
     ///     .storage_path("/path/to/cache")
@@ -98,7 +103,10 @@ impl CacheManager {
     /// let data = cache_manager.operation()
     ///     .name("my_cache".to_string())
     ///     .key("my_key".to_string())
-    ///     .options(CacheOptions::default())
+    ///     .options(CacheOptions {
+    ///         cache_type: CacheType::CacheFirst,
+    ///         expires_after: Duration::days(10),
+    ///     })
     ///     .execute(|| {
     ///         // Perform cache operation here
     ///         Ok(vec![1, 2, 3])
@@ -127,14 +135,19 @@ impl CacheManager {
     /// # Examples
     ///
     /// ```no_run
+    /// use chrono::Duration;
     /// use tokio::runtime::Runtime;
-    /// use popcorn_fx_core::core::cache::{CacheManager, CacheManagerBuilder, CacheOptions};
+    /// use popcorn_fx_core::core::cache::{CacheManager, CacheManagerBuilder, CacheOptions, CacheType};
     ///
     /// let cache_manager = CacheManagerBuilder::default()
     ///     .storage_path("/path/to/cache")
     ///     .build();
     ///
-    /// let result = cache_manager.execute("my_cache", "my_key", CacheOptions::default(), || {
+    /// let options = CacheOptions {
+    ///         cache_type: CacheType::CacheFirst,
+    ///         expires_after: Duration::days(10),
+    ///     };
+    /// let result = cache_manager.execute("my_cache", "my_key", options, || {
     ///     // Perform cache operation here
     ///     Ok(vec![1, 2, 3])
     /// });
@@ -184,28 +197,31 @@ impl CacheManager {
     /// # Examples
     ///
     /// ```no_run
-    /// use std::sync::Arc;
-    /// use tokio::runtime::Runtime;
-    /// use popcorn_fx_core::core::cache::{CacheManager, CacheOptions};
+    /// use chrono::Duration;
+    /// use popcorn_fx_core::core::cache::{CacheManager, CacheOptions, CacheType};
     ///
-    /// let cache_manager = CacheManager::new("/path/to/cache", Arc::new(Runtime::new().unwrap()));
+    /// async fn example(cache_manager: CacheManager) {
+    ///     let options = CacheOptions {
+    ///             cache_type: CacheType::CacheFirst,
+    ///             expires_after: Duration::days(10),
+    ///     };
+    ///     let result = cache_manager.execute_with_mapper("my_cache", "my_key", options, |data| {
+    ///         // Map the cache data to another type
+    ///         Ok(String::from_utf8_lossy(&data).to_string())
+    ///     }, || {
+    ///         // Perform cache operation here
+    ///         Ok("lorem ipsum".to_string())
+    ///     }).await;
     ///
-    /// let result = cache_manager.execute_with_mapper("my_cache", "my_key", CacheOptions::default(), |data| {
-    ///     // Map the cache data to another type
-    ///     Ok(String::from_utf8_lossy(&data).to_string())
-    /// }, || {
-    ///     // Perform cache operation here
-    ///     Ok("lorem ipsum".to_string())
-    /// });
-    ///
-    /// match result {
-    ///     Ok(mapped_data) => {
-    ///         // Cache operation and mapping succeeded
-    ///         println!("Mapped cache operation result: {}", mapped_data);
-    ///     }
-    ///     Err(error) => {
-    ///         // Cache operation or mapping failed
-    ///         eprintln!("Cache operation failed: {:?}", error);
+    ///     match result {
+    ///         Ok(mapped_data) => {
+    ///             // Cache operation and mapping succeeded
+    ///             println!("Mapped cache operation result: {}", mapped_data);
+    ///         }
+    ///         Err(error) => {
+    ///             // Cache operation or mapping failed
+    ///             eprintln!("Cache operation failed: {:?}", error);
+    ///         }
     ///     }
     /// }
     /// ```
@@ -231,9 +247,13 @@ impl CacheManager {
     /// Runs the cleanup task in a separate thread.
     /// This invocation doesn't wait for the task to complete.
     fn run_cleanup(&self) {
-        let cache_manager = self.inner.clone();
-        self.runtime
-            .spawn(async move { cache_manager.execute_cleanup().await });
+        self.inner.send_command(CacheManagerCommand::ExecuteCleanup);
+    }
+}
+
+impl Drop for CacheManager {
+    fn drop(&mut self) {
+        self.inner.cancellation_token.cancel();
     }
 }
 
@@ -241,7 +261,6 @@ impl CacheManager {
 #[derive(Debug, Default)]
 pub struct CacheManagerBuilder {
     storage_path: Option<String>,
-    runtime: Option<Arc<Runtime>>,
 }
 
 impl CacheManagerBuilder {
@@ -259,20 +278,6 @@ impl CacheManagerBuilder {
         self
     }
 
-    /// Sets the runtime for the cache manager.
-    ///
-    /// # Arguments
-    ///
-    /// * `runtime` - The runtime used for executing asynchronous operations.
-    ///
-    /// # Returns
-    ///
-    /// The updated `CacheManagerBuilder` instance.
-    pub fn runtime(mut self, runtime: Arc<Runtime>) -> Self {
-        self.runtime = Some(runtime);
-        self
-    }
-
     /// Builds and returns a new `CacheManager` instance.
     ///
     /// # Panics
@@ -284,29 +289,27 @@ impl CacheManagerBuilder {
     /// A new `CacheManager` instance.
     pub fn build(self) -> CacheManager {
         let storage_path = self.storage_path.expect("Storage path is required.");
-        let runtime = self.runtime.unwrap_or_else(|| {
-            Arc::new(
-                tokio::runtime::Builder::new_multi_thread()
-                    .enable_all()
-                    .worker_threads(1)
-                    .thread_name("cache")
-                    .build()
-                    .expect("expected a new runtime"),
-            )
-        });
 
-        CacheManager::new(storage_path.as_str(), runtime)
+        CacheManager::new(storage_path.as_str())
     }
 }
 
+#[derive(Debug, PartialEq)]
+enum CacheManagerCommand {
+    /// Execute a cache cleanup cycle
+    ExecuteCleanup,
+}
+
 #[derive(Debug)]
-pub struct InnerCacheManager {
+struct InnerCacheManager {
     storage: Storage,
     cache_info: Mutex<CacheInfo>,
+    command_sender: UnboundedSender<CacheManagerCommand>,
+    cancellation_token: CancellationToken,
 }
 
 impl InnerCacheManager {
-    fn new(storage_path: &str) -> Self {
+    fn new(storage_path: &str, command_sender: UnboundedSender<CacheManagerCommand>) -> Self {
         let storage_path = PathBuf::from(storage_path).join(DIRECTORY);
         let storage = Storage::from(&storage_path);
         let info = storage
@@ -326,6 +329,27 @@ impl InnerCacheManager {
         Self {
             storage,
             cache_info: Mutex::new(info),
+            command_sender,
+            cancellation_token: Default::default(),
+        }
+    }
+
+    async fn start(&self, mut command_receiver: UnboundedReceiver<CacheManagerCommand>) {
+        loop {
+            select! {
+                _ = self.cancellation_token.cancelled() => break,
+                Some(command) = command_receiver.recv() => self.handle_command(command).await,
+            }
+        }
+        if let Err(e) = self.write_cache_info().await {
+            warn!("Cache manager failed to write cache on shutdown, {}", e);
+        }
+        debug!("Cache manager main loop ended");
+    }
+
+    async fn handle_command(&self, command: CacheManagerCommand) {
+        match command {
+            CacheManagerCommand::ExecuteCleanup => self.execute_cleanup().await,
         }
     }
 
@@ -380,7 +404,7 @@ impl InnerCacheManager {
                 output_mapping(e).map_err(|e| Self::map_cache_parser_error(e))
             }
             Err(error) => {
-                return if let CacheExecutionError::Operation(_) = &error {
+                if let CacheExecutionError::Operation(_) = &error {
                     warn!("Operation of {} failed, trying to load cached data", name);
                     let mut options = options;
                     options.expires_after = Duration::days(90);
@@ -414,7 +438,7 @@ impl InnerCacheManager {
                         CacheExecutionError::Mapping(e) => Err(Self::map_cache_parser_error(e)),
                         CacheExecutionError::Cache(inner) => Err(CacheExecutionError::Cache(inner)),
                     }
-                };
+                }
             }
         }
     }
@@ -671,6 +695,12 @@ impl InnerCacheManager {
         let _ = self.write_cache_info().await;
     }
 
+    fn send_command(&self, command: CacheManagerCommand) {
+        if let Err(e) = self.command_sender.send(command) {
+            debug!("Cache manager failed to send command, {}", e);
+        }
+    }
+
     fn generate_cache_filename(name: &str, key: &str) -> String {
         let filename = name.to_string() + key;
         trace!("Hashing filename {}", filename);
@@ -691,14 +721,6 @@ impl InnerCacheManager {
         match error {
             CacheParserError::Operation(e) => CacheExecutionError::Operation(e),
             CacheParserError::Parsing(e) => CacheExecutionError::Cache(CacheError::Parsing(e)),
-        }
-    }
-}
-
-impl Drop for InnerCacheManager {
-    fn drop(&mut self) {
-        if let Err(e) = block_in_place(self.write_cache_info()) {
-            error!("Failed to save cache info, {}", e)
         }
     }
 }
@@ -809,14 +831,17 @@ impl CacheOperation {
     ///
     /// ```
     /// use std::sync::Arc;
-    /// use tokio::runtime::Runtime;
-    /// use popcorn_fx_core::core::cache::{CacheManager, CacheOptions};
+    /// use chrono::Duration;
+    /// use popcorn_fx_core::core::cache::{CacheManager, CacheOptions, CacheType};
     ///
-    /// let cache_manager = CacheManager::new("/path/to/cache", Arc::new(Runtime::new().unwrap()));
+    /// let cache_manager = CacheManager::new("/path/to/cache");
     /// let result = cache_manager.operation()
     ///     .name("my_cache".to_string())
     ///     .key("my_key".to_string())
-    ///     .options(CacheOptions::default())
+    ///     .options(CacheOptions {
+    ///         cache_type: CacheType::CacheFirst,
+    ///         expires_after: Duration::days(7),
+    ///     })
     ///     .execute(|| {
     ///         // Perform cache operation here
     ///         Ok(vec![1, 2, 3])
@@ -1029,55 +1054,44 @@ impl SerializedCacheOperation {
 
 #[cfg(test)]
 mod test {
-    use std::string::FromUtf8Error;
-    use std::sync::mpsc::channel;
-    use std::sync::Arc;
-    use std::thread;
-
-    use tokio::runtime::Runtime;
-
-    use crate::assert_timeout;
     use crate::core::cache::CacheExecutionError;
     use crate::core::media::{MediaError, MovieOverview};
-    use crate::testing::{copy_test_file, init_logger, read_test_file_to_bytes};
+    use crate::testing::{copy_test_file, read_test_file_to_bytes};
+    use crate::{assert_timeout, init_logger, recv_timeout};
+    use tokio::time;
 
     use super::*;
 
-    #[test]
-    fn test_execute_cache_not_present_and_operation_successful() {
-        init_logger();
+    #[tokio::test]
+    async fn test_execute_cache_not_present_and_operation_successful() {
+        init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let cache_manager = Arc::new(
-            CacheManagerBuilder::default()
-                .storage_path(temp_path)
-                .build(),
-        );
+        let cache_manager = CacheManagerBuilder::default()
+            .storage_path(temp_path)
+            .build();
         let expected_data = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur suscipit ullamcorper eleifend. Nulla ac urna tellus. Nullam posuere ligula non consectetur rhoncus. Nam eleifend non elit nec accumsan.";
         let name = "test";
         let key = "lorem";
-        let runtime = Runtime::new().unwrap();
 
         let cloned_manager = cache_manager.clone();
-        match runtime.block_on(async move {
-            let result: Result<String, CacheExecutionError<FromUtf8Error>> = cloned_manager
-                .operation()
-                .name(name)
-                .key(key)
-                .options(CacheOptions {
-                    cache_type: CacheType::CacheFirst,
-                    expires_after: Duration::hours(6),
-                })
-                .map(|e| String::from_utf8(e))
-                .execute(async { Ok(expected_data.to_string()) })
-                .await;
-            result
-        }) {
+        match cloned_manager
+            .operation()
+            .name(name)
+            .key(key)
+            .options(CacheOptions {
+                cache_type: CacheType::CacheFirst,
+                expires_after: Duration::hours(6),
+            })
+            .map(|e| String::from_utf8(e))
+            .execute(async { Ok(expected_data.to_string()) })
+            .await
+        {
             Ok(data) => assert_eq!(expected_data.to_string(), data),
             Err(e) => assert!(false, "expected the cache execution to succeed, {}", e),
         };
 
-        thread::sleep(std::time::Duration::from_millis(10));
+        time::sleep(time::Duration::from_millis(50)).await;
         let cache_info: CacheInfo = cache_manager
             .inner
             .storage
@@ -1102,36 +1116,31 @@ mod test {
         assert_eq!(expected_data, stored_data.as_str());
     }
 
-    #[test]
-    fn test_execute_cache_not_present_and_operation_failed() {
-        init_logger();
+    #[tokio::test]
+    async fn test_execute_cache_not_present_and_operation_failed() {
+        init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let cache_manager = Arc::new(
-            CacheManagerBuilder::default()
-                .storage_path(temp_path)
-                .build(),
-        );
+        let cache_manager = CacheManagerBuilder::default()
+            .storage_path(temp_path)
+            .build();
         let name = "test";
         let key = "lorem";
-        let runtime = Runtime::new().unwrap();
         let expected_error = MediaError::ProviderRequestFailed("failed".to_string(), 503);
 
         let cloned_manager = cache_manager.clone();
         let cloned_error = expected_error.clone();
-        if let Err(e) = runtime.block_on(async move {
-            let result: Result<Vec<u8>, CacheExecutionError<MediaError>> = cloned_manager
-                .operation()
-                .name(name)
-                .key(key)
-                .options(CacheOptions {
-                    cache_type: CacheType::CacheFirst,
-                    expires_after: Duration::hours(6),
-                })
-                .execute(async { Err(cloned_error) })
-                .await;
-            result
-        }) {
+        let result: Result<Vec<u8>, CacheExecutionError<MediaError>> = cloned_manager
+            .operation()
+            .name(name)
+            .key(key)
+            .options(CacheOptions {
+                cache_type: CacheType::CacheFirst,
+                expires_after: Duration::hours(6),
+            })
+            .execute(async { Err(cloned_error) })
+            .await;
+        if let Err(e) = result {
             match e {
                 CacheExecutionError::Operation(media_error) => {
                     assert_eq!(expected_error, media_error)
@@ -1147,9 +1156,54 @@ mod test {
         }
     }
 
-    #[test]
-    fn test_execute_cache_is_present_and_type_is_cache_first() {
-        init_logger();
+    #[tokio::test]
+    async fn test_execute_cache_is_present_and_type_is_cache_first() {
+        init_logger!();
+        let filename = "simple.jpg";
+        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let cache_manager = CacheManagerBuilder::default()
+            .storage_path(temp_path)
+            .build();
+        let name = "test";
+        let key = "lorem";
+        let expected_result = read_test_file_to_bytes(filename);
+        let test_file_output = copy_test_file(temp_path, filename, Some("cache/simple.jpg"));
+
+        let cloned_manager = cache_manager.clone();
+        let data = async move {
+            let mut cache_info = cloned_manager.inner.cache_info.lock().await;
+            cache_info.add(
+                name,
+                CacheEntry::new(key, test_file_output.as_str(), &Duration::hours(6)),
+            );
+            drop(cache_info);
+
+            let result: Result<Vec<u8>, CacheExecutionError<MediaError>> = cloned_manager
+                .operation()
+                .name(name)
+                .key(key)
+                .options(CacheOptions {
+                    cache_type: CacheType::CacheFirst,
+                    expires_after: Duration::hours(6),
+                })
+                .execute(async {
+                    Err(MediaError::ProviderRequestFailed(
+                        "this should not have been executed".to_string(),
+                        500,
+                    ))
+                })
+                .await;
+            result
+        }
+        .await
+        .unwrap();
+        assert_eq!(expected_result, data);
+    }
+
+    #[tokio::test]
+    async fn test_execute_cache_is_present_and_type_is_cache_last() {
+        init_logger!();
         let filename = "simple.jpg";
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -1160,97 +1214,51 @@ mod test {
         );
         let name = "test";
         let key = "lorem";
-        let runtime = Runtime::new().unwrap();
+        let (tx, mut rx) = unbounded_channel();
         let expected_result = read_test_file_to_bytes(filename);
         let test_file_output = copy_test_file(temp_path, filename, Some("cache/simple.jpg"));
 
         let cloned_manager = cache_manager.clone();
-        let data = runtime
-            .block_on(async move {
-                let mut cache_info = cloned_manager.inner.cache_info.lock().await;
-                cache_info.add(
-                    name,
-                    CacheEntry::new(key, test_file_output.as_str(), &Duration::hours(6)),
-                );
-                drop(cache_info);
+        let data = async move {
+            let mut cache_info = cloned_manager.inner.cache_info.lock().await;
+            cache_info.add(
+                name,
+                CacheEntry::new(key, test_file_output.as_str(), &Duration::hours(6)),
+            );
+            drop(cache_info);
 
-                let result: Result<Vec<u8>, CacheExecutionError<MediaError>> = cloned_manager
-                    .operation()
-                    .name(name)
-                    .key(key)
-                    .options(CacheOptions {
-                        cache_type: CacheType::CacheFirst,
-                        expires_after: Duration::hours(6),
-                    })
-                    .execute(async {
-                        Err(MediaError::ProviderRequestFailed(
-                            "this should not have been executed".to_string(),
-                            500,
-                        ))
-                    })
-                    .await;
-                result
-            })
-            .unwrap();
-        assert_eq!(expected_result, data);
-    }
+            let result: Result<Vec<u8>, CacheExecutionError<MediaError>> = cloned_manager
+                .operation()
+                .name(name)
+                .key(key)
+                .options(CacheOptions {
+                    cache_type: CacheType::CacheLast,
+                    expires_after: Duration::hours(6),
+                })
+                .execute(async {
+                    tx.send(true).unwrap();
+                    Err(MediaError::ProviderRequestFailed(
+                        "this should not have been executed".to_string(),
+                        500,
+                    ))
+                })
+                .await;
+            result
+        }
+        .await
+        .unwrap();
 
-    #[test]
-    fn test_execute_cache_is_present_and_type_is_cache_last() {
-        init_logger();
-        let filename = "simple.jpg";
-        let temp_dir = tempfile::tempdir().unwrap();
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let cache_manager = Arc::new(
-            CacheManagerBuilder::default()
-                .storage_path(temp_path)
-                .build(),
+        let _ = recv_timeout!(
+            &mut rx,
+            time::Duration::from_millis(200),
+            "expected the mapper to have been executed"
         );
-        let name = "test";
-        let key = "lorem";
-        let runtime = Runtime::new().unwrap();
-        let (tx, rx) = channel();
-        let expected_result = read_test_file_to_bytes(filename);
-        let test_file_output = copy_test_file(temp_path, filename, Some("cache/simple.jpg"));
-
-        let cloned_manager = cache_manager.clone();
-        let data = runtime
-            .block_on(async move {
-                let mut cache_info = cloned_manager.inner.cache_info.lock().await;
-                cache_info.add(
-                    name,
-                    CacheEntry::new(key, test_file_output.as_str(), &Duration::hours(6)),
-                );
-                drop(cache_info);
-
-                let result: Result<Vec<u8>, CacheExecutionError<MediaError>> = cloned_manager
-                    .operation()
-                    .name(name)
-                    .key(key)
-                    .options(CacheOptions {
-                        cache_type: CacheType::CacheLast,
-                        expires_after: Duration::hours(6),
-                    })
-                    .execute(async {
-                        tx.send(true).unwrap();
-                        Err(MediaError::ProviderRequestFailed(
-                            "this should not have been executed".to_string(),
-                            500,
-                        ))
-                    })
-                    .await;
-                result
-            })
-            .unwrap();
-
-        rx.recv_timeout(core::time::Duration::from_millis(200))
-            .unwrap();
         assert_eq!(expected_result, data);
     }
 
-    #[test]
-    fn test_execute_serializer() {
-        init_logger();
+    #[tokio::test]
+    async fn test_execute_serializer() {
+        init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let cache_manager = Arc::new(
@@ -1265,24 +1273,20 @@ mod test {
             rating: None,
             images: Default::default(),
         };
-        let runtime = Runtime::new().unwrap();
 
         let cloned_manager = cache_manager.clone();
         let cloned_media = media.clone();
-        let result = runtime.block_on(async move {
-            let result: Result<MovieOverview, CacheExecutionError<MediaError>> = cloned_manager
-                .operation()
-                .name("test")
-                .key("lorem")
-                .options(CacheOptions {
-                    cache_type: CacheType::CacheFirst,
-                    expires_after: Duration::hours(5),
-                })
-                .serializer()
-                .execute(async { Ok(cloned_media) })
-                .await;
-            result
-        });
+        let result: Result<MovieOverview, CacheExecutionError<MediaError>> = cloned_manager
+            .operation()
+            .name("test")
+            .key("lorem")
+            .options(CacheOptions {
+                cache_type: CacheType::CacheFirst,
+                expires_after: Duration::hours(5),
+            })
+            .serializer()
+            .execute(async { Ok(cloned_media) })
+            .await;
 
         if let Ok(e) = result {
             assert_eq!(media, e)
@@ -1295,9 +1299,9 @@ mod test {
         }
     }
 
-    #[test]
-    fn test_execute_serializer_error() {
-        init_logger();
+    #[tokio::test]
+    async fn test_execute_serializer_error() {
+        init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let cache_manager = Arc::new(
@@ -1305,23 +1309,19 @@ mod test {
                 .storage_path(temp_path)
                 .build(),
         );
-        let runtime = Runtime::new().unwrap();
 
         let cloned_manager = cache_manager.clone();
-        let result = runtime.block_on(async move {
-            let result: Result<MovieOverview, CacheExecutionError<MediaError>> = cloned_manager
-                .operation()
-                .name("test")
-                .key("lorem")
-                .options(CacheOptions {
-                    cache_type: CacheType::CacheFirst,
-                    expires_after: Duration::hours(5),
-                })
-                .serializer()
-                .execute(async { Err(MediaError::NoAvailableProviders) })
-                .await;
-            result
-        });
+        let result: Result<MovieOverview, CacheExecutionError<MediaError>> = cloned_manager
+            .operation()
+            .name("test")
+            .key("lorem")
+            .options(CacheOptions {
+                cache_type: CacheType::CacheFirst,
+                expires_after: Duration::hours(5),
+            })
+            .serializer()
+            .execute(async { Err(MediaError::NoAvailableProviders) })
+            .await;
 
         if let Err(execution_error) = result {
             match execution_error {
@@ -1362,9 +1362,9 @@ mod test {
         }
     }
 
-    #[test]
-    fn test_run_cleanup() {
-        init_logger();
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_run_cleanup() {
+        init_logger!();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let test_filepath = copy_test_file(temp_path, "simple.jpg", Some("cache/simple.jpg"));
@@ -1394,18 +1394,17 @@ mod test {
                 .build(),
         );
 
-        assert_timeout!(Duration::from_millis(100), !path.exists());
+        assert_timeout!(time::Duration::from_millis(100), !path.exists());
     }
 
-    #[test]
-    fn test_run_cleanup_non_existing_entry() {
-        init_logger();
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_run_cleanup_non_existing_entry() {
+        init_logger!();
         let cache_entry = "foo";
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let test_filepath = PathBuf::from(temp_path).join("example.png");
         let storage = Storage::from(&PathBuf::from(temp_path).join(DIRECTORY));
-        let runtime = Runtime::new().unwrap();
         storage
             .options()
             .make_dirs(true)
@@ -1432,9 +1431,9 @@ mod test {
         );
 
         let inner = cache_manager.inner.clone();
-        runtime.block_on(inner.execute_cleanup());
+        inner.execute_cleanup().await;
 
-        let cache = runtime.block_on(cache_manager.inner.cache_info.lock());
+        let cache = cache_manager.inner.cache_info.lock().await;
 
         if let Some(entry) = cache.entries(cache_entry) {
             assert_eq!(

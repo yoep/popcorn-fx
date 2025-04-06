@@ -182,15 +182,14 @@ impl From<&str> for LauncherOptions {
 
 #[cfg(test)]
 mod test {
-    use tempfile::tempdir;
-
-    use popcorn_fx_core::testing::{copy_test_file, init_logger};
-
     use super::*;
+    use crate::init_logger;
+    use popcorn_fx_core::testing::copy_test_file;
+    use tempfile::tempdir;
 
     #[test]
     fn test_from() {
-        init_logger();
+        init_logger!();
         let expected_result = LauncherOptions {
             version: "0.1.0".to_string(),
             runtime_version: "17.0.0".to_string(),
@@ -211,7 +210,7 @@ vm_args:
 
     #[test]
     fn test_new() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         copy_test_file(temp_path, "launcher.yml", None);
@@ -228,7 +227,7 @@ vm_args:
 
     #[test]
     fn test_new_invalid_options() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         copy_test_file(temp_path, "invalid_launcher.yml", Some("launcher.yaml"));
@@ -241,7 +240,7 @@ vm_args:
 
     #[test]
     fn test_filename() {
-        init_logger();
+        init_logger!();
         let expected_result = PathBuf::new().join(FILENAME).with_extension(EXTENSIONS[0]);
 
         let result = LauncherOptions::filename();

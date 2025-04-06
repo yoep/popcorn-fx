@@ -1,23 +1,19 @@
-use std::fmt::{Debug, Formatter};
-use std::os::raw::c_char;
-use std::ptr;
-use std::sync::{Arc, Weak};
-
+use crate::ffi::{PlayerChangedEventC, SubtitleInfoC};
 use async_trait::async_trait;
 use derive_more::Display;
+use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use log::trace;
-use tokio::sync::Mutex;
-
+use popcorn_fx_core::core::block_in_place;
 use popcorn_fx_core::core::players::{
     PlayMediaRequest, PlayRequest, PlayStreamRequest, PlaySubtitleRequest, PlayUrlRequest, Player,
     PlayerEvent, PlayerManagerEvent, PlayerState,
 };
-use popcorn_fx_core::core::{
-    block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks,
-};
 use popcorn_fx_core::{from_c_string, from_c_vec, into_c_owned, into_c_string, into_c_vec};
-
-use crate::ffi::{PlayerChangedEventC, SubtitleInfoC};
+use std::fmt::{Debug, Formatter};
+use std::os::raw::c_char;
+use std::ptr;
+use std::sync::{Arc, Weak};
+use tokio::sync::Mutex;
 
 /// A C-compatible callback function type for player manager events.
 pub type PlayerManagerEventCallback = extern "C" fn(PlayerManagerEventC);
@@ -90,8 +86,8 @@ pub struct PlayerC {
     pub embedded_playback_supported: bool,
 }
 
-impl From<Arc<Box<dyn Player>>> for PlayerC {
-    fn from(value: Arc<Box<dyn Player>>) -> Self {
+impl PlayerC {
+    pub async fn from(value: Arc<Box<dyn Player>>) -> Self {
         trace!("Converting Player to PlayerC");
         let id = into_c_string(value.id().to_string());
         let name = into_c_string(value.name().to_string());
@@ -106,6 +102,7 @@ impl From<Arc<Box<dyn Player>>> for PlayerC {
         } else {
             false
         };
+        let state = value.state().await;
 
         Self {
             id,
@@ -113,7 +110,7 @@ impl From<Arc<Box<dyn Player>>> for PlayerC {
             description,
             graphic_resource,
             graphic_resource_len,
-            state: value.state().clone(),
+            state,
             embedded_playback_supported,
         }
     }
@@ -166,22 +163,12 @@ pub struct PlayerWrapper {
     seek_callback: Mutex<Box<dyn Fn(u64) + Send + Sync>>,
     stop_callback: Mutex<Box<dyn Fn() + Send + Sync>>,
     play_request: Mutex<Option<Arc<Box<dyn PlayRequest>>>>,
-    callbacks: CoreCallbacks<PlayerEvent>,
+    callbacks: MultiThreadedCallback<PlayerEvent>,
 }
 
 impl PlayerWrapper {
     pub fn invoke(&self, event: PlayerEvent) {
         self.callbacks.invoke(event);
-    }
-}
-
-impl Callbacks<PlayerEvent> for PlayerWrapper {
-    fn add(&self, callback: CoreCallback<PlayerEvent>) -> CallbackHandle {
-        self.callbacks.add(callback)
-    }
-
-    fn remove(&self, callback_id: CallbackHandle) {
-        self.callbacks.remove(callback_id)
     }
 }
 
@@ -203,12 +190,12 @@ impl Player for PlayerWrapper {
         self.graphic_resource.clone()
     }
 
-    fn state(&self) -> PlayerState {
-        self.state.clone()
+    async fn state(&self) -> PlayerState {
+        self.state
     }
 
-    fn request(&self) -> Option<Weak<Box<dyn PlayRequest>>> {
-        let mutex = block_in_place(self.play_request.lock());
+    async fn request(&self) -> Option<Weak<Box<dyn PlayRequest>>> {
+        let mutex = self.play_request.lock().await;
         mutex.as_ref().map(|e| Arc::downgrade(e))
     }
 
@@ -254,6 +241,16 @@ impl Player for PlayerWrapper {
             let callback = block_in_place(self.stop_callback.lock());
             callback();
         }
+    }
+}
+
+impl Callback<PlayerEvent> for PlayerWrapper {
+    fn subscribe(&self) -> Subscription<PlayerEvent> {
+        self.callbacks.subscribe()
+    }
+
+    fn subscribe_with(&self, subscriber: Subscriber<PlayerEvent>) {
+        self.callbacks.subscribe_with(subscriber)
     }
 }
 
@@ -311,7 +308,7 @@ impl From<PlayerRegistrationC> for PlayerWrapper {
             seek_callback: Mutex::new(seek_callback),
             stop_callback: Mutex::new(stop_callback),
             play_request: Default::default(),
-            callbacks: Default::default(),
+            callbacks: MultiThreadedCallback::new(),
         }
     }
 }
@@ -467,7 +464,7 @@ pub struct PlayRequestC {
     pub auto_resume_timestamp: *mut u64,
     /// The stream handle pointer of the play request.
     /// This handle can be used to retrieve more information about the underlying stream.
-    pub stream_handle: *mut i64,
+    pub torrent_handle: *mut i64,
     /// The subtitle playback information for this request
     pub subtitle: PlaySubtitleRequestC,
 }
@@ -510,7 +507,7 @@ impl From<&PlayUrlRequest> for PlayRequestC {
             quality,
             auto_resume_timestamp,
             subtitle: PlaySubtitleRequestC::from(value.subtitle()),
-            stream_handle: ptr::null_mut(),
+            torrent_handle: ptr::null_mut(),
         }
     }
 }
@@ -546,11 +543,7 @@ impl From<&PlayStreamRequest> for PlayRequestC {
         } else {
             ptr::null_mut()
         };
-        let stream_handle = if let Some(e) = value.torrent_stream.upgrade() {
-            into_c_owned(e.stream_handle().value())
-        } else {
-            ptr::null_mut()
-        };
+        let torrent_handle = into_c_owned(value.torrent_stream.handle().value());
 
         Self {
             url: into_c_string(value.base.url.clone()),
@@ -560,7 +553,7 @@ impl From<&PlayStreamRequest> for PlayRequestC {
             background,
             quality,
             auto_resume_timestamp,
-            stream_handle,
+            torrent_handle,
             subtitle: PlaySubtitleRequestC::from(value.subtitle()),
         }
     }
@@ -597,11 +590,7 @@ impl From<&PlayMediaRequest> for PlayRequestC {
         } else {
             ptr::null_mut()
         };
-        let stream_handle = if let Some(e) = value.torrent_stream.upgrade() {
-            into_c_owned(e.stream_handle().value())
-        } else {
-            ptr::null_mut()
-        };
+        let torrent_handle = into_c_owned(value.torrent_stream.handle().value());
 
         Self {
             url: into_c_string(value.base.url.clone()),
@@ -611,7 +600,7 @@ impl From<&PlayMediaRequest> for PlayRequestC {
             background,
             quality,
             auto_resume_timestamp,
-            stream_handle,
+            torrent_handle,
             subtitle: PlaySubtitleRequestC::from(value.subtitle()),
         }
     }
@@ -657,12 +646,12 @@ mod tests {
 
     use log::info;
 
+    use fx_handle::Handle;
     use popcorn_fx_core::core::media::MovieOverview;
     use popcorn_fx_core::core::players::PlayerChange;
     use popcorn_fx_core::core::torrents::TorrentStream;
-    use popcorn_fx_core::core::Handle;
-    use popcorn_fx_core::testing::{init_logger, MockPlayer, MockTorrentStream};
-    use popcorn_fx_core::{from_c_owned, from_c_vec};
+    use popcorn_fx_core::testing::{MockPlayer, MockTorrentStream};
+    use popcorn_fx_core::{from_c_owned, from_c_vec, init_logger};
 
     use super::*;
 
@@ -691,9 +680,9 @@ mod tests {
         info!("Player stop C callback invoked");
     }
 
-    #[test]
-    fn test_from_player() {
-        init_logger();
+    #[tokio::test]
+    async fn test_from_player() {
+        init_logger!();
         let player_id = "FooBar123";
         let player_name = "foo";
         let player_description = "lorem ipsum dolor";
@@ -714,7 +703,7 @@ mod tests {
             .return_const(PlayerState::Playing);
         let player = Arc::new(Box::new(mock_player) as Box<dyn Player>);
 
-        let result = PlayerC::from(player);
+        let result = PlayerC::from(player).await;
 
         let bytes = from_c_vec(result.graphic_resource, result.graphic_resource_len);
         assert_eq!(player_id.to_string(), from_c_string(result.id));
@@ -724,9 +713,9 @@ mod tests {
         assert_eq!(PlayerState::Playing, result.state);
     }
 
-    #[test]
-    fn test_from_player_for_wrapper() {
-        init_logger();
+    #[tokio::test]
+    async fn test_from_player_for_wrapper() {
+        init_logger!();
         let state = PlayerState::Stopped;
         let player = Arc::new(Box::new(PlayerWrapper {
             id: "".to_string(),
@@ -741,10 +730,10 @@ mod tests {
             seek_callback: Mutex::new(Box::new(|_| {})),
             stop_callback: Mutex::new(Box::new(|| {})),
             play_request: Default::default(),
-            callbacks: Default::default(),
+            callbacks: MultiThreadedCallback::new(),
         }) as Box<dyn Player>);
 
-        let result = PlayerC::from(player);
+        let result = PlayerC::from(player).await;
 
         assert_eq!(state, result.state);
         assert_eq!(
@@ -755,7 +744,7 @@ mod tests {
 
     #[test]
     fn from_players() {
-        init_logger();
+        init_logger!();
         let player_id = "player123";
         let player = PlayerC {
             id: into_c_string(player_id.to_string()),
@@ -778,7 +767,7 @@ mod tests {
 
     #[test]
     fn test_from_player_c() {
-        init_logger();
+        init_logger!();
         let player_id = "InternalPlayerId";
         let player_name = "InternalPlayerName";
         let description = "Lorem ipsum dolor esta";
@@ -870,16 +859,17 @@ mod tests {
         let handle = Handle::new();
         let mut torrent_stream = MockTorrentStream::new();
         torrent_stream
-            .expect_stream_handle()
+            .inner
+            .expect_handle()
             .times(1)
             .return_const(handle.clone());
-        let torrent_stream = Arc::new(Box::new(torrent_stream) as Box<dyn TorrentStream>);
+        let torrent_stream = Box::new(torrent_stream) as Box<dyn TorrentStream>;
         let request = PlayStreamRequest::builder()
             .url(url)
             .title(title)
             .thumb(thumb)
             .background(background)
-            .torrent_stream(Arc::downgrade(&torrent_stream))
+            .torrent_stream(torrent_stream)
             .build();
 
         let result = PlayRequestC::from(&request);
@@ -888,7 +878,7 @@ mod tests {
         assert_eq!(title.to_string(), from_c_string(result.title));
         assert_eq!(thumb.to_string(), from_c_string(result.thumb));
         assert_eq!(background.to_string(), from_c_string(result.background));
-        assert_eq!(handle.value(), from_c_owned(result.stream_handle));
+        assert_eq!(handle.value(), from_c_owned(result.torrent_handle));
     }
 
     #[test]
@@ -900,10 +890,11 @@ mod tests {
         let handle = Handle::new();
         let mut torrent_stream = MockTorrentStream::new();
         torrent_stream
-            .expect_stream_handle()
+            .inner
+            .expect_handle()
             .times(1)
             .return_const(handle.clone());
-        let torrent_stream = Arc::new(Box::new(torrent_stream) as Box<dyn TorrentStream>);
+        let torrent_stream = Box::new(torrent_stream) as Box<dyn TorrentStream>;
         let movie = MovieOverview {
             title: "".to_string(),
             imdb_id: "".to_string(),
@@ -917,7 +908,7 @@ mod tests {
             .thumb(thumb)
             .background(background)
             .media(Box::new(movie))
-            .torrent_stream(Arc::downgrade(&torrent_stream))
+            .torrent_stream(torrent_stream)
             .build();
 
         let result = PlayRequestC::from(&request);
@@ -926,6 +917,6 @@ mod tests {
         assert_eq!(title.to_string(), from_c_string(result.title));
         assert_eq!(thumb.to_string(), from_c_string(result.thumb));
         assert_eq!(background.to_string(), from_c_string(result.background));
-        assert_eq!(handle.value(), from_c_owned(result.stream_handle));
+        assert_eq!(handle.value(), from_c_owned(result.torrent_handle));
     }
 }

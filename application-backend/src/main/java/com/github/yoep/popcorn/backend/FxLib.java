@@ -2,7 +2,8 @@ package com.github.yoep.popcorn.backend;
 
 import com.github.yoep.popcorn.backend.adapters.screen.FullscreenCallback;
 import com.github.yoep.popcorn.backend.adapters.screen.IsFullscreenCallback;
-import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentState;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentHealthResult;
+import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentHealth;
 import com.github.yoep.popcorn.backend.controls.PlaybackControlCallback;
 import com.github.yoep.popcorn.backend.events.EventBridgeCallback;
 import com.github.yoep.popcorn.backend.events.EventC;
@@ -36,7 +37,8 @@ import com.github.yoep.popcorn.backend.subtitles.ffi.SubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.ffi.SubtitleInfoSet;
 import com.github.yoep.popcorn.backend.subtitles.ffi.SubtitlePreference;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
-import com.github.yoep.popcorn.backend.torrent.*;
+import com.github.yoep.popcorn.backend.torrent.TorrentEventCallback;
+import com.github.yoep.popcorn.backend.torrent.TorrentEventC;
 import com.github.yoep.popcorn.backend.torrent.collection.StoredTorrentSet;
 import com.github.yoep.popcorn.backend.updater.UpdateCallback;
 import com.github.yoep.popcorn.backend.updater.UpdateState;
@@ -131,21 +133,11 @@ public interface FxLib extends Library {
 
     void register_watched_event_callback(PopcornFx instance, WatchedEventCallback callback);
 
-    void torrent_resolve_info_callback(PopcornFx instance, ResolveTorrentInfoCallback callback);
+    TorrentHealth.ByReference calculate_torrent_health(PopcornFx instance, int seeders, int leechers);
 
-    void register_torrent_resolve_callback(PopcornFx instance, ResolveTorrentCallback callback);
+    TorrentHealthResult.ByValue torrent_health_from_uri(PopcornFx instance, String uri);
 
-    void torrent_cancel_callback(PopcornFx instance, CancelTorrentCallback callback);
-
-    Long register_torrent_stream_event_callback(PopcornFx instance, Long streamHandle, TorrentStreamEventCallback callback);
-
-    void remove_torrent_stream_event_callback(PopcornFx instance, Long streamHandle, Long callbackHandle);
-
-    void torrent_state_changed(PopcornFx instance, String handle, TorrentState state);
-
-    void torrent_piece_finished(PopcornFx instance, String handle, int piece);
-
-    void torrent_download_status(PopcornFx instance, String handle, DownloadStatusC.ByValue downloadStatus);
+    void register_torrent_event_callback(PopcornFx instance, Long handle, TorrentEventCallback callback);
 
     void publish_event(PopcornFx instance, EventC.ByValue event);
 
@@ -313,7 +305,9 @@ public interface FxLib extends Library {
 
     void dispose_playlist_manager_event_value(PlaylistManagerEvent.ByValue event);
 
-    void dispose_torrent_stream_event_value(TorrentStreamEventC.ByValue event);
+    void dispose_torrent_stream_event_value(TorrentEventC.ByValue event);
+
+    void dispose_torrent_health(TorrentHealth.ByReference health);
 
     void dispose_tracking_event_value(TrackingEventC.ByValue event);
 

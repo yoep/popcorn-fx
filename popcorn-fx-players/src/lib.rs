@@ -31,7 +31,7 @@ pub enum DiscoveryError {
 pub type Result<T> = std::result::Result<T, DiscoveryError>;
 
 /// Represents the states of a discovery process.
-#[derive(Debug, Display, Clone, PartialEq)]
+#[derive(Debug, Display, Copy, Clone, PartialEq)]
 pub enum DiscoveryState {
     /// Indicates that the discovery process is running.
     #[display(fmt = "Running")]
@@ -48,7 +48,7 @@ pub enum DiscoveryState {
 #[async_trait]
 pub trait Discovery: Display + Send + Sync {
     /// Returns the current state of the discovery process.
-    fn state(&self) -> DiscoveryState;
+    async fn state(&self) -> DiscoveryState;
 
     /// Starts the discovery process.
     ///
@@ -63,4 +63,26 @@ pub trait Discovery: Display + Send + Sync {
     ///
     /// `Ok(())` if the discovery process stopped successfully, otherwise an error indicating the reason.
     fn stop_discovery(&self) -> Result<()>;
+}
+
+#[cfg(test)]
+mod tests {
+    use httpmock::Mock;
+    use std::time::Duration;
+    use tokio::time;
+    use tokio::time::timeout;
+
+    /// Waits for a mock to receive at least one hit.
+    pub async fn wait_for_hit<'a>(mock: &'a Mock<'a>) {
+        let _ = timeout(Duration::from_millis(500), async {
+            loop {
+                let result = mock.hits_async().await;
+                if result > 0 {
+                    break;
+                }
+                time::sleep(Duration::from_millis(50)).await;
+            }
+        })
+        .await;
+    }
 }

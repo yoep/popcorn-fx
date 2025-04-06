@@ -1,16 +1,16 @@
 use std::fmt::{Debug, Formatter};
-use std::sync::mpsc::Sender;
 use std::sync::Arc;
 
 use async_trait::async_trait;
 use derive_more::Display;
 use log::{debug, trace};
-use tokio_util::sync::CancellationToken;
 
-use crate::core::events::{Event, EventPublisher};
+use crate::core::event::{Event, EventPublisher};
+use crate::core::loader::task::LoadingTaskContext;
 use crate::core::loader::{
-    CancellationResult, LoadingData, LoadingEvent, LoadingResult, LoadingStrategy,
+    CancellationResult, LoadingData, LoadingError, LoadingResult, LoadingStrategy,
 };
+use crate::core::torrents::{Torrent, TorrentManager};
 
 /// Represents a loading strategy for handling torrent details.
 ///
@@ -18,7 +18,8 @@ use crate::core::loader::{
 #[derive(Display)]
 #[display(fmt = "Torrent details loading strategy")]
 pub struct TorrentDetailsLoadingStrategy {
-    event_publisher: Arc<EventPublisher>,
+    event_publisher: EventPublisher,
+    torrent_manager: Arc<Box<dyn TorrentManager>>,
 }
 
 impl TorrentDetailsLoadingStrategy {
@@ -27,8 +28,14 @@ impl TorrentDetailsLoadingStrategy {
     /// # Arguments
     ///
     /// * `event_publisher` - An `EventPublisher` for publishing events related to torrent details.
-    pub fn new(event_publisher: Arc<EventPublisher>) -> Self {
-        Self { event_publisher }
+    pub fn new(
+        event_publisher: EventPublisher,
+        torrent_manager: Arc<Box<dyn TorrentManager>>,
+    ) -> Self {
+        Self {
+            event_publisher,
+            torrent_manager,
+        }
     }
 }
 
@@ -42,18 +49,29 @@ impl Debug for TorrentDetailsLoadingStrategy {
 
 #[async_trait]
 impl LoadingStrategy for TorrentDetailsLoadingStrategy {
-    async fn process(
-        &self,
-        data: LoadingData,
-        _: Sender<LoadingEvent>,
-        _: CancellationToken,
-    ) -> LoadingResult {
+    async fn process(&self, data: &mut LoadingData, context: &LoadingTaskContext) -> LoadingResult {
         trace!("Processing torrent details strategy for {:?}", data);
-        if let Some(torrent_info) = data.torrent_info.as_ref() {
-            if let None = data.torrent_file_info.as_ref() {
-                self.event_publisher
-                    .publish(Event::TorrentDetailsLoaded(torrent_info.clone()));
-                return LoadingResult::Completed;
+        if let Some(torrent) = data.torrent.as_ref() {
+            // check if a specific file has been set to be loaded
+            // if not, stop the loading chain and show the retrieved details
+            if let None = data.torrent_file.as_ref() {
+                let handle = torrent.handle();
+                return match self.torrent_manager.info(&handle).await {
+                    Ok(torrent_info) => {
+                        debug!(
+                            "Loading task {} loaded torrent details, {:?}",
+                            context, torrent_info
+                        );
+                        // remove the torrent from the manager
+                        self.torrent_manager.remove(&handle).await;
+                        // inform the event publisher about the torrent details
+                        self.event_publisher
+                            .publish(Event::TorrentDetailsLoaded(torrent_info));
+                        // end the loading task
+                        LoadingResult::Completed
+                    }
+                    Err(e) => LoadingResult::Err(LoadingError::TorrentError(e)),
+                };
             } else {
                 debug!("Torrent file info present, torrent details won't be shown");
             }
@@ -61,70 +79,91 @@ impl LoadingStrategy for TorrentDetailsLoadingStrategy {
             debug!("No torrent information present, torrent details won't be loaded");
         }
 
-        LoadingResult::Ok(data)
+        LoadingResult::Ok
     }
 
-    async fn cancel(&self, data: LoadingData) -> CancellationResult {
+    async fn cancel(&self, mut data: LoadingData) -> CancellationResult {
+        if data.torrent.is_some() {
+            if let Some(torrent) = data.torrent.take() {
+                let handle = torrent.handle();
+                self.torrent_manager.remove(&handle).await;
+            }
+        }
+
         Ok(data)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::sync::mpsc::channel;
     use std::time::Duration;
+    use tokio::sync::mpsc::unbounded_channel;
 
-    use crate::core::block_in_place;
     use crate::core::loader::loading_chain::DEFAULT_ORDER;
-    use crate::core::loader::SubtitleData;
-    use crate::core::torrents::TorrentInfo;
-    use crate::testing::init_logger;
+    use crate::core::loader::{SubtitleData, TorrentData};
+    use crate::core::torrents::{MockTorrent, MockTorrentManager, TorrentHandle, TorrentInfo};
+    use crate::{create_loading_task, init_logger, recv_timeout};
 
     use super::*;
 
-    #[test]
-    fn test_process() {
-        init_logger();
+    #[tokio::test]
+    async fn test_process() {
+        init_logger!();
         let torrent_info = TorrentInfo {
+            handle: Default::default(),
+            info_hash: String::new(),
             uri: String::new(),
             name: "MyTorrentName".to_string(),
             directory_name: None,
             total_files: 5,
             files: vec![],
         };
-        let data = LoadingData {
+        let torrent_handle = TorrentHandle::new();
+        let mut torrent = MockTorrent::new();
+        torrent.expect_handle().return_const(torrent_handle);
+        let mut data = LoadingData {
             url: None,
             title: Some("MyTorrentDetails".to_string()),
             caption: None,
             thumb: None,
             parent_media: None,
             media: None,
-            torrent_info: Some(torrent_info.clone()),
-            torrent_file_info: None,
             quality: None,
             auto_resume_timestamp: None,
             subtitle: SubtitleData::default(),
-            media_torrent_info: None,
-            torrent: None,
-            torrent_stream: None,
+            torrent: Some(TorrentData::Torrent(Box::new(torrent))),
+            torrent_file: None,
         };
-        let (tx, rx) = channel();
-        let (tx_event, _) = channel();
-        let event_publisher = Arc::new(EventPublisher::default());
-        let strategy = TorrentDetailsLoadingStrategy::new(event_publisher.clone());
-
-        event_publisher.register(
-            Box::new(move |event| {
-                tx.send(event).unwrap();
-                None
-            }),
-            DEFAULT_ORDER,
+        let (tx, mut rx) = unbounded_channel();
+        let event_publisher = EventPublisher::default();
+        let mut torrent_manager = MockTorrentManager::new();
+        let torrent_manager_handle = torrent_handle.clone();
+        let torrent_manager_torrent_info = torrent_info.clone();
+        torrent_manager.expect_remove().return_const(());
+        torrent_manager
+            .expect_info()
+            .withf(move |e| *e == torrent_manager_handle)
+            .times(1)
+            .returning(move |_| Ok(torrent_manager_torrent_info.clone()));
+        let task = create_loading_task!();
+        let context = task.context();
+        let strategy = TorrentDetailsLoadingStrategy::new(
+            event_publisher.clone(),
+            Arc::new(Box::new(torrent_manager)),
         );
 
-        let result = block_in_place(strategy.process(data, tx_event, CancellationToken::new()));
+        let mut callback = event_publisher.subscribe(DEFAULT_ORDER).unwrap();
+        tokio::spawn(async move {
+            if let Some(mut handler) = callback.recv().await {
+                tx.send(handler.take().unwrap()).unwrap();
+                handler.next();
+            }
+        });
+
+        let result = strategy.process(&mut data, &*context).await;
         assert_eq!(LoadingResult::Completed, result);
 
-        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        let result = recv_timeout!(&mut rx, Duration::from_millis(200));
         if let Event::TorrentDetailsLoaded(result) = result {
             assert_eq!(torrent_info, result);
         } else {
@@ -136,8 +175,12 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_cancel() {
+    #[tokio::test]
+    async fn test_cancel() {
+        init_logger!();
+        let torrent_handle = TorrentHandle::new();
+        let mut torrent = MockTorrent::new();
+        torrent.expect_handle().return_const(torrent_handle);
         let data = LoadingData {
             url: None,
             title: Some("MyTorrentDetails".to_string()),
@@ -145,20 +188,31 @@ mod tests {
             thumb: None,
             parent_media: None,
             media: None,
-            torrent_info: None,
-            torrent_file_info: None,
             quality: None,
             auto_resume_timestamp: None,
             subtitle: SubtitleData::default(),
-            media_torrent_info: None,
-            torrent: None,
-            torrent_stream: None,
+            torrent: Some(TorrentData::Torrent(Box::new(torrent))),
+            torrent_file: None,
         };
-        let event_publisher = Arc::new(EventPublisher::default());
-        let strategy = TorrentDetailsLoadingStrategy::new(event_publisher);
+        let (tx, mut rx) = unbounded_channel();
+        let event_publisher = EventPublisher::default();
+        let mut torrent_manager = MockTorrentManager::new();
+        torrent_manager
+            .expect_remove()
+            .times(1)
+            .returning(move |handle| tx.send(handle.clone()).unwrap());
+        let strategy = TorrentDetailsLoadingStrategy::new(
+            event_publisher,
+            Arc::new(Box::new(torrent_manager)),
+        );
 
-        let result = block_in_place(strategy.cancel(data.clone()));
+        let result = strategy.cancel(data).await;
 
-        assert_eq!(CancellationResult::Ok(data), result);
+        if let Ok(_) = result {
+            let result = recv_timeout!(&mut rx, Duration::from_millis(100));
+            assert_eq!(torrent_handle, result);
+        } else {
+            assert!(false, "expected Ok, got {:?} instead", result);
+        }
     }
 }

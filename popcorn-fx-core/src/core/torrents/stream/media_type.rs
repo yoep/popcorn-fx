@@ -142,13 +142,13 @@ impl Default for MediaTypeFactory {
 
 #[cfg(test)]
 mod test {
-    use crate::testing::init_logger;
+    use crate::init_logger;
 
     use super::*;
 
     #[test]
     fn test_media_factory_media_type() {
-        init_logger();
+        init_logger!();
         let filename = "video.mp4";
         let factory = MediaTypeFactory::default();
 
@@ -161,7 +161,7 @@ mod test {
 
     #[test]
     fn test_media_factory_media_type_not_found() {
-        init_logger();
+        init_logger!();
         let filename = "ipsum.lorem";
         let factory = MediaTypeFactory::default();
 
@@ -179,7 +179,7 @@ mod test {
 
     #[test]
     fn test_media_factory_media_type_no_extension() {
-        init_logger();
+        init_logger!();
         let filename = "my-file";
         let factory = MediaTypeFactory::default();
 

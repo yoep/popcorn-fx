@@ -1,14 +1,11 @@
-use std::fmt::{Debug, Display};
-#[cfg(any(test, feature = "testing"))]
-use std::fmt::Formatter;
-use std::sync::mpsc::Sender;
-
 use async_trait::async_trait;
 use derive_more::Display;
-#[cfg(any(test, feature = "testing"))]
-use mockall::automock;
-use tokio_util::sync::CancellationToken;
+use std::fmt::{Debug, Display};
 
+#[cfg(any(test, feature = "testing"))]
+pub use mock::*;
+
+use crate::core::loader::task::LoadingTaskContext;
 use crate::core::loader::{LoadingData, LoadingError, LoadingProgress, LoadingState};
 
 /// An event representing a change in the loading process.
@@ -22,7 +19,13 @@ pub enum LoadingEvent {
     /// The loading progress of a media item has changed.
     #[display(fmt = "Loading progress changed to {:?}", _0)]
     ProgressChanged(LoadingProgress),
-    /// An error has occurred during the loading process.
+    /// Indicates that the loading task has been cancelled.
+    #[display(fmt = "Loading cancelled")]
+    Cancelled,
+    /// Indicates that the loading task has finished/completed.
+    #[display(fmt = "Loading finished")]
+    Completed,
+    /// Indicates that the loading task has encountered an error.
     #[display(fmt = "Loading failed, {:?}", _0)]
     LoadingError(LoadingError),
 }
@@ -30,7 +33,6 @@ pub enum LoadingEvent {
 /// A trait for defining loading strategies for media items in a playlist.
 ///
 /// Loading strategies are used to process and prepare media items in a playlist before playback. These strategies can produce loading events and support cancellation of the loading process.
-#[cfg_attr(any(test, feature = "testing"), automock)]
 #[async_trait]
 pub trait LoadingStrategy: Debug + Display + Send + Sync {
     /// Processes the given `data` and communicates loading events through the provided event channel.
@@ -38,17 +40,15 @@ pub trait LoadingStrategy: Debug + Display + Send + Sync {
     /// # Arguments
     ///
     /// * `data` - The `LoadingData` to be processed by the loading strategy.
-    /// * `event_channel` - A sender channel to communicate loading events.
-    /// * `cancel` - A cancellation token that can be checked to determine if the loading process should be canceled.
+    /// * `context` - The context of the loading task.
     ///
     /// # Returns
     ///
     /// A `LoadingResult` indicating the outcome of processing.
     async fn process(
         &self,
-        data: LoadingData,
-        event_channel: Sender<LoadingEvent>,
-        cancel: CancellationToken,
+        data: &mut LoadingData,
+        context: &LoadingTaskContext,
     ) -> crate::core::loader::LoadingResult;
 
     /// Cancels the loading process associated with the given `data`.
@@ -64,8 +64,30 @@ pub trait LoadingStrategy: Debug + Display + Send + Sync {
 }
 
 #[cfg(any(test, feature = "testing"))]
-impl Display for MockLoadingStrategy {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "MockLoadingStrategy")
+pub mod mock {
+    use super::*;
+
+    use mockall::mock;
+    use std::fmt::Formatter;
+
+    mock! {
+        #[derive(Debug)]
+        pub LoadingStrategy {}
+
+        #[async_trait]
+        impl LoadingStrategy for LoadingStrategy {
+            async fn process(
+                &self,
+                data: &mut LoadingData,
+                context: &LoadingTaskContext,
+            ) -> crate::core::loader::LoadingResult;
+            async fn cancel(&self, data: LoadingData) -> crate::core::loader::CancellationResult;
+        }
+    }
+
+    impl Display for MockLoadingStrategy {
+        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+            write!(f, "MockLoadingStrategy")
+        }
     }
 }

@@ -4,20 +4,17 @@ import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
-import com.github.yoep.popcorn.backend.adapters.torrent.TorrentStreamListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentStreamState;
 import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.lib.Handle;
 import com.github.yoep.popcorn.backend.player.PlayerChanged;
 import com.github.yoep.popcorn.backend.player.PlayerManagerListener;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import com.github.yoep.popcorn.ui.view.listeners.PlayerExternalListener;
 import lombok.extern.slf4j.Slf4j;
-
-import java.util.Optional;
 
 @Slf4j
 public class PlayerExternalComponentService extends AbstractListenerService<PlayerExternalListener> {
@@ -26,10 +23,9 @@ public class PlayerExternalComponentService extends AbstractListenerService<Play
     private final PlayerManagerService playerManagerService;
     private final EventPublisher eventPublisher;
     private final TorrentService torrentService;
-    private final TorrentStreamListener streamListener = createStreamListener();
+    private final TorrentListener streamListener = createStreamListener();
 
     private long time;
-    Handle lastKnownStreamCallback;
 
     public PlayerExternalComponentService(PlayerManagerService playerManagerService, EventPublisher eventPublisher, TorrentService torrentService) {
         this.playerManagerService = playerManagerService;
@@ -102,11 +98,8 @@ public class PlayerExternalComponentService extends AbstractListenerService<Play
     private void onPlaybackChanged(PlayRequest request) {
         invokeListeners(e -> e.onRequestChanged(request));
 
-        Optional.ofNullable(lastKnownStreamCallback)
-                .ifPresent(torrentService::removeListener);
-        lastKnownStreamCallback = request.getStreamHandle()
-                .map(e -> torrentService.addListener(e, streamListener))
-                .orElse(null);
+        request.getStreamHandle()
+                .ifPresent(e -> torrentService.addListener(e, streamListener));
     }
 
     private void onDurationChanged(long duration) {
@@ -126,13 +119,8 @@ public class PlayerExternalComponentService extends AbstractListenerService<Play
         invokeListeners(e -> e.onDownloadStatus(status));
     }
 
-    private TorrentStreamListener createStreamListener() {
-        return new TorrentStreamListener() {
-            @Override
-            public void onStateChanged(TorrentStreamState newState) {
-                // no-op
-            }
-
+    private TorrentListener createStreamListener() {
+        return new TorrentListener() {
             @Override
             public void onDownloadStatus(DownloadStatus downloadStatus) {
                 PlayerExternalComponentService.this.onDownloadStatus(downloadStatus);

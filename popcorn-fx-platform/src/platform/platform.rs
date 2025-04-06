@@ -7,11 +7,11 @@ use log::{debug, error, info, trace, warn};
 use souvlaki::{MediaControlEvent, MediaControls, MediaMetadata, MediaPlayback, PlatformConfig};
 use tokio::sync::{Mutex, MutexGuard};
 
-use popcorn_fx_core::core::{Callbacks, CoreCallbacks};
 use popcorn_fx_core::core::platform::{
     Platform, PlatformCallback, PlatformData, PlatformEvent, PlatformInfo, PlatformType,
 };
 use popcorn_fx_core::core::playback::{MediaInfo, MediaNotificationEvent};
+use popcorn_fx_core::core::{Callbacks, CoreCallbacks};
 
 #[cfg(target_os = "linux")]
 use crate::platform::platform_linux::PlatformLinux;
@@ -185,7 +185,7 @@ impl Platform for DefaultPlatform {
     }
 
     fn register(&self, callback: PlatformCallback) {
-        self.callbacks.add(callback);
+        self.callbacks.add_callback(callback);
     }
 }
 
@@ -239,12 +239,10 @@ impl Drop for DefaultPlatform {
 
 #[cfg(test)]
 mod test {
+    use mockall::mock;
+    use popcorn_fx_core::init_logger;
     use std::sync::mpsc::channel;
     use std::time::Duration;
-
-    use mockall::mock;
-
-    use popcorn_fx_core::testing::init_logger;
 
     use super::*;
 
@@ -263,7 +261,7 @@ mod test {
 
     #[test]
     fn test_disable_screensaver() {
-        init_logger();
+        init_logger!();
         let mut sys_platform = MockDummySystemPlatform::new();
         sys_platform.expect_disable_screensaver().returning(|| true);
         sys_platform.expect_enable_screensaver().returning(|| false);
@@ -281,7 +279,7 @@ mod test {
 
     #[test]
     fn test_enable_screensaver() {
-        init_logger();
+        init_logger!();
         let mut sys_platform = MockDummySystemPlatform::new();
         sys_platform.expect_enable_screensaver().returning(|| true);
         let platform = DefaultPlatform {
@@ -298,7 +296,7 @@ mod test {
 
     #[test]
     fn test_drop_default_platform() {
-        init_logger();
+        init_logger!();
         let mut sys_platform = MockDummySystemPlatform::new();
         sys_platform
             .expect_enable_screensaver()
@@ -337,7 +335,7 @@ mod test {
 
     #[test]
     fn test_platform_notify_media_event() {
-        init_logger();
+        init_logger!();
         let platform = DefaultPlatform::default();
 
         // notify the system about a new media playback
@@ -358,7 +356,7 @@ mod test {
         let callbacks = Arc::new(CoreCallbacks::default());
         let event = MediaControlEvent::Play;
 
-        callbacks.add(Box::new(move |event| tx.send(event).unwrap()));
+        callbacks.add_callback(Box::new(move |event| tx.send(event).unwrap()));
         DefaultPlatform::handle_media_event(event, &callbacks.clone());
 
         let result = rx.recv_timeout(Duration::from_millis(100)).unwrap();
@@ -371,7 +369,7 @@ mod test {
         let callbacks = Arc::new(CoreCallbacks::default());
         let event = MediaControlEvent::Pause;
 
-        callbacks.add(Box::new(move |event| tx.send(event).unwrap()));
+        callbacks.add_callback(Box::new(move |event| tx.send(event).unwrap()));
         DefaultPlatform::handle_media_event(event, &callbacks.clone());
 
         let result = rx.recv_timeout(Duration::from_millis(100)).unwrap();
@@ -384,7 +382,7 @@ mod test {
         let callbacks = Arc::new(CoreCallbacks::default());
         let event = MediaControlEvent::Next;
 
-        callbacks.add(Box::new(move |event| tx.send(event).unwrap()));
+        callbacks.add_callback(Box::new(move |event| tx.send(event).unwrap()));
         DefaultPlatform::handle_media_event(event, &callbacks.clone());
 
         let result = rx.recv_timeout(Duration::from_millis(100)).unwrap();

@@ -226,16 +226,14 @@ impl Debug for DefaultCastDevice {
 
 #[cfg(test)]
 mod tests {
-    use popcorn_fx_core::testing::init_logger;
-
-    use crate::chromecast::tests::TestInstance;
-
     use super::*;
+    use crate::chromecast::tests::TestInstance;
+    use popcorn_fx_core::init_logger;
 
-    #[test]
-    fn test_default_cast_device_new() {
-        init_logger();
-        let test_instance = TestInstance::new_mdns();
+    #[tokio::test]
+    async fn test_default_cast_device_new() {
+        init_logger!();
+        let test_instance = TestInstance::new_mdns().await;
         let addr = test_instance.mdns().unwrap().addr.ip();
         let port = test_instance.mdns().unwrap().addr.port();
 
@@ -248,10 +246,10 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_default_cast_device_connect() {
-        init_logger();
-        let test_instance = TestInstance::new_mdns();
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_default_cast_device_connect() {
+        init_logger!();
+        let test_instance = TestInstance::new_mdns().await;
         let addr = test_instance.mdns().unwrap().addr.ip();
         let port = test_instance.mdns().unwrap().addr.port();
         let device = DefaultCastDevice::new(addr.to_string(), port).unwrap();
@@ -259,10 +257,10 @@ mod tests {
         let _ = device.connect(DEFAULT_RECEIVER);
     }
 
-    #[test]
-    fn test_default_cast_device_ping() {
-        init_logger();
-        let test_instance = TestInstance::new_mdns();
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_default_cast_device_ping() {
+        init_logger!();
+        let test_instance = TestInstance::new_mdns().await;
         let addr = test_instance.mdns().unwrap().addr.ip();
         let port = test_instance.mdns().unwrap().addr.port();
         let device = DefaultCastDevice::new(addr.to_string(), port).unwrap();
@@ -270,11 +268,11 @@ mod tests {
         let _ = device.ping();
     }
 
-    #[test]
     #[ignore]
-    fn test_default_cast_device_launch() {
-        init_logger();
-        let test_instance = TestInstance::new_mdns();
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_default_cast_device_launch() {
+        init_logger!();
+        let test_instance = TestInstance::new_mdns().await;
         let addr = test_instance.mdns().unwrap().addr.ip();
         let port = test_instance.mdns().unwrap().addr.port();
         let device = DefaultCastDevice::new(addr.to_string(), port).unwrap();
@@ -282,10 +280,10 @@ mod tests {
         let _ = device.launch_app(&CastDeviceApp::DefaultMediaReceiver);
     }
 
-    #[test]
-    fn test_default_cast_device_broadcast() {
-        init_logger();
-        let test_instance = TestInstance::new_mdns();
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_default_cast_device_broadcast() {
+        init_logger!();
+        let test_instance = TestInstance::new_mdns().await;
         let addr = test_instance.mdns().unwrap().addr.ip();
         let port = test_instance.mdns().unwrap().addr.port();
         let device = DefaultCastDevice::new(addr.to_string(), port).unwrap();
@@ -294,10 +292,10 @@ mod tests {
             device.broadcast_message("urn:x-cast:BroadcastExample", &"ExampleMessage".to_string());
     }
 
-    #[test]
-    fn test_pong() {
-        init_logger();
-        let test_instance = TestInstance::new_mdns();
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_pong() {
+        init_logger!();
+        let test_instance = TestInstance::new_mdns().await;
         let addr = test_instance.mdns().unwrap().addr.ip();
         let port = test_instance.mdns().unwrap().addr.port();
         let device = DefaultCastDevice::new(addr.to_string(), port).unwrap();
@@ -311,11 +309,11 @@ mod tests {
         );
     }
 
-    #[test]
     #[ignore]
-    fn test_default_cast_device_play() {
-        init_logger();
-        let test_instance = TestInstance::new_mdns();
+    #[tokio::test]
+    async fn test_default_cast_device_play() {
+        init_logger!();
+        let test_instance = TestInstance::new_mdns().await;
         let addr = test_instance.mdns().unwrap().addr.ip();
         let port = test_instance.mdns().unwrap().addr.port();
         let device = DefaultCastDevice::new(addr.to_string(), port).unwrap();
@@ -323,11 +321,11 @@ mod tests {
         let _ = device.play(DEFAULT_RECEIVER, 13);
     }
 
-    #[test]
     #[ignore]
-    fn test_default_cast_device_media_status() {
-        init_logger();
-        let test_instance = TestInstance::new_mdns();
+    #[tokio::test]
+    async fn test_default_cast_device_media_status() {
+        init_logger!();
+        let test_instance = TestInstance::new_mdns().await;
         let mdns = test_instance.mdns().unwrap();
         let addr = mdns.addr.ip();
         let port = mdns.addr.port();
@@ -347,17 +345,18 @@ mod tests {
             ]
         }
         "#,
-        );
+        )
+        .await;
         let device = DefaultCastDevice::new(addr.to_string(), port).unwrap();
 
         let _ = device.media_status(DEFAULT_RECEIVER, None);
     }
 
-    #[test]
     #[ignore]
-    fn test_default_cast_device_status() {
-        init_logger();
-        let test_instance = TestInstance::new_mdns();
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_default_cast_device_status() {
+        init_logger!();
+        let test_instance = TestInstance::new_mdns().await;
         let addr = test_instance.mdns().unwrap().addr.ip();
         let port = test_instance.mdns().unwrap().addr.port();
         let device = DefaultCastDevice::new(addr.to_string(), port).unwrap();

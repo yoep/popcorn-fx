@@ -2,7 +2,7 @@
 name = "popcorn-fx-opensubtitles"
 version = "0.8.2"
 edition = "2021"
-rust-version = "1.71"
+rust-version = "1.75"
 publish = false
 license-file = "../LICENSE"
 

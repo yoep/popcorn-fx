@@ -383,13 +383,13 @@ mod test {
     use httpmock::Method::GET;
     use httpmock::MockServer;
 
-    use crate::testing::init_logger;
+    use crate::init_logger;
 
     use super::*;
 
     #[test]
     fn test_create_search_uri() {
-        init_logger();
+        init_logger!();
         let host = "https://lorem.com/api/v1/".to_string();
         let resource = "movies";
         let genre = Genre::all();
@@ -408,7 +408,7 @@ mod test {
 
     #[test]
     fn test_create_details_uri() {
-        init_logger();
+        init_logger!();
         let host = "https://lorem.com/api/v1/".to_string();
         let resource = "movie";
         let id = "tt9764362".to_string();
@@ -422,7 +422,7 @@ mod test {
 
     #[tokio::test]
     async fn test_handle_failed_response() {
-        init_logger();
+        init_logger!();
         let path = "/error";
         let status_code = 503;
         let server = MockServer::start();

@@ -27,6 +27,60 @@ pub fn available_socket() -> SocketAddr {
     SocketAddr::new(ip_addr(), socket_addr.port())
 }
 
+/// Retrieves an available port on the local machine.
+///
+/// This function searches for an available port on all network interfaces at the time of invocation.
+/// However, it's important to note that while a port may be available when retrieved, it may become
+/// unavailable by the time you attempt to bind to it, as this function does not reserve the port.
+///
+/// # Arguments
+///
+/// * `lower_bound` - The lower bound of the available port range.
+/// * `upper_bound` - The upper bound of the available port range.
+///
+/// # Returns
+///
+/// Returns an available port if one is found, else `None`.
+pub fn available_port(lower_bound: u16, upper_bound: u16) -> Option<u16> {
+    let supported_ports: Vec<u16> = (lower_bound..=upper_bound).collect();
+
+    for port in supported_ports {
+        let socket: SocketAddr = ([0, 0, 0, 0], port).into();
+        if TcpListener::bind(socket).is_ok() {
+            return Some(port);
+        }
+    }
+
+    None
+}
+
+/// Retrieves an available port on the local machine.
+///
+/// This function searches for an available port on all network interfaces at the time of invocation.
+/// However, it's important to note that while a port may be available when retrieved, it may become
+/// unavailable by the time you attempt to bind to it, as this function does not reserve the port.
+///
+/// # Arguments
+///
+/// * `lower_bound` - The lower bound of the available port range (optional, default = 1000).
+/// * `upper_bound` - The upper bound of the available port range (optional, default = [u16::MAX]).
+///
+/// # Returns
+///
+/// Returns an available port if one is found, else `None`.
+#[macro_export]
+macro_rules! available_port {
+    ($lower_bound:expr, $upper_bound:expr) => {
+        popcorn_fx_core::core::utils::network::available_port($lower_bound, $upper_bound)
+    };
+    ($lower_bound:expr) => {
+        popcorn_fx_core::core::utils::network::available_port($lower_bound, u16::MAX)
+    };
+    () => {
+        popcorn_fx_core::core::utils::network::available_port(1000, u16::MAX)
+    };
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

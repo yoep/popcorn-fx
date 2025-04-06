@@ -16,12 +16,9 @@ use log4rs::append::rolling_file::RollingFileAppender;
 use log4rs::config::{Appender, Logger, Root};
 use log4rs::encode::pattern::PatternEncoder;
 use log4rs::Config;
-use tokio::runtime::Runtime;
-
-use popcorn_fx_core::core::block_in_place;
 use popcorn_fx_core::core::cache::CacheManager;
 use popcorn_fx_core::core::config::{ApplicationConfig, PopcornProperties};
-use popcorn_fx_core::core::events::EventPublisher;
+use popcorn_fx_core::core::event::EventPublisher;
 use popcorn_fx_core::core::images::{DefaultImageLoader, ImageLoader};
 use popcorn_fx_core::core::loader::{
     AutoResumeLoadingStrategy, DefaultMediaLoader, LoadingStrategy, MediaLoader,
@@ -30,7 +27,7 @@ use popcorn_fx_core::core::loader::{
     TorrentStreamLoadingStrategy,
 };
 use popcorn_fx_core::core::media::favorites::{
-    DefaultFavoriteService, FavoriteCacheUpdater, FavoriteService,
+    FXFavoriteService, FavoriteCacheUpdater, FavoriteService,
 };
 use popcorn_fx_core::core::media::providers::enhancers::ThumbEnhancer;
 use popcorn_fx_core::core::media::providers::{
@@ -42,7 +39,7 @@ use popcorn_fx_core::core::media::watched::{DefaultWatchedService, WatchedServic
 use popcorn_fx_core::core::platform::PlatformData;
 use popcorn_fx_core::core::playback::PlaybackControls;
 use popcorn_fx_core::core::players::{DefaultPlayerManager, PlayerManager};
-use popcorn_fx_core::core::playlists::PlaylistManager;
+use popcorn_fx_core::core::playlist::PlaylistManager;
 use popcorn_fx_core::core::screen::{DefaultScreenService, ScreenService};
 use popcorn_fx_core::core::subtitles::model::SubtitleType;
 use popcorn_fx_core::core::subtitles::parsers::{SrtParser, VttParser};
@@ -50,8 +47,8 @@ use popcorn_fx_core::core::subtitles::{
     DefaultSubtitleManager, SubtitleManager, SubtitleProvider, SubtitleServer,
 };
 use popcorn_fx_core::core::torrents::collection::TorrentCollection;
-use popcorn_fx_core::core::torrents::stream::DefaultTorrentStreamServer;
-use popcorn_fx_core::core::torrents::{TorrentManager, TorrentStreamServer};
+use popcorn_fx_core::core::torrents::stream::FXTorrentStreamServer;
+use popcorn_fx_core::core::torrents::{FxTorrentManager, TorrentManager, TorrentStreamServer};
 use popcorn_fx_core::core::updater::Updater;
 use popcorn_fx_opensubtitles::opensubtitles::OpensubtitlesProvider;
 use popcorn_fx_platform::platform::DefaultPlatform;
@@ -59,8 +56,9 @@ use popcorn_fx_players::chromecast::ChromecastDiscovery;
 use popcorn_fx_players::dlna::DlnaDiscovery;
 use popcorn_fx_players::vlc::VlcDiscovery;
 use popcorn_fx_players::Discovery;
-use popcorn_fx_torrent::torrent::DefaultTorrentManager;
 use popcorn_fx_trakt::trakt::TraktProvider;
+use thiserror::Error;
+use tokio::runtime::Runtime;
 
 static INIT: Once = Once::new();
 
@@ -87,6 +85,9 @@ const DEFAULT_DATA_DIRECTORY: fn() -> String = || {
         .map(|e| e.to_str().expect("expected a valid data path").to_string())
         .expect("expected a data directory to exist")
 };
+
+/// The result type for popcorn fx main operations.
+pub type Result<T> = std::result::Result<T, Error>;
 
 /// The options for the [PopcornFX] instance.
 #[derive(Debug, Clone, Display, Parser)]
@@ -153,6 +154,13 @@ impl Default for PopcornFxArgs {
     }
 }
 
+/// The Popcorn FX errors.
+#[derive(Debug, Error, PartialEq)]
+pub enum Error {
+    #[error("failed to initialize a new instance, {0}")]
+    Initialization(String),
+}
+
 /// The [PopcornFX] application instance.
 /// This is the main entry into the FX application and manages all known data.
 ///
@@ -167,24 +175,24 @@ impl Default for PopcornFxArgs {
 #[repr(C)]
 pub struct PopcornFX {
     auto_resume_service: Arc<Box<dyn AutoResumeService>>,
-    cache_manager: Arc<CacheManager>,
-    event_publisher: Arc<EventPublisher>,
+    cache_manager: CacheManager,
+    event_publisher: EventPublisher,
     favorite_cache_updater: Arc<FavoriteCacheUpdater>,
     favorites_service: Arc<Box<dyn FavoriteService>>,
     image_loader: Arc<Box<dyn ImageLoader>>,
     media_loader: Arc<Box<dyn MediaLoader>>,
     platform: Arc<Box<dyn PlatformData>>,
-    playback_controls: Arc<PlaybackControls>,
+    playback_controls: PlaybackControls,
     player_discovery_services: Vec<Arc<Box<dyn Discovery>>>,
     player_manager: Arc<Box<dyn PlayerManager>>,
-    playlist_manager: Arc<PlaylistManager>,
+    playlist_manager: PlaylistManager,
     providers: Arc<ProviderManager>,
     screen_service: Arc<Box<dyn ScreenService>>,
-    settings: Arc<ApplicationConfig>,
+    settings: ApplicationConfig,
     subtitle_manager: Arc<Box<dyn SubtitleManager>>,
     subtitle_provider: Arc<Box<dyn SubtitleProvider>>,
     subtitle_server: Arc<SubtitleServer>,
-    torrent_collection: Arc<TorrentCollection>,
+    torrent_collection: TorrentCollection,
     torrent_manager: Arc<Box<dyn TorrentManager>>,
     torrent_stream_server: Arc<Box<dyn TorrentStreamServer>>,
     tracking_provider: Arc<Box<dyn TrackingProvider>>,
@@ -200,7 +208,16 @@ pub struct PopcornFX {
 impl PopcornFX {
     /// Create a new Popcorn FX instance with the given [PopcornFxArgs].
     pub fn new(args: PopcornFxArgs) -> Self {
-        // check if we need to enabled the logger
+        let runtime = Arc::new(Self::new_runtime());
+
+        runtime
+            .clone()
+            .block_on(async { Self::try_new(args, runtime).await.unwrap() })
+    }
+
+    /// Try to create a new Popcorn FX instance within an async context.
+    async fn try_new(args: PopcornFxArgs, runtime: Arc<Runtime>) -> Result<Self> {
+        // check if we need to enable the logger
         if !args.disable_logger {
             Self::initialize_logger(&args);
         }
@@ -210,20 +227,13 @@ impl PopcornFX {
 
         info!("Creating new popcorn fx instance with {:?}", args);
         let app_directory_path = args.app_directory.as_str();
-        let runtime = Arc::new(Self::new_runtime());
-        let event_publisher = Arc::new(EventPublisher::default());
-        let settings = Arc::new(
-            ApplicationConfig::builder()
-                .storage(app_directory_path)
-                .properties(args.properties.clone())
-                .build(),
-        );
-        let cache_manager = Arc::new(
-            CacheManager::builder()
-                .runtime(runtime.clone())
-                .storage_path(app_directory_path)
-                .build(),
-        );
+
+        let event_publisher = EventPublisher::default();
+        let settings = ApplicationConfig::builder()
+            .storage(app_directory_path)
+            .properties(args.properties.clone())
+            .build();
+        let cache_manager = CacheManager::new(app_directory_path);
         let subtitle_provider: Arc<Box<dyn SubtitleProvider>> = Arc::new(Box::new(
             OpensubtitlesProvider::builder()
                 .settings(settings.clone())
@@ -233,32 +243,35 @@ impl PopcornFX {
                 .build(),
         ));
         let subtitle_server = Arc::new(SubtitleServer::new(subtitle_provider.clone()));
-        let subtitle_manager = Arc::new(
-            Box::new(DefaultSubtitleManager::new(settings.clone())) as Box<dyn SubtitleManager>
-        );
+        let subtitle_manager = Arc::new(Box::new(
+            DefaultSubtitleManager::new(settings.clone()).await,
+        ) as Box<dyn SubtitleManager>);
         let platform = Arc::new(Box::new(DefaultPlatform::default()) as Box<dyn PlatformData>);
-        let favorites_service =
-            Arc::new(Box::new(DefaultFavoriteService::new(app_directory_path))
-                as Box<dyn FavoriteService>);
+        let favorites_service = Arc::new(
+            Box::new(FXFavoriteService::new(app_directory_path)) as Box<dyn FavoriteService>
+        );
         let watched_service = Arc::new(Box::new(DefaultWatchedService::new(
             app_directory_path,
             event_publisher.clone(),
         )) as Box<dyn WatchedService>);
-        let providers = Arc::new(Self::default_providers(
-            &settings,
-            &args,
-            &cache_manager,
-            &favorites_service,
-            &watched_service,
-        ));
-        let torrent_manager = Arc::new(Box::new(DefaultTorrentManager::new(
-            settings.clone(),
-            event_publisher.clone(),
-        )) as Box<dyn TorrentManager>);
-        let torrent_stream_server = Arc::new(
-            Box::new(DefaultTorrentStreamServer::default()) as Box<dyn TorrentStreamServer>
+        let providers = Arc::new(
+            Self::default_providers(
+                &settings,
+                &args,
+                &cache_manager,
+                &favorites_service,
+                &watched_service,
+            )
+            .await,
         );
-        let torrent_collection = Arc::new(TorrentCollection::new(app_directory_path));
+        let torrent_manager = Arc::new(Box::new(
+            FxTorrentManager::new(settings.clone(), event_publisher.clone())
+                .await
+                .map_err(|e| Error::Initialization(e.to_string()))?,
+        ) as Box<dyn TorrentManager>);
+        let torrent_stream_server =
+            Arc::new(Box::new(FXTorrentStreamServer::new()) as Box<dyn TorrentStreamServer>);
+        let torrent_collection = TorrentCollection::new(app_directory_path);
         let auto_resume_service = Arc::new(Box::new(
             DefaultAutoResumeService::builder()
                 .storage_directory(app_directory_path)
@@ -269,7 +282,6 @@ impl PopcornFX {
             FavoriteCacheUpdater::builder()
                 .favorite_service(favorites_service.clone())
                 .provider_manager(providers.clone())
-                .runtime(runtime.clone())
                 .build(),
         );
         let app_updater = Arc::new(
@@ -278,15 +290,12 @@ impl PopcornFX {
                 .platform(platform.clone())
                 .insecure(args.insecure)
                 .data_path(args.data_directory.as_str())
-                .runtime(runtime.clone())
                 .build(),
         );
-        let playback_controls = Arc::new(
-            PlaybackControls::builder()
-                .platform(platform.clone())
-                .event_publisher(event_publisher.clone())
-                .build(),
-        );
+        let playback_controls = PlaybackControls::builder()
+            .platform(platform.clone())
+            .event_publisher(event_publisher.clone())
+            .build();
         let image_loader = Arc::new(
             Box::new(DefaultImageLoader::new(cache_manager.clone())) as Box<dyn ImageLoader>
         );
@@ -314,19 +323,22 @@ impl PopcornFX {
             Box::new(TorrentStreamLoadingStrategy::new(
                 torrent_stream_server.clone(),
             )),
-            Box::new(TorrentDetailsLoadingStrategy::new(event_publisher.clone())),
+            Box::new(TorrentDetailsLoadingStrategy::new(
+                event_publisher.clone(),
+                torrent_manager.clone(),
+            )),
             Box::new(PlayerLoadingStrategy::new(player_manager.clone())),
         ];
         let media_loader =
             Arc::new(Box::new(DefaultMediaLoader::new(loading_chain)) as Box<dyn MediaLoader>);
-        let playlist_manager = Arc::new(PlaylistManager::new(
+        let playlist_manager = PlaylistManager::new(
             player_manager.clone(),
             event_publisher.clone(),
             media_loader.clone(),
-        ));
-        let tracking_provider = Arc::new(Box::new(
-            TraktProvider::new(settings.clone(), runtime.clone()).unwrap(),
-        ) as Box<dyn TrackingProvider>);
+        );
+        let tracking_provider =
+            Arc::new(Box::new(TraktProvider::new(settings.clone()).unwrap())
+                as Box<dyn TrackingProvider>);
         let tracking_sync = Arc::new(
             SyncMediaTracking::builder()
                 .config(settings.clone())
@@ -338,14 +350,12 @@ impl PopcornFX {
         let player_discovery_services: Vec<Arc<Box<dyn Discovery>>> = vec![
             Arc::new(Box::new(
                 ChromecastDiscovery::builder()
-                    .runtime(runtime.clone())
                     .player_manager(player_manager.clone())
                     .subtitle_server(subtitle_server.clone())
                     .build(),
-            )),
+            ) as Box<dyn Discovery>),
             Arc::new(Box::new(
                 DlnaDiscovery::builder()
-                    .runtime(runtime.clone())
                     .player_manager(player_manager.clone())
                     .subtitle_server(subtitle_server.clone())
                     .build(),
@@ -361,7 +371,7 @@ impl PopcornFX {
         // the application instance creation.
         // The screensaver will be automatically enabled when the platform instance is dropped
         let platform_async = platform.clone();
-        runtime.spawn(async move {
+        tokio::spawn(async move {
             if platform_async.disable_screensaver() {
                 info!("Operating System screensaver has been disabled");
             } else {
@@ -369,7 +379,7 @@ impl PopcornFX {
             }
         });
 
-        Self {
+        Ok(Self {
             auto_resume_service,
             cache_manager,
             event_publisher,
@@ -397,11 +407,11 @@ impl PopcornFX {
             player_discovery_services,
             runtime,
             opts: args,
-        }
+        })
     }
 
-    /// Retrieve the locked settings of the popcorn FX instance.
-    pub fn settings(&self) -> &Arc<ApplicationConfig> {
+    /// Get the settings of the popcorn FX instance.
+    pub fn settings(&self) -> &ApplicationConfig {
         &self.settings
     }
 
@@ -426,7 +436,7 @@ impl PopcornFX {
     }
 
     /// The available [popcorn_fx_core::core::media::Media] providers of the [PopcornFX].
-    pub fn providers(&self) -> &ProviderManager {
+    pub fn providers(&self) -> &Arc<ProviderManager> {
         &self.providers
     }
 
@@ -441,7 +451,7 @@ impl PopcornFX {
     }
 
     /// The torrent manager to create, manage and delete torrents.
-    pub fn torrent_manager(&mut self) -> &Arc<Box<dyn TorrentManager>> {
+    pub fn torrent_manager(&self) -> &Arc<Box<dyn TorrentManager>> {
         &self.torrent_manager
     }
 
@@ -451,7 +461,7 @@ impl PopcornFX {
     }
 
     /// The torrent collection that stores magnet uri info.
-    pub fn torrent_collection(&mut self) -> &Arc<TorrentCollection> {
+    pub fn torrent_collection(&mut self) -> &TorrentCollection {
         &mut self.torrent_collection
     }
 
@@ -466,7 +476,7 @@ impl PopcornFX {
     }
 
     /// The playback controls handler of the system.
-    pub fn playback_controls(&self) -> &Arc<PlaybackControls> {
+    pub fn playback_controls(&self) -> &PlaybackControls {
         &self.playback_controls
     }
 
@@ -478,11 +488,11 @@ impl PopcornFX {
     /// Reload the settings of this instance.
     /// This will read the settings from the storage and notify all subscribers of new changes.
     pub fn reload_settings(&mut self) {
-        block_in_place(async { self.settings.reload() })
+        self.settings.reload()
     }
 
     /// Retrieve the event publisher of the FX instance.
-    pub fn event_publisher(&self) -> &Arc<EventPublisher> {
+    pub fn event_publisher(&self) -> &EventPublisher {
         &self.event_publisher
     }
 
@@ -492,7 +502,7 @@ impl PopcornFX {
     }
 
     /// Retrieve the playlist manager of the FX instance.
-    pub fn playlist_manager(&self) -> &Arc<PlaylistManager> {
+    pub fn playlist_manager(&self) -> &PlaylistManager {
         &self.playlist_manager
     }
 
@@ -517,7 +527,7 @@ impl PopcornFX {
     }
 
     /// Retrieve the given runtime pool from this Popcorn FX instance.
-    pub fn runtime(&self) -> &Runtime {
+    pub fn runtime(&self) -> &Arc<Runtime> {
         &self.runtime
     }
 
@@ -641,23 +651,17 @@ impl PopcornFX {
             .expect("expected a new runtime")
     }
 
-    fn default_providers(
-        settings: &Arc<ApplicationConfig>,
+    async fn default_providers(
+        settings: &ApplicationConfig,
         args: &PopcornFxArgs,
-        cache_manager: &Arc<CacheManager>,
+        cache_manager: &CacheManager,
         favorites: &Arc<Box<dyn FavoriteService>>,
         watched: &Arc<Box<dyn WatchedService>>,
     ) -> ProviderManager {
-        let movie_provider = Box::new(MovieProvider::new(
-            settings.clone(),
-            cache_manager.clone(),
-            args.insecure,
-        ));
-        let show_provider = Box::new(ShowProvider::new(
-            settings.clone(),
-            cache_manager.clone(),
-            args.insecure,
-        ));
+        let movie_provider =
+            Box::new(MovieProvider::new(settings, cache_manager.clone(), args.insecure).await);
+        let show_provider =
+            Box::new(ShowProvider::new(settings, cache_manager.clone(), args.insecure).await);
         let favorites_provider =
             Box::new(FavoritesProvider::new(favorites.clone(), watched.clone()));
         let thumb_enhancer = Box::new(ThumbEnhancer::new(
@@ -687,18 +691,25 @@ impl Default for PopcornFX {
     }
 }
 
+impl Drop for PopcornFX {
+    fn drop(&mut self) {
+        self.event_publisher.close();
+    }
+}
+
 #[cfg(test)]
 mod test {
-    use std::collections::HashMap;
-    use std::sync::mpsc::channel;
-    use std::time::Duration;
-
-    use tempfile::tempdir;
-
+    use fx_callback::Callback;
+    use popcorn_fx_core::core::block_in_place_runtime;
     use popcorn_fx_core::core::config::{ApplicationConfigEvent, LoggingProperties};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::core::subtitles::SubtitlePreference;
-    use popcorn_fx_core::testing::{copy_test_file, init_logger};
+    use popcorn_fx_core::init_logger;
+    use popcorn_fx_core::testing::copy_test_file;
+    use std::collections::HashMap;
+    use std::sync::mpsc::channel;
+    use std::time::Duration;
+    use tempfile::tempdir;
 
     use crate::test::default_args;
 
@@ -706,7 +717,7 @@ mod test {
 
     #[test]
     fn test_popcorn_fx_new() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut popcorn_fx = PopcornFX::new(default_args(temp_path));
@@ -714,7 +725,9 @@ mod test {
         let _ = popcorn_fx.platform().info();
         let _ = popcorn_fx.subtitle_server();
 
-        let preference = popcorn_fx.subtitle_manager().preference();
+        let subtitle_manager = popcorn_fx.subtitle_manager().clone();
+        let preference =
+            block_in_place_runtime(subtitle_manager.preference(), popcorn_fx.runtime());
 
         assert_eq!(
             SubtitlePreference::Language(SubtitleLanguage::None),
@@ -724,64 +737,78 @@ mod test {
 
     #[test]
     fn test_popcorn_fx_favorite() {
-        init_logger();
+        init_logger!();
         let id = "tt00000021544";
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut popcorn_fx = PopcornFX::new(default_args(temp_path));
 
-        let result = popcorn_fx.favorite_service().is_liked(id);
+        let service = popcorn_fx.favorite_service().clone();
+        let result = block_in_place_runtime(service.is_liked(id), popcorn_fx.runtime());
 
         assert_eq!(false, result)
     }
 
     #[test]
     fn test_popcorn_fx_auto_resume() {
-        init_logger();
+        init_logger!();
         let filename = "something-totally_random123qwe.mp4";
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut popcorn_fx = PopcornFX::new(default_args(temp_path));
 
-        let result = popcorn_fx
-            .auto_resume_service()
-            .resume_timestamp(None, Some(filename));
+        let service = popcorn_fx.auto_resume_service().clone();
+        let result = block_in_place_runtime(
+            service.resume_timestamp(None, Some(filename.to_string())),
+            popcorn_fx.runtime(),
+        );
 
         assert_eq!(None, result)
     }
 
     #[test]
     fn test_popcorn_fx_torrent_collection() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut popcorn_fx = PopcornFX::new(default_args(temp_path));
 
-        let result = popcorn_fx
-            .torrent_collection()
-            .is_stored("magnet:?myMostRandomAvailableAndEvenInvalidMagnet");
+        let torrent_collection = popcorn_fx.torrent_collection().clone();
+        let result = popcorn_fx.runtime().block_on(
+            torrent_collection.is_stored("magnet:?myMostRandomAvailableAndEvenInvalidMagnet"),
+        );
 
         assert_eq!(false, result)
     }
 
     #[test]
     fn test_popcorn_fx_reload_settings() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let (tx, rx) = channel();
         let mut popcorn_fx = PopcornFX::new(default_args(temp_path));
         copy_test_file(temp_path, "settings.json", None);
 
-        let mutex = popcorn_fx.settings();
-        mutex.register(Box::new(move |event| tx.send(event).unwrap()));
+        let mut receiver = popcorn_fx.settings().subscribe();
+        popcorn_fx.runtime.spawn(async move {
+            while let Some(event) = receiver.recv().await {
+                if let ApplicationConfigEvent::Loaded = &*event {
+                    tx.send((*event).clone()).unwrap()
+                }
+            }
+        });
 
         popcorn_fx.reload_settings();
-        let result = rx.recv_timeout(Duration::from_millis(100)).unwrap();
+        let result = rx.recv_timeout(Duration::from_millis(500)).unwrap();
 
         match result {
-            ApplicationConfigEvent::SettingsLoaded => {}
-            _ => assert!(false, "expected ApplicationConfigEvent::SettingsLoaded"),
+            ApplicationConfigEvent::Loaded => {}
+            _ => assert!(
+                false,
+                "expected ApplicationConfigEvent::SettingsLoaded, but got {:?} instead",
+                result
+            ),
         }
     }
 

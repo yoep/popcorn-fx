@@ -4,7 +4,7 @@ import com.github.yoep.player.popcorn.listeners.PlaybackListener;
 import com.github.yoep.player.popcorn.listeners.PlayerHeaderListener;
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
-import com.github.yoep.popcorn.backend.adapters.torrent.TorrentStreamListener;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import com.github.yoep.popcorn.backend.lib.Handle;
 import org.junit.jupiter.api.BeforeEach;
@@ -77,15 +77,15 @@ class PlayerHeaderServiceTest {
 
     @Test
     void testPlaybackListener_whenRequestIsStreamingRequest_shouldInvokeDownloadStatusChangedOnListeners() {
-        var streamListener = new AtomicReference<TorrentStreamListener>();
+        var streamListener = new AtomicReference<TorrentListener>();
         var progress = mock(DownloadStatus.class);
         var request = mock(PlayRequest.class);
         var streamHandle = new Handle(123L);
         when(request.getStreamHandle()).thenReturn(Optional.of(streamHandle));
-        when(torrentService.addListener(isA(Handle.class), isA(TorrentStreamListener.class))).thenAnswer(invocation -> {
-            streamListener.set(invocation.getArgument(1, TorrentStreamListener.class));
-            return new Handle(222L);
-        });
+        doAnswer(invocation -> {
+            streamListener.set(invocation.getArgument(1, TorrentListener.class));
+            return null;
+        }).when(torrentService).addListener(isA(Handle.class), isA(TorrentListener.class));
 
         listenerHolder.get().onPlay(request);
         streamListener.get().onDownloadStatus(progress);

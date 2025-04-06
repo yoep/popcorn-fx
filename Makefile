@@ -48,9 +48,6 @@ ASSETS := debian
 PYTHON := python3
 endif
 
-prerequisites-java: ## Install the requirements for Java
-	@mvn -B -pl torrent-frostwire clean
-
 prerequisites-cargo:  ## Install the requirements for Cargo
 	@echo Installing Cargo plugins
 	@cargo install cbindgen
@@ -58,7 +55,7 @@ prerequisites-cargo:  ## Install the requirements for Cargo
 	@cargo install cargo-llvm-cov
 	@cargo install grcov
 
-prerequisites: prerequisites-cargo prerequisites-java ## Install the requirements for the application
+prerequisites: prerequisites-cargo ## Install the requirements for the application
 
 bump-dependencies: ## Install required bump dependencies
 	@$(PYTHON) -m pip install --upgrade pip
@@ -80,7 +77,7 @@ cov-cargo: prerequisites ## Test coverage of the cargo section as std output
 	$(info Running cargo tests)
 	@cargo llvm-cov nextest --features ffi
 
-test-java: prerequisites-java ## The test java section of the application
+test-java: ## The test java section of the application
 	$(info Running maven tests)
 	@mvn -B clean verify
 
@@ -89,7 +86,7 @@ test: test-java test-cargo ## Test the application code
 build-cargo: ## Build the rust part of the application
 	$(info Using lib extension: $(EXTENSION))
 	$(info Building cargo packages)
-	@cargo build --features ffi
+	@cargo build --features ffi --profile dev
 
 build-cargo-debug: build-cargo ## The alias for build-cargo which build the rust part of the application in debug profile
 

@@ -1,18 +1,18 @@
-use std::{mem, ptr};
 use std::collections::HashMap;
 use std::os::raw::c_char;
+use std::{mem, ptr};
 
 use log::{error, trace};
 
-use popcorn_fx_core::{
-    from_c_into_boxed, from_c_string, from_c_vec, into_c_owned, into_c_string, into_c_vec,
-};
+use popcorn_fx_core::core::media::favorites::FavoriteEvent;
+use popcorn_fx_core::core::media::watched::WatchedEvent;
 use popcorn_fx_core::core::media::{
     Episode, Genre, Images, MediaDetails, MediaError, MediaIdentifier, MediaOverview, MediaType,
     MovieDetails, MovieOverview, Rating, ShowDetails, ShowOverview, SortBy, TorrentInfo,
 };
-use popcorn_fx_core::core::media::favorites::FavoriteEvent;
-use popcorn_fx_core::core::media::watched::WatchedEvent;
+use popcorn_fx_core::{
+    from_c_into_boxed, from_c_string, from_c_vec, into_c_owned, into_c_string, into_c_vec,
+};
 
 /// The C compatible media result for an array of media items.
 #[repr(C)]
@@ -1015,8 +1015,7 @@ impl WatchedEventC {
 
 #[cfg(test)]
 mod test {
-    use popcorn_fx_core::from_c_owned;
-    use popcorn_fx_core::testing::init_logger;
+    use popcorn_fx_core::{from_c_owned, init_logger};
 
     use super::*;
 
@@ -1132,7 +1131,7 @@ mod test {
 
     #[test]
     fn test_media_item_c_from_identifier_show_overview() {
-        init_logger();
+        init_logger!();
         let imdb_id = "tt12346666";
         let tvdb_id = "tt00007777";
         let title = "Dolor";
@@ -1160,7 +1159,7 @@ mod test {
 
     #[test]
     fn test_media_item_as_identifier() {
-        init_logger();
+        init_logger!();
         let title = "lorem ipsum";
         let id = "tt111222";
         let media = MovieOverview {
@@ -1180,7 +1179,7 @@ mod test {
 
     #[test]
     fn test_media_item_as_identifier_episode() {
-        init_logger();
+        init_logger!();
         let id = "2121";
         let title = "my episode title";
         let episode = Episode {
@@ -1210,7 +1209,7 @@ mod test {
 
     #[test]
     fn test_media_item_as_identifier_show_overview() {
-        init_logger();
+        init_logger!();
         let imdb_id = "tt12345687";
         let tvdb_id = "tt12345999";
         let title = "FooBar";
@@ -1239,7 +1238,7 @@ mod test {
 
     #[test]
     fn test_media_item_as_show_overview() {
-        init_logger();
+        init_logger!();
         let title = "lorem ipsum";
         let id = "tt111222";
         let media = ShowOverview {
@@ -1261,7 +1260,7 @@ mod test {
 
     #[test]
     fn test_media_result_from_media_error() {
-        init_logger();
+        init_logger!();
         let error = MediaError::NoAvailableProviders;
 
         let result = MediaResult::from(error);
@@ -1356,7 +1355,7 @@ mod test {
 
     #[test]
     fn test_images_from_images_c() {
-        init_logger();
+        init_logger!();
         let poster = "Poster";
         let fanart = "Fanart";
         let banner = "Banner";
@@ -1378,7 +1377,7 @@ mod test {
 
     #[test]
     fn test_images_from_images_c_missing_field() {
-        init_logger();
+        init_logger!();
         let fanart = "FooBar";
         let images = ImagesC {
             poster: ptr::null_mut(),
@@ -1395,10 +1394,10 @@ mod test {
 
         assert_eq!(expected_result, result);
     }
-    
+
     #[test]
     fn test_torrent_info_from_torrent_media_info_c() {
-        init_logger();
+        init_logger!();
         let url = "https://example.com";
         let provider = "Provider";
         let source = "Source";
@@ -1429,9 +1428,9 @@ mod test {
             .filesize(filesize)
             .file(file)
             .build();
-        
+
         let result = TorrentInfo::from(info);
-        
+
         assert_eq!(expected_result, result)
     }
 }

@@ -12,8 +12,8 @@ use crate::core::config::ApplicationConfig;
 /// # Returns
 ///
 /// Returns a vector of URIs representing the available endpoints for the specified provider.
-pub fn available_uris(config: &ApplicationConfig, provider_name: &str) -> Vec<String> {
-    let settings = config.user_settings();
+pub async fn available_uris(config: &ApplicationConfig, provider_name: &str) -> Vec<String> {
+    let settings = config.user_settings().await;
     let api_server = settings.server().api_server().filter(|e| !e.is_empty());
     let mut uris: Vec<String> = vec![];
 
@@ -42,13 +42,13 @@ mod test {
     use crate::core::config::{
         PopcornProperties, PopcornSettings, ProviderProperties, ServerSettings,
     };
-    use crate::testing::init_logger;
+    use crate::init_logger;
 
     use super::*;
 
-    #[test]
-    fn test_available_uris_provider_available() {
-        init_logger();
+    #[tokio::test]
+    async fn test_available_uris_provider_available() {
+        init_logger!();
         let api_server = "http://lorem".to_string();
         let provider = "http://ipsum".to_string();
         let provider_name = "my-provider".to_string();
@@ -84,14 +84,14 @@ mod test {
             .build();
         let expected_result = vec![api_server, provider];
 
-        let result = available_uris(&settings, provider_name.as_str());
+        let result = available_uris(&settings, provider_name.as_str()).await;
 
         assert_eq!(expected_result, result)
     }
 
-    #[test]
-    fn test_available_uris_provider_not_available() {
-        init_logger();
+    #[tokio::test]
+    async fn test_available_uris_provider_not_available() {
+        init_logger!();
         let api_server = "https://www.google.com".to_string();
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -118,7 +118,7 @@ mod test {
             .build();
         let expected_result = vec![api_server];
 
-        let result = available_uris(&settings, "lorem");
+        let result = available_uris(&settings, "lorem").await;
 
         assert_eq!(expected_result, result)
     }

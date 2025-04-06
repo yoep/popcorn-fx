@@ -138,7 +138,7 @@ impl VideoTimestamp {
 
 #[cfg(test)]
 mod test {
-    use crate::testing::init_logger;
+    use crate::init_logger;
 
     use super::*;
 
@@ -184,7 +184,7 @@ mod test {
 
     #[test]
     fn test_insert_non_existing() {
-        init_logger();
+        init_logger!();
         let filename = "my-file.mp4";
         let timestamp = 30000;
         let mut resume = AutoResume {
@@ -201,7 +201,7 @@ mod test {
 
     #[test]
     fn test_insert_existing() {
-        init_logger();
+        init_logger!();
         let id = Some("tt11212");
         let filename = "lipsum-the-movie.mp4";
         let timestamp = 120000;

@@ -6,12 +6,11 @@ use derive_more::Display;
 use log::{debug, info, trace};
 use tokio::sync::Mutex;
 
-use popcorn_fx_core::core::block_in_place;
 use popcorn_fx_core::core::players::PlayerManager;
 use popcorn_fx_core::core::subtitles::{SubtitleManager, SubtitleProvider};
 
-use crate::{Discovery, DiscoveryError, DiscoveryState};
 use crate::vlc::VlcPlayer;
+use crate::{Discovery, DiscoveryError, DiscoveryState};
 
 /// VLC discovery service responsible for searching and registering an external VLC player.
 #[derive(Debug, Display)]
@@ -58,9 +57,8 @@ impl VlcDiscovery {
 
 #[async_trait]
 impl Discovery for VlcDiscovery {
-    fn state(&self) -> DiscoveryState {
-        let mutex = block_in_place(self.state.lock());
-        mutex.clone()
+    async fn state(&self) -> DiscoveryState {
+        *self.state.lock().await
     }
 
     async fn start_discovery(&self) -> crate::Result<()> {
@@ -115,24 +113,23 @@ impl Discovery for VlcDiscovery {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::mpsc::channel;
-    use std::time::Duration;
-
-    use popcorn_fx_core::core::block_in_place;
     use popcorn_fx_core::core::players::MockPlayerManager;
     use popcorn_fx_core::core::subtitles::MockSubtitleProvider;
-    use popcorn_fx_core::testing::{init_logger, MockSubtitleManager};
+    use popcorn_fx_core::testing::MockSubtitleManager;
+    use popcorn_fx_core::{init_logger, recv_timeout};
+    use std::time::Duration;
+    use tokio::sync::mpsc::unbounded_channel;
 
     use crate::vlc::VLC_ID;
 
     use super::*;
 
-    #[test]
-    fn test_start_discovery() {
-        init_logger();
+    #[tokio::test]
+    async fn test_start_discovery() {
+        init_logger!();
         let manager = MockSubtitleManager::new();
         let provider = MockSubtitleProvider::new();
-        let (tx, rx) = channel();
+        let (tx, mut rx) = unbounded_channel();
         let mut player_manager = MockPlayerManager::new();
         player_manager
             .expect_add_player()
@@ -147,16 +144,16 @@ mod tests {
             Arc::new(Box::new(player_manager)),
         );
 
-        block_in_place(discovery.start_discovery()).unwrap();
+        discovery.start_discovery().await.unwrap();
 
-        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        let result = recv_timeout!(&mut rx, Duration::from_millis(200));
 
         assert_eq!(VLC_ID, result.id());
     }
 
-    #[test]
-    fn test_stop_discovery() {
-        init_logger();
+    #[tokio::test]
+    async fn test_stop_discovery() {
+        init_logger!();
         let manager = MockSubtitleManager::new();
         let provider = MockSubtitleProvider::new();
         let player_manager = MockPlayerManager::new();

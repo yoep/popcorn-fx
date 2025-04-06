@@ -1,8 +1,8 @@
-use std::ptr;
-
+use fx_callback::Callback;
 use log::{error, trace};
-
+use popcorn_fx_core::core::block_in_place_runtime;
 use popcorn_fx_core::into_c_owned;
+use std::ptr;
 
 use crate::ffi::{UpdateCallbackC, UpdateEventC, UpdateStateC, VersionInfoC};
 use crate::PopcornFX;
@@ -37,7 +37,9 @@ pub extern "C" fn version_info(popcorn_fx: &mut PopcornFX) -> *mut VersionInfoC 
 #[no_mangle]
 pub extern "C" fn update_state(popcorn_fx: &mut PopcornFX) -> UpdateStateC {
     trace!("Retrieving update state from C");
-    UpdateStateC::from(popcorn_fx.updater().state())
+    let updater = popcorn_fx.updater().clone();
+    let state = block_in_place_runtime(updater.state(), popcorn_fx.runtime());
+    UpdateStateC::from(state)
 }
 
 /// Start polling the update channel for new application versions.
@@ -48,7 +50,10 @@ pub extern "C" fn update_state(popcorn_fx: &mut PopcornFX) -> UpdateStateC {
 #[no_mangle]
 pub extern "C" fn check_for_updates(popcorn_fx: &mut PopcornFX) {
     trace!("Checking for new updates from C");
-    popcorn_fx.updater().check_for_updates()
+    let updater = popcorn_fx.updater().clone();
+    popcorn_fx
+        .runtime()
+        .spawn(async move { updater.check_for_updates().await });
 }
 
 /// Start downloading the application update if available.
@@ -74,9 +79,12 @@ pub extern "C" fn download_update(popcorn_fx: &mut PopcornFX) {
 #[no_mangle]
 pub extern "C" fn install_update(popcorn_fx: &mut PopcornFX) {
     trace!("Starting installation update from C");
-    if let Err(e) = popcorn_fx.updater().install() {
-        error!("Failed to start update, {}", e);
-    }
+    let updater = popcorn_fx.updater().clone();
+    popcorn_fx.runtime().spawn(async move {
+        if let Err(e) = updater.install().await {
+            error!("Failed to start update, {}", e);
+        }
+    });
 }
 
 /// Register a new callback for update events.
@@ -98,9 +106,12 @@ pub extern "C" fn install_update(popcorn_fx: &mut PopcornFX) {
 #[no_mangle]
 pub extern "C" fn register_update_callback(popcorn_fx: &mut PopcornFX, callback: UpdateCallbackC) {
     trace!("Registering new update callback from C");
-    popcorn_fx
-        .updater()
-        .register(Box::new(move |event| callback(UpdateEventC::from(event))))
+    let mut receiver = popcorn_fx.updater().subscribe();
+    popcorn_fx.runtime().spawn(async move {
+        while let Some(event) = receiver.recv().await {
+            callback(UpdateEventC::from((*event).clone()))
+        }
+    });
 }
 
 #[cfg(test)]
@@ -109,8 +120,7 @@ mod test {
     use httpmock::MockServer;
     use tempfile::tempdir;
 
-    use popcorn_fx_core::{from_c_owned, from_c_string};
-    use popcorn_fx_core::testing::init_logger;
+    use popcorn_fx_core::{from_c_owned, from_c_string, init_logger};
 
     use crate::test::default_args;
 
@@ -118,7 +128,7 @@ mod test {
 
     #[test]
     fn test_version_info() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let server = MockServer::start();
@@ -161,7 +171,7 @@ mod test {
 
     #[test]
     fn test_check_for_updates() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(default_args(temp_path));
@@ -171,7 +181,7 @@ mod test {
 
     #[test]
     fn test_update_state() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(default_args(temp_path));
@@ -187,7 +197,7 @@ mod test {
 
     #[test]
     fn test_download_update() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = PopcornFX::new(default_args(temp_path));

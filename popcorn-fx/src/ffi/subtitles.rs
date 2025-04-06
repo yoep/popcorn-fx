@@ -1,11 +1,11 @@
 use log::trace;
 
+use crate::ffi::{SubtitleC, SubtitleEventC, SubtitleInfoC, SubtitleInfoSet};
+use crate::PopcornFX;
+use popcorn_fx_core::core::block_in_place_runtime;
 use popcorn_fx_core::core::subtitles::model::SubtitleInfo;
 use popcorn_fx_core::core::subtitles::{SubtitleCallback, SubtitlePreference};
 use popcorn_fx_core::{from_c_vec, into_c_owned};
-
-use crate::ffi::{SubtitleC, SubtitleEventC, SubtitleInfoC, SubtitleInfoSet};
-use crate::PopcornFX;
 
 /// The C callback for the subtitle events.
 pub type SubtitleCallbackC = extern "C" fn(SubtitleEventC);
@@ -24,7 +24,9 @@ pub type SubtitleCallbackC = extern "C" fn(SubtitleEventC);
 pub extern "C" fn retrieve_subtitle_preference(
     popcorn_fx: &mut PopcornFX,
 ) -> *mut SubtitlePreference {
-    into_c_owned(popcorn_fx.subtitle_manager().preference())
+    let subtitle_manager = popcorn_fx.subtitle_manager().clone();
+    let preference = block_in_place_runtime(subtitle_manager.preference(), popcorn_fx.runtime());
+    into_c_owned(preference)
 }
 
 /// Updates the subtitle preference for PopcornFX.
@@ -39,9 +41,11 @@ pub extern "C" fn update_subtitle_preference(
     preference: &SubtitlePreference,
 ) {
     trace!("Updating subtitle preference from C for {:?}", preference);
-    popcorn_fx
-        .subtitle_manager()
-        .update_preference(preference.clone())
+    let preference = preference.clone();
+    let subtitle_manager = popcorn_fx.subtitle_manager().clone();
+    popcorn_fx.runtime().spawn(async move {
+        subtitle_manager.update_preference(preference).await;
+    });
 }
 
 /// Retrieve the default options available for the subtitles.
@@ -120,9 +124,11 @@ pub extern "C" fn select_or_default_subtitle(
         .map(|e| SubtitleInfo::from(e))
         .collect();
 
-    let subtitle_info = popcorn_fx
-        .subtitle_manager()
-        .select_or_default(&subtitles[..]);
+    let subtitle_manager = popcorn_fx.subtitle_manager().clone();
+    let subtitle_info = block_in_place_runtime(
+        subtitle_manager.select_or_default(&subtitles[..]),
+        popcorn_fx.runtime(),
+    );
     trace!("Default subtitle selection resulted in {:?}", subtitle_info);
     into_c_owned(SubtitleInfoC::from(subtitle_info))
 }
@@ -152,7 +158,7 @@ pub extern "C" fn register_subtitle_callback(
         callback(event_c)
     });
 
-    popcorn_fx.subtitle_manager().add(wrapper);
+    popcorn_fx.subtitle_manager().add_callback(wrapper);
 }
 
 /// Clean the subtitles directory.
@@ -168,7 +174,10 @@ pub extern "C" fn register_subtitle_callback(
 #[no_mangle]
 pub extern "C" fn cleanup_subtitles_directory(popcorn_fx: &mut PopcornFX) {
     trace!("Cleaning subtitles directory from C");
-    popcorn_fx.subtitle_manager().cleanup()
+    let subtitle_manager = popcorn_fx.subtitle_manager().clone();
+    popcorn_fx.runtime().spawn(async move {
+        subtitle_manager.cleanup().await;
+    });
 }
 
 /// Frees the memory allocated for the `SubtitleInfoSet` structure.
@@ -226,17 +235,17 @@ pub extern "C" fn dispose_subtitle_preference(subtitle_preference: Box<SubtitleP
 
 #[cfg(test)]
 mod test {
-    use std::path::PathBuf;
-
     use log::info;
+    use std::path::PathBuf;
+    use std::time::Duration;
     use tempfile::tempdir;
 
     use popcorn_fx_core::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::core::subtitles::model::Subtitle;
     use popcorn_fx_core::core::subtitles::SubtitleFile;
-    use popcorn_fx_core::testing::{copy_test_file, init_logger};
-    use popcorn_fx_core::{from_c_owned, from_c_vec};
+    use popcorn_fx_core::testing::copy_test_file;
+    use popcorn_fx_core::{assert_timeout, from_c_owned, from_c_vec, init_logger};
 
     use crate::test::new_instance;
 
@@ -249,15 +258,17 @@ mod test {
 
     #[test]
     fn test_retrieve_subtitle_preference() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let preference = SubtitlePreference::Language(SubtitleLanguage::Danish);
         let mut instance = new_instance(temp_path);
 
-        instance
-            .subtitle_manager()
-            .update_preference(preference.clone());
+        let subtitle_manager = instance.subtitle_manager().clone();
+        block_in_place_runtime(
+            subtitle_manager.update_preference(preference.clone()),
+            instance.runtime(),
+        );
 
         let result = retrieve_subtitle_preference(&mut instance);
 
@@ -267,7 +278,7 @@ mod test {
 
     #[test]
     fn test_update_subtitle_preference() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let preference = SubtitlePreference::Language(SubtitleLanguage::French);
@@ -275,14 +286,23 @@ mod test {
 
         update_subtitle_preference(&mut instance, &preference);
 
-        let result = instance.subtitle_manager().preference();
+        let subtitle_manager = instance.subtitle_manager().clone();
 
-        assert_eq!(preference, result);
+        block_in_place_runtime(
+            async {
+                assert_timeout!(
+                    Duration::from_millis(500),
+                    subtitle_manager.preference().await == preference,
+                    "expected the subtitle preference to have been updated"
+                )
+            },
+            instance.runtime(),
+        );
     }
 
     #[test]
     fn test_default_subtitle_options() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = new_instance(temp_path);
@@ -299,7 +319,7 @@ mod test {
 
     #[test]
     fn test_subtitle_none() {
-        init_logger();
+        init_logger!();
 
         let result = from_c_owned(subtitle_none());
 
@@ -308,7 +328,7 @@ mod test {
 
     #[test]
     fn test_subtitle_custom() {
-        init_logger();
+        init_logger!();
 
         let result = from_c_owned(subtitle_custom());
 
@@ -317,46 +337,51 @@ mod test {
 
     #[test]
     fn test_register_subtitle_callback() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = new_instance(temp_path);
 
         register_subtitle_callback(&mut instance, subtitle_callback);
-        instance
-            .subtitle_manager()
-            .update_preference(SubtitlePreference::Language(SubtitleLanguage::Finnish));
+
+        let subtitle_manager = instance.subtitle_manager().clone();
+        block_in_place_runtime(
+            subtitle_manager
+                .update_preference(SubtitlePreference::Language(SubtitleLanguage::Finnish)),
+            instance.runtime(),
+        );
     }
 
     #[test]
     fn test_cleanup_subtitles_directory() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = new_instance(temp_path);
-        let filepath = copy_test_file(
-            instance
-                .settings()
-                .user_settings()
-                .subtitle_settings
-                .directory
-                .as_str(),
-            "example.srt",
-            None,
+        let settings = instance.settings().clone();
+        let subtitle_directory = block_in_place_runtime(
+            settings.user_settings_ref(|e| e.subtitle_settings.directory.clone()),
+            instance.runtime(),
         );
+        let filepath = copy_test_file(subtitle_directory.as_str(), "example.srt", None);
 
         cleanup_subtitles_directory(&mut instance);
 
-        assert_eq!(
-            false,
-            PathBuf::from(filepath).exists(),
-            "expected the subtitle file to have been cleaned"
+        block_in_place_runtime(
+            async {
+                assert_timeout!(
+                    Duration::from_millis(500),
+                    !PathBuf::from(filepath.clone()).exists(),
+                    "expected the subtitle file to have been cleaned"
+                )
+            },
+            instance.runtime(),
         );
     }
 
     #[test]
     fn test_select_or_default_subtitle() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().expect("expected a tempt dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = new_instance(temp_path);
@@ -380,7 +405,7 @@ mod test {
 
     #[test]
     fn test_dispose_subtitle_info_set() {
-        init_logger();
+        init_logger!();
         let set = SubtitleInfoSet::from(vec![
             SubtitleInfoC::from(SubtitleInfo::none()),
             SubtitleInfoC::from(SubtitleInfo::custom()),
@@ -391,7 +416,7 @@ mod test {
 
     #[test]
     fn test_dispose_subtitle_info() {
-        init_logger();
+        init_logger!();
         let info = from_c_owned(subtitle_none());
 
         dispose_subtitle_info(Box::new(info));
@@ -426,7 +451,7 @@ mod test {
 
     #[test]
     fn test_dispose_subtitle_preference() {
-        init_logger();
+        init_logger!();
         let preference = SubtitlePreference::Language(SubtitleLanguage::Finnish);
 
         dispose_subtitle_preference(Box::new(preference));

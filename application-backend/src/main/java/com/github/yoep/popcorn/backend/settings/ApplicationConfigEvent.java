@@ -147,7 +147,8 @@ public class ApplicationConfigEvent extends Structure implements Closeable {
     }
 
     public enum Tag implements NativeMapped {
-        SETTINGS_LOADED,
+        LOADED,
+        SAVED,
         SUBTITLE_SETTINGS_CHANGED,
         TORRENT_SETTINGS_CHANGED,
         UI_SETTINGS_CHANGED,

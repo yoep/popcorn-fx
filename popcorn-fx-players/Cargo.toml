@@ -2,7 +2,7 @@
 name = "popcorn-fx-players"
 version = "0.8.2"
 edition = "2021"
-rust-version = "1.71"
+rust-version = "1.75"
 publish = false
 license-file = "../LICENSE"
 
@@ -19,11 +19,12 @@ chbs = { version = "0.1.1", optional = true }
 chrono.workspace = true
 derive_more.workspace = true
 futures.workspace = true
+fx-callback.workspace = true
 itertools.workspace = true
 libc = { version = "0.2.154", optional = true }
 libloading = { version = "0.8.3", optional = true }
 log.workspace = true
-mdns-sd = { version = "0.11.0", optional = true }
+mdns-sd = { version = "0.13.3", optional = true }
 rand = { workspace = true, optional = true }
 regex = { workspace = true, optional = true }
 reqwest = { workspace = true, optional = true }

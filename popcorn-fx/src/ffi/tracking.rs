@@ -1,5 +1,5 @@
 use log::{error, info, trace};
-
+use popcorn_fx_core::core::block_in_place_runtime;
 use popcorn_fx_core::into_c_string;
 
 use crate::ffi::{AuthorizationOpenC, TrackingEventC, TrackingEventCCallback};
@@ -17,12 +17,14 @@ pub extern "C" fn register_tracking_authorization_open(
     callback: AuthorizationOpenC,
 ) {
     trace!("Registering new tracking authorization open callback from C");
-    popcorn_fx
-        .tracking_provider()
-        .register_open_authorization(Box::new(move |uri| {
+    let tracking_provider = popcorn_fx.tracking_provider().clone();
+    block_in_place_runtime(
+        tracking_provider.register_open_authorization(Box::new(move |uri| {
             trace!("Calling tracker authorization open callback for {}", uri);
             callback(into_c_string(uri))
-        }))
+        })),
+        popcorn_fx.runtime(),
+    )
 }
 
 /// Registers a callback function to handle tracking provider events from C code.
@@ -37,10 +39,13 @@ pub extern "C" fn register_tracking_provider_callback(
     callback: TrackingEventCCallback,
 ) {
     trace!("Registering new tracking provider callback for C");
-    popcorn_fx.tracking_provider().add(Box::new(move |event| {
-        trace!("Invoking tracking event C for {:?}", event);
-        callback(TrackingEventC::from(event));
-    }));
+    let mut receiver = popcorn_fx.tracking_provider().subscribe();
+    popcorn_fx.runtime().spawn(async move {
+        while let Some(event) = receiver.recv().await {
+            trace!("Invoking tracking event C for {:?}", event);
+            callback(TrackingEventC::from((*event).clone()));
+        }
+    });
 }
 
 /// Checks if the current tracking provider is authorized.
@@ -55,7 +60,8 @@ pub extern "C" fn register_tracking_provider_callback(
 #[no_mangle]
 pub extern "C" fn tracking_is_authorized(popcorn_fx: &mut PopcornFX) -> bool {
     trace!("Checking if the current tracker is authorized from C");
-    popcorn_fx.tracking_provider().is_authorized()
+    let tracking = popcorn_fx.tracking_provider().clone();
+    block_in_place_runtime(tracking.is_authorized(), popcorn_fx.runtime())
 }
 
 /// Initiates the authorization process with the tracking provider.
@@ -110,10 +116,9 @@ mod tests {
     use tempfile::tempdir;
     use url::Url;
 
-    use popcorn_fx_core::{assert_timeout_eq, from_c_string};
-    use popcorn_fx_core::core::block_in_place;
     use popcorn_fx_core::core::config::Tracker;
-    use popcorn_fx_core::testing::init_logger;
+    use popcorn_fx_core::core::{block_in_place, block_in_place_runtime};
+    use popcorn_fx_core::{assert_timeout_eq, from_c_string, init_logger};
 
     use crate::test::new_instance;
 
@@ -130,7 +135,7 @@ mod tests {
 
     #[test]
     fn test_register_tracking_authorization_open() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = new_instance(temp_path);
@@ -140,7 +145,7 @@ mod tests {
 
     #[test]
     fn test_register_tracking_provider_callback() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = new_instance(temp_path);
@@ -150,7 +155,7 @@ mod tests {
 
     #[test]
     fn test_tracking_is_authorized() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = new_instance(temp_path);
@@ -162,7 +167,7 @@ mod tests {
 
     #[test]
     fn test_tracking_authorize() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let (tx, rx) = channel();
@@ -175,9 +180,9 @@ mod tests {
             .user_authorization_uri
             .clone();
 
-        instance
-            .tracking_provider()
-            .register_open_authorization(Box::new(move |url| {
+        let tracking_provider = instance.tracking_provider().clone();
+        block_in_place_runtime(
+            tracking_provider.register_open_authorization(Box::new(move |url| {
                 // execute a callback to stop the authorization process
                 let client = Client::new();
                 let auth_uri = Url::parse(url.as_str()).unwrap();
@@ -199,7 +204,9 @@ mod tests {
 
                 tx.send(url).unwrap();
                 true
-            }));
+            })),
+            instance.runtime(),
+        );
 
         tracking_authorize(&mut instance);
 
@@ -209,30 +216,38 @@ mod tests {
 
     #[test]
     fn test_tracking_disconnect() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut instance = new_instance(temp_path);
-        instance.settings().update_tracker(
-            "trakt",
-            Tracker {
-                access_token: "MyAccessToken".to_string(),
-                expires_in: None,
-                refresh_token: None,
-                scopes: None,
-            },
+        let settings = instance.settings().clone();
+        block_in_place_runtime(
+            settings.update_tracker(
+                "trakt",
+                Tracker {
+                    access_token: "MyAccessToken".to_string(),
+                    expires_in: None,
+                    refresh_token: None,
+                    scopes: None,
+                },
+            ),
+            instance.runtime(),
         );
 
-        assert!(
-            instance.tracking_provider().is_authorized(),
-            "expected the tracker to have been authorized"
-        );
+        let tracking = instance.tracking_provider().clone();
+        let result = block_in_place_runtime(tracking.is_authorized(), instance.runtime());
+        assert_eq!(true, result, "expected the tracker to have been authorized");
         tracking_disconnect(&mut instance);
 
-        assert_timeout_eq!(
-            Duration::from_millis(200),
-            false,
-            instance.tracking_provider().is_authorized()
+        block_in_place_runtime(
+            async {
+                assert_timeout_eq!(
+                    Duration::from_millis(500),
+                    false,
+                    instance.tracking_provider().is_authorized().await
+                )
+            },
+            instance.runtime(),
         );
     }
 }

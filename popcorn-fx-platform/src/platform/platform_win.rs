@@ -1,8 +1,8 @@
 use log::{info, trace, warn};
 use tokio::sync::Mutex;
 
-use windows::core::{PCWSTR, PWSTR};
 use windows::core::Result;
+use windows::core::{PCWSTR, PWSTR};
 use windows::Win32::Foundation::HANDLE;
 use windows::Win32::System::Power::{
     PowerClearRequest, PowerCreateRequest, PowerRequestDisplayRequired, PowerSetRequest,
@@ -119,7 +119,7 @@ impl Default for PlatformWin {
 
 #[cfg(test)]
 mod test {
-    use popcorn_fx_core::testing::init_logger;
+    use popcorn_fx_core::init_logger;
 
     use super::*;
 
@@ -152,7 +152,7 @@ mod test {
 
     #[test]
     fn test_window_handle() {
-        init_logger();
+        init_logger!();
         let platform = PlatformWin::default();
 
         let handle = platform.window_handle();

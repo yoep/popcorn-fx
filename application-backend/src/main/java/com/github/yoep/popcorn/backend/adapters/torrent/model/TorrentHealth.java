@@ -1,33 +1,26 @@
 package com.github.yoep.popcorn.backend.adapters.torrent.model;
 
 import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentHealthState;
+import com.sun.jna.Structure;
+import lombok.Getter;
 
-public interface TorrentHealth {
-    /**
-     * Get the health state of the torrent.
-     *
-     * @return Returns the health state.
-     */
-    TorrentHealthState getState();
+import java.io.Closeable;
 
-    /**
-     * Get the health ration of the torrent.
-     *
-     * @return Return the health ration.
-     */
-    double getRatio();
+@Getter
+@Structure.FieldOrder({"state", "ratio", "seeds", "leechers"})
+public class TorrentHealth extends Structure implements Closeable {
+    public static class ByValue extends TorrentHealth implements Structure.ByValue {
+    }
+    public static class ByReference extends TorrentHealth implements Structure.ByReference {
+    }
 
-    /**
-     * Get number of seeds of the torrent.
-     *
-     * @return Returns the number of seeds.
-     */
-    int getSeeds();
+    public TorrentHealthState state;
+    public float ratio;
+    public int seeds;
+    public int leechers;
 
-    /**
-     * Get the peers of the torrent.
-     *
-     * @return Returns the peers of the torrent.
-     */
-    int getPeers();
+    @Override
+    public void close() {
+        setAutoSynch(false);
+    }
 }

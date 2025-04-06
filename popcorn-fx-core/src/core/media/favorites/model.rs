@@ -110,7 +110,7 @@ mod test {
     use chrono::Timelike;
 
     use crate::core::media::Images;
-    use crate::testing::init_logger;
+    use crate::init_logger;
 
     use super::*;
 
@@ -195,7 +195,7 @@ mod test {
 
     #[test]
     fn test_last_update() {
-        init_logger();
+        init_logger!();
         let movie = MovieOverview::new(String::new(), String::from("tt111222"), String::new());
         let favorites = Favorites {
             movies: vec![movie],

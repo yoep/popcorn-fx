@@ -1,6 +1,6 @@
-use std::fmt::{Debug, Display};
 #[cfg(any(test, feature = "testing"))]
 use std::fmt::Formatter;
+use std::fmt::{Debug, Display};
 
 use async_trait::async_trait;
 #[cfg(any(test, feature = "testing"))]
@@ -26,7 +26,7 @@ pub trait MediaProvider: Debug + Display + Send + Sync {
     fn supports(&self, category: &Category) -> bool;
 
     /// Resets the API statistics and re-enables all disabled APIs.
-    fn reset_api(&self);
+    async fn reset_api(&self);
 
     /// Retrieves a page of `MediaOverview` items based on the given criteria.
     ///
@@ -66,7 +66,7 @@ pub trait MediaDetailsProvider: Debug + Display + Send + Sync {
     fn supports(&self, media_type: &MediaType) -> bool;
 
     /// Resets the API statistics and re-enables all disabled APIs.
-    fn reset_api(&self);
+    async fn reset_api(&self);
 
     /// Retrieves the `MediaDetails` for the given IMDB ID item.
     ///

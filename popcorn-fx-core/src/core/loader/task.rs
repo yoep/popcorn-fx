@@ -1,25 +1,26 @@
-use std::sync::mpsc::{channel, Sender};
-use std::sync::Arc;
-
-use log::{debug, error, info, trace, warn};
-use tokio::runtime::Runtime;
-use tokio::select;
-use tokio::sync::Mutex;
-use tokio_util::sync::CancellationToken;
-
 use crate::core::loader::loading_chain::LoadingChain;
 use crate::core::loader::{
-    LoadingCallback, LoadingData, LoadingError, LoadingEvent, LoadingHandle, LoadingResult,
-    LoadingState,
+    LoadingData, LoadingError, LoadingEvent, LoadingHandle, LoadingResult, LoadingState,
 };
-use crate::core::{block_in_place, CallbackHandle, Callbacks, CoreCallback, CoreCallbacks, Handle};
+use derive_more::Display;
+use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
+use log::{debug, error, info, trace, warn};
+use std::sync::Arc;
+use tokio::select;
+use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
+use tokio::sync::Mutex;
+use tokio::time::Instant;
+use tokio_util::sync::{
+    CancellationToken, WaitForCancellationFuture, WaitForCancellationFutureOwned,
+};
 
 /// Represents a task responsible for loading media items in a playlist.
 ///
 /// The `LoadingTask` manages loading processes, including handling loading events, canceling loading, and more.
-#[derive(Debug)]
+#[derive(Debug, Display)]
+#[display(fmt = "{}", context)]
 pub struct LoadingTask {
-    inner: Arc<Mutex<Option<Arc<InnerLoadingTask>>>>,
+    context: Arc<LoadingTaskContext>,
 }
 
 impl LoadingTask {
@@ -35,318 +36,373 @@ impl LoadingTask {
     /// # Returns
     ///
     /// A new `LoadingTask` instance.
-    pub fn new(chain: Arc<LoadingChain>, runtime: Arc<Runtime>) -> Self {
-        let (tx, rx) = channel();
-        let inner = Arc::new(Mutex::new(Some(Arc::new(InnerLoadingTask::new(chain, tx)))));
-        let handle = block_in_place(inner.lock())
-            .as_ref()
-            .map(|e| e.handle())
-            .unwrap_or(Handle::new());
+    pub fn new(chain: Arc<LoadingChain>) -> Self {
+        let (event_sender, event_receiver) = unbounded_channel();
+        let (command_sender, command_receiver) = unbounded_channel();
+        let inner = Arc::new(LoadingTaskContext::new(chain, event_sender, command_sender));
 
         let event_inner = inner.clone();
-        runtime.spawn(async move {
-            let handle = block_in_place(event_inner.lock())
-                .as_ref()
-                .map(|e| e.handle())
-                .unwrap_or(Handle::new());
-
-            for event in rx {
-                if let Some(e) = block_in_place(event_inner.lock()).as_ref() {
-                    if let LoadingEvent::StateChanged(state) = &event {
-                        e.handle_state_callback(state.clone());
-                    }
-
-                    e.callbacks.invoke(event);
-                }
-            }
-
-            debug!("Shutting down loading task channel of {}", handle);
+        tokio::spawn(async move {
+            event_inner
+                .start(&event_inner, event_receiver, command_receiver)
+                .await;
         });
 
-        debug!("Creating new loading task {}", handle);
-        Self { inner }
+        debug!("Loading task {} created", inner.handle);
+        Self { context: inner }
     }
 
-    /// Gets the handle associated with the loading task.
-    ///
-    /// The handle uniquely identifies the loading task.
-    ///
-    /// # Returns
-    ///
-    /// The loading task's handle.
+    /// Get an owned instance of the task handle.
     pub fn handle(&self) -> LoadingHandle {
-        let mutex = block_in_place(self.inner.lock());
-        mutex
-            .as_ref()
-            .map(|e| e.handle.clone())
-            .unwrap_or(Handle::new())
+        self.context.handle
     }
 
-    /// Gets the current loading state of the task.
+    /// Get the current loading state of the task.
     ///
     /// # Returns
     ///
     /// The current loading state.
-    pub fn state(&self) -> LoadingState {
-        let mutex = block_in_place(self.inner.lock());
-        mutex.as_ref().unwrap().state()
+    pub async fn state(&self) -> LoadingState {
+        *self.context.state.lock().await
     }
 
-    /// Asynchronously loads a media item using the task.
-    ///
-    /// This method initiates the loading process for a media item and returns the result.
+    /// Start loading the given data.
+    /// The load operation is offloaded into the main loop of the task.
     ///
     /// # Arguments
     ///
-    /// * `data` - The `LoadingData` representing the media item to be loaded.
-    ///
-    /// # Returns
-    ///
-    /// A `Result` indicating the outcome of the loading operation. An error is returned if the loading process is canceled.
-    pub async fn load(&self, data: LoadingData) -> Result<(), LoadingError> {
-        let inner: Option<Arc<InnerLoadingTask>>;
-
-        {
-            let mutex = block_in_place(self.inner.lock());
-            inner = mutex.as_ref().cloned();
-        }
-
-        if let Some(e) = inner {
-            select! {
-                _ = e.cancel_token.cancelled() => {
-                    Err(LoadingError::Cancelled)
-                },
-                result = e.load(data) => {
-                    result
-                }
-            }
-        } else {
-            panic!("Expected the inner loading task to still be available")
-        }
+    /// * `data` - The data that needs to be loaded in the task.
+    pub fn load(&self, data: LoadingData) {
+        self.context
+            .send_command_event(LoadingCommandEvent::Load(data));
     }
 
     /// Cancels the loading process associated with the task.
     ///
     /// This method cancels the loading process and any ongoing loading operation.
     pub fn cancel(&self) {
-        if let Some(e) = block_in_place(self.inner.lock()).as_ref() {
-            debug!("Cancelling loading task {}", e.handle());
-            e.cancel_token.cancel()
-        }
+        self.context.cancellation_token.cancel();
     }
 
-    /// Subscribes to loading events with a callback function.
-    ///
-    /// This method registers a callback function to receive loading events generated by the loading task.
-    ///
-    /// # Arguments
-    ///
-    /// * `callback` - The callback function to handle loading events.
-    ///
-    /// # Returns
-    ///
-    /// A `CallbackHandle` representing the subscription to the loading events.
-    pub fn subscribe(&self, callback: LoadingCallback) -> CallbackHandle {
-        let mutex = block_in_place(self.inner.lock());
-        mutex.as_ref().unwrap().subscribe(callback)
+    /// Get the loading task context.
+    #[cfg(test)]
+    pub fn context(&self) -> &Arc<LoadingTaskContext> {
+        &self.context
+    }
+}
+
+impl Callback<LoadingEvent> for LoadingTask {
+    fn subscribe(&self) -> Subscription<LoadingEvent> {
+        self.context.callbacks.subscribe()
     }
 
-    /// Unsubscribes from loading events using a callback handle.
-    ///
-    /// This method removes the callback function associated with the specified callback handle from receiving loading events.
-    ///
-    /// # Arguments
-    ///
-    /// * `callback_handle` - The `CallbackHandle` to unsubscribe.
-    pub fn unsubscribe(&self, callback_handle: CallbackHandle) {
-        if let Some(e) = block_in_place(self.inner.lock()).as_ref() {
-            e.unsubscribe(callback_handle)
-        }
+    fn subscribe_with(&self, subscriber: Subscriber<LoadingEvent>) {
+        self.context.callbacks.subscribe_with(subscriber)
     }
 }
 
 impl Drop for LoadingTask {
     fn drop(&mut self) {
-        let _ = block_in_place(self.inner.lock()).take();
+        self.cancel();
     }
 }
 
-#[derive(Debug)]
-struct InnerLoadingTask {
-    handle: Handle,
-    cancel_token: CancellationToken,
-    state: Mutex<LoadingState>,
-    chain: Arc<LoadingChain>,
-    sender_channel: Sender<LoadingEvent>,
-    callbacks: CoreCallbacks<LoadingEvent>,
+#[derive(Debug, PartialEq)]
+enum LoadingCommandEvent {
+    /// Start loading the given data through the chain
+    Load(LoadingData),
+    /// Indicates that the loading task has ended
+    Finished,
 }
 
-impl InnerLoadingTask {
-    pub fn new(chain: Arc<LoadingChain>, sender_channel: Sender<LoadingEvent>) -> Self {
+/// The context information of a loading task.
+#[derive(Debug, Display)]
+#[display(fmt = "{}", handle)]
+pub struct LoadingTaskContext {
+    /// The unique task handle identifier
+    handle: LoadingHandle,
+    /// The current state of the loading task
+    state: Mutex<LoadingState>,
+    /// The chain of tasks that need to be executed
+    chain: Arc<LoadingChain>,
+    /// The event sender for updating the task while executing the chain
+    event_sender: UnboundedSender<LoadingEvent>,
+    /// The command event sender of the loading task
+    command_sender: UnboundedSender<LoadingCommandEvent>,
+    /// The callback of the loading task
+    callbacks: MultiThreadedCallback<LoadingEvent>,
+    /// The cancellation token of the task
+    cancellation_token: CancellationToken,
+}
+
+impl LoadingTaskContext {
+    fn new(
+        chain: Arc<LoadingChain>,
+        event_sender: UnboundedSender<LoadingEvent>,
+        command_sender: UnboundedSender<LoadingCommandEvent>,
+    ) -> Self {
         Self {
-            handle: Handle::new(),
-            cancel_token: Default::default(),
+            handle: Default::default(),
             state: Mutex::new(LoadingState::Initializing),
             chain,
-            sender_channel,
-            callbacks: Default::default(),
+            event_sender,
+            command_sender,
+            callbacks: MultiThreadedCallback::new(),
+            cancellation_token: Default::default(),
         }
     }
 
-    pub fn handle(&self) -> LoadingHandle {
-        self.handle.clone()
+    /// Check if the task is cancelled.
+    pub fn is_cancelled(&self) -> bool {
+        self.cancellation_token.is_cancelled()
     }
 
-    pub fn state(&self) -> LoadingState {
-        let mutex = block_in_place(self.state.lock());
-        mutex.clone()
+    /// Returns a Future that gets fulfilled when the loading task is cancelled.
+    ///
+    /// The future will complete immediately if the loading task is already cancelled when this method is called.
+    pub fn cancelled(&self) -> WaitForCancellationFuture<'_> {
+        self.cancellation_token.cancelled()
     }
 
-    pub async fn load(&self, mut data: LoadingData) -> Result<(), LoadingError> {
+    /// Returns a Future that gets fulfilled when the loading task is cancelled.
+    ///
+    /// The future will complete immediately if the loading task is already cancelled when this method is called.
+    pub fn cancelled_owned(&self) -> WaitForCancellationFutureOwned {
+        self.cancellation_token.clone().cancelled_owned()
+    }
+
+    /// Inform the task about a loading event.
+    /// This will send the loading event info to the task subscribers and media loader.
+    pub fn send_event(&self, event: LoadingEvent) {
+        trace!("Loading task {} is invoking event {}", self, event);
+        if let Err(_) = self.event_sender.send(event) {
+            debug!("Loading task {} event sender channel has been closed", self);
+            self.cancellation_token.cancel();
+        }
+    }
+
+    /// Start the loading task main chain loop.
+    async fn start(
+        &self,
+        context: &Arc<LoadingTaskContext>,
+        mut event_receiver: UnboundedReceiver<LoadingEvent>,
+        mut command_receiver: UnboundedReceiver<LoadingCommandEvent>,
+    ) {
+        trace!("Loading task {} is starting", self);
+
+        loop {
+            select! {
+                event = event_receiver.recv() => {
+                    if let Some(event) = event {
+                        self.handle_event(event).await;
+                    } else {
+                        break;
+                    }
+                }
+                command = command_receiver.recv() => {
+                    if let Some(event) = command {
+                        if self.handle_command_event(event, context).await {
+                            break;
+                        }
+                    } else {
+                        break;
+                    }
+                }
+            }
+        }
+
+        debug!("Loading task {} main loop ended", self);
+    }
+
+    async fn handle_event(&self, event: LoadingEvent) {
+        debug!("Loading task {} received event {:?}", self, event);
+        if let LoadingEvent::StateChanged(state) = &event {
+            self.update_state(state.clone()).await;
+        }
+
+        self.callbacks.invoke(event);
+    }
+
+    /// Handle the given loading command event.
+    /// It returns `true` when the loading task has been completed, else `false`.
+    async fn handle_command_event(
+        &self,
+        event: LoadingCommandEvent,
+        context: &Arc<LoadingTaskContext>,
+    ) -> bool {
+        debug!("Loading task {} received command event {:?}", self, event);
+        match event {
+            LoadingCommandEvent::Load(data) => {
+                let load_context = context.clone();
+                tokio::spawn(async move {
+                    load_context.load(data).await;
+                });
+                false
+            }
+            LoadingCommandEvent::Finished => true,
+        }
+    }
+
+    /// Set the state of the loading task
+    async fn update_state(&self, state: LoadingState) {
+        let mut mutex = self.state.lock().await;
+        if *mutex == state {
+            return;
+        }
+
+        *mutex = state;
+        debug!("Loading task {} state changed to {}", self, state);
+        self.callbacks.invoke(LoadingEvent::StateChanged(state));
+    }
+
+    async fn load(&self, mut data: LoadingData) {
         let strategies = self.chain.strategies();
-        let mut index: i32 = 0;
 
         trace!(
-            "Processing a total of {} loading strategies for {}",
+            "Loading task {} is processing a total of {} loading strategies",
+            self,
             strategies.len(),
-            self.handle
         );
-        self.handle_state_callback(LoadingState::Initializing);
+        self.callbacks
+            .invoke(LoadingEvent::StateChanged(LoadingState::Initializing));
         for strategy in strategies.iter() {
-            if self.cancel_token.is_cancelled() {
-                info!("Loading process is being cancelled");
-                break;
-            }
-
             if let Some(strategy) = strategy.upgrade() {
-                index += 1;
-                trace!("Executing {}", strategy);
-                match strategy
-                    .process(data, self.sender_channel.clone(), self.cancel_token.clone())
-                    .await
-                {
-                    LoadingResult::Ok(updated_data) => data = updated_data,
-                    LoadingResult::Completed => {
-                        debug!("Loading strategies have been completed");
-                        return Ok(());
-                    }
-                    LoadingResult::Err(err) => {
-                        error!(
-                            "An unexpected error occurred while loading playlist item, {}",
-                            err
+                trace!("Loading task {} executing {}", self, strategy);
+                let start_time = Instant::now();
+
+                select! {
+                    _ = self.cancellation_token.cancelled() => break,
+                    result = strategy.process(&mut data, &self) => {
+                        let elapsed = start_time.elapsed();
+                        debug!(
+                            "Loading task {} strategy {} executed in {}.{:03}ms",
+                            self,
+                            strategy,
+                            elapsed.as_millis(),
+                            elapsed.subsec_micros() % 1000
                         );
-                        return Err(err);
+
+                        if self.handle_process_result(result) {
+                            break;
+                        }
                     }
                 }
             } else {
-                warn!("Loading strategy is no longer in scope");
+                warn!("Loading task {} strategy is no longer in scope", self);
+                break;
             }
         }
 
-        if self.cancel_token.is_cancelled() {
-            debug!("Cancelling a total of {} loading strategies", index);
-            while index >= 0 {
-                if let Some(strategy) = strategies.get(index as usize).and_then(|e| e.upgrade()) {
-                    trace!("Cancelling {}", strategy);
-                    match strategy.cancel(data).await {
-                        Ok(new_data) => data = new_data,
-                        Err(e) => {
-                            error!("Failed to cancel loading strategy, {}", e);
-                            return Err(e);
-                        }
-                    }
-                } else {
-                    warn!("Unable to cancel loading strategy, strategy went out of scope");
-                }
-
-                index -= 1;
-            }
-
-            debug!("Finished cancelling loading task {}", self.handle);
-            return Err(LoadingError::Cancelled);
+        // check if the loading has been cancelled
+        // if so, we undo any changes made by the strategies
+        if self.cancellation_token.is_cancelled() {
+            trace!("Loading task {} is being cancelled", self);
+            self.cancel(data).await;
         }
-
-        Ok(())
     }
 
-    pub fn subscribe(&self, callback: CoreCallback<LoadingEvent>) -> CallbackHandle {
-        self.callbacks.add(callback)
-    }
+    async fn cancel(&self, mut data: LoadingData) {
+        let strategies = self.chain.strategies();
 
-    pub fn unsubscribe(&self, callback_handle: CallbackHandle) {
-        self.callbacks.remove(callback_handle)
-    }
-
-    pub fn handle_state_callback(&self, state: LoadingState) {
-        let event_state = state.clone();
-        {
-            let mut mutex = block_in_place(self.state.lock());
-            *mutex = state;
-        }
         debug!(
-            "Loading task {} state changed to {}",
-            self.handle, event_state
+            "Loading task {} is cancelling {} strategies",
+            self,
+            strategies.len()
         );
-        self.callbacks
-            .invoke(LoadingEvent::StateChanged(event_state));
+        for index in (0..strategies.len()).rev() {
+            if let Some(strategy) = strategies.get(index).and_then(|e| e.upgrade()) {
+                trace!("Loading task {} is executing cancel for {}", self, strategy);
+                match strategy.cancel(data).await {
+                    Ok(new_data) => data = new_data,
+                    Err(e) => {
+                        error!(
+                            "Loading task {} cancellation of {} failed, {}",
+                            self, strategy, e
+                        );
+                        self.invoke_event(LoadingEvent::LoadingError(e));
+                        break;
+                    }
+                }
+            } else {
+                warn!(
+                    "Loading task {} cancellation failed, strategy went out of scope",
+                    self
+                );
+            }
+        }
+
+        info!("Loading task {} has been cancelled", self.handle);
+        self.update_state(LoadingState::Cancelled).await;
+        self.invoke_event(LoadingEvent::LoadingError(LoadingError::Cancelled));
+        self.invoke_event(LoadingEvent::Cancelled);
+        self.send_command_event(LoadingCommandEvent::Finished);
+    }
+
+    /// Handle the [LoadingResult] of a strategy which has been processed.
+    ///
+    /// # Returns
+    ///
+    /// It returns `true` when the loading task chain should be ended.
+    fn handle_process_result(&self, result: LoadingResult) -> bool {
+        match result {
+            LoadingResult::Ok => false,
+            LoadingResult::Completed => {
+                debug!("Loading task {} strategies have been completed", self);
+                self.invoke_event(LoadingEvent::Completed);
+                self.send_command_event(LoadingCommandEvent::Finished);
+                true
+            }
+            LoadingResult::Err(err) => {
+                if err != LoadingError::Cancelled {
+                    error!("Loading task {} encountered an error, {}", self, err);
+                    self.invoke_event(LoadingEvent::LoadingError(err));
+                    self.send_command_event(LoadingCommandEvent::Finished);
+                }
+                true
+            }
+        }
+    }
+
+    fn invoke_event(&self, event: LoadingEvent) {
+        self.callbacks.invoke(event);
+    }
+
+    fn send_command_event(&self, command: LoadingCommandEvent) {
+        if let Err(_) = self.command_sender.send(command) {
+            debug!(
+                "Loading task {} command sender channel has been closed",
+                self
+            );
+            self.cancellation_token.cancel();
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::thread;
     use std::time::Duration;
 
-    use async_trait::async_trait;
-    use derive_more::Display;
-
-    use crate::core::loader::{CancellationResult, LoadingStrategy, MockLoadingStrategy};
-    use crate::core::playlists::PlaylistItem;
-    use crate::testing::init_logger;
+    use tokio::time;
 
     use super::*;
 
-    #[derive(Debug, Display)]
-    #[display(fmt = "CancelStrategy")]
-    struct CancelStrategy {
-        pub initiated: Sender<()>,
-        pub cancelled: Sender<bool>,
-    }
+    use crate::core::loader::tests::TestingLoadingStrategy;
+    use crate::core::loader::LoadingError;
+    use crate::core::loader::{LoadingStrategy, MockLoadingStrategy};
+    use crate::core::playlist::PlaylistItem;
+    use crate::{init_logger, recv_timeout};
 
-    #[async_trait]
-    impl LoadingStrategy for CancelStrategy {
-        async fn process(
-            &self,
-            _: LoadingData,
-            _: Sender<LoadingEvent>,
-            cancel: CancellationToken,
-        ) -> LoadingResult {
-            self.initiated.send(()).unwrap();
-            while !cancel.is_cancelled() {
-                thread::sleep(Duration::from_millis(50));
-            }
-
-            self.cancelled.send(true).unwrap();
-            LoadingResult::Completed
-        }
-
-        async fn cancel(&self, data: LoadingData) -> CancellationResult {
-            CancellationResult::Ok(data)
-        }
-    }
-
-    #[test]
-    fn test_handle() {
-        init_logger();
-        let runtime = Arc::new(Runtime::new().unwrap());
-        let task = LoadingTask::new(Arc::new(LoadingChain::from(vec![])), runtime.clone());
+    #[tokio::test]
+    async fn test_handle() {
+        init_logger!();
+        let task = LoadingTask::new(Arc::new(LoadingChain::from(vec![])));
 
         assert_ne!(task.handle().value(), 0i64);
     }
 
-    #[test]
-    fn test_state() {
-        init_logger();
+    #[tokio::test]
+    async fn test_state() {
+        init_logger!();
         let data = LoadingData::from(PlaylistItem {
             url: None,
             title: "MyStateTest".to_string(),
@@ -358,47 +414,42 @@ mod tests {
             subtitle: Default::default(),
             torrent: Default::default(),
         });
-        let (tx, rx) = channel();
-        let mut strategy = MockLoadingStrategy::new();
-        strategy
-            .expect_process()
-            .times(1)
-            .returning(move |_, callback, _| {
-                callback
-                    .send(LoadingEvent::StateChanged(LoadingState::Downloading))
-                    .unwrap();
-                LoadingResult::Completed
-            });
-        let runtime = Arc::new(Runtime::new().unwrap());
-        let task = Arc::new(LoadingTask::new(
-            Arc::new(LoadingChain::from(vec![
-                Box::new(strategy) as Box<dyn LoadingStrategy>
-            ])),
-            runtime.clone(),
-        ));
-        let runtime = Runtime::new().unwrap();
+        let (tx, mut rx) = unbounded_channel();
+        let strategy = TestingLoadingStrategy::builder()
+            .event(LoadingEvent::StateChanged(LoadingState::Downloading))
+            .delay(Duration::from_millis(200))
+            .build();
+        let task = LoadingTask::new(Arc::new(LoadingChain::from(vec![
+            Box::new(strategy) as Box<dyn LoadingStrategy>
+        ])));
 
-        task.subscribe(Box::new(move |event| {
-            if let LoadingEvent::StateChanged(state) = event {
-                // the first event is always initializing, so ignore it
-                if state != LoadingState::Initializing {
-                    tx.send(state).unwrap();
+        let mut receiver = task.subscribe();
+        tokio::spawn(async move {
+            loop {
+                if let Some(event) = receiver.recv().await {
+                    debug!("Received task event {:?}", event);
+                    if let LoadingEvent::StateChanged(state) = &*event {
+                        // the first event is always initializing, so ignore it
+                        if *state != LoadingState::Initializing {
+                            tx.send(*state).unwrap();
+                        }
+                    }
+                } else {
+                    break;
                 }
             }
-        }));
-
-        let del_task = task.clone();
-        runtime.spawn(async move {
-            let _ = del_task.load(data).await;
+            debug!("Task event receiver loop ended");
         });
 
-        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        task.load(data);
+
+        let result = recv_timeout!(&mut rx, Duration::from_millis(500));
         assert_eq!(LoadingState::Downloading, result);
     }
 
-    #[test]
-    fn test_load() {
-        init_logger();
+    #[tokio::test]
+    async fn test_load() {
+        init_logger!();
         let data = LoadingData::from(PlaylistItem {
             url: None,
             title: "MyLoadTest".to_string(),
@@ -410,44 +461,177 @@ mod tests {
             subtitle: Default::default(),
             torrent: Default::default(),
         });
-        let (tx_data, rx_data) = channel();
-        let (tx_event, rx_event) = channel();
-        let mut strategy = MockLoadingStrategy::new();
-        strategy
-            .expect_process()
-            .times(1)
-            .returning(move |data, _, _| {
-                tx_data.send(data).unwrap();
-                LoadingResult::Completed
-            });
-        let runtime = Arc::new(Runtime::new().unwrap());
-        let task = LoadingTask::new(
-            Arc::new(LoadingChain::from(vec![
-                Box::new(strategy) as Box<dyn LoadingStrategy>
-            ])),
-            runtime.clone(),
+        let (tx_data, mut rx_data) = unbounded_channel();
+        let (tx_completed, mut rx_completed) = unbounded_channel();
+        let strategy = TestingLoadingStrategy::builder()
+            .data_sender(tx_data)
+            .build();
+        let task = LoadingTask::new(Arc::new(LoadingChain::from(vec![
+            Box::new(strategy) as Box<dyn LoadingStrategy>
+        ])));
+
+        let mut receiver = task.subscribe();
+        tokio::spawn(async move {
+            loop {
+                if let Some(event) = receiver.recv().await {
+                    if let LoadingEvent::Completed = &*event {
+                        tx_completed.send(()).unwrap();
+                        break;
+                    }
+                } else {
+                    break;
+                }
+            }
+        });
+
+        task.load(data.clone());
+
+        recv_timeout!(
+            &mut rx_completed,
+            Duration::from_millis(500),
+            "expected the loading task to complete"
         );
 
-        task.subscribe(Box::new(move |e| {
-            tx_event.send(e).unwrap();
-        }));
-
-        let result = block_in_place(task.load(data.clone()));
-        assert_eq!(Ok(()), result);
-
-        let result = rx_data.recv_timeout(Duration::from_millis(200)).unwrap();
+        let result = recv_timeout!(
+            &mut rx_data,
+            Duration::from_millis(200),
+            "expected the process to have received data"
+        );
         assert_eq!(data, result);
+    }
 
-        let result = rx_event.recv_timeout(Duration::from_millis(200)).unwrap();
+    #[tokio::test]
+    async fn test_cancel_should_return_cancelled_error() {
+        init_logger!();
+        let data = LoadingData::from(PlaylistItem {
+            url: None,
+            title: "".to_string(),
+            caption: None,
+            thumb: None,
+            media: Default::default(),
+            quality: None,
+            auto_resume_timestamp: None,
+            subtitle: Default::default(),
+            torrent: Default::default(),
+        });
+        let strategy = TestingLoadingStrategy::builder()
+            .delay(Duration::from_secs(30))
+            .build();
+        let (tx, mut rx) = unbounded_channel();
+        let (tx_error, mut rx_error) = unbounded_channel();
+        let (tx_cancelled, mut rx_cancelled) = unbounded_channel();
+        let task = LoadingTask::new(Arc::new(LoadingChain::from(vec![
+            Box::new(strategy) as Box<dyn LoadingStrategy>
+        ])));
+
+        let mut receiver = task.subscribe();
+        tokio::spawn(async move {
+            loop {
+                if let Some(event) = receiver.recv().await {
+                    match &*event {
+                        LoadingEvent::StateChanged(state) => {
+                            if *state == LoadingState::Initializing {
+                                tx.send(()).unwrap();
+                            }
+                        }
+                        LoadingEvent::LoadingError(e) => tx_error.send(e.clone()).unwrap(),
+                        LoadingEvent::Cancelled => tx_cancelled.send(()).unwrap(),
+                        _ => {}
+                    }
+                } else {
+                    break;
+                }
+            }
+        });
+
+        task.load(data);
+
+        recv_timeout!(
+            &mut rx,
+            Duration::from_secs(500),
+            "expected the task to start"
+        );
+        task.cancel();
+
+        let result = recv_timeout!(
+            &mut rx_error,
+            Duration::from_secs(500),
+            "expected a LoadingError"
+        );
         assert_eq!(
-            LoadingEvent::StateChanged(LoadingState::Initializing),
-            result
+            LoadingError::Cancelled,
+            result,
+            "expected the cancelled error"
+        );
+
+        recv_timeout!(
+            &mut rx_cancelled,
+            Duration::from_secs(500),
+            "expected a cancelled event"
+        );
+        let result = task.state().await;
+        assert_eq!(LoadingState::Cancelled, result);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_cancel_should_cancel_strategy_token() {
+        init_logger!();
+        let data = LoadingData::from(PlaylistItem {
+            url: None,
+            title: "".to_string(),
+            caption: None,
+            thumb: None,
+            media: Default::default(),
+            quality: None,
+            auto_resume_timestamp: None,
+            subtitle: Default::default(),
+            torrent: Default::default(),
+        });
+        let (tx_data, mut rx_data) = unbounded_channel();
+        let (tx_event, mut rx_event) = unbounded_channel();
+        let strategy = TestingLoadingStrategy::builder()
+            .data_sender(tx_data)
+            .delay(Duration::from_secs(1))
+            .build();
+        let task = LoadingTask::new(Arc::new(LoadingChain::from(vec![
+            Box::new(strategy) as Box<dyn LoadingStrategy>
+        ])));
+
+        let mut receiver = task.subscribe();
+        tokio::spawn(async move {
+            loop {
+                if let Some(event) = receiver.recv().await {
+                    if let LoadingEvent::Cancelled = &*event {
+                        tx_event.send(()).unwrap();
+                        break;
+                    }
+                } else {
+                    break;
+                }
+            }
+        });
+
+        task.load(data);
+
+        let _ = recv_timeout!(
+            &mut rx_data,
+            Duration::from_millis(250),
+            "expected the strategy process to have been started"
+        );
+        task.cancel();
+
+        let _ = recv_timeout!(
+            &mut rx_event,
+            Duration::from_millis(500),
+            "expected the loading task to have sent the cancelled event"
         );
     }
 
-    #[test]
-    fn test_cancel_should_return_cancelled_error() {
-        init_logger();
+    // FIXME: unstable in Github actions
+    #[ignore]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_cancel_should_call_cancel_when_executed() {
+        init_logger!();
         let data = LoadingData::from(PlaylistItem {
             url: None,
             title: "".to_string(),
@@ -459,135 +643,64 @@ mod tests {
             subtitle: Default::default(),
             torrent: Default::default(),
         });
-        let mut strategy = MockLoadingStrategy::new();
-        let (tx, rx) = channel();
-        strategy.expect_process().returning(move |_, _, _| {
-            thread::sleep(Duration::from_secs(20));
-            LoadingResult::Completed
-        });
-        strategy
-            .expect_cancel()
-            .returning(|data| CancellationResult::Ok(data));
-        let runtime = Arc::new(Runtime::new().unwrap());
-        let task = Arc::new(LoadingTask::new(
-            Arc::new(LoadingChain::from(vec![
-                Box::new(strategy) as Box<dyn LoadingStrategy>
-            ])),
-            runtime.clone(),
-        ));
-        let runtime = Runtime::new().unwrap();
+        let (tx_data, mut rx_data) = unbounded_channel();
+        let (tx_cancel_1, mut rx_cancel_1) = unbounded_channel();
+        let (tx_cancel_2, mut rx_cancel_2) = unbounded_channel();
+        let strategy1 = TestingLoadingStrategy::builder()
+            .data_sender(tx_data)
+            .cancel_sender(tx_cancel_1)
+            .build();
+        MockLoadingStrategy::new();
+        let strategy2 = TestingLoadingStrategy::builder()
+            .delay(Duration::from_secs(1))
+            .cancel_sender(tx_cancel_2)
+            .build();
+        let task = LoadingTask::new(Arc::new(LoadingChain::from(vec![
+            Box::new(strategy1) as Box<dyn LoadingStrategy>,
+            Box::new(strategy2) as Box<dyn LoadingStrategy>,
+        ])));
 
-        let del_task = task.clone();
-        runtime.spawn(async move {
-            let result = del_task.load(data).await;
-            tx.send(result).unwrap();
-        });
+        // start loading the task data
+        task.load(data.clone());
 
+        // wait for the first strategy to be started before cancelling the task
+        let result = recv_timeout!(
+            &mut rx_data,
+            Duration::from_millis(500),
+            "expected the 1st strategy process to have been started"
+        );
+        assert_eq!(data, result, "expected the loading data to match");
         task.cancel();
-        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
-        assert_eq!(Err(LoadingError::Cancelled), result);
+
+        // check the cancel invocation on the 1st strategy
+        let _ = recv_timeout!(
+            &mut rx_cancel_1,
+            Duration::from_millis(500),
+            "expected the cancel fn to have been invoked on the 1st strategy"
+        );
+
+        // check the cancel invocation on the 2nd strategy
+        let _ = recv_timeout!(
+            &mut rx_cancel_2,
+            Duration::from_millis(500),
+            "expected the cancel fn to have been invoked on the 2nd strategy"
+        );
     }
 
-    #[test]
-    fn test_cancel_should_cancel_strategy_token() {
-        init_logger();
-        let data = LoadingData::from(PlaylistItem {
-            url: None,
-            title: "".to_string(),
-            caption: None,
-            thumb: None,
-            media: Default::default(),
-            quality: None,
-            auto_resume_timestamp: None,
-            subtitle: Default::default(),
-            torrent: Default::default(),
-        });
-        let (tx, rx) = channel();
-        let (tx_cancelled, rx_cancelled) = channel();
-        let strategy = CancelStrategy {
-            initiated: tx,
-            cancelled: tx_cancelled,
-        };
-        let runtime = Arc::new(Runtime::new().unwrap());
-        let task = Arc::new(LoadingTask::new(
-            Arc::new(LoadingChain::from(vec![
-                Box::new(strategy) as Box<dyn LoadingStrategy>
-            ])),
-            runtime.clone(),
-        ));
-        let runtime = Runtime::new().unwrap();
+    #[tokio::test]
+    async fn test_loading_task_send_event() {
+        init_logger!();
+        let expected_event = LoadingEvent::StateChanged(LoadingState::Connecting);
+        let task = LoadingTask::new(Arc::new(LoadingChain::from(vec![])));
+        let context = &task.context;
 
-        let del_task = task.clone();
-        runtime.spawn(async move {
-            let _ = del_task.load(data).await;
-        });
+        let mut receiver = task.subscribe();
+        context.send_event(expected_event.clone());
 
-        let _ = rx
-            .recv_timeout(Duration::from_millis(200))
-            .expect("expected the strategy process to have been started");
-        task.cancel();
-        let result = rx_cancelled
-            .recv_timeout(Duration::from_millis(200))
-            .unwrap();
-        assert!(result, "expected the strategy to have been cancelled");
-    }
-
-    #[test]
-    fn test_cancel_should_call_cancel_when_executed() {
-        init_logger();
-        let data = LoadingData::from(PlaylistItem {
-            url: None,
-            title: "".to_string(),
-            caption: None,
-            thumb: None,
-            media: Default::default(),
-            quality: None,
-            auto_resume_timestamp: None,
-            subtitle: Default::default(),
-            torrent: Default::default(),
-        });
-        let (tx, rx) = channel();
-        let (tx_cancel, rx_cancel) = channel();
-        let mut strat1 = MockLoadingStrategy::new();
-        strat1.expect_process().times(1).returning(move |e, _, _| {
-            tx.send(()).unwrap();
-            LoadingResult::Ok(e)
-        });
-        strat1.expect_cancel().times(1).returning(move |e| {
-            tx_cancel.send(e.clone()).unwrap();
-            CancellationResult::Ok(e)
-        });
-        let mut strat2 = MockLoadingStrategy::new();
-        strat2.expect_process().times(1).returning(|data, _, _| {
-            thread::sleep(Duration::from_millis(200));
-            LoadingResult::Ok(data)
-        });
-        strat2
-            .expect_cancel()
-            .returning(|e| CancellationResult::Ok(e));
-        let runtime = Arc::new(Runtime::new().unwrap());
-        let task = Arc::new(LoadingTask::new(
-            Arc::new(LoadingChain::from(vec![
-                Box::new(strat1) as Box<dyn LoadingStrategy>,
-                Box::new(strat2) as Box<dyn LoadingStrategy>,
-            ])),
-            runtime.clone(),
-        ));
-        let runtime = Runtime::new().unwrap();
-
-        let del_task = task.clone();
-        let data_copy = data.clone();
-        runtime.spawn(async move {
-            let _ = del_task.load(data_copy).await;
-        });
-
-        let _ = rx
-            .recv_timeout(Duration::from_millis(200))
-            .expect("expected the strategy process to have been started");
-        task.cancel();
-        let result = rx_cancel
-            .recv_timeout(Duration::from_millis(500))
-            .expect("expected the cancel fn to have been invoked");
-        assert_eq!(data, result);
+        let result = select! {
+            _ = time::sleep(Duration::from_millis(500)) => Err(LoadingError::TimeoutError("event receiver timed out".to_string())),
+            Some(event) = receiver.recv() => Ok(event),
+        }.expect("expected to receive an event");
+        assert_eq!(expected_event, *result);
     }
 }

@@ -2,7 +2,7 @@
 name = "popcorn-fx-core"
 version = "0.8.2"
 edition = "2021"
-rust-version = "1.71"
+rust-version = "1.75"
 publish = false
 license-file = "../LICENSE"
 
@@ -12,21 +12,26 @@ crate-type = ["rlib"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+popcorn-fx-torrent = { path = "../popcorn-fx-torrent" }
+
 async-trait.workspace = true
 bytes.workspace = true
 chrono = { workspace = true, features = ["serde"] }
+clap = { version = "4.5", features = ["derive"] }
 derive_more.workspace = true
 directories.workspace = true
 downcast-rs.workspace = true
 flate2 = "1"
 futures.workspace = true
+fx-callback.workspace = true
+fx-handle.workspace = true
 html-escape = "0"
 itertools.workspace = true
 local-ip-address.workspace = true
 log.workspace = true
 log4rs = { version = "1", features = ["console_writer"], optional = true }
 mockall = { workspace = true, optional = true }
-percent-encoding = "2"
+percent-encoding.workspace = true
 rand.workspace = true
 regex.workspace = true
 reqwest = { workspace = true, features = ["json", "stream"] }
@@ -43,7 +48,6 @@ tokio-stream = { workspace = true }
 tokio-util = { workspace = true }
 url.workspace = true
 warp.workspace = true
-clap = { version = "4.5.7", features = ["derive"] }
 
 [dev-dependencies]
 popcorn-fx-core = { path = "../popcorn-fx-core", features = ["testing"] }
@@ -58,17 +62,13 @@ default = [
     "cache",
     "launcher",
     "loader",
-    "media",
     "platform",
-    "playback",
 ]
 
 cache = []
 launcher = []
 loader = []
-media = []
 platform = []
-playback = []
 testing = [
     "log4rs",
     "tempfile",

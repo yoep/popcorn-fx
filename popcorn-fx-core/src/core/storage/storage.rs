@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use log::{debug, error, trace, warn};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::core::storage::StorageError;
 use crate::core::{block_in_place, storage};
@@ -348,6 +348,26 @@ impl BaseStorage {
             })
     }
 
+    pub async fn read_open_async(&self) -> storage::Result<tokio::fs::File> {
+        trace!("Opening storage file {}", self.absolute_path());
+        tokio::fs::OpenOptions::new()
+            .read(true)
+            .create(self.create)
+            .truncate(false)
+            .open(self.path.as_path())
+            .await
+            .map_err(|e| {
+                let absolute_path = self.absolute_path();
+                trace!("File {} couldn't be opened, {}", absolute_path, e);
+
+                if e.kind() == ErrorKind::NotFound {
+                    StorageError::NotFound(absolute_path.to_string())
+                } else {
+                    StorageError::ReadingFailed(absolute_path.to_string(), e.to_string())
+                }
+            })
+    }
+
     pub fn write_open(&self) -> storage::Result<File> {
         self.create_parent_directories_if_needed()?;
 
@@ -451,6 +471,33 @@ impl SerializerStorage {
         trace!("Application file {:?} exists", &self.base.absolute_path());
         let mut data = String::new();
         file.read_to_string(&mut data).map_err(|e| {
+            StorageError::ReadingFailed(self.base.absolute_path().to_string(), e.to_string())
+        })?;
+
+        match serde_json::from_str::<T>(data.as_str()) {
+            Ok(e) => {
+                debug!("File {} has been loaded", self.base.absolute_path());
+                Ok(e)
+            }
+            Err(e) => {
+                debug!("File {} is invalid, {}", self.base.absolute_path(), &e);
+                Err(StorageError::ReadingFailed(
+                    self.base.absolute_path().to_string(),
+                    e.to_string(),
+                ))
+            }
+        }
+    }
+
+    pub async fn read_async<T>(self) -> storage::Result<T>
+    where
+        T: Serialize + DeserializeOwned,
+    {
+        let mut file = self.base.read_open_async().await?;
+
+        trace!("Application file {:?} exists", &self.base.absolute_path());
+        let mut data = String::new();
+        file.read_to_string(&mut data).await.map_err(|e| {
             StorageError::ReadingFailed(self.base.absolute_path().to_string(), e.to_string())
         })?;
 
@@ -717,8 +764,9 @@ mod test {
     use tokio::runtime::Runtime;
 
     use crate::core::config::{PopcornSettings, SubtitleSettings, UiSettings};
+    use crate::init_logger;
     use crate::testing::{
-        copy_test_file, init_logger, read_temp_dir_file_as_bytes, read_temp_dir_file_as_string,
+        copy_test_file, read_temp_dir_file_as_bytes, read_temp_dir_file_as_string,
         read_test_file_to_bytes,
     };
 
@@ -737,7 +785,7 @@ mod test {
 
     #[test]
     fn test_read_settings() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         copy_test_file(temp_path, "settings.json", None);
@@ -757,7 +805,7 @@ mod test {
 
     #[test]
     fn test_write() {
-        init_logger();
+        init_logger!();
         let filename = "test";
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -776,7 +824,7 @@ mod test {
 
     #[test]
     fn test_write_async() {
-        init_logger();
+        init_logger!();
         let filename = "test.json";
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -801,7 +849,7 @@ mod test {
 
     #[test]
     fn test_write_invalid_storage() {
-        init_logger();
+        init_logger!();
         let storage = Storage {
             base_path: PathBuf::from("/invalid/file/path"),
         };
@@ -821,7 +869,7 @@ mod test {
 
     #[test]
     fn test_clean_directory() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         copy_test_file(temp_path, "auto-resume.json", None);
@@ -834,7 +882,7 @@ mod test {
 
     #[test]
     fn test_clean_directory_non_existing_path() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
 
@@ -850,7 +898,7 @@ mod test {
 
     #[test]
     fn test_exists() {
-        init_logger();
+        init_logger!();
         let filename = "auto-resume.json";
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -868,7 +916,7 @@ mod test {
 
     #[test]
     fn test_binary_storage_read() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let filename = "simple.jpg";
@@ -886,7 +934,7 @@ mod test {
 
     #[test]
     fn test_binary_storage_write() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let filename = "my-simple-test.jpg";
@@ -905,7 +953,7 @@ mod test {
 
     #[test]
     fn test_delete_path() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let path = copy_test_file(temp_path, "simple.jpg", None);
@@ -918,7 +966,7 @@ mod test {
 
     #[test]
     fn test_delete() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let filepath = copy_test_file(temp_path, "image.png", None);
@@ -941,7 +989,7 @@ mod test {
 
     #[test]
     fn test_delete_non_existing_path() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let filepath = PathBuf::from(temp_path).join("image.png");

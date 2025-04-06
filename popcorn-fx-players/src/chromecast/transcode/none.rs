@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 
 use crate::chromecast::transcode;
-use crate::chromecast::transcode::{TranscodeError, TranscodeOutput, Transcoder, TranscodeState};
+use crate::chromecast::transcode::{TranscodeError, TranscodeOutput, TranscodeState, Transcoder};
 
 /// A no-operation transcoder implementation.
 #[derive(Debug)]
@@ -39,12 +39,10 @@ impl Transcoder for NoOpTranscoder {
 
 #[cfg(test)]
 mod tests {
-    use popcorn_fx_core::core::block_in_place;
-
     use super::*;
 
-    #[test]
-    fn test_state() {
+    #[tokio::test]
+    async fn test_state() {
         let transcoder = NoOpTranscoder {};
 
         let result = transcoder.state();
@@ -52,20 +50,20 @@ mod tests {
         assert_eq!(TranscodeState::Stopped, result);
     }
 
-    #[test]
-    fn test_transcode() {
+    #[tokio::test]
+    async fn test_transcode() {
         let transcoder = NoOpTranscoder {};
 
-        let result = block_in_place(transcoder.transcode("http://localhost/my-video.mp4"));
+        let result = transcoder.transcode("http://localhost/my-video.mp4").await;
 
         assert_eq!(Err(TranscodeError::Unsupported), result);
     }
 
-    #[test]
-    fn test_stop() {
+    #[tokio::test]
+    async fn test_stop() {
         let transcoder = NoOpTranscoder {};
 
-        block_in_place(transcoder.stop());
+        transcoder.stop().await;
 
         assert_eq!(TranscodeState::Stopped, transcoder.state());
     }

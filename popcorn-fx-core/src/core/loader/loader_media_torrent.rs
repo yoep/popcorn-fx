@@ -1,13 +1,12 @@
 use std::fmt::{Debug, Formatter};
-use std::sync::mpsc::Sender;
 
 use async_trait::async_trait;
 use derive_more::Display;
 use log::{debug, info, trace};
-use tokio_util::sync::CancellationToken;
 
+use crate::core::loader::task::LoadingTaskContext;
 use crate::core::loader::{
-    CancellationResult, LoadingData, LoadingError, LoadingEvent, LoadingResult, LoadingStrategy,
+    CancellationResult, LoadingData, LoadingError, LoadingResult, LoadingStrategy,
 };
 use crate::core::media::{Episode, MediaType, MovieDetails, TorrentInfo, DEFAULT_AUDIO_LANGUAGE};
 
@@ -44,12 +43,7 @@ impl Debug for MediaTorrentUrlLoadingStrategy {
 
 #[async_trait]
 impl LoadingStrategy for MediaTorrentUrlLoadingStrategy {
-    async fn process(
-        &self,
-        mut data: LoadingData,
-        _: Sender<LoadingEvent>,
-        cancel: CancellationToken,
-    ) -> LoadingResult {
+    async fn process(&self, data: &mut LoadingData, context: &LoadingTaskContext) -> LoadingResult {
         if let Some(media) = data.media.as_ref() {
             if let Some(quality) = data.quality.as_ref() {
                 debug!(
@@ -58,7 +52,7 @@ impl LoadingStrategy for MediaTorrentUrlLoadingStrategy {
                 );
                 let media_torrent_info: Option<TorrentInfo>;
 
-                if cancel.is_cancelled() {
+                if context.is_cancelled() {
                     return LoadingResult::Err(LoadingError::Cancelled);
                 }
                 match media.media_type() {
@@ -98,14 +92,14 @@ impl LoadingStrategy for MediaTorrentUrlLoadingStrategy {
                     }
                 }
 
-                if cancel.is_cancelled() {
+                if context.is_cancelled() {
                     return LoadingResult::Err(LoadingError::Cancelled);
                 }
                 if let Some(torrent_info) = media_torrent_info {
                     let url = torrent_info.url().to_string();
                     debug!("Updating playlist item url to {} for media {}", url, media);
                     data.url = Some(url.clone());
-                    data.media_torrent_info = Some(torrent_info);
+                    data.torrent_file = torrent_info.file().map(|e| e.clone());
                     info!("Loading media url {}", url);
                 } else {
                     return LoadingResult::Err(LoadingError::MediaError(format!(
@@ -116,7 +110,7 @@ impl LoadingStrategy for MediaTorrentUrlLoadingStrategy {
             }
         }
 
-        LoadingResult::Ok(data)
+        LoadingResult::Ok
     }
 
     async fn cancel(&self, data: LoadingData) -> CancellationResult {
@@ -127,17 +121,15 @@ impl LoadingStrategy for MediaTorrentUrlLoadingStrategy {
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
-    use std::sync::mpsc::channel;
 
-    use crate::core::block_in_place;
-    use crate::core::playlists::{PlaylistItem, PlaylistMedia};
-    use crate::testing::init_logger;
+    use crate::core::playlist::{PlaylistItem, PlaylistMedia};
+    use crate::{create_loading_task, init_logger};
 
     use super::*;
 
-    #[test]
-    fn test_process_movie() {
-        init_logger();
+    #[tokio::test]
+    async fn test_process_movie() {
+        init_logger!();
         let quality = "720p";
         let torrent_url = "magnet:?MyUrl";
         let torrent_info = TorrentInfo::new(
@@ -180,15 +172,15 @@ mod tests {
             subtitle: Default::default(),
             torrent: Default::default(),
         };
-        let data = LoadingData::from(item);
-        let (tx, _) = channel();
+        let mut data = LoadingData::from(item);
+        let task = create_loading_task!();
+        let context = task.context();
         let strategy = MediaTorrentUrlLoadingStrategy::new();
 
-        let result = block_in_place(strategy.process(data, tx, CancellationToken::new()));
+        let result = strategy.process(&mut data, &*context).await;
 
-        if let LoadingResult::Ok(result) = result {
-            assert_eq!(Some(torrent_url.to_string()), result.url);
-            assert_eq!(Some(torrent_info), result.media_torrent_info);
+        if let LoadingResult::Ok = result {
+            assert_eq!(Some(torrent_url.to_string()), data.url);
         } else {
             assert!(
                 false,
@@ -198,8 +190,9 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_cancel() {
+    #[tokio::test]
+    async fn test_cancel() {
+        init_logger!();
         let url = "http://localhost:9090/DolorEsta.mp4";
         let title = "FooBar";
         let item = PlaylistItem {
@@ -216,7 +209,7 @@ mod tests {
         let data = LoadingData::from(item);
         let strategy = MediaTorrentUrlLoadingStrategy::new();
 
-        let result = block_in_place(strategy.cancel(data.clone()));
+        let result = strategy.cancel(data.clone()).await;
 
         assert_eq!(Ok(data), result);
     }

@@ -1,7 +1,7 @@
-use std::{env, fs};
 use std::ffi::{c_char, CString};
 use std::path::PathBuf;
 use std::string::ToString;
+use std::{env, fs};
 
 use async_trait::async_trait;
 use libloading::Library;
@@ -13,32 +13,32 @@ use popcorn_fx_core::core::block_in_place;
 use popcorn_fx_core::core::utils::network::available_socket;
 
 use crate::chromecast::transcode;
-use crate::chromecast::transcode::{TranscodeError, TranscodeOutput, Transcoder, TranscodeState, TranscodeType};
-use crate::chromecast::transcode::lib_vlc::{LibraryHandle, libvlc_instance_t, libvlc_media_add_option, libvlc_media_new_location, libvlc_media_player_new, libvlc_media_player_play, libvlc_media_player_release, libvlc_media_player_set_media, libvlc_media_player_stop, libvlc_media_player_t, libvlc_media_release, libvlc_media_t, LibvlcInstanceT};
+use crate::chromecast::transcode::lib_vlc::{
+    libvlc_instance_t, libvlc_media_add_option, libvlc_media_new_location, libvlc_media_player_new,
+    libvlc_media_player_play, libvlc_media_player_release, libvlc_media_player_set_media,
+    libvlc_media_player_stop, libvlc_media_player_t, libvlc_media_release, libvlc_media_t,
+    LibraryHandle, LibvlcInstanceT,
+};
+use crate::chromecast::transcode::{
+    TranscodeError, TranscodeOutput, TranscodeState, TranscodeType, Transcoder,
+};
 
 #[cfg(target_family = "unix")]
 const PATH_SEPARATOR: &str = ":";
 #[cfg(target_family = "windows")]
 const PATH_SEPARATOR: &str = ";";
 #[cfg(target_os = "macos")]
-const LIBVLC_FILENAME_PATTERNS: [&str; 2] = [
-    "libvlccore\\.dylib",
-    "libvlc\\.dylib",
-];
+const LIBVLC_FILENAME_PATTERNS: [&str; 2] = ["libvlccore\\.dylib", "libvlc\\.dylib"];
 #[cfg(target_os = "macos")]
 const LIBVLC_WELL_KNOWN_DIRECTORIES: [&str; 2] = [
     "/Applications/VLC.app/Contents/Frameworks",
     "/Applications/VLC.app/Contents/MacOS/lib",
 ];
 #[cfg(target_os = "macos")]
-const LIBVLC_PLUGIN_PATHS: [&str; 1] = [
-    "../plugins",
-];
+const LIBVLC_PLUGIN_PATHS: [&str; 1] = ["../plugins"];
 #[cfg(target_os = "linux")]
-const LIBVLC_FILENAME_PATTERNS: [&str; 2] = [
-    "libvlccore\\.so(?:\\.\\d)*",
-    "libvlc\\.so(?:\\.\\d)*",
-];
+const LIBVLC_FILENAME_PATTERNS: [&str; 2] =
+    ["libvlccore\\.so(?:\\.\\d)*", "libvlc\\.so(?:\\.\\d)*"];
 #[cfg(target_os = "linux")]
 const LIBVLC_WELL_KNOWN_DIRECTORIES: [&str; 6] = [
     "/usr/lib/x86_64-linux-gnu",
@@ -49,25 +49,16 @@ const LIBVLC_WELL_KNOWN_DIRECTORIES: [&str; 6] = [
     "/usr/local/lib",
 ];
 #[cfg(target_os = "linux")]
-const LIBVLC_PLUGIN_PATHS: [&str; 2] = [
-    "plugins",
-    "vlc/plugins",
-];
+const LIBVLC_PLUGIN_PATHS: [&str; 2] = ["plugins", "vlc/plugins"];
 #[cfg(target_os = "windows")]
-const LIBVLC_FILENAME_PATTERNS: [&str; 2] = [
-    "libvlccore\\.dll",
-    "libvlc\\.dll",
-];
+const LIBVLC_FILENAME_PATTERNS: [&str; 2] = ["libvlccore\\.dll", "libvlc\\.dll"];
 #[cfg(target_os = "windows")]
 const LIBVLC_WELL_KNOWN_DIRECTORIES: [&str; 0] = [];
 #[cfg(target_os = "windows")]
-const LIBVLC_PLUGIN_PATHS: [&str; 2] = [
-    "plugins",
-    "vlc\\plugins",
-];
+const LIBVLC_PLUGIN_PATHS: [&str; 2] = ["plugins", "vlc\\plugins"];
 
 /// VLC transcoder used for media transcoding with libvlc.
-/// The VLC transcoder accepts any http media stream as its input and will provide a new output 
+/// The VLC transcoder accepts any http media stream as its input and will provide a new output
 /// http stream with the transcoded media.
 #[derive(Debug)]
 pub struct VlcTranscoder {
@@ -118,9 +109,13 @@ impl VlcTranscoder {
         debug!("Transcoder state changed to {:?}", state);
     }
 
-    async fn create_media_player(&self) -> transcode::Result<LibvlcInstanceT<libvlc_media_player_t>> {
+    async fn create_media_player(
+        &self,
+    ) -> transcode::Result<LibvlcInstanceT<libvlc_media_player_t>> {
         trace!("Creating new VLC media player instance");
-        let native_fn = self.library.get::<libvlc_media_player_new>(b"libvlc_media_player_new")
+        let native_fn = self
+            .library
+            .get::<libvlc_media_player_new>(b"libvlc_media_player_new")
             .map_err(|e| TranscodeError::Initialization(e.to_string()))?;
         let media_player = native_fn(self.instance.0);
 
@@ -134,11 +129,16 @@ impl VlcTranscoder {
         Ok(media_player)
     }
 
-    async fn create_media(&self, url: &str, options: &[&str]) -> transcode::Result<LibvlcInstanceT<libvlc_media_t>> {
-        let native_fn = self.library.get::<libvlc_media_new_location>(b"libvlc_media_new_location\0")
+    async fn create_media(
+        &self,
+        url: &str,
+        options: &[&str],
+    ) -> transcode::Result<LibvlcInstanceT<libvlc_media_t>> {
+        let native_fn = self
+            .library
+            .get::<libvlc_media_new_location>(b"libvlc_media_new_location\0")
             .map_err(|e| TranscodeError::Initialization(e.to_string()))?;
-        let murl = CString::new(url)
-            .map_err(|e| TranscodeError::Initialization(e.to_string()))?;
+        let murl = CString::new(url).map_err(|e| TranscodeError::Initialization(e.to_string()))?;
 
         // release the current media item if one is present
         self.release_media().await;
@@ -147,7 +147,9 @@ impl VlcTranscoder {
         debug!("Created new media item {:?}", media);
 
         // initialize the media options
-        let option_fn = self.library.get::<libvlc_media_add_option>(b"libvlc_media_add_option\0")
+        let option_fn = self
+            .library
+            .get::<libvlc_media_add_option>(b"libvlc_media_add_option\0")
             .map_err(|e| TranscodeError::Initialization(e.to_string()))?;
         trace!("Adding media item options {:?}", options);
         for option in options {
@@ -163,24 +165,36 @@ impl VlcTranscoder {
 
     async fn release_media(&self) {
         if let Some(media) = self.media.lock().await.take() {
-            match self.library.get::<libvlc_media_release>(b"libvlc_media_release\0") {
+            match self
+                .library
+                .get::<libvlc_media_release>(b"libvlc_media_release\0")
+            {
                 Ok(native_fn) => {
                     debug!("Releasing media item {:?}", media);
                     native_fn(media.0);
                 }
-                Err(e) => error!("Unable to release media, failed to get libvlc_media_release: {}", e),
+                Err(e) => error!(
+                    "Unable to release media, failed to get libvlc_media_release: {}",
+                    e
+                ),
             }
         }
     }
 
     async fn release_media_player(&self) {
         if let Some(media_player) = self.media_player.lock().await.take() {
-            match self.library.get::<libvlc_media_player_release>(b"libvlc_media_player_release\0") {
+            match self
+                .library
+                .get::<libvlc_media_player_release>(b"libvlc_media_player_release\0")
+            {
                 Ok(native_fn) => {
                     debug!("Releasing media player {:?}", media_player);
                     native_fn(media_player.0);
                 }
-                Err(e) => error!("Unable to release media player, failed to get libvlc_media_player_release: {}", e),
+                Err(e) => error!(
+                    "Unable to release media player, failed to get libvlc_media_player_release: {}",
+                    e
+                ),
             }
         }
     }
@@ -191,20 +205,33 @@ impl VlcTranscoder {
             .into_raw()
     }
 
-    fn change_media(&self, media_player: LibvlcInstanceT<libvlc_media_player_t>, media: LibvlcInstanceT<libvlc_media_t>) -> transcode::Result<()> {
-        let native_fn = self.library.get::<libvlc_media_player_set_media>(b"libvlc_media_player_set_media\0")
+    fn change_media(
+        &self,
+        media_player: LibvlcInstanceT<libvlc_media_player_t>,
+        media: LibvlcInstanceT<libvlc_media_t>,
+    ) -> transcode::Result<()> {
+        let native_fn = self
+            .library
+            .get::<libvlc_media_player_set_media>(b"libvlc_media_player_set_media\0")
             .map_err(|e| TranscodeError::Initialization(e.to_string()))?;
         native_fn(media_player.0, media.0);
-        debug!("Changed media on media player {:?} to {:?}", media_player, media);
+        debug!(
+            "Changed media on media player {:?} to {:?}",
+            media_player, media
+        );
         Ok(())
     }
 
     fn play(&self, media_player: LibvlcInstanceT<libvlc_media_player_t>) -> transcode::Result<()> {
-        let native_fn = self.library.get::<libvlc_media_player_play>(b"libvlc_media_player_play\0")
+        let native_fn = self
+            .library
+            .get::<libvlc_media_player_play>(b"libvlc_media_player_play\0")
             .map_err(|e| TranscodeError::Initialization(e.to_string()))?;
 
         if native_fn(media_player.0) != 0 {
-            return Err(TranscodeError::Initialization("transcoding failed to start".to_string()));
+            return Err(TranscodeError::Initialization(
+                "transcoding failed to start".to_string(),
+            ));
         }
 
         debug!("Started transcoding on media player {:?}", media_player);
@@ -214,7 +241,9 @@ impl VlcTranscoder {
     async fn stop_player(&self) -> transcode::Result<()> {
         if let Some(media_player) = self.media_player.lock().await.clone() {
             trace!("Stopping the transcoding media player");
-            let native_fn = self.library.get::<libvlc_media_player_stop>(b"libvlc_media_player_stop\0")
+            let native_fn = self
+                .library
+                .get::<libvlc_media_player_stop>(b"libvlc_media_player_stop\0")
                 .map_err(|e| TranscodeError::Initialization(e.to_string()))?;
             native_fn(media_player.0);
 
@@ -314,7 +343,9 @@ impl VlcTranscoderDiscovery {
     /// # Returns
     ///
     /// An `Option<(libvlc_instance_t, LibraryHandle)>` containing the VLC library instance and handle if found, otherwise `None`.
-    pub fn do_libvlc_discovery(directories: Vec<String>) -> Option<(libvlc_instance_t, LibraryHandle)> {
+    pub fn do_libvlc_discovery(
+        directories: Vec<String>,
+    ) -> Option<(libvlc_instance_t, LibraryHandle)> {
         for path in directories {
             // search for all specific library filenames defined for the current os
             let mut filenames: Vec<String> = vec![];
@@ -342,9 +373,9 @@ impl VlcTranscoderDiscovery {
                 let libvlc_core = libraries_iter.next();
                 let libvlc = libraries_iter.next();
 
-                let handle = LibraryHandle::new(path, plugin_path, libvlc.unwrap(), libvlc_core.unwrap());
-                handle.libvlc_instance()
-                    .map(|instance| (instance, handle))
+                let handle =
+                    LibraryHandle::new(path, plugin_path, libvlc.unwrap(), libvlc_core.unwrap());
+                handle.libvlc_instance().map(|instance| (instance, handle))
             } else {
                 None
             };
@@ -414,7 +445,8 @@ impl VlcTranscoderDiscovery {
     ///
     /// Returns the found filename for the given pattern if found within the provided library path, else `None`.
     fn find_filename_pattern(lib_path: &str, filename_pattern: &str) -> Option<String> {
-        let regex = Regex::new(filename_pattern).expect("expected the filename regex pattern to be valid");
+        let regex =
+            Regex::new(filename_pattern).expect("expected the filename regex pattern to be valid");
 
         if let Ok(read) = fs::read_dir(lib_path) {
             for entry in read {
@@ -426,7 +458,7 @@ impl VlcTranscoderDiscovery {
                         return Some(filename.to_string());
                     }
                 }
-            }   
+            }
         }
 
         None
@@ -461,16 +493,16 @@ impl VlcTranscoderDiscovery {
 mod tests {
     use std::sync::Arc;
 
+    use popcorn_fx_core::init_logger;
+    use popcorn_fx_core::testing::write_tmp_dir_file;
     use tempfile::tempdir;
     use tokio::runtime::Runtime;
-
-    use popcorn_fx_core::testing::{init_logger, write_tmp_dir_file};
 
     use super::*;
 
     #[test]
     fn test_vlc_transcoder_state() {
-        init_logger();
+        init_logger!();
         let transcoder = VlcTranscoderDiscovery::discover().unwrap();
 
         let result = transcoder.state();
@@ -480,7 +512,7 @@ mod tests {
 
     #[test]
     fn test_vlc_transcoder_discovery() {
-        init_logger();
+        init_logger!();
 
         let result = VlcTranscoderDiscovery::discover();
 
@@ -492,7 +524,7 @@ mod tests {
 
     #[test]
     fn test_vlc_transcoder_transcode() {
-        init_logger();
+        init_logger!();
         let runtime = Arc::new(Runtime::new().unwrap());
         let transcoder = VlcTranscoderDiscovery::discover().unwrap();
 
@@ -508,16 +540,18 @@ mod tests {
 
     #[test]
     fn test_vlc_transcoder_find_filename_pattern() {
-        init_logger();
+        init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         write_tmp_dir_file(&temp_dir, "libvlc.so.5.6.0", "");
         write_tmp_dir_file(&temp_dir, "libvlccore.so.9.0.0", "");
 
-        let result = VlcTranscoderDiscovery::find_filename_pattern(temp_path, "libvlc\\.so(?:\\.\\d)*");
+        let result =
+            VlcTranscoderDiscovery::find_filename_pattern(temp_path, "libvlc\\.so(?:\\.\\d)*");
         assert_eq!(Some("libvlc.so.5.6.0".to_string()), result);
 
-        let result = VlcTranscoderDiscovery::find_filename_pattern(temp_path, "libvlccore\\.so(?:\\.\\d)*");
+        let result =
+            VlcTranscoderDiscovery::find_filename_pattern(temp_path, "libvlccore\\.so(?:\\.\\d)*");
         assert_eq!(Some("libvlccore.so.9.0.0".to_string()), result);
     }
 }

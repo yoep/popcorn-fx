@@ -1,16 +1,15 @@
+use log::{debug, error, info, trace, warn};
 use std::os::raw::c_char;
 use std::ptr;
-
-use log::{debug, error, info, trace, warn};
-
-use popcorn_fx_core::{from_c_string, into_c_owned};
-use popcorn_fx_core::core::players::{Player, PlayerEvent};
 
 use crate::ffi::{
     PlayerC, PlayerEventC, PlayerManagerEventC, PlayerManagerEventCallback, PlayerRegistrationC,
     PlayerSet, PlayerWrapper, PlayerWrapperC,
 };
 use crate::PopcornFX;
+use popcorn_fx_core::core::block_in_place_runtime;
+use popcorn_fx_core::core::players::{Player, PlayerEvent};
+use popcorn_fx_core::{from_c_string, into_c_owned};
 
 /// Retrieve a pointer to the active player as a `PlayerC` instance from the PopcornFX player manager.
 ///
@@ -28,15 +27,25 @@ use crate::PopcornFX;
 /// Returns a pointer to a `PlayerC` instance representing the active player, or a null pointer if there is no active player.
 #[no_mangle]
 pub extern "C" fn active_player(popcorn_fx: &mut PopcornFX) -> *mut PlayerC {
-    trace!("Retrieving C active player");
-    match popcorn_fx.player_manager().active_player() {
-        None => ptr::null_mut(),
-        Some(e) => e
-            .upgrade()
-            .map(|e| PlayerC::from(e))
-            .map(|e| into_c_owned(e))
-            .unwrap_or(ptr::null_mut()),
-    }
+    trace!("Retrieving active player from C");
+    let player_manager = popcorn_fx.player_manager();
+    let runtime = popcorn_fx.runtime();
+    block_in_place_runtime(
+        async {
+            match player_manager
+                .active_player()
+                .await
+                .and_then(|e| e.upgrade())
+            {
+                None => ptr::null_mut(),
+                Some(e) => {
+                    let player = PlayerC::from(e).await;
+                    into_c_owned(player)
+                }
+            }
+        },
+        runtime,
+    )
 }
 
 /// Set the active player in the PopcornFX player manager.
@@ -55,9 +64,12 @@ pub extern "C" fn set_active_player(popcorn_fx: &mut PopcornFX, player_id: *mut 
     let player_id = from_c_string(player_id);
     trace!("Updating active player from C to {}", player_id);
 
-    popcorn_fx
-        .player_manager()
-        .set_active_player(player_id.as_str());
+    let player_manager = popcorn_fx.player_manager();
+    let runtime = popcorn_fx.runtime();
+    block_in_place_runtime(
+        async { player_manager.set_active_player(player_id.as_str()).await },
+        runtime,
+    )
 }
 
 /// Retrieve a pointer to a `PlayerSet` containing information about all players managed by PopcornFX.
@@ -77,13 +89,22 @@ pub extern "C" fn set_active_player(popcorn_fx: &mut PopcornFX, player_id: *mut 
 #[no_mangle]
 pub extern "C" fn players(popcorn_fx: &mut PopcornFX) -> *mut PlayerSet {
     trace!("Retrieving players from C");
-    let players = popcorn_fx
-        .player_manager()
-        .players()
-        .into_iter()
-        .filter_map(|e| e.upgrade())
-        .map(|e| PlayerC::from(e))
-        .collect::<Vec<PlayerC>>();
+    let player_manager = popcorn_fx.player_manager();
+    let runtime = popcorn_fx.runtime();
+    let players = block_in_place_runtime(
+        async {
+            let mut players = vec![];
+            for player in player_manager
+                .players()
+                .into_iter()
+                .filter_map(|e| e.upgrade())
+            {
+                players.push(PlayerC::from(player).await);
+            }
+            players
+        },
+        runtime,
+    );
 
     debug!("Retrieved a total of {} C players", players.len());
     into_c_owned(PlayerSet::from(players))
@@ -109,13 +130,23 @@ pub extern "C" fn player_by_id(popcorn_fx: &mut PopcornFX, player_id: *mut c_cha
     let player_id = from_c_string(player_id);
     trace!("Retrieving C player by id {}", player_id);
 
-    popcorn_fx
-        .player_manager()
-        .by_id(player_id.as_str())
-        .and_then(|e| e.upgrade())
-        .map(|e| PlayerC::from(e))
-        .map(|e| into_c_owned(e))
-        .unwrap_or(ptr::null_mut())
+    let player_manager = popcorn_fx.player_manager();
+    let runtime = popcorn_fx.runtime();
+    block_in_place_runtime(
+        async {
+            match player_manager
+                .by_id(player_id.as_str())
+                .and_then(|e| e.upgrade())
+            {
+                None => ptr::null_mut(),
+                Some(e) => {
+                    let player = PlayerC::from(e).await;
+                    into_c_owned(player)
+                }
+            }
+        },
+        runtime,
+    )
 }
 
 /// Retrieves a pointer to a `PlayerWrapperC` instance by its unique identifier (ID) from the PopcornFX player manager.
@@ -165,11 +196,16 @@ pub extern "C" fn register_player_callback(
     callback: PlayerManagerEventCallback,
 ) {
     trace!("Registering new player manager callback");
-    popcorn_fx
-        .player_manager()
-        .subscribe(Box::new(move |event| {
-            callback(PlayerManagerEventC::from(event.clone()))
-        }));
+    let mut receiver = popcorn_fx.player_manager().subscribe();
+    popcorn_fx.runtime().spawn(async move {
+        loop {
+            if let Some(event) = receiver.recv().await {
+                callback(PlayerManagerEventC::from((*event).clone()))
+            } else {
+                break;
+            }
+        }
+    });
 }
 
 /// Register a player with the PopcornFX player manager.
@@ -416,15 +452,15 @@ pub extern "C" fn dispose_player(player: Box<PlayerC>) {
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
-    use std::sync::mpsc::channel;
     use std::time::Duration;
 
-    use tempfile::tempdir;
-
-    use popcorn_fx_core::{from_c_owned, from_c_vec, into_c_string, into_c_vec};
-    use popcorn_fx_core::core::Callbacks;
     use popcorn_fx_core::core::players::{PlayerManagerEvent, PlayerState};
-    use popcorn_fx_core::testing::{init_logger, MockPlayer};
+    use popcorn_fx_core::testing::MockPlayer;
+    use popcorn_fx_core::{
+        from_c_owned, from_c_vec, init_logger, into_c_string, into_c_vec, recv_timeout,
+    };
+    use tempfile::tempdir;
+    use tokio::sync::mpsc::unbounded_channel;
 
     use crate::ffi::PlayRequestC;
     use crate::test::default_args;
@@ -458,7 +494,7 @@ mod tests {
 
     #[test]
     fn test_active_player() {
-        init_logger();
+        init_logger!();
         let player_id = "Lorem";
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -487,7 +523,7 @@ mod tests {
 
     #[test]
     fn test_players() {
-        init_logger();
+        init_logger!();
         let player_id = "MyPlayerId999";
         let graphic_resource_vec = vec![80, 20];
         let temp_dir = tempdir().expect("expected a temp dir to be created");
@@ -522,7 +558,7 @@ mod tests {
 
     #[test]
     fn test_player_by_id() {
-        init_logger();
+        init_logger!();
         let player_id = "MyId666";
         let name = "VlcPlayer";
         let graphic_resource_vec = vec![155, 30, 16];
@@ -559,7 +595,7 @@ mod tests {
 
     #[test]
     fn test_register_player() {
-        init_logger();
+        init_logger!();
         let player_id = "Id123";
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -591,7 +627,7 @@ mod tests {
 
     #[test]
     fn test_remove_player() {
-        init_logger();
+        init_logger!();
         let player_id = "Id123";
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -621,9 +657,9 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_invoke_player_event() {
-        init_logger();
+    #[tokio::test]
+    async fn test_invoke_player_event() {
+        init_logger!();
         let expected_result = 240;
         let player = PlayerWrapper::from(PlayerRegistrationC {
             id: ptr::null_mut(),
@@ -639,16 +675,20 @@ mod tests {
             seek_callback: seek_registration_callback,
             stop_callback: stop_registration_callback,
         });
-        let (tx, rx) = channel();
-        player.add(Box::new(move |e| {
-            tx.send(e).unwrap();
-        }));
+        let (tx, mut rx) = unbounded_channel();
         let event_c = PlayerEventC::DurationChanged(expected_result.clone());
         let player = Arc::new(Box::new(player) as Box<dyn Player>);
         let mut wrapper = PlayerWrapperC::from(Arc::downgrade(&player));
 
+        let mut receiver = player.subscribe();
+        tokio::spawn(async move {
+            while let Some(event) = receiver.recv().await {
+                tx.send((*event).clone()).unwrap()
+            }
+        });
+
         invoke_player_event(&mut wrapper, event_c);
-        let result = rx.recv_timeout(Duration::from_millis(200)).unwrap();
+        let result = recv_timeout!(&mut rx, Duration::from_millis(200));
 
         if let PlayerEvent::DurationChanged(e) = result {
             assert_eq!(expected_result, e);
@@ -663,7 +703,7 @@ mod tests {
 
     #[test]
     fn test_player_pause() {
-        init_logger();
+        init_logger!();
         let player_id = "TestPlayer";
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -683,7 +723,7 @@ mod tests {
 
     #[test]
     fn test_player_resume() {
-        init_logger();
+        init_logger!();
         let player_id = "TestPlayer";
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -703,7 +743,7 @@ mod tests {
 
     #[test]
     fn test_player_seek() {
-        init_logger();
+        init_logger!();
         let player_id = "TestPlayer";
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -723,7 +763,7 @@ mod tests {
 
     #[test]
     fn test_player_stop() {
-        init_logger();
+        init_logger!();
         let player_id = "TestPlayer";
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -743,7 +783,7 @@ mod tests {
 
     #[test]
     fn test_dispose_player_manager_event() {
-        init_logger();
+        init_logger!();
         let event = PlayerManagerEventC::from(PlayerManagerEvent::PlayerTimeChanged(20000));
 
         dispose_player_manager_event(event);
@@ -751,7 +791,7 @@ mod tests {
 
     #[test]
     fn test_dispose_player_event_value() {
-        init_logger();
+        init_logger!();
         let event = PlayerEventC::DurationChanged(20000);
 
         dispose_player_event_value(event);
@@ -759,7 +799,7 @@ mod tests {
 
     #[test]
     fn test_dispose_player_pointer() {
-        init_logger();
+        init_logger!();
         let player_id = "TestPlayer";
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -777,9 +817,9 @@ mod tests {
         dispose_player_pointer(Box::new(ptr));
     }
 
-    #[test]
-    fn test_dispose_player() {
-        init_logger();
+    #[tokio::test]
+    async fn test_dispose_player() {
+        init_logger!();
         let mut player = MockPlayer::new();
         player.expect_id().return_const("MyPlayerId".to_string());
         player.expect_name().return_const("MyPlayer".to_string());
@@ -788,7 +828,7 @@ mod tests {
             .return_const("SomeRandomDescription".to_string());
         player.expect_graphic_resource().return_const(vec![]);
         player.expect_state().return_const(PlayerState::Playing);
-        let player_c = PlayerC::from(Arc::new(Box::new(player) as Box<dyn Player>));
+        let player_c = PlayerC::from(Arc::new(Box::new(player) as Box<dyn Player>)).await;
 
         dispose_player(Box::new(player_c));
     }

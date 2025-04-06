@@ -126,26 +126,30 @@ class DetailsTorrentComponentTest {
         var fileInfo = mock(TorrentFileInfo.class);
         var subtitleNone = mock(SubtitleInfo.class);
         var subtitleCustom = mock(SubtitleInfo.class);
+        var url = "magnet:?xt=urn:btih:Example";
+        var filename = "MyVideoFilename.mp4";
         when(subtitleNone.language()).thenReturn(SubtitleLanguage.NONE);
         when(subtitleNone.getFlagResource()).thenReturn("");
         when(subtitleCustom.language()).thenReturn(SubtitleLanguage.CUSTOM);
         when(subtitleCustom.getFlagResource()).thenReturn("");
         when(subtitleService.none()).thenReturn(subtitleNone);
         when(subtitleService.custom()).thenReturn(subtitleCustom);
+        when(torrent.getMagnetUri()).thenReturn(url);
         when(torrent.getFiles()).thenReturn(Collections.singletonList(fileInfo));
+        when(fileInfo.getFilename()).thenReturn(filename);
         doAnswer(invocation -> {
             holder.set(invocation.getArgument(0, Playlist.class));
             return null;
         }).when(playlistManager).play(isA(Playlist.class));
-        component.initialize(url, resourceBundle);
+        component.initialize(this.url, resourceBundle);
 
         eventPublisher.publish(new ShowTorrentDetailsEvent(this, "", torrent));
         component.onFileInfoClicked(fileInfo);
 
         verify(playlistManager).play(isA(Playlist.class));
         var result = holder.get().items().get(0);
-        assertNotNull(result.torrentInfo(), "Torrent info should not be null");
-        assertNotNull(result.torrentFileInfo(), "Torrent file info should not be null");
+        assertEquals(url, result.url(), "url should match torrent magnet url");
+        assertEquals(filename, result.torrentFilename(), "filename should match the selected filename");
     }
 
     @Test

@@ -8,7 +8,7 @@ import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
-import com.github.yoep.popcorn.backend.adapters.torrent.TorrentStreamListener;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import com.github.yoep.popcorn.backend.lib.Handle;
 import javafx.beans.property.BooleanProperty;
@@ -165,13 +165,13 @@ class PlayerControlsServiceTest {
     @Test
     void testPlaybackListener_whenRequestIsStreamRequest_shouldInvokeDownloadStatusChanged() {
         var downloadStatus = mock(DownloadStatus.class);
-        var listenerHolder = new AtomicReference<TorrentStreamListener>();
+        var listenerHolder = new AtomicReference<TorrentListener>();
         var request = mock(PlayRequest.class);
         when(request.getStreamHandle()).thenReturn(Optional.of(new Handle(222L)));
-        when(torrentService.addListener(isA(Handle.class), isA(TorrentStreamListener.class))).thenAnswer(invocation -> {
-            listenerHolder.set(invocation.getArgument(1, TorrentStreamListener.class));
-            return new Handle(123L);
-        });
+        doAnswer(invocation -> {
+            listenerHolder.set(invocation.getArgument(1, TorrentListener.class));
+            return null;
+        }).when(torrentService).addListener(isA(Handle.class), isA(TorrentListener.class));
 
         when(request.getStreamHandle()).thenReturn(Optional.of(new Handle(24L)));
 

@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use chrono::Duration;
 use log::{debug, trace, warn};
 use reqwest::Client;
+use std::fmt::Debug;
 use url::Url;
 
 use crate::core::cache::{CacheManager, CacheOptions, CacheType};
@@ -22,7 +23,7 @@ const CACHE_NAME: &str = "images";
 ///
 /// All methods in this trait are asynchronous and return a `Future` that will resolve to the image data when it's available.
 #[async_trait]
-pub trait ImageLoader {
+pub trait ImageLoader: Debug {
     /// Retrieve the default poster (placeholder) image data.
     ///
     /// This method returns a `Vec<u8>` containing the data for the default poster holder image.

@@ -1,10 +1,12 @@
 logging:
   level:
-    com.github.yoep.popcorn: WARN
-    com.github.yoep.popcorn.backend: WARN
+    com.github.yoep.popcorn: DEBUG
+    com.github.yoep.popcorn.backend: TRACE
 
 popcorn:
   loggers:
+    libfx::ipc:
+      level: trace
     popcorn_fx:
       level: warn
     popcorn_fx::ffi:

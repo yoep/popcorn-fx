@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+option optimize_for = LITE_RUNTIME;
+option java_multiple_files = true;
+option java_package = "com.github.yoep.popcorn.backend.lib.ipc.protobuf";
+
+package fx.ipc.proto;
+
+message Subtitle {
+  enum Language {
+    NONE = 0;
+    CUSTOM = 1;
+    ARABIC = 2;
+    BULGARIAN = 3;
+    BOSNIAN = 4;
+    CZECH = 5;
+    DANISH = 6;
+    GERMAN = 7;
+    MODERN_GREEK = 8;
+    ENGLISH = 9;
+    SPANISH = 10;
+    ESTONIAN = 11;
+    BASQUE = 12;
+    PERSIAN = 13;
+    FINNISH = 14;
+    FRENCH = 15;
+    HEBREW = 16;
+    CROATIAN = 17;
+    HUNGARIAN = 18;
+    INDONESIAN = 19;
+    ITALIAN = 20;
+    LITHUANIAN = 21;
+    DUTCH = 22;
+    NORWEGIAN = 23;
+    POLISH = 24;
+    PORTUGUESE = 25;
+    PORTUGUESE_BRAZIL = 26;
+    ROMANIAN = 27;
+    RUSSIAN = 28;
+    SLOVENE = 29;
+    SERBIAN = 30;
+    SWEDISH = 31;
+    THAI = 32;
+    TURKISH = 33;
+    UKRAINIAN = 34;
+    VIETNAMESE = 35;
+  }
+}

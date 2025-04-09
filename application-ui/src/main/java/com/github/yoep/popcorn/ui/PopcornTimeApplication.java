@@ -7,6 +7,7 @@ import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.EventPublisherBridge;
+import com.github.yoep.popcorn.backend.lib.FxChannel;
 import com.github.yoep.popcorn.backend.loader.LoaderService;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.backend.media.providers.FavoriteProviderService;
@@ -71,10 +72,11 @@ public class PopcornTimeApplication extends Application {
         try {
             var fxLib = IOC.getInstance(FxLib.class);
             var popcornFx = IOC.getInstance(PopcornFx.class);
+            var fxChannel = IOC.getInstance(FxChannel.class);
             var executorService = IOC.registerInstance(Executors.newCachedThreadPool(e -> new Thread(e, "popcorn-fx")));
             var resourceBundle = IOC.registerInstance(new ResourceBundleMessageSource(new PopcornResourceBundleProvider(), "main", "about", "genres", "languages", "sort-by"));
             var localeText = IOC.registerInstance(new PopcornLocaleText(resourceBundle));
-            var applicationConfig = IOC.registerInstance(new ApplicationConfig(fxLib, popcornFx, localeText));
+            var applicationConfig = IOC.registerInstance(new ApplicationConfig(fxChannel, localeText));
             var viewManager = IOC.registerInstance(new PopcornViewManager());
             var viewLoader = IOC.registerInstance(new PopcornViewLoader(IOC, applicationConfig, viewManager, localeText));
             var eventPublisher = IOC.registerInstance(new EventPublisher());

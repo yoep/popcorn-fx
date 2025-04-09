@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+option optimize_for = LITE_RUNTIME;
+option java_multiple_files = true;
+option java_package = "com.github.yoep.popcorn.backend.lib.ipc.protobuf";
+
+package fx.ipc.proto;
+
+message FxMessage {
+  MessageType type = 1;
+  // The unique sequence id of the message
+  int32 sequence_id = 2;
+  // The reply id to a received message sequence id
+  // This is only applicable for responses which are sent back
+  optional int32 reply_id = 3;
+  bytes payload = 4;
+
+  enum MessageType {
+    LOG_MESSAGE = 0;
+    APPLICATION_ARGS_REQUEST = 1;
+    APPLICATION_ARGS_RESPONSE = 101;
+    APPLICATION_SETTINGS_REQUEST = 2;
+    APPLICATION_SETTINGS_RESPONSE = 102;
+    TERMINATE = 999;
+  }
+}

@@ -1,0 +1,84 @@
+syntax = "proto3";
+
+option optimize_for = LITE_RUNTIME;
+option java_multiple_files = true;
+option java_package = "com.github.yoep.popcorn.backend.lib.ipc.protobuf";
+
+package fx.ipc.proto;
+
+import "subtitle.proto";
+
+message ApplicationSettings {
+  SubtitleSettings subtitle = 1;
+  UISettings ui = 2;
+  ServerSettings server = 3;
+  TorrentSettings torrent = 4;
+  PlaybackSettings playback = 5;
+  TrackingSettings tracking = 6;
+
+  message SubtitleSettings {
+    string directory = 1;
+    bool auto_cleaning_enabled = 2;
+    Subtitle.Language default_subtitle = 3;
+    SubtitleFamily font_family = 4;
+    int32 font_size = 5;
+    DecorationType decoration = 6;
+    bool bold = 7;
+
+    enum SubtitleFamily {
+      ARIAL = 0;
+      COMIC_SANS = 1;
+      GEORGIA = 2;
+      TAHOMA = 3;
+      TREBUCHET_MS = 4;
+      VERDANA = 5;
+    }
+
+    enum DecorationType {
+      NONE = 0;
+      OUTLINE = 1;
+      OPAQUE_BACKGROUND = 2;
+      SEE_THROUGH_BACKGROUND = 3;
+    }
+  }
+
+  message TorrentSettings {
+    string directory = 1;
+    CleaningMode cleaning_mode = 2;
+    int32 connections_limit = 3;
+    int32 downloadRate_limit = 4;
+    int32 uploadRate_limit = 5;
+
+    enum CleaningMode {
+      OFF = 0;
+      ON_SHUTDOWN = 1;
+      WATCHED = 2;
+    }
+  }
+
+  message UISettings {
+    string default_language = 1;
+    float scale = 2;
+    Category start_screen = 3;
+    bool maximized = 4;
+    bool native_window_enabled = 5;
+
+    enum Category {
+      MOVIES = 0;
+      SERIES = 1;
+      FAVORITES = 3;
+    }
+  }
+
+  message ServerSettings {
+
+  }
+
+  message PlaybackSettings {
+
+  }
+
+  message TrackingSettings {
+
+  }
+}

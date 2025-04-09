@@ -44,7 +44,6 @@ const LANGUAGES: [SubtitleLanguage; 36] = [
 ];
 
 /// The supported subtitle languages.
-#[repr(i32)]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Hash, Eq, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum SubtitleLanguage {

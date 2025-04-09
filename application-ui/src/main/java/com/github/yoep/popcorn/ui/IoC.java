@@ -1,10 +1,12 @@
 package com.github.yoep.popcorn.ui;
 
 import com.github.yoep.popcorn.backend.PopcornFx;
+import com.github.yoep.popcorn.backend.lib.FxLib;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
@@ -100,8 +102,13 @@ public class IoC {
      * Disposes resources managed by the IoC container.
      */
     public void dispose() {
-        getInstance(PopcornFx.class).dispose();
-        getInstance(ExecutorService.class).shutdownNow();
+        try {
+            getInstance(FxLib.class).close();
+            getInstance(PopcornFx.class).dispose();
+            getInstance(ExecutorService.class).shutdownNow();
+        } catch (IOException e) {
+            log.error("Failed to dispose IoC container", e);
+        }
 
         beans.clear();
     }

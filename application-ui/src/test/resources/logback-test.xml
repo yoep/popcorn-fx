@@ -7,9 +7,13 @@
     <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"/>
 
     <!-- Appenders -->
-    <appender name="bridge" class="com.github.yoep.popcorn.backend.logging.LoggingBridge"/>
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
 
-    <root level="DEBUG">
-        <appender-ref ref="bridge"/>
+    <root level="TRACE">
+        <appender-ref ref="STDOUT"/>
     </root>
 </configuration>

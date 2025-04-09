@@ -10,28 +10,11 @@ import java.io.Closeable;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Structure.FieldOrder({"subtitleSettings", "torrentSettings", "uiSettings", "serverSettings", "playbackSettings", "trackingSettings"})
-public class ApplicationSettings extends Structure implements Closeable {
+public class ApplicationSettings {
     public SubtitleSettings subtitleSettings;
     public TorrentSettings torrentSettings;
     public UISettings uiSettings;
     public ServerSettings serverSettings;
     public PlaybackSettings playbackSettings;
     public TrackingSettings trackingSettings;
-
-
-    //region Getters & Setters
-
-    @Override
-    public void close() {
-        setAutoSynch(false);
-        subtitleSettings.close();
-        torrentSettings.close();
-        uiSettings.close();
-        serverSettings.close();
-        playbackSettings.close();
-        trackingSettings.close();
-    }
-
-    //endregion
 }

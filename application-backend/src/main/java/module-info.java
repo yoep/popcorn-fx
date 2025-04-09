@@ -3,12 +3,13 @@ module application.backend {
     requires ch.qos.logback.core;
     requires com.sun.jna;
     requires java.annotation;
-    requires java.desktop;
     requires javafx.base;
     requires javafx.graphics;
     requires org.slf4j;
 
     requires static lombok;
+    requires java.desktop;
+    requires com.google.protobuf;
 
     exports com.github.yoep.popcorn.backend.adapters.platform;
     exports com.github.yoep.popcorn.backend.adapters.player.embaddable;
@@ -26,6 +27,7 @@ module application.backend {
     exports com.github.yoep.popcorn.backend.events;
     exports com.github.yoep.popcorn.backend.info;
     exports com.github.yoep.popcorn.backend.lib;
+    exports com.github.yoep.popcorn.backend.lib.ipc.protobuf;
     exports com.github.yoep.popcorn.backend.loader;
     exports com.github.yoep.popcorn.backend.logging;
     exports com.github.yoep.popcorn.backend.media.favorites;
@@ -60,5 +62,6 @@ module application.backend {
     opens com.github.yoep.popcorn.backend.updater to com.sun.jna;
     opens com.github.yoep.popcorn.backend.playlists.model to com.sun.jna;
     opens com.github.yoep.popcorn.backend.subtitles.ffi to com.sun.jna;
+    opens com.github.yoep.popcorn.backend.logging to ch.qos.logback.core, ch.qos.logback.classic, org.apache.logging.log4j;
     exports com.github.yoep.popcorn.backend.subtitles.ffi;
 }

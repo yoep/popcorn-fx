@@ -40,24 +40,6 @@ class PopcornTimeStarterTest {
     }
 
     @Test
-    void testCreateLibraryArguments() {
-        var args = new String[]{
-                "--tv",
-                "--kiosk"
-        };
-        var expectedResult = new String[]{
-                "popcorn-fx",
-                "--tv",
-                "--kiosk"
-        };
-
-        var result = PopcornTimeStarter.createLibraryArguments(args);
-
-        var resultArguments = result.args().getStringArray(0);
-        assertArrayEquals(expectedResult, resultArguments);
-    }
-
-    @Test
     void testOnInit() {
         var ioc = new IoC();
         ioc.registerInstance(fxLib);

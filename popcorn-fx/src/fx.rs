@@ -1,4 +1,5 @@
 use std::env;
+use std::fmt::{Debug, Formatter};
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -213,6 +214,11 @@ impl PopcornFX {
         runtime
             .clone()
             .block_on(async { Self::try_new(args, runtime).await.unwrap() })
+    }
+
+    /// Create a new Popcorn FX instance with the given [PopcornFxArgs].
+    pub async fn new_async(args: PopcornFxArgs) -> Result<Self> {
+        Self::try_new(args, Arc::new(Runtime::new().unwrap())).await
     }
 
     /// Try to create a new Popcorn FX instance within an async context.
@@ -690,6 +696,20 @@ impl Default for PopcornFX {
         Self::new(PopcornFxArgs::default())
     }
 }
+
+impl Debug for PopcornFX {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PopcornFX")
+            .field("auto_resume_service", &self.auto_resume_service)
+            .field("cache_manager", &self.cache_manager)
+            .field("event_publisher", &self.event_publisher)
+            .finish()
+    }
+}
+
+unsafe impl Send for PopcornFX {}
+
+unsafe impl Sync for PopcornFX {}
 
 impl Drop for PopcornFX {
     fn drop(&mut self) {

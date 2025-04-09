@@ -25,7 +25,7 @@ $(info Detected Rust version: $(shell rustc --version))
 
 ## Set the system information
 ifeq ($(SYSTEM),Windows)
-LIBRARY_EXTENSION := dll
+LIBRARY_EXECUTABLE := "libfx.exe"
 EXECUTABLE := "popcorn-time.exe"
 ASSETS := windows
 PYTHON := python.exe
@@ -37,12 +37,12 @@ ifndef ISCC_PATH
 endif
 
 else ifeq ($(SYSTEM),Darwin)
-LIBRARY_EXTENSION := dylib
+LIBRARY_EXECUTABLE := "libfx"
 EXECUTABLE := "popcorn-time"
 ASSETS := mac
 PYTHON := python3
 else
-LIBRARY_EXTENSION := so
+LIBRARY_EXECUTABLE := "libfx"
 EXECUTABLE := "popcorn-time"
 ASSETS := debian
 PYTHON := python3
@@ -71,11 +71,11 @@ clean: prerequisites ## Clean the output
 
 test-cargo: prerequisites-cargo ## The test cargo section of the application
 	$(info Running cargo tests)
-	@cargo llvm-cov --lcov --features ffi --output-path target/lcov.info nextest
+	@cargo llvm-cov --lcov --output-path target/lcov.info nextest
 
 cov-cargo: prerequisites ## Test coverage of the cargo section as std output
 	$(info Running cargo tests)
-	@cargo llvm-cov nextest --features ffi
+	@cargo llvm-cov nextest
 
 test-java: ## The test java section of the application
 	$(info Running maven tests)
@@ -86,17 +86,17 @@ test: test-java test-cargo ## Test the application code
 build-cargo: ## Build the rust part of the application
 	$(info Using lib extension: $(EXTENSION))
 	$(info Building cargo packages)
-	@cargo build --features ffi --profile dev
+	@cargo build --profile dev
 
 build-cargo-debug: build-cargo ## The alias for build-cargo which build the rust part of the application in debug profile
 
 build-cargo-release:  ## Build the rust part of the application in release profile
 	$(info Using lib extension: $(EXTENSION))
 	$(info Building cargo packages)
-	@cargo build --release --features ffi
+	@cargo build --release
 
 lib-copy-%: build-cargo-% $(RESOURCE_DIRECTORIES) ## Copy the cargo libraries to the assets resources
-	@cp -v ./target/$*/*.$(LIBRARY_EXTENSION) ./assets/$(ASSETS)/
+	@cp -v "./target/$*/$(LIBRARY_EXECUTABLE)" "./assets/$(ASSETS)/"
 	@cp -v "./target/$*/$(EXECUTABLE)" "./assets/$(ASSETS)/"
 
 lib-copy: lib-copy-debug ## The default lib-copy target

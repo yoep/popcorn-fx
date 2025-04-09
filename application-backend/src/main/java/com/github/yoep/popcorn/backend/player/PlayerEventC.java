@@ -1,7 +1,6 @@
 package com.github.yoep.popcorn.backend.player;
 
-import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
 import com.sun.jna.FromNativeContext;
 import com.sun.jna.NativeMapped;
 import com.sun.jna.Structure;
@@ -42,7 +41,7 @@ public class PlayerEventC extends Structure implements Closeable {
             return instance;
         }
 
-        public static PlayerEventC.ByValue stateChanged(PlayerState state) {
+        public static PlayerEventC.ByValue stateChanged(Player.State state) {
             var instance = new PlayerEventC.ByValue();
             instance.tag = Tag.StateChanged;
             instance.union = new PlayerEventCUnion.ByValue();
@@ -55,7 +54,6 @@ public class PlayerEventC extends Structure implements Closeable {
         @Override
         public void close() {
             super.close();
-            FxLib.INSTANCE.get().dispose_player_event_value(this);
         }
     }
 
@@ -133,12 +131,12 @@ public class PlayerEventC extends Structure implements Closeable {
     @ToString
     @FieldOrder({"state"})
     public static class StateChanged_Body extends Structure implements Closeable {
-        public PlayerState state;
+        public Player.State state;
 
         public StateChanged_Body() {
         }
 
-        public StateChanged_Body(PlayerState state) {
+        public StateChanged_Body(Player.State state) {
             this.state = state;
         }
 

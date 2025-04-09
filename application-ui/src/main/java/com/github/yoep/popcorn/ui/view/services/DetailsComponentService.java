@@ -2,7 +2,7 @@ package com.github.yoep.popcorn.ui.view.services;
 
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteEventCallback;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
-import com.github.yoep.popcorn.backend.media.providers.Media;
+import com.github.yoep.popcorn.backend.media.Media;
 import com.github.yoep.popcorn.backend.media.watched.WatchedEventCallback;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
@@ -12,6 +12,7 @@ import javafx.application.Platform;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 public class DetailsComponentService extends AbstractListenerService<DetailsComponentListener> {
@@ -31,7 +32,7 @@ public class DetailsComponentService extends AbstractListenerService<DetailsComp
         init();
     }
 
-    public boolean isWatched(Media media) {
+    public CompletableFuture<Boolean> isWatched(Media media) {
         return watchedService.isWatched(media);
     }
 
@@ -54,7 +55,14 @@ public class DetailsComponentService extends AbstractListenerService<DetailsComp
 
     public void toggleWatchedState(Media media) {
         Objects.requireNonNull(media, "media cannot be null");
-        updateWatchedStated(media, !watchedService.isWatched(media));
+        watchedService.isWatched(media).whenComplete((watched, throwable) -> {
+            if (throwable == null) {
+                updateWatchedStated(media, !watched);
+            } else {
+                log.error("Failed to retrieve is watched", throwable);
+            }
+        });
+
     }
 
     public void toggleLikedState(Media media) {
@@ -80,8 +88,8 @@ public class DetailsComponentService extends AbstractListenerService<DetailsComp
     }
 
     private void init() {
-        favoriteService.registerListener(favoriteEventCallback);
-        watchedService.registerListener(watchedEventCallback);
+//        favoriteService.registerListener(favoriteEventCallback);
+//        watchedService.registerListener(watchedEventCallback);
     }
 
     private FavoriteEventCallback createFavoriteCallback() {

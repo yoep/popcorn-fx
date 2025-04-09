@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.backend.torrent.collection;
 
-import com.github.yoep.popcorn.backend.lib.FxLibInstance;
 import com.sun.jna.Structure;
 import lombok.Getter;
 import lombok.ToString;
@@ -39,6 +38,5 @@ public class StoredTorrentSet extends Structure implements Closeable {
         for (StoredTorrent storedTorrent : cache) {
             storedTorrent.close();
         }
-        FxLibInstance.INSTANCE.get().dispose_torrent_collection(this);
     }
 }

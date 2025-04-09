@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
-import com.github.yoep.popcorn.backend.media.providers.Media;
-import com.github.yoep.popcorn.backend.media.providers.ShowOverview;
+import com.github.yoep.popcorn.backend.media.Media;
+import com.github.yoep.popcorn.backend.media.ShowOverview;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.messages.MediaMessage;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
@@ -37,20 +37,20 @@ public abstract class AbstractMediaCardComponent extends AbstractCardComponent i
     }
 
     protected void initializeText() {
-        title.setText(media.getTitle());
-        year.setText(media.getYear());
+        title.setText(media.title());
+        year.setText(media.year());
 
         if (media instanceof ShowOverview) {
-            var show = (ShowOverview) media;
-            var text = localeText.get(MediaMessage.SEASONS, show.getNumberOfSeasons());
-
-            if (show.getNumberOfSeasons() > 1) {
-                text += localeText.get(MediaMessage.PLURAL);
-            }
-
-            seasons.setText(text);
+//            var show = (ShowOverview) media;
+//            var text = localeText.get(MediaMessage.SEASONS, show.getNumberOfSeasons());
+//
+//            if (show.getNumberOfSeasons() > 1) {
+//                text += localeText.get(MediaMessage.PLURAL);
+//            }
+//
+//            seasons.setText(text);
         }
 
-        Tooltip.install(title, new Tooltip(media.getTitle()));
+        Tooltip.install(title, new Tooltip(media.title()));
     }
 }

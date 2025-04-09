@@ -4,7 +4,7 @@ import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.adapters.player.embaddable.EmbeddablePlayer;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
-import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
 import com.github.yoep.popcorn.ui.view.ViewLoader;
 import javafx.scene.Node;
 import lombok.EqualsAndHashCode;
@@ -56,7 +56,7 @@ public class EmbeddablePopcornPlayer implements EmbeddablePlayer {
     }
 
     @Override
-    public PlayerState getState() {
+    public Player.State getState() {
         return popcornPlayer.getState();
     }
 

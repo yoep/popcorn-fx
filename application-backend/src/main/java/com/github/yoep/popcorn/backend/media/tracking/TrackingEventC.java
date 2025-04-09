@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.backend.media.tracking;
 
-import com.github.yoep.popcorn.backend.FxLib;
 import com.sun.jna.FromNativeContext;
 import com.sun.jna.NativeMapped;
 import com.sun.jna.Structure;
@@ -22,7 +21,7 @@ public class TrackingEventC extends Structure implements Closeable {
         @Override
         public void close() {
             super.close();
-            FxLib.INSTANCE.get().dispose_tracking_event_value(this);
+
         }
     }
 

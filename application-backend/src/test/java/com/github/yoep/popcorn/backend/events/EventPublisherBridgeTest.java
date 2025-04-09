@@ -1,8 +1,10 @@
 package com.github.yoep.popcorn.backend.events;
 
-import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
-import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
+import com.github.yoep.popcorn.backend.lib.FxCallback;
+import com.github.yoep.popcorn.backend.lib.FxChannel;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Event;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.PlayerState;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,22 +25,14 @@ class EventPublisherBridgeTest {
     @Spy
     private EventPublisher eventPublisher = new EventPublisher(false);
     @Mock
-    private FxLib fxLib;
-    @Mock
-    private PopcornFx instance;
+    private FxChannel fxChannel;
     private EventPublisherBridge bridge;
 
-    private final AtomicReference<EventBridgeCallback> callbackHolder = new AtomicReference<>();
+    private final AtomicReference<FxCallback<Event>> callbackHolder = new AtomicReference<>();
 
     @BeforeEach
     void setUp() {
-        FxLib.INSTANCE.set(fxLib);
-        doAnswer(invocation -> {
-            callbackHolder.set(invocation.getArgument(1, EventBridgeCallback.class));
-            return null;
-        }).when(fxLib).register_event_callback(isA(PopcornFx.class), isA(EventBridgeCallback.class));
-
-        bridge = new EventPublisherBridge(eventPublisher, fxLib, instance);
+        bridge = new EventPublisherBridge(eventPublisher, fxChannel);
     }
 
     @Test

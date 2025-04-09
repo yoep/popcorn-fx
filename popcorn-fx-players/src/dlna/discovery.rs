@@ -232,8 +232,11 @@ impl InnerDlnaDiscovery {
             let player = DlnaPlayer::new(device, service, self.subtitle_server.clone());
 
             trace!("Adding new DLNA player {:?}", player);
-            self.player_manager.add_player(Box::new(player));
-            info!("Registered new DLNA player {}", name);
+            if let Err(e) = self.player_manager.add_player(Box::new(player)) {
+                warn!("Failed to add player to DLNA player, {}", e);
+            } else {
+                info!("Registered new DLNA player {}", name);
+            }
         } else {
             info!("DLNA device {} doesn't support AV transport service", name)
         }
@@ -292,7 +295,7 @@ mod tests {
                 }
             }
 
-            true
+            Ok(())
         });
         let subtitle_provider = MockSubtitleProvider::new();
         let subtitle_server = Arc::new(SubtitleServer::new(Arc::new(Box::new(subtitle_provider))));
@@ -317,7 +320,7 @@ mod tests {
     async fn test_stop_discovery() {
         init_logger!();
         let mut player_manager = MockPlayerManager::new();
-        player_manager.expect_add_player().return_const(true);
+        player_manager.expect_add_player().returning(|_| Ok(()));
         let subtitle_provider = MockSubtitleProvider::new();
         let subtitle_server = Arc::new(SubtitleServer::new(Arc::new(Box::new(subtitle_provider))));
         let server = DlnaDiscovery::builder()

@@ -5,7 +5,7 @@ import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteEvent;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteEventCallback;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
-import com.github.yoep.popcorn.backend.media.providers.MovieDetails;
+import com.github.yoep.popcorn.backend.media.MovieDetails;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.font.controls.Icon;
@@ -101,7 +101,7 @@ class PosterComponentTest {
         event.union.liked_state_changed.imdbId = imdbId;
         event.union.liked_state_changed.newState = (byte) 1;
         when(mediaEvent.getMedia()).thenReturn(media);
-        when(media.getId()).thenReturn(imdbId);
+        when(media.id()).thenReturn(imdbId);
         when(favoriteService.isLiked(media)).thenReturn(false);
         when(imageService.loadPoster(media)).thenReturn(new CompletableFuture<>());
         component.initialize(url, resourceBundle);

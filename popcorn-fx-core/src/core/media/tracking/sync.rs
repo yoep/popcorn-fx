@@ -101,7 +101,6 @@ pub struct SyncMediaTrackingBuilder {
     config: Option<ApplicationConfig>,
     provider: Option<Arc<Box<dyn TrackingProvider>>>,
     watched_service: Option<Arc<Box<dyn WatchedService>>>,
-    runtime: Option<Arc<Runtime>>,
 }
 
 impl SyncMediaTrackingBuilder {
@@ -125,12 +124,6 @@ impl SyncMediaTrackingBuilder {
     /// Sets the watched service for the builder.
     pub fn watched_service(mut self, watched_service: Arc<Box<dyn WatchedService>>) -> Self {
         self.watched_service = Some(watched_service);
-        self
-    }
-
-    /// Sets the runtime for the builder.
-    pub fn runtime(mut self, runtime: Arc<Runtime>) -> Self {
-        self.runtime = Some(runtime);
         self
     }
 

@@ -2,7 +2,8 @@ package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
-import com.github.yoep.popcorn.backend.media.providers.MovieDetails;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media;
+import com.github.yoep.popcorn.backend.media.MovieDetails;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
@@ -22,6 +23,7 @@ import javafx.scene.layout.GridPane;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
+import java.util.Objects;
 import java.util.ResourceBundle;
 
 @Slf4j
@@ -94,7 +96,13 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
         eventPublisher.register(MediaQualityChangedEvent.class, event -> {
             Platform.runLater(() -> {
                 if (event.getMedia() instanceof MovieDetails movie) {
-                    switchHealth(movie.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(event.getQuality()));
+                    switchHealth(movie.getTorrents().stream()
+                            .filter(e -> Objects.equals(e.getLanguage(), DEFAULT_TORRENT_AUDIO))
+                            .map(Media.TorrentLanguage::getTorrents)
+                            .map(Media.TorrentQuality::getQualitiesMap)
+                            .map(e -> e.get(event.getQuality()))
+                            .findFirst()
+                            .orElse(null));
                 }
             });
             this.quality = event.getQuality();
@@ -140,23 +148,23 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
     }
 
     private void loadText() {
-        title.setText(media.getTitle());
-        overview.setText(media.getSynopsis());
-        year.setText(media.getYear());
-        duration.setText(media.getRuntime() + " min");
-        genres.setText(String.join(" / ", media.getGenres()));
+        title.setText(media.title());
+        overview.setText(media.synopsis());
+        year.setText(media.year());
+        duration.setText(media.runtime() + " min");
+        genres.setText(String.join(" / ", media.genres()));
     }
 
     @FXML
     void onMagnetClicked(MouseEvent event) {
         event.consume();
-        var torrentInfo = media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(quality);
-
-        if (event.getButton() == MouseButton.SECONDARY) {
-            copyMagnetLink(torrentInfo);
-        } else {
-            openMagnetLink(torrentInfo);
-        }
+//        var torrentInfo = media.getTorrents().get(DEFAULT_TORRENT_AUDIO).get(quality);
+//
+//        if (event.getButton() == MouseButton.SECONDARY) {
+//            copyMagnetLink(torrentInfo);
+//        } else {
+//            openMagnetLink(torrentInfo);
+//        }
     }
 
     //endregion

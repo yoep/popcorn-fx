@@ -1,10 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.media.filters.model.Category;
-import com.github.yoep.popcorn.backend.media.filters.model.Genre;
-import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
-import com.github.yoep.popcorn.backend.media.providers.Media;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media;
 import com.github.yoep.popcorn.backend.media.providers.ProviderService;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.view.ViewLoader;
@@ -22,24 +19,24 @@ import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 public abstract class AbstractListSectionController {
-    protected final List<ProviderService<? extends Media>> providerServices;
+    protected final List<ProviderService<? extends com.github.yoep.popcorn.backend.media.Media>> providerServices;
     protected final ViewLoader viewLoader;
     protected final LocaleText localeText;
     protected final EventPublisher eventPublisher;
 
-    protected Category category;
-    protected Genre genre;
-    protected SortBy sortBy;
+    protected Media.Category category;
+    protected Media.Genre genre;
+    protected Media.SortBy sortBy;
     protected String search;
     /**
      * Indicates how many pages have failed to load for the current retrieval
      */
     protected int numberOfPageFailures;
 
-    protected CompletableFuture<? extends List<? extends Media>> currentLoadRequest;
+    protected CompletableFuture<? extends List<? extends com.github.yoep.popcorn.backend.media.Media>> currentLoadRequest;
 
     @FXML
-    protected InfiniteScrollPane<Media> scrollPane;
+    protected InfiniteScrollPane<com.github.yoep.popcorn.backend.media.Media> scrollPane;
     @FXML
     protected Pane failedPane;
     @FXML
@@ -51,7 +48,7 @@ public abstract class AbstractListSectionController {
 
     //region Constructors
 
-    protected AbstractListSectionController(List<ProviderService<? extends Media>> providerServices,
+    protected AbstractListSectionController(List<ProviderService<? extends com.github.yoep.popcorn.backend.media.Media>> providerServices,
                                             ViewLoader viewLoader,
                                             LocaleText localeText,
                                             EventPublisher eventPublisher) {
@@ -86,7 +83,7 @@ public abstract class AbstractListSectionController {
      * @param item The item to create a node for.
      * @return Returns the node for the given item.
      */
-    protected abstract Node createItemNode(Media item);
+    protected abstract Node createItemNode(com.github.yoep.popcorn.backend.media.Media item);
 
     protected void invokeNewPageLoad() {
         if (scrollPane != null && category != null && genre != null && sortBy != null)

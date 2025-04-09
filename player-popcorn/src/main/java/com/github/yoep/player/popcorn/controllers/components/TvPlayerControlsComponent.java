@@ -5,12 +5,13 @@ import com.github.yoep.player.popcorn.listeners.PlayerControlsListener;
 import com.github.yoep.player.popcorn.listeners.PlayerSubtitleListener;
 import com.github.yoep.player.popcorn.services.PlayerControlsService;
 import com.github.yoep.player.popcorn.services.PlayerSubtitleService;
-import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Subtitle;
 import com.github.yoep.popcorn.backend.messages.SubtitleMessage;
-import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
+import com.github.yoep.popcorn.backend.subtitles.SubtitleHelper;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.backend.utils.TimeUtils;
 import com.github.yoep.popcorn.ui.events.SubtitleOffsetEvent;
@@ -65,7 +66,7 @@ public class TvPlayerControlsComponent implements Initializable {
     @FXML
     Overlay subtitleOverlay;
     @FXML
-    AxisItemSelection<SubtitleInfo> subtitleSelection;
+    AxisItemSelection<Subtitle.Info> subtitleSelection;
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
@@ -92,7 +93,7 @@ public class TvPlayerControlsComponent implements Initializable {
             }
 
             @Override
-            public void onPlayerStateChanged(PlayerState state) {
+            public void onPlayerStateChanged(Player.State state) {
                 Platform.runLater(() -> {
                     switch (state) {
                         case PLAYING -> playButton.setText(Icon.PAUSE_UNICODE);
@@ -139,19 +140,19 @@ public class TvPlayerControlsComponent implements Initializable {
         });
         subtitleService.addListener(new PlayerSubtitleListener() {
             @Override
-            public void onActiveSubtitleChanged(SubtitleInfo activeSubtitle) {
+            public void onActiveSubtitleChanged(Subtitle.Info activeSubtitle) {
                 Platform.runLater(() -> subtitleSelection.setSelectedItem(activeSubtitle));
             }
 
             @Override
-            public void onAvailableSubtitlesChanged(List<SubtitleInfo> subtitles, SubtitleInfo activeSubtitle) {
+            public void onAvailableSubtitlesChanged(List<Subtitle.Info> subtitles, Subtitle.Info activeSubtitle) {
                 Platform.runLater(() -> {
-                    subtitleSelection.setItems(subtitles.toArray(new SubtitleInfo[0]));
+                    subtitleSelection.setItems(subtitles.toArray(new Subtitle.Info[0]));
                     subtitleSelection.setSelectedItem(activeSubtitle);
                 });
             }
         });
-        subtitleSelection.setItemFactory(item -> new Button(item.language().getNativeName()));
+        subtitleSelection.setItemFactory(item -> new Button(SubtitleHelper.getNativeName(item.getLanguage())));
         subtitleSelection.setOnItemActivated(item -> {
             subtitleOverlay.hide();
             playerControlsService.resume();

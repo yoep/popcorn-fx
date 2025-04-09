@@ -1,26 +1,26 @@
 package com.github.yoep.popcorn.backend.media.favorites;
 
-import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.PopcornFx;
-import com.github.yoep.popcorn.backend.media.MediaItem;
-import com.github.yoep.popcorn.backend.media.providers.Media;
+import com.github.yoep.popcorn.backend.lib.FxCallback;
+import com.github.yoep.popcorn.backend.lib.FxChannel;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.*;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.FavoriteEvent;
+import com.github.yoep.popcorn.backend.media.Media;
+import com.github.yoep.popcorn.backend.media.MediaHelper;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Objects;
 import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.ExecutionException;
 
 @Slf4j
-public class FavoriteService {
-    private final FxLib fxLib;
-    private final PopcornFx instance;
+public class FavoriteService implements FxCallback<FavoriteEvent> {
+    private final FxChannel fxChannel;
 
-    private final Object lock = new Object();
-    private final FavoriteEventCallback callback = createCallback();
-    private final ConcurrentLinkedDeque<FavoriteEventCallback> listeners = new ConcurrentLinkedDeque<>();
+    private final ConcurrentLinkedDeque<FxCallback<FavoriteEvent>> listeners = new ConcurrentLinkedDeque<>();
 
-    public FavoriteService(FxLib fxLib, PopcornFx instance) {
-        this.fxLib = fxLib;
-        this.instance = instance;
+    public FavoriteService(FxChannel fxChannel) {
+        Objects.requireNonNull(fxChannel, "fxChannel cannot be null");
+        this.fxChannel = fxChannel;
         init();
     }
 
@@ -32,10 +32,15 @@ public class FavoriteService {
      */
     public boolean isLiked(Media favorable) {
         Objects.requireNonNull(favorable, "favorable cannot be null");
-        synchronized (lock) {
-            try (var item = MediaItem.from(favorable)) {
-                return fxLib.is_media_liked(instance, item) == 1;
-            }
+        try {
+            return fxChannel
+                    .send(GetIsLikedRequest.newBuilder()
+                            .setItem(MediaHelper.getItem(favorable))
+                            .build(), GetIsLikedResponse.parser())
+                    .thenApply(GetIsLikedResponse::getIsLiked)
+                    .get();
+        } catch (ExecutionException | InterruptedException e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -46,12 +51,9 @@ public class FavoriteService {
      */
     public void addToFavorites(Media favorable) {
         Objects.requireNonNull(favorable, "favorable cannot be null");
-        synchronized (lock) {
-            log.trace("Adding favorite item {}", favorable);
-            try (var mediaItem = MediaItem.from(favorable)) {
-                fxLib.add_to_favorites(instance, mediaItem);
-            }
-        }
+        fxChannel.send(AddFavoriteRequest.newBuilder()
+                .setItem(MediaHelper.getItem(favorable))
+                .build());
     }
 
     /**
@@ -61,41 +63,33 @@ public class FavoriteService {
      */
     public void removeFromFavorites(Media favorable) {
         Objects.requireNonNull(favorable, "favorable cannot be null");
-        synchronized (lock) {
-            log.trace("Removing favorite item {}", favorable);
-            fxLib.remove_from_favorites(instance, MediaItem.from(favorable));
-        }
+        fxChannel.send(RemoveFavoriteRequest.newBuilder()
+                .setItem(MediaHelper.getItem(favorable))
+                .build());
     }
 
-    public void registerListener(FavoriteEventCallback callback) {
+    public void registerListener(FxCallback<FavoriteEvent> callback) {
         Objects.requireNonNull(callback, "callback cannot be null");
         listeners.add(callback);
     }
 
-    public void removeListener(FavoriteEventCallback callback) {
+    public void removeListener(FxCallback<FavoriteEvent> callback) {
         listeners.remove(callback);
     }
 
-    private void init() {
-        synchronized (lock) {
-            fxLib.register_favorites_event_callback(instance, callback);
+    @Override
+    public void callback(FavoriteEvent message) {
+        log.debug("Received favorite event callback {}", message);
+        for (var listener : listeners) {
+            try {
+                listener.callback(message);
+            } catch (Exception ex) {
+                log.error("Failed to invoke favorite callback, {}", ex.getMessage(), ex);
+            }
         }
     }
 
-    private FavoriteEventCallback createCallback() {
-        return event -> {
-            log.debug("Received favorite event callback {}", event);
-            event.close();
-
-            new Thread(() -> {
-                for (var listener : listeners) {
-                    try {
-                        listener.callback(event);
-                    } catch (Exception ex) {
-                        log.error("Failed to invoke favorite callback, {}", ex.getMessage(), ex);
-                    }
-                }
-            }, "FavoriteEventCallbackHandler").start();
-        };
+    private void init() {
+        fxChannel.subscribe(FxChannel.typeFrom(FavoriteEvent.class), FavoriteEvent.parser(), this);
     }
 }

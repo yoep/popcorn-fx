@@ -6,7 +6,7 @@ import lombok.EqualsAndHashCode;
 /**
  * Invoked when request the home action.
  */
-@EqualsAndHashCode
+@EqualsAndHashCode(callSuper = false)
 public class HomeEvent extends ApplicationEvent {
     public HomeEvent(Object source) {
         super(source);

@@ -2,7 +2,11 @@ package com.github.yoep.popcorn.ui.view.controllers.tv.components;
 
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowDetailsEvent;
-import com.github.yoep.popcorn.backend.media.providers.*;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Subtitle;
+import com.github.yoep.popcorn.backend.media.Episode;
+import com.github.yoep.popcorn.backend.media.Media;
+import com.github.yoep.popcorn.backend.media.MovieDetails;
+import com.github.yoep.popcorn.backend.media.ShowDetails;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
@@ -12,15 +16,16 @@ import com.github.yoep.popcorn.ui.view.services.VideoQualityService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
-import javafx.scene.control.Button;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
 import java.util.List;
-import java.util.Map;
+import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
+
+import static com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media.TorrentQuality;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -50,17 +55,17 @@ public abstract class AbstractActionsComponent implements Initializable {
             });
             return event;
         });
-        qualities.setOnItemActivated(newValue -> {
-            qualityOverlay.hide();
-            subtitleOverlay.show();
-            subtitles.setSelectedItem(subtitleService.getDefaultOrInterfaceLanguage(subtitles.getItems()), true);
-        });
-        subtitles.setOnItemActivated(subtitle -> {
-            subtitleOverlay.hide();
-            subtitleService.updateSubtitle(subtitle);
-            play();
-        });
-        subtitles.setItemFactory(item -> new Button(item.language().getNativeName()));
+//        qualities.setOnItemActivated(newValue -> {
+//            qualityOverlay.hide();
+//            subtitleOverlay.show();
+//            subtitles.setSelectedItem(subtitleService.getDefaultOrInterfaceLanguage(subtitles.getItems()), true);
+//        });
+//        subtitles.setOnItemActivated(subtitle -> {
+//            subtitleOverlay.hide();
+//            subtitleService.updateSubtitle(subtitle);
+//            play();
+//        });
+//        subtitles.setItemFactory(item -> new Button(item.language().getNativeName()));
     }
 
     /**
@@ -76,15 +81,15 @@ public abstract class AbstractActionsComponent implements Initializable {
     /**
      * Retrieve the available torrents for the current media.
      */
-    protected abstract Map<String, MediaTorrentInfo> getTorrents();
+    protected abstract Optional<TorrentQuality> getTorrents();
 
     /**
      * Retrieve the subtitle for the current media item.
      */
-    protected abstract CompletableFuture<List<SubtitleInfo>> retrieveSubtitles();
+    protected abstract CompletableFuture<List<Subtitle.Info>> retrieveSubtitles();
 
     protected void updateQualities() {
-        qualities.setItems(videoQualityService.getVideoResolutions(getTorrents()));
+        getTorrents().ifPresent(torrents -> qualities.setItems(videoQualityService.getVideoResolutions(torrents)));
         updateSubtitles();
     }
 
@@ -103,14 +108,14 @@ public abstract class AbstractActionsComponent implements Initializable {
         if (subtitleFuture != null)
             subtitleFuture.cancel(true);
 
-        subtitles.setItems(subtitleService.none());
-        subtitleFuture = retrieveSubtitles()
-                .whenComplete((subtitleInfos, throwable) -> {
-                    if (throwable == null) {
-                        Platform.runLater(() -> subtitles.setItems(subtitleInfos.toArray(new SubtitleInfo[0])));
-                    } else {
-                        log.error(throwable.getMessage(), throwable);
-                    }
-                });
+//        subtitles.setItems(subtitleService.none());
+//        subtitleFuture = retrieveSubtitles()
+//                .whenComplete((subtitleInfos, throwable) -> {
+//                    if (throwable == null) {
+//                        Platform.runLater(() -> subtitles.setItems(subtitleInfos.toArray(new SubtitleInfo[0])));
+//                    } else {
+//                        log.error(throwable.getMessage(), throwable);
+//                    }
+//                });
     }
 }

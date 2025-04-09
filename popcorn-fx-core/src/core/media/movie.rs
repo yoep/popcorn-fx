@@ -80,8 +80,8 @@ impl MediaOverview for MovieOverview {
         }
     }
 
-    fn year(&self) -> &String {
-        &self.year
+    fn year(&self) -> &str {
+        self.year.as_str()
     }
 
     fn images(&self) -> &Images {
@@ -199,8 +199,8 @@ impl MediaOverview for MovieDetails {
         }
     }
 
-    fn year(&self) -> &String {
-        &self.year
+    fn year(&self) -> &str {
+        self.year.as_str()
     }
 
     fn images(&self) -> &Images {

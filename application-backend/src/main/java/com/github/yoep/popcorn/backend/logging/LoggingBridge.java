@@ -4,20 +4,23 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.classic.spi.IThrowableProxy;
 import ch.qos.logback.core.AppenderBase;
-import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.lib.FxLibInstance;
+import com.github.yoep.popcorn.backend.lib.FxChannel;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.LogRequest;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 
+import java.util.concurrent.atomic.AtomicReference;
+
+@Data
+@EqualsAndHashCode(callSuper = false)
 public class LoggingBridge extends AppenderBase<ILoggingEvent> {
+    public static final AtomicReference<LoggingBridge> INSTANCE = new AtomicReference<>();
     static final String PREFIX = "jvm";
 
-    private final FxLib fxLib;
+    private FxChannel fxChannel;
 
     public LoggingBridge() {
-        this.fxLib = FxLibInstance.INSTANCE.get();
-    }
-
-    public LoggingBridge(FxLib fxLib) {
-        this.fxLib = fxLib;
+        INSTANCE.set(this);
     }
 
     @Override
@@ -29,27 +32,33 @@ public class LoggingBridge extends AppenderBase<ILoggingEvent> {
             message += convertThrowableProxyToString(event.getThrowableProxy());
         }
 
-        fxLib.log(PREFIX + "::" + event.getLoggerName(), message, map(event.getLevel()));
+        if (fxChannel != null) {
+            fxChannel.send(LogRequest.newBuilder()
+                    .setLevel(map_ipc(event.getLevel()))
+                    .setTarget(PREFIX + "::" + event.getLoggerName())
+                    .setMessage(message)
+                    .build());
+        }
     }
 
-    private static LogLevel map(Level level) {
+    private static LogRequest.LogLevel map_ipc(Level level) {
         if (level == Level.TRACE) {
-            return LogLevel.TRACE;
+            return LogRequest.LogLevel.TRACE;
         }
         if (level == Level.DEBUG) {
-            return LogLevel.DEBUG;
+            return LogRequest.LogLevel.DEBUG;
         }
         if (level == Level.INFO) {
-            return LogLevel.INFO;
+            return LogRequest.LogLevel.INFO;
         }
         if (level == Level.WARN) {
-            return LogLevel.WARN;
+            return LogRequest.LogLevel.WARN;
         }
         if (level == Level.ERROR) {
-            return LogLevel.ERROR;
+            return LogRequest.LogLevel.ERROR;
         }
 
-        return LogLevel.OFF;
+        return LogRequest.LogLevel.OFF;
     }
 
     private static String convertThrowableProxyToString(IThrowableProxy throwableProxy) {

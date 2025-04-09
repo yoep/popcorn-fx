@@ -1,9 +1,8 @@
 package com.github.yoep.popcorn.ui;
 
-import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.PopcornFx;
-import com.github.yoep.popcorn.backend.lib.FxLibInstance;
-import com.github.yoep.popcorn.backend.lib.PopcornFxInstance;
+import com.github.yoep.popcorn.backend.lib.FxChannel;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationArgs;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationArgsRequest;
 import javafx.application.ConditionalFeature;
 import javafx.application.Platform;
 import javafx.application.Preloader;
@@ -21,24 +20,22 @@ import lombok.extern.slf4j.Slf4j;
 import java.awt.*;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.ExecutionException;
 
 @Slf4j
 public class PopcornTimePreloader extends Preloader {
-    private final FxLib fxLib;
-    private final PopcornFx instance;
+    private final FxChannel fxChannel;
 
     private Stage stage;
 
     @SuppressWarnings("unused")
     public PopcornTimePreloader() {
-        this.fxLib = FxLibInstance.INSTANCE.get();
-        this.instance = PopcornFxInstance.INSTANCE.get();
+        this.fxChannel = FxChannel.INSTANCE.get();
     }
 
     @SuppressWarnings("unused")
-    public PopcornTimePreloader(FxLib fxLib, PopcornFx instance) {
-        this.fxLib = fxLib;
-        this.instance = instance;
+    public PopcornTimePreloader(FxChannel fxChannel) {
+        this.fxChannel = fxChannel;
     }
 
     @Override
@@ -101,13 +98,26 @@ public class PopcornTimePreloader extends Preloader {
     }
 
     void processParameters(Stage primaryStage, Scene scene) {
+        ApplicationArgs applicationsArgs;
+
+        try {
+            applicationsArgs = fxChannel.send(ApplicationArgsRequest.getDefaultInstance(), ApplicationArgs.parser())
+                    .get();
+        } catch (ExecutionException | InterruptedException e) {
+            log.error(e.getMessage(), e);
+            applicationsArgs = ApplicationArgs.newBuilder()
+                    .setIsMouseDisabled(false)
+                    .setIsKioskMode(false)
+                    .build();
+        }
+
         // check if the mouse should be hidden
-        if (fxLib.is_mouse_disabled(instance) == (byte) 1) {
+        if (applicationsArgs.getIsMouseDisabled()) {
             log.trace("Hiding preloader cursor");
             scene.setCursor(Cursor.NONE);
         }
         // check if the preloader needs to be maximized
-        if (fxLib.is_kiosk_mode(instance) == (byte) 1) {
+        if (applicationsArgs.getIsKioskMode()) {
             log.trace("Maximizing preloader");
             primaryStage.setMaximized(true);
         }

@@ -1,27 +1,27 @@
 package com.github.yoep.popcorn.backend.torrent;
 
-import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
+import com.github.yoep.popcorn.backend.lib.FxChannel;
 import com.github.yoep.popcorn.backend.lib.Handle;
-import lombok.RequiredArgsConstructor;
 import lombok.ToString;
 
 @ToString
-@RequiredArgsConstructor
 public class DefaultTorrentService implements TorrentService {
-    private final FxLib fxLib;
-    private final PopcornFx instance;
+    private final FxChannel fxChannel;
+
+    public DefaultTorrentService(FxChannel fxChannel) {
+        this.fxChannel = fxChannel;
+    }
 
     @Override
     public void addListener(Handle handle, TorrentListener listener) {
-        fxLib.register_torrent_event_callback(instance, handle.nativeHandle(), event -> handleCallback(event, listener));
+        // TODO
     }
 
     @Override
     public void cleanup() {
-        fxLib.cleanup_torrents_directory(instance);
+        // TODO
     }
 
     private static void handleCallback(TorrentEventC event, TorrentListener listener) {

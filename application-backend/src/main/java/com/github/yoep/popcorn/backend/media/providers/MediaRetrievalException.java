@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.backend.media.providers;
 
+import com.github.yoep.popcorn.backend.media.MediaException;
 import lombok.Getter;
 
 import java.net.URI;

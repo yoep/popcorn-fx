@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.backend.torrent;
 
-import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentListener;
 import com.github.yoep.popcorn.backend.lib.Handle;

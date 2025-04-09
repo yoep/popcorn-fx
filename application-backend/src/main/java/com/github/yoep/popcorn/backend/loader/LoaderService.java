@@ -1,9 +1,9 @@
 package com.github.yoep.popcorn.backend.loader;
 
-import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.LoadingStartedEvent;
+import com.github.yoep.popcorn.backend.lib.FxChannel;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.*;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
@@ -15,26 +15,39 @@ import java.util.Objects;
 @ToString
 @EqualsAndHashCode(callSuper = false)
 public class LoaderService extends AbstractListenerService<LoaderListener> implements LoaderEventCallback {
-    private final FxLib fxLib;
-    private final PopcornFx instance;
+    private final FxChannel fxChannel;
     private final EventPublisher eventPublisher;
 
     Long lastLoaderHandle;
 
-    public LoaderService(FxLib fxLib, PopcornFx instance, EventPublisher eventPublisher) {
-        this.fxLib = fxLib;
-        this.instance = instance;
+    public LoaderService(FxChannel fxChannel, EventPublisher eventPublisher) {
+        Objects.requireNonNull(fxChannel, "fxChannel cannot be null");
+        Objects.requireNonNull(eventPublisher, "eventPublisher cannot be null");
+        this.fxChannel = fxChannel;
         this.eventPublisher = eventPublisher;
         init();
     }
 
     public void load(String url) {
         Objects.requireNonNull(url, "url cannot be null");
-        lastLoaderHandle = fxLib.loader_load(instance, url);
+        fxChannel.send(
+                LoaderLoadRequest.newBuilder().setUrl(url).build(),
+                LoaderLoadResponse.parser()
+        ).whenComplete((response, throwable) -> {
+            if (throwable == null) {
+                lastLoaderHandle = response.getHandle();
+            } else {
+                log.error("Failed to load url {}", url, throwable);
+            }
+        });
     }
 
     public void cancel() {
-        fxLib.loader_cancel(instance, lastLoaderHandle);
+        if (lastLoaderHandle != null) {
+            fxChannel.send(
+                    LoaderCancelRequest.newBuilder().setHandle(lastLoaderHandle).build()
+            );
+        }
     }
 
     @Override
@@ -67,6 +80,6 @@ public class LoaderService extends AbstractListenerService<LoaderListener> imple
 
     void init() {
         log.debug("Registering loader event callback");
-        fxLib.register_loader_callback(instance, this);
+        // TODO
     }
 }

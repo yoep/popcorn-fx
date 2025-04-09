@@ -1,8 +1,6 @@
 package com.github.yoep.popcorn.backend.settings;
 
-import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
-import com.github.yoep.popcorn.backend.settings.models.*;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -38,7 +36,7 @@ class ApplicationConfigTest {
 
         new ApplicationConfig(fxLib, instance, localeText);
 
-        verify(fxLib).register_settings_callback(eq(instance), isA(ApplicationConfigEventCallback.class));
+        verify(fxLib).register_settings_callback(eq(instance), isA(ApplicationConfigEvent.class));
     }
 
     @Test

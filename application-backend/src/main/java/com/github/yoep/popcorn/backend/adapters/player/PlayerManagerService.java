@@ -5,6 +5,7 @@ import com.github.yoep.popcorn.backend.services.ListenerService;
 
 import java.util.Collection;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * The player manager service is responsible for managing the available players which can be used by the application.
@@ -23,14 +24,14 @@ public interface PlayerManagerService extends ListenerService<PlayerManagerListe
      *
      * @return Returns a list of the current available players.
      */
-    Collection<Player> getPlayers();
+    CompletableFuture<Collection<Player>> getPlayers();
 
     /**
      * Get the current active player which is being used for playback.
      *
      * @return Returns the active playback player, or else {@link Optional#empty()}.
      */
-    Optional<Player> getActivePlayer();
+    CompletableFuture<Optional<Player>> getActivePlayer();
 
     /**
      * Set the player which should be used for video playback.

@@ -1,9 +1,7 @@
 package com.github.yoep.popcorn.backend.media.favorites;
 
-import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
-import com.github.yoep.popcorn.backend.media.MediaItem;
-import com.github.yoep.popcorn.backend.media.providers.ShowOverview;
+import com.github.yoep.popcorn.backend.media.ShowOverview;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;

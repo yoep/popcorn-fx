@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.ui.view.controls;
 
-import com.github.yoep.popcorn.backend.media.filters.model.Genre;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;

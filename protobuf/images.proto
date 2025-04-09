@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+option optimize_for = LITE_RUNTIME;
+option java_multiple_files = true;
+option java_package = "com.github.yoep.popcorn.backend.lib.ipc.protobuf";
+
+package fx.ipc.proto;
+
+import "message.proto";
+import "media.proto";
+
+message Image {
+  bytes data = 1;
+
+  enum Error {
+    UNAVAILABLE = 0;
+  }
+}
+
+message GetPosterPlaceholderRequest {}
+
+message GetPosterPlaceholderResponse {
+  Image image = 1;
+}
+
+message GetArtworkPlaceholderRequest {}
+
+message GetArtworkPlaceholderResponse {
+  Image image = 2;
+}
+
+message GetFanartRequest {
+  Media.Item media = 1;
+}
+
+message GetFanartResponse {
+  Response.Result result = 1;
+  optional Image image = 2;
+  optional Image.Error error = 3;
+}
+
+message GetPosterRequest {
+  Media.Item media = 1;
+}
+
+message GetPosterResponse {
+  Response.Result result = 1;
+  optional Image image = 2;
+  optional Image.Error error = 3;
+}
+
+message GetImageRequest {
+  string url = 1;
+}
+
+message GetImageResponse {
+  Response.Result result = 1;
+  optional Image image = 2;
+  optional Image.Error error = 3;
+}

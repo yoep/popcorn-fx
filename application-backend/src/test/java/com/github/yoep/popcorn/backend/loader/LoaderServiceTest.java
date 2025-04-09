@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.backend.loader;
 
-import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import org.junit.jupiter.api.Test;

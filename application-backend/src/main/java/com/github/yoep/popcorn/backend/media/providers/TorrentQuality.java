@@ -1,26 +1,14 @@
 package com.github.yoep.popcorn.backend.media.providers;
 
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media;
 import com.sun.jna.Structure;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.ToString;
 
 import java.io.Closeable;
+import java.util.HashMap;
 import java.util.Optional;
 
-@Getter
-@ToString
-@Structure.FieldOrder({"quality", "info"})
-public class TorrentQuality extends Structure implements Closeable {
-    public static class ByReference extends TorrentQuality implements Structure.ByReference {
-    }
-
-    public String quality;
-    public MediaTorrentInfo info;
-
-    @Override
-    public void close() {
-        setAutoSynch(false);
-        Optional.ofNullable(info)
-                .ifPresent(MediaTorrentInfo::close);
-    }
+public record TorrentQuality(HashMap<String, Media.TorrentInfo> torrents) {
 }

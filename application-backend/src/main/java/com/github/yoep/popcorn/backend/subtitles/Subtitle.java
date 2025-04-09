@@ -1,17 +1,12 @@
 package com.github.yoep.popcorn.backend.subtitles;
 
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Subtitle.Cue;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Subtitle.Info;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Subtitle.Language;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleCue;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
-import com.sun.jna.Structure;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.ToString;
 
-import java.io.Closeable;
 import java.io.File;
-import java.io.Serializable;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,34 +15,13 @@ import java.util.Optional;
  * This is effectively a wrapper around the {@link SubtitleCue} objects which contain the actual parsed data and a reference to the original
  * {@link SubtitleInfo} from which this {@link Subtitle} was generated.
  */
-@Getter
-@ToString(exclude = {"cached"})
-@EqualsAndHashCode(exclude = {"cached"}, callSuper = false)
-@Structure.FieldOrder({"filepath", "subtitleInfo", "cueRef", "len"})
-public class Subtitle extends Structure implements Serializable, Closeable {
-    public static class ByReference extends Subtitle implements Structure.ByReference {
+public record Subtitle(com.github.yoep.popcorn.backend.lib.ipc.protobuf.Subtitle proto) {
+    public String filePath() {
+        return proto.getFilePath();
     }
-
-    public String filepath;
-    public com.github.yoep.popcorn.backend.subtitles.ffi.SubtitleInfo.ByReference subtitleInfo;
-    public SubtitleCue.ByReference cueRef;
-    public int len;
-
-    private List<SubtitleCue> cached;
-
-    //region Constructors
-
-    public Subtitle() {
-    }
-
-    //endregion
-
-    public List<SubtitleCue> getCues() {
-        if (cached == null) {
-            cacheCues();
-        }
-
-        return cached;
+    
+    public List<Cue> cues() {
+        return proto.getCuesList();
     }
 
     /**
@@ -57,7 +31,7 @@ public class Subtitle extends Structure implements Serializable, Closeable {
      */
     public boolean isNone() {
         return getSubtitleInfo()
-                .map(SubtitleInfo::isNone)
+                .map(e -> e.getLanguage() == Language.NONE)
                 .orElse(false);
     }
 
@@ -66,31 +40,11 @@ public class Subtitle extends Structure implements Serializable, Closeable {
      *
      * @return Returns the subtitle info if present, else {@link Optional#empty()}.
      */
-    public Optional<SubtitleInfo> getSubtitleInfo() {
-        return Optional.ofNullable(subtitleInfo)
-                .map(SubtitleInfo::from);
+    public Optional<Info> getSubtitleInfo() {
+        return Optional.ofNullable(proto.getInfo());
     }
 
     public File getFile() {
-        return new File(filepath);
-    }
-
-    @Override
-    public void read() {
-        super.read();
-        cacheCues();
-    }
-
-    @Override
-    public void close() {
-        setAutoSynch(false);
-    }
-
-    private void cacheCues() {
-        cached = Optional.ofNullable(cueRef)
-                .map(e -> e.toArray(len))
-                .map(e -> (SubtitleCue[]) e)
-                .map(Arrays::asList)
-                .orElse(Collections.emptyList());
+        return new File(proto.getFilePath());
     }
 }

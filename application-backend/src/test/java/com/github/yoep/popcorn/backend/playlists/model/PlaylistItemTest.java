@@ -2,15 +2,11 @@ package com.github.yoep.popcorn.backend.playlists.model;
 
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentFileInfo;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
-import com.github.yoep.popcorn.backend.playlists.ffi.PlaylistItem;
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
-import com.github.yoep.popcorn.backend.subtitles.ffi.SubtitleInfo;
-import com.github.yoep.popcorn.backend.subtitles.model.SubtitleFile;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 
-import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 

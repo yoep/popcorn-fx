@@ -1,15 +1,13 @@
 package com.github.yoep.popcorn.ui.view.services;
 
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
-import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
-import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
-import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentStreamState;
 import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
 import com.github.yoep.popcorn.backend.player.PlayerChanged;
 import com.github.yoep.popcorn.backend.player.PlayerManagerListener;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
@@ -35,8 +33,14 @@ public class PlayerExternalComponentService extends AbstractListenerService<Play
     }
 
     public void togglePlaybackState() {
-        playerManagerService.getActivePlayer()
-                .ifPresent(this::togglePlaybackStateOnPlayer);
+        playerManagerService.getActivePlayer().whenComplete((player, throwable) -> {
+            if (throwable == null) {
+                player.ifPresent(this::togglePlaybackStateOnPlayer);
+            } else {
+                log.error("Failed to retrieve active player", throwable);
+            }
+        });
+
     }
 
     public void closePlayer() {
@@ -44,13 +48,24 @@ public class PlayerExternalComponentService extends AbstractListenerService<Play
     }
 
     public void goBack() {
-        playerManagerService.getActivePlayer()
-                .ifPresent(e -> e.seek(time - TIME_STEP_OFFSET));
+        playerManagerService.getActivePlayer().whenComplete((player, throwable) -> {
+            if (throwable == null) {
+                player.ifPresent(e -> e.seek(time - TIME_STEP_OFFSET));
+            } else {
+                log.error("Failed to retrieve active player", throwable);
+            }
+        });
+                ;
     }
 
     public void goForward() {
-        playerManagerService.getActivePlayer()
-                .ifPresent(e -> e.seek(time + TIME_STEP_OFFSET));
+        playerManagerService.getActivePlayer().whenComplete((player, throwable) -> {
+            if (throwable == null) {
+                player.ifPresent(e -> e.seek(time + TIME_STEP_OFFSET));
+            } else {
+                log.error("Failed to retrieve active player", throwable);
+            }
+        });
     }
 
     private void init() {
@@ -81,14 +96,14 @@ public class PlayerExternalComponentService extends AbstractListenerService<Play
             }
 
             @Override
-            public void onPlayerStateChanged(PlayerState newState) {
+            public void onPlayerStateChanged(Player.State newState) {
                 onStateChanged(newState);
             }
         });
     }
 
-    private void togglePlaybackStateOnPlayer(Player e) {
-        if (e.getState() == PlayerState.PAUSED) {
+    private void togglePlaybackStateOnPlayer(com.github.yoep.popcorn.backend.adapters.player.Player e) {
+        if (e.getState() == Player.State.PAUSED) {
             e.resume();
         } else {
             e.pause();
@@ -111,7 +126,7 @@ public class PlayerExternalComponentService extends AbstractListenerService<Play
         invokeListeners(e -> e.onTimeChanged(time));
     }
 
-    private void onStateChanged(PlayerState state) {
+    private void onStateChanged(Player.State state) {
         invokeListeners(e -> e.onStateChanged(state));
     }
 

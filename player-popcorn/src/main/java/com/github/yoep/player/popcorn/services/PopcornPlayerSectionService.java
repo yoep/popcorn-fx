@@ -5,12 +5,12 @@ import com.github.yoep.player.popcorn.listeners.PopcornPlayerSectionListener;
 import com.github.yoep.player.popcorn.listeners.SubtitleListener;
 import com.github.yoep.player.popcorn.player.PopcornPlayer;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
-import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;
 import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationSettings;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
-import com.github.yoep.popcorn.backend.settings.ApplicationConfigEvent;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import lombok.extern.slf4j.Slf4j;
 
@@ -42,7 +42,7 @@ public class PopcornPlayerSectionService extends AbstractListenerService<Popcorn
     }
 
     public void togglePlayerPlaybackState() {
-        if (player.getState() == PlayerState.PAUSED) {
+        if (player.getState() == Player.State.PAUSED) {
             player.resume();
         } else {
             player.pause();
@@ -74,12 +74,16 @@ public class PopcornPlayerSectionService extends AbstractListenerService<Popcorn
     }
 
     public void provideSubtitleValues() {
-        var subtitleSettings = applicationConfig.getSettings().getSubtitleSettings();
-
-        invokeListeners(e -> e.onSubtitleFamilyChanged(subtitleSettings.getFontFamily().getFamily()));
-        invokeListeners(e -> e.onSubtitleFontWeightChanged(subtitleSettings.isBold()));
-        invokeListeners(e -> e.onSubtitleSizeChanged(subtitleSettings.getFontSize()));
-        invokeListeners(e -> e.onSubtitleDecorationChanged(subtitleSettings.getDecoration()));
+        applicationConfig.getSettings().thenApply(ApplicationSettings::getSubtitleSettings).whenComplete((settings, throwable) -> {
+            if (throwable == null) {
+//                invokeListeners(e -> e.onSubtitleFamilyChanged(settings.getFontFamily().getFamily()));
+                invokeListeners(e -> e.onSubtitleFontWeightChanged(settings.getBold()));
+                invokeListeners(e -> e.onSubtitleSizeChanged(settings.getFontSize()));
+                invokeListeners(e -> e.onSubtitleDecorationChanged(settings.getDecoration()));
+            }else {
+                log.error("Failed to retrieve settings", throwable);
+            }
+        });
     }
 
     //endregion
@@ -92,7 +96,7 @@ public class PopcornPlayerSectionService extends AbstractListenerService<Popcorn
 
     private void initializeListeners() {
         player.addListener(playerListener);
-        applicationConfig.register(this::onSubtitleSettingsChanged);
+//        applicationConfig.register(this::onSubtitleSettingsChanged);
         videoService.videoPlayerProperty().addListener((observableValue, videoPlayer, newVideoPlayer) -> onVideoViewChanged(newVideoPlayer));
         subtitleManagerService.subtitleSizeProperty().addListener((observableValue, number, newSize) -> onSubtitleSizeChanged(newSize));
         subtitleManagerService.registerListener(new SubtitleListener() {
@@ -121,21 +125,21 @@ public class PopcornPlayerSectionService extends AbstractListenerService<Popcorn
         invokeListeners(e -> e.onSubtitleSizeChanged(newSize.intValue()));
     }
 
-    private void onSubtitleSettingsChanged(ApplicationConfigEvent.ByValue event) {
-        if (event.getTag() == ApplicationConfigEvent.Tag.SUBTITLE_SETTINGS_CHANGED) {
-            var settings = event.getUnion().getSubtitleSettingsChanged_body().getSettings();
-            invokeListeners(e -> e.onSubtitleFamilyChanged(settings.getFontFamily().getFamily()));
-            invokeListeners(e -> e.onSubtitleSizeChanged(settings.getFontSize()));
-            invokeListeners(e -> e.onSubtitleFontWeightChanged(settings.isBold()));
-            invokeListeners(e -> e.onSubtitleDecorationChanged(settings.getDecoration()));
-        }
-    }
+//    private void onSubtitleSettingsChanged(ApplicationConfigEvent.ByValue event) {
+//        if (event.getTag() == ApplicationConfigEvent.Tag.SUBTITLE_SETTINGS_CHANGED) {
+//            var settings = event.getUnion().getSubtitleSettingsChanged_body().getSettings();
+//            invokeListeners(e -> e.onSubtitleFamilyChanged(settings.getFontFamily().getFamily()));
+//            invokeListeners(e -> e.onSubtitleSizeChanged(settings.getFontSize()));
+//            invokeListeners(e -> e.onSubtitleFontWeightChanged(settings.isBold()));
+//            invokeListeners(e -> e.onSubtitleDecorationChanged(settings.getDecoration()));
+//        }
+//    }
 
     private void onPlayerTimeChanged(long newTime) {
         invokeListeners(e -> e.onPlayerTimeChanged(newTime));
     }
 
-    private void onPlayerStateChanged(PlayerState newState) {
+    private void onPlayerStateChanged(Player.State newState) {
         log.trace("Video player entered state {}", newState);
         invokeListeners(e -> e.onPlayerStateChanged(newState));
     }
@@ -156,7 +160,7 @@ public class PopcornPlayerSectionService extends AbstractListenerService<Popcorn
             }
 
             @Override
-            public void onStateChanged(PlayerState newState) {
+            public void onStateChanged(Player.State newState) {
                 onPlayerStateChanged(newState);
             }
 

@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.backend.player;
 
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
-import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
 
 public interface PlayerManagerListener {
     void activePlayerChanged(PlayerChanged playerChange);
@@ -34,5 +34,5 @@ public interface PlayerManagerListener {
      *
      * @param newState The new state of the active player.
      */
-    void onPlayerStateChanged(PlayerState newState);
+    void onPlayerStateChanged(Player.State newState);
 }

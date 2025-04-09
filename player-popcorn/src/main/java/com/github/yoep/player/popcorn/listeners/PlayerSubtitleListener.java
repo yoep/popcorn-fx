@@ -1,11 +1,11 @@
 package com.github.yoep.player.popcorn.listeners;
 
-import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Subtitle;
 
 import java.util.List;
 
 public interface PlayerSubtitleListener {
-    void onActiveSubtitleChanged(SubtitleInfo activeSubtitle);
+    void onActiveSubtitleChanged(Subtitle.Info activeSubtitle);
 
-    void onAvailableSubtitlesChanged(List<SubtitleInfo> subtitles, SubtitleInfo activeSubtitle);
+    void onAvailableSubtitlesChanged(List<Subtitle.Info> subtitles, Subtitle.Info activeSubtitle);
 }

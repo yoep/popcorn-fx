@@ -1,7 +1,7 @@
 package com.github.yoep.player.popcorn.listeners;
 
-import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
-import com.github.yoep.popcorn.backend.settings.models.subtitles.DecorationType;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationSettings;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import javafx.scene.Node;
 
@@ -10,7 +10,7 @@ public interface PopcornPlayerSectionListener {
 
     void onSubtitleDisabled();
 
-    void onPlayerStateChanged(PlayerState state);
+    void onPlayerStateChanged(Player.State state);
 
     void onPlayerTimeChanged(long time);
 
@@ -20,7 +20,7 @@ public interface PopcornPlayerSectionListener {
 
     void onSubtitleFontWeightChanged(Boolean bold);
 
-    void onSubtitleDecorationChanged(DecorationType newDecorationType);
+    void onSubtitleDecorationChanged(ApplicationSettings.SubtitleSettings.DecorationType newDecorationType);
 
     void onVideoViewChanged(Node videoView);
 

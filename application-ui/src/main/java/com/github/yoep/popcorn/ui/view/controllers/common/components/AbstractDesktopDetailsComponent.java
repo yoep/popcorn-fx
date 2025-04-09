@@ -1,8 +1,8 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.media.providers.Media;
-import com.github.yoep.popcorn.backend.media.providers.MediaTorrentInfo;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media.TorrentInfo;
+import com.github.yoep.popcorn.backend.media.Media;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
@@ -76,11 +76,11 @@ public abstract class AbstractDesktopDetailsComponent<T extends Media> extends A
         Tooltip.install(magnetLink, tooltip);
     }
 
-    protected void openMagnetLink(MediaTorrentInfo torrentInfo) {
+    protected void openMagnetLink(TorrentInfo torrentInfo) {
         eventPublisher.publishEvent(new OpenMagnetLinkEvent(this, torrentInfo.getUrl()));
     }
 
-    protected void copyMagnetLink(MediaTorrentInfo torrentInfo) {
+    protected void copyMagnetLink(TorrentInfo torrentInfo) {
         var clipboardContent = new ClipboardContent();
         clipboardContent.putUrl(torrentInfo.getUrl());
         clipboardContent.putString(torrentInfo.getUrl());

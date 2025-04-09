@@ -1,11 +1,12 @@
-use log::{debug, trace, warn};
-
 use crate::core::media;
 use crate::core::media::providers::enhancers::Enhancer;
 use crate::core::media::providers::{MediaDetailsProvider, MediaProvider};
 use crate::core::media::{
     Category, Genre, MediaDetails, MediaError, MediaIdentifier, MediaOverview, MediaType, SortBy,
 };
+use log::{debug, trace, warn};
+use std::time::Duration;
+use tokio::{select, time};
 
 /// Manages the available [MediaProvider]'s that can be used to retrieve [Media] items.
 /// Multiple providers for the same [Category] can be registered to overrule an existing one.
@@ -25,8 +26,8 @@ pub struct ProviderManager {
     /// The media providers
     media_providers: Vec<Box<dyn MediaProvider>>,
     details_providers: Vec<Box<dyn MediaDetailsProvider>>,
-    /// The enhancers
     enhancers: Vec<Box<dyn Enhancer>>,
+    timeout: Duration,
 }
 
 impl ProviderManager {
@@ -56,7 +57,10 @@ impl ProviderManager {
                     category,
                     provider
                 );
-                provider.retrieve(genre, sort_by, keywords, page).await
+                select! {
+                    _ = time::sleep(self.timeout) => Err(MediaError::ProviderTimeout),
+                    result = provider.retrieve(genre, sort_by, keywords, page) => result
+                }
             }
         }
     }
@@ -149,42 +153,84 @@ unsafe impl Send for ProviderManager {}
 
 unsafe impl Sync for ProviderManager {}
 
-/// The builder for the [ProviderManager] instance.
+/// A builder for constructing a [ProviderManager] instance.
+///
+/// This builder allows incremental configuration of the provider manager by registering
+/// media providers, detail providers, enhancers, and an optional timeout.
 #[derive(Debug, Default)]
 pub struct ProviderManagerBuilder {
     media_providers: Vec<Box<dyn MediaProvider>>,
     details_providers: Vec<Box<dyn MediaDetailsProvider>>,
     enhancers: Vec<Box<dyn Enhancer>>,
+    timeout: Option<Duration>,
 }
 
 impl ProviderManagerBuilder {
+    /// Creates a new `ProviderManagerBuilder` with default values.
     pub fn new() -> Self {
         Self::default()
     }
 
-    pub fn with_provider(mut self, provider: Box<dyn MediaProvider>) -> Self {
+    /// Registers a media provider to the builder.
+    ///
+    /// Media providers are responsible for supplying media content.
+    ///
+    /// # Arguments
+    ///
+    /// * `provider` - A boxed implementation of [`MediaProvider`].
+    pub fn with_provider(&mut self, provider: Box<dyn MediaProvider>) -> &mut Self {
         self.media_providers.push(provider);
         self
     }
 
+    /// Registers a media details provider to the builder.
+    ///
+    /// Detail providers enrich media with additional metadata or extended information.
+    ///
+    /// # Arguments
+    ///
+    /// * `details_provider` - A boxed implementation of [`MediaDetailsProvider`].
     pub fn with_details_provider(
-        mut self,
+        &mut self,
         details_provider: Box<dyn MediaDetailsProvider>,
-    ) -> Self {
+    ) -> &mut Self {
         self.details_providers.push(details_provider);
         self
     }
 
-    pub fn with_enhancer(mut self, enhancer: Box<dyn Enhancer>) -> Self {
+    /// Registers an enhancer to the builder.
+    ///
+    /// Enhancers are used to modify or augment media data after it is retrieved.
+    ///
+    /// # Arguments
+    ///
+    /// * `enhancer` - A boxed implementation of [`Enhancer`].
+    pub fn with_enhancer(&mut self, enhancer: Box<dyn Enhancer>) -> &mut Self {
         self.enhancers.push(enhancer);
         self
     }
 
-    pub fn build(self) -> ProviderManager {
+    /// Sets the timeout duration used by the provider manager.
+    ///
+    /// If not specified, a default timeout of 10 seconds is used.
+    ///
+    /// # Arguments
+    ///
+    /// * `timeout` - The maximum duration operations are allowed to take.
+    pub fn timeout(&mut self, timeout: Duration) -> &mut Self {
+        self.timeout = Some(timeout);
+        self
+    }
+
+    /// Finalizes the builder and constructs a [`ProviderManager`] instance.
+    ///
+    /// Consumes all configured providers, enhancers, and the optional timeout.
+    pub fn build(&mut self) -> ProviderManager {
         ProviderManager {
-            media_providers: self.media_providers,
-            details_providers: self.details_providers,
-            enhancers: self.enhancers,
+            media_providers: self.media_providers.drain(..).collect(),
+            details_providers: self.details_providers.drain(..).collect(),
+            enhancers: self.enhancers.drain(..).collect(),
+            timeout: self.timeout.take().unwrap_or(Duration::from_secs(10)),
         }
     }
 }

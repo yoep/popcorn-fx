@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.backend.torrent;
 
-import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentState;
 import com.sun.jna.FromNativeContext;
 import com.sun.jna.NativeMapped;
@@ -23,7 +22,6 @@ public class TorrentEventC extends Structure implements Closeable {
         @Override
         public void close() {
             super.close();
-            FxLib.INSTANCE.get().dispose_torrent_stream_event_value(this);
         }
     }
 

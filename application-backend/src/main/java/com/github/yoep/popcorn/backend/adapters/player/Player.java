@@ -2,10 +2,11 @@ package com.github.yoep.popcorn.backend.adapters.player;
 
 import com.github.yoep.popcorn.backend.adapters.player.embaddable.EmbeddablePlayer;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
-import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 
 import java.io.InputStream;
 import java.util.Optional;
+
+import static com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player.State;
 
 /**
  * The player is an embedded/non-embedded video player which supports playback of streaming videos.
@@ -23,7 +24,7 @@ public interface Player {
      *
      * @return Returns the name of the player.
      */
-    
+
     String getName();
 
     /**
@@ -32,7 +33,7 @@ public interface Player {
      *
      * @return Returns the description of the player.
      */
-    
+
     String getDescription();
 
     /**
@@ -47,8 +48,8 @@ public interface Player {
      *
      * @return Returns the current player state.
      */
-    
-    PlayerState getState();
+
+    State getState();
 
     /**
      * Check if the player supports embedded playback in the application.

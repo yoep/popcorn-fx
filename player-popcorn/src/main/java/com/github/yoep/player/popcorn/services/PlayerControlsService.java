@@ -7,11 +7,11 @@ import com.github.yoep.player.popcorn.listeners.PlayerControlsListener;
 import com.github.yoep.player.popcorn.player.PopcornPlayer;
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
-import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import lombok.extern.slf4j.Slf4j;
 
@@ -53,7 +53,7 @@ public class PlayerControlsService extends AbstractListenerService<PlayerControl
     }
 
     public void togglePlayerPlaybackState() {
-        if (player.getState() == PlayerState.PAUSED) {
+        if (player.getState() == Player.State.PAUSED) {
             resume();
         } else {
             pause();
@@ -103,7 +103,7 @@ public class PlayerControlsService extends AbstractListenerService<PlayerControl
         request.getStreamHandle().ifPresent(e -> torrentService.addListener(e, torrentListener));
     }
 
-    private void onPlayerStateChanged(PlayerState state) {
+    private void onPlayerStateChanged(Player.State state) {
         invokeListeners(e -> e.onPlayerStateChanged(state));
     }
 
@@ -127,7 +127,7 @@ public class PlayerControlsService extends AbstractListenerService<PlayerControl
     private PlayerListener createPlayerListener() {
         return new AbstractPlayerListener() {
             @Override
-            public void onStateChanged(PlayerState newState) {
+            public void onStateChanged(Player.State newState) {
                 onPlayerStateChanged(newState);
             }
 

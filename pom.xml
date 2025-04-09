@@ -277,11 +277,6 @@
                     <artifactId>jacoco-maven-plugin</artifactId>
                     <version>${jacoco.version}</version>
                 </plugin>
-                <plugin>
-                    <groupId>org.sonarsource.jacoco</groupId>
-                    <artifactId>sonar-jacoco-plugin</artifactId>
-                    <version>1.1.0.898</version>
-                </plugin>
             </plugins>
         </pluginManagement>
 
@@ -350,6 +345,7 @@
                         --add-opens application.backend/com.github.yoep.popcorn.backend.events=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend.info=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend.lib=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.lib.ipc=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend.loader=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend.logging=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend.media.favorites=ALL-UNNAMED
@@ -422,7 +418,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.11.0</version>
+                <version>3.13.0</version>
                 <configuration>
                     <annotationProcessorPaths>
                         <path>

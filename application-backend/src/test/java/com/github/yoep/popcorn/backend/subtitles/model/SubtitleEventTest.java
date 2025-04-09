@@ -1,8 +1,6 @@
 package com.github.yoep.popcorn.backend.subtitles.model;
 
 import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
-import com.github.yoep.popcorn.backend.subtitles.ffi.SubtitleEvent;
-import com.github.yoep.popcorn.backend.subtitles.ffi.SubtitleInfo;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;

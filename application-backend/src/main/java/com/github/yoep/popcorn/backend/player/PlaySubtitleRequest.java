@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.backend.player;
 
-import com.github.yoep.popcorn.backend.subtitles.ffi.SubtitleInfo;
 import com.sun.jna.Structure;
 import lombok.Getter;
 import lombok.ToString;
@@ -16,12 +15,9 @@ public class PlaySubtitleRequest extends Structure implements Closeable {
     }
 
     public byte enabled;
-    public SubtitleInfo.ByReference subtitleInfo;
 
     @Override
     public void close() {
         setAutoSynch(false);
-        Optional.ofNullable(subtitleInfo)
-                .ifPresent(SubtitleInfo.ByReference::close);
     }
 }

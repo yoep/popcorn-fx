@@ -1,8 +1,10 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteEventCallback;
-import com.github.yoep.popcorn.backend.media.providers.Media;
+import com.github.yoep.popcorn.backend.media.Media;
 import com.github.yoep.popcorn.backend.media.watched.WatchedEventCallback;
+
+import java.util.concurrent.CompletableFuture;
 
 public interface OverlayItemMetadataProvider {
     boolean isLiked(Media media);
@@ -11,7 +13,7 @@ public interface OverlayItemMetadataProvider {
 
     void removeListener(FavoriteEventCallback callback);
 
-    boolean isWatched(Media media);
+    CompletableFuture<Boolean> isWatched(Media media);
 
     void addListener(WatchedEventCallback callback);
 

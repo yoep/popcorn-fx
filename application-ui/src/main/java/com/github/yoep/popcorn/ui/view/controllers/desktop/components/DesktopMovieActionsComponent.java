@@ -3,11 +3,12 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
-import com.github.yoep.popcorn.backend.media.providers.MovieDetails;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Playlist;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Subtitle;
+import com.github.yoep.popcorn.backend.media.MovieDetails;
 import com.github.yoep.popcorn.backend.messages.SubtitleMessage;
-import com.github.yoep.popcorn.backend.playlists.model.Playlist;
-import com.github.yoep.popcorn.backend.playlists.model.PlaylistItem;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
+import com.github.yoep.popcorn.backend.subtitles.SubtitleHelper;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.listeners.LanguageSelectionListener;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
@@ -32,6 +33,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.ResourceBundle;
@@ -76,14 +78,14 @@ public class DesktopMovieActionsComponent implements Initializable {
     private void initializeLanguageSelection() {
         languageSelection.setFactory(new LanguageFlagCell() {
             @Override
-            public void updateItem(SubtitleInfo item) {
+            public void updateItem(Subtitle.Info item) {
                 if (item == null)
                     return;
 
                 setText(null);
 
-                var language = item.language().getNativeName();
-                var image = Optional.ofNullable(item.getFlagResource())
+                var language = SubtitleHelper.getNativeName(item.getLanguage());
+                var image = Optional.of(SubtitleHelper.getFlagResource(item.getLanguage()))
                         .map(DesktopMovieActionsComponent.class::getResourceAsStream)
                         .map(Image::new)
                         .map(ImageView::new)
@@ -92,9 +94,9 @@ public class DesktopMovieActionsComponent implements Initializable {
                 image.setFitHeight(20);
                 image.setPreserveRatio(true);
 
-                if (item.isNone()) {
+                if (item.getLanguage() == Subtitle.Language.NONE) {
                     language = localeText.get(SubtitleMessage.NONE);
-                } else if (item.isCustom()) {
+                } else if (item.getLanguage() == Subtitle.Language.CUSTOM) {
                     language = localeText.get(SubtitleMessage.CUSTOM);
                 }
 
@@ -113,19 +115,31 @@ public class DesktopMovieActionsComponent implements Initializable {
 
     private void resetLanguageSelection() {
         languageSelection.getItems().clear();
-        languageSelection.getItems().add(subtitleService.none());
-        languageSelection.select(0);
+        subtitleService.none().whenComplete((subtitle, throwable) -> {
+            if (throwable == null) {
+                languageSelection.getItems().add(subtitle);
+                languageSelection.select(0);
+            } else {
+                log.error("Failed to load none subtitle", throwable);
+            }
+        });
     }
 
     private void onShowMovieDetails() {
-        var trailer = media.getTrailer();
+        var trailer = media.proto().getTrailer();
 
-        Platform.runLater(() -> {
-            watchNowButton.select(playerService.getActivePlayer().orElse(null));
-            watchTrailerButton.setVisible(trailer != null && !trailer.isBlank());
-            watchNowButton.requestFocus();
+        playerService.getActivePlayer().whenComplete((player, throwable) -> {
+            if (throwable == null) {
+                Platform.runLater(() -> {
+                    watchNowButton.select(player.orElse(null));
+                    watchTrailerButton.setVisible(trailer != null && !trailer.isBlank());
+                    watchNowButton.requestFocus();
 
-            updateSubtitles();
+                    updateSubtitles();
+                });
+            } else {
+                log.error("Failed to retrieve active player", throwable);
+            }
         });
     }
 
@@ -135,24 +149,29 @@ public class DesktopMovieActionsComponent implements Initializable {
         }
 
         var items = languageSelection.getItems();
-        var defaultSubtitle = subtitleService.none();
+        CompletableFuture<Subtitle.Info>[] futures = new CompletableFuture[]{subtitleService.none(), subtitleService.custom()};
 
-        items.clear();
-        items.addAll(defaultSubtitle, subtitleService.custom());
-        languageSelection.select(defaultSubtitle);
-        subtitleFuture = subtitleService
-                .retrieveSubtitles(media)
-                .whenComplete((subtitleInfos, throwable) -> {
-                    if (throwable == null) {
-                        Platform.runLater(() -> {
-                            languageSelection.getItems().clear();
-                            languageSelection.getItems().addAll(subtitleInfos.toArray(SubtitleInfo[]::new));
-                            languageSelection.select(subtitleService.getDefaultOrInterfaceLanguage(subtitleInfos));
-                        });
-                    } else {
-                        log.error(throwable.getMessage(), throwable);
-                    }
-                });
+        CompletableFuture.allOf(futures).thenApply(v -> Arrays.stream(futures)
+                .map(CompletableFuture::join)
+                .toList()).whenComplete((defaultSubtitles, throwable) -> {
+            items.clear();
+            items.addAll(defaultSubtitles);
+            languageSelection.select(defaultSubtitles.get(0));
+        });
+
+//        subtitleFuture = subtitleService
+//                .retrieveSubtitles(media)
+//                .whenComplete((subtitleInfos, throwable) -> {
+//                    if (throwable == null) {
+//                        Platform.runLater(() -> {
+//                            languageSelection.getItems().clear();
+//                            languageSelection.getItems().addAll(subtitleInfos.toArray(Subtitle.Info[]::new));
+//                            languageSelection.select(subtitleService.getDefaultOrInterfaceLanguage(subtitleInfos));
+//                        });
+//                    } else {
+//                        log.error(throwable.getMessage(), throwable);
+//                    }
+//                });
     }
 
     private void onWatchNow() {
@@ -160,22 +179,26 @@ public class DesktopMovieActionsComponent implements Initializable {
     }
 
     private void playTrailer() {
-        var item = PlaylistItem.builder()
-                .url(media.getTrailer())
-                .title(media.getTitle())
-                .caption("Trailer")
-                .thumb(media.getImages().getPoster())
-                .subtitlesEnabled(false)
+        var item = Playlist.Item.newBuilder()
+                .setUrl(media.proto().getTrailer())
+                .setTitle(media.title())
+                .setCaption("Trailer")
+                .setThumb(media.images().getPoster())
+                .setSubtitlesEnabled(false)
                 .build();
-        playlistManager.play(new Playlist(item));
+
+        playlistManager.play(Playlist.newBuilder()
+                .addItems(item)
+                .build());
     }
 
     protected LanguageSelectionListener createLanguageListener() {
         return newValue -> {
-            if (newValue.isCustom()) {
-                detailsComponentService.onCustomSubtitleSelected(() ->
-                        languageSelection.select(subtitleService.none()));
-            } else if (newValue.isNone()) {
+            var language = newValue.getLanguage();
+            if (language == Subtitle.Language.CUSTOM) {
+//                detailsComponentService.onCustomSubtitleSelected(() ->
+//                        languageSelection.select(subtitleService.none()));
+            } else if (language == Subtitle.Language.NONE) {
                 subtitleService.disableSubtitle();
             } else {
                 subtitleService.updateSubtitle(newValue);

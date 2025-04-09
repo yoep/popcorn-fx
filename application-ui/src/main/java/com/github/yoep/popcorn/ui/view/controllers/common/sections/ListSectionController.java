@@ -4,6 +4,9 @@ import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
 import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
+import com.github.yoep.popcorn.backend.media.Media;
+import com.github.yoep.popcorn.backend.media.MovieDetails;
+import com.github.yoep.popcorn.backend.media.ShowDetails;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteEventCallback;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.backend.media.providers.*;
@@ -370,16 +373,16 @@ public class ListSectionController extends AbstractListSectionController impleme
 
             @Override
             public void addListener(FavoriteEventCallback callback) {
-                favoriteService.registerListener(callback);
+//                favoriteService.registerListener(callback);
             }
 
             @Override
             public void removeListener(FavoriteEventCallback callback) {
-                favoriteService.removeListener(callback);
+//                favoriteService.removeListener(callback);
             }
 
             @Override
-            public boolean isWatched(Media media) {
+            public CompletableFuture<Boolean> isWatched(Media media) {
                 return watchedService.isWatched(media);
             }
 

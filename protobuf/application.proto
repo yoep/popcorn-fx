@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+option optimize_for = LITE_RUNTIME;
+option java_multiple_files = true;
+option java_package = "com.github.yoep.popcorn.backend.lib.ipc.protobuf";
+
+package fx.ipc.proto;
+
+message ApplicationArgsRequest {
+}
+
+message ApplicationArgsResponse {
+  ApplicationArgs args = 1;
+}
+
+message ApplicationArgs {
+  bool is_tv_mode = 1;
+  bool is_maximized = 2;
+  bool is_kiosk_mode = 3;
+  bool is_mouse_disabled = 4;
+  bool is_youtube_player_enabled = 5;
+  bool is_vlc_video_player_enabled = 6;
+  bool is_fx_player_enabled = 7;
+}
+
+message ApplicationTerminationRequest {
+}

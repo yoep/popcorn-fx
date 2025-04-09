@@ -228,8 +228,8 @@ impl PopcornProperties {
 
     /// Retrieve the provider properties for the given name.
     /// It returns the properties when found, else the [ConfigError].
-    pub fn provider(&self, name: &str) -> config::Result<&ProviderProperties> {
-        let name = name.to_string();
+    pub fn provider<S: AsRef<str>>(&self, name: S) -> config::Result<&ProviderProperties> {
+        let name = name.as_ref().to_lowercase();
         self.providers
             .get(&name)
             .ok_or(ConfigError::UnknownProvider(name))

@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.backend.lib;
 
-import com.github.yoep.popcorn.backend.FxLib;
 import com.sun.jna.Pointer;
 import com.sun.jna.Structure;
 import lombok.EqualsAndHashCode;
@@ -41,6 +40,5 @@ public class ByteArray extends Structure implements Closeable {
     @Override
     public void close() {
         setAutoSynch(false);
-        FxLib.INSTANCE.get().dispose_byte_array(this);
     }
 }

@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
-import com.github.yoep.popcorn.backend.media.providers.Media;
+import com.github.yoep.popcorn.backend.media.Media;
 import com.github.yoep.popcorn.backend.media.watched.WatchedEventCallback;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.OverlayItemListener;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.OverlayItemMetadataProvider;
@@ -51,7 +51,13 @@ public class TvMediaCardComponent extends AbstractCardComponent implements Initi
     }
 
     protected void initializeMetadata() {
-        switchWatched(metadataProvider.isWatched(media));
+        metadataProvider.isWatched(media).whenComplete((watched, throwable) -> {
+            if (throwable == null) {
+                switchWatched(watched);
+            } else {
+                log.error("Failed to retrieve is watched", throwable);
+            }
+        });
     }
 
     protected void onShowDetails() {
@@ -84,7 +90,7 @@ public class TvMediaCardComponent extends AbstractCardComponent implements Initi
                 case WatchedStateChanged -> {
                     var stateChange = event.getUnion().getWatched_state_changed();
 
-                    if (Objects.equals(stateChange.getImdbId(), media.getId())) {
+                    if (Objects.equals(stateChange.getImdbId(), media.id())) {
                         switchWatched(stateChange.getNewState());
                     }
                 }

@@ -1,10 +1,7 @@
 package com.github.yoep.popcorn.ui;
 
-import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
-import com.github.yoep.popcorn.backend.media.providers.MovieProviderService;
 import com.github.yoep.popcorn.backend.media.providers.ProviderService;
-import com.github.yoep.popcorn.backend.media.providers.ShowProviderService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

@@ -5,13 +5,13 @@ import com.github.yoep.player.popcorn.listeners.PopcornPlayerSectionListener;
 import com.github.yoep.player.popcorn.messages.VideoMessage;
 import com.github.yoep.player.popcorn.services.PopcornPlayerSectionService;
 import com.github.yoep.player.popcorn.services.SubtitleManagerService;
-import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayerStartedEvent;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationSettings;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
 import com.github.yoep.popcorn.backend.player.PlayerAction;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
-import com.github.yoep.popcorn.backend.settings.models.subtitles.DecorationType;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.SubtitleOffsetEvent;
@@ -64,7 +64,7 @@ public class PopcornPlayerSectionController implements Initializable {
     private FadeTransition transitionHeader;
     private FadeTransition transitionControls;
     private Pane bufferIndicator;
-    private PlayerState lastKnownPlayerState;
+    private Player.State lastKnownPlayerState;
     private boolean uiBlocked;
 
     @FXML
@@ -142,7 +142,7 @@ public class PopcornPlayerSectionController implements Initializable {
             }
 
             @Override
-            public void onPlayerStateChanged(PlayerState state) {
+            public void onPlayerStateChanged(Player.State state) {
                 PopcornPlayerSectionController.this.onPlayerStateChanged(state);
             }
 
@@ -167,7 +167,7 @@ public class PopcornPlayerSectionController implements Initializable {
             }
 
             @Override
-            public void onSubtitleDecorationChanged(DecorationType newDecorationType) {
+            public void onSubtitleDecorationChanged(ApplicationSettings.SubtitleSettings.DecorationType newDecorationType) {
                 PopcornPlayerSectionController.this.onSubtitleDecorationChanged(newDecorationType);
             }
 
@@ -232,7 +232,7 @@ public class PopcornPlayerSectionController implements Initializable {
         updateBufferIndicator(false);
     }
 
-    private void onPlayerStateChanged(PlayerState newState) {
+    private void onPlayerStateChanged(Player.State newState) {
         this.lastKnownPlayerState = newState;
 
         switch (newState) {
@@ -254,7 +254,7 @@ public class PopcornPlayerSectionController implements Initializable {
         subtitleTrack.setFontSize(newFontSize);
     }
 
-    private void onSubtitleDecorationChanged(DecorationType newDecoration) {
+    private void onSubtitleDecorationChanged(ApplicationSettings.SubtitleSettings.DecorationType newDecoration) {
         subtitleTrack.setDecoration(newDecoration);
     }
 
@@ -293,7 +293,7 @@ public class PopcornPlayerSectionController implements Initializable {
     }
 
     private void onHideOverlay() {
-        if (uiBlocked || lastKnownPlayerState != PlayerState.PLAYING)
+        if (uiBlocked || lastKnownPlayerState != Player.State.PLAYING)
             return;
 
         log.trace("Hiding video player overlay");

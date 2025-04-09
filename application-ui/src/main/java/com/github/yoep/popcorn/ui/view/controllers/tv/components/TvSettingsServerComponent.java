@@ -44,15 +44,15 @@ public class TvSettingsServerComponent implements Initializable {
     }
 
     private void initializeText() {
-        var apiServerValue = applicationConfig.getSettings().getServerSettings().getApiServer();
-        apiServerBtn.setText(apiServerValue);
-        apiServerTxt.setText(apiServerValue);
+//        var apiServerValue = applicationConfig.getSettings().getServerSettings().getApiServer();
+//        apiServerBtn.setText(apiServerValue);
+//        apiServerTxt.setText(apiServerValue);
     }
 
     private void onSave(ActionEvent event) {
-        var settings = applicationConfig.getSettings().getServerSettings();
-        settings.setApiServer(apiServerVirtualKeyboard.getText());
-        applicationConfig.update(settings);
+//        var settings = applicationConfig.getSettings().getServerSettings();
+//        settings.setApiServer(apiServerVirtualKeyboard.getText());
+//        applicationConfig.update(settings);
     }
 
     @FXML

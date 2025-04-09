@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.events;
 
 import com.github.yoep.popcorn.backend.events.ApplicationEvent;
-import com.github.yoep.popcorn.backend.media.filters.model.Category;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
@@ -13,9 +13,9 @@ import lombok.ToString;
 @ToString
 @EqualsAndHashCode(callSuper = false)
 public class CategoryChangedEvent extends ApplicationEvent {
-    private final Category category;
+    private final Media.Category category;
 
-    public CategoryChangedEvent(Object source, Category category) {
+    public CategoryChangedEvent(Object source, Media.Category category) {
         super(source);
         this.category = category;
     }

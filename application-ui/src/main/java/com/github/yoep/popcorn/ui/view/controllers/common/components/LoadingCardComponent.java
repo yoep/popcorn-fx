@@ -8,7 +8,6 @@ import java.net.URL;
 import java.util.ResourceBundle;
 
 @Slf4j
-
 public class LoadingCardComponent extends AbstractCardComponent implements Initializable {
     public LoadingCardComponent(ImageService imageService) {
         super(imageService);
@@ -20,6 +19,12 @@ public class LoadingCardComponent extends AbstractCardComponent implements Initi
     }
 
     private void initializePoster() {
-        setBackgroundImage(imageService.getPosterPlaceholder(POSTER_WIDTH, POSTER_HEIGHT), false);
+        imageService.getPosterPlaceholder(POSTER_WIDTH, POSTER_HEIGHT).whenComplete((image, throwable) -> {
+            if (throwable == null) {
+                setBackgroundImage(image, false);
+            } else {
+                log.error("Failed to load poster placeholder", throwable);
+            }
+        });
     }
 }

@@ -1,8 +1,8 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
-import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
 import com.github.yoep.popcorn.backend.player.PlayerAction;
 import com.github.yoep.popcorn.backend.utils.TimeUtils;
 import com.github.yoep.popcorn.ui.font.controls.Icon;
@@ -96,7 +96,7 @@ public class PlayerExternalComponent implements Initializable {
             }
 
             @Override
-            public void onStateChanged(PlayerState state) {
+            public void onStateChanged(Player.State state) {
                 onPlayerStateChanged(state);
             }
 
@@ -162,7 +162,7 @@ public class PlayerExternalComponent implements Initializable {
         });
     }
 
-    private void onPlayerStateChanged(PlayerState state) {
+    private void onPlayerStateChanged(Player.State state) {
         switch (state) {
             case PLAYING -> updatePlayState(true);
             case PAUSED -> updatePlayState(false);

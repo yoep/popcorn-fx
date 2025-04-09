@@ -1,10 +1,10 @@
 package com.github.yoep.popcorn.backend.controls;
 
-import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
-import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
+import com.github.yoep.popcorn.backend.lib.FxChannel;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.PlayerState;
 import com.github.yoep.popcorn.backend.player.PlayerEventService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,9 +27,7 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class PlaybackControlsServiceTest {
     @Mock
-    private FxLib fxLib;
-    @Mock
-    private PopcornFx instance;
+    private FxChannel fxChannel;
     @Mock
     private PlayerManagerService playerManagerService;
     @Mock
@@ -42,10 +40,6 @@ class PlaybackControlsServiceTest {
 
     @BeforeEach
     void setUp() {
-        doAnswer(invocation -> {
-            callbackHolder.set(invocation.getArgument(1));
-            return null;
-        }).when(fxLib).register_playback_controls(eq(instance), isA(PlaybackControlCallback.class));
         when(playerManagerService.getActivePlayer()).thenReturn(Optional.of(player));
 
         service = new PlaybackControlsService(fxLib, instance, playerManagerService, playerEventService);

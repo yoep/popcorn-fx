@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.view.listeners;
 
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
-import com.github.yoep.popcorn.backend.media.providers.Media;
+import com.github.yoep.popcorn.backend.media.Media;
 
 public interface LoadTorrentListener {
 

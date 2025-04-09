@@ -1,0 +1,137 @@
+syntax = "proto3";
+
+option optimize_for = LITE_RUNTIME;
+option java_multiple_files = true;
+option java_package = "com.github.yoep.popcorn.backend.lib.ipc.protobuf";
+
+package fx.ipc.proto;
+
+message SubtitlePreference {
+  Preference preference = 1;
+  optional Subtitle.Language language = 2;
+
+  enum Preference {
+    LANGUAGE = 0;
+    DISABLED = 1;
+  }
+}
+
+message SubtitleChangedEvent {
+  Event event = 1;
+  optional Subtitle.Info info = 2;
+  optional Subtitle.Language preferred_language = 3;
+
+  enum Event {
+    InfoChanged = 0;
+    LanguageChanged = 1;
+  }
+}
+
+message Subtitle {
+  string file_path = 1;
+  optional Info info = 2;
+  repeated Cue cues = 3;
+
+  message Info {
+    optional string imdb_id = 1;
+    Subtitle.Language language = 2;
+    repeated Info.File files = 3;
+
+    message File {
+      int32 file_id = 1;
+      string name = 2;
+      string url = 3;
+      float score = 4;
+      int32 downloads = 5;
+      optional int32 quality = 6;
+    }
+  }
+
+  message Cue {
+    string id = 1;
+    uint64 start_time = 2;
+    uint64 end_time = 3;
+    repeated Line lines = 4;
+
+    message Line {
+      repeated Text text = 1;
+
+      message Text {
+        string text = 1;
+        bool italic = 2;
+        bool bold = 3;
+        bool underline = 4;
+      }
+    }
+  }
+
+  enum Language {
+    NONE = 0;
+    CUSTOM = 1;
+    ARABIC = 2;
+    BULGARIAN = 3;
+    BOSNIAN = 4;
+    CZECH = 5;
+    DANISH = 6;
+    GERMAN = 7;
+    MODERN_GREEK = 8;
+    ENGLISH = 9;
+    SPANISH = 10;
+    ESTONIAN = 11;
+    BASQUE = 12;
+    PERSIAN = 13;
+    FINNISH = 14;
+    FRENCH = 15;
+    HEBREW = 16;
+    CROATIAN = 17;
+    HUNGARIAN = 18;
+    INDONESIAN = 19;
+    ITALIAN = 20;
+    LITHUANIAN = 21;
+    DUTCH = 22;
+    NORWEGIAN = 23;
+    POLISH = 24;
+    PORTUGUESE = 25;
+    PORTUGUESE_BRAZIL = 26;
+    ROMANIAN = 27;
+    RUSSIAN = 28;
+    SLOVENE = 29;
+    SERBIAN = 30;
+    SWEDISH = 31;
+    THAI = 32;
+    TURKISH = 33;
+    UKRAINIAN = 34;
+    VIETNAMESE = 35;
+  }
+}
+
+message SubtitleEvent {
+  Event event = 1;
+  optional PreferenceChanged preference_changed = 2;
+
+  message PreferenceChanged {
+      SubtitlePreference preference = 1;
+  }
+
+  enum Event {
+    PREFERENCE_CHANGED = 0;
+  }
+}
+
+message GetSubtitlePreferenceRequest {}
+
+message GetSubtitlePreferenceResponse {
+  SubtitlePreference preference = 1;
+}
+
+message GetSubtitleNoneRequest {}
+
+message GetSubtitleNoneResponse {
+  Subtitle.Info info = 1;
+}
+
+message GetSubtitleCustomRequest {}
+
+message GetSubtitleCustomResponse {
+  Subtitle.Info info = 1;
+}

@@ -1,7 +1,8 @@
 package com.github.yoep.popcorn.ui.view.controls;
 
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Subtitle;
+import com.github.yoep.popcorn.backend.subtitles.SubtitleHelper;
 import com.github.yoep.popcorn.backend.subtitles.listeners.LanguageSelectionListener;
-import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
 import javafx.application.Platform;
 import javafx.beans.property.*;
 import javafx.collections.FXCollections;
@@ -51,8 +52,8 @@ public class LanguageFlagSelection extends StackPane {
     private final ProgressIndicator progressIndicator = new ProgressIndicator();
 
     private final List<LanguageSelectionListener> listeners = new ArrayList<>();
-    private final ObjectProperty<SubtitleInfo> selectedItem = new SimpleObjectProperty<>(this, SELECTED_ITEM_PROPERTY);
-    private final ListProperty<SubtitleInfo> items = new SimpleListProperty<>(this, ITEMS_PROPERTY, FXCollections.observableArrayList());
+    private final ObjectProperty<Subtitle.Info> selectedItem = new SimpleObjectProperty<>(this, SELECTED_ITEM_PROPERTY);
+    private final ListProperty<Subtitle.Info> items = new SimpleListProperty<>(this, ITEMS_PROPERTY, FXCollections.observableArrayList());
     private final ObjectProperty<LanguageFlagCell> factory = new SimpleObjectProperty<>(this, FACTORY_PROPERTY, new LanguageFlagCell());
     private final BooleanProperty loading = new SimpleBooleanProperty(this, LOADING_PROPERTY);
 
@@ -73,7 +74,7 @@ public class LanguageFlagSelection extends StackPane {
      *
      * @return Returns the control items.
      */
-    public ObservableList<SubtitleInfo> getItems() {
+    public ObservableList<Subtitle.Info> getItems() {
         return items.get();
     }
 
@@ -82,7 +83,7 @@ public class LanguageFlagSelection extends StackPane {
      *
      * @return Returns the items property.
      */
-    public ListProperty<SubtitleInfo> itemsProperty() {
+    public ListProperty<Subtitle.Info> itemsProperty() {
         return items;
     }
 
@@ -91,7 +92,7 @@ public class LanguageFlagSelection extends StackPane {
      *
      * @param items The new items of this control.
      */
-    public void setItems(ObservableList<SubtitleInfo> items) {
+    public void setItems(ObservableList<Subtitle.Info> items) {
         this.items.set(items);
     }
 
@@ -100,7 +101,7 @@ public class LanguageFlagSelection extends StackPane {
      *
      * @return Returns the selected item.
      */
-    public SubtitleInfo getSelectedItem() {
+    public Subtitle.Info getSelectedItem() {
         return selectedItem.get();
     }
 
@@ -109,11 +110,11 @@ public class LanguageFlagSelection extends StackPane {
      *
      * @return Returns the selected item property.
      */
-    public ObjectProperty<SubtitleInfo> selectedItemProperty() {
+    public ObjectProperty<Subtitle.Info> selectedItemProperty() {
         return selectedItem;
     }
 
-    void setSelectedItem(SubtitleInfo selectedItem) {
+    void setSelectedItem(Subtitle.Info selectedItem) {
         this.selectedItem.set(selectedItem);
     }
 
@@ -189,7 +190,7 @@ public class LanguageFlagSelection extends StackPane {
      *
      * @param subtitle The subtitle to select.
      */
-    public void select(SubtitleInfo subtitle) {
+    public void select(Subtitle.Info subtitle) {
         onSelectedItemChanged(subtitle);
     }
 
@@ -216,7 +217,7 @@ public class LanguageFlagSelection extends StackPane {
      *
      * @param newValue The item that has been selected.
      */
-    protected void onSelectedItemChanged(final SubtitleInfo newValue) {
+    protected void onSelectedItemChanged(final Subtitle.Info newValue) {
         // always hide the popup when an item has been clicked in the popup
         Platform.runLater(popup::hide);
 
@@ -251,7 +252,7 @@ public class LanguageFlagSelection extends StackPane {
 
     private void initializeEvents() {
         this.setOnMouseClicked(event -> onClicked());
-        items.addListener((ListChangeListener<SubtitleInfo>) change -> {
+        items.addListener((ListChangeListener<Subtitle.Info>) change -> {
             try {
                 while (change.next()) {
                     if (change.wasAdded()) {
@@ -304,14 +305,14 @@ public class LanguageFlagSelection extends StackPane {
         popup.setAnchorY(position.getY());
     }
 
-    private void addNewFlag(final SubtitleInfo subtitle) {
-        var flagResource = LanguageFlagSelection.class.getResourceAsStream(subtitle.getFlagResource());
+    private void addNewFlag(final Subtitle.Info subtitle) {
+        var flagResource = LanguageFlagSelection.class.getResourceAsStream(SubtitleHelper.getFlagResource(subtitle.getLanguage()));
         Flag flag = new Flag(subtitle);
 
         flag.getStyleClass().add(POPUP_IMAGE_STYLE_CLASS);
         flag.setOnMouseClicked(event -> onSelectedItemChanged(subtitle));
 
-        Tooltip tooltip = new Tooltip(subtitle.language().getNativeName());
+        Tooltip tooltip = new Tooltip(SubtitleHelper.getNativeName(subtitle.getLanguage()));
         tooltip.setShowDelay(Duration.ZERO);
         Tooltip.install(flag, tooltip);
 
@@ -319,7 +320,7 @@ public class LanguageFlagSelection extends StackPane {
         loadImage(flag.getImageView(), flagResource);
     }
 
-    private void removeFlag(SubtitleInfo subtitle) {
+    private void removeFlag(Subtitle.Info subtitle) {
         popup.getContent().removeIf(e -> ((Flag) e).getSubtitle() == subtitle);
     }
 
@@ -346,16 +347,12 @@ public class LanguageFlagSelection extends StackPane {
     @Getter
     private static class Flag extends StackPane {
         private final ImageView imageView = new ImageView();
-        private final SubtitleInfo subtitle;
+        private final Subtitle.Info subtitle;
 
-        private Flag(SubtitleInfo subtitle) {
+        private Flag(Subtitle.Info subtitle) {
             this.subtitle = subtitle;
 
             init();
-        }
-
-        public ImageView getImageView() {
-            return imageView;
         }
 
         private void init() {

@@ -1,9 +1,9 @@
 package com.github.yoep.player.popcorn.controllers.components;
 
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Playlist;
 import com.github.yoep.popcorn.backend.playlists.DefaultPlaylistManager;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManagerListener;
 import com.github.yoep.popcorn.backend.playlists.PlaylistState;
-import com.github.yoep.popcorn.backend.playlists.model.PlaylistItem;
 import com.github.yoep.popcorn.ui.view.ViewLoader;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.PlaylistItemComponent;
 import com.github.yoep.popcorn.ui.view.controls.PlaylistControl;
@@ -41,7 +41,7 @@ public class PlayerPlaylistComponent implements Initializable {
             }
 
             @Override
-            public void onPlayingIn(Long playingIn, PlaylistItem item) {
+            public void onPlayingIn(Long playingIn, Playlist.Item item) {
 
             }
 
@@ -54,6 +54,6 @@ public class PlayerPlaylistComponent implements Initializable {
 
     private void onPlaylistChanged() {
         var playlist = playlistManager.playlist();
-        playlistControl.setItems(playlist.items());
+        playlistControl.setItems(playlist.getItemsList());
     }
 }

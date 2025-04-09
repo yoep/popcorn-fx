@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
-import com.github.yoep.popcorn.backend.media.providers.Episode;
+import com.github.yoep.popcorn.backend.media.Episode;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.font.controls.Icon;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
@@ -30,13 +30,13 @@ public class EpisodeComponent implements Initializable {
 
     private boolean watched;
     /**
-     *  The action which needs to be invoked when the watched icon is clicked.
-     *  It invoked the consumer with the new expected value for the watched state.
+     * The action which needs to be invoked when the watched icon is clicked.
+     * It invoked the consumer with the new expected value for the watched state.
      */
     @Setter
     private Consumer<Boolean> onWatchClicked;
     /**
-     *  The action to invoke when the episode component is being destroyed.
+     * The action to invoke when the episode component is being destroyed.
      */
     @Setter
     private Runnable onDestroy;
@@ -64,11 +64,17 @@ public class EpisodeComponent implements Initializable {
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
-        episodeArt.setImage(imageService.getArtPlaceholder());
-        episodeNumber.setText(String.valueOf(media.getEpisode()));
-        title.setText(media.getTitle());
+        imageService.getArtPlaceholder().whenComplete((image, throwable) -> {
+            if (throwable == null) {
+                episodeArt.setImage(image);
+            } else {
+                log.error("Failed to load artwork placeholder", throwable);
+            }
+        });
+//        episodeNumber.setText(String.valueOf(media.getEpisode()));
+        title.setText(media.title());
         airDate.setText(localeText.get(DetailsMessage.AIR_DATE, ShowHelperService.AIRED_DATE_PATTERN.format(media.getAirDate())));
-        synopsis.setText(media.getSynopsis());
+        synopsis.setText(media.synopsis());
         graphic.parentProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue == null && onDestroy != null) {
                 onDestroy.run();

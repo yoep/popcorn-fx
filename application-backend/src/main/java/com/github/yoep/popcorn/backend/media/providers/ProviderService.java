@@ -1,8 +1,9 @@
 package com.github.yoep.popcorn.backend.media.providers;
 
-import com.github.yoep.popcorn.backend.media.filters.model.Category;
-import com.github.yoep.popcorn.backend.media.filters.model.Genre;
-import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media.Category;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media.Genre;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media.SortBy;
+import com.github.yoep.popcorn.backend.media.Media;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;

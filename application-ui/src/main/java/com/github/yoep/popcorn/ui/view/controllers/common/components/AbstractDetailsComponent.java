@@ -2,9 +2,8 @@ package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentHealth;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.media.providers.Media;
-import com.github.yoep.popcorn.backend.media.providers.MediaTorrentInfo;
-import com.github.yoep.popcorn.backend.media.providers.Rating;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media.TorrentInfo;
+import com.github.yoep.popcorn.backend.media.Media;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
@@ -26,6 +25,8 @@ import java.net.URL;
 import java.util.Objects;
 import java.util.ResourceBundle;
 import java.util.concurrent.CancellationException;
+
+import static com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media.*;
 
 @Slf4j
 @RequiredArgsConstructor(access = AccessLevel.PROTECTED)
@@ -85,14 +86,14 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
      *
      * @param torrentInfo The media torrent info to display the health status of.
      */
-    protected void switchHealth(MediaTorrentInfo torrentInfo) {
+    protected void switchHealth(TorrentInfo torrentInfo) {
         if (health == null)
             return;
 
         this.health.setUpdating(true);
 
         // set the health based on the API information
-        var health = healthService.calculateHealth(torrentInfo.getSeed(), torrentInfo.getPeer());
+        var health = healthService.calculateHealth(torrentInfo.getSeeds(), torrentInfo.getPeers());
         updateHealthIcon(health);
 
         // request the real-time health

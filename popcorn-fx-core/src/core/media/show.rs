@@ -19,7 +19,7 @@ pub struct ShowOverview {
     pub tvdb_id: String,
     pub title: String,
     pub year: String,
-    pub num_seasons: i32,
+    pub num_seasons: u32,
     pub images: Images,
     pub rating: Option<Rating>,
 }
@@ -30,7 +30,7 @@ impl ShowOverview {
         tvdb_id: String,
         title: String,
         year: String,
-        num_seasons: i32,
+        num_seasons: u32,
         images: Images,
         rating: Option<Rating>,
     ) -> Self {
@@ -54,7 +54,7 @@ impl ShowOverview {
     }
 
     /// The currently known number of seasons for the show.
-    pub fn number_of_seasons(&self) -> &i32 {
+    pub fn number_of_seasons(&self) -> &u32 {
         &self.num_seasons
     }
 }
@@ -81,8 +81,8 @@ impl MediaOverview for ShowOverview {
         }
     }
 
-    fn year(&self) -> &String {
-        &self.year
+    fn year(&self) -> &str {
+        self.year.as_str()
     }
 
     fn images(&self) -> &Images {
@@ -103,7 +103,7 @@ pub struct ShowDetails {
     pub tvdb_id: String,
     pub title: String,
     pub year: String,
-    pub num_seasons: i32,
+    pub num_seasons: u32,
     pub images: Images,
     pub rating: Option<Rating>,
     #[serde(rename = "contextLocale")]
@@ -123,7 +123,7 @@ impl ShowDetails {
         tvdb_id: String,
         title: String,
         year: String,
-        num_seasons: i32,
+        num_seasons: u32,
         images: Images,
         rating: Option<Rating>,
     ) -> Self {
@@ -150,7 +150,7 @@ impl ShowDetails {
     }
 
     /// The currently known number of seasons for the show.
-    pub fn number_of_seasons(&self) -> &i32 {
+    pub fn number_of_seasons(&self) -> &u32 {
         &self.num_seasons
     }
 
@@ -201,8 +201,8 @@ impl MediaOverview for ShowDetails {
         }
     }
 
-    fn year(&self) -> &String {
-        &self.year
+    fn year(&self) -> &str {
+        self.year.as_str()
     }
 
     fn images(&self) -> &Images {

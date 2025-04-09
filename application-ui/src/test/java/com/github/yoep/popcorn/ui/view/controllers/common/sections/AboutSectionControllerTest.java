@@ -1,12 +1,8 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
-import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.messages.UpdateMessage;
-import com.github.yoep.popcorn.backend.updater.UpdateCallback;
-import com.github.yoep.popcorn.backend.updater.UpdateCallbackEvent;
 import com.github.yoep.popcorn.backend.updater.UpdateService;
-import com.github.yoep.popcorn.backend.updater.UpdateState;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.CloseAboutEvent;
 import com.github.yoep.popcorn.ui.events.ShowUpdateEvent;

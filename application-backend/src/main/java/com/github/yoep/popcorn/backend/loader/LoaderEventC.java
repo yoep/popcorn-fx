@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.backend.loader;
 
-import com.github.yoep.popcorn.backend.FxLib;
 import com.sun.jna.FromNativeContext;
 import com.sun.jna.NativeMapped;
 import com.sun.jna.Structure;
@@ -21,7 +20,7 @@ public class LoaderEventC extends Structure implements Closeable {
         @Override
         public void close() {
             super.close();
-            FxLib.INSTANCE.get().dispose_loader_event_value(this);
+
         }
     }
 

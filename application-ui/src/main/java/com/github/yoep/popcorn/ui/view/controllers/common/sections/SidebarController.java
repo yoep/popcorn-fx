@@ -2,12 +2,11 @@ package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowAboutEvent;
-import com.github.yoep.popcorn.backend.media.filters.model.Category;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Update;
 import com.github.yoep.popcorn.backend.messages.UpdateMessage;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
-import com.github.yoep.popcorn.backend.updater.UpdateCallbackEvent;
 import com.github.yoep.popcorn.backend.updater.UpdateService;
-import com.github.yoep.popcorn.backend.updater.UpdateState;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.*;
 import com.github.yoep.popcorn.ui.font.controls.Icon;
@@ -48,7 +47,7 @@ public class SidebarController implements Initializable {
 
     final FadeTransition slideAnimation = new FadeTransition(Duration.millis(500), new Pane());
     final Transition updateTransition = createColorTransition();
-    Category lastKnownSelectedCategory;
+    Media.Category lastKnownSelectedCategory;
 
     @FXML
     GridPane sidebar;
@@ -139,12 +138,12 @@ public class SidebarController implements Initializable {
             Platform.runLater(() -> switchCategory(infoIcon, false));
             return event;
         });
-        updateService.register(event -> {
-            if (event.getTag() == UpdateCallbackEvent.Tag.StateChanged) {
-                onUpdateStateChanged(event.getUnion().getState_changed().getNewState());
-            }
-        });
-        onUpdateStateChanged(updateService.getState());
+//        updateService.register(event -> {
+//            if (event.getTag() == UpdateCallbackEvent.Tag.StateChanged) {
+//                onUpdateStateChanged(event.getUnion().getState_changed().getNewState());
+//            }
+//        });
+//        onUpdateStateChanged(updateService.getState());
     }
 
     private void initializeMode() {
@@ -155,9 +154,9 @@ public class SidebarController implements Initializable {
         }
     }
 
-    private void onUpdateStateChanged(UpdateState newState) {
+    private void onUpdateStateChanged(Update.State newState) {
         Platform.runLater(() -> {
-            if (newState == UpdateState.UPDATE_AVAILABLE) {
+            if (newState == Update.State.UPDATE_AVAILABLE) {
                 updateTransition.playFromStart();
                 infoTooltip.setText(localeText.get(UpdateMessage.UPDATE_AVAILABLE));
             } else {
@@ -180,8 +179,13 @@ public class SidebarController implements Initializable {
      * This will select the category during startup of the application.
      */
     private void activateStartCategory() {
-        var settings = applicationConfig.getSettings().getUiSettings();
-        switchCategory(settings.getStartScreen(), true);
+        applicationConfig.getSettings().whenComplete((settings, throwable) -> {
+            if (throwable == null) {
+                switchCategory(settings.getUiSettings().getStartScreen(), true);
+            } else {
+                log.error("Failed to retrieve settings", throwable);
+            }
+        });
     }
 
     private void focusChanged(boolean newValue) {
@@ -196,7 +200,7 @@ public class SidebarController implements Initializable {
         }
     }
 
-    private void switchCategory(Category category, boolean publishEvent) {
+    private void switchCategory(Media.Category category, boolean publishEvent) {
         Platform.runLater(() -> {
             switch (category) {
                 case MOVIES -> switchCategory(movieIcon, publishEvent);
@@ -211,12 +215,12 @@ public class SidebarController implements Initializable {
     }
 
     private void switchCategory(Icon icon, boolean publishEvent) {
-        var category = Category.MOVIES;
+        var category = Media.Category.MOVIES;
         if (icon == serieIcon) {
-            category = Category.SERIES;
+            category = Media.Category.SERIES;
         }
         if (icon == favoriteIcon) {
-            category = Category.FAVORITES;
+            category = Media.Category.FAVORITES;
         }
 
         switchActiveItem(icon);

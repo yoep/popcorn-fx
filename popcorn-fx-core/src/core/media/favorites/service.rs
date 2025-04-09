@@ -125,7 +125,8 @@ impl FXFavoriteService {
 impl FavoriteService for FXFavoriteService {
     async fn is_liked(&self, id: &str) -> bool {
         trace!("Verifying if media item {} is liked", id);
-        self.inner.favorites.read().await.contains(id)
+        let mutex = self.inner.favorites.read().await;
+        mutex.contains(id)
     }
 
     async fn is_liked_dyn(&self, favorable: &Box<dyn MediaIdentifier>) -> bool {
@@ -297,11 +298,7 @@ struct InnerFavoriteService {
 
 impl InnerFavoriteService {
     async fn start(&self) {
-        loop {
-            select! {
-                _ = self.cancellation_token.cancelled() => break,
-            }
-        }
+        self.cancellation_token.cancelled().await;
         self.save().await;
         debug!("Favorite service main loop ended");
     }

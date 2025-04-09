@@ -15,6 +15,7 @@ module application.ui {
     requires org.slf4j;
 
     requires static lombok;
+    requires com.google.protobuf;
 
     uses LoggingBridge;
 

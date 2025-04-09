@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+option optimize_for = LITE_RUNTIME;
+option java_multiple_files = true;
+option java_package = "com.github.yoep.popcorn.backend.lib.ipc.protobuf";
+
+package fx.ipc.proto;
+
+message LoaderLoadRequest {
+  string url = 1;
+}
+
+message LoaderLoadResponse {
+  int64 handle = 1;
+}
+
+message LoaderCancelRequest {
+  int64 handle = 1;
+}

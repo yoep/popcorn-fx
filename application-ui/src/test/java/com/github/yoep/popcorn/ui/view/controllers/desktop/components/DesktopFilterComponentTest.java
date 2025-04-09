@@ -1,16 +1,10 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
-import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.lib.FxStringArray;
-import com.github.yoep.popcorn.backend.media.filters.model.Category;
-import com.github.yoep.popcorn.backend.media.filters.model.Genre;
-import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
+import com.github.yoep.popcorn.backend.lib.FxChannel;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.CategoryChangedEvent;
-import com.github.yoep.popcorn.ui.events.GenreChangeEvent;
-import com.github.yoep.popcorn.ui.events.SortByChangeEvent;
 import javafx.scene.control.ComboBox;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,25 +17,23 @@ import org.testfx.util.WaitForAsyncUtils;
 
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.Collections;
 import java.util.ResourceBundle;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isA;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.lenient;
 
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
 class DesktopFilterComponentTest {
     @Mock
+    private FxChannel fxChannel;
+    @Mock
     private LocaleText localeText;
     @Mock
     private EventPublisher eventPublisher;
-    @Mock
-    private FxLib fxLib;
-    @Mock
-    private PopcornFx instance;
     private URL location;
     @Mock
     private ResourceBundle resources;
@@ -62,23 +54,22 @@ class DesktopFilterComponentTest {
     }
 
     @Test
-    void testCategoryChangedEvent() {
-        var displayText = "Lorem ipsum";
-        var event = new CategoryChangedEvent(component, Category.FAVORITES);
-        var genres = mock(FxStringArray.class);
-        var sortBy = mock(FxStringArray.class);
-        when(fxLib.retrieve_provider_genres(instance, Category.FAVORITES.getProviderName())).thenReturn(genres);
-        when(fxLib.retrieve_provider_sort_by(instance, Category.FAVORITES.getProviderName())).thenReturn(sortBy);
-        when(genres.values()).thenReturn(Collections.singletonList("lorem"));
-        when(sortBy.values()).thenReturn(Collections.singletonList("ipsum"));
-        when(localeText.get("genre_lorem")).thenReturn(displayText);
-        when(localeText.get("sort-by_ipsum")).thenReturn(displayText);
+    void testInitialize() {
+        var expectedGenreText = "FooBar";
+        var expectedSortByText = "Lorem";
+
         component.initialize(location, resources);
 
-        listener.get().apply(event);
-        WaitForAsyncUtils.waitForFxEvents();
+        component.genreCombo.getItems().add(Media.Genre.newBuilder()
+                .setText(expectedGenreText)
+                .build());
+        WaitForAsyncUtils.waitForFxEvents(10);
+        assertEquals(expectedGenreText, component.genreCombo.getButtonCell().getText());
 
-        verify(eventPublisher, timeout(200)).publish(new GenreChangeEvent(component, new Genre("lorem", displayText)));
-        verify(eventPublisher).publish(new SortByChangeEvent(component, new SortBy("ipsum", displayText)));
+        component.sortByCombo.getItems().add(Media.SortBy.newBuilder()
+                .setText(expectedSortByText)
+                .build());
+        WaitForAsyncUtils.waitForFxEvents(10);
+        assertEquals(expectedSortByText, component.sortByCombo.getButtonCell().getText());
     }
 }

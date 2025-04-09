@@ -3,8 +3,6 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 import com.github.yoep.popcorn.backend.media.tracking.TrackingListener;
 import com.github.yoep.popcorn.backend.media.tracking.TrackingService;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
-import com.github.yoep.popcorn.backend.settings.ApplicationConfigEvent;
-import com.github.yoep.popcorn.backend.settings.ApplicationConfigEventCallback;
 import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.models.LastSync;
 import com.github.yoep.popcorn.backend.settings.models.TrackingSettings;

@@ -45,9 +45,16 @@ public class PlayerSectionController implements Initializable {
         loadExternalPlayerPane();
         initializePlayNext();
         eventPublisher.register(PlayerStartedEvent.class, event -> {
-            playerManagerService.getActivePlayer().ifPresentOrElse(
-                    this::onPlayVideo,
-                    () -> log.error("Unable to update player section, no player is active"));
+            playerManagerService.getActivePlayer().whenComplete((player, throwable) -> {
+                if (throwable == null) {
+                    player.ifPresentOrElse(
+                            this::onPlayVideo,
+                            () -> log.error("Unable to update player section, no player is active")
+                    );
+                } else {
+                    log.error("Failed to retrieve active player", throwable);
+                }
+            });
             return event;
         });
     }

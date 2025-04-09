@@ -1,4 +1,5 @@
 use std::env;
+use std::fmt::{Debug, Formatter};
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -199,24 +200,18 @@ pub struct PopcornFX {
     tracking_sync: Arc<SyncMediaTracking>,
     updater: Arc<Updater>,
     watched_service: Arc<Box<dyn WatchedService>>,
-    /// The runtime pool to use for async tasks
-    runtime: Arc<Runtime>,
     /// The options that were used to create this instance
     opts: PopcornFxArgs,
 }
 
 impl PopcornFX {
     /// Create a new Popcorn FX instance with the given [PopcornFxArgs].
-    pub fn new(args: PopcornFxArgs) -> Self {
-        let runtime = Arc::new(Self::new_runtime());
-
-        runtime
-            .clone()
-            .block_on(async { Self::try_new(args, runtime).await.unwrap() })
+    pub async fn new(args: PopcornFxArgs) -> Result<Self> {
+        Self::try_new(args).await
     }
 
     /// Try to create a new Popcorn FX instance within an async context.
-    async fn try_new(args: PopcornFxArgs, runtime: Arc<Runtime>) -> Result<Self> {
+    async fn try_new(args: PopcornFxArgs) -> Result<Self> {
         // check if we need to enable the logger
         if !args.disable_logger {
             Self::initialize_logger(&args);
@@ -344,7 +339,6 @@ impl PopcornFX {
                 .config(settings.clone())
                 .tracking_provider(tracking_provider.clone())
                 .watched_service(watched_service.clone())
-                .runtime(runtime.clone())
                 .build(),
         );
         let player_discovery_services: Vec<Arc<Box<dyn Discovery>>> = vec![
@@ -405,7 +399,6 @@ impl PopcornFX {
             updater: app_updater,
             watched_service,
             player_discovery_services,
-            runtime,
             opts: args,
         })
     }
@@ -426,8 +419,8 @@ impl PopcornFX {
     }
 
     /// Retrieve the subtitle manager instance.
-    pub fn subtitle_manager(&mut self) -> &mut Arc<Box<dyn SubtitleManager>> {
-        &mut self.subtitle_manager
+    pub fn subtitle_manager(&self) -> &Arc<Box<dyn SubtitleManager>> {
+        &self.subtitle_manager
     }
 
     /// The system platform on which the Popcorn FX instance is running.
@@ -441,12 +434,12 @@ impl PopcornFX {
     }
 
     /// The favorite service of [PopcornFX] which handles all liked items and actions.
-    pub fn favorite_service(&mut self) -> &Arc<Box<dyn FavoriteService>> {
+    pub fn favorite_service(&self) -> &Arc<Box<dyn FavoriteService>> {
         &self.favorites_service
     }
 
     /// The watched service of [PopcornFX] which handles all watched items and actions.
-    pub fn watched_service(&mut self) -> &Arc<Box<dyn WatchedService>> {
+    pub fn watched_service(&self) -> &Arc<Box<dyn WatchedService>> {
         &self.watched_service
     }
 
@@ -456,7 +449,7 @@ impl PopcornFX {
     }
 
     /// The torrent stream server which handles the video streams.
-    pub fn torrent_stream_server(&mut self) -> &Arc<Box<dyn TorrentStreamServer>> {
+    pub fn torrent_stream_server(&self) -> &Arc<Box<dyn TorrentStreamServer>> {
         &self.torrent_stream_server
     }
 
@@ -526,11 +519,6 @@ impl PopcornFX {
         &self.tracking_sync
     }
 
-    /// Retrieve the given runtime pool from this Popcorn FX instance.
-    pub fn runtime(&self) -> &Arc<Runtime> {
-        &self.runtime
-    }
-
     /// Retrieve the option that were used to create this instance.
     /// It returns a read-only reference to the options as they can't be changed anymore during the runtime.
     pub fn opts(&self) -> &PopcornFxArgs {
@@ -539,9 +527,9 @@ impl PopcornFX {
 
     /// Start the discovery of external players such as VLC and DLNA servers.
     /// This will start new threads in the background for handling the discovery processes.
-    pub fn start_discovery_external_players(&self) {
+    pub fn start_discovery_external_players(&self, _interval_in_seconds: u32) {
         let player_discovery_services = self.player_discovery_services.clone();
-        self.runtime.spawn(async move {
+        tokio::spawn(async move {
             for service in player_discovery_services {
                 if let Err(e) = service.start_discovery().await {
                     error!("Failed to start {}, {}", service, e);
@@ -685,11 +673,19 @@ impl PopcornFX {
     }
 }
 
-impl Default for PopcornFX {
-    fn default() -> Self {
-        Self::new(PopcornFxArgs::default())
+impl Debug for PopcornFX {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PopcornFX")
+            .field("auto_resume_service", &self.auto_resume_service)
+            .field("cache_manager", &self.cache_manager)
+            .field("event_publisher", &self.event_publisher)
+            .finish()
     }
 }
+
+unsafe impl Send for PopcornFX {}
+
+unsafe impl Sync for PopcornFX {}
 
 impl Drop for PopcornFX {
     fn drop(&mut self) {
@@ -699,8 +695,11 @@ impl Drop for PopcornFX {
 
 #[cfg(test)]
 mod test {
+    use super::*;
+
+    use crate::tests::default_args;
+
     use fx_callback::Callback;
-    use popcorn_fx_core::core::block_in_place_runtime;
     use popcorn_fx_core::core::config::{ApplicationConfigEvent, LoggingProperties};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::core::subtitles::SubtitlePreference;
@@ -711,23 +710,18 @@ mod test {
     use std::time::Duration;
     use tempfile::tempdir;
 
-    use crate::test::default_args;
-
-    use super::*;
-
-    #[test]
-    fn test_popcorn_fx_new() {
+    #[tokio::test]
+    async fn test_popcorn_fx_new() {
         init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let mut popcorn_fx = PopcornFX::new(default_args(temp_path));
+        let mut popcorn_fx = PopcornFX::new(default_args(temp_path)).await.unwrap();
 
         let _ = popcorn_fx.platform().info();
         let _ = popcorn_fx.subtitle_server();
 
         let subtitle_manager = popcorn_fx.subtitle_manager().clone();
-        let preference =
-            block_in_place_runtime(subtitle_manager.preference(), popcorn_fx.runtime());
+        let preference = subtitle_manager.preference().await;
 
         assert_eq!(
             SubtitlePreference::Language(SubtitleLanguage::None),
@@ -735,63 +729,62 @@ mod test {
         );
     }
 
-    #[test]
-    fn test_popcorn_fx_favorite() {
+    #[tokio::test]
+    async fn test_popcorn_fx_favorite() {
         init_logger!();
         let id = "tt00000021544";
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let mut popcorn_fx = PopcornFX::new(default_args(temp_path));
+        let mut popcorn_fx = PopcornFX::new(default_args(temp_path)).await.unwrap();
 
         let service = popcorn_fx.favorite_service().clone();
-        let result = block_in_place_runtime(service.is_liked(id), popcorn_fx.runtime());
+        let result = service.is_liked(id).await;
 
         assert_eq!(false, result)
     }
 
-    #[test]
-    fn test_popcorn_fx_auto_resume() {
+    #[tokio::test]
+    async fn test_popcorn_fx_auto_resume() {
         init_logger!();
         let filename = "something-totally_random123qwe.mp4";
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let mut popcorn_fx = PopcornFX::new(default_args(temp_path));
+        let mut popcorn_fx = PopcornFX::new(default_args(temp_path)).await.unwrap();
 
         let service = popcorn_fx.auto_resume_service().clone();
-        let result = block_in_place_runtime(
-            service.resume_timestamp(None, Some(filename.to_string())),
-            popcorn_fx.runtime(),
-        );
+        let result = service
+            .resume_timestamp(None, Some(filename.to_string()))
+            .await;
 
         assert_eq!(None, result)
     }
 
-    #[test]
-    fn test_popcorn_fx_torrent_collection() {
+    #[tokio::test]
+    async fn test_popcorn_fx_torrent_collection() {
         init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let mut popcorn_fx = PopcornFX::new(default_args(temp_path));
+        let mut popcorn_fx = PopcornFX::new(default_args(temp_path)).await.unwrap();
 
         let torrent_collection = popcorn_fx.torrent_collection().clone();
-        let result = popcorn_fx.runtime().block_on(
-            torrent_collection.is_stored("magnet:?myMostRandomAvailableAndEvenInvalidMagnet"),
-        );
+        let result = torrent_collection
+            .is_stored("magnet:?myMostRandomAvailableAndEvenInvalidMagnet")
+            .await;
 
         assert_eq!(false, result)
     }
 
-    #[test]
-    fn test_popcorn_fx_reload_settings() {
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_popcorn_fx_reload_settings() {
         init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let (tx, rx) = channel();
-        let mut popcorn_fx = PopcornFX::new(default_args(temp_path));
+        let mut popcorn_fx = PopcornFX::new(default_args(temp_path)).await.unwrap();
         copy_test_file(temp_path, "settings.json", None);
 
         let mut receiver = popcorn_fx.settings().subscribe();
-        popcorn_fx.runtime.spawn(async move {
+        tokio::spawn(async move {
             while let Some(event) = receiver.recv().await {
                 if let ApplicationConfigEvent::Loaded = &*event {
                     tx.send((*event).clone()).unwrap()
@@ -812,8 +805,8 @@ mod test {
         }
     }
 
-    #[test]
-    fn test_initialize_logger() {
+    #[tokio::test]
+    async fn test_initialize_logger() {
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
         let args = PopcornFxArgs {

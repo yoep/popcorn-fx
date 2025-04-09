@@ -1,0 +1,83 @@
+syntax = "proto3";
+
+option optimize_for = LITE_RUNTIME;
+option java_multiple_files = true;
+option java_package = "com.github.yoep.popcorn.backend.lib.ipc.protobuf";
+
+package fx.ipc.proto;
+
+import "message.proto";
+
+// Broadcast for new external players.
+message DiscoverPlayersRequest {}
+
+// Start the background process of discovering new external players.
+message StartPlayersDiscoveryRequest {
+  // The interval in seconds between broadcasts.
+  optional uint32 interval_seconds = 1;
+}
+
+message Player {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  bytes graphic_resource = 4;
+  State state = 5;
+
+  enum State {
+    READY = 0;
+    LOADING = 1;
+    BUFFERING = 2;
+    PLAYING = 3;
+    PAUSED = 4;
+    STOPPED = 5;
+    ERROR = 6;
+    UNKNOWN = -1;
+  }
+}
+
+message GetPlayerByIdRequest {
+  string id = 1;
+}
+
+message GetPlayerByIdResponse {
+  optional Player player = 1;
+}
+
+message GetPlayersRequest {}
+
+message GetPlayersResponse {
+  repeated Player players = 1;
+}
+
+message GetActivePlayerRequest {}
+
+message GetActivePlayerResponse {
+  optional Player player = 1;
+}
+
+message UpdateActivePlayerRequest {
+  Player player = 1;
+}
+
+message RegisterPlayerRequest {
+  Player player = 1;
+}
+
+message RegisterPlayerResponse {
+  Response.Result result = 1;
+  Error error = 2;
+  optional DuplicatePlayer duplicate_player = 3;
+
+  message DuplicatePlayer {
+    string id = 1;
+  }
+
+  enum Error {
+    DUPLICATE_PLAYER = 0;
+  }
+}
+
+message RemovePlayerRequest {
+  Player player = 1;
+}

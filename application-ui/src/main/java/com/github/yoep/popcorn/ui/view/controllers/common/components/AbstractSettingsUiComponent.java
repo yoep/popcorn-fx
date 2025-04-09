@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.media.filters.model.Category;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import javafx.scene.control.ListCell;
@@ -28,10 +28,10 @@ public abstract class AbstractSettingsUiComponent extends AbstractSettingsCompon
         };
     }
 
-    protected ListCell<Category> createStartScreenCell() {
+    protected ListCell<Media.Category> createStartScreenCell() {
         return new ListCell<>() {
             @Override
-            protected void updateItem(Category item, boolean empty) {
+            protected void updateItem(Media.Category item, boolean empty) {
                 super.updateItem(item, empty);
 
                 if (!empty) {

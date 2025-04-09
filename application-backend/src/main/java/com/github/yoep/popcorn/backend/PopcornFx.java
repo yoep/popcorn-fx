@@ -10,6 +10,5 @@ import lombok.extern.slf4j.Slf4j;
 public class PopcornFx extends PointerType {
     public void dispose() {
         log.debug("Disposing native Popcorn FX instance");
-        FxLib.INSTANCE.get().dispose_popcorn_fx(this);
     }
 }

@@ -1,10 +1,10 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
 import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Update;
 import com.github.yoep.popcorn.backend.messages.UpdateMessage;
 import com.github.yoep.popcorn.backend.updater.DownloadProgress;
 import com.github.yoep.popcorn.backend.updater.UpdateService;
-import com.github.yoep.popcorn.backend.updater.UpdateState;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.CloseUpdateEvent;
 import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
@@ -49,24 +49,24 @@ public class UpdateSectionController implements Initializable {
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
-        initializeBackgroundCover();
+//        initializeBackgroundCover();
         initializeListener();
     }
 
     private void initializeListener() {
-        updateService.register(event -> {
-            switch (event.getTag()) {
-                case StateChanged -> onUpdateStateChanged(event.getUnion().getState_changed().getNewState());
-                case DownloadProgress -> onUpdateDownloadProgress(event.getUnion().getDownload_progress().getDownloadProgress());
-            }
-        });
-        updatePane.sceneProperty().addListener((observable, oldValue, newValue) -> {
-            if (newValue != null) {
-                updateService.downloadUpdate();
-            }
-        });
-
-        onUpdateStateChanged(updateService.getState());
+//        updateService.register(event -> {
+//            switch (event.getTag()) {
+//                case StateChanged -> onUpdateStateChanged(event.getUnion().getState_changed().getNewState());
+//                case DownloadProgress -> onUpdateDownloadProgress(event.getUnion().getDownload_progress().getDownloadProgress());
+//            }
+//        });
+//        updatePane.sceneProperty().addListener((observable, oldValue, newValue) -> {
+//            if (newValue != null) {
+//                updateService.downloadUpdate();
+//            }
+//        });
+//
+//        onUpdateStateChanged(updateService.getState());
     }
 
     private void initializeBackgroundCover() {
@@ -74,7 +74,7 @@ public class UpdateSectionController implements Initializable {
                 .thenAccept(e -> backgroundCover.setBackgroundImage(e));
     }
 
-    private void onUpdateStateChanged(UpdateState newState) {
+    private void onUpdateStateChanged(Update.State newState) {
         Platform.runLater(() -> {
             switch (newState) {
                 case DOWNLOADING -> handleStateChanged(UpdateMessage.STARTING_DOWNLOAD);

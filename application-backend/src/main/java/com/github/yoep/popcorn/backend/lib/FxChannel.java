@@ -1,0 +1,193 @@
+package com.github.yoep.popcorn.backend.lib;
+
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationTerminationRequest;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.FxMessage;
+import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.MessageLite;
+import com.google.protobuf.Parser;
+import lombok.extern.slf4j.Slf4j;
+
+import java.io.Closeable;
+import java.io.IOException;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Queue;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+
+@Slf4j
+public class FxChannel implements Closeable {
+    public static final AtomicReference<FxChannel> INSTANCE = new AtomicReference<>();
+    private final FxLib fxLib;
+    private final Executor executor;
+
+    final AtomicBoolean running = new AtomicBoolean(true);
+    final AtomicInteger sequenceId = new AtomicInteger();
+    final Queue<PendingRequest> requests = new ConcurrentLinkedQueue<>();
+    final Queue<Subscription> subscriptions = new ConcurrentLinkedQueue<>();
+
+    Thread readerThread;
+
+    public FxChannel(FxLib fxLib, Executor executor) {
+        Objects.requireNonNull(fxLib, "fxLib cannot be null");
+        this.fxLib = fxLib;
+        this.executor = executor;
+        INSTANCE.set(this);
+        init();
+    }
+
+    /**
+     * Get data for the given type from the channel.
+     *
+     * @param request The request message to send.
+     * @param parser  The parser to use for parsing the message.
+     * @param <T>     The response data type.
+     * @return Returns a future that completes when the data is received.
+     */
+    public <T extends MessageLite> CompletableFuture<T> send(
+            MessageLite request,
+            Parser<T> parser
+    ) {
+        return sendInternally(
+                request.toByteString(),
+                typeFrom(request),
+                parser
+        );
+    }
+
+    /**
+     * Send the given message to the channel.
+     *
+     * @param message The message to send.
+     */
+    public void send(MessageLite message) {
+        var bytes = message.toByteString();
+        var type = typeFrom(message);
+
+        sendBytes(bytes, type);
+    }
+
+    public <T extends MessageLite> void subscribe(
+            String type,
+            Parser<T> parser,
+            FxCallback<T> callback
+    ) {
+        subscriptions.add(new Subscription<>(type, parser, callback));
+    }
+
+    @Override
+    public void close() throws IOException {
+        running.set(false);
+        readerThread.interrupt();
+        send(ApplicationTerminationRequest.getDefaultInstance());
+        fxLib.close();
+    }
+
+    public static String typeFrom(MessageLite message) {
+        return typeFrom(message.getClass());
+    }
+
+    public static String typeFrom(Class<? extends MessageLite> message) {
+        return message.getSimpleName();
+    }
+
+    private void init() {
+        readerThread = new Thread(() -> {
+            while (running.get()) {
+                try {
+                    var message = fxLib.receive();
+                    log.trace("FX channel received {}", message.getType());
+                    executor.execute(() -> processMessage(message));
+                } catch (FxChannelException ex) {
+                    log.error("FX channel receiver encountered an error, {}", ex.getMessage(), ex);
+                    running.set(false);
+                } catch (Exception ex) {
+                    log.error("FX channel receiver encountered an error, {}", ex.getMessage(), ex);
+                }
+            }
+
+            log.debug("Fx channel reader ended");
+        }, "FxChannel");
+        readerThread.start();
+    }
+
+    private <T extends MessageLite> CompletableFuture<T> sendInternally(
+            ByteString request,
+            String type,
+            Parser<T> parser
+    ) {
+        var id = sendBytes(request, type);
+        var future = new CompletableFuture<T>();
+
+        if (parser != null) {
+            requests.add(new PendingRequest<>(id, parser, future));
+            return future;
+        } else {
+            return null;
+        }
+    }
+
+    private int sendBytes(ByteString bytes, String type) {
+        log.trace("FX channel is sending {}", type);
+        var sequenceId = this.sequenceId.incrementAndGet();
+
+        fxLib.send(FxMessage.newBuilder()
+                .setType(type)
+                .setSequenceId(sequenceId)
+                .setPayload(bytes)
+                .build());
+
+        return sequenceId;
+    }
+
+    private void processMessage(FxMessage message) {
+        if (message.hasReplyTo()) {
+            Optional.of(message.getReplyTo())
+                    .flatMap(id -> requests.stream()
+                            .filter(r -> r.sequenceId == id)
+                            .findFirst())
+                    .ifPresent(request -> {
+                        log.debug("IPC channel received response for request {}", request.sequenceId);
+                        try {
+                            var data = request.parser.parseFrom(message.getPayload());
+                            request.future.complete(data);
+                        } catch (InvalidProtocolBufferException e) {
+                            log.error("FX channel failed to parse message", e);
+                        } finally {
+                            requests.remove(request);
+                        }
+                    });
+        } else {
+            Optional.ofNullable(message.getType()).ifPresent(type -> subscriptions.stream()
+                    .filter(s -> Objects.equals(s.type, type))
+                    .forEach(subscription -> {
+                        try {
+                            var data = subscription.parser.parseFrom(message.getPayload());
+                            subscription.callback.callback((MessageLite) data);
+                        } catch (InvalidProtocolBufferException e) {
+                            log.error("FX channel failed to parse message", e);
+                        }
+                    }));
+
+        }
+    }
+
+    public record PendingRequest<T extends MessageLite>(
+            int sequenceId,
+            Parser<T> parser,
+            CompletableFuture<T> future
+    ) {
+    }
+
+    public record Subscription<T extends MessageLite>(
+            String type,
+            Parser<T> parser,
+            FxCallback<T> callback
+    ) {
+    }
+}

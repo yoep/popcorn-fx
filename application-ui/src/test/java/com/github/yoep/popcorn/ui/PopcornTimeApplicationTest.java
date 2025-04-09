@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.ui;
 
-import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;

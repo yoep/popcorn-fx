@@ -2,9 +2,6 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.yoep.popcorn.backend.media.tracking.TrackingService;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
-import com.github.yoep.popcorn.backend.settings.ApplicationConfigEvent;
-import com.github.yoep.popcorn.backend.settings.models.TrackingSettings;
-import com.github.yoep.popcorn.backend.settings.models.TrackingSyncState;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.font.controls.Icon;
 import com.github.yoep.popcorn.ui.messages.SettingsMessage;
@@ -46,11 +43,11 @@ public class SettingsTraktComponent implements Initializable {
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         trackingService.addListener(isAuthorized -> Platform.runLater(() -> updateState(isAuthorized)));
-        applicationConfig.register(event -> {
-            if (event.getTag() == ApplicationConfigEvent.Tag.TRACKING_SETTINGS_CHANGED) {
-                Platform.runLater(() -> updateTrackingState(event.getUnion().getTrackingSettingsChanged_body().getSettings()));
-            }
-        });
+//        applicationConfig.register(event -> {
+//            if (event.getTag() == ApplicationConfigEvent.Tag.TRACKING_SETTINGS_CHANGED) {
+//                Platform.runLater(() -> updateTrackingState(event.getUnion().getTrackingSettingsChanged_body().getSettings()));
+//            }
+//        });
         updateState(trackingService.isAuthorized());
     }
 
@@ -61,18 +58,18 @@ public class SettingsTraktComponent implements Initializable {
         authorizeIcn.setText(isAuthorized ? DISCONNECT_ICON : AUTHORIZE_ICON);
         syncState.setVisible(isAuthorized);
         syncTime.setVisible(isAuthorized);
-        updateTrackingState(settings.getTrackingSettings());
+//        updateTrackingState(settings.getTrackingSettings());
     }
 
-    private void updateTrackingState(TrackingSettings trackingSettings) {
-        syncState.setText(trackingSettings.getLastSync()
-                .map(e -> localeText.get(SettingsMessage.LAST_SYNC_STATE,
-                        localeText.get(e.getState() == TrackingSyncState.SUCCESS ? SettingsMessage.SYNC_SUCCESS : SettingsMessage.SYNC_FAILED)))
-                .orElse(null));
-        syncTime.setText(trackingSettings.getLastSync()
-                .map(e -> localeText.get(SettingsMessage.LAST_SYNC_TIME, e.getTime()))
-                .orElse(null));
-    }
+//    private void updateTrackingState(TrackingSettings trackingSettings) {
+//        syncState.setText(trackingSettings.getLastSync()
+//                .map(e -> localeText.get(SettingsMessage.LAST_SYNC_STATE,
+//                        localeText.get(e.getState() == TrackingSyncState.SUCCESS ? SettingsMessage.SYNC_SUCCESS : SettingsMessage.SYNC_FAILED)))
+//                .orElse(null));
+//        syncTime.setText(trackingSettings.getLastSync()
+//                .map(e -> localeText.get(SettingsMessage.LAST_SYNC_TIME, e.getTime()))
+//                .orElse(null));
+//    }
 
     private void onAuthorizationBtnAction() {
         if (trackingService.isAuthorized()) {

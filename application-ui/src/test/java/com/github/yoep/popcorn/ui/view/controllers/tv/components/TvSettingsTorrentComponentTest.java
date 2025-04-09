@@ -1,9 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controllers.tv.components;
 
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
-import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
-import com.github.yoep.popcorn.backend.settings.models.CleaningMode;
-import com.github.yoep.popcorn.backend.settings.models.TorrentSettings;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.view.controls.AxisItemSelection;
 import com.github.yoep.popcorn.ui.view.controls.Overlay;
@@ -31,7 +29,7 @@ class TvSettingsTorrentComponentTest {
     @Mock
     private ApplicationSettings settings;
     @Mock
-    private TorrentSettings torrentSettings;
+    private com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationSettings.TorrentSettings torrentSettings;
     @Mock
     private URL url;
     @Mock
@@ -52,16 +50,15 @@ class TvSettingsTorrentComponentTest {
     @Test
     void testOnCleaningModeChanged() {
         var text = "Lorem";
-        when(torrentSettings.getCleaningMode()).thenReturn(CleaningMode.OFF);
+        when(torrentSettings.getCleaningMode()).thenReturn(com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationSettings.TorrentSettings.CleaningMode.OFF);
         when(localeText.get(TvSettingsTorrentComponent.CLEANING_MODE_PREFIX + "off")).thenReturn("Invalid");
         when(localeText.get(TvSettingsTorrentComponent.CLEANING_MODE_PREFIX + "on_shutdown")).thenReturn(text);
         component.initialize(url, resourceBundle);
 
-        component.cleanupModes.setSelectedItem(CleaningMode.ON_SHUTDOWN);
+        component.cleanupModes.setSelectedItem(com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationSettings.TorrentSettings.CleaningMode.ON_SHUTDOWN);
 
         verify(component.cacheCleanupOverlay, times(2)).hide();
         verify(applicationConfig, atLeast(2)).update(torrentSettings);
-        verify(torrentSettings).setCleaningMode(CleaningMode.ON_SHUTDOWN);
         assertEquals(text, component.cacheCleanup.getText());
     }
 }

@@ -1,12 +1,10 @@
 package com.github.yoep.popcorn.ui.info;
 
 import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
-import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
-import com.github.yoep.popcorn.backend.adapters.player.listeners.AbstractPlayerListener;
-import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.info.ComponentState;
 import com.github.yoep.popcorn.backend.info.SimpleComponentDetails;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
 import com.github.yoep.popcorn.backend.player.PlayerChanged;
 import com.github.yoep.popcorn.backend.player.PlayerManagerListener;
 import lombok.extern.slf4j.Slf4j;
@@ -35,7 +33,13 @@ public class PlayerInfoService extends AbstractInfoService {
 
             @Override
             public void playersChanged() {
-                onPlayersChanged(playerManagerService.getPlayers().stream().toList());
+                playerManagerService.getPlayers().whenComplete((players, throwable) -> {
+                    if (throwable == null) {
+                        onPlayersChanged(players.stream().toList());
+                    } else {
+                        log.error("Failed to retrieve players", throwable);
+                    }
+                });
             }
 
             @Override
@@ -54,36 +58,36 @@ public class PlayerInfoService extends AbstractInfoService {
             }
 
             @Override
-            public void onPlayerStateChanged(PlayerState newState) {
+            public void onPlayerStateChanged(Player.State newState) {
                 // no-op
             }
         });
     }
 
-    private void onPlayersChanged(List<Player> players) {
+    private void onPlayersChanged(List<com.github.yoep.popcorn.backend.adapters.player.Player> players) {
         updateComponents(players.stream()
                 .map(this::createComponentDetails)
                 .collect(Collectors.toList()));
     }
 
-    private SimpleComponentDetails createComponentDetails(Player player) {
+    private SimpleComponentDetails createComponentDetails(com.github.yoep.popcorn.backend.adapters.player.Player player) {
         var componentDetails = SimpleComponentDetails.builder()
                 .name(player.getName())
                 .description(player.getDescription())
                 .state(mapToComponentState(player.getState()))
                 .build();
 
-        player.addListener(new AbstractPlayerListener() {
-            @Override
-            public void onStateChanged(PlayerState newState) {
-                componentDetails.setState(mapToComponentState(newState));
-            }
-        });
+//        player.addListener(new AbstractPlayerListener() {
+//            @Override
+//            public void onStateChanged(PlayerState newState) {
+//                componentDetails.setState(mapToComponentState(newState));
+//            }
+//        });
 
         return componentDetails;
     }
 
-    private static ComponentState mapToComponentState(PlayerState state) {
+    private static ComponentState mapToComponentState(Player.State state) {
         return Optional.ofNullable(state)
                 .map(e -> switch (e) {
                     case ERROR -> ComponentState.ERROR;

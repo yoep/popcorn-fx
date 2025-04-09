@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.backend.events;
 
-import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
@@ -12,9 +12,9 @@ import lombok.ToString;
 @ToString
 @EqualsAndHashCode(callSuper = false)
 public class PlayerStateEvent extends ApplicationEvent {
-    private final PlayerState newState;
+    private final Player.State newState;
     
-    public PlayerStateEvent(Object source, PlayerState newState) {
+    public PlayerStateEvent(Object source, Player.State newState) {
         super(source);
         this.newState = newState;
     }

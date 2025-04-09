@@ -1,14 +1,14 @@
-use std::fmt::{Debug, Display, Formatter};
-use std::sync::Arc;
-
 use crate::core::event::{Event, EventCallback, EventHandler, EventPublisher, PlayerStoppedEvent};
 use crate::core::media::watched::Watched;
 use crate::core::media::{MediaError, MediaIdentifier, MediaType};
 use crate::core::storage::{Storage, StorageError};
 use crate::core::{event, media, Callbacks, CoreCallbacks};
+use async_trait::async_trait;
 use log::{debug, error, info, trace, warn};
 #[cfg(any(test, feature = "testing"))]
 use mockall::automock;
+use std::fmt::{Debug, Display, Formatter};
+use std::sync::Arc;
 use tokio::select;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::sync::Mutex;
@@ -41,18 +41,19 @@ impl Display for WatchedEvent {
 
 /// The watched service is responsible for tracking seen/unseen media items.
 #[cfg_attr(any(test, feature = "testing"), automock)]
+#[async_trait]
 pub trait WatchedService: Debug + Send + Sync {
     /// Verify if the given ID has been seen.
     ///
     /// * `id`  - The ID of the watchable to verify.
     ///
     /// It returns `true` when the ID has been seen, else `false`.
-    fn is_watched(&self, id: &str) -> bool;
+    async fn is_watched(&self, id: &str) -> bool;
 
     /// Verify if the given identifier item has been seen.
     ///
     /// It returns `true` when the media item has been seen, else `false`.
-    fn is_watched_dyn(&self, watchable: &Box<dyn MediaIdentifier>) -> bool;
+    async fn is_watched_dyn(&self, watchable: &Box<dyn MediaIdentifier>) -> bool;
 
     /// Retrieve an array of owned watched media item ids.
     ///
@@ -119,13 +120,14 @@ impl DefaultWatchedService {
     }
 }
 
+#[async_trait]
 impl WatchedService for DefaultWatchedService {
-    fn is_watched(&self, id: &str) -> bool {
-        self.inner.is_watched(id)
+    async fn is_watched(&self, id: &str) -> bool {
+        self.inner.is_watched(id).await
     }
 
-    fn is_watched_dyn(&self, watchable: &Box<dyn MediaIdentifier>) -> bool {
-        self.inner.is_watched_dyn(watchable)
+    async fn is_watched_dyn(&self, watchable: &Box<dyn MediaIdentifier>) -> bool {
+        self.inner.is_watched_dyn(watchable).await
     }
 
     fn all(&self) -> media::Result<Vec<String>> {
@@ -206,128 +208,26 @@ impl InnerWatchedService {
         }
     }
 
-    async fn load_watched_cache(&self) -> media::Result<()> {
-        let mutex = self.cache.clone();
-        let mut cache = mutex.lock().await;
-
-        if cache.is_none() {
-            trace!("Loading watched cache");
-            return match self.load_watched_from_storage() {
-                Ok(e) => {
-                    debug!("Loaded watched items {:?}", &e);
-                    let _ = cache.insert(e);
-                    Ok(())
-                }
-                Err(e) => Err(e),
-            };
-        }
-
-        trace!("Watched cache has already been loaded, nothing to do");
-        Ok(())
+    async fn is_watched_dyn(&self, watchable: &Box<dyn MediaIdentifier>) -> bool {
+        let imdb_id = watchable.imdb_id();
+        self.is_watched(imdb_id).await
     }
 
-    fn load_watched_from_storage(&self) -> media::Result<Watched> {
-        match self.storage.options().serializer(FILENAME).read() {
-            Ok(e) => Ok(e),
-            Err(e) => match e {
-                StorageError::NotFound(file) => {
-                    debug!("Creating new watched file {}", file);
-                    Ok(Watched::empty())
-                }
-                StorageError::ReadingFailed(_, error) => {
-                    error!("Failed to load watched items, {}", error);
-                    Err(MediaError::WatchedLoadingFailed(error))
-                }
-                _ => {
-                    warn!("Unexpected error returned from storage, {}", e);
-                    Ok(Watched::empty())
-                }
-            },
-        }
-    }
-
-    async fn save(&self) {
-        if let Some(watched) = self.cache.lock().await.as_ref() {
-            trace!("Watched service is saving watched items");
-            self.save_watched(watched).await
-        }
-    }
-
-    async fn save_watched(&self, watchable: &Watched) {
-        match self
-            .storage
-            .options()
-            .serializer(FILENAME)
-            .write_async(watchable)
-            .await
-        {
-            Ok(_) => info!("Watched items have been saved"),
-            Err(e) => error!("Failed to save watched items, {}", e),
-        }
-    }
-
-    fn on_player_stopped_event(&self, event: PlayerStoppedEvent) {
-        trace!("Received player stopped event for {:?}", event);
-        if let Some(media) = event.media {
-            if let (Some(time), Some(duration)) = (&event.time, &event.duration) {
-                let imdb_id = media.imdb_id().to_string();
-                let title = media.title();
-                let percentage_watched = (*time as f64 / *duration as f64) * 100 as f64;
-
-                trace!(
-                    "Media item {} has been watched for {:.2}%",
-                    media.imdb_id(),
-                    percentage_watched
-                );
-                if percentage_watched >= WATCHED_PERCENTAGE_THRESHOLD {
-                    if let Err(e) = self.add(media) {
-                        error!(
-                            "Failed to add media item {} to the watch list, {}",
-                            imdb_id, e
-                        );
-                    } else {
-                        info!(
-                            "Added media \"{}\" ({}) to the watched list",
-                            title, imdb_id
-                        );
-                    }
-                }
-            } else {
-                debug!("Player stopped event has an unknown time and/or duration, skipping watched check")
-            }
-        } else {
-            debug!("Player stopped event doesn't have contain media information, skipping watched check")
-        }
-    }
-
-    fn send_command(&self, command: WatchedServiceCommand) {
-        if let Err(e) = self.command_sender.send(command) {
-            debug!("Watched service failed to send command, {}", e);
-        }
-    }
-}
-
-impl WatchedService for InnerWatchedService {
-    fn is_watched(&self, imdb_id: &str) -> bool {
+    async fn is_watched(&self, imdb_id: &str) -> bool {
         trace!("Verifying if {} is watched", imdb_id);
-        match futures::executor::block_on(self.load_watched_cache()) {
-            Ok(_) => {
-                let mutex = self.cache.clone();
-                let cache = futures::executor::block_on(mutex.lock());
-                let watched = cache.as_ref().expect("cache should have been present");
-
-                watched.contains(imdb_id)
-            }
+        match self.load_watched_cache().await {
+            Ok(_) => self
+                .cache
+                .lock()
+                .await
+                .as_ref()
+                .map(|e| e.contains(imdb_id))
+                .unwrap_or(false),
             Err(e) => {
                 warn!("Unable to load {}, {}", FILENAME, e);
                 false
             }
         }
-    }
-
-    fn is_watched_dyn(&self, watchable: &Box<dyn MediaIdentifier>) -> bool {
-        let imdb_id = watchable.imdb_id();
-        self.is_watched(imdb_id)
     }
 
     fn all(&self) -> media::Result<Vec<String>> {
@@ -440,6 +340,106 @@ impl WatchedService for InnerWatchedService {
     fn register(&self, callback: WatchedCallback) {
         self.callbacks.add_callback(callback);
     }
+
+    async fn load_watched_cache(&self) -> media::Result<()> {
+        let mutex = self.cache.clone();
+        let mut cache = mutex.lock().await;
+
+        if cache.is_none() {
+            trace!("Loading watched cache");
+            return match self.load_watched_from_storage() {
+                Ok(e) => {
+                    debug!("Loaded watched items {:?}", &e);
+                    let _ = cache.insert(e);
+                    Ok(())
+                }
+                Err(e) => Err(e),
+            };
+        }
+
+        trace!("Watched cache has already been loaded, nothing to do");
+        Ok(())
+    }
+
+    fn load_watched_from_storage(&self) -> media::Result<Watched> {
+        match self.storage.options().serializer(FILENAME).read() {
+            Ok(e) => Ok(e),
+            Err(e) => match e {
+                StorageError::NotFound(file) => {
+                    debug!("Creating new watched file {}", file);
+                    Ok(Watched::empty())
+                }
+                StorageError::ReadingFailed(_, error) => {
+                    error!("Failed to load watched items, {}", error);
+                    Err(MediaError::WatchedLoadingFailed(error))
+                }
+                _ => {
+                    warn!("Unexpected error returned from storage, {}", e);
+                    Ok(Watched::empty())
+                }
+            },
+        }
+    }
+
+    async fn save(&self) {
+        if let Some(watched) = self.cache.lock().await.as_ref() {
+            trace!("Watched service is saving watched items");
+            self.save_watched(watched).await
+        }
+    }
+
+    async fn save_watched(&self, watchable: &Watched) {
+        match self
+            .storage
+            .options()
+            .serializer(FILENAME)
+            .write_async(watchable)
+            .await
+        {
+            Ok(_) => info!("Watched items have been saved"),
+            Err(e) => error!("Failed to save watched items, {}", e),
+        }
+    }
+
+    fn on_player_stopped_event(&self, event: PlayerStoppedEvent) {
+        trace!("Received player stopped event for {:?}", event);
+        if let Some(media) = event.media {
+            if let (Some(time), Some(duration)) = (&event.time, &event.duration) {
+                let imdb_id = media.imdb_id().to_string();
+                let title = media.title();
+                let percentage_watched = (*time as f64 / *duration as f64) * 100 as f64;
+
+                trace!(
+                    "Media item {} has been watched for {:.2}%",
+                    media.imdb_id(),
+                    percentage_watched
+                );
+                if percentage_watched >= WATCHED_PERCENTAGE_THRESHOLD {
+                    if let Err(e) = self.add(media) {
+                        error!(
+                            "Failed to add media item {} to the watch list, {}",
+                            imdb_id, e
+                        );
+                    } else {
+                        info!(
+                            "Added media \"{}\" ({}) to the watched list",
+                            title, imdb_id
+                        );
+                    }
+                }
+            } else {
+                debug!("Player stopped event has an unknown time and/or duration, skipping watched check")
+            }
+        } else {
+            debug!("Player stopped event doesn't have contain media information, skipping watched check")
+        }
+    }
+
+    fn send_command(&self, command: WatchedServiceCommand) {
+        if let Err(e) = self.command_sender.send(command) {
+            debug!("Watched service failed to send command, {}", e);
+        }
+    }
 }
 
 #[cfg(test)]
@@ -465,7 +465,9 @@ mod test {
         let movie = MovieOverview::new(String::new(), imdb_id, String::new());
         copy_test_file(temp_dir.path().to_str().unwrap(), "watched.json", None);
 
-        let result = service.is_watched_dyn(&(Box::new(movie) as Box<dyn MediaIdentifier>));
+        let result = service
+            .is_watched_dyn(&(Box::new(movie) as Box<dyn MediaIdentifier>))
+            .await;
 
         assert!(result, "expected the media to have been watched")
     }
@@ -480,7 +482,9 @@ mod test {
         let movie = MovieOverview::new(String::new(), imdb_id, String::new());
         copy_test_file(temp_dir.path().to_str().unwrap(), "watched.json", None);
 
-        let result = service.is_watched_dyn(&(Box::new(movie) as Box<dyn MediaIdentifier>));
+        let result = service
+            .is_watched_dyn(&(Box::new(movie) as Box<dyn MediaIdentifier>))
+            .await;
 
         assert!(!result, "expected the media to not have been watched")
     }
@@ -495,7 +499,9 @@ mod test {
         let service = DefaultWatchedService::new(temp_path, EventPublisher::default());
         let movie = MovieOverview::new(String::new(), imdb_id, String::new());
 
-        let result = service.is_watched_dyn(&(Box::new(movie) as Box<dyn MediaIdentifier>));
+        let result = service
+            .is_watched_dyn(&(Box::new(movie) as Box<dyn MediaIdentifier>))
+            .await;
 
         assert!(result, "expected the media to have been watched")
     }
@@ -528,7 +534,9 @@ mod test {
         service
             .add(Box::new(movie.clone()) as Box<dyn MediaIdentifier>)
             .expect("add should have succeeded");
-        let result = service.is_watched_dyn(&(Box::new(movie) as Box<dyn MediaIdentifier>));
+        let result = service
+            .is_watched_dyn(&(Box::new(movie) as Box<dyn MediaIdentifier>))
+            .await;
 
         assert!(result, "expected the media item to have been watched")
     }
@@ -553,7 +561,9 @@ mod test {
         service
             .add(Box::new(show.clone()) as Box<dyn MediaIdentifier>)
             .expect("add should have succeeded");
-        let result = service.is_watched_dyn(&(Box::new(show) as Box<dyn MediaIdentifier>));
+        let result = service
+            .is_watched_dyn(&(Box::new(show) as Box<dyn MediaIdentifier>))
+            .await;
 
         assert!(result, "expected the media item to have been watched")
     }
@@ -641,7 +651,7 @@ mod test {
 
         assert_timeout!(
             Duration::from_millis(100),
-            service.is_watched(imdb_id),
+            service.is_watched(imdb_id).await,
             "expected the media item to have been watched"
         );
     }
@@ -677,9 +687,9 @@ mod test {
         }));
 
         let _ = recv_timeout!(&mut rx, Duration::from_millis(100));
+        let result = service.is_watched(imdb_id).await;
         assert_eq!(
-            false,
-            service.is_watched(imdb_id),
+            false, result,
             "expected the media item to not have been watched"
         );
     }

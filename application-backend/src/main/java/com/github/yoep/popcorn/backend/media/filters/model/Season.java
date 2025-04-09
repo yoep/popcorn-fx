@@ -1,53 +1,42 @@
 package com.github.yoep.popcorn.backend.media.filters.model;
 
-import com.github.yoep.popcorn.backend.media.providers.Images;
-import com.github.yoep.popcorn.backend.media.providers.Media;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media.Images;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media.Rating;
+import com.github.yoep.popcorn.backend.media.Media;
 import com.github.yoep.popcorn.backend.media.providers.MediaType;
-import com.github.yoep.popcorn.backend.media.providers.Rating;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
-@Data
-@AllArgsConstructor
-@EqualsAndHashCode
-public class Season implements Media, Comparable {
-    private final int season;
-    private final String text;
-
-    //region Getters
-
+public record Season(int season, String text) implements Media, Comparable<Season> {
     @Override
-    public String getId() {
+    public String id() {
         return null;
     }
 
     @Override
-    public String getTitle() {
+    public String title() {
         return text;
     }
 
     @Override
-    public String getSynopsis() {
+    public String synopsis() {
         return null;
     }
 
     @Override
-    public String getYear() {
+    public String year() {
         return null;
     }
 
     @Override
-    public Integer getRuntime() {
+    public Integer runtime() {
         return null;
     }
 
     @Override
-    public List<String> getGenres() {
+    public List<String> genres() {
         return Collections.emptyList();
     }
 
@@ -57,16 +46,14 @@ public class Season implements Media, Comparable {
     }
 
     @Override
-    public Images getImages() {
+    public Images images() {
         return null;
     }
 
     @Override
-    public MediaType getType() {
+    public MediaType type() {
         return MediaType.SHOW;
     }
-
-    //endregion
 
     @Override
     public String toString() {
@@ -74,11 +61,7 @@ public class Season implements Media, Comparable {
     }
 
     @Override
-    public int compareTo(Object other) {
-        return Optional.ofNullable(other)
-                .filter(e -> e instanceof Season)
-                .map(e -> (Season) e)
-                .map(e -> Integer.compare(season, e.season))
-                .orElse(0);
+    public int compareTo(Season other) {
+        return Integer.compare(season(), other.season());
     }
 }

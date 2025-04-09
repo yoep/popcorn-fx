@@ -1,10 +1,8 @@
 package com.github.yoep.popcorn.ui.view.controllers.tv.components;
 
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationSettings;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Subtitle;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
-import com.github.yoep.popcorn.backend.settings.models.SubtitleSettings;
-import com.github.yoep.popcorn.backend.settings.models.subtitles.DecorationType;
-import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleFamily;
-import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.view.controls.AxisItemSelection;
 import com.github.yoep.popcorn.ui.view.controls.Overlay;
@@ -16,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
 import java.util.ResourceBundle;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -26,17 +25,17 @@ public class TvSettingsSubtitlesComponent implements Initializable {
     @FXML
     Button defaultSubtitle;
     @FXML
-    AxisItemSelection<SubtitleLanguage> subtitles;
+    AxisItemSelection<Subtitle.Language> subtitles;
     @FXML
     Overlay defaultSubtitleOverlay;
     @FXML
     Button fontFamily;
     @FXML
-    AxisItemSelection<SubtitleFamily> fontFamilies;
+    AxisItemSelection<ApplicationSettings.SubtitleSettings.Family> fontFamilies;
     @FXML
     Button decoration;
     @FXML
-    AxisItemSelection<DecorationType> decorations;
+    AxisItemSelection<ApplicationSettings.SubtitleSettings.DecorationType> decorations;
     @FXML
     Overlay decorationOverlay;
     @FXML
@@ -54,55 +53,55 @@ public class TvSettingsSubtitlesComponent implements Initializable {
         initializeFonts();
         initializeDecorations();
 
-        fontSizes.setItems(SubtitleSettings.supportedFontSizes().toArray(Integer[]::new));
-        fontSizes.selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-            var settings = getSettings();
-            settings.setFontSize(newValue);
-            applicationConfig.update(settings);
-            fontSize.setText(String.valueOf(newValue));
-            fontSizeOverlay.hide();
-        });
-        fontSizes.setSelectedItem(getSettings().getFontSize());
+//        fontSizes.setItems(SubtitleSettings.supportedFontSizes().toArray(Integer[]::new));
+//        fontSizes.selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+//            var settings = getSettings();
+//            settings.setFontSize(newValue);
+//            applicationConfig.update(settings);
+//            fontSize.setText(String.valueOf(newValue));
+//            fontSizeOverlay.hide();
+//        });
+//        fontSizes.setSelectedItem(getSettings().getFontSize());
     }
 
     private void initializeSubtitles() {
-        subtitles.setItems(SubtitleLanguage.values());
-        subtitles.selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-            var settings = getSettings();
-            settings.setDefaultSubtitle(newValue);
-            applicationConfig.update(settings);
-            defaultSubtitle.setText(newValue.getNativeName());
-            defaultSubtitleOverlay.hide();
-        });
-        subtitles.setSelectedItem(getSettings().getDefaultSubtitle(), true);
+//        subtitles.setItems(SubtitleLanguage.values());
+//        subtitles.selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+//            var settings = getSettings();
+//            settings.setDefaultSubtitle(newValue);
+//            applicationConfig.update(settings);
+//            defaultSubtitle.setText(newValue.getNativeName());
+//            defaultSubtitleOverlay.hide();
+//        });
+//        subtitles.setSelectedItem(getSettings().getDefaultSubtitle(), true);
     }
 
     private void initializeFonts() {
-        fontFamilies.setItems(SubtitleFamily.values());
-        fontFamilies.selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-            var settings = getSettings();
-            settings.setFontFamily(newValue);
-            applicationConfig.update(settings);
-            fontFamily.setText(newValue.getFamily());
-            fontFamilyOverlay.hide();
-        });
-        fontFamilies.setSelectedItem(getSettings().getFontFamily());
+//        fontFamilies.setItems(SubtitleFamily.values());
+//        fontFamilies.selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+//            var settings = getSettings();
+//            settings.setFontFamily(newValue);
+//            applicationConfig.update(settings);
+//            fontFamily.setText(newValue.getFamily());
+//            fontFamilyOverlay.hide();
+//        });
+//        fontFamilies.setSelectedItem(getSettings().getFontFamily());
     }
 
     private void initializeDecorations() {
-        decorations.setItemFactory(item -> new Button(localeText.get("settings_subtitles_style_" + item.toString().toLowerCase())));
-        decorations.setItems(DecorationType.values());
-        decorations.selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-            var settings = getSettings();
-            settings.setDecoration(newValue);
-            applicationConfig.update(settings);
-            decoration.setText(localeText.get("settings_subtitles_style_" + newValue.toString().toLowerCase()));
-            decorationOverlay.hide();
-        });
-        decorations.setSelectedItem(getSettings().getDecoration());
+//        decorations.setItemFactory(item -> new Button(localeText.get("settings_subtitles_style_" + item.toString().toLowerCase())));
+//        decorations.setItems(DecorationType.values());
+//        decorations.selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+//            var settings = getSettings();
+//            settings.setDecoration(newValue);
+//            applicationConfig.update(settings);
+//            decoration.setText(localeText.get("settings_subtitles_style_" + newValue.toString().toLowerCase()));
+//            decorationOverlay.hide();
+//        });
+//        decorations.setSelectedItem(getSettings().getDecoration());
     }
 
-    public SubtitleSettings getSettings() {
-        return applicationConfig.getSettings().getSubtitleSettings();
+    public CompletableFuture<ApplicationSettings.SubtitleSettings> getSettings() {
+        return applicationConfig.getSettings().thenApply(ApplicationSettings::getSubtitleSettings);
     }
 }

@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.ui;
 
-import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.PopcornFx;
 import javafx.scene.Cursor;
 import javafx.scene.Scene;

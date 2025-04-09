@@ -9,6 +9,7 @@ module application {
     requires video.javafx;
     requires video.vlc;
     requires video.youtube;
+    requires static lombok;
 
     exports com.github.yoep.popcorn;
 }

@@ -1,8 +1,7 @@
 package com.github.yoep.popcorn.backend.events;
 
-import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentInfoWrapper;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
 import com.sun.jna.FromNativeContext;
 import com.sun.jna.NativeMapped;
 import com.sun.jna.Structure;
@@ -26,7 +25,6 @@ public class EventC extends Structure implements Closeable {
         @Override
         public void close() {
             super.close();
-            FxLib.INSTANCE.get().dispose_event_value(this);
         }
     }
 
@@ -119,7 +117,7 @@ public class EventC extends Structure implements Closeable {
     @EqualsAndHashCode(callSuper = false)
     @FieldOrder({"newState"})
     public static class PlaybackState_Body extends Structure implements Closeable {
-        public PlayerState newState;
+        public Player.State newState;
 
         @Override
         public void close() {

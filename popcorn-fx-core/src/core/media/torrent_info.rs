@@ -69,13 +69,13 @@ impl TorrentInfo {
     }
 
     /// Gets the provider of the torrent.
-    pub fn provider(&self) -> &String {
-        &self.provider
+    pub fn provider(&self) -> &str {
+        self.provider.as_str()
     }
 
     /// Gets the source of the torrent.
-    pub fn source(&self) -> &String {
-        &self.source
+    pub fn source(&self) -> &str {
+        self.source.as_str()
     }
 
     /// Gets the title associated with the torrent.

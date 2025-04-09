@@ -1,11 +1,8 @@
 package com.github.yoep.popcorn.ui.view.controllers.tv.components;
 
-import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.media.filters.model.Category;
-import com.github.yoep.popcorn.backend.media.filters.model.Genre;
-import com.github.yoep.popcorn.backend.media.filters.model.SortBy;
+import com.github.yoep.popcorn.backend.lib.FxChannel;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.*;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.*;
 import com.github.yoep.popcorn.ui.view.controls.AxisItemSelection;
@@ -15,23 +12,21 @@ import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
 import java.util.ResourceBundle;
 
 @Slf4j
-@RequiredArgsConstructor
 public class TvFilterComponent implements Initializable {
+    private final FxChannel fxChannel;
     private final EventPublisher eventPublisher;
     private final LocaleText localeText;
-    private final FxLib fxLib;
-    private final PopcornFx instance;
 
     final FadeTransition slideAnimation = new FadeTransition(Duration.millis(500.0), new Pane());
     final PauseTransition searchTimeout = new PauseTransition(Duration.seconds(3));
@@ -43,7 +38,13 @@ public class TvFilterComponent implements Initializable {
     @FXML
     VirtualKeyboard virtualKeyboard;
     @FXML
-    AxisItemSelection<Genre> genres;
+    AxisItemSelection<Media.Genre> genres;
+
+    public TvFilterComponent(FxChannel fxChannel, EventPublisher eventPublisher, LocaleText localeText) {
+        this.fxChannel = fxChannel;
+        this.eventPublisher = eventPublisher;
+        this.localeText = localeText;
+    }
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
@@ -56,7 +57,9 @@ public class TvFilterComponent implements Initializable {
             searchValue.setText(newValue);
             searchTimeout.playFromStart();
         });
+
         genres.selectedItemProperty().addListener((observable, oldValue, newValue) -> onGenreChanged(newValue));
+        genres.setItemFactory(item -> new Button(item.getText()));
 
         onFocusChanged(false);
     }
@@ -106,33 +109,47 @@ public class TvFilterComponent implements Initializable {
         return event;
     }
 
-    private void onGenreChanged(Genre genre) {
+    private void onGenreChanged(Media.Genre genre) {
         if (genre == null)
             return;
 
         eventPublisher.publish(new GenreChangeEvent(this, genre));
     }
 
-    private void updateGenres(Category category) {
-        try (var libGenres = fxLib.retrieve_provider_genres(instance, category.getProviderName())) {
-            var values = libGenres.values().stream()
-                    .map(e -> new Genre(e, localeText.get("genre_" + e)))
-                    .sorted()
-                    .toList();
+    private void updateGenres(Media.Category category) {
+        fxChannel.send(GetCategoryGenresRequest.newBuilder()
+                        .setCategory(category)
+                        .build(), GetCategoryGenresResponse.parser())
+                .whenComplete((response, throwable) -> {
+                    if (throwable == null) {
+                        var genres = response.getGenresList().stream()
+                                .map(e -> Media.Genre.newBuilder(e)
+                                        .setText(localeText.get("genre_" + e.getKey()))
+                                        .build())
+                                .toList();
 
-            values.stream()
-                    .findFirst()
-                    .ifPresent(this::onGenreChanged);
-
-            Platform.runLater(() -> genres.setItems(values.toArray(new Genre[0])));
-        }
+                        Platform.runLater(() -> this.genres.setItems(genres.toArray(new Media.Genre[0])));
+                    } else {
+                        log.error("Failed to retrieve category genres, {}", throwable.getMessage(), throwable);
+                    }
+                });
     }
 
-    private void updateSortBy(Category category) {
-        try (var libSortBy = fxLib.retrieve_provider_sort_by(instance, category.getProviderName())) {
-            libSortBy.values().stream()
-                    .findFirst()
-                    .ifPresent(e -> eventPublisher.publish(new SortByChangeEvent(this, new SortBy(e, e))));
-        }
+    private void updateSortBy(Media.Category category) {
+        fxChannel.send(GetCategorySortByRequest.newBuilder()
+                        .setCategory(category)
+                        .build(), GetCategorySortByResponse.parser())
+                .whenComplete((response, throwable) -> {
+                    if (throwable == null) {
+                        response.getSortByList().stream()
+                                .map(e -> Media.SortBy.newBuilder(e)
+                                        .setText(localeText.get("sort-by_" + e.getKey()))
+                                        .build())
+                                .findFirst()
+                                .ifPresent(sortBy -> eventPublisher.publish(new SortByChangeEvent(this, sortBy)));
+                    } else {
+                        log.error("Failed to retrieve category sort by, {}", throwable.getMessage(), throwable);
+                    }
+                });
     }
 }

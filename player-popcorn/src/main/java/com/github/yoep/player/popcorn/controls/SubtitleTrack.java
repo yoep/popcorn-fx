@@ -1,6 +1,6 @@
 package com.github.yoep.player.popcorn.controls;
 
-import com.github.yoep.popcorn.backend.settings.models.subtitles.DecorationType;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationSettings;
 import com.github.yoep.popcorn.backend.subtitles.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleCue;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleLine;
@@ -17,6 +17,8 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import static com.github.yoep.popcorn.backend.lib.ipc.protobuf.Subtitle.*;
 
 @Slf4j
 public class SubtitleTrack extends VBox {
@@ -35,7 +37,7 @@ public class SubtitleTrack extends VBox {
     private final StringProperty fontFamily = new SimpleStringProperty(this, FONT_FAMILY_PROPERTY);
     private final IntegerProperty fontSize = new SimpleIntegerProperty(this, FONT_SIZE_PROPERTY);
     private final ObjectProperty<FontWeight> fontWeight = new SimpleObjectProperty<>(this, FONT_WEIGHT_PROPERTY, FontWeight.NORMAL);
-    private final ObjectProperty<DecorationType> decoration = new SimpleObjectProperty<>(this, DECORATION_PROPERTY);
+    private final ObjectProperty<ApplicationSettings.SubtitleSettings.DecorationType> decoration = new SimpleObjectProperty<>(this, DECORATION_PROPERTY);
     private final DoubleProperty offset = new SimpleDoubleProperty(this, OFFSET_PROPERTY);
 
     private List<TrackLabel> labels;
@@ -88,15 +90,15 @@ public class SubtitleTrack extends VBox {
         this.fontWeight.set(fontWeight);
     }
 
-    public DecorationType getDecoration() {
+    public ApplicationSettings.SubtitleSettings.DecorationType getDecoration() {
         return decoration.get();
     }
 
-    public ObjectProperty<DecorationType> decorationProperty() {
+    public ObjectProperty<ApplicationSettings.SubtitleSettings.DecorationType> decorationProperty() {
         return decoration;
     }
 
-    public void setDecoration(DecorationType decoration) {
+    public void setDecoration(ApplicationSettings.SubtitleSettings.DecorationType decoration) {
         this.decoration.set(decoration);
     }
 
@@ -140,7 +142,7 @@ public class SubtitleTrack extends VBox {
 
         var offset = (long) (getOffset() * 1000);
 
-        subtitle.getCues().stream()
+        subtitle.cues().stream()
                 .filter(e -> time >= (e.getStartTime() + offset) && time <= (e.getEndTime() + offset))
                 .findFirst()
                 .ifPresentOrElse(this::updateSubtitleTrack, this::clearSubtitleTrack);
@@ -177,30 +179,30 @@ public class SubtitleTrack extends VBox {
         fontFamily.addListener((observable, oldValue, newValue) -> onFontChanged());
         fontSize.addListener((observable, oldValue, newValue) -> onFontChanged());
         fontWeight.addListener((observable, oldValue, newValue) -> onFontChanged());
-        decoration.addListener((observable, oldValue, newValue) -> onDecorationChanged(newValue));
+//        decoration.addListener((observable, oldValue, newValue) -> onDecorationChanged(newValue));
         offset.addListener((observable, oldValue, newValue) -> onOffsetChanged());
     }
 
-    private void updateSubtitleTrack(SubtitleCue subtitle) {
-        if (activeSubtitle == subtitle)
-            return;
-
-        log.trace("Updating subtitle track to {}", subtitle);
-        TrackFlags[] flags = new TrackFlags[]{
-                decoration.get() == DecorationType.OUTLINE ? TrackFlags.OUTLINE : TrackFlags.NORMAL,
-                decoration.get() == DecorationType.OPAQUE_BACKGROUND ? TrackFlags.OPAQUE_BACKGROUND : TrackFlags.NORMAL,
-                decoration.get() == DecorationType.SEE_THROUGH_BACKGROUND ? TrackFlags.SEE_THROUGH_BACKGROUND : TrackFlags.NORMAL,
-        };
-        var lines = subtitle.getLines().stream()
-                .map(line -> new TrackLine(flags, parseSubtitleLine(line, flags)))
-                .toList();
-
-        activeSubtitle = subtitle;
-
-        Platform.runLater(() -> {
-            this.getChildren().clear();
-            this.getChildren().addAll(lines);
-        });
+    private void updateSubtitleTrack(Cue subtitle) {
+//        if (activeSubtitle == subtitle)
+//            return;
+//
+//        log.trace("Updating subtitle track to {}", subtitle);
+//        TrackFlags[] flags = new TrackFlags[]{
+//                decoration.get() == ApplicationSettings.SubtitleSettings.DecorationType.OUTLINE ? TrackFlags.OUTLINE : TrackFlags.NORMAL,
+//                decoration.get() == ApplicationSettings.SubtitleSettings.DecorationType.OPAQUE_BACKGROUND ? TrackFlags.OPAQUE_BACKGROUND : TrackFlags.NORMAL,
+//                decoration.get() == ApplicationSettings.SubtitleSettings.DecorationType.SEE_THROUGH_BACKGROUND ? TrackFlags.SEE_THROUGH_BACKGROUND : TrackFlags.NORMAL,
+//        };
+//        var lines = subtitle.getLines().stream()
+//                .map(line -> new TrackLine(flags, parseSubtitleLine(line, flags)))
+//                .toList();
+//
+//        activeSubtitle = subtitle;
+//
+//        Platform.runLater(() -> {
+//            this.getChildren().clear();
+//            this.getChildren().addAll(lines);
+//        });
     }
 
     private TrackLabel[] parseSubtitleLine(SubtitleLine line, TrackFlags[] flags) {
@@ -239,7 +241,7 @@ public class SubtitleTrack extends VBox {
         labels.forEach(e -> e.update(fontFamily.get(), fontSize.get(), fontWeight.get()));
     }
 
-    private void onDecorationChanged(DecorationType newValue) {
+    private void onDecorationChanged(ApplicationSettings.SubtitleSettings.DecorationType newValue) {
         if (labels == null)
             return;
 
@@ -250,18 +252,18 @@ public class SubtitleTrack extends VBox {
 
     }
 
-    private void updateTrackLabelFlags(DecorationType newValue, TrackLabel trackLabel) {
-        if (newValue == DecorationType.OUTLINE) {
+    private void updateTrackLabelFlags(ApplicationSettings.SubtitleSettings.DecorationType newValue, TrackLabel trackLabel) {
+        if (newValue == ApplicationSettings.SubtitleSettings.DecorationType.OUTLINE) {
             trackLabel.getFlags().addFlag(TrackFlags.OUTLINE);
         } else {
             trackLabel.getFlags().removeFlag(TrackFlags.OUTLINE);
         }
-        if (newValue == DecorationType.OPAQUE_BACKGROUND) {
+        if (newValue == ApplicationSettings.SubtitleSettings.DecorationType.OPAQUE_BACKGROUND) {
             trackLabel.getFlags().addFlag(TrackFlags.OPAQUE_BACKGROUND);
         } else {
             trackLabel.getFlags().removeFlag(TrackFlags.OPAQUE_BACKGROUND);
         }
-        if (newValue == DecorationType.SEE_THROUGH_BACKGROUND) {
+        if (newValue == ApplicationSettings.SubtitleSettings.DecorationType.SEE_THROUGH_BACKGROUND) {
             trackLabel.getFlags().addFlag(TrackFlags.SEE_THROUGH_BACKGROUND);
         } else {
             trackLabel.getFlags().removeFlag(TrackFlags.SEE_THROUGH_BACKGROUND);

@@ -2,7 +2,8 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
-import com.github.yoep.popcorn.backend.media.providers.MovieDetails;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media;
+import com.github.yoep.popcorn.backend.media.MovieDetails;
 import com.github.yoep.popcorn.ui.events.MediaQualityChangedEvent;
 import com.github.yoep.popcorn.ui.view.controls.AxisItemSelection;
 import com.github.yoep.popcorn.ui.view.services.VideoQualityService;
@@ -14,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.ResourceBundle;
 
@@ -62,7 +64,10 @@ public class DesktopMovieQualityComponent implements Initializable {
         this.media = event.getMedia();
         var resolutions = Optional.ofNullable(this.media)
                 .map(MovieDetails::getTorrents)
-                .map(e -> e.get(DEFAULT_TORRENT_AUDIO))
+                .flatMap(e -> e.stream()
+                        .filter(language -> Objects.equals(language.getLanguage(), DEFAULT_TORRENT_AUDIO))
+                        .findFirst())
+                .map(Media.TorrentLanguage::getTorrents)
                 .map(videoQualityService::getVideoResolutions)
                 .orElse(new String[0]);
         var defaultResolution = videoQualityService.getDefaultVideoResolution(asList(resolutions));

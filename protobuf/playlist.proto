@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+option optimize_for = LITE_RUNTIME;
+option java_multiple_files = true;
+option java_package = "com.github.yoep.popcorn.backend.lib.ipc.protobuf";
+
+package fx.ipc.proto;
+
+import "media.proto";
+import "subtitle.proto";
+
+message Playlist {
+  repeated Playlist.Item items = 1;
+
+  message Item {
+    string url = 1;
+    string title = 2;
+    optional string caption = 3;
+    optional string thumb = 4;
+    optional string quality = 5;
+    optional Media.Item parent_media = 6;
+    optional Media.Item media = 7;
+    optional uint64 auto_resume_timestamp = 8;
+    bool subtitles_enabled = 9;
+    optional string torrent_filename = 10;
+  }
+}
+
+message PlayRequest {
+  string url = 1;
+  string title = 2;
+  optional string caption = 3;
+  optional string thumb = 4;
+  optional string background = 5;
+  optional string quality = 6;
+  optional uint64 auto_resume_timestamp = 7;
+  optional int64 torrent_handle = 8;
+
+  message PlaybackSubtitle {
+    bool enabled = 1;
+    optional Subtitle.Info subtitle = 2;
+  }
+}

@@ -1,13 +1,12 @@
 package com.github.yoep.popcorn.backend.player;
 
-import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
-import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayerChangedEvent;
 import com.github.yoep.popcorn.backend.events.PlayerStateEvent;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Collection;
@@ -62,8 +61,13 @@ public class PlayerEventService {
             return event;
         });
         eventPublisher.register(ClosePlayerEvent.class, event -> {
-            playerService.getActivePlayer()
-                    .ifPresent(Player::stop);
+            playerService.getActivePlayer().whenComplete((player, throwable) -> {
+                if (throwable == null) {
+                    player.ifPresent(com.github.yoep.popcorn.backend.adapters.player.Player::stop);
+                } else {
+                    log.error("Failed to retrieve active player", throwable);
+                }
+            });
             return event;
         });
     }
@@ -72,7 +76,7 @@ public class PlayerEventService {
 
     //region Functions
 
-    private void onPlayerChanged(Player oldValue, Player newValue) {
+    private void onPlayerChanged(com.github.yoep.popcorn.backend.adapters.player.Player oldValue, com.github.yoep.popcorn.backend.adapters.player.Player newValue) {
         log.debug("Active player has been changed to {}, updating the player listener", newValue);
         // check if we need to unregister the listener from the old player
         Optional.ofNullable(oldValue)
@@ -81,7 +85,7 @@ public class PlayerEventService {
                 .ifPresent(e -> e.addListener(playerListener));
     }
 
-    private void onPlayerStateChanged(PlayerState newState) {
+    private void onPlayerStateChanged(Player.State newState) {
         listeners.forEach(e -> e.onStateChanged(newState));
         eventPublisher.publish(new PlayerStateEvent(this, newState));
     }
@@ -107,7 +111,7 @@ public class PlayerEventService {
             }
 
             @Override
-            public void onStateChanged(PlayerState newState) {
+            public void onStateChanged(Player.State newState) {
                 onPlayerStateChanged(newState);
             }
 

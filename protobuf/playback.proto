@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+option optimize_for = LITE_RUNTIME;
+option java_multiple_files = true;
+option java_package = "com.github.yoep.popcorn.backend.lib.ipc.protobuf";
+
+package fx.ipc.proto;
+
+message ControlEvent {
+  Event event = 1;
+  
+  enum Event {
+    TOGGLE_PLAYBACK_STATE = 0;
+    FORWARD = 1;
+    REWIND = 2;
+  }
+}

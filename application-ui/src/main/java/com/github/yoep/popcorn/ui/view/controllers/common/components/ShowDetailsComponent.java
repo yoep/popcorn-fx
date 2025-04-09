@@ -2,9 +2,9 @@ package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
+import com.github.yoep.popcorn.backend.media.Episode;
+import com.github.yoep.popcorn.backend.media.ShowDetails;
 import com.github.yoep.popcorn.backend.media.filters.model.Season;
-import com.github.yoep.popcorn.backend.media.providers.Episode;
-import com.github.yoep.popcorn.backend.media.providers.ShowDetails;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
@@ -29,9 +29,11 @@ import javafx.scene.layout.GridPane;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.ResourceBundle;
+import java.util.concurrent.CompletableFuture;
 
 import static java.util.Arrays.asList;
 
@@ -160,7 +162,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
         eventPublisher.register(MediaQualityChangedEvent.class, event -> {
             Platform.runLater(() -> {
                 if (episode != null && (event.getMedia() instanceof ShowDetails || event.getMedia() instanceof Episode)) {
-                    switchHealth(episode.getTorrents().get(event.getQuality()));
+                    switchHealth(episode.getTorrents().getQualitiesMap().get(event.getQuality()));
                 }
             });
             this.quality = event.getQuality();
@@ -190,15 +192,23 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
     private void initializeSeasons() {
         seasons.selectedItemProperty().addListener((observable, oldValue, newValue) -> switchSeason(newValue));
         seasons.setItemFactory(item -> {
-            var styleClass = isSeasonWatched(item) ? "watched" : null;
             var icon = new Icon(Icon.EYE_UNICODE);
 
-            icon.setOnMouseClicked(event -> {
-                event.consume();
-                onSeasonWatchedChanged(!isSeasonWatched(item), item, icon);
+            isSeasonWatched(item).whenComplete((watched, throwable) -> {
+                if (throwable == null) {
+                    var styleClass = watched ? "watched" : null;
+
+                    icon.setOnMouseClicked(event -> {
+                        event.consume();
+                        onSeasonWatchedChanged(!watched, item, icon);
+                    });
+                    icon.getStyleClass().add(styleClass);
+                } else {
+                    log.error("Failed to retrieve is watched", throwable);
+                }
             });
-            icon.getStyleClass().add(styleClass);
-            return new Button(item.getText(), icon);
+
+            return new Button(item.title(), icon);
         });
     }
 
@@ -208,7 +218,13 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
             var controller = new EpisodeComponent(item, localeText, imageService);
             var listener = episodeWatchStateListener(item, controller);
 
-            controller.updateWatchedState(service.isWatched(item));
+            service.isWatched(item).whenComplete((watched, throwable) -> {
+                if (throwable == null) {
+                    controller.updateWatchedState(watched);
+                } else {
+                    log.error("Failed to retrieve is watched", throwable);
+                }
+            });
             controller.setOnWatchClicked(newState -> service.updateWatchedStated(item, newState));
             controller.setOnDestroy(() -> service.removeListener(listener));
             service.addListener(listener);
@@ -222,17 +238,17 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
     }
 
     private void loadText() {
-        title.setText(media.getTitle());
-        year.setText(media.getYear());
-        duration.setText(media.getRuntime() + " min");
-        status.setText(media.getStatus());
-        genres.setText(String.join(" / ", media.getGenres()));
-        overview.setText(media.getSynopsis());
+        title.setText(media.title());
+        year.setText(media.year());
+        duration.setText(media.runtime() + " min");
+        status.setText(media.proto().getStatus());
+        genres.setText(String.join(" / ", media.genres()));
+        overview.setText(media.synopsis());
     }
 
     private void loadSeasons() {
         seasons.setItems(showHelperService.getSeasons(media).stream()
-                .filter(e -> showHelperService.getSeasonEpisodes(e, media).size() > 0)
+                .filter(e -> !showHelperService.getSeasonEpisodes(e, media).isEmpty())
                 .toArray(Season[]::new));
         selectUnwatchedSeason();
     }
@@ -257,17 +273,21 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
             return;
 
         log.trace("Show episode has been switched to {}", episode);
-        episodeTitle.setText(episode.getTitle());
-        episodeSeason.setText(localeText.get(DetailsMessage.EPISODE_SEASON, episode.getSeason(), episode.getEpisode()));
+        episodeTitle.setText(episode.title());
+//        episodeSeason.setText(localeText.get(DetailsMessage.EPISODE_SEASON, episode.getSeason(), episode.getEpisode()));
         airDate.setText(localeText.get(DetailsMessage.AIR_DATE, ShowHelperService.AIRED_DATE_PATTERN.format(episode.getAirDate())));
-        synopsis.setText(episode.getSynopsis());
+        synopsis.setText(episode.synopsis());
 
         serieActionsComponent.episodeChanged(media, episode);
     }
 
-    private boolean isSeasonWatched(Season season) {
-        return showHelperService.getSeasonEpisodes(season, media).stream()
-                .allMatch(service::isWatched);
+    private CompletableFuture<Boolean> isSeasonWatched(Season season) {
+        CompletableFuture<Boolean>[] futures = showHelperService.getSeasonEpisodes(season, media).stream()
+                .map(service::isWatched)
+                .toArray(CompletableFuture[]::new);
+
+        return CompletableFuture.allOf(futures).thenApply(v -> Arrays.stream(futures)
+                .allMatch(CompletableFuture::join));
     }
 
     private void markSeasonAsWatched(Season season) {
@@ -287,10 +307,14 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
 
     private void selectUnwatchedEpisode(Season newSeason) {
         var episodes = this.episodes.getItems();
-        var episode = showHelperService.getUnwatchedEpisode(episodes, newSeason);
-
-        // check if the current season should be marked as watched
-        Platform.runLater(() -> this.episodes.setSelectedItem(episode, true));
+        showHelperService.getUnwatchedEpisode(episodes, newSeason).whenComplete((episode, throwable) -> {
+            if (throwable == null) {
+                // check if the current season should be marked as watched
+                Platform.runLater(() -> this.episodes.setSelectedItem(episode, true));
+            } else {
+                log.error("Failed to get unwatched episode", throwable);
+            }
+        });
     }
 
     private String getWatchedTooltip(boolean watched) {
@@ -314,7 +338,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
         return new DetailsComponentListener() {
             @Override
             public void onWatchChanged(String imdbId, boolean newState) {
-                if (imdbId.equals(item.getId())) {
+                if (imdbId.equals(item.id())) {
                     controller.updateWatchedState(newState);
                 } else {
                     // calling the watched backend on the same thread causes some weird lock issue within Rust
@@ -338,7 +362,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
         var qualities = videoQualityService.getVideoResolutions(episode.getTorrents());
         var quality = Optional.ofNullable(this.quality)
                 .orElseGet(() -> videoQualityService.getDefaultVideoResolution(asList(qualities)));
-        var torrentInfo = episode.getTorrents().get(quality);
+        var torrentInfo = episode.getTorrents().getQualitiesMap().get(quality);
 
         if (event.getButton() == MouseButton.SECONDARY) {
             copyMagnetLink(torrentInfo);

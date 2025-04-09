@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
-import com.github.yoep.popcorn.backend.media.providers.Media;
+import com.github.yoep.popcorn.backend.media.Media;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.font.controls.Icon;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.OverlayItemMetadataProvider;
@@ -41,8 +41,8 @@ class MediaCardComponentTest {
     void testInitialize() {
         var title = "lorem";
         var year = "2010";
-        when(media.getTitle()).thenReturn(title);
-        when(media.getYear()).thenReturn(year);
+        when(media.title()).thenReturn(title);
+        when(media.year()).thenReturn(year);
         when(imageService.loadPoster(media, AbstractCardComponent.POSTER_WIDTH, AbstractCardComponent.POSTER_HEIGHT)).thenReturn(new CompletableFuture<>());
         var component = createComponent();
 

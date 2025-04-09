@@ -3,7 +3,9 @@ use crate::core::event::{
     Event, EventPublisher, PlayerChangedEvent, PlayerStartedEvent, PlayerStoppedEvent,
 };
 use crate::core::media::MediaIdentifier;
-use crate::core::players::{PlayMediaRequest, PlayRequest, Player, PlayerEvent, PlayerState};
+use crate::core::players::{
+    ManagerError, ManagerResult, PlayMediaRequest, PlayRequest, Player, PlayerEvent, PlayerState,
+};
 use crate::core::screen::ScreenService;
 use crate::core::torrents::{TorrentManager, TorrentStreamServer};
 use async_trait::async_trait;
@@ -125,7 +127,7 @@ pub trait PlayerManager: Debug + Callback<PlayerManagerEvent> + Send + Sync {
     /// * `player` - A boxed trait object implementing `Player` to be registered.
     ///
     /// Returns `true` if the player was successfully registered, or `false` if a player with the same ID already exists.
-    fn add_player(&self, player: Box<dyn Player>) -> bool;
+    fn add_player(&self, player: Box<dyn Player>) -> ManagerResult<()>;
 
     /// Remove a player from the manager by specifying its unique identifier (ID).
     ///
@@ -218,7 +220,7 @@ impl PlayerManager for DefaultPlayerManager {
         self.inner.by_id(id)
     }
 
-    fn add_player(&self, player: Box<dyn Player>) -> bool {
+    fn add_player(&self, player: Box<dyn Player>) -> ManagerResult<()> {
         self.inner.add_player(player)
     }
 
@@ -520,7 +522,7 @@ impl InnerPlayerManager {
             .map(Arc::downgrade)
     }
 
-    fn add_player(&self, player: Box<dyn Player>) -> bool {
+    fn add_player(&self, player: Box<dyn Player>) -> ManagerResult<()> {
         trace!("Trying to register new player {}", player.id());
         let id = player.id();
 
@@ -539,11 +541,11 @@ impl InnerPlayerManager {
             }
 
             self.callbacks.invoke(PlayerManagerEvent::PlayersChanged);
-            return true;
+            return Ok(());
         }
 
         warn!("Player with id {} has already been registered", id);
-        false
+        Err(ManagerError::DuplicatePlayer(id.to_string()))
     }
 
     fn remove_player(&self, player_id: &str) {
@@ -615,7 +617,7 @@ mod mock {
 
         #[async_trait]
         impl PlayerManager for PlayerManager {
-            fn add_player(&self, player: Box<dyn Player>) -> bool;
+            fn add_player(&self, player: Box<dyn Player>) -> ManagerResult<()>;
             fn remove_player(&self, player_id: &str);
             fn players(&self) -> Vec<Weak<Box<dyn Player>>>;
             fn by_id(&self, id: &str) -> Option<Weak<Box<dyn Player>>>;
@@ -1012,14 +1014,14 @@ mod tests {
             screen_service,
         );
 
-        manager.add_player(player);
+        let _ = manager.add_player(player);
         let result = manager.by_id(player_id);
         assert!(
             result.is_some(),
             "expected the player to have been registered"
         );
 
-        manager.add_player(player2);
+        let _ = manager.add_player(player2);
         let players = manager.inner.players.read().unwrap();
         assert_eq!(
             1,
@@ -1112,7 +1114,7 @@ mod tests {
         });
 
         let result = manager.add_player(Box::new(player));
-        assert!(result, "expected the player to have been added");
+        assert_eq!(Ok(()), result, "expected the player to have been added");
         manager.set_active_player(player_id).await;
 
         // invoke an event on the player
@@ -1191,7 +1193,7 @@ mod tests {
             Arc::new(Box::new(screen_service) as Box<dyn ScreenService>),
         );
 
-        manager.add_player(Box::new(player));
+        let _ = manager.add_player(Box::new(player));
         manager.set_active_player(player_id).await;
 
         manager
@@ -1227,7 +1229,8 @@ mod tests {
             screen_service,
         );
 
-        manager.add_player(player);
+        let result = manager.add_player(player);
+        assert_eq!(Ok(()), result, "expected the player to have been added");
         assert!(
             manager.by_id(player_id).is_some(),
             "expected the player to have been registered"

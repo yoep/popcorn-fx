@@ -131,11 +131,11 @@ impl Player for DlnaPlayer {
         self.inner.play(request).await
     }
 
-    fn pause(&self) {
+    async fn pause(&self) {
         self.inner.send_command(DlnaPlayerCommand::Pause)
     }
 
-    fn resume(&self) {
+    async fn resume(&self) {
         self.inner.send_command(DlnaPlayerCommand::Resume)
     }
 

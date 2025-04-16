@@ -3,7 +3,6 @@ package com.github.yoep.player.popcorn.services;
 import com.github.yoep.player.popcorn.listeners.PlaybackListener;
 import com.github.yoep.player.popcorn.listeners.PlayerControlsListener;
 import com.github.yoep.player.popcorn.player.PopcornPlayer;
-import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;

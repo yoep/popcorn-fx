@@ -1,7 +1,6 @@
 package com.github.yoep.player.popcorn.player;
 
 import com.github.yoep.player.popcorn.services.VideoService;
-import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
 import com.github.yoep.popcorn.backend.adapters.video.listeners.VideoListener;
@@ -90,7 +89,7 @@ public class PopcornPlayer implements com.github.yoep.popcorn.backend.adapters.p
     }
 
     @Override
-    public void play(PlayRequest request) {
+    public void play(Player.PlayRequest request) {
         Objects.requireNonNull(request, "request cannot be null");
         videoService.onPlay(request);
     }

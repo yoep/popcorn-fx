@@ -440,8 +440,8 @@ pub mod testing {
             async fn state(&self) -> PlayerState;
             async fn request(&self) -> Option<Weak<Box<dyn PlayRequest>>>;
             async fn play(&self, request: Box<dyn PlayRequest>);
-            fn pause(&self);
-            fn resume(&self);
+            async fn pause(&self);
+            async fn resume(&self);
             fn seek(&self, time: u64);
             fn stop(&self);
         }

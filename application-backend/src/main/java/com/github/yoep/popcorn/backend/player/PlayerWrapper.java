@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.backend.player;
 
-import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
 import com.google.protobuf.ByteString;
@@ -45,7 +44,7 @@ public record PlayerWrapper(Player proto) implements com.github.yoep.popcorn.bac
 
     @Override
     public void dispose() {
-
+        // no-op
     }
 
     @Override
@@ -59,7 +58,7 @@ public record PlayerWrapper(Player proto) implements com.github.yoep.popcorn.bac
     }
 
     @Override
-    public void play(PlayRequest request) {
+    public void play(Player.PlayRequest request) {
 
     }
 

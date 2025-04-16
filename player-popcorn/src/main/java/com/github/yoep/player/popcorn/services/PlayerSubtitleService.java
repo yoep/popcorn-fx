@@ -3,7 +3,7 @@ package com.github.yoep.player.popcorn.services;
 import com.github.yoep.player.popcorn.listeners.AbstractPlaybackListener;
 import com.github.yoep.player.popcorn.listeners.PlaybackListener;
 import com.github.yoep.player.popcorn.listeners.PlayerSubtitleListener;
-import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Subtitle;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
@@ -64,8 +64,8 @@ public class PlayerSubtitleService extends AbstractListenerService<PlayerSubtitl
 
     //region Functions
 
-    private void onPlayRequest(PlayRequest request) {
-        if (request.isSubtitlesEnabled()) {
+    private void onPlayRequest(Player.PlayRequest request) {
+        if (request.getSubtitle().getEnabled()) {
             // set the default subtitle to "none" when loading
             var defaultSubtitle = subtitleService.none();
 //            invokeListeners(e -> e.onAvailableSubtitlesChanged(Collections.singletonList(defaultSubtitle), defaultSubtitle));
@@ -105,7 +105,7 @@ public class PlayerSubtitleService extends AbstractListenerService<PlayerSubtitl
     private PlaybackListener createListener() {
         return new AbstractPlaybackListener() {
             @Override
-            public void onPlay(PlayRequest request) {
+            public void onPlay(Player.PlayRequest request) {
                 onPlayRequest(request);
             }
 

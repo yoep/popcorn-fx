@@ -1,10 +1,10 @@
 package com.github.yoep.popcorn.backend.player;
 
-import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.PlayerManagerEvent;
 
 public interface PlayerManagerListener {
-    void activePlayerChanged(PlayerChanged playerChange);
+    void activePlayerChanged(PlayerManagerEvent.ActivePlayerChanged playerChange);
 
     void playersChanged();
 
@@ -13,7 +13,7 @@ public interface PlayerManagerListener {
      *
      * @param request The new play request of the player.
      */
-    void onPlayerPlaybackChanged(PlayRequest request);
+    void onPlayerPlaybackChanged(Player.PlayRequest request);
 
     /**
      * Invoked when the currently active player's time has changed.

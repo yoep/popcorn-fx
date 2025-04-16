@@ -335,6 +335,323 @@ impl ::protobuf::Message for Player {
 
 /// Nested message and enums of message `Player`
 pub mod player {
+    // @@protoc_insertion_point(message:fx.ipc.proto.Player.PlayRequest)
+    #[derive(PartialEq,Clone,Default,Debug)]
+    pub struct PlayRequest {
+        // message fields
+        // @@protoc_insertion_point(field:fx.ipc.proto.Player.PlayRequest.url)
+        pub url: ::std::string::String,
+        // @@protoc_insertion_point(field:fx.ipc.proto.Player.PlayRequest.title)
+        pub title: ::std::string::String,
+        // @@protoc_insertion_point(field:fx.ipc.proto.Player.PlayRequest.caption)
+        pub caption: ::std::option::Option<::std::string::String>,
+        // @@protoc_insertion_point(field:fx.ipc.proto.Player.PlayRequest.thumbnail)
+        pub thumbnail: ::std::option::Option<::std::string::String>,
+        // @@protoc_insertion_point(field:fx.ipc.proto.Player.PlayRequest.background)
+        pub background: ::std::option::Option<::std::string::String>,
+        // @@protoc_insertion_point(field:fx.ipc.proto.Player.PlayRequest.quality)
+        pub quality: ::std::option::Option<::std::string::String>,
+        // @@protoc_insertion_point(field:fx.ipc.proto.Player.PlayRequest.auto_resume_timestamp)
+        pub auto_resume_timestamp: ::std::option::Option<u64>,
+        // @@protoc_insertion_point(field:fx.ipc.proto.Player.PlayRequest.subtitle)
+        pub subtitle: ::protobuf::MessageField<play_request::PlaySubtitleRequest>,
+        // @@protoc_insertion_point(field:fx.ipc.proto.Player.PlayRequest.stream_handle)
+        pub stream_handle: ::protobuf::MessageField<super::super::message::Handle>,
+        // special fields
+        // @@protoc_insertion_point(special_field:fx.ipc.proto.Player.PlayRequest.special_fields)
+        pub special_fields: ::protobuf::SpecialFields,
+    }
+
+    impl<'a> ::std::default::Default for &'a PlayRequest {
+        fn default() -> &'a PlayRequest {
+            <PlayRequest as ::protobuf::Message>::default_instance()
+        }
+    }
+
+    impl PlayRequest {
+        pub fn new() -> PlayRequest {
+            ::std::default::Default::default()
+        }
+    }
+
+    impl ::protobuf::Message for PlayRequest {
+        const NAME: &'static str = "PlayRequest";
+
+        fn is_initialized(&self) -> bool {
+            true
+        }
+
+        fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+            while let Some(tag) = is.read_raw_tag_or_eof()? {
+                match tag {
+                    10 => {
+                        self.url = is.read_string()?;
+                    },
+                    18 => {
+                        self.title = is.read_string()?;
+                    },
+                    26 => {
+                        self.caption = ::std::option::Option::Some(is.read_string()?);
+                    },
+                    34 => {
+                        self.thumbnail = ::std::option::Option::Some(is.read_string()?);
+                    },
+                    42 => {
+                        self.background = ::std::option::Option::Some(is.read_string()?);
+                    },
+                    50 => {
+                        self.quality = ::std::option::Option::Some(is.read_string()?);
+                    },
+                    56 => {
+                        self.auto_resume_timestamp = ::std::option::Option::Some(is.read_uint64()?);
+                    },
+                    66 => {
+                        ::protobuf::rt::read_singular_message_into_field(is, &mut self.subtitle)?;
+                    },
+                    74 => {
+                        ::protobuf::rt::read_singular_message_into_field(is, &mut self.stream_handle)?;
+                    },
+                    tag => {
+                        ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                    },
+                };
+            }
+            ::std::result::Result::Ok(())
+        }
+
+        // Compute sizes of nested messages
+        #[allow(unused_variables)]
+        fn compute_size(&self) -> u64 {
+            let mut my_size = 0;
+            if !self.url.is_empty() {
+                my_size += ::protobuf::rt::string_size(1, &self.url);
+            }
+            if !self.title.is_empty() {
+                my_size += ::protobuf::rt::string_size(2, &self.title);
+            }
+            if let Some(v) = self.caption.as_ref() {
+                my_size += ::protobuf::rt::string_size(3, &v);
+            }
+            if let Some(v) = self.thumbnail.as_ref() {
+                my_size += ::protobuf::rt::string_size(4, &v);
+            }
+            if let Some(v) = self.background.as_ref() {
+                my_size += ::protobuf::rt::string_size(5, &v);
+            }
+            if let Some(v) = self.quality.as_ref() {
+                my_size += ::protobuf::rt::string_size(6, &v);
+            }
+            if let Some(v) = self.auto_resume_timestamp {
+                my_size += ::protobuf::rt::uint64_size(7, v);
+            }
+            if let Some(v) = self.subtitle.as_ref() {
+                let len = v.compute_size();
+                my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+            }
+            if let Some(v) = self.stream_handle.as_ref() {
+                let len = v.compute_size();
+                my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+            }
+            my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+            self.special_fields.cached_size().set(my_size as u32);
+            my_size
+        }
+
+        fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+            if !self.url.is_empty() {
+                os.write_string(1, &self.url)?;
+            }
+            if !self.title.is_empty() {
+                os.write_string(2, &self.title)?;
+            }
+            if let Some(v) = self.caption.as_ref() {
+                os.write_string(3, v)?;
+            }
+            if let Some(v) = self.thumbnail.as_ref() {
+                os.write_string(4, v)?;
+            }
+            if let Some(v) = self.background.as_ref() {
+                os.write_string(5, v)?;
+            }
+            if let Some(v) = self.quality.as_ref() {
+                os.write_string(6, v)?;
+            }
+            if let Some(v) = self.auto_resume_timestamp {
+                os.write_uint64(7, v)?;
+            }
+            if let Some(v) = self.subtitle.as_ref() {
+                ::protobuf::rt::write_message_field_with_cached_size(8, v, os)?;
+            }
+            if let Some(v) = self.stream_handle.as_ref() {
+                ::protobuf::rt::write_message_field_with_cached_size(9, v, os)?;
+            }
+            os.write_unknown_fields(self.special_fields.unknown_fields())?;
+            ::std::result::Result::Ok(())
+        }
+
+        fn special_fields(&self) -> &::protobuf::SpecialFields {
+            &self.special_fields
+        }
+
+        fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+            &mut self.special_fields
+        }
+
+        fn new() -> PlayRequest {
+            PlayRequest::new()
+        }
+
+        fn clear(&mut self) {
+            self.url.clear();
+            self.title.clear();
+            self.caption = ::std::option::Option::None;
+            self.thumbnail = ::std::option::Option::None;
+            self.background = ::std::option::Option::None;
+            self.quality = ::std::option::Option::None;
+            self.auto_resume_timestamp = ::std::option::Option::None;
+            self.subtitle.clear();
+            self.stream_handle.clear();
+            self.special_fields.clear();
+        }
+
+        fn default_instance() -> &'static PlayRequest {
+            static instance: PlayRequest = PlayRequest {
+                url: ::std::string::String::new(),
+                title: ::std::string::String::new(),
+                caption: ::std::option::Option::None,
+                thumbnail: ::std::option::Option::None,
+                background: ::std::option::Option::None,
+                quality: ::std::option::Option::None,
+                auto_resume_timestamp: ::std::option::Option::None,
+                subtitle: ::protobuf::MessageField::none(),
+                stream_handle: ::protobuf::MessageField::none(),
+                special_fields: ::protobuf::SpecialFields::new(),
+            };
+            &instance
+        }
+    }
+
+    /// Nested message and enums of message `PlayRequest`
+    pub mod play_request {
+        // @@protoc_insertion_point(message:fx.ipc.proto.Player.PlayRequest.PlaySubtitleRequest)
+        #[derive(PartialEq,Clone,Default,Debug)]
+        pub struct PlaySubtitleRequest {
+            // message fields
+            // @@protoc_insertion_point(field:fx.ipc.proto.Player.PlayRequest.PlaySubtitleRequest.enabled)
+            pub enabled: bool,
+            // @@protoc_insertion_point(field:fx.ipc.proto.Player.PlayRequest.PlaySubtitleRequest.info)
+            pub info: ::protobuf::MessageField<super::super::super::subtitle::subtitle::Info>,
+            // @@protoc_insertion_point(field:fx.ipc.proto.Player.PlayRequest.PlaySubtitleRequest.subtitle)
+            pub subtitle: ::protobuf::MessageField<super::super::super::subtitle::Subtitle>,
+            // special fields
+            // @@protoc_insertion_point(special_field:fx.ipc.proto.Player.PlayRequest.PlaySubtitleRequest.special_fields)
+            pub special_fields: ::protobuf::SpecialFields,
+        }
+
+        impl<'a> ::std::default::Default for &'a PlaySubtitleRequest {
+            fn default() -> &'a PlaySubtitleRequest {
+                <PlaySubtitleRequest as ::protobuf::Message>::default_instance()
+            }
+        }
+
+        impl PlaySubtitleRequest {
+            pub fn new() -> PlaySubtitleRequest {
+                ::std::default::Default::default()
+            }
+        }
+
+        impl ::protobuf::Message for PlaySubtitleRequest {
+            const NAME: &'static str = "PlaySubtitleRequest";
+
+            fn is_initialized(&self) -> bool {
+                true
+            }
+
+            fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+                while let Some(tag) = is.read_raw_tag_or_eof()? {
+                    match tag {
+                        8 => {
+                            self.enabled = is.read_bool()?;
+                        },
+                        18 => {
+                            ::protobuf::rt::read_singular_message_into_field(is, &mut self.info)?;
+                        },
+                        26 => {
+                            ::protobuf::rt::read_singular_message_into_field(is, &mut self.subtitle)?;
+                        },
+                        tag => {
+                            ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                        },
+                    };
+                }
+                ::std::result::Result::Ok(())
+            }
+
+            // Compute sizes of nested messages
+            #[allow(unused_variables)]
+            fn compute_size(&self) -> u64 {
+                let mut my_size = 0;
+                if self.enabled != false {
+                    my_size += 1 + 1;
+                }
+                if let Some(v) = self.info.as_ref() {
+                    let len = v.compute_size();
+                    my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+                }
+                if let Some(v) = self.subtitle.as_ref() {
+                    let len = v.compute_size();
+                    my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+                }
+                my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+                self.special_fields.cached_size().set(my_size as u32);
+                my_size
+            }
+
+            fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+                if self.enabled != false {
+                    os.write_bool(1, self.enabled)?;
+                }
+                if let Some(v) = self.info.as_ref() {
+                    ::protobuf::rt::write_message_field_with_cached_size(2, v, os)?;
+                }
+                if let Some(v) = self.subtitle.as_ref() {
+                    ::protobuf::rt::write_message_field_with_cached_size(3, v, os)?;
+                }
+                os.write_unknown_fields(self.special_fields.unknown_fields())?;
+                ::std::result::Result::Ok(())
+            }
+
+            fn special_fields(&self) -> &::protobuf::SpecialFields {
+                &self.special_fields
+            }
+
+            fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+                &mut self.special_fields
+            }
+
+            fn new() -> PlaySubtitleRequest {
+                PlaySubtitleRequest::new()
+            }
+
+            fn clear(&mut self) {
+                self.enabled = false;
+                self.info.clear();
+                self.subtitle.clear();
+                self.special_fields.clear();
+            }
+
+            fn default_instance() -> &'static PlaySubtitleRequest {
+                static instance: PlaySubtitleRequest = PlaySubtitleRequest {
+                    enabled: false,
+                    info: ::protobuf::MessageField::none(),
+                    subtitle: ::protobuf::MessageField::none(),
+                    special_fields: ::protobuf::SpecialFields::new(),
+                };
+                &instance
+            }
+        }
+    }
+
     #[derive(Clone,Copy,PartialEq,Eq,Debug,Hash)]
     // @@protoc_insertion_point(enum:fx.ipc.proto.Player.State)
     pub enum State {
@@ -1447,4 +1764,1173 @@ impl ::protobuf::Message for RemovePlayerRequest {
         };
         &instance
     }
+}
+
+// @@protoc_insertion_point(message:fx.ipc.proto.GetPlayerStateRequest)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct GetPlayerStateRequest {
+    // message fields
+    // @@protoc_insertion_point(field:fx.ipc.proto.GetPlayerStateRequest.player_id)
+    pub player_id: ::std::string::String,
+    // special fields
+    // @@protoc_insertion_point(special_field:fx.ipc.proto.GetPlayerStateRequest.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a GetPlayerStateRequest {
+    fn default() -> &'a GetPlayerStateRequest {
+        <GetPlayerStateRequest as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl GetPlayerStateRequest {
+    pub fn new() -> GetPlayerStateRequest {
+        ::std::default::Default::default()
+    }
+}
+
+impl ::protobuf::Message for GetPlayerStateRequest {
+    const NAME: &'static str = "GetPlayerStateRequest";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                10 => {
+                    self.player_id = is.read_string()?;
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        if !self.player_id.is_empty() {
+            my_size += ::protobuf::rt::string_size(1, &self.player_id);
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if !self.player_id.is_empty() {
+            os.write_string(1, &self.player_id)?;
+        }
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> GetPlayerStateRequest {
+        GetPlayerStateRequest::new()
+    }
+
+    fn clear(&mut self) {
+        self.player_id.clear();
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static GetPlayerStateRequest {
+        static instance: GetPlayerStateRequest = GetPlayerStateRequest {
+            player_id: ::std::string::String::new(),
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+// @@protoc_insertion_point(message:fx.ipc.proto.GetPlayerStateResponse)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct GetPlayerStateResponse {
+    // message fields
+    // @@protoc_insertion_point(field:fx.ipc.proto.GetPlayerStateResponse.state)
+    pub state: ::protobuf::EnumOrUnknown<player::State>,
+    // special fields
+    // @@protoc_insertion_point(special_field:fx.ipc.proto.GetPlayerStateResponse.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a GetPlayerStateResponse {
+    fn default() -> &'a GetPlayerStateResponse {
+        <GetPlayerStateResponse as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl GetPlayerStateResponse {
+    pub fn new() -> GetPlayerStateResponse {
+        ::std::default::Default::default()
+    }
+}
+
+impl ::protobuf::Message for GetPlayerStateResponse {
+    const NAME: &'static str = "GetPlayerStateResponse";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                8 => {
+                    self.state = is.read_enum_or_unknown()?;
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        if self.state != ::protobuf::EnumOrUnknown::new(player::State::READY) {
+            my_size += ::protobuf::rt::int32_size(1, self.state.value());
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if self.state != ::protobuf::EnumOrUnknown::new(player::State::READY) {
+            os.write_enum(1, ::protobuf::EnumOrUnknown::value(&self.state))?;
+        }
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> GetPlayerStateResponse {
+        GetPlayerStateResponse::new()
+    }
+
+    fn clear(&mut self) {
+        self.state = ::protobuf::EnumOrUnknown::new(player::State::READY);
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static GetPlayerStateResponse {
+        static instance: GetPlayerStateResponse = GetPlayerStateResponse {
+            state: ::protobuf::EnumOrUnknown::from_i32(0),
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+// @@protoc_insertion_point(message:fx.ipc.proto.PlayerPlayRequest)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct PlayerPlayRequest {
+    // message fields
+    // @@protoc_insertion_point(field:fx.ipc.proto.PlayerPlayRequest.player_id)
+    pub player_id: ::std::string::String,
+    // @@protoc_insertion_point(field:fx.ipc.proto.PlayerPlayRequest.request)
+    pub request: ::protobuf::MessageField<player::PlayRequest>,
+    // special fields
+    // @@protoc_insertion_point(special_field:fx.ipc.proto.PlayerPlayRequest.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a PlayerPlayRequest {
+    fn default() -> &'a PlayerPlayRequest {
+        <PlayerPlayRequest as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl PlayerPlayRequest {
+    pub fn new() -> PlayerPlayRequest {
+        ::std::default::Default::default()
+    }
+}
+
+impl ::protobuf::Message for PlayerPlayRequest {
+    const NAME: &'static str = "PlayerPlayRequest";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                10 => {
+                    self.player_id = is.read_string()?;
+                },
+                18 => {
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.request)?;
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        if !self.player_id.is_empty() {
+            my_size += ::protobuf::rt::string_size(1, &self.player_id);
+        }
+        if let Some(v) = self.request.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if !self.player_id.is_empty() {
+            os.write_string(1, &self.player_id)?;
+        }
+        if let Some(v) = self.request.as_ref() {
+            ::protobuf::rt::write_message_field_with_cached_size(2, v, os)?;
+        }
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> PlayerPlayRequest {
+        PlayerPlayRequest::new()
+    }
+
+    fn clear(&mut self) {
+        self.player_id.clear();
+        self.request.clear();
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static PlayerPlayRequest {
+        static instance: PlayerPlayRequest = PlayerPlayRequest {
+            player_id: ::std::string::String::new(),
+            request: ::protobuf::MessageField::none(),
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+// @@protoc_insertion_point(message:fx.ipc.proto.PlayerPauseRequest)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct PlayerPauseRequest {
+    // message fields
+    // @@protoc_insertion_point(field:fx.ipc.proto.PlayerPauseRequest.player_id)
+    pub player_id: ::std::string::String,
+    // special fields
+    // @@protoc_insertion_point(special_field:fx.ipc.proto.PlayerPauseRequest.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a PlayerPauseRequest {
+    fn default() -> &'a PlayerPauseRequest {
+        <PlayerPauseRequest as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl PlayerPauseRequest {
+    pub fn new() -> PlayerPauseRequest {
+        ::std::default::Default::default()
+    }
+}
+
+impl ::protobuf::Message for PlayerPauseRequest {
+    const NAME: &'static str = "PlayerPauseRequest";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                10 => {
+                    self.player_id = is.read_string()?;
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        if !self.player_id.is_empty() {
+            my_size += ::protobuf::rt::string_size(1, &self.player_id);
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if !self.player_id.is_empty() {
+            os.write_string(1, &self.player_id)?;
+        }
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> PlayerPauseRequest {
+        PlayerPauseRequest::new()
+    }
+
+    fn clear(&mut self) {
+        self.player_id.clear();
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static PlayerPauseRequest {
+        static instance: PlayerPauseRequest = PlayerPauseRequest {
+            player_id: ::std::string::String::new(),
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+// @@protoc_insertion_point(message:fx.ipc.proto.PlayerResumeRequest)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct PlayerResumeRequest {
+    // message fields
+    // @@protoc_insertion_point(field:fx.ipc.proto.PlayerResumeRequest.player_id)
+    pub player_id: ::std::string::String,
+    // special fields
+    // @@protoc_insertion_point(special_field:fx.ipc.proto.PlayerResumeRequest.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a PlayerResumeRequest {
+    fn default() -> &'a PlayerResumeRequest {
+        <PlayerResumeRequest as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl PlayerResumeRequest {
+    pub fn new() -> PlayerResumeRequest {
+        ::std::default::Default::default()
+    }
+}
+
+impl ::protobuf::Message for PlayerResumeRequest {
+    const NAME: &'static str = "PlayerResumeRequest";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                10 => {
+                    self.player_id = is.read_string()?;
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        if !self.player_id.is_empty() {
+            my_size += ::protobuf::rt::string_size(1, &self.player_id);
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if !self.player_id.is_empty() {
+            os.write_string(1, &self.player_id)?;
+        }
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> PlayerResumeRequest {
+        PlayerResumeRequest::new()
+    }
+
+    fn clear(&mut self) {
+        self.player_id.clear();
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static PlayerResumeRequest {
+        static instance: PlayerResumeRequest = PlayerResumeRequest {
+            player_id: ::std::string::String::new(),
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+// @@protoc_insertion_point(message:fx.ipc.proto.PlayerManagerEvent)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct PlayerManagerEvent {
+    // message fields
+    // @@protoc_insertion_point(field:fx.ipc.proto.PlayerManagerEvent.event)
+    pub event: ::protobuf::EnumOrUnknown<player_manager_event::Event>,
+    // @@protoc_insertion_point(field:fx.ipc.proto.PlayerManagerEvent.active_player_changed)
+    pub active_player_changed: ::protobuf::MessageField<player_manager_event::ActivePlayerChanged>,
+    // @@protoc_insertion_point(field:fx.ipc.proto.PlayerManagerEvent.player_playback_changed)
+    pub player_playback_changed: ::protobuf::MessageField<player_manager_event::PlayerPlaybackChanged>,
+    // @@protoc_insertion_point(field:fx.ipc.proto.PlayerManagerEvent.player_duration_changed)
+    pub player_duration_changed: ::protobuf::MessageField<player_manager_event::PlayerDurationChanged>,
+    // @@protoc_insertion_point(field:fx.ipc.proto.PlayerManagerEvent.player_time_changed)
+    pub player_time_changed: ::protobuf::MessageField<player_manager_event::PlayerTimeChanged>,
+    // @@protoc_insertion_point(field:fx.ipc.proto.PlayerManagerEvent.player_state_changed)
+    pub player_state_changed: ::protobuf::MessageField<player_manager_event::PlayerStateChanged>,
+    // special fields
+    // @@protoc_insertion_point(special_field:fx.ipc.proto.PlayerManagerEvent.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a PlayerManagerEvent {
+    fn default() -> &'a PlayerManagerEvent {
+        <PlayerManagerEvent as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl PlayerManagerEvent {
+    pub fn new() -> PlayerManagerEvent {
+        ::std::default::Default::default()
+    }
+}
+
+impl ::protobuf::Message for PlayerManagerEvent {
+    const NAME: &'static str = "PlayerManagerEvent";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                8 => {
+                    self.event = is.read_enum_or_unknown()?;
+                },
+                18 => {
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.active_player_changed)?;
+                },
+                26 => {
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.player_playback_changed)?;
+                },
+                34 => {
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.player_duration_changed)?;
+                },
+                42 => {
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.player_time_changed)?;
+                },
+                50 => {
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.player_state_changed)?;
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        if self.event != ::protobuf::EnumOrUnknown::new(player_manager_event::Event::ACTIVE_PLAYER_CHANGED) {
+            my_size += ::protobuf::rt::int32_size(1, self.event.value());
+        }
+        if let Some(v) = self.active_player_changed.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
+        if let Some(v) = self.player_playback_changed.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
+        if let Some(v) = self.player_duration_changed.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
+        if let Some(v) = self.player_time_changed.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
+        if let Some(v) = self.player_state_changed.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if self.event != ::protobuf::EnumOrUnknown::new(player_manager_event::Event::ACTIVE_PLAYER_CHANGED) {
+            os.write_enum(1, ::protobuf::EnumOrUnknown::value(&self.event))?;
+        }
+        if let Some(v) = self.active_player_changed.as_ref() {
+            ::protobuf::rt::write_message_field_with_cached_size(2, v, os)?;
+        }
+        if let Some(v) = self.player_playback_changed.as_ref() {
+            ::protobuf::rt::write_message_field_with_cached_size(3, v, os)?;
+        }
+        if let Some(v) = self.player_duration_changed.as_ref() {
+            ::protobuf::rt::write_message_field_with_cached_size(4, v, os)?;
+        }
+        if let Some(v) = self.player_time_changed.as_ref() {
+            ::protobuf::rt::write_message_field_with_cached_size(5, v, os)?;
+        }
+        if let Some(v) = self.player_state_changed.as_ref() {
+            ::protobuf::rt::write_message_field_with_cached_size(6, v, os)?;
+        }
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> PlayerManagerEvent {
+        PlayerManagerEvent::new()
+    }
+
+    fn clear(&mut self) {
+        self.event = ::protobuf::EnumOrUnknown::new(player_manager_event::Event::ACTIVE_PLAYER_CHANGED);
+        self.active_player_changed.clear();
+        self.player_playback_changed.clear();
+        self.player_duration_changed.clear();
+        self.player_time_changed.clear();
+        self.player_state_changed.clear();
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static PlayerManagerEvent {
+        static instance: PlayerManagerEvent = PlayerManagerEvent {
+            event: ::protobuf::EnumOrUnknown::from_i32(0),
+            active_player_changed: ::protobuf::MessageField::none(),
+            player_playback_changed: ::protobuf::MessageField::none(),
+            player_duration_changed: ::protobuf::MessageField::none(),
+            player_time_changed: ::protobuf::MessageField::none(),
+            player_state_changed: ::protobuf::MessageField::none(),
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+/// Nested message and enums of message `PlayerManagerEvent`
+pub mod player_manager_event {
+    // @@protoc_insertion_point(message:fx.ipc.proto.PlayerManagerEvent.ActivePlayerChanged)
+    #[derive(PartialEq,Clone,Default,Debug)]
+    pub struct ActivePlayerChanged {
+        // message fields
+        // @@protoc_insertion_point(field:fx.ipc.proto.PlayerManagerEvent.ActivePlayerChanged.old_player_id)
+        pub old_player_id: ::std::option::Option<::std::string::String>,
+        // @@protoc_insertion_point(field:fx.ipc.proto.PlayerManagerEvent.ActivePlayerChanged.new_player_id)
+        pub new_player_id: ::std::string::String,
+        // @@protoc_insertion_point(field:fx.ipc.proto.PlayerManagerEvent.ActivePlayerChanged.new_player_name)
+        pub new_player_name: ::std::string::String,
+        // special fields
+        // @@protoc_insertion_point(special_field:fx.ipc.proto.PlayerManagerEvent.ActivePlayerChanged.special_fields)
+        pub special_fields: ::protobuf::SpecialFields,
+    }
+
+    impl<'a> ::std::default::Default for &'a ActivePlayerChanged {
+        fn default() -> &'a ActivePlayerChanged {
+            <ActivePlayerChanged as ::protobuf::Message>::default_instance()
+        }
+    }
+
+    impl ActivePlayerChanged {
+        pub fn new() -> ActivePlayerChanged {
+            ::std::default::Default::default()
+        }
+    }
+
+    impl ::protobuf::Message for ActivePlayerChanged {
+        const NAME: &'static str = "ActivePlayerChanged";
+
+        fn is_initialized(&self) -> bool {
+            true
+        }
+
+        fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+            while let Some(tag) = is.read_raw_tag_or_eof()? {
+                match tag {
+                    10 => {
+                        self.old_player_id = ::std::option::Option::Some(is.read_string()?);
+                    },
+                    18 => {
+                        self.new_player_id = is.read_string()?;
+                    },
+                    26 => {
+                        self.new_player_name = is.read_string()?;
+                    },
+                    tag => {
+                        ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                    },
+                };
+            }
+            ::std::result::Result::Ok(())
+        }
+
+        // Compute sizes of nested messages
+        #[allow(unused_variables)]
+        fn compute_size(&self) -> u64 {
+            let mut my_size = 0;
+            if let Some(v) = self.old_player_id.as_ref() {
+                my_size += ::protobuf::rt::string_size(1, &v);
+            }
+            if !self.new_player_id.is_empty() {
+                my_size += ::protobuf::rt::string_size(2, &self.new_player_id);
+            }
+            if !self.new_player_name.is_empty() {
+                my_size += ::protobuf::rt::string_size(3, &self.new_player_name);
+            }
+            my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+            self.special_fields.cached_size().set(my_size as u32);
+            my_size
+        }
+
+        fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+            if let Some(v) = self.old_player_id.as_ref() {
+                os.write_string(1, v)?;
+            }
+            if !self.new_player_id.is_empty() {
+                os.write_string(2, &self.new_player_id)?;
+            }
+            if !self.new_player_name.is_empty() {
+                os.write_string(3, &self.new_player_name)?;
+            }
+            os.write_unknown_fields(self.special_fields.unknown_fields())?;
+            ::std::result::Result::Ok(())
+        }
+
+        fn special_fields(&self) -> &::protobuf::SpecialFields {
+            &self.special_fields
+        }
+
+        fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+            &mut self.special_fields
+        }
+
+        fn new() -> ActivePlayerChanged {
+            ActivePlayerChanged::new()
+        }
+
+        fn clear(&mut self) {
+            self.old_player_id = ::std::option::Option::None;
+            self.new_player_id.clear();
+            self.new_player_name.clear();
+            self.special_fields.clear();
+        }
+
+        fn default_instance() -> &'static ActivePlayerChanged {
+            static instance: ActivePlayerChanged = ActivePlayerChanged {
+                old_player_id: ::std::option::Option::None,
+                new_player_id: ::std::string::String::new(),
+                new_player_name: ::std::string::String::new(),
+                special_fields: ::protobuf::SpecialFields::new(),
+            };
+            &instance
+        }
+    }
+
+    // @@protoc_insertion_point(message:fx.ipc.proto.PlayerManagerEvent.PlayerPlaybackChanged)
+    #[derive(PartialEq,Clone,Default,Debug)]
+    pub struct PlayerPlaybackChanged {
+        // message fields
+        // @@protoc_insertion_point(field:fx.ipc.proto.PlayerManagerEvent.PlayerPlaybackChanged.request)
+        pub request: ::protobuf::MessageField<super::player::PlayRequest>,
+        // special fields
+        // @@protoc_insertion_point(special_field:fx.ipc.proto.PlayerManagerEvent.PlayerPlaybackChanged.special_fields)
+        pub special_fields: ::protobuf::SpecialFields,
+    }
+
+    impl<'a> ::std::default::Default for &'a PlayerPlaybackChanged {
+        fn default() -> &'a PlayerPlaybackChanged {
+            <PlayerPlaybackChanged as ::protobuf::Message>::default_instance()
+        }
+    }
+
+    impl PlayerPlaybackChanged {
+        pub fn new() -> PlayerPlaybackChanged {
+            ::std::default::Default::default()
+        }
+    }
+
+    impl ::protobuf::Message for PlayerPlaybackChanged {
+        const NAME: &'static str = "PlayerPlaybackChanged";
+
+        fn is_initialized(&self) -> bool {
+            true
+        }
+
+        fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+            while let Some(tag) = is.read_raw_tag_or_eof()? {
+                match tag {
+                    10 => {
+                        ::protobuf::rt::read_singular_message_into_field(is, &mut self.request)?;
+                    },
+                    tag => {
+                        ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                    },
+                };
+            }
+            ::std::result::Result::Ok(())
+        }
+
+        // Compute sizes of nested messages
+        #[allow(unused_variables)]
+        fn compute_size(&self) -> u64 {
+            let mut my_size = 0;
+            if let Some(v) = self.request.as_ref() {
+                let len = v.compute_size();
+                my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+            }
+            my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+            self.special_fields.cached_size().set(my_size as u32);
+            my_size
+        }
+
+        fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+            if let Some(v) = self.request.as_ref() {
+                ::protobuf::rt::write_message_field_with_cached_size(1, v, os)?;
+            }
+            os.write_unknown_fields(self.special_fields.unknown_fields())?;
+            ::std::result::Result::Ok(())
+        }
+
+        fn special_fields(&self) -> &::protobuf::SpecialFields {
+            &self.special_fields
+        }
+
+        fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+            &mut self.special_fields
+        }
+
+        fn new() -> PlayerPlaybackChanged {
+            PlayerPlaybackChanged::new()
+        }
+
+        fn clear(&mut self) {
+            self.request.clear();
+            self.special_fields.clear();
+        }
+
+        fn default_instance() -> &'static PlayerPlaybackChanged {
+            static instance: PlayerPlaybackChanged = PlayerPlaybackChanged {
+                request: ::protobuf::MessageField::none(),
+                special_fields: ::protobuf::SpecialFields::new(),
+            };
+            &instance
+        }
+    }
+
+    // @@protoc_insertion_point(message:fx.ipc.proto.PlayerManagerEvent.PlayerDurationChanged)
+    #[derive(PartialEq,Clone,Default,Debug)]
+    pub struct PlayerDurationChanged {
+        // message fields
+        // @@protoc_insertion_point(field:fx.ipc.proto.PlayerManagerEvent.PlayerDurationChanged.duration)
+        pub duration: u64,
+        // special fields
+        // @@protoc_insertion_point(special_field:fx.ipc.proto.PlayerManagerEvent.PlayerDurationChanged.special_fields)
+        pub special_fields: ::protobuf::SpecialFields,
+    }
+
+    impl<'a> ::std::default::Default for &'a PlayerDurationChanged {
+        fn default() -> &'a PlayerDurationChanged {
+            <PlayerDurationChanged as ::protobuf::Message>::default_instance()
+        }
+    }
+
+    impl PlayerDurationChanged {
+        pub fn new() -> PlayerDurationChanged {
+            ::std::default::Default::default()
+        }
+    }
+
+    impl ::protobuf::Message for PlayerDurationChanged {
+        const NAME: &'static str = "PlayerDurationChanged";
+
+        fn is_initialized(&self) -> bool {
+            true
+        }
+
+        fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+            while let Some(tag) = is.read_raw_tag_or_eof()? {
+                match tag {
+                    8 => {
+                        self.duration = is.read_uint64()?;
+                    },
+                    tag => {
+                        ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                    },
+                };
+            }
+            ::std::result::Result::Ok(())
+        }
+
+        // Compute sizes of nested messages
+        #[allow(unused_variables)]
+        fn compute_size(&self) -> u64 {
+            let mut my_size = 0;
+            if self.duration != 0 {
+                my_size += ::protobuf::rt::uint64_size(1, self.duration);
+            }
+            my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+            self.special_fields.cached_size().set(my_size as u32);
+            my_size
+        }
+
+        fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+            if self.duration != 0 {
+                os.write_uint64(1, self.duration)?;
+            }
+            os.write_unknown_fields(self.special_fields.unknown_fields())?;
+            ::std::result::Result::Ok(())
+        }
+
+        fn special_fields(&self) -> &::protobuf::SpecialFields {
+            &self.special_fields
+        }
+
+        fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+            &mut self.special_fields
+        }
+
+        fn new() -> PlayerDurationChanged {
+            PlayerDurationChanged::new()
+        }
+
+        fn clear(&mut self) {
+            self.duration = 0;
+            self.special_fields.clear();
+        }
+
+        fn default_instance() -> &'static PlayerDurationChanged {
+            static instance: PlayerDurationChanged = PlayerDurationChanged {
+                duration: 0,
+                special_fields: ::protobuf::SpecialFields::new(),
+            };
+            &instance
+        }
+    }
+
+    // @@protoc_insertion_point(message:fx.ipc.proto.PlayerManagerEvent.PlayerTimeChanged)
+    #[derive(PartialEq,Clone,Default,Debug)]
+    pub struct PlayerTimeChanged {
+        // message fields
+        // @@protoc_insertion_point(field:fx.ipc.proto.PlayerManagerEvent.PlayerTimeChanged.time)
+        pub time: u64,
+        // special fields
+        // @@protoc_insertion_point(special_field:fx.ipc.proto.PlayerManagerEvent.PlayerTimeChanged.special_fields)
+        pub special_fields: ::protobuf::SpecialFields,
+    }
+
+    impl<'a> ::std::default::Default for &'a PlayerTimeChanged {
+        fn default() -> &'a PlayerTimeChanged {
+            <PlayerTimeChanged as ::protobuf::Message>::default_instance()
+        }
+    }
+
+    impl PlayerTimeChanged {
+        pub fn new() -> PlayerTimeChanged {
+            ::std::default::Default::default()
+        }
+    }
+
+    impl ::protobuf::Message for PlayerTimeChanged {
+        const NAME: &'static str = "PlayerTimeChanged";
+
+        fn is_initialized(&self) -> bool {
+            true
+        }
+
+        fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+            while let Some(tag) = is.read_raw_tag_or_eof()? {
+                match tag {
+                    8 => {
+                        self.time = is.read_uint64()?;
+                    },
+                    tag => {
+                        ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                    },
+                };
+            }
+            ::std::result::Result::Ok(())
+        }
+
+        // Compute sizes of nested messages
+        #[allow(unused_variables)]
+        fn compute_size(&self) -> u64 {
+            let mut my_size = 0;
+            if self.time != 0 {
+                my_size += ::protobuf::rt::uint64_size(1, self.time);
+            }
+            my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+            self.special_fields.cached_size().set(my_size as u32);
+            my_size
+        }
+
+        fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+            if self.time != 0 {
+                os.write_uint64(1, self.time)?;
+            }
+            os.write_unknown_fields(self.special_fields.unknown_fields())?;
+            ::std::result::Result::Ok(())
+        }
+
+        fn special_fields(&self) -> &::protobuf::SpecialFields {
+            &self.special_fields
+        }
+
+        fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+            &mut self.special_fields
+        }
+
+        fn new() -> PlayerTimeChanged {
+            PlayerTimeChanged::new()
+        }
+
+        fn clear(&mut self) {
+            self.time = 0;
+            self.special_fields.clear();
+        }
+
+        fn default_instance() -> &'static PlayerTimeChanged {
+            static instance: PlayerTimeChanged = PlayerTimeChanged {
+                time: 0,
+                special_fields: ::protobuf::SpecialFields::new(),
+            };
+            &instance
+        }
+    }
+
+    // @@protoc_insertion_point(message:fx.ipc.proto.PlayerManagerEvent.PlayerStateChanged)
+    #[derive(PartialEq,Clone,Default,Debug)]
+    pub struct PlayerStateChanged {
+        // message fields
+        // @@protoc_insertion_point(field:fx.ipc.proto.PlayerManagerEvent.PlayerStateChanged.state)
+        pub state: ::protobuf::EnumOrUnknown<super::player::State>,
+        // special fields
+        // @@protoc_insertion_point(special_field:fx.ipc.proto.PlayerManagerEvent.PlayerStateChanged.special_fields)
+        pub special_fields: ::protobuf::SpecialFields,
+    }
+
+    impl<'a> ::std::default::Default for &'a PlayerStateChanged {
+        fn default() -> &'a PlayerStateChanged {
+            <PlayerStateChanged as ::protobuf::Message>::default_instance()
+        }
+    }
+
+    impl PlayerStateChanged {
+        pub fn new() -> PlayerStateChanged {
+            ::std::default::Default::default()
+        }
+    }
+
+    impl ::protobuf::Message for PlayerStateChanged {
+        const NAME: &'static str = "PlayerStateChanged";
+
+        fn is_initialized(&self) -> bool {
+            true
+        }
+
+        fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+            while let Some(tag) = is.read_raw_tag_or_eof()? {
+                match tag {
+                    8 => {
+                        self.state = is.read_enum_or_unknown()?;
+                    },
+                    tag => {
+                        ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                    },
+                };
+            }
+            ::std::result::Result::Ok(())
+        }
+
+        // Compute sizes of nested messages
+        #[allow(unused_variables)]
+        fn compute_size(&self) -> u64 {
+            let mut my_size = 0;
+            if self.state != ::protobuf::EnumOrUnknown::new(super::player::State::READY) {
+                my_size += ::protobuf::rt::int32_size(1, self.state.value());
+            }
+            my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+            self.special_fields.cached_size().set(my_size as u32);
+            my_size
+        }
+
+        fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+            if self.state != ::protobuf::EnumOrUnknown::new(super::player::State::READY) {
+                os.write_enum(1, ::protobuf::EnumOrUnknown::value(&self.state))?;
+            }
+            os.write_unknown_fields(self.special_fields.unknown_fields())?;
+            ::std::result::Result::Ok(())
+        }
+
+        fn special_fields(&self) -> &::protobuf::SpecialFields {
+            &self.special_fields
+        }
+
+        fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+            &mut self.special_fields
+        }
+
+        fn new() -> PlayerStateChanged {
+            PlayerStateChanged::new()
+        }
+
+        fn clear(&mut self) {
+            self.state = ::protobuf::EnumOrUnknown::new(super::player::State::READY);
+            self.special_fields.clear();
+        }
+
+        fn default_instance() -> &'static PlayerStateChanged {
+            static instance: PlayerStateChanged = PlayerStateChanged {
+                state: ::protobuf::EnumOrUnknown::from_i32(0),
+                special_fields: ::protobuf::SpecialFields::new(),
+            };
+            &instance
+        }
+    }
+
+    #[derive(Clone,Copy,PartialEq,Eq,Debug,Hash)]
+    // @@protoc_insertion_point(enum:fx.ipc.proto.PlayerManagerEvent.Event)
+    pub enum Event {
+        // @@protoc_insertion_point(enum_value:fx.ipc.proto.PlayerManagerEvent.Event.ACTIVE_PLAYER_CHANGED)
+        ACTIVE_PLAYER_CHANGED = 0,
+        // @@protoc_insertion_point(enum_value:fx.ipc.proto.PlayerManagerEvent.Event.PLAYERS_CHANGED)
+        PLAYERS_CHANGED = 1,
+        // @@protoc_insertion_point(enum_value:fx.ipc.proto.PlayerManagerEvent.Event.PLAYER_PLAYBACK_CHANGED)
+        PLAYER_PLAYBACK_CHANGED = 2,
+        // @@protoc_insertion_point(enum_value:fx.ipc.proto.PlayerManagerEvent.Event.PLAYER_DURATION_CHANGED)
+        PLAYER_DURATION_CHANGED = 3,
+        // @@protoc_insertion_point(enum_value:fx.ipc.proto.PlayerManagerEvent.Event.PLAYER_TIMED_CHANGED)
+        PLAYER_TIMED_CHANGED = 4,
+        // @@protoc_insertion_point(enum_value:fx.ipc.proto.PlayerManagerEvent.Event.PLAYER_STATE_CHANGED)
+        PLAYER_STATE_CHANGED = 5,
+    }
+
+    impl ::protobuf::Enum for Event {
+        const NAME: &'static str = "Event";
+
+        fn value(&self) -> i32 {
+            *self as i32
+        }
+
+        fn from_i32(value: i32) -> ::std::option::Option<Event> {
+            match value {
+                0 => ::std::option::Option::Some(Event::ACTIVE_PLAYER_CHANGED),
+                1 => ::std::option::Option::Some(Event::PLAYERS_CHANGED),
+                2 => ::std::option::Option::Some(Event::PLAYER_PLAYBACK_CHANGED),
+                3 => ::std::option::Option::Some(Event::PLAYER_DURATION_CHANGED),
+                4 => ::std::option::Option::Some(Event::PLAYER_TIMED_CHANGED),
+                5 => ::std::option::Option::Some(Event::PLAYER_STATE_CHANGED),
+                _ => ::std::option::Option::None
+            }
+        }
+
+        fn from_str(str: &str) -> ::std::option::Option<Event> {
+            match str {
+                "ACTIVE_PLAYER_CHANGED" => ::std::option::Option::Some(Event::ACTIVE_PLAYER_CHANGED),
+                "PLAYERS_CHANGED" => ::std::option::Option::Some(Event::PLAYERS_CHANGED),
+                "PLAYER_PLAYBACK_CHANGED" => ::std::option::Option::Some(Event::PLAYER_PLAYBACK_CHANGED),
+                "PLAYER_DURATION_CHANGED" => ::std::option::Option::Some(Event::PLAYER_DURATION_CHANGED),
+                "PLAYER_TIMED_CHANGED" => ::std::option::Option::Some(Event::PLAYER_TIMED_CHANGED),
+                "PLAYER_STATE_CHANGED" => ::std::option::Option::Some(Event::PLAYER_STATE_CHANGED),
+                _ => ::std::option::Option::None
+            }
+        }
+
+        const VALUES: &'static [Event] = &[
+            Event::ACTIVE_PLAYER_CHANGED,
+            Event::PLAYERS_CHANGED,
+            Event::PLAYER_PLAYBACK_CHANGED,
+            Event::PLAYER_DURATION_CHANGED,
+            Event::PLAYER_TIMED_CHANGED,
+            Event::PLAYER_STATE_CHANGED,
+        ];
+    }
+
+    impl ::std::default::Default for Event {
+        fn default() -> Self {
+            Event::ACTIVE_PLAYER_CHANGED
+        }
+    }
+
 }

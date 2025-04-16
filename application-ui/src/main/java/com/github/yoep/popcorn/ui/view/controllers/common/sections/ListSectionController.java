@@ -4,12 +4,15 @@ import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
 import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
+import com.github.yoep.popcorn.backend.lib.FxCallback;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.FavoriteEvent;
 import com.github.yoep.popcorn.backend.media.Media;
 import com.github.yoep.popcorn.backend.media.MovieDetails;
 import com.github.yoep.popcorn.backend.media.ShowDetails;
-import com.github.yoep.popcorn.backend.media.favorites.FavoriteEventCallback;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
-import com.github.yoep.popcorn.backend.media.providers.*;
+import com.github.yoep.popcorn.backend.media.providers.MediaParsingException;
+import com.github.yoep.popcorn.backend.media.providers.MediaRetrievalException;
+import com.github.yoep.popcorn.backend.media.providers.ProviderService;
 import com.github.yoep.popcorn.backend.media.watched.WatchedEventCallback;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
@@ -372,13 +375,13 @@ public class ListSectionController extends AbstractListSectionController impleme
             }
 
             @Override
-            public void addListener(FavoriteEventCallback callback) {
-//                favoriteService.registerListener(callback);
+            public void addListener(FxCallback<FavoriteEvent> callback) {
+                favoriteService.registerListener(callback);
             }
 
             @Override
-            public void removeListener(FavoriteEventCallback callback) {
-//                favoriteService.removeListener(callback);
+            public void removeListener(FxCallback<FavoriteEvent> callback) {
+                favoriteService.removeListener(callback);
             }
 
             @Override

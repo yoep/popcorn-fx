@@ -1,11 +1,10 @@
 package com.github.yoep.popcorn.ui.info;
 
-import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.info.ComponentState;
 import com.github.yoep.popcorn.backend.info.SimpleComponentDetails;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
-import com.github.yoep.popcorn.backend.player.PlayerChanged;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.PlayerManagerEvent;
 import com.github.yoep.popcorn.backend.player.PlayerManagerListener;
 import lombok.extern.slf4j.Slf4j;
 
@@ -27,7 +26,7 @@ public class PlayerInfoService extends AbstractInfoService {
     private void init() {
         playerManagerService.addListener(new PlayerManagerListener() {
             @Override
-            public void activePlayerChanged(PlayerChanged playerChange) {
+            public void activePlayerChanged(PlayerManagerEvent.ActivePlayerChanged playerChange) {
                 // no-op
             }
 
@@ -43,7 +42,7 @@ public class PlayerInfoService extends AbstractInfoService {
             }
 
             @Override
-            public void onPlayerPlaybackChanged(PlayRequest request) {
+            public void onPlayerPlaybackChanged(Player.PlayRequest request) {
                 // no-op
             }
 

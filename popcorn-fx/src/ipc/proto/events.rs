@@ -31,12 +31,8 @@ pub struct Event {
     // message fields
     // @@protoc_insertion_point(field:fx.ipc.proto.Event.type)
     pub type_: ::protobuf::EnumOrUnknown<event::EventType>,
-    // @@protoc_insertion_point(field:fx.ipc.proto.Event.player_changed)
-    pub player_changed: ::protobuf::MessageField<event::PlayerChanged>,
     // @@protoc_insertion_point(field:fx.ipc.proto.Event.playback_state_changed)
     pub playback_state_changed: ::protobuf::MessageField<event::PlaybackStateChanged>,
-    // @@protoc_insertion_point(field:fx.ipc.proto.Event.watched_state_changed)
-    pub watched_state_changed: ::protobuf::MessageField<event::WatchedStateChanged>,
     // @@protoc_insertion_point(field:fx.ipc.proto.Event.torrent_details_loaded)
     pub torrent_details_loaded: ::protobuf::MessageField<event::TorrentDetailsLoaded>,
     // special fields
@@ -69,16 +65,10 @@ impl ::protobuf::Message for Event {
                 8 => {
                     self.type_ = is.read_enum_or_unknown()?;
                 },
-                18 => {
-                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.player_changed)?;
-                },
                 26 => {
                     ::protobuf::rt::read_singular_message_into_field(is, &mut self.playback_state_changed)?;
                 },
                 34 => {
-                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.watched_state_changed)?;
-                },
-                42 => {
                     ::protobuf::rt::read_singular_message_into_field(is, &mut self.torrent_details_loaded)?;
                 },
                 tag => {
@@ -93,18 +83,10 @@ impl ::protobuf::Message for Event {
     #[allow(unused_variables)]
     fn compute_size(&self) -> u64 {
         let mut my_size = 0;
-        if self.type_ != ::protobuf::EnumOrUnknown::new(event::EventType::PLAYER_CHANGED) {
+        if self.type_ != ::protobuf::EnumOrUnknown::new(event::EventType::PLAYER_STARTED) {
             my_size += ::protobuf::rt::int32_size(1, self.type_.value());
         }
-        if let Some(v) = self.player_changed.as_ref() {
-            let len = v.compute_size();
-            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
-        }
         if let Some(v) = self.playback_state_changed.as_ref() {
-            let len = v.compute_size();
-            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
-        }
-        if let Some(v) = self.watched_state_changed.as_ref() {
             let len = v.compute_size();
             my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
         }
@@ -118,20 +100,14 @@ impl ::protobuf::Message for Event {
     }
 
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
-        if self.type_ != ::protobuf::EnumOrUnknown::new(event::EventType::PLAYER_CHANGED) {
+        if self.type_ != ::protobuf::EnumOrUnknown::new(event::EventType::PLAYER_STARTED) {
             os.write_enum(1, ::protobuf::EnumOrUnknown::value(&self.type_))?;
-        }
-        if let Some(v) = self.player_changed.as_ref() {
-            ::protobuf::rt::write_message_field_with_cached_size(2, v, os)?;
         }
         if let Some(v) = self.playback_state_changed.as_ref() {
             ::protobuf::rt::write_message_field_with_cached_size(3, v, os)?;
         }
-        if let Some(v) = self.watched_state_changed.as_ref() {
-            ::protobuf::rt::write_message_field_with_cached_size(4, v, os)?;
-        }
         if let Some(v) = self.torrent_details_loaded.as_ref() {
-            ::protobuf::rt::write_message_field_with_cached_size(5, v, os)?;
+            ::protobuf::rt::write_message_field_with_cached_size(4, v, os)?;
         }
         os.write_unknown_fields(self.special_fields.unknown_fields())?;
         ::std::result::Result::Ok(())
@@ -150,10 +126,8 @@ impl ::protobuf::Message for Event {
     }
 
     fn clear(&mut self) {
-        self.type_ = ::protobuf::EnumOrUnknown::new(event::EventType::PLAYER_CHANGED);
-        self.player_changed.clear();
+        self.type_ = ::protobuf::EnumOrUnknown::new(event::EventType::PLAYER_STARTED);
         self.playback_state_changed.clear();
-        self.watched_state_changed.clear();
         self.torrent_details_loaded.clear();
         self.special_fields.clear();
     }
@@ -161,9 +135,7 @@ impl ::protobuf::Message for Event {
     fn default_instance() -> &'static Event {
         static instance: Event = Event {
             type_: ::protobuf::EnumOrUnknown::from_i32(0),
-            player_changed: ::protobuf::MessageField::none(),
             playback_state_changed: ::protobuf::MessageField::none(),
-            watched_state_changed: ::protobuf::MessageField::none(),
             torrent_details_loaded: ::protobuf::MessageField::none(),
             special_fields: ::protobuf::SpecialFields::new(),
         };
@@ -173,122 +145,6 @@ impl ::protobuf::Message for Event {
 
 /// Nested message and enums of message `Event`
 pub mod event {
-    // @@protoc_insertion_point(message:fx.ipc.proto.Event.PlayerChanged)
-    #[derive(PartialEq,Clone,Default,Debug)]
-    pub struct PlayerChanged {
-        // message fields
-        // @@protoc_insertion_point(field:fx.ipc.proto.Event.PlayerChanged.old_player_id)
-        pub old_player_id: ::std::option::Option<::std::string::String>,
-        // @@protoc_insertion_point(field:fx.ipc.proto.Event.PlayerChanged.new_player_id)
-        pub new_player_id: ::std::string::String,
-        // @@protoc_insertion_point(field:fx.ipc.proto.Event.PlayerChanged.new_player_name)
-        pub new_player_name: ::std::string::String,
-        // special fields
-        // @@protoc_insertion_point(special_field:fx.ipc.proto.Event.PlayerChanged.special_fields)
-        pub special_fields: ::protobuf::SpecialFields,
-    }
-
-    impl<'a> ::std::default::Default for &'a PlayerChanged {
-        fn default() -> &'a PlayerChanged {
-            <PlayerChanged as ::protobuf::Message>::default_instance()
-        }
-    }
-
-    impl PlayerChanged {
-        pub fn new() -> PlayerChanged {
-            ::std::default::Default::default()
-        }
-    }
-
-    impl ::protobuf::Message for PlayerChanged {
-        const NAME: &'static str = "PlayerChanged";
-
-        fn is_initialized(&self) -> bool {
-            true
-        }
-
-        fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
-            while let Some(tag) = is.read_raw_tag_or_eof()? {
-                match tag {
-                    10 => {
-                        self.old_player_id = ::std::option::Option::Some(is.read_string()?);
-                    },
-                    18 => {
-                        self.new_player_id = is.read_string()?;
-                    },
-                    26 => {
-                        self.new_player_name = is.read_string()?;
-                    },
-                    tag => {
-                        ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
-                    },
-                };
-            }
-            ::std::result::Result::Ok(())
-        }
-
-        // Compute sizes of nested messages
-        #[allow(unused_variables)]
-        fn compute_size(&self) -> u64 {
-            let mut my_size = 0;
-            if let Some(v) = self.old_player_id.as_ref() {
-                my_size += ::protobuf::rt::string_size(1, &v);
-            }
-            if !self.new_player_id.is_empty() {
-                my_size += ::protobuf::rt::string_size(2, &self.new_player_id);
-            }
-            if !self.new_player_name.is_empty() {
-                my_size += ::protobuf::rt::string_size(3, &self.new_player_name);
-            }
-            my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
-            self.special_fields.cached_size().set(my_size as u32);
-            my_size
-        }
-
-        fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
-            if let Some(v) = self.old_player_id.as_ref() {
-                os.write_string(1, v)?;
-            }
-            if !self.new_player_id.is_empty() {
-                os.write_string(2, &self.new_player_id)?;
-            }
-            if !self.new_player_name.is_empty() {
-                os.write_string(3, &self.new_player_name)?;
-            }
-            os.write_unknown_fields(self.special_fields.unknown_fields())?;
-            ::std::result::Result::Ok(())
-        }
-
-        fn special_fields(&self) -> &::protobuf::SpecialFields {
-            &self.special_fields
-        }
-
-        fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
-            &mut self.special_fields
-        }
-
-        fn new() -> PlayerChanged {
-            PlayerChanged::new()
-        }
-
-        fn clear(&mut self) {
-            self.old_player_id = ::std::option::Option::None;
-            self.new_player_id.clear();
-            self.new_player_name.clear();
-            self.special_fields.clear();
-        }
-
-        fn default_instance() -> &'static PlayerChanged {
-            static instance: PlayerChanged = PlayerChanged {
-                old_player_id: ::std::option::Option::None,
-                new_player_id: ::std::string::String::new(),
-                new_player_name: ::std::string::String::new(),
-                special_fields: ::protobuf::SpecialFields::new(),
-            };
-            &instance
-        }
-    }
-
     // @@protoc_insertion_point(message:fx.ipc.proto.Event.PlaybackStateChanged)
     #[derive(PartialEq,Clone,Default,Debug)]
     pub struct PlaybackStateChanged {
@@ -379,109 +235,6 @@ pub mod event {
         }
     }
 
-    // @@protoc_insertion_point(message:fx.ipc.proto.Event.WatchedStateChanged)
-    #[derive(PartialEq,Clone,Default,Debug)]
-    pub struct WatchedStateChanged {
-        // message fields
-        // @@protoc_insertion_point(field:fx.ipc.proto.Event.WatchedStateChanged.imdb_id)
-        pub imdb_id: ::std::string::String,
-        // @@protoc_insertion_point(field:fx.ipc.proto.Event.WatchedStateChanged.watched_state)
-        pub watched_state: bool,
-        // special fields
-        // @@protoc_insertion_point(special_field:fx.ipc.proto.Event.WatchedStateChanged.special_fields)
-        pub special_fields: ::protobuf::SpecialFields,
-    }
-
-    impl<'a> ::std::default::Default for &'a WatchedStateChanged {
-        fn default() -> &'a WatchedStateChanged {
-            <WatchedStateChanged as ::protobuf::Message>::default_instance()
-        }
-    }
-
-    impl WatchedStateChanged {
-        pub fn new() -> WatchedStateChanged {
-            ::std::default::Default::default()
-        }
-    }
-
-    impl ::protobuf::Message for WatchedStateChanged {
-        const NAME: &'static str = "WatchedStateChanged";
-
-        fn is_initialized(&self) -> bool {
-            true
-        }
-
-        fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
-            while let Some(tag) = is.read_raw_tag_or_eof()? {
-                match tag {
-                    10 => {
-                        self.imdb_id = is.read_string()?;
-                    },
-                    16 => {
-                        self.watched_state = is.read_bool()?;
-                    },
-                    tag => {
-                        ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
-                    },
-                };
-            }
-            ::std::result::Result::Ok(())
-        }
-
-        // Compute sizes of nested messages
-        #[allow(unused_variables)]
-        fn compute_size(&self) -> u64 {
-            let mut my_size = 0;
-            if !self.imdb_id.is_empty() {
-                my_size += ::protobuf::rt::string_size(1, &self.imdb_id);
-            }
-            if self.watched_state != false {
-                my_size += 1 + 1;
-            }
-            my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
-            self.special_fields.cached_size().set(my_size as u32);
-            my_size
-        }
-
-        fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
-            if !self.imdb_id.is_empty() {
-                os.write_string(1, &self.imdb_id)?;
-            }
-            if self.watched_state != false {
-                os.write_bool(2, self.watched_state)?;
-            }
-            os.write_unknown_fields(self.special_fields.unknown_fields())?;
-            ::std::result::Result::Ok(())
-        }
-
-        fn special_fields(&self) -> &::protobuf::SpecialFields {
-            &self.special_fields
-        }
-
-        fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
-            &mut self.special_fields
-        }
-
-        fn new() -> WatchedStateChanged {
-            WatchedStateChanged::new()
-        }
-
-        fn clear(&mut self) {
-            self.imdb_id.clear();
-            self.watched_state = false;
-            self.special_fields.clear();
-        }
-
-        fn default_instance() -> &'static WatchedStateChanged {
-            static instance: WatchedStateChanged = WatchedStateChanged {
-                imdb_id: ::std::string::String::new(),
-                watched_state: false,
-                special_fields: ::protobuf::SpecialFields::new(),
-            };
-            &instance
-        }
-    }
-
     // @@protoc_insertion_point(message:fx.ipc.proto.Event.TorrentDetailsLoaded)
     #[derive(PartialEq,Clone,Default,Debug)]
     pub struct TorrentDetailsLoaded {
@@ -561,24 +314,20 @@ pub mod event {
     #[derive(Clone,Copy,PartialEq,Eq,Debug,Hash)]
     // @@protoc_insertion_point(enum:fx.ipc.proto.Event.EventType)
     pub enum EventType {
-        // @@protoc_insertion_point(enum_value:fx.ipc.proto.Event.EventType.PLAYER_CHANGED)
-        PLAYER_CHANGED = 0,
         // @@protoc_insertion_point(enum_value:fx.ipc.proto.Event.EventType.PLAYER_STARTED)
-        PLAYER_STARTED = 1,
+        PLAYER_STARTED = 0,
         // @@protoc_insertion_point(enum_value:fx.ipc.proto.Event.EventType.PLAYER_STOPPED)
-        PLAYER_STOPPED = 2,
+        PLAYER_STOPPED = 1,
         // @@protoc_insertion_point(enum_value:fx.ipc.proto.Event.EventType.PLAYBACK_STATE_CHANGED)
-        PLAYBACK_STATE_CHANGED = 3,
-        // @@protoc_insertion_point(enum_value:fx.ipc.proto.Event.EventType.WATCH_STATE_CHANGED)
-        WATCH_STATE_CHANGED = 4,
+        PLAYBACK_STATE_CHANGED = 2,
         // @@protoc_insertion_point(enum_value:fx.ipc.proto.Event.EventType.LOADING_STARTED)
-        LOADING_STARTED = 5,
+        LOADING_STARTED = 3,
         // @@protoc_insertion_point(enum_value:fx.ipc.proto.Event.EventType.LOADING_COMPLETED)
-        LOADING_COMPLETED = 6,
+        LOADING_COMPLETED = 4,
         // @@protoc_insertion_point(enum_value:fx.ipc.proto.Event.EventType.TORRENT_DETAILS_LOADED)
-        TORRENT_DETAILS_LOADED = 7,
+        TORRENT_DETAILS_LOADED = 5,
         // @@protoc_insertion_point(enum_value:fx.ipc.proto.Event.EventType.CLOSE_PLAYER)
-        CLOSE_PLAYER = 8,
+        CLOSE_PLAYER = 6,
     }
 
     impl ::protobuf::Enum for EventType {
@@ -590,26 +339,22 @@ pub mod event {
 
         fn from_i32(value: i32) -> ::std::option::Option<EventType> {
             match value {
-                0 => ::std::option::Option::Some(EventType::PLAYER_CHANGED),
-                1 => ::std::option::Option::Some(EventType::PLAYER_STARTED),
-                2 => ::std::option::Option::Some(EventType::PLAYER_STOPPED),
-                3 => ::std::option::Option::Some(EventType::PLAYBACK_STATE_CHANGED),
-                4 => ::std::option::Option::Some(EventType::WATCH_STATE_CHANGED),
-                5 => ::std::option::Option::Some(EventType::LOADING_STARTED),
-                6 => ::std::option::Option::Some(EventType::LOADING_COMPLETED),
-                7 => ::std::option::Option::Some(EventType::TORRENT_DETAILS_LOADED),
-                8 => ::std::option::Option::Some(EventType::CLOSE_PLAYER),
+                0 => ::std::option::Option::Some(EventType::PLAYER_STARTED),
+                1 => ::std::option::Option::Some(EventType::PLAYER_STOPPED),
+                2 => ::std::option::Option::Some(EventType::PLAYBACK_STATE_CHANGED),
+                3 => ::std::option::Option::Some(EventType::LOADING_STARTED),
+                4 => ::std::option::Option::Some(EventType::LOADING_COMPLETED),
+                5 => ::std::option::Option::Some(EventType::TORRENT_DETAILS_LOADED),
+                6 => ::std::option::Option::Some(EventType::CLOSE_PLAYER),
                 _ => ::std::option::Option::None
             }
         }
 
         fn from_str(str: &str) -> ::std::option::Option<EventType> {
             match str {
-                "PLAYER_CHANGED" => ::std::option::Option::Some(EventType::PLAYER_CHANGED),
                 "PLAYER_STARTED" => ::std::option::Option::Some(EventType::PLAYER_STARTED),
                 "PLAYER_STOPPED" => ::std::option::Option::Some(EventType::PLAYER_STOPPED),
                 "PLAYBACK_STATE_CHANGED" => ::std::option::Option::Some(EventType::PLAYBACK_STATE_CHANGED),
-                "WATCH_STATE_CHANGED" => ::std::option::Option::Some(EventType::WATCH_STATE_CHANGED),
                 "LOADING_STARTED" => ::std::option::Option::Some(EventType::LOADING_STARTED),
                 "LOADING_COMPLETED" => ::std::option::Option::Some(EventType::LOADING_COMPLETED),
                 "TORRENT_DETAILS_LOADED" => ::std::option::Option::Some(EventType::TORRENT_DETAILS_LOADED),
@@ -619,11 +364,9 @@ pub mod event {
         }
 
         const VALUES: &'static [EventType] = &[
-            EventType::PLAYER_CHANGED,
             EventType::PLAYER_STARTED,
             EventType::PLAYER_STOPPED,
             EventType::PLAYBACK_STATE_CHANGED,
-            EventType::WATCH_STATE_CHANGED,
             EventType::LOADING_STARTED,
             EventType::LOADING_COMPLETED,
             EventType::TORRENT_DETAILS_LOADED,
@@ -633,7 +376,7 @@ pub mod event {
 
     impl ::std::default::Default for EventType {
         fn default() -> Self {
-            EventType::PLAYER_CHANGED
+            EventType::PLAYER_STARTED
         }
     }
 

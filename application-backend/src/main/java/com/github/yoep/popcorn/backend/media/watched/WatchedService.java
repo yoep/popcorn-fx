@@ -4,6 +4,7 @@ import com.github.yoep.popcorn.backend.lib.FxChannel;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.GetIsWatchedRequest;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.GetIsWatchedResponse;
 import com.github.yoep.popcorn.backend.media.Media;
+import com.github.yoep.popcorn.backend.media.MediaHelper;
 import com.github.yoep.popcorn.backend.media.watched.models.Watchable;
 import lombok.extern.slf4j.Slf4j;
 
@@ -36,7 +37,11 @@ public class WatchedService {
      */
     public CompletableFuture<Boolean> isWatched(Media watchable) {
         Objects.requireNonNull(watchable, "watchable cannot be null");
-        return fxChannel.send(GetIsWatchedRequest.getDefaultInstance(), GetIsWatchedResponse.parser())
+        return fxChannel.send(
+                        GetIsWatchedRequest.newBuilder()
+                                .setItem(MediaHelper.getItem(watchable))
+                                .build(),
+                        GetIsWatchedResponse.parser())
                 .thenApply(GetIsWatchedResponse::getIsWatched);
     }
 

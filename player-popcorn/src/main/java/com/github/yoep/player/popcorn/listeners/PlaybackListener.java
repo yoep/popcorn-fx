@@ -1,17 +1,17 @@
 package com.github.yoep.player.popcorn.listeners;
 
-import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
 
 /**
  * The playback listener listens to playback events from the player.
  */
 public interface PlaybackListener {
     /**
-     * Invoked when a new {@link PlayRequest} is triggered for a new video playback.
+     * Invoked when a new {@link Player.PlayRequest} is triggered for a new video playback.
      *
      * @param request The playback information.
      */
-    void onPlay(PlayRequest request);
+    void onPlay(Player.PlayRequest request);
 
     /**
      * Invoked when the playback is resumed.

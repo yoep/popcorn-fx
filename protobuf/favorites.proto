@@ -29,3 +29,17 @@ message AddFavoriteResponse {
 message RemoveFavoriteRequest {
   Media.Item item = 1;
 }
+
+message FavoriteEvent {
+  Event event = 1;
+  optional LikedStateChanged like_state_changed = 2;
+
+  message LikedStateChanged {
+    string imdb_id = 1;
+    bool is_liked = 2;
+  }
+
+  enum Event {
+    LIKED_STATE_CHANGED = 0;
+  }
+}

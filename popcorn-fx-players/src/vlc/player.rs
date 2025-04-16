@@ -85,11 +85,11 @@ impl Player for VlcPlayer {
         self.inner.play(request).await;
     }
 
-    fn pause(&self) {
+    async fn pause(&self) {
         self.inner.send_command(VlcPlayerCommand::Pause)
     }
 
-    fn resume(&self) {
+    async fn resume(&self) {
         self.inner.send_command(VlcPlayerCommand::Resume)
     }
 

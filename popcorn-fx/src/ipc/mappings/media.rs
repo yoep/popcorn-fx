@@ -315,6 +315,14 @@ impl TryFrom<&media::Item> for Box<dyn MediaOverview> {
     }
 }
 
+impl TryFrom<&media::Item> for Box<dyn MediaIdentifier> {
+    type Error = Error;
+
+    fn try_from(value: &media::Item) -> std::result::Result<Self, Self::Error> {
+        Ok(Box::<dyn MediaOverview>::try_from(value)? as Box<dyn MediaIdentifier>)
+    }
+}
+
 impl TryFrom<&Box<dyn MediaIdentifier>> for media::Item {
     type Error = Error;
 

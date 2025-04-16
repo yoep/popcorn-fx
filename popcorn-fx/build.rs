@@ -28,7 +28,9 @@ fn main() {
                 "../protobuf/playlist.proto",
                 "../protobuf/settings.proto",
                 "../protobuf/subtitle.proto",
+                "../protobuf/torrent.proto",
                 "../protobuf/update.proto",
+                "../protobuf/watched.proto",
             ])
             .customize(Customize::default().lite_runtime(true).gen_mod_rs(true))
             .run()

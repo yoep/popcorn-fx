@@ -15,9 +15,9 @@ popcorn:
     popcorn_fx_core::core::media:
       level: info
     popcorn_fx_core::core::media::favorites:
-      level: trace
+      level: info
     popcorn_fx_core::core::media::providers:
-      level: debug
+      level: info
     popcorn_fx_core::core::torrents:
       level: info
     popcorn_fx_players:

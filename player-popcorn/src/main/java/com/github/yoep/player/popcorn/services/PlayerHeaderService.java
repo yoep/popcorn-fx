@@ -3,10 +3,10 @@ package com.github.yoep.player.popcorn.services;
 import com.github.yoep.player.popcorn.listeners.AbstractPlaybackListener;
 import com.github.yoep.player.popcorn.listeners.PlaybackListener;
 import com.github.yoep.player.popcorn.listeners.PlayerHeaderListener;
-import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import lombok.extern.slf4j.Slf4j;
 
@@ -32,14 +32,16 @@ public class PlayerHeaderService extends AbstractListenerService<PlayerHeaderLis
         videoService.addListener(listener);
     }
 
-    private void onPlayRequest(PlayRequest request) {
+    private void onPlayRequest(Player.PlayRequest request) {
         invokeListeners(e -> e.onTitleChanged(request.getTitle()));
-        invokeListeners(e -> e.onCaptionChanged(request.getCaption().orElse(null)));
-        invokeListeners(e -> e.onQualityChanged(request.getQuality().orElse(null)));
-        invokeListeners(e -> e.onStreamStateChanged(request.getStreamHandle().isPresent()));
+        invokeListeners(e -> e.onCaptionChanged(request.getCaption()));
+        invokeListeners(e -> e.onQualityChanged(request.getQuality()));
+        invokeListeners(e -> e.onStreamStateChanged(request.hasStreamHandle()));
 
-        request.getStreamHandle()
-                .ifPresent(e -> torrentService.addListener(e, torrentListener));
+        if (request.hasStreamHandle()) {
+            // TODO
+//            torrentService.addListener(request.getStreamHandle(), torrentListener);
+        }
     }
 
     private void onStreamProgressChanged(DownloadStatus status) {
@@ -49,7 +51,7 @@ public class PlayerHeaderService extends AbstractListenerService<PlayerHeaderLis
     private PlaybackListener createListener() {
         return new AbstractPlaybackListener() {
             @Override
-            public void onPlay(PlayRequest request) {
+            public void onPlay(Player.PlayRequest request) {
                 onPlayRequest(request);
             }
         };

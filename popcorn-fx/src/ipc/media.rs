@@ -3,8 +3,8 @@ use crate::ipc::proto::media::media;
 use crate::ipc::proto::media::{
     get_category_genres_response, get_category_sort_by_response, GetCategoryGenresRequest,
     GetCategoryGenresResponse, GetCategorySortByRequest, GetCategorySortByResponse,
-    GetIsWatchedRequest, GetIsWatchedResponse, GetMediaDetailsRequest, GetMediaDetailsResponse,
-    GetMediaItemsRequest, GetMediaItemsResponse, ResetProviderApiRequest,
+    GetMediaDetailsRequest, GetMediaDetailsResponse, GetMediaItemsRequest, GetMediaItemsResponse,
+    ResetProviderApiRequest,
 };
 use crate::ipc::proto::message::{response, FxMessage};
 use crate::ipc::{Error, IpcChannel, MessageHandler, Result};
@@ -49,7 +49,6 @@ impl MessageHandler for MediaMessageHandler {
                 | GetCategorySortByRequest::NAME
                 | GetMediaDetailsRequest::NAME
                 | GetMediaItemsRequest::NAME
-                | GetIsWatchedRequest::NAME
                 | ResetProviderApiRequest::NAME
         )
     }
@@ -225,29 +224,6 @@ impl MessageHandler for MediaMessageHandler {
 
                 channel
                     .send_reply(&message, response, GetMediaItemsResponse::NAME)
-                    .await?;
-            }
-            GetIsWatchedRequest::NAME => {
-                let request = GetIsWatchedRequest::parse_from_bytes(&message.payload)?;
-                let media = Box::<dyn MediaOverview>::try_from(
-                    request.item.as_ref().ok_or(Error::MissingField)?,
-                )?;
-
-                let is_watched = self
-                    .instance
-                    .watched_service()
-                    .is_watched(media.imdb_id())
-                    .await;
-
-                channel
-                    .send_reply(
-                        &message,
-                        GetIsWatchedResponse {
-                            is_watched,
-                            special_fields: Default::default(),
-                        },
-                        GetIsWatchedResponse::NAME,
-                    )
                     .await?;
             }
             ResetProviderApiRequest::NAME => {

@@ -1,5 +1,6 @@
 use std::io;
 use thiserror::Error;
+use tokio::sync::oneshot;
 
 /// The result type of IPC message operations.
 pub type Result<T> = std::result::Result<T, Error>;
@@ -34,6 +35,12 @@ impl From<io::Error> for Error {
 impl From<protobuf::Error> for Error {
     fn from(error: protobuf::Error) -> Self {
         Error::Proto(error)
+    }
+}
+
+impl From<oneshot::error::RecvError> for Error {
+    fn from(value: oneshot::error::RecvError) -> Self {
+        Error::Io(io::Error::new(io::ErrorKind::Other, value))
     }
 }
 

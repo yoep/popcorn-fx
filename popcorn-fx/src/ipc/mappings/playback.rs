@@ -15,3 +15,18 @@ impl From<&PlaybackState> for player::State {
         }
     }
 }
+
+impl From<&player::State> for PlaybackState {
+    fn from(value: &player::State) -> Self {
+        match value {
+            player::State::READY => PlaybackState::READY,
+            player::State::LOADING => PlaybackState::LOADING,
+            player::State::BUFFERING => PlaybackState::BUFFERING,
+            player::State::PLAYING => PlaybackState::PLAYING,
+            player::State::PAUSED => PlaybackState::PAUSED,
+            player::State::STOPPED => PlaybackState::STOPPED,
+            player::State::ERROR => PlaybackState::ERROR,
+            player::State::UNKNOWN => PlaybackState::UNKNOWN,
+        }
+    }
+}

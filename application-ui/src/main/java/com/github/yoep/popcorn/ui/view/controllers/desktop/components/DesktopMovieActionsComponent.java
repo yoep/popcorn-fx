@@ -179,16 +179,14 @@ public class DesktopMovieActionsComponent implements Initializable {
     }
 
     private void playTrailer() {
-        var item = Playlist.Item.newBuilder()
-                .setUrl(media.proto().getTrailer())
-                .setTitle(media.title())
-                .setCaption("Trailer")
-                .setThumb(media.images().getPoster())
-                .setSubtitlesEnabled(false)
-                .build();
-
         playlistManager.play(Playlist.newBuilder()
-                .addItems(item)
+                .addItems(Playlist.Item.newBuilder()
+                        .setUrl(media.proto().getTrailer())
+                        .setTitle(media.title())
+                        .setCaption("Trailer")
+                        .setThumb(media.images().getPoster())
+                        .setSubtitlesEnabled(false)
+                        .build())
                 .build());
     }
 

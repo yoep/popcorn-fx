@@ -301,10 +301,6 @@ impl InnerWatchedService {
             watchable.imdb_id().to_string(),
             true,
         ));
-        self.event_publisher.publish(Event::WatchStateChanged(
-            watchable.imdb_id().to_string(),
-            true,
-        ));
         Ok(())
     }
 
@@ -326,10 +322,6 @@ impl InnerWatchedService {
                 self.send_command(WatchedServiceCommand::Save);
                 self.callbacks
                     .invoke(WatchedEvent::WatchedStateChanged(id.to_string(), false));
-                self.event_publisher.publish(Event::WatchStateChanged(
-                    watchable.imdb_id().to_string(),
-                    false,
-                ));
             }
             Err(e) => {
                 error!("Failed to remove watched item, {}", e)

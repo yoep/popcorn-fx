@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
-import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
 import com.github.yoep.popcorn.backend.player.PlayerAction;
@@ -25,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.ResourceBundle;
 
 @Slf4j
@@ -81,7 +81,7 @@ public class PlayerExternalComponent implements Initializable {
         });
         playerExternalService.addListener(new PlayerExternalListener() {
             @Override
-            public void onRequestChanged(PlayRequest request) {
+            public void onRequestChanged(Player.PlayRequest request) {
                 PlayerExternalComponent.this.onRequestChanged(request);
             }
 
@@ -119,13 +119,13 @@ public class PlayerExternalComponent implements Initializable {
         dataPane.getChildren().add(progressInfoPane);
     }
 
-    private void onRequestChanged(PlayRequest request) {
+    private void onRequestChanged(Player.PlayRequest request) {
         reset();
         Platform.runLater(() -> {
             titleText.setText(request.getTitle());
-            captionText.setText(request.getCaption().orElse(null));
+            captionText.setText(request.getCaption());
         });
-        request.getBackground()
+        Optional.ofNullable(request.getBackground())
                 .ifPresent(this::loadBackgroundImage);
     }
 

@@ -10,7 +10,10 @@ import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.annotation.PreDestroy;
-import java.util.*;
+import java.util.Collection;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Queue;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
@@ -19,7 +22,9 @@ import java.util.stream.Collectors;
  * This service manages each available {@link Player} of the application.
  */
 @Slf4j
-public class PlayerManagerServiceImpl extends AbstractListenerService<PlayerManagerListener> implements PlayerManagerService {
+public class PlayerManagerServiceImpl
+        extends AbstractListenerService<PlayerManagerListener>
+        implements PlayerManagerService {
     private final FxChannel fxChannel;
     private final EventPublisher eventPublisher;
 
@@ -63,7 +68,8 @@ public class PlayerManagerServiceImpl extends AbstractListenerService<PlayerMana
     @Override
     public CompletableFuture<Optional<Player>> getActivePlayer() {
         return fxChannel.send(GetActivePlayerRequest.getDefaultInstance(), GetActivePlayerResponse.parser())
-                .thenApply(response -> Optional.ofNullable(response.getPlayer())
+                .thenApply(response -> Optional.of(response.getPlayer())
+                        .filter(e -> response.hasPlayer())
                         .map(PlayerWrapper::new));
     }
 
@@ -75,6 +81,13 @@ public class PlayerManagerServiceImpl extends AbstractListenerService<PlayerMana
             fxChannel.send(UpdateActivePlayerRequest.newBuilder()
                     .setPlayer(proto)
                     .build());
+        } else {
+            playerWrappers.stream()
+                    .filter(e -> e.player == activePlayer)
+                    .findFirst()
+                    .ifPresent(player -> fxChannel.send(UpdateActivePlayerRequest.newBuilder()
+                            .setPlayer(player.wrapper().proto())
+                            .build()));
         }
     }
 
@@ -126,27 +139,6 @@ public class PlayerManagerServiceImpl extends AbstractListenerService<PlayerMana
                 .build());
     }
 
-//    @Override
-//    public void callback(PlayerManagerEvent.ByValue event) {
-//        log.debug("Received player manager event {}", event);
-//        try (event) {
-//            invokeListeners(listener -> {
-//                switch (event.getTag()) {
-//                    case ACTIVE_PLAYER_CHANGED -> {
-//                        var change = event.getUnion().getPlayerChanged_body().playerChangedEvent;
-//                        listener.activePlayerChanged(new PlayerChanged(change.getOldPlayerId().orElse(null), change.getNewPlayerId(),
-//                                change.getNewPlayerName()));
-//                    }
-//                    case PLAYERS_CHANGED -> listener.playersChanged();
-//                    case PLAYER_PLAYBACK_CHANGED -> listener.onPlayerPlaybackChanged(event.getUnion().getPlayerPlaybackChanged_body().getRequest());
-//                    case PLAYER_TIME_CHANGED -> listener.onPlayerTimeChanged(event.getUnion().getPlayerTimeChanged_body().getTime());
-//                    case PLAYER_DURATION_CHANGED -> listener.onPlayerDurationChanged(event.getUnion().getPlayerDurationChanged_body().getDuration());
-//                    case PLAYER_STATE_CHANGED -> listener.onPlayerStateChanged(event.getUnion().getPlayerStateChanged_body().getState());
-//                }
-//            });
-//        }
-//    }
-
     //endregion
 
     //region OnDestroy
@@ -154,7 +146,7 @@ public class PlayerManagerServiceImpl extends AbstractListenerService<PlayerMana
     @PreDestroy
     void onDestroy() {
         log.debug("Disposing all player resources");
-
+        playerWrappers.forEach(e -> e.player().dispose());
     }
 
     //endregion
@@ -165,7 +157,40 @@ public class PlayerManagerServiceImpl extends AbstractListenerService<PlayerMana
     }
 
     private void registerCallbackHandler() {
+        fxChannel.subscribe(FxChannel.typeFrom(PlayerManagerEvent.class), PlayerManagerEvent.parser(), this::onPlayerManagerEvent);
+        fxChannel.subscribe_response(FxChannel.typeFrom(GetPlayerStateRequest.class), GetPlayerStateRequest.parser(), this::onPlayerStateRequest);
+        fxChannel.subscribe(FxChannel.typeFrom(PlayerPlayRequest.class), PlayerPlayRequest.parser(), this::onPlayerPlayRequest);
+    }
 
+    private void onPlayerManagerEvent(PlayerManagerEvent message) {
+        switch (message.getEvent()) {
+            case ACTIVE_PLAYER_CHANGED -> invokeListeners(listener -> listener.activePlayerChanged(message.getActivePlayerChanged()));
+            case PLAYERS_CHANGED -> invokeListeners(PlayerManagerListener::playersChanged);
+            case PLAYER_PLAYBACK_CHANGED -> invokeListeners(listener -> listener.onPlayerPlaybackChanged(message.getPlayerPlaybackChanged().getRequest()));
+            case PLAYER_DURATION_CHANGED -> invokeListeners(listener -> listener.onPlayerDurationChanged(message.getPlayerDurationChanged().getDuration()));
+            case PLAYER_TIMED_CHANGED -> invokeListeners(listener -> listener.onPlayerTimeChanged(message.getPlayerTimeChanged().getTime()));
+            case PLAYER_STATE_CHANGED -> invokeListeners(listener -> listener.onPlayerStateChanged(message.getPlayerStateChanged().getState()));
+            case UNRECOGNIZED -> log.error("Failed to process player manager event, invalid event {}", message.getEvent());
+        }
+    }
+
+    private void onPlayerStateRequest(Integer sequenceId, GetPlayerStateRequest request) {
+        playerWrappers.stream()
+                .filter(e -> Objects.equals(e.player.getId(), request.getPlayerId()))
+                .findFirst()
+                .ifPresent(e -> {
+                    var state = e.player.getState();
+                    fxChannel.send(GetPlayerStateResponse.newBuilder()
+                            .setState(state)
+                            .build(), sequenceId);
+                });
+    }
+
+    private void onPlayerPlayRequest(PlayerPlayRequest request) {
+        playerWrappers.stream()
+                .filter(e -> Objects.equals(e.player.getId(), request.getPlayerId()))
+                .findFirst()
+                .ifPresent(e -> e.player.play(request.getRequest()));
     }
 
     private void registerEventListeners() {

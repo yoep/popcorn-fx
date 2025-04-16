@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.backend.playlists;
 
 import com.github.yoep.popcorn.backend.lib.FxChannel;
-import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Playlist;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.*;
 import com.github.yoep.popcorn.backend.media.Episode;
 import com.github.yoep.popcorn.backend.media.MediaHelper;
 import com.github.yoep.popcorn.backend.media.MovieDetails;
@@ -13,6 +13,7 @@ import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
 @ToString
@@ -20,9 +21,11 @@ import java.util.Objects;
 public class DefaultPlaylistManager extends AbstractListenerService<PlaylistManagerListener> implements PlaylistManager {
     private final FxChannel fxChannel;
     private final ApplicationConfig applicationConfig;
-    private Long playlistLoaderHandle;
+
+    private AtomicReference<Handle> playlistLoaderHandle = new AtomicReference<>();
 
     public DefaultPlaylistManager(FxChannel fxChannel, ApplicationConfig applicationConfig) {
+        Objects.requireNonNull(fxChannel, "fxChannel cannot be null");
         this.fxChannel = fxChannel;
         this.applicationConfig = applicationConfig;
         init();
@@ -30,18 +33,20 @@ public class DefaultPlaylistManager extends AbstractListenerService<PlaylistMana
 
     @Override
     public void play(Playlist playlist) {
-//        var items = playlist.items().stream()
-//                .map(com.github.yoep.popcorn.backend.playlists.ffi.PlaylistItem::from)
-//                .toArray(com.github.yoep.popcorn.backend.playlists.ffi.PlaylistItem[]::new);
-//
-//        var playlist_c = new com.github.yoep.popcorn.backend.playlists.ffi.Playlist.ByReference(items);
-//        try (playlist_c) {
-//            log.debug("Starting playback of playlist {}", playlist_c);
-//            playlistLoaderHandle = fxLib.play_playlist(instance, playlist_c);
-//        } catch (Exception ex) {
-//            log.error("Failed to start playlist, {}", ex.getMessage(), ex);
-//        }
-        // data will be cleaned by JNA as the memory was assigned by JNA, don't try to clean it here
+        Objects.requireNonNull(playlist, "playlist cannot be null");
+        fxChannel.send(
+                        PlayPlaylistRequest.newBuilder()
+                                .setPlaylist(playlist)
+                                .build(), PlayPlaylistResponse.parser()
+                )
+                .thenApply(PlayPlaylistResponse::getHandle)
+                .whenComplete((handle, throwable) -> {
+                    if (throwable == null) {
+                        playlistLoaderHandle.set(handle);
+                    } else {
+                        log.error("Failed to play playlist", throwable);
+                    }
+                });
     }
 
     @Override
@@ -50,8 +55,11 @@ public class DefaultPlaylistManager extends AbstractListenerService<PlaylistMana
         play(Playlist.newBuilder()
                 .addItems(Playlist.Item.newBuilder()
                         .setTitle(movie.title())
+                        .setCaption(quality)
+                        .setThumb(movie.proto().getImages().getPoster())
                         .setMedia(MediaHelper.getItem(movie))
                         .setQuality(quality)
+                        .setSubtitlesEnabled(true)
                         .build())
                 .build());
     }
@@ -80,12 +88,21 @@ public class DefaultPlaylistManager extends AbstractListenerService<PlaylistMana
 
     @Override
     public void playNext() {
-        // TODO
+        fxChannel.send(PlayNextPlaylistItemRequest.getDefaultInstance(), PlayNextPlaylistItemResponse.parser())
+                .thenApply(PlayNextPlaylistItemResponse::getHandle)
+                .whenComplete((handle, throwable) -> {
+                    if (throwable == null) {
+                        playlistLoaderHandle.set(handle);
+                    } else {
+                        log.error("Failed to play next item", throwable);
+                    }
+                });
+
     }
 
     @Override
     public void stop() {
-        // TODO
+        fxChannel.send(StopPlaylistRequest.getDefaultInstance());
     }
 
     @Override

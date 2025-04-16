@@ -277,3 +277,93 @@ pub mod response {
     }
 
 }
+
+// @@protoc_insertion_point(message:fx.ipc.proto.Handle)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct Handle {
+    // message fields
+    // @@protoc_insertion_point(field:fx.ipc.proto.Handle.handle)
+    pub handle: i64,
+    // special fields
+    // @@protoc_insertion_point(special_field:fx.ipc.proto.Handle.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a Handle {
+    fn default() -> &'a Handle {
+        <Handle as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl Handle {
+    pub fn new() -> Handle {
+        ::std::default::Default::default()
+    }
+}
+
+impl ::protobuf::Message for Handle {
+    const NAME: &'static str = "Handle";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                8 => {
+                    self.handle = is.read_int64()?;
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        if self.handle != 0 {
+            my_size += ::protobuf::rt::int64_size(1, self.handle);
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if self.handle != 0 {
+            os.write_int64(1, self.handle)?;
+        }
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> Handle {
+        Handle::new()
+    }
+
+    fn clear(&mut self) {
+        self.handle = 0;
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static Handle {
+        static instance: Handle = Handle {
+            handle: 0,
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}

@@ -717,27 +717,17 @@ impl DefaultTorrentStreamingResource {
             Poll::Pending => return Poll::Pending,
         }
 
-        let receiver_handle = self.torrent.handle();
         let mut receiver = self.torrent.subscribe();
         tokio::spawn(async move {
-            loop {
-                if let Some(event) = receiver.recv().await {
-                    match &*event {
-                        TorrentEvent::StateChanged(_) | TorrentEvent::PieceCompleted(_) => {
-                            waker.wake_by_ref();
-                            break;
-                        }
-                        _ => {}
+            while let Some(event) = receiver.recv().await {
+                match &*event {
+                    TorrentEvent::StateChanged(_) | TorrentEvent::PieceCompleted(_) => {
+                        break;
                     }
-                } else {
-                    trace!(
-                        "Torrent streaming resource {} event subscription is dropped",
-                        receiver_handle
-                    );
-                    waker.wake_by_ref();
-                    break;
+                    _ => {}
                 }
             }
+            waker.wake_by_ref();
         });
 
         Poll::Pending

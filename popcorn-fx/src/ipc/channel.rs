@@ -1,17 +1,25 @@
 use crate::ipc::errors::{Error, Result};
 use crate::ipc::proto::message::FxMessage;
 use byteorder::{BigEndian, ByteOrder};
+use futures::future::poll_fn;
+use futures::task::AtomicWaker;
 use interprocess::local_socket;
 use interprocess::local_socket::tokio::{RecvHalf, SendHalf, Stream};
+use itertools::Itertools;
 use log::{debug, error, trace, warn};
 use protobuf::Message;
+use std::collections::HashMap;
+use std::future::Future;
+use std::pin::{pin, Pin};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
+use std::task::{Context, Poll};
 use std::time::Instant;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncReadExt, AsyncWriteExt, ReadBuf};
 use tokio::select;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
-use tokio::sync::Mutex;
+use tokio::sync::oneshot::Sender;
+use tokio::sync::{oneshot, Mutex};
 use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
 
 /// An IPC channel used for communication with the parent process.
@@ -23,17 +31,25 @@ pub struct IpcChannel {
 impl IpcChannel {
     pub fn new(stream: Stream) -> Self {
         let (reader, writer) = local_socket::traits::tokio::Stream::split(stream);
-        let (sender, receiver) = unbounded_channel();
+        let (reader_sender, reader_receiver) = unbounded_channel();
+
         let inner = Arc::new(InnerIpcChannel {
             sequence_id: Default::default(),
             writer: Mutex::new(writer),
-            receiver: Mutex::new(receiver),
+            buffer: Default::default(),
+            waker: Default::default(),
+            pending_requests: Default::default(),
             cancellation_token: Default::default(),
+        });
+
+        let inner_main = inner.clone();
+        tokio::spawn(async move {
+            inner_main.start(reader_receiver).await;
         });
 
         let mut reader = IpcChannelReader {
             reader,
-            sender,
+            sender: reader_sender,
             cancellation_token: inner.cancellation_token.clone(),
         };
         tokio::spawn(async move {
@@ -49,7 +65,22 @@ impl IpcChannel {
     ///
     /// It returns a message when received, else [None] when the channel is closed.
     pub async fn recv(&self) -> Option<FxMessage> {
-        self.inner.receiver.lock().await.recv().await
+        poll_fn(|cx| self.inner.poll_next(cx)).await
+    }
+
+    /// Try to get a response for the given message from the channel.
+    /// This will create a new receiver which will wait for a response to the given message.
+    ///
+    /// # Returns
+    ///
+    /// It returns a receiver for the response when completed, else the error that occurred while sending
+    /// the message to the channel.
+    pub async fn get(
+        &self,
+        message: impl Message,
+        message_type: &str,
+    ) -> Result<oneshot::Receiver<FxMessage>> {
+        self.inner.get(message, message_type).await
     }
 
     /// Send the given message to the channel.
@@ -141,11 +172,61 @@ impl FxMessageBuilder {
 struct InnerIpcChannel {
     sequence_id: AtomicU32,
     writer: Mutex<SendHalf>,
-    receiver: Mutex<UnboundedReceiver<FxMessage>>,
+    buffer: Mutex<Vec<FxMessage>>,
+    waker: AtomicWaker,
+    pending_requests: Mutex<HashMap<u32, oneshot::Sender<FxMessage>>>,
     cancellation_token: CancellationToken,
 }
 
 impl InnerIpcChannel {
+    async fn start(&self, mut reader_receiver: UnboundedReceiver<FxMessage>) {
+        loop {
+            select! {
+                _ = self.cancellation_token.cancelled() => break,
+                Some(message) = reader_receiver.recv() => self.handle_message(message).await,
+            }
+        }
+        debug!("IPC channel main loop ended");
+    }
+
+    async fn handle_message(&self, message: FxMessage) {
+        match &message.reply_to {
+            None => {
+                self.buffer.lock().await.push(message);
+                self.waker.wake();
+            }
+            Some(reply_id) => match self.pending_requests.lock().await.remove(reply_id) {
+                None => {
+                    warn!(
+                        "IPC channel failed to process message, unknown reply id {}",
+                        reply_id
+                    );
+                }
+                Some(sender) => {
+                    let _ = sender.send(message);
+                }
+            },
+        }
+    }
+
+    async fn get(
+        &self,
+        message: impl Message,
+        message_type: &str,
+    ) -> Result<oneshot::Receiver<FxMessage>> {
+        let sequence_id = self.sequence_id.fetch_add(1, Ordering::SeqCst);
+        let (sender, receiver) = oneshot::channel();
+
+        {
+            let mut requests = self.pending_requests.lock().await;
+            requests.insert(sequence_id, sender);
+        }
+
+        self.send_message_with_sequence(sequence_id, message, message_type, None)
+            .await?;
+        Ok(receiver)
+    }
+
     /// Try to send the given message to the channel.
     async fn send_message(
         &self,
@@ -153,21 +234,35 @@ impl InnerIpcChannel {
         message_type: &str,
         reply_to_id: Option<u32>,
     ) -> Result<()> {
+        let sequence_id = self.sequence_id.fetch_add(1, Ordering::SeqCst);
+        self.send_message_with_sequence(sequence_id, message, message_type, reply_to_id)
+            .await
+    }
+
+    async fn send_message_with_sequence(
+        &self,
+        sequence_id: u32,
+        message: impl Message,
+        message_type: &str,
+        reply_to_id: Option<u32>,
+    ) -> Result<()> {
         let bytes = message.write_to_bytes()?;
-        self.send_payload(bytes, message_type, reply_to_id).await?;
+        self.send_payload(sequence_id, bytes, message_type, reply_to_id)
+            .await?;
         Ok(())
     }
 
     /// Try to send the given message payload to the channel.
     async fn send_payload(
         &self,
+        sequence_id: u32,
         payload: Vec<u8>,
         message_type: &str,
         reply_to_id: Option<u32>,
     ) -> Result<()> {
         let mut writer = self.writer.lock().await;
 
-        if message_type.contains("Request") {
+        if reply_to_id.is_some() && message_type.contains("Request") {
             warn!(
                 "IPC channel detected potential incorrect response type \"{}\"",
                 message_type
@@ -176,7 +271,7 @@ impl InnerIpcChannel {
 
         let message = FxMessageBuilder::new()
             .type_(message_type)
-            .sequence_id(self.sequence_id.fetch_add(1, Ordering::SeqCst))
+            .sequence_id(sequence_id)
             .reply_to(reply_to_id)
             .payload(payload)
             .build();
@@ -199,6 +294,20 @@ impl InnerIpcChannel {
             elapsed.as_micros()
         );
         Ok(())
+    }
+
+    fn poll_next(&self, cx: &mut Context<'_>) -> Poll<Option<FxMessage>> {
+        let mut mutex = match pin!(self.buffer.lock()).poll(cx) {
+            Poll::Ready(mutex) => mutex,
+            Poll::Pending => return Poll::Pending,
+        };
+
+        if !mutex.is_empty() {
+            return Poll::Ready(Some(mutex.remove(0)));
+        }
+
+        self.waker.register(cx.waker());
+        Poll::Pending
     }
 }
 
@@ -270,5 +379,49 @@ impl IpcChannelReader {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::ipc::proto::update::{update, GetUpdateStateRequest, GetUpdateStateResponse};
+    use crate::ipc::test::create_channel_pair;
+    use crate::try_recv;
+
+    use popcorn_fx_core::init_logger;
+    use std::time::Duration;
+
+    #[tokio::test]
+    async fn test_ipc_channel_get() {
+        init_logger!();
+        let (incoming, outgoing) = create_channel_pair().await;
+
+        let receiver = incoming
+            .get(
+                GetUpdateStateRequest::default(),
+                GetUpdateStateRequest::NAME,
+            )
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(200))
+            .expect("expected to receive a message");
+
+        let result = outgoing
+            .send_reply(
+                &message,
+                GetUpdateStateResponse {
+                    state: update::State::NO_UPDATE_AVAILABLE.into(),
+                    special_fields: Default::default(),
+                },
+                GetUpdateStateResponse::NAME,
+            )
+            .await;
+        assert_eq!(Ok(()), result, "expected the response to have been sent");
+
+        let result = try_recv!(receiver, Duration::from_millis(200))
+            .expect("expected to receive a response");
+        assert_eq!(GetUpdateStateResponse::NAME, result.type_.as_str());
     }
 }

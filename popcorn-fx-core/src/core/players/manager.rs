@@ -489,12 +489,6 @@ impl InnerPlayerManager {
                     new_player_id: player_id.to_string(),
                     new_player_name: player_name.clone(),
                 }));
-            self.event_publisher
-                .publish(Event::PlayerChanged(PlayerChangedEvent {
-                    old_player_id,
-                    new_player_id: player_id.to_string(),
-                    new_player_name: player_name,
-                }));
 
             info!("Active player has changed to {}", player_id);
         } else {
@@ -708,14 +702,14 @@ mod tests {
         }
 
         async fn play(&self, _: Box<dyn PlayRequest>) {
-            todo!()
+            // no-op
         }
 
-        fn pause(&self) {
-            todo!()
+        async fn pause(&self) {
+            // no-op
         }
 
-        fn resume(&self) {
+        async fn resume(&self) {
             todo!()
         }
 
@@ -799,20 +793,15 @@ mod tests {
             screen_service,
         );
 
-        let mut callback = event_publisher.subscribe(DEFAULT_ORDER).unwrap();
+        let mut receiver = manager.subscribe();
         tokio::spawn(async move {
-            loop {
-                if let Some(mut handler) = callback.recv().await {
-                    if let Some(Event::PlayerChanged(e)) = handler.event_ref() {
-                        tx.send(e.clone()).unwrap();
-                    }
-                    handler.next();
-                } else {
-                    break;
+            while let Some(event) = receiver.recv().await {
+                if let PlayerManagerEvent::ActivePlayerChanged(change) = &*event {
+                    tx.send(change.clone()).unwrap();
                 }
             }
         });
-        manager.add_player(player);
+        let _ = manager.add_player(player);
         let player = manager
             .by_id(player_id)
             .expect("expected the player to have been found");
@@ -858,20 +847,15 @@ mod tests {
             screen_service,
         );
 
-        let mut callback = event_publisher.subscribe(DEFAULT_ORDER).unwrap();
+        let mut receiver = manager.subscribe();
         tokio::spawn(async move {
-            loop {
-                if let Some(mut handler) = callback.recv().await {
-                    if let Some(Event::PlayerChanged(e)) = handler.event_ref() {
-                        tx.send(e.clone()).unwrap();
-                    }
-                    handler.next();
-                } else {
-                    break;
+            while let Some(event) = receiver.recv().await {
+                if let PlayerManagerEvent::ActivePlayerChanged(change) = &*event {
+                    tx.send(change.clone()).unwrap();
                 }
             }
         });
-        manager.add_player(player);
+        let _ = manager.add_player(player);
         let player = manager
             .by_id(player_id)
             .expect("expected the player to have been found");

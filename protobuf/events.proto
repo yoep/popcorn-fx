@@ -10,36 +10,21 @@ import "player.proto";
 
 message Event {
   EventType type = 1;
-  optional PlayerChanged player_changed = 2;
   optional PlaybackStateChanged playback_state_changed = 3;
-  optional WatchedStateChanged watched_state_changed = 4;
-  optional TorrentDetailsLoaded torrent_details_loaded = 5;
+  optional TorrentDetailsLoaded torrent_details_loaded = 4;
 
   enum EventType {
-    PLAYER_CHANGED = 0;
-    PLAYER_STARTED = 1;
-    PLAYER_STOPPED = 2;
-    PLAYBACK_STATE_CHANGED = 3;
-    WATCH_STATE_CHANGED = 4;
-    LOADING_STARTED = 5;
-    LOADING_COMPLETED = 6;
-    TORRENT_DETAILS_LOADED = 7;
-    CLOSE_PLAYER = 8;
-  }
-
-  message PlayerChanged {
-    optional string old_player_id = 1;
-    string new_player_id = 2;
-    string new_player_name = 3;
+    PLAYER_STARTED = 0;
+    PLAYER_STOPPED = 1;
+    PLAYBACK_STATE_CHANGED = 2;
+    LOADING_STARTED = 3;
+    LOADING_COMPLETED = 4;
+    TORRENT_DETAILS_LOADED = 5;
+    CLOSE_PLAYER = 6;
   }
 
   message PlaybackStateChanged {
     Player.State new_state = 1;
-  }
-
-  message WatchedStateChanged {
-    string imdb_id = 1;
-    bool watched_state = 2;
   }
 
   message TorrentDetailsLoaded {

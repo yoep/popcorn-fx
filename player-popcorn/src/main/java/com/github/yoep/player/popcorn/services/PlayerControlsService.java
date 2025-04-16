@@ -5,11 +5,10 @@ import com.github.yoep.player.popcorn.listeners.AbstractPlayerListener;
 import com.github.yoep.player.popcorn.listeners.PlaybackListener;
 import com.github.yoep.player.popcorn.listeners.PlayerControlsListener;
 import com.github.yoep.player.popcorn.player.PopcornPlayer;
-import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;
-import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentListener;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
@@ -97,10 +96,11 @@ public class PlayerControlsService extends AbstractListenerService<PlayerControl
 
     //region Functions
 
-    private void onPlayRequest(PlayRequest request) {
-        invokeListeners(e -> e.onSubtitleStateChanged(request.isSubtitlesEnabled()));
+    private void onPlayRequest(Player.PlayRequest request) {
+        invokeListeners(e -> e.onSubtitleStateChanged(request.getSubtitle().getEnabled()));
 
-        request.getStreamHandle().ifPresent(e -> torrentService.addListener(e, torrentListener));
+        // TODO
+//        request.getStreamHandle().ifPresent(e -> torrentService.addListener(e, torrentListener));
     }
 
     private void onPlayerStateChanged(Player.State state) {
@@ -151,7 +151,7 @@ public class PlayerControlsService extends AbstractListenerService<PlayerControl
     private PlaybackListener createPlaybackListener() {
         return new AbstractPlaybackListener() {
             @Override
-            public void onPlay(PlayRequest request) {
+            public void onPlay(Player.PlayRequest request) {
                 onPlayRequest(request);
             }
         };

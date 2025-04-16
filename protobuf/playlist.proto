@@ -7,6 +7,7 @@ option java_package = "com.github.yoep.popcorn.backend.lib.ipc.protobuf";
 package fx.ipc.proto;
 
 import "media.proto";
+import "message.proto";
 import "subtitle.proto";
 
 message Playlist {
@@ -41,3 +42,19 @@ message PlayRequest {
     optional Subtitle.Info subtitle = 2;
   }
 }
+
+message PlayPlaylistRequest {
+  Playlist playlist = 1;
+}
+
+message PlayPlaylistResponse {
+  optional Handle handle = 1;
+}
+
+message PlayNextPlaylistItemRequest {}
+
+message PlayNextPlaylistItemResponse {
+  optional Handle handle = 1;
+}
+
+message StopPlaylistRequest {}

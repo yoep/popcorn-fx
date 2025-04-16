@@ -2,12 +2,12 @@ package com.github.yoep.player.popcorn.services;
 
 import com.github.yoep.player.popcorn.listeners.PlaybackListener;
 import com.github.yoep.player.popcorn.player.PopcornPlayerException;
-import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
 import com.github.yoep.popcorn.backend.adapters.video.VideoPlayerException;
 import com.github.yoep.popcorn.backend.adapters.video.listeners.AbstractVideoListener;
 import com.github.yoep.popcorn.backend.adapters.video.listeners.VideoListener;
 import com.github.yoep.popcorn.backend.adapters.video.state.VideoState;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
@@ -64,7 +64,7 @@ public class VideoService extends AbstractListenerService<PlaybackListener> {
         videoPlaybacks.sort(PlaybackOrder::compareTo);
     }
 
-    public void onPlay(PlayRequest request) {
+    public void onPlay(Player.PlayRequest request) {
         Objects.requireNonNull(request, "request cannot be null");
         var url = request.getUrl();
 
@@ -74,8 +74,9 @@ public class VideoService extends AbstractListenerService<PlaybackListener> {
 
             // verify if a resume timestamp is known
             // if so, seek the given timestamp
-            request.getAutoResumeTimestamp()
-                    .ifPresent(e -> videoPlayer.get().seek(e));
+            if (request.hasAutoResumeTimestamp()) {
+                videoPlayer.get().seek(request.getAutoResumeTimestamp());
+            }
 
             // let the listeners known that a play request was received
             invokeListeners(e -> e.onPlay(request));

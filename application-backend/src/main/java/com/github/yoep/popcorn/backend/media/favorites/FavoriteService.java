@@ -52,8 +52,17 @@ public class FavoriteService implements FxCallback<FavoriteEvent> {
     public void addToFavorites(Media favorable) {
         Objects.requireNonNull(favorable, "favorable cannot be null");
         fxChannel.send(AddFavoriteRequest.newBuilder()
-                .setItem(MediaHelper.getItem(favorable))
-                .build());
+                        .setItem(MediaHelper.getItem(favorable))
+                        .build(), AddFavoriteResponse.parser())
+                .whenComplete((response, throwable) -> {
+                    if (throwable == null) {
+                        if (response.getResult() == Response.Result.ERROR) {
+                            log.warn("Failed to add media item to favorites, {}", response.getError());
+                        }
+                    } else {
+                        log.error("Failed to add favorite", throwable);
+                    }
+                });
     }
 
     /**

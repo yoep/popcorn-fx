@@ -8,7 +8,7 @@ use std::sync::{Arc, Once};
 use clap::Parser;
 use derive_more::Display;
 use directories::{BaseDirs, UserDirs};
-use log::{error, info, warn, LevelFilter};
+use log::{debug, error, info, warn, LevelFilter};
 use log4rs::append::console::ConsoleAppender;
 use log4rs::append::rolling_file::policy::compound::roll::fixed_window::FixedWindowRoller;
 use log4rs::append::rolling_file::policy::compound::trigger::size::SizeTrigger;
@@ -530,6 +530,10 @@ impl PopcornFX {
     pub fn start_discovery_external_players(&self, _interval_in_seconds: u32) {
         let player_discovery_services = self.player_discovery_services.clone();
         tokio::spawn(async move {
+            debug!(
+                "Discovering new player from {} discovery services",
+                player_discovery_services.len()
+            );
             for service in player_discovery_services {
                 if let Err(e) = service.start_discovery().await {
                     error!("Failed to start {}, {}", service, e);

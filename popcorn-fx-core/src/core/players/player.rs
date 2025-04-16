@@ -60,11 +60,11 @@ pub trait Player: Debug + Display + DowncastSync + Callback<PlayerEvent> {
     async fn play(&self, request: Box<dyn PlayRequest>);
 
     /// Pause the current playback of the player.
-    fn pause(&self);
+    async fn pause(&self);
 
     /// Resume the current playback of the player.
     /// If no playback is active, this invocation won't have any effect on the player.
-    fn resume(&self);
+    async fn resume(&self);
 
     /// Seeks to the specified time position in the media.
     ///

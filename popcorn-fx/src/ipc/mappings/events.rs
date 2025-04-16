@@ -1,7 +1,10 @@
 use crate::ipc::proto::events;
-use crate::ipc::proto::events::event::{EventType, PlaybackStateChanged, PlayerChanged};
+use crate::ipc::proto::events::event::{EventType, PlaybackStateChanged};
 use crate::ipc::proto::player::player;
+use crate::ipc::{Error, Result};
+use log::warn;
 use popcorn_fx_core::core::event::Event;
+use popcorn_fx_core::core::playback::PlaybackState;
 use protobuf::MessageField;
 
 impl From<&Event> for events::Event {
@@ -9,15 +12,6 @@ impl From<&Event> for events::Event {
         let mut event = events::Event::new();
 
         match value {
-            Event::PlayerChanged(e) => {
-                event.type_ = EventType::PLAYER_CHANGED.into();
-                event.player_changed = MessageField::some(PlayerChanged {
-                    old_player_id: e.old_player_id.clone(),
-                    new_player_id: e.new_player_id.clone(),
-                    new_player_name: e.new_player_name.clone(),
-                    special_fields: Default::default(),
-                });
-            }
             Event::PlayerStarted(_) => {
                 event.type_ = EventType::PLAYER_STARTED.into();
             }
@@ -30,9 +24,6 @@ impl From<&Event> for events::Event {
                     new_state: player::State::from(e).into(),
                     special_fields: Default::default(),
                 });
-            }
-            Event::WatchStateChanged(_, _) => {
-                event.type_ = EventType::WATCH_STATE_CHANGED.into();
             }
             Event::LoadingStarted => {
                 event.type_ = EventType::LOADING_STARTED.into();
@@ -49,5 +40,39 @@ impl From<&Event> for events::Event {
         }
 
         event
+    }
+}
+
+impl TryFrom<&events::Event> for Event {
+    type Error = Error;
+
+    fn try_from(value: &events::Event) -> Result<Self> {
+        let type_ = value
+            .type_
+            .enum_value()
+            .map_err(|_| Error::UnsupportedEnum)?;
+
+        match type_ {
+            EventType::PLAYBACK_STATE_CHANGED => {
+                let state = value
+                    .playback_state_changed
+                    .as_ref()
+                    .map(|e| {
+                        e.new_state
+                            .enum_value()
+                            .as_ref()
+                            .map(PlaybackState::from)
+                            .map_err(|enum_value| {
+                                warn!("Playback state value {} is not supported", enum_value);
+                                Error::UnsupportedEnum
+                            })
+                    })
+                    .transpose()?
+                    .ok_or(Error::MissingField)?;
+
+                Ok(Event::PlaybackStateChanged(state))
+            }
+            _ => Err(Error::UnsupportedMessage(format!("{:?}", type_))),
+        }
     }
 }

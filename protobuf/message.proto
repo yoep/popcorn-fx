@@ -25,3 +25,7 @@ message Response {
     ERROR = 1;
   }
 }
+
+message Handle {
+  int64 handle = 1;
+}

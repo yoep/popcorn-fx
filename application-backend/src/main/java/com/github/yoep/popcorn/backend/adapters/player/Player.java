@@ -85,7 +85,7 @@ public interface Player {
      *
      * @param request The new media playback request.
      */
-    void play(PlayRequest request);
+    void play(com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player.PlayRequest request);
 
     /**
      * Resume the video playback in the player.

@@ -30,6 +30,7 @@ public class FxChannel implements Closeable {
     final AtomicInteger sequenceId = new AtomicInteger();
     final Queue<PendingRequest> requests = new ConcurrentLinkedQueue<>();
     final Queue<Subscription> subscriptions = new ConcurrentLinkedQueue<>();
+    final Queue<ReplySubscription> replySubscriptions = new ConcurrentLinkedQueue<>();
 
     Thread readerThread;
 
@@ -69,7 +70,20 @@ public class FxChannel implements Closeable {
         var bytes = message.toByteString();
         var type = typeFrom(message);
 
-        sendBytes(bytes, type);
+        sendBytes(bytes, type, null);
+    }
+
+    /**
+     * Send the given message to the channel.
+     *
+     * @param message   The message to send.
+     * @param replyToId The original request ID to which is being responded.
+     */
+    public void send(MessageLite message, Integer replyToId) {
+        var bytes = message.toByteString();
+        var type = typeFrom(message);
+
+        sendBytes(bytes, type, replyToId);
     }
 
     public <T extends MessageLite> void subscribe(
@@ -78,6 +92,14 @@ public class FxChannel implements Closeable {
             FxCallback<T> callback
     ) {
         subscriptions.add(new Subscription<>(type, parser, callback));
+    }
+
+    public <T extends MessageLite> void subscribe_response(
+            String type,
+            Parser<T> parser,
+            FxReplyCallback<T> callback
+    ) {
+        replySubscriptions.add(new ReplySubscription<>(type, parser, callback));
     }
 
     @Override
@@ -121,7 +143,7 @@ public class FxChannel implements Closeable {
             String type,
             Parser<T> parser
     ) {
-        var id = sendBytes(request, type);
+        var id = sendBytes(request, type, null);
         var future = new CompletableFuture<T>();
 
         if (parser != null) {
@@ -132,15 +154,18 @@ public class FxChannel implements Closeable {
         }
     }
 
-    private int sendBytes(ByteString bytes, String type) {
+    private int sendBytes(ByteString bytes, String type, Integer replyToId) {
         log.trace("FX channel is sending {}", type);
         var sequenceId = this.sequenceId.incrementAndGet();
-
-        fxLib.send(FxMessage.newBuilder()
+        var messageBuilder = FxMessage.newBuilder()
                 .setType(type)
                 .setSequenceId(sequenceId)
-                .setPayload(bytes)
-                .build());
+                .setPayload(bytes);
+
+        Optional.ofNullable(replyToId)
+                .ifPresent(messageBuilder::setReplyTo);
+
+        fxLib.send(messageBuilder.build());
 
         return sequenceId;
     }
@@ -163,6 +188,16 @@ public class FxChannel implements Closeable {
                         }
                     });
         } else {
+            Optional.ofNullable(message.getType()).ifPresent(type -> replySubscriptions.stream()
+                    .filter(s -> Objects.equals(s.type, type))
+                    .forEach(subscription -> {
+                        try {
+                            var data = subscription.parser.parseFrom(message.getPayload());
+                            subscription.callback.callback(message.getSequenceId(), data);
+                        } catch (InvalidProtocolBufferException e) {
+                            log.error("FX channel failed to parse message", e);
+                        }
+                    }));
             Optional.ofNullable(message.getType()).ifPresent(type -> subscriptions.stream()
                     .filter(s -> Objects.equals(s.type, type))
                     .forEach(subscription -> {
@@ -188,6 +223,13 @@ public class FxChannel implements Closeable {
             String type,
             Parser<T> parser,
             FxCallback<T> callback
+    ) {
+    }
+
+    public record ReplySubscription<T extends MessageLite>(
+            String type,
+            Parser<T> parser,
+            FxReplyCallback<T> callback
     ) {
     }
 }

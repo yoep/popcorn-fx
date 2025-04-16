@@ -248,11 +248,11 @@ impl<D: FxCastDevice + 'static> Player for ChromecastPlayer<D> {
         }
     }
 
-    fn pause(&self) {
+    async fn pause(&self) {
         self.inner.send_command(ChromecastPlayerCommand::Pause);
     }
 
-    fn resume(&self) {
+    async fn resume(&self) {
         self.inner.send_command(ChromecastPlayerCommand::Resume);
     }
 

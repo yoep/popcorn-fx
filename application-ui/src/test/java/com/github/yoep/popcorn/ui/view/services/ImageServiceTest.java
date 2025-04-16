@@ -1,7 +1,6 @@
 package com.github.yoep.popcorn.ui.view.services;
 
 import com.github.yoep.popcorn.backend.PopcornFx;
-import com.github.yoep.popcorn.backend.lib.ByteArray;
 import com.github.yoep.popcorn.backend.lib.NativeString;
 import com.github.yoep.popcorn.backend.media.MovieDetails;
 import com.github.yoep.popcorn.backend.media.MovieOverview;

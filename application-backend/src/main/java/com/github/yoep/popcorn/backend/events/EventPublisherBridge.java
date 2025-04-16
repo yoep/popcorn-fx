@@ -24,6 +24,7 @@ public class EventPublisherBridge implements FxCallback<Event> {
     }
 
     private void init() {
+        fxChannel.subscribe(FxChannel.typeFrom(Event.class), Event.parser(), this);
         eventPublisher.register(PlayerStateEvent.class, event -> {
             var playerEvent = mapPlayerStateEvent(event);
 
@@ -40,30 +41,16 @@ public class EventPublisherBridge implements FxCallback<Event> {
     @Override
     public void callback(Event message) {
         switch (message.getType()) {
-            case PLAYER_CHANGED -> {
-                var event = message.getPlayerChanged();
-                eventPublisher.publish(new PlayerChangedEvent(
-                        this,
-                        event.getOldPlayerId(),
-                        event.getNewPlayerId(),
-                        event.getNewPlayerName()
-                ));
-            }
             case PLAYER_STARTED -> eventPublisher.publish(new PlayerStartedEvent(this));
             case PLAYER_STOPPED -> eventPublisher.publish(new PlayerStoppedEvent(this));
             case PLAYBACK_STATE_CHANGED -> eventPublisher.publishEvent(new PlayerStateEvent(this, message.getPlaybackStateChanged().getNewState()));
-            case WATCH_STATE_CHANGED -> {
-            }
-            case LOADING_STARTED -> {
-            }
-            case LOADING_COMPLETED -> {
-            }
+            case LOADING_STARTED -> eventPublisher.publishEvent(new LoadingStartedEvent(this));
+            case LOADING_COMPLETED -> eventPublisher.publishEvent(new LoadingCompletedEvent(this));
             case TORRENT_DETAILS_LOADED -> {
+                // TODO
             }
-            case CLOSE_PLAYER -> {
-            }
-            case UNRECOGNIZED -> {
-            }
+            case CLOSE_PLAYER -> eventPublisher.publishEvent(new ClosePlayerEvent(this, ClosePlayerEvent.Reason.END_OF_VIDEO));
+            case UNRECOGNIZED -> log.error("Unrecognized event type: {}", message.getType());
         }
     }
 
@@ -81,6 +68,6 @@ public class EventPublisherBridge implements FxCallback<Event> {
     }
 
     private boolean isBridgePublishAllowed(ApplicationEvent event) {
-        return !(event.getSource() instanceof EventC);
+        return !(event.getSource() instanceof EventPublisherBridge);
     }
 }

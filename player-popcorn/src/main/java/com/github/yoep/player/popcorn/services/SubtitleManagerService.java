@@ -2,11 +2,11 @@ package com.github.yoep.player.popcorn.services;
 
 import com.github.yoep.player.popcorn.listeners.AbstractPlaybackListener;
 import com.github.yoep.player.popcorn.listeners.SubtitleListener;
-import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationSettings;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Subtitle;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
@@ -127,7 +127,7 @@ public class SubtitleManagerService {
         initializeSubtitleListener();
         videoService.addListener(new AbstractPlaybackListener() {
             @Override
-            public void onPlay(PlayRequest request) {
+            public void onPlay(Player.PlayRequest request) {
                 SubtitleManagerService.this.onPlay(request);
             }
         });
@@ -169,12 +169,12 @@ public class SubtitleManagerService {
 
     //region Functions
 
-    private void onPlay(PlayRequest request) {
+    private void onPlay(Player.PlayRequest request) {
         Objects.requireNonNull(request, "request cannot be null");
         this.url = request.getUrl();
-        this.quality = request.getQuality().orElse(null);
+        this.quality = request.getQuality();
 
-        if (request.isSubtitlesEnabled()) {
+        if (request.getSubtitle().getEnabled()) {
             var preference = subtitleService.preference();
 
             log.trace("Retrieved subtitle preference {}", preference);

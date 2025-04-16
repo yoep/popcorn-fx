@@ -9,27 +9,8 @@ use crate::core::torrents::TorrentInfo;
 /// The `Event` enum represents the events that occur during the lifecycle of the Popcorn FX application.
 /// It provides a mechanism for handling player and playback media events and controls, such as stopping
 /// playback, starting a new playback, and changing the playback state.
-///
-/// # Examples
-///
-/// ```no_run
-/// use popcorn_fx_core::core::event::{Event, PlayerChangedEvent};
-///
-/// let event = Event::PlayerChanged(PlayerChangedEvent {
-///     old_player_id: Some("OldPlayerId".to_string()),
-///     new_player_id: "NewPlayerId".to_string(),
-///     new_player_name: "NewPlayerName".to_string(),
-/// });
-/// ```
 #[derive(Debug, Clone, Display, PartialEq)]
 pub enum Event {
-    /// Invoked when the active player is changed
-    #[display(
-        fmt = "Active player changed to {} ({})",
-        "_0.new_player_id.as_str()",
-        "_0.new_player_name.as_str()"
-    )]
-    PlayerChanged(PlayerChangedEvent),
     /// Invoked when the player playback has started for a new media item
     #[display(fmt = "Player has started playback of {}", "_0.title.as_str()")]
     PlayerStarted(PlayerStartedEvent),
@@ -42,9 +23,6 @@ pub enum Event {
     /// Invoked when the player/playback state is changed
     #[display(fmt = "Playback state has changed to {}", "_0")]
     PlaybackStateChanged(PlaybackState),
-    /// Invoked when the watched state of a media items is changed
-    #[display(fmt = "Watched state of {} changed to {}", "_0", "_1")]
-    WatchStateChanged(String, bool),
     /// Invoked when the loading of a media item has started
     #[display(fmt = "Loading of a media item has started")]
     LoadingStarted,

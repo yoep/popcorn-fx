@@ -1,6 +1,7 @@
 package com.github.yoep.popcorn.backend.settings;
 
 import com.github.yoep.popcorn.backend.lib.FxChannel;
+import com.github.yoep.popcorn.backend.lib.FxChannelException;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.*;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import javafx.application.Platform;
@@ -190,9 +191,11 @@ public class ApplicationConfig {
     private ApplicationArgs applicationArgs() {
         if (applicationArgs == null) {
             try {
-                this.applicationArgs = fxChannel.send(ApplicationArgsRequest.getDefaultInstance(), ApplicationArgs.parser()).get();
-            } catch (ExecutionException | InterruptedException e) {
-                throw new RuntimeException(e);
+                this.applicationArgs = fxChannel.send(ApplicationArgsRequest.getDefaultInstance(), ApplicationArgsResponse.parser())
+                        .thenApply(ApplicationArgsResponse::getArgs)
+                        .get();
+            } catch (ExecutionException | InterruptedException ex) {
+                throw new FxChannelException(ex.getMessage(), ex);
             }
         }
 

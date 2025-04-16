@@ -1,5 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
+import com.github.yoep.popcorn.backend.lib.FxCallback;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.FavoriteEvent;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteEventCallback;
 import com.github.yoep.popcorn.backend.media.Media;
 import com.github.yoep.popcorn.backend.media.ShowOverview;
@@ -24,11 +26,10 @@ import java.util.ResourceBundle;
 import static com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media.*;
 
 @Slf4j
-public class MediaCardComponent extends TvMediaCardComponent {
+public class MediaCardComponent extends TvMediaCardComponent implements FxCallback<FavoriteEvent> {
     private static final String LIKED_STYLE_CLASS = "liked";
 
     private final LocaleText localeText;
-    private final FavoriteEventCallback favoriteEventCallback = createFavoriteCallback(media);
 
     @FXML
     Label ratingValue;
@@ -51,7 +52,7 @@ public class MediaCardComponent extends TvMediaCardComponent {
         super(media, imageService, metadataProvider, listeners);
         this.localeText = localeText;
 
-        metadataProvider.addListener(favoriteEventCallback);
+        metadataProvider.addListener(this);
     }
 
     @Override
@@ -73,7 +74,7 @@ public class MediaCardComponent extends TvMediaCardComponent {
     protected void onParentChanged(Parent newValue) {
         super.onParentChanged(newValue);
         if (newValue == null) {
-            metadataProvider.removeListener(favoriteEventCallback);
+            metadataProvider.removeListener(this);
         }
     }
 
@@ -115,20 +116,6 @@ public class MediaCardComponent extends TvMediaCardComponent {
         }
     }
 
-    private FavoriteEventCallback createFavoriteCallback(Media media) {
-        return event -> {
-            switch (event.getTag()) {
-                case LikedStateChanged -> {
-                    var stateChange = event.getUnion().getLiked_state_changed();
-
-                    if (Objects.equals(stateChange.getImdbId(), media.id())) {
-                        switchFavorite(stateChange.getNewState());
-                    }
-                }
-            }
-        };
-    }
-
     @FXML
     void onWatchedClicked(MouseEvent event) {
         event.consume();
@@ -151,6 +138,16 @@ public class MediaCardComponent extends TvMediaCardComponent {
 
         synchronized (listeners) {
             listeners.forEach(e -> e.onFavoriteChanged(media, newState));
+        }
+    }
+
+    @Override
+    public void callback(FavoriteEvent event) {
+        if (event.getEvent() == FavoriteEvent.Event.LIKED_STATE_CHANGED) {
+            var stateChanged = event.getLikeStateChanged();
+            if (Objects.equals(stateChanged.getImdbId(), media.id())) {
+                switchFavorite(stateChanged.getIsLiked());
+            }
         }
     }
 }

@@ -1,6 +1,5 @@
 package com.github.yoep.popcorn.ui.view.services;
 
-import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
@@ -8,7 +7,7 @@ import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
-import com.github.yoep.popcorn.backend.player.PlayerChanged;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.PlayerManagerEvent;
 import com.github.yoep.popcorn.backend.player.PlayerManagerListener;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import com.github.yoep.popcorn.ui.view.listeners.PlayerExternalListener;
@@ -71,7 +70,7 @@ public class PlayerExternalComponentService extends AbstractListenerService<Play
     private void init() {
         playerManagerService.addListener(new PlayerManagerListener() {
             @Override
-            public void activePlayerChanged(PlayerChanged playerChange) {
+            public void activePlayerChanged(PlayerManagerEvent.ActivePlayerChanged playerChange) {
                 // no-op
             }
 
@@ -81,7 +80,7 @@ public class PlayerExternalComponentService extends AbstractListenerService<Play
             }
 
             @Override
-            public void onPlayerPlaybackChanged(PlayRequest request) {
+            public void onPlayerPlaybackChanged(Player.PlayRequest request) {
                 onPlaybackChanged(request);
             }
 
@@ -110,11 +109,13 @@ public class PlayerExternalComponentService extends AbstractListenerService<Play
         }
     }
 
-    private void onPlaybackChanged(PlayRequest request) {
+    private void onPlaybackChanged(Player.PlayRequest request) {
         invokeListeners(e -> e.onRequestChanged(request));
 
-        request.getStreamHandle()
-                .ifPresent(e -> torrentService.addListener(e, streamListener));
+        if (request.hasStreamHandle()) {
+            // TODO
+//            torrentService.addListener(request.getStreamHandle(), streamListener);
+        }
     }
 
     private void onDurationChanged(long duration) {

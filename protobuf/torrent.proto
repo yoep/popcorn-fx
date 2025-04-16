@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+option optimize_for = LITE_RUNTIME;
+option java_multiple_files = true;
+option java_package = "com.github.yoep.popcorn.backend.lib.ipc.protobuf";
+
+package fx.ipc.proto;
+
+import "message.proto";
+
+message Torrent {
+
+  message Health {
+    State state = 1;
+    float ratio = 2;
+    uint32 seeds = 3;
+    uint32 leechers = 4;
+
+    enum State {
+      UNKNOWN = 0;
+      BAD = 1;
+      MEDIUM = 2;
+      GOOD = 3;
+      EXCELLENT = 4;
+    }
+  }
+
+  enum Error {
+    INVALID_URL = 0;
+  }
+}
+
+message TorrentHealthRequest {
+  string uri = 1;
+}
+
+message TorrentHealthResponse {
+  Response.Result result = 1;
+  optional Torrent.Health health = 2;
+}
+
+message CalculateTorrentHealthRequest {
+  uint32 seeds = 1;
+  uint32 leechers = 2;
+}
+
+message CalculateTorrentHealthResponse {
+  Torrent.Health health = 1;
+}

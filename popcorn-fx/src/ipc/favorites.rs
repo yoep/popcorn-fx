@@ -1,6 +1,7 @@
 use crate::fx::PopcornFX;
+use crate::ipc::proto::favorites;
 use crate::ipc::proto::favorites::{
-    AddFavoriteRequest, AddFavoriteResponse, GetIsLikedRequest, GetIsLikedResponse,
+    favorite_event, AddFavoriteRequest, AddFavoriteResponse, GetIsLikedRequest, GetIsLikedResponse,
     RemoveFavoriteRequest,
 };
 use crate::ipc::proto::media::media;
@@ -8,6 +9,8 @@ use crate::ipc::proto::message::{response, FxMessage};
 use crate::ipc::{Error, IpcChannel, MessageHandler};
 use async_trait::async_trait;
 use derive_more::Display;
+use log::error;
+use popcorn_fx_core::core::media::favorites::FavoriteEvent;
 use popcorn_fx_core::core::media::MediaOverview;
 use protobuf::{Message, MessageField};
 use std::sync::Arc;
@@ -19,7 +22,40 @@ pub struct FavoritesMessageHandler {
 }
 
 impl FavoritesMessageHandler {
-    pub fn new(instance: Arc<PopcornFX>) -> Self {
+    pub fn new(instance: Arc<PopcornFX>, channel: &IpcChannel) -> Self {
+        let mut receiver = instance.favorite_service().subscribe();
+
+        let channel = channel.clone();
+        tokio::spawn(async move {
+            while let Some(event) = receiver.recv().await {
+                let proto_event: favorites::FavoriteEvent;
+
+                match &*event {
+                    FavoriteEvent::LikedStateChanged(imdb_id, is_liked) => {
+                        proto_event = favorites::FavoriteEvent {
+                            event: favorite_event::Event::LIKED_STATE_CHANGED.into(),
+                            like_state_changed: MessageField::some(
+                                favorite_event::LikedStateChanged {
+                                    imdb_id: imdb_id.clone(),
+                                    is_liked: *is_liked,
+                                    special_fields: Default::default(),
+                                },
+                            ),
+                            special_fields: Default::default(),
+                        }
+                    }
+                }
+
+                if let Err(e) = channel
+                    .send(proto_event, favorites::FavoriteEvent::NAME)
+                    .await
+                {
+                    error!("Favorites message handler failed to send event, {}", e);
+                    break;
+                }
+            }
+        });
+
         Self { instance }
     }
 }
@@ -85,6 +121,14 @@ impl MessageHandler for FavoritesMessageHandler {
                 channel
                     .send_reply(&message, response, AddFavoriteResponse::NAME)
                     .await?;
+            }
+            RemoveFavoriteRequest::NAME => {
+                let request = RemoveFavoriteRequest::parse_from_bytes(&message.payload)?;
+                let media = Box::<dyn MediaOverview>::try_from(
+                    request.item.as_ref().ok_or(Error::MissingField)?,
+                )?;
+
+                self.instance.favorite_service().remove(media).await;
             }
             _ => {
                 return Err(Error::UnsupportedMessage(

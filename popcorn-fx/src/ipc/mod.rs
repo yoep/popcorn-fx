@@ -9,8 +9,11 @@ pub use log::*;
 pub use media::*;
 pub use message::*;
 pub use player::*;
+pub use playlist::*;
 pub use settings::*;
 pub use subtitle::*;
+pub use torrent::*;
+pub use watched::*;
 
 mod application;
 mod channel;
@@ -24,9 +27,12 @@ mod mappings;
 mod media;
 mod message;
 mod player;
+mod playlist;
 mod proto;
 mod settings;
 mod subtitle;
+mod torrent;
+mod watched;
 
 #[cfg(test)]
 pub(crate) mod test {
@@ -42,6 +48,8 @@ pub(crate) mod test {
     use mockall::mock;
     use rand::{rng, Rng};
     use std::fmt::{Display, Formatter};
+    use std::time::Duration;
+    use tokio::select;
     use tokio::sync::oneshot;
 
     mock! {
@@ -108,5 +116,15 @@ pub(crate) mod test {
         let incoming_channel = IpcChannel::new(conn);
 
         (incoming_channel, outgoing_channel)
+    }
+
+    #[macro_export]
+    macro_rules! try_recv {
+        ($receiver:expr, $timeout:expr) => {
+            tokio::select! {
+                _ = tokio::time::sleep($timeout) => panic!("receiver timed out after {}ms", $timeout.as_secs()),
+                result = $receiver => result,
+            }
+        };
     }
 }

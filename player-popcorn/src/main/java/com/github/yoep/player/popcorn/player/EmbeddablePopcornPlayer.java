@@ -1,6 +1,5 @@
 package com.github.yoep.player.popcorn.player;
 
-import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.adapters.player.embaddable.EmbeddablePlayer;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
@@ -81,7 +80,7 @@ public class EmbeddablePopcornPlayer implements EmbeddablePlayer {
     }
 
     @Override
-    public void play(PlayRequest request) {
+    public void play(Player.PlayRequest request) {
         popcornPlayer.play(request);
     }
 

@@ -1,6 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.FavoriteEvent;
 import com.github.yoep.popcorn.backend.media.Media;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
@@ -16,6 +17,7 @@ import javafx.scene.input.MouseEvent;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
+import java.util.Objects;
 import java.util.ResourceBundle;
 
 @Slf4j
@@ -54,14 +56,16 @@ public class PosterComponent extends TvPosterComponent implements Initializable 
 //                }
 //            }
 //        });
-//        favoriteService.registerListener(event -> {
-//            if (event.getTag() == FavoriteEvent.Tag.LikedStateChanged) {
-//                var stateChanged = event.getUnion().getLiked_state_changed();
-//                if (media != null && Objects.equals(stateChanged.getImdbId(), media.id())) {
-//                    updateLikedState(stateChanged.getNewState());
-//                }
-//            }
-//        });
+        favoriteService.registerListener(event -> {
+            if (Objects.requireNonNull(event.getEvent()) == FavoriteEvent.Event.LIKED_STATE_CHANGED) {
+                if (media != null) {
+                    var stateChanged = event.getLikeStateChanged();
+                    if (Objects.equals(stateChanged.getImdbId(), media.id())) {
+                        updateLikedState(stateChanged.getIsLiked());
+                    }
+                }
+            }
+        });
     }
 
     @Override

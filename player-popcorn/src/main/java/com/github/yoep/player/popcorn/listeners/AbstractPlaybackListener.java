@@ -1,10 +1,10 @@
 package com.github.yoep.player.popcorn.listeners;
 
-import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
 
 public abstract class AbstractPlaybackListener implements PlaybackListener{
     @Override
-    public void onPlay(PlayRequest request) {
+    public void onPlay(Player.PlayRequest request) {
         // no-op
     }
 

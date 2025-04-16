@@ -2,7 +2,8 @@ use crate::fx::{PopcornFX, PopcornFxArgs};
 use crate::ipc::{
     ApplicationMessageHandler, EventMessageHandler, FavoritesMessageHandler, ImagesMessageHandler,
     IpcChannel, IpcChannelProcessor, LoaderMessageHandler, LogMessageHandler, MediaMessageHandler,
-    MessageHandler, PlayerMessageHandler, SettingsMessageHandler, SubtitleMessageHandler,
+    MessageHandler, PlayerMessageHandler, PlaylistMessageHandler, SettingsMessageHandler,
+    SubtitleMessageHandler, TorrentMessageHandler, WatchedMessageHandler,
 };
 use clap::{CommandFactory, Error, FromArgMatches};
 use interprocess::local_socket;
@@ -61,18 +62,18 @@ async fn start(conn: local_socket::tokio::Stream, args: PopcornFxArgs) -> io::Re
     let channel = IpcChannel::new(conn);
     let handlers: Vec<Box<dyn MessageHandler>> = vec![
         Box::new(ApplicationMessageHandler::new(popcorn_fx.clone())),
-        Box::new(FavoritesMessageHandler::new(popcorn_fx.clone())),
+        Box::new(EventMessageHandler::new(popcorn_fx.clone(), &channel)),
+        Box::new(FavoritesMessageHandler::new(popcorn_fx.clone(), &channel)),
         Box::new(ImagesMessageHandler::new(popcorn_fx.clone())),
         Box::new(LoaderMessageHandler::new(popcorn_fx.clone())),
         Box::new(LogMessageHandler::new()),
         Box::new(MediaMessageHandler::new(popcorn_fx.clone())),
-        Box::new(PlayerMessageHandler::new(popcorn_fx.clone())),
+        Box::new(PlayerMessageHandler::new(popcorn_fx.clone(), &channel)),
+        Box::new(PlaylistMessageHandler::new(popcorn_fx.clone())),
         Box::new(SettingsMessageHandler::new(popcorn_fx.clone())),
         Box::new(SubtitleMessageHandler::new(popcorn_fx.clone())),
-        Box::new(EventMessageHandler::new(
-            popcorn_fx.clone(),
-            channel.clone(),
-        )),
+        Box::new(SubtitleMessageHandler::new(popcorn_fx.clone())),
+        Box::new(TorrentMessageHandler::new(popcorn_fx.clone())),
     ];
     let processor = IpcChannelProcessor::new(channel, handlers);
 
@@ -118,9 +119,9 @@ mod tests {
         PopcornFxArgs {
             disable_logger: true,
             disable_mouse: false,
-            enable_youtube_video_player: false,
-            enable_fx_video_player: false,
-            enable_vlc_video_player: false,
+            enable_youtube_video_player: true,
+            enable_fx_video_player: true,
+            enable_vlc_video_player: true,
             tv: false,
             maximized: false,
             kiosk: false,

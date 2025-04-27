@@ -2,6 +2,7 @@ package com.github.yoep.popcorn.ui.view.controllers;
 
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowAboutEvent;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.*;
@@ -72,7 +73,7 @@ class ContentSectionControllerTest {
     void testOnCategoryChangedEvent() throws TimeoutException {
         controller.initialize(url, resourceBundle);
 
-        eventPublisher.publish(new CategoryChangedEvent(controller, Category.SERIES));
+        eventPublisher.publish(new CategoryChangedEvent(controller, Media.Category.SERIES));
         WaitForAsyncUtils.waitForFxEvents();
 
         assertEquals(ContentSectionController.ContentType.LIST, controller.activeType);

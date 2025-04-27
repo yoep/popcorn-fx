@@ -4,9 +4,9 @@ import com.github.yoep.player.popcorn.controls.ProgressControl;
 import com.github.yoep.player.popcorn.listeners.PlayerControlsListener;
 import com.github.yoep.player.popcorn.services.PlayerControlsService;
 import com.github.yoep.player.popcorn.services.PlayerSubtitleService;
-import com.github.yoep.popcorn.backend.lib.ipc.protobuf.PlayerState;
 import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
 import com.github.yoep.popcorn.backend.messages.SubtitleMessage;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.SubtitleOffsetEvent;
@@ -220,16 +220,16 @@ class TvPlayerControlsComponentTest {
 
         var listener = listenerHolder.get();
 
-        listener.onPlayerStateChanged(PlayerState.PLAYING);
+        listener.onPlayerStateChanged(Player.State.PLAYING);
         WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> Objects.equals(component.playButton.getText(), Icon.PAUSE_UNICODE));
 
-        listener.onPlayerStateChanged(PlayerState.PAUSED);
+        listener.onPlayerStateChanged(Player.State.PAUSED);
         WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> Objects.equals(component.playButton.getText(), Icon.PLAY_UNICODE));
 
-        listener.onPlayerStateChanged(PlayerState.BUFFERING);
+        listener.onPlayerStateChanged(Player.State.BUFFERING);
         WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> Objects.equals(component.playButton.getText(), Icon.SPINNER_UNICODE));
 
-        listener.onPlayerStateChanged(PlayerState.ERROR);
+        listener.onPlayerStateChanged(Player.State.ERROR);
         WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> Objects.equals(component.playButton.getText(), Icon.BAN_UNICODE));
     }
 

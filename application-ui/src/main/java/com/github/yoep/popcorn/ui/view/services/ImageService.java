@@ -145,7 +145,7 @@ public class ImageService {
                                 .map(Image::new)
                                 .get();
                     } else {
-                        log.warn("Failed to load image url {}, {}", url, response.getError());
+                        log.warn("Failed to load image url \"{}\", {}", url, response.getError());
                         throw new ImageException(url, "Failed to load image data");
                     }
                 });

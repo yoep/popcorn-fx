@@ -1,9 +1,11 @@
 package com.github.yoep.popcorn.ui.view.controllers.tv.components;
 
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.ui.view.controls.Overlay;
 import com.github.yoep.popcorn.ui.view.controls.VirtualKeyboard;
 import javafx.animation.PauseTransition;
+import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -44,15 +46,20 @@ public class TvSettingsServerComponent implements Initializable {
     }
 
     private void initializeText() {
-//        var apiServerValue = applicationConfig.getSettings().getServerSettings().getApiServer();
-//        apiServerBtn.setText(apiServerValue);
-//        apiServerTxt.setText(apiServerValue);
+        applicationConfig.getSettings()
+                .thenApply(ApplicationSettings::getServerSettings)
+                .thenAccept(settings -> Platform.runLater(() -> {
+                    apiServerBtn.setText(settings.getApiServer());
+                    apiServerTxt.setText(settings.getApiServer());
+                }));
     }
 
     private void onSave(ActionEvent event) {
-//        var settings = applicationConfig.getSettings().getServerSettings();
-//        settings.setApiServer(apiServerVirtualKeyboard.getText());
-//        applicationConfig.update(settings);
+        applicationConfig.getSettings()
+                .thenApply(ApplicationSettings::getServerSettings)
+                .thenAccept(settings -> applicationConfig.update(ApplicationSettings.ServerSettings.newBuilder(settings)
+                        .setApiServer(apiServerVirtualKeyboard.getText())
+                        .build()));
     }
 
     @FXML

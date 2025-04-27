@@ -6,6 +6,8 @@ import com.github.yoep.popcorn.backend.media.MovieDetails;
 import com.github.yoep.popcorn.backend.media.ShowDetails;
 import com.github.yoep.popcorn.backend.services.ListenerService;
 
+import java.util.concurrent.CompletableFuture;
+
 public interface PlaylistManager extends ListenerService<PlaylistManagerListener> {
     /**
      * Start the playback of the given playlist.
@@ -49,5 +51,5 @@ public interface PlaylistManager extends ListenerService<PlaylistManagerListener
      *
      * @return Returns the currently active playlist.
      */
-    Playlist playlist();
+    CompletableFuture<Playlist> playlist();
 }

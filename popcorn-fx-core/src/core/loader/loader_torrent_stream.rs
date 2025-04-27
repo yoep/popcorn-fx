@@ -127,7 +127,7 @@ impl LoadingStrategy for TorrentStreamLoadingStrategy {
 
     async fn cancel(&self, mut data: LoadingData) -> CancellationResult {
         if let Some(TorrentData::Stream(stream)) = data.torrent.take() {
-            let handle = stream.stream_handle();
+            let handle = stream.handle();
             trace!("Cancelling torrent download & stream for {}", handle);
             self.torrent_stream_server.stop_stream(handle).await;
             debug!("Stream {} loading has been cancelled", handle);

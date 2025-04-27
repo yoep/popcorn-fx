@@ -144,7 +144,7 @@ pub trait MediaDetails: MediaOverview {
     fn synopsis(&self) -> String;
 
     /// Retrieve the runtime of the media item.
-    fn runtime(&self) -> i32;
+    fn runtime(&self) -> u32;
 }
 
 #[cfg(test)]

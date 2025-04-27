@@ -2,12 +2,12 @@ package com.github.yoep.popcorn.ui.view.controllers.tv.components;
 
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
-import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Subtitle;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Playlist;
 import com.github.yoep.popcorn.backend.media.Media;
 import com.github.yoep.popcorn.backend.media.MovieDetails;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
-import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
-import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
+import com.github.yoep.popcorn.backend.subtitles.ISubtitleInfo;
+import com.github.yoep.popcorn.backend.subtitles.ISubtitleService;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.font.controls.Icon;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
@@ -23,10 +23,14 @@ import javafx.scene.input.MouseEvent;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
-import java.util.*;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 
-import static com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media.*;
+import static com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media.TorrentLanguage;
+import static com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media.TorrentQuality;
 
 @Slf4j
 public class TvMovieActionsComponent extends AbstractActionsComponent {
@@ -46,7 +50,7 @@ public class TvMovieActionsComponent extends AbstractActionsComponent {
     @FXML
     Icon favoriteIcon;
 
-    public TvMovieActionsComponent(EventPublisher eventPublisher, SubtitleService subtitleService, VideoQualityService videoQualityService,
+    public TvMovieActionsComponent(EventPublisher eventPublisher, ISubtitleService subtitleService, VideoQualityService videoQualityService,
                                    LocaleText localeText, DetailsComponentService detailsComponentService, PlaylistManager playlistManager) {
         super(eventPublisher, subtitleService, videoQualityService, playlistManager);
         this.localeText = localeText;
@@ -63,19 +67,25 @@ public class TvMovieActionsComponent extends AbstractActionsComponent {
         detailsComponentService.addListener(new DetailsComponentListener() {
             @Override
             public void onWatchChanged(String imdbId, boolean newState) {
-
+                // no-op
             }
 
             @Override
             public void onLikedChanged(String imdbId, boolean newState) {
-//                if (media != null && media.getImdbId().equals(imdbId)) {
-//                    Platform.runLater(() -> updateFavoriteState());
-//                }
+                if (Objects.equals(media.id(), imdbId)) {
+                    Platform.runLater(() -> updateFavoriteState());
+                }
             }
         });
         qualityOverlay.shownProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue) {
-                Platform.runLater(() -> qualities.setSelectedItem(videoQualityService.getDefaultVideoResolution(qualities.getItems()), true));
+                videoQualityService.getDefaultVideoResolution(qualities.getItems()).whenComplete((quality, throwable) -> {
+                    if (throwable == null) {
+                        Platform.runLater(() -> qualities.setSelectedItem(quality, true));
+                    } else {
+                        log.error("Failed to retrieve video resolution", throwable);
+                    }
+                });
             }
         });
     }
@@ -99,39 +109,46 @@ public class TvMovieActionsComponent extends AbstractActionsComponent {
     }
 
     @Override
-    protected CompletableFuture<List<Subtitle.Info>> retrieveSubtitles() {
+    protected CompletableFuture<List<ISubtitleInfo>> retrieveSubtitles() {
         return subtitleService.retrieveSubtitles(media);
     }
 
     private void onShowMovieDetailsEvent(ShowMovieDetailsEvent event) {
         this.media = event.getMedia();
-//        var trailer = media.getTrailer();
-//
-//        Platform.runLater(() -> {
-//            updateQualities();
-//            updateFavoriteState();
-//
-//            watchTrailerButton.setVisible(trailer != null && !trailer.isBlank());
-//            watchNowButton.requestFocus();
-//        });
+        var trailer = media.proto().getTrailer();
+
+        Platform.runLater(() -> {
+            updateQualities();
+            updateFavoriteState();
+
+            watchTrailerButton.setVisible(trailer != null && !trailer.isBlank());
+            watchNowButton.requestFocus();
+        });
     }
 
     private void updateFavoriteState() {
-        var state = detailsComponentService.isLiked(this.media);
-
-        favoriteButton.setText(localeText.get(state ? DetailsMessage.REMOVE : DetailsMessage.ADD));
-        favoriteIcon.setText(state ? Icon.HEART_UNICODE : Icon.HEART_O_UNICODE);
+        detailsComponentService.isLiked(this.media).whenComplete((isLiked, throwable) -> {
+            if (throwable == null) {
+                Platform.runLater(() -> {
+                    favoriteButton.setText(localeText.get(isLiked ? DetailsMessage.REMOVE : DetailsMessage.ADD));
+                    favoriteIcon.setText(isLiked ? Icon.HEART_UNICODE : Icon.HEART_O_UNICODE);
+                });
+            } else {
+                log.error("Failed to retrieve favorite state", throwable);
+            }
+        });
     }
 
     private void playTrailer() {
-//        var item = PlaylistItem.builder()
-//                .url(media.getTrailer())
-//                .title(media.title())
-//                .caption("Trailer")
-//                .thumb(media.images().poster())
-//                .subtitlesEnabled(false)
-//                .build();
-//            playlistManager.play(new Playlist(item));
+        playlistManager.play(Playlist.newBuilder()
+                .addItems(Playlist.Item.newBuilder()
+                        .setUrl(media.proto().getTrailer())
+                        .setTitle(media.title())
+                        .setCaption("Trailer")
+                        .setThumb(media.images().getPoster())
+                        .setSubtitlesEnabled(false)
+                        .build())
+                .build());
     }
 
     private void toggleFavoriteState() {

@@ -22,7 +22,6 @@ const NORMALIZATION_PATTERN: &str = "[\\.\\[\\]\\(\\)_\\-+]";
 const SUBTITLE_TYPES: [SubtitleType; 2] = [SubtitleType::Srt, SubtitleType::Vtt];
 
 /// The type of a subtitle, indicating its format.
-#[repr(i32)]
 #[derive(Debug, Display, PartialEq, Eq, Clone, Hash)]
 pub enum SubtitleType {
     /// SubRip subtitle format.
@@ -332,19 +331,19 @@ impl SubtitleInfoBuilder {
     }
 
     /// Sets the IMDb ID for the subtitle info.
-    pub fn imdb_id<T: ToString>(mut self, imdb_id: T) -> Self {
+    pub fn imdb_id<T: ToString>(&mut self, imdb_id: T) -> &mut Self {
         self.imdb_id = Some(imdb_id.to_string());
         self
     }
 
     /// Sets the language for the subtitle info.
-    pub fn language(mut self, language: SubtitleLanguage) -> Self {
+    pub fn language(&mut self, language: SubtitleLanguage) -> &mut Self {
         self.language = Some(language);
         self
     }
 
     /// Sets the files for the subtitle info.
-    pub fn files(mut self, files: Vec<SubtitleFile>) -> Self {
+    pub fn files(&mut self, files: Vec<SubtitleFile>) -> &mut Self {
         self.files = Some(files);
         self
     }
@@ -354,11 +353,11 @@ impl SubtitleInfoBuilder {
     /// # Panics
     ///
     /// This method will panic if the language is not set.
-    pub fn build(self) -> SubtitleInfo {
+    pub fn build(&mut self) -> SubtitleInfo {
         SubtitleInfo {
-            imdb_id: self.imdb_id,
-            language: self.language.expect("language is not set"),
-            files: self.files,
+            imdb_id: self.imdb_id.take(),
+            language: self.language.take().expect("language is not set"),
+            files: self.files.take(),
             normalize_regex: Regex::new(NORMALIZATION_PATTERN).unwrap(),
         }
     }

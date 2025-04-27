@@ -4,7 +4,12 @@ import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowAboutEvent;
 import com.github.yoep.popcorn.backend.info.ComponentInfo;
 import com.github.yoep.popcorn.backend.lib.FxChannel;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.GetApplicationVersionRequest;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.GetApplicationVersionResponse;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Update;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.UpdateEvent;
+import com.github.yoep.popcorn.backend.messages.UpdateMessage;
+import com.github.yoep.popcorn.backend.updater.UpdateEventListener;
 import com.github.yoep.popcorn.backend.updater.UpdateService;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.CloseAboutEvent;
@@ -83,7 +88,10 @@ public class AboutSectionController implements Initializable {
     }
 
     private void initializeLabels() {
-//        versionLabel.setText(fxLib.version());
+        fxChannel.send(GetApplicationVersionRequest.getDefaultInstance(), GetApplicationVersionResponse.parser())
+                .thenAccept(response -> Platform.runLater(() -> {
+                    versionLabel.setText(response.getVersion());
+                }));
     }
 
     private void initializeListeners() {
@@ -98,11 +106,11 @@ public class AboutSectionController implements Initializable {
                 AboutSectionController.this.onVideoPlayersChanged(videoPlayers);
             }
         });
-        aboutService.updateAll();
         eventPublisher.register(ShowAboutEvent.class, event -> {
             Platform.runLater(() -> updateButton.requestFocus());
             return event;
         });
+        aboutService.updateAll();
     }
 
     private void initializeButton() {
@@ -110,43 +118,61 @@ public class AboutSectionController implements Initializable {
         updateAnimation.setCycleCount(Animation.INDEFINITE);
         updateAnimation.setFromAngle(0.0);
         updateAnimation.setToAngle(360.0);
-//        updateService.register(event -> {
-//            if (event.getTag() == UpdateCallbackEvent.Tag.StateChanged) {
-//                onUpdateStateChanged(event.getUnion().getState_changed().getNewState());
-//            }
-//        });
-//        onUpdateStateChanged(updateService.getState());
+        updateService.addListener(new UpdateEventListener() {
+            @Override
+            public void onStateChanged(UpdateEvent.StateChanged event) {
+                onUpdateStateChanged(event.getNewState());
+            }
+
+            @Override
+            public void onDownloadProgress(UpdateEvent.DownloadProgress event) {
+                // no-op
+            }
+        });
+        updateService.getState().whenComplete((state, throwable) -> {
+            if (throwable == null) {
+                onUpdateStateChanged(state);
+            } else {
+                log.error("Failed to retrieve update state", throwable);
+            }
+        });
     }
 
     private void onUpdateStateChanged(Update.State newState) {
-//        Platform.runLater(() -> {
-//            switch (newState) {
-//                case CHECKING_FOR_NEW_VERSION -> {
-//                    updateButton.setText(localeText.get(UpdateMessage.CHECKING_FOR_UPDATES));
-//                    updateIcon.setText(Icon.REFRESH_UNICODE);
-//                    newVersionLabel.setText(null);
-//                    updateAnimation.playFromStart();
-//                }
-//                case UPDATE_AVAILABLE -> {
-//                    updateButton.setText(localeText.get(UpdateMessage.DOWNLOAD_UPDATE));
-//                    updateIcon.setText(Icon.DOWNLOAD_UNICODE);
-//                    updateService.getUpdateInfo().ifPresent(e -> newVersionLabel.setText(localeText.get(UpdateMessage.NEW_VERSION, e.getApplication().getVersion())));
-//                    updateAnimation.stop();
-//                }
-//                case NO_UPDATE_AVAILABLE -> {
-//                    updateButton.setText(localeText.get(UpdateMessage.CHECK_FOR_NEW_UPDATES));
-//                    updateIcon.setText(Icon.REFRESH_UNICODE);
-//                    newVersionLabel.setText(null);
-//                    updateAnimation.stop();
-//                }
-//                case ERROR -> {
-//                    updateButton.setText(localeText.get(UpdateMessage.NO_UPDATE_AVAILABLE));
-//                    updateIcon.setText(Icon.TIMES_UNICODE);
-//                    newVersionLabel.setText(null);
-//                    updateAnimation.stop();
-//                }
-//            }
-//        });
+        Platform.runLater(() -> {
+            switch (newState) {
+                case CHECKING_FOR_NEW_VERSION -> {
+                    updateButton.setText(localeText.get(UpdateMessage.CHECKING_FOR_UPDATES));
+                    updateIcon.setText(Icon.REFRESH_UNICODE);
+                    newVersionLabel.setText(null);
+                    updateAnimation.playFromStart();
+                }
+                case UPDATE_AVAILABLE -> {
+                    updateButton.setText(localeText.get(UpdateMessage.DOWNLOAD_UPDATE));
+                    updateIcon.setText(Icon.DOWNLOAD_UNICODE);
+                    updateService.getUpdateInfo().whenComplete((info, throwable) -> {
+                        if (throwable == null) {
+                            info.ifPresent(e -> Platform.runLater(() -> newVersionLabel.setText(localeText.get(UpdateMessage.NEW_VERSION, e.getApplication().getVersion()))));
+                        } else {
+                            log.error("Failed to retrieve version info", throwable);
+                        }
+                    });
+                    updateAnimation.stop();
+                }
+                case NO_UPDATE_AVAILABLE -> {
+                    updateButton.setText(localeText.get(UpdateMessage.CHECK_FOR_NEW_UPDATES));
+                    updateIcon.setText(Icon.REFRESH_UNICODE);
+                    newVersionLabel.setText(null);
+                    updateAnimation.stop();
+                }
+                case ERROR -> {
+                    updateButton.setText(localeText.get(UpdateMessage.NO_UPDATE_AVAILABLE));
+                    updateIcon.setText(Icon.TIMES_UNICODE);
+                    newVersionLabel.setText(null);
+                    updateAnimation.stop();
+                }
+            }
+        });
     }
 
     private void onPlayersChanged(List<ComponentInfo> players) {

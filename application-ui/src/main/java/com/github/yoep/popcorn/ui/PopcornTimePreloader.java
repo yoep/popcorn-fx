@@ -3,6 +3,7 @@ package com.github.yoep.popcorn.ui;
 import com.github.yoep.popcorn.backend.lib.FxChannel;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationArgs;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationArgsRequest;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationArgsResponse;
 import javafx.application.ConditionalFeature;
 import javafx.application.Platform;
 import javafx.application.Preloader;
@@ -101,7 +102,8 @@ public class PopcornTimePreloader extends Preloader {
         ApplicationArgs applicationsArgs;
 
         try {
-            applicationsArgs = fxChannel.send(ApplicationArgsRequest.getDefaultInstance(), ApplicationArgs.parser())
+            applicationsArgs = fxChannel.send(ApplicationArgsRequest.getDefaultInstance(), ApplicationArgsResponse.parser())
+                    .thenApply(ApplicationArgsResponse::getArgs)
                     .get();
         } catch (ExecutionException | InterruptedException e) {
             log.error(e.getMessage(), e);

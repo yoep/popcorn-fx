@@ -3,7 +3,8 @@ use crate::ipc::{
     ApplicationMessageHandler, EventMessageHandler, FavoritesMessageHandler, ImagesMessageHandler,
     IpcChannel, IpcChannelProcessor, LoaderMessageHandler, LogMessageHandler, MediaMessageHandler,
     MessageHandler, PlayerMessageHandler, PlaylistMessageHandler, SettingsMessageHandler,
-    SubtitleMessageHandler, TorrentMessageHandler, WatchedMessageHandler,
+    SubtitleMessageHandler, TorrentMessageHandler, TrackingMessageHandler, UpdateMessageHandler,
+    WatchedMessageHandler,
 };
 use clap::{CommandFactory, Error, FromArgMatches};
 use interprocess::local_socket;
@@ -14,7 +15,7 @@ use interprocess::local_socket::{
 };
 use log::info;
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use std::{env, io};
 use tokio::select;
 
@@ -59,21 +60,48 @@ async fn start(conn: local_socket::tokio::Stream, args: PopcornFxArgs) -> io::Re
         time_taken.subsec_millis()
     );
 
-    let channel = IpcChannel::new(conn);
+    let channel = IpcChannel::new(conn, Duration::from_secs(3));
     let handlers: Vec<Box<dyn MessageHandler>> = vec![
         Box::new(ApplicationMessageHandler::new(popcorn_fx.clone())),
-        Box::new(EventMessageHandler::new(popcorn_fx.clone(), &channel)),
-        Box::new(FavoritesMessageHandler::new(popcorn_fx.clone(), &channel)),
+        Box::new(EventMessageHandler::new(
+            popcorn_fx.clone(),
+            channel.clone(),
+        )),
+        Box::new(FavoritesMessageHandler::new(
+            popcorn_fx.clone(),
+            channel.clone(),
+        )),
         Box::new(ImagesMessageHandler::new(popcorn_fx.clone())),
-        Box::new(LoaderMessageHandler::new(popcorn_fx.clone())),
+        Box::new(LoaderMessageHandler::new(
+            popcorn_fx.clone(),
+            channel.clone(),
+        )),
         Box::new(LogMessageHandler::new()),
         Box::new(MediaMessageHandler::new(popcorn_fx.clone())),
-        Box::new(PlayerMessageHandler::new(popcorn_fx.clone(), &channel)),
-        Box::new(PlaylistMessageHandler::new(popcorn_fx.clone())),
+        Box::new(PlayerMessageHandler::new(
+            popcorn_fx.clone(),
+            channel.clone(),
+        )),
+        Box::new(PlaylistMessageHandler::new(
+            popcorn_fx.clone(),
+            channel.clone(),
+        )),
         Box::new(SettingsMessageHandler::new(popcorn_fx.clone())),
         Box::new(SubtitleMessageHandler::new(popcorn_fx.clone())),
         Box::new(SubtitleMessageHandler::new(popcorn_fx.clone())),
-        Box::new(TorrentMessageHandler::new(popcorn_fx.clone())),
+        Box::new(TorrentMessageHandler::new(
+            popcorn_fx.clone(),
+            channel.clone(),
+        )),
+        Box::new(TrackingMessageHandler::new(popcorn_fx.clone())),
+        Box::new(UpdateMessageHandler::new(
+            popcorn_fx.clone(),
+            channel.clone(),
+        )),
+        Box::new(WatchedMessageHandler::new(
+            popcorn_fx.clone(),
+            channel.clone(),
+        )),
     ];
     let processor = IpcChannelProcessor::new(channel, handlers);
 

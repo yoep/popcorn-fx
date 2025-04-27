@@ -60,7 +60,6 @@ pub enum LoadingResult {
 /// An enum representing the result of a cancellation operation on loading data.
 pub type CancellationResult = std::result::Result<LoadingData, LoadingError>;
 
-#[repr(u32)]
 #[derive(Debug, Copy, Clone, Display, PartialOrd, PartialEq)]
 pub enum LoadingState {
     #[display(fmt = "Loader is initializing")]

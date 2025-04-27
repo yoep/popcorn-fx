@@ -1,33 +1,28 @@
 package com.github.yoep.popcorn.backend.media.watched;
 
 import com.github.yoep.popcorn.backend.lib.FxChannel;
-import com.github.yoep.popcorn.backend.lib.ipc.protobuf.GetIsWatchedRequest;
-import com.github.yoep.popcorn.backend.lib.ipc.protobuf.GetIsWatchedResponse;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.*;
 import com.github.yoep.popcorn.backend.media.Media;
 import com.github.yoep.popcorn.backend.media.MediaHelper;
 import com.github.yoep.popcorn.backend.media.watched.models.Watchable;
+import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentLinkedDeque;
 
 /**
  * The watched service maintains all the watched {@link Media} items of the application.
  * This is done through the {@link Watchable} items that are received from events and marking them as watched.
  */
 @Slf4j
-public class WatchedService {
+public class WatchedService extends AbstractListenerService<WatchedEventListener> {
     private final FxChannel fxChannel;
-
-    private final ConcurrentLinkedDeque<WatchedEventCallback> listeners = new ConcurrentLinkedDeque<>();
 
     public WatchedService(FxChannel fxChannel) {
         this.fxChannel = fxChannel;
         init();
     }
-
-    //region Methods
 
     /**
      * Check if the given watchable has been watched already.
@@ -52,7 +47,17 @@ public class WatchedService {
      */
     public void addToWatchList(Media watchable) {
         Objects.requireNonNull(watchable, "watchable cannot be null");
-        // TODO
+        fxChannel.send(AddToWatchlistRequest.newBuilder()
+                .setItem(MediaHelper.getItem(watchable))
+                .build(), AddToWatchlistResponse.parser()).whenComplete((result, throwable) -> {
+            if (throwable == null) {
+                if (result.getResult() == Response.Result.ERROR) {
+                    log.error("Failed to add media to watchlist, {}", result.getError());
+                }
+            } else {
+                log.error("Failed to add media to watchlist", throwable);
+            }
+        });
     }
 
     /**
@@ -62,34 +67,19 @@ public class WatchedService {
      */
     public void removeFromWatchList(Media watchable) {
         Objects.requireNonNull(watchable, "watchable cannot be null");
-        // TODO
+        fxChannel.send(RemoveFromWatchlistRequest.newBuilder()
+                .setItem(MediaHelper.getItem(watchable))
+                .build());
     }
 
-    public void registerListener(WatchedEventCallback callback) {
-        Objects.requireNonNull(callback, "callback cannot be null");
-        listeners.add(callback);
-    }
-
-    public void removeListener(WatchedEventCallback callback) {
-        listeners.remove(callback);
-    }
-
-    //endregion
     private void init() {
-        // TODO callback
+        fxChannel.subscribe(FxChannel.typeFrom(WatchedEvent.class), WatchedEvent.parser(), this::onWatchedEvent);
     }
 
-    private WatchedEventCallback createCallback() {
-        return event -> {
-            log.debug("Received watched event callback {}", event);
-
-            try {
-                for (var listener : listeners) {
-                    listener.callback(event);
-                }
-            } catch (Exception ex) {
-                log.error("Failed to invoke watched callback, {}", ex.getMessage(), ex);
-            }
-        };
+    private void onWatchedEvent(WatchedEvent event) {
+        switch (event.getEvent()) {
+            case STATE_CHANGED -> invokeListeners(listener ->
+                    listener.onWatchedStateChanged(event.getWatchedStateChanged()));
+        }
     }
 }

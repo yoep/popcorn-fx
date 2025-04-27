@@ -5,26 +5,22 @@ use crate::ipc::proto::events;
 use crate::ipc::proto::message::FxMessage;
 use crate::ipc::Error;
 use async_trait::async_trait;
-use derive_more::Display;
 use log::error;
 use popcorn_fx_core::core::event::{Event, LOWEST_ORDER};
 use protobuf::Message;
 use std::sync::Arc;
 
-#[derive(Debug, Display)]
-#[display(fmt = "Event message handler")]
+#[derive(Debug)]
 pub struct EventMessageHandler {
     instance: Arc<PopcornFX>,
 }
 
 impl EventMessageHandler {
-    pub fn new(instance: Arc<PopcornFX>, channel: &IpcChannel) -> Self {
+    pub fn new(instance: Arc<PopcornFX>, channel: IpcChannel) -> Self {
         let mut receiver = instance
             .event_publisher()
             .subscribe(LOWEST_ORDER)
             .expect("expected a subscription");
-
-        let channel = channel.clone();
         tokio::spawn(async move {
             while let Some(mut handler) = receiver.recv().await {
                 if let Some(event) = handler.take() {
@@ -44,6 +40,10 @@ impl EventMessageHandler {
 
 #[async_trait]
 impl MessageHandler for EventMessageHandler {
+    fn name(&self) -> &str {
+        "event"
+    }
+
     fn is_supported(&self, message_type: &str) -> bool {
         message_type == events::Event::NAME
     }
@@ -64,5 +64,80 @@ impl MessageHandler for EventMessageHandler {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::ipc::proto::player::player;
+    use crate::ipc::test::create_channel_pair;
+    use crate::tests::default_args;
+    use crate::try_recv;
+
+    use popcorn_fx_core::core::event::HIGHEST_ORDER;
+    use popcorn_fx_core::core::playback::PlaybackState;
+    use popcorn_fx_core::init_logger;
+    use protobuf::MessageField;
+    use std::time::Duration;
+    use tempfile::tempdir;
+    use tokio::sync::mpsc::unbounded_channel;
+
+    #[tokio::test]
+    async fn test_process_event() {
+        init_logger!();
+        let (tx, mut rx) = unbounded_channel();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = PopcornFX::new(default_args(temp_path)).await.unwrap();
+        let (incoming, outgoing) = create_channel_pair().await;
+        let handle = EventMessageHandler::new(Arc::new(instance), outgoing.clone());
+
+        // listen to events published by the event publisher
+        let mut receiver = handle
+            .instance
+            .event_publisher()
+            .subscribe(HIGHEST_ORDER)
+            .unwrap();
+        tokio::spawn(async move {
+            while let Some(mut event_handler) = receiver.recv().await {
+                if let Some(event) = event_handler.take() {
+                    tx.send(event).unwrap();
+                }
+            }
+        });
+
+        // process the close player event
+        incoming
+            .send(
+                events::Event {
+                    type_: events::event::EventType::PLAYBACK_STATE_CHANGED.into(),
+                    playback_state_changed: MessageField::some(
+                        events::event::PlaybackStateChanged {
+                            new_state: player::State::PLAYING.into(),
+                            special_fields: Default::default(),
+                        },
+                    ),
+                    torrent_details_loaded: Default::default(),
+                    special_fields: Default::default(),
+                },
+                events::Event::NAME,
+            )
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handle.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been processed"
+        );
+
+        let event = try_recv!(rx.recv(), Duration::from_millis(250))
+            .expect("expected to have received an event");
+        assert_eq!(Event::PlaybackStateChanged(PlaybackState::PLAYING), event);
     }
 }

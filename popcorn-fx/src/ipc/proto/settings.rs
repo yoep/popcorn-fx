@@ -1349,6 +1349,9 @@ pub mod application_settings {
     // @@protoc_insertion_point(message:fx.ipc.proto.ApplicationSettings.TrackingSettings)
     #[derive(PartialEq,Clone,Default,Debug)]
     pub struct TrackingSettings {
+        // message fields
+        // @@protoc_insertion_point(field:fx.ipc.proto.ApplicationSettings.TrackingSettings.last_sync)
+        pub last_sync: ::protobuf::MessageField<tracking_settings::LastSync>,
         // special fields
         // @@protoc_insertion_point(special_field:fx.ipc.proto.ApplicationSettings.TrackingSettings.special_fields)
         pub special_fields: ::protobuf::SpecialFields,
@@ -1376,6 +1379,9 @@ pub mod application_settings {
         fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
             while let Some(tag) = is.read_raw_tag_or_eof()? {
                 match tag {
+                    10 => {
+                        ::protobuf::rt::read_singular_message_into_field(is, &mut self.last_sync)?;
+                    },
                     tag => {
                         ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
                     },
@@ -1388,12 +1394,19 @@ pub mod application_settings {
         #[allow(unused_variables)]
         fn compute_size(&self) -> u64 {
             let mut my_size = 0;
+            if let Some(v) = self.last_sync.as_ref() {
+                let len = v.compute_size();
+                my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+            }
             my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
             self.special_fields.cached_size().set(my_size as u32);
             my_size
         }
 
         fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+            if let Some(v) = self.last_sync.as_ref() {
+                ::protobuf::rt::write_message_field_with_cached_size(1, v, os)?;
+            }
             os.write_unknown_fields(self.special_fields.unknown_fields())?;
             ::std::result::Result::Ok(())
         }
@@ -1411,14 +1424,170 @@ pub mod application_settings {
         }
 
         fn clear(&mut self) {
+            self.last_sync.clear();
             self.special_fields.clear();
         }
 
         fn default_instance() -> &'static TrackingSettings {
             static instance: TrackingSettings = TrackingSettings {
+                last_sync: ::protobuf::MessageField::none(),
                 special_fields: ::protobuf::SpecialFields::new(),
             };
             &instance
+        }
+    }
+
+    /// Nested message and enums of message `TrackingSettings`
+    pub mod tracking_settings {
+        // @@protoc_insertion_point(message:fx.ipc.proto.ApplicationSettings.TrackingSettings.LastSync)
+        #[derive(PartialEq,Clone,Default,Debug)]
+        pub struct LastSync {
+            // message fields
+            // @@protoc_insertion_point(field:fx.ipc.proto.ApplicationSettings.TrackingSettings.LastSync.last_synced_millis)
+            pub last_synced_millis: u64,
+            // @@protoc_insertion_point(field:fx.ipc.proto.ApplicationSettings.TrackingSettings.LastSync.state)
+            pub state: ::protobuf::EnumOrUnknown<last_sync::State>,
+            // special fields
+            // @@protoc_insertion_point(special_field:fx.ipc.proto.ApplicationSettings.TrackingSettings.LastSync.special_fields)
+            pub special_fields: ::protobuf::SpecialFields,
+        }
+
+        impl<'a> ::std::default::Default for &'a LastSync {
+            fn default() -> &'a LastSync {
+                <LastSync as ::protobuf::Message>::default_instance()
+            }
+        }
+
+        impl LastSync {
+            pub fn new() -> LastSync {
+                ::std::default::Default::default()
+            }
+        }
+
+        impl ::protobuf::Message for LastSync {
+            const NAME: &'static str = "LastSync";
+
+            fn is_initialized(&self) -> bool {
+                true
+            }
+
+            fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+                while let Some(tag) = is.read_raw_tag_or_eof()? {
+                    match tag {
+                        8 => {
+                            self.last_synced_millis = is.read_uint64()?;
+                        },
+                        16 => {
+                            self.state = is.read_enum_or_unknown()?;
+                        },
+                        tag => {
+                            ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                        },
+                    };
+                }
+                ::std::result::Result::Ok(())
+            }
+
+            // Compute sizes of nested messages
+            #[allow(unused_variables)]
+            fn compute_size(&self) -> u64 {
+                let mut my_size = 0;
+                if self.last_synced_millis != 0 {
+                    my_size += ::protobuf::rt::uint64_size(1, self.last_synced_millis);
+                }
+                if self.state != ::protobuf::EnumOrUnknown::new(last_sync::State::SUCCESS) {
+                    my_size += ::protobuf::rt::int32_size(2, self.state.value());
+                }
+                my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+                self.special_fields.cached_size().set(my_size as u32);
+                my_size
+            }
+
+            fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+                if self.last_synced_millis != 0 {
+                    os.write_uint64(1, self.last_synced_millis)?;
+                }
+                if self.state != ::protobuf::EnumOrUnknown::new(last_sync::State::SUCCESS) {
+                    os.write_enum(2, ::protobuf::EnumOrUnknown::value(&self.state))?;
+                }
+                os.write_unknown_fields(self.special_fields.unknown_fields())?;
+                ::std::result::Result::Ok(())
+            }
+
+            fn special_fields(&self) -> &::protobuf::SpecialFields {
+                &self.special_fields
+            }
+
+            fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+                &mut self.special_fields
+            }
+
+            fn new() -> LastSync {
+                LastSync::new()
+            }
+
+            fn clear(&mut self) {
+                self.last_synced_millis = 0;
+                self.state = ::protobuf::EnumOrUnknown::new(last_sync::State::SUCCESS);
+                self.special_fields.clear();
+            }
+
+            fn default_instance() -> &'static LastSync {
+                static instance: LastSync = LastSync {
+                    last_synced_millis: 0,
+                    state: ::protobuf::EnumOrUnknown::from_i32(0),
+                    special_fields: ::protobuf::SpecialFields::new(),
+                };
+                &instance
+            }
+        }
+
+        /// Nested message and enums of message `LastSync`
+        pub mod last_sync {
+            #[derive(Clone,Copy,PartialEq,Eq,Debug,Hash)]
+            // @@protoc_insertion_point(enum:fx.ipc.proto.ApplicationSettings.TrackingSettings.LastSync.State)
+            pub enum State {
+                // @@protoc_insertion_point(enum_value:fx.ipc.proto.ApplicationSettings.TrackingSettings.LastSync.State.SUCCESS)
+                SUCCESS = 0,
+                // @@protoc_insertion_point(enum_value:fx.ipc.proto.ApplicationSettings.TrackingSettings.LastSync.State.FAILED)
+                FAILED = 1,
+            }
+
+            impl ::protobuf::Enum for State {
+                const NAME: &'static str = "State";
+
+                fn value(&self) -> i32 {
+                    *self as i32
+                }
+
+                fn from_i32(value: i32) -> ::std::option::Option<State> {
+                    match value {
+                        0 => ::std::option::Option::Some(State::SUCCESS),
+                        1 => ::std::option::Option::Some(State::FAILED),
+                        _ => ::std::option::Option::None
+                    }
+                }
+
+                fn from_str(str: &str) -> ::std::option::Option<State> {
+                    match str {
+                        "SUCCESS" => ::std::option::Option::Some(State::SUCCESS),
+                        "FAILED" => ::std::option::Option::Some(State::FAILED),
+                        _ => ::std::option::Option::None
+                    }
+                }
+
+                const VALUES: &'static [State] = &[
+                    State::SUCCESS,
+                    State::FAILED,
+                ];
+            }
+
+            impl ::std::default::Default for State {
+                fn default() -> Self {
+                    State::SUCCESS
+                }
+            }
+
         }
     }
 }

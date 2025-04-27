@@ -1092,6 +1092,474 @@ pub mod subtitle {
         }
     }
 
+    // @@protoc_insertion_point(message:fx.ipc.proto.Subtitle.Error)
+    #[derive(PartialEq,Clone,Default,Debug)]
+    pub struct Error {
+        // message fields
+        // @@protoc_insertion_point(field:fx.ipc.proto.Subtitle.Error.type)
+        pub type_: ::protobuf::EnumOrUnknown<error::Type>,
+        // @@protoc_insertion_point(field:fx.ipc.proto.Subtitle.Error.invalid_url)
+        pub invalid_url: ::protobuf::MessageField<error::InvalidUrl>,
+        // @@protoc_insertion_point(field:fx.ipc.proto.Subtitle.Error.search_failed)
+        pub search_failed: ::protobuf::MessageField<error::SearchFailed>,
+        // @@protoc_insertion_point(field:fx.ipc.proto.Subtitle.Error.download_failed)
+        pub download_failed: ::protobuf::MessageField<error::DownloadFailed>,
+        // special fields
+        // @@protoc_insertion_point(special_field:fx.ipc.proto.Subtitle.Error.special_fields)
+        pub special_fields: ::protobuf::SpecialFields,
+    }
+
+    impl<'a> ::std::default::Default for &'a Error {
+        fn default() -> &'a Error {
+            <Error as ::protobuf::Message>::default_instance()
+        }
+    }
+
+    impl Error {
+        pub fn new() -> Error {
+            ::std::default::Default::default()
+        }
+    }
+
+    impl ::protobuf::Message for Error {
+        const NAME: &'static str = "Error";
+
+        fn is_initialized(&self) -> bool {
+            true
+        }
+
+        fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+            while let Some(tag) = is.read_raw_tag_or_eof()? {
+                match tag {
+                    8 => {
+                        self.type_ = is.read_enum_or_unknown()?;
+                    },
+                    18 => {
+                        ::protobuf::rt::read_singular_message_into_field(is, &mut self.invalid_url)?;
+                    },
+                    26 => {
+                        ::protobuf::rt::read_singular_message_into_field(is, &mut self.search_failed)?;
+                    },
+                    34 => {
+                        ::protobuf::rt::read_singular_message_into_field(is, &mut self.download_failed)?;
+                    },
+                    tag => {
+                        ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                    },
+                };
+            }
+            ::std::result::Result::Ok(())
+        }
+
+        // Compute sizes of nested messages
+        #[allow(unused_variables)]
+        fn compute_size(&self) -> u64 {
+            let mut my_size = 0;
+            if self.type_ != ::protobuf::EnumOrUnknown::new(error::Type::INVALID_URL) {
+                my_size += ::protobuf::rt::int32_size(1, self.type_.value());
+            }
+            if let Some(v) = self.invalid_url.as_ref() {
+                let len = v.compute_size();
+                my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+            }
+            if let Some(v) = self.search_failed.as_ref() {
+                let len = v.compute_size();
+                my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+            }
+            if let Some(v) = self.download_failed.as_ref() {
+                let len = v.compute_size();
+                my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+            }
+            my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+            self.special_fields.cached_size().set(my_size as u32);
+            my_size
+        }
+
+        fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+            if self.type_ != ::protobuf::EnumOrUnknown::new(error::Type::INVALID_URL) {
+                os.write_enum(1, ::protobuf::EnumOrUnknown::value(&self.type_))?;
+            }
+            if let Some(v) = self.invalid_url.as_ref() {
+                ::protobuf::rt::write_message_field_with_cached_size(2, v, os)?;
+            }
+            if let Some(v) = self.search_failed.as_ref() {
+                ::protobuf::rt::write_message_field_with_cached_size(3, v, os)?;
+            }
+            if let Some(v) = self.download_failed.as_ref() {
+                ::protobuf::rt::write_message_field_with_cached_size(4, v, os)?;
+            }
+            os.write_unknown_fields(self.special_fields.unknown_fields())?;
+            ::std::result::Result::Ok(())
+        }
+
+        fn special_fields(&self) -> &::protobuf::SpecialFields {
+            &self.special_fields
+        }
+
+        fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+            &mut self.special_fields
+        }
+
+        fn new() -> Error {
+            Error::new()
+        }
+
+        fn clear(&mut self) {
+            self.type_ = ::protobuf::EnumOrUnknown::new(error::Type::INVALID_URL);
+            self.invalid_url.clear();
+            self.search_failed.clear();
+            self.download_failed.clear();
+            self.special_fields.clear();
+        }
+
+        fn default_instance() -> &'static Error {
+            static instance: Error = Error {
+                type_: ::protobuf::EnumOrUnknown::from_i32(0),
+                invalid_url: ::protobuf::MessageField::none(),
+                search_failed: ::protobuf::MessageField::none(),
+                download_failed: ::protobuf::MessageField::none(),
+                special_fields: ::protobuf::SpecialFields::new(),
+            };
+            &instance
+        }
+    }
+
+    /// Nested message and enums of message `Error`
+    pub mod error {
+        // @@protoc_insertion_point(message:fx.ipc.proto.Subtitle.Error.InvalidUrl)
+        #[derive(PartialEq,Clone,Default,Debug)]
+        pub struct InvalidUrl {
+            // message fields
+            // @@protoc_insertion_point(field:fx.ipc.proto.Subtitle.Error.InvalidUrl.url)
+            pub url: ::std::string::String,
+            // special fields
+            // @@protoc_insertion_point(special_field:fx.ipc.proto.Subtitle.Error.InvalidUrl.special_fields)
+            pub special_fields: ::protobuf::SpecialFields,
+        }
+
+        impl<'a> ::std::default::Default for &'a InvalidUrl {
+            fn default() -> &'a InvalidUrl {
+                <InvalidUrl as ::protobuf::Message>::default_instance()
+            }
+        }
+
+        impl InvalidUrl {
+            pub fn new() -> InvalidUrl {
+                ::std::default::Default::default()
+            }
+        }
+
+        impl ::protobuf::Message for InvalidUrl {
+            const NAME: &'static str = "InvalidUrl";
+
+            fn is_initialized(&self) -> bool {
+                true
+            }
+
+            fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+                while let Some(tag) = is.read_raw_tag_or_eof()? {
+                    match tag {
+                        10 => {
+                            self.url = is.read_string()?;
+                        },
+                        tag => {
+                            ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                        },
+                    };
+                }
+                ::std::result::Result::Ok(())
+            }
+
+            // Compute sizes of nested messages
+            #[allow(unused_variables)]
+            fn compute_size(&self) -> u64 {
+                let mut my_size = 0;
+                if !self.url.is_empty() {
+                    my_size += ::protobuf::rt::string_size(1, &self.url);
+                }
+                my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+                self.special_fields.cached_size().set(my_size as u32);
+                my_size
+            }
+
+            fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+                if !self.url.is_empty() {
+                    os.write_string(1, &self.url)?;
+                }
+                os.write_unknown_fields(self.special_fields.unknown_fields())?;
+                ::std::result::Result::Ok(())
+            }
+
+            fn special_fields(&self) -> &::protobuf::SpecialFields {
+                &self.special_fields
+            }
+
+            fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+                &mut self.special_fields
+            }
+
+            fn new() -> InvalidUrl {
+                InvalidUrl::new()
+            }
+
+            fn clear(&mut self) {
+                self.url.clear();
+                self.special_fields.clear();
+            }
+
+            fn default_instance() -> &'static InvalidUrl {
+                static instance: InvalidUrl = InvalidUrl {
+                    url: ::std::string::String::new(),
+                    special_fields: ::protobuf::SpecialFields::new(),
+                };
+                &instance
+            }
+        }
+
+        // @@protoc_insertion_point(message:fx.ipc.proto.Subtitle.Error.SearchFailed)
+        #[derive(PartialEq,Clone,Default,Debug)]
+        pub struct SearchFailed {
+            // message fields
+            // @@protoc_insertion_point(field:fx.ipc.proto.Subtitle.Error.SearchFailed.reason)
+            pub reason: ::std::string::String,
+            // special fields
+            // @@protoc_insertion_point(special_field:fx.ipc.proto.Subtitle.Error.SearchFailed.special_fields)
+            pub special_fields: ::protobuf::SpecialFields,
+        }
+
+        impl<'a> ::std::default::Default for &'a SearchFailed {
+            fn default() -> &'a SearchFailed {
+                <SearchFailed as ::protobuf::Message>::default_instance()
+            }
+        }
+
+        impl SearchFailed {
+            pub fn new() -> SearchFailed {
+                ::std::default::Default::default()
+            }
+        }
+
+        impl ::protobuf::Message for SearchFailed {
+            const NAME: &'static str = "SearchFailed";
+
+            fn is_initialized(&self) -> bool {
+                true
+            }
+
+            fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+                while let Some(tag) = is.read_raw_tag_or_eof()? {
+                    match tag {
+                        10 => {
+                            self.reason = is.read_string()?;
+                        },
+                        tag => {
+                            ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                        },
+                    };
+                }
+                ::std::result::Result::Ok(())
+            }
+
+            // Compute sizes of nested messages
+            #[allow(unused_variables)]
+            fn compute_size(&self) -> u64 {
+                let mut my_size = 0;
+                if !self.reason.is_empty() {
+                    my_size += ::protobuf::rt::string_size(1, &self.reason);
+                }
+                my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+                self.special_fields.cached_size().set(my_size as u32);
+                my_size
+            }
+
+            fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+                if !self.reason.is_empty() {
+                    os.write_string(1, &self.reason)?;
+                }
+                os.write_unknown_fields(self.special_fields.unknown_fields())?;
+                ::std::result::Result::Ok(())
+            }
+
+            fn special_fields(&self) -> &::protobuf::SpecialFields {
+                &self.special_fields
+            }
+
+            fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+                &mut self.special_fields
+            }
+
+            fn new() -> SearchFailed {
+                SearchFailed::new()
+            }
+
+            fn clear(&mut self) {
+                self.reason.clear();
+                self.special_fields.clear();
+            }
+
+            fn default_instance() -> &'static SearchFailed {
+                static instance: SearchFailed = SearchFailed {
+                    reason: ::std::string::String::new(),
+                    special_fields: ::protobuf::SpecialFields::new(),
+                };
+                &instance
+            }
+        }
+
+        // @@protoc_insertion_point(message:fx.ipc.proto.Subtitle.Error.DownloadFailed)
+        #[derive(PartialEq,Clone,Default,Debug)]
+        pub struct DownloadFailed {
+            // message fields
+            // @@protoc_insertion_point(field:fx.ipc.proto.Subtitle.Error.DownloadFailed.filename)
+            pub filename: ::std::string::String,
+            // @@protoc_insertion_point(field:fx.ipc.proto.Subtitle.Error.DownloadFailed.reason)
+            pub reason: ::std::string::String,
+            // special fields
+            // @@protoc_insertion_point(special_field:fx.ipc.proto.Subtitle.Error.DownloadFailed.special_fields)
+            pub special_fields: ::protobuf::SpecialFields,
+        }
+
+        impl<'a> ::std::default::Default for &'a DownloadFailed {
+            fn default() -> &'a DownloadFailed {
+                <DownloadFailed as ::protobuf::Message>::default_instance()
+            }
+        }
+
+        impl DownloadFailed {
+            pub fn new() -> DownloadFailed {
+                ::std::default::Default::default()
+            }
+        }
+
+        impl ::protobuf::Message for DownloadFailed {
+            const NAME: &'static str = "DownloadFailed";
+
+            fn is_initialized(&self) -> bool {
+                true
+            }
+
+            fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+                while let Some(tag) = is.read_raw_tag_or_eof()? {
+                    match tag {
+                        10 => {
+                            self.filename = is.read_string()?;
+                        },
+                        18 => {
+                            self.reason = is.read_string()?;
+                        },
+                        tag => {
+                            ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                        },
+                    };
+                }
+                ::std::result::Result::Ok(())
+            }
+
+            // Compute sizes of nested messages
+            #[allow(unused_variables)]
+            fn compute_size(&self) -> u64 {
+                let mut my_size = 0;
+                if !self.filename.is_empty() {
+                    my_size += ::protobuf::rt::string_size(1, &self.filename);
+                }
+                if !self.reason.is_empty() {
+                    my_size += ::protobuf::rt::string_size(2, &self.reason);
+                }
+                my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+                self.special_fields.cached_size().set(my_size as u32);
+                my_size
+            }
+
+            fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+                if !self.filename.is_empty() {
+                    os.write_string(1, &self.filename)?;
+                }
+                if !self.reason.is_empty() {
+                    os.write_string(2, &self.reason)?;
+                }
+                os.write_unknown_fields(self.special_fields.unknown_fields())?;
+                ::std::result::Result::Ok(())
+            }
+
+            fn special_fields(&self) -> &::protobuf::SpecialFields {
+                &self.special_fields
+            }
+
+            fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+                &mut self.special_fields
+            }
+
+            fn new() -> DownloadFailed {
+                DownloadFailed::new()
+            }
+
+            fn clear(&mut self) {
+                self.filename.clear();
+                self.reason.clear();
+                self.special_fields.clear();
+            }
+
+            fn default_instance() -> &'static DownloadFailed {
+                static instance: DownloadFailed = DownloadFailed {
+                    filename: ::std::string::String::new(),
+                    reason: ::std::string::String::new(),
+                    special_fields: ::protobuf::SpecialFields::new(),
+                };
+                &instance
+            }
+        }
+
+        #[derive(Clone,Copy,PartialEq,Eq,Debug,Hash)]
+        // @@protoc_insertion_point(enum:fx.ipc.proto.Subtitle.Error.Type)
+        pub enum Type {
+            // @@protoc_insertion_point(enum_value:fx.ipc.proto.Subtitle.Error.Type.INVALID_URL)
+            INVALID_URL = 0,
+            // @@protoc_insertion_point(enum_value:fx.ipc.proto.Subtitle.Error.Type.SEARCH_FAILED)
+            SEARCH_FAILED = 1,
+            // @@protoc_insertion_point(enum_value:fx.ipc.proto.Subtitle.Error.Type.DOWNLOAD_FAILED)
+            DOWNLOAD_FAILED = 2,
+        }
+
+        impl ::protobuf::Enum for Type {
+            const NAME: &'static str = "Type";
+
+            fn value(&self) -> i32 {
+                *self as i32
+            }
+
+            fn from_i32(value: i32) -> ::std::option::Option<Type> {
+                match value {
+                    0 => ::std::option::Option::Some(Type::INVALID_URL),
+                    1 => ::std::option::Option::Some(Type::SEARCH_FAILED),
+                    2 => ::std::option::Option::Some(Type::DOWNLOAD_FAILED),
+                    _ => ::std::option::Option::None
+                }
+            }
+
+            fn from_str(str: &str) -> ::std::option::Option<Type> {
+                match str {
+                    "INVALID_URL" => ::std::option::Option::Some(Type::INVALID_URL),
+                    "SEARCH_FAILED" => ::std::option::Option::Some(Type::SEARCH_FAILED),
+                    "DOWNLOAD_FAILED" => ::std::option::Option::Some(Type::DOWNLOAD_FAILED),
+                    _ => ::std::option::Option::None
+                }
+            }
+
+            const VALUES: &'static [Type] = &[
+                Type::INVALID_URL,
+                Type::SEARCH_FAILED,
+                Type::DOWNLOAD_FAILED,
+            ];
+        }
+
+        impl ::std::default::Default for Type {
+            fn default() -> Self {
+                Type::INVALID_URL
+            }
+        }
+
+    }
+
     #[derive(Clone,Copy,PartialEq,Eq,Debug,Hash)]
     // @@protoc_insertion_point(enum:fx.ipc.proto.Subtitle.Language)
     pub enum Language {
@@ -1713,107 +2181,31 @@ impl ::protobuf::Message for GetSubtitlePreferenceResponse {
     }
 }
 
-// @@protoc_insertion_point(message:fx.ipc.proto.GetSubtitleNoneRequest)
+// @@protoc_insertion_point(message:fx.ipc.proto.UpdateSubtitlePreferenceRequest)
 #[derive(PartialEq,Clone,Default,Debug)]
-pub struct GetSubtitleNoneRequest {
-    // special fields
-    // @@protoc_insertion_point(special_field:fx.ipc.proto.GetSubtitleNoneRequest.special_fields)
-    pub special_fields: ::protobuf::SpecialFields,
-}
-
-impl<'a> ::std::default::Default for &'a GetSubtitleNoneRequest {
-    fn default() -> &'a GetSubtitleNoneRequest {
-        <GetSubtitleNoneRequest as ::protobuf::Message>::default_instance()
-    }
-}
-
-impl GetSubtitleNoneRequest {
-    pub fn new() -> GetSubtitleNoneRequest {
-        ::std::default::Default::default()
-    }
-}
-
-impl ::protobuf::Message for GetSubtitleNoneRequest {
-    const NAME: &'static str = "GetSubtitleNoneRequest";
-
-    fn is_initialized(&self) -> bool {
-        true
-    }
-
-    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
-        while let Some(tag) = is.read_raw_tag_or_eof()? {
-            match tag {
-                tag => {
-                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
-                },
-            };
-        }
-        ::std::result::Result::Ok(())
-    }
-
-    // Compute sizes of nested messages
-    #[allow(unused_variables)]
-    fn compute_size(&self) -> u64 {
-        let mut my_size = 0;
-        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
-        self.special_fields.cached_size().set(my_size as u32);
-        my_size
-    }
-
-    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
-        os.write_unknown_fields(self.special_fields.unknown_fields())?;
-        ::std::result::Result::Ok(())
-    }
-
-    fn special_fields(&self) -> &::protobuf::SpecialFields {
-        &self.special_fields
-    }
-
-    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
-        &mut self.special_fields
-    }
-
-    fn new() -> GetSubtitleNoneRequest {
-        GetSubtitleNoneRequest::new()
-    }
-
-    fn clear(&mut self) {
-        self.special_fields.clear();
-    }
-
-    fn default_instance() -> &'static GetSubtitleNoneRequest {
-        static instance: GetSubtitleNoneRequest = GetSubtitleNoneRequest {
-            special_fields: ::protobuf::SpecialFields::new(),
-        };
-        &instance
-    }
-}
-
-// @@protoc_insertion_point(message:fx.ipc.proto.GetSubtitleNoneResponse)
-#[derive(PartialEq,Clone,Default,Debug)]
-pub struct GetSubtitleNoneResponse {
+pub struct UpdateSubtitlePreferenceRequest {
     // message fields
-    // @@protoc_insertion_point(field:fx.ipc.proto.GetSubtitleNoneResponse.info)
-    pub info: ::protobuf::MessageField<subtitle::Info>,
+    // @@protoc_insertion_point(field:fx.ipc.proto.UpdateSubtitlePreferenceRequest.preference)
+    pub preference: ::protobuf::MessageField<SubtitlePreference>,
     // special fields
-    // @@protoc_insertion_point(special_field:fx.ipc.proto.GetSubtitleNoneResponse.special_fields)
+    // @@protoc_insertion_point(special_field:fx.ipc.proto.UpdateSubtitlePreferenceRequest.special_fields)
     pub special_fields: ::protobuf::SpecialFields,
 }
 
-impl<'a> ::std::default::Default for &'a GetSubtitleNoneResponse {
-    fn default() -> &'a GetSubtitleNoneResponse {
-        <GetSubtitleNoneResponse as ::protobuf::Message>::default_instance()
+impl<'a> ::std::default::Default for &'a UpdateSubtitlePreferenceRequest {
+    fn default() -> &'a UpdateSubtitlePreferenceRequest {
+        <UpdateSubtitlePreferenceRequest as ::protobuf::Message>::default_instance()
     }
 }
 
-impl GetSubtitleNoneResponse {
-    pub fn new() -> GetSubtitleNoneResponse {
+impl UpdateSubtitlePreferenceRequest {
+    pub fn new() -> UpdateSubtitlePreferenceRequest {
         ::std::default::Default::default()
     }
 }
 
-impl ::protobuf::Message for GetSubtitleNoneResponse {
-    const NAME: &'static str = "GetSubtitleNoneResponse";
+impl ::protobuf::Message for UpdateSubtitlePreferenceRequest {
+    const NAME: &'static str = "UpdateSubtitlePreferenceRequest";
 
     fn is_initialized(&self) -> bool {
         true
@@ -1823,7 +2215,7 @@ impl ::protobuf::Message for GetSubtitleNoneResponse {
         while let Some(tag) = is.read_raw_tag_or_eof()? {
             match tag {
                 10 => {
-                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.info)?;
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.preference)?;
                 },
                 tag => {
                     ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
@@ -1837,7 +2229,7 @@ impl ::protobuf::Message for GetSubtitleNoneResponse {
     #[allow(unused_variables)]
     fn compute_size(&self) -> u64 {
         let mut my_size = 0;
-        if let Some(v) = self.info.as_ref() {
+        if let Some(v) = self.preference.as_ref() {
             let len = v.compute_size();
             my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
         }
@@ -1847,7 +2239,7 @@ impl ::protobuf::Message for GetSubtitleNoneResponse {
     }
 
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
-        if let Some(v) = self.info.as_ref() {
+        if let Some(v) = self.preference.as_ref() {
             ::protobuf::rt::write_message_field_with_cached_size(1, v, os)?;
         }
         os.write_unknown_fields(self.special_fields.unknown_fields())?;
@@ -1862,46 +2254,46 @@ impl ::protobuf::Message for GetSubtitleNoneResponse {
         &mut self.special_fields
     }
 
-    fn new() -> GetSubtitleNoneResponse {
-        GetSubtitleNoneResponse::new()
+    fn new() -> UpdateSubtitlePreferenceRequest {
+        UpdateSubtitlePreferenceRequest::new()
     }
 
     fn clear(&mut self) {
-        self.info.clear();
+        self.preference.clear();
         self.special_fields.clear();
     }
 
-    fn default_instance() -> &'static GetSubtitleNoneResponse {
-        static instance: GetSubtitleNoneResponse = GetSubtitleNoneResponse {
-            info: ::protobuf::MessageField::none(),
+    fn default_instance() -> &'static UpdateSubtitlePreferenceRequest {
+        static instance: UpdateSubtitlePreferenceRequest = UpdateSubtitlePreferenceRequest {
+            preference: ::protobuf::MessageField::none(),
             special_fields: ::protobuf::SpecialFields::new(),
         };
         &instance
     }
 }
 
-// @@protoc_insertion_point(message:fx.ipc.proto.GetSubtitleCustomRequest)
+// @@protoc_insertion_point(message:fx.ipc.proto.GetDefaultSubtitlesRequest)
 #[derive(PartialEq,Clone,Default,Debug)]
-pub struct GetSubtitleCustomRequest {
+pub struct GetDefaultSubtitlesRequest {
     // special fields
-    // @@protoc_insertion_point(special_field:fx.ipc.proto.GetSubtitleCustomRequest.special_fields)
+    // @@protoc_insertion_point(special_field:fx.ipc.proto.GetDefaultSubtitlesRequest.special_fields)
     pub special_fields: ::protobuf::SpecialFields,
 }
 
-impl<'a> ::std::default::Default for &'a GetSubtitleCustomRequest {
-    fn default() -> &'a GetSubtitleCustomRequest {
-        <GetSubtitleCustomRequest as ::protobuf::Message>::default_instance()
+impl<'a> ::std::default::Default for &'a GetDefaultSubtitlesRequest {
+    fn default() -> &'a GetDefaultSubtitlesRequest {
+        <GetDefaultSubtitlesRequest as ::protobuf::Message>::default_instance()
     }
 }
 
-impl GetSubtitleCustomRequest {
-    pub fn new() -> GetSubtitleCustomRequest {
+impl GetDefaultSubtitlesRequest {
+    pub fn new() -> GetDefaultSubtitlesRequest {
         ::std::default::Default::default()
     }
 }
 
-impl ::protobuf::Message for GetSubtitleCustomRequest {
-    const NAME: &'static str = "GetSubtitleCustomRequest";
+impl ::protobuf::Message for GetDefaultSubtitlesRequest {
+    const NAME: &'static str = "GetDefaultSubtitlesRequest";
 
     fn is_initialized(&self) -> bool {
         true
@@ -1940,47 +2332,47 @@ impl ::protobuf::Message for GetSubtitleCustomRequest {
         &mut self.special_fields
     }
 
-    fn new() -> GetSubtitleCustomRequest {
-        GetSubtitleCustomRequest::new()
+    fn new() -> GetDefaultSubtitlesRequest {
+        GetDefaultSubtitlesRequest::new()
     }
 
     fn clear(&mut self) {
         self.special_fields.clear();
     }
 
-    fn default_instance() -> &'static GetSubtitleCustomRequest {
-        static instance: GetSubtitleCustomRequest = GetSubtitleCustomRequest {
+    fn default_instance() -> &'static GetDefaultSubtitlesRequest {
+        static instance: GetDefaultSubtitlesRequest = GetDefaultSubtitlesRequest {
             special_fields: ::protobuf::SpecialFields::new(),
         };
         &instance
     }
 }
 
-// @@protoc_insertion_point(message:fx.ipc.proto.GetSubtitleCustomResponse)
+// @@protoc_insertion_point(message:fx.ipc.proto.GetDefaultSubtitlesResponse)
 #[derive(PartialEq,Clone,Default,Debug)]
-pub struct GetSubtitleCustomResponse {
+pub struct GetDefaultSubtitlesResponse {
     // message fields
-    // @@protoc_insertion_point(field:fx.ipc.proto.GetSubtitleCustomResponse.info)
-    pub info: ::protobuf::MessageField<subtitle::Info>,
+    // @@protoc_insertion_point(field:fx.ipc.proto.GetDefaultSubtitlesResponse.subtitles)
+    pub subtitles: ::std::vec::Vec<subtitle::Info>,
     // special fields
-    // @@protoc_insertion_point(special_field:fx.ipc.proto.GetSubtitleCustomResponse.special_fields)
+    // @@protoc_insertion_point(special_field:fx.ipc.proto.GetDefaultSubtitlesResponse.special_fields)
     pub special_fields: ::protobuf::SpecialFields,
 }
 
-impl<'a> ::std::default::Default for &'a GetSubtitleCustomResponse {
-    fn default() -> &'a GetSubtitleCustomResponse {
-        <GetSubtitleCustomResponse as ::protobuf::Message>::default_instance()
+impl<'a> ::std::default::Default for &'a GetDefaultSubtitlesResponse {
+    fn default() -> &'a GetDefaultSubtitlesResponse {
+        <GetDefaultSubtitlesResponse as ::protobuf::Message>::default_instance()
     }
 }
 
-impl GetSubtitleCustomResponse {
-    pub fn new() -> GetSubtitleCustomResponse {
+impl GetDefaultSubtitlesResponse {
+    pub fn new() -> GetDefaultSubtitlesResponse {
         ::std::default::Default::default()
     }
 }
 
-impl ::protobuf::Message for GetSubtitleCustomResponse {
-    const NAME: &'static str = "GetSubtitleCustomResponse";
+impl ::protobuf::Message for GetDefaultSubtitlesResponse {
+    const NAME: &'static str = "GetDefaultSubtitlesResponse";
 
     fn is_initialized(&self) -> bool {
         true
@@ -1990,7 +2382,7 @@ impl ::protobuf::Message for GetSubtitleCustomResponse {
         while let Some(tag) = is.read_raw_tag_or_eof()? {
             match tag {
                 10 => {
-                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.info)?;
+                    self.subtitles.push(is.read_message()?);
                 },
                 tag => {
                     ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
@@ -2004,7 +2396,107 @@ impl ::protobuf::Message for GetSubtitleCustomResponse {
     #[allow(unused_variables)]
     fn compute_size(&self) -> u64 {
         let mut my_size = 0;
-        if let Some(v) = self.info.as_ref() {
+        for value in &self.subtitles {
+            let len = value.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        };
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        for v in &self.subtitles {
+            ::protobuf::rt::write_message_field_with_cached_size(1, v, os)?;
+        };
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> GetDefaultSubtitlesResponse {
+        GetDefaultSubtitlesResponse::new()
+    }
+
+    fn clear(&mut self) {
+        self.subtitles.clear();
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static GetDefaultSubtitlesResponse {
+        static instance: GetDefaultSubtitlesResponse = GetDefaultSubtitlesResponse {
+            subtitles: ::std::vec::Vec::new(),
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+// @@protoc_insertion_point(message:fx.ipc.proto.GetMediaAvailableSubtitlesRequest)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct GetMediaAvailableSubtitlesRequest {
+    // message fields
+    // @@protoc_insertion_point(field:fx.ipc.proto.GetMediaAvailableSubtitlesRequest.item)
+    pub item: ::protobuf::MessageField<super::media::media::Item>,
+    // @@protoc_insertion_point(field:fx.ipc.proto.GetMediaAvailableSubtitlesRequest.sub_item)
+    pub sub_item: ::protobuf::MessageField<super::media::media::Item>,
+    // special fields
+    // @@protoc_insertion_point(special_field:fx.ipc.proto.GetMediaAvailableSubtitlesRequest.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a GetMediaAvailableSubtitlesRequest {
+    fn default() -> &'a GetMediaAvailableSubtitlesRequest {
+        <GetMediaAvailableSubtitlesRequest as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl GetMediaAvailableSubtitlesRequest {
+    pub fn new() -> GetMediaAvailableSubtitlesRequest {
+        ::std::default::Default::default()
+    }
+}
+
+impl ::protobuf::Message for GetMediaAvailableSubtitlesRequest {
+    const NAME: &'static str = "GetMediaAvailableSubtitlesRequest";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                10 => {
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.item)?;
+                },
+                18 => {
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.sub_item)?;
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        if let Some(v) = self.item.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
+        if let Some(v) = self.sub_item.as_ref() {
             let len = v.compute_size();
             my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
         }
@@ -2014,7 +2506,520 @@ impl ::protobuf::Message for GetSubtitleCustomResponse {
     }
 
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
-        if let Some(v) = self.info.as_ref() {
+        if let Some(v) = self.item.as_ref() {
+            ::protobuf::rt::write_message_field_with_cached_size(1, v, os)?;
+        }
+        if let Some(v) = self.sub_item.as_ref() {
+            ::protobuf::rt::write_message_field_with_cached_size(2, v, os)?;
+        }
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> GetMediaAvailableSubtitlesRequest {
+        GetMediaAvailableSubtitlesRequest::new()
+    }
+
+    fn clear(&mut self) {
+        self.item.clear();
+        self.sub_item.clear();
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static GetMediaAvailableSubtitlesRequest {
+        static instance: GetMediaAvailableSubtitlesRequest = GetMediaAvailableSubtitlesRequest {
+            item: ::protobuf::MessageField::none(),
+            sub_item: ::protobuf::MessageField::none(),
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+// @@protoc_insertion_point(message:fx.ipc.proto.GetMediaAvailableSubtitlesResponse)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct GetMediaAvailableSubtitlesResponse {
+    // message fields
+    // @@protoc_insertion_point(field:fx.ipc.proto.GetMediaAvailableSubtitlesResponse.result)
+    pub result: ::protobuf::EnumOrUnknown<super::message::response::Result>,
+    // @@protoc_insertion_point(field:fx.ipc.proto.GetMediaAvailableSubtitlesResponse.subtitles)
+    pub subtitles: ::std::vec::Vec<subtitle::Info>,
+    // @@protoc_insertion_point(field:fx.ipc.proto.GetMediaAvailableSubtitlesResponse.error)
+    pub error: ::protobuf::MessageField<subtitle::Error>,
+    // special fields
+    // @@protoc_insertion_point(special_field:fx.ipc.proto.GetMediaAvailableSubtitlesResponse.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a GetMediaAvailableSubtitlesResponse {
+    fn default() -> &'a GetMediaAvailableSubtitlesResponse {
+        <GetMediaAvailableSubtitlesResponse as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl GetMediaAvailableSubtitlesResponse {
+    pub fn new() -> GetMediaAvailableSubtitlesResponse {
+        ::std::default::Default::default()
+    }
+}
+
+impl ::protobuf::Message for GetMediaAvailableSubtitlesResponse {
+    const NAME: &'static str = "GetMediaAvailableSubtitlesResponse";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                8 => {
+                    self.result = is.read_enum_or_unknown()?;
+                },
+                18 => {
+                    self.subtitles.push(is.read_message()?);
+                },
+                26 => {
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.error)?;
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        if self.result != ::protobuf::EnumOrUnknown::new(super::message::response::Result::OK) {
+            my_size += ::protobuf::rt::int32_size(1, self.result.value());
+        }
+        for value in &self.subtitles {
+            let len = value.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        };
+        if let Some(v) = self.error.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if self.result != ::protobuf::EnumOrUnknown::new(super::message::response::Result::OK) {
+            os.write_enum(1, ::protobuf::EnumOrUnknown::value(&self.result))?;
+        }
+        for v in &self.subtitles {
+            ::protobuf::rt::write_message_field_with_cached_size(2, v, os)?;
+        };
+        if let Some(v) = self.error.as_ref() {
+            ::protobuf::rt::write_message_field_with_cached_size(3, v, os)?;
+        }
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> GetMediaAvailableSubtitlesResponse {
+        GetMediaAvailableSubtitlesResponse::new()
+    }
+
+    fn clear(&mut self) {
+        self.result = ::protobuf::EnumOrUnknown::new(super::message::response::Result::OK);
+        self.subtitles.clear();
+        self.error.clear();
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static GetMediaAvailableSubtitlesResponse {
+        static instance: GetMediaAvailableSubtitlesResponse = GetMediaAvailableSubtitlesResponse {
+            result: ::protobuf::EnumOrUnknown::from_i32(0),
+            subtitles: ::std::vec::Vec::new(),
+            error: ::protobuf::MessageField::none(),
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+// @@protoc_insertion_point(message:fx.ipc.proto.GetFileAvailableSubtitlesRequest)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct GetFileAvailableSubtitlesRequest {
+    // message fields
+    // @@protoc_insertion_point(field:fx.ipc.proto.GetFileAvailableSubtitlesRequest.filename)
+    pub filename: ::std::string::String,
+    // special fields
+    // @@protoc_insertion_point(special_field:fx.ipc.proto.GetFileAvailableSubtitlesRequest.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a GetFileAvailableSubtitlesRequest {
+    fn default() -> &'a GetFileAvailableSubtitlesRequest {
+        <GetFileAvailableSubtitlesRequest as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl GetFileAvailableSubtitlesRequest {
+    pub fn new() -> GetFileAvailableSubtitlesRequest {
+        ::std::default::Default::default()
+    }
+}
+
+impl ::protobuf::Message for GetFileAvailableSubtitlesRequest {
+    const NAME: &'static str = "GetFileAvailableSubtitlesRequest";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                10 => {
+                    self.filename = is.read_string()?;
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        if !self.filename.is_empty() {
+            my_size += ::protobuf::rt::string_size(1, &self.filename);
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if !self.filename.is_empty() {
+            os.write_string(1, &self.filename)?;
+        }
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> GetFileAvailableSubtitlesRequest {
+        GetFileAvailableSubtitlesRequest::new()
+    }
+
+    fn clear(&mut self) {
+        self.filename.clear();
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static GetFileAvailableSubtitlesRequest {
+        static instance: GetFileAvailableSubtitlesRequest = GetFileAvailableSubtitlesRequest {
+            filename: ::std::string::String::new(),
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+// @@protoc_insertion_point(message:fx.ipc.proto.GetFileAvailableSubtitlesResponse)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct GetFileAvailableSubtitlesResponse {
+    // message fields
+    // @@protoc_insertion_point(field:fx.ipc.proto.GetFileAvailableSubtitlesResponse.result)
+    pub result: ::protobuf::EnumOrUnknown<super::message::response::Result>,
+    // @@protoc_insertion_point(field:fx.ipc.proto.GetFileAvailableSubtitlesResponse.subtitles)
+    pub subtitles: ::std::vec::Vec<subtitle::Info>,
+    // @@protoc_insertion_point(field:fx.ipc.proto.GetFileAvailableSubtitlesResponse.error)
+    pub error: ::protobuf::MessageField<subtitle::Error>,
+    // special fields
+    // @@protoc_insertion_point(special_field:fx.ipc.proto.GetFileAvailableSubtitlesResponse.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a GetFileAvailableSubtitlesResponse {
+    fn default() -> &'a GetFileAvailableSubtitlesResponse {
+        <GetFileAvailableSubtitlesResponse as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl GetFileAvailableSubtitlesResponse {
+    pub fn new() -> GetFileAvailableSubtitlesResponse {
+        ::std::default::Default::default()
+    }
+}
+
+impl ::protobuf::Message for GetFileAvailableSubtitlesResponse {
+    const NAME: &'static str = "GetFileAvailableSubtitlesResponse";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                8 => {
+                    self.result = is.read_enum_or_unknown()?;
+                },
+                18 => {
+                    self.subtitles.push(is.read_message()?);
+                },
+                26 => {
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.error)?;
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        if self.result != ::protobuf::EnumOrUnknown::new(super::message::response::Result::OK) {
+            my_size += ::protobuf::rt::int32_size(1, self.result.value());
+        }
+        for value in &self.subtitles {
+            let len = value.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        };
+        if let Some(v) = self.error.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if self.result != ::protobuf::EnumOrUnknown::new(super::message::response::Result::OK) {
+            os.write_enum(1, ::protobuf::EnumOrUnknown::value(&self.result))?;
+        }
+        for v in &self.subtitles {
+            ::protobuf::rt::write_message_field_with_cached_size(2, v, os)?;
+        };
+        if let Some(v) = self.error.as_ref() {
+            ::protobuf::rt::write_message_field_with_cached_size(3, v, os)?;
+        }
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> GetFileAvailableSubtitlesResponse {
+        GetFileAvailableSubtitlesResponse::new()
+    }
+
+    fn clear(&mut self) {
+        self.result = ::protobuf::EnumOrUnknown::new(super::message::response::Result::OK);
+        self.subtitles.clear();
+        self.error.clear();
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static GetFileAvailableSubtitlesResponse {
+        static instance: GetFileAvailableSubtitlesResponse = GetFileAvailableSubtitlesResponse {
+            result: ::protobuf::EnumOrUnknown::from_i32(0),
+            subtitles: ::std::vec::Vec::new(),
+            error: ::protobuf::MessageField::none(),
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+// @@protoc_insertion_point(message:fx.ipc.proto.GetPreferredSubtitleRequest)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct GetPreferredSubtitleRequest {
+    // message fields
+    // @@protoc_insertion_point(field:fx.ipc.proto.GetPreferredSubtitleRequest.subtitles)
+    pub subtitles: ::std::vec::Vec<subtitle::Info>,
+    // special fields
+    // @@protoc_insertion_point(special_field:fx.ipc.proto.GetPreferredSubtitleRequest.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a GetPreferredSubtitleRequest {
+    fn default() -> &'a GetPreferredSubtitleRequest {
+        <GetPreferredSubtitleRequest as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl GetPreferredSubtitleRequest {
+    pub fn new() -> GetPreferredSubtitleRequest {
+        ::std::default::Default::default()
+    }
+}
+
+impl ::protobuf::Message for GetPreferredSubtitleRequest {
+    const NAME: &'static str = "GetPreferredSubtitleRequest";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                10 => {
+                    self.subtitles.push(is.read_message()?);
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        for value in &self.subtitles {
+            let len = value.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        };
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        for v in &self.subtitles {
+            ::protobuf::rt::write_message_field_with_cached_size(1, v, os)?;
+        };
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> GetPreferredSubtitleRequest {
+        GetPreferredSubtitleRequest::new()
+    }
+
+    fn clear(&mut self) {
+        self.subtitles.clear();
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static GetPreferredSubtitleRequest {
+        static instance: GetPreferredSubtitleRequest = GetPreferredSubtitleRequest {
+            subtitles: ::std::vec::Vec::new(),
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+// @@protoc_insertion_point(message:fx.ipc.proto.GetPreferredSubtitleResponse)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct GetPreferredSubtitleResponse {
+    // message fields
+    // @@protoc_insertion_point(field:fx.ipc.proto.GetPreferredSubtitleResponse.subtitle)
+    pub subtitle: ::protobuf::MessageField<subtitle::Info>,
+    // special fields
+    // @@protoc_insertion_point(special_field:fx.ipc.proto.GetPreferredSubtitleResponse.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a GetPreferredSubtitleResponse {
+    fn default() -> &'a GetPreferredSubtitleResponse {
+        <GetPreferredSubtitleResponse as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl GetPreferredSubtitleResponse {
+    pub fn new() -> GetPreferredSubtitleResponse {
+        ::std::default::Default::default()
+    }
+}
+
+impl ::protobuf::Message for GetPreferredSubtitleResponse {
+    const NAME: &'static str = "GetPreferredSubtitleResponse";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                10 => {
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.subtitle)?;
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        if let Some(v) = self.subtitle.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if let Some(v) = self.subtitle.as_ref() {
             ::protobuf::rt::write_message_field_with_cached_size(1, v, os)?;
         }
         os.write_unknown_fields(self.special_fields.unknown_fields())?;
@@ -2029,18 +3034,170 @@ impl ::protobuf::Message for GetSubtitleCustomResponse {
         &mut self.special_fields
     }
 
-    fn new() -> GetSubtitleCustomResponse {
-        GetSubtitleCustomResponse::new()
+    fn new() -> GetPreferredSubtitleResponse {
+        GetPreferredSubtitleResponse::new()
     }
 
     fn clear(&mut self) {
-        self.info.clear();
+        self.subtitle.clear();
         self.special_fields.clear();
     }
 
-    fn default_instance() -> &'static GetSubtitleCustomResponse {
-        static instance: GetSubtitleCustomResponse = GetSubtitleCustomResponse {
-            info: ::protobuf::MessageField::none(),
+    fn default_instance() -> &'static GetPreferredSubtitleResponse {
+        static instance: GetPreferredSubtitleResponse = GetPreferredSubtitleResponse {
+            subtitle: ::protobuf::MessageField::none(),
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+// @@protoc_insertion_point(message:fx.ipc.proto.ResetSubtitleRequest)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct ResetSubtitleRequest {
+    // special fields
+    // @@protoc_insertion_point(special_field:fx.ipc.proto.ResetSubtitleRequest.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a ResetSubtitleRequest {
+    fn default() -> &'a ResetSubtitleRequest {
+        <ResetSubtitleRequest as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl ResetSubtitleRequest {
+    pub fn new() -> ResetSubtitleRequest {
+        ::std::default::Default::default()
+    }
+}
+
+impl ::protobuf::Message for ResetSubtitleRequest {
+    const NAME: &'static str = "ResetSubtitleRequest";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> ResetSubtitleRequest {
+        ResetSubtitleRequest::new()
+    }
+
+    fn clear(&mut self) {
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static ResetSubtitleRequest {
+        static instance: ResetSubtitleRequest = ResetSubtitleRequest {
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+// @@protoc_insertion_point(message:fx.ipc.proto.CleanSubtitlesDirectoryRequest)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct CleanSubtitlesDirectoryRequest {
+    // special fields
+    // @@protoc_insertion_point(special_field:fx.ipc.proto.CleanSubtitlesDirectoryRequest.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a CleanSubtitlesDirectoryRequest {
+    fn default() -> &'a CleanSubtitlesDirectoryRequest {
+        <CleanSubtitlesDirectoryRequest as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl CleanSubtitlesDirectoryRequest {
+    pub fn new() -> CleanSubtitlesDirectoryRequest {
+        ::std::default::Default::default()
+    }
+}
+
+impl ::protobuf::Message for CleanSubtitlesDirectoryRequest {
+    const NAME: &'static str = "CleanSubtitlesDirectoryRequest";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> CleanSubtitlesDirectoryRequest {
+        CleanSubtitlesDirectoryRequest::new()
+    }
+
+    fn clear(&mut self) {
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static CleanSubtitlesDirectoryRequest {
+        static instance: CleanSubtitlesDirectoryRequest = CleanSubtitlesDirectoryRequest {
             special_fields: ::protobuf::SpecialFields::new(),
         };
         &instance

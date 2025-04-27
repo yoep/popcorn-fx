@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controls;
 
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -20,31 +21,41 @@ import static org.mockito.Mockito.*;
 class AxisItemSelectionTest {
     @Test
     void testOrientationHorizontal() {
-        var control = new AxisItemSelection<Genre>();
-        control.setItems(new Genre("", ""));
+        var control = new AxisItemSelection<Media.Genre>();
+        control.setItems(Media.Genre.newBuilder()
+                .setKey("")
+                .build());
 
         control.setOrientation(AxisItemSelection.Orientation.HORIZONTAL);
 
-        assertTrue(control.getContent() instanceof HBox);
+        assertInstanceOf(HBox.class, control.getContent());
         assertEquals(1, ((Pane) control.getContent()).getChildren().size());
     }
 
     @Test
     void testOrientationVertical() {
-        var control = new AxisItemSelection<Genre>();
-        control.setItems(new Genre("", ""));
+        var control = new AxisItemSelection<Media.Genre>();
+        control.setItems(Media.Genre.newBuilder()
+                .setKey("")
+                .build());
 
         control.setOrientation(AxisItemSelection.Orientation.VERTICAL);
 
-        assertTrue(control.getContent() instanceof VBox);
+        assertInstanceOf(VBox.class, control.getContent());
         assertEquals(1, ((Pane) control.getContent()).getChildren().size());
     }
 
     @Test
     void testSetSelectedItem() {
-        var item = new Genre("lorem", "ipsum");
-        var control = new AxisItemSelection<Genre>();
-        control.setItems(new Genre("ipsum", "dolor"), item, new Genre("estla", "coffee"));
+        var item = Media.Genre.newBuilder()
+                .setKey("lorem")
+                .build();
+        var control = new AxisItemSelection<Media.Genre>();
+        control.setItems(Media.Genre.newBuilder()
+                .setKey("ipsum")
+                .build(), item, Media.Genre.newBuilder()
+                .setKey("estla")
+                .build());
 
         control.setSelectedItem(item);
 
@@ -56,8 +67,10 @@ class AxisItemSelectionTest {
     @Test
     void testRequestFocus() {
         var nodeHolder = new AtomicReference<Node>();
-        var control = new AxisItemSelection<Genre>();
-        var selectedItem = new Genre("lorem", "ipsum");
+        var control = new AxisItemSelection<Media.Genre>();
+        var selectedItem = Media.Genre.newBuilder()
+                .setKey("lorem")
+                .build();
         var scene = new Scene(control);
         control.setItemFactory(item -> {
             var node = spy(new Button());
@@ -66,7 +79,11 @@ class AxisItemSelectionTest {
             }
             return node;
         });
-        control.setItems(new Genre("ipsum", "dolor"), selectedItem, new Genre("sit", "coffee"));
+        control.setItems(Media.Genre.newBuilder()
+                .setKey("ipsum")
+                .build(), selectedItem, Media.Genre.newBuilder()
+                .setKey("sit")
+                .build());
         control.setSelectedItem(selectedItem);
         WaitForAsyncUtils.waitForFxEvents();
 

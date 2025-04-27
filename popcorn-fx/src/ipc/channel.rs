@@ -1,25 +1,19 @@
 use crate::ipc::errors::{Error, Result};
 use crate::ipc::proto::message::FxMessage;
 use byteorder::{BigEndian, ByteOrder};
-use futures::future::poll_fn;
-use futures::task::AtomicWaker;
 use interprocess::local_socket;
 use interprocess::local_socket::tokio::{RecvHalf, SendHalf, Stream};
-use itertools::Itertools;
 use log::{debug, error, trace, warn};
 use protobuf::Message;
 use std::collections::HashMap;
-use std::future::Future;
-use std::pin::{pin, Pin};
+use std::io;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
-use std::task::{Context, Poll};
-use std::time::Instant;
-use tokio::io::{AsyncReadExt, AsyncWriteExt, ReadBuf};
-use tokio::select;
+use std::time::{Duration, Instant};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
-use tokio::sync::oneshot::Sender;
-use tokio::sync::{oneshot, Mutex};
+use tokio::sync::{oneshot, Mutex, MutexGuard, Notify};
+use tokio::{select, time};
 use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
 
 /// An IPC channel used for communication with the parent process.
@@ -29,7 +23,7 @@ pub struct IpcChannel {
 }
 
 impl IpcChannel {
-    pub fn new(stream: Stream) -> Self {
+    pub fn new(stream: Stream, timeout: Duration) -> Self {
         let (reader, writer) = local_socket::traits::tokio::Stream::split(stream);
         let (reader_sender, reader_receiver) = unbounded_channel();
 
@@ -37,8 +31,9 @@ impl IpcChannel {
             sequence_id: Default::default(),
             writer: Mutex::new(writer),
             buffer: Default::default(),
-            waker: Default::default(),
+            buffer_notify: Default::default(),
             pending_requests: Default::default(),
+            timeout,
             cancellation_token: Default::default(),
         });
 
@@ -50,6 +45,7 @@ impl IpcChannel {
         let mut reader = IpcChannelReader {
             reader,
             sender: reader_sender,
+            timeout,
             cancellation_token: inner.cancellation_token.clone(),
         };
         tokio::spawn(async move {
@@ -65,7 +61,20 @@ impl IpcChannel {
     ///
     /// It returns a message when received, else [None] when the channel is closed.
     pub async fn recv(&self) -> Option<FxMessage> {
-        poll_fn(|cx| self.inner.poll_next(cx)).await
+        loop {
+            {
+                let mut buffer = self.inner.buffer.lock().await;
+                if !buffer.is_empty() {
+                    return Some(buffer.remove(0));
+                }
+            }
+
+            if self.inner.cancellation_token.is_cancelled() {
+                return None;
+            }
+
+            self.inner.buffer_notify.notified().await;
+        }
     }
 
     /// Try to get a response for the given message from the channel.
@@ -173,8 +182,9 @@ struct InnerIpcChannel {
     sequence_id: AtomicU32,
     writer: Mutex<SendHalf>,
     buffer: Mutex<Vec<FxMessage>>,
-    waker: AtomicWaker,
+    buffer_notify: Notify,
     pending_requests: Mutex<HashMap<u32, oneshot::Sender<FxMessage>>>,
+    timeout: Duration,
     cancellation_token: CancellationToken,
 }
 
@@ -186,6 +196,7 @@ impl InnerIpcChannel {
                 Some(message) = reader_receiver.recv() => self.handle_message(message).await,
             }
         }
+        self.buffer_notify.notify_waiters();
         debug!("IPC channel main loop ended");
     }
 
@@ -193,7 +204,7 @@ impl InnerIpcChannel {
         match &message.reply_to {
             None => {
                 self.buffer.lock().await.push(message);
-                self.waker.wake();
+                self.buffer_notify.notify_waiters();
             }
             Some(reply_id) => match self.pending_requests.lock().await.remove(reply_id) {
                 None => {
@@ -203,7 +214,9 @@ impl InnerIpcChannel {
                     );
                 }
                 Some(sender) => {
-                    let _ = sender.send(message);
+                    if let Err(_) = sender.send(message) {
+                        error!("IPC channel failed to send reply, reply channel has already been consumed");
+                    }
                 }
             },
         }
@@ -282,9 +295,10 @@ impl InnerIpcChannel {
         BigEndian::write_u32(&mut length_buffer[..4], bytes.len() as u32);
 
         let start_time = Instant::now();
-        writer.write(&length_buffer).await?;
-        writer.write_all(&bytes).await?;
-        writer.flush().await?;
+        select! {
+            _ = time::sleep(self.timeout) => Err(Error::Io(io::Error::new(io::ErrorKind::TimedOut, "writer timed out sending payload"))),
+           result = Self::write_channel_message(&mut writer, &length_buffer, &bytes) => result,
+        }?;
         let elapsed = start_time.elapsed();
         debug!(
             "IPC channel wrote message \"{}\" ({} bytes) in {}.{:03}ms",
@@ -296,18 +310,15 @@ impl InnerIpcChannel {
         Ok(())
     }
 
-    fn poll_next(&self, cx: &mut Context<'_>) -> Poll<Option<FxMessage>> {
-        let mut mutex = match pin!(self.buffer.lock()).poll(cx) {
-            Poll::Ready(mutex) => mutex,
-            Poll::Pending => return Poll::Pending,
-        };
-
-        if !mutex.is_empty() {
-            return Poll::Ready(Some(mutex.remove(0)));
-        }
-
-        self.waker.register(cx.waker());
-        Poll::Pending
+    async fn write_channel_message(
+        writer: &mut MutexGuard<'_, SendHalf>,
+        length_buffer: &[u8],
+        bytes: &[u8],
+    ) -> Result<()> {
+        writer.write(length_buffer).await?;
+        writer.write_all(&bytes).await?;
+        writer.flush().await?;
+        Ok(())
     }
 }
 
@@ -315,6 +326,7 @@ impl InnerIpcChannel {
 struct IpcChannelReader {
     reader: RecvHalf,
     sender: UnboundedSender<FxMessage>,
+    timeout: Duration,
     cancellation_token: CancellationToken,
 }
 
@@ -360,7 +372,10 @@ impl IpcChannelReader {
         let mut buffer = vec![0u8; len];
 
         trace!("IPC channel reader is reading message (size {})", len);
-        self.reader.read_exact(&mut buffer).await?;
+        select! {
+            _ = time::sleep(self.timeout) => Err(Error::Io(io::Error::new(io::ErrorKind::TimedOut, "timed out while reading message payload"))),
+            result = self.reader.read_exact(&mut buffer) => result.map_err(Error::from),
+        }?;
         let elapsed = start_time.elapsed();
 
         let message = FxMessage::parse_from_bytes(&buffer)?;

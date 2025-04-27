@@ -116,7 +116,6 @@ impl Default for SubtitleSettings {
 }
 
 /// The supported subtitle fonts to use for rendering subtitles.
-#[repr(i32)]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum SubtitleFamily {
@@ -143,7 +142,6 @@ impl SubtitleFamily {
 }
 
 /// The decoration to apply to the subtitle during rendering.
-#[repr(i32)]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum DecorationType {
@@ -155,11 +153,11 @@ pub enum DecorationType {
 
 #[cfg(test)]
 mod test {
-    use crate::core::config::{SubtitleFamily, SubtitleSettings};
     use crate::core::config::subtitle_settings::{
         DEFAULT_AUTO_CLEANING, DEFAULT_BOLD, DEFAULT_DECORATION, DEFAULT_FONT_SIZE,
         DEFAULT_SUBTITLE_FAMILY, DEFAULT_SUBTITLE_LANGUAGE,
     };
+    use crate::core::config::{SubtitleFamily, SubtitleSettings};
 
     #[test]
     fn test_subtitle_new_use_defaults() {

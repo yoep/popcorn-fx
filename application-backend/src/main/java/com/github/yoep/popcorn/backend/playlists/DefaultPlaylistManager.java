@@ -12,7 +12,9 @@ import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.ArrayList;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
@@ -22,10 +24,11 @@ public class DefaultPlaylistManager extends AbstractListenerService<PlaylistMana
     private final FxChannel fxChannel;
     private final ApplicationConfig applicationConfig;
 
-    private AtomicReference<Handle> playlistLoaderHandle = new AtomicReference<>();
+    AtomicReference<Handle> playlistLoaderHandle = new AtomicReference<>();
 
     public DefaultPlaylistManager(FxChannel fxChannel, ApplicationConfig applicationConfig) {
         Objects.requireNonNull(fxChannel, "fxChannel cannot be null");
+        Objects.requireNonNull(applicationConfig, "applicationConfig cannot be null");
         this.fxChannel = fxChannel;
         this.applicationConfig = applicationConfig;
         init();
@@ -55,7 +58,6 @@ public class DefaultPlaylistManager extends AbstractListenerService<PlaylistMana
         play(Playlist.newBuilder()
                 .addItems(Playlist.Item.newBuilder()
                         .setTitle(movie.title())
-                        .setCaption(quality)
                         .setThumb(movie.proto().getImages().getPoster())
                         .setMedia(MediaHelper.getItem(movie))
                         .setQuality(quality)
@@ -68,22 +70,34 @@ public class DefaultPlaylistManager extends AbstractListenerService<PlaylistMana
     public void play(ShowDetails show, Episode episode, String quality) {
         Objects.requireNonNull(show, "show cannot be null");
         Objects.requireNonNull(episode, "episode cannot be null");
-//        var items = new ArrayList<PlaylistItem>();
-//
-//        items.add(itemFrom(show, episode, quality));
-//
-//        if (applicationConfig.getSettings().getPlaybackSettings().getAutoPlayNextEpisodeEnabled()) {
-//            var sortedEpisodes = show.getEpisodes().stream()
-//                    .filter(e -> isEpisodeGreater(episode, e))
-//                    .sorted()
-//                    .toList();
-//
-//            for (Episode e : sortedEpisodes) {
-//                items.add(itemFrom(show, e, quality));
-//            }
-//        }
-//
-//        play(new Playlist(items.toArray(new PlaylistItem[0])));
+        var items = new ArrayList<Playlist.Item>();
+
+        items.add(playlistItemFrom(show, episode, quality));
+
+        applicationConfig.getSettings()
+                .thenApply(settings -> {
+                    if (settings.getPlaybackSettings().getAutoPlayNextEpisodeEnabled()) {
+                        var sortedEpisodes = show.getEpisodes().stream()
+                                .filter(e -> isEpisodeGreater(episode, e))
+                                .sorted()
+                                .toList();
+
+                        for (Episode e : sortedEpisodes) {
+                            items.add(playlistItemFrom(show, e, quality));
+                        }
+                    }
+
+                    return items;
+                })
+                .whenComplete((result, throwable) -> {
+                    if (throwable == null) {
+                        play(Playlist.newBuilder()
+                                .addAllItems(result)
+                                .build());
+                    } else {
+                        log.error("Failed to retrieve settings", throwable);
+                    }
+                });
     }
 
     @Override
@@ -106,28 +120,33 @@ public class DefaultPlaylistManager extends AbstractListenerService<PlaylistMana
     }
 
     @Override
-    public Playlist playlist() {
-        // TODO
-        return null;
+    public CompletableFuture<Playlist> playlist() {
+        return fxChannel.send(GetActivePlaylistRequest.getDefaultInstance(), GetActivePlaylistResponse.parser())
+                .thenApply(GetActivePlaylistResponse::getPlaylist);
     }
-//
-//    @Override
-//    public void callback(PlaylistManagerEvent.ByValue event) {
-//        try (event) {
-//            switch (event.getTag()) {
-//                case PlaylistChanged -> invokeListeners(PlaylistManagerListener::onPlaylistChanged);
-//                case PlayingNext -> {
-//                    var playingIn = event.getUnion().getPlayingNext_body();
-//                    var item = PlaylistItem.from(playingIn.getItem());
-//                    invokeListeners(e -> e.onPlayingIn(playingIn.getPlayingIn().orElse(null), item));
-//                }
-//                case StateChanged -> invokeListeners(e -> e.onStateChanged(event.getUnion().getStateChanged_body().getState()));
-//            }
-//        }
-//    }
 
     private void init() {
-        // TODO
+        fxChannel.subscribe(FxChannel.typeFrom(PlaylistEvent.class), PlaylistEvent.parser(), this::onPlaylistEvent);
+    }
+
+    private void onPlaylistEvent(PlaylistEvent event) {
+        switch (event.getEvent()) {
+            case PLAYLIST_CHANGED -> invokeListeners(PlaylistManagerListener::onPlaylistChanged);
+            case PLAYING_NEXT -> invokeListeners(e -> e.onPlayingIn(event.getPlayingNext().getPlayingIn(), event.getPlayingNext().getItem()));
+            case STATE_CHANGED -> invokeListeners(e -> e.onStateChanged(event.getStateChanged().getState()));
+        }
+    }
+
+    private static Playlist.Item playlistItemFrom(ShowDetails show, Episode episode, String quality) {
+        return Playlist.Item.newBuilder()
+                .setTitle(show.title())
+                .setCaption(episode.title())
+                .setThumb(show.images().getPoster())
+                .setParentMedia(MediaHelper.getItem(show))
+                .setMedia(MediaHelper.getItem(episode))
+                .setQuality(quality)
+                .setSubtitlesEnabled(true)
+                .build();
     }
 
     private static boolean isEpisodeGreater(Episode original, Episode compare) {

@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 public record Episode(Media.Episode proto) implements Comparable<Episode>, com.github.yoep.popcorn.backend.media.Media {
@@ -79,6 +80,18 @@ public record Episode(Media.Episode proto) implements Comparable<Episode>, com.g
 
     public Media.TorrentQuality getTorrents() {
         return proto.getTorrents();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof Episode episode)) return false;
+
+        return Objects.equals(id(), episode.id());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(id());
     }
 
     @Override

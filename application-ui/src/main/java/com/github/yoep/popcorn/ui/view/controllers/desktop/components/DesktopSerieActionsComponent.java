@@ -5,9 +5,9 @@ import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Subtitle;
 import com.github.yoep.popcorn.backend.media.Episode;
 import com.github.yoep.popcorn.backend.media.ShowDetails;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
+import com.github.yoep.popcorn.backend.subtitles.ISubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleHelper;
-import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
-import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
+import com.github.yoep.popcorn.backend.subtitles.ISubtitleService;
 import com.github.yoep.popcorn.ui.utils.WatchNowUtils;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.SerieActionsComponent;
 import com.github.yoep.popcorn.ui.view.controls.LanguageFlagCell;
@@ -35,14 +35,14 @@ import java.util.concurrent.CompletableFuture;
 @RequiredArgsConstructor
 public class DesktopSerieActionsComponent implements Initializable, SerieActionsComponent {
     private final PlayerManagerService playerManagerService;
-    private final SubtitleService subtitleService;
+    private final ISubtitleService subtitleService;
     private final DesktopSerieQualityComponent desktopSerieQualityComponent;
     private final PlaylistManager playlistManager;
     private final DetailsComponentService detailsComponentService;
 
     private ShowDetails media;
     private Episode episode;
-    private CompletableFuture<List<SubtitleInfo>> subtitlesFuture;
+    private CompletableFuture<Void> subtitlesFuture;
 
     @FXML
     PlayerDropDownButton watchNowButton;
@@ -73,61 +73,64 @@ public class DesktopSerieActionsComponent implements Initializable, SerieActions
         languageSelection.selectedItemProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue.getLanguage() == Subtitle.Language.CUSTOM) {
                 detailsComponentService.onCustomSubtitleSelected(() ->
-                        subtitleService.none().whenComplete((language, throwable) -> {
-                            if (throwable == null) {
-                                languageSelection.select(language);
-                            } else {
-                                log.error("Failed to load none subtitle", throwable);
-                            }
-                        }));
+                        subtitleService.defaultSubtitles()
+                                .thenApply(List::getFirst)
+                                .whenComplete((language, throwable) -> {
+                                    if (throwable == null) {
+                                        languageSelection.select(language);
+                                    } else {
+                                        log.error("Failed to load none subtitle", throwable);
+                                    }
+                                }));
             } else if (newValue.getLanguage() == Subtitle.Language.NONE) {
                 subtitleService.disableSubtitle();
             } else {
-                subtitleService.updateSubtitle(newValue);
+                subtitleService.updatePreferredLanguage(newValue.getLanguage());
             }
         });
         languageSelection.setFactory(new LanguageFlagCell() {
             @Override
-            public void updateItem(Subtitle.Info item) {
+            public void updateItem(ISubtitleInfo item) {
                 if (item == null)
                     return;
 
                 setText(SubtitleHelper.getNativeName(item.getLanguage()));
-//                var image = new ImageView(Optional.ofNullable(item.getFlagResource())
-//                        .map(DesktopSerieActionsComponent.class::getResourceAsStream)
-//                        .map(Image::new)
-//                        .orElse(null));
+                var image = new ImageView(Optional.ofNullable(item.getFlagResource())
+                        .map(DesktopSerieActionsComponent.class::getResourceAsStream)
+                        .map(Image::new)
+                        .orElse(null));
 
-//                image.setFitHeight(15);
-//                image.setPreserveRatio(true);
-//
-//                setGraphic(image);
+                image.setFitHeight(15);
+                image.setPreserveRatio(true);
+
+                setGraphic(image);
             }
         });
     }
 
     private void updateSubtitles() {
-        if (subtitlesFuture != null) {
-            subtitlesFuture.cancel(true);
-        }
+        Optional.ofNullable(subtitlesFuture)
+                .ifPresent(e -> e.cancel(true));
 
         var languages = languageSelection.getItems();
-        var defaultSubtitle = subtitleService.none();
-        languages.clear();
-//        languages.setAll(defaultSubtitle, subtitleService.custom());
-//        languageSelection.select(defaultSubtitle);
-//        subtitlesFuture = subtitleService.retrieveSubtitles(media, episode)
-//                .whenComplete((subtitleInfos, throwable) -> {
-//                    if (throwable == null) {
-//                        Platform.runLater(() -> {
-//                            languageSelection.getItems().clear();
-//                            languageSelection.getItems().setAll(subtitleInfos.toArray(SubtitleInfo[]::new));
-//                            languageSelection.select(subtitleService.getDefaultOrInterfaceLanguage(subtitleInfos));
-//                        });
-//                    } else {
-//                        log.error(throwable.getMessage(), throwable);
-//                    }
-//                });
+        subtitleService.defaultSubtitles().whenComplete((defaultSubtitles, throwable) -> {
+            if (throwable == null) {
+                Platform.runLater(() -> {
+                    languages.clear();
+                    languages.setAll(defaultSubtitles);
+                    languageSelection.select(defaultSubtitles.getFirst());
+                });
+            } else {
+                log.error("Failed to retrieve default subtitles", throwable);
+            }
+
+            subtitlesFuture = subtitleService.retrieveSubtitles(media, episode).thenAccept(subtitles -> {
+                Platform.runLater(() -> languageSelection.getItems().addAll(subtitles));
+
+                subtitleService.getDefaultOrInterfaceLanguage(subtitles).thenAccept(subtitle ->
+                        Platform.runLater(() -> languageSelection.select(subtitle)));
+            });
+        });
     }
 
     private void startSeriePlayback() {

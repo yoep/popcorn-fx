@@ -5,6 +5,7 @@ import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.AbstractSettingsComponent;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.CheckBox;
@@ -13,6 +14,7 @@ import javafx.scene.control.ListCell;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
+import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 
@@ -44,30 +46,33 @@ public class SettingsPlaybackComponent extends AbstractSettingsComponent impleme
     }
 
     private void initializeQuality() {
-        var settings = getPlaybackSettings();
         var items = quality.getItems();
 
         items.add(null);
         items.addAll(ApplicationSettings.PlaybackSettings.Quality.values());
 
-//        quality.setCellFactory(param -> createQualityCell());
-//        quality.setButtonCell(createQualityCell());
-//        quality.getSelectionModel().select(settings.getQuality().orElse(null));
-//        quality.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> onQualityChanged(newValue));
+        getPlaybackSettings().thenAccept(settings -> Platform.runLater(() -> {
+            quality.setCellFactory(param -> createQualityCell());
+            quality.setButtonCell(createQualityCell());
+            quality.getSelectionModel().select(Optional.ofNullable(settings.getQuality())
+                    .filter(e -> settings.hasQuality())
+                    .orElse(null));
+            quality.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> onQualityChanged(newValue));
+        }));
     }
 
     private void initializeFullscreen() {
-        var settings = getPlaybackSettings();
-
-//        fullscreen.setSelected(settings.isFullscreen());
-//        fullscreen.selectedProperty().addListener((observable, oldValue, newValue) -> onFullscreenChanged(newValue));
+        getPlaybackSettings().thenAccept(settings -> Platform.runLater(() -> {
+            fullscreen.setSelected(settings.getFullscreen());
+            fullscreen.selectedProperty().addListener((observable, oldValue, newValue) -> onFullscreenChanged(newValue));
+        }));
     }
 
     private void initializeAutoPlayNextEpisode() {
-        var settings = getPlaybackSettings();
-
-//        autoPlayNextEpisode.setSelected(settings.isAutoPlayNextEpisodeEnabled());
-//        autoPlayNextEpisode.selectedProperty().addListener((observable, oldValue, newValue) -> onAutoPlayNextEpisodeChanged(newValue));
+        getPlaybackSettings().thenAccept(settings -> Platform.runLater(() -> {
+            autoPlayNextEpisode.setSelected(settings.getAutoPlayNextEpisodeEnabled());
+            autoPlayNextEpisode.selectedProperty().addListener((observable, oldValue, newValue) -> onAutoPlayNextEpisodeChanged(newValue));
+        }));
     }
 
     //endregion
@@ -94,27 +99,30 @@ public class SettingsPlaybackComponent extends AbstractSettingsComponent impleme
     }
 
     void onQualityChanged(ApplicationSettings.PlaybackSettings.Quality newValue) {
-        var settings = getPlaybackSettings();
-
-//        settings.setQuality(newValue);
-//        applicationConfig.update(settings);
-//        showNotification();
+        getPlaybackSettings().thenAccept(settings -> {
+            applicationConfig.update(ApplicationSettings.PlaybackSettings.newBuilder(settings)
+                    .setQuality(newValue)
+                    .build());
+            showNotification();
+        });
     }
 
     void onFullscreenChanged(Boolean newValue) {
-        var settings = getPlaybackSettings();
-
-//        settings.setFullscreen(newValue);
-//        applicationConfig.update(settings);
-//        showNotification();
+        getPlaybackSettings().thenAccept(settings -> {
+            applicationConfig.update(ApplicationSettings.PlaybackSettings.newBuilder(settings)
+                    .setFullscreen(newValue)
+                    .build());
+            showNotification();
+        });
     }
 
     void onAutoPlayNextEpisodeChanged(Boolean newValue) {
-        var settings = getPlaybackSettings();
-
-//        settings.setAutoPlayNextEpisodeEnabled(newValue);
-//        applicationConfig.update(settings);
-//        showNotification();
+        getPlaybackSettings().thenAccept(settings -> {
+            applicationConfig.update(ApplicationSettings.PlaybackSettings.newBuilder(settings)
+                    .setAutoPlayNextEpisodeEnabled(newValue)
+                    .build());
+            showNotification();
+        });
     }
 
     private CompletableFuture<ApplicationSettings.PlaybackSettings> getPlaybackSettings() {

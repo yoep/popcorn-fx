@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui.torrent.controls;
 
-import com.github.yoep.popcorn.backend.torrent.collection.StoredTorrent;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.MagnetInfo;
 import com.github.yoep.popcorn.ui.font.controls.Icon;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.control.TableCell;
@@ -10,17 +10,17 @@ import javafx.scene.input.MouseEvent;
 
 import java.util.function.Consumer;
 
-public class TorrentCollection extends TableView<StoredTorrent> {
+public class TorrentCollection extends TableView<MagnetInfo> {
     private static final String ICON_CELL_STYLE_CLASS = "icon-cell";
     private static final String NAME_CELL_STYLE_CLASS = "name-cell";
 
-    private final TableColumn<StoredTorrent, StoredTorrent> magnetColumn = new TableColumn<>();
-    private final TableColumn<StoredTorrent, String> nameColumn = new TableColumn<>();
-    private final TableColumn<StoredTorrent, StoredTorrent> deleteColumn = new TableColumn<>();
+    private final TableColumn<MagnetInfo, MagnetInfo> magnetColumn = new TableColumn<>();
+    private final TableColumn<MagnetInfo, String> nameColumn = new TableColumn<>();
+    private final TableColumn<MagnetInfo, MagnetInfo> deleteColumn = new TableColumn<>();
 
-    private Consumer<StoredTorrent> magnetClickedConsumer;
-    private Consumer<StoredTorrent> torrentClickedConsumer;
-    private Consumer<StoredTorrent> deleteClickedConsumer;
+    private Consumer<MagnetInfo> magnetClickedConsumer;
+    private Consumer<MagnetInfo> torrentClickedConsumer;
+    private Consumer<MagnetInfo> deleteClickedConsumer;
 
     //region Constructors
 
@@ -32,19 +32,19 @@ public class TorrentCollection extends TableView<StoredTorrent> {
 
     //region Properties
 
-    public void setOnMagnetClicked(Consumer<StoredTorrent> event) {
+    public void setOnMagnetClicked(Consumer<MagnetInfo> event) {
         magnetClickedConsumer = event;
     }
 
-    public Consumer<StoredTorrent> getTorrentClickedConsumer() {
+    public Consumer<MagnetInfo> getTorrentClickedConsumer() {
         return torrentClickedConsumer;
     }
 
-    public void setOnTorrentClicked(Consumer<StoredTorrent> event) {
+    public void setOnTorrentClicked(Consumer<MagnetInfo> event) {
         torrentClickedConsumer = event;
     }
 
-    public void setOnDeleteClicked(Consumer<StoredTorrent> deleteClickedConsumer) {
+    public void setOnDeleteClicked(Consumer<MagnetInfo> deleteClickedConsumer) {
         this.deleteClickedConsumer = deleteClickedConsumer;
     }
 
@@ -72,9 +72,9 @@ public class TorrentCollection extends TableView<StoredTorrent> {
         magnetColumn.setMaxWidth(50);
         magnetColumn.setMinWidth(50);
         magnetColumn.setCellFactory(param -> {
-            var cell = new TableCell<StoredTorrent, StoredTorrent>() {
+            var cell = new TableCell<MagnetInfo, MagnetInfo>() {
                 @Override
-                protected void updateItem(StoredTorrent item, boolean empty) {
+                protected void updateItem(MagnetInfo item, boolean empty) {
                     super.updateItem(item, empty);
 
                     if (!empty) {
@@ -95,7 +95,7 @@ public class TorrentCollection extends TableView<StoredTorrent> {
 
     private void initializeNameColumn() {
         nameColumn.setCellFactory(param -> {
-            var cell = new TableCell<StoredTorrent, String>() {
+            var cell = new TableCell<MagnetInfo, String>() {
                 @Override
                 protected void updateItem(String item, boolean empty) {
                     super.updateItem(item, empty);
@@ -120,9 +120,9 @@ public class TorrentCollection extends TableView<StoredTorrent> {
         deleteColumn.setMaxWidth(50);
         deleteColumn.setMinWidth(50);
         deleteColumn.setCellFactory(item -> {
-            var cell = new TableCell<StoredTorrent, StoredTorrent>() {
+            var cell = new TableCell<MagnetInfo, MagnetInfo>() {
                 @Override
-                protected void updateItem(StoredTorrent item, boolean empty) {
+                protected void updateItem(MagnetInfo item, boolean empty) {
                     super.updateItem(item, empty);
 
                     if (!empty) {
@@ -141,14 +141,14 @@ public class TorrentCollection extends TableView<StoredTorrent> {
         deleteColumn.setCellValueFactory(param -> new SimpleObjectProperty<>(param.getValue()));
     }
 
-    private void onMagnetClicked(MouseEvent event, StoredTorrent item) {
+    private void onMagnetClicked(MouseEvent event, MagnetInfo item) {
         if (magnetClickedConsumer != null) {
             event.consume();
             magnetClickedConsumer.accept(item);
         }
     }
 
-    private void onTorrentClicked(MouseEvent event, StoredTorrent item) {
+    private void onTorrentClicked(MouseEvent event, MagnetInfo item) {
         if (item == null)
             return;
 
@@ -158,7 +158,7 @@ public class TorrentCollection extends TableView<StoredTorrent> {
         }
     }
 
-    private void onDeleteClicked(MouseEvent event, StoredTorrent item) {
+    private void onDeleteClicked(MouseEvent event, MagnetInfo item) {
         if (deleteClickedConsumer != null) {
             event.consume();
             deleteClickedConsumer.accept(item);

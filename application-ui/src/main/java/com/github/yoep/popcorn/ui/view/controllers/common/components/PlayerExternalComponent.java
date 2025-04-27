@@ -32,6 +32,7 @@ public class PlayerExternalComponent implements Initializable {
     private final ImageService imageService;
     private final PlayerExternalComponentService playerExternalService;
     private final ViewLoader viewLoader;
+
     private final EventHandler<KeyEvent> keyPressedEventHandler = this::onPaneKeyReleased;
     final ProgressInfoComponent infoComponent = new ProgressInfoComponent();
 
@@ -139,13 +140,11 @@ public class PlayerExternalComponent implements Initializable {
 
     private void loadBackgroundImage(String url) {
         log.debug("Loading external player background url {}", url);
-        imageService.load(url).whenComplete((image, throwable) -> {
-            if (throwable == null) {
-                Platform.runLater(() -> backgroundImage.setBackgroundImage(image));
-            } else {
-                log.error(throwable.getMessage(), throwable);
-            }
-        });
+        imageService.load(url).thenAccept(image -> Platform.runLater(() -> backgroundImage.setBackgroundImage(image)))
+                .exceptionally(ex -> {
+                    log.error("Failed to load external player background image", ex);
+                    return null;
+                });
     }
 
     private void onPlayerDurationChanged(long duration) {

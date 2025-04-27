@@ -2,20 +2,21 @@ package com.github.yoep.popcorn.ui.view.controllers.tv.components;
 
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowDetailsEvent;
-import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Subtitle;
 import com.github.yoep.popcorn.backend.media.Episode;
 import com.github.yoep.popcorn.backend.media.Media;
 import com.github.yoep.popcorn.backend.media.MovieDetails;
 import com.github.yoep.popcorn.backend.media.ShowDetails;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
-import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
-import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
+import com.github.yoep.popcorn.backend.subtitles.SubtitleHelper;
+import com.github.yoep.popcorn.backend.subtitles.ISubtitleInfo;
+import com.github.yoep.popcorn.backend.subtitles.ISubtitleService;
 import com.github.yoep.popcorn.ui.view.controls.AxisItemSelection;
 import com.github.yoep.popcorn.ui.view.controls.Overlay;
 import com.github.yoep.popcorn.ui.view.services.VideoQualityService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.scene.control.Button;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -31,11 +32,11 @@ import static com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media.TorrentQual
 @RequiredArgsConstructor
 public abstract class AbstractActionsComponent implements Initializable {
     protected final EventPublisher eventPublisher;
-    protected final SubtitleService subtitleService;
+    protected final ISubtitleService subtitleService;
     protected final VideoQualityService videoQualityService;
     protected final PlaylistManager playlistManager;
 
-    private CompletableFuture<List<SubtitleInfo>> subtitleFuture;
+    private CompletableFuture<List<ISubtitleInfo>> subtitleFuture;
 
     @FXML
     Overlay qualityOverlay;
@@ -44,7 +45,7 @@ public abstract class AbstractActionsComponent implements Initializable {
     @FXML
     Overlay subtitleOverlay;
     @FXML
-    AxisItemSelection<SubtitleInfo> subtitles;
+    AxisItemSelection<ISubtitleInfo> subtitles;
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
@@ -55,17 +56,21 @@ public abstract class AbstractActionsComponent implements Initializable {
             });
             return event;
         });
-//        qualities.setOnItemActivated(newValue -> {
-//            qualityOverlay.hide();
-//            subtitleOverlay.show();
-//            subtitles.setSelectedItem(subtitleService.getDefaultOrInterfaceLanguage(subtitles.getItems()), true);
-//        });
-//        subtitles.setOnItemActivated(subtitle -> {
-//            subtitleOverlay.hide();
-//            subtitleService.updateSubtitle(subtitle);
-//            play();
-//        });
-//        subtitles.setItemFactory(item -> new Button(item.language().getNativeName()));
+
+        subtitleService.getDefaultOrInterfaceLanguage(subtitles.getItems()).thenAccept(subtitle -> {
+            qualities.setOnItemActivated(newValue -> {
+                qualityOverlay.hide();
+                subtitleOverlay.show();
+                subtitles.setSelectedItem(subtitle, true);
+            });
+        });
+
+        subtitles.setOnItemActivated(subtitle -> {
+            subtitleOverlay.hide();
+            subtitleService.updatePreferredLanguage(subtitle.getLanguage());
+            play();
+        });
+        subtitles.setItemFactory(item -> new Button(SubtitleHelper.getNativeName(item.getLanguage())));
     }
 
     /**
@@ -86,7 +91,7 @@ public abstract class AbstractActionsComponent implements Initializable {
     /**
      * Retrieve the subtitle for the current media item.
      */
-    protected abstract CompletableFuture<List<Subtitle.Info>> retrieveSubtitles();
+    protected abstract CompletableFuture<List<ISubtitleInfo>> retrieveSubtitles();
 
     protected void updateQualities() {
         getTorrents().ifPresent(torrents -> qualities.setItems(videoQualityService.getVideoResolutions(torrents)));
@@ -108,14 +113,11 @@ public abstract class AbstractActionsComponent implements Initializable {
         if (subtitleFuture != null)
             subtitleFuture.cancel(true);
 
-//        subtitles.setItems(subtitleService.none());
-//        subtitleFuture = retrieveSubtitles()
-//                .whenComplete((subtitleInfos, throwable) -> {
-//                    if (throwable == null) {
-//                        Platform.runLater(() -> subtitles.setItems(subtitleInfos.toArray(new SubtitleInfo[0])));
-//                    } else {
-//                        log.error(throwable.getMessage(), throwable);
-//                    }
-//                });
+        subtitleService.defaultSubtitles().thenAccept(defaultSubtitles -> {
+            Platform.runLater(() -> subtitles.setItems(defaultSubtitles.toArray(new ISubtitleInfo[0])));
+
+            retrieveSubtitles().thenAccept(subtitles ->
+                    Platform.runLater(() -> this.subtitles.setItems(subtitles.toArray(new ISubtitleInfo[0]))));
+        });
     }
 }

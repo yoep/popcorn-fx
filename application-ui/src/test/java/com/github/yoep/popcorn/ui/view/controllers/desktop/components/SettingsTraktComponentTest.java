@@ -1,13 +1,12 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationSettings;
 import com.github.yoep.popcorn.backend.media.tracking.TrackingListener;
 import com.github.yoep.popcorn.backend.media.tracking.TrackingService;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
-import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
-import com.github.yoep.popcorn.backend.settings.models.LastSync;
-import com.github.yoep.popcorn.backend.settings.models.TrackingSettings;
-import com.github.yoep.popcorn.backend.settings.models.TrackingSyncState;
+import com.github.yoep.popcorn.backend.settings.ApplicationSettingsEventListener;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
+import com.github.yoep.popcorn.backend.utils.Message;
 import com.github.yoep.popcorn.ui.font.controls.Icon;
 import com.github.yoep.popcorn.ui.messages.SettingsMessage;
 import javafx.scene.control.Button;
@@ -23,9 +22,8 @@ import org.testfx.framework.junit5.ApplicationExtension;
 import org.testfx.util.WaitForAsyncUtils;
 
 import java.net.URL;
-import java.time.LocalDateTime;
-import java.util.Optional;
 import java.util.ResourceBundle;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -48,7 +46,7 @@ class SettingsTraktComponentTest {
     private SettingsTraktComponent component;
 
     private final AtomicReference<TrackingListener> trackingListener = new AtomicReference<>();
-    private final AtomicReference<ApplicationConfigEventCallback> configListener = new AtomicReference<>();
+    private final AtomicReference<ApplicationSettingsEventListener> settingsListenerHolder = new AtomicReference<>();
 
     @BeforeEach
     void setUp() {
@@ -57,9 +55,12 @@ class SettingsTraktComponentTest {
             return null;
         }).when(trackingService).addListener(isA(TrackingListener.class));
         doAnswer(invocation -> {
-            configListener.set(invocation.getArgument(0, ApplicationConfigEventCallback.class));
+            settingsListenerHolder.set(invocation.getArgument(0, ApplicationSettingsEventListener.class));
             return null;
-        }).when(applicationConfig).register(isA(ApplicationConfigEventCallback.class));
+        }).when(applicationConfig).addListener(isA(ApplicationSettingsEventListener.class));
+        when(applicationConfig.getSettings()).thenReturn(CompletableFuture.completedFuture(ApplicationSettings.newBuilder()
+                .setTrackingSettings(ApplicationSettings.TrackingSettings.newBuilder().build())
+                .build()));
 
         component.statusText = new Label();
         component.authorizeBtn = new Button();
@@ -71,12 +72,10 @@ class SettingsTraktComponentTest {
     @Test
     void testOnAuthorizationStateChanged() {
         var expectedText = "disconnect";
-        var settings = mock(ApplicationSettings.class);
-        var tracking = mock(TrackingSettings.class);
-        when(applicationConfig.getSettings()).thenReturn(settings);
-        when(settings.getTrackingSettings()).thenReturn(tracking);
-        when(localeText.get(SettingsMessage.AUTHORIZE)).thenReturn("connect");
+        when(localeText.get(isA(Message.class))).thenReturn("PLACEHOLDER");
+        when(localeText.get(isA(Message.class), any())).thenReturn("PLACEHOLDER");
         when(localeText.get(SettingsMessage.DISCONNECT)).thenReturn(expectedText);
+        when(trackingService.isAuthorized()).thenReturn(CompletableFuture.completedFuture(false));
         component.initialize(url, resourceBundle);
 
         var listener = trackingListener.get();
@@ -91,46 +90,38 @@ class SettingsTraktComponentTest {
     void testTrackingSettingsChanged() {
         var expectedStateMessage = "expected state message";
         var expectedTimeMessage = "expected time message";
-        var settings = mock(ApplicationSettings.class);
-        var tracking = mock(TrackingSettings.class);
-        var lastSync = new LastSync();
-        var event = new ApplicationConfigEvent.ByValue();
-        lastSync.time = 1705739400L;
-        lastSync.state = TrackingSyncState.SUCCESS;
-        event.tag = ApplicationConfigEvent.Tag.TRACKING_SETTINGS_CHANGED;
-        event.union = new ApplicationConfigEvent.ApplicationConfigEventUnion.ByValue();
-        event.union.trackingSettingsChanged_body = new ApplicationConfigEvent.TrackingSettingsChanged_Body();
-        event.union.trackingSettingsChanged_body.settings = tracking;
-        when(applicationConfig.getSettings()).thenReturn(settings);
-        when(settings.getTrackingSettings()).thenReturn(tracking);
-        when(tracking.getLastSync()).thenReturn(Optional.of(lastSync));
+        var settings = ApplicationSettings.newBuilder()
+                .setTrackingSettings(ApplicationSettings.TrackingSettings.newBuilder()
+                        .setLastSync(ApplicationSettings.TrackingSettings.LastSync.newBuilder()
+                                .setLastSyncedMillis(1705739400L)
+                                .setState(ApplicationSettings.TrackingSettings.LastSync.State.SUCCESS)
+                                .build())
+                        .build())
+                .build();
         when(localeText.get(isA(SettingsMessage.class))).thenReturn("Foo");
         when(localeText.get(eq(SettingsMessage.LAST_SYNC_STATE), isA(String.class))).thenReturn(expectedStateMessage);
-        when(localeText.get(eq(SettingsMessage.LAST_SYNC_TIME), isA(LocalDateTime.class))).thenReturn(expectedTimeMessage);
+        when(localeText.get(eq(SettingsMessage.LAST_SYNC_TIME), isA(String.class))).thenReturn(expectedTimeMessage);
+        when(trackingService.isAuthorized()).thenReturn(CompletableFuture.completedFuture(false));
         component.initialize(url, resourceBundle);
 
-        var listener = configListener.get();
-        listener.callback(event);
+        var listener = settingsListenerHolder.get();
+        listener.onTrackingSettingsChanged(settings.getTrackingSettings());
         WaitForAsyncUtils.waitForFxEvents();
 
         assertEquals(expectedStateMessage, component.syncState.getText());
         assertEquals(expectedTimeMessage, component.syncTime.getText());
         verify(localeText, atLeast(1)).get(SettingsMessage.SYNC_SUCCESS);
-        verify(localeText, atLeast(1)).get(SettingsMessage.LAST_SYNC_STATE, "Foo");
+        verify(localeText, atLeast(1)).get(eq(SettingsMessage.LAST_SYNC_STATE), isA(String.class));
     }
 
     @Test
     void testOnAuthorizationClicked() {
         var event1 = mock(MouseEvent.class);
         var event2 = mock(MouseEvent.class);
-        var settings = mock(ApplicationSettings.class);
-        var tracking = mock(TrackingSettings.class);
-        when(applicationConfig.getSettings()).thenReturn(settings);
-        when(settings.getTrackingSettings()).thenReturn(tracking);
         when(trackingService.isAuthorized())
-                .thenReturn(true)
-                .thenReturn(true)
-                .thenReturn(false);
+                .thenReturn(CompletableFuture.completedFuture(true))
+                .thenReturn(CompletableFuture.completedFuture(true))
+                .thenReturn(CompletableFuture.completedFuture(false));
         component.initialize(url, resourceBundle);
 
         component.onAuthorizeClicked(event1);

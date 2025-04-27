@@ -1,7 +1,7 @@
 package com.github.yoep.player.popcorn.controls;
 
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationSettings;
-import com.github.yoep.popcorn.backend.subtitles.Subtitle;
+import com.github.yoep.popcorn.backend.subtitles.ISubtitle;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleCue;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleLine;
 import com.github.yoep.popcorn.backend.subtitles.model.SubtitleText;
@@ -18,7 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.github.yoep.popcorn.backend.lib.ipc.protobuf.Subtitle.*;
+import static com.github.yoep.popcorn.backend.lib.ipc.protobuf.Subtitle.Cue;
 
 @Slf4j
 public class SubtitleTrack extends VBox {
@@ -41,7 +41,7 @@ public class SubtitleTrack extends VBox {
     private final DoubleProperty offset = new SimpleDoubleProperty(this, OFFSET_PROPERTY);
 
     private List<TrackLabel> labels;
-    private Subtitle subtitle;
+    private ISubtitle subtitle;
     private SubtitleCue activeSubtitle;
 
     //region Constructors
@@ -123,7 +123,7 @@ public class SubtitleTrack extends VBox {
      *
      * @param subtitle The new subtitle for this track.
      */
-    public void setSubtitle(Subtitle subtitle) {
+    public void setSubtitle(ISubtitle subtitle) {
         this.subtitle = subtitle;
     }
 

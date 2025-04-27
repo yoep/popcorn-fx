@@ -12,7 +12,8 @@ import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationSettings;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
 import com.github.yoep.popcorn.backend.player.PlayerAction;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
-import com.github.yoep.popcorn.backend.subtitles.Subtitle;
+import com.github.yoep.popcorn.backend.subtitles.ISubtitle;
+import com.github.yoep.popcorn.backend.subtitles.SubtitleWrapper;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.SubtitleOffsetEvent;
 import com.github.yoep.popcorn.ui.view.ViewLoader;
@@ -132,7 +133,7 @@ public class PopcornPlayerSectionController implements Initializable {
         });
         sectionService.addListener(new PopcornPlayerSectionListener() {
             @Override
-            public void onSubtitleChanged(Subtitle subtitle) {
+            public void onSubtitleChanged(ISubtitle subtitle) {
                 PopcornPlayerSectionController.this.onSubtitleChanged(subtitle);
             }
 
@@ -379,7 +380,7 @@ public class PopcornPlayerSectionController implements Initializable {
         sectionService.onVolumeScroll(volumeDelta);
     }
 
-    private void onSubtitleChanged(Subtitle subtitle) {
+    private void onSubtitleChanged(ISubtitle subtitle) {
         var supportNativeSubtitlePlayback = sectionService.isNativeSubtitlePlaybackSupported();
 
         if (subtitle.isNone() || supportNativeSubtitlePlayback) {

@@ -48,14 +48,14 @@ public class DesktopFilterComponent implements Initializable {
             @Override
             protected void updateItem(Media.SortBy item, boolean empty) {
                 super.updateItem(item, empty);
-                setText(empty ? null : item.getText());
+                setText(empty ? null : localeText.get("genre_" + item.getKey()));
             }
         });
         sortByCombo.setButtonCell(new ListCell<>() {
             @Override
             protected void updateItem(Media.SortBy item, boolean empty) {
                 super.updateItem(item, empty);
-                setText(empty ? null : item.getText());
+                setText(empty ? null : localeText.get("genre_" + item.getKey()));
             }
         });
     }
@@ -66,14 +66,14 @@ public class DesktopFilterComponent implements Initializable {
             @Override
             protected void updateItem(Media.Genre item, boolean empty) {
                 super.updateItem(item, empty);
-                setText(empty ? null : item.getText());
+                setText(empty ? null : localeText.get("sort-by_" + item.getKey()));
             }
         });
         genreCombo.setButtonCell(new ListCell<>() {
             @Override
             protected void updateItem(Media.Genre item, boolean empty) {
                 super.updateItem(item, empty);
-                setText(empty ? null : item.getText());
+                setText(empty ? null : localeText.get("sort-by_" + item.getKey()));
             }
         });
     }
@@ -86,49 +86,33 @@ public class DesktopFilterComponent implements Initializable {
 
     private void updateGenres(Media.Category category) {
         fxChannel.send(GetCategoryGenresRequest.newBuilder()
-                        .setCategory(category)
-                        .build(), GetCategoryGenresResponse.parser())
-                .whenComplete((response, throwable) -> {
-                    if (throwable == null) {
-                        if (response.getResult() == Response.Result.OK) {
-                            var genres = response.getGenresList().stream()
-                                    .map(e -> Media.Genre.newBuilder(e)
-                                            .setText(localeText.get("genre_" + e.getKey()))
-                                            .build())
-                                    .toList();
-
-                            Platform.runLater(() -> {
-                                genreCombo.getItems().clear();
-                                genreCombo.getItems().addAll(genres);
-                                genreCombo.getSelectionModel().select(0);
-                            });
-                        } else {
-                            log.error("Failed to retrieve category genres, {}", response.getError());
-                        }
-                    } else {
-                        log.error("Failed to retrieve category genres, {}", throwable.getMessage(), throwable);
-                    }
+                .setCategory(category)
+                .build(), GetCategoryGenresResponse.parser()).thenAccept(response -> {
+            if (response.getResult() == Response.Result.OK) {
+                Platform.runLater(() -> {
+                    genreCombo.getItems().clear();
+                    genreCombo.getItems().addAll(response.getGenresList());
+                    genreCombo.getSelectionModel().select(0);
                 });
+            } else {
+                log.error("Failed to retrieve category genre options, {}", response.getError());
+            }
+        });
     }
 
     private void updateSortBy(Media.Category category) {
         fxChannel.send(GetCategorySortByRequest.newBuilder()
                         .setCategory(category)
                         .build(), GetCategorySortByResponse.parser())
-                .whenComplete((response, throwable) -> {
-                    if (throwable == null) {
-                        var sortBy = response.getSortByList().stream()
-                                .map(e -> Media.SortBy.newBuilder(e)
-                                        .setText(localeText.get("sort-by_" + e.getKey()))
-                                        .build())
-                                .toList();
+                .thenAccept(response -> {
+                    if (response.getResult() == Response.Result.OK) {
                         Platform.runLater(() -> {
                             sortByCombo.getItems().clear();
-                            sortByCombo.getItems().addAll(sortBy);
+                            sortByCombo.getItems().addAll(response.getSortByList());
                             sortByCombo.getSelectionModel().select(0);
                         });
                     } else {
-                        log.error("Failed to retrieve category sort by, {}", throwable.getMessage(), throwable);
+                        log.error("Failed to retrieve category sort-by options, {}", response.getError());
                     }
                 });
     }

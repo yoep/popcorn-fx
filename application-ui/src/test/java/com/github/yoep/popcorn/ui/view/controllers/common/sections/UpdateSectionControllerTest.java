@@ -1,7 +1,10 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.updater.*;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Update;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.UpdateEvent;
+import com.github.yoep.popcorn.backend.updater.UpdateEventListener;
+import com.github.yoep.popcorn.backend.updater.UpdateService;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.CloseUpdateEvent;
 import com.github.yoep.popcorn.ui.view.controls.BackgroundImageCover;
@@ -15,7 +18,6 @@ import javafx.scene.layout.Pane;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -45,11 +47,19 @@ class UpdateSectionControllerTest {
     private URL url;
     @Mock
     private ResourceBundle resourceBundle;
-    @InjectMocks
     private UpdateSectionController controller;
+
+    private final AtomicReference<UpdateEventListener> eventListenerHolder = new AtomicReference<>();
 
     @BeforeEach
     void setUp() {
+        doAnswer(invocations -> {
+            eventListenerHolder.set(invocations.getArgument(0, UpdateEventListener.class));
+            return null;
+        }).when(updateService).addListener(isA(UpdateEventListener.class));
+
+        controller = new UpdateSectionController(updateService, imageService, localeText, eventPublisher);
+
         controller.updatePane = new GridPane();
         controller.backgroundCover = new BackgroundImageCover();
         controller.progressPane = new Pane();
@@ -64,7 +74,7 @@ class UpdateSectionControllerTest {
         when(backSpaceEvent.getCode()).thenReturn(KeyCode.BACK_SPACE);
         when(escapeEvent.getCode()).thenReturn(KeyCode.ESCAPE);
         when(imageService.loadResource(isA(String.class))).thenReturn(new CompletableFuture<>());
-        when(updateService.getState()).thenReturn(UpdateState.UPDATE_AVAILABLE);
+        when(updateService.getState()).thenReturn(CompletableFuture.completedFuture(Update.State.UPDATE_AVAILABLE));
         controller.initialize(url, resourceBundle);
 
         controller.onUpdatePressed(backSpaceEvent);
@@ -78,24 +88,17 @@ class UpdateSectionControllerTest {
 
     @Test
     void testOnDownloadProgress() throws TimeoutException {
-        var listenerHolder = new AtomicReference<UpdateCallback>();
-        var event = new UpdateCallbackEvent.ByValue();
-        event.tag = UpdateCallbackEvent.Tag.DownloadProgress;
-        event.union = new UpdateCallbackEvent.UpdateEventCUnion.ByValue();
-        event.union.download_progress = new UpdateCallbackEvent.DownloadProgressBody();
-        event.union.download_progress.downloadProgress = new DownloadProgress();
-        event.union.download_progress.downloadProgress.totalSize = 1024;
-        event.union.download_progress.downloadProgress.downloaded = 512;
-        doAnswer(invocation -> {
-            listenerHolder.set(invocation.getArgument(0));
-            return null;
-        }).when(updateService).register(isA(UpdateCallback.class));
-        when(updateService.getState()).thenReturn(UpdateState.DOWNLOADING);
+        when(updateService.getState()).thenReturn(CompletableFuture.completedFuture(Update.State.DOWNLOADING));
         when(imageService.loadResource(isA(String.class))).thenReturn(new CompletableFuture<>());
         controller.initialize(url, resourceBundle);
 
-        var listener = listenerHolder.get();
-        listener.callback(event);
+        var listener = eventListenerHolder.get();
+        listener.onDownloadProgress(UpdateEvent.DownloadProgress.newBuilder()
+                .setProgress(Update.DownloadProgress.newBuilder()
+                        .setDownloaded(512)
+                        .setTotalSize(1024)
+                        .build())
+                .build());
 
         WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> controller.progressBar.getProgress() == 0.5);
     }

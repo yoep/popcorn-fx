@@ -2,11 +2,10 @@ use crate::core::event::{Event, EventCallback, EventHandler, EventPublisher, Pla
 use crate::core::media::watched::Watched;
 use crate::core::media::{MediaError, MediaIdentifier, MediaType};
 use crate::core::storage::{Storage, StorageError};
-use crate::core::{event, media, Callbacks, CoreCallbacks};
+use crate::core::{event, media};
 use async_trait::async_trait;
+use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use log::{debug, error, info, trace, warn};
-#[cfg(any(test, feature = "testing"))]
-use mockall::automock;
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
 use tokio::select;
@@ -15,7 +14,7 @@ use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 
 const FILENAME: &str = "watched.json";
-const WATCHED_PERCENTAGE_THRESHOLD: f64 = 85 as f64;
+const WATCHED_PERCENTAGE_THRESHOLD: f64 = 85f64;
 
 /// The callback to listen on events of the watched service.
 pub type WatchedCallback = Box<dyn Fn(WatchedEvent) + Send>;
@@ -40,9 +39,8 @@ impl Display for WatchedEvent {
 }
 
 /// The watched service is responsible for tracking seen/unseen media items.
-#[cfg_attr(any(test, feature = "testing"), automock)]
 #[async_trait]
-pub trait WatchedService: Debug + Send + Sync {
+pub trait WatchedService: Debug + Callback<WatchedEvent> + Send + Sync {
     /// Verify if the given ID has been seen.
     ///
     /// * `id`  - The ID of the watchable to verify.
@@ -81,10 +79,6 @@ pub trait WatchedService: Debug + Send + Sync {
     ///
     /// * `watchable`   - The media item to remove from the watched list.
     fn remove(&self, watchable: Box<dyn MediaIdentifier>);
-
-    /// Register the given callback to the watched events.
-    /// The callback will be invoked when an event happens within this service.
-    fn register(&self, callback: WatchedCallback);
 }
 
 #[derive(Debug)]
@@ -99,9 +93,9 @@ impl DefaultWatchedService {
             inner: Arc::new(InnerWatchedService {
                 storage: Storage::from(storage_directory),
                 cache: Arc::new(Mutex::new(None)),
-                callbacks: CoreCallbacks::default(),
                 event_publisher,
                 command_sender,
+                callbacks: MultiThreadedCallback::new(),
                 cancellation_token: Default::default(),
             }),
         };
@@ -149,9 +143,15 @@ impl WatchedService for DefaultWatchedService {
     fn remove(&self, watchable: Box<dyn MediaIdentifier>) {
         self.inner.remove(watchable)
     }
+}
 
-    fn register(&self, callback: WatchedCallback) {
-        self.inner.register(callback)
+impl Callback<WatchedEvent> for DefaultWatchedService {
+    fn subscribe(&self) -> Subscription<WatchedEvent> {
+        self.inner.callbacks.subscribe()
+    }
+
+    fn subscribe_with(&self, subscriber: Subscriber<WatchedEvent>) {
+        self.inner.callbacks.subscribe_with(subscriber)
     }
 }
 
@@ -171,9 +171,9 @@ enum WatchedServiceCommand {
 struct InnerWatchedService {
     storage: Storage,
     cache: Arc<Mutex<Option<Watched>>>,
-    callbacks: CoreCallbacks<WatchedEvent>,
     event_publisher: EventPublisher,
     command_sender: UnboundedSender<WatchedServiceCommand>,
+    callbacks: MultiThreadedCallback<WatchedEvent>,
     cancellation_token: CancellationToken,
 }
 
@@ -329,10 +329,6 @@ impl InnerWatchedService {
         }
     }
 
-    fn register(&self, callback: WatchedCallback) {
-        self.callbacks.add_callback(callback);
-    }
-
     async fn load_watched_cache(&self) -> media::Result<()> {
         let mutex = self.cache.clone();
         let mut cache = mutex.lock().await;
@@ -435,7 +431,8 @@ impl InnerWatchedService {
 }
 
 #[cfg(test)]
-mod test {
+pub mod test {
+    use mockall::mock;
     use std::sync::mpsc::channel;
     use std::time::Duration;
     use tempfile::tempdir;
@@ -446,6 +443,27 @@ mod test {
     use crate::{assert_timeout, init_logger, recv_timeout};
 
     use super::*;
+
+    mock! {
+        #[derive(Debug)]
+        pub WatchedService {}
+
+        #[async_trait]
+        impl WatchedService for WatchedService {
+            async fn is_watched(&self, id: &str) -> bool;
+            async fn is_watched_dyn(&self, watchable: &Box<dyn MediaIdentifier>) -> bool;
+            fn all(&self) -> media::Result<Vec<String>>;
+            fn watched_movies(&self) -> media::Result<Vec<String>>;
+            fn watched_shows(&self) -> media::Result<Vec<String>>;
+            fn add(&self, watchable: Box<dyn MediaIdentifier>) -> media::Result<()>;
+            fn remove(&self, watchable: Box<dyn MediaIdentifier>);
+        }
+
+        impl Callback<WatchedEvent> for WatchedService {
+            fn subscribe(&self) -> Subscription<WatchedEvent>;
+            fn subscribe_with(&self, subscriber: Subscriber<WatchedEvent>);
+        }
+    }
 
     #[tokio::test]
     async fn test_is_watched_when_item_is_watched_should_return_true() {
@@ -568,16 +586,19 @@ mod test {
         let resource_path = temp_dir.path().to_str().unwrap();
         let service = DefaultWatchedService::new(resource_path, EventPublisher::default());
         let (tx, rx) = channel();
-        let callback: WatchedCallback = Box::new(move |e| {
-            tx.send(e).unwrap();
-        });
         let movie: Box<dyn MediaIdentifier> = Box::new(MovieOverview::new(
             String::new(),
             id.to_string(),
             String::new(),
         ));
 
-        service.register(callback);
+        let mut receiver = service.subscribe();
+        tokio::spawn(async move {
+            while let Some(event) = receiver.recv().await {
+                tx.send((*event).clone()).unwrap();
+            }
+        });
+
         service
             .add(movie)
             .expect("expected the movie to be added to watched");
@@ -605,9 +626,12 @@ mod test {
             String::new(),
         ));
 
-        service.register(Box::new(move |e| {
-            tx.send(e).unwrap();
-        }));
+        let mut receiver = service.subscribe();
+        tokio::spawn(async move {
+            while let Some(event) = receiver.recv().await {
+                tx.send((*event).clone()).unwrap();
+            }
+        });
         service.remove(movie);
 
         let result = rx.recv_timeout(Duration::from_secs(3)).unwrap();

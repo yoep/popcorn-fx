@@ -1,0 +1,73 @@
+syntax = "proto3";
+
+option optimize_for = LITE_RUNTIME;
+option java_multiple_files = true;
+option java_package = "com.github.yoep.popcorn.backend.lib.ipc.protobuf";
+
+package fx.ipc.proto;
+
+import "message.proto";
+
+message TrackingProvider {
+  string id = 1;
+
+  enum AuthorizationState{
+    AUTHORIZED = 0;
+    UNAUTHORIZED = 1;
+  }
+
+  message AuthorizationError {
+    Type type = 1;
+
+    enum Type {
+      CSRF_FAILURE = 0;
+      AUTHORIZATION_CODE = 1;
+      TOKEN = 2;
+      AUTHORIZATION_URI_OPEN = 3;
+    }
+  }
+
+  message TrackingError {
+    Type type = 1;
+
+    enum Type {
+      UNAUTHORIZED = 0;
+      REQUEST = 1;
+      PARSING = 2;
+    }
+  }
+}
+
+message GetTrackingProviderIsAuthorizedRequest {
+  string tracking_provider_id = 1;
+}
+
+message GetTrackingProviderIsAuthorizedResponse {
+  bool is_authorized = 1;
+}
+
+message TrackingProviderAuthorizeRequest {
+  string tracking_provider_id = 1;
+}
+
+message TrackingProviderAuthorizeResponse {
+  Response.Result result = 1;
+  optional TrackingProvider.AuthorizationError error = 2;
+}
+
+message TrackingProviderDisconnectRequest {
+  string tracking_provider_id = 1;
+}
+
+message TrackingProviderEvent {
+  Event event = 1;
+  optional AuthorizationStateChanged authorization_state_changed = 2;
+
+  message AuthorizationStateChanged {
+    TrackingProvider.AuthorizationState state = 1;
+  }
+
+  enum Event {
+    AUTHORIZATION_STATE_CHANGED = 0;
+  }
+}

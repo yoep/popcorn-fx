@@ -431,6 +431,710 @@ pub mod update {
         }
     }
 
+    // @@protoc_insertion_point(message:fx.ipc.proto.Update.Error)
+    #[derive(PartialEq,Clone,Default,Debug)]
+    pub struct Error {
+        // message fields
+        // @@protoc_insertion_point(field:fx.ipc.proto.Update.Error.type)
+        pub type_: ::protobuf::EnumOrUnknown<error::Type>,
+        // @@protoc_insertion_point(field:fx.ipc.proto.Update.Error.invalid_update_channel)
+        pub invalid_update_channel: ::protobuf::MessageField<error::InvalidUpdateChannel>,
+        // @@protoc_insertion_point(field:fx.ipc.proto.Update.Error.invalid_application_version)
+        pub invalid_application_version: ::protobuf::MessageField<error::InvalidApplicationVersion>,
+        // @@protoc_insertion_point(field:fx.ipc.proto.Update.Error.invalid_runtime_version)
+        pub invalid_runtime_version: ::protobuf::MessageField<error::InvalidRuntimeVersion>,
+        // @@protoc_insertion_point(field:fx.ipc.proto.Update.Error.invalid_response)
+        pub invalid_response: ::protobuf::MessageField<error::InvalidResponse>,
+        // @@protoc_insertion_point(field:fx.ipc.proto.Update.Error.invalid_download_url)
+        pub invalid_download_url: ::protobuf::MessageField<error::InvalidDownloadUrl>,
+        // special fields
+        // @@protoc_insertion_point(special_field:fx.ipc.proto.Update.Error.special_fields)
+        pub special_fields: ::protobuf::SpecialFields,
+    }
+
+    impl<'a> ::std::default::Default for &'a Error {
+        fn default() -> &'a Error {
+            <Error as ::protobuf::Message>::default_instance()
+        }
+    }
+
+    impl Error {
+        pub fn new() -> Error {
+            ::std::default::Default::default()
+        }
+    }
+
+    impl ::protobuf::Message for Error {
+        const NAME: &'static str = "Error";
+
+        fn is_initialized(&self) -> bool {
+            true
+        }
+
+        fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+            while let Some(tag) = is.read_raw_tag_or_eof()? {
+                match tag {
+                    8 => {
+                        self.type_ = is.read_enum_or_unknown()?;
+                    },
+                    18 => {
+                        ::protobuf::rt::read_singular_message_into_field(is, &mut self.invalid_update_channel)?;
+                    },
+                    26 => {
+                        ::protobuf::rt::read_singular_message_into_field(is, &mut self.invalid_application_version)?;
+                    },
+                    34 => {
+                        ::protobuf::rt::read_singular_message_into_field(is, &mut self.invalid_runtime_version)?;
+                    },
+                    42 => {
+                        ::protobuf::rt::read_singular_message_into_field(is, &mut self.invalid_response)?;
+                    },
+                    50 => {
+                        ::protobuf::rt::read_singular_message_into_field(is, &mut self.invalid_download_url)?;
+                    },
+                    tag => {
+                        ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                    },
+                };
+            }
+            ::std::result::Result::Ok(())
+        }
+
+        // Compute sizes of nested messages
+        #[allow(unused_variables)]
+        fn compute_size(&self) -> u64 {
+            let mut my_size = 0;
+            if self.type_ != ::protobuf::EnumOrUnknown::new(error::Type::INVALID_UPDATE_CHANNEL) {
+                my_size += ::protobuf::rt::int32_size(1, self.type_.value());
+            }
+            if let Some(v) = self.invalid_update_channel.as_ref() {
+                let len = v.compute_size();
+                my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+            }
+            if let Some(v) = self.invalid_application_version.as_ref() {
+                let len = v.compute_size();
+                my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+            }
+            if let Some(v) = self.invalid_runtime_version.as_ref() {
+                let len = v.compute_size();
+                my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+            }
+            if let Some(v) = self.invalid_response.as_ref() {
+                let len = v.compute_size();
+                my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+            }
+            if let Some(v) = self.invalid_download_url.as_ref() {
+                let len = v.compute_size();
+                my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+            }
+            my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+            self.special_fields.cached_size().set(my_size as u32);
+            my_size
+        }
+
+        fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+            if self.type_ != ::protobuf::EnumOrUnknown::new(error::Type::INVALID_UPDATE_CHANNEL) {
+                os.write_enum(1, ::protobuf::EnumOrUnknown::value(&self.type_))?;
+            }
+            if let Some(v) = self.invalid_update_channel.as_ref() {
+                ::protobuf::rt::write_message_field_with_cached_size(2, v, os)?;
+            }
+            if let Some(v) = self.invalid_application_version.as_ref() {
+                ::protobuf::rt::write_message_field_with_cached_size(3, v, os)?;
+            }
+            if let Some(v) = self.invalid_runtime_version.as_ref() {
+                ::protobuf::rt::write_message_field_with_cached_size(4, v, os)?;
+            }
+            if let Some(v) = self.invalid_response.as_ref() {
+                ::protobuf::rt::write_message_field_with_cached_size(5, v, os)?;
+            }
+            if let Some(v) = self.invalid_download_url.as_ref() {
+                ::protobuf::rt::write_message_field_with_cached_size(6, v, os)?;
+            }
+            os.write_unknown_fields(self.special_fields.unknown_fields())?;
+            ::std::result::Result::Ok(())
+        }
+
+        fn special_fields(&self) -> &::protobuf::SpecialFields {
+            &self.special_fields
+        }
+
+        fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+            &mut self.special_fields
+        }
+
+        fn new() -> Error {
+            Error::new()
+        }
+
+        fn clear(&mut self) {
+            self.type_ = ::protobuf::EnumOrUnknown::new(error::Type::INVALID_UPDATE_CHANNEL);
+            self.invalid_update_channel.clear();
+            self.invalid_application_version.clear();
+            self.invalid_runtime_version.clear();
+            self.invalid_response.clear();
+            self.invalid_download_url.clear();
+            self.special_fields.clear();
+        }
+
+        fn default_instance() -> &'static Error {
+            static instance: Error = Error {
+                type_: ::protobuf::EnumOrUnknown::from_i32(0),
+                invalid_update_channel: ::protobuf::MessageField::none(),
+                invalid_application_version: ::protobuf::MessageField::none(),
+                invalid_runtime_version: ::protobuf::MessageField::none(),
+                invalid_response: ::protobuf::MessageField::none(),
+                invalid_download_url: ::protobuf::MessageField::none(),
+                special_fields: ::protobuf::SpecialFields::new(),
+            };
+            &instance
+        }
+    }
+
+    /// Nested message and enums of message `Error`
+    pub mod error {
+        // @@protoc_insertion_point(message:fx.ipc.proto.Update.Error.InvalidUpdateChannel)
+        #[derive(PartialEq,Clone,Default,Debug)]
+        pub struct InvalidUpdateChannel {
+            // message fields
+            // @@protoc_insertion_point(field:fx.ipc.proto.Update.Error.InvalidUpdateChannel.channel)
+            pub channel: ::std::string::String,
+            // special fields
+            // @@protoc_insertion_point(special_field:fx.ipc.proto.Update.Error.InvalidUpdateChannel.special_fields)
+            pub special_fields: ::protobuf::SpecialFields,
+        }
+
+        impl<'a> ::std::default::Default for &'a InvalidUpdateChannel {
+            fn default() -> &'a InvalidUpdateChannel {
+                <InvalidUpdateChannel as ::protobuf::Message>::default_instance()
+            }
+        }
+
+        impl InvalidUpdateChannel {
+            pub fn new() -> InvalidUpdateChannel {
+                ::std::default::Default::default()
+            }
+        }
+
+        impl ::protobuf::Message for InvalidUpdateChannel {
+            const NAME: &'static str = "InvalidUpdateChannel";
+
+            fn is_initialized(&self) -> bool {
+                true
+            }
+
+            fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+                while let Some(tag) = is.read_raw_tag_or_eof()? {
+                    match tag {
+                        10 => {
+                            self.channel = is.read_string()?;
+                        },
+                        tag => {
+                            ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                        },
+                    };
+                }
+                ::std::result::Result::Ok(())
+            }
+
+            // Compute sizes of nested messages
+            #[allow(unused_variables)]
+            fn compute_size(&self) -> u64 {
+                let mut my_size = 0;
+                if !self.channel.is_empty() {
+                    my_size += ::protobuf::rt::string_size(1, &self.channel);
+                }
+                my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+                self.special_fields.cached_size().set(my_size as u32);
+                my_size
+            }
+
+            fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+                if !self.channel.is_empty() {
+                    os.write_string(1, &self.channel)?;
+                }
+                os.write_unknown_fields(self.special_fields.unknown_fields())?;
+                ::std::result::Result::Ok(())
+            }
+
+            fn special_fields(&self) -> &::protobuf::SpecialFields {
+                &self.special_fields
+            }
+
+            fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+                &mut self.special_fields
+            }
+
+            fn new() -> InvalidUpdateChannel {
+                InvalidUpdateChannel::new()
+            }
+
+            fn clear(&mut self) {
+                self.channel.clear();
+                self.special_fields.clear();
+            }
+
+            fn default_instance() -> &'static InvalidUpdateChannel {
+                static instance: InvalidUpdateChannel = InvalidUpdateChannel {
+                    channel: ::std::string::String::new(),
+                    special_fields: ::protobuf::SpecialFields::new(),
+                };
+                &instance
+            }
+        }
+
+        // @@protoc_insertion_point(message:fx.ipc.proto.Update.Error.InvalidApplicationVersion)
+        #[derive(PartialEq,Clone,Default,Debug)]
+        pub struct InvalidApplicationVersion {
+            // message fields
+            // @@protoc_insertion_point(field:fx.ipc.proto.Update.Error.InvalidApplicationVersion.version_value)
+            pub version_value: ::std::string::String,
+            // @@protoc_insertion_point(field:fx.ipc.proto.Update.Error.InvalidApplicationVersion.reason)
+            pub reason: ::std::string::String,
+            // special fields
+            // @@protoc_insertion_point(special_field:fx.ipc.proto.Update.Error.InvalidApplicationVersion.special_fields)
+            pub special_fields: ::protobuf::SpecialFields,
+        }
+
+        impl<'a> ::std::default::Default for &'a InvalidApplicationVersion {
+            fn default() -> &'a InvalidApplicationVersion {
+                <InvalidApplicationVersion as ::protobuf::Message>::default_instance()
+            }
+        }
+
+        impl InvalidApplicationVersion {
+            pub fn new() -> InvalidApplicationVersion {
+                ::std::default::Default::default()
+            }
+        }
+
+        impl ::protobuf::Message for InvalidApplicationVersion {
+            const NAME: &'static str = "InvalidApplicationVersion";
+
+            fn is_initialized(&self) -> bool {
+                true
+            }
+
+            fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+                while let Some(tag) = is.read_raw_tag_or_eof()? {
+                    match tag {
+                        10 => {
+                            self.version_value = is.read_string()?;
+                        },
+                        18 => {
+                            self.reason = is.read_string()?;
+                        },
+                        tag => {
+                            ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                        },
+                    };
+                }
+                ::std::result::Result::Ok(())
+            }
+
+            // Compute sizes of nested messages
+            #[allow(unused_variables)]
+            fn compute_size(&self) -> u64 {
+                let mut my_size = 0;
+                if !self.version_value.is_empty() {
+                    my_size += ::protobuf::rt::string_size(1, &self.version_value);
+                }
+                if !self.reason.is_empty() {
+                    my_size += ::protobuf::rt::string_size(2, &self.reason);
+                }
+                my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+                self.special_fields.cached_size().set(my_size as u32);
+                my_size
+            }
+
+            fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+                if !self.version_value.is_empty() {
+                    os.write_string(1, &self.version_value)?;
+                }
+                if !self.reason.is_empty() {
+                    os.write_string(2, &self.reason)?;
+                }
+                os.write_unknown_fields(self.special_fields.unknown_fields())?;
+                ::std::result::Result::Ok(())
+            }
+
+            fn special_fields(&self) -> &::protobuf::SpecialFields {
+                &self.special_fields
+            }
+
+            fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+                &mut self.special_fields
+            }
+
+            fn new() -> InvalidApplicationVersion {
+                InvalidApplicationVersion::new()
+            }
+
+            fn clear(&mut self) {
+                self.version_value.clear();
+                self.reason.clear();
+                self.special_fields.clear();
+            }
+
+            fn default_instance() -> &'static InvalidApplicationVersion {
+                static instance: InvalidApplicationVersion = InvalidApplicationVersion {
+                    version_value: ::std::string::String::new(),
+                    reason: ::std::string::String::new(),
+                    special_fields: ::protobuf::SpecialFields::new(),
+                };
+                &instance
+            }
+        }
+
+        // @@protoc_insertion_point(message:fx.ipc.proto.Update.Error.InvalidRuntimeVersion)
+        #[derive(PartialEq,Clone,Default,Debug)]
+        pub struct InvalidRuntimeVersion {
+            // message fields
+            // @@protoc_insertion_point(field:fx.ipc.proto.Update.Error.InvalidRuntimeVersion.version_value)
+            pub version_value: ::std::string::String,
+            // @@protoc_insertion_point(field:fx.ipc.proto.Update.Error.InvalidRuntimeVersion.reason)
+            pub reason: ::std::string::String,
+            // special fields
+            // @@protoc_insertion_point(special_field:fx.ipc.proto.Update.Error.InvalidRuntimeVersion.special_fields)
+            pub special_fields: ::protobuf::SpecialFields,
+        }
+
+        impl<'a> ::std::default::Default for &'a InvalidRuntimeVersion {
+            fn default() -> &'a InvalidRuntimeVersion {
+                <InvalidRuntimeVersion as ::protobuf::Message>::default_instance()
+            }
+        }
+
+        impl InvalidRuntimeVersion {
+            pub fn new() -> InvalidRuntimeVersion {
+                ::std::default::Default::default()
+            }
+        }
+
+        impl ::protobuf::Message for InvalidRuntimeVersion {
+            const NAME: &'static str = "InvalidRuntimeVersion";
+
+            fn is_initialized(&self) -> bool {
+                true
+            }
+
+            fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+                while let Some(tag) = is.read_raw_tag_or_eof()? {
+                    match tag {
+                        10 => {
+                            self.version_value = is.read_string()?;
+                        },
+                        18 => {
+                            self.reason = is.read_string()?;
+                        },
+                        tag => {
+                            ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                        },
+                    };
+                }
+                ::std::result::Result::Ok(())
+            }
+
+            // Compute sizes of nested messages
+            #[allow(unused_variables)]
+            fn compute_size(&self) -> u64 {
+                let mut my_size = 0;
+                if !self.version_value.is_empty() {
+                    my_size += ::protobuf::rt::string_size(1, &self.version_value);
+                }
+                if !self.reason.is_empty() {
+                    my_size += ::protobuf::rt::string_size(2, &self.reason);
+                }
+                my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+                self.special_fields.cached_size().set(my_size as u32);
+                my_size
+            }
+
+            fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+                if !self.version_value.is_empty() {
+                    os.write_string(1, &self.version_value)?;
+                }
+                if !self.reason.is_empty() {
+                    os.write_string(2, &self.reason)?;
+                }
+                os.write_unknown_fields(self.special_fields.unknown_fields())?;
+                ::std::result::Result::Ok(())
+            }
+
+            fn special_fields(&self) -> &::protobuf::SpecialFields {
+                &self.special_fields
+            }
+
+            fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+                &mut self.special_fields
+            }
+
+            fn new() -> InvalidRuntimeVersion {
+                InvalidRuntimeVersion::new()
+            }
+
+            fn clear(&mut self) {
+                self.version_value.clear();
+                self.reason.clear();
+                self.special_fields.clear();
+            }
+
+            fn default_instance() -> &'static InvalidRuntimeVersion {
+                static instance: InvalidRuntimeVersion = InvalidRuntimeVersion {
+                    version_value: ::std::string::String::new(),
+                    reason: ::std::string::String::new(),
+                    special_fields: ::protobuf::SpecialFields::new(),
+                };
+                &instance
+            }
+        }
+
+        // @@protoc_insertion_point(message:fx.ipc.proto.Update.Error.InvalidResponse)
+        #[derive(PartialEq,Clone,Default,Debug)]
+        pub struct InvalidResponse {
+            // message fields
+            // @@protoc_insertion_point(field:fx.ipc.proto.Update.Error.InvalidResponse.reason)
+            pub reason: ::std::string::String,
+            // special fields
+            // @@protoc_insertion_point(special_field:fx.ipc.proto.Update.Error.InvalidResponse.special_fields)
+            pub special_fields: ::protobuf::SpecialFields,
+        }
+
+        impl<'a> ::std::default::Default for &'a InvalidResponse {
+            fn default() -> &'a InvalidResponse {
+                <InvalidResponse as ::protobuf::Message>::default_instance()
+            }
+        }
+
+        impl InvalidResponse {
+            pub fn new() -> InvalidResponse {
+                ::std::default::Default::default()
+            }
+        }
+
+        impl ::protobuf::Message for InvalidResponse {
+            const NAME: &'static str = "InvalidResponse";
+
+            fn is_initialized(&self) -> bool {
+                true
+            }
+
+            fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+                while let Some(tag) = is.read_raw_tag_or_eof()? {
+                    match tag {
+                        10 => {
+                            self.reason = is.read_string()?;
+                        },
+                        tag => {
+                            ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                        },
+                    };
+                }
+                ::std::result::Result::Ok(())
+            }
+
+            // Compute sizes of nested messages
+            #[allow(unused_variables)]
+            fn compute_size(&self) -> u64 {
+                let mut my_size = 0;
+                if !self.reason.is_empty() {
+                    my_size += ::protobuf::rt::string_size(1, &self.reason);
+                }
+                my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+                self.special_fields.cached_size().set(my_size as u32);
+                my_size
+            }
+
+            fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+                if !self.reason.is_empty() {
+                    os.write_string(1, &self.reason)?;
+                }
+                os.write_unknown_fields(self.special_fields.unknown_fields())?;
+                ::std::result::Result::Ok(())
+            }
+
+            fn special_fields(&self) -> &::protobuf::SpecialFields {
+                &self.special_fields
+            }
+
+            fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+                &mut self.special_fields
+            }
+
+            fn new() -> InvalidResponse {
+                InvalidResponse::new()
+            }
+
+            fn clear(&mut self) {
+                self.reason.clear();
+                self.special_fields.clear();
+            }
+
+            fn default_instance() -> &'static InvalidResponse {
+                static instance: InvalidResponse = InvalidResponse {
+                    reason: ::std::string::String::new(),
+                    special_fields: ::protobuf::SpecialFields::new(),
+                };
+                &instance
+            }
+        }
+
+        // @@protoc_insertion_point(message:fx.ipc.proto.Update.Error.InvalidDownloadUrl)
+        #[derive(PartialEq,Clone,Default,Debug)]
+        pub struct InvalidDownloadUrl {
+            // message fields
+            // @@protoc_insertion_point(field:fx.ipc.proto.Update.Error.InvalidDownloadUrl.url)
+            pub url: ::std::string::String,
+            // special fields
+            // @@protoc_insertion_point(special_field:fx.ipc.proto.Update.Error.InvalidDownloadUrl.special_fields)
+            pub special_fields: ::protobuf::SpecialFields,
+        }
+
+        impl<'a> ::std::default::Default for &'a InvalidDownloadUrl {
+            fn default() -> &'a InvalidDownloadUrl {
+                <InvalidDownloadUrl as ::protobuf::Message>::default_instance()
+            }
+        }
+
+        impl InvalidDownloadUrl {
+            pub fn new() -> InvalidDownloadUrl {
+                ::std::default::Default::default()
+            }
+        }
+
+        impl ::protobuf::Message for InvalidDownloadUrl {
+            const NAME: &'static str = "InvalidDownloadUrl";
+
+            fn is_initialized(&self) -> bool {
+                true
+            }
+
+            fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+                while let Some(tag) = is.read_raw_tag_or_eof()? {
+                    match tag {
+                        10 => {
+                            self.url = is.read_string()?;
+                        },
+                        tag => {
+                            ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                        },
+                    };
+                }
+                ::std::result::Result::Ok(())
+            }
+
+            // Compute sizes of nested messages
+            #[allow(unused_variables)]
+            fn compute_size(&self) -> u64 {
+                let mut my_size = 0;
+                if !self.url.is_empty() {
+                    my_size += ::protobuf::rt::string_size(1, &self.url);
+                }
+                my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+                self.special_fields.cached_size().set(my_size as u32);
+                my_size
+            }
+
+            fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+                if !self.url.is_empty() {
+                    os.write_string(1, &self.url)?;
+                }
+                os.write_unknown_fields(self.special_fields.unknown_fields())?;
+                ::std::result::Result::Ok(())
+            }
+
+            fn special_fields(&self) -> &::protobuf::SpecialFields {
+                &self.special_fields
+            }
+
+            fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+                &mut self.special_fields
+            }
+
+            fn new() -> InvalidDownloadUrl {
+                InvalidDownloadUrl::new()
+            }
+
+            fn clear(&mut self) {
+                self.url.clear();
+                self.special_fields.clear();
+            }
+
+            fn default_instance() -> &'static InvalidDownloadUrl {
+                static instance: InvalidDownloadUrl = InvalidDownloadUrl {
+                    url: ::std::string::String::new(),
+                    special_fields: ::protobuf::SpecialFields::new(),
+                };
+                &instance
+            }
+        }
+
+        #[derive(Clone,Copy,PartialEq,Eq,Debug,Hash)]
+        // @@protoc_insertion_point(enum:fx.ipc.proto.Update.Error.Type)
+        pub enum Type {
+            // @@protoc_insertion_point(enum_value:fx.ipc.proto.Update.Error.Type.INVALID_UPDATE_CHANNEL)
+            INVALID_UPDATE_CHANNEL = 0,
+            // @@protoc_insertion_point(enum_value:fx.ipc.proto.Update.Error.Type.INVALID_APPLICATION_VERSION)
+            INVALID_APPLICATION_VERSION = 1,
+            // @@protoc_insertion_point(enum_value:fx.ipc.proto.Update.Error.Type.INVALID_RUNTIME_VERSION)
+            INVALID_RUNTIME_VERSION = 2,
+            // @@protoc_insertion_point(enum_value:fx.ipc.proto.Update.Error.Type.UNKNOWN_VERSION)
+            UNKNOWN_VERSION = 3,
+            // @@protoc_insertion_point(enum_value:fx.ipc.proto.Update.Error.Type.RESPONSE)
+            RESPONSE = 4,
+            // @@protoc_insertion_point(enum_value:fx.ipc.proto.Update.Error.Type.INVALID_DOWNLOAD_URL)
+            INVALID_DOWNLOAD_URL = 5,
+        }
+
+        impl ::protobuf::Enum for Type {
+            const NAME: &'static str = "Type";
+
+            fn value(&self) -> i32 {
+                *self as i32
+            }
+
+            fn from_i32(value: i32) -> ::std::option::Option<Type> {
+                match value {
+                    0 => ::std::option::Option::Some(Type::INVALID_UPDATE_CHANNEL),
+                    1 => ::std::option::Option::Some(Type::INVALID_APPLICATION_VERSION),
+                    2 => ::std::option::Option::Some(Type::INVALID_RUNTIME_VERSION),
+                    3 => ::std::option::Option::Some(Type::UNKNOWN_VERSION),
+                    4 => ::std::option::Option::Some(Type::RESPONSE),
+                    5 => ::std::option::Option::Some(Type::INVALID_DOWNLOAD_URL),
+                    _ => ::std::option::Option::None
+                }
+            }
+
+            fn from_str(str: &str) -> ::std::option::Option<Type> {
+                match str {
+                    "INVALID_UPDATE_CHANNEL" => ::std::option::Option::Some(Type::INVALID_UPDATE_CHANNEL),
+                    "INVALID_APPLICATION_VERSION" => ::std::option::Option::Some(Type::INVALID_APPLICATION_VERSION),
+                    "INVALID_RUNTIME_VERSION" => ::std::option::Option::Some(Type::INVALID_RUNTIME_VERSION),
+                    "UNKNOWN_VERSION" => ::std::option::Option::Some(Type::UNKNOWN_VERSION),
+                    "RESPONSE" => ::std::option::Option::Some(Type::RESPONSE),
+                    "INVALID_DOWNLOAD_URL" => ::std::option::Option::Some(Type::INVALID_DOWNLOAD_URL),
+                    _ => ::std::option::Option::None
+                }
+            }
+
+            const VALUES: &'static [Type] = &[
+                Type::INVALID_UPDATE_CHANNEL,
+                Type::INVALID_APPLICATION_VERSION,
+                Type::INVALID_RUNTIME_VERSION,
+                Type::UNKNOWN_VERSION,
+                Type::RESPONSE,
+                Type::INVALID_DOWNLOAD_URL,
+            ];
+        }
+
+        impl ::std::default::Default for Type {
+            fn default() -> Self {
+                Type::INVALID_UPDATE_CHANNEL
+            }
+        }
+
+    }
+
     #[derive(Clone,Copy,PartialEq,Eq,Debug,Hash)]
     // @@protoc_insertion_point(enum:fx.ipc.proto.Update.State)
     pub enum State {
@@ -753,8 +1457,12 @@ impl ::protobuf::Message for GetUpdateInfoRequest {
 #[derive(PartialEq,Clone,Default,Debug)]
 pub struct GetUpdateInfoResponse {
     // message fields
+    // @@protoc_insertion_point(field:fx.ipc.proto.GetUpdateInfoResponse.result)
+    pub result: ::protobuf::EnumOrUnknown<super::message::response::Result>,
     // @@protoc_insertion_point(field:fx.ipc.proto.GetUpdateInfoResponse.info)
     pub info: ::protobuf::MessageField<update::VersionInfo>,
+    // @@protoc_insertion_point(field:fx.ipc.proto.GetUpdateInfoResponse.error)
+    pub error: ::protobuf::MessageField<update::Error>,
     // special fields
     // @@protoc_insertion_point(special_field:fx.ipc.proto.GetUpdateInfoResponse.special_fields)
     pub special_fields: ::protobuf::SpecialFields,
@@ -782,8 +1490,14 @@ impl ::protobuf::Message for GetUpdateInfoResponse {
     fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
         while let Some(tag) = is.read_raw_tag_or_eof()? {
             match tag {
-                10 => {
+                8 => {
+                    self.result = is.read_enum_or_unknown()?;
+                },
+                18 => {
                     ::protobuf::rt::read_singular_message_into_field(is, &mut self.info)?;
+                },
+                26 => {
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.error)?;
                 },
                 tag => {
                     ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
@@ -797,7 +1511,14 @@ impl ::protobuf::Message for GetUpdateInfoResponse {
     #[allow(unused_variables)]
     fn compute_size(&self) -> u64 {
         let mut my_size = 0;
+        if self.result != ::protobuf::EnumOrUnknown::new(super::message::response::Result::OK) {
+            my_size += ::protobuf::rt::int32_size(1, self.result.value());
+        }
         if let Some(v) = self.info.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
+        if let Some(v) = self.error.as_ref() {
             let len = v.compute_size();
             my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
         }
@@ -807,8 +1528,14 @@ impl ::protobuf::Message for GetUpdateInfoResponse {
     }
 
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if self.result != ::protobuf::EnumOrUnknown::new(super::message::response::Result::OK) {
+            os.write_enum(1, ::protobuf::EnumOrUnknown::value(&self.result))?;
+        }
         if let Some(v) = self.info.as_ref() {
-            ::protobuf::rt::write_message_field_with_cached_size(1, v, os)?;
+            ::protobuf::rt::write_message_field_with_cached_size(2, v, os)?;
+        }
+        if let Some(v) = self.error.as_ref() {
+            ::protobuf::rt::write_message_field_with_cached_size(3, v, os)?;
         }
         os.write_unknown_fields(self.special_fields.unknown_fields())?;
         ::std::result::Result::Ok(())
@@ -827,13 +1554,453 @@ impl ::protobuf::Message for GetUpdateInfoResponse {
     }
 
     fn clear(&mut self) {
+        self.result = ::protobuf::EnumOrUnknown::new(super::message::response::Result::OK);
         self.info.clear();
+        self.error.clear();
         self.special_fields.clear();
     }
 
     fn default_instance() -> &'static GetUpdateInfoResponse {
         static instance: GetUpdateInfoResponse = GetUpdateInfoResponse {
+            result: ::protobuf::EnumOrUnknown::from_i32(0),
             info: ::protobuf::MessageField::none(),
+            error: ::protobuf::MessageField::none(),
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+// @@protoc_insertion_point(message:fx.ipc.proto.RefreshUpdateInfoRequest)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct RefreshUpdateInfoRequest {
+    // special fields
+    // @@protoc_insertion_point(special_field:fx.ipc.proto.RefreshUpdateInfoRequest.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a RefreshUpdateInfoRequest {
+    fn default() -> &'a RefreshUpdateInfoRequest {
+        <RefreshUpdateInfoRequest as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl RefreshUpdateInfoRequest {
+    pub fn new() -> RefreshUpdateInfoRequest {
+        ::std::default::Default::default()
+    }
+}
+
+impl ::protobuf::Message for RefreshUpdateInfoRequest {
+    const NAME: &'static str = "RefreshUpdateInfoRequest";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> RefreshUpdateInfoRequest {
+        RefreshUpdateInfoRequest::new()
+    }
+
+    fn clear(&mut self) {
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static RefreshUpdateInfoRequest {
+        static instance: RefreshUpdateInfoRequest = RefreshUpdateInfoRequest {
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+// @@protoc_insertion_point(message:fx.ipc.proto.StartUpdateDownloadRequest)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct StartUpdateDownloadRequest {
+    // special fields
+    // @@protoc_insertion_point(special_field:fx.ipc.proto.StartUpdateDownloadRequest.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a StartUpdateDownloadRequest {
+    fn default() -> &'a StartUpdateDownloadRequest {
+        <StartUpdateDownloadRequest as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl StartUpdateDownloadRequest {
+    pub fn new() -> StartUpdateDownloadRequest {
+        ::std::default::Default::default()
+    }
+}
+
+impl ::protobuf::Message for StartUpdateDownloadRequest {
+    const NAME: &'static str = "StartUpdateDownloadRequest";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> StartUpdateDownloadRequest {
+        StartUpdateDownloadRequest::new()
+    }
+
+    fn clear(&mut self) {
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static StartUpdateDownloadRequest {
+        static instance: StartUpdateDownloadRequest = StartUpdateDownloadRequest {
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+// @@protoc_insertion_point(message:fx.ipc.proto.StartUpdateDownloadResponse)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct StartUpdateDownloadResponse {
+    // message fields
+    // @@protoc_insertion_point(field:fx.ipc.proto.StartUpdateDownloadResponse.result)
+    pub result: ::protobuf::EnumOrUnknown<super::message::response::Result>,
+    // @@protoc_insertion_point(field:fx.ipc.proto.StartUpdateDownloadResponse.error)
+    pub error: ::protobuf::MessageField<update::Error>,
+    // special fields
+    // @@protoc_insertion_point(special_field:fx.ipc.proto.StartUpdateDownloadResponse.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a StartUpdateDownloadResponse {
+    fn default() -> &'a StartUpdateDownloadResponse {
+        <StartUpdateDownloadResponse as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl StartUpdateDownloadResponse {
+    pub fn new() -> StartUpdateDownloadResponse {
+        ::std::default::Default::default()
+    }
+}
+
+impl ::protobuf::Message for StartUpdateDownloadResponse {
+    const NAME: &'static str = "StartUpdateDownloadResponse";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                8 => {
+                    self.result = is.read_enum_or_unknown()?;
+                },
+                18 => {
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.error)?;
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        if self.result != ::protobuf::EnumOrUnknown::new(super::message::response::Result::OK) {
+            my_size += ::protobuf::rt::int32_size(1, self.result.value());
+        }
+        if let Some(v) = self.error.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if self.result != ::protobuf::EnumOrUnknown::new(super::message::response::Result::OK) {
+            os.write_enum(1, ::protobuf::EnumOrUnknown::value(&self.result))?;
+        }
+        if let Some(v) = self.error.as_ref() {
+            ::protobuf::rt::write_message_field_with_cached_size(2, v, os)?;
+        }
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> StartUpdateDownloadResponse {
+        StartUpdateDownloadResponse::new()
+    }
+
+    fn clear(&mut self) {
+        self.result = ::protobuf::EnumOrUnknown::new(super::message::response::Result::OK);
+        self.error.clear();
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static StartUpdateDownloadResponse {
+        static instance: StartUpdateDownloadResponse = StartUpdateDownloadResponse {
+            result: ::protobuf::EnumOrUnknown::from_i32(0),
+            error: ::protobuf::MessageField::none(),
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+// @@protoc_insertion_point(message:fx.ipc.proto.StartUpdateInstallationRequest)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct StartUpdateInstallationRequest {
+    // special fields
+    // @@protoc_insertion_point(special_field:fx.ipc.proto.StartUpdateInstallationRequest.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a StartUpdateInstallationRequest {
+    fn default() -> &'a StartUpdateInstallationRequest {
+        <StartUpdateInstallationRequest as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl StartUpdateInstallationRequest {
+    pub fn new() -> StartUpdateInstallationRequest {
+        ::std::default::Default::default()
+    }
+}
+
+impl ::protobuf::Message for StartUpdateInstallationRequest {
+    const NAME: &'static str = "StartUpdateInstallationRequest";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> StartUpdateInstallationRequest {
+        StartUpdateInstallationRequest::new()
+    }
+
+    fn clear(&mut self) {
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static StartUpdateInstallationRequest {
+        static instance: StartUpdateInstallationRequest = StartUpdateInstallationRequest {
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+// @@protoc_insertion_point(message:fx.ipc.proto.StartUpdateInstallationResponse)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct StartUpdateInstallationResponse {
+    // message fields
+    // @@protoc_insertion_point(field:fx.ipc.proto.StartUpdateInstallationResponse.result)
+    pub result: ::protobuf::EnumOrUnknown<super::message::response::Result>,
+    // @@protoc_insertion_point(field:fx.ipc.proto.StartUpdateInstallationResponse.error)
+    pub error: ::protobuf::MessageField<update::Error>,
+    // special fields
+    // @@protoc_insertion_point(special_field:fx.ipc.proto.StartUpdateInstallationResponse.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a StartUpdateInstallationResponse {
+    fn default() -> &'a StartUpdateInstallationResponse {
+        <StartUpdateInstallationResponse as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl StartUpdateInstallationResponse {
+    pub fn new() -> StartUpdateInstallationResponse {
+        ::std::default::Default::default()
+    }
+}
+
+impl ::protobuf::Message for StartUpdateInstallationResponse {
+    const NAME: &'static str = "StartUpdateInstallationResponse";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                8 => {
+                    self.result = is.read_enum_or_unknown()?;
+                },
+                18 => {
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.error)?;
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        if self.result != ::protobuf::EnumOrUnknown::new(super::message::response::Result::OK) {
+            my_size += ::protobuf::rt::int32_size(1, self.result.value());
+        }
+        if let Some(v) = self.error.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if self.result != ::protobuf::EnumOrUnknown::new(super::message::response::Result::OK) {
+            os.write_enum(1, ::protobuf::EnumOrUnknown::value(&self.result))?;
+        }
+        if let Some(v) = self.error.as_ref() {
+            ::protobuf::rt::write_message_field_with_cached_size(2, v, os)?;
+        }
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> StartUpdateInstallationResponse {
+        StartUpdateInstallationResponse::new()
+    }
+
+    fn clear(&mut self) {
+        self.result = ::protobuf::EnumOrUnknown::new(super::message::response::Result::OK);
+        self.error.clear();
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static StartUpdateInstallationResponse {
+        static instance: StartUpdateInstallationResponse = StartUpdateInstallationResponse {
+            result: ::protobuf::EnumOrUnknown::from_i32(0),
+            error: ::protobuf::MessageField::none(),
             special_fields: ::protobuf::SpecialFields::new(),
         };
         &instance
@@ -850,6 +2017,8 @@ pub struct UpdateEvent {
     pub state_changed: ::protobuf::MessageField<update_event::StateChanged>,
     // @@protoc_insertion_point(field:fx.ipc.proto.UpdateEvent.update_available)
     pub update_available: ::protobuf::MessageField<update_event::UpdateAvailable>,
+    // @@protoc_insertion_point(field:fx.ipc.proto.UpdateEvent.download_progress)
+    pub download_progress: ::protobuf::MessageField<update_event::DownloadProgress>,
     // special fields
     // @@protoc_insertion_point(special_field:fx.ipc.proto.UpdateEvent.special_fields)
     pub special_fields: ::protobuf::SpecialFields,
@@ -886,6 +2055,9 @@ impl ::protobuf::Message for UpdateEvent {
                 26 => {
                     ::protobuf::rt::read_singular_message_into_field(is, &mut self.update_available)?;
                 },
+                34 => {
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.download_progress)?;
+                },
                 tag => {
                     ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
                 },
@@ -909,6 +2081,10 @@ impl ::protobuf::Message for UpdateEvent {
             let len = v.compute_size();
             my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
         }
+        if let Some(v) = self.download_progress.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
         my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
         self.special_fields.cached_size().set(my_size as u32);
         my_size
@@ -923,6 +2099,9 @@ impl ::protobuf::Message for UpdateEvent {
         }
         if let Some(v) = self.update_available.as_ref() {
             ::protobuf::rt::write_message_field_with_cached_size(3, v, os)?;
+        }
+        if let Some(v) = self.download_progress.as_ref() {
+            ::protobuf::rt::write_message_field_with_cached_size(4, v, os)?;
         }
         os.write_unknown_fields(self.special_fields.unknown_fields())?;
         ::std::result::Result::Ok(())
@@ -944,6 +2123,7 @@ impl ::protobuf::Message for UpdateEvent {
         self.event = ::protobuf::EnumOrUnknown::new(update_event::Event::STATE_CHANGED);
         self.state_changed.clear();
         self.update_available.clear();
+        self.download_progress.clear();
         self.special_fields.clear();
     }
 
@@ -952,6 +2132,7 @@ impl ::protobuf::Message for UpdateEvent {
             event: ::protobuf::EnumOrUnknown::from_i32(0),
             state_changed: ::protobuf::MessageField::none(),
             update_available: ::protobuf::MessageField::none(),
+            download_progress: ::protobuf::MessageField::none(),
             special_fields: ::protobuf::SpecialFields::new(),
         };
         &instance
@@ -1135,6 +2316,97 @@ pub mod update_event {
         fn default_instance() -> &'static UpdateAvailable {
             static instance: UpdateAvailable = UpdateAvailable {
                 version_info: ::protobuf::MessageField::none(),
+                special_fields: ::protobuf::SpecialFields::new(),
+            };
+            &instance
+        }
+    }
+
+    // @@protoc_insertion_point(message:fx.ipc.proto.UpdateEvent.DownloadProgress)
+    #[derive(PartialEq,Clone,Default,Debug)]
+    pub struct DownloadProgress {
+        // message fields
+        // @@protoc_insertion_point(field:fx.ipc.proto.UpdateEvent.DownloadProgress.progress)
+        pub progress: ::protobuf::MessageField<super::update::DownloadProgress>,
+        // special fields
+        // @@protoc_insertion_point(special_field:fx.ipc.proto.UpdateEvent.DownloadProgress.special_fields)
+        pub special_fields: ::protobuf::SpecialFields,
+    }
+
+    impl<'a> ::std::default::Default for &'a DownloadProgress {
+        fn default() -> &'a DownloadProgress {
+            <DownloadProgress as ::protobuf::Message>::default_instance()
+        }
+    }
+
+    impl DownloadProgress {
+        pub fn new() -> DownloadProgress {
+            ::std::default::Default::default()
+        }
+    }
+
+    impl ::protobuf::Message for DownloadProgress {
+        const NAME: &'static str = "DownloadProgress";
+
+        fn is_initialized(&self) -> bool {
+            true
+        }
+
+        fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+            while let Some(tag) = is.read_raw_tag_or_eof()? {
+                match tag {
+                    10 => {
+                        ::protobuf::rt::read_singular_message_into_field(is, &mut self.progress)?;
+                    },
+                    tag => {
+                        ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                    },
+                };
+            }
+            ::std::result::Result::Ok(())
+        }
+
+        // Compute sizes of nested messages
+        #[allow(unused_variables)]
+        fn compute_size(&self) -> u64 {
+            let mut my_size = 0;
+            if let Some(v) = self.progress.as_ref() {
+                let len = v.compute_size();
+                my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+            }
+            my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+            self.special_fields.cached_size().set(my_size as u32);
+            my_size
+        }
+
+        fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+            if let Some(v) = self.progress.as_ref() {
+                ::protobuf::rt::write_message_field_with_cached_size(1, v, os)?;
+            }
+            os.write_unknown_fields(self.special_fields.unknown_fields())?;
+            ::std::result::Result::Ok(())
+        }
+
+        fn special_fields(&self) -> &::protobuf::SpecialFields {
+            &self.special_fields
+        }
+
+        fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+            &mut self.special_fields
+        }
+
+        fn new() -> DownloadProgress {
+            DownloadProgress::new()
+        }
+
+        fn clear(&mut self) {
+            self.progress.clear();
+            self.special_fields.clear();
+        }
+
+        fn default_instance() -> &'static DownloadProgress {
+            static instance: DownloadProgress = DownloadProgress {
+                progress: ::protobuf::MessageField::none(),
                 special_fields: ::protobuf::SpecialFields::new(),
             };
             &instance

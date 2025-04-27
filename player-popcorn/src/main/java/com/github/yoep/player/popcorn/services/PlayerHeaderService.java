@@ -6,11 +6,13 @@ import com.github.yoep.player.popcorn.listeners.PlayerHeaderListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Handle;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Objects;
+import java.util.Optional;
 
 @Slf4j
 public class PlayerHeaderService extends AbstractListenerService<PlayerHeaderListener> {
@@ -19,6 +21,8 @@ public class PlayerHeaderService extends AbstractListenerService<PlayerHeaderLis
 
     private final PlaybackListener listener = createListener();
     private final TorrentListener torrentListener = createTorrentStreamListener();
+
+    private Handle handle;
 
     public PlayerHeaderService(VideoService videoService, TorrentService torrentService) {
         Objects.requireNonNull(videoService, "videoService cannot be null");
@@ -36,12 +40,17 @@ public class PlayerHeaderService extends AbstractListenerService<PlayerHeaderLis
         invokeListeners(e -> e.onTitleChanged(request.getTitle()));
         invokeListeners(e -> e.onCaptionChanged(request.getCaption()));
         invokeListeners(e -> e.onQualityChanged(request.getQuality()));
-        invokeListeners(e -> e.onStreamStateChanged(request.hasStreamHandle()));
+        invokeListeners(e -> e.onStreamStateChanged(request.hasTorrent()));
 
-        if (request.hasStreamHandle()) {
-            // TODO
-//            torrentService.addListener(request.getStreamHandle(), torrentListener);
-        }
+        Optional.ofNullable(this.handle)
+                .ifPresent(handle -> torrentService.removeListener(handle, torrentListener));
+        Optional.ofNullable(request.getTorrent())
+                .filter(e -> request.hasTorrent())
+                .map(Player.PlayRequest.Torrent::getHandle)
+                .ifPresent(handle -> {
+                    this.handle = handle;
+                    torrentService.addListener(handle, torrentListener);
+                });
     }
 
     private void onStreamProgressChanged(DownloadStatus status) {

@@ -29,6 +29,7 @@ fn main() {
                 "../protobuf/settings.proto",
                 "../protobuf/subtitle.proto",
                 "../protobuf/torrent.proto",
+                "../protobuf/tracking.proto",
                 "../protobuf/update.proto",
                 "../protobuf/watched.proto",
             ])

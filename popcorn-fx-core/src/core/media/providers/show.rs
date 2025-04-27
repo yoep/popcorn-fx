@@ -119,11 +119,12 @@ impl MediaProvider for ShowProvider {
                     .await
                 {
                     Ok(e) => {
-                        info!(
-                            "Retrieved a total of {} shows, [{{{}}}]",
+                        debug!(
+                            "Retrieved {} show(s), [{{{}}}]",
                             e.len(),
                             e.iter().map(|e| e.to_string()).join("}, {")
                         );
+                        info!("Retrieved a total of {} shows for page {}", e.len(), page);
                         Ok(e)
                     }
                     Err(e) => {

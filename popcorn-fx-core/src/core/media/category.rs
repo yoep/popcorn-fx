@@ -3,7 +3,6 @@ use serde::{Deserialize, Serialize};
 
 /// The available categories of [crate::core::media::Media] items.
 /// These can be used as filter to retrieve data from the API.
-#[repr(i32)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Display, Serialize, Deserialize)]
 #[display(fmt = "{}", (self.name()))]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]

@@ -1,6 +1,6 @@
 package com.github.yoep.player.popcorn.controls;
 
-import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Subtitle;
+import com.github.yoep.popcorn.backend.subtitles.ISubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.listeners.LanguageSelectionListener;
 import com.github.yoep.popcorn.ui.font.controls.Icon;
 import javafx.application.Platform;
@@ -44,7 +44,7 @@ public class LanguageSelection extends Icon {
      *
      * @return Returns the items of this instance.
      */
-    public ObservableList<Subtitle.Info> getItems() {
+    public ObservableList<ISubtitleInfo> getItems() {
         return getListView().getItems();
     }
 
@@ -53,7 +53,7 @@ public class LanguageSelection extends Icon {
      *
      * @return Returns the list view from the popup.
      */
-    public ListView<Subtitle.Info> getListView() {
+    public ListView<ISubtitleInfo> getListView() {
         return popup.getListView();
     }
 
@@ -94,7 +94,7 @@ public class LanguageSelection extends Icon {
      *
      * @param subtitle The subtitle item to select.
      */
-    public void select(Subtitle.Info subtitle) {
+    public void select(ISubtitleInfo subtitle) {
         Platform.runLater(() -> getListView().getSelectionModel().select(subtitle));
     }
 
@@ -147,20 +147,20 @@ public class LanguageSelection extends Icon {
         }
     }
 
-    private void selectItem(Subtitle.Info newValue) {
+    private void selectItem(ISubtitleInfo newValue) {
         synchronized (listeners) {
             listeners.forEach(e -> e.onItemChanged(newValue));
         }
     }
 
     private class ListPopup extends PopupControl {
-        private final ListView<Subtitle.Info> listView = new ListView<>();
+        private final ListView<ISubtitleInfo> listView = new ListView<>();
 
         public ListPopup() {
             init();
         }
 
-        public ListView<Subtitle.Info> getListView() {
+        public ListView<ISubtitleInfo> getListView() {
             return listView;
         }
 
@@ -170,7 +170,7 @@ public class LanguageSelection extends Icon {
         }
 
         private void init() {
-            listView.getItems().addListener((ListChangeListener<? super Subtitle.Info>) c -> {
+            listView.getItems().addListener((ListChangeListener<? super ISubtitleInfo>) c -> {
                 int height;
 
                 if (listView.getItems().size() > 1) {
@@ -188,9 +188,9 @@ public class LanguageSelection extends Icon {
 
     private class ListPopupSkin implements Skin<ListPopup> {
         private final ListPopup popup;
-        private final ListView<Subtitle.Info> listView;
+        private final ListView<ISubtitleInfo> listView;
 
-        private ListPopupSkin(ListPopup popup, ListView<Subtitle.Info> listView) {
+        private ListPopupSkin(ListPopup popup, ListView<ISubtitleInfo> listView) {
             this.popup = popup;
             this.listView = listView;
         }

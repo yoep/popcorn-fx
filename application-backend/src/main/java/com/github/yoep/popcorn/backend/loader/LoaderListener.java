@@ -1,11 +1,14 @@
 package com.github.yoep.popcorn.backend.loader;
 
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.LoaderEvent;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Loading;
+
 public interface LoaderListener {
-    void onLoadingStarted(LoadingStartedEventC loadingStartedEvent);
+    void onLoadingStarted(LoaderEvent.LoadingStarted loadingStartedEvent);
 
-    void onStateChanged(LoaderState newState);
+    void onStateChanged(Loading.State newState);
 
-    void onProgressChanged(LoadingProgress progress);
+    void onProgressChanged(Loading.Progress progress);
     
-    void onError(LoadingErrorC error);
+    void onError(Loading.Error error);
 }

@@ -1,10 +1,9 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
-import com.github.yoep.popcorn.backend.lib.FxCallback;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.FavoriteEvent;
-import com.github.yoep.popcorn.backend.media.favorites.FavoriteEventCallback;
 import com.github.yoep.popcorn.backend.media.Media;
 import com.github.yoep.popcorn.backend.media.ShowOverview;
+import com.github.yoep.popcorn.backend.media.favorites.FavoriteEventListener;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.font.controls.Icon;
 import com.github.yoep.popcorn.ui.messages.MediaMessage;
@@ -12,6 +11,7 @@ import com.github.yoep.popcorn.ui.view.controllers.desktop.components.OverlayIte
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.OverlayItemMetadataProvider;
 import com.github.yoep.popcorn.ui.view.controls.Stars;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.Parent;
 import javafx.scene.control.Label;
@@ -23,10 +23,10 @@ import java.net.URL;
 import java.util.Objects;
 import java.util.ResourceBundle;
 
-import static com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media.*;
+import static com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media.Rating;
 
 @Slf4j
-public class MediaCardComponent extends TvMediaCardComponent implements FxCallback<FavoriteEvent> {
+public class MediaCardComponent extends TvMediaCardComponent implements FavoriteEventListener {
     private static final String LIKED_STYLE_CLASS = "liked";
 
     private final LocaleText localeText;
@@ -52,7 +52,7 @@ public class MediaCardComponent extends TvMediaCardComponent implements FxCallba
         super(media, imageService, metadataProvider, listeners);
         this.localeText = localeText;
 
-        metadataProvider.addListener(this);
+        metadataProvider.addFavoriteListener(this);
     }
 
     @Override
@@ -65,16 +65,29 @@ public class MediaCardComponent extends TvMediaCardComponent implements FxCallba
     }
 
     @Override
+    public void onLikedStateChanged(FavoriteEvent.LikedStateChanged event) {
+        if (Objects.equals(event.getImdbId(), media.id())) {
+            switchFavorite(event.getIsLiked());
+        }
+    }
+
+    @Override
     protected void initializeMetadata() {
         super.initializeMetadata();
-        switchFavorite(metadataProvider.isLiked(media));
+        metadataProvider.isLiked(media).whenComplete((isLiked, throwable) -> {
+            if (throwable == null) {
+                switchFavorite(isLiked);
+            } else {
+                log.error("Failed to retrieve is liked", throwable);
+            }
+        });
     }
 
     @Override
     protected void onParentChanged(Parent newValue) {
         super.onParentChanged(newValue);
         if (newValue == null) {
-            metadataProvider.removeListener(this);
+            metadataProvider.removeFavoriteListener(this);
         }
     }
 
@@ -84,13 +97,13 @@ public class MediaCardComponent extends TvMediaCardComponent implements FxCallba
 
         if (media instanceof ShowOverview) {
             var show = (ShowOverview) media;
-//            var text = localeText.get(MediaMessage.SEASONS, show.getNumberOfSeasons());
-//
-//            if (show.getNumberOfSeasons() > 1) {
-//                text += localeText.get(MediaMessage.PLURAL);
-//            }
-//
-//            seasons.setText(text);
+            var text = localeText.get(MediaMessage.SEASONS, show.getSeasons());
+
+            if (show.getSeasons() > 1) {
+                text += localeText.get(MediaMessage.PLURAL);
+            }
+
+            seasons.setText(text);
         }
 
         Tooltip.install(title, new Tooltip(media.title()));
@@ -109,45 +122,26 @@ public class MediaCardComponent extends TvMediaCardComponent implements FxCallba
     }
 
     private void switchFavorite(boolean isFavorite) {
-        if (isFavorite) {
-            favorite.getStyleClass().add(LIKED_STYLE_CLASS);
-        } else {
-            favorite.getStyleClass().remove(LIKED_STYLE_CLASS);
-        }
-    }
-
-    @FXML
-    void onWatchedClicked(MouseEvent event) {
-        event.consume();
-        metadataProvider.isWatched(media).whenComplete((watched, throwable) -> {
-            if (throwable == null) {
-                boolean newValue = !watched;
-                synchronized (listeners) {
-                    listeners.forEach(e -> e.onWatchedChanged(media, newValue));
-                }
+        Platform.runLater(() -> {
+            if (isFavorite) {
+                favorite.getStyleClass().add(LIKED_STYLE_CLASS);
             } else {
-                log.error("Failed to retrieve is watched", throwable);
+                favorite.getStyleClass().remove(LIKED_STYLE_CLASS);
             }
         });
     }
 
     @FXML
-    void onFavoriteClicked(MouseEvent event) {
+    void onWatchedClicked(MouseEvent event) {
         event.consume();
-        boolean newState = !metadataProvider.isLiked(media);
-
-        synchronized (listeners) {
-            listeners.forEach(e -> e.onFavoriteChanged(media, newState));
-        }
+        metadataProvider.isWatched(media)
+                .thenAccept(isWatched -> listeners.forEach(e -> e.onWatchedChanged(media, !isWatched)));
     }
 
-    @Override
-    public void callback(FavoriteEvent event) {
-        if (event.getEvent() == FavoriteEvent.Event.LIKED_STATE_CHANGED) {
-            var stateChanged = event.getLikeStateChanged();
-            if (Objects.equals(stateChanged.getImdbId(), media.id())) {
-                switchFavorite(stateChanged.getIsLiked());
-            }
-        }
+    @FXML
+    void onFavoriteClicked(MouseEvent event) {
+        event.consume();
+        metadataProvider.isLiked(media)
+                .thenAccept(isLiked -> listeners.forEach(e -> e.onFavoriteChanged(media, !isLiked)));
     }
 }

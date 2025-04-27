@@ -6,6 +6,8 @@ option java_package = "com.github.yoep.popcorn.backend.lib.ipc.protobuf";
 
 package fx.ipc.proto;
 
+import "message.proto";
+
 message Update {
 
   message VersionInfo {
@@ -35,6 +37,46 @@ message Update {
     INSTALLATION_FINISHED = 6;
     ERROR = 7;
   }
+  
+  message Error {
+    Type type = 1;
+    optional InvalidUpdateChannel invalid_update_channel = 2;
+    optional InvalidApplicationVersion invalid_application_version = 3;
+    optional InvalidRuntimeVersion invalid_runtime_version = 4;
+    optional InvalidResponse invalid_response = 5;
+    optional InvalidDownloadUrl invalid_download_url = 6;
+    
+    message InvalidUpdateChannel {
+      string channel = 1;
+    }
+    
+    message InvalidApplicationVersion {
+      string version_value = 1;
+      string reason = 2;
+    }
+    
+    message InvalidRuntimeVersion {
+      string version_value = 1;
+      string reason = 2;
+    }
+
+    message InvalidResponse {
+      string reason = 1;
+    }
+
+    message InvalidDownloadUrl {
+      string url = 1;
+    }
+    
+    enum Type {
+      INVALID_UPDATE_CHANNEL = 0;
+      INVALID_APPLICATION_VERSION = 1;
+      INVALID_RUNTIME_VERSION = 2;
+      UNKNOWN_VERSION = 3;
+      RESPONSE = 4;
+      INVALID_DOWNLOAD_URL = 5;
+    }
+  }
 }
 
 message GetUpdateStateRequest {}
@@ -46,13 +88,32 @@ message GetUpdateStateResponse {
 message GetUpdateInfoRequest {}
 
 message GetUpdateInfoResponse {
-  optional Update.VersionInfo info = 1;
+  Response.Result result = 1;
+  optional Update.VersionInfo info = 2;
+  optional Update.Error error = 3;
+}
+
+message RefreshUpdateInfoRequest {}
+
+message StartUpdateDownloadRequest {}
+
+message StartUpdateDownloadResponse {
+  Response.Result result = 1;
+  optional Update.Error error = 2;
+}
+
+message StartUpdateInstallationRequest {}
+
+message StartUpdateInstallationResponse {
+  Response.Result result = 1;
+  optional Update.Error error = 2;
 }
 
 message UpdateEvent {
   Event event = 1;
   optional StateChanged state_changed = 2;
   optional UpdateAvailable update_available = 3;
+  optional DownloadProgress download_progress = 4;
 
   message StateChanged {
     Update.State new_state = 1;
@@ -60,6 +121,10 @@ message UpdateEvent {
 
   message UpdateAvailable {
     Update.VersionInfo version_info = 1;
+  }
+
+  message DownloadProgress {
+      Update.DownloadProgress progress = 1;
   }
 
   enum Event {

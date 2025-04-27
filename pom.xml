@@ -54,7 +54,7 @@
         <log4j-to-slf4j.version>2.23.1</log4j-to-slf4j.version>
         <logback-classic.version>1.5.5</logback-classic.version>
         <lombok.version>1.18.30</lombok.version>
-        <mockito.version>5.7.0</mockito.version>
+        <mockito.version>5.17.0</mockito.version>
         <slf4j-api.version>2.0.13</slf4j-api.version>
         <testfx.version>4.0.18</testfx.version>
         <vlcj-javafx.version>1.1.0</vlcj-javafx.version>
@@ -216,12 +216,6 @@
                 <scope>test</scope>
             </dependency>
             <dependency>
-                <groupId>org.mockito</groupId>
-                <artifactId>mockito-inline</artifactId>
-                <version>5.2.0</version>
-                <scope>test</scope>
-            </dependency>
-            <dependency>
                 <groupId>com.squareup.okhttp3</groupId>
                 <artifactId>mockwebserver</artifactId>
                 <version>4.10.0</version>
@@ -345,7 +339,7 @@
                         --add-opens application.backend/com.github.yoep.popcorn.backend.events=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend.info=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend.lib=ALL-UNNAMED
-                        --add-opens application.backend/com.github.yoep.popcorn.backend.lib.ipc=ALL-UNNAMED
+                        --add-opens application.backend/com.github.yoep.popcorn.backend.lib.ipc.protobuf=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend.loader=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend.logging=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend.media.favorites=ALL-UNNAMED
@@ -354,13 +348,9 @@
                         --add-opens application.backend/com.github.yoep.popcorn.backend.media.watched=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend.media=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend.player=ALL-UNNAMED
-                        --add-opens application.backend/com.github.yoep.popcorn.backend.playlists.ffi=ALL-UNNAMED
-                        --add-opens application.backend/com.github.yoep.popcorn.backend.playlists.model=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend.playlists=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend.services=ALL-UNNAMED
-                        --add-opens application.backend/com.github.yoep.popcorn.backend.settings.models=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend.settings=ALL-UNNAMED
-                        --add-opens application.backend/com.github.yoep.popcorn.backend.subtitles.ffi=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend.subtitles.model=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend.subtitles=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend.torrent=ALL-UNNAMED

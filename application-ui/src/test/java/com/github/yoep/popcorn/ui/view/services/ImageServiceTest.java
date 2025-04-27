@@ -1,10 +1,10 @@
 package com.github.yoep.popcorn.ui.view.services;
 
-import com.github.yoep.popcorn.backend.PopcornFx;
-import com.github.yoep.popcorn.backend.lib.NativeString;
-import com.github.yoep.popcorn.backend.media.MovieDetails;
-import com.github.yoep.popcorn.backend.media.MovieOverview;
-import com.github.yoep.popcorn.backend.media.ShowDetails;
+import com.github.yoep.popcorn.backend.lib.FxChannel;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.*;
+import com.github.yoep.popcorn.backend.media.ShowOverview;
+import com.google.protobuf.ByteString;
+import com.google.protobuf.Parser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -12,21 +12,19 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Optional;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class ImageServiceTest {
     @Mock
-    private FxLib fxLib;
-    @Mock
-    private PopcornFx instance;
+    private FxChannel fxChannel;
     @Mock
     private ExecutorService executorService;
     @InjectMocks
@@ -43,82 +41,110 @@ class ImageServiceTest {
 
     @Test
     void testGetPosterPlaceholder() {
-        var byteArray = mock(ByteArray.class);
-        when(byteArray.getBytes()).thenReturn(new byte[0]);
-        when(fxLib.poster_placeholder(instance)).thenReturn(byteArray);
+        var data = ImageServiceTest.class.getResourceAsStream("/posterholder.png");
+        var request = new AtomicReference<GetPosterPlaceholderRequest>();
+        when(fxChannel.send(isA(GetPosterPlaceholderRequest.class), isA(Parser.class))).thenAnswer(invocations -> {
+            request.set(invocations.getArgument(0, GetPosterPlaceholderRequest.class));
+            return CompletableFuture.completedFuture(GetPosterPlaceholderResponse.newBuilder()
+                    .setImage(Image.newBuilder()
+                            .setData(ByteString.readFrom(data))
+                            .build())
+                    .build());
+        });
 
-        var result = imageService.getPosterPlaceholder();
+        var result = imageService.getPosterPlaceholder().resultNow();
 
+        verify(fxChannel).send(isA(GetPosterPlaceholderRequest.class), isA(Parser.class));
+        assertNotNull(request.get(), "expected a request to have been sent");
         assertNotNull(result);
     }
 
     @Test
     void testGetArtworkPlaceholder() {
-        var byteArray = mock(ByteArray.class);
-        when(byteArray.getBytes()).thenReturn(new byte[0]);
-        when(fxLib.artwork_placeholder(instance)).thenReturn(byteArray);
+        var data = ImageServiceTest.class.getResourceAsStream("/posterholder.png");
+        var request = new AtomicReference<GetArtworkPlaceholderRequest>();
+        when(fxChannel.send(isA(GetArtworkPlaceholderRequest.class), isA(Parser.class))).thenAnswer(invocations -> {
+            request.set(invocations.getArgument(0, GetArtworkPlaceholderRequest.class));
+            return CompletableFuture.completedFuture(GetArtworkPlaceholderResponse.newBuilder()
+                    .setImage(Image.newBuilder()
+                            .setData(ByteString.readFrom(data))
+                            .build())
+                    .build());
+        });
 
-        var result = imageService.getArtPlaceholder();
+        var result = imageService.getArtPlaceholder().resultNow();
 
+        verify(fxChannel).send(isA(GetArtworkPlaceholderRequest.class), isA(Parser.class));
         assertNotNull(result);
     }
 
     @Test
-    void testLoadFanartException() throws ExecutionException, InterruptedException {
+    void testLoadFanart() {
         var url = "http://my-fanart-url.com";
-        var images = Images.builder()
-                .fanart(new NativeString(url).getPointer())
-                .build();
-        var media = createMovie(images);
-        when(fxLib.load_fanart(eq(instance), isA(MediaItem.class))).thenThrow(new RuntimeException("my exception"));
+        var media = new ShowOverview(Media.ShowOverview.newBuilder()
+                .setImages(Media.Images.newBuilder()
+                        .setFanart(url)
+                        .build())
+                .build());
+        var data = ImageServiceTest.class.getResourceAsStream("/posterholder.png");
+        var request = new AtomicReference<GetFanartRequest>();
+        when(fxChannel.send(isA(GetFanartRequest.class), isA(Parser.class))).thenAnswer(invocations -> {
+            request.set(invocations.getArgument(0, GetFanartRequest.class));
+            return CompletableFuture.completedFuture(GetFanartResponse.newBuilder()
+                    .setImage(Image.newBuilder()
+                            .setData(ByteString.readFrom(data))
+                            .build())
+                    .build());
+        });
 
-        var result = imageService.loadFanart(media);
+        var result = imageService.loadFanart(media).resultNow();
 
-        assertEquals(Optional.empty(), result.get());
+        verify(fxChannel).send(isA(GetFanartRequest.class), isA(Parser.class));
+        assertEquals(media.proto(), request.get().getMedia().getShowOverview());
+        assertNotNull(result);
     }
 
     @Test
-    void testLoadFanart() throws ExecutionException, InterruptedException {
-        var media = mock(ShowDetails.class);
-        var byteArray = mock(ByteArray.class);
-        when(byteArray.getBytes()).thenReturn(new byte[0]);
-        when(fxLib.load_fanart(eq(instance), isA(MediaItem.class))).thenReturn(byteArray);
+    void testLoadPoster() {
+        var media = new ShowOverview(Media.ShowOverview.newBuilder()
+                .setImages(Media.Images.newBuilder()
+                        .setPoster("http://my-poster-url.com")
+                        .build())
+                .build());
+        var data = ImageServiceTest.class.getResourceAsStream("/posterholder.png");
+        var request = new AtomicReference<GetPosterRequest>();
+        when(fxChannel.send(isA(GetPosterRequest.class), isA(Parser.class))).thenAnswer(invocations -> {
+            request.set(invocations.getArgument(0, GetPosterRequest.class));
+            return CompletableFuture.completedFuture(GetPosterResponse.newBuilder()
+                    .setImage(Image.newBuilder()
+                            .setData(ByteString.readFrom(data))
+                            .build())
+                    .build());
+        });
 
-        var future = imageService.loadFanart(media);
-        var image = future.get();
+        var result = imageService.loadPoster(media).resultNow();
 
-        assertTrue(image.isPresent());
+        verify(fxChannel).send(isA(GetPosterRequest.class), isA(Parser.class));
+        assertEquals(media.proto(), request.get().getMedia().getShowOverview());
+        assertNotNull(result);
     }
 
     @Test
-    void testLoadPoster() throws ExecutionException, InterruptedException {
-        var media = mock(MovieOverview.class);
-        var byteArray = mock(ByteArray.class);
-        when(byteArray.getBytes()).thenReturn(new byte[0]);
-        when(fxLib.load_poster(eq(instance), isA(MediaItem.class))).thenReturn(byteArray);
-
-        var future = imageService.loadPoster(media);
-        var image = future.get();
-
-        assertTrue(image.isPresent());
-    }
-
-    @Test
-    void testLoad() throws ExecutionException, InterruptedException {
+    void testLoad() {
         var url = "http://localhost/image.png";
-        var byteArray = mock(ByteArray.class);
-        when(byteArray.getBytes()).thenReturn(new byte[0]);
-        when(fxLib.load_image(instance, url)).thenReturn(byteArray);
+        var request = new AtomicReference<GetImageRequest>();
+        when(fxChannel.send(isA(GetImageRequest.class), isA(Parser.class))).thenAnswer(invocations -> {
+            request.set(invocations.getArgument(0, GetImageRequest.class));
+            return CompletableFuture.completedFuture(GetImageResponse.newBuilder()
+                    .setResult(Response.Result.OK)
+                    .setImage(Image.newBuilder().setData(ByteString.EMPTY))
+                    .build());
+        });
 
-        var future = imageService.load(url);
-        var image = future.get();
+        var image = imageService.load(url).resultNow();
 
-        assertNotNull(image);
-    }
-
-    private MovieDetails createMovie(Images images) {
-        return MovieDetails.builder()
-                .images(images)
-                .build();
+        verify(fxChannel).send(isA(GetImageRequest.class), isA(Parser.class));
+        assertEquals(url, request.get().getUrl());
+        assertNotNull(image, "expected a image to have been return");
     }
 }

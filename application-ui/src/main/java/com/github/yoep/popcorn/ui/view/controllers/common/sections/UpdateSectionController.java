@@ -2,8 +2,9 @@ package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Update;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.UpdateEvent;
 import com.github.yoep.popcorn.backend.messages.UpdateMessage;
-import com.github.yoep.popcorn.backend.updater.DownloadProgress;
+import com.github.yoep.popcorn.backend.updater.UpdateEventListener;
 import com.github.yoep.popcorn.backend.updater.UpdateService;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.CloseUpdateEvent;
@@ -26,7 +27,6 @@ import java.net.URL;
 import java.util.ResourceBundle;
 
 @Slf4j
-
 @RequiredArgsConstructor
 public class UpdateSectionController implements Initializable {
     private static final String PROGRESS_ERROR_STYLE_CLASS = "error";
@@ -49,24 +49,34 @@ public class UpdateSectionController implements Initializable {
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
-//        initializeBackgroundCover();
+        initializeBackgroundCover();
         initializeListener();
     }
 
     private void initializeListener() {
-//        updateService.register(event -> {
-//            switch (event.getTag()) {
-//                case StateChanged -> onUpdateStateChanged(event.getUnion().getState_changed().getNewState());
-//                case DownloadProgress -> onUpdateDownloadProgress(event.getUnion().getDownload_progress().getDownloadProgress());
-//            }
-//        });
-//        updatePane.sceneProperty().addListener((observable, oldValue, newValue) -> {
-//            if (newValue != null) {
-//                updateService.downloadUpdate();
-//            }
-//        });
-//
-//        onUpdateStateChanged(updateService.getState());
+        updateService.addListener(new UpdateEventListener() {
+            @Override
+            public void onStateChanged(UpdateEvent.StateChanged event) {
+                onUpdateStateChanged(event.getNewState());
+            }
+
+            @Override
+            public void onDownloadProgress(UpdateEvent.DownloadProgress event) {
+                onUpdateDownloadProgress(event.getProgress());
+            }
+        });
+        updatePane.sceneProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue != null) {
+                updateService.startUpdateDownload();
+            }
+        });
+        updateService.getState().whenComplete((state, throwable) -> {
+            if (throwable == null) {
+                onUpdateStateChanged(state);
+            } else {
+                log.error("Failed to retrieve update state", throwable);
+            }
+        });
     }
 
     private void initializeBackgroundCover() {
@@ -91,7 +101,7 @@ public class UpdateSectionController implements Initializable {
         });
     }
 
-    private void onUpdateDownloadProgress(DownloadProgress downloadProgress) {
+    private void onUpdateDownloadProgress(Update.DownloadProgress downloadProgress) {
         var progress = ((double) downloadProgress.getDownloaded()) / downloadProgress.getTotalSize();
         var percentage = (int) (progress * 100);
 

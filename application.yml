@@ -3,7 +3,7 @@ popcorn:
     jvm:
       level: info
     libfx::ipc:
-      level: debug
+      level: info
     popcorn_fx:
       level: warn
     popcorn_fx::ffi:

@@ -1,7 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.lib.ipc.protobuf.FavoriteEvent;
 import com.github.yoep.popcorn.backend.media.Media;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
@@ -29,7 +28,10 @@ public class PosterComponent extends TvPosterComponent implements Initializable 
     private final WatchedService watchedService;
     private final LocaleText localeText;
 
-    public PosterComponent(EventPublisher eventPublisher, ImageService imageService, FavoriteService favoriteService, WatchedService watchedService,
+    public PosterComponent(EventPublisher eventPublisher,
+                           ImageService imageService,
+                           FavoriteService favoriteService,
+                           WatchedService watchedService,
                            LocaleText localeText) {
         super(eventPublisher, imageService);
         this.favoriteService = favoriteService;
@@ -48,22 +50,14 @@ public class PosterComponent extends TvPosterComponent implements Initializable 
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
-//        watchedService.registerListener(event -> {
-//            if (event.getTag() == WatchedEvent.Tag.WatchedStateChanged) {
-//                var stateChanged = event.getUnion().getWatched_state_changed();
-//                if (media != null && Objects.equals(stateChanged.getImdbId(), media.id())) {
-//                    updateWatchedState(stateChanged.getNewState());
-//                }
-//            }
-//        });
-        favoriteService.registerListener(event -> {
-            if (Objects.requireNonNull(event.getEvent()) == FavoriteEvent.Event.LIKED_STATE_CHANGED) {
-                if (media != null) {
-                    var stateChanged = event.getLikeStateChanged();
-                    if (Objects.equals(stateChanged.getImdbId(), media.id())) {
-                        updateLikedState(stateChanged.getIsLiked());
-                    }
-                }
+        watchedService.addListener(event -> {
+            if (media != null && Objects.equals(event.getImdbId(), media.id())) {
+                updateWatchedState(event.getNewState());
+            }
+        });
+        favoriteService.addListener(event -> {
+            if (media != null && Objects.equals(event.getImdbId(), media.id())) {
+                updateLikedState(event.getIsLiked());
             }
         });
     }
@@ -78,28 +72,40 @@ public class PosterComponent extends TvPosterComponent implements Initializable 
                 log.error("Failed to retrieve is watched", throwable);
             }
         });
-        updateLikedState(favoriteService.isLiked(media));
+        favoriteService.isLiked(media).whenComplete((liked, throwable) -> {
+            if (throwable == null) {
+                updateLikedState(liked);
+            } else {
+                log.error("Failed to retrieve is liked", throwable);
+            }
+        });
     }
 
     private void toggleLikedState() {
-        if (favoriteService.isLiked(media)) {
-            favoriteService.removeFromFavorites(media);
-        } else {
-            favoriteService.addToFavorites(media);
-        }
+        favoriteService.isLiked(media).whenComplete((isLiked, throwable) -> {
+            if (throwable == null) {
+                if (isLiked) {
+                    favoriteService.removeFromFavorites(media);
+                } else {
+                    favoriteService.addToFavorites(media);
+                }
+            } else {
+                log.error("Failed to retrieve is liked", throwable);
+            }
+        });
     }
 
     private void toggleWatchedState() {
         watchedService.isWatched(media).whenComplete((watched, throwable) -> {
-           if (throwable == null) {
-               if (watched) {
-                   watchedService.removeFromWatchList(media);
-               } else {
-                   watchedService.addToWatchList(media);
-               }
-           } else {
-               log.error("Failed to retrieve is watched", throwable);
-           }
+            if (throwable == null) {
+                if (watched) {
+                    watchedService.removeFromWatchList(media);
+                } else {
+                    watchedService.addToWatchList(media);
+                }
+            } else {
+                log.error("Failed to retrieve is watched", throwable);
+            }
         });
     }
 

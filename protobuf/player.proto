@@ -34,7 +34,11 @@ message Player {
     optional string quality = 6;
     optional uint64 auto_resume_timestamp = 7;
     PlaySubtitleRequest subtitle = 8;
-    optional Handle stream_handle = 9;
+    optional Torrent torrent = 9;
+
+    message Torrent {
+      Handle handle = 1;
+    }
 
     message PlaySubtitleRequest {
       bool enabled = 1;
@@ -109,6 +113,14 @@ message GetPlayerStateResponse {
   Player.State state = 1;
 }
 
+message GetPlayerVolumeRequest {
+  string player_id = 1;
+}
+
+message GetPlayerVolumeResponse {
+  optional uint32 volume = 1;
+}
+
 message PlayerPlayRequest {
   string player_id = 1;
   Player.PlayRequest request = 2;
@@ -119,6 +131,15 @@ message PlayerPauseRequest {
 }
 
 message PlayerResumeRequest {
+  string player_id = 1;
+}
+
+message PlayerSeekRequest {
+  string player_id = 1;
+  uint64 time = 2;
+}
+
+message PlayerStopRequest {
   string player_id = 1;
 }
 

@@ -4,16 +4,15 @@ import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
 import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
-import com.github.yoep.popcorn.backend.lib.FxCallback;
-import com.github.yoep.popcorn.backend.lib.ipc.protobuf.FavoriteEvent;
 import com.github.yoep.popcorn.backend.media.Media;
 import com.github.yoep.popcorn.backend.media.MovieDetails;
 import com.github.yoep.popcorn.backend.media.ShowDetails;
+import com.github.yoep.popcorn.backend.media.favorites.FavoriteEventListener;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
 import com.github.yoep.popcorn.backend.media.providers.MediaParsingException;
 import com.github.yoep.popcorn.backend.media.providers.MediaRetrievalException;
 import com.github.yoep.popcorn.backend.media.providers.ProviderService;
-import com.github.yoep.popcorn.backend.media.watched.WatchedEventCallback;
+import com.github.yoep.popcorn.backend.media.watched.WatchedEventListener;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
@@ -157,7 +156,7 @@ public class ListSectionController extends AbstractListSectionController impleme
     }
 
     private void onRetryMediaLoading() {
-        providerServices.forEach(ProviderService::resetApiAvailability);
+        providerServices.forEach(e -> e.resetApiAvailability(category));
         scrollPane.reset();
         scrollPane.loadNewPage();
     }
@@ -291,9 +290,9 @@ public class ListSectionController extends AbstractListSectionController impleme
 
     private CompletableFuture<Media[]> retrieveMediaPage(ProviderService<? extends Media> provider, int page) {
         if (search == null || search.isBlank()) {
-            currentLoadRequest = provider.getPage(genre, sortBy, page);
+            currentLoadRequest = provider.getPage(category, genre, sortBy, page);
         } else {
-            currentLoadRequest = provider.getPage(genre, sortBy, page, search);
+            currentLoadRequest = provider.getPage(category, genre, sortBy, page, search);
         }
 
         return currentLoadRequest
@@ -334,7 +333,6 @@ public class ListSectionController extends AbstractListSectionController impleme
     private void onItemClicked(Media media) {
         showOverlay();
         providerServices.stream()
-                .filter(e -> e.supports(category))
                 .findFirst()
                 .ifPresent(provider -> showMediaDetails(media, provider));
     }
@@ -349,16 +347,13 @@ public class ListSectionController extends AbstractListSectionController impleme
             currentLoadRequest.cancel(true);
 
         log.trace("Retrieving media page {} for {} category", page, category);
-        var provider = providerServices.stream()
-                .filter(e -> e.supports(category))
-                .findFirst();
-
-        if (provider.isPresent()) {
-            return retrieveMediaPage(provider.get(), page);
-        } else {
-            log.error("No provider service found for \"{}\" category", category);
-            return CompletableFuture.completedFuture(new Media[0]);
-        }
+        return providerServices.stream()
+                .findFirst()
+                .map(provider -> retrieveMediaPage(provider, page))
+                .orElseGet(() -> {
+                    log.error("No provider service found for \"{}\" category", category);
+                    return CompletableFuture.completedFuture(new Media[0]);
+                });
     }
 
     @FXML
@@ -370,18 +365,18 @@ public class ListSectionController extends AbstractListSectionController impleme
     private OverlayItemMetadataProvider metadataProvider() {
         return new OverlayItemMetadataProvider() {
             @Override
-            public boolean isLiked(Media media) {
+            public CompletableFuture<Boolean> isLiked(Media media) {
                 return favoriteService.isLiked(media);
             }
 
             @Override
-            public void addListener(FxCallback<FavoriteEvent> callback) {
-                favoriteService.registerListener(callback);
+            public void addFavoriteListener(FavoriteEventListener listener) {
+                favoriteService.addListener(listener);
             }
 
             @Override
-            public void removeListener(FxCallback<FavoriteEvent> callback) {
-                favoriteService.removeListener(callback);
+            public void removeFavoriteListener(FavoriteEventListener listener) {
+                favoriteService.removeListener(listener);
             }
 
             @Override
@@ -390,13 +385,13 @@ public class ListSectionController extends AbstractListSectionController impleme
             }
 
             @Override
-            public void addListener(WatchedEventCallback callback) {
-                watchedService.registerListener(callback);
+            public void addWatchedListener(WatchedEventListener listener) {
+                watchedService.addListener(listener);
             }
 
             @Override
-            public void removeListener(WatchedEventCallback callback) {
-                watchedService.removeListener(callback);
+            public void removeWatchedListener(WatchedEventListener listener) {
+                watchedService.removeListener(listener);
             }
         };
     }

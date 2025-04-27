@@ -454,8 +454,8 @@ impl PopcornFX {
     }
 
     /// The torrent collection that stores magnet uri info.
-    pub fn torrent_collection(&mut self) -> &TorrentCollection {
-        &mut self.torrent_collection
+    pub fn torrent_collection(&self) -> &TorrentCollection {
+        &self.torrent_collection
     }
 
     /// The auto-resume service which handles the resume timestamps of videos.

@@ -43,7 +43,7 @@ public class FxChannel implements Closeable {
     }
 
     /**
-     * Get data for the given type from the channel.
+     * Get data for the given type from the fxChannel.
      *
      * @param request The request message to send.
      * @param parser  The parser to use for parsing the message.
@@ -62,7 +62,7 @@ public class FxChannel implements Closeable {
     }
 
     /**
-     * Send the given message to the channel.
+     * Send the given message to the fxChannel.
      *
      * @param message The message to send.
      */
@@ -74,7 +74,7 @@ public class FxChannel implements Closeable {
     }
 
     /**
-     * Send the given message to the channel.
+     * Send the given message to the fxChannel.
      *
      * @param message   The message to send.
      * @param replyToId The original request ID to which is being responded.
@@ -123,17 +123,17 @@ public class FxChannel implements Closeable {
             while (running.get()) {
                 try {
                     var message = fxLib.receive();
-                    log.trace("FX channel received {}", message.getType());
+                    log.trace("IPC channel received {}", message.getType());
                     executor.execute(() -> processMessage(message));
                 } catch (FxChannelException ex) {
-                    log.error("FX channel receiver encountered an error, {}", ex.getMessage(), ex);
+                    log.error("IPC channel receiver encountered an error, {}", ex.getMessage(), ex);
                     running.set(false);
                 } catch (Exception ex) {
-                    log.error("FX channel receiver encountered an error, {}", ex.getMessage(), ex);
+                    log.error("IPC channel receiver encountered an error, {}", ex.getMessage(), ex);
                 }
             }
 
-            log.debug("Fx channel reader ended");
+            log.debug("IPC channel reader ended");
         }, "FxChannel");
         readerThread.start();
     }
@@ -155,7 +155,7 @@ public class FxChannel implements Closeable {
     }
 
     private int sendBytes(ByteString bytes, String type, Integer replyToId) {
-        log.trace("FX channel is sending {}", type);
+        log.trace("IPC channel is sending {}", type);
         var sequenceId = this.sequenceId.incrementAndGet();
         var messageBuilder = FxMessage.newBuilder()
                 .setType(type)
@@ -180,9 +180,14 @@ public class FxChannel implements Closeable {
                         log.debug("IPC channel received response for request {}", request.sequenceId);
                         try {
                             var data = request.parser.parseFrom(message.getPayload());
-                            request.future.complete(data);
+
+                            if (!request.future.isCancelled()) {
+                                request.future.complete(data);
+                            } else {
+                                log.trace("IPC channel reply future has already been cancelled for {}", request.sequenceId);
+                            }
                         } catch (InvalidProtocolBufferException e) {
-                            log.error("FX channel failed to parse message", e);
+                            log.error("IPC channel failed to parse message", e);
                         } finally {
                             requests.remove(request);
                         }
@@ -195,7 +200,7 @@ public class FxChannel implements Closeable {
                             var data = subscription.parser.parseFrom(message.getPayload());
                             subscription.callback.callback(message.getSequenceId(), data);
                         } catch (InvalidProtocolBufferException e) {
-                            log.error("FX channel failed to parse message", e);
+                            log.error("IPC channel failed to parse message", e);
                         }
                     }));
             Optional.ofNullable(message.getType()).ifPresent(type -> subscriptions.stream()
@@ -205,7 +210,7 @@ public class FxChannel implements Closeable {
                             var data = subscription.parser.parseFrom(message.getPayload());
                             subscription.callback.callback((MessageLite) data);
                         } catch (InvalidProtocolBufferException e) {
-                            log.error("FX channel failed to parse message", e);
+                            log.error("IPC channel failed to parse message", e);
                         }
                     }));
 

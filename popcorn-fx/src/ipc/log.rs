@@ -5,12 +5,10 @@ use crate::ipc::proto::log::log_request::LogLevel;
 use crate::ipc::proto::log::LogRequest;
 use crate::ipc::proto::message::FxMessage;
 use async_trait::async_trait;
-use derive_more::Display;
 use log::{debug, error, info, trace, warn};
 use protobuf::Message;
 
-#[derive(Debug, Default, Display)]
-#[display(fmt = "Log message handler")]
+#[derive(Debug, Default)]
 pub struct LogMessageHandler;
 
 impl LogMessageHandler {
@@ -21,6 +19,10 @@ impl LogMessageHandler {
 
 #[async_trait]
 impl MessageHandler for LogMessageHandler {
+    fn name(&self) -> &str {
+        "log"
+    }
+
     fn is_supported(&self, message_type: &str) -> bool {
         message_type == LogRequest::NAME
     }

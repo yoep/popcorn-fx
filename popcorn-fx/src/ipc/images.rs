@@ -8,13 +8,11 @@ use crate::ipc::proto::images::{
 use crate::ipc::proto::message::{response, FxMessage};
 use crate::ipc::{Error, IpcChannel, MessageHandler};
 use async_trait::async_trait;
-use derive_more::Display;
 use popcorn_fx_core::core::media::MediaOverview;
 use protobuf::{Message, MessageField};
 use std::sync::Arc;
 
-#[derive(Debug, Display)]
-#[display(fmt = "Images message handler")]
+#[derive(Debug)]
 pub struct ImagesMessageHandler {
     instance: Arc<PopcornFX>,
 }
@@ -27,6 +25,10 @@ impl ImagesMessageHandler {
 
 #[async_trait]
 impl MessageHandler for ImagesMessageHandler {
+    fn name(&self) -> &str {
+        "images"
+    }
+
     fn is_supported(&self, message_type: &str) -> bool {
         matches!(
             message_type,

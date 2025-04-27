@@ -8,6 +8,7 @@ import com.github.yoep.popcorn.ui.view.ViewLoader;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.PlaylistItemComponent;
 import com.github.yoep.popcorn.ui.view.controls.PlaylistControl;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import lombok.RequiredArgsConstructor;
@@ -46,14 +47,19 @@ public class PlayerPlaylistComponent implements Initializable {
             }
 
             @Override
-            public void onStateChanged(PlaylistState state) {
+            public void onStateChanged(Playlist.State state) {
 
             }
         });
     }
 
     private void onPlaylistChanged() {
-        var playlist = playlistManager.playlist();
-        playlistControl.setItems(playlist.getItemsList());
+        playlistManager.playlist().whenComplete((playlist, throwable) -> {
+            if (throwable == null) {
+                Platform.runLater(() -> playlistControl.setItems(playlist.getItemsList()));
+            } else {
+                log.error("Failed to retrieve playlist", throwable);
+            }
+        });
     }
 }

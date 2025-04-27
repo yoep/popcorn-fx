@@ -1,28 +1,28 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
-import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
-import com.github.yoep.popcorn.backend.settings.models.TorrentSettings;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.view.controls.DelayedTextField;
-import com.github.yoep.popcorn.ui.view.services.TorrentSettingService;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.TextField;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.testfx.framework.junit5.ApplicationExtension;
+import org.testfx.util.WaitForAsyncUtils;
 
-import java.io.File;
 import java.net.URL;
 import java.util.ResourceBundle;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
 
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
@@ -34,24 +34,23 @@ class SettingsTorrentComponentTest {
     @Mock
     private ApplicationConfig applicationConfig;
     @Mock
-    private ApplicationSettings applicationSettings;
-    @Mock
-    private TorrentSettings settings;
-    @Mock
-    private TorrentSettingService torrentSettingService;
-    @Mock
     private URL url;
     @Mock
     private ResourceBundle resourceBundle;
     @InjectMocks
     private SettingsTorrentComponent component;
-    @TempDir
-    public File workingDir;
 
     @BeforeEach
     void setUp() {
-        lenient().when(applicationConfig.getSettings()).thenReturn(applicationSettings);
-        lenient().when(applicationSettings.getTorrentSettings()).thenReturn(settings);
+        when(applicationConfig.getSettings()).thenReturn(CompletableFuture.completedFuture(ApplicationSettings.newBuilder()
+                .setTorrentSettings(ApplicationSettings.TorrentSettings.newBuilder()
+                        .setCleaningMode(ApplicationSettings.TorrentSettings.CleaningMode.OFF)
+                        .setDownloadRateLimit(0)
+                        .setUploadRateLimit(0)
+                        .setConnectionsLimit(0)
+                        .build())
+                .build()));
+
         component.cacheDirectory = new TextField();
         component.connectionLimit = new DelayedTextField();
         component.downloadLimit = new DelayedTextField();
@@ -60,14 +59,20 @@ class SettingsTorrentComponentTest {
     }
 
     @Test
-    void testChangeClearCache() {
-        var expected_mode = CleaningMode.WATCHED;
-        when(settings.getDirectory()).thenReturn(workingDir.getAbsolutePath());
+    void testOnCleaningModeChanged() {
+        var settings = new AtomicReference<ApplicationSettings.TorrentSettings>();
+        doAnswer(invocations -> {
+            settings.set(invocations.getArgument(0, ApplicationSettings.TorrentSettings.class));
+            return null;
+        }).when(applicationConfig).update(isA(ApplicationSettings.TorrentSettings.class));
+        var expectedCleaningMode = ApplicationSettings.TorrentSettings.CleaningMode.WATCHED;
         component.initialize(url, resourceBundle);
+        WaitForAsyncUtils.waitForFxEvents();
 
-        component.cleaningMode.getSelectionModel().select(expected_mode);
+        component.cleaningMode.getSelectionModel().select(expectedCleaningMode);
+        WaitForAsyncUtils.waitForFxEvents();
 
-        verify(settings).setCleaningMode(expected_mode);
-        verify(applicationConfig).update(settings);
+        verify(applicationConfig).update(isA(ApplicationSettings.TorrentSettings.class));
+        assertEquals(expectedCleaningMode, settings.get().getCleaningMode());
     }
 }

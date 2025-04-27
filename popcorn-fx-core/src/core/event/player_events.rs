@@ -24,8 +24,8 @@ pub struct PlayerStartedEvent {
     pub subtitles_enabled: bool,
 }
 
-impl From<&Box<dyn PlayRequest>> for PlayerStartedEvent {
-    fn from(value: &Box<dyn PlayRequest>) -> Self {
+impl From<&PlayRequest> for PlayerStartedEvent {
+    fn from(value: &PlayRequest) -> Self {
         Self {
             url: value.url().to_string(),
             title: value.title().to_string(),
@@ -152,7 +152,7 @@ mod test {
     use std::collections::HashMap;
 
     use crate::core::media::{Episode, Images, Rating, ShowOverview};
-    use crate::core::players::PlayUrlRequestBuilder;
+    use crate::core::players::PlayRequestBuilder;
     use crate::init_logger;
 
     use super::*;
@@ -164,7 +164,7 @@ mod test {
         let thumb = "MyThumb";
         let auto_resume = 50000;
         let background = "MyBackground.jpg";
-        let request = PlayUrlRequestBuilder::builder()
+        let request = PlayRequestBuilder::builder()
             .url(url)
             .title(title)
             .thumb(thumb)
@@ -182,7 +182,7 @@ mod test {
             subtitles_enabled: true,
         };
 
-        let result = PlayerStartedEvent::from(&(Box::new(request) as Box<dyn PlayRequest>));
+        let result = PlayerStartedEvent::from(&request);
 
         assert_eq!(expected_result, result);
     }

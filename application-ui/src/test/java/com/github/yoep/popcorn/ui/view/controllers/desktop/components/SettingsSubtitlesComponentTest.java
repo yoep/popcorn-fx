@@ -1,8 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
-import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
-import com.github.yoep.popcorn.backend.settings.models.SubtitleSettings;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
@@ -11,7 +10,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.testfx.framework.junit5.ApplicationExtension;
@@ -19,9 +17,11 @@ import org.testfx.framework.junit5.ApplicationExtension;
 import java.io.File;
 import java.net.URL;
 import java.util.ResourceBundle;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 
-import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.verify;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.*;
 
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
 class SettingsSubtitlesComponentTest {
@@ -30,23 +30,24 @@ class SettingsSubtitlesComponentTest {
     @Mock
     private LocaleText localeText;
     @Mock
-    private ApplicationSettings applicationSettings;
-    @Mock
-    private SubtitleSettings settings;
-    @Mock
     private URL url;
     @Mock
     private ResourceBundle resourceBundle;
-    @InjectMocks
     private SettingsSubtitlesComponent component;
     @TempDir
     public File workingDir;
 
     @BeforeEach
     void setUp() {
-        lenient().when(applicationConfig.getSettings()).thenReturn(applicationSettings);
-        lenient().when(applicationSettings.getSubtitleSettings()).thenReturn(settings);
-        lenient().when(settings.getDirectory()).thenReturn(workingDir.getAbsolutePath());
+        when(applicationConfig.getSettings()).thenReturn(CompletableFuture.completedFuture(ApplicationSettings.newBuilder()
+                .setSubtitleSettings(ApplicationSettings.SubtitleSettings.newBuilder()
+                        .setDirectory(workingDir.getAbsolutePath())
+                        .build()
+                )
+                .build()));
+
+        component = new SettingsSubtitlesComponent(applicationConfig, localeText);
+
         component.clearCache = new CheckBox();
         component.defaultSubtitle = new ComboBox<>();
         component.fontFamily = new ComboBox<>();
@@ -58,11 +59,16 @@ class SettingsSubtitlesComponentTest {
 
     @Test
     void testChangeClearCache_shouldUpdateSettings() {
+        var settings = new AtomicReference<ApplicationSettings.SubtitleSettings>();
+        doAnswer(invocations -> {
+            settings.set(invocations.getArgument(0, ApplicationSettings.SubtitleSettings.class));
+            return null;
+        }).when(applicationConfig).update(isA(ApplicationSettings.SubtitleSettings.class));
         component.initialize(url, resourceBundle);
 
         component.clearCache.setSelected(true);
 
-        verify(settings).setAutoCleaningEnabled(true);
-        verify(applicationConfig).update(settings);
+        verify(applicationConfig).update(isA(ApplicationSettings.SubtitleSettings.class));
+        assertTrue(settings.get().getAutoCleaningEnabled(), "expected auto cleaning to have been enabled");
     }
 }

@@ -13,9 +13,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.testfx.framework.junit5.ApplicationExtension;
+import org.testfx.util.WaitForAsyncUtils;
 
 import java.net.URL;
 import java.util.ResourceBundle;
+import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
@@ -27,10 +29,6 @@ class TvSettingsTorrentComponentTest {
     @Mock
     private LocaleText localeText;
     @Mock
-    private ApplicationSettings settings;
-    @Mock
-    private com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationSettings.TorrentSettings torrentSettings;
-    @Mock
     private URL url;
     @Mock
     private ResourceBundle resourceBundle;
@@ -39,8 +37,14 @@ class TvSettingsTorrentComponentTest {
 
     @BeforeEach
     void setUp() {
-        when(applicationConfig.getSettings()).thenReturn(settings);
-        when(settings.getTorrentSettings()).thenReturn(torrentSettings);
+        when(applicationConfig.getSettings()).thenReturn(CompletableFuture.completedFuture(ApplicationSettings.newBuilder()
+                .setTorrentSettings(ApplicationSettings.TorrentSettings.newBuilder()
+                        .setCleaningMode(ApplicationSettings.TorrentSettings.CleaningMode.OFF)
+                        .setDownloadRateLimit(0)
+                        .setUploadRateLimit(0)
+                        .setConnectionsLimit(0)
+                        .build())
+                .build()));
 
         component.cacheCleanup = new Button();
         component.cacheCleanupOverlay = spy(new Overlay());
@@ -50,15 +54,16 @@ class TvSettingsTorrentComponentTest {
     @Test
     void testOnCleaningModeChanged() {
         var text = "Lorem";
-        when(torrentSettings.getCleaningMode()).thenReturn(com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationSettings.TorrentSettings.CleaningMode.OFF);
         when(localeText.get(TvSettingsTorrentComponent.CLEANING_MODE_PREFIX + "off")).thenReturn("Invalid");
         when(localeText.get(TvSettingsTorrentComponent.CLEANING_MODE_PREFIX + "on_shutdown")).thenReturn(text);
         component.initialize(url, resourceBundle);
+        WaitForAsyncUtils.waitForFxEvents();
 
         component.cleanupModes.setSelectedItem(com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationSettings.TorrentSettings.CleaningMode.ON_SHUTDOWN);
+        WaitForAsyncUtils.waitForFxEvents();
 
         verify(component.cacheCleanupOverlay, times(2)).hide();
-        verify(applicationConfig, atLeast(2)).update(torrentSettings);
+        verify(applicationConfig, atLeast(1)).update(isA(ApplicationSettings.TorrentSettings.class));
         assertEquals(text, component.cacheCleanup.getText());
     }
 }

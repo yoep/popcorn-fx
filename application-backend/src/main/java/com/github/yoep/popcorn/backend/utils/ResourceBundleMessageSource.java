@@ -10,7 +10,6 @@ import java.util.spi.ResourceBundleProvider;
 @Getter
 public class ResourceBundleMessageSource extends ResourceBundle {
     static final String RESOURCE_DIRECTORY = "/lang/";
-    static final Locale DEFAULT_LOCAL = Locale.ENGLISH;
     private final Map<Locale, List<ResourceBundle>> resourceBundles = new HashMap<>();
     private final ResourceBundleProvider resourceBundleProvider;
 

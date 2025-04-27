@@ -1,9 +1,8 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
-import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
-import com.github.yoep.popcorn.backend.settings.models.PlaybackSettings;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.SuccessNotificationEvent;
 import com.github.yoep.popcorn.ui.messages.SettingsMessage;
@@ -16,6 +15,10 @@ import org.mockito.Spy;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.*;
 
@@ -26,43 +29,46 @@ public class SettingsPlaybackComponentTest {
     @Mock
     private LocaleText localeText;
     @Mock
-    private ApplicationConfig settingsService;
-    @Mock
-    private ApplicationSettings applicationSettings;
-    @Mock
-    private PlaybackSettings playbackSettings;
+    private ApplicationConfig applicationConfig;
     @InjectMocks
     private SettingsPlaybackComponent settingsPlaybackComponent;
 
     @BeforeEach
     void setUp() {
-        when(settingsService.getSettings()).thenReturn(applicationSettings);
-        when(applicationSettings.getPlaybackSettings()).thenReturn(playbackSettings);
+        when(applicationConfig.getSettings()).thenReturn(CompletableFuture.completedFuture(ApplicationSettings.newBuilder()
+                .setPlaybackSettings(ApplicationSettings.PlaybackSettings.newBuilder().build())
+                .build()));
     }
 
     @Test
     void testShowNotification_whenActivityIsInvokedInvoked_shouldCallLocaleTextWithSettingsSaved() {
         doAnswer(this::invokeSuccessNotification).when(activityManager).publishEvent(isA(SuccessNotificationEvent.class));
 
-        settingsPlaybackComponent.onQualityChanged(PlaybackSettings.Quality.p720);
+        settingsPlaybackComponent.onQualityChanged(ApplicationSettings.PlaybackSettings.Quality.P720);
 
         verify(localeText).get(SettingsMessage.SETTINGS_SAVED);
     }
 
     @Test
     void testOnQualityChanged_whenInvoked_shouldShowNotification() {
-        settingsPlaybackComponent.onQualityChanged(PlaybackSettings.Quality.p1080);
+        settingsPlaybackComponent.onQualityChanged(ApplicationSettings.PlaybackSettings.Quality.P1080);
 
         verify(activityManager).publishEvent(isA(SuccessNotificationEvent.class));
     }
 
     @Test
     void testOnQualityChanged_whenInvoked_shouldUpdateQualitySetting() {
-        var quality = PlaybackSettings.Quality.p1080;
+        var quality = ApplicationSettings.PlaybackSettings.Quality.P1080;
+        var settings = new AtomicReference<ApplicationSettings.PlaybackSettings>();
+        doAnswer(invocations -> {
+            settings.set(invocations.getArgument(0, ApplicationSettings.PlaybackSettings.class));
+            return null;
+        }).when(applicationConfig).update(isA(ApplicationSettings.PlaybackSettings.class));
 
         settingsPlaybackComponent.onQualityChanged(quality);
 
-        verify(playbackSettings).setQuality(quality);
+        verify(applicationConfig).update(isA(ApplicationSettings.PlaybackSettings.class));
+        assertEquals(quality, settings.get().getQuality());
     }
 
     @Test
@@ -74,9 +80,16 @@ public class SettingsPlaybackComponentTest {
 
     @Test
     void testOnFullscreenChanged_whenInvoked_shouldUpdateTheFullscreenSetting() {
+        var settings = new AtomicReference<ApplicationSettings.PlaybackSettings>();
+        doAnswer(invocations -> {
+            settings.set(invocations.getArgument(0, ApplicationSettings.PlaybackSettings.class));
+            return null;
+        }).when(applicationConfig).update(isA(ApplicationSettings.PlaybackSettings.class));
+
         settingsPlaybackComponent.onFullscreenChanged(true);
 
-        verify(playbackSettings).setFullscreen(true);
+        verify(applicationConfig).update(isA(ApplicationSettings.PlaybackSettings.class));
+        assertTrue(settings.get().getFullscreen(), "expected fullscreen to have been set to true");
     }
 
     @Test
@@ -88,9 +101,16 @@ public class SettingsPlaybackComponentTest {
 
     @Test
     void testOnAutoPlayNextEpisodeChanged_whenInvoked_shouldUpdateTheFullscreenSetting() {
+        var settings = new AtomicReference<ApplicationSettings.PlaybackSettings>();
+        doAnswer(invocations -> {
+            settings.set(invocations.getArgument(0, ApplicationSettings.PlaybackSettings.class));
+            return null;
+        }).when(applicationConfig).update(isA(ApplicationSettings.PlaybackSettings.class));
+
         settingsPlaybackComponent.onAutoPlayNextEpisodeChanged(false);
 
-        verify(playbackSettings).setAutoPlayNextEpisodeEnabled(false);
+        verify(applicationConfig).update(isA(ApplicationSettings.PlaybackSettings.class));
+        assertFalse(settings.get().getAutoPlayNextEpisodeEnabled(), "expected auto play next episode to have been set to false");
     }
 
     private Void invokeSuccessNotification(InvocationOnMock invocation) {

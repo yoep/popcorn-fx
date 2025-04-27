@@ -1,6 +1,6 @@
 use std::fmt::{Debug, Formatter};
 use std::future::Future;
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
@@ -18,7 +18,8 @@ use tokio::{select, time};
 use tokio_util::sync::CancellationToken;
 
 use popcorn_fx_core::core::players::{
-    PlayRequest, PlaySubtitleRequest, Player, PlayerEvent, PlayerState,
+    MetadataValue, PlayRequest, PlayRequestBuilder, PlaySubtitleRequest, Player, PlayerEvent,
+    PlayerState,
 };
 use popcorn_fx_core::core::subtitles::model::SubtitleType;
 use popcorn_fx_core::core::subtitles::SubtitleServer;
@@ -181,12 +182,16 @@ impl<D: FxCastDevice + 'static> Player for ChromecastPlayer<D> {
         self.inner.state().await
     }
 
-    async fn request(&self) -> Option<Weak<Box<dyn PlayRequest>>> {
-        let mutex = self.inner.request.lock().await;
-        mutex.as_ref().map(|e| Arc::downgrade(e))
+    async fn request(&self) -> Option<PlayRequest> {
+        self.inner.request.lock().await.clone()
     }
 
-    async fn play(&self, request: Box<dyn PlayRequest>) {
+    async fn current_volume(&self) -> Option<u32> {
+        // TODO
+        None
+    }
+
+    async fn play(&self, request: PlayRequest) {
         trace!(
             "Starting Chromecast {} playback for {:?}",
             self.name(),
@@ -238,7 +243,7 @@ impl<D: FxCastDevice + 'static> Player for ChromecastPlayer<D> {
                 {
                     trace!("Updating Chromecast player request to {:?}", request);
                     let mut mutex = self.inner.request.lock().await;
-                    *mutex = Some(Arc::new(request))
+                    *mutex = Some(request)
                 }
             }
             Err(e) => {
@@ -256,11 +261,11 @@ impl<D: FxCastDevice + 'static> Player for ChromecastPlayer<D> {
         self.inner.send_command(ChromecastPlayerCommand::Resume);
     }
 
-    fn seek(&self, time: u64) {
+    async fn seek(&self, time: u64) {
         self.inner.send_command(ChromecastPlayerCommand::Seek(time));
     }
 
-    fn stop(&self) {
+    async fn stop(&self) {
         self.inner.send_command(ChromecastPlayerCommand::Stop);
     }
 }
@@ -400,7 +405,7 @@ impl<D: FxCastDevice> ChromecastPlayerBuilder<D> {
 struct InnerChromecastPlayer<D: FxCastDevice> {
     id: String,
     name: String,
-    request: Mutex<Option<Arc<Box<dyn PlayRequest>>>>,
+    request: Mutex<Option<PlayRequest>>,
     state: Mutex<PlayerState>,
     cast_model: String,
     cast_address: String,
@@ -548,10 +553,10 @@ impl<D: FxCastDevice> InnerChromecastPlayer<D> {
                 match self.transcoder.transcode(request_url).await {
                     Ok(output) => {
                         debug!("Received transcoding output {:?}", output);
-                        let request = Arc::new(Box::new(TranscodingPlayRequest {
-                            url: output.url,
-                            request,
-                        }) as Box<dyn PlayRequest>);
+                        let request = PlayRequestBuilder::from(&request)
+                            .metadata_bool("transcoding", true)
+                            .metadata_str("transcoding_original_url", request_url)
+                            .build();
 
                         // serve the chromecast subtitle if one is present
                         let subtitle_url: Option<String>;
@@ -610,7 +615,7 @@ impl<D: FxCastDevice> InnerChromecastPlayer<D> {
     async fn load(
         &self,
         app: &Application,
-        request: &Box<dyn PlayRequest>,
+        request: &PlayRequest,
         subtitle_url: Option<String>,
     ) -> chromecast::Result<()> {
         return self
@@ -849,7 +854,7 @@ impl<D: FxCastDevice> InnerChromecastPlayer<D> {
     /// # Returns
     ///
     /// The subtitle URL if available, or `None` if the subtitle is not present or could not be served.
-    async fn subtitle_url(&self, request: &Box<dyn PlayRequest>) -> Option<String> {
+    async fn subtitle_url(&self, request: &PlayRequest) -> Option<String> {
         if let Some(url) = request.subtitle().subtitle.as_ref().cloned() {
             match self.subtitle_server.serve(url, SubtitleType::Vtt).await {
                 Ok(e) => Some(e),
@@ -912,26 +917,27 @@ impl<D: FxCastDevice> InnerChromecastPlayer<D> {
     async fn handle_media_error(&self, error: MediaError) {
         debug!("Handling media error {:?}", error);
         if error.detailed_error_code == MediaDetailedErrorCode::MediaSrcNotSupported {
-            let mut is_transcoding_request: Option<bool> = None;
+            let is_transcoding_request: bool;
 
             {
                 let mutex = self.request.lock().await;
-                if let Some(request) = mutex.as_ref() {
-                    is_transcoding_request =
-                        Some(request.downcast_ref::<TranscodingPlayRequest>().is_some());
-                }
+                is_transcoding_request = mutex
+                    .as_ref()
+                    .and_then(|req| req.metadata().get("transcoding").cloned())
+                    .and_then(|value| match value {
+                        MetadataValue::Bool(b) => Some(b),
+                        _ => None,
+                    })
+                    .unwrap_or(false);
             }
 
             // verify if we have some information known about the play request
             // if not, the error that occurred was no longer related to this Chromecast playback
-            if let Some(is_transcoding) = is_transcoding_request {
-                // prevent that we transcode the already transcoding media
-                if !is_transcoding {
-                    warn!("Media source is not supported by the Chromecast device, starting transcoding of the media");
-                    self.start_transcoding().await;
-                } else {
-                    warn!("Chromecast device failed to play transcoding media");
-                }
+            if !is_transcoding_request {
+                warn!("Media source is not supported by the Chromecast device, starting transcoding of the media");
+                self.start_transcoding().await;
+            } else {
+                warn!("Chromecast device failed to play transcoding media");
             }
         } else {
             error!("Received media error {:?}", error);
@@ -999,10 +1005,7 @@ impl<D: FxCastDevice> InnerChromecastPlayer<D> {
         }
     }
 
-    fn request_to_media_payload(
-        request: &Box<dyn PlayRequest>,
-        subtitle_url: Option<String>,
-    ) -> Media {
+    fn request_to_media_payload(request: &PlayRequest, subtitle_url: Option<String>) -> Media {
         let mut images: Vec<Image> = Vec::new();
         let subtitle = Self::create_media_subtitle(request);
 
@@ -1055,7 +1058,7 @@ impl<D: FxCastDevice> InnerChromecastPlayer<D> {
         }
     }
 
-    fn create_media_subtitle(request: &Box<dyn PlayRequest>) -> String {
+    fn create_media_subtitle(request: &PlayRequest) -> String {
         let separator = if request.caption().is_some() {
             " - "
         } else {
@@ -1096,53 +1099,6 @@ impl<D: FxCastDevice> Debug for InnerChromecastPlayer<D> {
     }
 }
 
-#[derive(Debug, Display)]
-#[display(fmt = "Transcoding play request for {}", url)]
-struct TranscodingPlayRequest {
-    pub url: String,
-    pub request: Arc<Box<dyn PlayRequest>>,
-}
-
-impl PlayRequest for TranscodingPlayRequest {
-    fn url(&self) -> &str {
-        self.url.as_str()
-    }
-
-    fn title(&self) -> &str {
-        self.request.title()
-    }
-
-    fn caption(&self) -> Option<String> {
-        self.request.caption()
-    }
-
-    fn thumbnail(&self) -> Option<String> {
-        self.request.thumbnail()
-    }
-
-    fn background(&self) -> Option<String> {
-        self.request.background()
-    }
-
-    fn quality(&self) -> Option<String> {
-        self.request.quality()
-    }
-
-    fn auto_resume_timestamp(&self) -> Option<u64> {
-        if let Some(_) = self.request.auto_resume_timestamp() {
-            warn!("Auto resume timestamps are not supported for live transcoding media playbacks");
-        }
-
-        // the auto resume timestamp is not supported for media when it's being transcoded
-        // this will otherwise require us to support seeking within live transcodings
-        None
-    }
-
-    fn subtitle(&self) -> &PlaySubtitleRequest {
-        self.request.subtitle()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1150,7 +1106,7 @@ mod tests {
     use crate::chromecast::tests::TestInstance;
     use crate::chromecast::transcode::{MockTranscoder, TranscodeOutput, TranscodeType};
     use popcorn_fx_core::core::media::MovieOverview;
-    use popcorn_fx_core::core::players::{PlayMediaRequest, PlayUrlRequest};
+    use popcorn_fx_core::core::players::PlayRequest;
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::core::subtitles::model::{Subtitle, SubtitleInfo};
     use popcorn_fx_core::core::subtitles::MockSubtitleProvider;
@@ -1300,25 +1256,18 @@ mod tests {
             rating: None,
             images: Default::default(),
         };
-        let request = Box::new(PlayMediaRequest {
-            base: PlayUrlRequest {
-                url: url.to_string(),
-                title: "FooBar".to_string(),
-                caption: Some("MyCaption".to_string()),
-                thumb: Some("http://localhost/my-thumb.png".to_string()),
-                background: Some("http://localhost/my-background.png".to_string()),
-                auto_resume_timestamp: Some(28000),
-                subtitle: PlaySubtitleRequest {
-                    enabled: true,
-                    info: None,
-                    subtitle: None,
-                },
-            },
-            parent_media: None,
-            media: Box::new(movie),
-            quality: "720p".to_string(),
-            torrent_stream: Box::new(MockTorrentStream::new()),
-        });
+        let request = PlayRequest::builder()
+            .url(url.to_string())
+            .title("FooBar")
+            .caption("MyCaption")
+            .thumb("http://localhost/my-thumb.png")
+            .background("http://localhost/my-background.png")
+            .auto_resume_timestamp(28000)
+            .subtitles_enabled(true)
+            .media(Box::new(movie))
+            .quality("720p")
+            .torrent_stream(Box::new(MockTorrentStream::new()))
+            .build();
         let (tx, mut rx) = unbounded_channel();
         let player = test_instance.player.take().unwrap();
 
@@ -1375,7 +1324,7 @@ mod tests {
         });
         *player.inner.cast_media_session_id.lock().await = Some(1);
 
-        player.pause();
+        player.pause().await;
         assert_timeout!(
             Duration::from_millis(200),
             player.state().await == PlayerState::Paused,
@@ -1392,7 +1341,7 @@ mod tests {
         let mut test_instance = TestInstance::new_player(Box::new(|| create_default_device()));
         let player = test_instance.player.take().unwrap();
 
-        player.resume();
+        player.resume().await;
     }
 
     #[tokio::test]
@@ -1424,7 +1373,7 @@ mod tests {
         });
         *player.inner.cast_media_session_id.lock().await = Some(1);
 
-        player.seek(14000);
+        player.seek(14000).await;
 
         let result = recv_timeout!(&mut rx, Duration::from_millis(200));
         assert_eq!(Some(14f32), result);
@@ -1459,7 +1408,7 @@ mod tests {
         });
         *player.inner.cast_media_session_id.lock().await = Some(1);
 
-        player.stop();
+        player.stop().await;
         assert_timeout!(
             Duration::from_millis(250),
             player.state().await == PlayerState::Stopped,
@@ -1476,23 +1425,21 @@ mod tests {
         let original_url = "http://localhost:9876/my-video.mp4";
         let transcoding_url = "http://localhost:9875/my-transcoded-video.mp4";
         let subtitle_url = "http://localhost:9876/my-subtitle.srt";
-        let request = Box::new(
-            PlayUrlRequest::builder()
-                .url(original_url)
-                .title("My Video")
-                .subtitles_enabled(true)
-                .subtitle(Subtitle::new(
-                    vec![],
-                    Some(
-                        SubtitleInfo::builder()
-                            .imdb_id("tt12345678")
-                            .language(SubtitleLanguage::English)
-                            .build(),
-                    ),
-                    "MySubtitleFile.srt".to_string(),
-                ))
-                .build(),
-        );
+        let request = PlayRequest::builder()
+            .url(original_url)
+            .title("My Video")
+            .subtitles_enabled(true)
+            .subtitle(Subtitle::new(
+                vec![],
+                Some(
+                    SubtitleInfo::builder()
+                        .imdb_id("tt12345678")
+                        .language(SubtitleLanguage::English)
+                        .build(),
+                ),
+                "MySubtitleFile.srt".to_string(),
+            ))
+            .build();
         let response = MediaResponse::NotImplemented(
             MESSAGE_TYPE_ERROR.to_string(),
             serde_json::Value::Object(
@@ -1590,12 +1537,7 @@ mod tests {
         let transcode_url = recv_timeout!(&mut rx, Duration::from_millis(250));
         assert_eq!(original_url, transcode_url);
 
-        let request_url = player
-            .request()
-            .await
-            .and_then(|e| e.upgrade())
-            .map(|e| e.url().to_string())
-            .unwrap();
+        let request_url = player.request().await.map(|e| e.url().to_string()).unwrap();
         assert_eq!(
             transcoding_url.to_string(),
             request_url,

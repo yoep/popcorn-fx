@@ -1,10 +1,8 @@
 use crate::core::config::ApplicationConfig;
-use crate::core::event::{
-    Event, EventPublisher, PlayerChangedEvent, PlayerStartedEvent, PlayerStoppedEvent,
-};
+use crate::core::event::{Event, EventPublisher, PlayerStartedEvent, PlayerStoppedEvent};
 use crate::core::media::MediaIdentifier;
 use crate::core::players::{
-    ManagerError, ManagerResult, PlayMediaRequest, PlayRequest, Player, PlayerEvent, PlayerState,
+    ManagerError, ManagerResult, PlayRequest, Player, PlayerEvent, PlayerState,
 };
 use crate::core::screen::ScreenService;
 use crate::core::torrents::{TorrentManager, TorrentStreamServer};
@@ -32,7 +30,7 @@ pub enum PlayerManagerEvent {
     PlayersChanged,
     /// Indicates that the active player playback has been changed with a new [PlayRequest].
     #[display(fmt = "Player playback changed to {:?}", _0)]
-    PlayerPlaybackChanged(Weak<Box<dyn PlayRequest>>),
+    PlayerPlaybackChanged(PlayRequest),
     /// Indicates that the duration of the active player has changed.
     ///
     /// This event acts as a convenient wrapper around the [Player]'s [PlayerEvent] callbacks,
@@ -141,7 +139,7 @@ pub trait PlayerManager: Debug + Callback<PlayerManagerEvent> + Send + Sync {
     /// # Arguments
     ///
     /// * `request` - A boxed trait object representing the play request.
-    async fn play(&self, request: Box<dyn PlayRequest>);
+    async fn play(&self, request: PlayRequest);
 }
 
 /// A player manager for handling player-related tasks.
@@ -228,7 +226,7 @@ impl PlayerManager for DefaultPlayerManager {
         self.inner.remove_player(player_id)
     }
 
-    async fn play(&self, request: Box<dyn PlayRequest>) {
+    async fn play(&self, request: PlayRequest) {
         self.inner.play(request).await
     }
 }
@@ -398,16 +396,8 @@ impl InnerPlayerManager {
             if let Some(player) = self.active_player().await.and_then(|e| e.upgrade()) {
                 trace!("Last known player duration was {}", duration);
                 if duration > 0 {
-                    if let Some(request) =
-                        player.request().await.and_then(|e| e.upgrade()).map(|e| {
-                            trace!("Last known playback request {:?}", e);
-                            e
-                        })
-                    {
-                        if let Some(handle) = request
-                            .downcast_ref::<PlayMediaRequest>()
-                            .map(|e| e.torrent_stream.stream_handle())
-                        {
+                    if let Some(request) = player.request().await {
+                        if let Some(handle) = request.torrent_stream().map(|e| e.handle()) {
                             debug!("Stopping player stream of {}", handle);
                             self.torrent_stream_server.stop_stream(handle).await;
                             debug!("Stopping torrent download of {}", handle);
@@ -479,10 +469,13 @@ impl InnerPlayerManager {
                 *active_player = Some(player_id.to_string());
             }
 
-            debug!("Updating internal player listener");
+            debug!("Player manager is updating internal player listener");
             self.update_player_listener().await;
 
-            trace!("Publishing player changed event for {}", player_id);
+            trace!(
+                "Player manager is publishing player changed event for {}",
+                player_id
+            );
             self.callbacks
                 .invoke(PlayerManagerEvent::ActivePlayerChanged(PlayerChange {
                     old_player_id: old_player_id.clone(),
@@ -490,10 +483,10 @@ impl InnerPlayerManager {
                     new_player_name: player_name.clone(),
                 }));
 
-            info!("Active player has changed to {}", player_id);
+            info!("Player manager updated active player to {}", player_id);
         } else {
             warn!(
-                "Unable to set {} as active player, player not found",
+                "Player manager failed to set \"{}\" as active player, player not found",
                 player_id
             );
         }
@@ -557,15 +550,12 @@ impl InnerPlayerManager {
         }
     }
 
-    async fn play(&self, request: Box<dyn PlayRequest>) {
+    async fn play(&self, request: PlayRequest) {
         trace!("Processing play request {:?}", request);
         {
             let mut mutex = self.last_known_player_info.lock().await;
             mutex.url = Some(request.url().to_string());
-
-            if let Some(e) = request.downcast_ref::<PlayMediaRequest>() {
-                mutex.media = e.media.clone_identifier();
-            }
+            mutex.media = request.media();
         }
 
         if let Some(player) = self.active_player().await.and_then(|e| e.upgrade()) {
@@ -617,7 +607,7 @@ mod mock {
             fn by_id(&self, id: &str) -> Option<Weak<Box<dyn Player>>>;
             async fn active_player(&self) -> Option<Weak<Box<dyn Player>>>;
             async fn set_active_player(&self, player_id: &str);
-            async fn play(&self, request: Box<dyn PlayRequest>);
+            async fn play(&self, request: PlayRequest);
         }
 
         impl Callback<PlayerManagerEvent> for PlayerManager {
@@ -630,13 +620,8 @@ mod mock {
 #[cfg(test)]
 mod tests {
     use crate::core::config::{PlaybackSettings, PopcornSettings};
-    use crate::core::event::DEFAULT_ORDER;
-    use crate::core::media::MockMediaIdentifier;
-    use crate::core::players::{PlaySubtitleRequest, PlayUrlRequest, PlayUrlRequestBuilder};
     use crate::core::screen::MockScreenService;
-    use crate::core::torrents::{
-        MockTorrentManager, MockTorrentStreamServer, TorrentHandle, TorrentStream,
-    };
+    use crate::core::torrents::{MockTorrentManager, MockTorrentStreamServer, TorrentHandle};
     use crate::testing::{MockPlayer, MockTorrentStream};
     use crate::{init_logger, recv_timeout};
 
@@ -697,11 +682,15 @@ mod tests {
             PlayerState::Unknown
         }
 
-        async fn request(&self) -> Option<Weak<Box<dyn PlayRequest>>> {
+        async fn request(&self) -> Option<PlayRequest> {
             todo!()
         }
 
-        async fn play(&self, _: Box<dyn PlayRequest>) {
+        async fn current_volume(&self) -> Option<u32> {
+            todo!()
+        }
+
+        async fn play(&self, _: PlayRequest) {
             // no-op
         }
 
@@ -713,11 +702,11 @@ mod tests {
             todo!()
         }
 
-        fn seek(&self, _: u64) {
+        async fn seek(&self, _: u64) {
             todo!()
         }
 
-        fn stop(&self) {
+        async fn stop(&self) {
             todo!()
         }
     }
@@ -748,7 +737,7 @@ mod tests {
             screen_service,
         );
 
-        manager.add_player(player);
+        let _ = manager.add_player(player);
         let player = manager
             .by_id(player_id)
             .expect("expected the player to have been found");
@@ -912,8 +901,8 @@ mod tests {
                 }
             }
         });
-        manager.add_player(player1.clone());
-        manager.add_player(player2);
+        let _ = manager.add_player(player1.clone());
+        let _ = manager.add_player(player2);
         manager.set_active_player(player1.id()).await;
         player1
             .callbacks
@@ -965,7 +954,7 @@ mod tests {
             screen_service,
         );
 
-        manager.add_player(player);
+        let _ = manager.add_player(player);
         let result = manager.by_id(player_id);
 
         assert!(
@@ -1028,26 +1017,10 @@ mod tests {
             .inner
             .expect_stream_handle()
             .return_const(stream_handle);
-        let stream = Box::new(stream) as Box<dyn TorrentStream>;
-        let request: Arc<Box<dyn PlayRequest>> = Arc::new(Box::new(PlayMediaRequest {
-            base: PlayUrlRequest {
-                url: "".to_string(),
-                title: "".to_string(),
-                caption: None,
-                thumb: None,
-                background: None,
-                auto_resume_timestamp: None,
-                subtitle: PlaySubtitleRequest {
-                    enabled: false,
-                    info: None,
-                    subtitle: None,
-                },
-            },
-            parent_media: None,
-            media: Box::new(MockMediaIdentifier::new()),
-            quality: "".to_string(),
-            torrent_stream: stream,
-        }));
+        let request = PlayRequest::builder()
+            .url("http://localhost/my-video.mkv")
+            .title("FooBar")
+            .build();
         let player_callbacks = MultiThreadedCallback::new();
         let player_subscription = player_callbacks.subscribe();
         let mut player = MockPlayer::new();
@@ -1057,10 +1030,7 @@ mod tests {
             .expect_subscribe()
             .times(1)
             .return_once(move || player_subscription);
-        player
-            .expect_request()
-            .times(1)
-            .returning(Box::new(move || Some(Arc::downgrade(&request))));
+        player.expect_request().times(1).return_const(request);
         let mut torrent_manager = MockTorrentManager::new();
         torrent_manager
             .expect_remove()
@@ -1122,12 +1092,11 @@ mod tests {
         let url = "MyUrl";
         let title = "FooBar";
         let player_id = "LoremIpsumPlayer";
-        let request = PlayUrlRequestBuilder::builder()
+        let request = PlayRequest::builder()
             .url(url)
             .title(title)
             .subtitles_enabled(false)
             .build();
-        let request_ref = Arc::new(Box::new(request.clone()) as Box<dyn PlayRequest>);
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let (tx, mut rx) = unbounded_channel();
@@ -1141,9 +1110,7 @@ mod tests {
         player.expect_play().times(1).returning(move |e| {
             tx.send(e).unwrap();
         });
-        player
-            .expect_request()
-            .return_const(Arc::downgrade(&request_ref));
+        player.expect_request().return_const(request.clone());
         let torrent_manager = MockTorrentManager::new();
         let torrent_stream_server = MockTorrentStreamServer::new();
         let (tx_screen, mut rx_screen) = unbounded_channel();
@@ -1180,9 +1147,7 @@ mod tests {
         let _ = manager.add_player(Box::new(player));
         manager.set_active_player(player_id).await;
 
-        manager
-            .play(Box::new(request) as Box<dyn PlayRequest>)
-            .await;
+        manager.play(request).await;
         let result = recv_timeout!(&mut rx, Duration::from_millis(200));
 
         assert_eq!(url, result.url());

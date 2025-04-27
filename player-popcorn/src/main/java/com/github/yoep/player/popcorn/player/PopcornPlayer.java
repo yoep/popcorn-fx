@@ -6,6 +6,8 @@ import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
 import com.github.yoep.popcorn.backend.adapters.video.listeners.VideoListener;
 import com.github.yoep.popcorn.backend.adapters.video.state.VideoState;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
+import javafx.scene.Node;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.InputStream;
@@ -26,6 +28,7 @@ public class PopcornPlayer implements com.github.yoep.popcorn.backend.adapters.p
     private final VideoService videoService;
 
     private Player.State playerState = Player.State.UNKNOWN;
+    @Getter
     private Long time;
 
     public PopcornPlayer(VideoService videoService) {
@@ -70,6 +73,11 @@ public class PopcornPlayer implements com.github.yoep.popcorn.backend.adapters.p
     @Override
     public boolean isEmbeddedPlaybackSupported() {
         return false;
+    }
+
+    @Override
+    public Optional<Node> getEmbeddedPlayer() {
+        return Optional.empty();
     }
 
     @Override
@@ -125,14 +133,6 @@ public class PopcornPlayer implements com.github.yoep.popcorn.backend.adapters.p
     @Override
     public int getVolume() {
         return videoService.getVolume();
-    }
-
-    //endregion
-
-    //region Properties
-
-    public Long getTime() {
-        return time;
     }
 
     //endregion

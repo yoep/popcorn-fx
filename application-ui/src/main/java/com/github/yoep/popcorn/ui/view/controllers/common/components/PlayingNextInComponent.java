@@ -3,7 +3,6 @@ package com.github.yoep.popcorn.ui.view.controllers.common.components;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Playlist;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManagerListener;
-import com.github.yoep.popcorn.backend.playlists.PlaylistState;
 import com.github.yoep.popcorn.ui.view.controls.SizedImageView;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.application.Platform;
@@ -70,7 +69,7 @@ public class PlayingNextInComponent implements Initializable {
             }
 
             @Override
-            public void onStateChanged(PlaylistState state) {
+            public void onStateChanged(Playlist.State state) {
                 // no-op
             }
         });

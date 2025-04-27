@@ -1,8 +1,10 @@
 package com.github.yoep.popcorn.ui.view.services;
 
-import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.lib.FxChannel;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.*;
 import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
+import com.google.protobuf.Parser;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -11,6 +13,7 @@ import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -19,66 +22,85 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class HealthServiceTest {
     @Mock
-    private FxLib fxLib;
-    @Mock
-    private PopcornFx instance;
+    private FxChannel fxChannel;
     @Spy
     private EventPublisher eventPublisher = new EventPublisher(false);
     @InjectMocks
-    private HealthService healthService;
+    private HealthService service;
 
     @Test
-    void testCalculateHealth_whenInvoked_shouldCallCalculateHealthOnTorrentService() {
-        var seeds = 10;
-        var peers = 20;
-        var expectedResult = new TorrentHealth.ByReference();
-        when(fxLib.calculate_torrent_health(isA(PopcornFx.class), isA(Integer.class), isA(Integer.class))).thenReturn(expectedResult);
+    void testCalculateHealth() {
+        var seeds = 30;
+        var leechers = 10;
+        var request = new AtomicReference<CalculateTorrentHealthRequest>();
+        when(fxChannel.send(isA(CalculateTorrentHealthRequest.class), isA(Parser.class))).thenAnswer(invocations -> {
+            request.set(invocations.getArgument(0, CalculateTorrentHealthRequest.class));
+            return CompletableFuture.completedFuture(CalculateTorrentHealthResponse.newBuilder()
+                    .setHealth(Torrent.Health.newBuilder()
+                            .setSeeds(seeds)
+                            .setLeechers(leechers)
+                            .setState(Torrent.Health.State.GOOD)
+                            .build())
+                    .build());
+        });
 
-        var result = healthService.calculateHealth(seeds, peers);
+        var result = service.calculateHealth(seeds, leechers).resultNow();
 
-        verify(fxLib).calculate_torrent_health(instance, seeds, peers);
-        assertEquals(expectedResult, result);
+        verify(fxChannel).send(isA(CalculateTorrentHealthRequest.class), isA(Parser.class));
+        assertEquals(seeds, request.get().getSeeds());
+        assertEquals(leechers, request.get().getLeechers());
+
+        assertEquals(seeds, result.getSeeds());
+        assertEquals(leechers, result.getLeechers());
+        assertEquals(Torrent.Health.State.GOOD, result.getState());
     }
 
     @Test
-    void testGetTorrentHealth_whenPreviousFutureIsStillRunning_shouldCancelPreviousFuture() {
-        var firstUrl = "lorem";
-        var secondUrl = "ipsum";
-        lenient().when(fxLib.calculate_torrent_health(eq(instance), anyInt(), anyInt()))
-                .thenAnswer(invocation -> {
-                    // how to sleep thread
-                    try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e) {
-                        throw new RuntimeException(e);
-                    }
+    void testGetTorrentHealth() {
+        var url = "magnet:?SomeTorrentUrl";
+        var request = new AtomicReference<TorrentHealthRequest>();
+        when(fxChannel.send(isA(TorrentHealthRequest.class), isA(Parser.class))).thenAnswer(invocations -> {
+            request.set(invocations.getArgument(0, TorrentHealthRequest.class));
+            return CompletableFuture.completedFuture(TorrentHealthResponse.newBuilder()
+                    .setHealth(Torrent.Health.newBuilder()
+                            .setSeeds(87)
+                            .setLeechers(13)
+                            .setState(Torrent.Health.State.EXCELLENT)
+                            .build())
+                    .build());
+        });
 
-                    return new TorrentHealth();
-                });
+        var result = service.getTorrentHealth(url).resultNow();
 
-        healthService.getTorrentHealth(firstUrl);
-        var future = healthService.healthFuture;
-        healthService.getTorrentHealth(secondUrl);
+        verify(fxChannel).send(isA(TorrentHealthRequest.class), isA(Parser.class));
+        assertEquals(url, request.get().getUri(), "expected the request uri to match");
 
-        assertTrue(future.isCancelled());
+        assertEquals(87, result.getSeeds());
+        assertEquals(13, result.getLeechers());
     }
 
     @Test
-    void testOnLoadMediaTorrent_whenPreviousFutureIsStillRunning_shouldCancelPreviousFuture() {
-        var firstUrl = "lorem";
-        var wait = new CompletableFuture<Void>();
-        lenient().doAnswer(invocations -> {
-            Thread.sleep(1000);
-            return new TorrentHealthResult.ByValue();
-        }).when(fxLib).torrent_health_from_uri(isA(PopcornFx.class), isA(String.class));
-        eventPublisher.register(CloseDetailsEvent.class, event -> {
-            wait.complete(null);
-            return null;
-        }, EventPublisher.LOWEST_ORDER);
+    void testGetTorrentHealth_cancelPrevious() {
+        when(fxChannel.send(isA(TorrentHealthRequest.class), isA(Parser.class)))
+                .thenReturn(new CompletableFuture<>())
+                .thenReturn(CompletableFuture.completedFuture(TorrentHealthResponse.getDefaultInstance()));
 
-        var future = healthService.getTorrentHealth(firstUrl);
-        eventPublisher.publish(new CloseDetailsEvent(this));
+        service.getTorrentHealth("magnet:?FirstTorrentUrl");
+        var future = service.healthFuture;
+        service.getTorrentHealth("magnet:?SecondTorrentUrl");
 
-        assertTrue(future.isCancelled());
+        assertTrue(future.isCancelled(), "expected the first future to have been cancelled");
+    }
+
+    @Test
+    void testOnCloseDetailsEvent() {
+        when(fxChannel.send(isA(TorrentHealthRequest.class), isA(Parser.class)))
+                .thenReturn(new CompletableFuture<>());
+        service.getTorrentHealth("magnet:?FooTorrentUrl");
+        var future = service.healthFuture;
+
+        eventPublisher.publishEvent(new CloseDetailsEvent(this));
+
+        assertTrue(future.isCancelled(), "expected the future to have been cancelled");
     }
 }

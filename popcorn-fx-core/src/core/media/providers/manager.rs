@@ -4,7 +4,7 @@ use crate::core::media::providers::{MediaDetailsProvider, MediaProvider};
 use crate::core::media::{
     Category, Genre, MediaDetails, MediaError, MediaIdentifier, MediaOverview, MediaType, SortBy,
 };
-use log::{debug, trace, warn};
+use log::{debug, info, trace, warn};
 use std::time::Duration;
 use tokio::{select, time};
 
@@ -96,8 +96,9 @@ impl ProviderManager {
                 )
             }
             Some(provider) => {
-                debug!("Resetting api provider {}", provider);
-                provider.reset_api().await
+                trace!("Provider {} is trying to reset api stats", provider);
+                provider.reset_api().await;
+                info!("Provider {} api's have been reset", provider);
             }
         }
     }
@@ -337,7 +338,7 @@ mod test {
                     rating: None,
                     context_locale: "".to_string(),
                     synopsis: "".to_string(),
-                    runtime: "".to_string(),
+                    runtime: None,
                     status: "".to_string(),
                     genres: vec![],
                     episodes: vec![Episode {
@@ -351,7 +352,6 @@ mod test {
                         thumb: None,
                         torrents: Default::default(),
                     }],
-                    liked: None,
                 }))
             });
         let mut enhancer = MockEnhancer::new();

@@ -1,17 +1,17 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
-import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentFileInfo;
-import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowTorrentDetailsEvent;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Playlist;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Subtitle;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Torrent;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
-import com.github.yoep.popcorn.backend.playlists.model.Playlist;
-import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
-import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
-import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
+import com.github.yoep.popcorn.backend.subtitles.ISubtitleInfo;
+import com.github.yoep.popcorn.backend.subtitles.SubtitleInfoWrapper;
+import com.github.yoep.popcorn.backend.subtitles.ISubtitleService;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
-import com.github.yoep.popcorn.ui.torrent.TorrentCollectionService;
+import com.github.yoep.popcorn.backend.torrent.TorrentCollectionService;
 import com.github.yoep.popcorn.ui.view.controls.PlayerDropDownButton;
 import com.github.yoep.popcorn.ui.view.controls.SubtitleDropDownButton;
 import com.github.yoep.popcorn.ui.view.services.SubtitlePickerService;
@@ -30,14 +30,16 @@ import org.testfx.util.WaitForAsyncUtils;
 
 import java.net.URL;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.ResourceBundle;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.*;
 
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
@@ -53,11 +55,9 @@ class DetailsTorrentComponentTest {
     @Mock
     private SubtitlePickerService subtitlePickerService;
     @Mock
-    private SubtitleService subtitleService;
+    private ISubtitleService subtitleService;
     @Mock
     private PlaylistManager playlistManager;
-    @Mock
-    private FxLib fxLib;
     @Mock
     private URL url;
     @Mock
@@ -67,6 +67,9 @@ class DetailsTorrentComponentTest {
 
     @BeforeEach
     void setUp() {
+        when(playerManagerService.getPlayers()).thenReturn(CompletableFuture.completedFuture(Collections.emptyList()));
+        when(playerManagerService.getActivePlayer()).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+
         component.fileShadow = new Pane();
         component.torrentList = new ListView<>();
         component.subtitleButton = new SubtitleDropDownButton();
@@ -76,99 +79,106 @@ class DetailsTorrentComponentTest {
 
     @Test
     void testInitialize() {
-        var subtitleNone = SubtitleInfo.builder()
-                .language(SubtitleLanguage.NONE)
-                .files(new SubtitleFile[0])
-                .build();
-        var subtitleCustom = SubtitleInfo.builder()
-                .language(SubtitleLanguage.CUSTOM)
-                .files(new SubtitleFile[0])
-                .build();
-        when(subtitleService.none()).thenReturn(subtitleNone);
-        when(subtitleService.custom()).thenReturn(subtitleCustom);
+        List<ISubtitleInfo> defaultSubtitles = asList(
+                new SubtitleInfoWrapper(Subtitle.Info.newBuilder()
+                        .setLanguage(Subtitle.Language.NONE)
+                        .build()),
+                new SubtitleInfoWrapper(Subtitle.Info.newBuilder()
+                        .setLanguage(Subtitle.Language.CUSTOM)
+                        .build())
+        );
+        when(subtitleService.defaultSubtitles()).thenReturn(CompletableFuture.completedFuture(defaultSubtitles));
 
         component.initialize(url, resourceBundle);
         WaitForAsyncUtils.waitForFxEvents();
 
-        verify(subtitleService, atLeastOnce()).none();
-        assertEquals(subtitleNone, component.subtitleButton.getSelectedItem().get());
+        verify(subtitleService, atLeastOnce()).defaultSubtitles();
+        assertEquals(defaultSubtitles.getFirst(), component.subtitleButton.getSelectedItem().get());
     }
 
     @Test
     void testOnShowTorrentDetailsEvent() throws TimeoutException {
         var filename = " lorem ipsum dolor.mp4";
-        var torrent = mock(TorrentInfo.class);
-        var fileInfo = mock(TorrentFileInfo.class);
-        var subtitleNone = mock(SubtitleInfo.class);
-        var subtitleCustom = mock(SubtitleInfo.class);
-        when(subtitleNone.language()).thenReturn(SubtitleLanguage.NONE);
-        when(subtitleNone.getFlagResource()).thenReturn("");
-        when(subtitleCustom.language()).thenReturn(SubtitleLanguage.CUSTOM);
-        when(subtitleCustom.getFlagResource()).thenReturn("");
-        when(subtitleService.none()).thenReturn(subtitleNone);
-        when(subtitleService.custom()).thenReturn(subtitleCustom);
-        when(torrent.getFiles()).thenReturn(Collections.singletonList(fileInfo));
-        when(fileInfo.getFilename()).thenReturn(filename);
+        var torrentFile = Torrent.Info.File.newBuilder()
+                .setFilename(filename)
+                .build();
+        var torrent = Torrent.Info.newBuilder()
+                .addFiles(torrentFile)
+                .build();
+        List<ISubtitleInfo> defaultSubtitles = asList(
+                new SubtitleInfoWrapper(Subtitle.Info.newBuilder()
+                        .setLanguage(Subtitle.Language.NONE)
+                        .build()),
+                new SubtitleInfoWrapper(Subtitle.Info.newBuilder()
+                        .setLanguage(Subtitle.Language.CUSTOM)
+                        .build())
+        );
+        when(subtitleService.defaultSubtitles()).thenReturn(CompletableFuture.completedFuture(defaultSubtitles));
         component.initialize(url, resourceBundle);
+        WaitForAsyncUtils.waitForFxEvents();
 
         eventPublisher.publish(new ShowTorrentDetailsEvent(this, "", torrent));
         WaitForAsyncUtils.waitForFxEvents();
 
-        WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> component.torrentList.getItems().contains(fileInfo));
+        WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> component.torrentList.getItems().contains(torrentFile));
     }
 
     @Test
     void testOnFileInfoClicked() {
         var holder = new AtomicReference<Playlist>();
-        var torrent = mock(TorrentInfo.class);
-        var fileInfo = mock(TorrentFileInfo.class);
-        var subtitleNone = mock(SubtitleInfo.class);
-        var subtitleCustom = mock(SubtitleInfo.class);
         var url = "magnet:?xt=urn:btih:Example";
         var filename = "MyVideoFilename.mp4";
-        when(subtitleNone.language()).thenReturn(SubtitleLanguage.NONE);
-        when(subtitleNone.getFlagResource()).thenReturn("");
-        when(subtitleCustom.language()).thenReturn(SubtitleLanguage.CUSTOM);
-        when(subtitleCustom.getFlagResource()).thenReturn("");
-        when(subtitleService.none()).thenReturn(subtitleNone);
-        when(subtitleService.custom()).thenReturn(subtitleCustom);
-        when(torrent.getMagnetUri()).thenReturn(url);
-        when(torrent.getFiles()).thenReturn(Collections.singletonList(fileInfo));
-        when(fileInfo.getFilename()).thenReturn(filename);
+        var torrent = Torrent.Info.newBuilder()
+                .setUri(url)
+                .addFiles(Torrent.Info.File.newBuilder()
+                        .setFilename(filename)
+                        .build())
+                .build();
+        List<ISubtitleInfo> defaultSubtitles = asList(
+                new SubtitleInfoWrapper(Subtitle.Info.newBuilder()
+                        .setLanguage(Subtitle.Language.NONE)
+                        .build()),
+                new SubtitleInfoWrapper(Subtitle.Info.newBuilder()
+                        .setLanguage(Subtitle.Language.CUSTOM)
+                        .build())
+        );
+        when(subtitleService.defaultSubtitles()).thenReturn(CompletableFuture.completedFuture(defaultSubtitles));
+        when(torrentCollectionService.isStored(isA(String.class))).thenReturn(CompletableFuture.completedFuture(true));
         doAnswer(invocation -> {
             holder.set(invocation.getArgument(0, Playlist.class));
             return null;
         }).when(playlistManager).play(isA(Playlist.class));
         component.initialize(this.url, resourceBundle);
+        WaitForAsyncUtils.waitForFxEvents();
 
         eventPublisher.publish(new ShowTorrentDetailsEvent(this, "", torrent));
-        component.onFileInfoClicked(fileInfo);
+        component.onFileInfoClicked(torrent.getFilesList().getFirst());
 
         verify(playlistManager).play(isA(Playlist.class));
-        var result = holder.get().items().get(0);
-        assertEquals(url, result.url(), "url should match torrent magnet url");
-        assertEquals(filename, result.torrentFilename(), "filename should match the selected filename");
+        var result = holder.get().getItemsList().getFirst();
+        assertEquals(url, result.getUrl(), "url should match torrent magnet url");
+        assertEquals(filename, result.getTorrentFilename(), "filename should match the selected filename");
     }
 
     @Test
     void testCustomSubtitle() {
         var subtitleFileUri = "/tmp/my-subtitle.srt";
-        var subtitleNone = mock(SubtitleInfo.class);
-        var subtitleCustom = mock(SubtitleInfo.class);
-        when(subtitleNone.language()).thenReturn(SubtitleLanguage.NONE);
-        when(subtitleNone.getFlagResource()).thenReturn("");
-        when(subtitleCustom.language()).thenReturn(SubtitleLanguage.CUSTOM);
-        when(subtitleCustom.getFlagResource()).thenReturn("");
-        when(subtitleCustom.isCustom()).thenReturn(true);
-        when(subtitleService.none()).thenReturn(subtitleNone);
-        when(subtitleService.custom()).thenReturn(subtitleCustom);
-        when(subtitlePickerService.pickCustomSubtitle())
-                .thenReturn(Optional.of(subtitleFileUri));
+        List<ISubtitleInfo> defaultSubtitles = asList(
+                new SubtitleInfoWrapper(Subtitle.Info.newBuilder()
+                        .setLanguage(Subtitle.Language.NONE)
+                        .build()),
+                new SubtitleInfoWrapper(Subtitle.Info.newBuilder()
+                        .setLanguage(Subtitle.Language.CUSTOM)
+                        .build())
+        );
+        when(subtitleService.defaultSubtitles()).thenReturn(CompletableFuture.completedFuture(defaultSubtitles));
+        when(subtitlePickerService.pickCustomSubtitle()).thenReturn(Optional.of(subtitleFileUri));
         component.initialize(url, resourceBundle);
+        WaitForAsyncUtils.waitForFxEvents();
 
-        component.subtitleButton.select(subtitleService.custom());
+        component.subtitleButton.select(defaultSubtitles.get(1));
 
-        verify(subtitleService).updatePreferredLanguage(SubtitleLanguage.CUSTOM);
-        assertEquals(SubtitleLanguage.CUSTOM, component.subtitleInfo.language());
+        verify(subtitleService).updatePreferredLanguage(Subtitle.Language.CUSTOM);
+        assertEquals(Subtitle.Language.CUSTOM, component.subtitleInfo.getLanguage());
     }
 }

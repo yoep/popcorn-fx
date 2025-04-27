@@ -1,13 +1,13 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.sections;
 
 import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.MagnetInfo;
 import com.github.yoep.popcorn.backend.loader.LoaderService;
-import com.github.yoep.popcorn.backend.torrent.collection.StoredTorrent;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.ShowTorrentCollectionEvent;
 import com.github.yoep.popcorn.ui.events.SuccessNotificationEvent;
 import com.github.yoep.popcorn.ui.messages.TorrentMessage;
-import com.github.yoep.popcorn.ui.torrent.TorrentCollectionService;
+import com.github.yoep.popcorn.backend.torrent.TorrentCollectionService;
 import com.github.yoep.popcorn.ui.torrent.controls.TorrentCollection;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -66,14 +66,20 @@ public class TorrentCollectionSectionController implements Initializable {
     }
 
     private void updateTorrentCollection() {
-        Platform.runLater(() -> {
-            log.trace("Updating torrent collection list");
-            collection.getItems().clear();
-            collection.getItems().addAll(torrentCollectionService.getStoredTorrents());
+        torrentCollectionService.getStoredTorrents().whenComplete((torrents, throwable) -> {
+            if (throwable == null) {
+                Platform.runLater(() -> {
+                    log.trace("Updating torrent collection list");
+                    collection.getItems().clear();
+                    collection.getItems().addAll(torrents);
+                });
+            } else {
+                log.error("Failed to retrieve torrent collection", throwable);
+            }
         });
     }
 
-    private void onMagnetClicked(StoredTorrent item) {
+    private void onMagnetClicked(MagnetInfo item) {
         var clipboard = Clipboard.getSystemClipboard();
         var clipboardContent = new ClipboardContent();
 
@@ -85,12 +91,12 @@ public class TorrentCollectionSectionController implements Initializable {
         log.debug("Magnet uri of {} has been copied to the clipboard", item);
     }
 
-    private void onTorrentClicked(StoredTorrent torrent) {
+    private void onTorrentClicked(MagnetInfo torrent) {
         Objects.requireNonNull(torrent, "torrent cannot be null");
         loaderService.load(torrent.getMagnetUri());
     }
 
-    private void onDeleteClicked(StoredTorrent item) {
+    private void onDeleteClicked(MagnetInfo item) {
         torrentCollectionService.removeTorrent(item.getMagnetUri());
         Platform.runLater(() -> collection.getItems().remove(item));
     }

@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.backend.subtitles.listeners;
 
-import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Subtitle;
+import com.github.yoep.popcorn.backend.subtitles.ISubtitleInfo;
 
 public interface LanguageSelectionListener {
     /**
@@ -8,5 +8,5 @@ public interface LanguageSelectionListener {
      *
      * @param newValue The new selected item.
      */
-    void onItemChanged(Subtitle.Info newValue);
+    void onItemChanged(ISubtitleInfo newValue);
 }

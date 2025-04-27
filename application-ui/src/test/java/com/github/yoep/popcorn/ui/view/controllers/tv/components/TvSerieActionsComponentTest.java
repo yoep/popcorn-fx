@@ -2,6 +2,7 @@ package com.github.yoep.popcorn.ui.view.controllers.tv.components;
 
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media;
 import com.github.yoep.popcorn.backend.media.ShowDetails;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.font.controls.Icon;
@@ -25,6 +26,7 @@ import org.testfx.util.WaitForAsyncUtils;
 
 import java.net.URL;
 import java.util.ResourceBundle;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
@@ -66,11 +68,14 @@ class TvSerieActionsComponentTest {
     void testOnLikedStateChangedToLiked() throws TimeoutException {
         var expectedText = "remove";
         var imdbId = "tt11111";
-        var media = mock(ShowDetails.class);
-        when(media.getImdbId()).thenReturn(imdbId);
+        var media = new ShowDetails(Media.ShowDetails.newBuilder()
+                .setImdbId(imdbId)
+                .build());
         when(localeText.get(DetailsMessage.REMOVE)).thenReturn(expectedText);
         when(localeText.get(DetailsMessage.ADD)).thenReturn("add");
-        when(detailsComponentService.isLiked(media)).thenReturn(false, true);
+        when(detailsComponentService.isLiked(media))
+                .thenReturn(CompletableFuture.completedFuture(false))
+                .thenReturn(CompletableFuture.completedFuture(true));
         component.initialize(url, resourceBundle);
 
         // update media item
@@ -89,11 +94,14 @@ class TvSerieActionsComponentTest {
     void testOnLikedStateChangedToUnliked() throws TimeoutException {
         var expectedText = "add";
         var imdbId = "tt11111";
-        var media = mock(ShowDetails.class);
-        when(media.getImdbId()).thenReturn(imdbId);
+        var media = new ShowDetails(Media.ShowDetails.newBuilder()
+                .setImdbId(imdbId)
+                .build());
         when(localeText.get(DetailsMessage.ADD)).thenReturn(expectedText);
         when(localeText.get(DetailsMessage.REMOVE)).thenReturn("remove");
-        when(detailsComponentService.isLiked(media)).thenReturn(true, false);
+        when(detailsComponentService.isLiked(media))
+                .thenReturn(CompletableFuture.completedFuture(true))
+                .thenReturn(CompletableFuture.completedFuture(false));
         component.initialize(url, resourceBundle);
 
         // update media item
@@ -112,7 +120,7 @@ class TvSerieActionsComponentTest {
     void testOnFavoriteClicked() {
         var event = mock(MouseEvent.class);
         var show = mock(ShowDetails.class);
-        when(detailsComponentService.isLiked(show)).thenReturn(false);
+        when(detailsComponentService.isLiked(show)).thenReturn(CompletableFuture.completedFuture(false));
         component.initialize(url, resourceBundle);
         eventPublisher.publish(new ShowSerieDetailsEvent(this, show));
 
@@ -127,7 +135,7 @@ class TvSerieActionsComponentTest {
         var event = mock(KeyEvent.class);
         var show = mock(ShowDetails.class);
         when(event.getCode()).thenReturn(KeyCode.ENTER);
-        when(detailsComponentService.isLiked(show)).thenReturn(false);
+        when(detailsComponentService.isLiked(show)).thenReturn(CompletableFuture.completedFuture(false));
         component.initialize(url, resourceBundle);
         eventPublisher.publish(new ShowSerieDetailsEvent(this, show));
 

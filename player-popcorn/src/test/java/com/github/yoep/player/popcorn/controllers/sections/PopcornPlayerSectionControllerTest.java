@@ -5,9 +5,9 @@ import com.github.yoep.player.popcorn.listeners.PopcornPlayerSectionListener;
 import com.github.yoep.player.popcorn.messages.VideoMessage;
 import com.github.yoep.player.popcorn.services.PopcornPlayerSectionService;
 import com.github.yoep.player.popcorn.services.SubtitleManagerService;
-import com.github.yoep.popcorn.backend.lib.ipc.protobuf.PlayerState;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayerStartedEvent;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.SubtitleOffsetEvent;
@@ -154,7 +154,7 @@ class PopcornPlayerSectionControllerTest {
         controller.initialize(url, resourceBundle);
 
         var listener = sectionListenerHolder.get();
-        listener.onPlayerStateChanged(PlayerState.PLAYING);
+        listener.onPlayerStateChanged(Player.State.PLAYING);
 
         WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> controller.bufferPane.getChildren().size() == 0);
         WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> controller.idleTimer.getStatus() == Animation.Status.RUNNING);

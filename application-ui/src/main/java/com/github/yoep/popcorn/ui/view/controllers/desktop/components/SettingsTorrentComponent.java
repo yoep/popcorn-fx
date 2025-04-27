@@ -6,7 +6,7 @@ import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.AbstractSettingsComponent;
 import com.github.yoep.popcorn.ui.view.controls.DelayedTextField;
-import com.github.yoep.popcorn.ui.view.services.TorrentSettingService;
+import com.github.yoep.popcorn.ui.view.services.TorrentSettingsHelper;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -27,8 +27,6 @@ import java.util.concurrent.CompletableFuture;
 public class SettingsTorrentComponent extends AbstractSettingsComponent implements Initializable {
     private final DirectoryChooser cacheChooser = new DirectoryChooser();
 
-    private final TorrentSettingService torrentSettingService;
-
     @FXML
     DelayedTextField downloadLimit;
     @FXML
@@ -43,9 +41,8 @@ public class SettingsTorrentComponent extends AbstractSettingsComponent implemen
     public SettingsTorrentComponent(EventPublisher eventPublisher,
                                     LocaleText localeText,
                                     ApplicationConfig settingsService,
-                                    TorrentSettingService torrentSettingService) {
+                                    TorrentSettingsHelper torrentSettingsHelper) {
         super(eventPublisher, localeText, settingsService);
-        this.torrentSettingService = torrentSettingService;
     }
 
     @Override
@@ -58,107 +55,93 @@ public class SettingsTorrentComponent extends AbstractSettingsComponent implemen
     }
 
     private void initializeDownloadLimit() {
-        var settings = getSettings();
-
-//        downloadLimit.setTextFormatter(numericTextFormatter());
-//        downloadLimit.setValue(torrentSettingService.toDisplayValue(settings.getDownloadRateLimit()));
-//        downloadLimit.valueProperty().addListener((observable, oldValue, newValue) -> {
-//            try {
-//                applicationConfig.update(ApplicationSettings.TorrentSettings.newBuilder(settings)
-//                        .setDownloadRateLimit(torrentSettingService.toSettingsValue(newValue))
-//                        .build());
-//                showNotification();
-//            } catch (NumberFormatException ex) {
-//                log.warn("Download rate limit is invalid, {}", ex.getMessage(), ex);
-//            }
-//        });
+        getSettings().thenAccept(settings -> Platform.runLater(() -> {
+            downloadLimit.setTextFormatter(numericTextFormatter());
+            downloadLimit.setValue(TorrentSettingsHelper.toDisplayValue(settings.getDownloadRateLimit()));
+            downloadLimit.valueProperty().addListener((observable, oldValue, newValue) -> {
+                try {
+                    applicationConfig.update(ApplicationSettings.TorrentSettings.newBuilder(settings)
+                            .setDownloadRateLimit(TorrentSettingsHelper.toSettingsValue(newValue))
+                            .build());
+                    showNotification();
+                } catch (NumberFormatException ex) {
+                    log.warn("Download rate limit is invalid, {}", ex.getMessage(), ex);
+                }
+            });
+        }));
     }
 
     private void initializeUploadLimit() {
-        var settings = getSettings();
-
-//        uploadLimit.setTextFormatter(numericTextFormatter());
-//        uploadLimit.setValue(torrentSettingService.toDisplayValue(settings.getUploadRateLimit()));
-//        uploadLimit.valueProperty().addListener((observable, oldValue, newValue) -> {
-//            try {
-//                applicationConfig.update(ApplicationSettings.TorrentSettings.newBuilder(settings)
-//                        .setUploadRateLimit(Integer.parseInt(newValue))
-//                        .build());
-//                showNotification();
-//            } catch (NumberFormatException ex) {
-//                log.warn("Upload rate limit is invalid, {}", ex.getMessage(), ex);
-//            }
-//        });
+        getSettings().thenAccept(settings -> Platform.runLater(() -> {
+            uploadLimit.setTextFormatter(numericTextFormatter());
+            uploadLimit.setValue(TorrentSettingsHelper.toDisplayValue(settings.getUploadRateLimit()));
+            uploadLimit.valueProperty().addListener((observable, oldValue, newValue) -> {
+                try {
+                    applicationConfig.update(ApplicationSettings.TorrentSettings.newBuilder(settings)
+                            .setUploadRateLimit(Integer.parseInt(newValue))
+                            .build());
+                    showNotification();
+                } catch (NumberFormatException ex) {
+                    log.warn("Upload rate limit is invalid, {}", ex.getMessage(), ex);
+                }
+            });
+        }));
     }
 
     private void initializeConnectionLimit() {
-        var settings = getSettings();
-
-//        connectionLimit.setTextFormatter(numericTextFormatter());
-//        connectionLimit.setValue(String.valueOf(settings.getConnectionsLimit()));
-//        connectionLimit.valueProperty().addListener((observable, oldValue, newValue) -> {
-//            try {
-//                applicationConfig.update(ApplicationSettings.TorrentSettings.newBuilder(settings)
-//                        .setConnectionsLimit(Integer.parseInt(newValue))
-//                        .build());
-//                showNotification();
-//            } catch (NumberFormatException ex) {
-//                log.warn("Connection limit is invalid, {}", ex.getMessage(), ex);
-//            }
-//        });
+        getSettings().thenAccept(settings -> Platform.runLater(() -> {
+            connectionLimit.setTextFormatter(numericTextFormatter());
+            connectionLimit.setValue(String.valueOf(settings.getConnectionsLimit()));
+            connectionLimit.valueProperty().addListener((observable, oldValue, newValue) -> {
+                try {
+                    applicationConfig.update(ApplicationSettings.TorrentSettings.newBuilder(settings)
+                            .setConnectionsLimit(Integer.parseInt(newValue))
+                            .build());
+                    showNotification();
+                } catch (NumberFormatException ex) {
+                    log.warn("Connection limit is invalid, {}", ex.getMessage(), ex);
+                }
+            });
+        }));
     }
 
     private void initializeCacheDirectory() {
-        getSettings().whenComplete((settings, throwable) -> {
-            if (throwable == null) {
-                var directory = settings.getDirectory();
+        getSettings().thenAccept(settings -> Platform.runLater(() -> {
+            var directory = settings.getDirectory();
 
-                cacheChooser.setInitialDirectory(new File(directory));
-                cacheDirectory.setText(directory);
-                cacheDirectory.textProperty().addListener((observable, oldValue, newValue) -> {
-                    var newDirectory = new File(newValue);
+            cacheChooser.setInitialDirectory(new File(directory));
+            cacheDirectory.setText(directory);
+            cacheDirectory.textProperty().addListener((observable, oldValue, newValue) -> {
+                var newDirectory = new File(newValue);
 
-                    if (newDirectory.isDirectory()) {
-                        applicationConfig.update(ApplicationSettings.TorrentSettings.newBuilder(settings)
-                                .setDirectory(newValue)
-                                .build());
-                        cacheChooser.setInitialDirectory(newDirectory);
-                        showNotification();
-                    }
-                });
-            } else {
-                log.error("Failed to retrieve settings", throwable);
-            }
-        });
+                if (newDirectory.isDirectory()) {
+                    applicationConfig.update(ApplicationSettings.TorrentSettings.newBuilder(settings)
+                            .setDirectory(newValue)
+                            .build());
+                    cacheChooser.setInitialDirectory(newDirectory);
+                    showNotification();
+                }
+            });
+        }));
     }
 
     private void initializeCleaningMode() {
-        cleaningMode.setCellFactory(item -> createCleaningModeCell());
-        cleaningMode.setButtonCell(createCleaningModeCell());
-        cleaningMode.getItems().addAll(ApplicationSettings.TorrentSettings.CleaningMode.values());
-
-        getSettings().whenComplete((settings, throwable) -> {
-            if (throwable == null) {
-                Platform.runLater(() -> {
-                    cleaningMode.getSelectionModel().select(settings.getCleaningMode());
-                    cleaningMode.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> onCleaningModeChanged(newValue));
-                });
-            } else {
-                log.error("Failed to retrieve settings", throwable);
-            }
-        });
+        getSettings().thenAccept(settings -> Platform.runLater(() -> {
+            cleaningMode.setCellFactory(item -> createCleaningModeCell());
+            cleaningMode.setButtonCell(createCleaningModeCell());
+            cleaningMode.getItems().addAll(ApplicationSettings.TorrentSettings.CleaningMode.values());
+            cleaningMode.getSelectionModel().select(settings.getCleaningMode());
+            cleaningMode.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue)
+                    -> onCleaningModeChanged(newValue));
+        }));
     }
 
     private void onCleaningModeChanged(ApplicationSettings.TorrentSettings.CleaningMode newValue) {
-        getSettings().whenComplete((settings, throwable) -> {
-            if (throwable == null) {
-                applicationConfig.update(ApplicationSettings.TorrentSettings.newBuilder(settings)
-                        .setCleaningMode(newValue)
-                        .build());
-                showNotification();
-            } else {
-                log.error("Failed to retrieve settings", throwable);
-            }
+        getSettings().thenAccept(settings -> {
+            applicationConfig.update(ApplicationSettings.TorrentSettings.newBuilder(settings)
+                    .setCleaningMode(newValue)
+                    .build());
+            showNotification();
         });
     }
 

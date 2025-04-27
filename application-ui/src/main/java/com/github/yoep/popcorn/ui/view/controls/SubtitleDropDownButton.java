@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controls;
 
-import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleHelper;
+import com.github.yoep.popcorn.backend.subtitles.ISubtitleInfo;
 import javafx.scene.image.Image;
 import lombok.extern.slf4j.Slf4j;
 
@@ -9,7 +9,7 @@ import java.io.InputStream;
 import java.util.Optional;
 
 @Slf4j
-public class SubtitleDropDownButton extends DropDownButton<Subtitle.Info> {
+public class SubtitleDropDownButton extends DropDownButton<ISubtitleInfo> {
     public SubtitleDropDownButton() {
         super(createItemFactory());
     }
@@ -18,21 +18,22 @@ public class SubtitleDropDownButton extends DropDownButton<Subtitle.Info> {
         return new Image(resource, 16, 16, true, true);
     }
 
-    private static DropDownButtonFactory<Subtitle.Info> createItemFactory() {
+    private static DropDownButtonFactory<ISubtitleInfo> createItemFactory() {
         return new DropDownButtonFactory<>() {
             @Override
-            public String getId(Subtitle.Info item) {
+            public String getId(ISubtitleInfo item) {
                 return Optional.ofNullable(item.getImdbId())
+                        .filter(e -> !e.isEmpty())
                         .orElseGet(() -> SubtitleHelper.getCode(item.getLanguage()));
             }
 
             @Override
-            public String displayName(Subtitle.Info item) {
+            public String displayName(ISubtitleInfo item) {
                 return SubtitleHelper.getNativeName(item.getLanguage());
             }
 
             @Override
-            public Image graphicResource(Subtitle.Info item) {
+            public Image graphicResource(ISubtitleInfo item) {
                 return resourceToImage(SubtitleDropDownButton.class.getResourceAsStream(
                         SubtitleHelper.getFlagResource(item.getLanguage())
                 ));

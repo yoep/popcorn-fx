@@ -2102,6 +2102,8 @@ pub mod media {
         pub favorite_not_found: ::protobuf::MessageField<error::FavoriteNotFound>,
         // @@protoc_insertion_point(field:fx.ipc.proto.Media.Error.favorite_add_failed)
         pub favorite_add_failed: ::protobuf::MessageField<error::FavoriteAddFailed>,
+        // @@protoc_insertion_point(field:fx.ipc.proto.Media.Error.watched_loading_failed)
+        pub watched_loading_failed: ::protobuf::MessageField<error::WatchedLoadingFailed>,
         // @@protoc_insertion_point(field:fx.ipc.proto.Media.Error.media_type_not_supported)
         pub media_type_not_supported: ::protobuf::MessageField<error::MediaTypeNotSupported>,
         // @@protoc_insertion_point(field:fx.ipc.proto.Media.Error.provider_request_failed)
@@ -2150,15 +2152,18 @@ pub mod media {
                         ::protobuf::rt::read_singular_message_into_field(is, &mut self.favorite_add_failed)?;
                     },
                     42 => {
-                        ::protobuf::rt::read_singular_message_into_field(is, &mut self.media_type_not_supported)?;
+                        ::protobuf::rt::read_singular_message_into_field(is, &mut self.watched_loading_failed)?;
                     },
                     50 => {
-                        ::protobuf::rt::read_singular_message_into_field(is, &mut self.provider_request_failed)?;
+                        ::protobuf::rt::read_singular_message_into_field(is, &mut self.media_type_not_supported)?;
                     },
                     58 => {
-                        ::protobuf::rt::read_singular_message_into_field(is, &mut self.provider_parsing_failed)?;
+                        ::protobuf::rt::read_singular_message_into_field(is, &mut self.provider_request_failed)?;
                     },
                     66 => {
+                        ::protobuf::rt::read_singular_message_into_field(is, &mut self.provider_parsing_failed)?;
+                    },
+                    74 => {
                         ::protobuf::rt::read_singular_message_into_field(is, &mut self.provider_not_found)?;
                     },
                     tag => {
@@ -2185,6 +2190,10 @@ pub mod media {
                 my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
             }
             if let Some(v) = self.favorite_add_failed.as_ref() {
+                let len = v.compute_size();
+                my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+            }
+            if let Some(v) = self.watched_loading_failed.as_ref() {
                 let len = v.compute_size();
                 my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
             }
@@ -2222,17 +2231,20 @@ pub mod media {
             if let Some(v) = self.favorite_add_failed.as_ref() {
                 ::protobuf::rt::write_message_field_with_cached_size(4, v, os)?;
             }
-            if let Some(v) = self.media_type_not_supported.as_ref() {
+            if let Some(v) = self.watched_loading_failed.as_ref() {
                 ::protobuf::rt::write_message_field_with_cached_size(5, v, os)?;
             }
-            if let Some(v) = self.provider_request_failed.as_ref() {
+            if let Some(v) = self.media_type_not_supported.as_ref() {
                 ::protobuf::rt::write_message_field_with_cached_size(6, v, os)?;
             }
-            if let Some(v) = self.provider_parsing_failed.as_ref() {
+            if let Some(v) = self.provider_request_failed.as_ref() {
                 ::protobuf::rt::write_message_field_with_cached_size(7, v, os)?;
             }
-            if let Some(v) = self.provider_not_found.as_ref() {
+            if let Some(v) = self.provider_parsing_failed.as_ref() {
                 ::protobuf::rt::write_message_field_with_cached_size(8, v, os)?;
+            }
+            if let Some(v) = self.provider_not_found.as_ref() {
+                ::protobuf::rt::write_message_field_with_cached_size(9, v, os)?;
             }
             os.write_unknown_fields(self.special_fields.unknown_fields())?;
             ::std::result::Result::Ok(())
@@ -2255,6 +2267,7 @@ pub mod media {
             self.favorite_loading_failed.clear();
             self.favorite_not_found.clear();
             self.favorite_add_failed.clear();
+            self.watched_loading_failed.clear();
             self.media_type_not_supported.clear();
             self.provider_request_failed.clear();
             self.provider_parsing_failed.clear();
@@ -2268,6 +2281,7 @@ pub mod media {
                 favorite_loading_failed: ::protobuf::MessageField::none(),
                 favorite_not_found: ::protobuf::MessageField::none(),
                 favorite_add_failed: ::protobuf::MessageField::none(),
+                watched_loading_failed: ::protobuf::MessageField::none(),
                 media_type_not_supported: ::protobuf::MessageField::none(),
                 provider_request_failed: ::protobuf::MessageField::none(),
                 provider_parsing_failed: ::protobuf::MessageField::none(),
@@ -2556,6 +2570,96 @@ pub mod media {
             fn default_instance() -> &'static FavoriteAddFailed {
                 static instance: FavoriteAddFailed = FavoriteAddFailed {
                     imdb_id: ::std::string::String::new(),
+                    reason: ::std::string::String::new(),
+                    special_fields: ::protobuf::SpecialFields::new(),
+                };
+                &instance
+            }
+        }
+
+        // @@protoc_insertion_point(message:fx.ipc.proto.Media.Error.WatchedLoadingFailed)
+        #[derive(PartialEq,Clone,Default,Debug)]
+        pub struct WatchedLoadingFailed {
+            // message fields
+            // @@protoc_insertion_point(field:fx.ipc.proto.Media.Error.WatchedLoadingFailed.reason)
+            pub reason: ::std::string::String,
+            // special fields
+            // @@protoc_insertion_point(special_field:fx.ipc.proto.Media.Error.WatchedLoadingFailed.special_fields)
+            pub special_fields: ::protobuf::SpecialFields,
+        }
+
+        impl<'a> ::std::default::Default for &'a WatchedLoadingFailed {
+            fn default() -> &'a WatchedLoadingFailed {
+                <WatchedLoadingFailed as ::protobuf::Message>::default_instance()
+            }
+        }
+
+        impl WatchedLoadingFailed {
+            pub fn new() -> WatchedLoadingFailed {
+                ::std::default::Default::default()
+            }
+        }
+
+        impl ::protobuf::Message for WatchedLoadingFailed {
+            const NAME: &'static str = "WatchedLoadingFailed";
+
+            fn is_initialized(&self) -> bool {
+                true
+            }
+
+            fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+                while let Some(tag) = is.read_raw_tag_or_eof()? {
+                    match tag {
+                        10 => {
+                            self.reason = is.read_string()?;
+                        },
+                        tag => {
+                            ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                        },
+                    };
+                }
+                ::std::result::Result::Ok(())
+            }
+
+            // Compute sizes of nested messages
+            #[allow(unused_variables)]
+            fn compute_size(&self) -> u64 {
+                let mut my_size = 0;
+                if !self.reason.is_empty() {
+                    my_size += ::protobuf::rt::string_size(1, &self.reason);
+                }
+                my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+                self.special_fields.cached_size().set(my_size as u32);
+                my_size
+            }
+
+            fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+                if !self.reason.is_empty() {
+                    os.write_string(1, &self.reason)?;
+                }
+                os.write_unknown_fields(self.special_fields.unknown_fields())?;
+                ::std::result::Result::Ok(())
+            }
+
+            fn special_fields(&self) -> &::protobuf::SpecialFields {
+                &self.special_fields
+            }
+
+            fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+                &mut self.special_fields
+            }
+
+            fn new() -> WatchedLoadingFailed {
+                WatchedLoadingFailed::new()
+            }
+
+            fn clear(&mut self) {
+                self.reason.clear();
+                self.special_fields.clear();
+            }
+
+            fn default_instance() -> &'static WatchedLoadingFailed {
+                static instance: WatchedLoadingFailed = WatchedLoadingFailed {
                     reason: ::std::string::String::new(),
                     special_fields: ::protobuf::SpecialFields::new(),
                 };

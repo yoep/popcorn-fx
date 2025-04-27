@@ -10,14 +10,6 @@ import java.util.concurrent.CompletableFuture;
 
 public interface ProviderService<T extends Media> {
     /**
-     * Check if this {@link ProviderService} supports the given category.
-     *
-     * @param category The category that should be supported.
-     * @return Returns true if this provider supports the given category, else false.
-     */
-    boolean supports(Category category);
-
-    /**
      * Get the given page for this media provider service.
      *
      * @param genre  The genre of the media items that should be loaded.
@@ -25,7 +17,7 @@ public interface ProviderService<T extends Media> {
      * @param page   The page to retrieve.
      * @return Returns the list of {@link Media} items for the given page.
      */
-    CompletableFuture<List<T>> getPage(Genre genre, SortBy sortBy, int page);
+    CompletableFuture<List<T>> getPage(Category category, Genre genre, SortBy sortBy, int page);
 
     /**
      * Get the given page with search criteria for this media provider service.
@@ -36,7 +28,7 @@ public interface ProviderService<T extends Media> {
      * @param keywords The search keywords to search on.
      * @return Returns the list of {@link Media} items for the given page.
      */
-    CompletableFuture<List<T>> getPage(Genre genre, SortBy sortBy, int page, String keywords);
+    CompletableFuture<List<T>> getPage(Category category, Genre genre, SortBy sortBy, int page, String keywords);
 
     /**
      * Retrieve the full details of the {@link Media} item.
@@ -51,5 +43,5 @@ public interface ProviderService<T extends Media> {
      * Reset the API availability.
      * This will allow each API to become available again and tested/invoked.
      */
-    void resetApiAvailability();
+    void resetApiAvailability(Category category);
 }

@@ -25,6 +25,174 @@
 /// of protobuf runtime.
 const _PROTOBUF_VERSION_CHECK: () = ::protobuf::VERSION_3_7_1;
 
+// @@protoc_insertion_point(message:fx.ipc.proto.ApplicationArgs)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct ApplicationArgs {
+    // message fields
+    // @@protoc_insertion_point(field:fx.ipc.proto.ApplicationArgs.is_tv_mode)
+    pub is_tv_mode: bool,
+    // @@protoc_insertion_point(field:fx.ipc.proto.ApplicationArgs.is_maximized)
+    pub is_maximized: bool,
+    // @@protoc_insertion_point(field:fx.ipc.proto.ApplicationArgs.is_kiosk_mode)
+    pub is_kiosk_mode: bool,
+    // @@protoc_insertion_point(field:fx.ipc.proto.ApplicationArgs.is_mouse_disabled)
+    pub is_mouse_disabled: bool,
+    // @@protoc_insertion_point(field:fx.ipc.proto.ApplicationArgs.is_youtube_player_enabled)
+    pub is_youtube_player_enabled: bool,
+    // @@protoc_insertion_point(field:fx.ipc.proto.ApplicationArgs.is_vlc_video_player_enabled)
+    pub is_vlc_video_player_enabled: bool,
+    // @@protoc_insertion_point(field:fx.ipc.proto.ApplicationArgs.is_fx_player_enabled)
+    pub is_fx_player_enabled: bool,
+    // special fields
+    // @@protoc_insertion_point(special_field:fx.ipc.proto.ApplicationArgs.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a ApplicationArgs {
+    fn default() -> &'a ApplicationArgs {
+        <ApplicationArgs as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl ApplicationArgs {
+    pub fn new() -> ApplicationArgs {
+        ::std::default::Default::default()
+    }
+}
+
+impl ::protobuf::Message for ApplicationArgs {
+    const NAME: &'static str = "ApplicationArgs";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                8 => {
+                    self.is_tv_mode = is.read_bool()?;
+                },
+                16 => {
+                    self.is_maximized = is.read_bool()?;
+                },
+                24 => {
+                    self.is_kiosk_mode = is.read_bool()?;
+                },
+                32 => {
+                    self.is_mouse_disabled = is.read_bool()?;
+                },
+                40 => {
+                    self.is_youtube_player_enabled = is.read_bool()?;
+                },
+                48 => {
+                    self.is_vlc_video_player_enabled = is.read_bool()?;
+                },
+                56 => {
+                    self.is_fx_player_enabled = is.read_bool()?;
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        if self.is_tv_mode != false {
+            my_size += 1 + 1;
+        }
+        if self.is_maximized != false {
+            my_size += 1 + 1;
+        }
+        if self.is_kiosk_mode != false {
+            my_size += 1 + 1;
+        }
+        if self.is_mouse_disabled != false {
+            my_size += 1 + 1;
+        }
+        if self.is_youtube_player_enabled != false {
+            my_size += 1 + 1;
+        }
+        if self.is_vlc_video_player_enabled != false {
+            my_size += 1 + 1;
+        }
+        if self.is_fx_player_enabled != false {
+            my_size += 1 + 1;
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if self.is_tv_mode != false {
+            os.write_bool(1, self.is_tv_mode)?;
+        }
+        if self.is_maximized != false {
+            os.write_bool(2, self.is_maximized)?;
+        }
+        if self.is_kiosk_mode != false {
+            os.write_bool(3, self.is_kiosk_mode)?;
+        }
+        if self.is_mouse_disabled != false {
+            os.write_bool(4, self.is_mouse_disabled)?;
+        }
+        if self.is_youtube_player_enabled != false {
+            os.write_bool(5, self.is_youtube_player_enabled)?;
+        }
+        if self.is_vlc_video_player_enabled != false {
+            os.write_bool(6, self.is_vlc_video_player_enabled)?;
+        }
+        if self.is_fx_player_enabled != false {
+            os.write_bool(7, self.is_fx_player_enabled)?;
+        }
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> ApplicationArgs {
+        ApplicationArgs::new()
+    }
+
+    fn clear(&mut self) {
+        self.is_tv_mode = false;
+        self.is_maximized = false;
+        self.is_kiosk_mode = false;
+        self.is_mouse_disabled = false;
+        self.is_youtube_player_enabled = false;
+        self.is_vlc_video_player_enabled = false;
+        self.is_fx_player_enabled = false;
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static ApplicationArgs {
+        static instance: ApplicationArgs = ApplicationArgs {
+            is_tv_mode: false,
+            is_maximized: false,
+            is_kiosk_mode: false,
+            is_mouse_disabled: false,
+            is_youtube_player_enabled: false,
+            is_vlc_video_player_enabled: false,
+            is_fx_player_enabled: false,
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
 // @@protoc_insertion_point(message:fx.ipc.proto.ApplicationArgsRequest)
 #[derive(PartialEq,Clone,Default,Debug)]
 pub struct ApplicationArgsRequest {
@@ -192,43 +360,28 @@ impl ::protobuf::Message for ApplicationArgsResponse {
     }
 }
 
-// @@protoc_insertion_point(message:fx.ipc.proto.ApplicationArgs)
+// @@protoc_insertion_point(message:fx.ipc.proto.GetApplicationVersionRequest)
 #[derive(PartialEq,Clone,Default,Debug)]
-pub struct ApplicationArgs {
-    // message fields
-    // @@protoc_insertion_point(field:fx.ipc.proto.ApplicationArgs.is_tv_mode)
-    pub is_tv_mode: bool,
-    // @@protoc_insertion_point(field:fx.ipc.proto.ApplicationArgs.is_maximized)
-    pub is_maximized: bool,
-    // @@protoc_insertion_point(field:fx.ipc.proto.ApplicationArgs.is_kiosk_mode)
-    pub is_kiosk_mode: bool,
-    // @@protoc_insertion_point(field:fx.ipc.proto.ApplicationArgs.is_mouse_disabled)
-    pub is_mouse_disabled: bool,
-    // @@protoc_insertion_point(field:fx.ipc.proto.ApplicationArgs.is_youtube_player_enabled)
-    pub is_youtube_player_enabled: bool,
-    // @@protoc_insertion_point(field:fx.ipc.proto.ApplicationArgs.is_vlc_video_player_enabled)
-    pub is_vlc_video_player_enabled: bool,
-    // @@protoc_insertion_point(field:fx.ipc.proto.ApplicationArgs.is_fx_player_enabled)
-    pub is_fx_player_enabled: bool,
+pub struct GetApplicationVersionRequest {
     // special fields
-    // @@protoc_insertion_point(special_field:fx.ipc.proto.ApplicationArgs.special_fields)
+    // @@protoc_insertion_point(special_field:fx.ipc.proto.GetApplicationVersionRequest.special_fields)
     pub special_fields: ::protobuf::SpecialFields,
 }
 
-impl<'a> ::std::default::Default for &'a ApplicationArgs {
-    fn default() -> &'a ApplicationArgs {
-        <ApplicationArgs as ::protobuf::Message>::default_instance()
+impl<'a> ::std::default::Default for &'a GetApplicationVersionRequest {
+    fn default() -> &'a GetApplicationVersionRequest {
+        <GetApplicationVersionRequest as ::protobuf::Message>::default_instance()
     }
 }
 
-impl ApplicationArgs {
-    pub fn new() -> ApplicationArgs {
+impl GetApplicationVersionRequest {
+    pub fn new() -> GetApplicationVersionRequest {
         ::std::default::Default::default()
     }
 }
 
-impl ::protobuf::Message for ApplicationArgs {
-    const NAME: &'static str = "ApplicationArgs";
+impl ::protobuf::Message for GetApplicationVersionRequest {
+    const NAME: &'static str = "GetApplicationVersionRequest";
 
     fn is_initialized(&self) -> bool {
         true
@@ -237,26 +390,87 @@ impl ::protobuf::Message for ApplicationArgs {
     fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
         while let Some(tag) = is.read_raw_tag_or_eof()? {
             match tag {
-                8 => {
-                    self.is_tv_mode = is.read_bool()?;
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
                 },
-                16 => {
-                    self.is_maximized = is.read_bool()?;
-                },
-                24 => {
-                    self.is_kiosk_mode = is.read_bool()?;
-                },
-                32 => {
-                    self.is_mouse_disabled = is.read_bool()?;
-                },
-                40 => {
-                    self.is_youtube_player_enabled = is.read_bool()?;
-                },
-                48 => {
-                    self.is_vlc_video_player_enabled = is.read_bool()?;
-                },
-                56 => {
-                    self.is_fx_player_enabled = is.read_bool()?;
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> GetApplicationVersionRequest {
+        GetApplicationVersionRequest::new()
+    }
+
+    fn clear(&mut self) {
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static GetApplicationVersionRequest {
+        static instance: GetApplicationVersionRequest = GetApplicationVersionRequest {
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+// @@protoc_insertion_point(message:fx.ipc.proto.GetApplicationVersionResponse)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct GetApplicationVersionResponse {
+    // message fields
+    // @@protoc_insertion_point(field:fx.ipc.proto.GetApplicationVersionResponse.version)
+    pub version: ::std::string::String,
+    // special fields
+    // @@protoc_insertion_point(special_field:fx.ipc.proto.GetApplicationVersionResponse.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a GetApplicationVersionResponse {
+    fn default() -> &'a GetApplicationVersionResponse {
+        <GetApplicationVersionResponse as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl GetApplicationVersionResponse {
+    pub fn new() -> GetApplicationVersionResponse {
+        ::std::default::Default::default()
+    }
+}
+
+impl ::protobuf::Message for GetApplicationVersionResponse {
+    const NAME: &'static str = "GetApplicationVersionResponse";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                10 => {
+                    self.version = is.read_string()?;
                 },
                 tag => {
                     ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
@@ -270,26 +484,8 @@ impl ::protobuf::Message for ApplicationArgs {
     #[allow(unused_variables)]
     fn compute_size(&self) -> u64 {
         let mut my_size = 0;
-        if self.is_tv_mode != false {
-            my_size += 1 + 1;
-        }
-        if self.is_maximized != false {
-            my_size += 1 + 1;
-        }
-        if self.is_kiosk_mode != false {
-            my_size += 1 + 1;
-        }
-        if self.is_mouse_disabled != false {
-            my_size += 1 + 1;
-        }
-        if self.is_youtube_player_enabled != false {
-            my_size += 1 + 1;
-        }
-        if self.is_vlc_video_player_enabled != false {
-            my_size += 1 + 1;
-        }
-        if self.is_fx_player_enabled != false {
-            my_size += 1 + 1;
+        if !self.version.is_empty() {
+            my_size += ::protobuf::rt::string_size(1, &self.version);
         }
         my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
         self.special_fields.cached_size().set(my_size as u32);
@@ -297,26 +493,8 @@ impl ::protobuf::Message for ApplicationArgs {
     }
 
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
-        if self.is_tv_mode != false {
-            os.write_bool(1, self.is_tv_mode)?;
-        }
-        if self.is_maximized != false {
-            os.write_bool(2, self.is_maximized)?;
-        }
-        if self.is_kiosk_mode != false {
-            os.write_bool(3, self.is_kiosk_mode)?;
-        }
-        if self.is_mouse_disabled != false {
-            os.write_bool(4, self.is_mouse_disabled)?;
-        }
-        if self.is_youtube_player_enabled != false {
-            os.write_bool(5, self.is_youtube_player_enabled)?;
-        }
-        if self.is_vlc_video_player_enabled != false {
-            os.write_bool(6, self.is_vlc_video_player_enabled)?;
-        }
-        if self.is_fx_player_enabled != false {
-            os.write_bool(7, self.is_fx_player_enabled)?;
+        if !self.version.is_empty() {
+            os.write_string(1, &self.version)?;
         }
         os.write_unknown_fields(self.special_fields.unknown_fields())?;
         ::std::result::Result::Ok(())
@@ -330,30 +508,18 @@ impl ::protobuf::Message for ApplicationArgs {
         &mut self.special_fields
     }
 
-    fn new() -> ApplicationArgs {
-        ApplicationArgs::new()
+    fn new() -> GetApplicationVersionResponse {
+        GetApplicationVersionResponse::new()
     }
 
     fn clear(&mut self) {
-        self.is_tv_mode = false;
-        self.is_maximized = false;
-        self.is_kiosk_mode = false;
-        self.is_mouse_disabled = false;
-        self.is_youtube_player_enabled = false;
-        self.is_vlc_video_player_enabled = false;
-        self.is_fx_player_enabled = false;
+        self.version.clear();
         self.special_fields.clear();
     }
 
-    fn default_instance() -> &'static ApplicationArgs {
-        static instance: ApplicationArgs = ApplicationArgs {
-            is_tv_mode: false,
-            is_maximized: false,
-            is_kiosk_mode: false,
-            is_mouse_disabled: false,
-            is_youtube_player_enabled: false,
-            is_vlc_video_player_enabled: false,
-            is_fx_player_enabled: false,
+    fn default_instance() -> &'static GetApplicationVersionResponse {
+        static instance: GetApplicationVersionResponse = GetApplicationVersionResponse {
+            version: ::std::string::String::new(),
             special_fields: ::protobuf::SpecialFields::new(),
         };
         &instance

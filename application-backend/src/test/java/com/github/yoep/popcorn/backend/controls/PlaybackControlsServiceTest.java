@@ -1,11 +1,13 @@
 package com.github.yoep.popcorn.backend.controls;
 
-import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
+import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
+import com.github.yoep.popcorn.backend.lib.FxCallback;
 import com.github.yoep.popcorn.backend.lib.FxChannel;
-import com.github.yoep.popcorn.backend.lib.ipc.protobuf.PlayerState;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ControlEvent;
 import com.github.yoep.popcorn.backend.player.PlayerEventService;
+import com.google.protobuf.Parser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,14 +16,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -36,27 +34,59 @@ class PlaybackControlsServiceTest {
     private Player player;
     private PlaybackControlsService service;
 
-    private final AtomicReference<PlaybackControlCallback> callbackHolder = new AtomicReference<>();
+    private final AtomicReference<FxCallback<ControlEvent>> subscriptionHolder = new AtomicReference<>();
+    private final AtomicReference<PlayerListener> playerListenerHolder = new AtomicReference<>();
 
     @BeforeEach
     void setUp() {
-        when(playerManagerService.getActivePlayer()).thenReturn(Optional.of(player));
+        doAnswer(invocations -> {
+            subscriptionHolder.set(invocations.getArgument(2, FxCallback.class));
+            return null;
+        }).when(fxChannel).subscribe(eq(FxChannel.typeFrom(ControlEvent.class)), isA(Parser.class), isA(FxCallback.class));
+        doAnswer(invocations -> {
+            playerListenerHolder.set(invocations.getArgument(0, PlayerListener.class));
+            return null;
+        }).when(playerEventService).addListener(isA(PlayerListener.class));
+        lenient().when(playerManagerService.getActivePlayer()).thenReturn(CompletableFuture.completedFuture(Optional.of(player)));
 
-        service = new PlaybackControlsService(fxLib, instance, playerManagerService, playerEventService);
+        service = new PlaybackControlsService(fxChannel, playerManagerService, playerEventService);
     }
 
     @Test
-    void testOnTogglePlaybackEvent() throws ExecutionException, InterruptedException, TimeoutException {
-        var eventFuture = new CompletableFuture<PlaybackControlEvent>();
-        service.register(eventFuture::complete);
-        when(player.getState()).thenReturn(PlayerState.PLAYING, PlayerState.PAUSED);
-        var listener = callbackHolder.get();
+    void testListener_OnTimeChanged() {
+        var timeValue = 12000L;
+        var eventListener = playerListenerHolder.get();
 
-        listener.callback(PlaybackControlEvent.TogglePlaybackState);
-        verify(player).pause();
-        assertEquals(PlaybackControlEvent.TogglePlaybackState, eventFuture.get(100, TimeUnit.MILLISECONDS));
+        eventListener.onTimeChanged(timeValue);
 
-        listener.callback(PlaybackControlEvent.TogglePlaybackState);
-        verify(player).resume();
+        assertEquals(timeValue, service.lastKnownTime);
+    }
+
+    @Test
+    void testListener_OnForward() {
+        var event = ControlEvent.newBuilder()
+                .setEvent(ControlEvent.Event.FORWARD)
+                .build();
+        var listener = (FxCallback<ControlEvent>) mock(FxCallback.class);
+        playerListenerHolder.get().onTimeChanged(10000);
+
+        service.register(listener);
+        subscriptionHolder.get().callback(event);
+
+        verify(player).seek(20000);
+    }
+
+    @Test
+    void testListener_OnRewind() {
+        var event = ControlEvent.newBuilder()
+                .setEvent(ControlEvent.Event.REWIND)
+                .build();
+        var listener = (FxCallback<ControlEvent>) mock(FxCallback.class);
+        playerListenerHolder.get().onTimeChanged(10000);
+
+        service.register(listener);
+        subscriptionHolder.get().callback(event);
+
+        verify(player).seek(0);
     }
 }

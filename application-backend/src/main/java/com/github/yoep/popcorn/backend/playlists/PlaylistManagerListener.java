@@ -7,5 +7,5 @@ public interface PlaylistManagerListener {
 
     void onPlayingIn(Long playingIn, Playlist.Item item);
 
-    void onStateChanged(PlaylistState state);
+    void onStateChanged(Playlist.State state);
 }

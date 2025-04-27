@@ -1,12 +1,12 @@
 package com.github.yoep.player.popcorn.listeners;
 
-import com.github.yoep.popcorn.backend.subtitles.Subtitle;
+import com.github.yoep.popcorn.backend.subtitles.ISubtitle;
 
 public interface SubtitleListener {
     /**
      * Invoked when a new subtitle becomes active.
      */
-    void onSubtitleChanged(Subtitle newSubtitle);
+    void onSubtitleChanged(ISubtitle newSubtitle);
 
     /**
      * Invoked when the subtitle is being disabled.

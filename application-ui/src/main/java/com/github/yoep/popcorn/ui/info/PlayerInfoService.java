@@ -1,6 +1,7 @@
 package com.github.yoep.popcorn.ui.info;
 
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
+import com.github.yoep.popcorn.backend.adapters.player.listeners.AbstractPlayerListener;
 import com.github.yoep.popcorn.backend.info.ComponentState;
 import com.github.yoep.popcorn.backend.info.SimpleComponentDetails;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
@@ -32,13 +33,7 @@ public class PlayerInfoService extends AbstractInfoService {
 
             @Override
             public void playersChanged() {
-                playerManagerService.getPlayers().whenComplete((players, throwable) -> {
-                    if (throwable == null) {
-                        onPlayersChanged(players.stream().toList());
-                    } else {
-                        log.error("Failed to retrieve players", throwable);
-                    }
-                });
+                playerManagerService.getPlayers().thenAccept(players -> onPlayersChanged(players.stream().toList()));
             }
 
             @Override
@@ -76,12 +71,12 @@ public class PlayerInfoService extends AbstractInfoService {
                 .state(mapToComponentState(player.getState()))
                 .build();
 
-//        player.addListener(new AbstractPlayerListener() {
-//            @Override
-//            public void onStateChanged(PlayerState newState) {
-//                componentDetails.setState(mapToComponentState(newState));
-//            }
-//        });
+        player.addListener(new AbstractPlayerListener() {
+            @Override
+            public void onStateChanged(Player.State newState) {
+                componentDetails.setState(mapToComponentState(newState));
+            }
+        });
 
         return componentDetails;
     }

@@ -14,5 +14,6 @@ pub mod playlist;
 pub mod settings;
 pub mod subtitle;
 pub mod torrent;
+pub mod tracking;
 pub mod update;
 pub mod watched;

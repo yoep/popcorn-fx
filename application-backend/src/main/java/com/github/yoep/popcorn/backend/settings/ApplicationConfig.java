@@ -3,24 +3,27 @@ package com.github.yoep.popcorn.backend.settings;
 import com.github.yoep.popcorn.backend.lib.FxChannel;
 import com.github.yoep.popcorn.backend.lib.FxChannelException;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.*;
+import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import javafx.application.Platform;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.*;
+import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 
 import static java.util.Arrays.asList;
 
 @Slf4j
-public class ApplicationConfig {
+public class ApplicationConfig extends AbstractListenerService<ApplicationSettingsEventListener> {
     private final FxChannel fxChannel;
     private final LocaleText localeText;
-
-    private final Queue<ApplicationSettingsEvent> listeners = new ConcurrentLinkedDeque<>();
 
     private Consumer<Float> onUiScaleChanged;
     private ApplicationArgs applicationArgs;
@@ -93,11 +96,6 @@ public class ApplicationConfig {
      */
     public void decreaseUIScale() {
         changeScale(-1);
-    }
-
-    public void register(ApplicationSettingsEvent callback) {
-        Objects.requireNonNull(callback, "callback cannot be null");
-        listeners.add(callback);
     }
 
     /**
@@ -176,8 +174,8 @@ public class ApplicationConfig {
     public static List<Locale> supportedLanguages() {
         return asList(
                 Locale.ENGLISH,
-                new Locale("nl"),
-                new Locale("fr"));
+                Locale.of("nl"),
+                Locale.of("fr"));
     }
 
     //endregion
@@ -186,20 +184,7 @@ public class ApplicationConfig {
 
     private void init() {
         initializeSettings();
-    }
-
-    private ApplicationArgs applicationArgs() {
-        if (applicationArgs == null) {
-            try {
-                this.applicationArgs = fxChannel.send(ApplicationArgsRequest.getDefaultInstance(), ApplicationArgsResponse.parser())
-                        .thenApply(ApplicationArgsResponse::getArgs)
-                        .get();
-            } catch (ExecutionException | InterruptedException ex) {
-                throw new FxChannelException(ex.getMessage(), ex);
-            }
-        }
-
-        return applicationArgs;
+        initializeListener();
     }
 
     private void initializeSettings() {
@@ -221,29 +206,51 @@ public class ApplicationConfig {
         });
     }
 
+    private void initializeListener() {
+        fxChannel.subscribe(FxChannel.typeFrom(ApplicationSettingsEvent.class), ApplicationSettingsEvent.parser(), this::onApplicationEvent);
+    }
+
+    private ApplicationArgs applicationArgs() {
+        if (applicationArgs == null) {
+            try {
+                this.applicationArgs = fxChannel.send(ApplicationArgsRequest.getDefaultInstance(), ApplicationArgsResponse.parser())
+                        .thenApply(ApplicationArgsResponse::getArgs)
+                        .get(2, TimeUnit.SECONDS);
+            } catch (ExecutionException | InterruptedException | TimeoutException ex) {
+                throw new FxChannelException("Failed to retrieve application arguments, " + ex.getMessage(), ex);
+            }
+        }
+
+        return applicationArgs;
+    }
+
+    private void onApplicationEvent(ApplicationSettingsEvent event) {
+        switch (event.getEvent()) {
+            case ApplicationSettingsEvent.Event.SUBTITLE_SETTINGS_CHANGED ->
+                    invokeListeners(listener -> listener.onSubtitleSettingsChanged(event.getSubtitleSettings()));
+            case ApplicationSettingsEvent.Event.TRACKING_SETTINGS_CHANGED ->
+                    invokeListeners(listener -> listener.onTrackingSettingsChanged(event.getTrackingSettings()));
+        }
+    }
+
     //endregion
 
     //region Functions
 
     private void changeScale(int indexChange) {
         var supportedUIScales = supportedUIScales();
-        getCurrentUIScaleIndex().whenComplete((currentIndex, throwable) -> {
+        getSettings().whenComplete((settings, throwable) -> {
             if (throwable == null) {
+                var currentIndex = currentUIScaleIndex(settings.getUiSettings());
                 var newIndex = currentIndex + indexChange;
 
                 // verify that the current UI scale is within the supported scales
                 if (newIndex == supportedUIScales.size() - 1 || newIndex < 0)
                     return;
 
-                getSettings().whenComplete((settings, ex) -> {
-                    if (ex == null) {
-                        update(ApplicationSettings.UISettings.newBuilder(settings.getUiSettings())
-                                .setScale(supportedUIScales.get(newIndex))
-                                .build());
-                    } else {
-                        log.error("Failed to retrieve settings", ex);
-                    }
-                });
+                update(ApplicationSettings.UISettings.newBuilder(settings.getUiSettings())
+                        .setScale(supportedUIScales.get(newIndex))
+                        .build());
             } else {
                 log.error("Failed to retrieve settings", throwable);
             }
@@ -255,24 +262,21 @@ public class ApplicationConfig {
                 .ifPresent(e -> e.accept(scale));
     }
 
-    private CompletableFuture<Integer> getCurrentUIScaleIndex() {
-        return getSettings().thenApply(response -> {
-            var uiSettings = response.getUiSettings();
-            var scale = uiSettings.getScale();
-            var index = supportedUIScales().indexOf(scale);
+    private Integer currentUIScaleIndex(ApplicationSettings.UISettings settings) {
+        var scale = settings.getScale();
+        var index = supportedUIScales().indexOf(scale);
 
-            // check if the index was found
-            // if not, return the index of the default
-            if (index == -1) {
-                log.warn("UI scale \"{}\" couldn't be found back in the supported UI scales", scale);
-                index = supportedUIScales().indexOf(ApplicationSettings.UISettings.Scale.newBuilder()
-                        .setFactor(1.0f)
-                        .build());
-            }
+        // check if the index was found
+        // if not, return the index of the default
+        if (index == -1) {
+            log.warn("UI scale \"{}\" couldn't be found back in the supported UI scales", scale);
+            index = supportedUIScales().indexOf(ApplicationSettings.UISettings.Scale.newBuilder()
+                    .setFactor(1.0f)
+                    .build());
+        }
 
-            log.trace("Current UI scale index: {}", index);
-            return index;
-        });
+        log.trace("Current UI scale index: {}", index);
+        return index;
     }
 
     //endregion

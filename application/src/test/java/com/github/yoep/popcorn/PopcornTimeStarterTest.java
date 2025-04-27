@@ -1,7 +1,6 @@
 package com.github.yoep.popcorn;
 
 import com.github.yoep.player.popcorn.player.PopcornPlayer;
-import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.ui.IoC;
 import org.junit.jupiter.api.Test;

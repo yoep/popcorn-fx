@@ -1,4 +1,5 @@
 use crate::torrent::{FileAttributeFlags, PiecePriority, TorrentFileInfo};
+use log::warn;
 use std::hash::Hash;
 use std::ops::Range;
 use std::path::PathBuf;
@@ -87,7 +88,7 @@ impl File {
     ///
     /// It returns an `Option<Range<usize>>` containing the portion of the given range that overlaps with the file's
     /// storage range. If there is no overlap, `None` is returned.
-    pub fn io_applicable_bytes(&self, torrent_bytes: &Range<usize>) -> Option<Range<usize>> {
+    pub fn io_applicable_byte_range(&self, torrent_bytes: &Range<usize>) -> Option<Range<usize>> {
         overlapping_range(self.torrent_range(), &torrent_bytes).map(|e| {
             let start_offset = e.start.saturating_sub(self.offset);
             start_offset..e.end - self.offset
@@ -104,8 +105,41 @@ impl File {
     ///
     /// It returns an `Option<Range<usize>>` containing the portion of `torrent_bytes` that overlaps with the file's
     /// range in the torrent. If there is no overlap, `None` is returned.
-    pub fn torrent_applicable_bytes(&self, torrent_bytes: &Range<usize>) -> Option<Range<usize>> {
+    pub fn torrent_applicable_byte_range(
+        &self,
+        torrent_bytes: &Range<usize>,
+    ) -> Option<Range<usize>> {
         overlapping_range(self.torrent_range(), torrent_bytes)
+    }
+
+    /// Get the byte slice of the given torrent bytes that are applicable to this file.
+    ///
+    /// # Arguments
+    ///
+    /// * `torrent_bytes`: The range of the bytes within the torrent.
+    /// * `bytes`: The data bytes of the torrent corresponding to the given `torrent_bytes`.
+    ///
+    /// # Returns
+    ///
+    /// It returns the slice of bytes that are relevant to this file.
+    /// If there is no overlap, `None` is returned.
+    pub fn torrent_applicable_bytes<'a>(
+        &self,
+        torrent_bytes: &Range<usize>,
+        bytes: &'a [u8],
+    ) -> Option<&'a [u8]> {
+        if torrent_bytes.len() != bytes.len() {
+            warn!("Torrent file \"{:?}\" is unable to calculate applicable bytes, invalid range provided", self.torrent_path);
+            return None;
+        }
+
+        if let Some(overlapping_range) = self.torrent_applicable_byte_range(torrent_bytes) {
+            let start = overlapping_range.start.saturating_sub(torrent_bytes.start);
+            let end = overlapping_range.end.saturating_sub(torrent_bytes.start);
+            return Some(&bytes[start..end]);
+        }
+
+        None
     }
 
     /// Get the file attributes of the torrent file.
@@ -198,45 +232,62 @@ mod tests {
     }
 
     #[test]
-    fn test_file_io_applicable_bytes() {
+    fn test_file_io_applicable_byte_range() {
         let file = new_file(0, 128);
-        let result = file.io_applicable_bytes(&(0..64));
+        let result = file.io_applicable_byte_range(&(0..64));
         assert_eq!(Some(0..64), result);
 
         let file = new_file(0, 128);
-        let result = file.io_applicable_bytes(&(64..512));
+        let result = file.io_applicable_byte_range(&(64..512));
         assert_eq!(Some(64..128), result);
 
         let file = new_file(496, 128);
-        let result = file.io_applicable_bytes(&(64..512));
+        let result = file.io_applicable_byte_range(&(64..512));
         assert_eq!(Some(0..16), result);
 
         let file = new_file(64, 128);
-        let result = file.io_applicable_bytes(&(128..512));
+        let result = file.io_applicable_byte_range(&(128..512));
         assert_eq!(Some(64..128), result);
 
         let file = new_file(128, 64);
-        let result = file.io_applicable_bytes(&(0..192));
+        let result = file.io_applicable_byte_range(&(0..192));
         assert_eq!(Some(0..64), result);
+    }
+
+    #[test]
+    fn test_file_torrent_applicable_byte_range() {
+        let file = new_file(0, 128);
+        let result = file.torrent_applicable_byte_range(&(0..64));
+        assert_eq!(Some(0..64), result);
+
+        let file = new_file(0, 128);
+        let result = file.torrent_applicable_byte_range(&(64..512));
+        assert_eq!(Some(64..128), result);
+
+        let file = new_file(496, 128);
+        let result = file.torrent_applicable_byte_range(&(64..512));
+        assert_eq!(Some(496..512), result);
+
+        let file = new_file(64, 64);
+        let result = file.torrent_applicable_byte_range(&(64..512));
+        assert_eq!(Some(64..128), result);
+
+        let file = new_file(1028, 512);
+        let result = file.torrent_applicable_byte_range(&(0..1028));
+        assert_eq!(None, result);
     }
 
     #[test]
     fn test_file_torrent_applicable_bytes() {
         let file = new_file(0, 128);
-        let result = file.torrent_applicable_bytes(&(0..64));
-        assert_eq!(Some(0..64), result);
+        let data = (0..64).map(|i| i as u8).collect::<Vec<u8>>();
+        let result = file.torrent_applicable_bytes(&(0..64), data.as_slice());
+        assert_eq!(Some(data.as_slice()), result);
 
         let file = new_file(0, 128);
-        let result = file.torrent_applicable_bytes(&(64..512));
-        assert_eq!(Some(64..128), result);
-
-        let file = new_file(496, 128);
-        let result = file.torrent_applicable_bytes(&(64..512));
-        assert_eq!(Some(496..512), result);
-
-        let file = new_file(64, 64);
-        let result = file.torrent_applicable_bytes(&(64..512));
-        assert_eq!(Some(64..128), result);
+        let data = (0..448).map(|i| i as u8).collect::<Vec<u8>>();
+        let result = file.torrent_applicable_bytes(&(64..512), data.as_slice());
+        assert_eq!(Some(&data[0..64]), result);
     }
 
     #[test]

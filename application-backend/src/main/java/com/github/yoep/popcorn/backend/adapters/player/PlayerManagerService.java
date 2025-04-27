@@ -46,7 +46,7 @@ public interface PlayerManagerService extends ListenerService<PlayerManagerListe
      * @param player The player that needs to be registered.
      * @throws PlayerAlreadyExistsException Is thrown when the player ID already exists.
      */
-    void register(Player player);
+    CompletableFuture<Boolean> register(Player player);
 
     /**
      * Remove the the player from the available players list.

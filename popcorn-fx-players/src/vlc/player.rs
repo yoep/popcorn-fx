@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::net::{SocketAddr, TcpListener};
 use std::path::Path;
 use std::process::{Child, Command};
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
@@ -77,11 +77,16 @@ impl Player for VlcPlayer {
         self.inner.state().await
     }
 
-    async fn request(&self) -> Option<Weak<Box<dyn PlayRequest>>> {
-        self.inner.request().await
+    async fn request(&self) -> Option<PlayRequest> {
+        self.inner.request().await.clone()
     }
 
-    async fn play(&self, request: Box<dyn PlayRequest>) {
+    async fn current_volume(&self) -> Option<u32> {
+        // TODO
+        None
+    }
+
+    async fn play(&self, request: PlayRequest) {
         self.inner.play(request).await;
     }
 
@@ -93,11 +98,11 @@ impl Player for VlcPlayer {
         self.inner.send_command(VlcPlayerCommand::Resume)
     }
 
-    fn seek(&self, time: u64) {
+    async fn seek(&self, time: u64) {
         self.inner.send_command(VlcPlayerCommand::Seek(time))
     }
 
-    fn stop(&self) {
+    async fn stop(&self) {
         self.inner.send_command(VlcPlayerCommand::Stop)
     }
 }
@@ -253,7 +258,7 @@ struct InnerVlcPlayer {
     client: Client,
     socket: SocketAddr,
     options: String,
-    request: Mutex<Option<Arc<Box<dyn PlayRequest>>>>,
+    request: Mutex<Option<PlayRequest>>,
     process: Mutex<Option<Child>>,
     state: Mutex<PlayerState>,
     callbacks: MultiThreadedCallback<PlayerEvent>,
@@ -395,12 +400,11 @@ impl InnerVlcPlayer {
         *self.state.lock().await
     }
 
-    async fn request(&self) -> Option<Weak<Box<dyn PlayRequest>>> {
-        let mutex = self.request.lock().await;
-        mutex.as_ref().map(|e| Arc::downgrade(e))
+    async fn request(&self) -> Option<PlayRequest> {
+        self.request.lock().await.clone()
     }
 
-    async fn play(&self, request: Box<dyn PlayRequest>) {
+    async fn play(&self, request: PlayRequest) {
         trace!("Trying to start VLC playback for {:?}", request);
         let filename = Path::new(request.url())
             .file_name()
@@ -443,7 +447,7 @@ impl InnerVlcPlayer {
         {
             trace!("Updating VLC request to {:?}", request);
             let mut mutex = self.request.lock().await;
-            *mutex = Some(Arc::new(request))
+            *mutex = Some(request)
         }
     }
 
@@ -561,7 +565,6 @@ mod tests {
 
     use super::*;
     use crate::tests::wait_for_hit;
-    use popcorn_fx_core::core::players::{MockPlayRequest, PlaySubtitleRequest};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::core::subtitles::model::SubtitleInfo;
     use popcorn_fx_core::core::subtitles::{MockSubtitleProvider, SubtitlePreference};
@@ -643,25 +646,19 @@ mod tests {
         init_logger!();
         let title = "FooBarTitle";
         let language = SubtitleLanguage::Finnish;
-        let mut request = MockPlayRequest::new();
-        let subtitle_url = "http://localhost:8080/subtitle.srt";
-        request
-            .expect_url()
-            .return_const("http://localhost:8080/myvideo.mp4".to_string());
-        request.expect_title().return_const(title.to_string());
-        request
-            .expect_quality()
-            .return_const(Some("720p".to_string()));
-        request.expect_subtitle().return_const(PlaySubtitleRequest {
-            enabled: true,
-            info: Some(
+        let mut request = PlayRequest::builder()
+            .url("http://localhost:8080/myvideo.mp4")
+            .title(title)
+            .quality("720p")
+            .subtitles_enabled(true)
+            .subtitle_info(
                 SubtitleInfo::builder()
                     .imdb_id("tt8976123")
                     .language(language)
                     .build(),
-            ),
-            subtitle: None,
-        });
+            )
+            .build();
+        let subtitle_url = "http://localhost:8080/subtitle.srt";
         let mut manager = MockSubtitleManager::new();
         manager
             .expect_preference()
@@ -676,7 +673,7 @@ mod tests {
             .subtitle_provider(Arc::new(Box::new(provider)))
             .build();
 
-        player.play(Box::new(request)).await;
+        player.play(request).await;
 
         let result = player.inner.process.lock().await;
         assert!(
@@ -687,7 +684,6 @@ mod tests {
         let result = player
             .request()
             .await
-            .and_then(|e| e.upgrade())
             .expect("expected the request to have been stored");
         assert_eq!(title.to_string(), result.title());
     }
@@ -702,15 +698,10 @@ mod tests {
                 .query_param(COMMAND_NAME_PARAM, COMMAND_STOP);
             then.status(200);
         });
-        let mut request = MockPlayRequest::new();
-        request
-            .expect_url()
-            .return_const("http://localhost:8080/myvideo.mp4".to_string());
-        request.expect_subtitle().return_const(PlaySubtitleRequest {
-            enabled: false,
-            info: None,
-            subtitle: None,
-        });
+        let request = PlayRequest::builder()
+            .url("http://localhost:8080/myvideo.mp4")
+            .subtitles_enabled(false)
+            .build();
         let mut manager = MockSubtitleManager::new();
         manager
             .expect_preference()
@@ -722,8 +713,8 @@ mod tests {
             .address(server.address().clone())
             .build();
 
-        player.play(Box::new(request)).await;
-        player.stop();
+        player.play(request).await;
+        player.stop().await;
 
         assert_timeout!(
             Duration::from_millis(200),
@@ -816,7 +807,7 @@ mod tests {
             .address(server.address().clone())
             .build();
 
-        player.pause();
+        player.pause().await;
 
         wait_for_hit(&mock).await;
         mock.assert_async().await;
@@ -840,7 +831,7 @@ mod tests {
             .address(server.address().clone())
             .build();
 
-        player.resume();
+        player.resume().await;
 
         wait_for_hit(&mock).await;
         mock.assert_async().await;
@@ -865,7 +856,7 @@ mod tests {
             .address(server.address().clone())
             .build();
 
-        player.seek(12000);
+        player.seek(12000).await;
 
         wait_for_hit(&mock).await;
         mock.assert_async().await;
@@ -890,7 +881,7 @@ mod tests {
             .address(server.address().clone())
             .build();
 
-        player.seek(800);
+        player.seek(800).await;
 
         wait_for_hit(&mock).await;
         mock.assert_async().await;

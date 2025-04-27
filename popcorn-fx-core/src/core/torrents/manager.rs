@@ -226,7 +226,12 @@ impl InnerTorrentManager {
         self.session
             .add_torrent_from_uri(uri, TorrentFlags::Metadata)
             .await
-            .map(|e| Box::new(e) as Box<dyn Torrent>)
+            .map(|torrent| {
+                let handle = torrent.handle();
+                self.callbacks
+                    .invoke(TorrentManagerEvent::TorrentAdded(handle));
+                Box::new(torrent) as Box<dyn Torrent>
+            })
             .map_err(|e| torrents::Error::TorrentError(e.to_string()))
     }
 
@@ -344,7 +349,9 @@ impl InnerTorrentManager {
 
     async fn remove(&self, handle: &TorrentHandle) {
         debug!("Torrent manager is removing torrent {}", handle);
-        self.session.remove_torrent(handle).await
+        self.session.remove_torrent(handle).await;
+        self.callbacks
+            .invoke(TorrentManagerEvent::TorrentRemoved(handle.clone()));
     }
 
     async fn on_player_stopped(&self, event: PlayerStoppedEvent) {

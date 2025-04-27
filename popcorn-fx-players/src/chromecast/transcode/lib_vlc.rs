@@ -11,9 +11,7 @@ pub struct LibvlcInstanceT<T>(pub T);
 impl<T> LibvlcInstanceT<T> {
     /// Creates a new `LibvlcInstanceT` instance with the provided instance.
     pub fn new(instance: T) -> Self {
-        Self {
-            0: instance,
-        }
+        Self { 0: instance }
     }
 }
 
@@ -32,32 +30,38 @@ pub type libvlc_media_t = *mut libc::c_void;
 
 /// Represents the libvlc_new function signature.
 #[allow(non_camel_case_types)]
-pub type libvlc_new = extern "C" fn(argc: *const i32, argv: *const *const libc::c_char) -> libvlc_instance_t;
+pub type libvlc_new =
+    extern "C" fn(argc: *const i32, argv: *const *const libc::c_char) -> libvlc_instance_t;
 /// Represents the libvlc_media_player_new function signature.
 #[allow(non_camel_case_types)]
-pub type libvlc_media_player_new = extern "C" fn(instance: libvlc_instance_t) -> libvlc_media_player_t;
+pub type libvlc_media_player_new =
+    extern "C" fn(instance: libvlc_instance_t) -> libvlc_media_player_t;
 /// Represents the libvlc_media_player_release function signature.
 #[allow(non_camel_case_types)]
 pub type libvlc_media_player_release = extern "C" fn(media: libvlc_media_player_t);
 /// Represents the libvlc_media_new_location function signature.
 #[allow(non_camel_case_types)]
-pub type libvlc_media_new_location = extern "C" fn(instance: libvlc_instance_t, path: *const libc::c_char) -> libvlc_media_t;
+pub type libvlc_media_new_location =
+    extern "C" fn(instance: libvlc_instance_t, path: *const libc::c_char) -> libvlc_media_t;
 /// Represents the libvlc_media_add_option function signature.
 #[allow(non_camel_case_types)]
-pub type libvlc_media_add_option = extern "C" fn(media: libvlc_media_t, option: *const libc::c_char);
+pub type libvlc_media_add_option =
+    extern "C" fn(media: libvlc_media_t, option: *const libc::c_char);
 /// Represents the libvlc_media_release function signature.
 #[allow(non_camel_case_types)]
 pub type libvlc_media_release = extern "C" fn(media: libvlc_media_t);
 /// Represents the libvlc_media_player_set_media function signature.
 #[allow(non_camel_case_types)]
-pub type libvlc_media_player_set_media = extern "C" fn(media_player: libvlc_media_player_t, media: libvlc_media_t);
+pub type libvlc_media_player_set_media =
+    extern "C" fn(media_player: libvlc_media_player_t, media: libvlc_media_t);
 /// Represents the libvlc_media_player_play function signature.
-/// 
+///
 /// # Returns
-/// 
+///
 /// 0 if playback started (and was already started), or -1 on error.
 #[allow(non_camel_case_types)]
-pub type libvlc_media_player_play = extern "C" fn(media_player: libvlc_media_player_t) -> libc::c_int;
+pub type libvlc_media_player_play =
+    extern "C" fn(media_player: libvlc_media_player_t) -> libc::c_int;
 /// Represents the libvlc_media_player_stop function signature.
 #[allow(non_camel_case_types)]
 pub type libvlc_media_player_stop = extern "C" fn(media_player: libvlc_media_player_t);
@@ -85,10 +89,12 @@ impl LibraryHandle {
     /// # Returns
     ///
     /// A new `LibraryHandle` instance.
-    pub fn new(lib_path: impl Into<String>,
-               plugin_path: impl Into<String>,
-               libvlc: Library,
-               libvlc_core: Library) -> Self {
+    pub fn new(
+        lib_path: impl Into<String>,
+        plugin_path: impl Into<String>,
+        libvlc: Library,
+        libvlc_core: Library,
+    ) -> Self {
         Self {
             lib_path: lib_path.into(),
             plugin_path: plugin_path.into(),

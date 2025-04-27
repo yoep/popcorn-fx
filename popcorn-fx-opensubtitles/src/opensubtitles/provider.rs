@@ -875,15 +875,21 @@ mod test {
     async fn test_episode_subtitles() {
         init_logger!();
         let (server, settings) = start_mock_server();
-        let show = ShowDetails::new(
-            "tt4236770".to_string(),
-            "tt4236770".to_string(),
-            "lorem ipsum".to_string(),
-            "2022".to_string(),
-            1,
-            Images::none(),
-            None,
-        );
+        let show = ShowDetails {
+            imdb_id: "tt4236770".to_string(),
+            tvdb_id: "tt4236770".to_string(),
+            title: "lorem ipsum".to_string(),
+            year: "2022".to_string(),
+            num_seasons: 1,
+            images: Images::none(),
+            rating: None,
+            context_locale: "".to_string(),
+            synopsis: "".to_string(),
+            runtime: None,
+            status: "".to_string(),
+            genres: vec![],
+            episodes: vec![],
+        };
         let episode = Episode::new(
             1,
             1,

@@ -76,6 +76,12 @@ impl UiScale {
     }
 }
 
+impl Default for UiScale {
+    fn default() -> Self {
+        Self { value: 1f32 }
+    }
+}
+
 impl Display for UiScale {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let display_value: i32 = (self.value * 100f32) as i32;

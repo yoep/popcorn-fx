@@ -1,6 +1,9 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
+import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.LoaderEvent;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Loading;
 import com.github.yoep.popcorn.backend.loader.*;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.CloseLoadEvent;
@@ -21,6 +24,7 @@ import javafx.scene.layout.Pane;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
+import java.util.Optional;
 import java.util.ResourceBundle;
 
 @Slf4j
@@ -90,11 +94,12 @@ public class LoaderComponent implements Initializable {
     private void init() {
         loaderService.addListener(new LoaderListener() {
             @Override
-            public void onLoadingStarted(LoadingStartedEventC loadingStartedEvent) {
+            public void onLoadingStarted(LoaderEvent.LoadingStarted loadingStartedEvent) {
                 Platform.runLater(() -> {
                     onLoadingInitializing();
                     backgroundImage.reset();
-                    loadingStartedEvent.getBackground()
+                    Optional.ofNullable(loadingStartedEvent.getBackground())
+                            .filter(e -> loadingStartedEvent.hasBackground())
                             .map(imageService::load)
                             .ifPresent(e -> e.whenComplete((bytes, throwable) -> {
                                 if (throwable == null) {
@@ -107,17 +112,17 @@ public class LoaderComponent implements Initializable {
             }
 
             @Override
-            public void onStateChanged(LoaderState newState) {
+            public void onStateChanged(Loading.State newState) {
                 Platform.runLater(() -> handleLoaderStateChanged(newState));
             }
 
             @Override
-            public void onProgressChanged(LoadingProgress progress) {
+            public void onProgressChanged(Loading.Progress progress) {
                 Platform.runLater(() -> onLoadingProgressChanged(progress));
             }
 
             @Override
-            public void onError(LoadingErrorC error) {
+            public void onError(Loading.Error error) {
                 Platform.runLater(() -> onLoadTorrentError());
             }
         });
@@ -127,7 +132,7 @@ public class LoaderComponent implements Initializable {
 
     //region Functions
 
-    private void handleLoaderStateChanged(LoaderState newState) {
+    private void handleLoaderStateChanged(Loading.State newState) {
         if (newState == null)
             return;
 
@@ -147,7 +152,7 @@ public class LoaderComponent implements Initializable {
                 progressStatus.setVisible(true);
                 statusText.setText(localeText.get(TorrentMessage.DOWNLOADING));
             }
-            case DOWNLOAD_FINISHED, READY -> {
+            case READY -> {
                 statusText.setText(localeText.get(TorrentMessage.READY));
                 progressBar.setProgress(1);
                 progressBar.setVisible(true);
@@ -160,12 +165,47 @@ public class LoaderComponent implements Initializable {
         progressStatus.setVisible(false);
     }
 
-    private void onLoadingProgressChanged(LoadingProgress progress) {
+    private void onLoadingProgressChanged(Loading.Progress progress) {
         progressStatus.setVisible(true);
         progressBar.setProgress(progress.getProgress());
         progressBar.setVisible(true);
         statusText.setText(localeText.get(TorrentMessage.DOWNLOADING));
-        infoComponent.update(progress);
+        infoComponent.update(new DownloadStatus() {
+            @Override
+            public float progress() {
+                return progress.getProgress();
+            }
+
+            @Override
+            public int seeds() {
+                return progress.getSeeds();
+            }
+
+            @Override
+            public int peers() {
+                return progress.getPeers();
+            }
+
+            @Override
+            public int downloadSpeed() {
+                return (int) progress.getDownloadSpeed();
+            }
+
+            @Override
+            public int uploadSpeed() {
+                return (int) progress.getUploadSpeed();
+            }
+
+            @Override
+            public long downloaded() {
+                return progress.getDownloaded();
+            }
+
+            @Override
+            public long totalSize() {
+                return progress.getTotalSize();
+            }
+        });
     }
 
     private void onLoadTorrentError() {

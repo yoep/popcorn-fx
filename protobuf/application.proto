@@ -6,13 +6,6 @@ option java_package = "com.github.yoep.popcorn.backend.lib.ipc.protobuf";
 
 package fx.ipc.proto;
 
-message ApplicationArgsRequest {
-}
-
-message ApplicationArgsResponse {
-  ApplicationArgs args = 1;
-}
-
 message ApplicationArgs {
   bool is_tv_mode = 1;
   bool is_maximized = 2;
@@ -21,6 +14,19 @@ message ApplicationArgs {
   bool is_youtube_player_enabled = 5;
   bool is_vlc_video_player_enabled = 6;
   bool is_fx_player_enabled = 7;
+}
+
+message ApplicationArgsRequest {
+}
+
+message ApplicationArgsResponse {
+  ApplicationArgs args = 1;
+}
+
+message GetApplicationVersionRequest {}
+
+message GetApplicationVersionResponse {
+  string version = 1;
 }
 
 message ApplicationTerminationRequest {

@@ -156,14 +156,6 @@ impl Torrent for DefaultTorrentStream {
 
 #[async_trait]
 impl TorrentStream for DefaultTorrentStream {
-    fn stream_handle(&self) -> Handle {
-        if let Some(context) = self.instance() {
-            return context.stream_handle();
-        }
-
-        Handle::new()
-    }
-
     fn url(&self) -> Url {
         if let Some(context) = self.instance() {
             return context.url();
@@ -267,9 +259,8 @@ enum StreamRefType {
 }
 
 #[derive(Debug, Display)]
-#[display(fmt = "{}", handle)]
+#[display(fmt = "{}", "torrent.handle()")]
 struct TorrentStreamContext {
-    handle: Handle,
     /// The backing torrent of this stream
     torrent: Arc<Box<dyn Torrent>>,
     /// The underlying used filename within the torrent that is being streamed
@@ -292,7 +283,6 @@ impl TorrentStreamContext {
         let prepare_pieces = Self::preparation_pieces(&torrent).await;
 
         Self {
-            handle: Handle::new(),
             torrent: Arc::new(torrent),
             torrent_filename: filename.to_string(),
             url,
@@ -538,10 +528,6 @@ impl Torrent for TorrentStreamContext {
 
 #[async_trait]
 impl TorrentStream for TorrentStreamContext {
-    fn stream_handle(&self) -> Handle {
-        self.handle.clone()
-    }
-
     fn url(&self) -> Url {
         self.url.clone()
     }

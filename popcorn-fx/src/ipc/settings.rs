@@ -5,16 +5,14 @@ use crate::ipc::message::MessageHandler;
 use crate::ipc::proto::message::FxMessage;
 use crate::ipc::proto::settings::{
     ApplicationSettings, ApplicationSettingsRequest, ApplicationSettingsResponse,
-    UpdateTorrentSettingsRequest,
+    UpdateTorrentSettingsRequest, UpdateUISettingsRequest,
 };
 use async_trait::async_trait;
-use derive_more::Display;
-use popcorn_fx_core::core::config::TorrentSettings;
+use popcorn_fx_core::core::config::{TorrentSettings, UiSettings};
 use protobuf::{Message, MessageField};
 use std::sync::Arc;
 
-#[derive(Debug, Display)]
-#[display(fmt = "Settings message handler")]
+#[derive(Debug)]
 pub struct SettingsMessageHandler {
     instance: Arc<PopcornFX>,
 }
@@ -27,10 +25,16 @@ impl SettingsMessageHandler {
 
 #[async_trait]
 impl MessageHandler for SettingsMessageHandler {
+    fn name(&self) -> &str {
+        "settings"
+    }
+
     fn is_supported(&self, message_type: &str) -> bool {
         matches!(
             message_type,
-            ApplicationSettingsRequest::NAME | UpdateTorrentSettingsRequest::NAME
+            ApplicationSettingsRequest::NAME
+                | UpdateUISettingsRequest::NAME
+                | UpdateTorrentSettingsRequest::NAME
         )
     }
 
@@ -58,13 +62,19 @@ impl MessageHandler for SettingsMessageHandler {
                     )
                     .await?;
             }
+            UpdateUISettingsRequest::NAME => {
+                let mut request = UpdateUISettingsRequest::parse_from_bytes(&message.payload)?;
+                let proto_settings = request.settings.take().ok_or(Error::MissingField)?;
+
+                let settings = UiSettings::try_from(&proto_settings)?;
+                self.instance.settings().update_ui(settings).await;
+            }
             UpdateTorrentSettingsRequest::NAME => {
                 let mut request = UpdateTorrentSettingsRequest::parse_from_bytes(&message.payload)?;
+                let proto_settings = request.settings.take().ok_or(Error::MissingField)?;
 
-                if let Some(settings) = request.settings.take() {
-                    let settings = TorrentSettings::try_from(&settings)?;
-                    self.instance.settings().update_torrent(settings).await;
-                }
+                let settings = TorrentSettings::try_from(&proto_settings)?;
+                self.instance.settings().update_torrent(settings).await;
             }
             _ => {
                 return Err(Error::UnsupportedMessage(

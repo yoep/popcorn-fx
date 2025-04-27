@@ -6,6 +6,9 @@ option java_package = "com.github.yoep.popcorn.backend.lib.ipc.protobuf";
 
 package fx.ipc.proto;
 
+import "media.proto";
+import "message.proto";
+
 message SubtitlePreference {
   Preference preference = 1;
   optional Subtitle.Language language = 2;
@@ -103,6 +106,32 @@ message Subtitle {
     UKRAINIAN = 34;
     VIETNAMESE = 35;
   }
+
+  message Error {
+    Type type = 1;
+    optional InvalidUrl invalid_url = 2;
+    optional SearchFailed search_failed = 3;
+    optional DownloadFailed download_failed = 4;
+
+    message InvalidUrl {
+      string url = 1;
+    }
+
+    message SearchFailed {
+      string reason = 1;
+    }
+
+    message DownloadFailed {
+      string filename = 1;
+      string reason = 2;
+    }
+
+    enum Type {
+      INVALID_URL = 0;
+      SEARCH_FAILED = 1;
+      DOWNLOAD_FAILED = 2;
+    }
+  }
 }
 
 message SubtitleEvent {
@@ -124,14 +153,46 @@ message GetSubtitlePreferenceResponse {
   SubtitlePreference preference = 1;
 }
 
-message GetSubtitleNoneRequest {}
-
-message GetSubtitleNoneResponse {
-  Subtitle.Info info = 1;
+message UpdateSubtitlePreferenceRequest {
+  SubtitlePreference preference = 1;
 }
 
-message GetSubtitleCustomRequest {}
+message GetDefaultSubtitlesRequest {}
 
-message GetSubtitleCustomResponse {
-  Subtitle.Info info = 1;
+message GetDefaultSubtitlesResponse {
+  repeated Subtitle.Info subtitles = 1;
 }
+
+message GetMediaAvailableSubtitlesRequest {
+  Media.Item item = 1;
+  optional Media.Item sub_item = 2;
+}
+
+message GetMediaAvailableSubtitlesResponse {
+  Response.Result result = 1;
+  repeated Subtitle.Info subtitles = 2;
+  optional Subtitle.Error error = 3;
+}
+
+message GetFileAvailableSubtitlesRequest {
+  string filename = 1;
+}
+
+message GetFileAvailableSubtitlesResponse {
+  Response.Result result = 1;
+  repeated Subtitle.Info subtitles = 2;
+  optional Subtitle.Error error = 3;
+}
+
+message GetPreferredSubtitleRequest {
+  repeated Subtitle.Info subtitles = 1;
+}
+
+message GetPreferredSubtitleResponse {
+  Subtitle.Info subtitle = 1;
+}
+
+/// Reset the subtitle preference within the subtitle manager.
+message ResetSubtitleRequest {}
+
+message CleanSubtitlesDirectoryRequest {}

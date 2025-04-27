@@ -94,7 +94,17 @@ message ApplicationSettings {
   }
 
   message TrackingSettings {
+    optional LastSync last_sync = 1;
 
+    message LastSync {
+      uint64 last_synced_millis = 1;
+      State state = 2;
+
+      enum State {
+        SUCCESS = 0;
+        FAILED = 1;
+      }
+    }
   }
 }
 

@@ -355,8 +355,8 @@ pub mod player {
         pub auto_resume_timestamp: ::std::option::Option<u64>,
         // @@protoc_insertion_point(field:fx.ipc.proto.Player.PlayRequest.subtitle)
         pub subtitle: ::protobuf::MessageField<play_request::PlaySubtitleRequest>,
-        // @@protoc_insertion_point(field:fx.ipc.proto.Player.PlayRequest.stream_handle)
-        pub stream_handle: ::protobuf::MessageField<super::super::message::Handle>,
+        // @@protoc_insertion_point(field:fx.ipc.proto.Player.PlayRequest.torrent)
+        pub torrent: ::protobuf::MessageField<play_request::Torrent>,
         // special fields
         // @@protoc_insertion_point(special_field:fx.ipc.proto.Player.PlayRequest.special_fields)
         pub special_fields: ::protobuf::SpecialFields,
@@ -409,7 +409,7 @@ pub mod player {
                         ::protobuf::rt::read_singular_message_into_field(is, &mut self.subtitle)?;
                     },
                     74 => {
-                        ::protobuf::rt::read_singular_message_into_field(is, &mut self.stream_handle)?;
+                        ::protobuf::rt::read_singular_message_into_field(is, &mut self.torrent)?;
                     },
                     tag => {
                         ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
@@ -448,7 +448,7 @@ pub mod player {
                 let len = v.compute_size();
                 my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
             }
-            if let Some(v) = self.stream_handle.as_ref() {
+            if let Some(v) = self.torrent.as_ref() {
                 let len = v.compute_size();
                 my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
             }
@@ -482,7 +482,7 @@ pub mod player {
             if let Some(v) = self.subtitle.as_ref() {
                 ::protobuf::rt::write_message_field_with_cached_size(8, v, os)?;
             }
-            if let Some(v) = self.stream_handle.as_ref() {
+            if let Some(v) = self.torrent.as_ref() {
                 ::protobuf::rt::write_message_field_with_cached_size(9, v, os)?;
             }
             os.write_unknown_fields(self.special_fields.unknown_fields())?;
@@ -510,7 +510,7 @@ pub mod player {
             self.quality = ::std::option::Option::None;
             self.auto_resume_timestamp = ::std::option::Option::None;
             self.subtitle.clear();
-            self.stream_handle.clear();
+            self.torrent.clear();
             self.special_fields.clear();
         }
 
@@ -524,7 +524,7 @@ pub mod player {
                 quality: ::std::option::Option::None,
                 auto_resume_timestamp: ::std::option::Option::None,
                 subtitle: ::protobuf::MessageField::none(),
-                stream_handle: ::protobuf::MessageField::none(),
+                torrent: ::protobuf::MessageField::none(),
                 special_fields: ::protobuf::SpecialFields::new(),
             };
             &instance
@@ -533,6 +533,97 @@ pub mod player {
 
     /// Nested message and enums of message `PlayRequest`
     pub mod play_request {
+        // @@protoc_insertion_point(message:fx.ipc.proto.Player.PlayRequest.Torrent)
+        #[derive(PartialEq,Clone,Default,Debug)]
+        pub struct Torrent {
+            // message fields
+            // @@protoc_insertion_point(field:fx.ipc.proto.Player.PlayRequest.Torrent.handle)
+            pub handle: ::protobuf::MessageField<super::super::super::message::Handle>,
+            // special fields
+            // @@protoc_insertion_point(special_field:fx.ipc.proto.Player.PlayRequest.Torrent.special_fields)
+            pub special_fields: ::protobuf::SpecialFields,
+        }
+
+        impl<'a> ::std::default::Default for &'a Torrent {
+            fn default() -> &'a Torrent {
+                <Torrent as ::protobuf::Message>::default_instance()
+            }
+        }
+
+        impl Torrent {
+            pub fn new() -> Torrent {
+                ::std::default::Default::default()
+            }
+        }
+
+        impl ::protobuf::Message for Torrent {
+            const NAME: &'static str = "Torrent";
+
+            fn is_initialized(&self) -> bool {
+                true
+            }
+
+            fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+                while let Some(tag) = is.read_raw_tag_or_eof()? {
+                    match tag {
+                        10 => {
+                            ::protobuf::rt::read_singular_message_into_field(is, &mut self.handle)?;
+                        },
+                        tag => {
+                            ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                        },
+                    };
+                }
+                ::std::result::Result::Ok(())
+            }
+
+            // Compute sizes of nested messages
+            #[allow(unused_variables)]
+            fn compute_size(&self) -> u64 {
+                let mut my_size = 0;
+                if let Some(v) = self.handle.as_ref() {
+                    let len = v.compute_size();
+                    my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+                }
+                my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+                self.special_fields.cached_size().set(my_size as u32);
+                my_size
+            }
+
+            fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+                if let Some(v) = self.handle.as_ref() {
+                    ::protobuf::rt::write_message_field_with_cached_size(1, v, os)?;
+                }
+                os.write_unknown_fields(self.special_fields.unknown_fields())?;
+                ::std::result::Result::Ok(())
+            }
+
+            fn special_fields(&self) -> &::protobuf::SpecialFields {
+                &self.special_fields
+            }
+
+            fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+                &mut self.special_fields
+            }
+
+            fn new() -> Torrent {
+                Torrent::new()
+            }
+
+            fn clear(&mut self) {
+                self.handle.clear();
+                self.special_fields.clear();
+            }
+
+            fn default_instance() -> &'static Torrent {
+                static instance: Torrent = Torrent {
+                    handle: ::protobuf::MessageField::none(),
+                    special_fields: ::protobuf::SpecialFields::new(),
+                };
+                &instance
+            }
+        }
+
         // @@protoc_insertion_point(message:fx.ipc.proto.Player.PlayRequest.PlaySubtitleRequest)
         #[derive(PartialEq,Clone,Default,Debug)]
         pub struct PlaySubtitleRequest {
@@ -1946,6 +2037,186 @@ impl ::protobuf::Message for GetPlayerStateResponse {
     }
 }
 
+// @@protoc_insertion_point(message:fx.ipc.proto.GetPlayerVolumeRequest)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct GetPlayerVolumeRequest {
+    // message fields
+    // @@protoc_insertion_point(field:fx.ipc.proto.GetPlayerVolumeRequest.player_id)
+    pub player_id: ::std::string::String,
+    // special fields
+    // @@protoc_insertion_point(special_field:fx.ipc.proto.GetPlayerVolumeRequest.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a GetPlayerVolumeRequest {
+    fn default() -> &'a GetPlayerVolumeRequest {
+        <GetPlayerVolumeRequest as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl GetPlayerVolumeRequest {
+    pub fn new() -> GetPlayerVolumeRequest {
+        ::std::default::Default::default()
+    }
+}
+
+impl ::protobuf::Message for GetPlayerVolumeRequest {
+    const NAME: &'static str = "GetPlayerVolumeRequest";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                10 => {
+                    self.player_id = is.read_string()?;
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        if !self.player_id.is_empty() {
+            my_size += ::protobuf::rt::string_size(1, &self.player_id);
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if !self.player_id.is_empty() {
+            os.write_string(1, &self.player_id)?;
+        }
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> GetPlayerVolumeRequest {
+        GetPlayerVolumeRequest::new()
+    }
+
+    fn clear(&mut self) {
+        self.player_id.clear();
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static GetPlayerVolumeRequest {
+        static instance: GetPlayerVolumeRequest = GetPlayerVolumeRequest {
+            player_id: ::std::string::String::new(),
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+// @@protoc_insertion_point(message:fx.ipc.proto.GetPlayerVolumeResponse)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct GetPlayerVolumeResponse {
+    // message fields
+    // @@protoc_insertion_point(field:fx.ipc.proto.GetPlayerVolumeResponse.volume)
+    pub volume: ::std::option::Option<u32>,
+    // special fields
+    // @@protoc_insertion_point(special_field:fx.ipc.proto.GetPlayerVolumeResponse.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a GetPlayerVolumeResponse {
+    fn default() -> &'a GetPlayerVolumeResponse {
+        <GetPlayerVolumeResponse as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl GetPlayerVolumeResponse {
+    pub fn new() -> GetPlayerVolumeResponse {
+        ::std::default::Default::default()
+    }
+}
+
+impl ::protobuf::Message for GetPlayerVolumeResponse {
+    const NAME: &'static str = "GetPlayerVolumeResponse";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                8 => {
+                    self.volume = ::std::option::Option::Some(is.read_uint32()?);
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        if let Some(v) = self.volume {
+            my_size += ::protobuf::rt::uint32_size(1, v);
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if let Some(v) = self.volume {
+            os.write_uint32(1, v)?;
+        }
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> GetPlayerVolumeResponse {
+        GetPlayerVolumeResponse::new()
+    }
+
+    fn clear(&mut self) {
+        self.volume = ::std::option::Option::None;
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static GetPlayerVolumeResponse {
+        static instance: GetPlayerVolumeResponse = GetPlayerVolumeResponse {
+            volume: ::std::option::Option::None,
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
 // @@protoc_insertion_point(message:fx.ipc.proto.PlayerPlayRequest)
 #[derive(PartialEq,Clone,Default,Debug)]
 pub struct PlayerPlayRequest {
@@ -2223,6 +2494,199 @@ impl ::protobuf::Message for PlayerResumeRequest {
 
     fn default_instance() -> &'static PlayerResumeRequest {
         static instance: PlayerResumeRequest = PlayerResumeRequest {
+            player_id: ::std::string::String::new(),
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+// @@protoc_insertion_point(message:fx.ipc.proto.PlayerSeekRequest)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct PlayerSeekRequest {
+    // message fields
+    // @@protoc_insertion_point(field:fx.ipc.proto.PlayerSeekRequest.player_id)
+    pub player_id: ::std::string::String,
+    // @@protoc_insertion_point(field:fx.ipc.proto.PlayerSeekRequest.time)
+    pub time: u64,
+    // special fields
+    // @@protoc_insertion_point(special_field:fx.ipc.proto.PlayerSeekRequest.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a PlayerSeekRequest {
+    fn default() -> &'a PlayerSeekRequest {
+        <PlayerSeekRequest as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl PlayerSeekRequest {
+    pub fn new() -> PlayerSeekRequest {
+        ::std::default::Default::default()
+    }
+}
+
+impl ::protobuf::Message for PlayerSeekRequest {
+    const NAME: &'static str = "PlayerSeekRequest";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                10 => {
+                    self.player_id = is.read_string()?;
+                },
+                16 => {
+                    self.time = is.read_uint64()?;
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        if !self.player_id.is_empty() {
+            my_size += ::protobuf::rt::string_size(1, &self.player_id);
+        }
+        if self.time != 0 {
+            my_size += ::protobuf::rt::uint64_size(2, self.time);
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if !self.player_id.is_empty() {
+            os.write_string(1, &self.player_id)?;
+        }
+        if self.time != 0 {
+            os.write_uint64(2, self.time)?;
+        }
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> PlayerSeekRequest {
+        PlayerSeekRequest::new()
+    }
+
+    fn clear(&mut self) {
+        self.player_id.clear();
+        self.time = 0;
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static PlayerSeekRequest {
+        static instance: PlayerSeekRequest = PlayerSeekRequest {
+            player_id: ::std::string::String::new(),
+            time: 0,
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+// @@protoc_insertion_point(message:fx.ipc.proto.PlayerStopRequest)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct PlayerStopRequest {
+    // message fields
+    // @@protoc_insertion_point(field:fx.ipc.proto.PlayerStopRequest.player_id)
+    pub player_id: ::std::string::String,
+    // special fields
+    // @@protoc_insertion_point(special_field:fx.ipc.proto.PlayerStopRequest.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a PlayerStopRequest {
+    fn default() -> &'a PlayerStopRequest {
+        <PlayerStopRequest as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl PlayerStopRequest {
+    pub fn new() -> PlayerStopRequest {
+        ::std::default::Default::default()
+    }
+}
+
+impl ::protobuf::Message for PlayerStopRequest {
+    const NAME: &'static str = "PlayerStopRequest";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                10 => {
+                    self.player_id = is.read_string()?;
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        if !self.player_id.is_empty() {
+            my_size += ::protobuf::rt::string_size(1, &self.player_id);
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if !self.player_id.is_empty() {
+            os.write_string(1, &self.player_id)?;
+        }
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> PlayerStopRequest {
+        PlayerStopRequest::new()
+    }
+
+    fn clear(&mut self) {
+        self.player_id.clear();
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static PlayerStopRequest {
+        static instance: PlayerStopRequest = PlayerStopRequest {
             player_id: ::std::string::String::new(),
             special_fields: ::protobuf::SpecialFields::new(),
         };

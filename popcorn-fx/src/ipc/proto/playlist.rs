@@ -326,294 +326,66 @@ pub mod playlist {
             &instance
         }
     }
-}
 
-// @@protoc_insertion_point(message:fx.ipc.proto.PlayRequest)
-#[derive(PartialEq,Clone,Default,Debug)]
-pub struct PlayRequest {
-    // message fields
-    // @@protoc_insertion_point(field:fx.ipc.proto.PlayRequest.url)
-    pub url: ::std::string::String,
-    // @@protoc_insertion_point(field:fx.ipc.proto.PlayRequest.title)
-    pub title: ::std::string::String,
-    // @@protoc_insertion_point(field:fx.ipc.proto.PlayRequest.caption)
-    pub caption: ::std::option::Option<::std::string::String>,
-    // @@protoc_insertion_point(field:fx.ipc.proto.PlayRequest.thumb)
-    pub thumb: ::std::option::Option<::std::string::String>,
-    // @@protoc_insertion_point(field:fx.ipc.proto.PlayRequest.background)
-    pub background: ::std::option::Option<::std::string::String>,
-    // @@protoc_insertion_point(field:fx.ipc.proto.PlayRequest.quality)
-    pub quality: ::std::option::Option<::std::string::String>,
-    // @@protoc_insertion_point(field:fx.ipc.proto.PlayRequest.auto_resume_timestamp)
-    pub auto_resume_timestamp: ::std::option::Option<u64>,
-    // @@protoc_insertion_point(field:fx.ipc.proto.PlayRequest.torrent_handle)
-    pub torrent_handle: ::std::option::Option<i64>,
-    // special fields
-    // @@protoc_insertion_point(special_field:fx.ipc.proto.PlayRequest.special_fields)
-    pub special_fields: ::protobuf::SpecialFields,
-}
-
-impl<'a> ::std::default::Default for &'a PlayRequest {
-    fn default() -> &'a PlayRequest {
-        <PlayRequest as ::protobuf::Message>::default_instance()
-    }
-}
-
-impl PlayRequest {
-    pub fn new() -> PlayRequest {
-        ::std::default::Default::default()
-    }
-}
-
-impl ::protobuf::Message for PlayRequest {
-    const NAME: &'static str = "PlayRequest";
-
-    fn is_initialized(&self) -> bool {
-        true
+    #[derive(Clone,Copy,PartialEq,Eq,Debug,Hash)]
+    // @@protoc_insertion_point(enum:fx.ipc.proto.Playlist.State)
+    pub enum State {
+        // @@protoc_insertion_point(enum_value:fx.ipc.proto.Playlist.State.IDLE)
+        IDLE = 0,
+        // @@protoc_insertion_point(enum_value:fx.ipc.proto.Playlist.State.PLAYING)
+        PLAYING = 1,
+        // @@protoc_insertion_point(enum_value:fx.ipc.proto.Playlist.State.STOPPED)
+        STOPPED = 2,
+        // @@protoc_insertion_point(enum_value:fx.ipc.proto.Playlist.State.COMPLETED)
+        COMPLETED = 3,
+        // @@protoc_insertion_point(enum_value:fx.ipc.proto.Playlist.State.ERROR)
+        ERROR = 4,
     }
 
-    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
-        while let Some(tag) = is.read_raw_tag_or_eof()? {
-            match tag {
-                10 => {
-                    self.url = is.read_string()?;
-                },
-                18 => {
-                    self.title = is.read_string()?;
-                },
-                26 => {
-                    self.caption = ::std::option::Option::Some(is.read_string()?);
-                },
-                34 => {
-                    self.thumb = ::std::option::Option::Some(is.read_string()?);
-                },
-                42 => {
-                    self.background = ::std::option::Option::Some(is.read_string()?);
-                },
-                50 => {
-                    self.quality = ::std::option::Option::Some(is.read_string()?);
-                },
-                56 => {
-                    self.auto_resume_timestamp = ::std::option::Option::Some(is.read_uint64()?);
-                },
-                64 => {
-                    self.torrent_handle = ::std::option::Option::Some(is.read_int64()?);
-                },
-                tag => {
-                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
-                },
-            };
-        }
-        ::std::result::Result::Ok(())
-    }
+    impl ::protobuf::Enum for State {
+        const NAME: &'static str = "State";
 
-    // Compute sizes of nested messages
-    #[allow(unused_variables)]
-    fn compute_size(&self) -> u64 {
-        let mut my_size = 0;
-        if !self.url.is_empty() {
-            my_size += ::protobuf::rt::string_size(1, &self.url);
-        }
-        if !self.title.is_empty() {
-            my_size += ::protobuf::rt::string_size(2, &self.title);
-        }
-        if let Some(v) = self.caption.as_ref() {
-            my_size += ::protobuf::rt::string_size(3, &v);
-        }
-        if let Some(v) = self.thumb.as_ref() {
-            my_size += ::protobuf::rt::string_size(4, &v);
-        }
-        if let Some(v) = self.background.as_ref() {
-            my_size += ::protobuf::rt::string_size(5, &v);
-        }
-        if let Some(v) = self.quality.as_ref() {
-            my_size += ::protobuf::rt::string_size(6, &v);
-        }
-        if let Some(v) = self.auto_resume_timestamp {
-            my_size += ::protobuf::rt::uint64_size(7, v);
-        }
-        if let Some(v) = self.torrent_handle {
-            my_size += ::protobuf::rt::int64_size(8, v);
-        }
-        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
-        self.special_fields.cached_size().set(my_size as u32);
-        my_size
-    }
-
-    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
-        if !self.url.is_empty() {
-            os.write_string(1, &self.url)?;
-        }
-        if !self.title.is_empty() {
-            os.write_string(2, &self.title)?;
-        }
-        if let Some(v) = self.caption.as_ref() {
-            os.write_string(3, v)?;
-        }
-        if let Some(v) = self.thumb.as_ref() {
-            os.write_string(4, v)?;
-        }
-        if let Some(v) = self.background.as_ref() {
-            os.write_string(5, v)?;
-        }
-        if let Some(v) = self.quality.as_ref() {
-            os.write_string(6, v)?;
-        }
-        if let Some(v) = self.auto_resume_timestamp {
-            os.write_uint64(7, v)?;
-        }
-        if let Some(v) = self.torrent_handle {
-            os.write_int64(8, v)?;
-        }
-        os.write_unknown_fields(self.special_fields.unknown_fields())?;
-        ::std::result::Result::Ok(())
-    }
-
-    fn special_fields(&self) -> &::protobuf::SpecialFields {
-        &self.special_fields
-    }
-
-    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
-        &mut self.special_fields
-    }
-
-    fn new() -> PlayRequest {
-        PlayRequest::new()
-    }
-
-    fn clear(&mut self) {
-        self.url.clear();
-        self.title.clear();
-        self.caption = ::std::option::Option::None;
-        self.thumb = ::std::option::Option::None;
-        self.background = ::std::option::Option::None;
-        self.quality = ::std::option::Option::None;
-        self.auto_resume_timestamp = ::std::option::Option::None;
-        self.torrent_handle = ::std::option::Option::None;
-        self.special_fields.clear();
-    }
-
-    fn default_instance() -> &'static PlayRequest {
-        static instance: PlayRequest = PlayRequest {
-            url: ::std::string::String::new(),
-            title: ::std::string::String::new(),
-            caption: ::std::option::Option::None,
-            thumb: ::std::option::Option::None,
-            background: ::std::option::Option::None,
-            quality: ::std::option::Option::None,
-            auto_resume_timestamp: ::std::option::Option::None,
-            torrent_handle: ::std::option::Option::None,
-            special_fields: ::protobuf::SpecialFields::new(),
-        };
-        &instance
-    }
-}
-
-/// Nested message and enums of message `PlayRequest`
-pub mod play_request {
-    // @@protoc_insertion_point(message:fx.ipc.proto.PlayRequest.PlaybackSubtitle)
-    #[derive(PartialEq,Clone,Default,Debug)]
-    pub struct PlaybackSubtitle {
-        // message fields
-        // @@protoc_insertion_point(field:fx.ipc.proto.PlayRequest.PlaybackSubtitle.enabled)
-        pub enabled: bool,
-        // @@protoc_insertion_point(field:fx.ipc.proto.PlayRequest.PlaybackSubtitle.subtitle)
-        pub subtitle: ::protobuf::MessageField<super::super::subtitle::subtitle::Info>,
-        // special fields
-        // @@protoc_insertion_point(special_field:fx.ipc.proto.PlayRequest.PlaybackSubtitle.special_fields)
-        pub special_fields: ::protobuf::SpecialFields,
-    }
-
-    impl<'a> ::std::default::Default for &'a PlaybackSubtitle {
-        fn default() -> &'a PlaybackSubtitle {
-            <PlaybackSubtitle as ::protobuf::Message>::default_instance()
-        }
-    }
-
-    impl PlaybackSubtitle {
-        pub fn new() -> PlaybackSubtitle {
-            ::std::default::Default::default()
-        }
-    }
-
-    impl ::protobuf::Message for PlaybackSubtitle {
-        const NAME: &'static str = "PlaybackSubtitle";
-
-        fn is_initialized(&self) -> bool {
-            true
+        fn value(&self) -> i32 {
+            *self as i32
         }
 
-        fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
-            while let Some(tag) = is.read_raw_tag_or_eof()? {
-                match tag {
-                    8 => {
-                        self.enabled = is.read_bool()?;
-                    },
-                    18 => {
-                        ::protobuf::rt::read_singular_message_into_field(is, &mut self.subtitle)?;
-                    },
-                    tag => {
-                        ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
-                    },
-                };
+        fn from_i32(value: i32) -> ::std::option::Option<State> {
+            match value {
+                0 => ::std::option::Option::Some(State::IDLE),
+                1 => ::std::option::Option::Some(State::PLAYING),
+                2 => ::std::option::Option::Some(State::STOPPED),
+                3 => ::std::option::Option::Some(State::COMPLETED),
+                4 => ::std::option::Option::Some(State::ERROR),
+                _ => ::std::option::Option::None
             }
-            ::std::result::Result::Ok(())
         }
 
-        // Compute sizes of nested messages
-        #[allow(unused_variables)]
-        fn compute_size(&self) -> u64 {
-            let mut my_size = 0;
-            if self.enabled != false {
-                my_size += 1 + 1;
+        fn from_str(str: &str) -> ::std::option::Option<State> {
+            match str {
+                "IDLE" => ::std::option::Option::Some(State::IDLE),
+                "PLAYING" => ::std::option::Option::Some(State::PLAYING),
+                "STOPPED" => ::std::option::Option::Some(State::STOPPED),
+                "COMPLETED" => ::std::option::Option::Some(State::COMPLETED),
+                "ERROR" => ::std::option::Option::Some(State::ERROR),
+                _ => ::std::option::Option::None
             }
-            if let Some(v) = self.subtitle.as_ref() {
-                let len = v.compute_size();
-                my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
-            }
-            my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
-            self.special_fields.cached_size().set(my_size as u32);
-            my_size
         }
 
-        fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
-            if self.enabled != false {
-                os.write_bool(1, self.enabled)?;
-            }
-            if let Some(v) = self.subtitle.as_ref() {
-                ::protobuf::rt::write_message_field_with_cached_size(2, v, os)?;
-            }
-            os.write_unknown_fields(self.special_fields.unknown_fields())?;
-            ::std::result::Result::Ok(())
-        }
+        const VALUES: &'static [State] = &[
+            State::IDLE,
+            State::PLAYING,
+            State::STOPPED,
+            State::COMPLETED,
+            State::ERROR,
+        ];
+    }
 
-        fn special_fields(&self) -> &::protobuf::SpecialFields {
-            &self.special_fields
-        }
-
-        fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
-            &mut self.special_fields
-        }
-
-        fn new() -> PlaybackSubtitle {
-            PlaybackSubtitle::new()
-        }
-
-        fn clear(&mut self) {
-            self.enabled = false;
-            self.subtitle.clear();
-            self.special_fields.clear();
-        }
-
-        fn default_instance() -> &'static PlaybackSubtitle {
-            static instance: PlaybackSubtitle = PlaybackSubtitle {
-                enabled: false,
-                subtitle: ::protobuf::MessageField::none(),
-                special_fields: ::protobuf::SpecialFields::new(),
-            };
-            &instance
+    impl ::std::default::Default for State {
+        fn default() -> Self {
+            State::IDLE
         }
     }
+
 }
 
 // @@protoc_insertion_point(message:fx.ipc.proto.PlayPlaylistRequest)
@@ -1039,4 +811,536 @@ impl ::protobuf::Message for StopPlaylistRequest {
         };
         &instance
     }
+}
+
+// @@protoc_insertion_point(message:fx.ipc.proto.GetActivePlaylistRequest)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct GetActivePlaylistRequest {
+    // special fields
+    // @@protoc_insertion_point(special_field:fx.ipc.proto.GetActivePlaylistRequest.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a GetActivePlaylistRequest {
+    fn default() -> &'a GetActivePlaylistRequest {
+        <GetActivePlaylistRequest as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl GetActivePlaylistRequest {
+    pub fn new() -> GetActivePlaylistRequest {
+        ::std::default::Default::default()
+    }
+}
+
+impl ::protobuf::Message for GetActivePlaylistRequest {
+    const NAME: &'static str = "GetActivePlaylistRequest";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> GetActivePlaylistRequest {
+        GetActivePlaylistRequest::new()
+    }
+
+    fn clear(&mut self) {
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static GetActivePlaylistRequest {
+        static instance: GetActivePlaylistRequest = GetActivePlaylistRequest {
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+// @@protoc_insertion_point(message:fx.ipc.proto.GetActivePlaylistResponse)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct GetActivePlaylistResponse {
+    // message fields
+    // @@protoc_insertion_point(field:fx.ipc.proto.GetActivePlaylistResponse.playlist)
+    pub playlist: ::protobuf::MessageField<Playlist>,
+    // special fields
+    // @@protoc_insertion_point(special_field:fx.ipc.proto.GetActivePlaylistResponse.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a GetActivePlaylistResponse {
+    fn default() -> &'a GetActivePlaylistResponse {
+        <GetActivePlaylistResponse as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl GetActivePlaylistResponse {
+    pub fn new() -> GetActivePlaylistResponse {
+        ::std::default::Default::default()
+    }
+}
+
+impl ::protobuf::Message for GetActivePlaylistResponse {
+    const NAME: &'static str = "GetActivePlaylistResponse";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                10 => {
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.playlist)?;
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        if let Some(v) = self.playlist.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if let Some(v) = self.playlist.as_ref() {
+            ::protobuf::rt::write_message_field_with_cached_size(1, v, os)?;
+        }
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> GetActivePlaylistResponse {
+        GetActivePlaylistResponse::new()
+    }
+
+    fn clear(&mut self) {
+        self.playlist.clear();
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static GetActivePlaylistResponse {
+        static instance: GetActivePlaylistResponse = GetActivePlaylistResponse {
+            playlist: ::protobuf::MessageField::none(),
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+// @@protoc_insertion_point(message:fx.ipc.proto.PlaylistEvent)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct PlaylistEvent {
+    // message fields
+    // @@protoc_insertion_point(field:fx.ipc.proto.PlaylistEvent.event)
+    pub event: ::protobuf::EnumOrUnknown<playlist_event::Event>,
+    // @@protoc_insertion_point(field:fx.ipc.proto.PlaylistEvent.playing_next)
+    pub playing_next: ::protobuf::MessageField<playlist_event::PlayingNext>,
+    // @@protoc_insertion_point(field:fx.ipc.proto.PlaylistEvent.state_changed)
+    pub state_changed: ::protobuf::MessageField<playlist_event::StateChanged>,
+    // special fields
+    // @@protoc_insertion_point(special_field:fx.ipc.proto.PlaylistEvent.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a PlaylistEvent {
+    fn default() -> &'a PlaylistEvent {
+        <PlaylistEvent as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl PlaylistEvent {
+    pub fn new() -> PlaylistEvent {
+        ::std::default::Default::default()
+    }
+}
+
+impl ::protobuf::Message for PlaylistEvent {
+    const NAME: &'static str = "PlaylistEvent";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                8 => {
+                    self.event = is.read_enum_or_unknown()?;
+                },
+                18 => {
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.playing_next)?;
+                },
+                26 => {
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.state_changed)?;
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        if self.event != ::protobuf::EnumOrUnknown::new(playlist_event::Event::PLAYLIST_CHANGED) {
+            my_size += ::protobuf::rt::int32_size(1, self.event.value());
+        }
+        if let Some(v) = self.playing_next.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
+        if let Some(v) = self.state_changed.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if self.event != ::protobuf::EnumOrUnknown::new(playlist_event::Event::PLAYLIST_CHANGED) {
+            os.write_enum(1, ::protobuf::EnumOrUnknown::value(&self.event))?;
+        }
+        if let Some(v) = self.playing_next.as_ref() {
+            ::protobuf::rt::write_message_field_with_cached_size(2, v, os)?;
+        }
+        if let Some(v) = self.state_changed.as_ref() {
+            ::protobuf::rt::write_message_field_with_cached_size(3, v, os)?;
+        }
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> PlaylistEvent {
+        PlaylistEvent::new()
+    }
+
+    fn clear(&mut self) {
+        self.event = ::protobuf::EnumOrUnknown::new(playlist_event::Event::PLAYLIST_CHANGED);
+        self.playing_next.clear();
+        self.state_changed.clear();
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static PlaylistEvent {
+        static instance: PlaylistEvent = PlaylistEvent {
+            event: ::protobuf::EnumOrUnknown::from_i32(0),
+            playing_next: ::protobuf::MessageField::none(),
+            state_changed: ::protobuf::MessageField::none(),
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+/// Nested message and enums of message `PlaylistEvent`
+pub mod playlist_event {
+    // @@protoc_insertion_point(message:fx.ipc.proto.PlaylistEvent.PlayingNext)
+    #[derive(PartialEq,Clone,Default,Debug)]
+    pub struct PlayingNext {
+        // message fields
+        // @@protoc_insertion_point(field:fx.ipc.proto.PlaylistEvent.PlayingNext.playing_in)
+        pub playing_in: ::std::option::Option<u64>,
+        // @@protoc_insertion_point(field:fx.ipc.proto.PlaylistEvent.PlayingNext.item)
+        pub item: ::protobuf::MessageField<super::playlist::Item>,
+        // special fields
+        // @@protoc_insertion_point(special_field:fx.ipc.proto.PlaylistEvent.PlayingNext.special_fields)
+        pub special_fields: ::protobuf::SpecialFields,
+    }
+
+    impl<'a> ::std::default::Default for &'a PlayingNext {
+        fn default() -> &'a PlayingNext {
+            <PlayingNext as ::protobuf::Message>::default_instance()
+        }
+    }
+
+    impl PlayingNext {
+        pub fn new() -> PlayingNext {
+            ::std::default::Default::default()
+        }
+    }
+
+    impl ::protobuf::Message for PlayingNext {
+        const NAME: &'static str = "PlayingNext";
+
+        fn is_initialized(&self) -> bool {
+            true
+        }
+
+        fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+            while let Some(tag) = is.read_raw_tag_or_eof()? {
+                match tag {
+                    8 => {
+                        self.playing_in = ::std::option::Option::Some(is.read_uint64()?);
+                    },
+                    18 => {
+                        ::protobuf::rt::read_singular_message_into_field(is, &mut self.item)?;
+                    },
+                    tag => {
+                        ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                    },
+                };
+            }
+            ::std::result::Result::Ok(())
+        }
+
+        // Compute sizes of nested messages
+        #[allow(unused_variables)]
+        fn compute_size(&self) -> u64 {
+            let mut my_size = 0;
+            if let Some(v) = self.playing_in {
+                my_size += ::protobuf::rt::uint64_size(1, v);
+            }
+            if let Some(v) = self.item.as_ref() {
+                let len = v.compute_size();
+                my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+            }
+            my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+            self.special_fields.cached_size().set(my_size as u32);
+            my_size
+        }
+
+        fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+            if let Some(v) = self.playing_in {
+                os.write_uint64(1, v)?;
+            }
+            if let Some(v) = self.item.as_ref() {
+                ::protobuf::rt::write_message_field_with_cached_size(2, v, os)?;
+            }
+            os.write_unknown_fields(self.special_fields.unknown_fields())?;
+            ::std::result::Result::Ok(())
+        }
+
+        fn special_fields(&self) -> &::protobuf::SpecialFields {
+            &self.special_fields
+        }
+
+        fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+            &mut self.special_fields
+        }
+
+        fn new() -> PlayingNext {
+            PlayingNext::new()
+        }
+
+        fn clear(&mut self) {
+            self.playing_in = ::std::option::Option::None;
+            self.item.clear();
+            self.special_fields.clear();
+        }
+
+        fn default_instance() -> &'static PlayingNext {
+            static instance: PlayingNext = PlayingNext {
+                playing_in: ::std::option::Option::None,
+                item: ::protobuf::MessageField::none(),
+                special_fields: ::protobuf::SpecialFields::new(),
+            };
+            &instance
+        }
+    }
+
+    // @@protoc_insertion_point(message:fx.ipc.proto.PlaylistEvent.StateChanged)
+    #[derive(PartialEq,Clone,Default,Debug)]
+    pub struct StateChanged {
+        // message fields
+        // @@protoc_insertion_point(field:fx.ipc.proto.PlaylistEvent.StateChanged.state)
+        pub state: ::protobuf::EnumOrUnknown<super::playlist::State>,
+        // special fields
+        // @@protoc_insertion_point(special_field:fx.ipc.proto.PlaylistEvent.StateChanged.special_fields)
+        pub special_fields: ::protobuf::SpecialFields,
+    }
+
+    impl<'a> ::std::default::Default for &'a StateChanged {
+        fn default() -> &'a StateChanged {
+            <StateChanged as ::protobuf::Message>::default_instance()
+        }
+    }
+
+    impl StateChanged {
+        pub fn new() -> StateChanged {
+            ::std::default::Default::default()
+        }
+    }
+
+    impl ::protobuf::Message for StateChanged {
+        const NAME: &'static str = "StateChanged";
+
+        fn is_initialized(&self) -> bool {
+            true
+        }
+
+        fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+            while let Some(tag) = is.read_raw_tag_or_eof()? {
+                match tag {
+                    8 => {
+                        self.state = is.read_enum_or_unknown()?;
+                    },
+                    tag => {
+                        ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                    },
+                };
+            }
+            ::std::result::Result::Ok(())
+        }
+
+        // Compute sizes of nested messages
+        #[allow(unused_variables)]
+        fn compute_size(&self) -> u64 {
+            let mut my_size = 0;
+            if self.state != ::protobuf::EnumOrUnknown::new(super::playlist::State::IDLE) {
+                my_size += ::protobuf::rt::int32_size(1, self.state.value());
+            }
+            my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+            self.special_fields.cached_size().set(my_size as u32);
+            my_size
+        }
+
+        fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+            if self.state != ::protobuf::EnumOrUnknown::new(super::playlist::State::IDLE) {
+                os.write_enum(1, ::protobuf::EnumOrUnknown::value(&self.state))?;
+            }
+            os.write_unknown_fields(self.special_fields.unknown_fields())?;
+            ::std::result::Result::Ok(())
+        }
+
+        fn special_fields(&self) -> &::protobuf::SpecialFields {
+            &self.special_fields
+        }
+
+        fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+            &mut self.special_fields
+        }
+
+        fn new() -> StateChanged {
+            StateChanged::new()
+        }
+
+        fn clear(&mut self) {
+            self.state = ::protobuf::EnumOrUnknown::new(super::playlist::State::IDLE);
+            self.special_fields.clear();
+        }
+
+        fn default_instance() -> &'static StateChanged {
+            static instance: StateChanged = StateChanged {
+                state: ::protobuf::EnumOrUnknown::from_i32(0),
+                special_fields: ::protobuf::SpecialFields::new(),
+            };
+            &instance
+        }
+    }
+
+    #[derive(Clone,Copy,PartialEq,Eq,Debug,Hash)]
+    // @@protoc_insertion_point(enum:fx.ipc.proto.PlaylistEvent.Event)
+    pub enum Event {
+        // @@protoc_insertion_point(enum_value:fx.ipc.proto.PlaylistEvent.Event.PLAYLIST_CHANGED)
+        PLAYLIST_CHANGED = 0,
+        // @@protoc_insertion_point(enum_value:fx.ipc.proto.PlaylistEvent.Event.PLAYING_NEXT)
+        PLAYING_NEXT = 1,
+        // @@protoc_insertion_point(enum_value:fx.ipc.proto.PlaylistEvent.Event.STATE_CHANGED)
+        STATE_CHANGED = 2,
+    }
+
+    impl ::protobuf::Enum for Event {
+        const NAME: &'static str = "Event";
+
+        fn value(&self) -> i32 {
+            *self as i32
+        }
+
+        fn from_i32(value: i32) -> ::std::option::Option<Event> {
+            match value {
+                0 => ::std::option::Option::Some(Event::PLAYLIST_CHANGED),
+                1 => ::std::option::Option::Some(Event::PLAYING_NEXT),
+                2 => ::std::option::Option::Some(Event::STATE_CHANGED),
+                _ => ::std::option::Option::None
+            }
+        }
+
+        fn from_str(str: &str) -> ::std::option::Option<Event> {
+            match str {
+                "PLAYLIST_CHANGED" => ::std::option::Option::Some(Event::PLAYLIST_CHANGED),
+                "PLAYING_NEXT" => ::std::option::Option::Some(Event::PLAYING_NEXT),
+                "STATE_CHANGED" => ::std::option::Option::Some(Event::STATE_CHANGED),
+                _ => ::std::option::Option::None
+            }
+        }
+
+        const VALUES: &'static [Event] = &[
+            Event::PLAYLIST_CHANGED,
+            Event::PLAYING_NEXT,
+            Event::STATE_CHANGED,
+        ];
+    }
+
+    impl ::std::default::Default for Event {
+        fn default() -> Self {
+            Event::PLAYLIST_CHANGED
+        }
+    }
+
 }

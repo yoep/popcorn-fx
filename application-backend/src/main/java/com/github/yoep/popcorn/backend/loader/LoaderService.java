@@ -2,6 +2,7 @@ package com.github.yoep.popcorn.backend.loader;
 
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.LoadingStartedEvent;
+import com.github.yoep.popcorn.backend.lib.FxCallback;
 import com.github.yoep.popcorn.backend.lib.FxChannel;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.*;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
@@ -14,11 +15,11 @@ import java.util.Objects;
 @Slf4j
 @ToString
 @EqualsAndHashCode(callSuper = false)
-public class LoaderService extends AbstractListenerService<LoaderListener> implements LoaderEventCallback {
+public class LoaderService extends AbstractListenerService<LoaderListener> implements FxCallback<LoaderEvent> {
     private final FxChannel fxChannel;
     private final EventPublisher eventPublisher;
 
-    Long lastLoaderHandle;
+    Handle lastLoaderHandle;
 
     public LoaderService(FxChannel fxChannel, EventPublisher eventPublisher) {
         Objects.requireNonNull(fxChannel, "fxChannel cannot be null");
@@ -51,35 +52,21 @@ public class LoaderService extends AbstractListenerService<LoaderListener> imple
     }
 
     @Override
-    public void callback(LoaderEventC.ByValue event) {
-        try (event) {
-            switch (event.getTag()) {
-                case LOADING_STARTED -> {
-                    var loadingStartedBody = event.getUnion().getLoadingStarted_body();
-                    lastLoaderHandle = loadingStartedBody.getHandle();
-                    eventPublisher.publish(new LoadingStartedEvent(this));
-                    invokeListeners(e -> e.onLoadingStarted(loadingStartedBody.getStartedEvent()));
-                }
-                case STATE_CHANGED -> {
-                    var stateChangedBody = event.getUnion().getStateChanged_body();
-                    invokeListeners(e -> e.onStateChanged(stateChangedBody.getState()));
-                }
-                case LOADING_ERROR -> {
-                    var loadingErrorBody = event.getUnion().getLoadingError_body();
-                    invokeListeners(e -> e.onError(loadingErrorBody.getError()));
-                }
-                case PROGRESS_CHANGED -> {
-                    var progressChangedBody = event.getUnion().getProgressChanged_body();
-                    invokeListeners(e -> e.onProgressChanged(progressChangedBody.getLoadingProgress()));
-                }
+    public void callback(LoaderEvent event) {
+        switch (event.getEvent()) {
+            case LOADING_STARTED -> {
+                lastLoaderHandle = event.getLoadingStarted().getHandle();
+                eventPublisher.publish(new LoadingStartedEvent(this));
+                invokeListeners(e -> e.onLoadingStarted(event.getLoadingStarted()));
             }
-        } catch (Exception ex) {
-            log.error("An unexpected error occurred while handling the loader event C, {}", ex.getMessage(), ex);
+            case STATE_CHANGED -> invokeListeners(e -> e.onStateChanged(event.getStateChanged().getState()));
+            case PROGRESS_CHANGED -> invokeListeners(e -> e.onProgressChanged(event.getProgressChanged().getProgress()));
+            case LOADING_ERROR -> invokeListeners(e -> e.onError(event.getLoadingError().getError()));
         }
     }
 
     void init() {
         log.debug("Registering loader event callback");
-        // TODO
+        fxChannel.subscribe(FxChannel.typeFrom(LoaderEvent.class), LoaderEvent.parser(), this);
     }
 }

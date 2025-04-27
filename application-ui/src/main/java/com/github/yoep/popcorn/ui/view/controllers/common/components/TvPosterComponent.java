@@ -42,7 +42,7 @@ public class TvPosterComponent {
     }
 
     void onShowDetailsEvent(Media media) {
-        if (Objects.equals(media, this.media))
+        if (this.media != null && Objects.equals(media.id(), this.media.id()))
             return;
 
         this.media = media;

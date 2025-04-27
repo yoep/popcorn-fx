@@ -6,7 +6,7 @@ import com.github.yoep.popcorn.backend.media.Episode;
 import com.github.yoep.popcorn.backend.media.ShowDetails;
 import com.github.yoep.popcorn.backend.media.filters.model.Season;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
-import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
+import com.github.yoep.popcorn.backend.subtitles.ISubtitleService;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.MediaQualityChangedEvent;
 import com.github.yoep.popcorn.ui.font.controls.Icon;
@@ -29,7 +29,6 @@ import javafx.scene.layout.GridPane;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.ResourceBundle;
@@ -42,6 +41,7 @@ import static java.util.Arrays.asList;
 public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDetails> {
     static final String POSTER_COMPONENT_FXML = "components/poster.component.fxml";
     static final String SERIE_ACTIONS_COMPONENT_FXML = "components/serie-actions.component.fxml";
+    static final String EPISODE_COMPONENT_FXML = "common/components/episode.component.fxml";
     static final String EPISODE_ACTIONS_COMPONENT_FXML = "components/serie-episode-actions.component.fxml";
 
     private final ShowHelperService showHelperService;
@@ -88,7 +88,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
     public ShowDetailsComponent(EventPublisher eventPublisher,
                                 LocaleText localeText,
                                 HealthService healthService,
-                                SubtitleService subtitleService,
+                                ISubtitleService subtitleService,
                                 SubtitlePickerService subtitlePickerService,
                                 ImageService imageService,
                                 ApplicationConfig settingsService,
@@ -229,7 +229,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
             controller.setOnDestroy(() -> service.removeListener(listener));
             service.addListener(listener);
 
-            return viewLoader.load("common/components/episode.component.fxml", controller);
+            return viewLoader.load(EPISODE_COMPONENT_FXML, controller);
         });
 
         var episodeActions = viewLoader.load(EPISODE_ACTIONS_COMPONENT_FXML);
@@ -260,7 +260,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
         List<Episode> episodes = showHelperService.getSeasonEpisodes(newSeason, media);
 
         this.episodes.setItems(episodes.toArray(new Episode[0]));
-        if (episodes.size() > 0) {
+        if (!episodes.isEmpty()) {
             selectUnwatchedEpisode(newSeason);
         }
     }
@@ -274,7 +274,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
 
         log.trace("Show episode has been switched to {}", episode);
         episodeTitle.setText(episode.title());
-//        episodeSeason.setText(localeText.get(DetailsMessage.EPISODE_SEASON, episode.getSeason(), episode.getEpisode()));
+        episodeSeason.setText(localeText.get(DetailsMessage.EPISODE_SEASON, episode.season(), episode.episode()));
         airDate.setText(localeText.get(DetailsMessage.AIR_DATE, ShowHelperService.AIRED_DATE_PATTERN.format(episode.getAirDate())));
         synopsis.setText(episode.synopsis());
 
@@ -282,12 +282,13 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
     }
 
     private CompletableFuture<Boolean> isSeasonWatched(Season season) {
-        CompletableFuture<Boolean>[] futures = showHelperService.getSeasonEpisodes(season, media).stream()
+        List<CompletableFuture<Boolean>> futures = showHelperService.getSeasonEpisodes(season, media).stream()
                 .map(service::isWatched)
-                .toArray(CompletableFuture[]::new);
+                .toList();
 
-        return CompletableFuture.allOf(futures).thenApply(v -> Arrays.stream(futures)
-                .allMatch(CompletableFuture::join));
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                .thenApply(v -> futures.stream()
+                        .allMatch(CompletableFuture::join));
     }
 
     private void markSeasonAsWatched(Season season) {
@@ -300,9 +301,14 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
 
     private void selectUnwatchedSeason() {
         var seasons = this.seasons.getItems();
-        var season = showHelperService.getUnwatchedSeason(seasons, media);
-
-        Platform.runLater(() -> this.seasons.setSelectedItem(season));
+        showHelperService.getUnwatchedSeason(seasons, media).whenComplete((season, throwable) -> {
+            if (throwable == null) {
+                Platform.runLater(() -> this.seasons.setSelectedItem(season));
+                selectUnwatchedEpisode(season);
+            } else {
+                log.error("Failed to retrieve unwatched season", throwable);
+            }
+        });
     }
 
     private void selectUnwatchedEpisode(Season newSeason) {
@@ -341,12 +347,7 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
                 if (imdbId.equals(item.id())) {
                     controller.updateWatchedState(newState);
                 } else {
-                    // calling the watched backend on the same thread causes some weird lock issue within Rust
-                    // to prevent this, we create a new thread from where we call the watch state info
-                    new Thread(() -> {
-                        selectUnwatchedSeason();
-                        selectUnwatchedEpisode(seasons.getSelectedItem());
-                    }, "EpisodeWatchState").start();
+                    selectUnwatchedSeason();
                 }
             }
 
@@ -359,16 +360,24 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
 
     @FXML
     void onMagnetClicked(MouseEvent event) {
+        event.consume();
         var qualities = videoQualityService.getVideoResolutions(episode.getTorrents());
-        var quality = Optional.ofNullable(this.quality)
+        var qualityFuture = Optional.ofNullable(this.quality)
+                .map(CompletableFuture::completedFuture)
                 .orElseGet(() -> videoQualityService.getDefaultVideoResolution(asList(qualities)));
-        var torrentInfo = episode.getTorrents().getQualitiesMap().get(quality);
 
-        if (event.getButton() == MouseButton.SECONDARY) {
-            copyMagnetLink(torrentInfo);
-        } else {
-            openMagnetLink(torrentInfo);
-        }
+        qualityFuture.whenComplete((quality, throwable) -> {
+            if (throwable == null) {
+                var torrentInfo = episode.getTorrents().getQualitiesMap().get(quality);
+                if (event.getButton() == MouseButton.SECONDARY) {
+                    copyMagnetLink(torrentInfo);
+                } else {
+                    openMagnetLink(torrentInfo);
+                }
+            } else {
+                log.error("Failed to get video resolution", throwable);
+            }
+        });
     }
 
     @FXML

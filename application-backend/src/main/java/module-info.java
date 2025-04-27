@@ -12,12 +12,10 @@ module application.backend {
     requires com.google.protobuf;
 
     exports com.github.yoep.popcorn.backend.adapters.platform;
-    exports com.github.yoep.popcorn.backend.adapters.player.embaddable;
     exports com.github.yoep.popcorn.backend.adapters.player.listeners;
     exports com.github.yoep.popcorn.backend.adapters.player;
     exports com.github.yoep.popcorn.backend.adapters.screen;
     exports com.github.yoep.popcorn.backend.adapters.torrent.model;
-    exports com.github.yoep.popcorn.backend.adapters.torrent.state;
     exports com.github.yoep.popcorn.backend.adapters.torrent;
     exports com.github.yoep.popcorn.backend.adapters.video.listeners;
     exports com.github.yoep.popcorn.backend.adapters.video.state;
@@ -42,7 +40,6 @@ module application.backend {
     exports com.github.yoep.popcorn.backend.subtitles.listeners;
     exports com.github.yoep.popcorn.backend.subtitles.model;
     exports com.github.yoep.popcorn.backend.subtitles;
-    exports com.github.yoep.popcorn.backend.torrent.collection;
     exports com.github.yoep.popcorn.backend.torrent;
     exports com.github.yoep.popcorn.backend.updater;
     exports com.github.yoep.popcorn.backend.utils;

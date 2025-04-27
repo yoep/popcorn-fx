@@ -18,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
 import java.util.ResourceBundle;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 @Slf4j
@@ -64,14 +65,7 @@ public class EpisodeComponent implements Initializable {
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
-        imageService.getArtPlaceholder().whenComplete((image, throwable) -> {
-            if (throwable == null) {
-                episodeArt.setImage(image);
-            } else {
-                log.error("Failed to load artwork placeholder", throwable);
-            }
-        });
-//        episodeNumber.setText(String.valueOf(media.getEpisode()));
+        episodeNumber.setText(String.valueOf(media.episode()));
         title.setText(media.title());
         airDate.setText(localeText.get(DetailsMessage.AIR_DATE, ShowHelperService.AIRED_DATE_PATTERN.format(media.getAirDate())));
         synopsis.setText(media.synopsis());
@@ -104,13 +98,21 @@ public class EpisodeComponent implements Initializable {
     }
 
     private void loadAndUpdateImageArt() {
-        media.getThumb().ifPresent(thumb -> imageService.load(thumb).whenComplete((image, throwable) -> {
-            if (throwable == null) {
-                Platform.runLater(() -> episodeArt.setImage(image));
-            } else {
-                log.warn("Failed to load episode thumbnail, {}", throwable.getMessage());
-            }
-        }));
+        imageService.getArtPlaceholder()
+                .thenCompose(image -> {
+                    Platform.runLater(() -> episodeArt.setImage(image));
+                    return media.getThumb()
+                            .filter(url -> !url.isEmpty())
+                            .map(imageService::load)
+                            .orElse(CompletableFuture.completedFuture(image));
+                })
+                .whenComplete((image, throwable) -> {
+                    if (throwable == null) {
+                        Platform.runLater(() -> episodeArt.setImage(image));
+                    } else {
+                        log.error("Failed to load artwork, {}", throwable.getMessage(), throwable);
+                    }
+                });
     }
 
     @FXML

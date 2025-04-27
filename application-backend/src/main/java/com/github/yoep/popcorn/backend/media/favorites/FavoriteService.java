@@ -1,22 +1,18 @@
 package com.github.yoep.popcorn.backend.media.favorites;
 
-import com.github.yoep.popcorn.backend.lib.FxCallback;
 import com.github.yoep.popcorn.backend.lib.FxChannel;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.*;
-import com.github.yoep.popcorn.backend.lib.ipc.protobuf.FavoriteEvent;
 import com.github.yoep.popcorn.backend.media.Media;
 import com.github.yoep.popcorn.backend.media.MediaHelper;
+import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Objects;
-import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
-public class FavoriteService implements FxCallback<FavoriteEvent> {
+public class FavoriteService extends AbstractListenerService<FavoriteEventListener> {
     private final FxChannel fxChannel;
-
-    private final ConcurrentLinkedDeque<FxCallback<FavoriteEvent>> listeners = new ConcurrentLinkedDeque<>();
 
     public FavoriteService(FxChannel fxChannel) {
         Objects.requireNonNull(fxChannel, "fxChannel cannot be null");
@@ -30,18 +26,12 @@ public class FavoriteService implements FxCallback<FavoriteEvent> {
      * @param favorable The favorable to check.
      * @return Returns true if the favorable is liked, else false.
      */
-    public boolean isLiked(Media favorable) {
+    public CompletableFuture<Boolean> isLiked(Media favorable) {
         Objects.requireNonNull(favorable, "favorable cannot be null");
-        try {
-            return fxChannel
-                    .send(GetIsLikedRequest.newBuilder()
-                            .setItem(MediaHelper.getItem(favorable))
-                            .build(), GetIsLikedResponse.parser())
-                    .thenApply(GetIsLikedResponse::getIsLiked)
-                    .get();
-        } catch (ExecutionException | InterruptedException e) {
-            throw new RuntimeException(e);
-        }
+        return fxChannel.send(GetIsLikedRequest.newBuilder()
+                        .setItem(MediaHelper.getItem(favorable))
+                        .build(), GetIsLikedResponse.parser())
+                .thenApply(GetIsLikedResponse::getIsLiked);
     }
 
     /**
@@ -57,7 +47,7 @@ public class FavoriteService implements FxCallback<FavoriteEvent> {
                 .whenComplete((response, throwable) -> {
                     if (throwable == null) {
                         if (response.getResult() == Response.Result.ERROR) {
-                            log.warn("Failed to add media item to favorites, {}", response.getError());
+                            log.warn("Failed to add media item to favorites, {}", response.getError().getType());
                         }
                     } else {
                         log.error("Failed to add favorite", throwable);
@@ -77,28 +67,14 @@ public class FavoriteService implements FxCallback<FavoriteEvent> {
                 .build());
     }
 
-    public void registerListener(FxCallback<FavoriteEvent> callback) {
-        Objects.requireNonNull(callback, "callback cannot be null");
-        listeners.add(callback);
-    }
-
-    public void removeListener(FxCallback<FavoriteEvent> callback) {
-        listeners.remove(callback);
-    }
-
-    @Override
-    public void callback(FavoriteEvent message) {
-        log.debug("Received favorite event callback {}", message);
-        for (var listener : listeners) {
-            try {
-                listener.callback(message);
-            } catch (Exception ex) {
-                log.error("Failed to invoke favorite callback, {}", ex.getMessage(), ex);
-            }
-        }
-    }
-
     private void init() {
-        fxChannel.subscribe(FxChannel.typeFrom(FavoriteEvent.class), FavoriteEvent.parser(), this);
+        fxChannel.subscribe(FxChannel.typeFrom(FavoriteEvent.class), FavoriteEvent.parser(), this::onFavoriteEvent);
+    }
+
+    private void onFavoriteEvent(FavoriteEvent event) {
+        switch (event.getEvent()) {
+            case LIKED_STATE_CHANGED -> invokeListeners(listener -> listener.onLikedStateChanged(event.getLikeStateChanged()));
+            case UNRECOGNIZED -> log.warn("Received unrecognized favorite event {}", event);
+        }
     }
 }

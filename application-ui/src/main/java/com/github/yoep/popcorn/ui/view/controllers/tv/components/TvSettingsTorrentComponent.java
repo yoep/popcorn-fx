@@ -38,26 +38,20 @@ public class TvSettingsTorrentComponent implements Initializable {
     private void initializeCleaningMode() {
         cleanupModes.setItemFactory(item -> new Button(localeText.get(CLEANING_MODE_PREFIX + item.name().toLowerCase())));
         cleanupModes.setItems(ApplicationSettings.TorrentSettings.CleaningMode.values());
-        cleanupModes.selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-            getSettings().whenComplete((settings, throwable) -> {
-                if (throwable == null) {
-                    applicationConfig.update(ApplicationSettings.TorrentSettings.newBuilder(settings)
-                            .setCleaningMode(newValue)
-                            .build());
-                    cacheCleanup.setText(localeText.get(CLEANING_MODE_PREFIX + newValue.name().toLowerCase()));
-                    cacheCleanupOverlay.hide();
-                } else {
-                    log.error("Failed to retrieve settings", throwable);
-                }
-            });
-        });
+        cleanupModes.selectedItemProperty().addListener((observable, oldValue, newValue)
+                -> onCleanupModeChanged(newValue));
 
-        getSettings().whenComplete((settings, throwable) -> {
-            if (throwable == null) {
-                cleanupModes.setSelectedItem(settings.getCleaningMode(), true);
-            } else {
-                log.error("Failed to retrieve settings", throwable);
-            }
+        getSettings().thenAccept(settings ->
+                cleanupModes.setSelectedItem(settings.getCleaningMode(), true));
+    }
+
+    private void onCleanupModeChanged(ApplicationSettings.TorrentSettings.CleaningMode newValue) {
+        getSettings().thenAccept(settings -> {
+            applicationConfig.update(ApplicationSettings.TorrentSettings.newBuilder(settings)
+                    .setCleaningMode(newValue)
+                    .build());
+            cacheCleanup.setText(localeText.get(CLEANING_MODE_PREFIX + newValue.name().toLowerCase()));
+            cacheCleanupOverlay.hide();
         });
     }
 

@@ -18,28 +18,19 @@ import java.util.stream.Collectors;
 public class ProviderServiceImpl implements ProviderService<com.github.yoep.popcorn.backend.media.Media> {
     private final FxChannel fxChannel;
 
-    // FIXME: this is currently a quick and dirty workaround
-    Category category;
-
     public ProviderServiceImpl(FxChannel fxChannel) {
         Objects.requireNonNull(fxChannel, "fxChannel cannot be null");
         this.fxChannel = fxChannel;
     }
 
     @Override
-    public boolean supports(Category category) {
-        this.category = category;
-        return true;
+    public CompletableFuture<List<com.github.yoep.popcorn.backend.media.Media>> getPage(Category category, Genre genre, SortBy sortBy, int page) {
+        return doInternalPageRetrieval(category, genre, sortBy, "", page);
     }
 
     @Override
-    public CompletableFuture<List<com.github.yoep.popcorn.backend.media.Media>> getPage(Genre genre, SortBy sortBy, int page) {
-        return doInternalPageRetrieval(genre, sortBy, "", page);
-    }
-
-    @Override
-    public CompletableFuture<List<com.github.yoep.popcorn.backend.media.Media>> getPage(Genre genre, SortBy sortBy, int page, String keywords) {
-        return doInternalPageRetrieval(genre, sortBy, keywords, page);
+    public CompletableFuture<List<com.github.yoep.popcorn.backend.media.Media>> getPage(Category category, Genre genre, SortBy sortBy, int page, String keywords) {
+        return doInternalPageRetrieval(category, genre, sortBy, keywords, page);
     }
 
     @Override
@@ -64,11 +55,13 @@ public class ProviderServiceImpl implements ProviderService<com.github.yoep.popc
     }
 
     @Override
-    public void resetApiAvailability() {
-        // no-op
+    public void resetApiAvailability(Category category) {
+        fxChannel.send(ResetProviderApiRequest.newBuilder()
+                .setCategory(category)
+                .build());
     }
 
-    private CompletableFuture<List<Media>> doInternalPageRetrieval(Genre genre, SortBy sortBy, String keywords, int page) {
+    private CompletableFuture<List<Media>> doInternalPageRetrieval(Category category, Genre genre, SortBy sortBy, String keywords, int page) {
         return fxChannel.send(GetMediaItemsRequest.newBuilder()
                         .setCategory(category)
                         .setGenre(genre)

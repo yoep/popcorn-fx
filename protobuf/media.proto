@@ -128,10 +128,11 @@ message Media {
     optional FavoritesLoadingFailed favorite_loading_failed = 2;
     optional FavoriteNotFound favorite_not_found = 3;
     optional FavoriteAddFailed favorite_add_failed = 4;
-    optional MediaTypeNotSupported media_type_not_supported = 5;
-    optional ProviderRequestFailed provider_request_failed = 6;
-    optional ProviderParsingFailed provider_parsing_failed = 7;
-    optional ProviderNotFound provider_not_found = 8;
+    optional WatchedLoadingFailed watched_loading_failed = 5;
+    optional MediaTypeNotSupported media_type_not_supported = 6;
+    optional ProviderRequestFailed provider_request_failed = 7;
+    optional ProviderParsingFailed provider_parsing_failed = 8;
+    optional ProviderNotFound provider_not_found = 9;
 
     message FavoritesLoadingFailed {
       string reason = 1;
@@ -144,6 +145,10 @@ message Media {
     message FavoriteAddFailed {
       string imdb_id = 1;
       string reason = 2;
+    }
+
+    message WatchedLoadingFailed {
+      string reason = 1;
     }
 
     message MediaTypeNotSupported {

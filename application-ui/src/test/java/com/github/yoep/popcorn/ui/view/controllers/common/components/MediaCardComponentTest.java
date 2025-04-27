@@ -7,6 +7,7 @@ import com.github.yoep.popcorn.ui.view.controllers.desktop.components.OverlayIte
 import com.github.yoep.popcorn.ui.view.controls.Stars;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.scene.control.Label;
+import javafx.scene.image.Image;
 import javafx.scene.layout.Pane;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,6 +21,8 @@ import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.when;
 
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
@@ -41,9 +44,13 @@ class MediaCardComponentTest {
     void testInitialize() {
         var title = "lorem";
         var year = "2010";
+        var image = new Image(MediaCardComponentTest.class.getResourceAsStream("/posterholder.png"));
         when(media.title()).thenReturn(title);
         when(media.year()).thenReturn(year);
+        when(imageService.getPosterPlaceholder(isA(Double.class), isA(Double.class))).thenReturn(CompletableFuture.completedFuture(image));
         when(imageService.loadPoster(media, AbstractCardComponent.POSTER_WIDTH, AbstractCardComponent.POSTER_HEIGHT)).thenReturn(new CompletableFuture<>());
+        when(metadataProvider.isWatched(isA(Media.class))).thenReturn(CompletableFuture.completedFuture(true));
+        when(metadataProvider.isLiked(isA(Media.class))).thenReturn(CompletableFuture.completedFuture(false));
         var component = createComponent();
 
         component.initialize(location, resources);
@@ -51,6 +58,7 @@ class MediaCardComponentTest {
 
         assertEquals(title, component.title.getText());
         assertEquals(year, component.year.getText());
+        assertNotNull(component.poster.getBackground(), "expected the background to have been set");
     }
 
     private MediaCardComponent createComponent() {

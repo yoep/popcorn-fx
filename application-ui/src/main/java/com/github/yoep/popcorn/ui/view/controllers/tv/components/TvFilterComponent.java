@@ -58,10 +58,14 @@ public class TvFilterComponent implements Initializable {
             searchTimeout.playFromStart();
         });
 
-        genres.selectedItemProperty().addListener((observable, oldValue, newValue) -> onGenreChanged(newValue));
-        genres.setItemFactory(item -> new Button(item.getText()));
 
+        initializeGenres();
         onFocusChanged(false);
+    }
+
+    private void initializeGenres() {
+        genres.setItemFactory(item -> new Button(localeText.get("genre_" + item.getKey())));
+        genres.selectedItemProperty().addListener((observable, oldValue, newValue) -> onGenreChanged(newValue));
     }
 
     private void initializeSlideAnimation() {
@@ -84,7 +88,7 @@ public class TvFilterComponent implements Initializable {
     private void onSearch() {
         var value = virtualKeyboard.getText();
 
-        if (value.length() == 0 || value.length() >= 3) {
+        if (value.isEmpty() || value.length() >= 3) {
             eventPublisher.publish(new SearchEvent(this, virtualKeyboard.getText()));
         }
     }
@@ -120,17 +124,11 @@ public class TvFilterComponent implements Initializable {
         fxChannel.send(GetCategoryGenresRequest.newBuilder()
                         .setCategory(category)
                         .build(), GetCategoryGenresResponse.parser())
-                .whenComplete((response, throwable) -> {
-                    if (throwable == null) {
-                        var genres = response.getGenresList().stream()
-                                .map(e -> Media.Genre.newBuilder(e)
-                                        .setText(localeText.get("genre_" + e.getKey()))
-                                        .build())
-                                .toList();
-
-                        Platform.runLater(() -> this.genres.setItems(genres.toArray(new Media.Genre[0])));
+                .thenAccept(response -> {
+                    if (response.getResult() == Response.Result.OK) {
+                        Platform.runLater(() -> this.genres.setItems(response.getGenresList().toArray(new Media.Genre[0])));
                     } else {
-                        log.error("Failed to retrieve category genres, {}", throwable.getMessage(), throwable);
+                        log.error("Failed to retrieve genres for category {}, {}", category, response.getError());
                     }
                 });
     }

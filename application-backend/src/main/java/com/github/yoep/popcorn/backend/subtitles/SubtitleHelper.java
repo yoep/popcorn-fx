@@ -4,6 +4,9 @@ import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Subtitle;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class SubtitleHelper {
     public static String getCode(Subtitle.Language language) {
@@ -98,5 +101,16 @@ public class SubtitleHelper {
      */
     public static String getFlagResource(Subtitle.Language language) {
         return "/images/flags/" + getCode(language) + ".png";
+    }
+
+    public static List<Integer> supportedFontSizes() {
+        var sizes = new ArrayList<Integer>();
+
+        // increase sizes always by 2
+        for (int i = 20; i <= 80; i += 2) {
+            sizes.add(i);
+        }
+
+        return sizes;
     }
 }

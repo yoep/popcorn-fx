@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.backend.adapters.player;
 
-import com.github.yoep.popcorn.backend.adapters.player.embaddable.EmbeddablePlayer;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
+import javafx.scene.Node;
 
 import java.io.InputStream;
 import java.util.Optional;
@@ -50,15 +50,6 @@ public interface Player {
      */
 
     State getState();
-
-    /**
-     * Check if the player supports embedded playback in the application.
-     * If so, the graphical node of the play can be retrieved by using {@link EmbeddablePlayer#getEmbeddedPlayer()}.
-     * Otherwise, the player will always use an external interface/media device for displaying the video player/playback.
-     *
-     * @return Returns true if the embedded playback is supported, else false.
-     */
-    boolean isEmbeddedPlaybackSupported();
 
     /**
      * Dispose the player resources.
@@ -123,4 +114,21 @@ public interface Player {
      * @return The volume level between 0 and 100.
      */
     int getVolume();
+
+    /**
+     * Check if the player supports embedded playback in the application.
+     * If so, the graphical node of the play can be retrieved by using {@link #getEmbeddedPlayer()}.
+     * Otherwise, the player will always use an external interface/media device for displaying the video player/playback.
+     *
+     * @return Returns true if the embedded playback is supported, else false.
+     */
+    boolean isEmbeddedPlaybackSupported();
+
+    /**
+     * Get the graphical {@link Node} of the player which should be included in the application UI.
+     * This allows the player to be directly displayed within the application.
+     *
+     * @return Returns the embeddable node for the player playback.
+     */
+    Optional<Node> getEmbeddedPlayer();
 }

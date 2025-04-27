@@ -21,7 +21,7 @@ public class PlaybackControlsService implements FxCallback<ControlEvent> {
 
     private final Queue<FxCallback<ControlEvent>> listeners = new ConcurrentLinkedDeque<>();
 
-    private long lastKnownTime;
+    long lastKnownTime;
 
     public PlaybackControlsService(FxChannel fxChannel, PlayerManagerService playerManagerService, PlayerEventService playerEventService) {
         Objects.requireNonNull(fxChannel, "fxChannel cannot be null");

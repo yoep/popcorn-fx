@@ -1,10 +1,11 @@
 use crate::ipc::proto::media::media;
 use crate::ipc::{Error, Result};
 use popcorn_fx_core::core::media::{
-    Category, Genre, Images, MediaError, MediaIdentifier, MediaOverview, MovieDetails,
-    MovieOverview, Rating, ShowOverview, SortBy, TorrentInfo,
+    Category, Episode, Genre, Images, MediaDetails, MediaError, MediaIdentifier, MediaOverview,
+    MovieDetails, MovieOverview, Rating, ShowDetails, ShowOverview, SortBy, TorrentInfo,
 };
 use protobuf::{Message, MessageField};
+use std::collections::HashMap;
 
 impl From<&Category> for media::Category {
     fn from(value: &Category) -> Self {
@@ -136,7 +137,19 @@ impl From<&media::MovieDetails> for MovieDetails {
             rating: value.rating.as_ref().map(Rating::from),
             images: value.images.as_ref().map(Images::from).unwrap_or_default(),
             trailer: value.trailer.as_ref().cloned().unwrap_or_default(),
-            torrents: Default::default(),
+            torrents: value
+                .torrents
+                .iter()
+                .map(|e| {
+                    (
+                        e.language.clone(),
+                        e.torrents
+                            .as_ref()
+                            .map(|torrents| torrents.into())
+                            .unwrap_or_default(),
+                    )
+                })
+                .collect(),
         }
     }
 }
@@ -163,16 +176,86 @@ impl From<&MovieDetails> for media::MovieDetails {
                 .iter()
                 .map(|(language, torrents)| media::TorrentLanguage {
                     language: language.clone(),
-                    torrents: MessageField::some(media::TorrentQuality {
-                        qualities: torrents
-                            .iter()
-                            .map(|(key, value)| (key.clone(), media::TorrentInfo::from(value)))
-                            .collect(),
-                        special_fields: Default::default(),
-                    }),
+                    torrents: MessageField::some(media::TorrentQuality::from(torrents)),
                     special_fields: Default::default(),
                 })
                 .collect(),
+            special_fields: Default::default(),
+        }
+    }
+}
+
+impl From<&media::ShowDetails> for ShowDetails {
+    fn from(value: &media::ShowDetails) -> Self {
+        Self {
+            imdb_id: value.imdb_id.clone(),
+            tvdb_id: value.tvdb_id.clone(),
+            title: value.title.clone(),
+            year: value.year.clone(),
+            num_seasons: value.number_of_seasons,
+            images: value.images.as_ref().map(Images::from).unwrap_or_default(),
+            rating: value.rating.as_ref().map(Rating::from),
+            context_locale: String::new(),
+            synopsis: value.synopsis.clone().unwrap_or_default(),
+            runtime: value.runtime.as_ref().map(|e| e.to_string()),
+            status: value.status.clone().unwrap_or_default(),
+            genres: value.genre.clone(),
+            episodes: value.episodes.iter().map(Episode::from).collect(),
+        }
+    }
+}
+
+impl From<&ShowDetails> for media::ShowDetails {
+    fn from(value: &ShowDetails) -> Self {
+        Self {
+            imdb_id: value.imdb_id.clone(),
+            tvdb_id: value.tvdb_id.clone(),
+            title: value.title.clone(),
+            year: value.year.clone(),
+            number_of_seasons: value.num_seasons,
+            images: MessageField::some(media::Images::from(&value.images)),
+            rating: value.rating.as_ref().map(media::Rating::from).into(),
+            synopsis: Some(value.synopsis.clone()),
+            runtime: Some(value.runtime()),
+            status: Some(value.status.clone()),
+            genre: value.genres.clone(),
+            episodes: value.episodes.iter().map(media::Episode::from).collect(),
+            special_fields: Default::default(),
+        }
+    }
+}
+
+impl From<&media::Episode> for Episode {
+    fn from(value: &media::Episode) -> Self {
+        Self {
+            season: value.season,
+            episode: value.episode,
+            first_aired: value.first_aired,
+            title: value.title.clone(),
+            overview: value.synopsis.clone(),
+            tvdb_id: value.tvdb_id.parse::<i32>().unwrap_or_default(),
+            tvdb_id_value: value.tvdb_id.clone(),
+            thumb: value.thumb.clone(),
+            torrents: value
+                .torrents
+                .as_ref()
+                .map(|e| e.into())
+                .unwrap_or_default(),
+        }
+    }
+}
+
+impl From<&Episode> for media::Episode {
+    fn from(value: &Episode) -> Self {
+        Self {
+            season: value.season,
+            episode: value.episode,
+            first_aired: value.first_aired,
+            title: value.title.clone(),
+            synopsis: value.overview.clone(),
+            tvdb_id: value.tvdb_id(),
+            thumb: value.thumb.clone(),
+            torrents: MessageField::some(media::TorrentQuality::from(&value.torrents)),
             special_fields: Default::default(),
         }
     }
@@ -205,6 +288,7 @@ impl From<&Rating> for media::Rating {
 
 impl From<&media::Images> for Images {
     fn from(value: &media::Images) -> Self {
+        // TODO: update Images to support optional fields as some image urls are empty
         Self {
             poster: value.poster.clone().unwrap_or(String::new()),
             fanart: value.fanart.clone().unwrap_or(String::new()),
@@ -224,66 +308,76 @@ impl From<&Images> for media::Images {
     }
 }
 
-impl From<&MediaError> for media::error::Type {
-    fn from(value: &MediaError) -> Self {
-        match value {
-            MediaError::FavoritesLoadingFailed(_) => media::error::Type::FAVORITES_LOADING_FAILED,
-            MediaError::FavoriteNotFound(_) => media::error::Type::FAVORITE_NOT_FOUND,
-            MediaError::FavoriteAddFailed(_, _) => media::error::Type::FAVORITE_ADD_FAILED,
-            MediaError::WatchedLoadingFailed(_) => media::error::Type::WATCHED_LOADING_FAILED,
-            MediaError::MediaTypeNotSupported(_) => media::error::Type::MEDIA_TYPE_NOT_SUPPORTED,
-            MediaError::NoAvailableProviders => media::error::Type::NO_AVAILABLE_PROVIDERS,
-            MediaError::ProviderConnectionFailed => media::error::Type::PROVIDER_CONNECTION_FAILED,
-            MediaError::ProviderRequestFailed(_, _) => media::error::Type::PROVIDER_REQUEST_FAILED,
-            MediaError::ProviderParsingFailed(_) => media::error::Type::PROVIDER_PARSING_FAILED,
-            MediaError::ProviderAlreadyExists(_) => media::error::Type::PROVIDER_ALREADY_EXISTS,
-            MediaError::ProviderNotFound(_) => media::error::Type::PROVIDER_NOT_FOUND,
-            MediaError::ProviderTimeout => media::error::Type::PROVIDER_TIMEOUT,
-            MediaError::AutoResumeLoadingFailed(_) => {
-                media::error::Type::AUTO_RESUME_LOADING_FAILED
-            }
-        }
-    }
-}
-
 impl From<&MediaError> for media::Error {
     fn from(value: &MediaError) -> Self {
-        let mut error = Self::new();
-        error.type_ = media::error::Type::from(value).into();
+        let mut err = Self::new();
 
         match value {
             MediaError::FavoritesLoadingFailed(e) => {
-                error.favorite_loading_failed =
+                err.type_ = media::error::Type::FAVORITES_LOADING_FAILED.into();
+                err.favorite_loading_failed =
                     MessageField::some(media::error::FavoritesLoadingFailed {
                         reason: e.clone(),
                         special_fields: Default::default(),
                     })
             }
             MediaError::FavoriteNotFound(e) => {
-                error.favorite_not_found = MessageField::some(media::error::FavoriteNotFound {
+                err.type_ = media::error::Type::FAVORITE_NOT_FOUND.into();
+                err.favorite_not_found = MessageField::some(media::error::FavoriteNotFound {
                     imdb_id: e.clone(),
                     special_fields: Default::default(),
                 });
             }
-            MediaError::FavoriteAddFailed(_, _) => {}
-            MediaError::WatchedLoadingFailed(_) => {}
-            MediaError::MediaTypeNotSupported(_) => {}
-            MediaError::NoAvailableProviders => {}
-            MediaError::ProviderConnectionFailed => {}
-            MediaError::ProviderRequestFailed(_, _) => {}
-            MediaError::ProviderParsingFailed(_) => {}
-            MediaError::ProviderAlreadyExists(_) => {}
+            MediaError::FavoriteAddFailed(imdb_id, reason) => {
+                err.type_ = media::error::Type::FAVORITE_ADD_FAILED.into();
+                err.favorite_add_failed = MessageField::some(media::error::FavoriteAddFailed {
+                    imdb_id: imdb_id.clone(),
+                    reason: reason.clone(),
+                    special_fields: Default::default(),
+                });
+            }
+            MediaError::WatchedLoadingFailed(reason) => {
+                err.type_ = media::error::Type::WATCHED_LOADING_FAILED.into();
+                err.watched_loading_failed =
+                    MessageField::some(media::error::WatchedLoadingFailed {
+                        reason: reason.clone(),
+                        special_fields: Default::default(),
+                    });
+            }
+            MediaError::MediaTypeNotSupported(_) => {
+                err.type_ = media::error::Type::MEDIA_TYPE_NOT_SUPPORTED.into();
+            }
+            MediaError::NoAvailableProviders => {
+                err.type_ = media::error::Type::NO_AVAILABLE_PROVIDERS.into();
+            }
+            MediaError::ProviderConnectionFailed => {
+                err.type_ = media::error::Type::PROVIDER_CONNECTION_FAILED.into();
+            }
+            MediaError::ProviderRequestFailed(_, _) => {
+                err.type_ = media::error::Type::PROVIDER_REQUEST_FAILED.into();
+            }
+            MediaError::ProviderParsingFailed(_) => {
+                err.type_ = media::error::Type::PROVIDER_PARSING_FAILED.into();
+            }
+            MediaError::ProviderAlreadyExists(_) => {
+                err.type_ = media::error::Type::PROVIDER_ALREADY_EXISTS.into();
+            }
             MediaError::ProviderNotFound(e) => {
-                error.provider_not_found = MessageField::some(media::error::ProviderNotFound {
+                err.type_ = media::error::Type::PROVIDER_NOT_FOUND.into();
+                err.provider_not_found = MessageField::some(media::error::ProviderNotFound {
                     provider_type: e.clone(),
                     special_fields: Default::default(),
                 });
             }
-            MediaError::ProviderTimeout => {}
-            MediaError::AutoResumeLoadingFailed(_) => {}
+            MediaError::ProviderTimeout => {
+                err.type_ = media::error::Type::PROVIDER_TIMEOUT.into();
+            }
+            MediaError::AutoResumeLoadingFailed(_) => {
+                err.type_ = media::error::Type::AUTO_RESUME_LOADING_FAILED.into();
+            }
         }
 
-        error
+        err
     }
 }
 
@@ -310,6 +404,12 @@ impl TryFrom<&media::Item> for Box<dyn MediaOverview> {
                 .map(MovieDetails::from)
                 .map(|e| Box::new(e) as Box<dyn MediaOverview>)
                 .ok_or(Error::MissingField),
+            media::ShowDetails::NAME => value
+                .show_details
+                .as_ref()
+                .map(ShowDetails::from)
+                .map(|e| Box::new(e) as Box<dyn MediaOverview>)
+                .ok_or(Error::MissingField),
             _ => Err(Error::InvalidMessage(value.type_.clone())),
         }
     }
@@ -319,6 +419,15 @@ impl TryFrom<&media::Item> for Box<dyn MediaIdentifier> {
     type Error = Error;
 
     fn try_from(value: &media::Item) -> std::result::Result<Self, Self::Error> {
+        if value.type_.as_str() == media::Episode::NAME {
+            return value
+                .episode
+                .as_ref()
+                .map(Episode::from)
+                .map(|e| Box::new(e) as Box<dyn MediaIdentifier>)
+                .ok_or(Error::MissingField);
+        }
+
         Ok(Box::<dyn MediaOverview>::try_from(value)? as Box<dyn MediaIdentifier>)
     }
 }
@@ -357,9 +466,51 @@ impl TryFrom<&Box<dyn MediaIdentifier>> for media::Item {
                 episode: Default::default(),
                 special_fields: Default::default(),
             })
+        } else if let Some(media) = value.downcast_ref::<ShowDetails>() {
+            Ok(media::Item {
+                type_: media::ShowDetails::NAME.to_string(),
+                movie_overview: Default::default(),
+                show_overview: Default::default(),
+                movie_details: Default::default(),
+                show_details: MessageField::some(media::ShowDetails::from(media)),
+                episode: Default::default(),
+                special_fields: Default::default(),
+            })
+        } else if let Some(media) = value.downcast_ref::<Episode>() {
+            Ok(media::Item {
+                type_: media::Episode::NAME.to_string(),
+                movie_overview: Default::default(),
+                show_overview: Default::default(),
+                movie_details: Default::default(),
+                show_details: Default::default(),
+                episode: MessageField::some(media::Episode::from(media)),
+                special_fields: Default::default(),
+            })
         } else {
             Err(Error::MissingField)
         }
+    }
+}
+
+impl From<&HashMap<String, TorrentInfo>> for media::TorrentQuality {
+    fn from(value: &HashMap<String, TorrentInfo>) -> Self {
+        Self {
+            qualities: value
+                .iter()
+                .map(|(key, value)| (key.clone(), media::TorrentInfo::from(value)))
+                .collect(),
+            special_fields: Default::default(),
+        }
+    }
+}
+
+impl From<&media::TorrentQuality> for HashMap<String, TorrentInfo> {
+    fn from(value: &media::TorrentQuality) -> Self {
+        value
+            .qualities
+            .iter()
+            .map(|(k, info)| (k.clone(), TorrentInfo::from(info)))
+            .collect()
     }
 }
 
@@ -378,6 +529,23 @@ impl From<&TorrentInfo> for media::TorrentInfo {
             file: value.file().map(|e| e.clone()),
             special_fields: Default::default(),
         }
+    }
+}
+
+impl From<&media::TorrentInfo> for TorrentInfo {
+    fn from(value: &media::TorrentInfo) -> Self {
+        Self::new(
+            value.url.clone(),
+            value.provider.clone(),
+            value.source.clone(),
+            value.title.clone(),
+            value.quality.clone(),
+            value.seeds.clone(),
+            value.peers.clone(),
+            value.size.clone(),
+            value.file_size.clone(),
+            value.file.clone(),
+        )
     }
 }
 

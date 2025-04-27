@@ -1,16 +1,16 @@
 use crate::fx::PopcornFX;
 use crate::ipc::proto::application::{
-    ApplicationArgs, ApplicationArgsRequest, ApplicationArgsResponse,
+    ApplicationArgs, ApplicationArgsRequest, ApplicationArgsResponse, GetApplicationVersionRequest,
+    GetApplicationVersionResponse,
 };
 use crate::ipc::proto::message::FxMessage;
 use crate::ipc::{Error, IpcChannel, MessageHandler};
 use async_trait::async_trait;
-use derive_more::Display;
+use popcorn_fx_core::VERSION;
 use protobuf::{Message, MessageField};
 use std::sync::Arc;
 
-#[derive(Debug, Display)]
-#[display(fmt = "Application message handler")]
+#[derive(Debug)]
 pub struct ApplicationMessageHandler {
     instance: Arc<PopcornFX>,
 }
@@ -23,8 +23,15 @@ impl ApplicationMessageHandler {
 
 #[async_trait]
 impl MessageHandler for ApplicationMessageHandler {
+    fn name(&self) -> &str {
+        "application"
+    }
+
     fn is_supported(&self, message_type: &str) -> bool {
-        message_type == ApplicationArgsRequest::NAME
+        matches!(
+            message_type,
+            ApplicationArgsRequest::NAME | GetApplicationVersionRequest::NAME
+        )
     }
 
     async fn process(&self, message: FxMessage, channel: &IpcChannel) -> crate::ipc::Result<()> {
@@ -51,6 +58,18 @@ impl MessageHandler for ApplicationMessageHandler {
                     )
                     .await?;
             }
+            GetApplicationVersionRequest::NAME => {
+                channel
+                    .send_reply(
+                        &message,
+                        GetApplicationVersionResponse {
+                            version: VERSION.to_string(),
+                            special_fields: Default::default(),
+                        },
+                        GetApplicationVersionResponse::NAME,
+                    )
+                    .await?;
+            }
             _ => {
                 return Err(Error::UnsupportedMessage(
                     message.message_type().to_string(),
@@ -65,11 +84,12 @@ impl MessageHandler for ApplicationMessageHandler {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Duration;
 
     use crate::ipc::test::create_channel_pair;
-    use crate::ipc::FxMessageBuilder;
     use crate::tests::default_args;
 
+    use crate::try_recv;
     use popcorn_fx_core::init_logger;
     use tempfile::tempdir;
 
@@ -82,27 +102,22 @@ mod tests {
         let (incoming, outgoing) = create_channel_pair().await;
         let handler = ApplicationMessageHandler::new(Arc::new(instance));
 
-        let request = ApplicationArgsRequest {
-            special_fields: Default::default(),
-        };
+        let response = incoming
+            .get(ApplicationArgsRequest::new(), ApplicationArgsRequest::NAME)
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
 
-        let result = handler
-            .process(
-                FxMessageBuilder::new()
-                    .type_(ApplicationArgsRequest::NAME)
-                    .sequence_id(1)
-                    .payload(request.write_to_bytes().unwrap())
-                    .build(),
-                &outgoing,
-            )
-            .await;
+        let result = handler.process(message, &outgoing).await;
         assert_eq!(
             Ok(()),
             result,
             "expected the message to have been process successfully"
         );
 
-        let response = incoming.recv().await.unwrap();
+        let response = try_recv!(response, Duration::from_millis(250))
+            .expect("expected to have received a reply");
         let result = ApplicationArgsResponse::parse_from_bytes(&response.payload).unwrap();
 
         assert_eq!(
@@ -117,5 +132,38 @@ mod tests {
             true, result.args.is_vlc_video_player_enabled,
             "expected the vlc player to have been enabled"
         );
+    }
+
+    #[tokio::test]
+    async fn test_process_get_application_version() {
+        init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = PopcornFX::new(default_args(temp_path)).await.unwrap();
+        let (incoming, outgoing) = create_channel_pair().await;
+        let handler = ApplicationMessageHandler::new(Arc::new(instance));
+
+        let response = incoming
+            .get(
+                GetApplicationVersionRequest::new(),
+                GetApplicationVersionRequest::NAME,
+            )
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been process successfully"
+        );
+
+        let response = try_recv!(response, Duration::from_millis(250))
+            .expect("expected to have received a reply");
+        let result = GetApplicationVersionResponse::parse_from_bytes(&response.payload).unwrap();
+
+        assert_eq!(VERSION, result.version.as_str());
     }
 }

@@ -1,14 +1,15 @@
 package com.github.yoep.popcorn.ui.view.controllers.tv.components;
 
-import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.lib.FxStringArray;
+import com.github.yoep.popcorn.backend.lib.FxChannel;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.*;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.CategoryChangedEvent;
 import com.github.yoep.popcorn.ui.events.GenreChangeEvent;
 import com.github.yoep.popcorn.ui.events.SearchEvent;
 import com.github.yoep.popcorn.ui.view.controls.AxisItemSelection;
 import com.github.yoep.popcorn.ui.view.controls.VirtualKeyboard;
+import com.google.protobuf.Parser;
 import javafx.scene.control.Label;
 import javafx.scene.layout.VBox;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,6 +25,8 @@ import org.testfx.util.WaitForAsyncUtils;
 import java.net.URL;
 import java.util.Collections;
 import java.util.ResourceBundle;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -36,9 +39,7 @@ class TvFilterComponentTest {
     @Mock
     private LocaleText localeText;
     @Mock
-    private FxLib fxLib;
-    @Mock
-    private PopcornFx instance;
+    private FxChannel fxChannel;
     @Mock
     private URL url;
     @Mock
@@ -71,33 +72,44 @@ class TvFilterComponentTest {
         component.initialize(url, resourceBundle);
         component.virtualKeyboard.setText("lorem");
 
-        eventPublisher.publish(new CategoryChangedEvent(this, Category.MOVIES));
+        eventPublisher.publish(new CategoryChangedEvent(this, Media.Category.MOVIES));
         assertEquals("", component.virtualKeyboard.getText());
         assertEquals("", component.searchValue.getText());
     }
 
     @Test
-    void testOnCategoryChanged_shouldUpdateGenres() {
-        var category = Category.MOVIES;
-        var genreValues = mock(FxStringArray.class);
+    void testOnGenreUpdated() {
+        var category = Media.Category.MOVIES;
+        var genre = Media.Genre.newBuilder()
+                .setKey("lorem")
+                .setText("ipsum")
+                .build();
+        var request = new AtomicReference<GetCategoryGenresRequest>();
+        when(fxChannel.send(isA(GetCategoryGenresRequest.class), isA(Parser.class))).thenAnswer(invocations -> {
+            request.set(invocations.getArgument(0, GetCategoryGenresRequest.class));
+            return CompletableFuture.completedFuture(GetCategoryGenresResponse.newBuilder()
+                    .setResult(Response.Result.OK)
+                    .addGenres(genre)
+                    .build());
+        });
+        when(fxChannel.send(isA(GetCategorySortByRequest.class), isA(Parser.class))).thenAnswer(invocations -> CompletableFuture.completedFuture(GetCategorySortByResponse.newBuilder()
+                .setResult(Response.Result.OK)
+                .addSortBy(Media.SortBy.newBuilder()
+                        .setKey("lorem")
+                        .build())
+                .build()));
         component.initialize(url, resourceBundle);
-        when(genreValues.values()).thenReturn(Collections.singletonList("lorem"));
-        when(fxLib.retrieve_provider_genres(instance, category.getProviderName())).thenReturn(genreValues);
-
-        eventPublisher.publish(new CategoryChangedEvent(this, category));
         WaitForAsyncUtils.waitForFxEvents();
 
+        eventPublisher.publishEvent(new CategoryChangedEvent(this, category));
+        WaitForAsyncUtils.waitForFxEvents();
+        assertEquals(category, request.get().getCategory());
         assertTrue(component.genres.getItems().stream().anyMatch(e -> e.getKey().equals("lorem")));
-        verify(localeText).get("genre_lorem");
-    }
-
-    @Test
-    void testOnGenreUpdated() {
-        var genre = new Genre("lorem", "ipsum");
-        component.initialize(url, resourceBundle);
 
         component.genres.setSelectedItem(genre);
+        WaitForAsyncUtils.waitForFxEvents();
 
-        verify(eventPublisher).publish(new GenreChangeEvent(component, genre));
+        verify(eventPublisher).publish(isA(GenreChangeEvent.class));
+        verify(localeText).get("genre_lorem");
     }
 }

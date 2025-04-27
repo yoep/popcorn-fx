@@ -2,7 +2,6 @@ package com.github.yoep.popcorn.ui;
 
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.adapters.player.Player;
-import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.EventPublisherBridge;
 import com.github.yoep.popcorn.backend.lib.FxChannel;
@@ -18,7 +17,7 @@ import com.github.yoep.popcorn.backend.player.PlayerManagerServiceImpl;
 import com.github.yoep.popcorn.backend.playlists.DefaultPlaylistManager;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleServiceImpl;
-import com.github.yoep.popcorn.backend.torrent.DefaultTorrentService;
+import com.github.yoep.popcorn.backend.torrent.FXTorrentService;
 import com.github.yoep.popcorn.backend.updater.UpdateService;
 import com.github.yoep.popcorn.backend.utils.PopcornLocaleText;
 import com.github.yoep.popcorn.backend.utils.ResourceBundleMessageSource;
@@ -28,7 +27,7 @@ import com.github.yoep.popcorn.ui.platform.PlatformFX;
 import com.github.yoep.popcorn.ui.screen.ScreenServiceImpl;
 import com.github.yoep.popcorn.ui.stage.BorderlessStageHolder;
 import com.github.yoep.popcorn.ui.stage.BorderlessStageWrapper;
-import com.github.yoep.popcorn.ui.torrent.TorrentCollectionService;
+import com.github.yoep.popcorn.backend.torrent.TorrentCollectionService;
 import com.github.yoep.popcorn.ui.tracking.EmbeddedAuthorization;
 import com.github.yoep.popcorn.ui.utils.PopcornResourceBundleProvider;
 import com.github.yoep.popcorn.ui.view.*;
@@ -41,7 +40,6 @@ import com.github.yoep.popcorn.ui.view.controllers.desktop.sections.TorrentColle
 import com.github.yoep.popcorn.ui.view.controllers.tv.components.*;
 import com.github.yoep.popcorn.ui.view.services.*;
 import javafx.application.Application;
-import javafx.application.Platform;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
@@ -83,7 +81,7 @@ public class PopcornTimeApplication extends Application {
             var loaderService = IOC.registerInstance(new LoaderService(fxChannel, eventPublisher));
             var playerManagerService = IOC.registerInstance(new PlayerManagerServiceImpl(fxChannel, eventPublisher));
             var watchedService = IOC.registerInstance(new WatchedService(fxChannel));
-            var torrentService = IOC.registerInstance(new DefaultTorrentService(fxChannel));
+            var torrentService = IOC.registerInstance(new FXTorrentService(fxChannel));
             var platformProvider = IOC.registerInstance(new PlatformFX());
             var maximizeService = IOC.registerInstance(new MaximizeService(viewManager, applicationConfig));
             var authorization = IOC.registerInstance(new EmbeddedAuthorization(viewLoader, localeText));
@@ -102,7 +100,6 @@ public class PopcornTimeApplication extends Application {
             // services
             IOC.registerInstance(new HealthService(fxChannel, eventPublisher));
             IOC.registerInstance(new PlayerExternalComponentService(playerManagerService, eventPublisher, torrentService));
-            IOC.registerInstance(new TorrentSettingService());
             IOC.registerInstance(new TraktTrackingService(fxChannel, authorization));
             IOC.registerInstance(new UpdateService(fxChannel, platformProvider, eventPublisher, localeText));
             IOC.registerInstance(new ScreenServiceImpl(viewManager, applicationConfig, eventPublisher, maximizeService, fxChannel));
@@ -128,7 +125,7 @@ public class PopcornTimeApplication extends Application {
 
             // register video playback
             var playerInfoService = IOC.registerInstance(new PlayerInfoService(playerManagerService));
-            var videoInfoService = IOC.registerInstance(new VideoInfoService(IOC.getInstances(VideoPlayback.class)));
+            var videoInfoService = IOC.registerInstance(new VideoInfoService(IOC));
             IOC.registerInstance(new AboutSectionService(playerInfoService, videoInfoService));
 
             // controllers

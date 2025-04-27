@@ -9,15 +9,13 @@ use crate::ipc::proto::media::{
 use crate::ipc::proto::message::{response, FxMessage};
 use crate::ipc::{Error, IpcChannel, MessageHandler, Result};
 use async_trait::async_trait;
-use derive_more::Display;
-use log::{debug, warn};
+use log::warn;
 use popcorn_fx_core::core::config::{ConfigError, ProviderProperties};
 use popcorn_fx_core::core::media::{Category, Genre, MediaIdentifier, MediaOverview, SortBy};
 use protobuf::{Message, MessageField};
 use std::sync::Arc;
 
-#[derive(Debug, Display)]
-#[display(fmt = "Media message handler")]
+#[derive(Debug)]
 pub struct MediaMessageHandler {
     instance: Arc<PopcornFX>,
 }
@@ -42,6 +40,10 @@ impl MediaMessageHandler {
 
 #[async_trait]
 impl MessageHandler for MediaMessageHandler {
+    fn name(&self) -> &str {
+        "media"
+    }
+
     fn is_supported(&self, message_type: &str) -> bool {
         matches!(
             message_type,
@@ -133,45 +135,7 @@ impl MessageHandler for MediaMessageHandler {
                     .send_reply(&message, response, GetCategorySortByResponse::NAME)
                     .await?;
             }
-            GetMediaDetailsRequest::NAME => {
-                let request = GetMediaDetailsRequest::parse_from_bytes(&message.payload)?;
-                let media = Box::<dyn MediaOverview>::try_from(
-                    request.item.as_ref().ok_or(Error::MissingField)?,
-                )?;
-                let response: GetMediaDetailsResponse;
-
-                match self
-                    .instance
-                    .providers()
-                    .retrieve_details(&(media as Box<dyn MediaIdentifier>))
-                    .await
-                {
-                    Ok(media) => {
-                        response = GetMediaDetailsResponse {
-                            result: response::Result::OK.into(),
-                            item: MessageField::some(media::Item::try_from(
-                                &(media as Box<dyn MediaIdentifier>),
-                            )?),
-                            error: MessageField::none(),
-                            special_fields: Default::default(),
-                        };
-                    }
-                    Err(err) => {
-                        response = GetMediaDetailsResponse {
-                            result: response::Result::ERROR.into(),
-                            item: Default::default(),
-                            error: MessageField::some(media::Error::from(&err)),
-                            special_fields: Default::default(),
-                        };
-                    }
-                }
-
-                channel
-                    .send_reply(&message, response, GetMediaDetailsResponse::NAME)
-                    .await?;
-            }
             GetMediaItemsRequest::NAME => {
-                debug!("Media message handler is processing GetMediaItemsRequest");
                 let request = GetMediaItemsRequest::parse_from_bytes(&message.payload)?;
                 let category = request
                     .category
@@ -226,6 +190,43 @@ impl MessageHandler for MediaMessageHandler {
                     .send_reply(&message, response, GetMediaItemsResponse::NAME)
                     .await?;
             }
+            GetMediaDetailsRequest::NAME => {
+                let request = GetMediaDetailsRequest::parse_from_bytes(&message.payload)?;
+                let media = Box::<dyn MediaOverview>::try_from(
+                    request.item.as_ref().ok_or(Error::MissingField)?,
+                )?;
+                let response: GetMediaDetailsResponse;
+
+                match self
+                    .instance
+                    .providers()
+                    .retrieve_details(&(media as Box<dyn MediaIdentifier>))
+                    .await
+                {
+                    Ok(media) => {
+                        response = GetMediaDetailsResponse {
+                            result: response::Result::OK.into(),
+                            item: MessageField::some(media::Item::try_from(
+                                &(media as Box<dyn MediaIdentifier>),
+                            )?),
+                            error: MessageField::none(),
+                            special_fields: Default::default(),
+                        };
+                    }
+                    Err(err) => {
+                        response = GetMediaDetailsResponse {
+                            result: response::Result::ERROR.into(),
+                            item: Default::default(),
+                            error: MessageField::some(media::Error::from(&err)),
+                            special_fields: Default::default(),
+                        };
+                    }
+                }
+
+                channel
+                    .send_reply(&message, response, GetMediaDetailsResponse::NAME)
+                    .await?;
+            }
             ResetProviderApiRequest::NAME => {
                 let request = ResetProviderApiRequest::parse_from_bytes(&message.payload)?;
                 let category = request
@@ -252,11 +253,12 @@ mod tests {
     use super::*;
 
     use crate::ipc::test::create_channel_pair;
-    use crate::ipc::FxMessageBuilder;
     use crate::tests::default_args;
+    use crate::try_recv;
 
     use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::copy_test_file;
+    use std::time::Duration;
     use tempfile::tempdir;
 
     #[tokio::test]
@@ -268,28 +270,28 @@ mod tests {
         let (incoming, outgoing) = create_channel_pair().await;
         let handler = MediaMessageHandler::new(Arc::new(instance));
 
-        let request = GetCategoryGenresRequest {
-            category: media::Category::MOVIES.into(),
-            special_fields: Default::default(),
-        };
-
-        let result = handler
-            .process(
-                FxMessageBuilder::new()
-                    .type_(GetCategoryGenresRequest::NAME)
-                    .sequence_id(1)
-                    .payload(request.write_to_bytes().unwrap())
-                    .build(),
-                &outgoing,
+        let response = incoming
+            .get(
+                GetCategoryGenresRequest {
+                    category: media::Category::MOVIES.into(),
+                    special_fields: Default::default(),
+                },
+                GetCategoryGenresRequest::NAME,
             )
-            .await;
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
         assert_eq!(
             Ok(()),
             result,
             "expected the message to have been process successfully"
         );
 
-        let response = incoming.recv().await.unwrap();
+        let response = try_recv!(response, Duration::from_millis(250))
+            .expect("expected to have received a reply");
         let result = GetCategoryGenresResponse::parse_from_bytes(&response.payload).unwrap();
 
         assert_eq!(response::Result::OK, result.result.unwrap());
@@ -306,40 +308,40 @@ mod tests {
         let (incoming, outgoing) = create_channel_pair().await;
         let handler = MediaMessageHandler::new(Arc::new(instance));
 
-        let request = GetMediaItemsRequest {
-            category: media::Category::FAVORITES.into(),
-            genre: MessageField::some(media::Genre {
-                key: "all".to_string(),
-                text: "All".to_string(),
-                special_fields: Default::default(),
-            }),
-            sort_by: MessageField::some(media::SortBy {
-                key: "watched".to_string(),
-                text: "Watched".to_string(),
-                special_fields: Default::default(),
-            }),
-            keywords: None,
-            page: 0,
-            special_fields: Default::default(),
-        };
-
-        let result = handler
-            .process(
-                FxMessageBuilder::new()
-                    .type_(GetMediaItemsRequest::NAME)
-                    .sequence_id(1)
-                    .payload(request.write_to_bytes().unwrap())
-                    .build(),
-                &outgoing,
+        let response = incoming
+            .get(
+                GetMediaItemsRequest {
+                    category: media::Category::FAVORITES.into(),
+                    genre: MessageField::some(media::Genre {
+                        key: "all".to_string(),
+                        text: "All".to_string(),
+                        special_fields: Default::default(),
+                    }),
+                    sort_by: MessageField::some(media::SortBy {
+                        key: "watched".to_string(),
+                        text: "Watched".to_string(),
+                        special_fields: Default::default(),
+                    }),
+                    keywords: None,
+                    page: 0,
+                    special_fields: Default::default(),
+                },
+                GetMediaItemsRequest::NAME,
             )
-            .await;
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
         assert_eq!(
             Ok(()),
             result,
             "expected the message to have been process successfully"
         );
 
-        let response = incoming.recv().await.unwrap();
+        let response = try_recv!(response, Duration::from_millis(250))
+            .expect("expected to have received a reply");
         let result = GetMediaItemsResponse::parse_from_bytes(&response.payload).unwrap();
 
         assert_eq!(response::Result::OK, result.result.unwrap());

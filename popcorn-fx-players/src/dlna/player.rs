@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
@@ -123,11 +123,16 @@ impl Player for DlnaPlayer {
         self.inner.state().await
     }
 
-    async fn request(&self) -> Option<Weak<Box<dyn PlayRequest>>> {
-        self.inner.request().await
+    async fn request(&self) -> Option<PlayRequest> {
+        self.inner.request().await.clone()
     }
 
-    async fn play(&self, request: Box<dyn PlayRequest>) {
+    async fn current_volume(&self) -> Option<u32> {
+        // TODO
+        None
+    }
+
+    async fn play(&self, request: PlayRequest) {
         self.inner.play(request).await
     }
 
@@ -139,11 +144,11 @@ impl Player for DlnaPlayer {
         self.inner.send_command(DlnaPlayerCommand::Resume)
     }
 
-    fn seek(&self, time: u64) {
+    async fn seek(&self, time: u64) {
         self.inner.send_command(DlnaPlayerCommand::Seek(time))
     }
 
-    fn stop(&self) {
+    async fn stop(&self) {
         self.inner.send_command(DlnaPlayerCommand::Stop)
     }
 }
@@ -179,7 +184,7 @@ struct InnerPlayer {
     device: Device,
     service: Service,
     event_sender: UnboundedSender<UpnpEvent>,
-    request: Mutex<Option<Arc<Box<dyn PlayRequest>>>>,
+    request: Mutex<Option<PlayRequest>>,
     playback_state: Mutex<PlaybackState>,
     subtitle_server: Arc<SubtitleServer>,
     event_poller_activated: Mutex<bool>,
@@ -227,7 +232,7 @@ impl InnerPlayer {
         }
     }
 
-    async fn handle_subtitle(&self, request: &Box<dyn PlayRequest>) -> (String, String) {
+    async fn handle_subtitle(&self, request: &PlayRequest) -> (String, String) {
         let mut subtitle_attributes = String::new();
         let mut video_resource_attributes = String::new();
 
@@ -404,12 +409,11 @@ impl InnerPlayer {
         mutex.state.clone()
     }
 
-    async fn request(&self) -> Option<Weak<Box<dyn PlayRequest>>> {
-        let mutex = self.request.lock().await;
-        mutex.as_ref().map(|e| Arc::downgrade(e))
+    async fn request(&self) -> Option<PlayRequest> {
+        self.request.lock().await.clone()
     }
 
-    async fn play(&self, request: Box<dyn PlayRequest>) {
+    async fn play(&self, request: PlayRequest) {
         trace!("Starting DLNA playback for {:?}", request);
         let extension = PathBuf::from(request.url())
             .extension()
@@ -481,7 +485,7 @@ impl InnerPlayer {
         {
             trace!("Updating DLNA player request to {:?}", request);
             let mut mutex = self.request.lock().await;
-            *mutex = Some(Arc::new(request))
+            *mutex = Some(request)
         }
     }
 
@@ -554,7 +558,6 @@ mod tests {
 
     use httpmock::Method::{GET, POST};
     use httpmock::{Mock, MockServer};
-    use popcorn_fx_core::core::players::PlayUrlRequestBuilder;
     use popcorn_fx_core::core::subtitles::MockSubtitleProvider;
     use popcorn_fx_core::{init_logger, recv_timeout};
 
@@ -663,13 +666,11 @@ mod tests {
     #[tokio::test]
     async fn test_play() {
         init_logger!();
-        let request = Box::new(
-            PlayUrlRequestBuilder::builder()
-                .url("http://localhost/my-video.mp4")
-                .title("FooBar")
-                .subtitles_enabled(true)
-                .build(),
-        );
+        let request = PlayRequest::builder()
+            .url("http://localhost/my-video.mp4")
+            .title("FooBar")
+            .subtitles_enabled(true)
+            .build();
         let instance = new_test_instance().await;
         let init_mock = create_init_mock(&instance);
         let play_mock = instance.server().mock(|when, then| {
@@ -720,7 +721,7 @@ mod tests {
         });
         let player = instance.player_instance();
 
-        player.pause();
+        player.pause().await;
 
         wait_for_hit(&pause_mock).await;
         pause_mock.assert_async().await;
@@ -746,7 +747,7 @@ mod tests {
         });
         let player = instance.player_instance();
 
-        player.resume();
+        player.resume().await;
 
         wait_for_hit(&resume_mock).await;
         resume_mock.assert_async().await;
@@ -780,7 +781,7 @@ mod tests {
         });
         let player = instance.player_instance();
 
-        player.seek(14000);
+        player.seek(14000).await;
 
         wait_for_hit(&seek_mock).await;
         seek_mock.assert_async().await;
@@ -806,7 +807,7 @@ mod tests {
         });
         let player = instance.player_instance();
 
-        player.stop();
+        player.stop().await;
 
         let result = player.inner.event_poller_activated.lock().await;
         assert_eq!(

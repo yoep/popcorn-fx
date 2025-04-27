@@ -2,6 +2,7 @@ package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.yoep.popcorn.backend.media.Media;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.image.Image;
@@ -60,9 +61,9 @@ public abstract class AbstractCardComponent implements Initializable {
     protected void handlePosterLoadFuture(CompletableFuture<Optional<Image>> loadPosterFuture) {
         loadPosterFuture.whenComplete((image, throwable) -> {
             if (throwable == null) {
-                image.ifPresent(e -> setBackgroundImage(e, true));
+                image.ifPresent(e -> Platform.runLater(() -> setBackgroundImage(e, true)));
             } else {
-                log.error(throwable.getMessage(), throwable);
+                log.error("Failed to load poster image, {}", throwable.getMessage(), throwable);
             }
         });
     }

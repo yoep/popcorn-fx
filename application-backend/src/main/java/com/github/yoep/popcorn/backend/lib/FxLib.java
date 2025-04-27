@@ -53,11 +53,17 @@ public class FxLib implements Closeable {
         }
     }
 
+    /**
+     * Receive an incoming message from the library subprocess.
+     *
+     * @return Returns the received message.
+     * @throws FxLibException Throws an exception when the connection closed unexpectedly or an IO error occurred.
+     */
     public FxMessage receive() {
         try {
             var length_bytes = reader.readNBytes(4);
             if (length_bytes.length != 4) {
-                throw new FxChannelException("Channel received EOF");
+                throw new FxLibException("Channel received EOF");
             }
 
             var length = fromBigEndian(length_bytes);
@@ -66,10 +72,15 @@ public class FxLib implements Closeable {
             return FxMessage.parseFrom(message_bytes);
         } catch (IOException e) {
             log.error("Failed to read IPC message", e);
-            throw new FxChannelException(e.getMessage(), e);
+            throw new FxLibException(e.getMessage(), e);
         }
     }
 
+    /**
+     * Send the given message to the library subprocess.
+     *
+     * @param message The message to send (required).
+     */
     public void send(FxMessage message) {
         Objects.requireNonNull(message, "message cannot be null");
         var message_bytes = message.toByteArray();
@@ -88,13 +99,28 @@ public class FxLib implements Closeable {
         }
     }
 
+    /**
+     * Launch the library subprocess for this lib instance.
+     *
+     * @param socketPath The socket path to which the lib needs to connect to.
+     * @param libraryExecutable The executable filename of the library.
+     * @param args       The library arguments.
+     * @return Returns the library process.
+     * @throws IOException Throws an IO exception when the library couldn't be started.
+     */
+    Process launchLibProcess(String socketPath, String libraryExecutable, String[] args) throws IOException {
+        var processCommand = new ArrayList<>(asList(libraryExecutable, socketPath));
+        processCommand.addAll(asList(args));
+        return new ProcessBuilder(processCommand)
+                .inheritIO()
+                .start();
+    }
+
     private void createNamedPipe(String[] args) throws Exception {
         var socketPath = "libfx";
 
         namedPipe = new RandomAccessFile(String.format("\\\\.\\pipe\\%s", socketPath), "rw");
-        process = new ProcessBuilder("libfx.exe", socketPath)
-                .inheritIO()
-                .start();
+        process = launchLibProcess(socketPath, "libfx.exe", args);
 
         var fd = namedPipe.getFD();
         reader = new BufferedInputStream(new FileInputStream(fd));
@@ -108,12 +134,7 @@ public class FxLib implements Closeable {
         var address = UnixDomainSocketAddress.of(socketPath);
         unixSocket = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
         unixSocket.bind(address);
-
-        var processCommand = new ArrayList<>(asList("libfx", socketPath));
-        processCommand.addAll(asList(args));
-        process = new ProcessBuilder(processCommand)
-                .inheritIO()
-                .start();
+        process = launchLibProcess(socketPath, "libfx", args);
 
         channel = unixSocket.accept();
         unixSocket.configureBlocking(false);
@@ -122,7 +143,7 @@ public class FxLib implements Closeable {
         writer = new BufferedOutputStream(Channels.newOutputStream(channel));
     }
 
-    private static boolean isWindows() {
+    static boolean isWindows() {
         return System.getProperty("os.name").toLowerCase().contains("win");
     }
 

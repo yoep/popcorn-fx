@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Playlist;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManagerListener;
 import com.github.yoep.popcorn.ui.view.controls.SizedImageView;
@@ -20,7 +21,6 @@ import org.testfx.util.WaitForAsyncUtils;
 
 import java.net.URL;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -44,6 +44,8 @@ class PlayingNextInComponentTest {
 
     @BeforeEach
     void setUp() {
+        when(imageService.getPosterPlaceholder()).thenReturn(new CompletableFuture<>());
+
         component.playNextPane = new Pane();
         component.playNextPoster = new SizedImageView();
         component.showName = new Label();
@@ -58,10 +60,11 @@ class PlayingNextInComponentTest {
         var caption = "MyCaption";
         var thumb = "MyThumbUrl";
         var listenerHolder = new AtomicReference<PlaylistManagerListener>();
-        var item = mock(PlaylistItem.class);
-        when(item.title()).thenReturn(title);
-        when(item.getCaption()).thenReturn(Optional.of(caption));
-        when(item.getThumb()).thenReturn(Optional.of(thumb));
+        var item = Playlist.Item.newBuilder()
+                .setTitle(title)
+                .setCaption(caption)
+                .setThumb(thumb)
+                .build();
         when(imageService.load(isA(String.class))).thenReturn(new CompletableFuture<>());
         doAnswer(invocation -> {
             listenerHolder.set(invocation.getArgument(0, PlaylistManagerListener.class));

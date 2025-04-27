@@ -6,6 +6,7 @@ import com.github.yoep.popcorn.ui.font.controls.Icon;
 import com.github.yoep.popcorn.ui.view.controls.ImageCover;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.scene.control.Label;
+import javafx.scene.image.Image;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,6 +20,7 @@ import org.testfx.util.WaitForAsyncUtils;
 import java.net.URL;
 import java.time.LocalDateTime;
 import java.util.ResourceBundle;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -43,6 +45,9 @@ class EpisodeComponentTest {
 
     @BeforeEach
     void setUp() {
+        when(imageService.getArtPlaceholder())
+                .thenReturn(CompletableFuture.completedFuture(new Image(EpisodeComponentTest.class.getResourceAsStream("/posterholder.png"))));
+
         component = new EpisodeComponent(media, localeText, imageService);
 
         component.graphic = new Pane();

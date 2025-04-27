@@ -13,7 +13,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.Collection;
 import java.util.Objects;
-import java.util.Optional;
 
 @Slf4j
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
@@ -72,34 +71,21 @@ public class WatchNowUtils {
     }
 
     private static void updateAvailablePlayers(PlayerManagerService playerManagerService, DropDownButton<com.github.yoep.popcorn.backend.adapters.player.Player> watchNowButton) {
-        playerManagerService.getPlayers().whenComplete((players, throwable) -> {
-            if (throwable == null) {
-                Platform.runLater(() -> {
+        playerManagerService.getPlayers()
+                .thenCompose(players -> playerManagerService.getActivePlayer()
+                        .thenApply(player -> new PlayersInfo(players, player.orElse(null))))
+                .thenAccept(info -> Platform.runLater(() -> {
                     watchNowButton.clear();
-                    watchNowButton.addDropDownItems(players);
-                    playerManagerService.getActivePlayer()
-                            .thenApply(response -> response.flatMap(player ->
-                                    findMatchingPlayerByID(watchNowButton.getDropDownItems(), player)))
-                            .whenComplete((player, ex) -> {
-                                if (ex == null) {
-                                    player.ifPresent(e -> Platform.runLater(() -> watchNowButton.select(e)));
-                                } else {
-                                    log.error("Failed to retrieve active player", ex);
-                                }
-                            });
+                    watchNowButton.addDropDownItems(info.players);
+                    watchNowButton.select(info.activePlayer);
+                }))
+                .exceptionally(ex -> {
+                    log.error("Failed to retrieve available players", ex);
+                    return null;
                 });
-            } else {
-                log.error("Failed to retrieve players", throwable);
-            }
-        });
     }
 
-    private static Optional<com.github.yoep.popcorn.backend.adapters.player.Player> findMatchingPlayerByID(
-            Collection<com.github.yoep.popcorn.backend.adapters.player.Player> watchNowButton,
-            com.github.yoep.popcorn.backend.adapters.player.Player player
-    ) {
-        return watchNowButton.stream()
-                .filter(e -> Objects.equals(e.getId(), player.getId()))
-                .findFirst();
+    private record PlayersInfo(Collection<com.github.yoep.popcorn.backend.adapters.player.Player> players,
+                               com.github.yoep.popcorn.backend.adapters.player.Player activePlayer) {
     }
 }

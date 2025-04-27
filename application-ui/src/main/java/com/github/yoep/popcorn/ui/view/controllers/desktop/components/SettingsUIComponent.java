@@ -45,19 +45,31 @@ public class SettingsUIComponent extends AbstractSettingsUiComponent implements 
         defaultLanguage.setButtonCell(createLanguageCell());
 
         defaultLanguage.getItems().addAll(ApplicationConfig.supportedLanguages());
-//        defaultLanguage.getSelectionModel().select(Locale.forLanguageTag(getUiSettings().getDefaultLanguage()));
-        defaultLanguage.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> updateLanguage(newValue));
-        defaultLanguage.sceneProperty().addListener((observable, oldValue, newValue) -> {
-            if (newValue != null)
-                defaultLanguage.requestFocus();
+        getUiSettings().whenComplete((settings, throwable) -> {
+            if (throwable == null) {
+                defaultLanguage.getSelectionModel().select(Locale.forLanguageTag(settings.getDefaultLanguage()));
+                defaultLanguage.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> updateLanguage(newValue));
+                defaultLanguage.sceneProperty().addListener((observable, oldValue, newValue) -> {
+                    if (newValue != null)
+                        defaultLanguage.requestFocus();
+                });
+            } else {
+                log.error("Failed to retrieve UI settings", throwable);
+            }
         });
     }
 
     private void initializeUIScale() {
         uiScale.getItems().clear();
         uiScale.getItems().addAll(ApplicationConfig.supportedUIScales());
-//        uiScale.getSelectionModel().select(getUiSettings().getScale());
-        uiScale.getSelectionModel().selectedItemProperty().addListener(((observable, oldValue, newValue) -> updateUIScale(newValue)));
+        getUiSettings().whenComplete((settings, throwable) -> {
+            if (throwable == null) {
+                uiScale.getSelectionModel().select(settings.getScale());
+                uiScale.getSelectionModel().selectedItemProperty().addListener(((observable, oldValue, newValue) -> updateUIScale(newValue)));
+            } else {
+                log.error("Failed to retrieve UI settings", throwable);
+            }
+        });
     }
 
     private void initializeStartScreen() {

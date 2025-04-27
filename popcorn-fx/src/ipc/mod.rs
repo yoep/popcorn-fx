@@ -13,6 +13,8 @@ pub use playlist::*;
 pub use settings::*;
 pub use subtitle::*;
 pub use torrent::*;
+pub use tracking::*;
+pub use update::*;
 pub use watched::*;
 
 mod application;
@@ -32,6 +34,8 @@ mod proto;
 mod settings;
 mod subtitle;
 mod torrent;
+mod tracking;
+mod update;
 mod watched;
 
 #[cfg(test)]
@@ -49,7 +53,6 @@ pub(crate) mod test {
     use rand::{rng, Rng};
     use std::fmt::{Display, Formatter};
     use std::time::Duration;
-    use tokio::select;
     use tokio::sync::oneshot;
 
     mock! {
@@ -58,6 +61,9 @@ pub(crate) mod test {
 
         #[async_trait]
         impl MessageHandler for MessageHandler {
+            fn name(&self) -> &str {
+                "MockMessageHandler"
+            }
             fn is_supported(&self, message_type: &str) -> bool;
             async fn process(&self, message: FxMessage, channel: &IpcChannel) -> Result<()>;
         }
@@ -110,10 +116,10 @@ pub(crate) mod test {
         let conn = LocalSocketStream::connect(name)
             .await
             .expect("failed to connect to local socket");
-        let outgoing_channel = IpcChannel::new(conn);
+        let outgoing_channel = IpcChannel::new(conn, Duration::from_secs(1));
 
         let conn = rx.await.expect("failed to receive incoming connection");
-        let incoming_channel = IpcChannel::new(conn);
+        let incoming_channel = IpcChannel::new(conn, Duration::from_secs(1));
 
         (incoming_channel, outgoing_channel)
     }

@@ -7,7 +7,6 @@ use log::{debug, error, info, trace};
 use std::result;
 use std::sync::Arc;
 use thiserror::Error;
-use tokio::runtime::Runtime;
 use tokio::select;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::sync::Mutex;
@@ -303,7 +302,7 @@ mod tests {
     use super::*;
 
     use crate::core::media::tracking::MockTrackingProvider;
-    use crate::core::media::watched::MockWatchedService;
+    use crate::core::media::watched::test::MockWatchedService;
     use crate::core::media::{MediaIdentifier, MockMediaIdentifier};
     use crate::{assert_timeout_eq, init_logger};
 

@@ -385,7 +385,7 @@ impl PlayRequestMetadata {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum MetadataValue {
     String(String),
     Bool(bool),

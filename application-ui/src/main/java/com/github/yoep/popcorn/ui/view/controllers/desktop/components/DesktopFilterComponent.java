@@ -48,14 +48,14 @@ public class DesktopFilterComponent implements Initializable {
             @Override
             protected void updateItem(Media.SortBy item, boolean empty) {
                 super.updateItem(item, empty);
-                setText(empty ? null : localeText.get("genre_" + item.getKey()));
+                setText(empty ? null : localeText.get("sort-by_" + item.getKey()));
             }
         });
         sortByCombo.setButtonCell(new ListCell<>() {
             @Override
             protected void updateItem(Media.SortBy item, boolean empty) {
                 super.updateItem(item, empty);
-                setText(empty ? null : localeText.get("genre_" + item.getKey()));
+                setText(empty ? null : localeText.get("sort-by_" + item.getKey()));
             }
         });
     }
@@ -66,14 +66,14 @@ public class DesktopFilterComponent implements Initializable {
             @Override
             protected void updateItem(Media.Genre item, boolean empty) {
                 super.updateItem(item, empty);
-                setText(empty ? null : localeText.get("sort-by_" + item.getKey()));
+                setText(empty ? null : localeText.get("genre_" + item.getKey()));
             }
         });
         genreCombo.setButtonCell(new ListCell<>() {
             @Override
             protected void updateItem(Media.Genre item, boolean empty) {
                 super.updateItem(item, empty);
-                setText(empty ? null : localeText.get("sort-by_" + item.getKey()));
+                setText(empty ? null : localeText.get("genre_" + item.getKey()));
             }
         });
     }

@@ -18,8 +18,7 @@ use tokio::{select, time};
 use tokio_util::sync::CancellationToken;
 
 use popcorn_fx_core::core::players::{
-    MetadataValue, PlayRequest, PlayRequestBuilder, PlaySubtitleRequest, Player, PlayerEvent,
-    PlayerState,
+    MetadataValue, PlayRequest, PlayRequestBuilder, Player, PlayerEvent, PlayerState,
 };
 use popcorn_fx_core::core::subtitles::model::SubtitleType;
 use popcorn_fx_core::core::subtitles::SubtitleServer;
@@ -39,6 +38,8 @@ const DEFAULT_HEARTBEAT_INTERVAL_SECONDS: u64 = 30;
 const MEDIA_CHANNEL_NAMESPACE: &str = "urn:x-cast:com.google.cast.media";
 const SUBTITLE_CONTENT_TYPE: &str = "text/vtt";
 const MESSAGE_TYPE_ERROR: &str = "ERROR";
+const METADATA_TRANSCODING: &str = "transcoding";
+const METADATA_TRANSCODING_ORIGINAL_URL: &str = "";
 
 /// The type of the factory function used to create the Chromecast client device.
 pub type DeviceFactory<D> = Box<dyn Fn(String, u16) -> chromecast::Result<D> + Send + Sync>;
@@ -554,8 +555,9 @@ impl<D: FxCastDevice> InnerChromecastPlayer<D> {
                     Ok(output) => {
                         debug!("Received transcoding output {:?}", output);
                         let request = PlayRequestBuilder::from(&request)
-                            .metadata_bool("transcoding", true)
-                            .metadata_str("transcoding_original_url", request_url)
+                            .url(output.url)
+                            .metadata_bool(METADATA_TRANSCODING, true)
+                            .metadata_str(METADATA_TRANSCODING_ORIGINAL_URL, request_url)
                             .build();
 
                         // serve the chromecast subtitle if one is present
@@ -618,36 +620,35 @@ impl<D: FxCastDevice> InnerChromecastPlayer<D> {
         request: &PlayRequest,
         subtitle_url: Option<String>,
     ) -> chromecast::Result<()> {
-        return self
-            .try_command(|| async {
-                let cast_device = self.cast_device.read().await;
-                let active_track_ids = if subtitle_url.is_some() {
-                    Some(vec![0])
-                } else {
-                    None
-                };
-                let media = Self::request_to_media_payload(request, subtitle_url.clone());
-                let load = LoadCommand {
-                    request_id: 0,
-                    session_id: app.session_id.to_string(),
-                    payload_type: (),
-                    media,
-                    autoplay: true,
-                    current_time: request
-                        .auto_resume_timestamp()
-                        .map(|e| Self::parse_to_chromecast_time(e))
-                        .unwrap_or(0f32),
-                    active_track_ids,
-                };
+        self.try_command(|| async {
+            let cast_device = self.cast_device.read().await;
+            let active_track_ids = if subtitle_url.is_some() {
+                Some(vec![0])
+            } else {
+                None
+            };
+            let media = Self::request_to_media_payload(request, subtitle_url.clone());
+            let load = LoadCommand {
+                request_id: 0,
+                session_id: app.session_id.to_string(),
+                payload_type: (),
+                media,
+                autoplay: true,
+                current_time: request
+                    .auto_resume_timestamp()
+                    .map(|e| Self::parse_to_chromecast_time(e))
+                    .unwrap_or(0f32),
+                active_track_ids,
+            };
 
-                trace!("Sending load command {:?}", load);
-                if let Err(e) = cast_device.broadcast_message(MEDIA_CHANNEL_NAMESPACE, &load) {
-                    return Err(ChromecastError::AppInitializationFailed(e.to_string()));
-                }
+            trace!("Sending load command {:?}", load);
+            if let Err(e) = cast_device.broadcast_message(MEDIA_CHANNEL_NAMESPACE, &load) {
+                return Err(ChromecastError::AppInitializationFailed(e.to_string()));
+            }
 
-                Ok(())
-            })
-            .await;
+            Ok(())
+        })
+        .await
     }
 
     async fn stop_app(&self) -> chromecast::Result<()> {
@@ -1462,10 +1463,12 @@ mod tests {
             .expect_convert()
             .times(2)
             .return_const(Ok(subtitle_url.to_string()));
-        let (tx, mut rx) = unbounded_channel();
+        let (tx_ready, mut rx_ready) = unbounded_channel();
+        let (tx_transcode, mut rx_transcode) = unbounded_channel();
+        let mut load_transcoding_url = Some(());
         let mut transcoder = MockTranscoder::new();
         transcoder.expect_transcode().times(1).returning(move |e| {
-            tx.send(e.to_string()).unwrap();
+            tx_transcode.send(e.to_string()).unwrap();
             Ok(TranscodeOutput {
                 url: transcoding_url.to_string(),
                 output_type: TranscodeType::Live,
@@ -1495,10 +1498,16 @@ mod tests {
                     display_name: "".to_string(),
                     status_text: "".to_string(),
                 }));
+                let value = tx_ready.clone();
                 device
                     .expect_broadcast_message::<LoadCommand>()
                     .times(2)
-                    .return_const(Ok(()));
+                    .returning(move |_, _| {
+                        if let None = load_transcoding_url.take() {
+                            value.send(()).unwrap();
+                        }
+                        Ok(())
+                    });
                 device
                     .expect_play::<String>()
                     .times(2)
@@ -1534,15 +1543,28 @@ mod tests {
             .handle_event(Ok(ChannelMessage::Media(response)))
             .await;
 
-        let transcode_url = recv_timeout!(&mut rx, Duration::from_millis(250));
+        let transcode_url = recv_timeout!(&mut rx_transcode, Duration::from_millis(250));
         assert_eq!(original_url, transcode_url);
 
-        let request_url = player.request().await.map(|e| e.url().to_string()).unwrap();
-        assert_eq!(
-            transcoding_url.to_string(),
-            request_url,
-            "expected the request url to be the transcoding live url"
+        recv_timeout!(
+            &mut rx_ready,
+            Duration::from_millis(250),
+            "expected the transcoding url to have been loaded"
         );
+
+        if let Some(request) = player.request().await {
+            let request_url = request.url();
+            assert_eq!(
+                transcoding_url, request_url,
+                "expected the request url to be the transcoding live url"
+            );
+            assert_eq!(
+                Some(&MetadataValue::Bool(true)),
+                request.metadata().get(METADATA_TRANSCODING)
+            );
+        } else {
+            assert!(false, "expected a PlayRequest to have been present")
+        }
     }
 
     #[tokio::test]

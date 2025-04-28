@@ -130,6 +130,7 @@ impl LoadingStrategy for TorrentStreamLoadingStrategy {
             let handle = stream.handle();
             trace!("Cancelling torrent download & stream for {}", handle);
             self.torrent_stream_server.stop_stream(handle).await;
+            data.torrent = Some(TorrentData::Torrent(stream));
             debug!("Stream {} loading has been cancelled", handle);
         }
 
@@ -183,13 +184,9 @@ mod tests {
     async fn test_cancel() {
         init_logger!();
         let handle = TorrentHandle::new();
-        let stream_handle = Handle::new();
         let mut stream = MockTorrentStream::new();
         stream.inner.expect_handle().return_const(handle);
-        stream
-            .inner
-            .expect_stream_handle()
-            .return_const(stream_handle.clone());
+        stream.inner.expect_stream_handle().return_const(handle);
         let data = create_loading_data(stream);
         let (tx, mut rx) = unbounded_channel();
         let mut stream_server = MockTorrentStreamServer::new();
@@ -205,10 +202,19 @@ mod tests {
 
         let result = strategy.cancel(data).await;
         if let Ok(result) = result {
-            assert!(
-                result.torrent.is_none(),
-                "expected the torrent_stream data to have been dropped"
-            );
+            if let Some(TorrentData::Torrent(torrent)) = result.torrent {
+                assert_eq!(
+                    handle,
+                    torrent.handle(),
+                    "expected the stream to have been set as torrent for next cancellation"
+                );
+            } else {
+                assert!(
+                    false,
+                    "expected TorrentData::Torrent, but got {:?} instead",
+                    result
+                );
+            }
         } else {
             assert!(
                 false,
@@ -218,7 +224,7 @@ mod tests {
         }
 
         let result = recv_timeout!(&mut rx, Duration::from_millis(200));
-        assert_eq!(stream_handle, result);
+        assert_eq!(handle, result);
     }
 
     fn create_loading_data(stream: MockTorrentStream) -> LoadingData {

@@ -10,10 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -92,7 +89,7 @@ public class ShowHelperService {
      * @param season   The season to retrieve the first unwatched episode of.
      * @return Returns the first unwatched episode, or the last episode if all episodes have been watched.
      */
-    public CompletableFuture<Episode> getUnwatchedEpisode(List<Episode> episodes, Season season) {
+    public CompletableFuture<Optional<Episode>> getUnwatchedEpisode(List<Episode> episodes, Season season) {
         Objects.requireNonNull(episodes, "episodes cannot be null");
         var filteredEpisodes = episodes.stream()
                 .sorted()
@@ -111,11 +108,17 @@ public class ShowHelperService {
                         .filter(e -> !e.isWatched())
                         .findFirst()
                         .map(EnhancedEpisode::episode)
-                        .orElse(filteredEpisodes.getFirst()))
+                        .or(() -> firstEpisode(filteredEpisodes)))
                 .exceptionally(ex -> {
                     log.warn("Failed to retrieve watched state of episodes", ex);
-                    return filteredEpisodes.getFirst();
+                    return firstEpisode(filteredEpisodes);
                 });
+    }
+
+    private static Optional<Episode> firstEpisode(List<Episode> episodes) {
+        return episodes.stream()
+                .sorted()
+                .findFirst();
     }
 
     //endregion

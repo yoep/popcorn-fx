@@ -313,14 +313,13 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
 
     private void selectUnwatchedEpisode(Season newSeason) {
         var episodes = this.episodes.getItems();
-        showHelperService.getUnwatchedEpisode(episodes, newSeason).whenComplete((episode, throwable) -> {
-            if (throwable == null) {
-                // check if the current season should be marked as watched
-                Platform.runLater(() -> this.episodes.setSelectedItem(episode, true));
-            } else {
-                log.error("Failed to get unwatched episode", throwable);
-            }
-        });
+        showHelperService.getUnwatchedEpisode(episodes, newSeason)
+                .thenAccept(episode ->
+                        episode.ifPresent(e -> Platform.runLater(() -> this.episodes.setSelectedItem(e)))
+                ).exceptionally(ex -> {
+                    log.error("Failed to get unwatched episode, {}", ex.getMessage(), ex);
+                    return null;
+                });
     }
 
     private String getWatchedTooltip(boolean watched) {

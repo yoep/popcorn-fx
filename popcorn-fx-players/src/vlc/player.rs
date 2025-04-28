@@ -646,7 +646,7 @@ mod tests {
         init_logger!();
         let title = "FooBarTitle";
         let language = SubtitleLanguage::Finnish;
-        let mut request = PlayRequest::builder()
+        let request = PlayRequest::builder()
             .url("http://localhost:8080/myvideo.mp4")
             .title(title)
             .quality("720p")
@@ -700,6 +700,7 @@ mod tests {
         });
         let request = PlayRequest::builder()
             .url("http://localhost:8080/myvideo.mp4")
+            .title("MyVideo")
             .subtitles_enabled(false)
             .build();
         let mut manager = MockSubtitleManager::new();

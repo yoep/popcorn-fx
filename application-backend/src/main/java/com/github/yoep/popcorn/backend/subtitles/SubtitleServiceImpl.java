@@ -10,7 +10,6 @@ import com.github.yoep.popcorn.backend.media.Episode;
 import com.github.yoep.popcorn.backend.media.MediaHelper;
 import com.github.yoep.popcorn.backend.media.MovieDetails;
 import com.github.yoep.popcorn.backend.media.ShowDetails;
-import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
@@ -89,19 +88,25 @@ public class SubtitleServiceImpl implements ISubtitleService, FxCallback<Subtitl
     }
 
     @Override
-    public CompletableFuture<ISubtitle> downloadAndParse(Info subtitleInfo, SubtitleMatcher.ByReference matcher) {
+    public CompletableFuture<ISubtitle> downloadAndParse(ISubtitleInfo subtitleInfo, Subtitle.Matcher matcher) {
         Objects.requireNonNull(subtitleInfo, "subtitleInfo cannot be null");
         Objects.requireNonNull(matcher, "matcher cannot be null");
-
-//        try (var info = com.github.yoep.popcorn.backend.subtitles.ffi.SubtitleInfo.ByReference.from(subtitleInfo)) {
-//            return CompletableFuture.supplyAsync(() -> {
-//                log.debug("Starting subtitle download subtitleInfo: {}, matcher: {}", subtitleInfo, matcher);
-//                var subtitle = fxLib.download_and_parse_subtitle(instance, info, matcher);
-//                log.info("Downloaded and parsed subtitle info {} to {}", subtitleInfo, subtitle.getFilepath());
-//                return subtitle;
-//            }, executorService);
-//        }
-        return null;
+        if (subtitleInfo instanceof SubtitleInfoWrapper(Subtitle.Info proto)) {
+            return fxChannel.send(DownloadAndParseSubtitleRequest.newBuilder()
+                            .setInfo(proto)
+                            .setMatcher(matcher)
+                            .build(), DownloadAndParseSubtitleResponse.parser())
+                    .thenApply(response -> {
+                        if (response.getResult() == Response.Result.OK) {
+                            return new SubtitleWrapper(response.getSubtitle());
+                        } else {
+                            log.error("Failed to download and parse subtitle for {}, {}", subtitleInfo, response.getError());
+                            throw new FxChannelException("Failed to download and parse subtitle");
+                        }
+                    });
+        } else {
+            throw new IllegalArgumentException("subtitleInfo is not a SubtitleInfoWrapper");
+        }
     }
 
     @Override

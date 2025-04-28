@@ -68,6 +68,11 @@ message Subtitle {
     }
   }
 
+  message Matcher {
+    string filename = 1;
+    optional string quality = 2;
+  }
+
   enum Language {
     NONE = 0;
     CUSTOM = 1;
@@ -196,3 +201,14 @@ message GetPreferredSubtitleResponse {
 message ResetSubtitleRequest {}
 
 message CleanSubtitlesDirectoryRequest {}
+
+message DownloadAndParseSubtitleRequest {
+  Subtitle.Info info = 1;
+  Subtitle.Matcher matcher = 2;
+}
+
+message DownloadAndParseSubtitleResponse {
+  Response.Result result = 1;
+  optional Subtitle subtitle = 2;
+  optional Subtitle.Error error = 3;
+}

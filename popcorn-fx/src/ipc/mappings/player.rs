@@ -79,8 +79,12 @@ impl From<&PlaySubtitleRequest> for play_request::PlaySubtitleRequest {
     fn from(value: &PlaySubtitleRequest) -> Self {
         Self {
             enabled: value.enabled,
-            info: MessageField::from(value.info.as_ref().map(subtitle::Info::from)),
-            subtitle: Default::default(),
+            info: value.info.as_ref().map(subtitle::Info::from).into(),
+            subtitle: value
+                .subtitle
+                .as_ref()
+                .map(proto::subtitle::Subtitle::from)
+                .into(),
             special_fields: Default::default(),
         }
     }

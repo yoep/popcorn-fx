@@ -2,16 +2,17 @@ package com.github.yoep.player.popcorn.services;
 
 import com.github.yoep.player.popcorn.listeners.PlaybackListener;
 import com.github.yoep.player.popcorn.listeners.PlayerHeaderListener;
-import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentListener;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Handle;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.ArgumentMatchers.isA;
@@ -44,8 +45,9 @@ class PlayerHeaderServiceTest {
     @Test
     void testPlaybackListener_whenPlayRequestInvoked_shouldSetTheTitle() {
         var expectedTitle = "lorem ipsum dolor";
-        var request = mock(PlayRequest.class);
-        when(request.getTitle()).thenReturn(expectedTitle);
+        var request = Player.PlayRequest.newBuilder()
+                .setTitle(expectedTitle)
+                .build();
 
         listenerHolder.get().onPlay(request);
 
@@ -55,8 +57,9 @@ class PlayerHeaderServiceTest {
     @Test
     void testPlaybackListener_whenRequestIsMediaPlayRequest_shouldSetTheQuality() {
         var expectedQuality = "1080p";
-        var request = mock(PlayRequest.class);
-        when(request.getQuality()).thenReturn(Optional.of(expectedQuality));
+        var request = Player.PlayRequest.newBuilder()
+                .setQuality(expectedQuality)
+                .build();
 
         listenerHolder.get().onPlay(request);
 
@@ -65,8 +68,13 @@ class PlayerHeaderServiceTest {
 
     @Test
     void testPlaybackListener_whenRequestIsStreamingRequest_shouldSetStreamStateToTrue() {
-        var request = mock(PlayRequest.class);
-        when(request.getStreamHandle()).thenReturn(Optional.of(new Handle(111L)));
+        var request = Player.PlayRequest.newBuilder()
+                .setTorrent(Player.PlayRequest.Torrent.newBuilder()
+                        .setHandle(Handle.newBuilder()
+                                .setHandle(111L)
+                                .build())
+                        .build())
+                .build();
 
         listenerHolder.get().onPlay(request);
 
@@ -77,9 +85,13 @@ class PlayerHeaderServiceTest {
     void testPlaybackListener_whenRequestIsStreamingRequest_shouldInvokeDownloadStatusChangedOnListeners() {
         var streamListener = new AtomicReference<TorrentListener>();
         var progress = mock(DownloadStatus.class);
-        var request = mock(PlayRequest.class);
-        var streamHandle = new Handle(123L);
-        when(request.getStreamHandle()).thenReturn(Optional.of(streamHandle));
+        var request = Player.PlayRequest.newBuilder()
+                .setTorrent(Player.PlayRequest.Torrent.newBuilder()
+                        .setHandle(Handle.newBuilder()
+                                .setHandle(123L)
+                                .build())
+                        .build())
+                .build();
         doAnswer(invocation -> {
             streamListener.set(invocation.getArgument(1, TorrentListener.class));
             return null;

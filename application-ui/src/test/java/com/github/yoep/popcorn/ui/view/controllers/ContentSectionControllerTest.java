@@ -2,12 +2,14 @@ package com.github.yoep.popcorn.ui.view.controllers;
 
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowAboutEvent;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationSettings;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.*;
 import com.github.yoep.popcorn.ui.view.ViewLoader;
 import com.github.yoep.popcorn.ui.view.services.MaximizeService;
+import javafx.scene.control.Label;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
@@ -25,11 +27,13 @@ import org.testfx.util.WaitForAsyncUtils;
 
 import java.net.URL;
 import java.util.ResourceBundle;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
@@ -61,6 +65,11 @@ class ContentSectionControllerTest {
             return null;
         }).when(executorService).execute(any(Runnable.class));
         lenient().when(viewLoader.load(isA(String.class))).thenReturn(new Pane());
+        when(applicationConfig.getSettings()).thenReturn(CompletableFuture.completedFuture(ApplicationSettings.newBuilder()
+                .setUiSettings(ApplicationSettings.UISettings.newBuilder()
+                        .setNativeWindowEnabled(false)
+                        .build())
+                .build()));
         controller.contentPane = new Pane();
         controller.listPane = new Pane();
 
@@ -110,11 +119,31 @@ class ContentSectionControllerTest {
 
     @Test
     void testWhenDesktop_shouldLoadWindowComponent() {
+        var component = new Pane(new Label("MyWindowComponent"));
         when(applicationConfig.isTvMode()).thenReturn(false);
+        when(viewLoader.load(ContentSectionController.WINDOW_COMPONENT)).thenReturn(component);
 
         controller.initialize(url, resourceBundle);
+        WaitForAsyncUtils.waitForFxEvents();
 
         verify(viewLoader).load(ContentSectionController.WINDOW_COMPONENT);
+        assertEquals(controller.rightTopSection, component);
+    }
+
+    @Test
+    void testWhenDesktopAndNativeWindow_shouldNotLoadWindowComponent() {
+        when(applicationConfig.isTvMode()).thenReturn(false);
+        when(applicationConfig.getSettings()).thenReturn(CompletableFuture.completedFuture(ApplicationSettings.newBuilder()
+                .setUiSettings(ApplicationSettings.UISettings.newBuilder()
+                        .setNativeWindowEnabled(true)
+                        .build())
+                .build()));
+
+        controller.initialize(url, resourceBundle);
+        WaitForAsyncUtils.waitForFxEvents();
+
+        verify(viewLoader, times(0)).load(ContentSectionController.WINDOW_COMPONENT);
+        assertTrue(controller.rightTopSection.getChildren().isEmpty(), "expected the rightTopSection to have been empty");
     }
 
     @Test
@@ -122,6 +151,7 @@ class ContentSectionControllerTest {
         when(applicationConfig.isTvMode()).thenReturn(true);
 
         controller.initialize(url, resourceBundle);
+        WaitForAsyncUtils.waitForFxEvents();
 
         verify(viewLoader).load(ContentSectionController.SYSTEM_TIME_COMPONENT);
     }

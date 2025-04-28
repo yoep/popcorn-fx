@@ -4,6 +4,7 @@ import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowAboutEvent;
 import com.github.yoep.popcorn.backend.events.ShowDetailsEvent;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.*;
@@ -69,8 +70,6 @@ public class ContentSectionController implements Initializable {
         initializePanes();
         initializeEventListeners();
         initializeMode();
-
-        switchContent(ContentType.LIST);
     }
 
     private void initializePanes() {
@@ -138,15 +137,25 @@ public class ContentSectionController implements Initializable {
     }
 
     private void initializeMode() {
-        if (applicationConfig.isTvMode()) {
-            rightTopSection = viewLoader.load(SYSTEM_TIME_COMPONENT);
-        } else {
-            rightTopSection = viewLoader.load(WINDOW_COMPONENT);
-        }
+        applicationConfig.getSettings()
+                .thenApply(ApplicationSettings::getUiSettings)
+                .thenAccept(settings -> Platform.runLater(() -> {
+                    if (applicationConfig.isTvMode()) {
+                        rightTopSection = viewLoader.load(SYSTEM_TIME_COMPONENT);
+                    } else {
+                        if (settings.getNativeWindowEnabled()) {
+                            rightTopSection = new Pane();
+                        } else {
+                            rightTopSection = viewLoader.load(WINDOW_COMPONENT);
+                        }
 
-        AnchorPane.setTopAnchor(rightTopSection, 0.0);
-        AnchorPane.setRightAnchor(rightTopSection, 0.0);
-        contentPane.getChildren().add(2, rightTopSection);
+                    }
+
+                    AnchorPane.setTopAnchor(rightTopSection, 0.0);
+                    AnchorPane.setRightAnchor(rightTopSection, 0.0);
+                    contentPane.getChildren().add(2, rightTopSection);
+                    switchContent(ContentType.LIST);
+                }));
     }
 
     //endregion

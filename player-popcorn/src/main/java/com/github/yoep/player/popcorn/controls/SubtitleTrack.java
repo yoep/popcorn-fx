@@ -1,10 +1,8 @@
 package com.github.yoep.player.popcorn.controls;
 
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationSettings;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Subtitle;
 import com.github.yoep.popcorn.backend.subtitles.ISubtitle;
-import com.github.yoep.popcorn.backend.subtitles.model.SubtitleCue;
-import com.github.yoep.popcorn.backend.subtitles.model.SubtitleLine;
-import com.github.yoep.popcorn.backend.subtitles.model.SubtitleText;
 import javafx.application.Platform;
 import javafx.beans.property.*;
 import javafx.geometry.Pos;
@@ -42,7 +40,7 @@ public class SubtitleTrack extends VBox {
 
     private List<TrackLabel> labels;
     private ISubtitle subtitle;
-    private SubtitleCue activeSubtitle;
+    private Subtitle.Cue activeSubtitle;
 
     //region Constructors
 
@@ -179,39 +177,39 @@ public class SubtitleTrack extends VBox {
         fontFamily.addListener((observable, oldValue, newValue) -> onFontChanged());
         fontSize.addListener((observable, oldValue, newValue) -> onFontChanged());
         fontWeight.addListener((observable, oldValue, newValue) -> onFontChanged());
-//        decoration.addListener((observable, oldValue, newValue) -> onDecorationChanged(newValue));
+        decoration.addListener((observable, oldValue, newValue) -> onDecorationChanged(newValue));
         offset.addListener((observable, oldValue, newValue) -> onOffsetChanged());
     }
 
     private void updateSubtitleTrack(Cue subtitle) {
-//        if (activeSubtitle == subtitle)
-//            return;
-//
-//        log.trace("Updating subtitle track to {}", subtitle);
-//        TrackFlags[] flags = new TrackFlags[]{
-//                decoration.get() == ApplicationSettings.SubtitleSettings.DecorationType.OUTLINE ? TrackFlags.OUTLINE : TrackFlags.NORMAL,
-//                decoration.get() == ApplicationSettings.SubtitleSettings.DecorationType.OPAQUE_BACKGROUND ? TrackFlags.OPAQUE_BACKGROUND : TrackFlags.NORMAL,
-//                decoration.get() == ApplicationSettings.SubtitleSettings.DecorationType.SEE_THROUGH_BACKGROUND ? TrackFlags.SEE_THROUGH_BACKGROUND : TrackFlags.NORMAL,
-//        };
-//        var lines = subtitle.getLines().stream()
-//                .map(line -> new TrackLine(flags, parseSubtitleLine(line, flags)))
-//                .toList();
-//
-//        activeSubtitle = subtitle;
-//
-//        Platform.runLater(() -> {
-//            this.getChildren().clear();
-//            this.getChildren().addAll(lines);
-//        });
+        if (activeSubtitle == subtitle)
+            return;
+
+        log.trace("Updating subtitle track to {}", subtitle);
+        TrackFlags[] flags = new TrackFlags[]{
+                decoration.get() == ApplicationSettings.SubtitleSettings.DecorationType.OUTLINE ? TrackFlags.OUTLINE : TrackFlags.NORMAL,
+                decoration.get() == ApplicationSettings.SubtitleSettings.DecorationType.OPAQUE_BACKGROUND ? TrackFlags.OPAQUE_BACKGROUND : TrackFlags.NORMAL,
+                decoration.get() == ApplicationSettings.SubtitleSettings.DecorationType.SEE_THROUGH_BACKGROUND ? TrackFlags.SEE_THROUGH_BACKGROUND : TrackFlags.NORMAL,
+        };
+        var lines = subtitle.getLinesList().stream()
+                .map(line -> new TrackLine(flags, parseSubtitleLine(line, flags)))
+                .toList();
+
+        activeSubtitle = subtitle;
+
+        Platform.runLater(() -> {
+            this.getChildren().clear();
+            this.getChildren().addAll(lines);
+        });
     }
 
-    private TrackLabel[] parseSubtitleLine(SubtitleLine line, TrackFlags[] flags) {
-        return line.texts().stream()
+    private TrackLabel[] parseSubtitleLine(Subtitle.Cue.Line line, TrackFlags[] flags) {
+        return line.getTextList().stream()
                 .map(text -> createLabel(text, flags))
                 .toArray(TrackLabel[]::new);
     }
 
-    private TrackLabel createLabel(SubtitleText text, TrackFlags[] flags) {
+    private TrackLabel createLabel(Subtitle.Cue.Line.Text text, TrackFlags[] flags) {
         var label = new TrackLabel(text, fontFamily.get(), fontSize.get(), fontWeight.get(), flags);
 
         if (labels == null)
@@ -317,7 +315,7 @@ public class SubtitleTrack extends VBox {
         private int size;
         private FontWeight weight;
 
-        private TrackLabel(SubtitleText line, String family, int size, FontWeight weight, TrackFlags... flags) {
+        private TrackLabel(Subtitle.Cue.Line.Text line, String family, int size, FontWeight weight, TrackFlags... flags) {
             super(line.getText());
             this.flags = TrackFlags.from(line);
             this.family = family;

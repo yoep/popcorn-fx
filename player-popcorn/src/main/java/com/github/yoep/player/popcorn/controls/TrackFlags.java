@@ -1,7 +1,6 @@
 package com.github.yoep.player.popcorn.controls;
 
-import com.github.yoep.popcorn.backend.subtitles.model.SubtitleLine;
-import com.github.yoep.popcorn.backend.subtitles.model.SubtitleText;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Subtitle;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
@@ -28,19 +27,19 @@ public class TrackFlags {
     }
 
     /**
-     * Create track flags from the given {@link SubtitleLine}.
+     * Create track flags from the given {@link Subtitle.Cue.Line.Text}.
      *
      * @param line The line to create tracks flags of.
-     * @return Returns track flags with the flags for the given {@link SubtitleLine}.
+     * @return Returns track flags with the flags for the given {@link Subtitle.Cue.Line.Text}.
      */
-    public static TrackFlags from(SubtitleText line) {
+    public static TrackFlags from(Subtitle.Cue.Line.Text line) {
         int flags = 0;
 
-        if (line.isItalic())
+        if (line.getItalic())
             flags += 1;
-        if (line.isBold())
+        if (line.getBold())
             flags += 2;
-        if (line.isUnderline())
+        if (line.getUnderline())
             flags += 4;
 
         return new TrackFlags(flags);

@@ -7,7 +7,9 @@ import com.github.yoep.player.popcorn.services.PlayerSubtitleService;
 import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Subtitle;
 import com.github.yoep.popcorn.backend.messages.SubtitleMessage;
+import com.github.yoep.popcorn.backend.subtitles.SubtitleInfoWrapper;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.SubtitleOffsetEvent;
 import com.github.yoep.popcorn.ui.font.controls.Icon;
@@ -34,10 +36,12 @@ import org.testfx.util.WaitForAsyncUtils;
 import java.net.URL;
 import java.util.Objects;
 import java.util.ResourceBundle;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static java.util.Arrays.asList;
 import static org.mockito.Mockito.*;
 
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
@@ -54,11 +58,21 @@ class TvPlayerControlsComponentTest {
     private URL url;
     @Mock
     private ResourceBundle resourceBundle;
-    @InjectMocks
     private TvPlayerControlsComponent component;
 
     @BeforeEach
     void setUp() {
+        lenient().when(subtitleService.defaultSubtitles()).thenReturn(CompletableFuture.completedFuture(asList(
+                new SubtitleInfoWrapper(Subtitle.Info.newBuilder()
+                        .setLanguage(Subtitle.Language.NONE)
+                        .build()),
+                new SubtitleInfoWrapper(Subtitle.Info.newBuilder()
+                        .setLanguage(Subtitle.Language.CUSTOM)
+                        .build()))
+        ));
+
+        component = new TvPlayerControlsComponent(eventPublisher, playerControlsService, subtitleService, localeText);
+
         component.playButton = new Icon();
         component.subtitleOverlay = new Overlay();
         component.subtitleSelection = new AxisItemSelection<>();

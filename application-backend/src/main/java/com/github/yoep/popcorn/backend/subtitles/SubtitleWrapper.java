@@ -3,7 +3,6 @@ package com.github.yoep.popcorn.backend.subtitles;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Subtitle.Cue;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Subtitle.Info;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Subtitle.Language;
-import com.github.yoep.popcorn.backend.subtitles.model.SubtitleCue;
 
 import java.util.List;
 import java.util.Objects;

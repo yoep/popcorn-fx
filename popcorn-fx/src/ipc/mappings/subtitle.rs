@@ -1,8 +1,10 @@
+use crate::ipc::proto::subtitle::subtitle;
 use crate::ipc::proto::subtitle::subtitle_preference::Preference;
-use crate::ipc::proto::subtitle::{subtitle, subtitle_preference};
 use crate::ipc::{proto, Error, Result};
+use popcorn_fx_core::core::subtitles::cue::{StyledText, SubtitleCue, SubtitleLine};
 use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
-use popcorn_fx_core::core::subtitles::model::SubtitleInfo;
+use popcorn_fx_core::core::subtitles::matcher::SubtitleMatcher;
+use popcorn_fx_core::core::subtitles::model::{Subtitle, SubtitleInfo};
 use popcorn_fx_core::core::subtitles::{SubtitleError, SubtitleFile, SubtitlePreference};
 use protobuf::MessageField;
 
@@ -79,17 +81,73 @@ impl From<&subtitle::info::File> for SubtitleFile {
     }
 }
 
+impl From<&Subtitle> for proto::subtitle::Subtitle {
+    fn from(value: &Subtitle) -> Self {
+        Self {
+            file_path: value.file().to_string(),
+            info: value
+                .info()
+                .as_ref()
+                .map(|e| subtitle::Info::from(*e))
+                .into(),
+            cues: vec![],
+            special_fields: Default::default(),
+        }
+    }
+}
+
+impl From<&SubtitleCue> for subtitle::Cue {
+    fn from(value: &SubtitleCue) -> Self {
+        Self {
+            id: value.id().clone(),
+            start_time: *value.start_time(),
+            end_time: *value.end_time(),
+            lines: value
+                .lines()
+                .iter()
+                .map(subtitle::cue::Line::from)
+                .collect(),
+            special_fields: Default::default(),
+        }
+    }
+}
+
+impl From<&SubtitleLine> for subtitle::cue::Line {
+    fn from(value: &SubtitleLine) -> Self {
+        Self {
+            text: value
+                .texts()
+                .iter()
+                .map(subtitle::cue::line::Text::from)
+                .collect(),
+            special_fields: Default::default(),
+        }
+    }
+}
+
+impl From<&StyledText> for subtitle::cue::line::Text {
+    fn from(value: &StyledText) -> Self {
+        Self {
+            text: value.text().clone(),
+            italic: *value.italic(),
+            bold: *value.bold(),
+            underline: *value.underline(),
+            special_fields: Default::default(),
+        }
+    }
+}
+
 impl From<&SubtitlePreference> for proto::subtitle::SubtitlePreference {
     fn from(value: &SubtitlePreference) -> Self {
         let mut preference = Self::new();
 
         match value {
             SubtitlePreference::Language(language) => {
-                preference.preference = subtitle_preference::Preference::LANGUAGE.into();
+                preference.preference = Preference::LANGUAGE.into();
                 preference.language = Some(subtitle::Language::from(language).into());
             }
             SubtitlePreference::Disabled => {
-                preference.preference = subtitle_preference::Preference::DISABLED.into();
+                preference.preference = Preference::DISABLED.into();
             }
         }
 
@@ -198,6 +256,12 @@ impl From<&subtitle::Language> for SubtitleLanguage {
             subtitle::Language::UKRAINIAN => Self::Ukrainian,
             subtitle::Language::VIETNAMESE => Self::Vietnamese,
         }
+    }
+}
+
+impl From<&subtitle::Matcher> for SubtitleMatcher {
+    fn from(value: &subtitle::Matcher) -> Self {
+        Self::from_string(Some(value.filename.clone()), value.quality.clone())
     }
 }
 

@@ -145,12 +145,12 @@ public class EmbeddablePopcornPlayer implements com.github.yoep.popcorn.backend.
 
     private void registerPlayer() {
         log.trace("Registering the embedded Popcorn Time player");
-        playerService.register(this).whenComplete((response, throwable) -> {
-            if (throwable == null) {
+        playerService.register(this).thenAccept(response -> {
+            if (response) {
                 log.debug("Registered embeddable Popcorn Time player");
                 playerService.setActivePlayer(this);
             } else {
-                log.error("Failed to register embeddable Popcorn Time player, {}", throwable.getMessage(), throwable);
+                log.error("Failed to register embeddable Popcorn Time player");
             }
         });
     }

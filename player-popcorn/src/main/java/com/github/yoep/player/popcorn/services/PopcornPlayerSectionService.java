@@ -15,8 +15,11 @@ import com.github.yoep.popcorn.backend.settings.AbstractApplicationSettingsEvent
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.settings.ApplicationSettingsEventListener;
 import com.github.yoep.popcorn.backend.subtitles.ISubtitle;
+import com.github.yoep.popcorn.backend.subtitles.ISubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleWrapper;
 import lombok.extern.slf4j.Slf4j;
+
+import java.util.List;
 
 @Slf4j
 public class PopcornPlayerSectionService extends AbstractListenerService<PopcornPlayerSectionListener> {
@@ -117,6 +120,11 @@ public class PopcornPlayerSectionService extends AbstractListenerService<Popcorn
             @Override
             public void onSubtitleDisabled() {
                 invokeListeners(PopcornPlayerSectionListener::onSubtitleDisabled);
+            }
+
+            @Override
+            public void onAvailableSubtitlesChanged(List<ISubtitleInfo> subtitles) {
+                // no-op
             }
         });
     }

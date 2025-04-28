@@ -1,12 +1,12 @@
 use crate::fx::PopcornFX;
 use crate::ipc::proto::message::{response, FxMessage};
 use crate::ipc::proto::subtitle::{
-    subtitle, CleanSubtitlesDirectoryRequest, GetDefaultSubtitlesRequest,
-    GetDefaultSubtitlesResponse, GetFileAvailableSubtitlesRequest,
-    GetFileAvailableSubtitlesResponse, GetMediaAvailableSubtitlesRequest,
-    GetMediaAvailableSubtitlesResponse, GetPreferredSubtitleRequest, GetPreferredSubtitleResponse,
-    GetSubtitlePreferenceRequest, GetSubtitlePreferenceResponse, ResetSubtitleRequest,
-    UpdateSubtitlePreferenceRequest,
+    subtitle, CleanSubtitlesDirectoryRequest, DownloadAndParseSubtitleRequest,
+    DownloadAndParseSubtitleResponse, GetDefaultSubtitlesRequest, GetDefaultSubtitlesResponse,
+    GetFileAvailableSubtitlesRequest, GetFileAvailableSubtitlesResponse,
+    GetMediaAvailableSubtitlesRequest, GetMediaAvailableSubtitlesResponse,
+    GetPreferredSubtitleRequest, GetPreferredSubtitleResponse, GetSubtitlePreferenceRequest,
+    GetSubtitlePreferenceResponse, ResetSubtitleRequest, UpdateSubtitlePreferenceRequest,
 };
 use crate::ipc::{proto, Error, IpcChannel, MessageHandler};
 use async_trait::async_trait;
@@ -14,6 +14,7 @@ use itertools::Itertools;
 use popcorn_fx_core::core::media::{
     Episode, MediaIdentifier, MediaOverview, MovieDetails, ShowDetails,
 };
+use popcorn_fx_core::core::subtitles::matcher::SubtitleMatcher;
 use popcorn_fx_core::core::subtitles::model::SubtitleInfo;
 use popcorn_fx_core::core::subtitles::{Result, SubtitlePreference};
 use protobuf::{Message, MessageField};
@@ -45,6 +46,7 @@ impl MessageHandler for SubtitleMessageHandler {
                 | GetMediaAvailableSubtitlesRequest::NAME
                 | GetFileAvailableSubtitlesRequest::NAME
                 | GetPreferredSubtitleRequest::NAME
+                | DownloadAndParseSubtitleRequest::NAME
                 | ResetSubtitleRequest::NAME
                 | CleanSubtitlesDirectoryRequest::NAME
         )
@@ -221,6 +223,51 @@ impl MessageHandler for SubtitleMessageHandler {
                         },
                         GetPreferredSubtitleResponse::NAME,
                     )
+                    .await?;
+            }
+            DownloadAndParseSubtitleRequest::NAME => {
+                let request = DownloadAndParseSubtitleRequest::parse_from_bytes(&message.payload)?;
+                let info = request
+                    .info
+                    .as_ref()
+                    .map(SubtitleInfo::try_from)
+                    .transpose()?
+                    .ok_or(Error::MissingField)?;
+                let matcher = request
+                    .matcher
+                    .as_ref()
+                    .map(SubtitleMatcher::from)
+                    .ok_or(Error::MissingField)?;
+                let response: DownloadAndParseSubtitleResponse;
+
+                match self
+                    .instance
+                    .subtitle_provider()
+                    .download_and_parse(&info, &matcher)
+                    .await
+                {
+                    Ok(subtitle) => {
+                        response = DownloadAndParseSubtitleResponse {
+                            result: response::Result::OK.into(),
+                            subtitle: MessageField::some(proto::subtitle::Subtitle::from(
+                                &subtitle,
+                            )),
+                            error: Default::default(),
+                            special_fields: Default::default(),
+                        };
+                    }
+                    Err(e) => {
+                        response = DownloadAndParseSubtitleResponse {
+                            result: response::Result::ERROR.into(),
+                            subtitle: Default::default(),
+                            error: MessageField::some(subtitle::Error::from(&e)),
+                            special_fields: Default::default(),
+                        };
+                    }
+                }
+
+                channel
+                    .send_reply(&message, response, DownloadAndParseSubtitleResponse::NAME)
                     .await?;
             }
             ResetSubtitleRequest::NAME => {

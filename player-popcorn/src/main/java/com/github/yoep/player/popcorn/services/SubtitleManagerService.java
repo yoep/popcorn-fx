@@ -2,7 +2,9 @@ package com.github.yoep.player.popcorn.services;
 
 import com.github.yoep.player.popcorn.listeners.AbstractPlaybackListener;
 import com.github.yoep.player.popcorn.listeners.SubtitleListener;
+import com.github.yoep.player.popcorn.messages.VideoMessage;
 import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
+import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.*;
@@ -19,9 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
 
 import java.io.File;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Queue;
+import java.util.*;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -44,6 +44,7 @@ public class SubtitleManagerService {
     String quality;
     String url;
     ISubtitleInfo subtitleInfo;
+    List<ISubtitleInfo> availableSubtitles;
 
     public SubtitleManagerService(ApplicationConfig applicationConfig, VideoService videoService, ISubtitleService subtitleService, SubtitlePickerService subtitlePickerService, LocaleText localeText, EventPublisher eventPublisher) {
         this.applicationConfig = applicationConfig;
@@ -112,8 +113,6 @@ public class SubtitleManagerService {
         } else {
             subtitleService.updatePreferredLanguage(info.getLanguage());
         }
-
-        onSubtitleChanged(info);
     }
 
     public void registerListener(SubtitleListener listener) {
@@ -163,8 +162,11 @@ public class SubtitleManagerService {
     private void initializeSubtitleListener() {
         subtitleService.register(event -> {
             if (event.getEvent() == SubtitleEvent.Event.PREFERENCE_CHANGED) {
-//                Optional.ofNullable(event.subtitleInfo())
-//                        .ifPresent(this::onSubtitleChanged);
+                var preference = event.getPreferenceChanged().getPreference();
+                switch (preference.getPreference()) {
+                    case DISABLED -> onSubtitleDisabled();
+                    case LANGUAGE -> onLanguagePreferenceChanged(preference.getLanguage());
+                }
             }
         });
         videoService.videoPlayerProperty().addListener((observable, oldValue, newValue) -> onVideoPlayerChanged(newValue));
@@ -195,6 +197,14 @@ public class SubtitleManagerService {
                     log.error("Failed to retrieve subtitle preference", throwable);
                 }
             });
+
+            // retrieve the available subtitles
+            final var filename = FilenameUtils.getBaseName(url);
+            subtitleService.defaultSubtitles()
+                    .thenAccept(defaultSubtitles -> {
+                        onAvailableSubtitlesChanged(defaultSubtitles);
+                        subtitleService.retrieveSubtitles(filename).thenAccept(this::onAvailableSubtitlesChanged);
+                    });
         } else {
             invokeListeners(SubtitleListener::onSubtitleDisabled);
         }
@@ -226,58 +236,31 @@ public class SubtitleManagerService {
         }
     }
 
-    private void onSubtitleChanged(ISubtitleInfo subtitleInfo) {
+    void onSubtitleChanged(ISubtitleInfo subtitleInfo) {
         this.subtitleInfo = subtitleInfo;
+        final var imdbId = subtitleInfo.getImdbId();
+        final var language = subtitleInfo.getLanguage();
+        final var name = FilenameUtils.getBaseName(url);
 
-        // check if the subtitle is being disabled
-        // if so, update the subtitle to none and ignore the subtitle download & parsing
-        var subtitleInfoRef = new AtomicReference<>(subtitleInfo);
-        subtitleService.preference().whenComplete((preference, throwable) -> {
-            if (throwable == null) {
-                if (preference.getPreference() == SubtitlePreference.Preference.DISABLED || preference.getLanguage() == Subtitle.Language.NONE) {
-                    log.trace("Subtitle change ignore on popcorn player for {}", subtitleInfoRef.get());
-                    invokeListeners(SubtitleListener::onSubtitleDisabled);
-                    return;
-                }
+        if (name != null && !name.isBlank()) {
+            log.debug("Downloading subtitle \"{}\" for video playback", subtitleInfo);
+            var matcher = Subtitle.Matcher.newBuilder()
+                    .setFilename(name);
 
-                final var imdbId = subtitleInfoRef.get().getImdbId();
-                final var language = subtitleInfoRef.get().getLanguage();
-                final var name = FilenameUtils.getBaseName(url);
+            Optional.ofNullable(quality)
+                    .filter(e -> !e.isEmpty())
+                    .ifPresent(matcher::setQuality);
 
-                // check if the subtitle is a custom subtitle and doesn't contain any files yet
-                // if so, pause the playback and let the user pick a custom subtitle file
-                // if the custom subtitle contains files, than the passed subtitle file is from the details components
-                if (subtitleInfoRef.get().isCustom()) {
-                    subtitleInfoRef.set(pickCustomSubtitleTrack());
-
-                    if (subtitleInfo == null)
-                        return;
-                }
-
-                //        if (name != null && !name.isBlank()) {
-                //            log.debug("Downloading subtitle \"{}\" for video playback", subtitleInfo);
-                //            var matcher = SubtitleMatcher.from(name, quality);
-                //
-                //            var preference = subtitleService.preference();
-                //            if (preference.tag() != SubtitlePreferenceTag.DISABLED) {
-                //                subtitleService.downloadAndParse(subtitleInfo, matcher).whenComplete((subtitle, throwable) -> {
-                //                    if (throwable == null) {
-                //                        log.debug("Subtitle (imdbId: {}, language: {}) has been downloaded with success", imdbId, language);
-                //                        // auto-clean the subtitle
-                //                        try (subtitle) {
-                //                            onSubtitleDownloaded(subtitle);
-                //                        }
-                //                    } else {
-                //                        log.error("Video subtitle failed, " + throwable.getMessage(), throwable);
-                //                        eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(VideoMessage.SUBTITLE_DOWNLOAD_FILED)));
-                //                    }
-                //                });
-                //            }
-                //        }
-            } else {
-                log.error("Failed to retrieve subtitle preference", throwable);
-            }
-        });
+            subtitleService.downloadAndParse(subtitleInfo, matcher.build())
+                    .thenAccept(subtitle -> {
+                        log.debug("Subtitle (imdbId: {}, language: {}) has been downloaded with success", imdbId, language);
+                        onSubtitleDownloaded(subtitle);
+                    })
+                    .exceptionally(ex -> {
+                        eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(VideoMessage.SUBTITLE_DOWNLOAD_FILED)));
+                        return null;
+                    });
+        }
     }
 
     private ISubtitleInfo pickCustomSubtitleTrack() {
@@ -289,25 +272,66 @@ public class SubtitleManagerService {
 
         // show the subtitle picker popup and let the user pick a subtitle file
         // if the user cancels the picking, we disable the subtitle
-//        subtitlePickerService.pickCustomSubtitle().ifPresentOrElse(
-//                e -> {
-//                    this.subtitleInfo = SubtitleInfo.builder()
-//                            .language(SubtitleLanguage.CUSTOM)
-//                            .files(new SubtitleFile[]{SubtitleFile.builder()
-//                                    .name("Custom")
-//                                    .url(e)
-//                                    .build()})
-//                            .build();
-//                    this.subtitleService.updatePreferredLanguage(SubtitleLanguage.CUSTOM);
-//                },
-//                subtitleService::disableSubtitle
-//        );
+        subtitlePickerService.pickCustomSubtitle().ifPresentOrElse(
+                e -> {
+                    subtitleInfo.set(new SubtitleInfoWrapper(Subtitle.Info.newBuilder()
+                            .setLanguage(Subtitle.Language.CUSTOM)
+                            .addFiles(Subtitle.Info.File.newBuilder()
+                                    .setName("Custom")
+                                    .setUrl(e)
+                                    .build())
+                            .build()));
+                    this.subtitleService.updatePreferredLanguage(Subtitle.Language.CUSTOM);
+                },
+                subtitleService::disableSubtitle
+        );
 
         // resume the video playback
         videoService.getVideoPlayer()
                 .ifPresent(VideoPlayback::resume);
 
         return subtitleInfo.get();
+    }
+
+    private void onLanguagePreferenceChanged(Subtitle.Language language) {
+        if (language == Subtitle.Language.NONE) {
+            onSubtitleDisabled();
+            return;
+        }
+
+        // check if the subtitle is a custom subtitle and doesn't contain any files yet
+        // if so, pause the playback and let the user pick a custom subtitle file
+        // if the custom subtitle contains files, than the passed subtitle file is from the details components
+        if (language == Subtitle.Language.CUSTOM) {
+            var customSubtitle = pickCustomSubtitleTrack();
+            if (subtitleInfo == null) {
+                onSubtitleDisabled();
+                return;
+            }
+
+            onSubtitleChanged(customSubtitle);
+            return;
+        }
+
+        Optional.ofNullable(availableSubtitles)
+                .stream()
+                .flatMap(Collection::stream)
+                .filter(e -> Objects.equals(e.getLanguage(), language))
+                .findFirst()
+                .ifPresentOrElse(
+                        this::onSubtitleChanged,
+                        () -> log.warn("Failed to find subtitle info for language {}", language)
+                );
+    }
+
+    private void onSubtitleDisabled() {
+        log.debug("Player subtitle preference has changed to disabled");
+        invokeListeners(SubtitleListener::onSubtitleDisabled);
+    }
+
+    void onAvailableSubtitlesChanged(List<ISubtitleInfo> subtitles) {
+        this.availableSubtitles = subtitles;
+        invokeListeners(listener -> listener.onAvailableSubtitlesChanged(subtitles));
     }
 
     private void invokeListeners(Consumer<SubtitleListener> action) {

@@ -3,6 +3,7 @@ package com.github.yoep.player.popcorn.player;
 import com.github.yoep.player.popcorn.services.VideoService;
 import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
 import com.github.yoep.popcorn.backend.adapters.video.listeners.VideoListener;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import org.junit.jupiter.api.BeforeEach;
@@ -78,7 +79,9 @@ class PopcornPlayerTest {
 
     @Test
     void testPlay_whenInvoked_shouldInvokePlayOnVideoService() {
-        var request = mock(PlayRequest.class);
+        var request = Player.PlayRequest.newBuilder()
+                .setUrl("https://localhost:1090/MyVideo.mp4")
+                .build();
         var popcornPlayer = new PopcornPlayer(videoService);
 
         popcornPlayer.play(request);

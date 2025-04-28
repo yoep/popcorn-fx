@@ -40,8 +40,7 @@ public class SettingsTorrentComponent extends AbstractSettingsComponent implemen
 
     public SettingsTorrentComponent(EventPublisher eventPublisher,
                                     LocaleText localeText,
-                                    ApplicationConfig settingsService,
-                                    TorrentSettingsHelper torrentSettingsHelper) {
+                                    ApplicationConfig settingsService) {
         super(eventPublisher, localeText, settingsService);
     }
 

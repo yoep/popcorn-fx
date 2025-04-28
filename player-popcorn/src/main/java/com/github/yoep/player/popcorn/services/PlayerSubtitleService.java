@@ -72,6 +72,7 @@ public class PlayerSubtitleService extends AbstractListenerService<PlayerSubtitl
                     .thenAccept(subtitles ->
                             invokeListeners(e -> e.onAvailableSubtitlesChanged(subtitles, subtitles.getFirst())));
 
+            // TODO: update request so that the media item is present again and the subtitles can be retrieved based on ID
             var filename = FilenameUtils.getName(request.getUrl());
 
             log.debug("Retrieving subtitles for \"{}\"", filename);

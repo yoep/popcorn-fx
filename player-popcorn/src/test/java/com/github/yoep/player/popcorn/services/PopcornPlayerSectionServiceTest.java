@@ -255,11 +255,6 @@ class PopcornPlayerSectionServiceTest {
     void testSubtitleSettingsListener_whenFontFamilyIsChanged_shouldInvokeListeners() {
         var settingsListener = new AtomicReference<ApplicationSettingsEventListener>();
         var newSubtitleFamily = ApplicationSettings.SubtitleSettings.Family.GEORGIA;
-        when(applicationConfig.getSettings()).thenReturn(CompletableFuture.completedFuture(ApplicationSettings.newBuilder()
-                .setSubtitleSettings(ApplicationSettings.SubtitleSettings.newBuilder()
-                        .setFontFamily(ApplicationSettings.SubtitleSettings.Family.ARIAL)
-                        .build())
-                .build()));
         doAnswer(invocations -> {
             settingsListener.set(invocations.getArgument(0, ApplicationSettingsEventListener.class));
             return null;

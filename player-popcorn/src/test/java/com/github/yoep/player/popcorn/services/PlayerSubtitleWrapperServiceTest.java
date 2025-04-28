@@ -2,7 +2,10 @@ package com.github.yoep.player.popcorn.services;
 
 import com.github.yoep.player.popcorn.listeners.PlaybackListener;
 import com.github.yoep.player.popcorn.listeners.PlayerSubtitleListener;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Subtitle;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.SubtitlePreference;
+import com.github.yoep.popcorn.backend.subtitles.ISubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.ISubtitleService;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleInfoWrapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -12,11 +15,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static java.util.Arrays.asList;
+import static java.util.Collections.singletonList;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.*;
 
@@ -92,17 +96,24 @@ class PlayerSubtitleWrapperServiceTest {
 
     @Test
     void testPlaybackListener_whenRequestIsShowPlayRequestWithoutSubtitle_shouldInvokeListenersWithAvailableEpisodeSubtitles() {
-        var language = SubtitleLanguage.ENGLISH;
-        var activeSubtitle = mock(SubtitleInfo.class);
-        var request = mock(PlayRequest.class);
-        var availableSubtitles = asList(mock(SubtitleInfo.class), mock(SubtitleInfo.class));
-        when(request.getUrl()).thenReturn("http://localhost:8080/MyFilename.mp4");
-        when(request.isSubtitlesEnabled()).thenReturn(true);
-        when(request.getSubtitleInfo()).thenReturn(Optional.empty());
-        when(subtitleService.preference()).thenReturn(new SubtitlePreference(SubtitlePreferenceTag.LANGUAGE, SubtitleLanguage.NONE));
+        var language = Subtitle.Language.ENGLISH;
+        var activeSubtitle = new SubtitleInfoWrapper(Subtitle.Info.newBuilder()
+                .setLanguage(language)
+                .build());
+        var request = Player.PlayRequest.newBuilder()
+                .setUrl("http://localhost:8080/MyFilename.mp4")
+                .setSubtitle(Player.PlayRequest.PlaySubtitleRequest.newBuilder()
+                        .setEnabled(true)
+                        .build())
+                .build();
+        List<ISubtitleInfo> availableSubtitles = createAvailableSubtitles();
+        when(subtitleService.preference()).thenReturn(CompletableFuture.completedFuture(SubtitlePreference.newBuilder()
+                .setPreference(SubtitlePreference.Preference.LANGUAGE)
+                .setLanguage(Subtitle.Language.NONE)
+                .build()
+        ));
         when(subtitleService.retrieveSubtitles(isA(String.class))).thenReturn(CompletableFuture.completedFuture(availableSubtitles));
-        when(subtitleService.getDefaultOrInterfaceLanguage(availableSubtitles)).thenReturn(activeSubtitle);
-        when(activeSubtitle.language()).thenReturn(language);
+        when(subtitleService.getDefaultOrInterfaceLanguage(availableSubtitles)).thenReturn(CompletableFuture.completedFuture(activeSubtitle));
 
         listenerHolder.get().onPlay(request);
 
@@ -113,26 +124,42 @@ class PlayerSubtitleWrapperServiceTest {
 
     @Test
     void testPlaybackListener_whenRequestIsShowPlayRequestWithSubtitle_shouldInvokeListenersWithRequestSubtitle() {
-        var language = SubtitleLanguage.SPANISH;
-        var activeSubtitle = mock(SubtitleInfo.class);
-        var request = mock(PlayRequest.class);
-        var availableSubtitles = asList(mock(SubtitleInfo.class), mock(SubtitleInfo.class));
-        when(request.getUrl()).thenReturn("http://localhost:8080/MyFilename.mp4");
-        when(request.isSubtitlesEnabled()).thenReturn(true);
-        when(request.getSubtitleInfo()).thenReturn(Optional.of(activeSubtitle));
-        when(subtitleService.preference()).thenReturn(new SubtitlePreference(SubtitlePreferenceTag.LANGUAGE, language));
+        var language = Subtitle.Language.SPANISH;
+        var activeSubtitle = new SubtitleInfoWrapper(Subtitle.Info.newBuilder()
+                .setLanguage(language)
+                .build());
+        var request = Player.PlayRequest.newBuilder()
+                .setUrl("http://localhost:8080/MyFilename.mp4")
+                .setSubtitle(Player.PlayRequest.PlaySubtitleRequest.newBuilder()
+                        .setEnabled(true)
+                        .setInfo(activeSubtitle.proto())
+                        .build())
+                .build();
+        var defaultSubtitles = createAvailableSubtitles();
+        List<ISubtitleInfo> availableSubtitles = singletonList( new SubtitleInfoWrapper(Subtitle.Info.newBuilder()
+                .setLanguage(Subtitle.Language.FINNISH)
+                .build()));
+        when(subtitleService.preference()).thenReturn(CompletableFuture.completedFuture(SubtitlePreference.newBuilder()
+                .setPreference(SubtitlePreference.Preference.LANGUAGE)
+                .setLanguage(language)
+                .build()
+        ));
+        when(subtitleService.defaultSubtitles()).thenReturn(CompletableFuture.completedFuture(defaultSubtitles));
         when(subtitleService.retrieveSubtitles(isA(String.class))).thenReturn(CompletableFuture.completedFuture(availableSubtitles));
 
         listenerHolder.get().onPlay(request);
 
-        verify(listener).onAvailableSubtitlesChanged(availableSubtitles, activeSubtitle);
+        verify(listener).onAvailableSubtitlesChanged(defaultSubtitles, defaultSubtitles.getFirst());
+        verify(subtitleService, atLeastOnce()).defaultSubtitles();
         verify(subtitleService).retrieveSubtitles("MyFilename.mp4");
         verify(subtitleService, times(0)).getDefaultOrInterfaceLanguage(isA(List.class));
     }
 
     @Test
     void testPlaybackListener_whenRequestIsSimplePlayRequestAndSubtitlesIsDisabled_shouldNotRetrieveSubtitles() {
-        var request = mock(PlayRequest.class);
+        var request = Player.PlayRequest.newBuilder()
+                .setUrl("http://localhost:8080/MyFilename.mp4")
+                .build();
 
         listenerHolder.get().onPlay(request);
 
@@ -142,29 +169,54 @@ class PlayerSubtitleWrapperServiceTest {
     @Test
     void testPlaybackListener_whenRequestIsSimplePlayRequestAndSubtitlesIsEnabled_shouldInvokeListenersWithAvailableSubtitles() {
         var filename = "my-filename.mp4";
-        var request = mock(PlayRequest.class);
-        var availableSubtitles = asList(mock(SubtitleInfo.class), mock(SubtitleInfo.class));
-        when(request.isSubtitlesEnabled()).thenReturn(true);
-        when(request.getUrl()).thenReturn(filename);
-        when(subtitleService.preference()).thenReturn(new SubtitlePreference(SubtitlePreferenceTag.LANGUAGE, SubtitleLanguage.NONE));
+        var request = Player.PlayRequest.newBuilder()
+                .setUrl(filename)
+                .setSubtitle(Player.PlayRequest.PlaySubtitleRequest.newBuilder()
+                        .setEnabled(true)
+                        .build())
+                .build();
+        var subtitleNone = new SubtitleInfoWrapper(Subtitle.Info.newBuilder()
+                .setLanguage(Subtitle.Language.NONE)
+                .build());
+        var availableSubtitles = createAvailableSubtitles();
+        when(subtitleService.preference()).thenReturn(CompletableFuture.completedFuture(SubtitlePreference.newBuilder()
+                .setPreference(SubtitlePreference.Preference.LANGUAGE)
+                .setLanguage(Subtitle.Language.NONE)
+                .build()
+        ));
         when(subtitleService.retrieveSubtitles(filename)).thenReturn(CompletableFuture.completedFuture(availableSubtitles));
-        when(subtitleService.getDefaultOrInterfaceLanguage(availableSubtitles)).thenReturn(subtitleNone);
+        when(subtitleService.getDefaultOrInterfaceLanguage(availableSubtitles)).thenReturn(CompletableFuture.completedFuture(subtitleNone));
 
         listenerHolder.get().onPlay(request);
 
-        verify(listener).onAvailableSubtitlesChanged(availableSubtitles, subtitleNone);
+        verify(listener, atLeastOnce()).onAvailableSubtitlesChanged(availableSubtitles, subtitleNone);
     }
 
     @Test
     void testDefaultSubtitles() {
-        var none = mock(SubtitleInfo.class);
-        var custom = mock(SubtitleInfo.class);
-        var expected = new SubtitleInfo[]{none, custom};
-        when(subtitleService.none()).thenReturn(none);
-        when(subtitleService.custom()).thenReturn(custom);
+        List<ISubtitleInfo> defaultSubtitles = asList(
+                new SubtitleInfoWrapper(Subtitle.Info.newBuilder()
+                        .setLanguage(Subtitle.Language.NONE)
+                        .build()),
+                new SubtitleInfoWrapper(Subtitle.Info.newBuilder()
+                        .setLanguage(Subtitle.Language.CUSTOM)
+                        .build())
+        );
+        when(subtitleService.defaultSubtitles()).thenReturn(CompletableFuture.completedFuture(defaultSubtitles));
 
-        var result = service.defaultSubtitles();
+        var result = service.defaultSubtitles().resultNow();
 
-        assertArrayEquals(expected, result);
+        assertEquals(defaultSubtitles, result);
+    }
+
+    private static List<ISubtitleInfo> createAvailableSubtitles() {
+        return asList(
+                new SubtitleInfoWrapper(Subtitle.Info.newBuilder()
+                        .setLanguage(Subtitle.Language.NONE)
+                        .build()),
+                new SubtitleInfoWrapper(Subtitle.Info.newBuilder()
+                        .setLanguage(Subtitle.Language.CUSTOM)
+                        .build())
+        );
     }
 }

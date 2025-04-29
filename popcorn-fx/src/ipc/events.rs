@@ -79,7 +79,7 @@ mod tests {
     use popcorn_fx_core::core::event::HIGHEST_ORDER;
     use popcorn_fx_core::core::playback::PlaybackState;
     use popcorn_fx_core::init_logger;
-    use protobuf::MessageField;
+    use protobuf::{EnumOrUnknown, MessageField};
     use std::time::Duration;
     use tempfile::tempdir;
     use tokio::sync::mpsc::unbounded_channel;
@@ -139,5 +139,35 @@ mod tests {
         let event = try_recv!(rx.recv(), Duration::from_millis(250))
             .expect("expected to have received an event");
         assert_eq!(Event::PlaybackStateChanged(PlaybackState::PLAYING), event);
+    }
+
+    #[tokio::test]
+    async fn test_on_event() {
+        init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
+        let (incoming, outgoing) = create_channel_pair().await;
+        let _handle = EventMessageHandler::new(instance.clone(), outgoing.clone());
+
+        instance
+            .event_publisher()
+            .publish(Event::PlaybackStateChanged(PlaybackState::PLAYING));
+
+        let message =
+            try_recv!(incoming.recv(), Duration::from_millis(250)).expect("expected a message");
+        assert_eq!(events::Event::NAME, message.type_.as_str());
+
+        let event = events::Event::parse_from_bytes(&message.payload).unwrap();
+        assert_eq!(
+            Into::<EnumOrUnknown<events::event::EventType>>::into(
+                events::event::EventType::PLAYBACK_STATE_CHANGED
+            ),
+            event.type_
+        );
+        assert_eq!(
+            Into::<EnumOrUnknown<player::State>>::into(player::State::PLAYING),
+            event.playback_state_changed.new_state
+        );
     }
 }

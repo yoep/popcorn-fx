@@ -165,3 +165,254 @@ impl MessageHandler for ImagesMessageHandler {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::ipc::proto::media::media;
+    use crate::ipc::test::create_channel_pair;
+    use crate::tests::default_args;
+    use crate::try_recv;
+
+    use popcorn_fx_core::core::media::{Images, MediaIdentifier, MovieOverview};
+    use popcorn_fx_core::init_logger;
+    use protobuf::EnumOrUnknown;
+    use std::time::Duration;
+    use tempfile::tempdir;
+
+    #[tokio::test]
+    async fn test_process_get_poster_placeholder_request() {
+        init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
+        let (incoming, outgoing) = create_channel_pair().await;
+        let handler = ImagesMessageHandler::new(instance.clone());
+
+        let expected_image_data = instance.image_loader().default_poster();
+
+        let response = incoming
+            .get(
+                GetPosterPlaceholderRequest::default(),
+                GetPosterPlaceholderRequest::NAME,
+            )
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been process successfully"
+        );
+
+        let message = try_recv!(response, Duration::from_millis(250))
+            .expect("expected to have received a reply");
+        let placeholder_response =
+            GetPosterPlaceholderResponse::parse_from_bytes(&message.payload).unwrap();
+        assert_ne!(MessageField::none(), placeholder_response.image);
+        assert_eq!(
+            expected_image_data, placeholder_response.image.data,
+            "expected the poster image placeholder data"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_process_get_artwork_placeholder_request() {
+        init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
+        let (incoming, outgoing) = create_channel_pair().await;
+        let handler = ImagesMessageHandler::new(instance.clone());
+
+        let expected_image_data = instance.image_loader().default_artwork();
+
+        let response = incoming
+            .get(
+                GetArtworkPlaceholderRequest::default(),
+                GetArtworkPlaceholderRequest::NAME,
+            )
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been process successfully"
+        );
+
+        let message = try_recv!(response, Duration::from_millis(250))
+            .expect("expected to have received a reply");
+        let placeholder_response =
+            GetArtworkPlaceholderResponse::parse_from_bytes(&message.payload).unwrap();
+        assert_ne!(MessageField::none(), placeholder_response.image);
+        assert_eq!(
+            expected_image_data, placeholder_response.image.data,
+            "expected the artwork image placeholder data"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_process_get_fanart_request() {
+        init_logger!();
+        let media = Box::new(MovieOverview {
+            imdb_id: "tt11198330".to_string(),
+            title: "MovieTitle".to_string(),
+            year: "2011".to_string(),
+            images: Images {
+                poster: "http://image.tmdb.org/t/p/w500/t9XkeE7HzOsdQcDDDapDYh8Rrmt.jpg"
+                    .to_string(),
+                fanart: "http://image.tmdb.org/t/p/w500/etj8E2o0Bud0HkONVQPjyCkIvpv.jpg"
+                    .to_string(),
+                banner: "http://image.tmdb.org/t/p/w500/t9XkeE7HzOsdQcDDDapDYh8Rrmt.jpg"
+                    .to_string(),
+            },
+            rating: Default::default(),
+        }) as Box<dyn MediaIdentifier>;
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
+        let (incoming, outgoing) = create_channel_pair().await;
+        let handler = ImagesMessageHandler::new(instance.clone());
+
+        let response = incoming
+            .get(
+                GetFanartRequest {
+                    media: MessageField::some(media::Item::try_from(&media).unwrap()),
+                    special_fields: Default::default(),
+                },
+                GetFanartRequest::NAME,
+            )
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been process successfully"
+        );
+
+        let message = try_recv!(response, Duration::from_millis(250))
+            .expect("expected to have received a reply");
+        let response = GetFanartResponse::parse_from_bytes(&message.payload).unwrap();
+        assert_eq!(
+            Into::<EnumOrUnknown<response::Result>>::into(response::Result::OK),
+            response.result
+        );
+        assert_ne!(
+            MessageField::none(),
+            response.image,
+            "expected the image data to have been present"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_process_get_poster_request() {
+        init_logger!();
+        let media = Box::new(MovieOverview {
+            imdb_id: "tt11198330".to_string(),
+            title: "MovieTitle".to_string(),
+            year: "2011".to_string(),
+            images: Images {
+                poster: "http://image.tmdb.org/t/p/w500/t9XkeE7HzOsdQcDDDapDYh8Rrmt.jpg"
+                    .to_string(),
+                fanart: "http://image.tmdb.org/t/p/w500/etj8E2o0Bud0HkONVQPjyCkIvpv.jpg"
+                    .to_string(),
+                banner: "http://image.tmdb.org/t/p/w500/t9XkeE7HzOsdQcDDDapDYh8Rrmt.jpg"
+                    .to_string(),
+            },
+            rating: Default::default(),
+        }) as Box<dyn MediaIdentifier>;
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
+        let (incoming, outgoing) = create_channel_pair().await;
+        let handler = ImagesMessageHandler::new(instance.clone());
+
+        let response = incoming
+            .get(
+                GetPosterRequest {
+                    media: MessageField::some(media::Item::try_from(&media).unwrap()),
+                    special_fields: Default::default(),
+                },
+                GetPosterRequest::NAME,
+            )
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been process successfully"
+        );
+
+        let message = try_recv!(response, Duration::from_millis(250))
+            .expect("expected to have received a reply");
+        let response = GetPosterResponse::parse_from_bytes(&message.payload).unwrap();
+        assert_eq!(
+            Into::<EnumOrUnknown<response::Result>>::into(response::Result::OK),
+            response.result
+        );
+        assert_ne!(
+            MessageField::none(),
+            response.image,
+            "expected the image data to have been present"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_process_get_image_request() {
+        init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
+        let (incoming, outgoing) = create_channel_pair().await;
+        let handler = ImagesMessageHandler::new(instance.clone());
+
+        let response = incoming
+            .get(
+                GetImageRequest {
+                    url: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Google_2015_logo.svg/2880px-Google_2015_logo.svg.png".to_string(),
+                    special_fields: Default::default(),
+                },
+                GetImageRequest::NAME,
+            )
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been process successfully"
+        );
+
+        let message = try_recv!(response, Duration::from_millis(250))
+            .expect("expected to have received a reply");
+        let response = GetImageResponse::parse_from_bytes(&message.payload).unwrap();
+        assert_eq!(
+            Into::<EnumOrUnknown<response::Result>>::into(response::Result::OK),
+            response.result
+        );
+        assert_ne!(
+            MessageField::none(),
+            response.image,
+            "expected the image data to have been present"
+        );
+    }
+}

@@ -4,7 +4,7 @@ import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
 import com.github.yoep.popcorn.backend.media.Episode;
 import com.github.yoep.popcorn.backend.media.ShowDetails;
-import com.github.yoep.popcorn.backend.media.filters.model.Season;
+import com.github.yoep.popcorn.backend.media.Season;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.subtitles.ISubtitleService;
 import com.github.yoep.popcorn.backend.utils.LocaleText;

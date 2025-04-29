@@ -3,7 +3,7 @@ package com.github.yoep.popcorn.ui.view.services;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media;
 import com.github.yoep.popcorn.backend.media.Episode;
 import com.github.yoep.popcorn.backend.media.ShowDetails;
-import com.github.yoep.popcorn.backend.media.filters.model.Season;
+import com.github.yoep.popcorn.backend.media.Season;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;

@@ -5,12 +5,11 @@ import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
 import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
 import com.github.yoep.popcorn.backend.media.Media;
+import com.github.yoep.popcorn.backend.media.MediaException;
 import com.github.yoep.popcorn.backend.media.MovieDetails;
 import com.github.yoep.popcorn.backend.media.ShowDetails;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteEventListener;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
-import com.github.yoep.popcorn.backend.media.providers.MediaParsingException;
-import com.github.yoep.popcorn.backend.media.providers.MediaRetrievalException;
 import com.github.yoep.popcorn.backend.media.providers.ProviderService;
 import com.github.yoep.popcorn.backend.media.watched.WatchedEventListener;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
@@ -249,26 +248,25 @@ public class ListSectionController extends AbstractListSectionController impleme
 
         var rootCause = throwable.getCause();
         var message = new AtomicReference<>(localeText.get(ListMessage.GENERIC));
-        log.error("Failed to retrieve media list, " + rootCause.getMessage(), throwable);
+        log.error("Failed to retrieve media list, {}", rootCause.getMessage(), throwable);
 
         // verify if the parsing of the page failed
         // if so, ignore this page and load the next one
-        if (rootCause instanceof MediaParsingException) {
-            if (numberOfPageFailures < 2) {
-                log.warn("Media page {} has been skipped due to a parsing error, loading next page", scrollPane.getPage());
-                numberOfPageFailures++;
-                this.eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(DetailsMessage.DETAILS_INVALID_RESPONSE_RECEIVED)));
-                // force load the next page as this method is currently in the updating state
-                // of the scroll pane, calling the normal load won't do anything
-                scrollPane.forceLoadNewPage();
-                return new Media[0];
+        if (rootCause instanceof MediaException ex) {
+            switch (ex.getType()) {
+                case PARSING -> {
+                    if (numberOfPageFailures < 2) {
+                        log.warn("Media page {} has been skipped due to a parsing error, loading next page", scrollPane.getPage());
+                        numberOfPageFailures++;
+                        this.eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(DetailsMessage.DETAILS_INVALID_RESPONSE_RECEIVED)));
+                        // force load the next page as this method is currently in the updating state
+                        // of the scroll pane, calling the normal load won't do anything
+                        scrollPane.forceLoadNewPage();
+                        return new Media[0];
+                    }
+                }
+                case RETRIEVAL -> message.set(localeText.get(ListMessage.API_UNAVAILABLE, 500));
             }
-        }
-
-        // verify if an invalid response was received from the backend
-        // if so, show the status code
-        if (rootCause instanceof MediaRetrievalException) {
-            message.set(localeText.get(ListMessage.API_UNAVAILABLE, 500));
         }
 
         Platform.runLater(() -> {

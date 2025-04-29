@@ -18,10 +18,10 @@ impl From<&Event> for events::Event {
             Event::PlayerStopped(_) => {
                 event.type_ = EventType::PLAYER_STOPPED.into();
             }
-            Event::PlaybackStateChanged(e) => {
+            Event::PlaybackStateChanged(state) => {
                 event.type_ = EventType::PLAYBACK_STATE_CHANGED.into();
                 event.playback_state_changed = MessageField::some(PlaybackStateChanged {
-                    new_state: player::State::from(e).into(),
+                    new_state: player::State::from(state).into(),
                     special_fields: Default::default(),
                 });
             }

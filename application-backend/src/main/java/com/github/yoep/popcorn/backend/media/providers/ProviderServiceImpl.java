@@ -2,8 +2,9 @@ package com.github.yoep.popcorn.backend.media.providers;
 
 import com.github.yoep.popcorn.backend.lib.FxChannel;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.*;
-import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media.*;
-import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media.Error;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media.Category;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media.Genre;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media.SortBy;
 import com.github.yoep.popcorn.backend.media.Media;
 import com.github.yoep.popcorn.backend.media.MediaException;
 import com.github.yoep.popcorn.backend.media.MediaHelper;
@@ -45,11 +46,7 @@ public class ProviderServiceImpl implements ProviderService<com.github.yoep.popc
                 return MediaHelper.getMedia(response.getItem());
             } else {
                 var error = response.getError();
-                if (error.getType() == Error.Type.NO_AVAILABLE_PROVIDERS) {
-                    throw new MediaRetrievalException("no providers are available");
-                }
-
-                throw new MediaException("failed to retrieve media details");
+                throw new MediaException(media, errorTypeFrom(error), "failed to retrieve media details");
             }
         });
     }
@@ -77,8 +74,16 @@ public class ProviderServiceImpl implements ProviderService<com.github.yoep.popc
                     } else {
                         var error = response.getError();
                         log.error("Failed to retrieve favorites, {}", error.getType());
-                        throw new MediaException("failed to retrieve favorites");
+                        throw new MediaException(errorTypeFrom(error), "failed to retrieve favorites");
                     }
                 });
+    }
+
+    private static MediaException.ErrorType errorTypeFrom(com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media.Error error) {
+        return switch (error.getType()) {
+            case PROVIDER_PARSING_FAILED -> MediaException.ErrorType.PARSING;
+            case NO_AVAILABLE_PROVIDERS -> MediaException.ErrorType.RETRIEVAL;
+            default -> MediaException.ErrorType.OTHER;
+        };
     }
 }

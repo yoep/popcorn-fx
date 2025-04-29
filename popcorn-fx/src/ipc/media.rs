@@ -262,7 +262,7 @@ mod tests {
     use tempfile::tempdir;
 
     #[tokio::test]
-    async fn test_process_genres_request() {
+    async fn test_process_category_genres_request() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -296,6 +296,47 @@ mod tests {
 
         assert_eq!(response::Result::OK, result.result.unwrap());
         assert_ne!(0, result.genres.len(), "expected to receive genres");
+    }
+
+    #[tokio::test]
+    async fn test_process_category_sort_by_request() {
+        init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = PopcornFX::new(default_args(temp_path)).await.unwrap();
+        let (incoming, outgoing) = create_channel_pair().await;
+        let handler = MediaMessageHandler::new(Arc::new(instance));
+
+        let response = incoming
+            .get(
+                GetCategorySortByRequest {
+                    category: media::Category::SERIES.into(),
+                    special_fields: Default::default(),
+                },
+                GetCategorySortByRequest::NAME,
+            )
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been process successfully"
+        );
+
+        let response = try_recv!(response, Duration::from_millis(250))
+            .expect("expected to have received a reply");
+        let result = GetCategorySortByResponse::parse_from_bytes(&response.payload).unwrap();
+
+        assert_eq!(response::Result::OK, result.result.unwrap());
+        assert_ne!(
+            0,
+            result.sort_by.len(),
+            "expected to receive sort by options"
+        );
     }
 
     #[tokio::test]

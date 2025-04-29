@@ -104,9 +104,9 @@ public class FxChannel implements Closeable {
 
     @Override
     public void close() throws IOException {
+        send(ApplicationTerminationRequest.getDefaultInstance());
         running.set(false);
         readerThread.interrupt();
-        send(ApplicationTerminationRequest.getDefaultInstance());
         fxLib.close();
     }
 

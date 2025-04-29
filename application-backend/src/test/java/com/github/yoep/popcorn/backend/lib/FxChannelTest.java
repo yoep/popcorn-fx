@@ -1,15 +1,13 @@
 package com.github.yoep.popcorn.backend.lib;
 
-import com.github.yoep.popcorn.backend.lib.ipc.protobuf.FxMessage;
-import com.github.yoep.popcorn.backend.lib.ipc.protobuf.GetPlayerVolumeRequest;
-import com.github.yoep.popcorn.backend.lib.ipc.protobuf.GetPlayerVolumeResponse;
-import com.github.yoep.popcorn.backend.lib.ipc.protobuf.LogRequest;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.io.IOException;
 import java.util.Queue;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
@@ -81,5 +79,43 @@ class FxChannelTest {
 
         verify(fxLib).send(isA(FxMessage.class));
         assertEquals(FxChannel.typeFrom(LogRequest.class), message.get().getType());
+    }
+
+    @Test
+    void testSend_withReplyId() {
+        var replyTo = 13;
+        var message = new AtomicReference<FxMessage>();
+        doAnswer(invocations -> {
+            message.set(invocations.getArgument(0, FxMessage.class));
+            return null;
+        }).when(fxLib).send(isA(FxMessage.class));
+
+        channel.send(LogRequest.getDefaultInstance(), replyTo);
+
+        verify(fxLib).send(isA(FxMessage.class));
+        assertEquals(FxChannel.typeFrom(LogRequest.class), message.get().getType());
+        assertEquals(replyTo, message.get().getReplyTo());
+    }
+
+    @Test
+    void testSubscribe() {
+        var callback = mock(FxCallback.class);
+
+        channel.subscribe(FxChannel.typeFrom(Event.class), Event.parser(), callback);
+        messages.add(FxMessage.newBuilder()
+                .setType(FxChannel.typeFrom(Event.class))
+                .setSequenceId(1)
+                .setPayload(Event.newBuilder().build().toByteString())
+                .build());
+
+        verify(callback, timeout(250)).callback(isA(Event.class));
+    }
+
+    @Test
+    void testClose() throws IOException {
+        channel.close();
+
+        verify(fxLib).close();
+        assertEquals(false, channel.running.get());
     }
 }

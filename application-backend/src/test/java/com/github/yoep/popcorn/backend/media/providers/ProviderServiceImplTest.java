@@ -2,6 +2,7 @@ package com.github.yoep.popcorn.backend.media.providers;
 
 import com.github.yoep.popcorn.backend.lib.FxChannel;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.*;
+import com.github.yoep.popcorn.backend.media.MediaException;
 import com.github.yoep.popcorn.backend.media.MovieOverview;
 import com.google.protobuf.Parser;
 import org.junit.jupiter.api.Test;
@@ -37,6 +38,7 @@ class ProviderServiceImplTest {
         when(fxChannel.send(isA(GetMediaItemsRequest.class), isA(Parser.class))).thenAnswer(invocations -> {
             request.set(invocations.getArgument(0, GetMediaItemsRequest.class));
             return CompletableFuture.completedFuture(GetMediaItemsResponse.newBuilder()
+                    .setResult(Response.Result.OK)
                     .addItems(Media.Item.newBuilder()
                             .setType(FxChannel.typeFrom(Media.MovieOverview.class))
                             .setMovieOverview(createMovieMedia())
@@ -73,6 +75,7 @@ class ProviderServiceImplTest {
         when(fxChannel.send(isA(GetMediaItemsRequest.class), isA(Parser.class))).thenAnswer(invocations -> {
             request.set(invocations.getArgument(0, GetMediaItemsRequest.class));
             return CompletableFuture.completedFuture(GetMediaItemsResponse.newBuilder()
+                    .setResult(Response.Result.OK)
                     .addItems(Media.Item.newBuilder()
                             .setType(FxChannel.typeFrom(Media.ShowOverview.class))
                             .setShowOverview(createShowMedia())
@@ -93,6 +96,38 @@ class ProviderServiceImplTest {
         assertNotNull(resultItem, "expected a media item to have been returned");
         assertEquals("tt000002", resultItem.id());
         assertEquals("MySerie", resultItem.title());
+    }
+
+    @Test
+    void testGetPage_returnsErrorResult() {
+        var category = Media.Category.FAVORITES;
+        var genre = Media.Genre.newBuilder()
+                .setKey("all")
+                .build();
+        var sortBy = Media.SortBy.newBuilder()
+                .setKey("year")
+                .build();
+        var page = 3;
+        var request = new AtomicReference<GetMediaItemsRequest>();
+        when(fxChannel.send(isA(GetMediaItemsRequest.class), isA(Parser.class))).thenAnswer(invocations -> {
+            request.set(invocations.getArgument(0, GetMediaItemsRequest.class));
+            return CompletableFuture.completedFuture(GetMediaItemsResponse.newBuilder()
+                    .setResult(Response.Result.ERROR)
+                    .setError(Media.Error.newBuilder()
+                            .setType(Media.Error.Type.PROVIDER_PARSING_FAILED)
+                            .build())
+                    .build());
+        });
+
+        var exception = service.getPage(category, genre, sortBy, page).exceptionNow();
+
+        verify(fxChannel).send(isA(GetMediaItemsRequest.class), isA(Parser.class));
+        assertEquals(category, request.get().getCategory());
+        assertEquals(genre.getKey(), request.get().getGenre().getKey());
+        assertEquals(sortBy.getKey(), request.get().getSortBy().getKey());
+        assertEquals(page, request.get().getPage());
+        assertInstanceOf(MediaException.class, exception);
+        assertEquals(MediaException.ErrorType.PARSING, ((MediaException) exception).getType());
     }
 
     @Test

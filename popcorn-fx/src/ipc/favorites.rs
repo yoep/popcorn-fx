@@ -149,8 +149,11 @@ mod tests {
     use crate::tests::default_args;
     use crate::try_recv;
 
-    use popcorn_fx_core::core::media::{MediaIdentifier, ShowOverview};
+    use popcorn_fx_core::core::media::{
+        Images, MediaIdentifier, MovieOverview, Rating, ShowOverview,
+    };
     use popcorn_fx_core::init_logger;
+    use protobuf::EnumOrUnknown;
     use std::time::Duration;
     use tempfile::tempdir;
 
@@ -190,6 +193,111 @@ mod tests {
         assert_eq!(false, result.is_liked);
     }
 
+    #[tokio::test]
+    async fn test_add_favorite_request() {
+        init_logger!();
+        let media: Box<dyn MediaIdentifier> = create_media();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = PopcornFX::new(default_args(temp_path)).await.unwrap();
+        let (incoming, outgoing) = create_channel_pair().await;
+        let handler = FavoritesMessageHandler::new(Arc::new(instance), outgoing.clone());
+
+        let response = incoming
+            .get(
+                AddFavoriteRequest {
+                    item: MessageField::some(media::Item::try_from(&media).unwrap()),
+                    special_fields: Default::default(),
+                },
+                AddFavoriteRequest::NAME,
+            )
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been process successfully"
+        );
+
+        let response = try_recv!(response, Duration::from_millis(250))
+            .expect("expected to have received a reply");
+        let result = AddFavoriteResponse::parse_from_bytes(&response.payload).unwrap();
+        assert_eq!(
+            Into::<EnumOrUnknown<response::Result>>::into(response::Result::OK),
+            result.result
+        );
+    }
+
+    #[tokio::test]
+    async fn test_remove_favorite_request() {
+        init_logger!();
+        let media: Box<dyn MediaIdentifier> = create_media();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = PopcornFX::new(default_args(temp_path)).await.unwrap();
+        let (incoming, outgoing) = create_channel_pair().await;
+        let handler = FavoritesMessageHandler::new(Arc::new(instance), outgoing.clone());
+
+        incoming
+            .send(
+                RemoveFavoriteRequest {
+                    item: MessageField::some(media::Item::try_from(&media).unwrap()),
+                    special_fields: Default::default(),
+                },
+                RemoveFavoriteRequest::NAME,
+            )
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been process successfully"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_is_liked_state_changed() {
+        init_logger!();
+        let imdb_id = "tt12000023";
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
+        let (incoming, outgoing) = create_channel_pair().await;
+        let _handler = FavoritesMessageHandler::new(instance.clone(), outgoing.clone());
+
+        let _ = instance
+            .favorite_service()
+            .add(Box::new(MovieOverview {
+                title: "MyMovie".to_string(),
+                imdb_id: imdb_id.to_string(),
+                year: "2019".to_string(),
+                rating: None,
+                images: Default::default(),
+            }))
+            .await;
+
+        let response = try_recv!(incoming.recv(), Duration::from_millis(250))
+            .expect("expected to have received an event message");
+        assert_eq!(favorites::FavoriteEvent::NAME, response.type_.as_str());
+
+        let event = favorites::FavoriteEvent::parse_from_bytes(&response.payload).unwrap();
+        assert_eq!(
+            Into::<EnumOrUnknown<favorite_event::Event>>::into(
+                favorite_event::Event::LIKED_STATE_CHANGED
+            ),
+            event.event
+        );
+        assert_eq!(imdb_id, event.like_state_changed.imdb_id.as_str());
+    }
+
     fn create_media() -> Box<dyn MediaIdentifier> {
         Box::new(ShowOverview {
             imdb_id: "tt000001".to_string(),
@@ -197,8 +305,18 @@ mod tests {
             title: "ShowOverviewExample".to_string(),
             year: "2011".to_string(),
             num_seasons: 1,
-            images: Default::default(),
-            rating: None,
+            images: Images {
+                poster: "http://localhost/my-poster.jpg".to_string(),
+                fanart: "http://localhost/my-fanart.jpg".to_string(),
+                banner: "http://localhost/my-background.jpg".to_string(),
+            },
+            rating: Some(Rating {
+                percentage: 78,
+                watching: 10,
+                votes: 29,
+                loved: 24,
+                hated: 5,
+            }),
         })
     }
 }

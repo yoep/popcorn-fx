@@ -90,3 +90,96 @@ impl MessageHandler for LoaderMessageHandler {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::ipc::test::create_channel_pair;
+    use crate::tests::default_args;
+    use crate::try_recv;
+
+    use popcorn_fx_core::init_logger;
+    use protobuf::EnumOrUnknown;
+    use std::time::Duration;
+    use tempfile::tempdir;
+
+    #[tokio::test]
+    async fn test_process_loader_load_request() {
+        init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
+        let (incoming, outgoing) = create_channel_pair().await;
+        let handler = LoaderMessageHandler::new(instance.clone(), outgoing.clone());
+
+        let response = incoming
+            .get(
+                LoaderLoadRequest {
+                    url: "http://localhost/my-video.mp4".to_string(),
+                    special_fields: Default::default(),
+                },
+                LoaderLoadRequest::NAME,
+            )
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been process successfully"
+        );
+
+        let response = try_recv!(response, Duration::from_millis(250))
+            .expect("expected to have received a reply");
+        let result = LoaderLoadResponse::parse_from_bytes(&response.payload).unwrap();
+        assert_ne!(
+            MessageField::none(),
+            result.handle,
+            "expected a handle to have been present"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_loading_event() {
+        init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
+        let (incoming, outgoing) = create_channel_pair().await;
+        let handler = LoaderMessageHandler::new(instance.clone(), outgoing.clone());
+
+        incoming
+            .get(
+                LoaderLoadRequest {
+                    url: "http://localhost/my-video.mp4".to_string(),
+                    special_fields: Default::default(),
+                },
+                LoaderLoadRequest::NAME,
+            )
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been process successfully"
+        );
+
+        let event_message = try_recv!(incoming.recv(), Duration::from_millis(250))
+            .expect("expected to have received a reply");
+        let event = loader::LoaderEvent::parse_from_bytes(&event_message.payload).unwrap();
+        assert_eq!(
+            Into::<EnumOrUnknown<loader::loader_event::Event>>::into(
+                loader::loader_event::Event::LOADING_STARTED
+            ),
+            event.event
+        );
+    }
+}

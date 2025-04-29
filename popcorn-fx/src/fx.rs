@@ -630,19 +630,6 @@ impl PopcornFX {
         )
     }
 
-    fn new_runtime() -> Runtime {
-        tokio::runtime::Builder::new_multi_thread()
-            .enable_all()
-            .worker_threads(10)
-            .thread_name_fn(|| {
-                static ATOMIC_ID: AtomicUsize = AtomicUsize::new(0);
-                let id = ATOMIC_ID.fetch_add(1, Ordering::SeqCst);
-                format!("popcorn-fx-{}", id)
-            })
-            .build()
-            .expect("expected a new runtime")
-    }
-
     async fn default_providers(
         settings: &ApplicationConfig,
         args: &PopcornFxArgs,
@@ -739,7 +726,7 @@ mod test {
         let id = "tt00000021544";
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let mut popcorn_fx = PopcornFX::new(default_args(temp_path)).await.unwrap();
+        let popcorn_fx = PopcornFX::new(default_args(temp_path)).await.unwrap();
 
         let service = popcorn_fx.favorite_service().clone();
         let result = service.is_liked(id).await;
@@ -768,7 +755,7 @@ mod test {
         init_logger!();
         let temp_dir = tempdir().expect("expected a temp dir to be created");
         let temp_path = temp_dir.path().to_str().unwrap();
-        let mut popcorn_fx = PopcornFX::new(default_args(temp_path)).await.unwrap();
+        let popcorn_fx = PopcornFX::new(default_args(temp_path)).await.unwrap();
 
         let torrent_collection = popcorn_fx.torrent_collection().clone();
         let result = torrent_collection

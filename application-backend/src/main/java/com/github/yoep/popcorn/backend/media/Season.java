@@ -1,8 +1,7 @@
-package com.github.yoep.popcorn.backend.media.filters.model;
+package com.github.yoep.popcorn.backend.media;
 
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media.Images;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media.Rating;
-import com.github.yoep.popcorn.backend.media.Media;
 import com.github.yoep.popcorn.backend.media.providers.MediaType;
 
 import java.util.Collections;

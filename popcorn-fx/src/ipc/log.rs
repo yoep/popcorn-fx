@@ -47,3 +47,87 @@ impl MessageHandler for LogMessageHandler {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::ipc::test::create_channel_pair;
+    use crate::try_recv;
+
+    use popcorn_fx_core::init_logger;
+    use std::time::Duration;
+
+    #[tokio::test]
+    async fn test_process_log_request() {
+        init_logger!();
+        let (incoming, outgoing) = create_channel_pair().await;
+        let handler = LogMessageHandler::new();
+
+        incoming
+            .send(
+                LogRequest {
+                    level: LogLevel::TRACE.into(),
+                    target: "jvm::package".to_string(),
+                    message: "Lorem ipsum".to_string(),
+                    special_fields: Default::default(),
+                },
+                LogRequest::NAME,
+            )
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been process successfully"
+        );
+
+        incoming
+            .send(
+                LogRequest {
+                    level: LogLevel::DEBUG.into(),
+                    target: "jvm::package".to_string(),
+                    message: "Foo".to_string(),
+                    special_fields: Default::default(),
+                },
+                LogRequest::NAME,
+            )
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been process successfully"
+        );
+
+        incoming
+            .send(
+                LogRequest {
+                    level: LogLevel::INFO.into(),
+                    target: "jvm::package".to_string(),
+                    message: "Bar".to_string(),
+                    special_fields: Default::default(),
+                },
+                LogRequest::NAME,
+            )
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been process successfully"
+        );
+    }
+}

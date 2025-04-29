@@ -11,13 +11,6 @@ import java.util.concurrent.CompletableFuture;
  * The player manager service is responsible for managing the available players which can be used by the application.
  */
 public interface PlayerManagerService extends ListenerService<PlayerManagerListener> {
-    /**
-     * Get the player by the given ID.
-     *
-     * @param id The id of the player to retrieve.
-     * @return Returns the player if found, else {@link Optional#empty()}.
-     */
-    Optional<Player> getById(String id);
 
     /**
      * Get a list of available players.
@@ -44,7 +37,6 @@ public interface PlayerManagerService extends ListenerService<PlayerManagerListe
      * Register a new player with a unique ID.
      *
      * @param player The player that needs to be registered.
-     * @throws PlayerAlreadyExistsException Is thrown when the player ID already exists.
      */
     CompletableFuture<Boolean> register(Player player);
 

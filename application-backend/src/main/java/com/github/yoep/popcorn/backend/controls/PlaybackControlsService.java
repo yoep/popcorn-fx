@@ -1,6 +1,7 @@
 package com.github.yoep.popcorn.backend.controls;
 
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
+import com.github.yoep.popcorn.backend.adapters.player.listeners.AbstractPlayerListener;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
 import com.github.yoep.popcorn.backend.lib.FxCallback;
 import com.github.yoep.popcorn.backend.lib.FxChannel;
@@ -53,25 +54,10 @@ public class PlaybackControlsService implements FxCallback<ControlEvent> {
     }
 
     private void init() {
-        playerEventService.addListener(new PlayerListener() {
-            @Override
-            public void onDurationChanged(long newDuration) {
-
-            }
-
+        playerEventService.addListener(new AbstractPlayerListener() {
             @Override
             public void onTimeChanged(long newTime) {
                 lastKnownTime = newTime;
-            }
-
-            @Override
-            public void onStateChanged(Player.State newState) {
-
-            }
-
-            @Override
-            public void onVolumeChanged(int volume) {
-
             }
         });
         fxChannel.subscribe(

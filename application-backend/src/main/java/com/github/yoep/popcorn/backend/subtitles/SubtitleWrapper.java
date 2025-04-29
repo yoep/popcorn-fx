@@ -10,7 +10,7 @@ import java.util.Optional;
 
 /**
  * The subtitle contains the parsed information of a subtitle file.
- * This is effectively a wrapper around the {@link SubtitleCue} objects which contain the actual parsed data and a reference to the original
+ * This is effectively a wrapper around the objects which contain the actual parsed data and a reference to the original
  * {@link ISubtitleInfo} from which this {@link SubtitleWrapper} was generated.
  */
 public record SubtitleWrapper(com.github.yoep.popcorn.backend.lib.ipc.protobuf.Subtitle proto) implements ISubtitle {

@@ -30,7 +30,7 @@ public class PlayerManagerServiceImpl
     private final FxChannel fxChannel;
     private final EventPublisher eventPublisher;
 
-    private final Queue<Player> playerWrappers = new ConcurrentLinkedQueue<>();
+    final Queue<Player> playerWrappers = new ConcurrentLinkedQueue<>();
 
     public PlayerManagerServiceImpl(FxChannel fxChannel, EventPublisher eventPublisher) {
         Objects.requireNonNull(fxChannel, "fxChannel cannot be null");
@@ -41,21 +41,6 @@ public class PlayerManagerServiceImpl
     }
 
     //region Properties
-
-    @Override
-    public Optional<Player> getById(String id) {
-        Objects.requireNonNull(id, "id cannot be null");
-        try {
-            return Optional.ofNullable(fxChannel.send(GetPlayerByIdRequest.newBuilder()
-                                    .setId(id)
-                                    .build(), GetPlayerByIdResponse.parser())
-                            .get(5, TimeUnit.SECONDS)
-                            .getPlayer())
-                    .map(this::toProtoWrapper);
-        } catch (ExecutionException | InterruptedException | TimeoutException e) {
-            throw new RuntimeException(e);
-        }
-    }
 
     @Override
     public CompletableFuture<Collection<Player>> getPlayers() {

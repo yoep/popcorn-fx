@@ -139,9 +139,9 @@ mod tests {
         init_logger!();
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
-        let instance = PopcornFX::new(default_args(temp_path)).await.unwrap();
+        let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
         let (incoming, outgoing) = create_channel_pair().await;
-        let handler = ApplicationMessageHandler::new(Arc::new(instance));
+        let handler = ApplicationMessageHandler::new(instance);
 
         let response = incoming
             .get(

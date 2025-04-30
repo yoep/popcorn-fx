@@ -13,7 +13,7 @@ import com.github.yoep.popcorn.backend.subtitles.SubtitleHelper;
 import com.github.yoep.popcorn.backend.subtitles.ISubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleInfoWrapper;
 import com.github.yoep.popcorn.backend.subtitles.ISubtitleService;
-import com.github.yoep.popcorn.backend.subtitles.listeners.LanguageSelectionListener;
+import com.github.yoep.popcorn.backend.subtitles.LanguageSelectionListener;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.utils.WatchNowUtils;
 import com.github.yoep.popcorn.ui.view.ViewHelper;

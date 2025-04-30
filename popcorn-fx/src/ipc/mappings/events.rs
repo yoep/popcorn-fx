@@ -76,3 +76,26 @@ impl TryFrom<&events::Event> for Event {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_try_from() {
+        let event = events::Event {
+            type_: EventType::PLAYBACK_STATE_CHANGED.into(),
+            playback_state_changed: MessageField::some(PlaybackStateChanged {
+                new_state: player::State::BUFFERING.into(),
+                special_fields: Default::default(),
+            }),
+            torrent_details_loaded: Default::default(),
+            special_fields: Default::default(),
+        };
+        let expected_result = Event::PlaybackStateChanged(PlaybackState::BUFFERING);
+
+        let result = Event::try_from(&event).unwrap();
+
+        assert_eq!(result, expected_result);
+    }
+}

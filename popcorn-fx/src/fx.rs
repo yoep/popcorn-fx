@@ -59,7 +59,6 @@ use popcorn_fx_players::vlc::VlcDiscovery;
 use popcorn_fx_players::Discovery;
 use popcorn_fx_trakt::trakt::TraktProvider;
 use thiserror::Error;
-use tokio::runtime::Runtime;
 
 static INIT: Once = Once::new();
 

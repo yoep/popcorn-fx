@@ -137,4 +137,87 @@ class SubtitleServiceImplTest {
         assertEquals(1, result.size(), "expected a subtitle to have been returned");
         assertEquals(subtitle, result.getFirst());
     }
+
+    @Test
+    void testDownloadAndParse() {
+        var subtitleInfo = new SubtitleInfoWrapper(Subtitle.Info.newBuilder()
+                .setImdbId("tt1234444")
+                .setLanguage(Subtitle.Language.FINNISH)
+                .build());
+        var matcher = Subtitle.Matcher.newBuilder()
+                .setFilename("MyFilename.mp4")
+                .setQuality("720p")
+                .build();
+        var subtitle = new SubtitleWrapper(Subtitle.newBuilder()
+                .setInfo(subtitleInfo.proto())
+                .build());
+        var request = new AtomicReference<DownloadAndParseSubtitleRequest>();
+        when(fxChannel.send(isA(DownloadAndParseSubtitleRequest.class), isA(Parser.class))).thenAnswer(invocations -> {
+            request.set(invocations.getArgument(0, DownloadAndParseSubtitleRequest.class));
+            return CompletableFuture.completedFuture(DownloadAndParseSubtitleResponse.newBuilder()
+                    .setResult(Response.Result.OK)
+                    .setSubtitle(subtitle.proto())
+                    .build());
+        });
+
+        var result = service.downloadAndParse(subtitleInfo, matcher).resultNow();
+
+        verify(fxChannel).send(isA(DownloadAndParseSubtitleRequest.class), isA(Parser.class));
+        assertEquals(subtitleInfo.proto(), request.get().getInfo());
+        assertEquals(matcher, request.get().getMatcher());
+        assertEquals(subtitle, result);
+    }
+
+    @Test
+    void testGetDefaultOrInterfaceLanguage() {
+        var subtitleInfo = new SubtitleInfoWrapper(Subtitle.Info.newBuilder()
+                .setImdbId("ImdbId1")
+                .setLanguage(Subtitle.Language.ARABIC)
+                .build());
+        var request = new AtomicReference<GetPreferredSubtitleRequest>();
+        when(fxChannel.send(isA(GetPreferredSubtitleRequest.class), isA(Parser.class))).thenAnswer(invocations -> {
+            request.set(invocations.getArgument(0, GetPreferredSubtitleRequest.class));
+            return CompletableFuture.completedFuture(GetPreferredSubtitleResponse.newBuilder()
+                    .setSubtitle(subtitleInfo.proto())
+                    .build());
+        });
+
+        var result = service.getDefaultOrInterfaceLanguage(asList(subtitleInfo, new SubtitleInfoWrapper(Subtitle.Info.newBuilder()
+                        .setImdbId("ImdbId2")
+                        .setLanguage(Subtitle.Language.BASQUE)
+                        .build())))
+                .resultNow();
+
+        verify(fxChannel).send(isA(GetPreferredSubtitleRequest.class), isA(Parser.class));
+        assertEquals(subtitleInfo.proto(), request.get().getSubtitles(0));
+        assertEquals(subtitleInfo, result);
+    }
+
+    @Test
+    void testDisableSubtitle() {
+        var request = new AtomicReference<UpdateSubtitlePreferenceRequest>();
+        doAnswer(invocations -> {
+            request.set(invocations.getArgument(0, UpdateSubtitlePreferenceRequest.class));
+            return null;
+        }).when(fxChannel).send(isA(UpdateSubtitlePreferenceRequest.class));
+
+        service.disableSubtitle();
+
+        verify(fxChannel).send(isA(UpdateSubtitlePreferenceRequest.class));
+        assertEquals(SubtitlePreference.Preference.DISABLED, request.get().getPreference().getPreference());
+    }
+
+    @Test
+    void testReset() {
+        service.reset();
+
+        verify(fxChannel).send(isA(ResetSubtitleRequest.class));
+    }
+
+    @Test
+    void testCleanup() {
+        service.cleanup();
+
+        verify(fxChannel).send(isA(CleanSubtitlesDirectoryRequest.class));
+    }
 }

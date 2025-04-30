@@ -28,7 +28,7 @@ class FxChannelTest {
     @BeforeEach
     void setUp() {
         var executor = Executors.newCachedThreadPool(e -> new Thread(e, "popcorn-fx-test"));
-        when(fxLib.receive()).thenAnswer(invocation -> {
+        lenient().when(fxLib.receive()).thenAnswer(invocation -> {
             while (true) {
                 if (!messages.isEmpty()) {
                     return messages.poll();

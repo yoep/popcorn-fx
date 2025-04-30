@@ -29,7 +29,7 @@ public record SubtitleInfoWrapper(com.github.yoep.popcorn.backend.lib.ipc.protob
 
     @Override
     public String getFlagResource() {
-        return "/images/flags/" + SubtitleHelper.getCode(proto.getLanguage()) + ".png";
+        return SubtitleHelper.getFlagResource(proto.getLanguage());
     }
 
     @Override

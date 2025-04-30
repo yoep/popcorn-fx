@@ -13,8 +13,6 @@ import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Collection;
-import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -152,5 +150,25 @@ class PlayerManagerServiceImplTest {
 
         verify(fxChannel).send(isA(RemovePlayerRequest.class));
         assertEquals(0, service.playerWrappers.size(), "expected the player to have been removed from the wrappers");
+    }
+
+    @Test
+    void testOnDestroy() {
+        var player = mock(com.github.yoep.popcorn.backend.adapters.player.Player.class);
+        when(player.getId()).thenReturn("player-id");
+        when(player.getName()).thenReturn("fxPlayer");
+        when(player.getDescription()).thenReturn("fxPlayerDescription");
+        when(player.getState()).thenReturn(Player.State.UNKNOWN);
+        when(fxChannel.send(isA(RegisterPlayerRequest.class), isA(Parser.class))).thenReturn(CompletableFuture.completedFuture(RegisterPlayerResponse.newBuilder()
+                .setResult(Response.Result.OK)
+                .build()
+        ));
+
+        service.register(player).resultNow();
+        verify(fxChannel).send(isA(RegisterPlayerRequest.class), isA(Parser.class));
+
+        service.onDestroy();
+
+        verify(player).dispose();
     }
 }

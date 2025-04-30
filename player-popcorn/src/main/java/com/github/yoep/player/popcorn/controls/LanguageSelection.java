@@ -1,7 +1,7 @@
 package com.github.yoep.player.popcorn.controls;
 
 import com.github.yoep.popcorn.backend.subtitles.ISubtitleInfo;
-import com.github.yoep.popcorn.backend.subtitles.listeners.LanguageSelectionListener;
+import com.github.yoep.popcorn.backend.subtitles.LanguageSelectionListener;
 import com.github.yoep.popcorn.ui.font.controls.Icon;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;

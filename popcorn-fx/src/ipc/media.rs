@@ -55,7 +55,7 @@ impl MessageHandler for MediaMessageHandler {
         )
     }
 
-    async fn process(&self, message: FxMessage, channel: &IpcChannel) -> crate::ipc::Result<()> {
+    async fn process(&self, message: FxMessage, channel: &IpcChannel) -> Result<()> {
         match message.message_type() {
             GetCategoryGenresRequest::NAME => {
                 let request = GetCategoryGenresRequest::parse_from_bytes(&message.payload)?;
@@ -252,10 +252,12 @@ impl MessageHandler for MediaMessageHandler {
 mod tests {
     use super::*;
 
+    use crate::ipc::proto::media::media::MovieDetails;
     use crate::ipc::test::create_channel_pair;
     use crate::tests::default_args;
     use crate::try_recv;
 
+    use popcorn_fx_core::core::media::{Images, MovieOverview, Rating};
     use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::copy_test_file;
     use std::time::Duration;
@@ -386,5 +388,90 @@ mod tests {
         let result = GetMediaItemsResponse::parse_from_bytes(&response.payload).unwrap();
 
         assert_eq!(response::Result::OK, result.result.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_process_get_media_details_request() {
+        init_logger!();
+        let media = Box::new(MovieOverview {
+            title: "MyMovie".to_string(),
+            imdb_id: "tt1156398".to_string(),
+            year: "2013".to_string(),
+            images: Images {
+                poster: "http://localhost/poster.png".to_string(),
+                fanart: "http://localhost/fanart.png".to_string(),
+                banner: "http://localhost/banner.png".to_string(),
+            },
+            rating: Some(Rating {
+                percentage: 80,
+                watching: 20,
+                votes: 0,
+                loved: 0,
+                hated: 0,
+            }),
+        }) as Box<dyn MediaIdentifier>;
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
+        let (incoming, outgoing) = create_channel_pair().await;
+        let handler = MediaMessageHandler::new(instance);
+
+        let response = incoming
+            .get(
+                GetMediaDetailsRequest {
+                    item: MessageField::some(media::Item::try_from(&media).unwrap()),
+                    special_fields: Default::default(),
+                },
+                GetMediaDetailsRequest::NAME,
+            )
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been process successfully"
+        );
+
+        let response = try_recv!(response, Duration::from_millis(250))
+            .expect("expected to have received a reply");
+        let result = GetMediaDetailsResponse::parse_from_bytes(&response.payload).unwrap();
+
+        assert_eq!(response::Result::OK, result.result.unwrap());
+        assert_eq!(MovieDetails::NAME, result.item.type_);
+        assert_ne!(MessageField::none(), result.item.movie_details);
+    }
+
+    #[tokio::test]
+    async fn test_process_reset_provider_api_request() {
+        init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
+        let (incoming, outgoing) = create_channel_pair().await;
+        let handler = MediaMessageHandler::new(instance);
+
+        incoming
+            .send(
+                ResetProviderApiRequest {
+                    category: media::Category::MOVIES.into(),
+                    special_fields: Default::default(),
+                },
+                ResetProviderApiRequest::NAME,
+            )
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been process successfully"
+        );
     }
 }

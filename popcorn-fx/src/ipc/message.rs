@@ -133,15 +133,15 @@ pub fn enum_into<E: Enum>(value: EnumOrUnknown<E>) -> Result<E> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::time::Duration;
 
     use crate::ipc::proto::application::GetApplicationVersionRequest;
     use crate::ipc::proto::log::LogRequest;
     use crate::ipc::test::create_channel_pair;
     use crate::try_recv;
-
     use mockall::mock;
+
     use popcorn_fx_core::init_logger;
+    use std::time::Duration;
     use tokio::sync::mpsc::unbounded_channel;
 
     mock! {

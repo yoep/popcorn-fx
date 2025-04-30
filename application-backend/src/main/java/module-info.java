@@ -36,7 +36,6 @@ module application.backend {
     exports com.github.yoep.popcorn.backend.playlists;
     exports com.github.yoep.popcorn.backend.services;
     exports com.github.yoep.popcorn.backend.settings;
-    exports com.github.yoep.popcorn.backend.subtitles.listeners;
     exports com.github.yoep.popcorn.backend.subtitles;
     exports com.github.yoep.popcorn.backend.torrent;
     exports com.github.yoep.popcorn.backend.updater;

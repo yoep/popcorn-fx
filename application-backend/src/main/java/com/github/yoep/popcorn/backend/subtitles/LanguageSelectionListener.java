@@ -1,6 +1,4 @@
-package com.github.yoep.popcorn.backend.subtitles.listeners;
-
-import com.github.yoep.popcorn.backend.subtitles.ISubtitleInfo;
+package com.github.yoep.popcorn.backend.subtitles;
 
 public interface LanguageSelectionListener {
     /**

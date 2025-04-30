@@ -353,7 +353,6 @@
                         --add-opens application.backend/com.github.yoep.popcorn.backend.playlists=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend.services=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend.settings=ALL-UNNAMED
-                        --add-opens application.backend/com.github.yoep.popcorn.backend.subtitles.model=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend.subtitles=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend.torrent=ALL-UNNAMED
                         --add-opens application.backend/com.github.yoep.popcorn.backend.updater=ALL-UNNAMED

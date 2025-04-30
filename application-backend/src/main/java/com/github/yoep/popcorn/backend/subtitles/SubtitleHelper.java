@@ -95,7 +95,7 @@ public class SubtitleHelper {
 
     /**
      * Get the flag resource for this subtitle.
-     * The flag resource should exist as the "unknown"/"not supported" languages are already filtered by the {@link SubtitleLanguage}.
+     * The flag resource should exist as the "unknown"/"not supported" languages are already filtered by the {@link Subtitle.Language}.
      *
      * @return Returns the flag class path resource.
      */

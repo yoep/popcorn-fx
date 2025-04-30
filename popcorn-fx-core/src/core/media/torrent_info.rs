@@ -4,31 +4,31 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TorrentInfo {
     /// The URL of the torrent.
-    url: String,
+    pub url: String,
     /// The provider of the torrent.
-    provider: String,
+    pub provider: String,
     /// The source of the torrent.
-    source: String,
+    pub source: String,
     /// The title associated with the torrent.
-    title: String,
+    pub title: String,
     /// The quality of the torrent.
-    quality: String,
+    pub quality: String,
     /// The number of seeds for the torrent.
     #[serde(alias = "seeds")]
-    seed: u32,
+    pub seed: u32,
     /// The number of peers for the torrent.
     #[serde(alias = "peers")]
-    peer: u32,
+    pub peer: u32,
     /// The size of the torrent in bytes, if known.
     /// This is typically available for movies and may be `None` for episodes.
-    size: Option<String>,
+    pub size: Option<String>,
     /// The filesize of the torrent in human-readable format, if known.
     /// This is typically available for movies and may be `None` for episodes.
-    filesize: Option<String>,
+    pub filesize: Option<String>,
     /// The file to use from within a torrent collection, if present.
     /// This field is available when the torrent is a collection; otherwise, the primary media file
     /// from the torrent info should be used.
-    file: Option<String>,
+    pub file: Option<String>,
 }
 
 impl TorrentInfo {

@@ -431,3 +431,565 @@ impl Player for ProtoPlayerWrapper {
         .await;
     }
 }
+
+impl PartialEq for ProtoPlayerWrapper {
+    fn eq(&self, other: &Self) -> bool {
+        self.proto == other.proto
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::ipc::test::create_channel_pair;
+    use crate::tests::default_args;
+    use crate::try_recv;
+
+    use popcorn_fx_core::core::media::{Episode, ShowDetails};
+    use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
+    use popcorn_fx_core::core::subtitles::model::SubtitleInfo;
+    use popcorn_fx_core::init_logger;
+    use popcorn_fx_core::testing::MockPlayer;
+    use protobuf::EnumOrUnknown;
+    use std::time::Duration;
+    use tempfile::tempdir;
+    use tokio::sync::mpsc::unbounded_channel;
+    use tokio::sync::oneshot;
+
+    #[tokio::test]
+    async fn test_process_get_player_by_id() {
+        init_logger!();
+        let player_id = "mock-player-id";
+        let player = create_mock_player(player_id);
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
+        let (incoming, outgoing) = create_channel_pair().await;
+        let handler = PlayerMessageHandler::new(instance.clone(), outgoing.clone());
+
+        let result = instance.player_manager().add_player(Box::new(player));
+        assert_eq!(Ok(()), result, "expected the player to have been added");
+
+        let response = incoming
+            .get(
+                GetPlayerByIdRequest {
+                    id: player_id.to_string(),
+                    special_fields: Default::default(),
+                },
+                GetPlayerByIdRequest::NAME,
+            )
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been process successfully"
+        );
+
+        let response = try_recv!(response, Duration::from_millis(250))
+            .expect("expected to have received a reply");
+        let result = GetPlayerByIdResponse::parse_from_bytes(&response.payload).unwrap();
+
+        assert_ne!(
+            MessageField::none(),
+            result.player,
+            "expected the player to have been returned"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_process_get_players_request() {
+        init_logger!();
+        let player_id = "mock-player-id";
+        let player = create_mock_player(player_id);
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
+        let (incoming, outgoing) = create_channel_pair().await;
+        let handler = PlayerMessageHandler::new(instance.clone(), outgoing.clone());
+
+        let result = instance.player_manager().add_player(Box::new(player));
+        assert_eq!(Ok(()), result, "expected the player to have been added");
+
+        let response = incoming
+            .get(GetPlayersRequest::default(), GetPlayersRequest::NAME)
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been process successfully"
+        );
+
+        let response = try_recv!(response, Duration::from_millis(250))
+            .expect("expected to have received a reply");
+        let result = GetPlayersResponse::parse_from_bytes(&response.payload).unwrap();
+
+        assert_eq!(
+            1,
+            result.players.len(),
+            "expected the player to have been returned"
+        );
+        assert_eq!(player_id, result.players.get(0).unwrap().id);
+    }
+
+    #[tokio::test]
+    async fn test_process_get_active_player_request() {
+        init_logger!();
+        let player_id = "active-player-id";
+        let player = create_mock_player(player_id);
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
+        let (incoming, outgoing) = create_channel_pair().await;
+        let handler = PlayerMessageHandler::new(instance.clone(), outgoing.clone());
+
+        let result = instance.player_manager().add_player(Box::new(player));
+        assert_eq!(Ok(()), result, "expected the player to have been added");
+        instance.player_manager().set_active_player(player_id).await;
+
+        let response = incoming
+            .get(
+                GetActivePlayerRequest::default(),
+                GetActivePlayerRequest::NAME,
+            )
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been process successfully"
+        );
+
+        let response = try_recv!(response, Duration::from_millis(250))
+            .expect("expected to have received a reply");
+        let result = GetActivePlayerResponse::parse_from_bytes(&response.payload).unwrap();
+
+        assert_ne!(
+            MessageField::none(),
+            result.player,
+            "expected an active player"
+        );
+        assert_eq!(player_id, result.player.id.as_str());
+    }
+
+    #[tokio::test]
+    async fn test_process_update_active_player_request() {
+        init_logger!();
+        let player_id = "active-player-id";
+        let player = create_mock_player(player_id);
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
+        let (incoming, outgoing) = create_channel_pair().await;
+        let handler = PlayerMessageHandler::new(instance.clone(), outgoing.clone());
+
+        let result = instance.player_manager().add_player(Box::new(player));
+        assert_eq!(Ok(()), result, "expected the player to have been added");
+
+        incoming
+            .send(
+                UpdateActivePlayerRequest {
+                    player: MessageField::some(player::Player {
+                        id: player_id.to_string(),
+                        name: "player-name".to_string(),
+                        description: "player-description".to_string(),
+                        graphic_resource: vec![],
+                        state: Default::default(),
+                        special_fields: Default::default(),
+                    }),
+                    special_fields: Default::default(),
+                },
+                UpdateActivePlayerRequest::NAME,
+            )
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been process successfully"
+        );
+
+        let player = instance
+            .player_manager()
+            .active_player()
+            .await
+            .and_then(|e| e.upgrade())
+            .expect("expected an active player");
+        assert_eq!(
+            player_id,
+            player.id(),
+            "expected the active player to match"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_process_register_player_request() {
+        init_logger!();
+        let proto_player = player::Player {
+            id: "my-player-id".to_string(),
+            name: "player-name".to_string(),
+            description: "player-description".to_string(),
+            graphic_resource: vec![0, 11, 14],
+            state: player::player::State::STOPPED.into(),
+            special_fields: Default::default(),
+        };
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
+        let (incoming, outgoing) = create_channel_pair().await;
+        let player = ProtoPlayerWrapper::new(proto_player.clone(), outgoing.clone());
+        let handler = PlayerMessageHandler::new(instance.clone(), outgoing.clone());
+
+        let response = incoming
+            .get(
+                RegisterPlayerRequest {
+                    player: MessageField::some(proto_player),
+                    special_fields: Default::default(),
+                },
+                RegisterPlayerRequest::NAME,
+            )
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been process successfully"
+        );
+
+        let response = try_recv!(response, Duration::from_millis(250))
+            .expect("expected to have received a reply");
+        let result = RegisterPlayerResponse::parse_from_bytes(&response.payload).unwrap();
+
+        assert_eq!(
+            Into::<EnumOrUnknown<response::Result>>::into(response::Result::OK),
+            result.result
+        );
+        let result = instance
+            .player_manager()
+            .players()
+            .get(0)
+            .and_then(|e| e.upgrade())
+            .unwrap();
+        if let Some(result) = result.downcast_ref::<ProtoPlayerWrapper>() {
+            assert_eq!(&player, result);
+        } else {
+            assert!(
+                false,
+                "expected a ProtoPlayerWrapper, but got {:?} instead",
+                result
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_process_remove_player_request() {
+        init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
+        let (incoming, outgoing) = create_channel_pair().await;
+        let handler = PlayerMessageHandler::new(instance.clone(), outgoing.clone());
+
+        incoming
+            .send(
+                RegisterPlayerRequest {
+                    player: MessageField::some(player::Player {
+                        id: "player-to-remove".to_string(),
+                        name: "mock-player".to_string(),
+                        description: "player-description".to_string(),
+                        graphic_resource: vec![],
+                        state: player::player::State::READY.into(),
+                        special_fields: Default::default(),
+                    }),
+                    special_fields: Default::default(),
+                },
+                RegisterPlayerRequest::NAME,
+            )
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been process successfully"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_process_start_players_discovery_request() {
+        init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
+        let (incoming, outgoing) = create_channel_pair().await;
+        let handler = PlayerMessageHandler::new(instance.clone(), outgoing.clone());
+
+        incoming
+            .send(
+                StartPlayersDiscoveryRequest::default(),
+                StartPlayersDiscoveryRequest::NAME,
+            )
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been process successfully"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_process_player_pause_request() {
+        init_logger!();
+        let player_id = "my-player";
+        let mut player = create_mock_player(player_id);
+        player.expect_pause().times(1).return_const(());
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
+        let (incoming, outgoing) = create_channel_pair().await;
+        let handler = PlayerMessageHandler::new(instance.clone(), outgoing.clone());
+
+        instance
+            .player_manager()
+            .add_player(Box::new(player))
+            .unwrap();
+
+        incoming
+            .send(
+                PlayerPauseRequest {
+                    player_id: player_id.to_string(),
+                    special_fields: Default::default(),
+                },
+                PlayerPauseRequest::NAME,
+            )
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been process successfully"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_process_player_resume_request() {
+        init_logger!();
+        let player_id = "my-player";
+        let mut player = create_mock_player(player_id);
+        player.expect_resume().times(1).return_const(());
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
+        let (incoming, outgoing) = create_channel_pair().await;
+        let handler = PlayerMessageHandler::new(instance.clone(), outgoing.clone());
+
+        instance
+            .player_manager()
+            .add_player(Box::new(player))
+            .unwrap();
+
+        incoming
+            .send(
+                PlayerResumeRequest {
+                    player_id: player_id.to_string(),
+                    special_fields: Default::default(),
+                },
+                PlayerResumeRequest::NAME,
+            )
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been process successfully"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_process_player_stop_request() {
+        init_logger!();
+        let player_id = "my-player";
+        let mut player = create_mock_player(player_id);
+        player.expect_stop().times(1).return_const(());
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
+        let (incoming, outgoing) = create_channel_pair().await;
+        let handler = PlayerMessageHandler::new(instance.clone(), outgoing.clone());
+
+        instance
+            .player_manager()
+            .add_player(Box::new(player))
+            .unwrap();
+
+        incoming
+            .send(
+                PlayerStopRequest {
+                    player_id: player_id.to_string(),
+                    special_fields: Default::default(),
+                },
+                PlayerStopRequest::NAME,
+            )
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been process successfully"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_process_player_seek_request() {
+        init_logger!();
+        let player_id = "my-player";
+        let time = 20700;
+        let (tx, rx) = oneshot::channel();
+        let mut player = create_mock_player(player_id);
+        player.expect_seek().times(1).return_once(move |time| {
+            tx.send(time).unwrap();
+            ()
+        });
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
+        let (incoming, outgoing) = create_channel_pair().await;
+        let handler = PlayerMessageHandler::new(instance.clone(), outgoing.clone());
+
+        instance
+            .player_manager()
+            .add_player(Box::new(player))
+            .unwrap();
+
+        incoming
+            .send(
+                PlayerSeekRequest {
+                    player_id: player_id.to_string(),
+                    time,
+                    special_fields: Default::default(),
+                },
+                PlayerSeekRequest::NAME,
+            )
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been process successfully"
+        );
+
+        let result = try_recv!(rx, Duration::from_millis(250))
+            .expect("expected the seek to have been invoked");
+        assert_eq!(time, result);
+    }
+
+    fn create_mock_player(id: &str) -> MockPlayer {
+        let mut player = MockPlayer::new();
+        player.expect_id().return_const(id.to_string());
+        player.expect_name().return_const("MockPlayer".to_string());
+        player
+            .expect_description()
+            .return_const("FooBar".to_string());
+        player.expect_state().return_const(PlayerState::Unknown);
+        player.expect_graphic_resource().return_const(Vec::new());
+        player.expect_request().returning(|| {
+            let episode = Episode {
+                season: 1,
+                episode: 10,
+                first_aired: 0,
+                title: "EpisodeTitle".to_string(),
+                overview: "EpisodeOverview".to_string(),
+                tvdb_id: 1200000,
+                tvdb_id_value: "1200000".to_string(),
+                thumb: Some("http://localhost/thumb.png".to_string()),
+                torrents: Default::default(),
+            };
+
+            Some(
+                PlayRequest::builder()
+                    .url("http://localhost/my-video.mp4")
+                    .title("EpisodeTitle")
+                    .caption("FooBar")
+                    .thumb("http://localhost/thumb.png")
+                    .background("http://localhost/background.png")
+                    .auto_resume_timestamp(13500)
+                    .subtitles_enabled(true)
+                    .subtitle_info(
+                        SubtitleInfo::builder()
+                            .imdb_id("tt100000")
+                            .language(SubtitleLanguage::Italian)
+                            .build(),
+                    )
+                    .parent_media(Box::new(ShowDetails {
+                        imdb_id: "tt100000".to_string(),
+                        tvdb_id: "tt120000".to_string(),
+                        title: "MyShow".to_string(),
+                        year: "2012".to_string(),
+                        num_seasons: 3,
+                        images: Default::default(),
+                        rating: None,
+                        context_locale: "en".to_string(),
+                        synopsis: "FooBar".to_string(),
+                        runtime: None,
+                        status: "returning".to_string(),
+                        genres: vec!["comedy".to_string(), "action".to_string()],
+                        episodes: vec![episode.clone()],
+                    }))
+                    .media(Box::new(episode))
+                    .quality("1080p")
+                    .build(),
+            )
+        });
+        player.expect_subscribe().returning(|| {
+            let (_, rx) = unbounded_channel();
+            rx
+        });
+        player
+    }
+}

@@ -156,3 +156,177 @@ impl MessageHandler for UpdateMessageHandler {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::ipc::test::create_channel_pair;
+    use crate::tests::default_args;
+    use crate::try_recv;
+
+    use popcorn_fx_core::init_logger;
+    use protobuf::EnumOrUnknown;
+    use std::time::Duration;
+    use tempfile::tempdir;
+
+    #[tokio::test]
+    async fn test_process_get_update_state_request() {
+        init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
+        let (incoming, outgoing) = create_channel_pair().await;
+        let handler = UpdateMessageHandler::new(Arc::clone(&instance), outgoing.clone());
+
+        let response = incoming
+            .get(GetUpdateStateRequest::new(), GetUpdateStateRequest::NAME)
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been process successfully"
+        );
+
+        let response = try_recv!(response, Duration::from_millis(250))
+            .expect("expected to have received a reply");
+        let result = GetUpdateStateResponse::parse_from_bytes(&response.payload).unwrap();
+
+        assert!(
+            result.state.enum_value().is_ok(),
+            "expected a valid state to have been returned"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_process_get_update_info_request() {
+        init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
+        let (incoming, outgoing) = create_channel_pair().await;
+        let handler = UpdateMessageHandler::new(Arc::clone(&instance), outgoing.clone());
+
+        let response = incoming
+            .get(GetUpdateInfoRequest::new(), GetUpdateInfoRequest::NAME)
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been process successfully"
+        );
+
+        let response = try_recv!(response, Duration::from_millis(250))
+            .expect("expected to have received a reply");
+        let result = GetUpdateInfoResponse::parse_from_bytes(&response.payload).unwrap();
+
+        assert_eq!(
+            Into::<EnumOrUnknown<response::Result>>::into(response::Result::OK),
+            result.result,
+            "expected the info to have been returned"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_process_refresh_update_info_request() {
+        init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
+        let (incoming, outgoing) = create_channel_pair().await;
+        let handler = UpdateMessageHandler::new(Arc::clone(&instance), outgoing.clone());
+
+        incoming
+            .send(
+                RefreshUpdateInfoRequest::new(),
+                RefreshUpdateInfoRequest::NAME,
+            )
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been process successfully"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_process_start_update_download_request() {
+        init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
+        let (incoming, outgoing) = create_channel_pair().await;
+        let handler = UpdateMessageHandler::new(Arc::clone(&instance), outgoing.clone());
+
+        let response = incoming
+            .get(
+                StartUpdateDownloadRequest::new(),
+                StartUpdateDownloadRequest::NAME,
+            )
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been process successfully"
+        );
+
+        let response = try_recv!(response, Duration::from_millis(250))
+            .expect("expected to have received a reply");
+
+        let _ = StartUpdateDownloadResponse::parse_from_bytes(&response.payload)
+            .expect("expected a valid response");
+    }
+
+    #[tokio::test]
+    async fn test_process_start_update_installation_request() {
+        init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
+        let (incoming, outgoing) = create_channel_pair().await;
+        let handler = UpdateMessageHandler::new(Arc::clone(&instance), outgoing.clone());
+
+        let response = incoming
+            .get(
+                StartUpdateInstallationRequest::new(),
+                StartUpdateInstallationRequest::NAME,
+            )
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been process successfully"
+        );
+
+        let response = try_recv!(response, Duration::from_millis(250))
+            .expect("expected to have received a reply");
+
+        let _ = StartUpdateInstallationResponse::parse_from_bytes(&response.payload)
+            .expect("expected a valid response");
+    }
+}

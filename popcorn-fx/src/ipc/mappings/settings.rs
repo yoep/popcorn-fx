@@ -9,8 +9,8 @@ use crate::ipc::proto::subtitle::subtitle::Language;
 use crate::ipc::{enum_into, Error, Result};
 use popcorn_fx_core::core::config::{
     CleaningMode, DecorationType, MediaTrackingSyncState, PlaybackSettings, PopcornSettings,
-    Quality, SubtitleFamily, SubtitleSettings, TorrentSettings, TrackingSettings, UiScale,
-    UiSettings,
+    Quality, ServerSettings, SubtitleFamily, SubtitleSettings, TorrentSettings, TrackingSettings,
+    UiScale, UiSettings,
 };
 use popcorn_fx_core::core::media::Category;
 use protobuf::MessageField;
@@ -25,10 +25,9 @@ impl From<&PopcornSettings> for settings::ApplicationSettings {
             ui_settings: MessageField::some(application_settings::UISettings::from(
                 &value.ui_settings,
             )),
-            server_settings: MessageField::some(application_settings::ServerSettings {
-                api_server: value.server_settings.api_server.clone(),
-                special_fields: Default::default(),
-            }),
+            server_settings: MessageField::some(application_settings::ServerSettings::from(
+                &value.server_settings,
+            )),
             torrent_settings: MessageField::some(application_settings::TorrentSettings::from(
                 &value.torrent_settings,
             )),
@@ -98,6 +97,25 @@ impl TryFrom<&application_settings::UISettings> for UiSettings {
             start_screen,
             maximized: value.maximized,
             native_window_enabled: value.native_window_enabled,
+        })
+    }
+}
+
+impl From<&ServerSettings> for application_settings::ServerSettings {
+    fn from(value: &ServerSettings) -> Self {
+        Self {
+            api_server: value.api_server.clone(),
+            special_fields: Default::default(),
+        }
+    }
+}
+
+impl TryFrom<&application_settings::ServerSettings> for ServerSettings {
+    type Error = Error;
+
+    fn try_from(value: &application_settings::ServerSettings) -> Result<Self> {
+        Ok(Self {
+            api_server: value.api_server.clone(),
         })
     }
 }

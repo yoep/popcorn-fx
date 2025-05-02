@@ -57,3 +57,50 @@ impl MessageHandler for TrackingMessageHandler {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::ipc::test::create_channel_pair;
+    use crate::tests::default_args;
+    use crate::try_recv;
+
+    use popcorn_fx_core::init_logger;
+    use std::time::Duration;
+    use tempfile::tempdir;
+
+    #[tokio::test]
+    async fn test_process_get_is_authorized_request() {
+        init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
+        let (incoming, outgoing) = create_channel_pair().await;
+        let handler = TrackingMessageHandler::new(instance.clone());
+
+        let response = incoming
+            .get(
+                GetTrackingProviderIsAuthorizedRequest::new(),
+                GetTrackingProviderIsAuthorizedRequest::NAME,
+            )
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been process successfully"
+        );
+
+        let response = try_recv!(response, Duration::from_millis(250))
+            .expect("expected to have received a reply");
+        let result =
+            GetTrackingProviderIsAuthorizedResponse::parse_from_bytes(&response.payload).unwrap();
+
+        assert_eq!(false, result.is_authorized);
+    }
+}

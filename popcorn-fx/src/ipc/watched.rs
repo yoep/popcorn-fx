@@ -132,3 +132,148 @@ impl MessageHandler for WatchedMessageHandler {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::ipc::test::create_channel_pair;
+    use crate::tests::default_args;
+    use crate::try_recv;
+
+    use popcorn_fx_core::core::media::{Episode, MovieOverview};
+    use popcorn_fx_core::init_logger;
+    use protobuf::EnumOrUnknown;
+    use std::time::Duration;
+    use tempfile::tempdir;
+
+    #[tokio::test]
+    async fn test_process_get_is_watched_request() {
+        init_logger!();
+        let media = Box::new(Episode {
+            season: 1,
+            episode: 2,
+            first_aired: 0,
+            title: "MyEpisodeTitle".to_string(),
+            overview: "MyEpisodeOverview".to_string(),
+            tvdb_id: 128777777,
+            tvdb_id_value: "128777777".to_string(),
+            thumb: Some("EpisodeThumb.png".to_string()),
+            torrents: Default::default(),
+        }) as Box<dyn MediaIdentifier>;
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
+        let (incoming, outgoing) = create_channel_pair().await;
+        let handler = WatchedMessageHandler::new(instance, outgoing.clone());
+
+        let response = incoming
+            .get(
+                GetIsWatchedRequest {
+                    item: MessageField::some(media::Item::try_from(&media).unwrap()),
+                    special_fields: Default::default(),
+                },
+                GetIsWatchedRequest::NAME,
+            )
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been process successfully"
+        );
+
+        let response = try_recv!(response, Duration::from_millis(250))
+            .expect("expected to have received a reply");
+        let result = GetIsWatchedResponse::parse_from_bytes(&response.payload).unwrap();
+
+        assert_eq!(false, result.is_watched);
+    }
+
+    #[tokio::test]
+    async fn test_process_add_watchlist_request() {
+        init_logger!();
+        let media = Box::new(MovieOverview {
+            imdb_id: "tt220000000".to_string(),
+            title: "MyMovie".to_string(),
+            year: "2010".to_string(),
+            rating: None,
+            images: Default::default(),
+        }) as Box<dyn MediaIdentifier>;
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
+        let (incoming, outgoing) = create_channel_pair().await;
+        let handler = WatchedMessageHandler::new(instance, outgoing.clone());
+
+        let response = incoming
+            .get(
+                AddToWatchlistRequest {
+                    item: MessageField::some(media::Item::try_from(&media).unwrap()),
+                    special_fields: Default::default(),
+                },
+                AddToWatchlistRequest::NAME,
+            )
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been process successfully"
+        );
+
+        let response = try_recv!(response, Duration::from_millis(250))
+            .expect("expected to have received a reply");
+        let result = AddToWatchlistResponse::parse_from_bytes(&response.payload).unwrap();
+
+        assert_eq!(
+            Into::<EnumOrUnknown<response::Result>>::into(response::Result::OK),
+            result.result
+        );
+    }
+
+    #[tokio::test]
+    async fn test_process_remove_from_watchlist_request() {
+        init_logger!();
+        let media = Box::new(MovieOverview {
+            imdb_id: "tt003".to_string(),
+            title: "MyMovie".to_string(),
+            year: "2010".to_string(),
+            rating: None,
+            images: Default::default(),
+        }) as Box<dyn MediaIdentifier>;
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
+        let (incoming, outgoing) = create_channel_pair().await;
+        let handler = WatchedMessageHandler::new(instance, outgoing.clone());
+
+        incoming
+            .send(
+                RemoveFromWatchlistRequest {
+                    item: MessageField::some(media::Item::try_from(&media).unwrap()),
+                    special_fields: Default::default(),
+                },
+                RemoveFromWatchlistRequest::NAME,
+            )
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been process successfully"
+        );
+    }
+}

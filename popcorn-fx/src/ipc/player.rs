@@ -446,6 +446,7 @@ mod tests {
     use crate::tests::default_args;
     use crate::try_recv;
 
+    use crate::ipc::proto::player::PlayerPlayRequest;
     use popcorn_fx_core::core::media::{Episode, ShowDetails};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::core::subtitles::model::SubtitleInfo;
@@ -929,6 +930,113 @@ mod tests {
         assert_eq!(time, result);
     }
 
+    #[tokio::test]
+    async fn test_proto_player_state() {
+        init_logger!();
+        let player_id = "proto-player";
+        let (tx, rx) = oneshot::channel();
+        let (incoming, outgoing) = create_channel_pair().await;
+        let player = create_proto_player(player_id, outgoing.clone());
+
+        tokio::spawn(async move {
+            if let Some(message) = incoming.recv().await {
+                let request = GetPlayerStateRequest::parse_from_bytes(&message.payload).unwrap();
+                tx.send(request).unwrap();
+                incoming
+                    .send_reply(
+                        &message,
+                        GetPlayerStateResponse {
+                            state: player::player::State::READY.into(),
+                            special_fields: Default::default(),
+                        },
+                        GetPlayerStateResponse::NAME,
+                    )
+                    .await
+                    .unwrap();
+            }
+        });
+
+        let result = player.state().await;
+        assert_eq!(PlayerState::Ready, result);
+
+        let request = try_recv!(rx, Duration::from_millis(250)).unwrap();
+        assert_eq!(player_id, request.player_id.as_str());
+    }
+
+    #[tokio::test]
+    async fn test_proto_player_play() {
+        init_logger!();
+        let player_id = "proto-player";
+        let play_request = PlayRequest::builder()
+            .url("http://localhost:3000/my-video.mkv")
+            .title("MyPlayRequest")
+            .caption("Caption")
+            .thumb("ThumbUrl.png")
+            .background("BackgroundUrl.png")
+            .quality("1080p")
+            .subtitles_enabled(true)
+            .build();
+        let proto_play_request = player::player::PlayRequest::from(&play_request);
+        let (tx, rx) = oneshot::channel();
+        let (incoming, outgoing) = create_channel_pair().await;
+        let player = create_proto_player(player_id, outgoing.clone());
+
+        tokio::spawn(async move {
+            if let Some(message) = incoming.recv().await {
+                let request = PlayerPlayRequest::parse_from_bytes(&message.payload).unwrap();
+                tx.send(request).unwrap();
+            }
+        });
+
+        player.play(play_request).await;
+
+        let request = try_recv!(rx, Duration::from_millis(250)).unwrap();
+        assert_eq!(player_id, request.player_id.as_str());
+        assert_eq!(MessageField::some(proto_play_request), request.request);
+    }
+
+    #[tokio::test]
+    async fn test_proto_player_pause() {
+        init_logger!();
+        let player_id = "proto-player";
+        let (tx, rx) = oneshot::channel();
+        let (incoming, outgoing) = create_channel_pair().await;
+        let player = create_proto_player(player_id, outgoing.clone());
+
+        tokio::spawn(async move {
+            if let Some(message) = incoming.recv().await {
+                let request = PlayerPauseRequest::parse_from_bytes(&message.payload).unwrap();
+                tx.send(request).unwrap();
+            }
+        });
+
+        player.pause().await;
+
+        let request = try_recv!(rx, Duration::from_millis(250)).unwrap();
+        assert_eq!(player_id, request.player_id.as_str());
+    }
+
+    #[tokio::test]
+    async fn test_proto_player_resume() {
+        init_logger!();
+        let player_id = "proto-player";
+        let (tx, rx) = oneshot::channel();
+        let (incoming, outgoing) = create_channel_pair().await;
+        let player = create_proto_player(player_id, outgoing.clone());
+
+        tokio::spawn(async move {
+            if let Some(message) = incoming.recv().await {
+                let request = PlayerResumeRequest::parse_from_bytes(&message.payload).unwrap();
+                tx.send(request).unwrap();
+            }
+        });
+
+        player.resume().await;
+
+        let request = try_recv!(rx, Duration::from_millis(250)).unwrap();
+        assert_eq!(player_id, request.player_id.as_str());
+    }
+
     fn create_mock_player(id: &str) -> MockPlayer {
         let mut player = MockPlayer::new();
         player.expect_id().return_const(id.to_string());
@@ -991,5 +1099,19 @@ mod tests {
             rx
         });
         player
+    }
+
+    fn create_proto_player(player_id: &str, channel: IpcChannel) -> ProtoPlayerWrapper {
+        ProtoPlayerWrapper::new(
+            player::Player {
+                id: player_id.to_string(),
+                name: "TestProtoPlayer".to_string(),
+                description: "ProtoPlayerDescription".to_string(),
+                graphic_resource: vec![],
+                state: player::player::State::READY.into(),
+                special_fields: Default::default(),
+            },
+            channel,
+        )
     }
 }

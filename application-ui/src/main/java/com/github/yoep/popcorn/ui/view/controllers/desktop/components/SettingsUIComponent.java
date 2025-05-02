@@ -6,6 +6,7 @@ import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.AbstractSettingsUiComponent;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.CheckBox;
@@ -45,45 +46,42 @@ public class SettingsUIComponent extends AbstractSettingsUiComponent implements 
         defaultLanguage.setButtonCell(createLanguageCell());
 
         defaultLanguage.getItems().addAll(ApplicationConfig.supportedLanguages());
-        getUiSettings().whenComplete((settings, throwable) -> {
-            if (throwable == null) {
-                defaultLanguage.getSelectionModel().select(Locale.forLanguageTag(settings.getDefaultLanguage()));
-                defaultLanguage.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> updateLanguage(newValue));
-                defaultLanguage.sceneProperty().addListener((observable, oldValue, newValue) -> {
-                    if (newValue != null)
-                        defaultLanguage.requestFocus();
-                });
-            } else {
-                log.error("Failed to retrieve UI settings", throwable);
-            }
-        });
+        getUiSettings().thenAccept(settings -> Platform.runLater(() -> {
+            defaultLanguage.getSelectionModel().select(Locale.forLanguageTag(settings.getDefaultLanguage()));
+            defaultLanguage.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> updateLanguage(newValue));
+            defaultLanguage.sceneProperty().addListener((observable, oldValue, newValue) -> {
+                if (newValue != null)
+                    defaultLanguage.requestFocus();
+            });
+        }));
     }
 
     private void initializeUIScale() {
         uiScale.getItems().clear();
         uiScale.getItems().addAll(ApplicationConfig.supportedUIScales());
-        getUiSettings().whenComplete((settings, throwable) -> {
-            if (throwable == null) {
-                uiScale.getSelectionModel().select(settings.getScale());
-                uiScale.getSelectionModel().selectedItemProperty().addListener(((observable, oldValue, newValue) -> updateUIScale(newValue)));
-            } else {
-                log.error("Failed to retrieve UI settings", throwable);
-            }
-        });
+        uiScale.setCellFactory(param -> createUiScaleCell());
+        uiScale.setButtonCell(createUiScaleCell());
+        getUiSettings().thenAccept(settings -> Platform.runLater(() -> {
+            uiScale.getSelectionModel().select(settings.getScale());
+            uiScale.getSelectionModel().selectedItemProperty().addListener(((observable, oldValue, newValue) -> updateUIScale(newValue)));
+        }));
     }
 
     private void initializeStartScreen() {
         startScreen.setCellFactory(param -> createStartScreenCell());
         startScreen.setButtonCell(createStartScreenCell());
-
-        startScreen.getItems().addAll(Media.Category.values());
-//        startScreen.getSelectionModel().select(getUiSettings().getStartScreen());
-        startScreen.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> updateStartScreen(newValue));
+        startScreen.getItems().addAll(startScreens());
+        getUiSettings().thenAccept(settings -> Platform.runLater(() -> {
+            startScreen.getSelectionModel().select(settings.getStartScreen());
+            startScreen.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> updateStartScreen(newValue));
+        }));
     }
 
     private void initializeNativeWindow() {
-//        nativeWindow.setSelected(getUiSettings().getNativeWindowEnabled());
-        nativeWindow.selectedProperty().addListener((observableValue, oldValue, newValue) -> updateNativeWindow(newValue));
+        getUiSettings().thenAccept(settings -> Platform.runLater(() -> {
+            nativeWindow.setSelected(settings.getNativeWindowEnabled());
+            nativeWindow.selectedProperty().addListener((observableValue, oldValue, newValue) -> updateNativeWindow(newValue));
+        }));
     }
 
     private void updateLanguage(Locale locale) {

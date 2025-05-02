@@ -2,7 +2,6 @@ use std::env;
 use std::fmt::{Debug, Formatter};
 use std::path::PathBuf;
 use std::str::FromStr;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Once};
 
 use clap::Parser;

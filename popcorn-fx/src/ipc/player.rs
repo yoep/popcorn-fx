@@ -442,14 +442,11 @@ impl PartialEq for ProtoPlayerWrapper {
 mod tests {
     use super::*;
 
+    use crate::ipc::proto::player::PlayerPlayRequest;
     use crate::ipc::test::create_channel_pair;
     use crate::tests::default_args;
     use crate::try_recv;
 
-    use crate::ipc::proto::player::PlayerPlayRequest;
-    use popcorn_fx_core::core::media::{Episode, ShowDetails};
-    use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
-    use popcorn_fx_core::core::subtitles::model::SubtitleInfo;
     use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::MockPlayer;
     use protobuf::EnumOrUnknown;
@@ -457,6 +454,19 @@ mod tests {
     use tempfile::tempdir;
     use tokio::sync::mpsc::unbounded_channel;
     use tokio::sync::oneshot;
+
+    #[tokio::test]
+    async fn test_is_supported() {
+        init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
+        let (_incoming, outgoing) = create_channel_pair().await;
+        let handler = PlayerMessageHandler::new(instance, outgoing);
+
+        assert_eq!(true, handler.is_supported(GetPlayerByIdRequest::NAME));
+        assert_eq!(true, handler.is_supported(GetPlayersRequest::NAME));
+    }
 
     #[tokio::test]
     async fn test_process_get_player_by_id() {
@@ -707,17 +717,26 @@ mod tests {
     #[tokio::test]
     async fn test_process_remove_player_request() {
         init_logger!();
+        let player_id = "player-to-remove";
+        let player = create_mock_player(player_id);
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
         let (incoming, outgoing) = create_channel_pair().await;
         let handler = PlayerMessageHandler::new(instance.clone(), outgoing.clone());
 
+        instance
+            .player_manager()
+            .add_player(Box::new(player))
+            .unwrap();
+        let players = instance.player_manager().players();
+        assert_eq!(1, players.len(), "expected the player to have been added");
+
         incoming
             .send(
-                RegisterPlayerRequest {
+                RemovePlayerRequest {
                     player: MessageField::some(player::Player {
-                        id: "player-to-remove".to_string(),
+                        id: player_id.to_string(),
                         name: "mock-player".to_string(),
                         description: "player-description".to_string(),
                         graphic_resource: vec![],
@@ -726,7 +745,7 @@ mod tests {
                     }),
                     special_fields: Default::default(),
                 },
-                RegisterPlayerRequest::NAME,
+                RemovePlayerRequest::NAME,
             )
             .await
             .unwrap();
@@ -739,6 +758,9 @@ mod tests {
             result,
             "expected the message to have been process successfully"
         );
+
+        let result = instance.player_manager().players();
+        assert_eq!(0, result.len(), "expected the player to have been removed");
     }
 
     #[tokio::test]
@@ -988,11 +1010,14 @@ mod tests {
             }
         });
 
-        player.play(play_request).await;
+        player.play(play_request.clone()).await;
 
         let request = try_recv!(rx, Duration::from_millis(250)).unwrap();
         assert_eq!(player_id, request.player_id.as_str());
         assert_eq!(MessageField::some(proto_play_request), request.request);
+
+        let request = player.request().await;
+        assert_eq!(Some(play_request), request);
     }
 
     #[tokio::test]
@@ -1037,6 +1062,50 @@ mod tests {
         assert_eq!(player_id, request.player_id.as_str());
     }
 
+    #[tokio::test]
+    async fn test_proto_player_seek() {
+        init_logger!();
+        let time = 28000;
+        let player_id = "proto-player";
+        let (tx, rx) = oneshot::channel();
+        let (incoming, outgoing) = create_channel_pair().await;
+        let player = create_proto_player(player_id, outgoing.clone());
+
+        tokio::spawn(async move {
+            if let Some(message) = incoming.recv().await {
+                let request = PlayerSeekRequest::parse_from_bytes(&message.payload).unwrap();
+                tx.send(request).unwrap();
+            }
+        });
+
+        player.seek(time).await;
+
+        let request = try_recv!(rx, Duration::from_millis(250)).unwrap();
+        assert_eq!(player_id, request.player_id.as_str());
+        assert_eq!(time, request.time);
+    }
+
+    #[tokio::test]
+    async fn test_proto_player_stop() {
+        init_logger!();
+        let player_id = "proto-player";
+        let (tx, rx) = oneshot::channel();
+        let (incoming, outgoing) = create_channel_pair().await;
+        let player = create_proto_player(player_id, outgoing.clone());
+
+        tokio::spawn(async move {
+            if let Some(message) = incoming.recv().await {
+                let request = PlayerStopRequest::parse_from_bytes(&message.payload).unwrap();
+                tx.send(request).unwrap();
+            }
+        });
+
+        player.stop().await;
+
+        let request = try_recv!(rx, Duration::from_millis(250)).unwrap();
+        assert_eq!(player_id, request.player_id.as_str());
+    }
+
     fn create_mock_player(id: &str) -> MockPlayer {
         let mut player = MockPlayer::new();
         player.expect_id().return_const(id.to_string());
@@ -1046,54 +1115,6 @@ mod tests {
             .return_const("FooBar".to_string());
         player.expect_state().return_const(PlayerState::Unknown);
         player.expect_graphic_resource().return_const(Vec::new());
-        player.expect_request().returning(|| {
-            let episode = Episode {
-                season: 1,
-                episode: 10,
-                first_aired: 0,
-                title: "EpisodeTitle".to_string(),
-                overview: "EpisodeOverview".to_string(),
-                tvdb_id: 1200000,
-                tvdb_id_value: "1200000".to_string(),
-                thumb: Some("http://localhost/thumb.png".to_string()),
-                torrents: Default::default(),
-            };
-
-            Some(
-                PlayRequest::builder()
-                    .url("http://localhost/my-video.mp4")
-                    .title("EpisodeTitle")
-                    .caption("FooBar")
-                    .thumb("http://localhost/thumb.png")
-                    .background("http://localhost/background.png")
-                    .auto_resume_timestamp(13500)
-                    .subtitles_enabled(true)
-                    .subtitle_info(
-                        SubtitleInfo::builder()
-                            .imdb_id("tt100000")
-                            .language(SubtitleLanguage::Italian)
-                            .build(),
-                    )
-                    .parent_media(Box::new(ShowDetails {
-                        imdb_id: "tt100000".to_string(),
-                        tvdb_id: "tt120000".to_string(),
-                        title: "MyShow".to_string(),
-                        year: "2012".to_string(),
-                        num_seasons: 3,
-                        images: Default::default(),
-                        rating: None,
-                        context_locale: "en".to_string(),
-                        synopsis: "FooBar".to_string(),
-                        runtime: None,
-                        status: "returning".to_string(),
-                        genres: vec!["comedy".to_string(), "action".to_string()],
-                        episodes: vec![episode.clone()],
-                    }))
-                    .media(Box::new(episode))
-                    .quality("1080p")
-                    .build(),
-            )
-        });
         player.expect_subscribe().returning(|| {
             let (_, rx) = unbounded_channel();
             rx

@@ -15,7 +15,7 @@ impl From<&UpdateState> for update::update::State {
             UpdateState::Downloading => Self::DOWNLOADING,
             UpdateState::DownloadFinished => Self::DOWNLOAD_FINISHED,
             UpdateState::Installing => Self::INSTALLING,
-            UpdateState::InstallationFinished => Self::INSTALLING,
+            UpdateState::InstallationFinished => Self::INSTALLATION_FINISHED,
             UpdateState::Error => Self::ERROR,
         }
     }
@@ -141,5 +141,131 @@ impl From<&UpdateError> for update::update::Error {
         }
 
         err
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_update_state_from() {
+        assert_eq!(
+            update::update::State::CHECKING_FOR_NEW_VERSION,
+            update::update::State::from(&UpdateState::CheckingForNewVersion)
+        );
+        assert_eq!(
+            update::update::State::UPDATE_AVAILABLE,
+            update::update::State::from(&UpdateState::UpdateAvailable)
+        );
+        assert_eq!(
+            update::update::State::NO_UPDATE_AVAILABLE,
+            update::update::State::from(&UpdateState::NoUpdateAvailable)
+        );
+        assert_eq!(
+            update::update::State::DOWNLOADING,
+            update::update::State::from(&UpdateState::Downloading)
+        );
+        assert_eq!(
+            update::update::State::DOWNLOAD_FINISHED,
+            update::update::State::from(&UpdateState::DownloadFinished)
+        );
+        assert_eq!(
+            update::update::State::INSTALLING,
+            update::update::State::from(&UpdateState::Installing)
+        );
+        assert_eq!(
+            update::update::State::INSTALLATION_FINISHED,
+            update::update::State::from(&UpdateState::InstallationFinished)
+        );
+        assert_eq!(
+            update::update::State::ERROR,
+            update::update::State::from(&UpdateState::Error)
+        );
+    }
+
+    #[test]
+    fn test_update_event_from_state_changed() {
+        let event = UpdateEvent::StateChanged(UpdateState::Downloading);
+        let expected_result = update::UpdateEvent {
+            event: update_event::Event::STATE_CHANGED.into(),
+            state_changed: MessageField::some(update_event::StateChanged {
+                new_state: update::update::State::DOWNLOADING.into(),
+                special_fields: Default::default(),
+            }),
+            update_available: Default::default(),
+            download_progress: Default::default(),
+            special_fields: Default::default(),
+        };
+
+        let result = update::UpdateEvent::from(&event);
+
+        assert_eq!(expected_result, result);
+    }
+
+    #[test]
+    fn test_update_event_from_download_progress() {
+        let event = UpdateEvent::DownloadProgress(DownloadProgress {
+            total_size: 20000,
+            downloaded: 7000,
+        });
+        let expected_result = update::UpdateEvent {
+            event: update_event::Event::DOWNLOAD_PROGRESS.into(),
+            state_changed: Default::default(),
+            update_available: Default::default(),
+            download_progress: MessageField::some(update_event::DownloadProgress {
+                progress: MessageField::some(update::update::DownloadProgress {
+                    total_size: 20000,
+                    downloaded: 7000,
+                    special_fields: Default::default(),
+                }),
+                special_fields: Default::default(),
+            }),
+            special_fields: Default::default(),
+        };
+
+        let result = update::UpdateEvent::from(&event);
+
+        assert_eq!(expected_result, result);
+    }
+
+    #[test]
+    fn test_update_event_from_update_available() {
+        let event = UpdateEvent::UpdateAvailable(VersionInfo {
+            application: PatchInfo {
+                version: "2.0.0".to_string(),
+                platforms: Default::default(),
+            },
+            runtime: PatchInfo {
+                version: "21.5.0".to_string(),
+                platforms: Default::default(),
+            },
+        });
+        let expected_result = update::UpdateEvent {
+            event: update_event::Event::UPDATE_AVAILABLE.into(),
+            state_changed: Default::default(),
+            update_available: MessageField::some(update_event::UpdateAvailable {
+                version_info: MessageField::some(update::update::VersionInfo {
+                    application: MessageField::some(update::update::PatchInfo {
+                        version: "2.0.0".to_string(),
+                        platforms: Default::default(),
+                        special_fields: Default::default(),
+                    }),
+                    runtime: MessageField::some(update::update::PatchInfo {
+                        version: "21.5.0".to_string(),
+                        platforms: Default::default(),
+                        special_fields: Default::default(),
+                    }),
+                    special_fields: Default::default(),
+                }),
+                special_fields: Default::default(),
+            }),
+            download_progress: Default::default(),
+            special_fields: Default::default(),
+        };
+
+        let result = update::UpdateEvent::from(&event);
+
+        assert_eq!(expected_result, result);
     }
 }

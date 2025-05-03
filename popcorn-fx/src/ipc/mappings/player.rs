@@ -147,3 +147,80 @@ impl From<&PlayerManagerEvent> for player::PlayerManagerEvent {
         event
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_player_state_proto_from() {
+        assert_eq!(
+            player::player::State::UNKNOWN,
+            player::player::State::from(&PlayerState::Unknown)
+        );
+        assert_eq!(
+            player::player::State::READY,
+            player::player::State::from(&PlayerState::Ready)
+        );
+        assert_eq!(
+            player::player::State::LOADING,
+            player::player::State::from(&PlayerState::Loading)
+        );
+        assert_eq!(
+            player::player::State::BUFFERING,
+            player::player::State::from(&PlayerState::Buffering)
+        );
+        assert_eq!(
+            player::player::State::PLAYING,
+            player::player::State::from(&PlayerState::Playing)
+        );
+        assert_eq!(
+            player::player::State::PAUSED,
+            player::player::State::from(&PlayerState::Paused)
+        );
+        assert_eq!(
+            player::player::State::STOPPED,
+            player::player::State::from(&PlayerState::Stopped)
+        );
+        assert_eq!(
+            player::player::State::ERROR,
+            player::player::State::from(&PlayerState::Error)
+        );
+    }
+
+    #[test]
+    fn test_player_state_from() {
+        assert_eq!(
+            PlayerState::Unknown,
+            PlayerState::from(&player::player::State::UNKNOWN)
+        );
+        assert_eq!(
+            PlayerState::Ready,
+            PlayerState::from(&player::player::State::READY)
+        );
+        assert_eq!(
+            PlayerState::Loading,
+            PlayerState::from(&player::player::State::LOADING)
+        );
+        assert_eq!(
+            PlayerState::Buffering,
+            PlayerState::from(&player::player::State::BUFFERING)
+        );
+        assert_eq!(
+            PlayerState::Playing,
+            PlayerState::from(&player::player::State::PLAYING)
+        );
+        assert_eq!(
+            PlayerState::Paused,
+            PlayerState::from(&player::player::State::PAUSED)
+        );
+        assert_eq!(
+            PlayerState::Stopped,
+            PlayerState::from(&player::player::State::STOPPED)
+        );
+        assert_eq!(
+            PlayerState::Error,
+            PlayerState::from(&player::player::State::ERROR)
+        );
+    }
+}

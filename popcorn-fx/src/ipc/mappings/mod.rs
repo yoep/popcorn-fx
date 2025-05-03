@@ -8,4 +8,5 @@ mod playlist;
 mod settings;
 mod subtitle;
 mod torrent;
+mod tracking;
 mod update;

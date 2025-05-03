@@ -1,7 +1,6 @@
 module application {
     requires application.backend;
     requires application.ui;
-    requires com.sun.jna;
     requires javafx.graphics;
     requires org.slf4j;
     requires player.popcorn;

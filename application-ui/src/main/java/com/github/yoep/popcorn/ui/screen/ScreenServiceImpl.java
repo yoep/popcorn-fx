@@ -1,7 +1,5 @@
 package com.github.yoep.popcorn.ui.screen;
 
-import com.github.yoep.popcorn.backend.adapters.screen.FullscreenCallback;
-import com.github.yoep.popcorn.backend.adapters.screen.IsFullscreenCallback;
 import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
@@ -31,8 +29,6 @@ public class ScreenServiceImpl implements ScreenService {
     private final FxChannel fxChannel;
 
     private final BooleanProperty fullscreen = new SimpleBooleanProperty(this, FULLSCREEN_PROPERTY, false);
-    private final IsFullscreenCallback isFullscreenCallback = createIsFullscreenCallback();
-    private final FullscreenCallback fullscreenCallback = createFullscreenCallback();
 
     private Stage primaryStage;
     private long lastChange;
@@ -99,6 +95,7 @@ public class ScreenServiceImpl implements ScreenService {
             }
             return event;
         });
+        // TODO
 //        fxLib.register_is_fullscreen_callback(instance, isFullscreenCallback);
 //        fxLib.register_fullscreen_callback(instance, fullscreenCallback);
     }
@@ -127,14 +124,6 @@ public class ScreenServiceImpl implements ScreenService {
 
         fullscreen.bind(primaryStage.fullScreenProperty());
         fullscreen.addListener((observable, oldValue, newValue) -> lastChange = System.currentTimeMillis());
-    }
-
-    private IsFullscreenCallback createIsFullscreenCallback() {
-        return () -> (byte) (isFullscreen() ? 1 : 0);
-    }
-
-    private FullscreenCallback createFullscreenCallback() {
-        return activateFullscreen -> fullscreen(activateFullscreen == 1);
     }
 
     //endregion

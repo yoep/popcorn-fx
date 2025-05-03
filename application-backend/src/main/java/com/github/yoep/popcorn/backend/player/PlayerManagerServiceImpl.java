@@ -10,13 +10,13 @@ import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import com.google.protobuf.ByteString;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.annotation.PreDestroy;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Queue;
-import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.stream.Collectors;
 
 /**
@@ -122,15 +122,10 @@ public class PlayerManagerServiceImpl
 
     //endregion
 
-    //region OnDestroy
-
-    @PreDestroy
     void onDestroy() {
         log.debug("Disposing all player resources");
         playerWrappers.forEach(Player::dispose);
     }
-
-    //endregion
 
     void init() {
         registerCallbackHandler();

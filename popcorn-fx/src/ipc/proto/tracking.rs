@@ -218,8 +218,8 @@ pub mod tracking_provider {
             AUTHORIZATION_CODE = 1,
             // @@protoc_insertion_point(enum_value:fx.ipc.proto.TrackingProvider.AuthorizationError.Type.TOKEN)
             TOKEN = 2,
-            // @@protoc_insertion_point(enum_value:fx.ipc.proto.TrackingProvider.AuthorizationError.Type.AUTHORIZATION_URI_OPEN)
-            AUTHORIZATION_URI_OPEN = 3,
+            // @@protoc_insertion_point(enum_value:fx.ipc.proto.TrackingProvider.AuthorizationError.Type.AUTHORIZATION_TIMEOUT)
+            AUTHORIZATION_TIMEOUT = 3,
         }
 
         impl ::protobuf::Enum for Type {
@@ -234,7 +234,7 @@ pub mod tracking_provider {
                     0 => ::std::option::Option::Some(Type::CSRF_FAILURE),
                     1 => ::std::option::Option::Some(Type::AUTHORIZATION_CODE),
                     2 => ::std::option::Option::Some(Type::TOKEN),
-                    3 => ::std::option::Option::Some(Type::AUTHORIZATION_URI_OPEN),
+                    3 => ::std::option::Option::Some(Type::AUTHORIZATION_TIMEOUT),
                     _ => ::std::option::Option::None
                 }
             }
@@ -244,7 +244,7 @@ pub mod tracking_provider {
                     "CSRF_FAILURE" => ::std::option::Option::Some(Type::CSRF_FAILURE),
                     "AUTHORIZATION_CODE" => ::std::option::Option::Some(Type::AUTHORIZATION_CODE),
                     "TOKEN" => ::std::option::Option::Some(Type::TOKEN),
-                    "AUTHORIZATION_URI_OPEN" => ::std::option::Option::Some(Type::AUTHORIZATION_URI_OPEN),
+                    "AUTHORIZATION_TIMEOUT" => ::std::option::Option::Some(Type::AUTHORIZATION_TIMEOUT),
                     _ => ::std::option::Option::None
                 }
             }
@@ -253,7 +253,7 @@ pub mod tracking_provider {
                 Type::CSRF_FAILURE,
                 Type::AUTHORIZATION_CODE,
                 Type::TOKEN,
-                Type::AUTHORIZATION_URI_OPEN,
+                Type::AUTHORIZATION_TIMEOUT,
             ];
         }
 
@@ -926,6 +926,8 @@ pub struct TrackingProviderEvent {
     pub event: ::protobuf::EnumOrUnknown<tracking_provider_event::Event>,
     // @@protoc_insertion_point(field:fx.ipc.proto.TrackingProviderEvent.authorization_state_changed)
     pub authorization_state_changed: ::protobuf::MessageField<tracking_provider_event::AuthorizationStateChanged>,
+    // @@protoc_insertion_point(field:fx.ipc.proto.TrackingProviderEvent.open_authorization_uri)
+    pub open_authorization_uri: ::protobuf::MessageField<tracking_provider_event::OpenAuthorizationUri>,
     // special fields
     // @@protoc_insertion_point(special_field:fx.ipc.proto.TrackingProviderEvent.special_fields)
     pub special_fields: ::protobuf::SpecialFields,
@@ -959,6 +961,9 @@ impl ::protobuf::Message for TrackingProviderEvent {
                 18 => {
                     ::protobuf::rt::read_singular_message_into_field(is, &mut self.authorization_state_changed)?;
                 },
+                26 => {
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.open_authorization_uri)?;
+                },
                 tag => {
                     ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
                 },
@@ -978,6 +983,10 @@ impl ::protobuf::Message for TrackingProviderEvent {
             let len = v.compute_size();
             my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
         }
+        if let Some(v) = self.open_authorization_uri.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
         my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
         self.special_fields.cached_size().set(my_size as u32);
         my_size
@@ -989,6 +998,9 @@ impl ::protobuf::Message for TrackingProviderEvent {
         }
         if let Some(v) = self.authorization_state_changed.as_ref() {
             ::protobuf::rt::write_message_field_with_cached_size(2, v, os)?;
+        }
+        if let Some(v) = self.open_authorization_uri.as_ref() {
+            ::protobuf::rt::write_message_field_with_cached_size(3, v, os)?;
         }
         os.write_unknown_fields(self.special_fields.unknown_fields())?;
         ::std::result::Result::Ok(())
@@ -1009,6 +1021,7 @@ impl ::protobuf::Message for TrackingProviderEvent {
     fn clear(&mut self) {
         self.event = ::protobuf::EnumOrUnknown::new(tracking_provider_event::Event::AUTHORIZATION_STATE_CHANGED);
         self.authorization_state_changed.clear();
+        self.open_authorization_uri.clear();
         self.special_fields.clear();
     }
 
@@ -1016,6 +1029,7 @@ impl ::protobuf::Message for TrackingProviderEvent {
         static instance: TrackingProviderEvent = TrackingProviderEvent {
             event: ::protobuf::EnumOrUnknown::from_i32(0),
             authorization_state_changed: ::protobuf::MessageField::none(),
+            open_authorization_uri: ::protobuf::MessageField::none(),
             special_fields: ::protobuf::SpecialFields::new(),
         };
         &instance
@@ -1114,11 +1128,103 @@ pub mod tracking_provider_event {
         }
     }
 
+    // @@protoc_insertion_point(message:fx.ipc.proto.TrackingProviderEvent.OpenAuthorizationUri)
+    #[derive(PartialEq,Clone,Default,Debug)]
+    pub struct OpenAuthorizationUri {
+        // message fields
+        // @@protoc_insertion_point(field:fx.ipc.proto.TrackingProviderEvent.OpenAuthorizationUri.uri)
+        pub uri: ::std::string::String,
+        // special fields
+        // @@protoc_insertion_point(special_field:fx.ipc.proto.TrackingProviderEvent.OpenAuthorizationUri.special_fields)
+        pub special_fields: ::protobuf::SpecialFields,
+    }
+
+    impl<'a> ::std::default::Default for &'a OpenAuthorizationUri {
+        fn default() -> &'a OpenAuthorizationUri {
+            <OpenAuthorizationUri as ::protobuf::Message>::default_instance()
+        }
+    }
+
+    impl OpenAuthorizationUri {
+        pub fn new() -> OpenAuthorizationUri {
+            ::std::default::Default::default()
+        }
+    }
+
+    impl ::protobuf::Message for OpenAuthorizationUri {
+        const NAME: &'static str = "OpenAuthorizationUri";
+
+        fn is_initialized(&self) -> bool {
+            true
+        }
+
+        fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+            while let Some(tag) = is.read_raw_tag_or_eof()? {
+                match tag {
+                    10 => {
+                        self.uri = is.read_string()?;
+                    },
+                    tag => {
+                        ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                    },
+                };
+            }
+            ::std::result::Result::Ok(())
+        }
+
+        // Compute sizes of nested messages
+        #[allow(unused_variables)]
+        fn compute_size(&self) -> u64 {
+            let mut my_size = 0;
+            if !self.uri.is_empty() {
+                my_size += ::protobuf::rt::string_size(1, &self.uri);
+            }
+            my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+            self.special_fields.cached_size().set(my_size as u32);
+            my_size
+        }
+
+        fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+            if !self.uri.is_empty() {
+                os.write_string(1, &self.uri)?;
+            }
+            os.write_unknown_fields(self.special_fields.unknown_fields())?;
+            ::std::result::Result::Ok(())
+        }
+
+        fn special_fields(&self) -> &::protobuf::SpecialFields {
+            &self.special_fields
+        }
+
+        fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+            &mut self.special_fields
+        }
+
+        fn new() -> OpenAuthorizationUri {
+            OpenAuthorizationUri::new()
+        }
+
+        fn clear(&mut self) {
+            self.uri.clear();
+            self.special_fields.clear();
+        }
+
+        fn default_instance() -> &'static OpenAuthorizationUri {
+            static instance: OpenAuthorizationUri = OpenAuthorizationUri {
+                uri: ::std::string::String::new(),
+                special_fields: ::protobuf::SpecialFields::new(),
+            };
+            &instance
+        }
+    }
+
     #[derive(Clone,Copy,PartialEq,Eq,Debug,Hash)]
     // @@protoc_insertion_point(enum:fx.ipc.proto.TrackingProviderEvent.Event)
     pub enum Event {
         // @@protoc_insertion_point(enum_value:fx.ipc.proto.TrackingProviderEvent.Event.AUTHORIZATION_STATE_CHANGED)
         AUTHORIZATION_STATE_CHANGED = 0,
+        // @@protoc_insertion_point(enum_value:fx.ipc.proto.TrackingProviderEvent.Event.OPEN_AUTHORIZATION_URI)
+        OPEN_AUTHORIZATION_URI = 1,
     }
 
     impl ::protobuf::Enum for Event {
@@ -1131,6 +1237,7 @@ pub mod tracking_provider_event {
         fn from_i32(value: i32) -> ::std::option::Option<Event> {
             match value {
                 0 => ::std::option::Option::Some(Event::AUTHORIZATION_STATE_CHANGED),
+                1 => ::std::option::Option::Some(Event::OPEN_AUTHORIZATION_URI),
                 _ => ::std::option::Option::None
             }
         }
@@ -1138,12 +1245,14 @@ pub mod tracking_provider_event {
         fn from_str(str: &str) -> ::std::option::Option<Event> {
             match str {
                 "AUTHORIZATION_STATE_CHANGED" => ::std::option::Option::Some(Event::AUTHORIZATION_STATE_CHANGED),
+                "OPEN_AUTHORIZATION_URI" => ::std::option::Option::Some(Event::OPEN_AUTHORIZATION_URI),
                 _ => ::std::option::Option::None
             }
         }
 
         const VALUES: &'static [Event] = &[
             Event::AUTHORIZATION_STATE_CHANGED,
+            Event::OPEN_AUTHORIZATION_URI,
         ];
     }
 

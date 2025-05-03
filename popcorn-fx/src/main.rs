@@ -93,7 +93,10 @@ async fn start(conn: local_socket::tokio::Stream, args: PopcornFxArgs) -> io::Re
             popcorn_fx.clone(),
             channel.clone(),
         )),
-        Box::new(TrackingMessageHandler::new(popcorn_fx.clone())),
+        Box::new(TrackingMessageHandler::new(
+            popcorn_fx.clone(),
+            channel.clone(),
+        )),
         Box::new(UpdateMessageHandler::new(
             popcorn_fx.clone(),
             channel.clone(),

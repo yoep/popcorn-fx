@@ -23,7 +23,7 @@ message TrackingProvider {
       CSRF_FAILURE = 0;
       AUTHORIZATION_CODE = 1;
       TOKEN = 2;
-      AUTHORIZATION_URI_OPEN = 3;
+      AUTHORIZATION_TIMEOUT = 3;
     }
   }
 
@@ -62,12 +62,18 @@ message TrackingProviderDisconnectRequest {
 message TrackingProviderEvent {
   Event event = 1;
   optional AuthorizationStateChanged authorization_state_changed = 2;
+  optional OpenAuthorizationUri open_authorization_uri = 3;
 
   message AuthorizationStateChanged {
     TrackingProvider.AuthorizationState state = 1;
   }
 
+  message OpenAuthorizationUri {
+    string uri = 1;
+  }
+
   enum Event {
     AUTHORIZATION_STATE_CHANGED = 0;
+    OPEN_AUTHORIZATION_URI = 1;
   }
 }

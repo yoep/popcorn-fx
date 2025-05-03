@@ -14,7 +14,6 @@ import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.annotation.PreDestroy;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -130,15 +129,10 @@ public class VideoService extends AbstractListenerService<PlaybackListener> {
 
     //endregion
 
-    //region PreDestroy
-
-    @PreDestroy
     void dispose() {
         log.trace("Disposing the video players");
         videoPlaybacks.forEach(e -> e.videoPlayback.dispose());
     }
-
-    //endregion
 
     //region Functions
 

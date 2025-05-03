@@ -7,6 +7,7 @@ import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
@@ -16,11 +17,13 @@ public class TraktTrackingService extends AbstractListenerService<TrackingListen
     static final String TRACKING_ID = "trakt";
 
     private final FxChannel fxChannel;
-    private final AuthorizationOpenCallback authorizationOpenCallback;
+    private final TrackingAuthorization trackingAuthorization;
 
-    public TraktTrackingService(FxChannel fxChannel, AuthorizationOpenCallback callback) {
+    public TraktTrackingService(FxChannel fxChannel, TrackingAuthorization trackingAuthorization) {
+        Objects.requireNonNull(fxChannel, "fxChannel cannot be null");
+        Objects.requireNonNull(trackingAuthorization, "trackingAuthorization cannot be null");
         this.fxChannel = fxChannel;
-        this.authorizationOpenCallback = callback;
+        this.trackingAuthorization = trackingAuthorization;
         init();
     }
 
@@ -61,6 +64,11 @@ public class TraktTrackingService extends AbstractListenerService<TrackingListen
         switch (event.getEvent()) {
             case AUTHORIZATION_STATE_CHANGED -> invokeListeners(listener ->
                     listener.onAuthorizationChanged(event.getAuthorizationStateChanged().getState() == TrackingProvider.AuthorizationState.AUTHORIZED));
+            case OPEN_AUTHORIZATION_URI -> {
+                var authorizationUri = event.getOpenAuthorizationUri().getUri();
+                log.debug("Opening Trakt authorization uri {}", authorizationUri);
+                trackingAuthorization.open(authorizationUri);
+            }
         }
     }
 }

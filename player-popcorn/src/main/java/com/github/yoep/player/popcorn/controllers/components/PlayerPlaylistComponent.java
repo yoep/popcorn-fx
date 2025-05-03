@@ -3,7 +3,6 @@ package com.github.yoep.player.popcorn.controllers.components;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Playlist;
 import com.github.yoep.popcorn.backend.playlists.DefaultPlaylistManager;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManagerListener;
-import com.github.yoep.popcorn.backend.playlists.PlaylistState;
 import com.github.yoep.popcorn.ui.view.ViewLoader;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.PlaylistItemComponent;
 import com.github.yoep.popcorn.ui.view.controls.PlaylistControl;

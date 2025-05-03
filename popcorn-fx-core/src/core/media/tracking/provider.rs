@@ -2,11 +2,11 @@ use crate::core::media::MediaIdentifier;
 use async_trait::async_trait;
 use derive_more::Display;
 use fx_callback::Callback;
-use std::fmt::Debug;
-use thiserror::Error;
-
 #[cfg(test)]
 pub use mock::*;
+use std::fmt::Debug;
+use thiserror::Error;
+use url::Url;
 
 /// Represents errors that can occur during authorization.
 #[derive(Debug, Clone, Error, PartialEq)]
@@ -18,11 +18,11 @@ pub enum AuthorizationError {
     #[error("failed to retrieve authorization code")]
     AuthorizationCode,
     /// Indicates failure to retrieve the authorization token.
-    #[error("failed to retrieve token")]
+    #[error("failed to retrieve authorization token")]
     Token,
-    /// Indicates that the authorization URI couldn't be opened.
-    #[error("authorization uri couldn't be opened")]
-    AuthorizationUriOpen,
+    /// Indicates that the authorization process timed out.
+    #[error("authorization timed out")]
+    AuthorizationTimeout,
 }
 
 /// Represents errors that can occur during tracking operations.
@@ -39,23 +39,20 @@ pub enum TrackingError {
     Parsing,
 }
 
-/// A type alias for a function that opens an authorization URI.
-pub type OpenAuthorization = Box<dyn Fn(String) -> bool + Send + Sync>;
-
 /// Represents events related to tracking.
 #[derive(Debug, Clone, Display)]
 pub enum TrackingEvent {
     /// Indicates a change in authorization state.
     #[display(fmt = "Authorization state changed to {}", _0)]
     AuthorizationStateChanged(bool),
+    /// Indicates a new authorization uri needs to be opened.
+    #[display(fmt = "Opening authorization uri {}", _0)]
+    OpenAuthorization(Url),
 }
 
 /// The `TrackingProvider` trait allows tracking of watched media items with third-party media tracking providers.
 #[async_trait]
 pub trait TrackingProvider: Debug + Callback<TrackingEvent> + Send + Sync {
-    /// Registers a callback function for opening authorization URIs.
-    async fn register_open_authorization(&self, open_callback: OpenAuthorization);
-
     /// Verify if this tracking provider has been authorized.
     ///
     /// # Returns
@@ -100,7 +97,6 @@ mod mock {
 
         #[async_trait]
         impl TrackingProvider for TrackingProvider {
-            async fn register_open_authorization(&self, open_callback: OpenAuthorization);
             async fn is_authorized(&self) -> bool;
             async fn authorize(&self) -> Result<(), AuthorizationError>;
             async fn disconnect(&self);

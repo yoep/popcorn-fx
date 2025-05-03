@@ -41,12 +41,6 @@
             <artifactId>commons-io</artifactId>
         </dependency>
 
-        <!-- Javax validation -->
-        <dependency>
-            <groupId>javax.annotation</groupId>
-            <artifactId>javax.annotation-api</artifactId>
-        </dependency>
-
         <!-- Logging -->
         <dependency>
             <groupId>org.slf4j</groupId>

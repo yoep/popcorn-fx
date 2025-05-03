@@ -1,8 +1,6 @@
 module application.backend {
     requires ch.qos.logback.classic;
     requires ch.qos.logback.core;
-    requires com.sun.jna;
-    requires java.annotation;
     requires javafx.base;
     requires javafx.graphics;
     requires org.slf4j;

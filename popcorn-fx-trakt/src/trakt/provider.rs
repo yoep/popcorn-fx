@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use std::net::{SocketAddr, TcpListener};
 use std::result;
-use std::sync::mpsc::{channel, Sender};
 use std::time::Duration;
 
 use crate::trakt::{AddToWatchList, Movie, MovieId, WatchedMovie};
@@ -20,13 +19,15 @@ use popcorn_fx_core::core::config::{
     ApplicationConfig, Tracker, TrackingClientProperties, TrackingProperties,
 };
 use popcorn_fx_core::core::media::tracking::{
-    AuthorizationError, OpenAuthorization, TrackingError, TrackingEvent, TrackingProvider,
+    AuthorizationError, TrackingError, TrackingEvent, TrackingProvider,
 };
 use popcorn_fx_core::core::media::MediaIdentifier;
 use reqwest::header::HeaderMap;
 use reqwest::Client;
 use thiserror::Error;
-use tokio::sync::{oneshot, Mutex};
+use tokio::sync::mpsc::{unbounded_channel, UnboundedSender};
+use tokio::sync::oneshot;
+use tokio::{select, time};
 use url::Url;
 use warp::http::Response;
 use warp::Filter;
@@ -61,7 +62,6 @@ pub struct TraktProvider {
     config: ApplicationConfig,
     oauth_client: BasicClient,
     client: Client,
-    open_authorization_callback: Mutex<OpenAuthorization>,
     callbacks: MultiThreadedCallback<TrackingEvent>,
 }
 
@@ -93,22 +93,13 @@ impl TraktProvider {
             config,
             oauth_client,
             client: Self::create_new_client(client),
-            open_authorization_callback: Mutex::new(Box::new(|uri: String| {
-                match open::that(uri.as_str()) {
-                    Ok(_) => true,
-                    Err(e) => {
-                        error!("Failed to open authorization uri, {}", e);
-                        false
-                    }
-                }
-            })),
             callbacks: MultiThreadedCallback::new(),
         })
     }
 
     async fn start_auth_server(
         &self,
-        sender: Sender<AuthCallbackResult>,
+        sender: UnboundedSender<AuthCallbackResult>,
         shutdown_signal: oneshot::Receiver<()>,
     ) -> Result<SocketAddr> {
         trace!("Starting new Trakt authorization callback server");
@@ -118,17 +109,21 @@ impl TraktProvider {
             .map(move |p: HashMap<String, String>| {
                 if let Some(auth_code) = p.get("code") {
                     if let Some(state) = p.get("state") {
-                        sender
-                            .send(AuthCallbackResult {
-                                authorization_code: auth_code.to_string(),
-                                state: state.to_string(),
-                            })
-                            .unwrap();
+                        if let Err(_) = sender.send(AuthCallbackResult {
+                            authorization_code: auth_code.to_string(),
+                            state: state.to_string(),
+                        }) {
+                            warn!("Trakt authorization has already been completed");
+                        }
+                    } else {
+                        debug!("Trakt authorization is unable to complete, missing state param");
                     }
+                } else {
+                    debug!("Trakt authorization is unable to complete, missing code param");
                 }
 
                 Response::builder()
-                    .body("You can close this window now")
+                    .body("You can now close this window")
                     .unwrap()
             })
             .with(warp::cors().allow_any_origin());
@@ -240,13 +235,6 @@ impl TraktProvider {
 
 #[async_trait]
 impl TrackingProvider for TraktProvider {
-    async fn register_open_authorization(&self, open_callback: OpenAuthorization) {
-        trace!("Updating authorization open callback");
-        let mut mutex = self.open_authorization_callback.lock().await;
-        *mutex = open_callback;
-        debug!("Callback for opening authorization uri's has been updated");
-    }
-
     async fn is_authorized(&self) -> bool {
         self.config
             .user_settings_ref(|e| e.tracking().tracker(TRACKING_NAME).is_some())
@@ -255,9 +243,8 @@ impl TrackingProvider for TraktProvider {
 
     async fn authorize(&self) -> result::Result<(), AuthorizationError> {
         trace!("Starting authorization flow for TraktTV");
-        let open_callback = self.open_authorization_callback.lock().await;
         let (tx_shutdown, rx_shutdown) = oneshot::channel();
-        let (tx, rx) = channel();
+        let (tx, mut rx) = unbounded_channel();
 
         let addr = self.start_auth_server(tx, rx_shutdown).await.map_err(|e| {
             error!("Failed to start authorization server, {}", e);
@@ -269,45 +256,51 @@ impl TrackingProvider for TraktProvider {
         );
         let (auth_url, csrf_token) = oauth_client.authorize_url(CsrfToken::new_random).url();
 
-        if open_callback(auth_url.to_string()) {
-            match rx.recv_timeout(Duration::from_secs(60 * 5)) {
-                Ok(callback) => {
-                    trace!("Received callback result {:?}", callback);
-                    tx_shutdown.send(()).unwrap();
+        // invoke the open authorization event
+        trace!("Trying to open authorization uri {}", auth_url);
+        self.callbacks
+            .invoke(TrackingEvent::OpenAuthorization(auth_url));
 
-                    // verify csrf token
-                    if csrf_token.secret() != &callback.state {
-                        warn!("Authorization CSRF token mismatch, Trakt won't be authorized");
-                        return Err(AuthorizationError::CsrfFailure);
-                    }
+        // try to receive an authorization response within 5 mins
+        let authorization_result = select! {
+            _ = time::sleep(Duration::from_secs(5 * 60)) => Err(AuthorizationError::AuthorizationTimeout),
+            Some(result) = rx.recv() => Ok(result),
+        };
+        match authorization_result {
+            Ok(callback) => {
+                trace!("Received callback result {:?}", callback);
+                tx_shutdown.send(()).unwrap();
 
-                    match self
-                        .oauth_client
-                        .exchange_code(AuthorizationCode::new(callback.authorization_code))
-                        .request_async(async_http_client)
-                        .await
-                    {
-                        Ok(e) => {
-                            trace!("Received token response {:?}", e);
-                            self.update_token_info(e).await;
-                            self.callbacks
-                                .invoke(TrackingEvent::AuthorizationStateChanged(true));
-                            Ok(())
-                        }
-                        Err(e) => {
-                            error!("Token exchange failed, {}", e);
-                            Err(AuthorizationError::Token)
-                        }
-                    }
+                // verify csrf token
+                if csrf_token.secret() != &callback.state {
+                    warn!("Authorization CSRF token mismatch, Trakt won't be authorized");
+                    return Err(AuthorizationError::CsrfFailure);
                 }
-                Err(e) => {
-                    error!("Failed to retrieve authorization code, {}", e);
-                    tx_shutdown.send(()).unwrap();
-                    Err(AuthorizationError::AuthorizationCode)
+
+                match self
+                    .oauth_client
+                    .exchange_code(AuthorizationCode::new(callback.authorization_code))
+                    .request_async(async_http_client)
+                    .await
+                {
+                    Ok(e) => {
+                        trace!("Received token response {:?}", e);
+                        self.update_token_info(e).await;
+                        self.callbacks
+                            .invoke(TrackingEvent::AuthorizationStateChanged(true));
+                        Ok(())
+                    }
+                    Err(e) => {
+                        error!("Token exchange failed, {}", e);
+                        Err(AuthorizationError::Token)
+                    }
                 }
             }
-        } else {
-            Err(AuthorizationError::AuthorizationUriOpen)
+            Err(e) => {
+                error!("Failed to retrieve authorization code, {}", e);
+                tx_shutdown.send(()).unwrap();
+                Err(AuthorizationError::AuthorizationCode)
+            }
         }
     }
 
@@ -436,11 +429,12 @@ mod tests {
     use reqwest::header::CONTENT_TYPE;
     use reqwest::Client;
     use tempfile::tempdir;
+    use tokio::sync::mpsc::unbounded_channel;
     use url::Url;
 
     use popcorn_fx_core::core::config::{PopcornProperties, PopcornSettings, TrackingSettings};
     use popcorn_fx_core::core::media::MediaType;
-    use popcorn_fx_core::init_logger;
+    use popcorn_fx_core::{init_logger, recv_timeout};
 
     use super::*;
 
@@ -517,7 +511,7 @@ mod tests {
         assert!(!result, "expected the tracker to not have been authorized");
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    #[tokio::test]
     async fn test_authorize() {
         init_logger!();
         let expected_code = "MyAuthCodeResult";
@@ -565,19 +559,21 @@ mod tests {
                 .collect(),
             })
             .build();
-        let (tx, rx) = channel();
+        let (tx, mut rx) = unbounded_channel();
         let trakt = TraktProvider::new(settings).unwrap();
 
-        trakt
-            .register_open_authorization(Box::new(move |uri| {
-                tx.send(uri).unwrap();
-                true
-            }))
-            .await;
+        let mut receiver = trakt.subscribe();
+        tokio::spawn(async move {
+            while let Some(event) = receiver.recv().await {
+                if let TrackingEvent::OpenAuthorization(uri) = &*event {
+                    tx.send(uri.clone()).unwrap();
+                }
+            }
+        });
 
         tokio::spawn(async move {
             let client = Client::new();
-            let authorization_uri = rx.recv_timeout(Duration::from_secs(1)).unwrap();
+            let authorization_uri = recv_timeout!(&mut rx, Duration::from_secs(1));
             let auth_uri = Url::parse(authorization_uri.as_str())
                 .expect("expected the authorization open to have been invoked");
 

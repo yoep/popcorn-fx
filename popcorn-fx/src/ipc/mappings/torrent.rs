@@ -71,8 +71,12 @@ impl From<&TorrentEvent> for proto::torrent::TorrentEvent {
         let mut event = Self::new();
 
         match value {
-            TorrentEvent::StateChanged(_) => {
+            TorrentEvent::StateChanged(state) => {
                 event.event = torrent_event::Event::STATE_CHANGED.into();
+                event.state_changed = MessageField::some(torrent_event::StateChanged {
+                    state: torrent::State::from(state).into(),
+                    special_fields: Default::default(),
+                });
             }
             TorrentEvent::MetadataChanged => {
                 event.event = torrent_event::Event::METADATA_CHANGED.into();
@@ -172,5 +176,207 @@ impl From<&Error> for torrent::Error {
         }
 
         error
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_health_state_from() {
+        assert_eq!(
+            torrent::health::State::UNKNOWN,
+            torrent::health::State::from(&TorrentHealthState::Unknown)
+        );
+        assert_eq!(
+            torrent::health::State::BAD,
+            torrent::health::State::from(&TorrentHealthState::Bad)
+        );
+        assert_eq!(
+            torrent::health::State::MEDIUM,
+            torrent::health::State::from(&TorrentHealthState::Medium)
+        );
+        assert_eq!(
+            torrent::health::State::GOOD,
+            torrent::health::State::from(&TorrentHealthState::Good)
+        );
+        assert_eq!(
+            torrent::health::State::EXCELLENT,
+            torrent::health::State::from(&TorrentHealthState::Excellent)
+        );
+    }
+
+    #[test]
+    fn test_torrent_state_from() {
+        assert_eq!(
+            torrent::State::INITIALIZING,
+            torrent::State::from(&TorrentState::Initializing)
+        );
+        assert_eq!(
+            torrent::State::RETRIEVING_METADATA,
+            torrent::State::from(&TorrentState::RetrievingMetadata)
+        );
+        assert_eq!(
+            torrent::State::CHECKING_FILES,
+            torrent::State::from(&TorrentState::CheckingFiles)
+        );
+        assert_eq!(
+            torrent::State::DOWNLOADING,
+            torrent::State::from(&TorrentState::Downloading)
+        );
+        assert_eq!(
+            torrent::State::FINISHED,
+            torrent::State::from(&TorrentState::Finished)
+        );
+        assert_eq!(
+            torrent::State::SEEDING,
+            torrent::State::from(&TorrentState::Seeding)
+        );
+        assert_eq!(
+            torrent::State::PAUSED,
+            torrent::State::from(&TorrentState::Paused)
+        );
+        assert_eq!(
+            torrent::State::ERROR,
+            torrent::State::from(&TorrentState::Error)
+        );
+    }
+
+    #[test]
+    fn test_torrent_stream_state_from() {
+        assert_eq!(
+            torrent::StreamState::PREPARING,
+            torrent::StreamState::from(&TorrentStreamState::Preparing)
+        );
+        assert_eq!(
+            torrent::StreamState::STREAMING,
+            torrent::StreamState::from(&TorrentStreamState::Streaming)
+        );
+        assert_eq!(
+            torrent::StreamState::STOPPED,
+            torrent::StreamState::from(&TorrentStreamState::Stopped)
+        );
+    }
+
+    #[test]
+    fn test_torrent_event_from_state_changed() {
+        let event = TorrentEvent::StateChanged(TorrentState::Downloading);
+        let expected_result = proto::torrent::TorrentEvent {
+            torrent_handle: Default::default(),
+            event: torrent_event::Event::STATE_CHANGED.into(),
+            state_changed: MessageField::some(torrent_event::StateChanged {
+                state: torrent::State::DOWNLOADING.into(),
+                special_fields: Default::default(),
+            }),
+            peer_connected: Default::default(),
+            peer_disconnected: Default::default(),
+            piece_completed: Default::default(),
+            stats: Default::default(),
+            special_fields: Default::default(),
+        };
+
+        let result = proto::torrent::TorrentEvent::from(&event);
+
+        assert_eq!(expected_result, result);
+    }
+
+    #[test]
+    fn test_torrent_event_from_metadata_changed() {
+        let event = TorrentEvent::MetadataChanged;
+        let expected_result = proto::torrent::TorrentEvent {
+            torrent_handle: Default::default(),
+            event: torrent_event::Event::METADATA_CHANGED.into(),
+            state_changed: Default::default(),
+            peer_connected: Default::default(),
+            peer_disconnected: Default::default(),
+            piece_completed: Default::default(),
+            stats: Default::default(),
+            special_fields: Default::default(),
+        };
+
+        let result = proto::torrent::TorrentEvent::from(&event);
+
+        assert_eq!(expected_result, result);
+    }
+
+    #[test]
+    fn test_torrent_event_from_piece_completed() {
+        let event = TorrentEvent::PieceCompleted(87);
+        let expected_result = proto::torrent::TorrentEvent {
+            torrent_handle: Default::default(),
+            event: torrent_event::Event::PIECE_COMPLETED.into(),
+            state_changed: Default::default(),
+            peer_connected: Default::default(),
+            peer_disconnected: Default::default(),
+            piece_completed: MessageField::some(torrent_event::PieceCompleted {
+                piece_index: 87,
+                special_fields: Default::default(),
+            }),
+            stats: Default::default(),
+            special_fields: Default::default(),
+        };
+
+        let result = proto::torrent::TorrentEvent::from(&event);
+
+        assert_eq!(expected_result, result);
+    }
+
+    #[test]
+    fn test_torrent_event_from_stats() {
+        let event = TorrentEvent::Stats(TorrentStats {
+            upload: 0,
+            upload_rate: 1024,
+            upload_useful: 0,
+            upload_useful_rate: 0,
+            download: 0,
+            download_rate: 0,
+            download_useful: 0,
+            download_useful_rate: 0,
+            total_uploaded: 0,
+            total_downloaded: 17000,
+            total_downloaded_useful: 14000,
+            wanted_pieces: 300,
+            completed_pieces: 12,
+            total_size: 200000,
+            total_completed_size: 14000,
+            total_peers: 67,
+        });
+        let expected_result = proto::torrent::TorrentEvent {
+            torrent_handle: Default::default(),
+            event: torrent_event::Event::STATS.into(),
+            state_changed: Default::default(),
+            peer_connected: Default::default(),
+            peer_disconnected: Default::default(),
+            piece_completed: Default::default(),
+            stats: MessageField::some(torrent_event::Stats {
+                stats: MessageField::some(torrent::Stats {
+                    progress: 0.04,
+                    upload: 0,
+                    upload_rate: 1024,
+                    upload_useful: 0,
+                    upload_useful_rate: 0,
+                    download: 0,
+                    download_rate: 0,
+                    download_useful: 0,
+                    download_useful_rate: 0,
+                    total_uploaded: 0,
+                    total_downloaded: 17000,
+                    total_downloaded_useful: 14000,
+                    wanted_pieces: 300,
+                    completed_pieces: 12,
+                    total_size: 200000,
+                    total_completed_size: 14000,
+                    total_peers: 67,
+                    special_fields: Default::default(),
+                }),
+                special_fields: Default::default(),
+            }),
+            special_fields: Default::default(),
+        };
+
+        let result = proto::torrent::TorrentEvent::from(&event);
+
+        assert_eq!(expected_result, result);
     }
 }

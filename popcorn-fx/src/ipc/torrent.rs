@@ -201,3 +201,254 @@ impl MessageHandler for TorrentMessageHandler {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::ipc::proto::torrent::{MagnetInfo, TorrentEvent};
+    use crate::ipc::test::create_channel_pair;
+    use crate::tests::default_args;
+    use crate::try_recv;
+
+    use popcorn_fx_core::init_logger;
+    use protobuf::EnumOrUnknown;
+    use std::time::Duration;
+    use tempfile::tempdir;
+
+    #[tokio::test]
+    async fn test_process_torrent_health_request() {
+        init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
+        let (incoming, outgoing) = create_channel_pair().await;
+        let handler = TorrentMessageHandler::new(instance, outgoing.clone());
+
+        let response = incoming
+            .get(
+                TorrentHealthRequest {
+                    uri: magnet_uri().to_string(),
+                    special_fields: Default::default(),
+                },
+                TorrentHealthRequest::NAME,
+            )
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been process successfully"
+        );
+
+        let response = try_recv!(response, Duration::from_millis(250))
+            .expect("expected to have received a reply");
+        let result = TorrentHealthResponse::parse_from_bytes(&response.payload).unwrap();
+
+        assert_eq!(
+            Into::<EnumOrUnknown<response::Result>>::into(response::Result::OK),
+            result.result
+        );
+        assert_ne!(MessageField::none(), result.health);
+    }
+
+    #[tokio::test]
+    async fn test_process_calculate_health_request() {
+        init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
+        let (incoming, outgoing) = create_channel_pair().await;
+        let handler = TorrentMessageHandler::new(instance, outgoing.clone());
+
+        let response = incoming
+            .get(
+                CalculateTorrentHealthRequest {
+                    seeds: 20,
+                    leechers: 8,
+                    special_fields: Default::default(),
+                },
+                CalculateTorrentHealthRequest::NAME,
+            )
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been process successfully"
+        );
+
+        let response = try_recv!(response, Duration::from_millis(250))
+            .expect("expected to have received a reply");
+        let result = CalculateTorrentHealthResponse::parse_from_bytes(&response.payload).unwrap();
+
+        assert_eq!(
+            MessageField::some(torrent::Health {
+                state: torrent::health::State::GOOD.into(),
+                ratio: 2.5,
+                seeds: 20,
+                leechers: 8,
+                special_fields: Default::default(),
+            }),
+            result.health
+        );
+    }
+
+    #[tokio::test]
+    async fn test_process_is_magnet_uri_stored_request() {
+        init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
+        let (incoming, outgoing) = create_channel_pair().await;
+        let handler = TorrentMessageHandler::new(instance.clone(), outgoing.clone());
+
+        instance
+            .torrent_collection()
+            .insert("test", magnet_uri())
+            .await;
+
+        let response = incoming
+            .get(
+                IsMagnetUriStoredRequest {
+                    magnet_uri: magnet_uri().to_string(),
+                    special_fields: Default::default(),
+                },
+                IsMagnetUriStoredRequest::NAME,
+            )
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been process successfully"
+        );
+
+        let response = try_recv!(response, Duration::from_millis(250))
+            .expect("expected to have received a reply");
+        let result = IsMagnetUriStoredResponse::parse_from_bytes(&response.payload).unwrap();
+
+        assert_eq!(
+            true, result.is_stored,
+            "expected the magnet uri to have been stored"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_process_get_torrent_collection_request() {
+        init_logger!();
+        let magnet_info = MagnetInfo {
+            name: "MyMagnetName".to_string(),
+            magnet_uri: magnet_uri().to_string(),
+            special_fields: Default::default(),
+        };
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
+        let (incoming, outgoing) = create_channel_pair().await;
+        let handler = TorrentMessageHandler::new(instance.clone(), outgoing.clone());
+
+        instance
+            .torrent_collection()
+            .insert(magnet_info.name.as_str(), magnet_info.magnet_uri.as_str())
+            .await;
+
+        let response = incoming
+            .get(
+                GetTorrentCollectionRequest::new(),
+                GetTorrentCollectionRequest::NAME,
+            )
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been process successfully"
+        );
+
+        let response = try_recv!(response, Duration::from_millis(250))
+            .expect("expected to have received a reply");
+        let result = GetTorrentCollectionResponse::parse_from_bytes(&response.payload).unwrap();
+
+        assert_eq!(
+            Into::<EnumOrUnknown<response::Result>>::into(response::Result::OK),
+            result.result
+        );
+        assert_eq!(vec![magnet_info], result.torrents);
+    }
+
+    #[tokio::test]
+    async fn test_process_clean_torrents_directory_request() {
+        init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
+        let (incoming, outgoing) = create_channel_pair().await;
+        let handler = TorrentMessageHandler::new(instance.clone(), outgoing.clone());
+
+        incoming
+            .send(
+                CleanTorrentsDirectoryRequest::new(),
+                CleanTorrentsDirectoryRequest::NAME,
+            )
+            .await
+            .unwrap();
+        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+            .expect("expected to have received an incoming message");
+
+        let result = handler.process(message, &outgoing).await;
+        assert_eq!(
+            Ok(()),
+            result,
+            "expected the message to have been process successfully"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_torrent_added_event() {
+        init_logger!();
+        let temp_dir = tempdir().unwrap();
+        let temp_path = temp_dir.path().to_str().unwrap();
+        let instance = Arc::new(PopcornFX::new(default_args(temp_path)).await.unwrap());
+        let (incoming, outgoing) = create_channel_pair().await;
+        let _handler = TorrentMessageHandler::new(instance.clone(), outgoing.clone());
+
+        let result = instance
+            .torrent_manager()
+            .create(magnet_uri())
+            .await
+            .unwrap();
+        result.prioritize_pieces(&vec![0, 1]).await;
+        let handle = result.handle();
+
+        let message = try_recv!(incoming.recv(), Duration::from_secs(1)).unwrap();
+        let result = TorrentEvent::parse_from_bytes(&message.payload).unwrap();
+
+        let _ = result.event.enum_value().expect("expected a valid event");
+        assert_eq!(
+            handle.value(),
+            result.torrent_handle.handle,
+            "expected the handle to match"
+        );
+    }
+
+    fn magnet_uri() -> &'static str {
+        "magnet:?xt=urn:btih:2C6B6858D61DA9543D4231A71DB4B1C9264B0685&dn=Ubuntu%2022.04%20LTS&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce"
+    }
+}

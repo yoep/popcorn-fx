@@ -431,7 +431,7 @@ impl TorrentStreamServer for TorrentStreamServerInner {
 
         if let Some(filename) = mutex
             .iter()
-            .find(|(_, e)| e.stream_handle() == handle)
+            .find(|(_, e)| e.handle() == handle)
             .map(|(filename, _)| filename.clone())
         {
             debug!("Trying to stop stream of {}", filename);
@@ -447,7 +447,7 @@ impl TorrentStreamServer for TorrentStreamServerInner {
 
     async fn subscribe(&self, handle: Handle) -> Option<Subscription<TorrentStreamEvent>> {
         let mutex = self.streams.lock().await;
-        let position = mutex.iter().position(|(_, e)| e.stream_handle() == handle);
+        let position = mutex.iter().position(|(_, e)| e.handle() == handle);
 
         if let Some((_, stream)) = position.and_then(|e| mutex.iter().nth(e)) {
             debug!("Subscribing callback to stream handle {}", handle);
@@ -710,7 +710,7 @@ mod test {
             .expect("expected the torrent stream to have started");
         let stream_url = stream.url();
 
-        server.stop_stream(stream.stream_handle()).await;
+        server.stop_stream(stream.handle()).await;
         let result = async {
             let response = client
                 .get(stream_url)

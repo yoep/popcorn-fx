@@ -1,0 +1,238 @@
+syntax = "proto3";
+
+option optimize_for = LITE_RUNTIME;
+option java_multiple_files = true;
+option java_package = "com.github.yoep.popcorn.backend.lib.ipc.protobuf";
+
+package fx.ipc.proto;
+
+import "message.proto";
+
+message Torrent {
+  message Info {
+    Handle handle = 1;
+    string info_hash = 2;
+    string uri = 3;
+    string name = 4;
+    optional string directory_name = 5;
+    uint32 total_files = 6;
+    repeated File files = 7;
+
+    message File {
+      uint32 index = 1;
+      string filename = 2;
+      string torrent_path = 3;
+      uint64 offset = 4;
+      uint64 length = 5;
+      optional string md5sum = 6;
+      optional string sha1 = 7;
+    }
+  }
+
+  message Health {
+    State state = 1;
+    float ratio = 2;
+    uint32 seeds = 3;
+    uint32 leechers = 4;
+
+    enum State {
+      UNKNOWN = 0;
+      BAD = 1;
+      MEDIUM = 2;
+      GOOD = 3;
+      EXCELLENT = 4;
+    }
+  }
+
+  enum State {
+    INITIALIZING = 0;
+    RETRIEVING_METADATA = 1;
+    CHECKING_FILES = 2;
+    DOWNLOADING = 3;
+    FINISHED = 4;
+    SEEDING = 5;
+    PAUSED = 6;
+    ERROR = 7;
+  }
+
+  enum StreamState {
+    PREPARING = 0;
+    STREAMING = 1;
+    STOPPED = 2;
+  }
+
+  message Stats {
+    float progress = 1;
+    uint64 upload = 2;
+    uint64 upload_rate = 3;
+    uint64 upload_useful = 4;
+    uint64 upload_useful_rate = 5;
+    uint64 download = 6;
+    uint64 download_rate = 7;
+    uint64 download_useful = 8;
+    uint64 download_useful_rate = 9;
+    uint64 total_uploaded = 10;
+    uint64 total_downloaded = 11;
+    uint64 total_downloaded_useful = 12;
+    uint64 wanted_pieces = 13;
+    uint64 completed_pieces = 14;
+    uint64 total_size = 15;
+    uint64 total_completed_size = 16;
+    uint64 total_peers = 17;
+  }
+
+  message Error {
+    Type type = 1;
+    optional InvalidUrl invalid_url = 2;
+    optional FileNotFound file_not_found = 3;
+    optional InvalidStreamState invalid_stream_state = 4;
+    optional InvalidHandle invalid_handle = 5;
+
+    message InvalidUrl {
+      string url = 1;
+    }
+
+    message FileNotFound {
+      string file = 1;
+    }
+
+    message InvalidStreamState {
+      StreamState state = 1;
+    }
+
+    message InvalidHandle {
+      string handle = 1;
+    }
+
+    enum Type {
+      INVALID_URL = 0;
+      FILE_NOT_FOUND = 1;
+      INVALID_STREAM_STATE = 2;
+      INVALID_HANDLE = 3;
+    }
+  }
+}
+
+message Peer {
+  message Info {
+    Handle handle = 1;
+    string id = 2;
+    string address = 3;
+    ConnectionDirection connection_type = 4;
+    ConnectionProtocol connection_protocol = 5;
+  }
+
+  enum ConnectionDirection {
+    INBOUND = 0;
+    OUTBOUND = 1;
+  }
+
+  enum ConnectionProtocol {
+    TCP = 0;
+    UTP = 1;
+    HTTP = 2;
+    OTHER = 3;
+  }
+}
+
+message MagnetInfo {
+  string name = 1;
+  string magnet_uri = 2;
+}
+
+message TorrentHealthRequest {
+  string uri = 1;
+}
+
+message TorrentHealthResponse {
+  Response.Result result = 1;
+  optional Torrent.Health health = 2;
+}
+
+message CalculateTorrentHealthRequest {
+  uint32 seeds = 1;
+  uint32 leechers = 2;
+}
+
+message CalculateTorrentHealthResponse {
+  Torrent.Health health = 1;
+}
+
+message IsMagnetUriStoredRequest {
+  string magnet_uri = 1;
+}
+
+message IsMagnetUriStoredResponse {
+  bool is_stored = 1;
+}
+
+message GetTorrentCollectionRequest {}
+
+message GetTorrentCollectionResponse {
+  Response.Result result = 1;
+  repeated MagnetInfo torrents = 2;
+  optional Torrent.Error error = 3;
+}
+
+message AddTorrentCollectionRequest {
+  string type = 1;
+  optional MagnetInfo magnet_info = 2;
+  optional Torrent.Info torrent_info = 3;
+}
+
+message AddTorrentCollectionResponse {
+  Response.Result result = 1;
+  optional Torrent.Error error = 2;
+}
+
+message RemoveTorrentCollectionRequest {
+  string type = 1;
+  optional MagnetInfo magnet_info = 2;
+  optional Torrent.Info torrent_info = 3;
+}
+
+message CleanTorrentsDirectoryRequest {}
+
+message TorrentEvent {
+  Handle torrent_handle = 1;
+  Event event = 2;
+  optional StateChanged state_changed = 3;
+  optional PeerConnected peer_connected = 4;
+  optional PeerDisconnected peer_disconnected = 5;
+  optional PieceCompleted piece_completed = 6;
+  optional Stats stats = 7;
+
+  message StateChanged {
+    Torrent.State state = 1;
+  }
+
+  message PeerConnected {
+    Peer.Info peer_info = 1;
+  }
+
+  message PeerDisconnected {
+    Peer.Info peer_info = 1;
+  }
+
+  message PieceCompleted {
+    uint64 piece_index = 1;
+  }
+
+  message Stats {
+    Torrent.Stats stats = 1;
+  }
+
+  enum Event {
+    STATE_CHANGED = 0;
+    METADATA_CHANGED = 1;
+    PEER_CONNECTED = 2;
+    PEER_DISCONNECTED = 3;
+    TRACKERS_CHANGED = 4;
+    PIECES_CHANGED = 6;
+    PIECE_PRIORITIES_CHANGED = 7;
+    PIECE_COMPLETED = 8;
+    FILES_CHANGED = 9;
+    OPTIONS_CHANGED = 10;
+    STATS = 11;
+  }
+}

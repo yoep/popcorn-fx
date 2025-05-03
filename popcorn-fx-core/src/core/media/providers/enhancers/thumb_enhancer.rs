@@ -206,7 +206,7 @@ mod test {
             rating: None,
             context_locale: "".to_string(),
             synopsis: "".to_string(),
-            runtime: "".to_string(),
+            runtime: None,
             status: "".to_string(),
             genres: vec![],
             episodes: vec![Episode {
@@ -220,7 +220,6 @@ mod test {
                 thumb: None,
                 torrents: Default::default(),
             }],
-            liked: None,
         });
         server.mock(|when, then| {
             when.method(GET).path(format!("/{}", tvdb_id));

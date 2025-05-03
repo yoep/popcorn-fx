@@ -1,13 +1,13 @@
 package com.github.yoep.player.popcorn.controllers.components;
 
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Playlist;
 import com.github.yoep.popcorn.backend.playlists.DefaultPlaylistManager;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManagerListener;
-import com.github.yoep.popcorn.backend.playlists.PlaylistState;
-import com.github.yoep.popcorn.backend.playlists.model.PlaylistItem;
 import com.github.yoep.popcorn.ui.view.ViewLoader;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.PlaylistItemComponent;
 import com.github.yoep.popcorn.ui.view.controls.PlaylistControl;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import lombok.RequiredArgsConstructor;
@@ -41,19 +41,24 @@ public class PlayerPlaylistComponent implements Initializable {
             }
 
             @Override
-            public void onPlayingIn(Long playingIn, PlaylistItem item) {
+            public void onPlayingIn(Long playingIn, Playlist.Item item) {
 
             }
 
             @Override
-            public void onStateChanged(PlaylistState state) {
+            public void onStateChanged(Playlist.State state) {
 
             }
         });
     }
 
     private void onPlaylistChanged() {
-        var playlist = playlistManager.playlist();
-        playlistControl.setItems(playlist.items());
+        playlistManager.playlist().whenComplete((playlist, throwable) -> {
+            if (throwable == null) {
+                Platform.runLater(() -> playlistControl.setItems(playlist.getItemsList()));
+            } else {
+                log.error("Failed to retrieve playlist", throwable);
+            }
+        });
     }
 }

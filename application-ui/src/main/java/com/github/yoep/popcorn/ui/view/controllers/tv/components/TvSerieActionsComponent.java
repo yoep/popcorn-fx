@@ -2,7 +2,7 @@ package com.github.yoep.popcorn.ui.view.controllers.tv.components;
 
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
-import com.github.yoep.popcorn.backend.media.providers.ShowDetails;
+import com.github.yoep.popcorn.backend.media.ShowDetails;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.font.controls.Icon;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
@@ -19,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
+import java.util.Objects;
 import java.util.ResourceBundle;
 
 @Slf4j
@@ -50,7 +51,7 @@ public class TvSerieActionsComponent implements Initializable {
 
             @Override
             public void onLikedChanged(String imdbId, boolean newState) {
-                if (media != null && media.getImdbId().equals(imdbId)) {
+                if (Objects.equals(media.id(), imdbId)) {
                     Platform.runLater(() -> updateFavoriteState());
                 }
             }
@@ -58,10 +59,16 @@ public class TvSerieActionsComponent implements Initializable {
     }
 
     private void updateFavoriteState() {
-        var state = detailsComponentService.isLiked(media);
-
-        favoriteButton.setText(localeText.get(state ? DetailsMessage.REMOVE : DetailsMessage.ADD));
-        favoriteIcon.setText(state ? Icon.HEART_UNICODE : Icon.HEART_O_UNICODE);
+        detailsComponentService.isLiked(media).whenComplete((state, throwable) -> {
+            if (throwable == null) {
+                Platform.runLater(() -> {
+                    favoriteButton.setText(localeText.get(state ? DetailsMessage.REMOVE : DetailsMessage.ADD));
+                    favoriteIcon.setText(state ? Icon.HEART_UNICODE : Icon.HEART_O_UNICODE);
+                });
+            } else {
+                log.error("Failed to retrieve liked state", throwable);
+            }
+        });
     }
 
     private void toggleFavoriteState() {

@@ -4,7 +4,7 @@ use thiserror::Error;
 pub type Result<T> = std::result::Result<T, MediaError>;
 
 /// The errors thrown by the media package.
-#[derive(Error, Debug, Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Error, Debug, Clone, PartialEq)]
 pub enum MediaError {
     /// Failed to load the favorite items.
     #[error("failed to load favorites: {0}")]
@@ -39,6 +39,9 @@ pub enum MediaError {
     /// No provider could be found for the requested category.
     #[error("no provider found for {0}")]
     ProviderNotFound(String),
+    /// The provider timed-out while retrieving data
+    #[error("provider timed-out")]
+    ProviderTimeout,
     /// Failed to load auto-resume data.
     #[error("failed to load auto-resume data: {0}")]
     AutoResumeLoadingFailed(String),

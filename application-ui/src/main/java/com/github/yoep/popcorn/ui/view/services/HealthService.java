@@ -1,12 +1,10 @@
 package com.github.yoep.popcorn.ui.view.services;
 
-import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.PopcornFx;
-import com.github.yoep.popcorn.backend.adapters.torrent.TorrentException;
-import com.github.yoep.popcorn.backend.adapters.torrent.TorrentHealthResult;
-import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentHealth;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.LoadingStartedEvent;
+import com.github.yoep.popcorn.backend.lib.FxChannel;
+import com.github.yoep.popcorn.backend.lib.FxChannelException;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.*;
 import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
 import lombok.extern.slf4j.Slf4j;
 
@@ -14,40 +12,40 @@ import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 public class HealthService {
-    private final FxLib fxLib;
-    private final PopcornFx instance;
+    private final FxChannel fxChannel;
     private final EventPublisher eventPublisher;
 
-    CompletableFuture<TorrentHealth> healthFuture;
+    CompletableFuture<Torrent.Health> healthFuture;
 
-    public HealthService(FxLib fxLib, PopcornFx instance, EventPublisher eventPublisher) {
-        this.fxLib = fxLib;
-        this.instance = instance;
+    public HealthService(FxChannel fxChannel, EventPublisher eventPublisher) {
+        this.fxChannel = fxChannel;
         this.eventPublisher = eventPublisher;
         init();
     }
 
     //region Methods
 
-    public TorrentHealth calculateHealth(int seeds, int leechers) {
-        var health = fxLib.calculate_torrent_health(instance, seeds, leechers);
-        health.close();
-        fxLib.dispose_torrent_health(health);
-        return health;
+    public CompletableFuture<Torrent.Health> calculateHealth(int seeds, int leechers) {
+        return fxChannel.send(CalculateTorrentHealthRequest.newBuilder()
+                        .setSeeds(seeds)
+                        .setLeechers(leechers)
+                        .build(), CalculateTorrentHealthResponse.parser())
+                .thenApply(CalculateTorrentHealthResponse::getHealth);
     }
 
-    public CompletableFuture<TorrentHealth> getTorrentHealth(String url) {
+    public CompletableFuture<Torrent.Health> getTorrentHealth(String url) {
         cancelPreviousFutureIfNeeded();
 
-        healthFuture = CompletableFuture.supplyAsync(() -> {
-            try (var result = fxLib.torrent_health_from_uri(instance, url)) {
-                if (result.getTag() == TorrentHealthResult.Tag.Ok) {
-                    return result.getUnion().getOk().value;
-                } else {
-                    throw new TorrentException(result.getUnion().getErr().error);
-                }
-            }
-        });
+        healthFuture = fxChannel.send(TorrentHealthRequest.newBuilder()
+                        .setUri(url)
+                        .build(), TorrentHealthResponse.parser())
+                .thenApply(response -> {
+                    if (response.getResult() == Response.Result.OK) {
+                        return response.getHealth();
+                    } else {
+                        throw new FxChannelException("Failed to retrieve torrent health");
+                    }
+                });
 
         return healthFuture;
     }

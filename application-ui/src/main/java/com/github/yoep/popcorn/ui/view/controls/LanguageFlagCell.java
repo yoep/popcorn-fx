@@ -1,6 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controls;
 
-import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
+import com.github.yoep.popcorn.backend.subtitles.SubtitleHelper;
+import com.github.yoep.popcorn.backend.subtitles.ISubtitleInfo;
 import com.github.yoep.popcorn.ui.font.controls.Icon;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -26,11 +27,11 @@ public class LanguageFlagCell extends Control {
      *
      * @param item The item to style the skin with.
      */
-    public void updateItem(SubtitleInfo item) {
+    public void updateItem(ISubtitleInfo item) {
         if (item != null) {
-            setText(item.language().getNativeName());
+            setText(SubtitleHelper.getNativeName(item.getLanguage()));
 
-            Optional.ofNullable(item.getFlagResource())
+            Optional.of(SubtitleHelper.getFlagResource(item.getLanguage()))
                     .map(LanguageFlagCell.class::getResourceAsStream)
                     .map(Image::new)
                     .map(ImageView::new)

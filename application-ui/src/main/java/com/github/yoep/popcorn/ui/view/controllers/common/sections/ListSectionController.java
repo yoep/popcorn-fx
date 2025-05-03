@@ -4,10 +4,14 @@ import com.github.yoep.popcorn.backend.events.ErrorNotificationEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
 import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
-import com.github.yoep.popcorn.backend.media.favorites.FavoriteEventCallback;
+import com.github.yoep.popcorn.backend.media.Media;
+import com.github.yoep.popcorn.backend.media.MediaException;
+import com.github.yoep.popcorn.backend.media.MovieDetails;
+import com.github.yoep.popcorn.backend.media.ShowDetails;
+import com.github.yoep.popcorn.backend.media.favorites.FavoriteEventListener;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
-import com.github.yoep.popcorn.backend.media.providers.*;
-import com.github.yoep.popcorn.backend.media.watched.WatchedEventCallback;
+import com.github.yoep.popcorn.backend.media.providers.ProviderService;
+import com.github.yoep.popcorn.backend.media.watched.WatchedEventListener;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
@@ -151,7 +155,7 @@ public class ListSectionController extends AbstractListSectionController impleme
     }
 
     private void onRetryMediaLoading() {
-        providerServices.forEach(ProviderService::resetApiAvailability);
+        providerServices.forEach(e -> e.resetApiAvailability(category));
         scrollPane.reset();
         scrollPane.loadNewPage();
     }
@@ -244,26 +248,25 @@ public class ListSectionController extends AbstractListSectionController impleme
 
         var rootCause = throwable.getCause();
         var message = new AtomicReference<>(localeText.get(ListMessage.GENERIC));
-        log.error("Failed to retrieve media list, " + rootCause.getMessage(), throwable);
+        log.error("Failed to retrieve media list, {}", rootCause.getMessage(), throwable);
 
         // verify if the parsing of the page failed
         // if so, ignore this page and load the next one
-        if (rootCause instanceof MediaParsingException) {
-            if (numberOfPageFailures < 2) {
-                log.warn("Media page {} has been skipped due to a parsing error, loading next page", scrollPane.getPage());
-                numberOfPageFailures++;
-                this.eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(DetailsMessage.DETAILS_INVALID_RESPONSE_RECEIVED)));
-                // force load the next page as this method is currently in the updating state
-                // of the scroll pane, calling the normal load won't do anything
-                scrollPane.forceLoadNewPage();
-                return new Media[0];
+        if (rootCause instanceof MediaException ex) {
+            switch (ex.getType()) {
+                case PARSING -> {
+                    if (numberOfPageFailures < 2) {
+                        log.warn("Media page {} has been skipped due to a parsing error, loading next page", scrollPane.getPage());
+                        numberOfPageFailures++;
+                        this.eventPublisher.publishEvent(new ErrorNotificationEvent(this, localeText.get(DetailsMessage.DETAILS_INVALID_RESPONSE_RECEIVED)));
+                        // force load the next page as this method is currently in the updating state
+                        // of the scroll pane, calling the normal load won't do anything
+                        scrollPane.forceLoadNewPage();
+                        return new Media[0];
+                    }
+                }
+                case RETRIEVAL -> message.set(localeText.get(ListMessage.API_UNAVAILABLE, 500));
             }
-        }
-
-        // verify if an invalid response was received from the backend
-        // if so, show the status code
-        if (rootCause instanceof MediaRetrievalException) {
-            message.set(localeText.get(ListMessage.API_UNAVAILABLE, 500));
         }
 
         Platform.runLater(() -> {
@@ -285,9 +288,9 @@ public class ListSectionController extends AbstractListSectionController impleme
 
     private CompletableFuture<Media[]> retrieveMediaPage(ProviderService<? extends Media> provider, int page) {
         if (search == null || search.isBlank()) {
-            currentLoadRequest = provider.getPage(genre, sortBy, page);
+            currentLoadRequest = provider.getPage(category, genre, sortBy, page);
         } else {
-            currentLoadRequest = provider.getPage(genre, sortBy, page, search);
+            currentLoadRequest = provider.getPage(category, genre, sortBy, page, search);
         }
 
         return currentLoadRequest
@@ -328,7 +331,6 @@ public class ListSectionController extends AbstractListSectionController impleme
     private void onItemClicked(Media media) {
         showOverlay();
         providerServices.stream()
-                .filter(e -> e.supports(category))
                 .findFirst()
                 .ifPresent(provider -> showMediaDetails(media, provider));
     }
@@ -343,16 +345,13 @@ public class ListSectionController extends AbstractListSectionController impleme
             currentLoadRequest.cancel(true);
 
         log.trace("Retrieving media page {} for {} category", page, category);
-        var provider = providerServices.stream()
-                .filter(e -> e.supports(category))
-                .findFirst();
-
-        if (provider.isPresent()) {
-            return retrieveMediaPage(provider.get(), page);
-        } else {
-            log.error("No provider service found for \"{}\" category", category);
-            return CompletableFuture.completedFuture(new Media[0]);
-        }
+        return providerServices.stream()
+                .findFirst()
+                .map(provider -> retrieveMediaPage(provider, page))
+                .orElseGet(() -> {
+                    log.error("No provider service found for \"{}\" category", category);
+                    return CompletableFuture.completedFuture(new Media[0]);
+                });
     }
 
     @FXML
@@ -364,33 +363,33 @@ public class ListSectionController extends AbstractListSectionController impleme
     private OverlayItemMetadataProvider metadataProvider() {
         return new OverlayItemMetadataProvider() {
             @Override
-            public boolean isLiked(Media media) {
+            public CompletableFuture<Boolean> isLiked(Media media) {
                 return favoriteService.isLiked(media);
             }
 
             @Override
-            public void addListener(FavoriteEventCallback callback) {
-                favoriteService.registerListener(callback);
+            public void addFavoriteListener(FavoriteEventListener listener) {
+                favoriteService.addListener(listener);
             }
 
             @Override
-            public void removeListener(FavoriteEventCallback callback) {
-                favoriteService.removeListener(callback);
+            public void removeFavoriteListener(FavoriteEventListener listener) {
+                favoriteService.removeListener(listener);
             }
 
             @Override
-            public boolean isWatched(Media media) {
+            public CompletableFuture<Boolean> isWatched(Media media) {
                 return watchedService.isWatched(media);
             }
 
             @Override
-            public void addListener(WatchedEventCallback callback) {
-                watchedService.registerListener(callback);
+            public void addWatchedListener(WatchedEventListener listener) {
+                watchedService.addListener(listener);
             }
 
             @Override
-            public void removeListener(WatchedEventCallback callback) {
-                watchedService.removeListener(callback);
+            public void removeWatchedListener(WatchedEventListener listener) {
+                watchedService.removeListener(listener);
             }
         };
     }

@@ -1,0 +1,184 @@
+syntax = "proto3";
+
+option optimize_for = LITE_RUNTIME;
+option java_multiple_files = true;
+option java_package = "com.github.yoep.popcorn.backend.lib.ipc.protobuf";
+
+package fx.ipc.proto;
+
+import "message.proto";
+import "subtitle.proto";
+
+// Broadcast for new external players.
+message DiscoverPlayersRequest {}
+
+// Start the background process of discovering new external players.
+message StartPlayersDiscoveryRequest {
+  // The interval in seconds between broadcasts.
+  optional uint32 interval_seconds = 1;
+}
+
+message Player {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  bytes graphic_resource = 4;
+  State state = 5;
+
+  message PlayRequest {
+    string url = 1;
+    string title = 2;
+    optional string caption = 3;
+    optional string thumbnail = 4;
+    optional string background = 5;
+    optional string quality = 6;
+    optional uint64 auto_resume_timestamp = 7;
+    PlaySubtitleRequest subtitle = 8;
+    optional Torrent torrent = 9;
+
+    message Torrent {
+      Handle handle = 1;
+    }
+
+    message PlaySubtitleRequest {
+      bool enabled = 1;
+      optional Subtitle.Info info = 2;
+      optional Subtitle subtitle = 3;
+    }
+  }
+
+  enum State {
+    READY = 0;
+    LOADING = 1;
+    BUFFERING = 2;
+    PLAYING = 3;
+    PAUSED = 4;
+    STOPPED = 5;
+    ERROR = 6;
+    UNKNOWN = -1;
+  }
+}
+
+message GetPlayerByIdRequest {
+  string id = 1;
+}
+
+message GetPlayerByIdResponse {
+  optional Player player = 1;
+}
+
+message GetPlayersRequest {}
+
+message GetPlayersResponse {
+  repeated Player players = 1;
+}
+
+message GetActivePlayerRequest {}
+
+message GetActivePlayerResponse {
+  optional Player player = 1;
+}
+
+message UpdateActivePlayerRequest {
+  Player player = 1;
+}
+
+message RegisterPlayerRequest {
+  Player player = 1;
+}
+
+message RegisterPlayerResponse {
+  Response.Result result = 1;
+  Error error = 2;
+  optional DuplicatePlayer duplicate_player = 3;
+
+  message DuplicatePlayer {
+    string id = 1;
+  }
+
+  enum Error {
+    DUPLICATE_PLAYER = 0;
+  }
+}
+
+message RemovePlayerRequest {
+  Player player = 1;
+}
+
+message GetPlayerStateRequest {
+  string player_id = 1;
+}
+
+message GetPlayerStateResponse {
+  Player.State state = 1;
+}
+
+message GetPlayerVolumeRequest {
+  string player_id = 1;
+}
+
+message GetPlayerVolumeResponse {
+  optional uint32 volume = 1;
+}
+
+message PlayerPlayRequest {
+  string player_id = 1;
+  Player.PlayRequest request = 2;
+}
+
+message PlayerPauseRequest {
+  string player_id = 1;
+}
+
+message PlayerResumeRequest {
+  string player_id = 1;
+}
+
+message PlayerSeekRequest {
+  string player_id = 1;
+  uint64 time = 2;
+}
+
+message PlayerStopRequest {
+  string player_id = 1;
+}
+
+message PlayerManagerEvent {
+  Event event = 1;
+  optional ActivePlayerChanged active_player_changed = 2;
+  optional PlayerPlaybackChanged player_playback_changed = 3;
+  optional PlayerDurationChanged player_duration_changed = 4;
+  optional PlayerTimeChanged player_time_changed = 5;
+  optional PlayerStateChanged player_state_changed = 6;
+
+  message ActivePlayerChanged {
+    optional string old_player_id = 1;
+    string new_player_id = 2;
+    string new_player_name = 3;
+  }
+
+  message PlayerPlaybackChanged {
+    Player.PlayRequest request = 1;
+  }
+
+  message PlayerDurationChanged {
+    uint64 duration = 1;
+  }
+
+  message PlayerTimeChanged {
+    uint64 time = 1;
+  }
+
+  message PlayerStateChanged {
+    Player.State state = 1;
+  }
+
+  enum Event {
+    ACTIVE_PLAYER_CHANGED = 0;
+    PLAYERS_CHANGED = 1;
+    PLAYER_PLAYBACK_CHANGED = 2;
+    PLAYER_DURATION_CHANGED = 3;
+    PLAYER_TIMED_CHANGED = 4;
+    PLAYER_STATE_CHANGED = 5;
+  }
+}

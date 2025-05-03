@@ -1,11 +1,11 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.sections;
 
 import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.MagnetInfo;
 import com.github.yoep.popcorn.backend.loader.LoaderService;
-import com.github.yoep.popcorn.backend.torrent.collection.StoredTorrent;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.ShowTorrentCollectionEvent;
-import com.github.yoep.popcorn.ui.torrent.TorrentCollectionService;
+import com.github.yoep.popcorn.backend.torrent.TorrentCollectionService;
 import com.github.yoep.popcorn.ui.torrent.controls.TorrentCollection;
 import javafx.scene.layout.Pane;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,6 +21,7 @@ import org.testfx.util.WaitForAsyncUtils;
 import java.net.URL;
 import java.util.Collections;
 import java.util.ResourceBundle;
+import java.util.concurrent.CompletableFuture;
 
 import static org.mockito.Mockito.*;
 
@@ -50,9 +51,10 @@ class TorrentCollectionSectionControllerTest {
     @Test
     void testOnItemClicked() {
         var uri = "magnet://example-url";
-        var torrent = mock(StoredTorrent.class);
-        when(torrent.getMagnetUri()).thenReturn(uri);
-        when(torrentCollectionService.getStoredTorrents()).thenReturn(Collections.singletonList(torrent));
+        var torrent = MagnetInfo.newBuilder()
+                .setMagnetUri(uri)
+                .build();
+        when(torrentCollectionService.getStoredTorrents()).thenReturn(CompletableFuture.completedFuture(Collections.singletonList(torrent)));
         controller.initialize(url, resourceBundle);
 
         eventPublisher.publish(new ShowTorrentCollectionEvent(this));

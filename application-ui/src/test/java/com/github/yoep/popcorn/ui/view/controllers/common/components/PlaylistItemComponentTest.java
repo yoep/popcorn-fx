@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
-import com.github.yoep.popcorn.backend.playlists.model.PlaylistItem;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Playlist;
 import com.github.yoep.popcorn.ui.view.controls.ImageCover;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.scene.control.Label;
@@ -9,15 +9,12 @@ import javafx.scene.layout.GridPane;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.testfx.framework.junit5.ApplicationExtension;
 import org.testfx.util.WaitForAsyncUtils;
 
-import java.io.IOException;
 import java.net.URL;
-import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -30,18 +27,21 @@ import static org.mockito.Mockito.when;
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
 class PlaylistItemComponentTest {
     @Mock
-    private PlaylistItem item;
-    @Mock
     private ImageService imageService;
     @Mock
     private URL url;
     @Mock
     private ResourceBundle resourceBundle;
-    @InjectMocks
     private PlaylistItemComponent component;
 
     @BeforeEach
     void setUp() {
+        component = new PlaylistItemComponent(Playlist.Item.newBuilder()
+                .setThumb("http://myimage")
+                .setTitle("Foo")
+                .setCaption("Bar")
+                .build(), imageService);
+
         component.itemPane = new GridPane();
         component.thumbnail = new ImageCover();
         component.title = new Label();
@@ -49,22 +49,17 @@ class PlaylistItemComponentTest {
     }
 
     @Test
-    void testInitialize() throws TimeoutException, IOException {
-        var thumbUrl = "http://myimage";
-        var title = "Foo";
-        var caption = "Bar";
+    void testInitialize() throws TimeoutException {
         var image = new Image(PlaylistItemComponentTest.class.getResourceAsStream("/posterholder.png"));
-        when(item.title()).thenReturn(title);
-        when(item.getThumb()).thenReturn(Optional.of(thumbUrl));
-        when(item.getCaption()).thenReturn(Optional.of(caption));
         when(imageService.load(isA(String.class))).thenReturn(CompletableFuture.completedFuture(image));
+        when(imageService.getPosterPlaceholder()).thenReturn(CompletableFuture.completedFuture(image));
 
         component.initialize(url, resourceBundle);
         WaitForAsyncUtils.waitForFxEvents();
 
         WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> component.thumbnail.getImage() == image);
-        assertEquals(title, component.title.getText());
-        assertEquals(caption, component.caption.getText());
+        assertEquals("Foo", component.title.getText());
+        assertEquals("Bar", component.caption.getText());
     }
 
     @Test

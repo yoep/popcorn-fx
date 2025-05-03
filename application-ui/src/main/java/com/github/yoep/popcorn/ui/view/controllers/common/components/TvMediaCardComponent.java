@@ -1,10 +1,12 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
-import com.github.yoep.popcorn.backend.media.providers.Media;
-import com.github.yoep.popcorn.backend.media.watched.WatchedEventCallback;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.WatchedEvent;
+import com.github.yoep.popcorn.backend.media.Media;
+import com.github.yoep.popcorn.backend.media.watched.WatchedEventListener;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.OverlayItemListener;
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.OverlayItemMetadataProvider;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.Parent;
@@ -21,13 +23,11 @@ import java.util.ResourceBundle;
 import static java.util.Arrays.asList;
 
 @Slf4j
-public class TvMediaCardComponent extends AbstractCardComponent implements Initializable {
+public class TvMediaCardComponent extends AbstractCardComponent implements Initializable, WatchedEventListener {
     static final String WATCHED_STYLE_CLASS = "watched";
 
     protected final List<OverlayItemListener> listeners;
     protected final OverlayItemMetadataProvider metadataProvider;
-
-    private final WatchedEventCallback watchedEventCallback = createWatchedCallback(media);
 
     @FXML
     Pane posterItem;
@@ -40,7 +40,7 @@ public class TvMediaCardComponent extends AbstractCardComponent implements Initi
         this.metadataProvider = metadataProvider;
         this.listeners = asList(listeners);
 
-        metadataProvider.addListener(watchedEventCallback);
+        metadataProvider.addWatchedListener(this);
     }
 
     @Override
@@ -50,8 +50,15 @@ public class TvMediaCardComponent extends AbstractCardComponent implements Initi
         initializeParentListener();
     }
 
+    @Override
+    public void onWatchedStateChanged(WatchedEvent.WatchedStateChanged event) {
+        if (Objects.equals(event.getImdbId(), media.id())) {
+            switchWatched(event.getNewState());
+        }
+    }
+
     protected void initializeMetadata() {
-        switchWatched(metadataProvider.isWatched(media));
+        metadataProvider.isWatched(media).thenAccept(this::switchWatched);
     }
 
     protected void onShowDetails() {
@@ -62,34 +69,22 @@ public class TvMediaCardComponent extends AbstractCardComponent implements Initi
 
     protected void onParentChanged(Parent newValue) {
         if (newValue == null) {
-            metadataProvider.removeListener(watchedEventCallback);
+            metadataProvider.removeWatchedListener(this);
         }
     }
 
     private void switchWatched(boolean isWatched) {
-        if (isWatched) {
-            posterItem.getStyleClass().add(WATCHED_STYLE_CLASS);
-        } else {
-            posterItem.getStyleClass().remove(WATCHED_STYLE_CLASS);
-        }
+        Platform.runLater(() -> {
+            if (isWatched) {
+                posterItem.getStyleClass().add(WATCHED_STYLE_CLASS);
+            } else {
+                posterItem.getStyleClass().remove(WATCHED_STYLE_CLASS);
+            }
+        });
     }
 
     private void initializeParentListener() {
         posterItem.parentProperty().addListener((observable, oldValue, newValue) -> onParentChanged(newValue));
-    }
-
-    private WatchedEventCallback createWatchedCallback(Media media) {
-        return event -> {
-            switch (event.getTag()) {
-                case WatchedStateChanged -> {
-                    var stateChange = event.getUnion().getWatched_state_changed();
-
-                    if (Objects.equals(stateChange.getImdbId(), media.getId())) {
-                        switchWatched(stateChange.getNewState());
-                    }
-                }
-            }
-        };
     }
 
     @FXML

@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controls;
 
-import com.github.yoep.popcorn.backend.playlists.model.PlaylistItem;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Playlist;
 import com.github.yoep.popcorn.ui.font.controls.Icon;
 import javafx.collections.MapChangeListener;
 import javafx.scene.Cursor;
@@ -30,15 +30,15 @@ public class PlaylistControl extends Icon {
         initializeLanguageSelection();
     }
 
-    public List<PlaylistItem> getItems() {
+    public List<Playlist.Item> getItems() {
         return getListView().getItems();
     }
 
-    public AxisItemSelection<PlaylistItem> getListView() {
+    public AxisItemSelection<Playlist.Item> getListView() {
         return popup.getPlaylistView();
     }
 
-    public void setItemFactory(ItemFactory<PlaylistItem> itemFactory) {
+    public void setItemFactory(ItemFactory<Playlist.Item> itemFactory) {
         popup.playlistView.setItemFactory(itemFactory);
     }
 
@@ -58,8 +58,8 @@ public class PlaylistControl extends Icon {
         }
     }
 
-    public void setItems(List<PlaylistItem> items) {
-        popup.playlistView.setItems(items.toArray(new PlaylistItem[0]));
+    public void setItems(List<Playlist.Item> items) {
+        popup.playlistView.setItems(items.toArray(new Playlist.Item[0]));
     }
 
     private void initializeLanguageSelection() {
@@ -91,13 +91,13 @@ public class PlaylistControl extends Icon {
     }
 
     private class ListPopup extends PopupControl {
-        private final AxisItemSelection<PlaylistItem> playlistView = new AxisItemSelection<>();
+        private final AxisItemSelection<Playlist.Item> playlistView = new AxisItemSelection<>();
 
         public ListPopup() {
             init();
         }
 
-        public AxisItemSelection<PlaylistItem> getPlaylistView() {
+        public AxisItemSelection<Playlist.Item> getPlaylistView() {
             return playlistView;
         }
 
@@ -111,7 +111,7 @@ public class PlaylistControl extends Icon {
             playlistView.setSpacing(1.5);
             playlistView.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
             playlistView.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
-            playlistView.getObservableItems().addListener((MapChangeListener<? super PlaylistItem, ? super Node>) c -> {
+            playlistView.getObservableItems().addListener((MapChangeListener<? super Playlist.Item, ? super Node>) c -> {
                 int height;
 
                 if (playlistView.getItems().size() > 1) {
@@ -129,9 +129,9 @@ public class PlaylistControl extends Icon {
 
     private class ListPopupSkin implements Skin<ListPopup> {
         private final ListPopup popup;
-        private final AxisItemSelection<PlaylistItem> listView;
+        private final AxisItemSelection<Playlist.Item> listView;
 
-        private ListPopupSkin(ListPopup popup, AxisItemSelection<PlaylistItem> listView) {
+        private ListPopupSkin(ListPopup popup, AxisItemSelection<Playlist.Item> listView) {
             this.popup = popup;
             this.listView = listView;
         }

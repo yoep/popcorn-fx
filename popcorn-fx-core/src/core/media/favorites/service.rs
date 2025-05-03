@@ -1,7 +1,8 @@
 use crate::core::media;
 use crate::core::media::favorites::model::Favorites;
 use crate::core::media::{
-    MediaError, MediaIdentifier, MediaOverview, MediaType, MovieOverview, ShowOverview,
+    MediaError, MediaIdentifier, MediaOverview, MediaType, MovieDetails, MovieOverview,
+    ShowDetails, ShowOverview,
 };
 use crate::core::storage::{Storage, StorageError};
 use async_trait::async_trait;
@@ -10,7 +11,6 @@ use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use log::{debug, error, info, trace, warn};
 use std::fmt::Debug;
 use std::sync::Arc;
-use tokio::select;
 use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
 
@@ -125,7 +125,8 @@ impl FXFavoriteService {
 impl FavoriteService for FXFavoriteService {
     async fn is_liked(&self, id: &str) -> bool {
         trace!("Verifying if media item {} is liked", id);
-        self.inner.favorites.read().await.contains(id)
+        let mutex = self.inner.favorites.read().await;
+        mutex.contains(id)
     }
 
     async fn is_liked_dyn(&self, favorable: &Box<dyn MediaIdentifier>) -> bool {
@@ -171,36 +172,24 @@ impl FavoriteService for FXFavoriteService {
     }
 
     async fn add(&self, favorite: Box<dyn MediaIdentifier>) -> media::Result<()> {
-        trace!("Adding favorite media item {:?}", favorite);
+        trace!("Favorite service is adding media item {:?}", favorite);
         let mut favorites = self.inner.favorites.write().await;
         let imdb_id = favorite.imdb_id().to_string();
         let media_type = favorite.media_type();
 
-        match media_type {
-            MediaType::Movie => match favorite.into_any().downcast::<MovieOverview>() {
-                Ok(media) => favorites.add_movie(&media),
-                Err(_) => {
-                    return Err(MediaError::FavoriteAddFailed(
-                        imdb_id,
-                        format!("media type {} is not supported", media_type),
-                    ));
-                }
-            },
-            MediaType::Show => match favorite.into_any().downcast::<ShowOverview>() {
-                Ok(media) => favorites.add_show(&media),
-                Err(_) => {
-                    return Err(MediaError::FavoriteAddFailed(
-                        imdb_id,
-                        format!("media type {} is not supported", media_type),
-                    ));
-                }
-            },
-            _ => {
-                return Err(MediaError::FavoriteAddFailed(
-                    imdb_id,
-                    format!("media type {} is not supported", media_type),
-                ));
-            }
+        if let Some(media) = favorite.downcast_ref::<MovieOverview>() {
+            favorites.add_movie(&media);
+        } else if let Some(media) = favorite.downcast_ref::<ShowOverview>() {
+            favorites.add_show(&media);
+        } else if let Some(media) = favorite.downcast_ref::<MovieDetails>() {
+            favorites.add_movie(&media.to_overview());
+        } else if let Some(media) = favorite.downcast_ref::<ShowDetails>() {
+            favorites.add_show(&media.to_overview());
+        } else {
+            return Err(MediaError::FavoriteAddFailed(
+                imdb_id,
+                format!("media type {} is not supported", media_type),
+            ));
         }
 
         self.inner.save_favorites(&favorites).await;
@@ -297,11 +286,7 @@ struct InnerFavoriteService {
 
 impl InnerFavoriteService {
     async fn start(&self) {
-        loop {
-            select! {
-                _ = self.cancellation_token.cancelled() => break,
-            }
-        }
+        self.cancellation_token.cancelled().await;
         self.save().await;
         debug!("Favorite service main loop ended");
     }

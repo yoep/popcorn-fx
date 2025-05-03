@@ -196,37 +196,37 @@ impl SubtitleFileBuilder {
     }
 
     /// Sets the file ID for the subtitle file.
-    pub fn file_id(mut self, file_id: i32) -> Self {
+    pub fn file_id(&mut self, file_id: i32) -> &mut Self {
         self.file_id = Some(file_id);
         self
     }
 
     /// Sets the name of the subtitle file.
-    pub fn name<T: ToString>(mut self, name: T) -> Self {
+    pub fn name<T: ToString>(&mut self, name: T) -> &mut Self {
         self.name = Some(name.to_string());
         self
     }
 
     /// Sets the URL of the subtitle file.
-    pub fn url<T: ToString>(mut self, url: T) -> Self {
+    pub fn url<T: ToString>(&mut self, url: T) -> &mut Self {
         self.url = Some(url.to_string());
         self
     }
 
     /// Sets the score of the subtitle file.
-    pub fn score(mut self, score: f32) -> Self {
+    pub fn score(&mut self, score: f32) -> &mut Self {
         self.score = Some(score);
         self
     }
 
     /// Sets the number of downloads for the subtitle file.
-    pub fn downloads(mut self, downloads: i32) -> Self {
+    pub fn downloads(&mut self, downloads: i32) -> &mut Self {
         self.downloads = Some(downloads);
         self
     }
 
     /// Sets the quality of the subtitle file.
-    pub fn quality(mut self, quality: i32) -> Self {
+    pub fn quality(&mut self, quality: i32) -> &mut Self {
         self.quality = Some(quality);
         self
     }
@@ -236,19 +236,20 @@ impl SubtitleFileBuilder {
     /// # Panics
     ///
     /// This method will panic if any required field is not set.
-    pub fn build(self) -> SubtitleFile {
+    pub fn build(&mut self) -> SubtitleFile {
         trace!("Building SubtitleFile from {:?}", self);
-        let name = self.name.expect("name is not set");
+        let name = self.name.take().expect("name is not set");
         let quality = self
             .quality
+            .take()
             .or_else(|| SubtitleFile::try_parse_subtitle_quality(name.as_str()));
 
         SubtitleFile {
-            file_id: self.file_id.expect("file_id is not set"),
+            file_id: self.file_id.take().expect("file_id is not set"),
             name,
-            url: self.url.expect("url is not set"),
-            score: self.score.unwrap_or(0f32),
-            downloads: self.downloads.unwrap_or(0),
+            url: self.url.take().expect("url is not set"),
+            score: self.score.take().unwrap_or(0f32),
+            downloads: self.downloads.take().unwrap_or(0),
             quality,
         }
     }

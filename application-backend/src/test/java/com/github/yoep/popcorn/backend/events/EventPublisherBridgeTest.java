@@ -1,8 +1,10 @@
 package com.github.yoep.popcorn.backend.events;
 
-import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.PopcornFx;
-import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
+import com.github.yoep.popcorn.backend.lib.FxCallback;
+import com.github.yoep.popcorn.backend.lib.FxChannel;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Event;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
+import com.google.protobuf.Parser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -10,73 +12,64 @@ import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isA;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class EventPublisherBridgeTest {
     @Spy
     private EventPublisher eventPublisher = new EventPublisher(false);
     @Mock
-    private FxLib fxLib;
-    @Mock
-    private PopcornFx instance;
+    private FxChannel fxChannel;
     private EventPublisherBridge bridge;
 
-    private final AtomicReference<EventBridgeCallback> callbackHolder = new AtomicReference<>();
+    private final AtomicReference<FxCallback<Event>> subscriptionHolder = new AtomicReference<>();
 
     @BeforeEach
     void setUp() {
-        FxLib.INSTANCE.set(fxLib);
-        doAnswer(invocation -> {
-            callbackHolder.set(invocation.getArgument(1, EventBridgeCallback.class));
+        doAnswer(invocations -> {
+            subscriptionHolder.set((FxCallback<Event>) invocations.getArgument(2, FxCallback.class));
             return null;
-        }).when(fxLib).register_event_callback(isA(PopcornFx.class), isA(EventBridgeCallback.class));
+        }).when(fxChannel).subscribe(eq(FxChannel.typeFrom(Event.class)), isA(Parser.class), isA(FxCallback.class));
 
-        bridge = new EventPublisherBridge(eventPublisher, fxLib, instance);
+        bridge = new EventPublisherBridge(eventPublisher, fxChannel);
     }
 
     @Test
-    void testPlayerState() {
-        var eventHolder = new AtomicReference<EventC.ByValue>();
-        var state = PlayerState.LOADING;
-        doAnswer(invocation -> {
-            eventHolder.set(invocation.getArgument(1, EventC.ByValue.class));
-            return null;
-        }).when(fxLib).publish_event(isA(PopcornFx.class), isA(EventC.ByValue.class));
+    void testOnEvent() {
+        var eventListener = new AtomicReference<PlayerStartedEvent>();
+        eventPublisher.register(PlayerStartedEvent.class, event -> {
+            eventListener.set(event);
+            return event;
+        });
 
-        eventPublisher.publish(new PlayerStateEvent(this, state));
+        subscriptionHolder.get().callback(Event.newBuilder()
+                .setType(Event.EventType.PLAYER_STARTED)
+                .build());
 
-        verify(fxLib).publish_event(eq(instance), isA(EventC.ByValue.class));
-        var result = eventHolder.get();
-        assertEquals(EventC.Tag.PLAYBACK_STATE_CHANGED, result.getTag());
-        assertEquals(state, result.getUnion().getPlaybackState_body().getNewState());
+        var result = eventListener.get();
+        assertNotNull(result, "expected the event listener to have been invoked");
     }
 
     @Test
-    void testCallback() {
-        var oldPlayerId = "oldPlayerId";
-        var newPlayerId = "newPlayerID";
-        var newPlayerName = "newPlayerName";
-        var callback = callbackHolder.get();
-        var changedEvent = mock(PlayerChangedEventC.ByValue.class);
-        var event = new EventC.ByValue();
-        event.tag = EventC.Tag.PLAYER_CHANGED;
-        event.union = new EventC.EventCUnion.ByValue();
-        event.union.playerChanged_body = new EventC.PlayerChanged_Body();
-        event.union.playerChanged_body.playerChangedEvent = changedEvent;
-        when(changedEvent.getOldPlayerId()).thenReturn(Optional.of(oldPlayerId));
-        when(changedEvent.getNewPlayerId()).thenReturn(newPlayerId);
-        when(changedEvent.getNewPlayerName()).thenReturn(newPlayerName);
+    void testOnApplicationEvent() {
+        var state = Player.State.BUFFERING;
+        var request = new AtomicReference<Event>();
+        doAnswer(invocations -> {
+            request.set(invocations.getArgument(0, Event.class));
+            return null;
+        }).when(fxChannel).send(isA(Event.class));
 
-        callback.callback(event);
+        eventPublisher.publishEvent(new PlayerStateEvent(this, state));
 
-        verify(eventPublisher).publish(new PlayerChangedEvent(bridge, oldPlayerId, newPlayerId, newPlayerName));
-        verify(fxLib).dispose_event_value(event);
+        verify(fxChannel).send(isA(Event.class));
+        assertEquals(Event.EventType.PLAYBACK_STATE_CHANGED, request.get().getType());
+        assertEquals(state, request.get().getPlaybackStateChanged().getNewState());
     }
 }

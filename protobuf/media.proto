@@ -1,0 +1,251 @@
+syntax = "proto3";
+
+option optimize_for = LITE_RUNTIME;
+option java_multiple_files = true;
+option java_package = "com.github.yoep.popcorn.backend.lib.ipc.protobuf";
+
+package fx.ipc.proto;
+
+import "message.proto";
+
+message Media {
+  message MovieOverview {
+    string title = 1;
+    string imdb_id = 2;
+    string year = 3;
+    Images images = 4;
+    optional Rating rating = 5;
+  }
+
+  message ShowOverview {
+    string imdb_id = 1;
+    string tvdb_id = 2;
+    string title = 3;
+    string year = 4;
+    uint32 number_of_seasons = 5;
+    Images images = 6;
+    optional Rating rating = 7;
+  }
+
+  message MovieDetails {
+    string title = 1;
+    string imdb_id = 2;
+    string year = 3;
+    Images images = 4;
+    optional Rating rating = 5;
+    string synopsis = 6;
+    optional uint32 runtime = 7;
+    optional string trailer = 8;
+    repeated string genres = 9;
+    repeated TorrentLanguage torrents = 10;
+  }
+
+  message ShowDetails {
+    string imdb_id = 1;
+    string tvdb_id = 2;
+    string title = 3;
+    string year = 4;
+    uint32 number_of_seasons = 5;
+    Images images = 6;
+    optional Rating rating = 7;
+    optional string synopsis = 8;
+    optional uint32 runtime = 9;
+    optional string status = 10;
+    repeated string genre = 11;
+    repeated Episode episodes = 12;
+  }
+
+  message Episode {
+    uint32 season = 1;
+    uint32 episode = 2;
+    uint64 first_aired = 3;
+    string title = 4;
+    string synopsis = 5;
+    string tvdb_id = 6;
+    optional string thumb = 7;
+    TorrentQuality torrents = 8;
+  }
+
+  message Rating {
+    uint32 percentage = 1;
+    uint32 watching = 2;
+    uint32 votes = 3;
+    uint32 loved = 4;
+    uint32 hated = 5;
+  }
+
+  message Images {
+    optional string poster = 1;
+    optional string banner = 2;
+    optional string fanart = 3;
+  }
+
+  message TorrentLanguage {
+    string language = 1;
+    /// Maps a language to one ore more torrents with quality as identifier.
+    TorrentQuality torrents = 2;
+  }
+
+  message TorrentQuality {
+    /// Maps the quality of a torrent to it's info
+    map<string, TorrentInfo> qualities = 1;
+  }
+
+  message TorrentInfo {
+    string url = 1;
+    string provider = 2;
+    string source = 3;
+    string title = 4;
+    string quality = 5;
+    uint32 seeds = 6;
+    uint32 peers = 7;
+    optional string size = 8;
+    optional string file_size = 9;
+    optional string file = 10;
+  }
+
+  message Genre {
+    string key = 1;
+    string text = 2;
+  }
+
+  message SortBy {
+    string key = 1;
+    string text = 2;
+  }
+
+  message Item {
+    string type = 1;
+    optional MovieOverview movie_overview = 2;
+    optional ShowOverview show_overview = 3;
+    optional MovieDetails movie_details = 4;
+    optional ShowDetails show_details = 5;
+    optional Episode episode = 6;
+  }
+
+  message Error {
+    Type type = 1;
+    optional FavoritesLoadingFailed favorite_loading_failed = 2;
+    optional FavoriteNotFound favorite_not_found = 3;
+    optional FavoriteAddFailed favorite_add_failed = 4;
+    optional WatchedLoadingFailed watched_loading_failed = 5;
+    optional MediaTypeNotSupported media_type_not_supported = 6;
+    optional ProviderRequestFailed provider_request_failed = 7;
+    optional ProviderParsingFailed provider_parsing_failed = 8;
+    optional ProviderNotFound provider_not_found = 9;
+
+    message FavoritesLoadingFailed {
+      string reason = 1;
+    }
+
+    message FavoriteNotFound {
+      string imdb_id = 1;
+    }
+
+    message FavoriteAddFailed {
+      string imdb_id = 1;
+      string reason = 2;
+    }
+
+    message WatchedLoadingFailed {
+      string reason = 1;
+    }
+
+    message MediaTypeNotSupported {
+      string type = 1;
+    }
+
+    message ProviderRequestFailed {
+      string url = 1;
+      uint32 status_code = 2;
+    }
+
+    message ProviderParsingFailed {
+      string reason = 1;
+    }
+
+    message ProviderNotFound {
+      string provider_type = 1;
+    }
+
+    enum Type {
+      FAVORITES_LOADING_FAILED = 0;
+      FAVORITE_NOT_FOUND = 1;
+      FAVORITE_ADD_FAILED = 2;
+      WATCHED_LOADING_FAILED = 3;
+      MEDIA_TYPE_NOT_SUPPORTED = 4;
+      NO_AVAILABLE_PROVIDERS = 5;
+      PROVIDER_CONNECTION_FAILED = 6;
+      PROVIDER_REQUEST_FAILED = 7;
+      PROVIDER_ALREADY_EXISTS = 8;
+      PROVIDER_PARSING_FAILED = 9;
+      PROVIDER_NOT_FOUND = 10;
+      PROVIDER_TIMEOUT = 11;
+      AUTO_RESUME_LOADING_FAILED = 12;
+    }
+  }
+
+  enum Category {
+    MOVIES = 0;
+    SERIES = 1;
+    FAVORITES = 3;
+  }
+}
+
+message GetMediaDetailsRequest {
+  Media.Item item = 1;
+}
+
+message GetMediaDetailsResponse {
+  Response.Result result = 1;
+  optional Media.Item item = 2;
+  optional Media.Error error = 3;
+}
+
+message GetMediaItemsRequest {
+  Media.Category category = 1;
+  Media.Genre genre = 2;
+  Media.SortBy sort_by = 3;
+  optional string keywords = 4;
+  uint32 page = 5;
+}
+
+message GetMediaItemsResponse {
+  Response.Result result = 1;
+  repeated Media.Item items = 2;
+  optional Media.Error error = 3;
+}
+
+message ResetProviderApiRequest {
+  Media.Category category = 1;
+}
+
+message GetCategoryGenresRequest {
+  Media.Category category = 1;
+}
+
+message GetCategoryGenresResponse {
+  Response.Result result = 1;
+  repeated Media.Genre genres = 2;
+  optional Error error = 3;
+
+  enum Error {
+    INVALID_CATEGORY = 0;
+    PROVIDER_NOT_FOUND = 1;
+  }
+}
+
+message GetCategorySortByRequest {
+  Media.Category category = 1;
+}
+
+message GetCategorySortByResponse {
+  Response.Result result = 1;
+  repeated Media.SortBy sort_by = 2;
+  optional Error error = 3;
+
+  enum Error {
+    INVALID_CATEGORY = 0;
+    PROVIDER_NOT_FOUND = 1;
+  }
+}

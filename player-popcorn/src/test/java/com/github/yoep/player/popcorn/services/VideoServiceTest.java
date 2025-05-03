@@ -1,17 +1,16 @@
 package com.github.yoep.player.popcorn.services;
 
 import com.github.yoep.player.popcorn.listeners.PlaybackListener;
-import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
 import com.github.yoep.popcorn.backend.adapters.video.listeners.VideoListener;
 import com.github.yoep.popcorn.backend.adapters.video.state.VideoState;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -60,9 +59,10 @@ class VideoServiceTest {
     @Test
     void testAddVideoPlayback_shouldInvokeCorrectVideoPlayback() {
         var url = "https://ipsum.com/test.mp4";
-        var request = mock(PlayRequest.class);
+        var request = Player.PlayRequest.newBuilder()
+                .setUrl(url)
+                .build();
         var service = new VideoService();
-        when(request.getUrl()).thenReturn(url);
         lenient().when(videoPlayback3.supports(url)).thenReturn(true);
         lenient().when(videoPlayback1.supports(url)).thenReturn(true);
 
@@ -79,10 +79,12 @@ class VideoServiceTest {
     void testOnPlay_whenPlaybackIsDifferent_shouldSwitchVideoPlayers() {
         var url1 = "lorem.mp4";
         var url2 = "https://ipsum.com/test.mp4";
-        var request1 = mock(PlayRequest.class);
-        var request2 = mock(PlayRequest.class);
-        when(request1.getUrl()).thenReturn(url1);
-        when(request2.getUrl()).thenReturn(url2);
+        var request1 = Player.PlayRequest.newBuilder()
+                .setUrl(url1)
+                .build();
+        var request2 = Player.PlayRequest.newBuilder()
+                .setUrl(url2)
+                .build();
         when(videoPlayback1.supports(url1)).thenReturn(true);
         when(videoPlayback2.supports(url2)).thenReturn(true);
         service.onPlay(request1);
@@ -97,8 +99,9 @@ class VideoServiceTest {
     @Test
     void testOnPlay_whenInvoked_shouldInvokeListenersWithRequest() {
         var url = "my-video-url.mp4";
-        var request = mock(PlayRequest.class);
-        when(request.getUrl()).thenReturn(url);
+        var request = Player.PlayRequest.newBuilder()
+                .setUrl(url)
+                .build();
         when(videoPlayback1.supports(url)).thenReturn(true);
         service.addListener(listener);
 
@@ -111,9 +114,10 @@ class VideoServiceTest {
     void testOnPlay_whenAutoResumeTimestampIsKnown_shouldSeekTheTimestamp() {
         var url = "continue-video.mp4";
         var timestamp = 20000L;
-        var request = mock(PlayRequest.class);
-        when(request.getUrl()).thenReturn(url);
-        when(request.getAutoResumeTimestamp()).thenReturn(Optional.of(timestamp));
+        var request = Player.PlayRequest.newBuilder()
+                .setUrl(url)
+                .setAutoResumeTimestamp(timestamp)
+                .build();
         when(videoPlayback2.supports(url)).thenReturn(true);
 
         service.onPlay(request);
@@ -124,8 +128,9 @@ class VideoServiceTest {
     @Test
     void testOnResume_whenInvoked_shouldInvokeResumeOnTheVideoPlayerAndListeners() {
         var url = "resume-video.mp4";
-        var request = mock(PlayRequest.class);
-        when(request.getUrl()).thenReturn(url);
+        var request = Player.PlayRequest.newBuilder()
+                .setUrl(url)
+                .build();
         when(videoPlayback1.supports(url)).thenReturn(true);
         service.addListener(listener);
         service.onPlay(request);
@@ -139,8 +144,9 @@ class VideoServiceTest {
     @Test
     void testOnPause_whenInvoked_shouldInvokePauseOnTheVideoPlayerAndListeners() {
         var url = "pause-video.mp4";
-        var request = mock(PlayRequest.class);
-        when(request.getUrl()).thenReturn(url);
+        var request = Player.PlayRequest.newBuilder()
+                .setUrl(url)
+                .build();
         when(videoPlayback1.supports(url)).thenReturn(true);
         service.addListener(listener);
         service.onPlay(request);
@@ -155,8 +161,9 @@ class VideoServiceTest {
     void testOnSeek_whenInvoked_shouldInvokeSeekOnTheVideoPlayerAndListeners() {
         var url = "seek-time-video.mp4";
         var time = 17500;
-        var request = mock(PlayRequest.class);
-        when(request.getUrl()).thenReturn(url);
+        var request = Player.PlayRequest.newBuilder()
+                .setUrl(url)
+                .build();
         when(videoPlayback1.supports(url)).thenReturn(true);
         service.addListener(listener);
         service.onPlay(request);
@@ -171,8 +178,9 @@ class VideoServiceTest {
     void testOnVolume_whenInvoked_shouldInvokeVolumeOnTheVideoPlayerAndListeners() {
         var url = "volume-time-video.mp4";
         var volume = 90;
-        var request = mock(PlayRequest.class);
-        when(request.getUrl()).thenReturn(url);
+        var request = Player.PlayRequest.newBuilder()
+                .setUrl(url)
+                .build();
         when(videoPlayback1.supports(url)).thenReturn(true);
         service.addListener(listener);
         service.onPlay(request);
@@ -185,8 +193,9 @@ class VideoServiceTest {
     @Test
     void testOnStop_whenInvoked_shouldInvokeStopOnTheVideoPlayerAndListeners() {
         var url = "stop-video.mp4";
-        var request = mock(PlayRequest.class);
-        when(request.getUrl()).thenReturn(url);
+        var request = Player.PlayRequest.newBuilder()
+                .setUrl(url)
+                .build();
         when(videoPlayback1.supports(url)).thenReturn(true);
         service.addListener(listener);
         service.onPlay(request);
@@ -208,8 +217,9 @@ class VideoServiceTest {
     @Test
     void testVideoListener_whenOnStateChangedIsErrorState_shouldRetrieveTheVideoError() {
         var url = "my-video.mp4";
-        var request = mock(PlayRequest.class);
-        when(request.getUrl()).thenReturn(url);
+        var request = Player.PlayRequest.newBuilder()
+                .setUrl(url)
+                .build();
         when(videoPlayback1.supports(url)).thenReturn(true);
         when(videoPlayback1.getError()).thenReturn(new RuntimeException("My video player error"));
         service.addListener(listener);

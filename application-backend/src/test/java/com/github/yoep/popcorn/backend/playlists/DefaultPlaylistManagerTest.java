@@ -1,154 +1,227 @@
 package com.github.yoep.popcorn.backend.playlists;
 
-import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.PopcornFx;
-import com.github.yoep.popcorn.backend.lib.NativeString;
-import com.github.yoep.popcorn.backend.media.MediaItem;
-import com.github.yoep.popcorn.backend.media.providers.*;
-import com.github.yoep.popcorn.backend.playlists.ffi.Playlist;
-import com.github.yoep.popcorn.backend.playlists.model.PlaylistItem;
+import com.github.yoep.popcorn.backend.lib.FxChannel;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.*;
+import com.github.yoep.popcorn.backend.media.MovieDetails;
+import com.github.yoep.popcorn.backend.media.ShowDetails;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
-import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
-import com.github.yoep.popcorn.backend.settings.models.PlaybackSettings;
+import com.google.protobuf.Parser;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.isA;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class DefaultPlaylistManagerTest {
     @Mock
-    private FxLib fxLib;
-    @Mock
-    private PopcornFx instance;
+    private FxChannel fxChannel;
     @Mock
     private ApplicationConfig applicationConfig;
-    @Mock
-    private ApplicationSettings applicationSettings;
-    @Mock
-    private PlaybackSettings playbackSettings;
     @InjectMocks
     private DefaultPlaylistManager playlistManager;
 
     @Test
     void testPlay_Playlist() {
-        var playlist = new com.github.yoep.popcorn.backend.playlists.model.Playlist(PlaylistItem.builder()
-                .url("http://localhost/example-video.mp4")
-                .build());
+        var url = "http://localhost/example-video.mp4";
+        var playlist = Playlist.newBuilder()
+                .addItems(Playlist.Item.newBuilder()
+                        .setUrl(url)
+                        .build())
+                .build();
+        var request = new AtomicReference<PlayPlaylistRequest>();
+        var response = PlayPlaylistResponse.newBuilder()
+                .setHandle(Handle.newBuilder().setHandle(1212L).build())
+                .build();
+        when(fxChannel.send(isA(PlayPlaylistRequest.class), isA(Parser.class))).thenAnswer(invocations -> {
+            request.set(invocations.getArgument(0, PlayPlaylistRequest.class));
+            return CompletableFuture.completedFuture(response);
+        });
 
         playlistManager.play(playlist);
 
-        verify(fxLib).play_playlist(eq(instance), isA(Playlist.ByReference.class));
-        verify(fxLib, times(0)).dispose_playlist_set(isA(Playlist.ByReference.class));
+        verify(fxChannel).send(isA(PlayPlaylistRequest.class), isA(Parser.class));
+        assertEquals(1212L, playlistManager.playlistLoaderHandle.get().getHandle());
+        var result = request.get();
+        assertNotNull(result, "expected a request to have been sent");
+        assertEquals(url, result.getPlaylist().getItemsList().getFirst().getUrl());
     }
 
     @Test
     void testPlay_Movie() {
-        var playlistHolder = new AtomicReference<Playlist>();
         var movieTitle = "MyMovie";
-        var movie = MovieDetails.builder()
-                .title(movieTitle)
-                .images(new Images())
-                .build();
+        var movie = new MovieDetails(Media.MovieDetails.newBuilder()
+                .setTitle(movieTitle)
+                .setImages(Media.Images.getDefaultInstance())
+                .build());
         var quality = "1080p";
-        doAnswer(invocation -> {
-            playlistHolder.set(invocation.getArgument(1, Playlist.class));
-            return null;
-        }).when(fxLib).play_playlist(isA(PopcornFx.class), isA(Playlist.ByReference.class));
+        var request = new AtomicReference<PlayPlaylistRequest>();
+        var response = PlayPlaylistResponse.newBuilder()
+                .setHandle(Handle.newBuilder().setHandle(100L).build())
+                .build();
+        when(fxChannel.send(isA(PlayPlaylistRequest.class), isA(Parser.class))).thenAnswer(invocations -> {
+            request.set(invocations.getArgument(0, PlayPlaylistRequest.class));
+            return CompletableFuture.completedFuture(response);
+        });
 
         playlistManager.play(movie, quality);
 
-        verify(fxLib).play_playlist(isA(PopcornFx.class), isA(Playlist.ByReference.class));
-        var playlist = playlistHolder.get();
-        var playlistItems = playlist.getCachedItems();
-        assertEquals(1, playlistItems.size());
-        assertEquals(quality, playlistItems.get(0).quality);
-        assertEquals(movieTitle, playlistItems.get(0).title);
-        assertEquals((byte) 1, playlistItems.get(0).subtitlesEnabled);
+        verify(fxChannel).send(isA(PlayPlaylistRequest.class), isA(Parser.class));
+        var resultItem = request.get().getPlaylist().getItemsList().getFirst();
+        assertEquals(quality, resultItem.getQuality());
     }
 
     @Test
-    void testPlay_Episode() {
-        var playlistHolder = new AtomicReference<Playlist>();
-        var showTitle = "MyShowTitle";
-        var episodeTitle = "MyEpisode";
-        var thumbnail = "ShowPosterUrl";
-        var show = ShowDetails.builder()
-                .title(showTitle)
-                .images(Images.builder()
-                        .poster(new NativeString(thumbnail).getPointer())
-                        .build())
-                .build();
-        var episode = Episode.builder()
-                .title(episodeTitle)
-                .episode(10)
-                .build();
+    void testPlay_Episode_AutoPlayNextDisabled() {
+        var show = new ShowDetails(createShowWithEpisodes());
         var quality = "1080p";
-        doAnswer(invocation -> {
-            playlistHolder.set(invocation.getArgument(1, Playlist.class));
-            return null;
-        }).when(fxLib).play_playlist(isA(PopcornFx.class), isA(Playlist.ByReference.class));
-        when(applicationConfig.getSettings()).thenReturn(applicationSettings);
-        when(applicationSettings.getPlaybackSettings()).thenReturn(playbackSettings);
-        when(playbackSettings.isAutoPlayNextEpisodeEnabled()).thenReturn(true);
+        var request = new AtomicReference<PlayPlaylistRequest>();
+        var response = PlayPlaylistResponse.newBuilder()
+                .setHandle(Handle.newBuilder().setHandle(100L).build())
+                .build();
+        when(fxChannel.send(isA(PlayPlaylistRequest.class), isA(Parser.class))).thenAnswer(invocations -> {
+            request.set(invocations.getArgument(0, PlayPlaylistRequest.class));
+            return CompletableFuture.completedFuture(response);
+        });
+        when(applicationConfig.getSettings()).thenReturn(CompletableFuture.completedFuture(ApplicationSettings.newBuilder()
+                .setPlaybackSettings(ApplicationSettings.PlaybackSettings.newBuilder()
+                        .setAutoPlayNextEpisodeEnabled(false)
+                        .build())
+                .build()));
 
-        playlistManager.play(show, episode, quality);
+        playlistManager.play(show, show.getEpisodes().get(1), quality);
 
-        verify(playbackSettings).isAutoPlayNextEpisodeEnabled();
-        verify(fxLib).play_playlist(isA(PopcornFx.class), isA(Playlist.ByReference.class));
-        var playlist = playlistHolder.get();
-        var playlistItems = playlist.getCachedItems();
-        assertEquals(1, playlistItems.size());
-        assertEquals(showTitle, playlistItems.get(0).getTitle());
-        assertEquals(Optional.of(episodeTitle), playlistItems.get(0).getCaption());
-        assertEquals(Optional.of(thumbnail), playlistItems.get(0).getThumb());
-        assertEquals(quality, playlistItems.get(0).quality);
+        verify(fxChannel).send(isA(PlayPlaylistRequest.class), isA(Parser.class));
+        var resultItem = request.get().getPlaylist().getItemsList().getFirst();
+        assertEquals(1, request.get().getPlaylist().getItemsList().size());
+        assertEquals(show.title(), resultItem.getTitle());
+        assertEquals("PlayingEpisode", resultItem.getCaption());
+        assertEquals("http://some-poster-url", resultItem.getThumb());
+        assertEquals(quality, resultItem.getQuality());
+    }
+
+    @Test
+    void testPlay_Episode_AutoPlayNextEnabled() {
+        var show = new ShowDetails(createShowWithEpisodes());
+        var quality = "720p";
+        var request = new AtomicReference<PlayPlaylistRequest>();
+        when(fxChannel.send(isA(PlayPlaylistRequest.class), isA(Parser.class))).thenAnswer(invocations -> {
+            request.set(invocations.getArgument(0, PlayPlaylistRequest.class));
+            return CompletableFuture.completedFuture(PlayPlaylistResponse.newBuilder()
+                    .setHandle(Handle.newBuilder()
+                            .setHandle(11L)
+                            .build())
+                    .build());
+        });
+        when(applicationConfig.getSettings()).thenReturn(CompletableFuture.completedFuture(ApplicationSettings.newBuilder()
+                .setPlaybackSettings(ApplicationSettings.PlaybackSettings.newBuilder()
+                        .setAutoPlayNextEpisodeEnabled(true)
+                        .build())
+                .build()));
+
+        playlistManager.play(show, show.getEpisodes().get(1), quality);
+
+        verify(fxChannel).send(isA(PlayPlaylistRequest.class), isA(Parser.class));
+
+        var currentItem = request.get().getPlaylist().getItemsList().getFirst();
+        assertEquals(2, request.get().getPlaylist().getItemsList().size());
+        assertEquals(show.title(), currentItem.getTitle());
+        assertEquals("PlayingEpisode", currentItem.getCaption());
+        assertEquals("http://some-poster-url", currentItem.getThumb());
+        assertEquals(quality, currentItem.getQuality());
+
+        var nextItem = request.get().getPlaylist().getItemsList().get(1);
+        assertEquals(show.title(), nextItem.getTitle());
+        assertEquals("NextEpisode", nextItem.getCaption());
+        assertEquals("http://some-poster-url", nextItem.getThumb());
     }
 
     @Test
     void testPlayNext() {
+        var handle = 33L;
+        var request = new AtomicReference<PlayNextPlaylistItemRequest>();
+        when(fxChannel.send(isA(PlayNextPlaylistItemRequest.class), isA(Parser.class))).thenAnswer(invocations -> {
+            request.set(invocations.getArgument(0, PlayNextPlaylistItemRequest.class));
+            return CompletableFuture.completedFuture(PlayNextPlaylistItemResponse.newBuilder()
+                    .setHandle(Handle.newBuilder()
+                            .setHandle(handle)
+                            .build())
+                    .build());
+        });
+
         playlistManager.playNext();
 
-        verify(fxLib).play_next_playlist_item(instance);
+        verify(fxChannel).send(isA(PlayNextPlaylistItemRequest.class), isA(Parser.class));
+        assertEquals(handle, playlistManager.playlistLoaderHandle.get().getHandle(), "expected the handle to have been updated");
     }
 
     @Test
     void testStop() {
         playlistManager.stop();
 
-        verify(fxLib).stop_playlist(instance);
+        verify(fxChannel).send(isA(StopPlaylistRequest.class));
     }
 
     @Test
     void testPlaylist() {
-        var parentedia = mock(ShowOverview.ByReference.class);
-        var media = mock(Episode.class);
-        var item = com.github.yoep.popcorn.backend.playlists.model.PlaylistItem.builder()
-                .url("http://localhost/example-video.mp4")
-                .title("MyVideo")
-                .thumb("http://localhost/example-thumb.png")
-                .autoResumeTimestamp(1700L)
-                .subtitlesEnabled(true)
-                .parentMedia(MediaItem.from(parentedia))
-                .media(MediaItem.from(media))
+        var url = "http://localhost/example-video.mp4";
+        var playlist = Playlist.newBuilder()
+                .addItems(Playlist.Item.newBuilder()
+                        .setUrl(url)
+                        .setMedia(Media.Item.newBuilder()
+                                .setShowDetails(createShowWithEpisodes())
+                                .build())
+                        .build())
                 .build();
-        var itemFfi = com.github.yoep.popcorn.backend.playlists.ffi.PlaylistItem.from(item);
-        var playlist = new Playlist.ByReference(itemFfi);
-        var expectedResult = new com.github.yoep.popcorn.backend.playlists.model.Playlist(item);
-        when(fxLib.playlist(isA(PopcornFx.class))).thenReturn(playlist);
+        when(fxChannel.send(isA(GetActivePlaylistRequest.class), isA(Parser.class)))
+                .thenReturn(CompletableFuture.completedFuture(GetActivePlaylistResponse.newBuilder()
+                        .setPlaylist(playlist)
+                        .build()));
 
-        var result = playlistManager.playlist();
+        var result = playlistManager.playlist().resultNow();
+        assertEquals(1, result.getItemsList().size());
 
-        assertEquals(expectedResult, result);
-        verify(fxLib).playlist(instance);
-        verify(fxLib).dispose_playlist_set(playlist);
+        var resultItem = result.getItemsList().getFirst();
+        assertNotNull(resultItem, "expected a playlist item to have been present");
+        assertEquals(url, resultItem.getUrl());
+    }
+
+    private static Media.ShowDetails createShowWithEpisodes() {
+        return Media.ShowDetails.newBuilder()
+                .setTitle("TheShowTitle")
+                .setNumberOfSeasons(1)
+                .setImages(Media.Images.newBuilder()
+                        .setPoster("http://some-poster-url")
+                        .setBanner("http://some-banner-url")
+                        .setFanart("http://some-fanart-url")
+                        .build())
+                .addAllEpisodes(asList(
+                        Media.Episode.newBuilder()
+                                .setTitle("PreviousEpisode")
+                                .setEpisode(9)
+                                .setSeason(1)
+                                .build(),
+                        Media.Episode.newBuilder()
+                                .setTitle("PlayingEpisode")
+                                .setEpisode(10)
+                                .setSeason(1)
+                                .build(),
+                        Media.Episode.newBuilder()
+                                .setTitle("NextEpisode")
+                                .setEpisode(11)
+                                .setSeason(1)
+                                .build()
+                ))
+                .build();
     }
 }

@@ -1,7 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
-import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
-import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
 import com.github.yoep.popcorn.backend.player.PlayerAction;
 import com.github.yoep.popcorn.ui.font.controls.Icon;
 import com.github.yoep.popcorn.ui.view.ViewLoader;
@@ -25,7 +24,6 @@ import org.testfx.framework.junit5.ApplicationExtension;
 import org.testfx.util.WaitForAsyncUtils;
 
 import java.net.URL;
-import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -78,9 +76,10 @@ class PlayerExternalComponentTest {
     @Test
     void testListener_whenMediaItemIsChanged_shouldLoadBackgroundImage() {
         var background = "MyBackgroundUri.jpg";
-        var request = mock(PlayRequest.class);
+        var request = Player.PlayRequest.newBuilder()
+                .setBackground(background)
+                .build();
         var holder = PlayerExternalComponentTest.class.getResourceAsStream("/posterholder.png");
-        when(request.getBackground()).thenReturn(Optional.of(background));
         when(imageService.load(isA(String.class))).thenReturn(CompletableFuture.completedFuture(new Image(holder)));
         controller.initialize(url, resourceBundle);
 
@@ -93,8 +92,10 @@ class PlayerExternalComponentTest {
     @Test
     void testListener_whenTitleIsChanged_shouldUpdateTitle() throws TimeoutException {
         var title = "Lorem ipsum dolor";
-        var request = mock(PlayRequest.class);
-        when(request.getTitle()).thenReturn(title);
+        var request = Player.PlayRequest.newBuilder()
+                .setTitle(title)
+                .build();
+        when(imageService.load(isA(String.class))).thenReturn(new CompletableFuture<>());
         controller.initialize(url, resourceBundle);
 
         var listener = externalListenerHolder.get();
@@ -108,15 +109,15 @@ class PlayerExternalComponentTest {
         controller.initialize(url, resourceBundle);
         var listener = externalListenerHolder.get();
 
-        listener.onStateChanged(PlayerState.PLAYING);
+        listener.onStateChanged(Player.State.PLAYING);
         WaitForAsyncUtils.waitForFxEvents();
         assertEquals(Icon.PAUSE_UNICODE, controller.playPauseIcon.getText());
 
-        listener.onStateChanged(PlayerState.PAUSED);
+        listener.onStateChanged(Player.State.PAUSED);
         WaitForAsyncUtils.waitForFxEvents();
         assertEquals(Icon.PLAY_UNICODE, controller.playPauseIcon.getText());
 
-        listener.onStateChanged(PlayerState.ERROR);
+        listener.onStateChanged(Player.State.ERROR);
         WaitForAsyncUtils.waitForFxEvents();
         assertFalse(controller.progressInfoPane.isVisible());
     }

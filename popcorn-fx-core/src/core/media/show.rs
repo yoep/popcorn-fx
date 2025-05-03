@@ -19,7 +19,7 @@ pub struct ShowOverview {
     pub tvdb_id: String,
     pub title: String,
     pub year: String,
-    pub num_seasons: i32,
+    pub num_seasons: u32,
     pub images: Images,
     pub rating: Option<Rating>,
 }
@@ -30,7 +30,7 @@ impl ShowOverview {
         tvdb_id: String,
         title: String,
         year: String,
-        num_seasons: i32,
+        num_seasons: u32,
         images: Images,
         rating: Option<Rating>,
     ) -> Self {
@@ -54,7 +54,7 @@ impl ShowOverview {
     }
 
     /// The currently known number of seasons for the show.
-    pub fn number_of_seasons(&self) -> &i32 {
+    pub fn number_of_seasons(&self) -> &u32 {
         &self.num_seasons
     }
 }
@@ -81,8 +81,8 @@ impl MediaOverview for ShowOverview {
         }
     }
 
-    fn year(&self) -> &String {
-        &self.year
+    fn year(&self) -> &str {
+        self.year.as_str()
     }
 
     fn images(&self) -> &Images {
@@ -103,54 +103,30 @@ pub struct ShowDetails {
     pub tvdb_id: String,
     pub title: String,
     pub year: String,
-    pub num_seasons: i32,
+    pub num_seasons: u32,
     pub images: Images,
     pub rating: Option<Rating>,
     #[serde(rename = "contextLocale")]
     pub context_locale: String,
     pub synopsis: String,
-    pub runtime: String,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "serde_empty_string::deserialize"
+    )]
+    pub runtime: Option<String>,
     pub status: String,
     pub genres: Vec<String>,
     pub episodes: Vec<Episode>,
-    #[serde(skip)]
-    pub liked: Option<bool>,
 }
 
 impl ShowDetails {
-    pub fn new(
-        imdb_id: String,
-        tvdb_id: String,
-        title: String,
-        year: String,
-        num_seasons: i32,
-        images: Images,
-        rating: Option<Rating>,
-    ) -> Self {
-        Self {
-            tvdb_id,
-            title,
-            imdb_id,
-            year,
-            rating,
-            images,
-            num_seasons,
-            context_locale: "".to_string(),
-            synopsis: "".to_string(),
-            runtime: "".to_string(),
-            status: "".to_string(),
-            genres: vec![],
-            episodes: vec![],
-            liked: None,
-        }
-    }
-
     pub fn tvdb_id(&self) -> &String {
         &self.tvdb_id
     }
 
     /// The currently known number of seasons for the show.
-    pub fn number_of_seasons(&self) -> &i32 {
+    pub fn number_of_seasons(&self) -> &u32 {
         &self.num_seasons
     }
 
@@ -166,6 +142,7 @@ impl ShowDetails {
         &self.episodes
     }
 
+    // TODO: replace with [From] trait
     pub fn to_overview(&self) -> ShowOverview {
         ShowOverview::new(
             self.imdb_id.clone(),
@@ -201,8 +178,8 @@ impl MediaOverview for ShowDetails {
         }
     }
 
-    fn year(&self) -> &String {
-        &self.year
+    fn year(&self) -> &str {
+        self.year.as_str()
     }
 
     fn images(&self) -> &Images {
@@ -215,13 +192,51 @@ impl MediaDetails for ShowDetails {
         html_escape::decode_html_entities(&self.synopsis).into_owned()
     }
 
-    fn runtime(&self) -> i32 {
-        match self.runtime.parse::<i32>() {
-            Ok(e) => e,
+    fn runtime(&self) -> u32 {
+        match self.runtime.as_ref().map(|e| e.parse::<u32>()).transpose() {
+            Ok(runtime) => runtime.unwrap_or(0),
             Err(e) => {
-                warn!("Runtime value {} is invalid, {}", &self.runtime, e);
+                warn!("Runtime value {:?} is invalid, {}", &self.runtime, e);
                 0
             }
         }
+    }
+}
+
+mod serde_empty_string {
+    use serde::de::{Error, Visitor};
+    use serde::Deserializer;
+    use std::fmt::Formatter;
+
+    #[derive(Debug)]
+    pub struct EmptyStringVisitor;
+
+    impl<'de> Visitor<'de> for EmptyStringVisitor {
+        type Value = Option<String>;
+
+        fn expecting(&self, f: &mut Formatter) -> std::fmt::Result {
+            write!(f, "expected a string")
+        }
+
+        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+        where
+            E: Error,
+        {
+            Ok(Some(v.to_string()).filter(|e| !e.is_empty()))
+        }
+
+        fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+        where
+            E: Error,
+        {
+            Ok(Some(v).filter(|e| !e.is_empty()))
+        }
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Ok(deserializer.deserialize_string(EmptyStringVisitor {})?)
     }
 }

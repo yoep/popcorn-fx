@@ -1,11 +1,12 @@
 package com.github.yoep.popcorn.backend.adapters.player;
 
-import com.github.yoep.popcorn.backend.adapters.player.embaddable.EmbeddablePlayer;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
-import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
+import javafx.scene.Node;
 
 import java.io.InputStream;
 import java.util.Optional;
+
+import static com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player.State;
 
 /**
  * The player is an embedded/non-embedded video player which supports playback of streaming videos.
@@ -23,7 +24,7 @@ public interface Player {
      *
      * @return Returns the name of the player.
      */
-    
+
     String getName();
 
     /**
@@ -32,7 +33,7 @@ public interface Player {
      *
      * @return Returns the description of the player.
      */
-    
+
     String getDescription();
 
     /**
@@ -47,17 +48,8 @@ public interface Player {
      *
      * @return Returns the current player state.
      */
-    
-    PlayerState getState();
 
-    /**
-     * Check if the player supports embedded playback in the application.
-     * If so, the graphical node of the play can be retrieved by using {@link EmbeddablePlayer#getEmbeddedPlayer()}.
-     * Otherwise, the player will always use an external interface/media device for displaying the video player/playback.
-     *
-     * @return Returns true if the embedded playback is supported, else false.
-     */
-    boolean isEmbeddedPlaybackSupported();
+    State getState();
 
     /**
      * Dispose the player resources.
@@ -84,7 +76,7 @@ public interface Player {
      *
      * @param request The new media playback request.
      */
-    void play(PlayRequest request);
+    void play(com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player.PlayRequest request);
 
     /**
      * Resume the video playback in the player.
@@ -122,4 +114,21 @@ public interface Player {
      * @return The volume level between 0 and 100.
      */
     int getVolume();
+
+    /**
+     * Check if the player supports embedded playback in the application.
+     * If so, the graphical node of the play can be retrieved by using {@link #getEmbeddedPlayer()}.
+     * Otherwise, the player will always use an external interface/media device for displaying the video player/playback.
+     *
+     * @return Returns true if the embedded playback is supported, else false.
+     */
+    boolean isEmbeddedPlaybackSupported();
+
+    /**
+     * Get the graphical {@link Node} of the player which should be included in the application UI.
+     * This allows the player to be directly displayed within the application.
+     *
+     * @return Returns the embeddable node for the player playback.
+     */
+    Optional<Node> getEmbeddedPlayer();
 }

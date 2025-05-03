@@ -18,13 +18,11 @@ pub type SubtitleCallback = CoreCallback<SubtitleEvent>;
 /// Represents events related to subtitles.
 #[derive(Debug, Clone, Display)]
 pub enum SubtitleEvent {
-    /// Indicates a change in subtitle preference.
     #[display(fmt = "subtitle preference changed to {}", _0)]
     PreferenceChanged(SubtitlePreference),
 }
 
 /// Represents user preferences for subtitles.
-#[repr(C)]
 #[derive(Debug, Clone, Display, PartialEq)]
 pub enum SubtitlePreference {
     /// Specifies a preferred subtitle language.

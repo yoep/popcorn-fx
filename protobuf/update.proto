@@ -1,0 +1,136 @@
+syntax = "proto3";
+
+option optimize_for = LITE_RUNTIME;
+option java_multiple_files = true;
+option java_package = "com.github.yoep.popcorn.backend.lib.ipc.protobuf";
+
+package fx.ipc.proto;
+
+import "message.proto";
+
+message Update {
+
+  message VersionInfo {
+    PatchInfo application = 1;
+    PatchInfo runtime = 2;
+  }
+
+  message PatchInfo {
+    string version = 1;
+    map<string, string> platforms = 2;
+  }
+
+  message DownloadProgress {
+    // The total size of the update in bytes.
+    uint64 total_size = 1;
+    // The completed bytes of the update.
+    uint64 downloaded = 2;
+  }
+
+  enum State {
+    CHECKING_FOR_NEW_VERSION = 0;
+    UPDATE_AVAILABLE = 1;
+    NO_UPDATE_AVAILABLE = 2;
+    DOWNLOADING = 3;
+    DOWNLOAD_FINISHED = 4;
+    INSTALLING = 5;
+    INSTALLATION_FINISHED = 6;
+    ERROR = 7;
+  }
+  
+  message Error {
+    Type type = 1;
+    optional InvalidUpdateChannel invalid_update_channel = 2;
+    optional InvalidApplicationVersion invalid_application_version = 3;
+    optional InvalidRuntimeVersion invalid_runtime_version = 4;
+    optional InvalidResponse invalid_response = 5;
+    optional InvalidDownloadUrl invalid_download_url = 6;
+    
+    message InvalidUpdateChannel {
+      string channel = 1;
+    }
+    
+    message InvalidApplicationVersion {
+      string version_value = 1;
+      string reason = 2;
+    }
+    
+    message InvalidRuntimeVersion {
+      string version_value = 1;
+      string reason = 2;
+    }
+
+    message InvalidResponse {
+      string reason = 1;
+    }
+
+    message InvalidDownloadUrl {
+      string url = 1;
+    }
+    
+    enum Type {
+      INVALID_UPDATE_CHANNEL = 0;
+      INVALID_APPLICATION_VERSION = 1;
+      INVALID_RUNTIME_VERSION = 2;
+      UNKNOWN_VERSION = 3;
+      RESPONSE = 4;
+      INVALID_DOWNLOAD_URL = 5;
+    }
+  }
+}
+
+message GetUpdateStateRequest {}
+
+message GetUpdateStateResponse {
+  Update.State state = 1;
+}
+
+message GetUpdateInfoRequest {}
+
+message GetUpdateInfoResponse {
+  Response.Result result = 1;
+  optional Update.VersionInfo info = 2;
+  optional Update.Error error = 3;
+}
+
+message RefreshUpdateInfoRequest {}
+
+message StartUpdateDownloadRequest {}
+
+message StartUpdateDownloadResponse {
+  Response.Result result = 1;
+  optional Update.Error error = 2;
+}
+
+message StartUpdateInstallationRequest {}
+
+message StartUpdateInstallationResponse {
+  Response.Result result = 1;
+  optional Update.Error error = 2;
+}
+
+message UpdateEvent {
+  Event event = 1;
+  optional StateChanged state_changed = 2;
+  optional UpdateAvailable update_available = 3;
+  optional DownloadProgress download_progress = 4;
+
+  message StateChanged {
+    Update.State new_state = 1;
+  }
+
+  message UpdateAvailable {
+    Update.VersionInfo version_info = 1;
+  }
+
+  message DownloadProgress {
+      Update.DownloadProgress progress = 1;
+  }
+
+  enum Event {
+    STATE_CHANGED = 0;
+    UPDATE_AVAILABLE = 1;
+    DOWNLOAD_PROGRESS = 2;
+    INSTALLATION_PROGRESS = 3;
+  }
+}

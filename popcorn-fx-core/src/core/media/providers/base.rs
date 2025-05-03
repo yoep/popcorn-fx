@@ -1,14 +1,12 @@
-use std::thread;
-
+use crate::core::cache::{CacheOptions, CacheType};
+use crate::core::media::{Genre, MediaError, SortBy};
 use chrono::Duration;
 use derive_more::Display;
 use log::{debug, error, trace, warn};
 use reqwest::redirect::Policy;
 use reqwest::{Client, Response, Url};
 use serde::de::DeserializeOwned;
-
-use crate::core::cache::{CacheOptions, CacheType};
-use crate::core::media::{Genre, MediaError, SortBy};
+use tokio::time;
 
 const SORT_QUERY: &str = "sort";
 const ORDER_QUERY: &str = "order";
@@ -27,9 +25,9 @@ const ORDER_QUERY_VALUE: &str = "-1";
 /// }
 ///
 /// impl MyProvider {
-///     pub fn new(xxx: xxx) -> Self {
+///     pub fn new(uris: Vec<String>) -> Self {
 ///         Self {
-///             base: BaseProvider::new(xxx, false)
+///             base: BaseProvider::new(uris, false)
 ///         }
 ///     }
 /// }
@@ -194,19 +192,19 @@ impl BaseProvider {
                 Ok(e) => return Some(Ok(e)),
                 // if we got an error, we check what kind of error it is
                 Err(e) => {
-                    trace!("Provider {} returned an error", provider);
+                    debug!("API provider \"{}\" failed, {}", provider.uri, e);
                     match e {
                         // if it's a connection error, instantly disable the provider
                         MediaError::ProviderConnectionFailed => provider.disable(),
                         // any other error might be temporary such as 502
                         // so we increase the failed attempts and try again
                         _ => {
-                            let delay = std::time::Duration::from_millis(500);
+                            let delay = time::Duration::from_millis(500);
                             trace!(
                                 "Request was unsuccessful, retrying in {} millis",
                                 delay.as_millis()
                             );
-                            thread::sleep(delay);
+                            time::sleep(delay).await;
                             provider.increase_failure()
                         }
                     }
@@ -243,7 +241,7 @@ impl BaseProvider {
             }
         } else {
             warn!(
-                "Request {} failed with status {}, {}",
+                "API provider request {} failed with status {}, {}",
                 url.as_str(),
                 response.status(),
                 response
@@ -305,23 +303,18 @@ impl BaseProvider {
 
     fn create_details_uri(host: &String, resource: &str, id: &str) -> Option<Url> {
         match Url::parse(host.as_str()) {
-            Ok(mut e) => {
-                trace!(
-                    "Creating details url for host: {}, resource: {}, id: {}",
-                    host,
-                    resource,
-                    id
-                );
-                e.path_segments_mut()
+            Ok(mut url) => {
+                url.path_segments_mut()
                     .expect("segments should be mutable")
                     .pop_if_empty()
                     .push(resource)
                     .push(id);
 
-                Some(e)
+                trace!("Created details url for host {}, url: {}", host, url);
+                Some(url)
             }
             Err(e) => {
-                error!("Host api \"{}\" is invalid, {}", host, e);
+                error!("API host provider \"{}\" is invalid, {}", host, e);
                 None
             }
         }

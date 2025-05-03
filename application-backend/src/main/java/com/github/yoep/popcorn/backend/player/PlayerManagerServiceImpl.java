@@ -1,33 +1,41 @@
 package com.github.yoep.popcorn.backend.player;
 
-import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
-import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
-import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.lib.FxChannel;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.*;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
+import com.google.protobuf.ByteString;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.annotation.PreDestroy;
-import java.util.*;
+import java.io.IOException;
+import java.util.Collection;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Queue;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.stream.Collectors;
 
 /**
  * Implementation of the {@link PlayerManagerService} which serves the individual players with a central point of management.
  * This service manages each available {@link Player} of the application.
  */
 @Slf4j
-public class PlayerManagerServiceImpl extends AbstractListenerService<PlayerManagerListener> implements PlayerManagerService, PlayerManagerCallback {
-    private final List<PlayerWrapper> playerWrappers = new ArrayList<>();
-    private final FxLib fxLib;
-    private final PopcornFx instance;
+public class PlayerManagerServiceImpl
+        extends AbstractListenerService<PlayerManagerListener>
+        implements PlayerManagerService {
+    private final FxChannel fxChannel;
     private final EventPublisher eventPublisher;
 
-    public PlayerManagerServiceImpl(FxLib fxLib, PopcornFx instance, EventPublisher eventPublisher) {
-        this.fxLib = fxLib;
-        this.instance = instance;
+    final Queue<Player> playerWrappers = new ConcurrentLinkedQueue<>();
+
+    public PlayerManagerServiceImpl(FxChannel fxChannel, EventPublisher eventPublisher) {
+        Objects.requireNonNull(fxChannel, "fxChannel cannot be null");
+        Objects.requireNonNull(eventPublisher, "eventPublisher cannot be null");
+        this.fxChannel = fxChannel;
         this.eventPublisher = eventPublisher;
         init();
     }
@@ -35,161 +43,211 @@ public class PlayerManagerServiceImpl extends AbstractListenerService<PlayerMana
     //region Properties
 
     @Override
-    public Optional<Player> getById(String id) {
-        Objects.requireNonNull(id, "id cannot be null");
-        try (var player = fxLib.player_by_id(instance, id)) {
-            return Optional.ofNullable(player)
-                    .map(this::enhance);
-        }
+    public CompletableFuture<Collection<Player>> getPlayers() {
+        return fxChannel.send(GetPlayersRequest.getDefaultInstance(), GetPlayersResponse.parser())
+                .thenApply(response ->
+                        response.getPlayersList().stream()
+                                .map(this::toProtoWrapper)
+                                .collect(Collectors.toList())
+                );
     }
 
     @Override
-    public Collection<Player> getPlayers() {
-        try (var players = fxLib.players(instance)) {
-            return players.getPlayers().stream()
-                    .map(this::enhance)
-                    .toList();
-        }
-    }
-
-    @Override
-    public Optional<Player> getActivePlayer() {
-        var player = fxLib.active_player(instance);
-        return Optional.ofNullable(player)
-                .map(this::enhance);
+    public CompletableFuture<Optional<Player>> getActivePlayer() {
+        return fxChannel.send(GetActivePlayerRequest.getDefaultInstance(), GetActivePlayerResponse.parser())
+                .thenApply(response -> Optional.of(response.getPlayer())
+                        .filter(e -> response.hasPlayer())
+                        .map(activePlayer -> playerWrappers.stream()
+                                .filter(e -> Objects.equals(e.getId(), activePlayer.getId()))
+                                .findFirst()
+                                .orElseGet(() -> toProtoWrapper(activePlayer))));
     }
 
     @Override
     public void setActivePlayer(Player activePlayer) {
         Objects.requireNonNull(activePlayer, "activePlayer is required");
         log.trace("Activating player {} for playbacks", activePlayer);
-        fxLib.set_active_player(instance, activePlayer.getId());
+        fxChannel.send(UpdateActivePlayerRequest.newBuilder()
+                .setPlayer(toProto(activePlayer))
+                .build());
     }
+
 
     //endregion
 
     //region Methods
 
     @Override
-    public void register(Player player) {
+    public CompletableFuture<Boolean> register(Player player) {
         Objects.requireNonNull(player, "player cannot be null");
         log.trace("Registering new player {}", player);
-        try (var wrapper = new PlayerWrapperRegistration.ByValue(player)) {
-            fxLib.register_player(instance, wrapper);
-            wrapper.setPlayerC(fxLib.player_pointer_by_id(instance, player.getId()));
-            wrapper.setListener(new PlayerListener() {
-                @Override
-                public void onDurationChanged(long newDuration) {
-                    try (var event = PlayerEventC.ByValue.durationChanged(newDuration)) {
-                        fxLib.invoke_player_event(wrapper.playerC, event);
-                    }
-                }
-
-                @Override
-                public void onTimeChanged(long newTime) {
-                    try (var event = PlayerEventC.ByValue.timeChanged(newTime)) {
-                        fxLib.invoke_player_event(wrapper.playerC, event);
-                    }
-                }
-
-                @Override
-                public void onStateChanged(PlayerState newState) {
-                    try (var event = PlayerEventC.ByValue.stateChanged(newState)) {
-                        fxLib.invoke_player_event(wrapper.playerC, event);
-                    }
-                }
-
-                @Override
-                public void onVolumeChanged(int volume) {
-
-                }
-            });
-            playerWrappers.add(wrapper);
+        if (player instanceof PlayerProtoWrapper) {
+            log.error("PlayerProtoWrapper are not allowed to be registered as new players");
+            return CompletableFuture.completedFuture(false);
         }
+
+        var proto = toProto(player);
+
+        return fxChannel.send(RegisterPlayerRequest.newBuilder()
+                        .setPlayer(proto)
+                        .build(), RegisterPlayerResponse.parser())
+                .thenApply(response -> {
+                    if (response.getResult() == Response.Result.OK) {
+                        playerWrappers.add(new PlayerFxWrapper(player, proto));
+                        return true;
+                    } else {
+                        log.error("Failed to register new player, {}", response.getError());
+                        return false;
+                    }
+                });
     }
 
     @Override
     public void unregister(Player player) {
         log.trace("Removing player \"{}\"", player);
-        fxLib.remove_player(instance, player.getId());
         playerWrappers.stream()
                 .filter(e -> Objects.equals(e.getId(), player.getId()))
                 .findFirst()
-                .map(playerWrappers::remove);
+                .map(this::protoFromWrapper)
+                .ifPresent(this::removePlayer);
     }
 
-    @Override
-    public void callback(PlayerManagerEvent.ByValue event) {
-        log.debug("Received player manager event {}", event);
-        try (event) {
-            invokeListeners(listener -> {
-                switch (event.getTag()) {
-                    case ACTIVE_PLAYER_CHANGED -> {
-                        var change = event.getUnion().getPlayerChanged_body().playerChangedEvent;
-                        listener.activePlayerChanged(new PlayerChanged(change.getOldPlayerId().orElse(null), change.getNewPlayerId(),
-                                change.getNewPlayerName()));
-                    }
-                    case PLAYERS_CHANGED -> listener.playersChanged();
-                    case PLAYER_PLAYBACK_CHANGED -> listener.onPlayerPlaybackChanged(event.getUnion().getPlayerPlaybackChanged_body().getRequest());
-                    case PLAYER_TIME_CHANGED -> listener.onPlayerTimeChanged(event.getUnion().getPlayerTimeChanged_body().getTime());
-                    case PLAYER_DURATION_CHANGED -> listener.onPlayerDurationChanged(event.getUnion().getPlayerDurationChanged_body().getDuration());
-                    case PLAYER_STATE_CHANGED -> listener.onPlayerStateChanged(event.getUnion().getPlayerStateChanged_body().getState());
-                }
-            });
-        }
+    private void removePlayer(com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player player) {
+        playerWrappers.removeIf(e -> Objects.equals(e.getId(), player.getId()));
+        fxChannel.send(RemovePlayerRequest.newBuilder()
+                .setPlayer(player)
+                .build());
     }
+
 
     //endregion
 
-    //region OnDestroy
-
-    @PreDestroy
     void onDestroy() {
         log.debug("Disposing all player resources");
         playerWrappers.forEach(Player::dispose);
     }
 
-    //endregion
-
     void init() {
         registerCallbackHandler();
-
         registerEventListeners();
     }
 
     private void registerCallbackHandler() {
-        try {
-            log.debug("Registering player manager C callback");
-            fxLib.register_player_callback(instance, this);
-        } catch (Exception ex) {
-            log.error("Failed to register player manager callback handler, {}", ex.getMessage(), ex);
+        fxChannel.subscribe(FxChannel.typeFrom(PlayerManagerEvent.class), PlayerManagerEvent.parser(), this::onPlayerManagerEvent);
+        fxChannel.subscribe_response(FxChannel.typeFrom(GetPlayerStateRequest.class), GetPlayerStateRequest.parser(), this::onPlayerStateRequest);
+        fxChannel.subscribe(FxChannel.typeFrom(PlayerPlayRequest.class), PlayerPlayRequest.parser(), this::onPlayerPlayRequest);
+        fxChannel.subscribe(FxChannel.typeFrom(PlayerPauseRequest.class), PlayerPauseRequest.parser(), this::onPlayerPauseRequest);
+        fxChannel.subscribe(FxChannel.typeFrom(PlayerResumeRequest.class), PlayerResumeRequest.parser(), this::onPlayerResumeRequest);
+        fxChannel.subscribe(FxChannel.typeFrom(PlayerSeekRequest.class), PlayerSeekRequest.parser(), this::onPlayerSeekRequest);
+        fxChannel.subscribe(FxChannel.typeFrom(PlayerStopRequest.class), PlayerStopRequest.parser(), this::onPlayerStopRequest);
+    }
+
+    private void onPlayerManagerEvent(PlayerManagerEvent message) {
+        switch (message.getEvent()) {
+            case ACTIVE_PLAYER_CHANGED -> invokeListeners(listener -> listener.activePlayerChanged(message.getActivePlayerChanged()));
+            case PLAYERS_CHANGED -> invokeListeners(PlayerManagerListener::playersChanged);
+            case PLAYER_PLAYBACK_CHANGED -> invokeListeners(listener -> listener.onPlayerPlaybackChanged(message.getPlayerPlaybackChanged().getRequest()));
+            case PLAYER_DURATION_CHANGED -> invokeListeners(listener -> listener.onPlayerDurationChanged(message.getPlayerDurationChanged().getDuration()));
+            case PLAYER_TIMED_CHANGED -> invokeListeners(listener -> listener.onPlayerTimeChanged(message.getPlayerTimeChanged().getTime()));
+            case PLAYER_STATE_CHANGED -> invokeListeners(listener -> listener.onPlayerStateChanged(message.getPlayerStateChanged().getState()));
+            case UNRECOGNIZED -> log.error("Failed to process player manager event, invalid event {}", message.getEvent());
         }
+    }
+
+    private void onPlayerStateRequest(Integer sequenceId, GetPlayerStateRequest request) {
+        playerWrappers.stream()
+                .filter(e -> Objects.equals(e.getId(), request.getPlayerId()))
+                .findFirst()
+                .ifPresent(e -> {
+                    var state = e.getState();
+                    fxChannel.send(GetPlayerStateResponse.newBuilder()
+                            .setState(state)
+                            .build(), sequenceId);
+                });
+    }
+
+    private void onPlayerPlayRequest(PlayerPlayRequest request) {
+        playerWrappers.stream()
+                .filter(e -> Objects.equals(e.getId(), request.getPlayerId()))
+                .findFirst()
+                .ifPresent(e -> e.play(request.getRequest()));
+    }
+
+    private void onPlayerPauseRequest(PlayerPauseRequest request) {
+        playerWrappers.stream()
+                .filter(e -> Objects.equals(e.getId(), request.getPlayerId()))
+                .findFirst()
+                .ifPresent(Player::pause);
+    }
+
+    private void onPlayerResumeRequest(PlayerResumeRequest request) {
+        playerWrappers.stream()
+                .filter(e -> Objects.equals(e.getId(), request.getPlayerId()))
+                .findFirst()
+                .ifPresent(Player::resume);
+    }
+
+    private void onPlayerSeekRequest(PlayerSeekRequest request) {
+        playerWrappers.stream()
+                .filter(e -> Objects.equals(e.getId(), request.getPlayerId()))
+                .findFirst()
+                .ifPresent(e -> e.seek(request.getTime()));
+    }
+
+    private void onPlayerStopRequest(PlayerStopRequest request) {
+        playerWrappers.stream()
+                .filter(e -> Objects.equals(e.getId(), request.getPlayerId()))
+                .findFirst()
+                .ifPresent(Player::stop);
     }
 
     private void registerEventListeners() {
         eventPublisher.register(ClosePlayerEvent.class, closePlayerEvent -> {
             if (closePlayerEvent.getReason() == ClosePlayerEvent.Reason.USER) {
-                getActivePlayer().ifPresentOrElse(
-                        Player::stop,
-                        () -> log.warn("Unable to stop player, no active player present")
-                );
+                getActivePlayer().whenComplete((player, throwable) -> {
+                    if (throwable == null) {
+                        player.ifPresent(Player::stop);
+                    } else {
+                        log.error("Failed to retrieve active player, {}", throwable.getMessage(), throwable);
+                    }
+                });
             }
 
             return closePlayerEvent;
         }, EventPublisher.HIGHEST_ORDER);
     }
 
-    private Player enhance(Player player) {
-        if (player instanceof PlayerWrapper wrapper) {
-            if (wrapper.getPlayerC() == null) {
-                wrapper.setPlayerC(fxLib.player_pointer_by_id(instance, player.getId()));
-            }
-            return playerWrappers.stream()
-                    .filter(e -> Objects.equals(e.getId(), wrapper.getId()))
-                    .findFirst()
-                    .map(PlayerWrapper::getPlayer)
-                    .orElse(wrapper);
+    private com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player protoFromWrapper(Player wrapper) {
+        if (wrapper instanceof PlayerProtoWrapper protoWrapper) {
+            return protoWrapper.proto();
+        } else if (wrapper instanceof PlayerFxWrapper fxWrapper) {
+            return fxWrapper.proto();
         }
-        return player;
+
+        log.warn("Unable to convert player to proto from {}", wrapper);
+        return null;
+    }
+
+    private PlayerProtoWrapper toProtoWrapper(com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player proto) {
+        return new PlayerProtoWrapper(proto, fxChannel);
+    }
+
+    private static com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player toProto(Player player) {
+        return com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player.newBuilder()
+                .setId(player.getId())
+                .setName(player.getName())
+                .setDescription(player.getDescription())
+                .setGraphicResource(player.getGraphicResource()
+                        .map(stream -> {
+                            try {
+                                return ByteString.readFrom(stream);
+                            } catch (IOException e) {
+                                log.error("Failed to read image stream", e);
+                                return ByteString.empty();
+                            }
+                        })
+                        .orElse(ByteString.empty()))
+                .setState(player.getState())
+                .build();
     }
 }

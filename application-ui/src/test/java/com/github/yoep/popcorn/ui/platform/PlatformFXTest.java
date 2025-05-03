@@ -10,6 +10,7 @@ import org.testfx.framework.junit5.ApplicationExtension;
 
 import java.util.concurrent.CompletableFuture;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
@@ -29,5 +30,14 @@ class PlatformFXTest {
         });
 
         assertTrue(future.join());
+    }
+
+    @Test
+    void testIsMac() {
+        var expectedResult = System.getProperty("os.name").toLowerCase().contains("mac");
+
+        var result = platform.isMac();
+
+        assertEquals(expectedResult, result);
     }
 }

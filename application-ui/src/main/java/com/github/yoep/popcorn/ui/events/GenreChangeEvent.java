@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.events;
 
 import com.github.yoep.popcorn.backend.events.ApplicationEvent;
-import com.github.yoep.popcorn.backend.media.filters.model.Genre;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
@@ -11,9 +11,9 @@ public class GenreChangeEvent extends ApplicationEvent {
     /**
      * The genre that has been selected.
      */
-    private final Genre genre;
+    private final Media.Genre genre;
 
-    public GenreChangeEvent(Object source, Genre genre) {
+    public GenreChangeEvent(Object source, Media.Genre genre) {
         super(source);
         this.genre = genre;
     }

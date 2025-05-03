@@ -1,13 +1,13 @@
 package com.github.yoep.player.popcorn.player;
 
 import com.github.yoep.player.popcorn.services.VideoService;
-import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
-import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
-import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.video.VideoPlayback;
 import com.github.yoep.popcorn.backend.adapters.video.listeners.VideoListener;
 import com.github.yoep.popcorn.backend.adapters.video.state.VideoState;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
+import javafx.scene.Node;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.InputStream;
@@ -17,7 +17,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 @Slf4j
-public class PopcornPlayer implements Player {
+public class PopcornPlayer implements com.github.yoep.popcorn.backend.adapters.player.Player {
     public static final String PLAYER_ID = "internalPlayer";
     public static final String PLAYER_NAME = "Popcorn Time";
 
@@ -27,7 +27,8 @@ public class PopcornPlayer implements Player {
     private final VideoListener videoListener = createVideoListener();
     private final VideoService videoService;
 
-    private PlayerState playerState = PlayerState.UNKNOWN;
+    private Player.State playerState = Player.State.UNKNOWN;
+    @Getter
     private Long time;
 
     public PopcornPlayer(VideoService videoService) {
@@ -65,13 +66,18 @@ public class PopcornPlayer implements Player {
     }
 
     @Override
-    public PlayerState getState() {
+    public com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player.State getState() {
         return playerState;
     }
 
     @Override
     public boolean isEmbeddedPlaybackSupported() {
         return false;
+    }
+
+    @Override
+    public Optional<Node> getEmbeddedPlayer() {
+        return Optional.empty();
     }
 
     @Override
@@ -91,7 +97,7 @@ public class PopcornPlayer implements Player {
     }
 
     @Override
-    public void play(PlayRequest request) {
+    public void play(Player.PlayRequest request) {
         Objects.requireNonNull(request, "request cannot be null");
         videoService.onPlay(request);
     }
@@ -131,28 +137,20 @@ public class PopcornPlayer implements Player {
 
     //endregion
 
-    //region Properties
-
-    public Long getTime() {
-        return time;
-    }
-
-    //endregion
-
     //region Init
 
     private void init() {
         videoService.videoPlayerProperty().addListener((observable, oldValue, newValue) -> {
             onVideoPlayerChanged(oldValue, newValue);
         });
-        setPlayerState(PlayerState.READY);
+        setPlayerState(Player.State.READY);
     }
 
     //endregion
 
     //region Functions
 
-    private void setPlayerState(PlayerState playerState) {
+    private void setPlayerState(Player.State playerState) {
         this.playerState = playerState;
         listeners.forEach(e -> e.onStateChanged(playerState));
     }
@@ -176,24 +174,24 @@ public class PopcornPlayer implements Player {
     private void onVideoStateChanged(VideoState newState) {
         switch (newState) {
             case BUFFERING:
-                setPlayerState(PlayerState.BUFFERING);
+                setPlayerState(Player.State.BUFFERING);
                 break;
             case PLAYING:
-                setPlayerState(PlayerState.PLAYING);
+                setPlayerState(Player.State.PLAYING);
                 break;
             case PAUSED:
-                setPlayerState(PlayerState.PAUSED);
+                setPlayerState(Player.State.PAUSED);
                 break;
             case STOPPED:
             case FINISHED:
-                setPlayerState(PlayerState.STOPPED);
+                setPlayerState(Player.State.STOPPED);
                 break;
             case ERROR:
-                setPlayerState(PlayerState.ERROR);
+                setPlayerState(Player.State.ERROR);
                 break;
             case UNKNOWN:
             default:
-                setPlayerState(PlayerState.UNKNOWN);
+                setPlayerState(Player.State.UNKNOWN);
                 break;
         }
     }

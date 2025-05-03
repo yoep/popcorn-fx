@@ -63,6 +63,7 @@ pub enum TorrentError {
     Tracker(TrackerError),
     #[error("peer error: {0}")]
     Peer(peer::Error),
+    // TODO: rework to [std::io::Error]
     #[error("an io error occurred, {0}")]
     Io(String),
     #[error("the torrent operation has timed out")]

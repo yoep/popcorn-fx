@@ -1,14 +1,13 @@
 package com.github.yoep.popcorn.ui;
 
-import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
+import com.github.yoep.popcorn.backend.lib.FxChannel;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationSettings;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.StartPlayersDiscoveryRequest;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
-import com.github.yoep.popcorn.backend.settings.models.*;
 import com.github.yoep.popcorn.ui.view.ViewLoader;
 import com.github.yoep.popcorn.ui.view.ViewManager;
 import com.github.yoep.popcorn.ui.view.ViewProperties;
-import com.github.yoep.popcorn.ui.view.controllers.MainController;
 import com.github.yoep.popcorn.ui.view.services.MaximizeService;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleObjectProperty;
@@ -25,9 +24,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.testfx.framework.junit5.ApplicationExtension;
 import org.testfx.util.WaitForAsyncUtils;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.*;
 
@@ -48,9 +48,7 @@ class PopcornTimeApplicationTest {
     @Mock
     private ExecutorService executorService;
     @Mock
-    private FxLib fxLib;
-    @Mock
-    private PopcornFx popcornFx;
+    private FxChannel fxChannel;
 
     private final SimpleObjectProperty<Scene> sceneProperty = new SimpleObjectProperty<>();
 
@@ -58,8 +56,8 @@ class PopcornTimeApplicationTest {
     void setUp() {
         lenient().when(stage.sceneProperty()).thenReturn(sceneProperty);
 
-        PopcornTimeApplication.IOC.registerInstance(fxLib);
-        PopcornTimeApplication.IOC.registerInstance(popcornFx);
+        PopcornTimeApplication.IOC.registerInstance(fxChannel);
+        PopcornTimeApplication.IOC.registerInstance(Executors.newCachedThreadPool(e -> new Thread(e, "popcorn-fx")));
         PopcornTimeApplication.IOC.registerInstance(new ApplicationArgs(new String[]{}));
     }
 
@@ -69,42 +67,22 @@ class PopcornTimeApplicationTest {
     }
 
     @Test
-    void testInit() throws Exception {
-        var settings = mock(ApplicationSettings.class);
-        var uiSettings = mock(UISettings.class);
-        when(fxLib.application_settings(popcornFx)).thenReturn(settings);
-        when(settings.getUiSettings()).thenReturn(uiSettings);
-        when(uiSettings.getUiScale()).thenReturn(mock(UIScale.class));
-        when(uiSettings.getDefaultLanguage()).thenReturn("en/US");
-        var application = new PopcornTimeApplication();
-        application.init();
-
-        var result = PopcornTimeApplication.IOC.getInstance(MainController.class);
-
-        assertNotNull(result);
-    }
-
-    @Test
     void testStart_whenNativeUiIsDisabled_shouldRegisterBorderlessStage() {
-        var settings = ApplicationSettings.builder()
-                .uiSettings(UISettings.builder()
-                        .defaultLanguage("en/US")
-                        .nativeWindowEnabled((byte) 0)
-                        .uiScale(mock(UIScale.class))
+        when(applicationConfig.getSettings()).thenReturn(CompletableFuture.completedFuture(ApplicationSettings.newBuilder()
+                .setUiSettings(ApplicationSettings.UISettings.newBuilder()
+                        .setDefaultLanguage("en/US")
+                        .setNativeWindowEnabled(false)
+                        .setScale(ApplicationSettings.UISettings.Scale.newBuilder()
+                                .setFactor(1.0f)
+                                .build())
                         .build())
-                .subtitleSettings(mock(SubtitleSettings.class))
-                .torrentSettings(mock(TorrentSettings.class))
-                .serverSettings(mock(ServerSettings.class))
-                .playbackSettings(mock(PlaybackSettings.class))
-                .trackingSettings(mock(TrackingSettings.class))
-                .build();
+                .build()));
         PopcornTimeApplication.IOC.registerInstance(applicationConfig);
         PopcornTimeApplication.IOC.registerInstance(executorService);
         PopcornTimeApplication.IOC.registerInstance(maximizeService);
         PopcornTimeApplication.IOC.registerInstance(platformProvider);
         PopcornTimeApplication.IOC.registerInstance(viewManager);
         PopcornTimeApplication.IOC.registerInstance(viewLoader);
-        when(applicationConfig.getSettings()).thenReturn(settings);
         when(stage.isShowing()).thenReturn(false);
         var application = new PopcornTimeApplication();
 
@@ -122,26 +100,22 @@ class PopcornTimeApplicationTest {
     }
 
     @Test
-    void testStart_whenNativeUiIsEnabled_shouldNotAddUndecoratedStyle() throws Exception {
-        var settings = ApplicationSettings.builder()
-                .uiSettings(UISettings.builder()
-                        .defaultLanguage("en/US")
-                        .nativeWindowEnabled((byte) 1)
-                        .uiScale(mock(UIScale.class))
+    void testStart_whenNativeUiIsEnabled_shouldNotAddUndecoratedStyle() {
+        when(applicationConfig.getSettings()).thenReturn(CompletableFuture.completedFuture(ApplicationSettings.newBuilder()
+                .setUiSettings(ApplicationSettings.UISettings.newBuilder()
+                        .setDefaultLanguage("en/US")
+                        .setNativeWindowEnabled(true)
+                        .setScale(ApplicationSettings.UISettings.Scale.newBuilder()
+                                .setFactor(1.0f)
+                                .build())
                         .build())
-                .subtitleSettings(mock(SubtitleSettings.class))
-                .torrentSettings(mock(TorrentSettings.class))
-                .serverSettings(mock(ServerSettings.class))
-                .playbackSettings(mock(PlaybackSettings.class))
-                .trackingSettings(mock(TrackingSettings.class))
-                .build();
+                .build()));
         PopcornTimeApplication.IOC.registerInstance(applicationConfig);
         PopcornTimeApplication.IOC.registerInstance(executorService);
         PopcornTimeApplication.IOC.registerInstance(maximizeService);
         PopcornTimeApplication.IOC.registerInstance(platformProvider);
         PopcornTimeApplication.IOC.registerInstance(viewManager);
         PopcornTimeApplication.IOC.registerInstance(viewLoader);
-        when(applicationConfig.getSettings()).thenReturn(settings);
         var application = new PopcornTimeApplication();
 
         Platform.runLater(() -> {
@@ -158,26 +132,21 @@ class PopcornTimeApplicationTest {
     }
 
     @Test
-    void testStart_whenTvModeIsEnabled_shouldMaximizeOnStartup() throws Exception {
-        var settings = ApplicationSettings.builder()
-                .uiSettings(UISettings.builder()
-                        .defaultLanguage("en/US")
-                        .nativeWindowEnabled((byte) 1)
-                        .uiScale(mock(UIScale.class))
+    void testStart_whenTvModeIsEnabled_shouldMaximizeOnStartup() {
+        when(applicationConfig.getSettings()).thenReturn(CompletableFuture.completedFuture(ApplicationSettings.newBuilder()
+                .setUiSettings(ApplicationSettings.UISettings.newBuilder()
+                        .setDefaultLanguage("en/US")
+                        .setScale(ApplicationSettings.UISettings.Scale.newBuilder()
+                                .setFactor(1.0f)
+                                .build())
                         .build())
-                .subtitleSettings(mock(SubtitleSettings.class))
-                .torrentSettings(mock(TorrentSettings.class))
-                .serverSettings(mock(ServerSettings.class))
-                .playbackSettings(mock(PlaybackSettings.class))
-                .trackingSettings(mock(TrackingSettings.class))
-                .build();
+                .build()));
         PopcornTimeApplication.IOC.registerInstance(applicationConfig);
         PopcornTimeApplication.IOC.registerInstance(executorService);
         PopcornTimeApplication.IOC.registerInstance(maximizeService);
         PopcornTimeApplication.IOC.registerInstance(platformProvider);
         PopcornTimeApplication.IOC.registerInstance(viewManager);
         PopcornTimeApplication.IOC.registerInstance(viewLoader);
-        when(applicationConfig.getSettings()).thenReturn(settings);
         when(applicationConfig.isTvMode()).thenReturn(true);
         var application = new PopcornTimeApplication();
 
@@ -196,18 +165,14 @@ class PopcornTimeApplicationTest {
 
     @Test
     void testStart_whenKioskModeIsEnabled_shouldDisableResizing() throws Exception {
-        var settings = ApplicationSettings.builder()
-                .uiSettings(UISettings.builder()
-                        .defaultLanguage("en/US")
-                        .nativeWindowEnabled((byte) 1)
-                        .uiScale(mock(UIScale.class))
+        when(applicationConfig.getSettings()).thenReturn(CompletableFuture.completedFuture(ApplicationSettings.newBuilder()
+                .setUiSettings(ApplicationSettings.UISettings.newBuilder()
+                        .setDefaultLanguage("en/US")
+                        .setScale(ApplicationSettings.UISettings.Scale.newBuilder()
+                                .setFactor(1.0f)
+                                .build())
                         .build())
-                .subtitleSettings(mock(SubtitleSettings.class))
-                .torrentSettings(mock(TorrentSettings.class))
-                .serverSettings(mock(ServerSettings.class))
-                .playbackSettings(mock(PlaybackSettings.class))
-                .trackingSettings(mock(TrackingSettings.class))
-                .build();
+                .build()));
         var expectedProperties = ViewProperties.builder()
                 .title(PopcornTimeApplication.APPLICATION_TITLE)
                 .icon(PopcornTimeApplication.ICON_NAME)
@@ -221,7 +186,6 @@ class PopcornTimeApplicationTest {
         PopcornTimeApplication.IOC.registerInstance(platformProvider);
         PopcornTimeApplication.IOC.registerInstance(viewManager);
         PopcornTimeApplication.IOC.registerInstance(viewLoader);
-        when(applicationConfig.getSettings()).thenReturn(settings);
         when(applicationConfig.isKioskMode()).thenReturn(true);
         when(platformProvider.isTransparentWindowSupported()).thenReturn(false);
         var application = new PopcornTimeApplication();
@@ -240,18 +204,21 @@ class PopcornTimeApplicationTest {
 
     @Test
     void testStart_shouldStartExternalPlayerDiscovery() {
-        var settings = ApplicationSettings.builder()
-                .uiSettings(UISettings.builder()
-                        .nativeWindowEnabled((byte) 1)
+        when(applicationConfig.getSettings()).thenReturn(CompletableFuture.completedFuture(ApplicationSettings.newBuilder()
+                .setUiSettings(ApplicationSettings.UISettings.newBuilder()
+                        .setDefaultLanguage("en/US")
+                        .setNativeWindowEnabled(true)
+                        .setScale(ApplicationSettings.UISettings.Scale.newBuilder()
+                                .setFactor(1.0f)
+                                .build())
                         .build())
-                .build();
+                .build()));
         PopcornTimeApplication.IOC.registerInstance(applicationConfig);
         PopcornTimeApplication.IOC.registerInstance(executorService);
         PopcornTimeApplication.IOC.registerInstance(maximizeService);
         PopcornTimeApplication.IOC.registerInstance(platformProvider);
         PopcornTimeApplication.IOC.registerInstance(viewManager);
         PopcornTimeApplication.IOC.registerInstance(viewLoader);
-        when(applicationConfig.getSettings()).thenReturn(settings);
         var application = new PopcornTimeApplication();
 
         Platform.runLater(() -> {
@@ -263,6 +230,6 @@ class PopcornTimeApplicationTest {
         });
         WaitForAsyncUtils.waitForFxEvents();
 
-        verify(fxLib).discover_external_players(popcornFx);
+        verify(fxChannel).send(isA(StartPlayersDiscoveryRequest.class));
     }
 }

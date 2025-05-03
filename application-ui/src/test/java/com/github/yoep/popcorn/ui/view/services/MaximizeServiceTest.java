@@ -1,8 +1,7 @@
 package com.github.yoep.popcorn.ui.view.services;
 
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
-import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
-import com.github.yoep.popcorn.backend.settings.models.UISettings;
 import com.github.yoep.popcorn.ui.view.ViewManager;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
@@ -16,8 +15,10 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -28,8 +29,6 @@ class MaximizeServiceTest {
     private ApplicationConfig applicationConfig;
     @Mock
     private ApplicationSettings settings;
-    @Mock
-    private UISettings uiSettings;
     private MaximizeService service;
 
     private final ObjectProperty<Stage> primaryStageProperty = new SimpleObjectProperty<>();
@@ -38,8 +37,8 @@ class MaximizeServiceTest {
     @BeforeEach
     void setUp() {
         lenient().when(viewManager.primaryStageProperty()).thenReturn(primaryStageProperty);
-        lenient().when(applicationConfig.getSettings()).thenReturn(settings);
-        lenient().when(settings.getUiSettings()).thenReturn(uiSettings);
+        lenient().when(applicationConfig.getSettings()).thenReturn(CompletableFuture.completedFuture(settings));
+        lenient().when(settings.getUiSettings()).thenReturn(ApplicationSettings.UISettings.newBuilder().build());
 
         service = new MaximizeService(viewManager, applicationConfig);
     }
@@ -58,8 +57,6 @@ class MaximizeServiceTest {
     void testListeners_whenPrimaryStageIsChanged_shouldStoreMaximizeValueWhenStageStateIsChanged() {
         var stage = mock(Stage.class);
         when(stage.maximizedProperty()).thenReturn(maximizedProperty);
-        when(applicationConfig.getSettings()).thenReturn(settings);
-        when(settings.getUiSettings()).thenReturn(uiSettings);
 
         primaryStageProperty.set(stage);
         maximizedProperty.set(true);
@@ -69,12 +66,18 @@ class MaximizeServiceTest {
 
     @Test
     void testMaximizeChanged() {
+        var uiSettings = new AtomicReference<ApplicationSettings.UISettings>();
+        doAnswer(invocations -> {
+            uiSettings.set(invocations.getArgument(0, ApplicationSettings.UISettings.class));
+            return null;
+        }).when(applicationConfig).update(isA(ApplicationSettings.UISettings.class));
+
         service.setMaximized(true);
-        verify(uiSettings).setMaximized(true);
-        verify(applicationConfig).update(uiSettings);
+        verify(applicationConfig).update(isA(ApplicationSettings.UISettings.class));
+        assertTrue(uiSettings.get().getMaximized(), "expected maximized to be true");
 
         service.setMaximized(false);
-        verify(uiSettings).setMaximized(false);
-        verify(applicationConfig, times(2)).update(uiSettings);
+        verify(applicationConfig, times(2)).update(isA(ApplicationSettings.UISettings.class));
+        assertFalse(uiSettings.get().getMaximized(), "expected maximized to be false");
     }
 }

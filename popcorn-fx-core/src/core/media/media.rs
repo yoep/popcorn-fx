@@ -1,10 +1,10 @@
 use std::cmp::Ordering;
-use std::fmt::{Debug, Display};
 #[cfg(test)]
 use std::fmt::Formatter;
+use std::fmt::{Debug, Display};
 
 use derive_more::Display;
-use downcast_rs::{Downcast, DowncastSync, impl_downcast};
+use downcast_rs::{impl_downcast, Downcast, DowncastSync};
 use log::{error, warn};
 #[cfg(test)]
 use mockall::automock;
@@ -130,7 +130,7 @@ pub trait MediaOverview: MediaIdentifier + Downcast {
     fn rating(&self) -> Option<&Rating>;
 
     /// Retrieve the release year of the media item.
-    fn year(&self) -> &String;
+    fn year(&self) -> &str;
 
     /// Retrieve the images of the media item.
     fn images(&self) -> &Images;
@@ -144,7 +144,7 @@ pub trait MediaDetails: MediaOverview {
     fn synopsis(&self) -> String;
 
     /// Retrieve the runtime of the media item.
-    fn runtime(&self) -> i32;
+    fn runtime(&self) -> u32;
 }
 
 #[cfg(test)]

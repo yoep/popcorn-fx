@@ -196,17 +196,14 @@ pub trait Session: Debug + Callback<SessionEvent> + Send + Sync {
 /// # Example
 ///
 /// ```rust,no_run
-/// use std::sync::Arc;
-/// use tokio::runtime::Runtime;
 /// use popcorn_fx_torrent::torrent::{FxTorrentSession, Result};
 /// use popcorn_fx_torrent::torrent::peer::extension::metadata::MetadataExtension;
 /// use popcorn_fx_torrent::torrent::peer::ProtocolExtensionFlags;
 ///
-/// fn getting_started(shared_runtime: Arc<Runtime>) -> Result<FxTorrentSession> {
+/// fn getting_started() -> Result<FxTorrentSession> {
 ///     FxTorrentSession::builder()
 ///         .base_path("/torrent/location/directory")
 ///         .client_name("MyClient")
-///         .runtime(shared_runtime)
 ///         .build()
 /// }
 /// ```
@@ -225,19 +222,16 @@ impl FxTorrentSession {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use std::sync::Arc;
-    /// use tokio::runtime::Runtime;
     /// use popcorn_fx_torrent::torrent::{FxTorrentSession, Result};
     /// use popcorn_fx_torrent::torrent::peer::extension::metadata::MetadataExtension;
     /// use popcorn_fx_torrent::torrent::peer::ProtocolExtensionFlags;
     ///
-    /// fn new_torrent_session(shared_runtime: Arc<Runtime>) -> Result<FxTorrentSession> {
+    /// fn new_torrent_session() -> Result<FxTorrentSession> {
     ///     FxTorrentSession::builder()
     ///         .base_path("/torrent/location/directory")
     ///         .client_name("MyClient")
     ///         .protocol_extensions(ProtocolExtensionFlags::LTEP | ProtocolExtensionFlags::Fast)
     ///         .extensions(vec![|| Box::new(MetadataExtension::new())])
-    ///         .runtime(shared_runtime)
     ///         .build()
     /// }
     /// ```
@@ -621,26 +615,25 @@ impl FxTorrentSessionBuilder {
     /// # Returns
     ///
     /// It returns an error when one of the required is not set.
-    pub fn build(self) -> Result<FxTorrentSession> {
-        let base_path = self.base_path.ok_or(TorrentError::InvalidSession(
+    pub fn build(&mut self) -> Result<FxTorrentSession> {
+        let base_path = self.base_path.take().ok_or(TorrentError::InvalidSession(
             "base path is required".to_string(),
         ))?;
-        let client_name =
-            self.client_name
-                .filter(|e| !e.is_empty())
-                .ok_or(TorrentError::InvalidSession(
-                    "client name is required".to_string(),
-                ))?;
+        let client_name = self.client_name.take().filter(|e| !e.is_empty()).ok_or(
+            TorrentError::InvalidSession("client name is required".to_string()),
+        )?;
         let protocol_extensions = self
             .protocol_extensions
             .unwrap_or_else(DEFAULT_TORRENT_PROTOCOL_EXTENSIONS);
         let extensions = self
             .extension_factories
+            .take()
             .unwrap_or_else(DEFAULT_TORRENT_EXTENSIONS);
         let torrent_operations = self
             .operation_factories
+            .take()
             .unwrap_or_else(DEFAULT_TORRENT_OPERATIONS);
-        let port_range = self.port_range.unwrap_or(6881..32000);
+        let port_range = self.port_range.take().unwrap_or(6881..32000);
 
         FxTorrentSession::new(
             base_path,

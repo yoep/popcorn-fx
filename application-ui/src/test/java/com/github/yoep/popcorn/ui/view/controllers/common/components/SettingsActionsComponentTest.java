@@ -2,7 +2,7 @@ package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
+import com.github.yoep.popcorn.backend.subtitles.ISubtitleService;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.SuccessNotificationEvent;
 import javafx.scene.input.KeyCode;
@@ -21,7 +21,7 @@ import static org.mockito.Mockito.*;
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
 class SettingsActionsComponentTest {
     @Mock
-    private SubtitleService subtitleService;
+    private ISubtitleService subtitleService;
     @Mock
     private TorrentService torrentService;
     @Spy

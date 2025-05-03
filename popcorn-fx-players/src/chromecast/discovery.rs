@@ -288,8 +288,8 @@ impl InnerChromecastDiscovery {
             .build()
         {
             Ok(player) => {
-                if !self.player_manager.add_player(Box::new(player)) {
-                    warn!("Failed to add Chromecast player {:?}", info);
+                if let Err(e) = self.player_manager.add_player(Box::new(player)) {
+                    warn!("Failed to add Chromecast player {:?}, {}", info, e);
                 }
 
                 Ok(())
@@ -354,7 +354,7 @@ mod tests {
             } else {
                 player_buf.push(e);
             }
-            true
+            Ok(())
         });
         let mut test_instance = TestInstance::new_mdns().await;
         let mdns = test_instance.mdns.take().unwrap();

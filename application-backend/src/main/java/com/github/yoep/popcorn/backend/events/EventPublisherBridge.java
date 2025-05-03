@@ -1,71 +1,73 @@
 package com.github.yoep.popcorn.backend.events;
 
-import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.PopcornFx;
+import com.github.yoep.popcorn.backend.lib.FxCallback;
+import com.github.yoep.popcorn.backend.lib.FxChannel;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Event;
 import lombok.extern.slf4j.Slf4j;
+
+import java.util.Objects;
 
 /**
  * The FFI bridge for all events that can be thrown across the application.
  */
 @Slf4j
-public class EventPublisherBridge implements EventBridgeCallback {
+public class EventPublisherBridge implements FxCallback<Event> {
     private final EventPublisher eventPublisher;
-    private final FxLib fxLib;
-    private final PopcornFx instance;
+    private final FxChannel fxChannel;
 
-    public EventPublisherBridge(EventPublisher eventPublisher, FxLib fxLib, PopcornFx instance) {
+    public EventPublisherBridge(EventPublisher eventPublisher, FxChannel fxChannel) {
+        Objects.requireNonNull(eventPublisher, "eventPublisher cannot be null");
+        Objects.requireNonNull(fxChannel, "fxChannel cannot be null");
         this.eventPublisher = eventPublisher;
-        this.fxLib = fxLib;
-        this.instance = instance;
+        this.fxChannel = fxChannel;
         init();
     }
 
     private void init() {
+        fxChannel.subscribe(FxChannel.typeFrom(Event.class), Event.parser(), this);
         eventPublisher.register(PlayerStateEvent.class, event -> {
-            var event_c = new EventC.ByValue();
-            event_c.tag = EventC.Tag.PLAYBACK_STATE_CHANGED;
-            event_c.union = new EventC.EventCUnion.ByValue();
-            event_c.union.playbackState_body = new EventC.PlaybackState_Body();
-            event_c.union.playbackState_body.newState = event.getNewState();
+            var playerEvent = mapPlayerStateEvent(event);
 
             if (isBridgePublishAllowed(event))
-                publishEvent(event_c);
+                publishEvent(playerEvent);
 
             return event;
         }, EventPublisher.HIGHEST_ORDER);
 
         log.debug("Registering event bridge callback");
-        fxLib.register_event_callback(instance, this);
+
     }
 
     @Override
-    public void callback(EventC.ByValue event) {
-        try (event) {
-            switch (event.getTag()) {
-                case PLAYER_CHANGED,
-                        PLAYER_STARTED,
-                        PLAYER_STOPPED,
-                        LOADING_STARTED,
-                        LOADING_COMPLETED,
-                        TORRENT_DETAILS_LOADED,
-                        CLOSE_PLAYER -> eventPublisher.publish(event.toEvent());
-                default -> log.warn("EventC callback of {} is currently not yet supported", event.getTag());
+    public void callback(Event message) {
+        switch (message.getType()) {
+            case PLAYER_STARTED -> eventPublisher.publish(new PlayerStartedEvent(this));
+            case PLAYER_STOPPED -> eventPublisher.publish(new PlayerStoppedEvent(this));
+            case PLAYBACK_STATE_CHANGED -> eventPublisher.publishEvent(new PlayerStateEvent(this, message.getPlaybackStateChanged().getNewState()));
+            case LOADING_STARTED -> eventPublisher.publishEvent(new LoadingStartedEvent(this));
+            case LOADING_COMPLETED -> eventPublisher.publishEvent(new LoadingCompletedEvent(this));
+            case TORRENT_DETAILS_LOADED -> {
+                // TODO
             }
-        } catch (Exception ex) {
-            log.error("An unexpected error occurred while processing the EventC, {}", ex.getMessage(), ex);
+            case CLOSE_PLAYER -> eventPublisher.publishEvent(new ClosePlayerEvent(this, ClosePlayerEvent.Reason.END_OF_VIDEO));
+            case UNRECOGNIZED -> log.error("Unrecognized event type: {}", message.getType());
         }
     }
 
-    private void publishEvent(EventC.ByValue event_c) {
-        try (event_c) {
-            log.debug("Sending FFI EventC for {}", event_c);
-            fxLib.publish_event(instance, event_c);
-        } catch (Exception ex) {
-            log.error("An error occurred while publishing the FFI event, {}", ex.getMessage(), ex);
-        }
+    private Event mapPlayerStateEvent(PlayerStateEvent playerStateEvent) {
+        return Event.newBuilder()
+                .setType(Event.EventType.PLAYBACK_STATE_CHANGED)
+                .setPlaybackStateChanged(Event.PlaybackStateChanged.newBuilder()
+                        .setNewState(playerStateEvent.getNewState())
+                        .build())
+                .build();
+    }
+
+    private void publishEvent(Event event) {
+        fxChannel.send(event);
     }
 
     private boolean isBridgePublishAllowed(ApplicationEvent event) {
-        return !(event.getSource() instanceof EventC);
+        return !(event.getSource() instanceof EventPublisherBridge);
     }
 }

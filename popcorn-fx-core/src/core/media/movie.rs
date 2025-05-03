@@ -80,8 +80,8 @@ impl MediaOverview for MovieOverview {
         }
     }
 
-    fn year(&self) -> &String {
-        &self.year
+    fn year(&self) -> &str {
+        self.year.as_str()
     }
 
     fn images(&self) -> &Images {
@@ -166,6 +166,7 @@ impl MovieDetails {
         &self.torrents
     }
 
+    // TODO: replace with [From] trait
     pub fn to_overview(&self) -> MovieOverview {
         MovieOverview::new_detailed(
             self.title.clone(),
@@ -199,8 +200,8 @@ impl MediaOverview for MovieDetails {
         }
     }
 
-    fn year(&self) -> &String {
-        &self.year
+    fn year(&self) -> &str {
+        self.year.as_str()
     }
 
     fn images(&self) -> &Images {
@@ -215,8 +216,8 @@ impl MediaDetails for MovieDetails {
         html_escape::decode_html_entities(&self.synopsis).into_owned()
     }
 
-    fn runtime(&self) -> i32 {
-        match self.runtime.parse::<i32>() {
+    fn runtime(&self) -> u32 {
+        match self.runtime.parse::<u32>() {
             Ok(e) => e,
             Err(e) => {
                 warn!("Runtime value {} is invalid, {}", &self.runtime, e);

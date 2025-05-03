@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+option optimize_for = LITE_RUNTIME;
+option java_multiple_files = true;
+option java_package = "com.github.yoep.popcorn.backend.lib.ipc.protobuf";
+
+package fx.ipc.proto;
+
+import "media.proto";
+import "message.proto";
+
+message Playlist {
+  repeated Playlist.Item items = 1;
+
+  message Item {
+    string url = 1;
+    string title = 2;
+    optional string caption = 3;
+    optional string thumb = 4;
+    optional string quality = 5;
+    optional Media.Item parent_media = 6;
+    optional Media.Item media = 7;
+    optional uint64 auto_resume_timestamp = 8;
+    bool subtitles_enabled = 9;
+    optional string torrent_filename = 10;
+  }
+
+  enum State {
+    IDLE = 0;
+    PLAYING = 1;
+    STOPPED = 2;
+    COMPLETED = 3;
+    ERROR = 4;
+  }
+}
+
+message PlayPlaylistRequest {
+  Playlist playlist = 1;
+}
+
+message PlayPlaylistResponse {
+  optional Handle handle = 1;
+}
+
+message PlayNextPlaylistItemRequest {}
+
+message PlayNextPlaylistItemResponse {
+  optional Handle handle = 1;
+}
+
+message StopPlaylistRequest {}
+
+message GetActivePlaylistRequest {}
+
+message GetActivePlaylistResponse {
+  Playlist playlist = 1;
+}
+
+message PlaylistEvent {
+  Event event = 1;
+  optional PlayingNext playing_next = 2;
+  optional StateChanged state_changed = 3;
+
+  message PlayingNext {
+    optional uint64 playing_in = 1;
+    Playlist.Item item = 2;
+  }
+
+  message StateChanged {
+    Playlist.State state = 1;
+  }
+
+  enum Event {
+    PLAYLIST_CHANGED = 0;
+    PLAYING_NEXT = 1;
+    STATE_CHANGED = 2;
+  }
+}

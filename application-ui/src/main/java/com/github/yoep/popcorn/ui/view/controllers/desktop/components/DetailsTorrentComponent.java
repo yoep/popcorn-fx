@@ -1,21 +1,19 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
-import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentFileInfo;
-import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentInfo;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowTorrentDetailsEvent;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Playlist;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Subtitle;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Torrent;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
-import com.github.yoep.popcorn.backend.playlists.model.Playlist;
-import com.github.yoep.popcorn.backend.playlists.model.PlaylistItem;
-import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
-import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
-import com.github.yoep.popcorn.backend.subtitles.model.SubtitleFile;
-import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
+import com.github.yoep.popcorn.backend.subtitles.ISubtitleInfo;
+import com.github.yoep.popcorn.backend.subtitles.SubtitleInfoWrapper;
+import com.github.yoep.popcorn.backend.subtitles.ISubtitleService;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.CloseTorrentDetailsEvent;
 import com.github.yoep.popcorn.ui.messages.TorrentMessage;
-import com.github.yoep.popcorn.ui.torrent.TorrentCollectionService;
+import com.github.yoep.popcorn.backend.torrent.TorrentCollectionService;
 import com.github.yoep.popcorn.ui.utils.WatchNowUtils;
 import com.github.yoep.popcorn.ui.view.controls.PlayerDropDownButton;
 import com.github.yoep.popcorn.ui.view.controls.SubtitleDropDownButton;
@@ -55,14 +53,14 @@ public class DetailsTorrentComponent implements Initializable {
     private final LocaleText localeText;
     private final PlayerManagerService playerManagerService;
     private final SubtitlePickerService subtitlePickerService;
-    private final SubtitleService subtitleService;
+    private final ISubtitleService subtitleService;
     private final PlaylistManager playlistManager;
 
-    TorrentInfo torrentInfo;
-    SubtitleInfo subtitleInfo;
+    Torrent.Info torrentInfo;
+    ISubtitleInfo subtitleInfo;
 
     @FXML
-    ListView<TorrentFileInfo> torrentList;
+    ListView<Torrent.Info.File> torrentList;
     @FXML
     Pane fileShadow;
     @FXML
@@ -94,9 +92,9 @@ public class DetailsTorrentComponent implements Initializable {
 
     private void initializeFileList() {
         torrentList.setCellFactory(view -> {
-            var cell = new ListCell<TorrentFileInfo>() {
+            var cell = new ListCell<Torrent.Info.File>() {
                 @Override
-                protected void updateItem(TorrentFileInfo item, boolean empty) {
+                protected void updateItem(Torrent.Info.File item, boolean empty) {
                     super.updateItem(item, empty);
                     setText(empty ? null : item.getFilename());
                 }
@@ -107,9 +105,12 @@ public class DetailsTorrentComponent implements Initializable {
     }
 
     private void initializeSubtitleDropDown() {
-        subtitleButton.addDropDownItems(subtitleService.none(), subtitleService.custom());
-        subtitleButton.select(subtitleService.none());
-        subtitleButton.selectedItemProperty().addListener((observable, oldValue, newValue) -> onSubtitleChanged(newValue));
+        subtitleService.defaultSubtitles().thenAccept(subtitles -> Platform.runLater(() -> {
+            subtitleButton.clear();
+            subtitleButton.addDropDownItems(subtitles);
+            subtitleButton.select(subtitles.getFirst());
+            subtitleButton.selectedItemProperty().addListener((observable, oldValue, newValue) -> onSubtitleChanged(newValue));
+        }));
     }
 
     //endregion
@@ -122,7 +123,7 @@ public class DetailsTorrentComponent implements Initializable {
                 return;
 
             event.consume();
-            onFileInfoClicked((TorrentFileInfo) cell.getItem());
+            onFileInfoClicked((Torrent.Info.File) cell.getItem());
         } else {
             log.warn("Expected a 'ListCell<>' but got '{}' instead", event.getSource().getClass());
         }
@@ -132,8 +133,7 @@ public class DetailsTorrentComponent implements Initializable {
         log.debug("Processing details of torrent info {}", event.getTorrentInfo().getName());
         this.torrentInfo = event.getTorrentInfo();
         this.subtitleInfo = null;
-        var defaultSubtitle = subtitleService.none();
-        var validFiles = torrentInfo.getFiles().stream()
+        var validFiles = torrentInfo.getFilesList().stream()
                 .filter(e -> {
                     var extension = FilenameUtils.getExtension(e.getFilename());
                     return SUPPORTED_FILES.contains(extension.toLowerCase());
@@ -141,33 +141,36 @@ public class DetailsTorrentComponent implements Initializable {
                 .sorted()
                 .toList();
 
-        Platform.runLater(() -> {
-            torrentList.getItems().clear();
-            torrentList.getItems().addAll(validFiles);
-            subtitleButton.select(defaultSubtitle);
-            this.subtitleInfo = defaultSubtitle;
-        });
+        subtitleService.defaultSubtitles()
+                .thenApply(List::getFirst)
+                .thenAccept(subtitle -> Platform.runLater(() -> {
+                    torrentList.getItems().clear();
+                    torrentList.getItems().addAll(validFiles);
+                    subtitleButton.select(subtitle);
+                    this.subtitleInfo = subtitle;
+                }));
 
-        updateStoreTorrent(torrentCollectionService.isStored(torrentInfo.getMagnetUri()));
+        torrentCollectionService.isStored(torrentInfo.getUri())
+                .thenAccept(this::updateStoreTorrent);
     }
 
-    private void onSubtitleChanged(SubtitleInfo subtitleInfo) {
+    private void onSubtitleChanged(ISubtitleInfo subtitleInfo) {
         Objects.requireNonNull(subtitleInfo, "subtitleInfo cannot be null");
         this.subtitleInfo = subtitleInfo;
-        if (subtitleInfo.isCustom()) {
+        if (subtitleInfo.getLanguage() == Subtitle.Language.CUSTOM) {
             subtitlePickerService.pickCustomSubtitle()
-                    .ifPresent(e -> {
-                        this.subtitleInfo = SubtitleInfo.builder()
-                                .language(SubtitleLanguage.CUSTOM)
-                                .files(new SubtitleFile[]{SubtitleFile.builder()
-                                        .name("Custom")
-                                        .url(e)
-                                        .build()})
-                                .build();
-                        subtitleService.updatePreferredLanguage(SubtitleLanguage.CUSTOM);
+                    .ifPresent(url -> {
+                        this.subtitleInfo = new SubtitleInfoWrapper(Subtitle.Info.newBuilder()
+                                .setLanguage(Subtitle.Language.CUSTOM)
+                                .addFiles(Subtitle.Info.File.newBuilder()
+                                        .setName(FilenameUtils.getBaseName(url))
+                                        .setUrl(url)
+                                        .build())
+                                .build());
+                        subtitleService.updatePreferredLanguage(Subtitle.Language.CUSTOM);
                     });
         } else {
-            subtitleService.updatePreferredLanguage(subtitleInfo.language());
+            subtitleService.updatePreferredLanguage(subtitleInfo.getLanguage());
         }
     }
 
@@ -195,28 +198,31 @@ public class DetailsTorrentComponent implements Initializable {
         eventPublisher.publishEvent(new CloseTorrentDetailsEvent(this));
     }
 
-    void onFileInfoClicked(TorrentFileInfo fileInfo) {
+    void onFileInfoClicked(Torrent.Info.File fileInfo) {
         Objects.requireNonNull(fileInfo, "fileInfo cannot be null");
-        var playlist = new Playlist(PlaylistItem.builder()
-                .url(torrentInfo.getMagnetUri())
-                .title(fileInfo.getFilename())
-                .subtitlesEnabled(true)
-                .subtitleInfo(subtitleInfo)
-                .torrentFilename(fileInfo.getFilename())
+        playlistManager.play(Playlist.newBuilder()
+                .addItems(Playlist.Item.newBuilder()
+                        .setUrl(torrentInfo.getUri())
+                        .setTitle(torrentInfo.getName())
+                        .setSubtitlesEnabled(true)
+                        .setTorrentFilename(fileInfo.getFilename())
+                        .build())
                 .build());
-        playlistManager.play(playlist);
     }
 
     @FXML
     void onStoreOrRemoveTorrentClicked(MouseEvent event) {
         event.consume();
-        if (torrentCollectionService.isStored(torrentInfo.getMagnetUri())) {
-            torrentCollectionService.removeTorrent(torrentInfo.getMagnetUri());
-            updateStoreTorrent(false);
-        } else {
-            torrentCollectionService.addTorrent(torrentInfo);
-            updateStoreTorrent(true);
-        }
+        torrentCollectionService.isStored(torrentInfo.getUri())
+                .thenAccept(isStored -> {
+                    if (isStored) {
+                        torrentCollectionService.removeTorrent(torrentInfo.getUri());
+                        updateStoreTorrent(false);
+                    } else {
+                        torrentCollectionService.addTorrent(torrentInfo);
+                        updateStoreTorrent(true);
+                    }
+                });
     }
 
     @FXML

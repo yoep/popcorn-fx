@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+option optimize_for = LITE_RUNTIME;
+option java_multiple_files = true;
+option java_package = "com.github.yoep.popcorn.backend.lib.ipc.protobuf";
+
+package fx.ipc.proto;
+
+import "player.proto";
+
+message Event {
+  EventType type = 1;
+  optional PlaybackStateChanged playback_state_changed = 3;
+  optional TorrentDetailsLoaded torrent_details_loaded = 4;
+
+  enum EventType {
+    PLAYER_STARTED = 0;
+    PLAYER_STOPPED = 1;
+    PLAYBACK_STATE_CHANGED = 2;
+    LOADING_STARTED = 3;
+    LOADING_COMPLETED = 4;
+    TORRENT_DETAILS_LOADED = 5;
+    CLOSE_PLAYER = 6;
+  }
+
+  message PlaybackStateChanged {
+    Player.State new_state = 1;
+  }
+
+  message TorrentDetailsLoaded {
+
+  }
+}

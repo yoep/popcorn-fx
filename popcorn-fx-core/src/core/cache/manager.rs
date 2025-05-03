@@ -405,7 +405,7 @@ impl InnerCacheManager {
             }
             Err(error) => {
                 if let CacheExecutionError::Operation(_) = &error {
-                    warn!("Operation of {} failed, trying to load cached data", name);
+                    debug!("Operation of {} failed, trying to load cached data", name);
                     let mut options = options;
                     options.expires_after = Duration::days(90);
                     self.read(name, key, &options)
@@ -583,7 +583,7 @@ impl InnerCacheManager {
                 data
             })
             .map_err(|e| {
-                debug!("Failed to load cached entry {}, {}", cache, e);
+                warn!("Failed to load cached entry {}, {}", cache, e);
                 match e {
                     StorageError::NotFound(e) => CacheError::NotFound(e),
                     _ => CacheError::Io(e.to_string()),

@@ -1,35 +1,37 @@
 package com.github.yoep.popcorn.backend.settings;
 
-import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.PopcornFx;
-import com.github.yoep.popcorn.backend.settings.models.*;
+import com.github.yoep.popcorn.backend.lib.FxChannel;
+import com.github.yoep.popcorn.backend.lib.FxChannelException;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.*;
+import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
+import javafx.application.Platform;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.*;
-import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 
 import static java.util.Arrays.asList;
 
 @Slf4j
-public class ApplicationConfig {
-    private final FxLib fxLib;
-    private final PopcornFx instance;
+public class ApplicationConfig extends AbstractListenerService<ApplicationSettingsEventListener> {
+    private final FxChannel fxChannel;
     private final LocaleText localeText;
 
-    private final Queue<ApplicationConfigEventCallback> listeners = new ConcurrentLinkedDeque<>();
-    private final ApplicationConfigEventCallback callback = createCallback();
-
-    private ApplicationSettings cachedSettings;
     private Consumer<Float> onUiScaleChanged;
+    private ApplicationArgs applicationArgs;
 
-    public ApplicationConfig(FxLib fxLib, PopcornFx instance, LocaleText localeText) {
-        Objects.requireNonNull(fxLib, "fxLib cannot be null");
-        Objects.requireNonNull(instance, "instance cannot be null");
+    public ApplicationConfig(FxChannel fxChannel, LocaleText localeText) {
+        Objects.requireNonNull(fxChannel, "fxChannel cannot be null");
         Objects.requireNonNull(localeText, "localeText cannot be null");
-        this.fxLib = fxLib;
-        this.instance = instance;
+        this.fxChannel = fxChannel;
         this.localeText = localeText;
         init();
     }
@@ -41,42 +43,37 @@ public class ApplicationConfig {
      *
      * @return Returns the application settings.
      */
-    public ApplicationSettings getSettings() {
-        if (cachedSettings == null) {
-            try (var settings = fxLib.application_settings(instance)) {
-                log.debug("Retrieved settings {}", settings);
-                cachedSettings = settings;
-            }
-        }
-        return cachedSettings;
+    public CompletableFuture<ApplicationSettings> getSettings() {
+        return fxChannel.send(ApplicationSettingsRequest.getDefaultInstance(), ApplicationSettingsResponse.parser())
+                .thenApply(ApplicationSettingsResponse::getSettings);
     }
 
     public boolean isTvMode() {
-        return fxLib.is_tv_mode(instance) == 1;
+        return applicationArgs().getIsTvMode();
     }
 
     public boolean isMaximized() {
-        return fxLib.is_maximized(instance) == 1;
+        return applicationArgs().getIsMaximized();
     }
 
     public boolean isKioskMode() {
-        return fxLib.is_kiosk_mode(instance) == 1;
+        return applicationArgs().getIsKioskMode();
     }
 
     public boolean isMouseDisabled() {
-        return fxLib.is_mouse_disabled(instance) == 1;
+        return applicationArgs().getIsMouseDisabled();
     }
 
     public boolean isYoutubeVideoPlayerEnabled() {
-        return fxLib.is_youtube_video_player_enabled(instance) == 1;
+        return applicationArgs().getIsYoutubePlayerEnabled();
     }
 
     public boolean isVlcVideoPlayerEnabled() {
-        return fxLib.is_vlc_video_player_enabled(instance) == 1;
+        return applicationArgs().getIsVlcVideoPlayerEnabled();
     }
 
     public boolean isFxPlayerEnabled() {
-        return fxLib.is_fx_video_player_enabled(instance) == 1;
+        return applicationArgs().getIsFxPlayerEnabled();
     }
 
     public void setOnUiScaleChanged(Consumer<Float> onUiScaleChanged) {
@@ -91,37 +88,14 @@ public class ApplicationConfig {
      * Increases the current UI scale.
      */
     public void increaseUIScale() {
-        var index = getCurrentUIScaleIndex();
-        var supportedUIScales = supportedUIScales();
-
-        // verify that the current UI scale is not the max supported scale
-        if (index == supportedUIScales.size() - 1)
-            return;
-
-        var settings = getSettings().getUiSettings();
-        settings.setUiScale(supportedUIScales.get(index + 1));
-        update(settings);
+        changeScale(1);
     }
 
     /**
      * Decrease the current UI scale.
      */
     public void decreaseUIScale() {
-        var index = getCurrentUIScaleIndex();
-        var supportedUIScales = supportedUIScales();
-
-        // verify that the current UI scale is the min supported scale
-        if (index == 0)
-            return;
-
-        var settings = getSettings().getUiSettings();
-        settings.setUiScale(supportedUIScales.get(index - 1));
-        update(settings);
-    }
-
-    public void register(ApplicationConfigEventCallback callback) {
-        Objects.requireNonNull(callback, "callback cannot be null");
-        listeners.add(callback);
+        changeScale(-1);
     }
 
     /**
@@ -129,11 +103,11 @@ public class ApplicationConfig {
      *
      * @param settings The new settings to use.
      */
-    public void update(SubtitleSettings settings) {
+    public void update(ApplicationSettings.SubtitleSettings settings) {
         Objects.requireNonNull(settings, "settings cannot be null");
-        try (var settings_c = new SubtitleSettings.ByValue(settings)) {
-            fxLib.update_subtitle_settings(instance, settings_c);
-        }
+        fxChannel.send(UpdateSubtitleSettingsRequest.newBuilder()
+                .setSettings(settings)
+                .build());
     }
 
     /**
@@ -141,29 +115,32 @@ public class ApplicationConfig {
      *
      * @param settings The new settings to use.
      */
-    public void update(TorrentSettings settings) {
+    public void update(ApplicationSettings.TorrentSettings settings) {
         Objects.requireNonNull(settings, "settings cannot be null");
-        try (var settings_c = new TorrentSettings.ByValue(settings)) {
-            fxLib.update_torrent_settings(instance, settings_c);
-        }
+        fxChannel.send(UpdateTorrentSettingsRequest.newBuilder()
+                .setSettings(settings)
+                .build());
     }
 
-    public void update(UISettings settings) {
+    public void update(ApplicationSettings.UISettings settings) {
         Objects.requireNonNull(settings, "settings cannot be null");
-        var settings_c = new UISettings.ByValue(settings);
-        fxLib.update_ui_settings(instance, settings_c);
+        fxChannel.send(UpdateUISettingsRequest.newBuilder()
+                .setSettings(settings)
+                .build());
     }
 
-    public void update(ServerSettings settings) {
+    public void update(ApplicationSettings.ServerSettings settings) {
         Objects.requireNonNull(settings, "settings cannot be null");
-        var settings_c = new ServerSettings.ByValue(settings);
-        fxLib.update_server_settings(instance, settings_c);
+        fxChannel.send(UpdateServerSettingsRequest.newBuilder()
+                .setSettings(settings)
+                .build());
     }
 
-    public void update(PlaybackSettings settings) {
+    public void update(ApplicationSettings.PlaybackSettings settings) {
         Objects.requireNonNull(settings, "settings cannot be null");
-        var settings_c = new PlaybackSettings.ByValue(settings);
-        fxLib.update_playback_settings(instance, settings_c);
+        fxChannel.send(UpdatePlaybackSettingsRequest.newBuilder()
+                .setSettings(settings)
+                .build());
     }
 
     /**
@@ -171,22 +148,34 @@ public class ApplicationConfig {
      *
      * @return Returns a list of supported UI scales.
      */
-    public static List<UIScale> supportedUIScales() {
+    public static List<ApplicationSettings.UISettings.Scale> supportedUIScales() {
         return asList(
-                new UIScale(0.25f),
-                new UIScale(0.5f),
-                new UIScale(0.75f),
-                new UIScale(1.0f),
-                new UIScale(1.25f),
-                new UIScale(1.50f),
-                new UIScale(1.75f),
-                new UIScale(2.0f),
-                new UIScale(2.5f),
-                new UIScale(3.0f),
-                new UIScale(3.5f),
-                new UIScale(4.0f),
-                new UIScale(5.0f)
+                ApplicationSettings.UISettings.Scale.newBuilder().setFactor(0.25f).build(),
+                ApplicationSettings.UISettings.Scale.newBuilder().setFactor(0.5f).build(),
+                ApplicationSettings.UISettings.Scale.newBuilder().setFactor(0.75f).build(),
+                ApplicationSettings.UISettings.Scale.newBuilder().setFactor(1.0f).build(),
+                ApplicationSettings.UISettings.Scale.newBuilder().setFactor(1.25f).build(),
+                ApplicationSettings.UISettings.Scale.newBuilder().setFactor(1.50f).build(),
+                ApplicationSettings.UISettings.Scale.newBuilder().setFactor(1.75f).build(),
+                ApplicationSettings.UISettings.Scale.newBuilder().setFactor(2.0f).build(),
+                ApplicationSettings.UISettings.Scale.newBuilder().setFactor(2.5f).build(),
+                ApplicationSettings.UISettings.Scale.newBuilder().setFactor(3.0f).build(),
+                ApplicationSettings.UISettings.Scale.newBuilder().setFactor(3.5f).build(),
+                ApplicationSettings.UISettings.Scale.newBuilder().setFactor(4.0f).build(),
+                ApplicationSettings.UISettings.Scale.newBuilder().setFactor(5.0f).build()
         );
+    }
+
+    /**
+     * Get the supported UI languages.
+     *
+     * @return Returns the supported languages.
+     */
+    public static List<Locale> supportedLanguages() {
+        return asList(
+                Locale.ENGLISH,
+                Locale.of("nl"),
+                Locale.of("fr"));
     }
 
     //endregion
@@ -195,71 +184,99 @@ public class ApplicationConfig {
 
     private void init() {
         initializeSettings();
-        fxLib.register_settings_callback(instance, callback);
+        initializeListener();
     }
 
     private void initializeSettings() {
-        var uiSettings = getSettings().getUiSettings();
-        var locale = UISettings.supportedLanguages().stream()
-                .filter(e -> e.getDisplayLanguage().equalsIgnoreCase(uiSettings.getDefaultLanguage()))
-                .findFirst()
-                .orElse(Locale.ENGLISH);
+        getSettings().whenComplete((settings, throwable) -> {
+            if (throwable == null) {
+                var uiSettings = settings.getUiSettings();
+                var locale = supportedLanguages().stream()
+                        .filter(e -> e.getDisplayLanguage().equalsIgnoreCase(uiSettings.getDefaultLanguage()))
+                        .findFirst()
+                        .orElse(Locale.ENGLISH);
 
-        updateUIScale(uiSettings.getUiScale().getValue());
-        localeText.updateLocale(locale);
+                Platform.runLater(() -> {
+                    updateUIScale(uiSettings.getScale().getFactor());
+                    localeText.updateLocale(locale);
+                });
+            } else {
+                log.error("Failed to retrieve settings", throwable);
+            }
+        });
+    }
+
+    private void initializeListener() {
+        fxChannel.subscribe(FxChannel.typeFrom(ApplicationSettingsEvent.class), ApplicationSettingsEvent.parser(), this::onApplicationEvent);
+    }
+
+    private ApplicationArgs applicationArgs() {
+        if (applicationArgs == null) {
+            try {
+                this.applicationArgs = fxChannel.send(ApplicationArgsRequest.getDefaultInstance(), ApplicationArgsResponse.parser())
+                        .thenApply(ApplicationArgsResponse::getArgs)
+                        .get(2, TimeUnit.SECONDS);
+            } catch (ExecutionException | InterruptedException | TimeoutException ex) {
+                throw new FxChannelException("Failed to retrieve application arguments, " + ex.getMessage(), ex);
+            }
+        }
+
+        return applicationArgs;
+    }
+
+    private void onApplicationEvent(ApplicationSettingsEvent event) {
+        switch (event.getEvent()) {
+            case ApplicationSettingsEvent.Event.SUBTITLE_SETTINGS_CHANGED ->
+                    invokeListeners(listener -> listener.onSubtitleSettingsChanged(event.getSubtitleSettings()));
+            case ApplicationSettingsEvent.Event.TRACKING_SETTINGS_CHANGED ->
+                    invokeListeners(listener -> listener.onTrackingSettingsChanged(event.getTrackingSettings()));
+        }
     }
 
     //endregion
 
     //region Functions
 
+    private void changeScale(int indexChange) {
+        var supportedUIScales = supportedUIScales();
+        getSettings().whenComplete((settings, throwable) -> {
+            if (throwable == null) {
+                var currentIndex = currentUIScaleIndex(settings.getUiSettings());
+                var newIndex = currentIndex + indexChange;
+
+                // verify that the current UI scale is within the supported scales
+                if (newIndex == supportedUIScales.size() - 1 || newIndex < 0)
+                    return;
+
+                update(ApplicationSettings.UISettings.newBuilder(settings.getUiSettings())
+                        .setScale(supportedUIScales.get(newIndex))
+                        .build());
+            } else {
+                log.error("Failed to retrieve settings", throwable);
+            }
+        });
+    }
+
     private void updateUIScale(float scale) {
         Optional.ofNullable(onUiScaleChanged)
                 .ifPresent(e -> e.accept(scale));
     }
 
-    private int getCurrentUIScaleIndex() {
-        var uiSettings = getSettings().getUiSettings();
-        var scale = uiSettings.getUiScale();
+    private Integer currentUIScaleIndex(ApplicationSettings.UISettings settings) {
+        var scale = settings.getScale();
         var index = supportedUIScales().indexOf(scale);
 
         // check if the index was found
         // if not, return the index of the default
         if (index == -1) {
             log.warn("UI scale \"{}\" couldn't be found back in the supported UI scales", scale);
-            index = supportedUIScales().indexOf(new UIScale(1.0f));
+            index = supportedUIScales().indexOf(ApplicationSettings.UISettings.Scale.newBuilder()
+                    .setFactor(1.0f)
+                    .build());
         }
 
         log.trace("Current UI scale index: {}", index);
         return index;
-    }
-
-    private void handleEvent(ApplicationConfigEvent.ByValue event) {
-        if (event.tag == ApplicationConfigEvent.Tag.UI_SETTINGS_CHANGED) {
-            var settings = event.getUnion().getUiSettingsChanged_body().getSettings();
-            updateUIScale(settings.getUiScale().getValue());
-
-            var language = settings.getDefaultLanguage();
-            UISettings.supportedLanguages()
-                    .stream()
-                    .filter(e -> e.getDisplayLanguage().equalsIgnoreCase(language))
-                    .findFirst()
-                    .ifPresent(localeText::updateLocale);
-        }
-    }
-
-    private ApplicationConfigEventCallback createCallback() {
-        return event -> {
-            try (event) {
-                log.debug("Received settings event {}", event);
-                handleEvent(event);
-                for (var listener : listeners) {
-                    listener.callback(event);
-                }
-            } catch (Exception ex) {
-                log.error("Failed to invoke settings listener, {}", ex.getMessage(), ex);
-            }
-        };
     }
 
     //endregion

@@ -346,10 +346,11 @@ impl TryFrom<i32> for MediaDetailedErrorCode {
 
 impl<'de> Deserialize<'de> for MediaDetailedErrorCode {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where D: Deserializer<'de> {
+    where
+        D: Deserializer<'de>,
+    {
         let value: i32 = Deserialize::deserialize(deserializer)?;
-        MediaDetailedErrorCode::try_from(value)
-            .map_err(|e| serde::de::Error::custom(e))
+        MediaDetailedErrorCode::try_from(value).map_err(|e| serde::de::Error::custom(e))
     }
 }
 
@@ -373,9 +374,12 @@ mod tests {
             message_type: "ERROR".to_string(),
             detailed_error_code: MediaDetailedErrorCode::MediaSrcNotSupported,
         };
-        
-        let result = serde_json::from_str::<MediaError>("{\"type\":\"ERROR\",\"detailedErrorCode\":104,\"itemId\":1}").unwrap();
-        
+
+        let result = serde_json::from_str::<MediaError>(
+            "{\"type\":\"ERROR\",\"detailedErrorCode\":104,\"itemId\":1}",
+        )
+        .unwrap();
+
         assert_eq!(expected_result, result);
     }
 }

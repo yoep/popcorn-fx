@@ -2,9 +2,8 @@ package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
-import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
-import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Subtitle;
+import com.github.yoep.popcorn.backend.subtitles.ISubtitleService;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.font.controls.Icon;
 import com.github.yoep.popcorn.ui.messages.DetailsMessage;
@@ -48,11 +47,11 @@ class MovieDetailsComponentTest {
     @Mock
     private PlayerManagerService playerService;
     @Mock
-    private SubtitleService subtitleService;
+    private ISubtitleService subtitleService;
     @Mock
     private ViewLoader viewLoader;
     @Mock
-    private SubtitleInfo subtitleNone;
+    private Subtitle.Info subtitleNone;
     @Mock
     private URL location;
     @Mock
@@ -68,7 +67,7 @@ class MovieDetailsComponentTest {
             listenerHolder.set(invocation.getArgument(0, DetailsComponentListener.class));
             return null;
         }).when(service).addListener(isA(DetailsComponentListener.class));
-        lenient().when(subtitleNone.language()).thenReturn(SubtitleLanguage.NONE);
+        lenient().when(subtitleNone.getLanguage()).thenReturn(Subtitle.Language.NONE);
 
         component.detailsContent = new GridPane();
         component.detailsDescription = new GridPane();

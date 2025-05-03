@@ -1,7 +1,6 @@
 package com.github.yoep.popcorn.ui.view.listeners;
 
-import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
-import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 
 /**
@@ -14,7 +13,7 @@ public interface PlayerExternalListener {
      *
      * @param request The new playback request.
      */
-    void onRequestChanged(PlayRequest request);
+    void onRequestChanged(Player.PlayRequest request);
 
     /**
      * Invoked when the current playback time is changed.
@@ -35,7 +34,7 @@ public interface PlayerExternalListener {
      *
      * @param state The new player state.
      */
-    void onStateChanged(PlayerState state);
+    void onStateChanged(Player.State state);
 
     /**
      * Invoked when the download status is changed.

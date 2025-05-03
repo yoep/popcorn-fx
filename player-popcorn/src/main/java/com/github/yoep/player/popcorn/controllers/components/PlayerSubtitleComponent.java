@@ -4,7 +4,9 @@ import com.github.yoep.player.popcorn.controls.LanguageSelection;
 import com.github.yoep.player.popcorn.listeners.PlayerSubtitleListener;
 import com.github.yoep.player.popcorn.messages.MediaMessage;
 import com.github.yoep.player.popcorn.services.PlayerSubtitleService;
-import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Subtitle;
+import com.github.yoep.popcorn.backend.subtitles.SubtitleHelper;
+import com.github.yoep.popcorn.backend.subtitles.ISubtitleInfo;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -37,14 +39,14 @@ public class PlayerSubtitleComponent implements Initializable {
     private void initializeLanguageSelection() {
         languageSelection.getListView().setCellFactory(param -> new ListCell<>() {
             @Override
-            protected void updateItem(SubtitleInfo item, boolean empty) {
+            protected void updateItem(ISubtitleInfo item, boolean empty) {
                 super.updateItem(item, empty);
 
                 if (!empty) {
-                    if (item.isNone()) {
+                    if (item.getLanguage() == Subtitle.Language.NONE) {
                         setText(localeText.get(MediaMessage.SUBTITLE_NONE));
                     } else {
-                        setText(item.language().getNativeName());
+                        setText(SubtitleHelper.getNativeName(item.getLanguage()));
                     }
                 }
             }
@@ -55,12 +57,12 @@ public class PlayerSubtitleComponent implements Initializable {
     private void initializeListener() {
         subtitleService.addListener(new PlayerSubtitleListener() {
             @Override
-            public void onActiveSubtitleChanged(SubtitleInfo activeSubtitle) {
+            public void onActiveSubtitleChanged(ISubtitleInfo activeSubtitle) {
                 PlayerSubtitleComponent.this.onActiveSubtitleChanged(activeSubtitle);
             }
 
             @Override
-            public void onAvailableSubtitlesChanged(List<SubtitleInfo> subtitles, SubtitleInfo activeSubtitle) {
+            public void onAvailableSubtitlesChanged(List<ISubtitleInfo> subtitles, ISubtitleInfo activeSubtitle) {
                 PlayerSubtitleComponent.this.onAvailableSubtitlesChanged(subtitles, activeSubtitle);
             }
         });
@@ -70,11 +72,11 @@ public class PlayerSubtitleComponent implements Initializable {
 
     //region Functions
 
-    private void onActiveSubtitleChanged(SubtitleInfo subtitleInfo) {
-        languageSelection.select(subtitleInfo);
+    private void onActiveSubtitleChanged(ISubtitleInfo subtitleInfo) {
+        Platform.runLater(() -> languageSelection.select(subtitleInfo));
     }
 
-    private void onAvailableSubtitlesChanged(List<SubtitleInfo> subtitles, SubtitleInfo activeSubtitle) {
+    private void onAvailableSubtitlesChanged(List<ISubtitleInfo> subtitles, ISubtitleInfo activeSubtitle) {
         Platform.runLater(() -> {
             languageSelection.getItems().clear();
             languageSelection.getItems().addAll(subtitles);
@@ -82,7 +84,7 @@ public class PlayerSubtitleComponent implements Initializable {
         });
     }
 
-    private void onSubtitleChanged(SubtitleInfo subtitleInfo) {
+    private void onSubtitleChanged(ISubtitleInfo subtitleInfo) {
         if (languageSelection.getItems().size() > 1) {
             subtitleService.updateActiveSubtitle(subtitleInfo);
         }

@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
-import com.github.yoep.popcorn.backend.playlists.model.PlaylistItem;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Playlist;
 import com.github.yoep.popcorn.ui.view.controls.ImageCover;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.application.Platform;
@@ -14,6 +14,7 @@ import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
+import java.util.Optional;
 import java.util.ResourceBundle;
 
 @Slf4j
@@ -23,7 +24,7 @@ import java.util.ResourceBundle;
 public class PlaylistItemComponent implements Initializable {
     static final String ACTIVE_CLASS = "active";
 
-    private final PlaylistItem item;
+    private final Playlist.Item item;
     private final ImageService imageService;
 
     @FXML
@@ -37,10 +38,16 @@ public class PlaylistItemComponent implements Initializable {
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
-        thumbnail.setImage(imageService.getPosterPlaceholder());
-        item.getThumb().ifPresent(this::loadThumbnail);
-        title.setText(item.title());
-        caption.setText(item.getCaption().orElse(null));
+        imageService.getPosterPlaceholder().whenComplete((poster, throwable) -> {
+            if (throwable == null) {
+                Platform.runLater(() -> thumbnail.setImage(poster));
+            } else {
+                log.error("Failed to load the post placeholder", throwable);
+            }
+        });
+        Optional.ofNullable(item.getThumb()).ifPresent(this::loadThumbnail);
+        title.setText(item.getTitle());
+        caption.setText(item.getCaption());
     }
 
     public void setActive(boolean isActive) {

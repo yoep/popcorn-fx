@@ -1,20 +1,20 @@
 package com.github.yoep.popcorn.ui.view.services;
 
-import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
-import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
-import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentListener;
 import com.github.yoep.popcorn.backend.adapters.torrent.TorrentService;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
-import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentStreamState;
 import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.player.PlayerChanged;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Handle;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.PlayerManagerEvent;
 import com.github.yoep.popcorn.backend.player.PlayerManagerListener;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import com.github.yoep.popcorn.ui.view.listeners.PlayerExternalListener;
 import lombok.extern.slf4j.Slf4j;
+
+import java.util.Optional;
 
 @Slf4j
 public class PlayerExternalComponentService extends AbstractListenerService<PlayerExternalListener> {
@@ -26,6 +26,7 @@ public class PlayerExternalComponentService extends AbstractListenerService<Play
     private final TorrentListener streamListener = createStreamListener();
 
     private long time;
+    private Handle torrentHandle;
 
     public PlayerExternalComponentService(PlayerManagerService playerManagerService, EventPublisher eventPublisher, TorrentService torrentService) {
         this.playerManagerService = playerManagerService;
@@ -35,8 +36,14 @@ public class PlayerExternalComponentService extends AbstractListenerService<Play
     }
 
     public void togglePlaybackState() {
-        playerManagerService.getActivePlayer()
-                .ifPresent(this::togglePlaybackStateOnPlayer);
+        playerManagerService.getActivePlayer().whenComplete((player, throwable) -> {
+            if (throwable == null) {
+                player.ifPresent(this::togglePlaybackStateOnPlayer);
+            } else {
+                log.error("Failed to retrieve active player", throwable);
+            }
+        });
+
     }
 
     public void closePlayer() {
@@ -44,19 +51,24 @@ public class PlayerExternalComponentService extends AbstractListenerService<Play
     }
 
     public void goBack() {
-        playerManagerService.getActivePlayer()
-                .ifPresent(e -> e.seek(time - TIME_STEP_OFFSET));
+        playerManagerService.getActivePlayer().thenAccept(player ->
+                player.ifPresent(e -> e.seek(time - TIME_STEP_OFFSET)));
     }
 
     public void goForward() {
-        playerManagerService.getActivePlayer()
-                .ifPresent(e -> e.seek(time + TIME_STEP_OFFSET));
+        playerManagerService.getActivePlayer().whenComplete((player, throwable) -> {
+            if (throwable == null) {
+                player.ifPresent(e -> e.seek(time + TIME_STEP_OFFSET));
+            } else {
+                log.error("Failed to retrieve active player", throwable);
+            }
+        });
     }
 
     private void init() {
         playerManagerService.addListener(new PlayerManagerListener() {
             @Override
-            public void activePlayerChanged(PlayerChanged playerChange) {
+            public void activePlayerChanged(PlayerManagerEvent.ActivePlayerChanged playerChange) {
                 // no-op
             }
 
@@ -66,7 +78,7 @@ public class PlayerExternalComponentService extends AbstractListenerService<Play
             }
 
             @Override
-            public void onPlayerPlaybackChanged(PlayRequest request) {
+            public void onPlayerPlaybackChanged(Player.PlayRequest request) {
                 onPlaybackChanged(request);
             }
 
@@ -81,25 +93,32 @@ public class PlayerExternalComponentService extends AbstractListenerService<Play
             }
 
             @Override
-            public void onPlayerStateChanged(PlayerState newState) {
+            public void onPlayerStateChanged(Player.State newState) {
                 onStateChanged(newState);
             }
         });
     }
 
-    private void togglePlaybackStateOnPlayer(Player e) {
-        if (e.getState() == PlayerState.PAUSED) {
+    private void togglePlaybackStateOnPlayer(com.github.yoep.popcorn.backend.adapters.player.Player e) {
+        if (e.getState() == Player.State.PAUSED) {
             e.resume();
         } else {
             e.pause();
         }
     }
 
-    private void onPlaybackChanged(PlayRequest request) {
+    private void onPlaybackChanged(Player.PlayRequest request) {
         invokeListeners(e -> e.onRequestChanged(request));
+        Optional.ofNullable(this.torrentHandle)
+                        .ifPresent(handle -> torrentService.removeListener(handle, streamListener));
 
-        request.getStreamHandle()
-                .ifPresent(e -> torrentService.addListener(e, streamListener));
+        Optional.ofNullable(request.getTorrent())
+                .filter(e -> request.hasTorrent())
+                .map(Player.PlayRequest.Torrent::getHandle)
+                .ifPresent(handle -> {
+                    this.torrentHandle = handle;
+                    torrentService.addListener(handle, streamListener);
+                });
     }
 
     private void onDurationChanged(long duration) {
@@ -111,7 +130,7 @@ public class PlayerExternalComponentService extends AbstractListenerService<Play
         invokeListeners(e -> e.onTimeChanged(time));
     }
 
-    private void onStateChanged(PlayerState state) {
+    private void onStateChanged(Player.State state) {
         invokeListeners(e -> e.onStateChanged(state));
     }
 
@@ -120,11 +139,6 @@ public class PlayerExternalComponentService extends AbstractListenerService<Play
     }
 
     private TorrentListener createStreamListener() {
-        return new TorrentListener() {
-            @Override
-            public void onDownloadStatus(DownloadStatus downloadStatus) {
-                PlayerExternalComponentService.this.onDownloadStatus(downloadStatus);
-            }
-        };
+        return PlayerExternalComponentService.this::onDownloadStatus;
     }
 }

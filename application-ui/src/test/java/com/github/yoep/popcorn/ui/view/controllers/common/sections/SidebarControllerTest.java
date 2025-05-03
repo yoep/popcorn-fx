@@ -2,10 +2,9 @@ package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowAboutEvent;
-import com.github.yoep.popcorn.backend.media.filters.model.Category;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationSettings;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
-import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
-import com.github.yoep.popcorn.backend.settings.models.UISettings;
 import com.github.yoep.popcorn.backend.updater.UpdateService;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.*;
@@ -47,7 +46,7 @@ class SidebarControllerTest {
     @Mock
     private ApplicationSettings applicationSettings;
     @Mock
-    private UISettings settings;
+    private ApplicationSettings.UISettings settings;
     @Mock
     private ViewLoader viewLoader;
     @Mock
@@ -65,7 +64,7 @@ class SidebarControllerTest {
 
     @BeforeEach
     void setUp() {
-        lenient().when(applicationConfig.getSettings()).thenReturn(applicationSettings);
+        lenient().when(applicationConfig.getSettings()).thenReturn(CompletableFuture.completedFuture(applicationSettings));
         lenient().when(applicationSettings.getUiSettings()).thenReturn(settings);
         lenient().when(viewLoader.load(isA(String.class))).thenReturn(new Pane());
 
@@ -102,13 +101,13 @@ class SidebarControllerTest {
 
     @Test
     void testInitialize_shouldActivePreferredDefaultCategory() {
-        when(settings.getStartScreen()).thenReturn(Category.SERIES);
-        var expectedEvent = new CategoryChangedEvent(controller, Category.SERIES);
+        when(settings.getStartScreen()).thenReturn(Media.Category.SERIES);
+        var expectedEvent = new CategoryChangedEvent(controller, Media.Category.SERIES);
 
         controller.initialize(url, resourceBundle);
 
         verify(eventPublisher, timeout(250)).publish(expectedEvent);
-        assertEquals(controller.lastKnownSelectedCategory, Category.SERIES);
+        assertEquals(controller.lastKnownSelectedCategory, Media.Category.SERIES);
         assertFalse(controller.movieIcon.getStyleClass().contains(SidebarController.ACTIVE_STYLE));
         assertFalse(controller.movieText.getStyleClass().contains(SidebarController.ACTIVE_STYLE));
         assertFalse(controller.favoriteIcon.getStyleClass().contains(SidebarController.ACTIVE_STYLE));
@@ -123,7 +122,7 @@ class SidebarControllerTest {
     void testOnCategoryClicked() {
         var event = mock(MouseEvent.class);
         when(event.getSource()).thenReturn(controller.favoriteIcon);
-        when(settings.getStartScreen()).thenReturn(Category.MOVIES);
+        when(settings.getStartScreen()).thenReturn(Media.Category.MOVIES);
         when(event.getSource()).thenReturn(controller.favoriteIcon);
         controller.initialize(url, resourceBundle);
         WaitForAsyncUtils.waitForFxEvents();
@@ -131,8 +130,8 @@ class SidebarControllerTest {
         controller.onCategoryClicked(event);
 
         verify(event).consume();
-        verify(eventPublisher).publish(new CategoryChangedEvent(controller, Category.FAVORITES));
-        assertEquals(Category.FAVORITES, controller.lastKnownSelectedCategory);
+        verify(eventPublisher).publish(new CategoryChangedEvent(controller, Media.Category.FAVORITES));
+        assertEquals(Media.Category.FAVORITES, controller.lastKnownSelectedCategory);
     }
 
     @Test
@@ -146,21 +145,21 @@ class SidebarControllerTest {
 
         controller.onCategoryClicked(movieEvent);
         verify(movieEvent).consume();
-        verify(eventPublisher).publish(new CategoryChangedEvent(controller, Category.MOVIES));
+        verify(eventPublisher).publish(new CategoryChangedEvent(controller, Media.Category.MOVIES));
 
         controller.onCategoryClicked(serieEvent);
         verify(serieEvent).consume();
-        verify(eventPublisher).publish(new CategoryChangedEvent(controller, Category.SERIES));
+        verify(eventPublisher).publish(new CategoryChangedEvent(controller, Media.Category.SERIES));
 
         controller.onCategoryClicked(favoriteEvent);
         verify(favoriteEvent).consume();
-        verify(eventPublisher).publish(new CategoryChangedEvent(controller, Category.FAVORITES));
+        verify(eventPublisher).publish(new CategoryChangedEvent(controller, Media.Category.FAVORITES));
     }
 
     @Test
     void testOnCategoryPressed() {
         var event = mock(KeyEvent.class);
-        when(settings.getStartScreen()).thenReturn(Category.MOVIES);
+        when(settings.getStartScreen()).thenReturn(Media.Category.MOVIES);
         when(event.getTarget()).thenReturn(controller.favoriteIcon);
         when(event.getCode()).thenReturn(KeyCode.ENTER);
         controller.initialize(url, resourceBundle);
@@ -168,13 +167,13 @@ class SidebarControllerTest {
         controller.onCategoryPressed(event);
 
         verify(event).consume();
-        verify(eventPublisher).publish(new CategoryChangedEvent(controller, Category.FAVORITES));
+        verify(eventPublisher).publish(new CategoryChangedEvent(controller, Media.Category.FAVORITES));
     }
 
     @Test
     void testOnHovering() {
         var event = mock(MouseEvent.class);
-        when(settings.getStartScreen()).thenReturn(Category.MOVIES);
+        when(settings.getStartScreen()).thenReturn(Media.Category.MOVIES);
         controller.initialize(url, resourceBundle);
 
         controller.onHovering(event);
@@ -187,7 +186,7 @@ class SidebarControllerTest {
     @Test
     void testOnHoverStopped() {
         var event = mock(MouseEvent.class);
-        when(settings.getStartScreen()).thenReturn(Category.MOVIES);
+        when(settings.getStartScreen()).thenReturn(Media.Category.MOVIES);
         controller.initialize(url, resourceBundle);
 
         controller.onHoverStopped(event);
@@ -200,7 +199,7 @@ class SidebarControllerTest {
     @Test
     void testOnSettingsClicked() {
         var event = mock(MouseEvent.class);
-        when(settings.getStartScreen()).thenReturn(Category.MOVIES);
+        when(settings.getStartScreen()).thenReturn(Media.Category.MOVIES);
         controller.initialize(url, resourceBundle);
 
         controller.onSettingsClicked(event);
@@ -213,7 +212,7 @@ class SidebarControllerTest {
     void testOnSettingsPressed() {
         var event = mock(KeyEvent.class);
         when(event.getCode()).thenReturn(KeyCode.ENTER);
-        when(settings.getStartScreen()).thenReturn(Category.MOVIES);
+        when(settings.getStartScreen()).thenReturn(Media.Category.MOVIES);
         controller.initialize(url, resourceBundle);
 
         controller.onSettingsPressed(event);
@@ -226,7 +225,7 @@ class SidebarControllerTest {
     @Test
     void testOnInfoClicked() {
         var event = mock(MouseEvent.class);
-        when(settings.getStartScreen()).thenReturn(Category.MOVIES);
+        when(settings.getStartScreen()).thenReturn(Media.Category.MOVIES);
         controller.initialize(url, resourceBundle);
 
         controller.onInfoClicked(event);
@@ -240,7 +239,7 @@ class SidebarControllerTest {
     void testOnInfoPressed() {
         var event = mock(KeyEvent.class);
         when(event.getCode()).thenReturn(KeyCode.ENTER);
-        when(settings.getStartScreen()).thenReturn(Category.MOVIES);
+        when(settings.getStartScreen()).thenReturn(Media.Category.MOVIES);
         controller.initialize(url, resourceBundle);
 
         controller.onInfoPressed(event);
@@ -255,7 +254,7 @@ class SidebarControllerTest {
         var event = mock(MouseEvent.class);
         var trigger = new CompletableFuture<Void>();
         when(event.getSource()).thenReturn(controller.serieIcon);
-        when(settings.getStartScreen()).thenReturn(Category.MOVIES);
+        when(settings.getStartScreen()).thenReturn(Media.Category.MOVIES);
         eventPublisher.register(ShowSettingsEvent.class, e -> {
             trigger.complete(null);
             return null;
@@ -298,19 +297,19 @@ class SidebarControllerTest {
 
     @Test
     void testHomeEvent() {
-        when(settings.getStartScreen()).thenReturn(Category.SERIES);
+        when(settings.getStartScreen()).thenReturn(Media.Category.SERIES);
         controller.initialize(url, resourceBundle);
 
         eventPublisher.publishEvent(new HomeEvent(this));
         WaitForAsyncUtils.waitForFxEvents();
 
-        verify(eventPublisher, timeout(500).atLeast(2)).publish(new CategoryChangedEvent(controller, Category.SERIES));
+        verify(eventPublisher, timeout(500).atLeast(2)).publish(new CategoryChangedEvent(controller, Media.Category.SERIES));
     }
 
     @Test
     void testCollectionClicked() {
         var event = mock(MouseEvent.class);
-        when(settings.getStartScreen()).thenReturn(Category.SERIES);
+        when(settings.getStartScreen()).thenReturn(Media.Category.SERIES);
         controller.initialize(url, resourceBundle);
 
         controller.onCollectionClicked(event);
@@ -323,7 +322,7 @@ class SidebarControllerTest {
     @Test
     void testCollectionPressed() {
         var event = mock(KeyEvent.class);
-        when(settings.getStartScreen()).thenReturn(Category.SERIES);
+        when(settings.getStartScreen()).thenReturn(Media.Category.SERIES);
         when(event.getCode()).thenReturn(KeyCode.ENTER);
         controller.initialize(url, resourceBundle);
 
@@ -336,7 +335,7 @@ class SidebarControllerTest {
 
     @Test
     void testInitializeTvMode() {
-        when(settings.getStartScreen()).thenReturn(Category.SERIES);
+        when(settings.getStartScreen()).thenReturn(Media.Category.SERIES);
         when(applicationConfig.isTvMode()).thenReturn(true);
 
         controller.initialize(url, resourceBundle);

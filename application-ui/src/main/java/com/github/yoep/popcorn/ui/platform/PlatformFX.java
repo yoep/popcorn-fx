@@ -16,7 +16,8 @@ public class PlatformFX implements PlatformProvider {
 
     @Override
     public boolean isMac() {
-        return com.sun.jna.Platform.isMac();
+        var osName = System.getProperty("os.name").toLowerCase();
+        return osName.contains("mac");
     }
 
     @Override

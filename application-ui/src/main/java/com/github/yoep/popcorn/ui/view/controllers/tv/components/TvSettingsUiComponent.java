@@ -1,28 +1,26 @@
 package com.github.yoep.popcorn.ui.view.controllers.tv.components;
 
-import com.github.yoep.popcorn.backend.media.filters.model.Category;
+import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationSettings;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
-import com.github.yoep.popcorn.backend.settings.models.UIScale;
-import com.github.yoep.popcorn.backend.settings.models.UISettings;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
+import com.github.yoep.popcorn.ui.view.controllers.common.components.AbstractSettingsUiComponent;
 import com.github.yoep.popcorn.ui.view.controls.AxisItemSelection;
 import com.github.yoep.popcorn.ui.view.controls.Overlay;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Button;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
 import java.util.Locale;
 import java.util.ResourceBundle;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
-@RequiredArgsConstructor
-public class TvSettingsUiComponent implements Initializable {
-    private final ApplicationConfig applicationConfig;
-    private final LocaleText localeText;
-
+public class TvSettingsUiComponent extends AbstractSettingsUiComponent implements Initializable {
     @FXML
     Button defaultLanguage;
     @FXML
@@ -32,11 +30,15 @@ public class TvSettingsUiComponent implements Initializable {
     @FXML
     Button uiScale;
     @FXML
-    AxisItemSelection<UIScale> uiScales;
+    AxisItemSelection<ApplicationSettings.UISettings.Scale> uiScales;
     @FXML
     Button startScreen;
     @FXML
-    AxisItemSelection<Category> startScreens;
+    AxisItemSelection<Media.Category> startScreens;
+
+    public TvSettingsUiComponent(EventPublisher eventPublisher, LocaleText localeText, ApplicationConfig settingsService) {
+        super(eventPublisher, localeText, settingsService);
+    }
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
@@ -54,37 +56,61 @@ public class TvSettingsUiComponent implements Initializable {
 
     private void initializeSettings() {
         languages.setItemFactory(item -> new Button(localeText.get("language_" + item.toString())));
-        languages.setItems(UISettings.supportedLanguages().toArray(Locale[]::new));
+        languages.setItems(ApplicationConfig.supportedLanguages().toArray(Locale[]::new));
         languages.selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-            var settings = getSettings();
-            settings.setDefaultLanguage(newValue.toString());
-            applicationConfig.update(settings);
+            getSettings().whenComplete((settings, throwable) -> {
+                if (throwable == null) {
+                    applicationConfig.update(ApplicationSettings.UISettings.newBuilder(settings)
+                            .setDefaultLanguage(newValue.toString())
+                            .build());
+                } else {
+                    log.error("Failed to retrieve settings", throwable);
+                }
+            });
             defaultLanguage.setText(localeText.get("language_" + newValue));
             defaultLanguageOverlay.hide();
         });
-        languages.setSelectedItem(Locale.forLanguageTag(getSettings().getDefaultLanguage()));
 
-        uiScales.setItems(ApplicationConfig.supportedUIScales().toArray(UIScale[]::new));
+
+        uiScales.setItems(ApplicationConfig.supportedUIScales().toArray(ApplicationSettings.UISettings.Scale[]::new));
         uiScales.selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-            var settings = getSettings();
-            settings.setUiScale(newValue);
-            applicationConfig.update(settings);
+            getSettings().whenComplete((settings, throwable) -> {
+                if (throwable == null) {
+                    applicationConfig.update(ApplicationSettings.UISettings.newBuilder(settings)
+                            .setScale(newValue)
+                            .build());
+                } else {
+                    log.error("Failed to retrieve settings", throwable);
+                }
+            });
             uiScale.setText(newValue.toString());
         });
-        uiScales.setSelectedItem(getSettings().getUiScale());
 
-        startScreens.setItemFactory(item -> new Button(localeText.get("filter_" + item.name().toLowerCase())));
-        startScreens.setItems(Category.values());
-        startScreens.selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-            var settings = getSettings();
-            settings.setStartScreen(newValue);
-            applicationConfig.update(settings);
-            startScreen.setText(localeText.get("filter_" + newValue.name().toLowerCase()));
-        });
-        startScreens.setSelectedItem(getSettings().getStartScreen());
+        initializeStartScreen();
+
+        getSettings().thenAccept(settings -> Platform.runLater(() -> {
+            languages.setSelectedItem(Locale.forLanguageTag(settings.getDefaultLanguage()));
+            uiScales.setSelectedItem(settings.getScale());
+            startScreens.setSelectedItem(settings.getStartScreen());
+        }));
     }
 
-    private UISettings getSettings() {
-        return applicationConfig.getSettings().getUiSettings();
+    private void initializeStartScreen() {
+        startScreens.setItemFactory(item -> new Button(localeText.get("filter_" + item.name().toLowerCase())));
+        startScreens.setItems(startScreens());
+        startScreens.selectedItemProperty().addListener((observable, oldValue, newValue) -> onStartScreenChanged(newValue));
+    }
+
+    private void onStartScreenChanged(Media.Category newValue) {
+        getSettings().thenAccept(settings -> {
+            applicationConfig.update(ApplicationSettings.UISettings.newBuilder(settings)
+                    .setStartScreen(newValue)
+                    .build());
+        });
+        startScreen.setText(localeText.get("filter_" + newValue.name().toLowerCase()));
+    }
+
+    private CompletableFuture<ApplicationSettings.UISettings> getSettings() {
+        return applicationConfig.getSettings().thenApply(ApplicationSettings::getUiSettings);
     }
 }

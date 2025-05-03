@@ -1,10 +1,8 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.media.favorites.FavoriteEvent;
+import com.github.yoep.popcorn.backend.media.Media;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
-import com.github.yoep.popcorn.backend.media.providers.Media;
-import com.github.yoep.popcorn.backend.media.watched.WatchedEvent;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.font.controls.Icon;
@@ -30,7 +28,10 @@ public class PosterComponent extends TvPosterComponent implements Initializable 
     private final WatchedService watchedService;
     private final LocaleText localeText;
 
-    public PosterComponent(EventPublisher eventPublisher, ImageService imageService, FavoriteService favoriteService, WatchedService watchedService,
+    public PosterComponent(EventPublisher eventPublisher,
+                           ImageService imageService,
+                           FavoriteService favoriteService,
+                           WatchedService watchedService,
                            LocaleText localeText) {
         super(eventPublisher, imageService);
         this.favoriteService = favoriteService;
@@ -49,20 +50,14 @@ public class PosterComponent extends TvPosterComponent implements Initializable 
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
-        watchedService.registerListener(event -> {
-            if (event.getTag() == WatchedEvent.Tag.WatchedStateChanged) {
-                var stateChanged = event.getUnion().getWatched_state_changed();
-                if (media != null && Objects.equals(stateChanged.getImdbId(), media.getId())) {
-                    updateWatchedState(stateChanged.getNewState());
-                }
+        watchedService.addListener(event -> {
+            if (media != null && Objects.equals(event.getImdbId(), media.id())) {
+                updateWatchedState(event.getNewState());
             }
         });
-        favoriteService.registerListener(event -> {
-            if (event.getTag() == FavoriteEvent.Tag.LikedStateChanged) {
-                var stateChanged = event.getUnion().getLiked_state_changed();
-                if (media != null && Objects.equals(stateChanged.getImdbId(), media.getId())) {
-                    updateLikedState(stateChanged.getNewState());
-                }
+        favoriteService.addListener(event -> {
+            if (media != null && Objects.equals(event.getImdbId(), media.id())) {
+                updateLikedState(event.getIsLiked());
             }
         });
     }
@@ -70,24 +65,48 @@ public class PosterComponent extends TvPosterComponent implements Initializable 
     @Override
     void onShowDetailsEvent(Media media) {
         super.onShowDetailsEvent(media);
-        updateWatchedState(watchedService.isWatched(media));
-        updateLikedState(favoriteService.isLiked(media));
+        watchedService.isWatched(media).whenComplete((watched, throwable) -> {
+            if (throwable == null) {
+                updateWatchedState(watched);
+            } else {
+                log.error("Failed to retrieve is watched", throwable);
+            }
+        });
+        favoriteService.isLiked(media).whenComplete((liked, throwable) -> {
+            if (throwable == null) {
+                updateLikedState(liked);
+            } else {
+                log.error("Failed to retrieve is liked", throwable);
+            }
+        });
     }
 
     private void toggleLikedState() {
-        if (favoriteService.isLiked(media)) {
-            favoriteService.removeFromFavorites(media);
-        } else {
-            favoriteService.addToFavorites(media);
-        }
+        favoriteService.isLiked(media).whenComplete((isLiked, throwable) -> {
+            if (throwable == null) {
+                if (isLiked) {
+                    favoriteService.removeFromFavorites(media);
+                } else {
+                    favoriteService.addToFavorites(media);
+                }
+            } else {
+                log.error("Failed to retrieve is liked", throwable);
+            }
+        });
     }
 
     private void toggleWatchedState() {
-        if (watchedService.isWatched(media)) {
-            watchedService.removeFromWatchList(media);
-        } else {
-            watchedService.addToWatchList(media);
-        }
+        watchedService.isWatched(media).whenComplete((watched, throwable) -> {
+            if (throwable == null) {
+                if (watched) {
+                    watchedService.removeFromWatchList(media);
+                } else {
+                    watchedService.addToWatchList(media);
+                }
+            } else {
+                log.error("Failed to retrieve is watched", throwable);
+            }
+        });
     }
 
     private void updateLikedState(boolean newState) {

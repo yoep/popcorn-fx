@@ -43,16 +43,15 @@ It is however possible to interact with `.torrent` metadata through the `Torrent
 
 _Create a new session_
 ```rust
-use tokio::runtime::Runtime;
-use popcorn_fx_torrents::torrents::{DefaultSession, Session};
+use popcorn_fx_torrents::torrents::{FxTorrentSession, Session};
 
-fn main() {
-  let runtime = Arc::new(Runtime::new().unwrap());
-  // it's recommended, but not required, to provide a shared runtime
-  let session: Session = DefaultSession::builder()
+// The fx-torrent crate makes use of async tokio runtimes
+// this requires that new sessions and torrents need to be created within an async context
+#[tokio::main]
+async fn main() {
+  let session: Session = FxTorrentSession::builder()
     .base_path("/torrent/location/directory")
     .client_name("MyClient")
-    .runtime(shared_runtime)
     .build();
 }
 ```

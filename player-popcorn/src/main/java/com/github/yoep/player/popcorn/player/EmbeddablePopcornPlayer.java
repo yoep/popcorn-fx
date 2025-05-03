@@ -1,23 +1,20 @@
 package com.github.yoep.player.popcorn.player;
 
-import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
-import com.github.yoep.popcorn.backend.adapters.player.embaddable.EmbeddablePlayer;
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
-import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
 import com.github.yoep.popcorn.ui.view.ViewLoader;
 import javafx.scene.Node;
-import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.InputStream;
+import java.util.Objects;
 import java.util.Optional;
 
 @Slf4j
-@EqualsAndHashCode(exclude = "embeddablePlayer", callSuper = false)
 @ToString(exclude = "embeddablePlayer")
-public class EmbeddablePopcornPlayer implements EmbeddablePlayer {
+public class EmbeddablePopcornPlayer implements com.github.yoep.popcorn.backend.adapters.player.Player {
     static final String PLAYER_SECTION_VIEW = "common/popcorn/sections/popcorn-player.section.fxml";
 
     private final PlayerManagerService playerService;
@@ -56,13 +53,18 @@ public class EmbeddablePopcornPlayer implements EmbeddablePlayer {
     }
 
     @Override
-    public PlayerState getState() {
+    public Player.State getState() {
         return popcornPlayer.getState();
     }
 
     @Override
     public boolean isEmbeddedPlaybackSupported() {
         return true;
+    }
+
+    @Override
+    public Optional<Node> getEmbeddedPlayer() {
+        return Optional.ofNullable(embeddablePlayer);
     }
 
     @Override
@@ -81,7 +83,7 @@ public class EmbeddablePopcornPlayer implements EmbeddablePlayer {
     }
 
     @Override
-    public void play(PlayRequest request) {
+    public void play(Player.PlayRequest request) {
         popcornPlayer.play(request);
     }
 
@@ -116,8 +118,15 @@ public class EmbeddablePopcornPlayer implements EmbeddablePlayer {
     }
 
     @Override
-    public Node getEmbeddedPlayer() {
-        return embeddablePlayer;
+    public final boolean equals(Object o) {
+        if (!(o instanceof com.github.yoep.popcorn.backend.adapters.player.Player that)) return false;
+
+        return Objects.equals(getId(), that.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(getId());
     }
 
     //endregion
@@ -136,8 +145,14 @@ public class EmbeddablePopcornPlayer implements EmbeddablePlayer {
 
     private void registerPlayer() {
         log.trace("Registering the embedded Popcorn Time player");
-        playerService.register(this);
-        playerService.setActivePlayer(this);
+        playerService.register(this).thenAccept(response -> {
+            if (response) {
+                log.debug("Registered embeddable Popcorn Time player");
+                playerService.setActivePlayer(this);
+            } else {
+                log.error("Failed to register embeddable Popcorn Time player");
+            }
+        });
     }
 
     //endregion

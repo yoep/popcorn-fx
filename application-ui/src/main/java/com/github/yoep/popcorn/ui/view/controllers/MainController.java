@@ -2,8 +2,7 @@ package com.github.yoep.popcorn.ui.view.controllers;
 
 import com.github.yoep.popcorn.backend.adapters.platform.PlatformProvider;
 import com.github.yoep.popcorn.backend.events.*;
-import com.github.yoep.popcorn.backend.playlists.model.Playlist;
-import com.github.yoep.popcorn.backend.playlists.model.PlaylistItem;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Playlist;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.ui.ApplicationArgs;
@@ -227,10 +226,12 @@ public class MainController extends PopcornScaleAware implements Initializable {
         var file = files.get(0);
         var title = FilenameUtils.getBaseName(file.getName());
 
-        var playlist = new Playlist(PlaylistItem.builder()
-                .url(file.getAbsolutePath())
-                .title(title)
-                .build());
+        var playlist = Playlist.newBuilder()
+                .addItems(Playlist.Item.newBuilder()
+                        .setUrl(file.getAbsolutePath())
+                        .setTitle(title)
+                        .build())
+                .build();
         playlistManager.play(playlist);
     }
 

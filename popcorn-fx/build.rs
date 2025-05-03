@@ -1,27 +1,40 @@
 use std::env;
-use std::path::PathBuf;
 
-use cbindgen::Config;
+use protobuf_codegen::{Codegen, Customize};
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=src/lib.rs");
-    println!("cargo:rerun-if-changed=src/ffi/mod.rs");
-    println!("cargo:rerun-if-changed=src/ffi/mappings/mod.rs");
     println!("cargo:rerun-if-changed=../Cargo.lock");
-    println!("cargo:rerun-if-changed=../cbindgen.toml");
+    println!("cargo:rerun-if-env-changed=GENERATE_PROTO");
+    println!("cargo:rerun-if-changed=protobuf/*.proto");
 
-    let crate_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
-    let package_name = env::var("CARGO_PKG_NAME").unwrap();
-    let output_file = PathBuf::from(&crate_dir)
-        .join("../include/")
-        .join(format!("{}.hpp", package_name))
-        .display()
-        .to_string();
-    let config = Config::from_file("../cbindgen.toml").unwrap();
-
-    println!("Writing headers to {}", &output_file);
-    cbindgen::generate_with_config(&crate_dir, config)
-        .unwrap()
-        .write_to_file(&output_file);
+    let generate_proto = env::var("GENERATE_PROTO").unwrap_or_else(|_| "false".to_string());
+    if generate_proto == "true" {
+        Codegen::new()
+            .out_dir("src/ipc/proto")
+            .includes(["../protobuf"])
+            .inputs([
+                "../protobuf/application.proto",
+                "../protobuf/events.proto",
+                "../protobuf/favorites.proto",
+                "../protobuf/images.proto",
+                "../protobuf/loader.proto",
+                "../protobuf/log.proto",
+                "../protobuf/media.proto",
+                "../protobuf/message.proto",
+                "../protobuf/playback.proto",
+                "../protobuf/player.proto",
+                "../protobuf/playlist.proto",
+                "../protobuf/settings.proto",
+                "../protobuf/subtitle.proto",
+                "../protobuf/torrent.proto",
+                "../protobuf/tracking.proto",
+                "../protobuf/update.proto",
+                "../protobuf/watched.proto",
+            ])
+            .customize(Customize::default().lite_runtime(true).gen_mod_rs(true))
+            .run()
+            .expect("protoc");
+    }
 }

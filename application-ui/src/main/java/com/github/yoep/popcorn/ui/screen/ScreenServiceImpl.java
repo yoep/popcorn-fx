@@ -1,12 +1,9 @@
 package com.github.yoep.popcorn.ui.screen;
 
-import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.PopcornFx;
-import com.github.yoep.popcorn.backend.adapters.screen.FullscreenCallback;
-import com.github.yoep.popcorn.backend.adapters.screen.IsFullscreenCallback;
 import com.github.yoep.popcorn.backend.adapters.screen.ScreenService;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
+import com.github.yoep.popcorn.backend.lib.FxChannel;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.ui.view.ViewManager;
 import com.github.yoep.popcorn.ui.view.services.MaximizeService;
@@ -19,6 +16,8 @@ import javafx.scene.input.KeyCombination;
 import javafx.stage.Stage;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.Objects;
+
 @Slf4j
 public class ScreenServiceImpl implements ScreenService {
     public static final String FULLSCREEN_PROPERTY = "fullscreen";
@@ -27,23 +26,24 @@ public class ScreenServiceImpl implements ScreenService {
     private final ApplicationConfig applicationConfig;
     private final EventPublisher eventPublisher;
     private final MaximizeService maximizeService;
-    private final FxLib fxLib;
-    private final PopcornFx instance;
+    private final FxChannel fxChannel;
 
     private final BooleanProperty fullscreen = new SimpleBooleanProperty(this, FULLSCREEN_PROPERTY, false);
-    private final IsFullscreenCallback isFullscreenCallback = createIsFullscreenCallback();
-    private final FullscreenCallback fullscreenCallback = createFullscreenCallback();
 
     private Stage primaryStage;
     private long lastChange;
 
-    public ScreenServiceImpl(ViewManager viewManager, ApplicationConfig applicationConfig, EventPublisher eventPublisher, MaximizeService maximizeService, FxLib fxLib, PopcornFx instance) {
+    public ScreenServiceImpl(ViewManager viewManager, ApplicationConfig applicationConfig, EventPublisher eventPublisher, MaximizeService maximizeService, FxChannel fxChannel) {
+        Objects.requireNonNull(viewManager, "viewManager cannot be null");
+        Objects.requireNonNull(applicationConfig, "applicationConfig cannot be null");
+        Objects.requireNonNull(eventPublisher, "eventPublisher cannot be null");
+        Objects.requireNonNull(maximizeService, "maximizeService cannot be null");
+        Objects.requireNonNull(fxChannel, "fxChannel cannot be null");
         this.viewManager = viewManager;
         this.applicationConfig = applicationConfig;
         this.eventPublisher = eventPublisher;
         this.maximizeService = maximizeService;
-        this.fxLib = fxLib;
-        this.instance = instance;
+        this.fxChannel = fxChannel;
         init();
     }
 
@@ -95,8 +95,9 @@ public class ScreenServiceImpl implements ScreenService {
             }
             return event;
         });
-        fxLib.register_is_fullscreen_callback(instance, isFullscreenCallback);
-        fxLib.register_fullscreen_callback(instance, fullscreenCallback);
+        // TODO
+//        fxLib.register_is_fullscreen_callback(instance, isFullscreenCallback);
+//        fxLib.register_fullscreen_callback(instance, fullscreenCallback);
     }
 
     private void initializeViewManagerListeners() {
@@ -123,14 +124,6 @@ public class ScreenServiceImpl implements ScreenService {
 
         fullscreen.bind(primaryStage.fullScreenProperty());
         fullscreen.addListener((observable, oldValue, newValue) -> lastChange = System.currentTimeMillis());
-    }
-
-    private IsFullscreenCallback createIsFullscreenCallback() {
-        return () -> (byte) (isFullscreen() ? 1 : 0);
-    }
-
-    private FullscreenCallback createFullscreenCallback() {
-        return activateFullscreen -> fullscreen(activateFullscreen == 1);
     }
 
     //endregion

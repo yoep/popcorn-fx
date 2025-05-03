@@ -27,9 +27,9 @@ mod tests {
     #[test]
     fn test_transcode_error_initialization() {
         let error = TranscodeError::Initialization("lorem ipsum".to_string());
-        
+
         let result = error.to_string();
-        
+
         assert_eq!("transcoder failed to initialize: lorem ipsum", result);
     }
 }

@@ -1,65 +1,113 @@
 package com.github.yoep.popcorn.backend.media.watched;
 
-import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.PopcornFx;
-import com.github.yoep.popcorn.backend.lib.FxStringArray;
-import com.github.yoep.popcorn.backend.media.MediaItem;
-import com.github.yoep.popcorn.backend.media.providers.ShowOverview;
+import com.github.yoep.popcorn.backend.lib.FxCallback;
+import com.github.yoep.popcorn.backend.lib.FxChannel;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.*;
+import com.github.yoep.popcorn.backend.media.MovieOverview;
+import com.google.protobuf.Parser;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import static java.util.Arrays.asList;
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class WatchedServiceTest {
     @Mock
-    private FxLib fxLib;
-    @Mock
-    private PopcornFx instance;
-    @InjectMocks
+    private FxChannel fxChannel;
     private WatchedService service;
+
+    private final AtomicReference<FxCallback<WatchedEvent>> subscriptionHolder = new AtomicReference<>();
+
+    @BeforeEach
+    void setUp() {
+        doAnswer(invocations -> {
+            subscriptionHolder.set((FxCallback<WatchedEvent>) invocations.getArgument(2, FxCallback.class));
+            return null;
+        }).when(fxChannel).subscribe(eq(FxChannel.typeFrom(WatchedEvent.class)), isA(Parser.class), isA(FxCallback.class));
+
+        service = new WatchedService(fxChannel);
+    }
 
     @Test
     void testIsWatched() {
-        var imdbId = "tt0000132";
-        var media = new ShowOverview.ByReference();
-        media.imdbId = imdbId;
-        var mediaItem = MediaItem.from(media);
-        when(fxLib.is_media_watched(instance, mediaItem)).thenReturn((byte) 1);
+        var media = new MovieOverview(createMedia());
+        var request = new AtomicReference<GetIsWatchedRequest>();
+        when(fxChannel.send(isA(GetIsWatchedRequest.class), isA(Parser.class))).thenAnswer(invocations -> {
+            request.set(invocations.getArgument(0, GetIsWatchedRequest.class));
+            return CompletableFuture.completedFuture(GetIsWatchedResponse.newBuilder()
+                    .setIsWatched(true)
+                    .build());
+        });
 
-        var result = service.isWatched(media);
+        var result = service.isWatched(media).resultNow();
 
-        assertTrue(result);
+        verify(fxChannel).send(isA(GetIsWatchedRequest.class), isA(Parser.class));
+        assertEquals("tt1888000", request.get().getItem().getMovieOverview().getImdbId());
+        assertTrue(result, "expected the media item to have been watched");
     }
 
     @Test
-    void testGetWatchedMovies() {
-        var movies = mock(FxStringArray.ByReference.class);
-        var expectedResult = asList("tt1111", "tt2222");
-        when(movies.values()).thenReturn(expectedResult);
-        when(fxLib.retrieve_watched_movies(instance)).thenReturn(movies);
+    void testAddToWatchlist() {
+        var media = new MovieOverview(createMedia());
+        var request = new AtomicReference<AddToWatchlistRequest>();
+        when(fxChannel.send(isA(AddToWatchlistRequest.class), isA(Parser.class))).thenAnswer(invocations -> {
+            request.set(invocations.getArgument(0, AddToWatchlistRequest.class));
+            return CompletableFuture.completedFuture(AddToWatchlistResponse.newBuilder()
+                    .setResult(Response.Result.OK)
+                    .build());
+        });
 
-        var result = service.getWatchedMovies();
+        service.addToWatchList(media);
 
-        assertArrayEquals(expectedResult.toArray(), result.toArray());
+        verify(fxChannel).send(isA(AddToWatchlistRequest.class), isA(Parser.class));
+        assertEquals("tt1888000", request.get().getItem().getMovieOverview().getImdbId());
     }
 
     @Test
-    void testGetWatchedShows() {
-        var shows = mock(FxStringArray.ByReference.class);
-        var expectedResult = asList("tt7410", "tt8520");
-        when(shows.values()).thenReturn(expectedResult);
-        when(fxLib.retrieve_watched_shows(instance)).thenReturn(shows);
+    void testRemoveFromWatchlist() {
+        var media = new MovieOverview(createMedia());
+        var request = new AtomicReference<RemoveFromWatchlistRequest>();
+        doAnswer(invocations -> {
+            request.set(invocations.getArgument(0, RemoveFromWatchlistRequest.class));
+            return null;
+        }).when(fxChannel).send(isA(RemoveFromWatchlistRequest.class));
 
-        var result = service.getWatchedShows();
+        service.removeFromWatchList(media);
 
-        assertArrayEquals(expectedResult.toArray(), result.toArray());
+        verify(fxChannel).send(isA(RemoveFromWatchlistRequest.class));
+        assertEquals("tt1888000", request.get().getItem().getMovieOverview().getImdbId());
+    }
+
+    @Test
+    void testOnWatchedStateChanged() {
+        var watchedStateChanged = WatchedEvent.WatchedStateChanged.newBuilder()
+                .setImdbId("tt00000001")
+                .setNewState(true)
+                .build();
+        var event = WatchedEvent.newBuilder()
+                .setEvent(WatchedEvent.Event.STATE_CHANGED)
+                .setWatchedStateChanged(watchedStateChanged)
+                .build();
+        var listener = mock(WatchedEventListener.class);
+
+        service.addListener(listener);
+        subscriptionHolder.get().callback(event);
+
+        verify(listener).onWatchedStateChanged(watchedStateChanged);
+    }
+
+    private static Media.MovieOverview createMedia() {
+        return Media.MovieOverview.newBuilder()
+                .setImdbId("tt1888000")
+                .setTitle("Lorem")
+                .build();
     }
 }

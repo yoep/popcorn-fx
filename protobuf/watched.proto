@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+option optimize_for = LITE_RUNTIME;
+option java_multiple_files = true;
+option java_package = "com.github.yoep.popcorn.backend.lib.ipc.protobuf";
+
+package fx.ipc.proto;
+
+import "media.proto";
+import "message.proto";
+
+message GetIsWatchedRequest {
+  Media.Item item = 1;
+}
+
+message GetIsWatchedResponse {
+  bool is_watched = 1;
+}
+
+message AddToWatchlistRequest {
+  Media.Item item = 1;
+}
+
+message AddToWatchlistResponse {
+  Response.Result result = 1;
+  optional Media.Error error = 2;
+}
+
+message RemoveFromWatchlistRequest {
+  Media.Item item = 1;
+}
+
+message WatchedEvent {
+  Event event = 1;
+  optional WatchedStateChanged watched_state_changed = 2;
+  
+  message WatchedStateChanged {
+    string imdb_id = 1;
+    bool new_state = 2;
+  }
+  
+  enum Event {
+    STATE_CHANGED = 0;
+  }
+}

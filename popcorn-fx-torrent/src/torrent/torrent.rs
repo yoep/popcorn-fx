@@ -126,7 +126,6 @@ impl Default for TorrentFlags {
 }
 
 /// The states of the torrent
-#[repr(u8)]
 #[derive(Debug, Display, Copy, Clone, PartialEq)]
 pub enum TorrentState {
     /// The torrent is being initialized
@@ -2794,6 +2793,7 @@ impl TorrentContext {
                         );
                         // reset the pending piece to be retried
                         self.pending_piece_requests.write().await.remove(&piece);
+                        self.stats.write().await.total_wasted += data_size;
                     }
                 }
             } else {
@@ -3147,7 +3147,7 @@ impl TorrentContext {
         );
         for file in files {
             let filepath = file.torrent_path.as_path();
-            if let Some(file_range) = file.io_applicable_bytes(&torrent_range) {
+            if let Some(file_range) = file.io_applicable_byte_range(&torrent_range) {
                 trace!(
                     "Torrent {} is reading {:?} bytes from file {:?}",
                     self,
@@ -3262,58 +3262,60 @@ impl TorrentContext {
                 continue;
             }
 
-            if let Some(file_range) = file.io_applicable_bytes(&piece.torrent_range()) {
-                let data_len = data.len();
-                let file_range_len = file_range.len();
-                if data_len > file_range_len {
-                    error!(
-                        "Torrent {} data range is out of bounds for piece {}, data size: {}, file bytes {:?} (len {})",
-                        self,
-                        piece_index,
-                        data.len(),
-                        file_range,
-                        file_range.len()
-                    );
-                    continue;
-                }
-
-                let file_data_bytes =
-                    file_range.start - piece.offset..file_range.end - piece.offset;
-                let start_time = Instant::now();
-                match self
-                    .storage
-                    .write(&file.torrent_path, file_range.start, &data[file_data_bytes])
-                    .await
-                {
-                    Ok(_) => {
-                        let elapsed = start_time.elapsed();
-                        let path = PathBuf::from(self.storage.path()).join(file.torrent_path);
-                        trace!(
-                            "Torrent {} wrote piece {} data (size {}) to {:?} in {}.{:03}ms",
-                            self,
-                            piece.index,
-                            file_range_len,
-                            path,
-                            elapsed.as_millis(),
-                            elapsed.subsec_micros() % 1000
-                        )
-                    }
-                    Err(e) => {
+            if let Some(applicable_bytes) =
+                file.torrent_applicable_bytes(&piece.torrent_range(), data.as_slice())
+            {
+                if let Some(file_io_range) = file.io_applicable_byte_range(&piece.torrent_range()) {
+                    if applicable_bytes.len() != file_io_range.len() {
                         error!(
-                            "Torrent {} failed to write piece {} data (size {}), {}",
-                            self, piece_index, data_len, e
+                            "Torrent {} data is mismatching with file io range for piece {}, piece ({:?}), file ({:?})",
+                            self,
+                            piece_index,
+                            piece.torrent_range(),
+                            file_io_range,
                         );
-                        self.update_state(TorrentState::Error).await;
-                        return Err(TorrentError::Io(e.to_string()));
+                        continue;
                     }
+
+                    let start_time = Instant::now();
+                    match self
+                        .storage
+                        .write(&file.torrent_path, file_io_range.start, applicable_bytes)
+                        .await
+                    {
+                        Ok(_) => {
+                            let elapsed = start_time.elapsed();
+                            let path = PathBuf::from(self.storage.path()).join(file.torrent_path);
+                            trace!(
+                                "Torrent {} wrote piece {} data (size {}) to {:?} in {}.{:03}ms",
+                                self,
+                                piece.index,
+                                file_io_range.len(),
+                                path,
+                                elapsed.as_millis(),
+                                elapsed.subsec_micros() % 1000
+                            )
+                        }
+                        Err(e) => {
+                            error!(
+                                "Torrent {} failed to write piece {} data (size {}), {}",
+                                self,
+                                piece_index,
+                                data.len(),
+                                e
+                            );
+                            self.update_state(TorrentState::Error).await;
+                            return Err(TorrentError::Io(e.to_string()));
+                        }
+                    }
+                } else {
+                    self.update_state(TorrentState::Error).await;
+                    return Err(TorrentError::Io(format!(
+                        "couldn't determine the correct file io byte range of {:?} for piece {}",
+                        piece.torrent_range(),
+                        piece_index
+                    )));
                 }
-            } else {
-                self.update_state(TorrentState::Error).await;
-                return Err(TorrentError::Io(format!(
-                    "couldn't determine the correct file io byte range of {:?} for piece {}",
-                    piece.torrent_range(),
-                    piece_index
-                )));
             }
         }
 

@@ -3,15 +3,14 @@ package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
-import com.github.yoep.popcorn.backend.media.providers.Images;
-import com.github.yoep.popcorn.backend.media.providers.MovieDetails;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Playlist;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Subtitle;
+import com.github.yoep.popcorn.backend.media.MovieDetails;
 import com.github.yoep.popcorn.backend.player.PlayerManagerListener;
-import com.github.yoep.popcorn.backend.playlists.model.Playlist;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
-import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
-import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
-import com.github.yoep.popcorn.backend.subtitles.model.SubtitleFile;
-import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
+import com.github.yoep.popcorn.backend.subtitles.SubtitleInfoWrapper;
+import com.github.yoep.popcorn.backend.subtitles.ISubtitleService;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.view.controls.LanguageFlagSelection;
 import com.github.yoep.popcorn.ui.view.controls.PlayerDropDownButton;
@@ -31,6 +30,8 @@ import org.testfx.framework.junit5.ApplicationExtension;
 import org.testfx.util.WaitForAsyncUtils;
 
 import java.net.URL;
+import java.util.Collections;
+import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 
@@ -39,16 +40,16 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
 class DesktopMovieActionsComponentTest {
+    @Spy
+    private EventPublisher eventPublisher = new EventPublisher(false);
     @Mock
     private PlaylistManager playlistManager;
     @Mock
     private PlayerManagerService playerManager;
-    @Spy
-    private EventPublisher eventPublisher = new EventPublisher(false);
     @Mock
     private LocaleText localeText;
     @Mock
-    private SubtitleService subtitleService;
+    private ISubtitleService subtitleService;
     @Mock
     private DetailsComponentService detailsComponentService;
     @Mock
@@ -57,18 +58,22 @@ class DesktopMovieActionsComponentTest {
     private URL url;
     @Mock
     private ResourceBundle resourceBundle;
-    @Mock
-    private SubtitleInfo subtitleNone;
     @InjectMocks
     private DesktopMovieActionsComponent component;
 
     @BeforeEach
     void setUp() {
         lenient().when(subtitleService.retrieveSubtitles(isA(MovieDetails.class))).thenReturn(new CompletableFuture<>());
-        lenient().when(subtitleService.none()).thenReturn(subtitleNone);
-        lenient().when(subtitleService.custom()).thenReturn(mock(SubtitleInfo.class));
-        lenient().when(subtitleNone.language()).thenReturn(SubtitleLanguage.NONE);
-        lenient().when(subtitleNone.getFlagResource()).thenReturn("");
+        lenient().when(subtitleService.defaultSubtitles()).thenReturn(CompletableFuture.completedFuture(asList(
+                new SubtitleInfoWrapper(Subtitle.Info.newBuilder()
+                        .setLanguage(Subtitle.Language.NONE)
+                        .build()),
+                new SubtitleInfoWrapper(Subtitle.Info.newBuilder()
+                        .setLanguage(Subtitle.Language.CUSTOM)
+                        .build())
+        )));
+        when(playerManager.getPlayers()).thenReturn(CompletableFuture.completedFuture(Collections.emptyList()));
+        when(playerManager.getActivePlayer()).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
 
         component.watchNowButton = new PlayerDropDownButton();
         component.watchTrailerButton = new Button();
@@ -112,32 +117,30 @@ class DesktopMovieActionsComponentTest {
 
     @Test
     void testLanguageSelectionChanged() {
-        var none = SubtitleInfo.builder()
-                .imdbId(null)
-                .language(SubtitleLanguage.NONE)
-                .files(new SubtitleFile[0])
-                .build();
-        var english = SubtitleInfo.builder()
-                .imdbId("tt1122")
-                .language(SubtitleLanguage.ENGLISH)
-                .files(new SubtitleFile[0])
-                .build();
-        var german = SubtitleInfo.builder()
-                .imdbId("tt1122")
-                .language(SubtitleLanguage.GERMAN)
-                .files(new SubtitleFile[0])
-                .build();
-        var media = mock(MovieDetails.class);
-        var languages = asList(none, english, german);
-        when(subtitleService.retrieveSubtitles(isA(MovieDetails.class))).thenReturn(CompletableFuture.completedFuture(languages));
-        when(subtitleService.getDefaultOrInterfaceLanguage(languages)).thenReturn(german);
+        var english = new SubtitleInfoWrapper(Subtitle.Info.newBuilder()
+                .setImdbId("tt1122")
+                .setLanguage(Subtitle.Language.ENGLISH)
+                .build());
+        var german = new SubtitleInfoWrapper(Subtitle.Info.newBuilder()
+                .setImdbId("tt1122")
+                .setLanguage(Subtitle.Language.GERMAN)
+                .build());
+        var media = new MovieDetails(Media.MovieDetails.newBuilder()
+                .setImdbId("tt100000")
+                .build());
+        when(subtitleService.retrieveSubtitles(media)).thenReturn(CompletableFuture.completedFuture(asList(
+                english, german
+        )));
         component.initialize(url, resourceBundle);
+
         eventPublisher.publish(new ShowMovieDetailsEvent(this, media));
         WaitForAsyncUtils.waitForFxEvents();
 
         component.languageSelection.select(english);
+        WaitForAsyncUtils.waitForFxEvents();
 
-        verify(subtitleService).updateSubtitle(english);
+        verify(subtitleService).retrieveSubtitles(media);
+        verify(subtitleService).updatePreferredLanguage(english.proto().getLanguage());
     }
 
     @Test
@@ -145,11 +148,13 @@ class DesktopMovieActionsComponentTest {
         var trailer = "my-movie-trailer";
         var title = "lorem ipsum";
         var event = mock(MouseEvent.class);
-        var media = MovieDetails.builder()
-                .title(title)
-                .trailer(trailer)
-                .images(Images.builder().build())
-                .build();
+        var media = new MovieDetails(Media.MovieDetails.newBuilder()
+                .setTitle(title)
+                .setTrailer(trailer)
+                .setImages(Media.Images.newBuilder()
+                        .setPoster("http://localhost:8076/poster.jpg")
+                        .build())
+                .build());
         component.initialize(url, resourceBundle);
         eventPublisher.publish(new ShowMovieDetailsEvent(this, media));
 

@@ -1,11 +1,8 @@
 package com.github.yoep.popcorn.ui.screen;
 
-import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.PopcornFx;
-import com.github.yoep.popcorn.backend.adapters.screen.FullscreenCallback;
-import com.github.yoep.popcorn.backend.adapters.screen.IsFullscreenCallback;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
+import com.github.yoep.popcorn.backend.lib.FxChannel;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.ui.view.ViewManager;
 import com.github.yoep.popcorn.ui.view.services.MaximizeService;
@@ -41,9 +38,7 @@ class ScreenServiceImplTest {
     @Mock
     private MaximizeService maximizeService;
     @Mock
-    private FxLib fxLib;
-    @Mock
-    private PopcornFx instance;
+    private FxChannel fxChannel;
     @Spy
     private EventPublisher eventPublisher = new EventPublisher(false);
     @Mock
@@ -63,10 +58,8 @@ class ScreenServiceImplTest {
 
     @Test
     void testInit() {
-        var service = new ScreenServiceImpl(viewManager, applicationConfig, eventPublisher, maximizeService, fxLib, instance);
+        var service = new ScreenServiceImpl(viewManager, applicationConfig, eventPublisher, maximizeService, fxChannel);
 
-        verify(fxLib).register_fullscreen_callback(eq(instance), isA(FullscreenCallback.class));
-        verify(fxLib).register_is_fullscreen_callback(eq(instance), isA(IsFullscreenCallback.class));
         verify(eventPublisher).register(eq(PlayerStoppedEvent.class), isA(Function.class));
     }
 
@@ -81,7 +74,7 @@ class ScreenServiceImplTest {
         when(viewManager.primaryStageProperty()).thenReturn(primaryStageProperty);
         when(primaryStage.fullScreenProperty()).thenReturn(fullscreenProperty);
         when(applicationConfig.isKioskMode()).thenReturn(false);
-        var screenService = new ScreenServiceImpl(viewManager, applicationConfig, eventPublisher, maximizeService, fxLib, instance);
+        var screenService = new ScreenServiceImpl(viewManager, applicationConfig, eventPublisher, maximizeService, fxChannel);
         screenService.fullscreenProperty().addListener((observable, oldValue, newValue) -> future.complete(newValue));
 
         primaryStageListener.get().changed(null, null, primaryStage);
@@ -97,7 +90,7 @@ class ScreenServiceImplTest {
         when(viewManager.primaryStageProperty()).thenReturn(primaryStageProperty);
         when(primaryStage.fullScreenProperty()).thenReturn(fullscreenProperty);
         when(applicationConfig.isKioskMode()).thenReturn(true);
-        var screenService = new ScreenServiceImpl(viewManager, applicationConfig, eventPublisher, maximizeService, fxLib, instance);
+        var screenService = new ScreenServiceImpl(viewManager, applicationConfig, eventPublisher, maximizeService, fxChannel);
 
         primaryStageListener.get().changed(null, null, primaryStage);
 

@@ -1,7 +1,8 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
-import com.github.yoep.popcorn.backend.media.providers.Media;
+import com.github.yoep.popcorn.backend.media.Media;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.image.Image;
@@ -43,27 +44,26 @@ public abstract class AbstractCardComponent implements Initializable {
     }
 
     protected void initializeImage() {
-        setPosterHolderImage();
+        // use the post holder as the default image while the media image is being loaded
+        imageService.getPosterPlaceholder(POSTER_WIDTH, POSTER_HEIGHT)
+                .whenComplete((posterPlaceholder, throwable) -> {
+                    if (throwable == null) {
+                        setBackgroundImage(posterPlaceholder, false);
 
-        var loadPosterFuture = imageService.loadPoster(media, POSTER_WIDTH, POSTER_HEIGHT);
-        handlePosterLoadFuture(loadPosterFuture);
-    }
-
-    protected void setPosterHolderImage() {
-        try {
-            // use the post holder as the default image while the media image is being loaded
-            setBackgroundImage(imageService.getPosterPlaceholder(POSTER_WIDTH, POSTER_HEIGHT), false);
-        } catch (Exception ex) {
-            log.error(ex.getMessage(), ex);
-        }
+                        var loadPosterFuture = imageService.loadPoster(media, POSTER_WIDTH, POSTER_HEIGHT);
+                        handlePosterLoadFuture(loadPosterFuture);
+                    } else {
+                        log.error("Failed to load poster placeholder image", throwable);
+                    }
+                });
     }
 
     protected void handlePosterLoadFuture(CompletableFuture<Optional<Image>> loadPosterFuture) {
         loadPosterFuture.whenComplete((image, throwable) -> {
             if (throwable == null) {
-                image.ifPresent(e -> setBackgroundImage(e, true));
+                image.ifPresent(e -> Platform.runLater(() -> setBackgroundImage(e, true)));
             } else {
-                log.error(throwable.getMessage(), throwable);
+                log.error("Failed to load poster image, {}", throwable.getMessage(), throwable);
             }
         });
     }

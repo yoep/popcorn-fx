@@ -1,10 +1,9 @@
 package com.github.yoep.popcorn.ui.view.services;
 
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
-import com.github.yoep.popcorn.backend.media.providers.Images;
-import com.github.yoep.popcorn.backend.media.providers.Media;
-import com.github.yoep.popcorn.backend.media.providers.MovieDetails;
-import com.github.yoep.popcorn.backend.media.providers.ShowDetails;
+import com.github.yoep.popcorn.backend.media.Media;
+import com.github.yoep.popcorn.backend.media.MovieDetails;
+import com.github.yoep.popcorn.backend.media.ShowDetails;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import org.junit.jupiter.api.Test;
@@ -12,6 +11,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -30,13 +31,13 @@ class DetailsComponentServiceTest {
 
     @Test
     void testIsWatched_whenInvoked_shouldPassMediaItemToWatchedService() {
-        var media = MovieDetails.builder()
-                .images(new Images())
-                .build();
+        var media = new MovieDetails(com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media.MovieDetails.newBuilder()
+                .setImages(com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media.Images.newBuilder().build())
+                .build());
         var expectedResult = true;
-        when(watchedService.isWatched(media)).thenReturn(expectedResult);
+        when(watchedService.isWatched(media)).thenReturn(CompletableFuture.completedFuture(expectedResult));
 
-        var result = service.isWatched(media);
+        var result = service.isWatched(media).resultNow();
 
         verify(watchedService).isWatched(media);
         assertEquals(expectedResult, result);
@@ -44,13 +45,13 @@ class DetailsComponentServiceTest {
 
     @Test
     void testIsLiked_whenInvoked_shouldPassMediaItemToFavoriteService() {
-        var media = MovieDetails.builder()
-                .images(new Images())
-                .build();
+        var media = new MovieDetails(com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media.MovieDetails.newBuilder()
+                .setImages(com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media.Images.newBuilder().build())
+                .build());
         var expectedResult = false;
-        when(favoriteService.isLiked(media)).thenReturn(expectedResult);
+        when(favoriteService.isLiked(media)).thenReturn(CompletableFuture.completedFuture(expectedResult));
 
-        var result = service.isLiked(media);
+        var result = service.isLiked(media).resultNow();
 
         verify(favoriteService).isLiked(media);
         assertEquals(expectedResult, result);
@@ -76,19 +77,20 @@ class DetailsComponentServiceTest {
 
     @Test
     void testToggleWatchedState_whenLastItemIsKnownAndStateIsNotSeen_shouldAddToWatchlist() {
-        var movie = MovieDetails.builder()
-                .images(new Images())
-                .build();
+        var media = new MovieDetails(com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media.MovieDetails.newBuilder()
+                .setImages(com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media.Images.newBuilder().build())
+                .build());
+        when(watchedService.isWatched(media)).thenReturn(CompletableFuture.completedFuture(false));
 
-        service.toggleWatchedState(movie);
+        service.toggleWatchedState(media);
 
-        verify(watchedService).addToWatchList(movie);
+        verify(watchedService).addToWatchList(media);
     }
 
     @Test
     void testToggleLikedState_whenLastItemIsKnownAndStateIsUnliked_shouldAddToFavorites() {
         var show = mock(ShowDetails.class);
-        when(favoriteService.isLiked(show)).thenReturn(false);
+        when(favoriteService.isLiked(show)).thenReturn(CompletableFuture.completedFuture(false));
 
         service.toggleLikedState(show);
 
@@ -98,7 +100,7 @@ class DetailsComponentServiceTest {
     @Test
     void testToggleLikedState_whenLastItemIsKnownAndStateIsLiked_shouldRemoveFromFavorites() {
         var show = mock(ShowDetails.class);
-        when(favoriteService.isLiked(show)).thenReturn(true);
+        when(favoriteService.isLiked(show)).thenReturn(CompletableFuture.completedFuture(true));
 
         service.toggleLikedState(show);
 

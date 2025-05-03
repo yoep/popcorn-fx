@@ -1,31 +1,29 @@
 package com.github.yoep.popcorn.ui.view.services;
 
-import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.PopcornFx;
-import com.github.yoep.popcorn.backend.lib.ByteArray;
-import com.github.yoep.popcorn.backend.media.MediaItem;
-import com.github.yoep.popcorn.backend.media.providers.Media;
+import com.github.yoep.popcorn.backend.lib.FxChannel;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.*;
+import com.github.yoep.popcorn.backend.media.Media;
+import com.github.yoep.popcorn.backend.media.MediaHelper;
+import com.google.protobuf.ByteString;
 import javafx.scene.image.Image;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
 
 /**
  * Image service for loading external images over HTTP/HTTPS.
  * This image service selects the correct image from the {@link Media} items and will handle redirects automatically.
  */
 @Slf4j
-@RequiredArgsConstructor
 public class ImageService {
-    private final FxLib fxLib;
-    private final PopcornFx instance;
-    private final ExecutorService executorService;
+    private final FxChannel fxChannel;
+
+    public ImageService(FxChannel fxChannel) {
+        this.fxChannel = fxChannel;
+    }
 
     //region Methods
 
@@ -34,30 +32,30 @@ public class ImageService {
      *
      * @return Returns the poster holder image.
      */
-    public Image getPosterPlaceholder() {
+    public CompletableFuture<Image> getPosterPlaceholder() {
         return getPosterPlaceholder(0, 0);
     }
 
-    public Image getPosterPlaceholder(double requestedWidth, double requestedHeight) {
+    public CompletableFuture<Image> getPosterPlaceholder(double requestedWidth, double requestedHeight) {
         log.debug("Retrieving the poster placeholder");
-        try (var bytes = fxLib.poster_placeholder(instance)) {
-            return Optional.of(bytes)
-                    .map(ByteArray::getBytes)
-                    .map(ByteArrayInputStream::new)
-                    .map(e -> new Image(e, requestedWidth, requestedHeight, true, true))
-                    .get();
-        }
+        return fxChannel.send(GetPosterPlaceholderRequest.getDefaultInstance(), GetPosterPlaceholderResponse.parser())
+                .thenApply(response -> Optional.of(response)
+                        .map(GetPosterPlaceholderResponse::getImage)
+                        .map(com.github.yoep.popcorn.backend.lib.ipc.protobuf.Image::getData)
+                        .map(ByteString::newInput)
+                        .map(e -> new Image(e, requestedWidth, requestedHeight, true, true))
+                        .get());
     }
 
-    public Image getArtPlaceholder() {
+    public CompletableFuture<Image> getArtPlaceholder() {
         log.debug("Retrieving the artwork placeholder");
-        try (var bytes = fxLib.artwork_placeholder(instance)) {
-            return Optional.of(bytes)
-                    .map(ByteArray::getBytes)
-                    .map(ByteArrayInputStream::new)
-                    .map(Image::new)
-                    .get();
-        }
+        return fxChannel.send(GetArtworkPlaceholderRequest.getDefaultInstance(), GetArtworkPlaceholderResponse.parser())
+                .thenApply(response -> Optional.of(response)
+                        .map(GetArtworkPlaceholderResponse::getImage)
+                        .map(com.github.yoep.popcorn.backend.lib.ipc.protobuf.Image::getData)
+                        .map(ByteString::newInput)
+                        .map(Image::new)
+                        .get());
     }
 
     /**
@@ -69,18 +67,21 @@ public class ImageService {
      */
     public CompletableFuture<Optional<Image>> loadFanart(Media media) {
         Objects.requireNonNull(media, "media cannot be null");
-        return CompletableFuture.supplyAsync(() -> {
-            log.debug("Loading fanart image for {}", media);
-            try (var bytes = fxLib.load_fanart(instance, MediaItem.from(media))) {
-                return Optional.of(bytes)
-                        .map(ByteArray::getBytes)
-                        .map(ByteArrayInputStream::new)
-                        .map(Image::new);
-            } catch (Exception ex) {
-                log.error("Failed to load image, {}", ex.getMessage(), ex);
-                return Optional.empty();
-            }
-        }, executorService);
+        return fxChannel.send(GetFanartRequest.newBuilder()
+                        .setMedia(MediaHelper.getItem(media))
+                        .build(), GetFanartResponse.parser())
+                .thenApply(response -> {
+                    if (response.getResult() == Response.Result.OK) {
+                        return Optional.of(response)
+                                .map(GetFanartResponse::getImage)
+                                .map(com.github.yoep.popcorn.backend.lib.ipc.protobuf.Image::getData)
+                                .map(ByteString::newInput)
+                                .map(Image::new);
+                    } else {
+                        log.warn("Failed to load fanart, {}", response.getError());
+                        return Optional.empty();
+                    }
+                });
     }
 
     /**
@@ -106,18 +107,21 @@ public class ImageService {
      */
     public CompletableFuture<Optional<Image>> loadPoster(final Media media, final double width, final double height) {
         Objects.requireNonNull(media, "media cannot be null");
-        return CompletableFuture.supplyAsync(() -> {
-            log.debug("Loading the poster holder for {}", media);
-            try (var bytes = fxLib.load_poster(instance, MediaItem.from(media))) {
-                return Optional.of(bytes)
-                        .map(ByteArray::getBytes)
-                        .map(ByteArrayInputStream::new)
-                        .map(e -> new Image(e, width, height, true, true));
-            } catch (Exception ex) {
-                log.error("Failed to load image, {}", ex.getMessage(), ex);
-                return Optional.empty();
-            }
-        }, executorService);
+        return fxChannel.send(GetPosterRequest.newBuilder()
+                        .setMedia(MediaHelper.getItem(media))
+                        .build(), GetPosterResponse.parser())
+                .thenApply(response -> {
+                    if (response.getResult() == Response.Result.OK) {
+                        return Optional.of(response)
+                                .map(GetPosterResponse::getImage)
+                                .map(com.github.yoep.popcorn.backend.lib.ipc.protobuf.Image::getData)
+                                .map(ByteString::newInput)
+                                .map(Image::new);
+                    } else {
+                        log.warn("Failed to load poster, {}", response.getError());
+                        return Optional.empty();
+                    }
+                });
     }
 
     /**
@@ -129,15 +133,22 @@ public class ImageService {
      */
     public CompletableFuture<Image> load(String url) {
         Objects.requireNonNull(url, "url cannot be null");
-        return CompletableFuture.supplyAsync(() -> {
-            try (var bytes = fxLib.load_image(instance, url)) {
-                return Optional.ofNullable(bytes)
-                        .map(ByteArray::getBytes)
-                        .map(ByteArrayInputStream::new)
-                        .map(Image::new)
-                        .orElseThrow(() -> new ImageException(url, "Failed to load image data"));
-            }
-        }, executorService);
+        return fxChannel.send(GetImageRequest.newBuilder()
+                        .setUrl(url)
+                        .build(), GetImageResponse.parser())
+                .thenApply(response -> {
+                    if (response.getResult() == Response.Result.OK) {
+                        return Optional.of(response)
+                                .map(GetImageResponse::getImage)
+                                .map(com.github.yoep.popcorn.backend.lib.ipc.protobuf.Image::getData)
+                                .map(ByteString::newInput)
+                                .map(Image::new)
+                                .get();
+                    } else {
+                        log.warn("Failed to load image url \"{}\", {}", url, response.getError());
+                        throw new ImageException(url, "Failed to load image data");
+                    }
+                });
     }
 
     /**
@@ -157,7 +168,7 @@ public class ImageService {
             } catch (IOException ex) {
                 throw new ImageException(classpathUrl, ex.getMessage(), ex);
             }
-        }, executorService);
+        });
     }
 
     //endregion

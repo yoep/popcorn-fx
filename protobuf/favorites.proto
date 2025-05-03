@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+option optimize_for = LITE_RUNTIME;
+option java_multiple_files = true;
+option java_package = "com.github.yoep.popcorn.backend.lib.ipc.protobuf";
+
+package fx.ipc.proto;
+
+import "media.proto";
+import "message.proto";
+
+message GetIsLikedRequest {
+  Media.Item item = 1;
+}
+
+message GetIsLikedResponse {
+  bool is_liked = 2;
+}
+
+message AddFavoriteRequest {
+  Media.Item item = 1;
+}
+
+message AddFavoriteResponse {
+  Response.Result result = 1;
+  optional Media.Error error = 2;
+}
+
+message RemoveFavoriteRequest {
+  Media.Item item = 1;
+}
+
+message FavoriteEvent {
+  Event event = 1;
+  optional LikedStateChanged like_state_changed = 2;
+
+  message LikedStateChanged {
+    string imdb_id = 1;
+    bool is_liked = 2;
+  }
+
+  enum Event {
+    LIKED_STATE_CHANGED = 0;
+  }
+}

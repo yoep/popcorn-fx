@@ -67,9 +67,10 @@ const DEFAULT_PROVIDERS: fn() -> HashMap<String, ProviderProperties> = || {
             ProviderProperties {
                 uris: vec![
                     "https://shows.cf/".to_string(),
-                    "https://fusme.link".to_string(),
-                    "https://jfper.link".to_string(),
-                    "https://uxert.link".to_string(),
+                    "https://fusme.link/".to_string(),
+                    "https://jfper.link/".to_string(),
+                    "https://uxert.link/".to_string(),
+                    "https://yrkde.link/".to_string(),
                 ],
                 genres: vec![
                     "all".to_string(),
@@ -228,8 +229,8 @@ impl PopcornProperties {
 
     /// Retrieve the provider properties for the given name.
     /// It returns the properties when found, else the [ConfigError].
-    pub fn provider(&self, name: &str) -> config::Result<&ProviderProperties> {
-        let name = name.to_string();
+    pub fn provider<S: AsRef<str>>(&self, name: S) -> config::Result<&ProviderProperties> {
+        let name = name.as_ref().to_lowercase();
         self.providers
             .get(&name)
             .ok_or(ConfigError::UnknownProvider(name))

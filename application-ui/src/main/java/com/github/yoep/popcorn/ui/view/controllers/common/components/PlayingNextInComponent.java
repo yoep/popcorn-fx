@@ -1,37 +1,34 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
-import com.github.yoep.popcorn.backend.playlists.DefaultPlaylistManager;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Playlist;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
-import com.github.yoep.popcorn.backend.playlists.model.PlaylistItem;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManagerListener;
-import com.github.yoep.popcorn.backend.playlists.PlaylistState;
 import com.github.yoep.popcorn.ui.view.controls.SizedImageView;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
+import javafx.scene.image.Image;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.ResourceBundle;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
-
-@RequiredArgsConstructor
 public class PlayingNextInComponent implements Initializable {
     private final ImageService imageService;
     private final PlaylistManager playlistManager;
 
     private Long lastKnownPlayingIn;
-    private PlaylistItem lastKnownItem;
+    private Playlist.Item lastKnownItem;
 
     @FXML
     Pane playNextPane;
@@ -45,6 +42,11 @@ public class PlayingNextInComponent implements Initializable {
     Label episodeNumber;
     @FXML
     Label playingInCountdown;
+
+    public PlayingNextInComponent(ImageService imageService, PlaylistManager playlistManager) {
+        this.imageService = imageService;
+        this.playlistManager = playlistManager;
+    }
 
     //region Initializable
 
@@ -62,12 +64,12 @@ public class PlayingNextInComponent implements Initializable {
             }
 
             @Override
-            public void onPlayingIn(Long playingIn, PlaylistItem item) {
+            public void onPlayingIn(Long playingIn, Playlist.Item item) {
                 PlayingNextInComponent.this.onPlayingIn(playingIn, item);
             }
 
             @Override
-            public void onStateChanged(PlaylistState state) {
+            public void onStateChanged(Playlist.State state) {
                 // no-op
             }
         });
@@ -77,7 +79,7 @@ public class PlayingNextInComponent implements Initializable {
 
     //region Functions
 
-    private void onPlayingIn(Long playingIn, PlaylistItem item) {
+    private void onPlayingIn(Long playingIn, Playlist.Item item) {
         if (!Objects.equals(lastKnownItem, item)) {
             onItemChanged(item);
         }
@@ -87,7 +89,7 @@ public class PlayingNextInComponent implements Initializable {
         this.lastKnownItem = item;
     }
 
-    private void onItemChanged(PlaylistItem nextItem) {
+    private void onItemChanged(Playlist.Item nextItem) {
         reset();
 
         if (nextItem == null) {
@@ -95,22 +97,22 @@ public class PlayingNextInComponent implements Initializable {
         }
 
         Platform.runLater(() -> {
-            showName.setText(nextItem.title());
-            episodeTitle.setText(nextItem.getCaption().orElse(null));
-            //TODO
-            //            episodeNumber.setText(String.valueOf(nextItem.getEpisode().getEpisode()));
+            showName.setText(nextItem.getTitle());
+            episodeTitle.setText(nextItem.getCaption());
+            // TODO
+            //episodeNumber.setText(String.valueOf(nextItem.getEpisode().getEpisode()));
         });
 
-        nextItem.getThumb().ifPresentOrElse(
+        Optional.ofNullable(nextItem.getThumb()).ifPresentOrElse(
                 e -> imageService.load(e).whenComplete((image, throwable) -> {
                     if (throwable == null) {
                         playNextPoster.setImage(image);
                     } else {
-                        playNextPoster.setImage(imageService.getPosterPlaceholder());
-                        log.error("Failed to load poster of next episode, " + throwable.getMessage(), throwable);
+                        updatePoster(imageService.getPosterPlaceholder());
+                        log.error("Failed to load poster of next episode, {}", throwable.getMessage(), throwable);
                     }
                 }),
-                () -> playNextPoster.setImage(imageService.getPosterPlaceholder())
+                () -> updatePoster(imageService.getPosterPlaceholder())
         );
     }
 
@@ -132,13 +134,13 @@ public class PlayingNextInComponent implements Initializable {
 
     private void reset() {
         this.lastKnownPlayingIn = null;
+        updatePoster(imageService.getPosterPlaceholder());
 
         Platform.runLater(() -> {
             playNextPane.setVisible(false);
             showName.setText(null);
             episodeTitle.setText(null);
             episodeNumber.setText(null);
-            playNextPoster.setImage(imageService.getPosterPlaceholder());
         });
     }
 
@@ -150,6 +152,16 @@ public class PlayingNextInComponent implements Initializable {
     private void onPlayNextStop() {
         playlistManager.stop();
         reset();
+    }
+
+    private void updatePoster(CompletableFuture<Image> imageFuture) {
+        imageFuture.whenComplete((image, throwable) -> {
+            if (throwable == null) {
+                Platform.runLater(() -> playNextPoster.setImage(image));
+            } else {
+                log.error("Failed to load poster of next episode, {}", throwable.getMessage(), throwable);
+            }
+        });
     }
 
     @FXML

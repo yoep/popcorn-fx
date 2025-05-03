@@ -1,196 +1,156 @@
 package com.github.yoep.popcorn.backend.subtitles;
 
-import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.PopcornFx;
-import com.github.yoep.popcorn.backend.media.providers.Episode;
-import com.github.yoep.popcorn.backend.media.providers.MovieDetails;
-import com.github.yoep.popcorn.backend.media.providers.ShowDetails;
-import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
-import com.github.yoep.popcorn.backend.subtitles.ffi.SubtitleEvent;
-import com.github.yoep.popcorn.backend.subtitles.ffi.SubtitleEventCallback;
-import com.github.yoep.popcorn.backend.subtitles.ffi.SubtitleInfoSet;
-import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
-import com.github.yoep.popcorn.backend.subtitles.model.SubtitleMatcher;
-import com.github.yoep.popcorn.backend.subtitles.model.SubtitlePreference;
-import com.github.yoep.popcorn.backend.subtitles.model.SubtitlePreferenceTag;
+import com.github.yoep.popcorn.backend.lib.FxCallback;
+import com.github.yoep.popcorn.backend.lib.FxChannel;
+import com.github.yoep.popcorn.backend.lib.FxChannelException;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.*;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Subtitle.Info;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Subtitle.Language;
+import com.github.yoep.popcorn.backend.media.Episode;
+import com.github.yoep.popcorn.backend.media.MediaHelper;
+import com.github.yoep.popcorn.backend.media.MovieDetails;
+import com.github.yoep.popcorn.backend.media.ShowDetails;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.ExecutorService;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import static java.util.Arrays.asList;
 
 @Slf4j
-public class SubtitleServiceImpl implements SubtitleService, SubtitleEventCallback {
-    private final FxLib fxLib;
-    private final PopcornFx instance;
-    private final ExecutorService executorService;
+public class SubtitleServiceImpl implements ISubtitleService, FxCallback<SubtitleEvent> {
+    private final FxChannel fxChannel;
 
-    private final ConcurrentLinkedDeque<com.github.yoep.popcorn.backend.subtitles.model.SubtitleEventCallback> listeners = new ConcurrentLinkedDeque<>();
+    private final ConcurrentLinkedDeque<FxCallback<SubtitleEvent>> listeners = new ConcurrentLinkedDeque<>();
 
-    public SubtitleServiceImpl(FxLib fxLib, PopcornFx instance, ExecutorService executorService) {
-        this.fxLib = fxLib;
-        this.instance = instance;
-        this.executorService = executorService;
+    public SubtitleServiceImpl(FxChannel fxChannel) {
+        Objects.requireNonNull(fxChannel, "fxChannel cannot be null");
+        this.fxChannel = fxChannel;
         init();
     }
 
-    //region Properties
-
     @Override
-    public boolean isDisabled() {
-        try (var preference = fxLib.retrieve_subtitle_preference(instance)) {
-            return preference.getTag() == SubtitlePreferenceTag.DISABLED;
-        }
+    public CompletableFuture<List<ISubtitleInfo>> defaultSubtitles() {
+        return fxChannel.send(GetDefaultSubtitlesRequest.getDefaultInstance(), GetDefaultSubtitlesResponse.parser())
+                .thenApply(GetDefaultSubtitlesResponse::getSubtitlesList)
+                .thenApply(subtitles -> subtitles.stream()
+                        .map(SubtitleInfoWrapper::new)
+                        .map(info -> (ISubtitleInfo) info)
+                        .toList());
     }
 
     @Override
-    public SubtitleInfo none() {
-        var info = fxLib.subtitle_none();
-        try (info) {
-            return SubtitleInfo.from(info);
-        } finally {
-            fxLib.dispose_subtitle_info(info);
-        }
-    }
-
-    @Override
-    public SubtitleInfo custom() {
-        var info = fxLib.subtitle_custom();
-        try (info) {
-            return SubtitleInfo.from(info);
-        } finally {
-            fxLib.dispose_subtitle_info(info);
-        }
-    }
-
-    //endregion
-
-    //region Methods
-
-    @Override
-    public CompletableFuture<List<SubtitleInfo>> retrieveSubtitles(final MovieDetails media) {
+    public CompletableFuture<List<ISubtitleInfo>> retrieveSubtitles(final MovieDetails media) {
         Objects.requireNonNull(media, "media cannot be null");
-        try (var set = fxLib.movie_subtitles(instance, media)) {
-            var subtitles = Optional.ofNullable(set)
-                    .map(SubtitleInfoSet::getSubtitles)
-                    .orElse(Collections.emptyList());
-
-            log.debug("Retrieved movie subtitles {}", subtitles);
-            return CompletableFuture.supplyAsync(() ->
-                    Stream.concat(defaultOptions().stream(), subtitles.stream().map(SubtitleInfo::from))
-                            .toList(), executorService);
-        }
+        return fxChannel.send(GetMediaAvailableSubtitlesRequest.newBuilder()
+                        .setItem(MediaHelper.getItem(media))
+                        .build(), GetMediaAvailableSubtitlesResponse.parser())
+                .thenApply(this::mapAvailableSubtitlesResponse)
+                .thenApply(subtitles -> subtitles.stream()
+                        .map(SubtitleInfoWrapper::new)
+                        .map(info -> (ISubtitleInfo) info)
+                        .toList());
     }
 
     @Override
-    public CompletableFuture<List<SubtitleInfo>> retrieveSubtitles(final ShowDetails media, final Episode episode) {
+    public CompletableFuture<List<ISubtitleInfo>> retrieveSubtitles(final ShowDetails media, final Episode episode) {
         Objects.requireNonNull(media, "media cannot be null");
         Objects.requireNonNull(episode, "episode cannot be null");
-        try (var subtitle_set = fxLib.episode_subtitles(instance, media, episode)) {
-            var subtitles = Optional.ofNullable(subtitle_set)
-                    .map(SubtitleInfoSet::getSubtitles)
-                    .orElse(Collections.emptyList());
-
-            log.debug("Retrieved episode subtitle {}", subtitles);
-            return CompletableFuture.supplyAsync(() ->
-                    Stream.concat(defaultOptions().stream(), subtitles.stream().map(SubtitleInfo::from))
-                            .toList(), executorService);
-        }
+        return fxChannel.send(GetMediaAvailableSubtitlesRequest.newBuilder()
+                        .setItem(MediaHelper.getItem(media))
+                        .setSubItem(MediaHelper.getItem(episode))
+                        .build(), GetMediaAvailableSubtitlesResponse.parser())
+                .thenApply(this::mapAvailableSubtitlesResponse)
+                .thenApply(subtitles -> subtitles.stream()
+                        .map(SubtitleInfoWrapper::new)
+                        .map(info -> (ISubtitleInfo) info)
+                        .toList());
     }
 
     @Override
-    public CompletableFuture<List<SubtitleInfo>> retrieveSubtitles(final String filename) {
+    public CompletableFuture<List<ISubtitleInfo>> retrieveSubtitles(final String filename) {
         Objects.requireNonNull(filename, "filename cannot be null");
-        try (var subtitle_set = fxLib.filename_subtitles(instance, filename)) {
-            var subtitles = Optional.ofNullable(subtitle_set)
-                    .map(SubtitleInfoSet::getSubtitles)
-                    .orElse(Collections.emptyList());
-
-            return CompletableFuture.supplyAsync(() ->
-                    Stream.concat(defaultOptions().stream(), subtitles.stream().map(SubtitleInfo::from))
-                            .toList(), executorService);
-        }
+        return fxChannel.send(GetFileAvailableSubtitlesRequest.newBuilder()
+                        .setFilename(filename)
+                        .build(), GetFileAvailableSubtitlesResponse.parser())
+                .thenApply(response -> {
+                    if (response.getResult() == Response.Result.OK) {
+                        return response.getSubtitlesList();
+                    } else {
+                        log.error("Failed to retrieve subtitles for {}, {}", filename, response.getError());
+                        throw new FxChannelException("Failed to retrieve subtitles");
+                    }
+                })
+                .thenApply(subtitles -> subtitles.stream()
+                        .map(SubtitleInfoWrapper::new)
+                        .map(info -> (ISubtitleInfo) info)
+                        .toList());
     }
 
     @Override
-    public CompletableFuture<Subtitle> downloadAndParse(SubtitleInfo subtitleInfo, SubtitleMatcher.ByReference matcher) {
+    public CompletableFuture<ISubtitle> downloadAndParse(ISubtitleInfo subtitleInfo, Subtitle.Matcher matcher) {
         Objects.requireNonNull(subtitleInfo, "subtitleInfo cannot be null");
         Objects.requireNonNull(matcher, "matcher cannot be null");
-
-        try (var info = com.github.yoep.popcorn.backend.subtitles.ffi.SubtitleInfo.ByReference.from(subtitleInfo)) {
-            return CompletableFuture.supplyAsync(() -> {
-                log.debug("Starting subtitle download subtitleInfo: {}, matcher: {}", subtitleInfo, matcher);
-                var subtitle = fxLib.download_and_parse_subtitle(instance, info, matcher);
-                log.info("Downloaded and parsed subtitle info {} to {}", subtitleInfo, subtitle.getFilepath());
-                return subtitle;
-            }, executorService);
+        if (subtitleInfo instanceof SubtitleInfoWrapper(Subtitle.Info proto)) {
+            return fxChannel.send(DownloadAndParseSubtitleRequest.newBuilder()
+                            .setInfo(proto)
+                            .setMatcher(matcher)
+                            .build(), DownloadAndParseSubtitleResponse.parser())
+                    .thenApply(response -> {
+                        if (response.getResult() == Response.Result.OK) {
+                            return new SubtitleWrapper(response.getSubtitle());
+                        } else {
+                            log.error("Failed to download and parse subtitle for {}, {}", subtitleInfo, response.getError());
+                            throw new FxChannelException("Failed to download and parse subtitle");
+                        }
+                    });
+        } else {
+            throw new IllegalArgumentException("subtitleInfo is not a SubtitleInfoWrapper");
         }
     }
 
     @Override
-    public SubtitleInfo getDefaultOrInterfaceLanguage(List<SubtitleInfo> subtitles) {
+    public CompletableFuture<ISubtitleInfo> getDefaultOrInterfaceLanguage(List<ISubtitleInfo> subtitles) {
         Objects.requireNonNull(subtitles, "subtitles cannot be null");
         subtitles = subtitles.stream()
-                .filter(e -> !e.isSpecial())
-                .collect(Collectors.toList());
+                .filter(e -> !(e.isNone() || e.isCustom()))
+                .toList();
 
         if (subtitles.isEmpty()) {
-            return none();
+            return defaultSubtitles().thenApply(List::getFirst);
         }
 
-        var ffiSubtitles = subtitles.stream()
-                .map(com.github.yoep.popcorn.backend.subtitles.ffi.SubtitleInfo.ByReference::from)
-                .toArray(com.github.yoep.popcorn.backend.subtitles.ffi.SubtitleInfo[]::new);
-        try (var set = new SubtitleInfoSet.ByReference(asList(ffiSubtitles))) {
-            try (var subtitle = fxLib.select_or_default_subtitle(instance, set)) {
-                return SubtitleInfo.from(subtitle);
-            }
-        }
+        return fxChannel.send(GetPreferredSubtitleRequest.newBuilder()
+                        .addAllSubtitles(subtitles.stream()
+                                .filter(e -> e instanceof SubtitleInfoWrapper)
+                                .map(e -> (SubtitleInfoWrapper) e)
+                                .map(SubtitleInfoWrapper::proto)
+                                .toList())
+                        .build(), GetPreferredSubtitleResponse.parser())
+                .thenApply(GetPreferredSubtitleResponse::getSubtitle)
+                .thenApply(SubtitleInfoWrapper::new);
     }
 
     @Override
-    public SubtitlePreference preference() {
+    public CompletableFuture<SubtitlePreference> preference() {
         log.trace("Retrieving subtitle preference");
-        var preference = fxLib.retrieve_subtitle_preference(instance);
-
-        try (preference) {
-            return SubtitlePreference.from(preference);
-        } finally {
-            fxLib.dispose_subtitle_preference(preference);
-        }
+        return fxChannel.send(GetSubtitlePreferenceRequest.getDefaultInstance(), GetSubtitlePreferenceResponse.parser())
+                .thenApply(GetSubtitlePreferenceResponse::getPreference);
     }
 
     @Override
-    public void updateSubtitle(SubtitleInfo subtitle) {
-        if (subtitle != null) {
-            try (var preference = new com.github.yoep.popcorn.backend.subtitles.ffi.SubtitlePreference.ByReference(subtitle.language())) {
-                log.trace("Updating subtitle to {}", subtitle);
-                fxLib.update_subtitle_preference(instance, preference);
-            }
-        } else {
-            log.trace("Clearing the preferred subtitle");
-            fxLib.reset_subtitle(instance);
-        }
-    }
-
-    @Override
-    public void updatePreferredLanguage(SubtitleLanguage language) {
+    public void updatePreferredLanguage(Language language) {
         log.trace("Updating preferred subtitle language to {}", language);
-        try (var preference = new com.github.yoep.popcorn.backend.subtitles.ffi.SubtitlePreference.ByReference(language)) {
-            fxLib.update_subtitle_preference(instance, preference);
-        }
+        fxChannel.send(UpdateSubtitlePreferenceRequest.newBuilder()
+                .setPreference(SubtitlePreference.newBuilder()
+                        .setPreference(SubtitlePreference.Preference.LANGUAGE)
+                        .setLanguage(language)
+                        .build())
+                .build());
     }
 
     @Override
-    public void register(com.github.yoep.popcorn.backend.subtitles.model.SubtitleEventCallback callback) {
+    public void register(FxCallback<SubtitleEvent> callback) {
         Objects.requireNonNull(callback, "callback cannot be null");
         listeners.add(callback);
     }
@@ -198,49 +158,43 @@ public class SubtitleServiceImpl implements SubtitleService, SubtitleEventCallba
     @Override
     public void disableSubtitle() {
         log.trace("Disabling subtitle");
-        fxLib.update_subtitle_preference(instance, com.github.yoep.popcorn.backend.subtitles.ffi.SubtitlePreference.ByReference.disabled());
+        fxChannel.send(UpdateSubtitlePreferenceRequest.newBuilder()
+                .setPreference(SubtitlePreference.newBuilder()
+                        .setPreference(SubtitlePreference.Preference.DISABLED)
+                        .build())
+                .build());
     }
 
     @Override
     public void reset() {
         log.trace("Resetting the subtitle selection");
-        fxLib.reset_subtitle(instance);
+        fxChannel.send(ResetSubtitleRequest.getDefaultInstance());
     }
 
     @Override
     public void cleanup() {
-        fxLib.cleanup_subtitles_directory(instance);
+        fxChannel.send(CleanSubtitlesDirectoryRequest.getDefaultInstance());
     }
 
     @Override
-    public void callback(SubtitleEvent.ByValue event) {
-        com.github.yoep.popcorn.backend.subtitles.model.SubtitleEvent modelEvent;
-
-        try (event) {
-            log.debug("Received subtitle event callback {}", event);
-            modelEvent = com.github.yoep.popcorn.backend.subtitles.model.SubtitleEvent.from(event);
-        }
-
-        for (var listener : listeners) {
-            try {
-                listener.callback(modelEvent);
-            } catch (Exception ex) {
-                log.error("Failed to invoke subtitle callback, {}", ex.getMessage(), ex);
-            }
+    public void callback(SubtitleEvent message) {
+        try {
+            listeners.forEach(e -> e.callback(message));
+        } catch (Exception e) {
+            log.error("Failed to process subtitle event", e);
         }
     }
 
-    //endregion
+    private List<Info> mapAvailableSubtitlesResponse(GetMediaAvailableSubtitlesResponse response) {
+        if (response.getResult() == Response.Result.OK) {
+            return response.getSubtitlesList();
+        } else {
+            log.error("Failed to retrieve available subtitles, {}", response.getError());
+            throw new FxChannelException("Failed to retrieve subtitles");
+        }
+    }
 
     private void init() {
-        fxLib.register_subtitle_callback(instance, this);
-    }
-
-    private List<SubtitleInfo> defaultOptions() {
-        try (var set = fxLib.default_subtitle_options(instance)) {
-            return set.getSubtitles().stream()
-                    .map(SubtitleInfo::from)
-                    .toList();
-        }
+        fxChannel.subscribe(FxChannel.typeFrom(SubtitleEvent.class), SubtitleEvent.parser(), this);
     }
 }

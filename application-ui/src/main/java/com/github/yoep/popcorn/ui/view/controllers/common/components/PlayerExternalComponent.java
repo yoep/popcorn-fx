@@ -1,8 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
-import com.github.yoep.popcorn.backend.adapters.player.PlayRequest;
-import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
 import com.github.yoep.popcorn.backend.player.PlayerAction;
 import com.github.yoep.popcorn.backend.utils.TimeUtils;
 import com.github.yoep.popcorn.ui.font.controls.Icon;
@@ -25,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.ResourceBundle;
 
 @Slf4j
@@ -32,6 +32,7 @@ public class PlayerExternalComponent implements Initializable {
     private final ImageService imageService;
     private final PlayerExternalComponentService playerExternalService;
     private final ViewLoader viewLoader;
+
     private final EventHandler<KeyEvent> keyPressedEventHandler = this::onPaneKeyReleased;
     final ProgressInfoComponent infoComponent = new ProgressInfoComponent();
 
@@ -81,7 +82,7 @@ public class PlayerExternalComponent implements Initializable {
         });
         playerExternalService.addListener(new PlayerExternalListener() {
             @Override
-            public void onRequestChanged(PlayRequest request) {
+            public void onRequestChanged(Player.PlayRequest request) {
                 PlayerExternalComponent.this.onRequestChanged(request);
             }
 
@@ -96,7 +97,7 @@ public class PlayerExternalComponent implements Initializable {
             }
 
             @Override
-            public void onStateChanged(PlayerState state) {
+            public void onStateChanged(Player.State state) {
                 onPlayerStateChanged(state);
             }
 
@@ -119,13 +120,13 @@ public class PlayerExternalComponent implements Initializable {
         dataPane.getChildren().add(progressInfoPane);
     }
 
-    private void onRequestChanged(PlayRequest request) {
+    private void onRequestChanged(Player.PlayRequest request) {
         reset();
         Platform.runLater(() -> {
             titleText.setText(request.getTitle());
-            captionText.setText(request.getCaption().orElse(null));
+            captionText.setText(request.getCaption());
         });
-        request.getBackground()
+        Optional.ofNullable(request.getBackground())
                 .ifPresent(this::loadBackgroundImage);
     }
 
@@ -139,13 +140,11 @@ public class PlayerExternalComponent implements Initializable {
 
     private void loadBackgroundImage(String url) {
         log.debug("Loading external player background url {}", url);
-        imageService.load(url).whenComplete((image, throwable) -> {
-            if (throwable == null) {
-                Platform.runLater(() -> backgroundImage.setBackgroundImage(image));
-            } else {
-                log.error(throwable.getMessage(), throwable);
-            }
-        });
+        imageService.load(url).thenAccept(image -> Platform.runLater(() -> backgroundImage.setBackgroundImage(image)))
+                .exceptionally(ex -> {
+                    log.error("Failed to load external player background image", ex);
+                    return null;
+                });
     }
 
     private void onPlayerDurationChanged(long duration) {
@@ -162,7 +161,7 @@ public class PlayerExternalComponent implements Initializable {
         });
     }
 
-    private void onPlayerStateChanged(PlayerState state) {
+    private void onPlayerStateChanged(Player.State state) {
         switch (state) {
             case PLAYING -> updatePlayState(true);
             case PAUSED -> updatePlayState(false);

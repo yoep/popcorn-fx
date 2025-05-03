@@ -1,0 +1,100 @@
+syntax = "proto3";
+
+option optimize_for = LITE_RUNTIME;
+option java_multiple_files = true;
+option java_package = "com.github.yoep.popcorn.backend.lib.ipc.protobuf";
+
+package fx.ipc.proto;
+
+import "message.proto";
+
+message Loading {
+  enum State {
+    INITIALIZING = 0;
+    STARTING = 1;
+    RETRIEVING_SUBTITLES = 2;
+    DOWNLOADING_SUBTITLE = 3;
+    RETRIEVING_METADATA = 4;
+    VERIFYING_FILES = 5;
+    CONNECTING = 6;
+    DOWNLOADING = 7;
+    DOWNLOAD_FINISHED = 8;
+    READY = 9;
+    PLAYING = 10;
+    CANCELLED = 11;
+  }
+
+  message Progress {
+    float progress = 1;
+    uint32 seeds = 2;
+    uint32 peers = 3;
+    uint64 download_speed = 4;
+    uint64 upload_speed = 5;
+    uint64 downloaded = 6;
+    uint64 total_size = 7;
+  }
+
+  message Error {
+    Type type = 1;
+
+    enum Type {
+      PARSE = 0;
+      TORRENT = 1;
+      MEDIA = 2;
+      TIMEOUT = 3;
+      INVALID_DATA = 4;
+      CANCELLED = 5;
+    }
+  }
+}
+
+message LoaderLoadRequest {
+  string url = 1;
+}
+
+message LoaderLoadResponse {
+  Handle handle = 1;
+}
+
+message LoaderCancelRequest {
+  Handle handle = 1;
+}
+
+message LoaderEvent {
+  Event event = 1;
+  optional LoadingStarted loading_started = 2;
+  optional StateChanged state_changed = 3;
+  optional ProgressChanged progress_changed = 4;
+  optional LoadingError loading_error = 5;
+
+  message LoadingStarted {
+    Handle handle = 1;
+    string url = 2;
+    string title = 3;
+    optional string thumbnail = 4;
+    optional string background = 5;
+    optional string quality = 6;
+  }
+
+  message StateChanged {
+    Handle handle = 1;
+    Loading.State state = 2;
+  }
+
+  message ProgressChanged {
+    Handle handle = 1;
+    Loading.Progress progress = 2;
+  }
+
+  message LoadingError {
+    Handle handle = 1;
+    Loading.Error error = 2;
+  }
+
+  enum Event {
+    LOADING_STARTED = 0;
+    STATE_CHANGED = 1;
+    PROGRESS_CHANGED = 2;
+    LOADING_ERROR = 3;
+  }
+}

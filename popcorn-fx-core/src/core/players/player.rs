@@ -4,7 +4,6 @@ use derive_more::Display;
 use downcast_rs::{impl_downcast, DowncastSync};
 use fx_callback::Callback;
 use std::fmt::{Debug, Display};
-use std::sync::Weak;
 
 /// A trait representing a Popcorn FX supported media player for media playback.
 #[async_trait]
@@ -49,32 +48,40 @@ pub trait Player: Debug + Display + DowncastSync + Callback<PlayerEvent> {
     ///
     /// # Returns
     ///
-    /// An optional weak reference to the current playback request.
-    async fn request(&self) -> Option<Weak<Box<dyn PlayRequest>>>;
+    /// The current play request of the player if one is available, else [None].
+    async fn request(&self) -> Option<PlayRequest>;
+
+    /// Get the current volume of the player.
+    /// The volume is specified between 0 and 100.
+    ///
+    /// # Returns
+    ///
+    /// Returns the current volume value of the player, [None] if the value is unknown.
+    async fn current_volume(&self) -> Option<u32>;
 
     /// Start playback with the given request.
     ///
     /// # Arguments
     ///
     /// * `request` - The playback request to start.
-    async fn play(&self, request: Box<dyn PlayRequest>);
+    async fn play(&self, request: PlayRequest);
 
     /// Pause the current playback of the player.
-    fn pause(&self);
+    async fn pause(&self);
 
     /// Resume the current playback of the player.
     /// If no playback is active, this invocation won't have any effect on the player.
-    fn resume(&self);
+    async fn resume(&self);
 
     /// Seeks to the specified time position in the media.
     ///
     /// # Arguments
     ///
     /// * `time` - The time position to seek to, in milliseconds.
-    fn seek(&self, time: u64);
+    async fn seek(&self, time: u64);
 
     /// Stop playback.
-    fn stop(&self);
+    async fn stop(&self);
 }
 impl_downcast!(sync Player);
 
@@ -85,7 +92,6 @@ impl PartialEq for dyn Player {
 }
 
 /// An enumeration representing the possible states of a player.
-#[repr(i32)]
 #[derive(Debug, Display, Copy, Clone, PartialEq)]
 pub enum PlayerState {
     Unknown = -1,
@@ -105,7 +111,6 @@ impl Default for PlayerState {
 }
 
 /// An enumeration representing events related to a player.
-#[repr(i32)]
 #[derive(Debug, Display, Clone, PartialEq)]
 pub enum PlayerEvent {
     /// The duration of the media content has changed.

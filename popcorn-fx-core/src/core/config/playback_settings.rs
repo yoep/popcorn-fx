@@ -31,7 +31,6 @@ impl Default for PlaybackSettings {
 }
 
 /// The playback quality defined in a resolution size
-#[repr(C)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Quality {

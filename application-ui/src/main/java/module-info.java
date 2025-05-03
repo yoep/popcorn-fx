@@ -2,8 +2,6 @@ import com.github.yoep.popcorn.backend.logging.LoggingBridge;
 
 module application.ui {
     requires application.backend;
-    requires com.sun.jna;
-    requires java.annotation;
     requires java.datatransfer;
     requires java.desktop;
     requires javafx.base;
@@ -15,6 +13,7 @@ module application.ui {
     requires org.slf4j;
 
     requires static lombok;
+    requires com.google.protobuf;
 
     uses LoggingBridge;
 

@@ -74,37 +74,35 @@ impl FavoritesProvider {
     fn sort_by(
         &self,
         sort_by: &SortBy,
-        a: &Box<dyn MediaOverview>,
-        b: &Box<dyn MediaOverview>,
+        a: &EnhancedFavoriteItem,
+        b: &EnhancedFavoriteItem,
     ) -> Ordering {
-        let initial_ord = a.media_type().cmp(&b.media_type());
+        let initial_ord = a.favorite.media_type().cmp(&b.favorite.media_type());
 
         if initial_ord != Ordering::Equal {
             initial_ord
         } else {
-            return match sort_by.key() {
-                SORT_YEAR_KEY => Self::sort_by_year(a, b),
-                SORT_RATING_KEY => Self::sort_by_rating(a, b),
-                SORT_TITLE_KEY => Self::sort_by_title(a, b),
+            match sort_by.key() {
+                SORT_YEAR_KEY => Self::sort_by_year(&a.favorite, &b.favorite),
+                SORT_RATING_KEY => Self::sort_by_rating(&a.favorite, &b.favorite),
+                SORT_TITLE_KEY => Self::sort_by_title(&a.favorite, &b.favorite),
                 _ => self.sort_by_watched(a, b),
-            };
+            }
         }
     }
 
     /// Sort the given items based on the watched state.
     /// Items not seen will be put in front of the list, items seen at the back of the list.
-    fn sort_by_watched(&self, a: &Box<dyn MediaOverview>, b: &Box<dyn MediaOverview>) -> Ordering {
+    fn sort_by_watched(&self, a: &EnhancedFavoriteItem, b: &EnhancedFavoriteItem) -> Ordering {
         trace!(
             "Sorting media item based on watched state for {} & {}",
-            a,
-            b
+            a.favorite,
+            b.favorite
         );
-        let a_watched = self.watched_service.is_watched(a.imdb_id());
-        let b_watched = self.watched_service.is_watched(b.imdb_id());
 
-        if a_watched == b_watched {
+        if a.watched == b.watched {
             Ordering::Equal
-        } else if a_watched {
+        } else if a.watched {
             Ordering::Greater
         } else {
             Ordering::Less
@@ -171,12 +169,22 @@ impl MediaProvider for FavoritesProvider {
             Ok(favorites) => {
                 let total_favorites = favorites.len();
                 trace!("Filtering a total of {} favorites", total_favorites);
-                let filtered: Vec<Box<dyn MediaOverview>> = favorites
+                let mut items = vec![];
+
+                for favorite in favorites
                     .into_iter()
                     .filter(|e| Self::filter_movies(e, genre))
                     .filter(|e| Self::filter_shows(e, genre))
                     .filter(|e| Self::filter_keywords(e, keywords))
+                {
+                    let watched = self.watched_service.is_watched(favorite.imdb_id()).await;
+                    items.push(EnhancedFavoriteItem { favorite, watched });
+                }
+
+                let filtered: Vec<Box<dyn MediaOverview>> = items
+                    .into_iter()
                     .sorted_by(|a, b| self.sort_by(sort_by, a, b))
+                    .map(|e| e.favorite)
                     .collect();
                 debug!(
                     "Retrieved a total of {} favorites out of {}",
@@ -190,6 +198,11 @@ impl MediaProvider for FavoritesProvider {
     }
 }
 
+struct EnhancedFavoriteItem {
+    favorite: Box<dyn MediaOverview>,
+    watched: bool,
+}
+
 #[cfg(test)]
 mod test {
     use tempfile::tempdir;
@@ -197,8 +210,8 @@ mod test {
     use crate::core::event::EventPublisher;
     use crate::core::media;
     use crate::core::media::favorites::{FXFavoriteService, MockFavoriteService};
+    use crate::core::media::watched::test::MockWatchedService;
     use crate::core::media::watched::DefaultWatchedService;
-    use crate::core::media::watched::MockWatchedService;
     use crate::core::media::{Images, MovieOverview, ShowOverview};
     use crate::init_logger;
     use crate::testing::copy_test_file;
@@ -212,6 +225,8 @@ mod test {
         let genre = Genre::all();
         let sort_by = SortBy::new("watched".to_string(), String::new());
         let keywords = "".to_string();
+        let mut watched_service = MockWatchedService::new();
+        watched_service.expect_is_watched().return_const(true);
         let mut favorites = MockFavoriteService::new();
         favorites
             .expect_all()
@@ -224,7 +239,7 @@ mod test {
             });
         let provider = FavoritesProvider::new(
             Arc::new(Box::new(favorites)),
-            Arc::new(Box::new(MockWatchedService::new())),
+            Arc::new(Box::new(watched_service)),
         );
 
         let result = provider
@@ -348,20 +363,26 @@ mod test {
             ))),
         );
         let sort_by = SortBy::new(SORT_TITLE_KEY.to_string(), String::new());
-        let movie = Box::new(MovieOverview::new(
-            String::new(),
-            String::new(),
-            String::new(),
-        )) as Box<dyn MediaOverview>;
-        let show = Box::new(ShowOverview::new(
-            "tt875495".to_string(),
-            String::new(),
-            String::new(),
-            String::new(),
-            0,
-            Images::none(),
-            None,
-        )) as Box<dyn MediaOverview>;
+        let movie = EnhancedFavoriteItem {
+            favorite: Box::new(MovieOverview::new(
+                String::new(),
+                String::new(),
+                String::new(),
+            )) as Box<dyn MediaOverview>,
+            watched: false,
+        };
+        let show = EnhancedFavoriteItem {
+            favorite: Box::new(ShowOverview::new(
+                "tt875495".to_string(),
+                String::new(),
+                String::new(),
+                String::new(),
+                0,
+                Images::none(),
+                None,
+            )) as Box<dyn MediaOverview>,
+            watched: false,
+        };
 
         let result = service.sort_by(&sort_by, &movie, &show);
 
@@ -372,16 +393,22 @@ mod test {
     fn test_sort_by_should_order_unwatched_before_watched() {
         init_logger!();
         let watched_id = "tt0000001".to_string();
-        let movie_watched = Box::new(MovieOverview::new(
-            String::new(),
-            watched_id.clone(),
-            String::new(),
-        )) as Box<dyn MediaOverview>;
-        let movie_unwatched = Box::new(MovieOverview::new(
-            String::new(),
-            "tt0000002".to_string(),
-            String::new(),
-        )) as Box<dyn MediaOverview>;
+        let movie_watched = EnhancedFavoriteItem {
+            favorite: Box::new(MovieOverview::new(
+                String::new(),
+                watched_id.clone(),
+                String::new(),
+            )) as Box<dyn MediaOverview>,
+            watched: true,
+        };
+        let movie_unwatched = EnhancedFavoriteItem {
+            favorite: Box::new(MovieOverview::new(
+                String::new(),
+                "tt0000002".to_string(),
+                String::new(),
+            )) as Box<dyn MediaOverview>,
+            watched: false,
+        };
         let favorites = MockFavoriteService::new();
         let mut watched = MockWatchedService::new();
         watched

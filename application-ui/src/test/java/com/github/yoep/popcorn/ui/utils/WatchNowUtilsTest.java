@@ -14,6 +14,8 @@ import org.testfx.framework.junit5.ApplicationExtension;
 import org.testfx.util.WaitForAsyncUtils;
 
 import java.util.LinkedHashMap;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -38,7 +40,8 @@ class WatchNowUtilsTest {
         var player = mock(Player.class);
         var player2 = mock(Player.class);
         var players = asList(player2, player);
-        when(playerManagerService.getPlayers()).thenReturn(players);
+        when(playerManagerService.getPlayers()).thenReturn(CompletableFuture.completedFuture(players));
+        when(playerManagerService.getActivePlayer()).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
         when(player.getId()).thenReturn("Player001");
         when(player2.getId()).thenReturn("Player002");
         WatchNowUtils.syncPlayerManagerAndWatchNowButton(playerManagerService, watchNowButton);
@@ -54,7 +57,8 @@ class WatchNowUtilsTest {
         var player = mock(Player.class);
         var player2 = mock(Player.class);
         var players = asList(player2, player);
-        when(playerManagerService.getPlayers()).thenReturn(players);
+        when(playerManagerService.getPlayers()).thenReturn(CompletableFuture.completedFuture(players));
+        when(playerManagerService.getActivePlayer()).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
         when(player.getId()).thenReturn("Player001");
         when(player2.getId()).thenReturn("Player002");
         WatchNowUtils.syncPlayerManagerAndWatchNowButton(playerManagerService, watchNowButton);

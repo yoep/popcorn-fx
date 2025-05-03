@@ -5,11 +5,10 @@ import com.github.yoep.player.popcorn.controllers.sections.PopcornPlayerSectionC
 import com.github.yoep.player.popcorn.player.EmbeddablePopcornPlayer;
 import com.github.yoep.player.popcorn.player.PopcornPlayer;
 import com.github.yoep.player.popcorn.services.*;
-import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.lib.FxLibInstance;
-import com.github.yoep.popcorn.backend.lib.PopcornFxInstance;
+import com.github.yoep.popcorn.backend.lib.FxChannel;
+import com.github.yoep.popcorn.backend.lib.FxLib;
+import com.github.yoep.popcorn.backend.logging.LoggingBridge;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
-import com.github.yoep.popcorn.backend.torrent.DefaultTorrentService;
 import com.github.yoep.popcorn.ui.ApplicationArgs;
 import com.github.yoep.popcorn.ui.IoC;
 import com.github.yoep.popcorn.ui.PopcornTimeApplication;
@@ -20,31 +19,35 @@ import com.github.yoep.video.vlc.discovery.LinuxNativeDiscoveryStrategy;
 import com.github.yoep.video.vlc.discovery.OsxNativeDiscoveryStrategy;
 import com.github.yoep.video.vlc.discovery.WindowsNativeDiscoveryStrategy;
 import com.github.yoep.video.youtube.VideoPlayerYoutube;
-import com.sun.jna.StringArray;
 import javafx.application.Application;
 import javafx.application.ConditionalFeature;
 import javafx.application.Platform;
+import lombok.extern.slf4j.Slf4j;
 import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
 import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery;
 import uk.co.caprica.vlcj.factory.discovery.strategy.NativeDiscoveryStrategy;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.concurrent.Executors;
 
+@Slf4j
 public class PopcornTimeStarter {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         System.setProperty("jna.encoding", StandardCharsets.UTF_8.name());
         var ioc = PopcornTimeApplication.getIOC();
         ioc.registerInstance(createApplicationArguments(args));
 
-        var libArgs = createLibraryArguments(args);
-        var fxLib = ioc.registerInstance(FxLibInstance.INSTANCE.get());
-        var popcornFx = ioc.registerInstance(fxLib.new_popcorn_fx(libArgs.length, libArgs.args));
-        FxLib.INSTANCE.set(fxLib);
-        PopcornFxInstance.INSTANCE.set(popcornFx);
+        try (var fxLib = ioc.registerInstance(new FxLib(args))) {
+            var executorService = ioc.registerInstance(Executors.newCachedThreadPool(e -> new Thread(e, "popcorn-fx")));
+            var channel = ioc.registerInstance(new FxChannel(fxLib, executorService));
 
-        PopcornTimeApplication.getON_INIT().set(PopcornTimeStarter::onInit);
-        launch(args);
+            LoggingBridge.INSTANCE.get().setFxChannel(channel);
+
+            PopcornTimeApplication.getON_INIT().set(PopcornTimeStarter::onInit);
+            launch(args);
+        }
     }
 
     static void launch(String... args) {
@@ -58,15 +61,6 @@ public class PopcornTimeStarter {
                 .toArray(String[]::new));
     }
 
-    static ProgramArgs createLibraryArguments(String[] args) {
-        var length = args.length + 1;
-        var libArgs = new String[length];
-        libArgs[0] = "popcorn-fx";
-        System.arraycopy(args, 0, libArgs, 1, args.length);
-
-        return new ProgramArgs(new StringArray(libArgs), length);
-    }
-
     static void onInit(IoC ioC) {
         var applicationConfig = ioC.getInstance(ApplicationConfig.class);
         var discoveryStrategies = Arrays.<NativeDiscoveryStrategy>asList(
@@ -74,9 +68,6 @@ public class PopcornTimeStarter {
                 new OsxNativeDiscoveryStrategy(),
                 new WindowsNativeDiscoveryStrategy()
         );
-
-        // register torrent service
-        ioC.register(DefaultTorrentService.class);
 
         // vlc video player
         if (applicationConfig.isVlcVideoPlayerEnabled()) {
@@ -139,8 +130,5 @@ public class PopcornTimeStarter {
 
     private static boolean isDesktopMode(IoC ioC) {
         return !ioC.getInstance(ApplicationConfig.class).isTvMode();
-    }
-
-    record ProgramArgs(StringArray args, int length) {
     }
 }

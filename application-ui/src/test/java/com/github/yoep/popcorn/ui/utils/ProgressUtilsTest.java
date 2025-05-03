@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.utils;
 
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
-import com.github.yoep.popcorn.backend.loader.LoadingProgress;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Loading;
 import org.junit.jupiter.api.Test;
 
 import java.text.DecimalFormatSymbols;
@@ -57,8 +57,9 @@ class ProgressUtilsTest {
 
     @Test
     void testLoadingProgressToPercentage_whenStatusIsGiven_shouldReturnTheExpectedResult() {
-        var status = new LoadingProgress();
-        status.progress = 0.205f;
+        var status = Loading.Progress.newBuilder()
+                .setProgress(0.205f)
+                .build();
         var expectedResult = MessageFormat.format("20{0}50%", DecimalFormatSymbols.getInstance().getDecimalSeparator());
 
         var result = ProgressUtils.progressToPercentage(status);
@@ -68,8 +69,9 @@ class ProgressUtilsTest {
 
     @Test
     void testLoadingProgressToDownload_whenStatusIsGiven_shouldReturnExpectedResult() {
-        var status = new LoadingProgress();
-        status.downloadSpeed = 1024;
+        var status = Loading.Progress.newBuilder()
+                .setDownloadSpeed(1024)
+                .build();
         var expectedResult = "1.00 KB/s";
 
         var result = ProgressUtils.progressToDownload(status);
@@ -79,8 +81,9 @@ class ProgressUtilsTest {
 
     @Test
     void testLoadingProgressToUpload_whenStatusIsGiven_shouldReturnExpectedResult() {
-        var status = new LoadingProgress();
-        status.uploadSpeed = 2048;
+        var status = Loading.Progress.newBuilder()
+                .setUploadSpeed(2048)
+                .build();
         var expectedResult = "2.00 KB/s";
 
         var result = ProgressUtils.progressToUpload(status);

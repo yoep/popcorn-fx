@@ -128,7 +128,7 @@ public class DropDownButton<T> extends SplitMenuButton {
         }
 
         items.values().stream()
-                .filter(e -> e.item.equals(item))
+                .filter(e -> Objects.equals(e.item(), item))
                 .findFirst()
                 .ifPresentOrElse(
                         e -> updateActiveItem(e.control.getIdentifier()),
@@ -192,5 +192,9 @@ public class DropDownButton<T> extends SplitMenuButton {
     //endregion
 
     record ItemHolder<T>(T item, DropDownMenuItem<T> control) {
+    }
+
+    public interface SelectionFactory<T> {
+        Optional<T> select(T item, Collection<T> items);
     }
 }

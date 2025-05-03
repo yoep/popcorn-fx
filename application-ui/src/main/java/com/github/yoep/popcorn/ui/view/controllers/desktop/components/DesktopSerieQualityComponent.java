@@ -1,7 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.media.providers.Episode;
+import com.github.yoep.popcorn.backend.media.Episode;
 import com.github.yoep.popcorn.ui.events.MediaQualityChangedEvent;
 import com.github.yoep.popcorn.ui.view.controls.AxisItemSelection;
 import com.github.yoep.popcorn.ui.view.services.VideoQualityService;
@@ -44,11 +44,15 @@ public class DesktopSerieQualityComponent implements Initializable {
                 .map(Episode::getTorrents)
                 .map(videoQualityService::getVideoResolutions)
                 .orElse(new String[0]);
-        var defaultResolution = videoQualityService.getDefaultVideoResolution(asList(resolutions));
-
-        Platform.runLater(() -> {
-            qualities.setItems(resolutions);
-            qualities.setSelectedItem(defaultResolution);
+        videoQualityService.getDefaultVideoResolution(asList(resolutions)).whenComplete((defaultResolution, throwable) -> {
+            if (throwable == null) {
+                Platform.runLater(() -> {
+                    qualities.setItems(resolutions);
+                    qualities.setSelectedItem(defaultResolution);
+                });
+            } else {
+                log.error("Failed to retrieve video resolution", throwable);
+            }
         });
     }
 

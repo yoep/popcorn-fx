@@ -1,10 +1,9 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationSettings;
 import com.github.yoep.popcorn.backend.media.tracking.TrackingService;
+import com.github.yoep.popcorn.backend.settings.AbstractApplicationSettingsEventListener;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
-import com.github.yoep.popcorn.backend.settings.ApplicationConfigEvent;
-import com.github.yoep.popcorn.backend.settings.models.TrackingSettings;
-import com.github.yoep.popcorn.backend.settings.models.TrackingSyncState;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.font.controls.Icon;
 import com.github.yoep.popcorn.ui.messages.SettingsMessage;
@@ -20,6 +19,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.Optional;
 import java.util.ResourceBundle;
 
 @Slf4j
@@ -27,6 +30,7 @@ import java.util.ResourceBundle;
 public class SettingsTraktComponent implements Initializable {
     static final String AUTHORIZE_ICON = Icon.LINK_UNICODE;
     static final String DISCONNECT_ICON = Icon.CHAIN_BROKEN_UNICODE;
+    private static final DateTimeFormatter DATETIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     private final ApplicationConfig applicationConfig;
     private final TrackingService trackingService;
@@ -46,40 +50,54 @@ public class SettingsTraktComponent implements Initializable {
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         trackingService.addListener(isAuthorized -> Platform.runLater(() -> updateState(isAuthorized)));
-        applicationConfig.register(event -> {
-            if (event.getTag() == ApplicationConfigEvent.Tag.TRACKING_SETTINGS_CHANGED) {
-                Platform.runLater(() -> updateTrackingState(event.getUnion().getTrackingSettingsChanged_body().getSettings()));
+        applicationConfig.addListener(new AbstractApplicationSettingsEventListener() {
+            @Override
+            public void onTrackingSettingsChanged(ApplicationSettings.TrackingSettings settings) {
+                updateTrackingState(settings);
             }
         });
-        updateState(trackingService.isAuthorized());
+        trackingService.isAuthorized().thenAccept(this::updateState);
     }
 
     private void updateState(boolean isAuthorized) {
-        var settings = applicationConfig.getSettings();
+        applicationConfig.getSettings().thenAccept(settings -> {
+            Platform.runLater(() -> {
+                authorizeBtn.setText(localeText.get(isAuthorized ? SettingsMessage.DISCONNECT : SettingsMessage.AUTHORIZE));
+                authorizeIcn.setText(isAuthorized ? DISCONNECT_ICON : AUTHORIZE_ICON);
+                syncState.setVisible(isAuthorized);
+                syncTime.setVisible(isAuthorized);
+            });
 
-        authorizeBtn.setText(localeText.get(isAuthorized ? SettingsMessage.DISCONNECT : SettingsMessage.AUTHORIZE));
-        authorizeIcn.setText(isAuthorized ? DISCONNECT_ICON : AUTHORIZE_ICON);
-        syncState.setVisible(isAuthorized);
-        syncTime.setVisible(isAuthorized);
-        updateTrackingState(settings.getTrackingSettings());
+            updateTrackingState(settings.getTrackingSettings());
+        });
     }
 
-    private void updateTrackingState(TrackingSettings trackingSettings) {
-        syncState.setText(trackingSettings.getLastSync()
-                .map(e -> localeText.get(SettingsMessage.LAST_SYNC_STATE,
-                        localeText.get(e.getState() == TrackingSyncState.SUCCESS ? SettingsMessage.SYNC_SUCCESS : SettingsMessage.SYNC_FAILED)))
-                .orElse(null));
-        syncTime.setText(trackingSettings.getLastSync()
-                .map(e -> localeText.get(SettingsMessage.LAST_SYNC_TIME, e.getTime()))
-                .orElse(null));
+    private void updateTrackingState(ApplicationSettings.TrackingSettings trackingSettings) {
+        var lastSync = Optional.ofNullable(trackingSettings.getLastSync());
+        Platform.runLater(() -> {
+            syncState.setText(lastSync
+                    .map(e -> localeText.get(SettingsMessage.LAST_SYNC_STATE,
+                            localeText.get(e.getState() == ApplicationSettings.TrackingSettings.LastSync.State.SUCCESS
+                                    ? SettingsMessage.SYNC_SUCCESS
+                                    : SettingsMessage.SYNC_FAILED)))
+                    .orElse(null));
+            syncTime.setText(lastSync
+                    .map(e -> Instant.ofEpochMilli(e.getLastSyncedMillis())
+                            .atZone(ZoneId.systemDefault())
+                            .toLocalDateTime())
+                    .map(e -> localeText.get(SettingsMessage.LAST_SYNC_TIME, DATETIME_FORMATTER.format(e)))
+                    .orElse(null));
+        });
     }
 
     private void onAuthorizationBtnAction() {
-        if (trackingService.isAuthorized()) {
-            trackingService.disconnect();
-        } else {
-            trackingService.authorize();
-        }
+        trackingService.isAuthorized().thenAccept(isAuthorized -> {
+            if (isAuthorized) {
+                trackingService.disconnect();
+            } else {
+                trackingService.authorize();
+            }
+        });
     }
 
     @FXML

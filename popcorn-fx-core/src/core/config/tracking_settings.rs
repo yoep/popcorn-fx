@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use chrono::{DateTime, Local, Utc};
 use chrono::serde::ts_milliseconds;
 use chrono::serde::ts_milliseconds_option;
+use chrono::{DateTime, Local, Utc};
 use derive_more::Display;
 use log::trace;
 use serde::{Deserialize, Serialize};
@@ -67,7 +67,6 @@ pub struct Tracker {
     pub scopes: Option<Vec<String>>,
 }
 
-#[repr(i32)]
 #[derive(Debug, Display, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum MediaTrackingSyncState {

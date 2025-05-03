@@ -2,7 +2,6 @@ package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
 import com.github.yoep.popcorn.backend.adapters.player.Player;
 import com.github.yoep.popcorn.backend.adapters.player.PlayerManagerService;
-import com.github.yoep.popcorn.backend.adapters.player.embaddable.EmbeddablePlayer;
 import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayerStartedEvent;
@@ -45,9 +44,16 @@ public class PlayerSectionController implements Initializable {
         loadExternalPlayerPane();
         initializePlayNext();
         eventPublisher.register(PlayerStartedEvent.class, event -> {
-            playerManagerService.getActivePlayer().ifPresentOrElse(
-                    this::onPlayVideo,
-                    () -> log.error("Unable to update player section, no player is active"));
+            playerManagerService.getActivePlayer().whenComplete((player, throwable) -> {
+                if (throwable == null) {
+                    player.ifPresentOrElse(
+                            this::onPlayVideo,
+                            () -> log.error("Unable to update player section, no player is active")
+                    );
+                } else {
+                    log.error("Failed to retrieve active player", throwable);
+                }
+            });
             return event;
         });
     }
@@ -72,10 +78,13 @@ public class PlayerSectionController implements Initializable {
     }
 
     private void useEmbeddedPlayerPane(Player player) {
-        if (player instanceof EmbeddablePlayer embeddablePlayer) {
-            switchPlayerPane(embeddablePlayer.getEmbeddedPlayer());
+        if (player.isEmbeddedPlaybackSupported()) {
+            player.getEmbeddedPlayer().ifPresentOrElse(
+                    this::switchPlayerPane,
+                    () -> log.error("Unable to embed player, embedded playback is supported but player has no node for {}", player)
+            );
         } else {
-            log.error("Unable to embed player {}, it supports embedded playback but doesn't implement the EmbeddablePlayer interface", player);
+            log.error("Unable to embed player, embedded playback is not support for {}", player);
         }
     }
 

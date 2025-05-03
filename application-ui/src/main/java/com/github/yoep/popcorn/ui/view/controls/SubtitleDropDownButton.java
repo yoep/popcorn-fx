@@ -1,6 +1,7 @@
 package com.github.yoep.popcorn.ui.view.controls;
 
-import com.github.yoep.popcorn.backend.subtitles.model.SubtitleInfo;
+import com.github.yoep.popcorn.backend.subtitles.SubtitleHelper;
+import com.github.yoep.popcorn.backend.subtitles.ISubtitleInfo;
 import javafx.scene.image.Image;
 import lombok.extern.slf4j.Slf4j;
 
@@ -8,7 +9,7 @@ import java.io.InputStream;
 import java.util.Optional;
 
 @Slf4j
-public class SubtitleDropDownButton extends DropDownButton<SubtitleInfo> {
+public class SubtitleDropDownButton extends DropDownButton<ISubtitleInfo> {
     public SubtitleDropDownButton() {
         super(createItemFactory());
     }
@@ -17,24 +18,25 @@ public class SubtitleDropDownButton extends DropDownButton<SubtitleInfo> {
         return new Image(resource, 16, 16, true, true);
     }
 
-    private static DropDownButtonFactory<SubtitleInfo> createItemFactory() {
+    private static DropDownButtonFactory<ISubtitleInfo> createItemFactory() {
         return new DropDownButtonFactory<>() {
             @Override
-            public String getId(SubtitleInfo item) {
-                return Optional.ofNullable(item.imdbId())
-                        .orElseGet(() -> item.language().getCode());
+            public String getId(ISubtitleInfo item) {
+                return Optional.ofNullable(item.getImdbId())
+                        .filter(e -> !e.isEmpty())
+                        .orElseGet(() -> SubtitleHelper.getCode(item.getLanguage()));
             }
 
             @Override
-            public String displayName(SubtitleInfo item) {
-                return item
-                        .language()
-                        .getNativeName();
+            public String displayName(ISubtitleInfo item) {
+                return SubtitleHelper.getNativeName(item.getLanguage());
             }
 
             @Override
-            public Image graphicResource(SubtitleInfo item) {
-                return resourceToImage(SubtitleDropDownButton.class.getResourceAsStream(item.getFlagResource()));
+            public Image graphicResource(ISubtitleInfo item) {
+                return resourceToImage(SubtitleDropDownButton.class.getResourceAsStream(
+                        SubtitleHelper.getFlagResource(item.getLanguage())
+                ));
             }
         };
     }

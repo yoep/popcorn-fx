@@ -1,7 +1,7 @@
 module player.popcorn {
     requires application.backend;
     requires application.ui;
-    requires java.annotation;
+    requires com.google.protobuf;
     requires java.desktop;
     requires javafx.base;
     requires javafx.controls;

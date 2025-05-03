@@ -1,60 +1,74 @@
 package com.github.yoep.popcorn.backend.media.tracking;
 
-import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.PopcornFx;
+import com.github.yoep.popcorn.backend.lib.FxChannel;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.*;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+
 @Slf4j
 @ToString
 @EqualsAndHashCode(callSuper = false)
 public class TraktTrackingService extends AbstractListenerService<TrackingListener> implements TrackingService {
-    private final FxLib fxLib;
-    private final PopcornFx instance;
-    private final AuthorizationOpenCallback authorizationOpenCallback;
-    private final TrackingEventCallback callback = createCallback();
+    static final String TRACKING_ID = "trakt";
 
-    public TraktTrackingService(FxLib fxLib, PopcornFx instance, AuthorizationOpenCallback callback) {
-        this.fxLib = fxLib;
-        this.instance = instance;
-        this.authorizationOpenCallback = callback;
+    private final FxChannel fxChannel;
+    private final TrackingAuthorization trackingAuthorization;
+
+    public TraktTrackingService(FxChannel fxChannel, TrackingAuthorization trackingAuthorization) {
+        Objects.requireNonNull(fxChannel, "fxChannel cannot be null");
+        Objects.requireNonNull(trackingAuthorization, "trackingAuthorization cannot be null");
+        this.fxChannel = fxChannel;
+        this.trackingAuthorization = trackingAuthorization;
         init();
     }
 
     @Override
-    public boolean isAuthorized() {
-        return fxLib.tracking_is_authorized(instance) == 1;
+    public CompletableFuture<Boolean> isAuthorized() {
+        return fxChannel.send(GetTrackingProviderIsAuthorizedRequest.newBuilder()
+                        .setTrackingProviderId(TRACKING_ID)
+                        .build(), GetTrackingProviderIsAuthorizedResponse.parser())
+                .thenApply(GetTrackingProviderIsAuthorizedResponse::getIsAuthorized);
     }
 
     @Override
     public void authorize() {
-        fxLib.tracking_authorize(instance);
+        fxChannel.send(TrackingProviderAuthorizeRequest.newBuilder()
+                        .setTrackingProviderId(TRACKING_ID)
+                        .build(), TrackingProviderAuthorizeResponse.parser())
+                .thenAccept(response -> {
+                    if (response.getResult() == Response.Result.OK) {
+                        log.info("Tracking provider {} is authorized", TRACKING_ID);
+                    } else {
+                        log.error("Tracking provider {} failed to authorize, {}", TRACKING_ID, response.getError());
+                    }
+                });
     }
 
     @Override
     public void disconnect() {
-        fxLib.tracking_disconnect(instance);
+        fxChannel.send(TrackingProviderDisconnectRequest.newBuilder()
+                .setTrackingProviderId(TRACKING_ID)
+                .build());
     }
 
     void init() {
-        fxLib.register_tracking_authorization_open(instance, authorizationOpenCallback);
-        fxLib.register_tracking_provider_callback(instance, callback);
+        fxChannel.subscribe(FxChannel.typeFrom(TrackingProviderEvent.class), TrackingProviderEvent.parser(), this::onTrackingProviderEvent);
     }
 
-    private TrackingEventCallback createCallback() {
-        return event -> {
-            try (event) {
-                switch (event.getTag()) {
-                    case AUTHORIZATION_STATE_CHANGED -> invokeListeners(listener -> {
-                        listener.onAuthorizationChanged(event.getUnion().getAuthorizationStateChanged_body().getState() == 1);
-                    });
-                }
-            } catch (Exception ex) {
-                log.error("Failed to invoke tacking listeners, {}", ex.getMessage(), ex);
+    private void onTrackingProviderEvent(TrackingProviderEvent event) {
+        switch (event.getEvent()) {
+            case AUTHORIZATION_STATE_CHANGED -> invokeListeners(listener ->
+                    listener.onAuthorizationChanged(event.getAuthorizationStateChanged().getState() == TrackingProvider.AuthorizationState.AUTHORIZED));
+            case OPEN_AUTHORIZATION_URI -> {
+                var authorizationUri = event.getOpenAuthorizationUri().getUri();
+                log.debug("Opening Trakt authorization uri {}", authorizationUri);
+                trackingAuthorization.open(authorizationUri);
             }
-        };
+        }
     }
-
 }

@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use derive_more::Display;
-use log::{debug, info, trace};
+use log::{debug, info, trace, warn};
 use tokio::sync::Mutex;
 
 use popcorn_fx_core::core::players::PlayerManager;
@@ -85,13 +85,14 @@ impl Discovery for VlcDiscovery {
                     .subtitle_provider(self.subtitle_provider.clone())
                     .build();
                 debug!("Created new external VLC player {:?}", vlc_player);
-                if self.player_manager.add_player(Box::new(vlc_player)) {
-                    info!("Added new external VLC player");
-                } else {
+                if let Err(e) = self.player_manager.add_player(Box::new(vlc_player)) {
+                    warn!("Failed to register VLC player, {}", e);
                     self.update_state_async(DiscoveryState::Error).await;
                     return Err(DiscoveryError::Initialization(
                         "Unable to add external VLC player".to_string(),
                     ));
+                } else {
+                    info!("Added new external VLC player");
                 }
             } else {
                 info!("External VLC executable not found, external VLC player won't be registered");
@@ -136,7 +137,7 @@ mod tests {
             .times(1)
             .returning(move |e| {
                 tx.send(e).unwrap();
-                true
+                Ok(())
             });
         let discovery = VlcDiscovery::new(
             Arc::new(Box::new(manager)),

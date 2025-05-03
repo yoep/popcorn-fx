@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui;
 
-import com.github.yoep.popcorn.backend.PopcornFx;
+import com.github.yoep.popcorn.backend.lib.FxChannel;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
@@ -100,8 +100,12 @@ public class IoC {
      * Disposes resources managed by the IoC container.
      */
     public void dispose() {
-        getInstance(PopcornFx.class).dispose();
-        getInstance(ExecutorService.class).shutdownNow();
+        try {
+            getInstance(ExecutorService.class).shutdownNow();
+            getInstance(FxChannel.class).close();
+        } catch (Exception ex) {
+            log.error("Failed to dispose IoC, {}", ex.getMessage(), ex);
+        }
 
         beans.clear();
     }

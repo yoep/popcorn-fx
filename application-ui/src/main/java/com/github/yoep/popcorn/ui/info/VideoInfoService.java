@@ -6,6 +6,7 @@ import com.github.yoep.popcorn.backend.adapters.video.state.VideoState;
 import com.github.yoep.popcorn.backend.info.ComponentInfo;
 import com.github.yoep.popcorn.backend.info.ComponentState;
 import com.github.yoep.popcorn.backend.info.SimpleComponentDetails;
+import com.github.yoep.popcorn.ui.IoC;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
@@ -14,18 +15,20 @@ import java.util.stream.Collectors;
 
 @Slf4j
 public class VideoInfoService extends AbstractInfoService {
-    private final List<VideoPlayback> videoPlaybacks;
+    private final IoC ioc;
 
-    public VideoInfoService(List<VideoPlayback> videoPlaybacks) {
-        Objects.requireNonNull(videoPlaybacks, "videoPlaybacks cannot be null");
-        this.videoPlaybacks = videoPlaybacks;
-        init();
+    public VideoInfoService(IoC ioc) {
+        Objects.requireNonNull(ioc, "ioc cannot be null");
+        this.ioc = ioc;
     }
 
-    private void init() {
+    @Override
+    public List<ComponentInfo> getComponentDetails() {
+        var videoPlaybacks = ioc.getInstances(VideoPlayback.class);
         updateComponents(videoPlaybacks.stream()
                 .map(this::createComponentDetail)
                 .collect(Collectors.toList()));
+        return super.getComponentDetails();
     }
 
     private ComponentInfo createComponentDetail(VideoPlayback videoPlayback) {

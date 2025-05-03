@@ -54,7 +54,6 @@ impl UiSettings {
 }
 
 /// The UI scale of the application
-#[repr(C)]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct UiScale {
     value: f32,
@@ -70,6 +69,16 @@ impl UiScale {
         }
 
         Ok(Self { value })
+    }
+
+    pub fn value(&self) -> f32 {
+        self.value
+    }
+}
+
+impl Default for UiScale {
+    fn default() -> Self {
+        Self { value: 1f32 }
     }
 }
 

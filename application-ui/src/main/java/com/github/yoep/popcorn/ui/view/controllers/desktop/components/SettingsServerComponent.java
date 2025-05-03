@@ -1,8 +1,8 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
 import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
-import com.github.yoep.popcorn.backend.settings.models.ServerSettings;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.AbstractSettingsUiComponent;
 import com.github.yoep.popcorn.ui.view.controls.DelayedTextField;
@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
 import java.util.ResourceBundle;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 public class SettingsServerComponent extends AbstractSettingsUiComponent implements Initializable {
@@ -34,10 +35,14 @@ public class SettingsServerComponent extends AbstractSettingsUiComponent impleme
     }
 
     private void initializeApiServer() {
-        var settings = getSettings();
-
-        apiServer.setValue(settings.getApiServer());
-        apiServer.valueProperty().addListener((observable, oldValue, newValue) -> onApiServerChanged(newValue));
+        getSettings().whenComplete((settings, throwable) -> {
+            if (throwable == null) {
+                apiServer.setValue(settings.getApiServer());
+                apiServer.valueProperty().addListener((observable, oldValue, newValue) -> onApiServerChanged(newValue));
+            } else {
+                log.error("Failed to retrieve settings", throwable);
+            }
+        });
     }
 
     //endregion
@@ -45,24 +50,20 @@ public class SettingsServerComponent extends AbstractSettingsUiComponent impleme
     //region Functions
 
     private void onApiServerChanged(String newValue) {
-        var settings = getSettings();
-
-        try {
-            if (newValue != null && !newValue.isBlank()) {
-                settings.setApiServer(newValue);
+        getSettings().whenComplete((settings, throwable) -> {
+            if (throwable == null) {
+                applicationConfig.update(ApplicationSettings.ServerSettings.newBuilder(settings)
+                        .setApiServer(newValue)
+                        .build());
+                showNotification();
             } else {
-                settings.setApiServer(null);
+                log.error("Failed to retrieve settings", throwable);
             }
-
-            applicationConfig.update(settings);
-            showNotification();
-        } catch (IllegalArgumentException ex) {
-            log.warn("API server is invalid, " + ex.getMessage(), ex);
-        }
+        });
     }
 
-    private ServerSettings getSettings() {
-        return applicationConfig.getSettings().getServerSettings();
+    private CompletableFuture<ApplicationSettings.ServerSettings> getSettings() {
+        return applicationConfig.getSettings().thenApply(ApplicationSettings::getServerSettings);
     }
 
     //endregion

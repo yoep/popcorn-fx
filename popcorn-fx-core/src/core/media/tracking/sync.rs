@@ -7,7 +7,6 @@ use log::{debug, error, info, trace};
 use std::result;
 use std::sync::Arc;
 use thiserror::Error;
-use tokio::runtime::Runtime;
 use tokio::select;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::sync::Mutex;
@@ -101,7 +100,6 @@ pub struct SyncMediaTrackingBuilder {
     config: Option<ApplicationConfig>,
     provider: Option<Arc<Box<dyn TrackingProvider>>>,
     watched_service: Option<Arc<Box<dyn WatchedService>>>,
-    runtime: Option<Arc<Runtime>>,
 }
 
 impl SyncMediaTrackingBuilder {
@@ -125,12 +123,6 @@ impl SyncMediaTrackingBuilder {
     /// Sets the watched service for the builder.
     pub fn watched_service(mut self, watched_service: Arc<Box<dyn WatchedService>>) -> Self {
         self.watched_service = Some(watched_service);
-        self
-    }
-
-    /// Sets the runtime for the builder.
-    pub fn runtime(mut self, runtime: Arc<Runtime>) -> Self {
-        self.runtime = Some(runtime);
         self
     }
 
@@ -310,7 +302,7 @@ mod tests {
     use super::*;
 
     use crate::core::media::tracking::MockTrackingProvider;
-    use crate::core::media::watched::MockWatchedService;
+    use crate::core::media::watched::test::MockWatchedService;
     use crate::core::media::{MediaIdentifier, MockMediaIdentifier};
     use crate::{assert_timeout_eq, init_logger};
 

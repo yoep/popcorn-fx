@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.backend.adapters.player.listeners;
 
-import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
 
 /**
  * The player listener triggers events when the player/playback is changed.
@@ -26,7 +26,7 @@ public interface PlayerListener {
      *
      * @param newState The new state of the player.
      */
-    void onStateChanged(PlayerState newState);
+    void onStateChanged(Player.State newState);
 
     /**
      * Invoked when the player volume is changed.

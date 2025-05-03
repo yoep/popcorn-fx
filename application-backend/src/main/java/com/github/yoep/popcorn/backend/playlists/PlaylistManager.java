@@ -1,10 +1,12 @@
 package com.github.yoep.popcorn.backend.playlists;
 
-import com.github.yoep.popcorn.backend.media.providers.Episode;
-import com.github.yoep.popcorn.backend.media.providers.MovieDetails;
-import com.github.yoep.popcorn.backend.media.providers.ShowDetails;
-import com.github.yoep.popcorn.backend.playlists.model.Playlist;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Playlist;
+import com.github.yoep.popcorn.backend.media.Episode;
+import com.github.yoep.popcorn.backend.media.MovieDetails;
+import com.github.yoep.popcorn.backend.media.ShowDetails;
 import com.github.yoep.popcorn.backend.services.ListenerService;
+
+import java.util.concurrent.CompletableFuture;
 
 public interface PlaylistManager extends ListenerService<PlaylistManagerListener> {
     /**
@@ -49,5 +51,5 @@ public interface PlaylistManager extends ListenerService<PlaylistManagerListener
      *
      * @return Returns the currently active playlist.
      */
-    Playlist playlist();
+    CompletableFuture<Playlist> playlist();
 }

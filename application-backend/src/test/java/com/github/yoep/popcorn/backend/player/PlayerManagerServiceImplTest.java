@@ -1,20 +1,23 @@
 package com.github.yoep.popcorn.backend.player;
 
-import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.PopcornFx;
-import com.github.yoep.popcorn.backend.adapters.player.Player;
-import com.github.yoep.popcorn.backend.events.ClosePlayerEvent;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
+import com.github.yoep.popcorn.backend.lib.FxCallback;
+import com.github.yoep.popcorn.backend.lib.FxChannel;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.*;
+import com.google.protobuf.Parser;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import static java.util.Collections.singletonList;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.*;
 
@@ -23,73 +26,149 @@ class PlayerManagerServiceImplTest {
     @Spy
     private EventPublisher eventPublisher = new EventPublisher(false);
     @Mock
-    private FxLib fxLib;
-    @Mock
-    private PopcornFx instance;
-    @InjectMocks
+    private FxChannel fxChannel;
     private PlayerManagerServiceImpl service;
 
-    @Test
-    void testGetById() {
-        var playerId = "FooBar";
-        var player = mock(PlayerWrapper.class);
-        when(fxLib.player_by_id(isA(PopcornFx.class), isA(String.class))).thenReturn(player);
+    private final AtomicReference<FxCallback<PlayerManagerEvent>> eventListenerHolder = new AtomicReference<>();
 
-        var result = service.getById(playerId);
+    @BeforeEach
+    void setUp() {
+        doAnswer(invocations -> {
+            eventListenerHolder.set((FxCallback<PlayerManagerEvent>) invocations.getArgument(2, FxCallback.class));
+            return null;
+        }).when(fxChannel).subscribe(eq(FxChannel.typeFrom(PlayerManagerEvent.class)), isA(Parser.class), isA(FxCallback.class));
 
-        assertEquals(player, result.get());
-        verify(fxLib).player_by_id(instance, playerId);
+        service = new PlayerManagerServiceImpl(fxChannel, eventPublisher);
     }
 
     @Test
     void testGetPlayers() {
-        var set = mock(PlayerSet.class);
-        var players = singletonList(mock(Player.class));
-        when(set.getPlayers()).thenReturn(players);
-        when(fxLib.players(isA(PopcornFx.class))).thenReturn(set);
+        var player = Player.newBuilder().setId("1").build();
+        when(fxChannel.send(isA(GetPlayersRequest.class), isA(Parser.class))).thenReturn(CompletableFuture.completedFuture(GetPlayersResponse.newBuilder()
+                .addPlayers(player)
+                .build()
+        ));
 
-        var result = service.getPlayers();
+        var result = service.getPlayers().resultNow();
 
-        assertEquals(players, result);
-        verify(fxLib).players(instance);
+        verify(fxChannel).send(isA(GetPlayersRequest.class), isA(Parser.class));
+        assertEquals(1, result.size());
+        var resultPlayer = result.iterator().next();
+        assertInstanceOf(PlayerProtoWrapper.class, resultPlayer);
+        assertEquals(player, ((PlayerProtoWrapper) resultPlayer).proto());
     }
 
-    @Test
-    void testGetActivePlayer() {
-        var player = mock(PlayerWrapper.class);
-        when(fxLib.active_player(isA(PopcornFx.class))).thenReturn(player);
+    @Nested
+    class GetActivePlayer {
+        @Test
+        void testProtoPlayer() {
+            var player = Player.newBuilder().setId("active").build();
+            when(fxChannel.send(isA(GetActivePlayerRequest.class), isA(Parser.class))).thenReturn(CompletableFuture.completedFuture(GetActivePlayerResponse.newBuilder()
+                    .setPlayer(player)
+                    .build()
+            ));
 
-        var result = service.getActivePlayer();
+            var result = service.getActivePlayer().resultNow();
 
-        assertTrue(result.isPresent(), "expected an active player to have been returned");
-        assertEquals(player, result.get());
-        verify(fxLib).active_player(instance);
+            verify(fxChannel).send(isA(GetActivePlayerRequest.class), isA(Parser.class));
+            assertTrue(result.isPresent(), "expected an active player");
+            assertInstanceOf(PlayerProtoWrapper.class, result.get());
+            assertEquals(player, ((PlayerProtoWrapper) result.get()).proto());
+        }
+
+        @Test
+        void testFxPlayer() {
+            var id = "FxPlayerId";
+            var fxPlayer = mock(com.github.yoep.popcorn.backend.adapters.player.Player.class);
+            var player = Player.newBuilder()
+                    .setId(id)
+                    .build();
+            when(fxPlayer.getId()).thenReturn(id);
+            when(fxPlayer.getName()).thenReturn("fxPlayer");
+            when(fxPlayer.getDescription()).thenReturn("fxPlayerDescription");
+            when(fxPlayer.getState()).thenReturn(Player.State.PLAYING);
+            when(fxChannel.send(isA(GetActivePlayerRequest.class), isA(Parser.class))).thenReturn(CompletableFuture.completedFuture(GetActivePlayerResponse.newBuilder()
+                    .setPlayer(player)
+                    .build()
+            ));
+            when(fxChannel.send(isA(RegisterPlayerRequest.class), isA(Parser.class))).thenReturn(CompletableFuture.completedFuture(RegisterPlayerResponse.newBuilder()
+                    .setResult(Response.Result.OK)
+                    .build()
+            ));
+
+            var registrationResult = service.register(fxPlayer).resultNow();
+            verify(fxChannel).send(isA(RegisterPlayerRequest.class), isA(Parser.class));
+            assertEquals(true, registrationResult, "expected the player to have been registered");
+
+            var result = service.getActivePlayer().resultNow();
+
+            verify(fxChannel).send(isA(GetActivePlayerRequest.class), isA(Parser.class));
+            assertTrue(result.isPresent(), "expected an active player");
+            assertInstanceOf(PlayerFxWrapper.class, result.get());
+            assertEquals(fxPlayer, ((PlayerFxWrapper) result.get()).player());
+        }
     }
 
     @Test
     void testSetActivePlayer() {
-        var playerId = "MyPlayerId";
-        var player = mock(PlayerWrapper.class);
-        when(player.getId()).thenReturn(playerId);
+        var protoPlayer = Player.newBuilder()
+                .setId("fxPlayer")
+                .build();
+        var player = new PlayerProtoWrapper(protoPlayer, fxChannel);
+        var request = new AtomicReference<UpdateActivePlayerRequest>();
+        doAnswer(invocations -> {
+            request.set(invocations.getArgument(0, UpdateActivePlayerRequest.class));
+            return null;
+        }).when(fxChannel).send(isA(UpdateActivePlayerRequest.class));
 
         service.setActivePlayer(player);
 
-        verify(fxLib).set_active_player(instance, playerId);
+        verify(fxChannel).send(isA(UpdateActivePlayerRequest.class));
+        assertNotNull(request, "expected a request to have been sent");
+        assertEquals(protoPlayer, request.get().getPlayer());
     }
 
     @Test
-    void testInit() {
-        verify(fxLib).register_player_callback(instance, service);
+    void testUnregister() {
+        var id = "FxPlayerId";
+        var fxPlayer = mock(com.github.yoep.popcorn.backend.adapters.player.Player.class);
+        when(fxPlayer.getId()).thenReturn(id);
+        when(fxPlayer.getName()).thenReturn("fxPlayer");
+        when(fxPlayer.getDescription()).thenReturn("fxPlayerDescription");
+        when(fxPlayer.getState()).thenReturn(Player.State.PLAYING);
+        when(fxChannel.send(isA(RegisterPlayerRequest.class), isA(Parser.class))).thenReturn(CompletableFuture.completedFuture(RegisterPlayerResponse.newBuilder()
+                .setResult(Response.Result.OK)
+                .build()
+        ));
+
+        var registrationResult = service.register(fxPlayer).resultNow();
+        verify(fxChannel).send(isA(RegisterPlayerRequest.class), isA(Parser.class));
+        assertEquals(1, service.playerWrappers.size(), "expected the player to have been added to the wrappers");
+        assertEquals(true, registrationResult, "expected the player to have been registered");
+
+        service.unregister(fxPlayer);
+
+        verify(fxChannel).send(isA(RemovePlayerRequest.class));
+        assertEquals(0, service.playerWrappers.size(), "expected the player to have been removed from the wrappers");
     }
 
     @Test
-    void testOnClosePlayerEvent_whenReasonIsUser_shouldStopPlayer() {
-        var player = mock(PlayerWrapper.class);
-        when(fxLib.active_player(isA(PopcornFx.class))).thenReturn(player);
+    void testOnDestroy() {
+        var player = mock(com.github.yoep.popcorn.backend.adapters.player.Player.class);
+        when(player.getId()).thenReturn("player-id");
+        when(player.getName()).thenReturn("fxPlayer");
+        when(player.getDescription()).thenReturn("fxPlayerDescription");
+        when(player.getState()).thenReturn(Player.State.UNKNOWN);
+        when(fxChannel.send(isA(RegisterPlayerRequest.class), isA(Parser.class))).thenReturn(CompletableFuture.completedFuture(RegisterPlayerResponse.newBuilder()
+                .setResult(Response.Result.OK)
+                .build()
+        ));
 
-        eventPublisher.publish(new ClosePlayerEvent(this, ClosePlayerEvent.Reason.USER));
+        service.register(player).resultNow();
+        verify(fxChannel).send(isA(RegisterPlayerRequest.class), isA(Parser.class));
 
-        verify(player).stop();
-        verify(fxLib).active_player(instance);
+        service.onDestroy();
+
+        verify(player).dispose();
     }
 }

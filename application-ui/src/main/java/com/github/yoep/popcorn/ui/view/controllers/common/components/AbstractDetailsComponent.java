@@ -1,10 +1,10 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
-import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentHealth;
+import com.github.yoep.popcorn.backend.adapters.torrent.TorrentHelper;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
-import com.github.yoep.popcorn.backend.media.providers.Media;
-import com.github.yoep.popcorn.backend.media.providers.MediaTorrentInfo;
-import com.github.yoep.popcorn.backend.media.providers.Rating;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media.TorrentInfo;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Torrent;
+import com.github.yoep.popcorn.backend.media.Media;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.CloseDetailsEvent;
@@ -26,6 +26,8 @@ import java.net.URL;
 import java.util.Objects;
 import java.util.ResourceBundle;
 import java.util.concurrent.CancellationException;
+
+import static com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media.*;
 
 @Slf4j
 @RequiredArgsConstructor(access = AccessLevel.PROTECTED)
@@ -85,15 +87,20 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
      *
      * @param torrentInfo The media torrent info to display the health status of.
      */
-    protected void switchHealth(MediaTorrentInfo torrentInfo) {
+    protected void switchHealth(TorrentInfo torrentInfo) {
         if (health == null)
             return;
 
         this.health.setUpdating(true);
 
         // set the health based on the API information
-        var health = healthService.calculateHealth(torrentInfo.getSeed(), torrentInfo.getPeer());
-        updateHealthIcon(health);
+        healthService.calculateHealth(torrentInfo.getSeeds(), torrentInfo.getPeers()).whenComplete((health, throwable) -> {
+            if (throwable == null) {
+                updateHealthIcon(health);
+            } else {
+                log.error("Failed to calculate health", throwable);
+            }
+        });
 
         // request the real-time health
         healthService.getTorrentHealth(torrentInfo.getUrl()).whenComplete((torrentHealth, throwable) -> {
@@ -145,7 +152,7 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
         });
     }
 
-    private void updateHealthIcon(TorrentHealth health) {
+    private void updateHealthIcon(Torrent.Health health) {
         var healthTooltip = new Tooltip(getHealthTooltip(health));
 
         healthTooltip.setWrapText(true);
@@ -156,15 +163,16 @@ public abstract class AbstractDetailsComponent<T extends Media> implements Initi
             log.trace("Health states have been removed from the health icon");
         }
 
-        this.health.getStyleClass().add(health.getState().getStyleClass());
+        this.health.getStyleClass().add(TorrentHelper.getHealthStateStyleClass(health.getState()));
     }
 
     private boolean removeHealthState() {
         return this.health.getStyleClass().removeIf(e -> !e.equals("health"));
     }
 
-    private String getHealthTooltip(TorrentHealth health) {
-        return localeText.get(health.getState().getKey()) + " - Ratio: " + String.format("%1$,.2f", health.getRatio()) + "\n" +
+    private String getHealthTooltip(Torrent.Health health) {
+        var health_state_key = TorrentHelper.getHealthStateKey(health.getState());
+        return localeText.get(health_state_key) + " - Ratio: " + String.format("%1$,.2f", health.getRatio()) + "\n" +
                 "Seeds: " + health.getSeeds() + " - Peers: " + health.getLeechers();
     }
 

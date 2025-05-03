@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controls;
 
-import com.github.yoep.popcorn.backend.media.providers.Rating;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media;
 import com.github.yoep.popcorn.ui.font.controls.Icon;
 import javafx.geometry.Pos;
 import javafx.scene.control.OverrunStyle;
@@ -13,7 +13,7 @@ public class Stars extends HBox {
     private static final String STARS_STYLE_CLASS = "stars";
     private static final String STAR_STYLE_CLASS = "star";
 
-    private Rating rating;
+    private Media.Rating rating;
 
     //region Constructors
 
@@ -21,7 +21,7 @@ public class Stars extends HBox {
         init();
     }
 
-    public Stars(Rating rating) {
+    public Stars(Media.Rating rating) {
         Objects.requireNonNull(rating, "rating cannot be null");
         this.rating = rating;
         init();
@@ -36,7 +36,7 @@ public class Stars extends HBox {
      *
      * @param rating The rating to represent.
      */
-    public void setRating(Rating rating) {
+    public void setRating(Media.Rating rating) {
         Objects.requireNonNull(rating, "rating cannot be null");
         this.rating = rating;
         initializeStars();

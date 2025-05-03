@@ -4,10 +4,10 @@ import com.github.yoep.player.popcorn.controls.ProgressSliderControl;
 import com.github.yoep.player.popcorn.controls.Volume;
 import com.github.yoep.player.popcorn.listeners.PlayerControlsListener;
 import com.github.yoep.player.popcorn.services.PlayerControlsService;
-import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
 import com.github.yoep.popcorn.backend.adapters.torrent.model.DownloadStatus;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.PlayerStoppedEvent;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
 import com.github.yoep.popcorn.backend.utils.TimeUtils;
 import com.github.yoep.popcorn.ui.font.controls.Icon;
 import javafx.application.Platform;
@@ -96,8 +96,8 @@ public class DesktopPlayerControlsComponent implements Initializable {
             }
 
             @Override
-            public void onPlayerStateChanged(PlayerState state) {
-                DesktopPlayerControlsComponent.this.onPlayerStateChanged(state == PlayerState.PLAYING);
+            public void onPlayerStateChanged(Player.State state) {
+                DesktopPlayerControlsComponent.this.onPlayerStateChanged(state == Player.State.PLAYING);
             }
 
             @Override

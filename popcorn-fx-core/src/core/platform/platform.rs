@@ -4,8 +4,8 @@ use derive_more::Display;
 #[cfg(any(test, feature = "testing"))]
 use mockall::automock;
 
-use crate::core::CoreCallback;
 use crate::core::playback::MediaNotificationEvent;
+use crate::core::CoreCallback;
 
 /// The platform event specific callback type.
 pub type PlatformCallback = CoreCallback<PlatformEvent>;
@@ -58,7 +58,6 @@ pub struct PlatformInfo {
 }
 
 /// The platform type
-#[repr(i32)]
 #[derive(Debug, Clone, Display, PartialEq)]
 pub enum PlatformType {
     /// The windows platform

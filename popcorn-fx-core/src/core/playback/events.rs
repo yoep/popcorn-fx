@@ -7,7 +7,6 @@ pub type PlaybackControlCallback = CoreCallback<PlaybackControlEvent>;
 
 /// Events related to playback control, triggered by the media system of the OS.
 /// These events can be used to modify the player state based on the given media event.
-#[repr(i32)]
 #[derive(Debug, Clone, Display)]
 pub enum PlaybackControlEvent {
     #[display(fmt = "Toggle the playback state")]

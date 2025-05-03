@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.backend.media.watched.models;
 
-import com.github.yoep.popcorn.backend.media.providers.Media;
+import com.github.yoep.popcorn.backend.media.Media;
 import com.github.yoep.popcorn.backend.media.providers.MediaType;
 import javafx.beans.property.BooleanProperty;
 

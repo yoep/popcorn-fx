@@ -118,11 +118,12 @@ impl MediaProvider for MovieProvider {
                     .await
                 {
                     Ok(e) => {
-                        info!(
-                            "Retrieved a total of {} movies, [{{{}}}]",
+                        debug!(
+                            "Retrieved {} movie(s), [{{{}}}]",
                             e.len(),
                             e.iter().map(|e| e.to_string()).join("}, {")
                         );
+                        info!("Retrieved a total of {} movies for page {}", e.len(), page);
                         Ok(e)
                     }
                     Err(e) => {

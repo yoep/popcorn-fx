@@ -1,9 +1,11 @@
 package com.github.yoep.popcorn.ui.view.services;
 
-import com.github.yoep.popcorn.backend.media.favorites.FavoriteEventCallback;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.FavoriteEvent;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.WatchedEvent;
+import com.github.yoep.popcorn.backend.media.Media;
+import com.github.yoep.popcorn.backend.media.favorites.FavoriteEventListener;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
-import com.github.yoep.popcorn.backend.media.providers.Media;
-import com.github.yoep.popcorn.backend.media.watched.WatchedEventCallback;
+import com.github.yoep.popcorn.backend.media.watched.WatchedEventListener;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
@@ -12,16 +14,16 @@ import javafx.application.Platform;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
-public class DetailsComponentService extends AbstractListenerService<DetailsComponentListener> {
+public class DetailsComponentService
+        extends AbstractListenerService<DetailsComponentListener>
+        implements FavoriteEventListener, WatchedEventListener {
     private final FavoriteService favoriteService;
     private final WatchedService watchedService;
     private final ApplicationConfig applicationConfig;
     private final SubtitlePickerService subtitlePickerService;
-
-    private final FavoriteEventCallback favoriteEventCallback = createFavoriteCallback();
-    private final WatchedEventCallback watchedEventCallback = createWatchedCallback();
 
     public DetailsComponentService(FavoriteService favoriteService, WatchedService watchedService, ApplicationConfig applicationConfig, SubtitlePickerService subtitlePickerService) {
         this.favoriteService = favoriteService;
@@ -31,11 +33,11 @@ public class DetailsComponentService extends AbstractListenerService<DetailsComp
         init();
     }
 
-    public boolean isWatched(Media media) {
+    public CompletableFuture<Boolean> isWatched(Media media) {
         return watchedService.isWatched(media);
     }
 
-    public boolean isLiked(Media media) {
+    public CompletableFuture<Boolean> isLiked(Media media) {
         return favoriteService.isLiked(media);
     }
 
@@ -54,16 +56,29 @@ public class DetailsComponentService extends AbstractListenerService<DetailsComp
 
     public void toggleWatchedState(Media media) {
         Objects.requireNonNull(media, "media cannot be null");
-        updateWatchedStated(media, !watchedService.isWatched(media));
+        watchedService.isWatched(media).whenComplete((watched, throwable) -> {
+            if (throwable == null) {
+                updateWatchedStated(media, !watched);
+            } else {
+                log.error("Failed to retrieve is watched", throwable);
+            }
+        });
+
     }
 
     public void toggleLikedState(Media media) {
         Objects.requireNonNull(media, "media cannot be null");
-        if (favoriteService.isLiked(media)) {
-            favoriteService.removeFromFavorites(media);
-        } else {
-            favoriteService.addToFavorites(media);
-        }
+        favoriteService.isLiked(media).whenComplete((isLiked, throwable) -> {
+            if (throwable == null) {
+                if (isLiked) {
+                    favoriteService.removeFromFavorites(media);
+                } else {
+                    favoriteService.addToFavorites(media);
+                }
+            } else {
+                log.error("Failed to retrieve is liked", throwable);
+            }
+        });
     }
 
     public void onCustomSubtitleSelected(Runnable onCancelled) {
@@ -75,34 +90,22 @@ public class DetailsComponentService extends AbstractListenerService<DetailsComp
             subtitleInfo.ifPresentOrElse(
                     e -> {
                     },
-                    onCancelled::run);
+                    onCancelled);
         });
     }
 
+    @Override
+    public void onLikedStateChanged(FavoriteEvent.LikedStateChanged event) {
+        invokeListeners(e -> e.onLikedChanged(event.getImdbId(), event.getIsLiked()));
+    }
+
+    @Override
+    public void onWatchedStateChanged(WatchedEvent.WatchedStateChanged event) {
+        invokeListeners(e -> e.onWatchChanged(event.getImdbId(), event.getNewState()));
+    }
+
     private void init() {
-        favoriteService.registerListener(favoriteEventCallback);
-        watchedService.registerListener(watchedEventCallback);
-    }
-
-    private FavoriteEventCallback createFavoriteCallback() {
-        return event -> {
-            switch (event.tag) {
-                case LikedStateChanged -> {
-                    var stateChanged = event.getUnion().getLiked_state_changed();
-                    invokeListeners(e -> e.onLikedChanged(stateChanged.getImdbId(), stateChanged.getNewState()));
-                }
-            }
-        };
-    }
-
-    private WatchedEventCallback createWatchedCallback() {
-        return event -> {
-            switch (event.tag) {
-                case WatchedStateChanged -> {
-                    var stateChanged = event.getUnion().getWatched_state_changed();
-                    invokeListeners(e -> e.onWatchChanged(stateChanged.getImdbId(), stateChanged.getNewState()));
-                }
-            }
-        };
+        favoriteService.addListener(this);
+        watchedService.addListener(this);
     }
 }

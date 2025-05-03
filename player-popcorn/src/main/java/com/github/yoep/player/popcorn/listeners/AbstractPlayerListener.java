@@ -1,7 +1,7 @@
 package com.github.yoep.player.popcorn.listeners;
 
 import com.github.yoep.popcorn.backend.adapters.player.listeners.PlayerListener;
-import com.github.yoep.popcorn.backend.adapters.player.state.PlayerState;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
 
 public abstract class AbstractPlayerListener implements PlayerListener {
     @Override
@@ -15,7 +15,7 @@ public abstract class AbstractPlayerListener implements PlayerListener {
     }
 
     @Override
-    public void onStateChanged(PlayerState newState) {
+    public void onStateChanged(Player.State newState) {
         // no-op
     }
 

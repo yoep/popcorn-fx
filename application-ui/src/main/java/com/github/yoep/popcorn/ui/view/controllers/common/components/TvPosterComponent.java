@@ -2,7 +2,7 @@ package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowDetailsEvent;
-import com.github.yoep.popcorn.backend.media.providers.Media;
+import com.github.yoep.popcorn.backend.media.Media;
 import com.github.yoep.popcorn.ui.view.controls.ImageCover;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.application.Platform;
@@ -42,7 +42,7 @@ public class TvPosterComponent {
     }
 
     void onShowDetailsEvent(Media media) {
-        if (Objects.equals(media, this.media))
+        if (this.media != null && Objects.equals(media.id(), this.media.id()))
             return;
 
         this.media = media;
@@ -50,15 +50,21 @@ public class TvPosterComponent {
     }
 
     private void updatePoster() {
-        Platform.runLater(() -> poster.setImage(imageService.getPosterPlaceholder(poster.getPrefWidth(), poster.getPrefHeight())));
-
-        imageService.loadPoster(media).whenComplete((image, throwable) -> {
+        imageService.getPosterPlaceholder(poster.getPrefWidth(), poster.getPrefHeight()).whenComplete((posterHolder, throwable) -> {
             if (throwable == null) {
-                Platform.runLater(() -> image
-                        .filter(e -> !e.isError())
-                        .ifPresent(poster::setImage));
+                Platform.runLater(() -> poster.setImage(posterHolder));
+
+                imageService.loadPoster(media).whenComplete((image, ex) -> {
+                    if (ex == null) {
+                        Platform.runLater(() -> image
+                                .filter(e -> !e.isError())
+                                .ifPresent(poster::setImage));
+                    } else {
+                        log.error("Failed to load poster image, {}", ex.getMessage(), ex);
+                    }
+                });
             } else {
-                log.error("Failed to load poster image, {}", throwable.getMessage(), throwable);
+                log.error("Failed to load poster holder image", throwable);
             }
         });
     }

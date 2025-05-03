@@ -21,7 +21,6 @@ pub type StreamBytes = Vec<u8>;
 pub type StreamBytesResult = Result<StreamBytes, torrents::Error>;
 
 /// The state of the [TorrentStream].
-#[repr(i32)]
 #[derive(Debug, Copy, Clone, Display, PartialEq)]
 pub enum TorrentStreamState {
     /// The initial state of the torrent stream.
@@ -58,11 +57,6 @@ pub enum TorrentStreamEvent {
 /// and managing the stream state.
 #[async_trait]
 pub trait TorrentStream: Torrent + Callback<TorrentStreamEvent> + DowncastSync {
-    /// Get the stream handle of this stream.
-    ///
-    /// Returns the stream handle of this stream.
-    fn stream_handle(&self) -> StreamHandle;
-
     /// Get the endpoint URL where the stream is available.
     ///
     /// Returns an owned instance of the URL.

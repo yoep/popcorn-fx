@@ -5,6 +5,7 @@ target/
 cmake-build*/
 
 assets/*/popcorn-time
+assets/*/libfx
 assets/*/*.so
 assets/*/vlc/lua/
 assets/*/vlc/plugins/

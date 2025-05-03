@@ -1,9 +1,10 @@
 package com.github.yoep.popcorn.backend.loader;
 
-import com.github.yoep.popcorn.backend.FxLib;
-import com.github.yoep.popcorn.backend.PopcornFx;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.LoadingStartedEvent;
+import com.github.yoep.popcorn.backend.lib.FxCallback;
+import com.github.yoep.popcorn.backend.lib.FxChannel;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.*;
 import com.github.yoep.popcorn.backend.services.AbstractListenerService;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
@@ -14,59 +15,58 @@ import java.util.Objects;
 @Slf4j
 @ToString
 @EqualsAndHashCode(callSuper = false)
-public class LoaderService extends AbstractListenerService<LoaderListener> implements LoaderEventCallback {
-    private final FxLib fxLib;
-    private final PopcornFx instance;
+public class LoaderService extends AbstractListenerService<LoaderListener> implements FxCallback<LoaderEvent> {
+    private final FxChannel fxChannel;
     private final EventPublisher eventPublisher;
 
-    Long lastLoaderHandle;
+    Handle lastLoaderHandle;
 
-    public LoaderService(FxLib fxLib, PopcornFx instance, EventPublisher eventPublisher) {
-        this.fxLib = fxLib;
-        this.instance = instance;
+    public LoaderService(FxChannel fxChannel, EventPublisher eventPublisher) {
+        Objects.requireNonNull(fxChannel, "fxChannel cannot be null");
+        Objects.requireNonNull(eventPublisher, "eventPublisher cannot be null");
+        this.fxChannel = fxChannel;
         this.eventPublisher = eventPublisher;
         init();
     }
 
     public void load(String url) {
         Objects.requireNonNull(url, "url cannot be null");
-        lastLoaderHandle = fxLib.loader_load(instance, url);
+        fxChannel.send(
+                LoaderLoadRequest.newBuilder().setUrl(url).build(),
+                LoaderLoadResponse.parser()
+        ).whenComplete((response, throwable) -> {
+            if (throwable == null) {
+                lastLoaderHandle = response.getHandle();
+            } else {
+                log.error("Failed to load url {}", url, throwable);
+            }
+        });
     }
 
     public void cancel() {
-        fxLib.loader_cancel(instance, lastLoaderHandle);
+        if (lastLoaderHandle != null) {
+            fxChannel.send(
+                    LoaderCancelRequest.newBuilder().setHandle(lastLoaderHandle).build()
+            );
+        }
     }
 
     @Override
-    public void callback(LoaderEventC.ByValue event) {
-        try (event) {
-            switch (event.getTag()) {
-                case LOADING_STARTED -> {
-                    var loadingStartedBody = event.getUnion().getLoadingStarted_body();
-                    lastLoaderHandle = loadingStartedBody.getHandle();
-                    eventPublisher.publish(new LoadingStartedEvent(this));
-                    invokeListeners(e -> e.onLoadingStarted(loadingStartedBody.getStartedEvent()));
-                }
-                case STATE_CHANGED -> {
-                    var stateChangedBody = event.getUnion().getStateChanged_body();
-                    invokeListeners(e -> e.onStateChanged(stateChangedBody.getState()));
-                }
-                case LOADING_ERROR -> {
-                    var loadingErrorBody = event.getUnion().getLoadingError_body();
-                    invokeListeners(e -> e.onError(loadingErrorBody.getError()));
-                }
-                case PROGRESS_CHANGED -> {
-                    var progressChangedBody = event.getUnion().getProgressChanged_body();
-                    invokeListeners(e -> e.onProgressChanged(progressChangedBody.getLoadingProgress()));
-                }
+    public void callback(LoaderEvent event) {
+        switch (event.getEvent()) {
+            case LOADING_STARTED -> {
+                lastLoaderHandle = event.getLoadingStarted().getHandle();
+                eventPublisher.publish(new LoadingStartedEvent(this));
+                invokeListeners(e -> e.onLoadingStarted(event.getLoadingStarted()));
             }
-        } catch (Exception ex) {
-            log.error("An unexpected error occurred while handling the loader event C, {}", ex.getMessage(), ex);
+            case STATE_CHANGED -> invokeListeners(e -> e.onStateChanged(event.getStateChanged().getState()));
+            case PROGRESS_CHANGED -> invokeListeners(e -> e.onProgressChanged(event.getProgressChanged().getProgress()));
+            case LOADING_ERROR -> invokeListeners(e -> e.onError(event.getLoadingError().getError()));
         }
     }
 
     void init() {
         log.debug("Registering loader event callback");
-        fxLib.register_loader_callback(instance, this);
+        fxChannel.subscribe(FxChannel.typeFrom(LoaderEvent.class), LoaderEvent.parser(), this);
     }
 }

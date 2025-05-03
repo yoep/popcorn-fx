@@ -62,7 +62,6 @@ impl Default for TorrentSettings {
 }
 
 /// The cleaning mode for downloaded files.
-#[repr(i32)]
 #[derive(Debug, Clone, Display, Serialize, Deserialize, PartialEq)]
 pub enum CleaningMode {
     /// Cleaning is disabled.

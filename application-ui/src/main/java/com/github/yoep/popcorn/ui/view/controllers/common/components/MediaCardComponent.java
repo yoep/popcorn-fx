@@ -1,9 +1,9 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
-import com.github.yoep.popcorn.backend.media.favorites.FavoriteEventCallback;
-import com.github.yoep.popcorn.backend.media.providers.Media;
-import com.github.yoep.popcorn.backend.media.providers.Rating;
-import com.github.yoep.popcorn.backend.media.providers.ShowOverview;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.FavoriteEvent;
+import com.github.yoep.popcorn.backend.media.Media;
+import com.github.yoep.popcorn.backend.media.ShowOverview;
+import com.github.yoep.popcorn.backend.media.favorites.FavoriteEventListener;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.font.controls.Icon;
 import com.github.yoep.popcorn.ui.messages.MediaMessage;
@@ -11,6 +11,7 @@ import com.github.yoep.popcorn.ui.view.controllers.desktop.components.OverlayIte
 import com.github.yoep.popcorn.ui.view.controllers.desktop.components.OverlayItemMetadataProvider;
 import com.github.yoep.popcorn.ui.view.controls.Stars;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.Parent;
 import javafx.scene.control.Label;
@@ -22,12 +23,13 @@ import java.net.URL;
 import java.util.Objects;
 import java.util.ResourceBundle;
 
+import static com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media.Rating;
+
 @Slf4j
-public class MediaCardComponent extends TvMediaCardComponent {
+public class MediaCardComponent extends TvMediaCardComponent implements FavoriteEventListener {
     private static final String LIKED_STYLE_CLASS = "liked";
 
     private final LocaleText localeText;
-    private final FavoriteEventCallback favoriteEventCallback = createFavoriteCallback(media);
 
     @FXML
     Label ratingValue;
@@ -50,7 +52,7 @@ public class MediaCardComponent extends TvMediaCardComponent {
         super(media, imageService, metadataProvider, listeners);
         this.localeText = localeText;
 
-        metadataProvider.addListener(favoriteEventCallback);
+        metadataProvider.addFavoriteListener(this);
     }
 
     @Override
@@ -63,35 +65,48 @@ public class MediaCardComponent extends TvMediaCardComponent {
     }
 
     @Override
+    public void onLikedStateChanged(FavoriteEvent.LikedStateChanged event) {
+        if (Objects.equals(event.getImdbId(), media.id())) {
+            switchFavorite(event.getIsLiked());
+        }
+    }
+
+    @Override
     protected void initializeMetadata() {
         super.initializeMetadata();
-        switchFavorite(metadataProvider.isLiked(media));
+        metadataProvider.isLiked(media).whenComplete((isLiked, throwable) -> {
+            if (throwable == null) {
+                switchFavorite(isLiked);
+            } else {
+                log.error("Failed to retrieve is liked", throwable);
+            }
+        });
     }
 
     @Override
     protected void onParentChanged(Parent newValue) {
         super.onParentChanged(newValue);
         if (newValue == null) {
-            metadataProvider.removeListener(favoriteEventCallback);
+            metadataProvider.removeFavoriteListener(this);
         }
     }
 
     private void initializeText() {
-        title.setText(media.getTitle());
-        year.setText(media.getYear());
+        title.setText(media.title());
+        year.setText(media.year());
 
         if (media instanceof ShowOverview) {
             var show = (ShowOverview) media;
-            var text = localeText.get(MediaMessage.SEASONS, show.getNumberOfSeasons());
+            var text = localeText.get(MediaMessage.SEASONS, show.getSeasons());
 
-            if (show.getNumberOfSeasons() > 1) {
+            if (show.getSeasons() > 1) {
                 text += localeText.get(MediaMessage.PLURAL);
             }
 
             seasons.setText(text);
         }
 
-        Tooltip.install(title, new Tooltip(media.getTitle()));
+        Tooltip.install(title, new Tooltip(media.title()));
     }
 
     private void initializeRating() {
@@ -107,44 +122,26 @@ public class MediaCardComponent extends TvMediaCardComponent {
     }
 
     private void switchFavorite(boolean isFavorite) {
-        if (isFavorite) {
-            favorite.getStyleClass().add(LIKED_STYLE_CLASS);
-        } else {
-            favorite.getStyleClass().remove(LIKED_STYLE_CLASS);
-        }
-    }
-
-    private FavoriteEventCallback createFavoriteCallback(Media media) {
-        return event -> {
-            switch (event.getTag()) {
-                case LikedStateChanged -> {
-                    var stateChange = event.getUnion().getLiked_state_changed();
-
-                    if (Objects.equals(stateChange.getImdbId(), media.getId())) {
-                        switchFavorite(stateChange.getNewState());
-                    }
-                }
+        Platform.runLater(() -> {
+            if (isFavorite) {
+                favorite.getStyleClass().add(LIKED_STYLE_CLASS);
+            } else {
+                favorite.getStyleClass().remove(LIKED_STYLE_CLASS);
             }
-        };
+        });
     }
 
     @FXML
     void onWatchedClicked(MouseEvent event) {
         event.consume();
-        boolean newValue = !metadataProvider.isWatched(media);
-
-        synchronized (listeners) {
-            listeners.forEach(e -> e.onWatchedChanged(media, newValue));
-        }
+        metadataProvider.isWatched(media)
+                .thenAccept(isWatched -> listeners.forEach(e -> e.onWatchedChanged(media, !isWatched)));
     }
 
     @FXML
     void onFavoriteClicked(MouseEvent event) {
         event.consume();
-        boolean newState = !metadataProvider.isLiked(media);
-
-        synchronized (listeners) {
-            listeners.forEach(e -> e.onFavoriteChanged(media, newState));
-        }
+        metadataProvider.isLiked(media)
+                .thenAccept(isLiked -> listeners.forEach(e -> e.onFavoriteChanged(media, !isLiked)));
     }
 }

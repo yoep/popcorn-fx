@@ -2,10 +2,13 @@ package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowMovieDetailsEvent;
-import com.github.yoep.popcorn.backend.media.favorites.FavoriteEvent;
-import com.github.yoep.popcorn.backend.media.favorites.FavoriteEventCallback;
+import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.FavoriteEvent;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media;
+import com.github.yoep.popcorn.backend.media.MovieDetails;
+import com.github.yoep.popcorn.backend.media.ShowDetails;
+import com.github.yoep.popcorn.backend.media.favorites.FavoriteEventListener;
 import com.github.yoep.popcorn.backend.media.favorites.FavoriteService;
-import com.github.yoep.popcorn.backend.media.providers.MovieDetails;
 import com.github.yoep.popcorn.backend.media.watched.WatchedService;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.font.controls.Icon;
@@ -13,6 +16,7 @@ import com.github.yoep.popcorn.ui.messages.DetailsMessage;
 import com.github.yoep.popcorn.ui.view.controls.ImageCover;
 import com.github.yoep.popcorn.ui.view.services.ImageService;
 import javafx.scene.control.Tooltip;
+import javafx.scene.image.Image;
 import javafx.scene.layout.Pane;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,6 +29,7 @@ import org.testfx.framework.junit5.ApplicationExtension;
 import org.testfx.util.WaitForAsyncUtils;
 
 import java.net.URL;
+import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -53,14 +58,14 @@ class PosterComponentTest {
     @InjectMocks
     private PosterComponent component;
 
-    private final AtomicReference<FavoriteEventCallback> favoriteCallbackHolder = new AtomicReference<>();
+    private final AtomicReference<FavoriteEventListener> favoriteListenerHolder = new AtomicReference<>();
 
     @BeforeEach
     void setUp() {
         doAnswer(invocation -> {
-            favoriteCallbackHolder.set(invocation.getArgument(0));
+            favoriteListenerHolder.set(invocation.getArgument(0, FavoriteEventListener.class));
             return null;
-        }).when(favoriteService).registerListener(isA(FavoriteEventCallback.class));
+        }).when(favoriteService).addListener(isA(FavoriteEventListener.class));
 
         component.poster = new ImageCover();
         component.posterHolder = new Pane();
@@ -73,11 +78,13 @@ class PosterComponentTest {
     @Test
     void testOnShowDetailsEvent() throws TimeoutException {
         var event = mock(ShowMovieDetailsEvent.class);
-        var media = mock(MovieDetails.class);
+        var media = creatMovieMedia();
+        var image = new Image(PosterComponentTest.class.getResourceAsStream("/posterholder.png"));
         when(event.getMedia()).thenReturn(media);
-        when(favoriteService.isLiked(media)).thenReturn(true);
-        when(watchedService.isWatched(media)).thenReturn(true);
-        when(imageService.loadPoster(media)).thenReturn(new CompletableFuture<>());
+        when(favoriteService.isLiked(media)).thenReturn(CompletableFuture.completedFuture(true));
+        when(watchedService.isWatched(media)).thenReturn(CompletableFuture.completedFuture(true));
+        when(imageService.getPosterPlaceholder(isA(Double.class), isA(Double.class))).thenReturn(CompletableFuture.completedFuture(image));
+        when(imageService.loadPoster(media)).thenReturn(CompletableFuture.completedFuture(Optional.of(image)));
         component.initialize(url, resourceBundle);
 
         eventPublisher.publish(event);
@@ -91,19 +98,15 @@ class PosterComponentTest {
 
     @Test
     void testOnLikeStateChanged() throws TimeoutException {
-        var imdbId = "tt123444";
-        var mediaEvent = mock(ShowMovieDetailsEvent.class);
-        var media = mock(MovieDetails.class);
-        var event = new FavoriteEvent.ByValue();
-        event.tag = FavoriteEvent.Tag.LikedStateChanged;
-        event.union = new FavoriteEvent.FavoriteEventCUnion.ByValue();
-        event.union.liked_state_changed = new FavoriteEvent.LikedStateChangedBody();
-        event.union.liked_state_changed.imdbId = imdbId;
-        event.union.liked_state_changed.newState = (byte) 1;
+        var imdbId = "tt2200000";
+        var mediaEvent = mock(ShowSerieDetailsEvent.class);
+        var media = createShowMedia(imdbId);
+        var image = new Image(PosterComponentTest.class.getResourceAsStream("/posterholder.png"));
         when(mediaEvent.getMedia()).thenReturn(media);
-        when(media.getId()).thenReturn(imdbId);
-        when(favoriteService.isLiked(media)).thenReturn(false);
-        when(imageService.loadPoster(media)).thenReturn(new CompletableFuture<>());
+        when(watchedService.isWatched(isA(com.github.yoep.popcorn.backend.media.Media.class))).thenReturn(CompletableFuture.completedFuture(false));
+        when(favoriteService.isLiked(media)).thenReturn(CompletableFuture.completedFuture(false));
+        when(imageService.getPosterPlaceholder(isA(Double.class), isA(Double.class))).thenReturn(CompletableFuture.completedFuture(image));
+        when(imageService.loadPoster(media)).thenReturn(CompletableFuture.completedFuture(Optional.of(image)));
         component.initialize(url, resourceBundle);
 
         // add a media item to the details
@@ -111,9 +114,26 @@ class PosterComponentTest {
         verify(favoriteService).isLiked(media);
         WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> component.favoriteIcon.getText().equals(Icon.HEART_O_UNICODE));
 
-        var listener = favoriteCallbackHolder.get();
-        listener.callback(event);
+        var listener = favoriteListenerHolder.get();
+        listener.onLikedStateChanged(FavoriteEvent.LikedStateChanged.newBuilder()
+                .setImdbId(imdbId)
+                .setIsLiked(true)
+                .build());
 
         WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> component.favoriteIcon.getText().equals(Icon.HEART_UNICODE));
+    }
+
+    private static MovieDetails creatMovieMedia() {
+        return new MovieDetails(Media.MovieDetails.newBuilder()
+                .setImdbId("tt1000000")
+                .setTitle("MyMovieTitle")
+                .build());
+    }
+
+    private static ShowDetails createShowMedia(String imdbId) {
+        return new ShowDetails(Media.ShowDetails.newBuilder()
+                .setImdbId(imdbId)
+                .setTitle("MyShowTitle")
+                .build());
     }
 }

@@ -12,9 +12,9 @@ import java.util.function.Consumer;
 public abstract class AbstractVideoPlayer implements VideoPlayback {
     protected final Collection<VideoListener> listeners = new ConcurrentLinkedQueue<>();
 
-    private VideoState videoState = VideoState.UNKNOWN;
-    private Long time;
-    private Long duration;
+    VideoState videoState = VideoState.UNKNOWN;
+    Long time;
+    Long duration;
 
     //region Properties
 

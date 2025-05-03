@@ -1,13 +1,16 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.sections;
 
-import com.github.yoep.popcorn.backend.FxLib;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowAboutEvent;
 import com.github.yoep.popcorn.backend.info.ComponentInfo;
+import com.github.yoep.popcorn.backend.lib.FxChannel;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.GetApplicationVersionRequest;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.GetApplicationVersionResponse;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Update;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.UpdateEvent;
 import com.github.yoep.popcorn.backend.messages.UpdateMessage;
-import com.github.yoep.popcorn.backend.updater.UpdateCallbackEvent;
+import com.github.yoep.popcorn.backend.updater.UpdateEventListener;
 import com.github.yoep.popcorn.backend.updater.UpdateService;
-import com.github.yoep.popcorn.backend.updater.UpdateState;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.CloseAboutEvent;
 import com.github.yoep.popcorn.ui.events.ShowUpdateEvent;
@@ -37,7 +40,6 @@ import java.util.List;
 import java.util.ResourceBundle;
 
 @Slf4j
-
 @RequiredArgsConstructor
 public class AboutSectionController implements Initializable {
     private final AboutSectionService aboutService;
@@ -45,7 +47,7 @@ public class AboutSectionController implements Initializable {
     private final EventPublisher eventPublisher;
     private final UpdateService updateService;
     private final LocaleText localeText;
-    private final FxLib fxLib;
+    private final FxChannel fxChannel;
 
     private final RotateTransition updateAnimation = new RotateTransition(Duration.seconds(1));
 
@@ -86,7 +88,10 @@ public class AboutSectionController implements Initializable {
     }
 
     private void initializeLabels() {
-        versionLabel.setText(fxLib.version());
+        fxChannel.send(GetApplicationVersionRequest.getDefaultInstance(), GetApplicationVersionResponse.parser())
+                .thenAccept(response -> Platform.runLater(() -> {
+                    versionLabel.setText(response.getVersion());
+                }));
     }
 
     private void initializeListeners() {
@@ -101,11 +106,11 @@ public class AboutSectionController implements Initializable {
                 AboutSectionController.this.onVideoPlayersChanged(videoPlayers);
             }
         });
-        aboutService.updateAll();
         eventPublisher.register(ShowAboutEvent.class, event -> {
             Platform.runLater(() -> updateButton.requestFocus());
             return event;
         });
+        aboutService.updateAll();
     }
 
     private void initializeButton() {
@@ -113,15 +118,27 @@ public class AboutSectionController implements Initializable {
         updateAnimation.setCycleCount(Animation.INDEFINITE);
         updateAnimation.setFromAngle(0.0);
         updateAnimation.setToAngle(360.0);
-        updateService.register(event -> {
-            if (event.getTag() == UpdateCallbackEvent.Tag.StateChanged) {
-                onUpdateStateChanged(event.getUnion().getState_changed().getNewState());
+        updateService.addListener(new UpdateEventListener() {
+            @Override
+            public void onStateChanged(UpdateEvent.StateChanged event) {
+                onUpdateStateChanged(event.getNewState());
+            }
+
+            @Override
+            public void onDownloadProgress(UpdateEvent.DownloadProgress event) {
+                // no-op
             }
         });
-        onUpdateStateChanged(updateService.getState());
+        updateService.getState().whenComplete((state, throwable) -> {
+            if (throwable == null) {
+                onUpdateStateChanged(state);
+            } else {
+                log.error("Failed to retrieve update state", throwable);
+            }
+        });
     }
 
-    private void onUpdateStateChanged(UpdateState newState) {
+    private void onUpdateStateChanged(Update.State newState) {
         Platform.runLater(() -> {
             switch (newState) {
                 case CHECKING_FOR_NEW_VERSION -> {
@@ -133,7 +150,13 @@ public class AboutSectionController implements Initializable {
                 case UPDATE_AVAILABLE -> {
                     updateButton.setText(localeText.get(UpdateMessage.DOWNLOAD_UPDATE));
                     updateIcon.setText(Icon.DOWNLOAD_UNICODE);
-                    updateService.getUpdateInfo().ifPresent(e -> newVersionLabel.setText(localeText.get(UpdateMessage.NEW_VERSION, e.getApplication().getVersion())));
+                    updateService.getUpdateInfo().whenComplete((info, throwable) -> {
+                        if (throwable == null) {
+                            info.ifPresent(e -> Platform.runLater(() -> newVersionLabel.setText(localeText.get(UpdateMessage.NEW_VERSION, e.getApplication().getVersion()))));
+                        } else {
+                            log.error("Failed to retrieve version info", throwable);
+                        }
+                    });
                     updateAnimation.stop();
                 }
                 case NO_UPDATE_AVAILABLE -> {
@@ -161,11 +184,17 @@ public class AboutSectionController implements Initializable {
     }
 
     private void onUpdate() {
-        if (updateService.getState() == UpdateState.UPDATE_AVAILABLE) {
-            eventPublisher.publish(new ShowUpdateEvent(this));
-        } else {
-            updateService.checkForUpdates();
-        }
+        updateService.getState().whenComplete((state, throwable) -> {
+            if (throwable == null) {
+                if (state == Update.State.UPDATE_AVAILABLE) {
+                    eventPublisher.publish(new ShowUpdateEvent(this));
+                } else {
+                    updateService.checkForUpdates();
+                }
+            } else {
+                log.error("Failed to get update state", throwable);
+            }
+        });
     }
 
     @FXML

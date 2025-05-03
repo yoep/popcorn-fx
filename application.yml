@@ -1,10 +1,9 @@
-logging:
-  level:
-    com.github.yoep.popcorn: WARN
-    com.github.yoep.popcorn.backend: WARN
-
 popcorn:
   loggers:
+    jvm:
+      level: info
+    libfx::ipc:
+      level: info
     popcorn_fx:
       level: warn
     popcorn_fx::ffi:
@@ -14,6 +13,10 @@ popcorn:
     popcorn_fx_core::core::loader:
       level: info
     popcorn_fx_core::core::media:
+      level: info
+    popcorn_fx_core::core::media::favorites:
+      level: info
+    popcorn_fx_core::core::media::providers:
       level: info
     popcorn_fx_core::core::torrents:
       level: info

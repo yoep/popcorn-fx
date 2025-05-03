@@ -1,6 +1,7 @@
 use std::env::consts::{ARCH, OS};
 use std::fmt;
 use std::fmt::Debug;
+use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::Arc;
 
 use log::{debug, error, info, trace, warn};
@@ -89,7 +90,8 @@ impl DefaultPlatform {
         let metadata = MediaMetadata {
             title: Some(&info.title),
             artist: info.subtitle.as_ref().map(|e| e.as_str()),
-            cover_url: info.thumb.as_ref().map(|e| e.as_ref()),
+            // FIXME: panicked at souvlaki-0.8.2/src/platform/macos/mod.rs:319:24: null pointer dereference occurred
+            // cover_url: info.thumb.as_ref().filter(|e| !e.is_empty()).map(|e| e.as_ref()),
             ..Default::default()
         };
 
@@ -107,6 +109,41 @@ impl DefaultPlatform {
         match controls.set_playback(state) {
             Ok(_) => debug!("System media state has changed {}", state_info),
             Err(e) => error!("System media state couldn't be updated, {:?}", e),
+        }
+    }
+
+    fn internal_notify_media_event(&self, event: MediaNotificationEvent) {
+        let mut mutex = futures::executor::block_on(self.controls.lock());
+
+        // check if the controls already exist
+        // if not, we'll create them first
+        if mutex.is_none() {
+            *mutex = self.create_controls();
+        }
+
+        if let Some(mut controls) = mutex.as_mut() {
+            match &event {
+                MediaNotificationEvent::StateStarting(info) => {
+                    self.on_media_info_changed(&mut controls, info.clone())
+                }
+                MediaNotificationEvent::StatePlaying => self.on_playback_state_changed(
+                    &mut controls,
+                    MediaPlayback::Playing { progress: None },
+                ),
+                MediaNotificationEvent::StatePaused => self.on_playback_state_changed(
+                    &mut controls,
+                    MediaPlayback::Paused { progress: None },
+                ),
+                MediaNotificationEvent::StateStopped => {
+                    self.on_playback_state_changed(&mut controls, MediaPlayback::Stopped)
+                }
+            }
+        } else {
+            warn!("Unable to handle the media playback notification, MediaControls not present")
+        }
+
+        if MediaNotificationEvent::StateStopped == event {
+            Self::dispose_media_controls(&mut mutex);
         }
     }
 
@@ -150,37 +187,8 @@ impl Platform for DefaultPlatform {
 
     fn notify_media_event(&self, event: MediaNotificationEvent) {
         trace!("Received platform media notification {:?}", event);
-        let mut mutex = futures::executor::block_on(self.controls.lock());
-
-        // check if the controls already exist
-        // if not, we'll create them first
-        if mutex.is_none() {
-            *mutex = self.create_controls();
-        }
-
-        if let Some(mut controls) = mutex.as_mut() {
-            match &event {
-                MediaNotificationEvent::StateStarting(info) => {
-                    self.on_media_info_changed(&mut controls, info.clone())
-                }
-                MediaNotificationEvent::StatePlaying => self.on_playback_state_changed(
-                    &mut controls,
-                    MediaPlayback::Playing { progress: None },
-                ),
-                MediaNotificationEvent::StatePaused => self.on_playback_state_changed(
-                    &mut controls,
-                    MediaPlayback::Paused { progress: None },
-                ),
-                MediaNotificationEvent::StateStopped => {
-                    self.on_playback_state_changed(&mut controls, MediaPlayback::Stopped)
-                }
-            }
-        } else {
-            warn!("Unable to handle the media playback notification, MediaControls not present")
-        }
-
-        if MediaNotificationEvent::StateStopped == event {
-            Self::dispose_media_controls(&mut mutex);
+        if let Err(e) = catch_unwind(AssertUnwindSafe(|| self.internal_notify_media_event(event))) {
+            error!("Failed to notify media event, {:?}", e);
         }
     }
 

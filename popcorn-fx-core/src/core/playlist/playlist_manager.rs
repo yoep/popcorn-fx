@@ -39,7 +39,6 @@ pub struct PlayingNextInfo {
 /// An enumeration representing the state of a playlist.
 ///
 /// The `PlaylistState` enum is used to indicate the current state of a playlist, such as whether it's idle, playing, stopped, completed, or in an error state.
-#[repr(i32)]
 #[derive(Debug, Display, Copy, Clone, PartialOrd, PartialEq)]
 pub enum PlaylistState {
     Idle,

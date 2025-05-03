@@ -1,6 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
-import com.github.yoep.popcorn.backend.media.providers.Media;
+import com.github.yoep.popcorn.backend.media.Media;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.view.controllers.common.SimpleItemListener;
 import com.github.yoep.popcorn.ui.view.controllers.common.components.AbstractMediaCardComponent;

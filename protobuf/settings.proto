@@ -1,0 +1,150 @@
+syntax = "proto3";
+
+option optimize_for = LITE_RUNTIME;
+option java_multiple_files = true;
+option java_package = "com.github.yoep.popcorn.backend.lib.ipc.protobuf";
+
+package fx.ipc.proto;
+
+import "subtitle.proto";
+import "media.proto";
+
+message ApplicationSettingsRequest {}
+
+message ApplicationSettingsResponse {
+  ApplicationSettings settings = 1;
+}
+
+message ApplicationSettings {
+  SubtitleSettings subtitle_settings = 1;
+  UISettings ui_settings = 2;
+  ServerSettings server_settings = 3;
+  TorrentSettings torrent_settings = 4;
+  PlaybackSettings playback_settings = 5;
+  TrackingSettings tracking_settings = 6;
+
+  message SubtitleSettings {
+    string directory = 1;
+    bool auto_cleaning_enabled = 2;
+    Subtitle.Language default_subtitle = 3;
+    Family font_family = 4;
+    int32 font_size = 5;
+    DecorationType decoration = 6;
+    bool bold = 7;
+
+    enum Family {
+      ARIAL = 0;
+      COMIC_SANS = 1;
+      GEORGIA = 2;
+      TAHOMA = 3;
+      TREBUCHET_MS = 4;
+      VERDANA = 5;
+    }
+
+    enum DecorationType {
+      NONE = 0;
+      OUTLINE = 1;
+      OPAQUE_BACKGROUND = 2;
+      SEE_THROUGH_BACKGROUND = 3;
+    }
+  }
+
+  message TorrentSettings {
+    string directory = 1;
+    CleaningMode cleaning_mode = 2;
+    uint32 connections_limit = 3;
+    uint32 download_rate_limit = 4;
+    uint32 upload_rate_limit = 5;
+
+    enum CleaningMode {
+      OFF = 0;
+      ON_SHUTDOWN = 1;
+      WATCHED = 2;
+    }
+  }
+
+  message UISettings {
+    string default_language = 1;
+    Scale scale = 2;
+    Media.Category start_screen = 3;
+    bool maximized = 4;
+    bool native_window_enabled = 5;
+
+    message Scale {
+      float factor = 1;
+    }
+  }
+
+  message ServerSettings {
+    optional string api_server = 1;
+  }
+
+  message PlaybackSettings {
+    optional Quality quality = 1;
+    bool fullscreen = 2;
+    bool auto_play_next_episode_enabled = 3;
+
+    enum Quality {
+      P0 = 0;
+      P480 = 480;
+      P720 = 720;
+      P1080 = 1080;
+      P2160 = 2160;
+    }
+  }
+
+  message TrackingSettings {
+    optional LastSync last_sync = 1;
+
+    message LastSync {
+      uint64 last_synced_millis = 1;
+      State state = 2;
+
+      enum State {
+        SUCCESS = 0;
+        FAILED = 1;
+      }
+    }
+  }
+}
+
+message UpdateTorrentSettingsRequest {
+  ApplicationSettings.TorrentSettings settings = 1;
+}
+
+message UpdateSubtitleSettingsRequest {
+  ApplicationSettings.SubtitleSettings settings = 1;
+}
+
+message UpdateUISettingsRequest {
+  ApplicationSettings.UISettings settings = 1;
+}
+
+message UpdateServerSettingsRequest {
+  ApplicationSettings.ServerSettings settings = 1;
+}
+
+message UpdatePlaybackSettingsRequest {
+  ApplicationSettings.PlaybackSettings settings = 1;
+}
+
+message ApplicationSettingsEvent {
+  Event event = 1;
+  optional ApplicationSettings.SubtitleSettings subtitle_settings = 2;
+  optional ApplicationSettings.TorrentSettings torrent_settings = 3;
+  optional ApplicationSettings.UISettings ui_settings = 4;
+  optional ApplicationSettings.ServerSettings server_settings = 5;
+  optional ApplicationSettings.PlaybackSettings playback_settings = 6;
+  optional ApplicationSettings.TrackingSettings tracking_settings = 7;
+
+  enum Event {
+    LOADED = 0;
+    SAVED = 1;
+    SUBTITLE_SETTINGS_CHANGED = 2;
+    TORRENT_SETTINGS_CHANGED = 3;
+    UI_SETTINGS_CHANGED = 4;
+    SERVER_SETTINGS_CHANGED = 5;
+    PLAYBACK_SETTINGS_CHANGED = 6;
+    TRACKING_SETTINGS_CHANGED = 7;
+  }
+}

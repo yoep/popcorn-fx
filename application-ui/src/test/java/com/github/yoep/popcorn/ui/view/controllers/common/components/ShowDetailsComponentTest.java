@@ -1,16 +1,14 @@
 package com.github.yoep.popcorn.ui.view.controllers.common.components;
 
-import com.github.yoep.popcorn.backend.adapters.torrent.model.TorrentHealth;
-import com.github.yoep.popcorn.backend.adapters.torrent.state.TorrentHealthState;
 import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.events.ShowSerieDetailsEvent;
-import com.github.yoep.popcorn.backend.media.filters.model.Season;
-import com.github.yoep.popcorn.backend.media.providers.Episode;
-import com.github.yoep.popcorn.backend.media.providers.Media;
-import com.github.yoep.popcorn.backend.media.providers.MediaTorrentInfo;
-import com.github.yoep.popcorn.backend.media.providers.ShowDetails;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Torrent;
+import com.github.yoep.popcorn.backend.media.Episode;
+import com.github.yoep.popcorn.backend.media.Media;
+import com.github.yoep.popcorn.backend.media.ShowDetails;
+import com.github.yoep.popcorn.backend.media.Season;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
-import com.github.yoep.popcorn.backend.subtitles.SubtitleService;
+import com.github.yoep.popcorn.backend.subtitles.ISubtitleService;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.MediaQualityChangedEvent;
 import com.github.yoep.popcorn.ui.view.ViewLoader;
@@ -34,6 +32,7 @@ import org.testfx.util.WaitForAsyncUtils;
 import java.net.URL;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 
@@ -51,9 +50,9 @@ class ShowDetailsComponentTest {
     @Mock
     private HealthService healthService;
     @Mock
-    private SubtitleService subtitleService;
+    private ISubtitleService subtitleService;
     @Mock
-    private SubtitlePickerService subtitlePickerServic;
+    private SubtitlePickerService subtitlePickerService;
     @Mock
     private ImageService imageService;
     @Mock
@@ -91,64 +90,74 @@ class ShowDetailsComponentTest {
         component.episodeDetailsOverlay = new Overlay();
         component.health = new HealthIcon();
 
-        when(viewLoader.load(ShowDetailsComponent.SERIE_ACTIONS_COMPONENT_FXML)).thenReturn(new Pane());
-        when(viewLoader.load(ShowDetailsComponent.POSTER_COMPONENT_FXML)).thenReturn(new Pane());
-        when(viewLoader.load(ShowDetailsComponent.EPISODE_ACTIONS_COMPONENT_FXML)).thenReturn(new Pane());
-        when(imageService.loadFanart(isA(Media.class))).thenReturn(new CompletableFuture<>());
+        lenient().when(viewLoader.load(ShowDetailsComponent.SERIE_ACTIONS_COMPONENT_FXML)).thenReturn(new Pane());
+        lenient().when(viewLoader.load(ShowDetailsComponent.POSTER_COMPONENT_FXML)).thenReturn(new Pane());
+        lenient().when(viewLoader.load(eq(ShowDetailsComponent.EPISODE_COMPONENT_FXML), isA(EpisodeComponent.class))).thenAnswer(invocations -> new Pane());
+        lenient().when(viewLoader.load(ShowDetailsComponent.EPISODE_ACTIONS_COMPONENT_FXML)).thenReturn(new Pane());
+        lenient().when(imageService.loadFanart(isA(Media.class))).thenReturn(new CompletableFuture<>());
     }
 
     @Test
     void testOnShowSerieDetailsEvent_shouldHideEmptySeasons() {
-        var media = mock(ShowDetails.class);
+        var media = createShow();
         var season1 = new Season(1, "1");
         var season2 = new Season(2, "2");
         var season3 = new Season(3, "3");
         when(showHelperService.getSeasons(media)).thenReturn(asList(season1, season2, season3));
-        when(showHelperService.getSeasonEpisodes(season1, media)).thenReturn(asList(Episode.builder()
-                        .season(1)
-                        .episode(1)
-                        .build(),
-                Episode.builder()
-                        .season(1)
-                        .episode(2)
-                        .build()));
+        when(showHelperService.getSeasonEpisodes(season1, media)).thenReturn(asList(
+                new Episode(com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media.Episode.newBuilder()
+                        .setSeason(1)
+                        .setEpisode(1)
+                        .build()),
+                new Episode(com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media.Episode.newBuilder()
+                        .setSeason(1)
+                        .setEpisode(2)
+                        .build())));
         when(showHelperService.getSeasonEpisodes(season2, media)).thenReturn(Collections.emptyList());
-        when(showHelperService.getSeasonEpisodes(season3, media)).thenReturn(Collections.singletonList(Episode.builder()
-                .season(3)
-                .episode(1)
-                .build()));
+        when(showHelperService.getSeasonEpisodes(season3, media)).thenReturn(Collections.singletonList(
+                new Episode(com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media.Episode.newBuilder()
+                        .setSeason(3)
+                        .setEpisode(1)
+                        .build())));
+        when(showHelperService.getUnwatchedSeason(isA(List.class), eq(media))).thenReturn(CompletableFuture.completedFuture(new Season(1, "1")));
+        when(showHelperService.getUnwatchedEpisode(isA(List.class), isA(Season.class))).thenReturn(CompletableFuture.completedFuture(media.getEpisodes().getFirst()));
+        when(service.isWatched(isA(Media.class))).thenReturn(CompletableFuture.completedFuture(false));
         component.initialize(url, resourceBundle);
 
         eventPublisher.publish(new ShowSerieDetailsEvent(this, media));
         WaitForAsyncUtils.waitForFxEvents();
 
-        assertTrue(component.seasons.getItems().stream().anyMatch(e -> e.getSeason() == 1), "expected season 1 to be present");
-        assertFalse(component.seasons.getItems().stream().anyMatch(e -> e.getSeason() == 2), "expected season 2 to not be present");
-        assertTrue(component.seasons.getItems().stream().anyMatch(e -> e.getSeason() == 3), "expected season 3 to be present");
+        assertTrue(component.seasons.getItems().stream().anyMatch(e -> e.season() == 1), "expected season 1 to be present");
+        assertFalse(component.seasons.getItems().stream().anyMatch(e -> e.season() == 2), "expected season 2 to not be present");
+        assertTrue(component.seasons.getItems().stream().anyMatch(e -> e.season() == 3), "expected season 3 to be present");
     }
 
     @Test
     void testMediaQualityChangedEvent() {
-        var media = mock(ShowDetails.class);
-        var episode = mock(Episode.class);
+        var media = createShow();
         var torrentUrl = "myTorrentMagnetUrlThingy";
-        var torrentHealth = mock(TorrentHealth.class);
-        when(episode.getTorrents()).thenReturn(new HashMap<>(){{
-            put("720p", MediaTorrentInfo.builder()
-                    .seed(20)
-                    .peer(2)
-                    .url(torrentUrl)
-                    .build());
-        }});
-        when(healthService.calculateHealth(20, 2)).thenReturn(torrentHealth);
+        var episode = com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media.Episode.newBuilder()
+                .setTorrents(com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media.TorrentQuality.newBuilder()
+                        .putAllQualities(new HashMap<>() {{
+                            put("720p", com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media.TorrentInfo.newBuilder()
+                                    .setSeeds(20)
+                                    .setPeers(2)
+                                    .setUrl(torrentUrl)
+                                    .build());
+                        }})
+                        .build())
+                .build();
+        when(healthService.calculateHealth(20, 2)).thenReturn(CompletableFuture.completedFuture(Torrent.Health.newBuilder()
+                .setState(Torrent.Health.State.GOOD)
+                .build()));
         when(healthService.getTorrentHealth(isA(String.class))).thenReturn(new CompletableFuture<>());
-        when(torrentHealth.getState()).thenReturn(TorrentHealthState.GOOD);
+        when(showHelperService.getUnwatchedSeason(isA(List.class), eq(media))).thenReturn(CompletableFuture.completedFuture(new Season(1, "1")));
         component.initialize(url, resourceBundle);
 
         eventPublisher.publish(new ShowSerieDetailsEvent(this, media));
         WaitForAsyncUtils.waitForFxEvents();
-        component.episode = episode;
-        eventPublisher.publish(new MediaQualityChangedEvent(this, episode, "720p"));
+        component.episode = new Episode(episode);
+        eventPublisher.publish(new MediaQualityChangedEvent(this, new Episode(episode), "720p"));
         WaitForAsyncUtils.waitForFxEvents();
 
         verify(healthService).calculateHealth(20, 2);
@@ -157,8 +166,9 @@ class ShowDetailsComponentTest {
 
     @Test
     void testOnWatchedClicked() {
-        var media = mock(ShowDetails.class);
+        var media = createShow();
         var event = mock(MouseEvent.class);
+        when(showHelperService.getUnwatchedSeason(isA(List.class), eq(media))).thenReturn(CompletableFuture.completedFuture(new Season(1, "1")));
         component.initialize(url, resourceBundle);
 
         eventPublisher.publish(new ShowSerieDetailsEvent(this, media));
@@ -171,8 +181,9 @@ class ShowDetailsComponentTest {
 
     @Test
     void testOnFavoriteClicked() {
-        var media = mock(ShowDetails.class);
+        var media = createShow();
         var event = mock(MouseEvent.class);
+        when(showHelperService.getUnwatchedSeason(isA(List.class), eq(media))).thenReturn(CompletableFuture.completedFuture(new Season(1, "1")));
         component.initialize(url, resourceBundle);
 
         eventPublisher.publish(new ShowSerieDetailsEvent(this, media));
@@ -181,5 +192,17 @@ class ShowDetailsComponentTest {
 
         verify(event).consume();
         verify(service).toggleLikedState(media);
+    }
+
+    private static ShowDetails createShow() {
+        return new ShowDetails(com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media.ShowDetails.newBuilder()
+                .setImdbId("tt00001")
+                .setTitle("MyShow")
+                .setNumberOfSeasons(1)
+                .addEpisodes(com.github.yoep.popcorn.backend.lib.ipc.protobuf.Media.Episode.newBuilder()
+                        .setSeason(1)
+                        .setEpisode(1)
+                        .build())
+                .build());
     }
 }

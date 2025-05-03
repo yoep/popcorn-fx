@@ -1,10 +1,9 @@
 package com.github.yoep.popcorn.ui.view.controllers.tv.components;
 
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationSettings;
+import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Subtitle;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
-import com.github.yoep.popcorn.backend.settings.models.ApplicationSettings;
-import com.github.yoep.popcorn.backend.settings.models.SubtitleSettings;
-import com.github.yoep.popcorn.backend.settings.models.subtitles.DecorationType;
-import com.github.yoep.popcorn.backend.settings.models.subtitles.SubtitleLanguage;
+import com.github.yoep.popcorn.backend.subtitles.SubtitleHelper;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.view.controls.AxisItemSelection;
 import com.github.yoep.popcorn.ui.view.controls.Overlay;
@@ -12,13 +11,15 @@ import javafx.scene.control.Button;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.testfx.framework.junit5.ApplicationExtension;
+import org.testfx.util.WaitForAsyncUtils;
 
 import java.net.URL;
 import java.util.ResourceBundle;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
@@ -30,20 +31,20 @@ class TvSettingsSubtitlesComponentTest {
     @Mock
     private LocaleText localeText;
     @Mock
-    private ApplicationSettings settings;
-    @Mock
-    private SubtitleSettings subtitleSettings;
-    @Mock
     private URL url;
     @Mock
     private ResourceBundle resourceBundle;
-    @InjectMocks
     TvSettingsSubtitlesComponent component;
 
     @BeforeEach
     void setUp() {
-        when(applicationConfig.getSettings()).thenReturn(settings);
-        when(settings.getSubtitleSettings()).thenReturn(subtitleSettings);
+        when(applicationConfig.getSettings()).thenReturn(CompletableFuture.completedFuture(ApplicationSettings.newBuilder()
+                .setSubtitleSettings(ApplicationSettings.SubtitleSettings.newBuilder()
+                        .setFontSize(12)
+                        .build())
+                .build()));
+
+        component = new TvSettingsSubtitlesComponent(applicationConfig, localeText);
 
         component.defaultSubtitle = new Button();
         component.subtitles = new AxisItemSelection<>();
@@ -61,43 +62,61 @@ class TvSettingsSubtitlesComponentTest {
 
     @Test
     void testOnSubtitleChanged() {
-        when(subtitleSettings.getDefaultSubtitle()).thenReturn(SubtitleLanguage.BOSNIAN);
+        var settings = new AtomicReference<ApplicationSettings.SubtitleSettings>();
+        doAnswer(invocations -> {
+            settings.set(invocations.getArgument(0, ApplicationSettings.SubtitleSettings.class));
+            return null;
+        }).when(applicationConfig).update(isA(ApplicationSettings.SubtitleSettings.class));
         component.initialize(url, resourceBundle);
+        WaitForAsyncUtils.waitForFxEvents();
 
-        component.subtitles.setSelectedItem(SubtitleLanguage.BULGARIAN);
+        component.subtitles.setSelectedItem(Subtitle.Language.BULGARIAN);
+        WaitForAsyncUtils.waitForFxEvents();
 
-        verify(component.defaultSubtitleOverlay, times(2)).hide();
-        verify(applicationConfig, atLeast(2)).update(subtitleSettings);
-        verify(subtitleSettings).setDefaultSubtitle(SubtitleLanguage.BULGARIAN);
-        assertEquals(SubtitleLanguage.BULGARIAN.getNativeName(), component.defaultSubtitle.getText());
+        verify(component.defaultSubtitleOverlay).hide();
+        verify(applicationConfig).update(isA(ApplicationSettings.SubtitleSettings.class));
+        assertEquals(Subtitle.Language.BULGARIAN, settings.get().getDefaultSubtitle());
+        assertEquals(SubtitleHelper.getNativeName(Subtitle.Language.BULGARIAN), component.defaultSubtitle.getText());
     }
 
     @Test
     void testOnFontSizeChanged() {
-        when(subtitleSettings.getFontSize()).thenReturn(28);
+        var settings = new AtomicReference<ApplicationSettings.SubtitleSettings>();
+        doAnswer(invocations -> {
+            settings.set(invocations.getArgument(0, ApplicationSettings.SubtitleSettings.class));
+            return null;
+        }).when(applicationConfig).update(isA(ApplicationSettings.SubtitleSettings.class));
         component.initialize(url, resourceBundle);
+        WaitForAsyncUtils.waitForFxEvents();
 
         component.fontSizes.setSelectedItem(32);
+        WaitForAsyncUtils.waitForFxEvents();
 
-        verify(component.fontSizeOverlay, times(2)).hide();
-        verify(applicationConfig, times(2)).update(subtitleSettings);
-        verify(subtitleSettings).setFontSize(32);
+        verify(component.fontSizeOverlay).hide();
+        verify(applicationConfig).update(isA(ApplicationSettings.SubtitleSettings.class));
+        assertEquals(32, settings.get().getFontSize());
         assertEquals("32", component.fontSize.getText());
     }
 
     @Test
     void testOnDecorationChanged() {
         var expectedText = "lorem";
-        when(subtitleSettings.getDecoration()).thenReturn(DecorationType.NONE);
+        var settings = new AtomicReference<ApplicationSettings.SubtitleSettings>();
+        doAnswer(invocations -> {
+            settings.set(invocations.getArgument(0, ApplicationSettings.SubtitleSettings.class));
+            return null;
+        }).when(applicationConfig).update(isA(ApplicationSettings.SubtitleSettings.class));
         when(localeText.get("settings_subtitles_style_outline")).thenReturn(expectedText);
         when(localeText.get("settings_subtitles_style_none")).thenReturn("none");
         component.initialize(url, resourceBundle);
+        WaitForAsyncUtils.waitForFxEvents();
 
-        component.decorations.setSelectedItem(DecorationType.OUTLINE);
+        component.decorations.setSelectedItem(ApplicationSettings.SubtitleSettings.DecorationType.OUTLINE);
+        WaitForAsyncUtils.waitForFxEvents();
 
-        verify(component.decorationOverlay, times(2)).hide();
-        verify(applicationConfig, times(3)).update(subtitleSettings);
-        verify(subtitleSettings).setDecoration(DecorationType.OUTLINE);
+        verify(component.decorationOverlay).hide();
+        verify(applicationConfig).update(isA(ApplicationSettings.SubtitleSettings.class));
+        assertEquals(ApplicationSettings.SubtitleSettings.DecorationType.OUTLINE, settings.get().getDecoration());
         assertEquals(expectedText, component.decoration.getText());
     }
 }

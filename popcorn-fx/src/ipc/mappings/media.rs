@@ -353,11 +353,22 @@ impl From<&MediaError> for media::Error {
             MediaError::ProviderConnectionFailed => {
                 err.type_ = media::error::Type::PROVIDER_CONNECTION_FAILED.into();
             }
-            MediaError::ProviderRequestFailed(_, _) => {
+            MediaError::ProviderRequestFailed(url, status) => {
                 err.type_ = media::error::Type::PROVIDER_REQUEST_FAILED.into();
+                err.provider_request_failed =
+                    MessageField::some(media::error::ProviderRequestFailed {
+                        url: url.clone(),
+                        status_code: *status as u32,
+                        special_fields: Default::default(),
+                    });
             }
-            MediaError::ProviderParsingFailed(_) => {
+            MediaError::ProviderParsingFailed(reason) => {
                 err.type_ = media::error::Type::PROVIDER_PARSING_FAILED.into();
+                err.provider_parsing_failed =
+                    MessageField::some(media::error::ProviderParsingFailed {
+                        reason: reason.clone(),
+                        special_fields: Default::default(),
+                    });
             }
             MediaError::ProviderAlreadyExists(_) => {
                 err.type_ = media::error::Type::PROVIDER_ALREADY_EXISTS.into();
@@ -552,6 +563,7 @@ impl From<&media::TorrentInfo> for TorrentInfo {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ipc::proto::media::media::error;
 
     #[test]
     fn test_from_category() {
@@ -577,5 +589,192 @@ mod tests {
             "favorites".to_string(),
             String::from(&media::Category::FAVORITES)
         );
+    }
+
+    #[test]
+    fn test_torrent_info_from() {
+        let info = media::TorrentInfo {
+            url: "Url".to_string(),
+            provider: "Provider".to_string(),
+            source: "Source".to_string(),
+            title: "Title".to_string(),
+            quality: "1080p".to_string(),
+            seeds: 67,
+            peers: 3,
+            size: Some("100MB".to_string()),
+            file_size: Some("10MB".to_string()),
+            file: Some("MyTorrentFile.mp4".to_string()),
+            special_fields: Default::default(),
+        };
+        let expected_result = TorrentInfo {
+            url: "Url".to_string(),
+            provider: "Provider".to_string(),
+            source: "Source".to_string(),
+            title: "Title".to_string(),
+            quality: "1080p".to_string(),
+            seed: 67,
+            peer: 3,
+            size: Some("100MB".to_string()),
+            filesize: Some("10MB".to_string()),
+            file: Some("MyTorrentFile.mp4".to_string()),
+        };
+
+        let result = TorrentInfo::from(&info);
+
+        assert_eq!(expected_result, result);
+    }
+
+    #[test]
+    fn test_media_error_from_favorites_loading_failed() {
+        let reason = "SomeReason";
+        let err = MediaError::FavoritesLoadingFailed(reason.to_string());
+        let expected_result = media::Error {
+            type_: error::Type::FAVORITES_LOADING_FAILED.into(),
+            favorite_loading_failed: MessageField::some(error::FavoritesLoadingFailed {
+                reason: reason.to_string(),
+                special_fields: Default::default(),
+            }),
+            favorite_not_found: Default::default(),
+            favorite_add_failed: Default::default(),
+            watched_loading_failed: Default::default(),
+            media_type_not_supported: Default::default(),
+            provider_request_failed: Default::default(),
+            provider_parsing_failed: Default::default(),
+            provider_not_found: Default::default(),
+            special_fields: Default::default(),
+        };
+
+        let result = media::Error::from(&err);
+
+        assert_eq!(expected_result, result);
+    }
+
+    #[test]
+    fn test_media_error_from_favorite_not_found() {
+        let id = "tt12000";
+        let err = MediaError::FavoriteNotFound(id.to_string());
+        let expected_result = media::Error {
+            type_: error::Type::FAVORITE_NOT_FOUND.into(),
+            favorite_loading_failed: Default::default(),
+            favorite_not_found: MessageField::some(error::FavoriteNotFound {
+                imdb_id: id.to_string(),
+                special_fields: Default::default(),
+            }),
+            favorite_add_failed: Default::default(),
+            watched_loading_failed: Default::default(),
+            media_type_not_supported: Default::default(),
+            provider_request_failed: Default::default(),
+            provider_parsing_failed: Default::default(),
+            provider_not_found: Default::default(),
+            special_fields: Default::default(),
+        };
+
+        let result = media::Error::from(&err);
+
+        assert_eq!(expected_result, result);
+    }
+
+    #[test]
+    fn test_media_error_from_favorite_add_failed() {
+        let id = "tt12000";
+        let reason = "SomeReason";
+        let err = MediaError::FavoriteAddFailed(id.to_string(), reason.to_string());
+        let expected_result = media::Error {
+            type_: error::Type::FAVORITE_ADD_FAILED.into(),
+            favorite_loading_failed: Default::default(),
+            favorite_not_found: Default::default(),
+            favorite_add_failed: MessageField::some(error::FavoriteAddFailed {
+                imdb_id: id.to_string(),
+                reason: reason.to_string(),
+                special_fields: Default::default(),
+            }),
+            watched_loading_failed: Default::default(),
+            media_type_not_supported: Default::default(),
+            provider_request_failed: Default::default(),
+            provider_parsing_failed: Default::default(),
+            provider_not_found: Default::default(),
+            special_fields: Default::default(),
+        };
+
+        let result = media::Error::from(&err);
+
+        assert_eq!(expected_result, result);
+    }
+
+    #[test]
+    fn test_media_error_from_provider_request_failed() {
+        let reason = "RequestFailureReason";
+        let status = 400;
+        let err = MediaError::ProviderRequestFailed(reason.to_string(), status);
+        let expected_result = media::Error {
+            type_: error::Type::PROVIDER_REQUEST_FAILED.into(),
+            favorite_loading_failed: Default::default(),
+            favorite_not_found: Default::default(),
+            favorite_add_failed: Default::default(),
+            watched_loading_failed: Default::default(),
+            media_type_not_supported: Default::default(),
+            provider_request_failed: MessageField::some(error::ProviderRequestFailed {
+                url: reason.to_string(),
+                status_code: status as u32,
+                special_fields: Default::default(),
+            }),
+            provider_parsing_failed: Default::default(),
+            provider_not_found: Default::default(),
+            special_fields: Default::default(),
+        };
+
+        let result = media::Error::from(&err);
+
+        assert_eq!(expected_result, result);
+    }
+
+    #[test]
+    fn test_media_error_from_provider_parsing_failed() {
+        let reason = "ParsingErrorReason";
+        let err = MediaError::ProviderParsingFailed(reason.to_string());
+        let expected_result = media::Error {
+            type_: error::Type::PROVIDER_PARSING_FAILED.into(),
+            favorite_loading_failed: Default::default(),
+            favorite_not_found: Default::default(),
+            favorite_add_failed: Default::default(),
+            watched_loading_failed: Default::default(),
+            media_type_not_supported: Default::default(),
+            provider_request_failed: Default::default(),
+            provider_parsing_failed: MessageField::some(error::ProviderParsingFailed {
+                reason: reason.to_string(),
+                special_fields: Default::default(),
+            }),
+            provider_not_found: Default::default(),
+            special_fields: Default::default(),
+        };
+
+        let result = media::Error::from(&err);
+
+        assert_eq!(expected_result, result);
+    }
+
+    #[test]
+    fn test_media_error_from_provider_not_found() {
+        let provider = "MyProvider";
+        let err = MediaError::ProviderNotFound(provider.to_string());
+        let expected_result = media::Error {
+            type_: error::Type::PROVIDER_NOT_FOUND.into(),
+            favorite_loading_failed: Default::default(),
+            favorite_not_found: Default::default(),
+            favorite_add_failed: Default::default(),
+            watched_loading_failed: Default::default(),
+            media_type_not_supported: Default::default(),
+            provider_request_failed: Default::default(),
+            provider_parsing_failed: Default::default(),
+            provider_not_found: MessageField::some(error::ProviderNotFound {
+                provider_type: provider.to_string(),
+                special_fields: Default::default(),
+            }),
+            special_fields: Default::default(),
+        };
+
+        let result = media::Error::from(&err);
+
+        assert_eq!(expected_result, result);
     }
 }

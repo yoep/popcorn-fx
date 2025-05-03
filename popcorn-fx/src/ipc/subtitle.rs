@@ -296,7 +296,7 @@ mod tests {
     use crate::tests::default_args;
     use crate::try_recv;
 
-    use popcorn_fx_core::core::media::{Images, Rating};
+    use popcorn_fx_core::core::media::{Images, Rating, TorrentInfo};
     use popcorn_fx_core::core::subtitles::language::SubtitleLanguage;
     use popcorn_fx_core::init_logger;
     use std::time::Duration;
@@ -523,7 +523,28 @@ mod tests {
             synopsis: "".to_string(),
             genres: vec!["comedy".to_string()],
             runtime: "88".to_string(),
-            torrents: Default::default(),
+            torrents: vec![(
+                "en".to_string(),
+                vec![(
+                    "720p".to_string(),
+                    TorrentInfo {
+                        url: "TorrentUrl".to_string(),
+                        provider: "TorrentProvider".to_string(),
+                        source: "TorrentSource".to_string(),
+                        title: "TorrentTitle".to_string(),
+                        quality: "720p".to_string(),
+                        seed: 687,
+                        peer: 89,
+                        size: None,
+                        filesize: None,
+                        file: None,
+                    },
+                )]
+                .into_iter()
+                .collect(),
+            )]
+            .into_iter()
+            .collect(),
         }) as Box<dyn MediaIdentifier>;
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
@@ -606,7 +627,15 @@ mod tests {
         let subtitle_info = subtitle::Info {
             imdb_id: Some("tt1156398".to_string()),
             language: subtitle::Language::ENGLISH.into(),
-            files: vec![],
+            files: vec![subtitle::info::File {
+                file_id: 19800,
+                name: "SubtitleFile".to_string(),
+                url: "SubtitleUrl".to_string(),
+                score: 9.8,
+                downloads: 19876,
+                quality: Some(720),
+                special_fields: Default::default(),
+            }],
             special_fields: Default::default(),
         };
         let temp_dir = tempdir().unwrap();

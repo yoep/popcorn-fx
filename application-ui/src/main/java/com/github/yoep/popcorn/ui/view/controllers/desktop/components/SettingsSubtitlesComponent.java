@@ -53,7 +53,7 @@ public class SettingsSubtitlesComponent extends AbstractSettingsComponent implem
         initializeDefaultSubtitle();
         initializeFontFamily();
         initializeDecoration();
-        initializeSize();
+        initializeFontSize();
         initializeBold();
         initializeCacheDirectory();
         initializeClearCache();
@@ -99,7 +99,7 @@ public class SettingsSubtitlesComponent extends AbstractSettingsComponent implem
         });
     }
 
-    private void initializeSize() {
+    private void initializeFontSize() {
         fontSize.getItems().addAll(SubtitleHelper.supportedFontSizes());
 
         getSettings().thenAccept(settings -> {

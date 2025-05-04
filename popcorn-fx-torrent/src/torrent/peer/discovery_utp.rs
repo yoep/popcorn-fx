@@ -54,16 +54,16 @@ impl UtpPeerDiscovery {
         let cancellation_token = CancellationToken::new();
         let sockets =
             InnerUtpPeerDiscovery::try_binding_sockets(port, Duration::from_secs(6)).await?;
-        let port = sockets
+        let addr = sockets
             .get(0)
-            .map(|e| e.addr().port())
+            .map(|e| e.addr())
             .ok_or(Error::Io(io::Error::new(
                 io::ErrorKind::Other,
                 "unable to get bound socket port",
             )))?;
         let inner = Arc::new(InnerUtpPeerDiscovery {
             handle: Default::default(),
-            port,
+            addr,
             sockets,
             receiver: Mutex::new(receiver),
             connection_timeout: Duration::from_secs(6),
@@ -81,8 +81,12 @@ impl UtpPeerDiscovery {
 
 #[async_trait]
 impl PeerDiscovery for UtpPeerDiscovery {
+    fn addr(&self) -> &SocketAddr {
+        &self.inner.addr
+    }
+
     fn port(&self) -> u16 {
-        self.inner.port
+        self.inner.addr.port()
     }
 
     async fn dial(
@@ -149,10 +153,10 @@ impl Drop for UtpPeerDiscovery {
 }
 
 #[derive(Debug, Display)]
-#[display(fmt = "{} (port {})", handle, port)]
+#[display(fmt = "{} (port {})", handle, "addr.port()")]
 struct InnerUtpPeerDiscovery {
     handle: UtpPeerDiscoveryHandle,
-    port: u16,
+    addr: SocketAddr,
     sockets: Vec<UtpSocket>,
     receiver: Mutex<UnboundedReceiver<UtpStream>>,
     connection_timeout: Duration,
@@ -162,7 +166,11 @@ struct InnerUtpPeerDiscovery {
 impl InnerUtpPeerDiscovery {
     /// Start the main loop of the utp peer discovery.
     async fn start(&self, sender: UnboundedSender<UtpStream>) {
-        debug!("UTP peer discovery {} started on port {}", self, self.port);
+        debug!(
+            "UTP peer discovery {} started on port {}",
+            self,
+            self.addr.port()
+        );
         let mut futures = FuturesUnordered::from_iter(
             self.sockets
                 .iter()

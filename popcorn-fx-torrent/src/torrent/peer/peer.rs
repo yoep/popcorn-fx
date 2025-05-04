@@ -9,8 +9,8 @@ use crate::torrent::peer::protocol::{
 };
 use crate::torrent::peer::{Error, PeerId, Result};
 use crate::torrent::{
-    calculate_byte_rate, CompactIp, InfoHash, PieceIndex, TorrentContext, TorrentEvent,
-    TorrentMetadata, TorrentMetadataInfo, MAX_PIECE_PART_SIZE,
+    calculate_byte_rate, CompactIp, InfoHash, PeerPriority, PieceIndex, TorrentContext,
+    TorrentEvent, TorrentMetadata, TorrentMetadataInfo, MAX_PIECE_PART_SIZE,
 };
 use async_trait::async_trait;
 use bit_vec::BitVec;
@@ -423,7 +423,7 @@ pub struct PeerStats {
     pub download_useful: usize,
 }
 
-/// The peer client information.
+/// The client information of a connected peer.
 #[derive(Debug, Display, Clone, PartialEq)]
 #[display(fmt = "{}[{}:{}]", id, connection_protocol, addr)]
 pub struct PeerClientInfo {
@@ -437,6 +437,19 @@ pub struct PeerClientInfo {
     pub connection_type: ConnectionDirection,
     /// The connection protocol of the peer client used for communicating with the remote peer.
     pub connection_protocol: ConnectionProtocol,
+}
+
+impl PeerClientInfo {
+    /// Get the canonical peer priority (BEP-40) of this peer compared against.
+    pub fn peer_priority(&self, other: &Self) -> Option<u32> {
+        PeerPriority::from((self, other)).take()
+    }
+}
+
+impl From<(&PeerClientInfo, &PeerClientInfo)> for PeerPriority {
+    fn from(value: (&PeerClientInfo, &PeerClientInfo)) -> Self {
+        Self::from((&value.0.addr, &value.1.addr))
+    }
 }
 
 /// The BitTorrent peer protocol implementation.
@@ -3231,5 +3244,28 @@ mod tests {
 
         let result = InterestState::Interested.cmp(&InterestState::Interested);
         assert_eq!(Ordering::Equal, result);
+    }
+
+    #[cfg(test)]
+    mod peer_client_info {
+        use super::*;
+
+        #[test]
+        fn test_peer_priority() {
+            let peer1 = create_info_from_addr(([230, 12, 123, 1], 1234).into());
+            let peer2 = create_info_from_addr(([230, 12, 123, 3], 300).into());
+
+            assert_eq!(Some(2579844473), peer1.peer_priority(&peer2));
+        }
+
+        fn create_info_from_addr(addr: SocketAddr) -> PeerClientInfo {
+            PeerClientInfo {
+                handle: Default::default(),
+                id: PeerId::new(),
+                addr,
+                connection_type: ConnectionDirection::Inbound,
+                connection_protocol: ConnectionProtocol::Tcp,
+            }
+        }
     }
 }

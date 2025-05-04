@@ -53,17 +53,17 @@ impl TcpPeerDiscovery {
     pub async fn new_with_port(port: u16) -> Result<Self> {
         let (sender, receiver) = unbounded_channel();
         let sockets = InnerTcpPeerDiscovery::try_binding_sockets(port).await?;
-        let port = sockets
+        let addr = sockets
             .get(0)
-            .and_then(|e| e.local_addr().ok())
-            .map(|e| e.port())
+            .map(|e| e.local_addr())
+            .transpose()?
             .ok_or(Error::Io(io::Error::new(
                 io::ErrorKind::Other,
                 "unable to get bound socket port",
             )))?;
         let inner = Arc::new(InnerTcpPeerDiscovery {
             handle: TcpPeerDiscoveryHandle::new(),
-            port,
+            addr,
             receiver: Mutex::new(receiver),
             cancellation_token: Default::default(),
         });
@@ -109,8 +109,12 @@ impl Drop for TcpPeerDiscovery {
 
 #[async_trait]
 impl PeerDiscovery for TcpPeerDiscovery {
+    fn addr(&self) -> &SocketAddr {
+        &self.inner.addr
+    }
+
     fn port(&self) -> u16 {
-        self.inner.port
+        self.inner.addr.port()
     }
 
     async fn dial(
@@ -141,10 +145,10 @@ impl PeerDiscovery for TcpPeerDiscovery {
 }
 
 #[derive(Debug, Display)]
-#[display(fmt = "{} (port {})", handle, port)]
+#[display(fmt = "{} (port {})", handle, "addr.port()")]
 struct InnerTcpPeerDiscovery {
     handle: TcpPeerDiscoveryHandle,
-    port: u16,
+    addr: SocketAddr,
     receiver: Mutex<UnboundedReceiver<PeerEntry>>,
     cancellation_token: CancellationToken,
 }
@@ -152,7 +156,11 @@ struct InnerTcpPeerDiscovery {
 impl InnerTcpPeerDiscovery {
     /// Start the main loop of the tcp peer listener.
     async fn start(&self, sender: UnboundedSender<PeerEntry>, sockets: Vec<TcpListener>) {
-        debug!("TCP peer discovery {} started on port {}", self, self.port);
+        debug!(
+            "TCP peer discovery {} started on port {}",
+            self,
+            self.addr.port()
+        );
         let mut futures = FuturesUnordered::from_iter(
             sockets
                 .into_iter()
@@ -283,13 +291,23 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_tcp_discovery_addr() {
+        init_logger!();
+        let listener = new_tcp_peer_discovery().await.unwrap();
+
+        let result = listener.addr();
+
+        assert_eq!(&listener.inner.addr, result);
+    }
+
+    #[tokio::test]
     async fn test_tcp_discovery_port() {
         init_logger!();
         let listener = new_tcp_peer_discovery().await.unwrap();
 
         let result = listener.port();
 
-        assert_eq!(listener.inner.port, result);
+        assert_eq!(listener.inner.addr.port(), result);
     }
 
     #[tokio::test]

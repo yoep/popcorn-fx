@@ -6,14 +6,13 @@ use crate::torrent::peer::{
     BitTorrentPeer, Peer, PeerClientInfo, PeerDiscovery, PeerEntry, PeerEvent, PeerHandle, PeerId,
     ProtocolExtensionFlags,
 };
-use crate::torrent::peer_pool::PeerPool;
 use crate::torrent::tracker::{
     AnnounceEvent, AnnouncementResult, TrackerEntry, TrackerHandle, TrackerManager,
     TrackerManagerEvent,
 };
 use crate::torrent::{
-    FileAttributeFlags, FileIndex, Piece, PieceChunkPool, PieceIndex, PiecePart, PiecePriority,
-    TorrentError, TorrentMetadata, TorrentMetadataInfo, DEFAULT_TORRENT_EXTENSIONS,
+    FileAttributeFlags, FileIndex, PeerPool, Piece, PieceIndex, PiecePart, PiecePool,
+    PiecePriority, TorrentError, TorrentMetadata, TorrentMetadataInfo, DEFAULT_TORRENT_EXTENSIONS,
     DEFAULT_TORRENT_OPERATIONS, DEFAULT_TORRENT_PROTOCOL_EXTENSIONS,
 };
 use async_trait::async_trait;
@@ -405,7 +404,7 @@ impl TorrentConfigBuilder {
 ///     // create a shared runtime
 ///     let runtime = Arc::new(Runtime::new().unwrap());
 ///     // create a tcp peer discovery for dialing and accepting tpc connections
-///     let peer_discovery = TcpPeerDiscovery::new(6881);
+///     let peer_discovery = TcpPeerDiscovery::new();
 ///     let request = Torrent::request()
 ///         .metadata(metadata)
 ///         .options(TorrentFlags::AutoManaged)
@@ -664,7 +663,12 @@ impl Torrent {
     ) -> Self {
         let handle = TorrentHandle::new();
         let peer_id = PeerId::new();
-        let peer_ports: Vec<u16> = peer_discoveries.iter().map(|e| e.port()).collect();
+        let peer_discovery_addrs: Vec<SocketAddr> =
+            peer_discoveries.iter().map(|e| e.addr()).cloned().collect();
+        let tracker_manager_port = peer_discovery_addrs
+            .get(0)
+            .map(|e| e.port())
+            .unwrap_or_default();
         let info_hash = metadata.info_hash.clone();
         let max_peers_in_flight = config.peers_in_flight.min(config.peers_upper_limit);
         let (event_sender, command_receiver) = unbounded_channel();
@@ -675,10 +679,10 @@ impl Torrent {
             handle,
             metadata: RwLock::new(metadata),
             peer_id,
-            peer_ports: peer_ports.clone(),
+            peer_discovery_addrs: peer_discovery_addrs.clone(),
             tracker_manager: TrackerManager::new(
                 peer_id,
-                peer_ports.first().map(|e| *e).unwrap_or(0),
+                tracker_manager_port,
                 info_hash.clone(),
                 config.tracker_connection_timeout.clone(),
             ),
@@ -686,7 +690,7 @@ impl Torrent {
             peer_subscriber,
             peer_discoveries: Arc::new(peer_discoveries),
             pieces: RwLock::new(Vec::with_capacity(0)),
-            piece_chunk_pool: PieceChunkPool::new(),
+            piece_chunk_pool: PiecePool::new(),
             pending_piece_requests: Default::default(),
             request_download_permits: Arc::new(Semaphore::new(config.max_in_flight_pieces)),
             request_upload_permits: Arc::new(Semaphore::new(config.peers_upload_slots)),
@@ -774,7 +778,7 @@ impl Torrent {
     /// It returns the slice of ports or an empty slice if the torrent is not listening for peer connections.
     pub fn peer_ports(&self) -> Vec<u16> {
         if let Some(inner) = self.instance() {
-            return inner.peer_ports().to_vec();
+            return inner.peer_ports();
         }
 
         vec![]
@@ -1006,13 +1010,13 @@ impl Torrent {
         }
     }
 
-    /// Get the currently active peer connections of the torrent.
-    pub async fn active_peer_connections(&self) -> usize {
-        if let Some(inner) = self.instance() {
-            return inner.active_peer_connections().await;
-        }
+    /// Get the total amount of active peer connections of the torrent.
+    pub async fn active_peer_connections(&self) -> Result<usize> {
+        let inner = self
+            .instance()
+            .ok_or(TorrentError::InvalidHandle(self.handle))?;
 
-        0
+        Ok(inner.active_peer_connections().await)
     }
 
     /// Check if the torrent has completed downloading all wanted pieces.
@@ -1401,8 +1405,8 @@ pub struct TorrentContext {
     handle: TorrentHandle,
     /// The unique immutable peer id of the torrent
     peer_id: PeerId,
-    /// The ports on which the torrent is listening for incoming peer connections
-    peer_ports: Vec<u16>,
+    /// The addresses on which the torrent is listening for incoming peer connections
+    peer_discovery_addrs: Vec<SocketAddr>,
     /// The torrent metadata information of the torrent
     /// This might still be incomplete if the torrent was created from a magnet link
     metadata: RwLock<TorrentMetadata>,
@@ -1419,7 +1423,7 @@ pub struct TorrentContext {
     /// The pieces of the torrent, these are only known if the metadata is available
     pieces: RwLock<Vec<Piece>>,
     /// The pool which stores the received piece parts
-    piece_chunk_pool: PieceChunkPool,
+    piece_chunk_pool: PiecePool,
     /// The in-flight pending requests of pieces by peers
     pending_piece_requests: RwLock<HashMap<PieceIndex, Instant>>,
 
@@ -1521,6 +1525,11 @@ impl TorrentContext {
         self.handle
     }
 
+    /// Get the address on which the torrent is listening for new incoming connections.
+    pub fn addr(&self) -> Option<SocketAddr> {
+        self.peer_discovery_addrs.first().cloned()
+    }
+
     /// Get the peer pool of the torrent.
     pub fn peer_pool(&self) -> &PeerPool {
         &self.peer_pool
@@ -1539,13 +1548,16 @@ impl TorrentContext {
     ///
     /// It returns the port number of one of its listeners or [None] if the torrent is not listening for peer connections.
     pub fn peer_port(&self) -> Option<u16> {
-        self.peer_ports.first().map(|e| *e).filter(|e| *e != 0)
+        self.peer_discovery_addrs
+            .first()
+            .map(|e| e.port())
+            .filter(|e| *e != 0)
     }
 
     /// Get all ports the torrent is listening on for accepting incoming peer connections.
     /// It returns the slice of ports or an empty slice if the torrent is not listening for peer connections.
-    pub fn peer_ports(&self) -> &[u16] {
-        self.peer_ports.as_slice()
+    pub fn peer_ports(&self) -> Vec<u16> {
+        self.peer_discovery_addrs.iter().map(|e| e.port()).collect()
     }
 
     /// Get the peer dialers for establishing outgoing peer connections of the torrent.
@@ -2575,7 +2587,7 @@ impl TorrentContext {
         self.remove_options(TorrentFlags::Paused).await;
 
         // announce to the trackers if we don't know any peers
-        if self.peer_pool.available_peer_addrs_len().await == 0 {
+        if self.peer_pool.num_connect_candidates().await == 0 {
             self.tracker_manager
                 .make_announcement_to_all(AnnounceEvent::Started);
         }
@@ -2693,7 +2705,8 @@ impl TorrentContext {
     }
 
     async fn handle_discovered_peers(&self, peer_addrs: Vec<SocketAddr>) {
-        self.peer_pool.add_available_peer_addrs(peer_addrs).await;
+        let addr = self.peer_discovery_addrs.first().cloned();
+        self.peer_pool.add_peer_addresses(peer_addrs, addr).await;
     }
 
     async fn handle_dropped_peers(&self, peers: Vec<SocketAddr>) {
@@ -3834,10 +3847,13 @@ mod tests {
         let source_context = source_torrent.instance().unwrap();
         source_context
             .peer_pool()
-            .add_available_peer_addrs(vec![SocketAddr::from((
-                [127, 0, 0, 1],
-                target_torrent.peer_port().unwrap(),
-            ))])
+            .add_peer_addresses(
+                vec![SocketAddr::from((
+                    [127, 0, 0, 1],
+                    target_torrent.peer_port().unwrap(),
+                ))],
+                None,
+            )
             .await;
 
         // wait for all pieces to be completed (finished state)

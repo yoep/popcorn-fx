@@ -3,12 +3,15 @@ pub use errors::*;
 pub use file::*;
 pub use info_hash::*;
 pub use magnet::*;
+use peer_pool::*;
 pub use piece::*;
+use piece_pool::*;
 pub use session::*;
 use std::net::{SocketAddr, TcpListener};
 pub use torrent::*;
 pub use torrent_health::*;
 pub use torrent_metadata::*;
+pub use torrent_peer::*;
 
 mod compact;
 mod errors;
@@ -21,10 +24,12 @@ pub mod operation;
 pub mod peer;
 mod peer_pool;
 mod piece;
+mod piece_pool;
 mod session;
 mod torrent;
 mod torrent_health;
 mod torrent_metadata;
+mod torrent_peer;
 mod tracker;
 
 use crate::torrent::operation::{

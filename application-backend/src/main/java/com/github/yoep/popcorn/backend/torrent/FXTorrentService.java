@@ -90,7 +90,7 @@ public class FXTorrentService implements TorrentService {
 
             @Override
             public long downloaded() {
-                return stats.getTotalDownloadedUseful();
+                return stats.getTotalCompletedSize();
             }
 
             @Override

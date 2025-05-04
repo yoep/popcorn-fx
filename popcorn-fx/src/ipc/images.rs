@@ -385,7 +385,7 @@ mod tests {
         let response = incoming
             .get(
                 GetImageRequest {
-                    url: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Google_2015_logo.svg/2880px-Google_2015_logo.svg.png".to_string(),
+                    url: "https://c.media-amazon.com/images/G/01/gno/sprites/nav-sprite-global-2x-reorg-privacy._CB546805360_.png".to_string(),
                     special_fields: Default::default(),
                 },
                 GetImageRequest::NAME,

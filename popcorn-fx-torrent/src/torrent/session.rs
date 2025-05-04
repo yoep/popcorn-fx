@@ -186,6 +186,13 @@ pub trait Session: Debug + Callback<SessionEvent> + Send + Sync {
     ///
     /// * `handle` - The handle of the torrent to remove.
     async fn remove_torrent(&self, handle: &TorrentHandle);
+
+    /// Get the total number of active connections within this session.
+    ///
+    /// # Returns
+    ///
+    /// It returns the total connections in-use.
+    async fn total_connections(&self) -> usize;
 }
 
 /// The default Fx torrent session.
@@ -512,6 +519,17 @@ impl Session for FxTorrentSession {
     async fn remove_torrent(&self, handle: &TorrentHandle) {
         self.inner.remove_torrent(handle).await
     }
+
+    async fn total_connections(&self) -> usize {
+        let torrents = self.inner.torrents.read().await;
+        let mut total_connections = 0;
+
+        for torrent in torrents.values() {
+            total_connections += torrent.active_peer_connections().await.unwrap_or_default();
+        }
+
+        total_connections
+    }
 }
 
 impl Callback<SessionEvent> for FxTorrentSession {
@@ -830,6 +848,7 @@ mod mock {
             async fn add_torrent_from_uri(&self, uri: &str, options: TorrentFlags) -> Result<Torrent>;
             async fn add_torrent_from_info(&self, torrent_info: TorrentMetadata, options: TorrentFlags) -> Result<Torrent>;
             async fn remove_torrent(&self, handle: &TorrentHandle);
+            async fn total_connections(&self) -> usize;
         }
 
         impl Callback<SessionEvent> for Session {

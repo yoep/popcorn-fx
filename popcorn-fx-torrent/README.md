@@ -19,7 +19,7 @@ and is based on the `libtorrent` library for functionality and naming convention
 - [x] [BEP20](https://www.bittorrent.org/beps/bep_0020.html) - Peer ID Conventions
 - [x] [BEP21](https://www.bittorrent.org/beps/bep_0021.html) - Extension for partial seeds
 - [x] [BEP29](https://www.bittorrent.org/beps/bep_0029.html) - uTorrent transport protocol
-- [ ] [BEP40](https://www.bittorrent.org/beps/bep_0040.html) - Canonical Peer Priority
+- [x] [BEP40](https://www.bittorrent.org/beps/bep_0040.html) - Canonical Peer Priority
 - [x] [BEP47](https://www.bittorrent.org/beps/bep_0047.html) - Padding files and extended file attributes
 - [x] [BEP48](https://www.bittorrent.org/beps/bep_0048.html) - Tracker Protocol Extension: Scrape
 - [ ] [BEP52](https://www.bittorrent.org/beps/bep_0052.html) - The BitTorrent Protocol Specification v2

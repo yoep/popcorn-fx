@@ -56,14 +56,14 @@ impl TorrentConnectPeersOperation {
 
         let peer_pool = context.peer_pool();
         let peer_addrs = peer_pool
-            .take_available_peer_addrs(wanted_connections)
+            .new_connection_candidates(wanted_connections)
             .await;
 
         debug!(
             "Creating an additional {} (of wanted {}, remaining {} addresses) peer connections for {}",
             peer_addrs.len(),
             wanted_connections,
-            context.peer_pool().available_peer_addrs_len().await,
+            context.peer_pool().num_connect_candidates().await,
             context
         );
 
@@ -182,7 +182,7 @@ impl TorrentConnectPeersOperation {
             // put the address back into the peer pool as no permit was granted from making the connection
             context
                 .peer_pool()
-                .add_available_peer_addrs(vec![peer_addr])
+                .add_peer_addresses(vec![peer_addr], context.addr())
                 .await;
         }
     }

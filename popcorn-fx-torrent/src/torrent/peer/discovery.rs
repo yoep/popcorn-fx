@@ -32,6 +32,9 @@ impl PartialEq for PeerStream {
 /// A peer discovery is responsible for discovering outgoing and incoming peer connections.
 #[async_trait]
 pub trait PeerDiscovery: Debug + Send + Sync {
+    /// Get the address on which this peer listener is listening on.
+    fn addr(&self) -> &SocketAddr;
+
     /// Get the port this peer listener is listening on.
     fn port(&self) -> u16;
 
@@ -83,6 +86,7 @@ pub mod mock {
 
         #[async_trait]
         impl PeerDiscovery for PeerDiscovery {
+            fn addr(&self) -> &SocketAddr;
             fn port(&self) -> u16;
             async fn dial(
                 &self,

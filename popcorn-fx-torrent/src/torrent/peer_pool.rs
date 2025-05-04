@@ -1,5 +1,6 @@
 use crate::torrent::peer::{Peer, PeerHandle, PeerState};
-use crate::torrent::TorrentHandle;
+use crate::torrent::{TorrentHandle, TorrentPeer};
+use itertools::Itertools;
 use log::{debug, trace, warn};
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -7,17 +8,16 @@ use std::time::Duration;
 use tokio::sync::{Mutex, OwnedSemaphorePermit, RwLock, Semaphore};
 use tokio::{select, time};
 
-/// A pool manager which manages the peers of a torrent
+/// The torrent peer pool manager for a single torrent.
+/// This manager is responsible for managing the torrent peer information and actual active peers.
 #[derive(Debug)]
 pub struct PeerPool {
     /// The unique handle of the torrent
     handle: TorrentHandle,
     /// The currently active peers within the pool
     pub peers: RwLock<Vec<Box<dyn Peer>>>,
-    /// The discovered peers addrs
-    available_peer_addrs: Mutex<Vec<SocketAddr>>,
-    /// The peer addrs which have been identified as seeds
-    seed_peer_addrs: Mutex<Vec<SocketAddr>>,
+    /// The discovered torrent peers
+    peer_list: Mutex<Vec<TorrentPeer>>,
     /// The maximum amount of peers allowed in the pool
     limit: Mutex<usize>,
     /// The semaphore to limit the number of active peers and in-flight peers for the pool
@@ -35,8 +35,7 @@ impl PeerPool {
         Self {
             handle,
             peers: Default::default(),
-            available_peer_addrs: Default::default(),
-            seed_peer_addrs: Default::default(),
+            peer_list: Default::default(),
             limit: Mutex::new(pool_limit),
             permits: Arc::new(Semaphore::new(pool_limit.min(max_in_flight))),
         }
@@ -78,21 +77,37 @@ impl PeerPool {
             .map(|position| mutex.remove(position))
     }
 
-    /// Get the length of the currently available/known peer addresses.
-    pub async fn available_peer_addrs_len(&self) -> usize {
-        self.available_peer_addrs.lock().await.len()
+    /// Get the total amount of candidates for creating new connections.
+    pub async fn num_connect_candidates(&self) -> usize {
+        self.peer_list
+            .lock()
+            .await
+            .iter()
+            .filter(|peer| peer.is_connect_candidate())
+            .count()
     }
 
-    /// Add the given peer addrs to the pool's available peer addrs.
-    pub async fn add_available_peer_addrs(&self, addrs: Vec<SocketAddr>) {
+    /// Add the given peer addresses to the pool's peer list.
+    pub async fn add_peer_addresses(
+        &self,
+        addrs: Vec<SocketAddr>,
+        torrent_addr: Option<SocketAddr>,
+    ) {
         let peers = self.peers.read().await;
-        let mut mutex = self.available_peer_addrs.lock().await;
+        let mut mutex = self.peer_list.lock().await;
         let addrs: Vec<_> = addrs
             .into_iter()
             // filter out duplicates
-            .filter(|addr| !mutex.contains(addr))
+            .filter(|addr| !mutex.iter().any(|e| &e.addr == addr))
             // filter out any existing connections
             .filter(|addr| !peers.iter().any(|peer| peer.addr() == *addr))
+            .map(|addr| {
+                if let Some(torrent_addr) = torrent_addr {
+                    TorrentPeer::new_with_rank(addr, &torrent_addr)
+                } else {
+                    TorrentPeer::new(addr)
+                }
+            })
             .collect();
 
         trace!(
@@ -105,30 +120,33 @@ impl PeerPool {
 
     /// Remove the given peer addrs from the pool's available peer addrs.
     pub async fn remove_available_peer_addrs(&self, addrs: Vec<SocketAddr>) {
-        let mut mutex = self.available_peer_addrs.lock().await;
-        mutex.retain(|e| !addrs.contains(e));
+        let mut mutex = self.peer_list.lock().await;
+        mutex.retain(|e| !addrs.contains(&e.addr));
     }
 
-    /// Add the given peer addrs to the pool's seed peer addrs.
-    pub async fn add_seed_peer_addrs(&self, addrs: Vec<SocketAddr>) {
-        let mut mutex = self.seed_peer_addrs.lock().await;
-        let addrs: Vec<SocketAddr> = addrs.into_iter().filter(|e| !mutex.contains(e)).collect();
-        mutex.extend(addrs);
-    }
-
-    pub async fn remove_seed_peer_addrs(&self, addrs: Vec<SocketAddr>) {
-        let mut mutex = self.seed_peer_addrs.lock().await;
-        mutex.retain(|e| !addrs.contains(e));
-    }
-
-    /// Try to get the given amount of available peer addrs from the pool.
-    /// If the available peer addrs are not enough, it will return the remaining available addresses.
-    pub async fn take_available_peer_addrs(&self, len: usize) -> Vec<SocketAddr> {
-        let mut mutex = self.available_peer_addrs.lock().await;
+    /// Try to get the given amount of peer list addresses from the pool.
+    /// If the peer list candidates are not enough, it will return the remaining available addresses.
+    ///
+    /// # Arguments
+    ///
+    /// * `len` - The total number of peer list address to retrieve.
+    pub async fn new_connection_candidates(&self, len: usize) -> Vec<SocketAddr> {
+        let mut mutex = self.peer_list.lock().await;
         let remaining_permits = self.permits.available_permits();
         let len = len.min(remaining_permits).min(mutex.len());
+        let mut result = Vec::new();
 
-        mutex.drain(0..len).collect()
+        for candidate in mutex
+            .iter_mut()
+            .filter(|peer| peer.is_connect_candidate())
+            .sorted()
+            .take(len)
+        {
+            candidate.is_in_use = true;
+            result.push(candidate.addr);
+        }
+
+        result
     }
 
     /// Get the total amount of healthy peer connections from the pool.
@@ -197,9 +215,8 @@ impl PeerPool {
         debug!("Shutting down peer pool for {}", self.handle);
         let mut peers = self.peers.write().await;
 
-        // clear all known addrs
-        self.available_peer_addrs.lock().await.clear();
-        self.seed_peer_addrs.lock().await.clear();
+        // clear all known peer list addresses
+        self.peer_list.lock().await.clear();
 
         self.set_pool_limit(0).await;
         for peer in std::mem::take(&mut *peers) {
@@ -254,11 +271,11 @@ mod tests {
         let expected_result = vec![SocketAddr::from(([127, 0, 0, 1], 1900))];
         let pool = PeerPool::new(TorrentHandle::new(), 2, 1);
 
-        pool.add_available_peer_addrs(expected_result.clone()).await;
-        let result = pool.available_peer_addrs_len().await;
+        pool.add_peer_addresses(expected_result.clone(), None).await;
+        let result = pool.num_connect_candidates().await;
         assert_eq!(1, result, "expected the address to have been added");
 
-        let result = pool.take_available_peer_addrs(1).await;
+        let result = pool.new_connection_candidates(1).await;
         assert_eq!(expected_result, result);
     }
 

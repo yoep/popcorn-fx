@@ -1,5 +1,6 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationSettings;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
@@ -11,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.testfx.framework.junit5.ApplicationExtension;
 
@@ -25,6 +27,8 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
 class SettingsSubtitlesComponentTest {
+    @Spy
+    private EventPublisher eventPublisher = new EventPublisher(false);
     @Mock
     private ApplicationConfig applicationConfig;
     @Mock
@@ -46,7 +50,7 @@ class SettingsSubtitlesComponentTest {
                 )
                 .build()));
 
-        component = new SettingsSubtitlesComponent(applicationConfig, localeText);
+        component = new SettingsSubtitlesComponent(eventPublisher, localeText, applicationConfig);
 
         component.clearCache = new CheckBox();
         component.defaultSubtitle = new ComboBox<>();

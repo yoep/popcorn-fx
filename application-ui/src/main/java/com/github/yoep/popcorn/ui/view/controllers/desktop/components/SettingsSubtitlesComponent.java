@@ -1,9 +1,13 @@
 package com.github.yoep.popcorn.ui.view.controllers.desktop.components;
 
+import com.github.yoep.popcorn.backend.events.EventPublisher;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.ApplicationSettings;
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Subtitle;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
+import com.github.yoep.popcorn.backend.subtitles.SubtitleHelper;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
+import com.github.yoep.popcorn.ui.view.controllers.common.components.AbstractSettingsComponent;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.Node;
@@ -13,20 +17,16 @@ import javafx.scene.control.ListCell;
 import javafx.scene.control.TextField;
 import javafx.scene.input.MouseEvent;
 import javafx.stage.DirectoryChooser;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
 import java.net.URL;
+import java.util.Arrays;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
-@RequiredArgsConstructor
-public class SettingsSubtitlesComponent implements Initializable {
-    private final ApplicationConfig applicationConfig;
-    private final LocaleText localeText;
-
+public class SettingsSubtitlesComponent extends AbstractSettingsComponent implements Initializable {
     private final DirectoryChooser cacheChooser = new DirectoryChooser();
 
     @FXML
@@ -44,6 +44,10 @@ public class SettingsSubtitlesComponent implements Initializable {
     @FXML
     CheckBox clearCache;
 
+    public SettingsSubtitlesComponent(EventPublisher eventPublisher, LocaleText localeText, ApplicationConfig applicationConfig) {
+        super(eventPublisher, localeText, applicationConfig);
+    }
+
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         initializeDefaultSubtitle();
@@ -56,60 +60,59 @@ public class SettingsSubtitlesComponent implements Initializable {
     }
 
     private void initializeDefaultSubtitle() {
-        var settings = getSettings();
+        defaultSubtitle.setCellFactory(params -> createDefaultSubtitleCell());
+        defaultSubtitle.setButtonCell(createDefaultSubtitleCell());
+        defaultSubtitle.getItems().addAll(Arrays.stream(Subtitle.Language.values())
+                .filter(e -> e != Subtitle.Language.UNRECOGNIZED)
+                .toList());
 
-//        defaultSubtitle.getItems().addAll(SubtitleLanguage.values());
-//        defaultSubtitle.getSelectionModel().select(settings.getDefaultSubtitle());
-//        defaultSubtitle.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-//            settings.setDefaultSubtitle(newValue);
-//            applicationConfig.update(settings);
-//        });
+        getSettings().thenAccept(settings -> {
+            defaultSubtitle.getSelectionModel().select(settings.getDefaultSubtitle());
+            defaultSubtitle.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue)
+                    -> onDefaultSubtitleChanged(newValue));
+        });
     }
 
     private void initializeFontFamily() {
-        var settings = getSettings();
+        fontFamily.getItems().addAll(Arrays.stream(ApplicationSettings.SubtitleSettings.Family.values())
+                .filter(e -> e != ApplicationSettings.SubtitleSettings.Family.UNRECOGNIZED)
+                .toList());
 
-//        fontFamily.getItems().addAll(SubtitleFamily.values());
-//        fontFamily.getSelectionModel().select(settings.getFontFamily());
-//        fontFamily.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-//            settings.setFontFamily(newValue);
-//            applicationConfig.update(settings);
-//        });
+        getSettings().thenAccept(settings -> {
+            fontFamily.getSelectionModel().select(settings.getFontFamily());
+            fontFamily.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue)
+                    -> onFontFamilyChanged(newValue));
+        });
     }
 
     private void initializeDecoration() {
-        var settings = getSettings();
+        decoration.setCellFactory(param -> createDecorationCell());
+        decoration.setButtonCell(createDecorationCell());
+        decoration.getItems().addAll(Arrays.stream(ApplicationSettings.SubtitleSettings.DecorationType.values())
+                .filter(e -> e != ApplicationSettings.SubtitleSettings.DecorationType.UNRECOGNIZED)
+                .toList());
 
-        decoration.setCellFactory(param -> getDecorationCell());
-        decoration.setButtonCell(getDecorationCell());
-
-//        decoration.getItems().addAll(DecorationType.values());
-//        decoration.getSelectionModel().select(settings.getDecoration());
-//        decoration.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-//            settings.setDecoration(newValue);
-//            applicationConfig.update(settings);
-//        });
+        getSettings().thenAccept(settings -> {
+            decoration.getSelectionModel().select(settings.getDecoration());
+            decoration.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue)
+                    -> onDecorationChanged(newValue));
+        });
     }
 
     private void initializeSize() {
-        var settings = getSettings();
+        fontSize.getItems().addAll(SubtitleHelper.supportedFontSizes());
 
-//        fontSize.getItems().addAll(SubtitleSettings.supportedFontSizes());
-//        fontSize.getSelectionModel().select((Integer) settings.getFontSize());
-//        fontSize.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-//            settings.setFontSize(newValue);
-//            applicationConfig.update(settings);
-//        });
+        getSettings().thenAccept(settings -> {
+            fontSize.getSelectionModel().select((Integer) settings.getFontSize());
+            fontSize.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> onFontSizeChanged(newValue));
+        });
     }
 
     private void initializeBold() {
-        var settings = getSettings();
-
-//        fontBold.setSelected(settings.isBold());
-//        fontBold.selectedProperty().addListener((observable, oldValue, newValue) -> {
-//            settings.setBold(newValue);
-//            applicationConfig.update(settings);
-//        });
+        getSettings().thenAccept(settings -> {
+            fontBold.setSelected(settings.getBold());
+            fontBold.selectedProperty().addListener(((observableValue, oldValue, newValue) -> onBoldChanged(newValue)));
+        });
     }
 
     private void initializeCacheDirectory() {
@@ -155,11 +158,56 @@ public class SettingsSubtitlesComponent implements Initializable {
                 }));
     }
 
+    private void onDefaultSubtitleChanged(Subtitle.Language newValue) {
+        getSettings().thenAccept(settings -> Platform.runLater(() -> {
+            applicationConfig.update(ApplicationSettings.SubtitleSettings.newBuilder(settings)
+                    .setDefaultSubtitle(newValue)
+                    .build());
+            showNotification();
+        }));
+    }
+
+    private void onFontFamilyChanged(ApplicationSettings.SubtitleSettings.Family newValue) {
+        getSettings().thenAccept(settings -> Platform.runLater(() -> {
+            applicationConfig.update(ApplicationSettings.SubtitleSettings.newBuilder(settings)
+                    .setFontFamily(newValue)
+                    .build());
+            showNotification();
+        }));
+    }
+
+    private void onDecorationChanged(ApplicationSettings.SubtitleSettings.DecorationType newValue) {
+        getSettings().thenAccept(settings -> Platform.runLater(() -> {
+            applicationConfig.update(ApplicationSettings.SubtitleSettings.newBuilder(settings)
+                    .setDecoration(newValue)
+                    .build());
+            showNotification();
+        }));
+    }
+
+    private void onFontSizeChanged(Integer newValue) {
+        getSettings().thenAccept(settings -> Platform.runLater(() -> {
+            applicationConfig.update(ApplicationSettings.SubtitleSettings.newBuilder(settings)
+                    .setFontSize(newValue)
+                    .build());
+            showNotification();
+        }));
+    }
+
+    private void onBoldChanged(Boolean newValue) {
+        getSettings().thenAccept(settings -> Platform.runLater(() -> {
+            applicationConfig.update(ApplicationSettings.SubtitleSettings.newBuilder(settings)
+                    .setBold(newValue)
+                    .build());
+            showNotification();
+        }));
+    }
+
     private CompletableFuture<ApplicationSettings.SubtitleSettings> getSettings() {
         return applicationConfig.getSettings().thenApply(ApplicationSettings::getSubtitleSettings);
     }
 
-    private ListCell<ApplicationSettings.SubtitleSettings.DecorationType> getDecorationCell() {
+    private ListCell<ApplicationSettings.SubtitleSettings.DecorationType> createDecorationCell() {
         return new ListCell<>() {
             @Override
             protected void updateItem(ApplicationSettings.SubtitleSettings.DecorationType item, boolean empty) {
@@ -173,12 +221,26 @@ public class SettingsSubtitlesComponent implements Initializable {
     }
 
     @FXML
-    private void onCacheDirectoryClicked(MouseEvent event) {
+    void onCacheDirectoryClicked(MouseEvent event) {
         Node node = (Node) event.getSource();
         File newDirectory = cacheChooser.showDialog(node.getScene().getWindow());
 
         if (newDirectory != null && newDirectory.isDirectory()) {
             cacheDirectory.setText(newDirectory.getAbsolutePath());
         }
+    }
+
+    private static ListCell<Subtitle.Language> createDefaultSubtitleCell() {
+        return new ListCell<>() {
+            @Override
+            protected void updateItem(Subtitle.Language item, boolean empty) {
+                super.updateItem(item, empty);
+                if (!empty) {
+                    setText(SubtitleHelper.getNativeName(item));
+                } else {
+                    setText(null);
+                }
+            }
+        };
     }
 }

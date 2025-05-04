@@ -141,7 +141,7 @@ package-jre: ## Package the JRE runtime for distribution
 
 package: package-clean build-release package-java package-jre ## Package the application for distribution
 	@echo Copying exeutable and libraries
-	@cp -v ./assets/${ASSETS}/*.${LIBRARY_EXTENSION} ./target/package/
+	@cp -v ./target/release/${LIBRARY_EXECUTABLE} ./target/package/
 	@cp -v ./target/release/${EXECUTABLE} ./target/package/
 	@cp -v ./application/target/popcorn-time.jar ./target/package/
 

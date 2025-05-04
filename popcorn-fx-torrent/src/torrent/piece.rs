@@ -1,9 +1,7 @@
-use crate::torrent::{InfoHash, PieceError};
+use crate::torrent::InfoHash;
 use bit_vec::BitVec;
 use log::trace;
 use std::cmp::Ordering;
-use std::collections::HashMap;
-use tokio::sync::RwLock;
 
 /// The maximum size in bytes of a piece part can be requested from a peer.
 pub const MAX_PIECE_PART_SIZE: usize = 16 * 1024; // 16 KiB
@@ -228,65 +226,12 @@ pub struct PiecePart {
 }
 
 impl PartialOrd for PiecePart {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         if self.piece != other.piece {
             return None;
         }
 
         Some(self.part.cmp(&other.part))
-    }
-}
-
-/// The piece chunk pool stores piece parts that have been received from peers.
-#[derive(Debug)]
-pub struct PieceChunkPool {
-    pool: RwLock<HashMap<PieceIndex, Vec<u8>>>,
-}
-
-impl PieceChunkPool {
-    pub fn new() -> Self {
-        Self {
-            pool: RwLock::new(HashMap::new()),
-        }
-    }
-
-    /// Add a chunk to the pool for the given received piece part.
-    ///
-    /// # Arguments
-    ///
-    /// * `piece_part` - The part of the piece that has been received.
-    /// * `piece_length` - The length of the piece, used for initializing the chunk vector.
-    /// * `data` - The data that has been received
-    pub async fn add_chunk(
-        &self,
-        piece_part: &PiecePart,
-        piece_length: usize,
-        data: Vec<u8>,
-    ) -> Result<(), PieceError> {
-        let mut mutex = self.pool.write().await;
-        let chunks = mutex
-            .entry(piece_part.piece)
-            .or_insert_with(|| Vec::with_capacity(piece_length));
-        let part_end = piece_part.begin + piece_part.length;
-
-        if part_end > piece_length {
-            return Err(PieceError::InvalidChunkSize(piece_length, part_end));
-        }
-
-        // ensure that the vector is large enough to hold the data at the part_end
-        if chunks.len() < part_end {
-            chunks.resize(part_end, 0);
-        }
-
-        chunks.splice(piece_part.begin..part_end, data);
-        Ok(())
-    }
-
-    /// Get the data from the given piece.
-    /// This will return the buffered data and remove it from the pool.
-    pub async fn get(&self, piece: PieceIndex) -> Option<Vec<u8>> {
-        let mut mutex = self.pool.write().await;
-        mutex.remove(&piece)
     }
 }
 

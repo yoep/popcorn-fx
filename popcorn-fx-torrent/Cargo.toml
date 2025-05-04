@@ -20,6 +20,7 @@ bitmask-enum = "2.2"
 byteorder.workspace = true
 bytes = "1.10"
 chrono.workspace = true
+crc = "3.2.1"
 derive_more = { workspace = true }
 futures.workspace = true
 fx-callback.workspace = true

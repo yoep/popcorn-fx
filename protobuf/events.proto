@@ -7,11 +7,20 @@ option java_package = "com.github.yoep.popcorn.backend.lib.ipc.protobuf";
 package fx.ipc.proto;
 
 import "player.proto";
+import "torrent.proto";
 
 message Event {
   EventType type = 1;
   optional PlaybackStateChanged playback_state_changed = 3;
   optional TorrentDetailsLoaded torrent_details_loaded = 4;
+
+  message PlaybackStateChanged {
+    Player.State new_state = 1;
+  }
+
+  message TorrentDetailsLoaded {
+    Torrent.Info torrent_info = 1;
+  }
 
   enum EventType {
     PLAYER_STARTED = 0;
@@ -21,13 +30,5 @@ message Event {
     LOADING_COMPLETED = 4;
     TORRENT_DETAILS_LOADED = 5;
     CLOSE_PLAYER = 6;
-  }
-
-  message PlaybackStateChanged {
-    Player.State new_state = 1;
-  }
-
-  message TorrentDetailsLoaded {
-
   }
 }

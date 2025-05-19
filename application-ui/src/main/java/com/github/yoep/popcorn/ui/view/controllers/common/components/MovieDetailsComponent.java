@@ -95,17 +95,15 @@ public class MovieDetailsComponent extends AbstractDesktopDetailsComponent<Movie
             return event;
         });
         eventPublisher.register(MediaQualityChangedEvent.class, event -> {
-            Platform.runLater(() -> {
-                if (event.getMedia() instanceof MovieDetails movie) {
-                    switchHealth(movie.getTorrents().stream()
-                            .filter(e -> Objects.equals(e.getLanguage(), DEFAULT_TORRENT_AUDIO))
-                            .map(Media.TorrentLanguage::getTorrents)
-                            .map(Media.TorrentQuality::getQualitiesMap)
-                            .map(e -> e.get(event.getQuality()))
-                            .findFirst()
-                            .orElse(null));
-                }
-            });
+            if (event.getMedia() instanceof MovieDetails movie) {
+                Platform.runLater(() -> switchHealth(movie.getTorrents().stream()
+                        .filter(e -> Objects.equals(e.getLanguage(), DEFAULT_TORRENT_AUDIO))
+                        .map(Media.TorrentLanguage::getTorrents)
+                        .map(Media.TorrentQuality::getQualitiesMap)
+                        .map(e -> e.get(event.getQuality()))
+                        .findFirst()
+                        .orElse(null)));
+            }
             this.quality = event.getQuality();
             return event;
         });

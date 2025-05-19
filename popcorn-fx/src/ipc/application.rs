@@ -89,7 +89,7 @@ mod tests {
     use crate::ipc::test::create_channel_pair;
     use crate::tests::default_args;
 
-    use crate::try_recv;
+    use crate::timeout;
     use popcorn_fx_core::init_logger;
     use tempfile::tempdir;
 
@@ -106,7 +106,7 @@ mod tests {
             .get(ApplicationArgsRequest::new(), ApplicationArgsRequest::NAME)
             .await
             .unwrap();
-        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+        let message = timeout!(outgoing.recv(), Duration::from_millis(250))
             .expect("expected to have received an incoming message");
 
         let result = handler.process(message, &outgoing).await;
@@ -116,7 +116,7 @@ mod tests {
             "expected the message to have been process successfully"
         );
 
-        let response = try_recv!(response, Duration::from_millis(250))
+        let response = timeout!(response, Duration::from_millis(250))
             .expect("expected to have received a reply");
         let result = ApplicationArgsResponse::parse_from_bytes(&response.payload).unwrap();
 
@@ -150,7 +150,7 @@ mod tests {
             )
             .await
             .unwrap();
-        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+        let message = timeout!(outgoing.recv(), Duration::from_millis(250))
             .expect("expected to have received an incoming message");
 
         let result = handler.process(message, &outgoing).await;
@@ -160,7 +160,7 @@ mod tests {
             "expected the message to have been process successfully"
         );
 
-        let response = try_recv!(response, Duration::from_millis(250))
+        let response = timeout!(response, Duration::from_millis(250))
             .expect("expected to have received a reply");
         let result = GetApplicationVersionResponse::parse_from_bytes(&response.payload).unwrap();
 

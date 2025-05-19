@@ -97,7 +97,7 @@ mod tests {
 
     use crate::ipc::test::create_channel_pair;
     use crate::tests::default_args;
-    use crate::try_recv;
+    use crate::timeout;
 
     use popcorn_fx_core::init_logger;
     use protobuf::EnumOrUnknown;
@@ -123,7 +123,7 @@ mod tests {
             )
             .await
             .unwrap();
-        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+        let message = timeout!(outgoing.recv(), Duration::from_millis(250))
             .expect("expected to have received an incoming message");
 
         let result = handler.process(message, &outgoing).await;
@@ -133,7 +133,7 @@ mod tests {
             "expected the message to have been process successfully"
         );
 
-        let response = try_recv!(response, Duration::from_millis(250))
+        let response = timeout!(response, Duration::from_millis(250))
             .expect("expected to have received a reply");
         let result = LoaderLoadResponse::parse_from_bytes(&response.payload).unwrap();
         assert_ne!(
@@ -162,7 +162,7 @@ mod tests {
             )
             .await
             .unwrap();
-        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+        let message = timeout!(outgoing.recv(), Duration::from_millis(250))
             .expect("expected to have received an incoming message");
 
         let result = handler.process(message, &outgoing).await;
@@ -172,7 +172,7 @@ mod tests {
             "expected the message to have been process successfully"
         );
 
-        let event_message = try_recv!(incoming.recv(), Duration::from_millis(250))
+        let event_message = timeout!(incoming.recv(), Duration::from_millis(250))
             .expect("expected to have received a reply");
         let event = loader::LoaderEvent::parse_from_bytes(&event_message.payload).unwrap();
         assert_eq!(

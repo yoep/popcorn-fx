@@ -122,7 +122,7 @@ mod tests {
     use crate::ipc::proto::tracking::{tracking_provider_event, TrackingProviderAuthorizeResponse};
     use crate::ipc::test::create_channel_pair;
     use crate::tests::default_args;
-    use crate::try_recv;
+    use crate::timeout;
 
     use popcorn_fx_core::core::media::tracking::TrackingEvent;
     use popcorn_fx_core::init_logger;
@@ -147,7 +147,7 @@ mod tests {
             let _ = instance.tracking_provider().authorize().await;
         });
 
-        let message = try_recv!(incoming.recv(), Duration::from_millis(250))
+        let message = timeout!(incoming.recv(), Duration::from_millis(250))
             .expect("expected to have received an event message");
         let result = TrackingProviderEvent::parse_from_bytes(&message.payload).unwrap();
         assert_eq!(
@@ -196,7 +196,7 @@ mod tests {
             )
             .await
             .unwrap();
-        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+        let message = timeout!(outgoing.recv(), Duration::from_millis(250))
             .expect("expected to have received an incoming message");
 
         let result = handler.process(message, &outgoing).await;
@@ -206,7 +206,7 @@ mod tests {
             "expected the message to have been process successfully"
         );
 
-        let response = try_recv!(response, Duration::from_millis(250))
+        let response = timeout!(response, Duration::from_millis(250))
             .expect("expected to have received a reply");
         let result =
             GetTrackingProviderIsAuthorizedResponse::parse_from_bytes(&response.payload).unwrap();
@@ -266,7 +266,7 @@ mod tests {
             )
             .await
             .unwrap();
-        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+        let message = timeout!(outgoing.recv(), Duration::from_millis(250))
             .expect("expected to have received an incoming message");
 
         let result = handler.process(message, &outgoing).await;
@@ -276,7 +276,7 @@ mod tests {
             "expected the message to have been process successfully"
         );
 
-        let response = try_recv!(response, Duration::from_millis(250))
+        let response = timeout!(response, Duration::from_millis(250))
             .expect("expected to have received a reply");
         let result =
             TrackingProviderAuthorizeResponse::parse_from_bytes(&response.payload).unwrap();
@@ -312,7 +312,7 @@ mod tests {
             )
             .await
             .unwrap();
-        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+        let message = timeout!(outgoing.recv(), Duration::from_millis(250))
             .expect("expected to have received an incoming message");
 
         let result = handler.process(message, &outgoing).await;

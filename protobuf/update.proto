@@ -45,6 +45,7 @@ message Update {
     optional InvalidRuntimeVersion invalid_runtime_version = 4;
     optional InvalidResponse invalid_response = 5;
     optional InvalidDownloadUrl invalid_download_url = 6;
+    optional UpdateNotAvailable update_not_available = 7;
     
     message InvalidUpdateChannel {
       string channel = 1;
@@ -67,6 +68,10 @@ message Update {
     message InvalidDownloadUrl {
       string url = 1;
     }
+
+    message UpdateNotAvailable {
+      Update.State state = 1;
+    }
     
     enum Type {
       INVALID_UPDATE_CHANNEL = 0;
@@ -75,6 +80,7 @@ message Update {
       UNKNOWN_VERSION = 3;
       RESPONSE = 4;
       INVALID_DOWNLOAD_URL = 5;
+      UPDATE_NOT_AVAILABLE = 6;
     }
   }
 }

@@ -117,7 +117,7 @@ class DetailsTorrentComponentTest {
         component.initialize(url, resourceBundle);
         WaitForAsyncUtils.waitForFxEvents();
 
-        eventPublisher.publish(new ShowTorrentDetailsEvent(this, "", torrent));
+        eventPublisher.publish(new ShowTorrentDetailsEvent(this, torrent));
         WaitForAsyncUtils.waitForFxEvents();
 
         WaitForAsyncUtils.waitFor(200, TimeUnit.MILLISECONDS, () -> component.torrentList.getItems().contains(torrentFile));
@@ -151,7 +151,7 @@ class DetailsTorrentComponentTest {
         component.initialize(this.url, resourceBundle);
         WaitForAsyncUtils.waitForFxEvents();
 
-        eventPublisher.publish(new ShowTorrentDetailsEvent(this, "", torrent));
+        eventPublisher.publish(new ShowTorrentDetailsEvent(this, torrent));
         component.onFileInfoClicked(torrent.getFilesList().getFirst());
 
         verify(playlistManager).play(isA(Playlist.class));

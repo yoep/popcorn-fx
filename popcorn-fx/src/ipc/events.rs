@@ -74,7 +74,7 @@ mod tests {
     use crate::ipc::proto::player::player;
     use crate::ipc::test::create_channel_pair;
     use crate::tests::default_args;
-    use crate::try_recv;
+    use crate::timeout;
 
     use popcorn_fx_core::core::event::HIGHEST_ORDER;
     use popcorn_fx_core::core::playback::PlaybackState;
@@ -126,7 +126,7 @@ mod tests {
             )
             .await
             .unwrap();
-        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+        let message = timeout!(outgoing.recv(), Duration::from_millis(250))
             .expect("expected to have received an incoming message");
 
         let result = handle.process(message, &outgoing).await;
@@ -136,7 +136,7 @@ mod tests {
             "expected the message to have been processed"
         );
 
-        let event = try_recv!(rx.recv(), Duration::from_millis(250))
+        let event = timeout!(rx.recv(), Duration::from_millis(250))
             .expect("expected to have received an event");
         assert_eq!(Event::PlaybackStateChanged(PlaybackState::PLAYING), event);
     }
@@ -155,7 +155,7 @@ mod tests {
             .publish(Event::PlaybackStateChanged(PlaybackState::PLAYING));
 
         let message =
-            try_recv!(incoming.recv(), Duration::from_millis(500)).expect("expected a message");
+            timeout!(incoming.recv(), Duration::from_millis(500)).expect("expected a message");
         assert_eq!(events::Event::NAME, message.type_.as_str());
 
         let event = events::Event::parse_from_bytes(&message.payload).unwrap();

@@ -135,7 +135,13 @@ impl From<&UpdateError> for update::update::Error {
             UpdateError::PlatformUpdateUnavailable => {}
             UpdateError::DownloadFailed(_, _) => {}
             UpdateError::IO(_) => {}
-            UpdateError::UpdateNotAvailable(_) => {}
+            UpdateError::UpdateNotAvailable(state) => {
+                err.type_ = error::Type::UPDATE_NOT_AVAILABLE.into();
+                err.update_not_available = MessageField::some(error::UpdateNotAvailable {
+                    state: update::update::State::from(state).into(),
+                    special_fields: Default::default(),
+                });
+            }
             UpdateError::ExtractionFailed(_) => {}
             UpdateError::ArchiveLocationAlreadyExists => {}
         }
@@ -265,6 +271,166 @@ mod tests {
         };
 
         let result = update::UpdateEvent::from(&event);
+
+        assert_eq!(expected_result, result);
+    }
+
+    #[test]
+    fn test_update_error_from_invalid_channel() {
+        let channel = "MyUpdateChannel";
+        let err = UpdateError::InvalidUpdateChannel(channel.to_string());
+        let expected_result = update::update::Error {
+            type_: error::Type::INVALID_UPDATE_CHANNEL.into(),
+            invalid_update_channel: MessageField::some(error::InvalidUpdateChannel {
+                channel: channel.to_string(),
+                special_fields: Default::default(),
+            }),
+            invalid_application_version: Default::default(),
+            invalid_runtime_version: Default::default(),
+            invalid_response: Default::default(),
+            invalid_download_url: Default::default(),
+            update_not_available: Default::default(),
+            special_fields: Default::default(),
+        };
+
+        let result = update::update::Error::from(&err);
+
+        assert_eq!(expected_result, result);
+    }
+
+    #[test]
+    fn test_update_error_from_invalid_application_version() {
+        let version = "400.87.9";
+        let reason = "version doesn't exist";
+        let err = UpdateError::InvalidApplicationVersion(version.to_string(), reason.to_string());
+        let expected_result = update::update::Error {
+            type_: error::Type::INVALID_APPLICATION_VERSION.into(),
+            invalid_update_channel: Default::default(),
+            invalid_application_version: MessageField::some(error::InvalidApplicationVersion {
+                version_value: version.to_string(),
+                reason: reason.to_string(),
+                special_fields: Default::default(),
+            }),
+            invalid_runtime_version: Default::default(),
+            invalid_response: Default::default(),
+            invalid_download_url: Default::default(),
+            update_not_available: Default::default(),
+            special_fields: Default::default(),
+        };
+
+        let result = update::update::Error::from(&err);
+
+        assert_eq!(expected_result, result);
+    }
+
+    #[test]
+    fn test_update_error_from_invalid_runtime_version() {
+        let version = "410.11.9";
+        let reason = "version doesn't exist";
+        let err = UpdateError::InvalidRuntimeVersion(version.to_string(), reason.to_string());
+        let expected_result = update::update::Error {
+            type_: error::Type::INVALID_RUNTIME_VERSION.into(),
+            invalid_update_channel: Default::default(),
+            invalid_application_version: Default::default(),
+            invalid_runtime_version: MessageField::some(error::InvalidRuntimeVersion {
+                version_value: version.to_string(),
+                reason: reason.to_string(),
+                special_fields: Default::default(),
+            }),
+            invalid_response: Default::default(),
+            invalid_download_url: Default::default(),
+            update_not_available: Default::default(),
+            special_fields: Default::default(),
+        };
+
+        let result = update::update::Error::from(&err);
+
+        assert_eq!(expected_result, result);
+    }
+
+    #[test]
+    fn test_update_error_from_unknown_version() {
+        let err = UpdateError::UnknownVersion;
+        let expected_result = update::update::Error {
+            type_: error::Type::UNKNOWN_VERSION.into(),
+            invalid_update_channel: Default::default(),
+            invalid_application_version: Default::default(),
+            invalid_runtime_version: Default::default(),
+            invalid_response: Default::default(),
+            invalid_download_url: Default::default(),
+            update_not_available: Default::default(),
+            special_fields: Default::default(),
+        };
+
+        let result = update::update::Error::from(&err);
+
+        assert_eq!(expected_result, result);
+    }
+
+    #[test]
+    fn test_update_error_from_response() {
+        let response = "server response error";
+        let err = UpdateError::Response(response.to_string());
+        let expected_result = update::update::Error {
+            type_: error::Type::RESPONSE.into(),
+            invalid_update_channel: Default::default(),
+            invalid_application_version: Default::default(),
+            invalid_runtime_version: Default::default(),
+            invalid_response: MessageField::some(error::InvalidResponse {
+                reason: response.to_string(),
+                special_fields: Default::default(),
+            }),
+            invalid_download_url: Default::default(),
+            update_not_available: Default::default(),
+            special_fields: Default::default(),
+        };
+
+        let result = update::update::Error::from(&err);
+
+        assert_eq!(expected_result, result);
+    }
+
+    #[test]
+    fn test_update_error_from_invalid_download_url() {
+        let url = "MyDownloadUrl";
+        let err = UpdateError::InvalidDownloadUrl(url.to_string());
+        let expected_result = update::update::Error {
+            type_: error::Type::INVALID_DOWNLOAD_URL.into(),
+            invalid_update_channel: Default::default(),
+            invalid_application_version: Default::default(),
+            invalid_runtime_version: Default::default(),
+            invalid_response: Default::default(),
+            invalid_download_url: MessageField::some(error::InvalidDownloadUrl {
+                url: url.to_string(),
+                special_fields: Default::default(),
+            }),
+            update_not_available: Default::default(),
+            special_fields: Default::default(),
+        };
+
+        let result = update::update::Error::from(&err);
+
+        assert_eq!(expected_result, result);
+    }
+
+    #[test]
+    fn test_update_error_from_update_not_available() {
+        let err = UpdateError::UpdateNotAvailable(UpdateState::NoUpdateAvailable);
+        let expected_result = update::update::Error {
+            type_: error::Type::UPDATE_NOT_AVAILABLE.into(),
+            invalid_update_channel: Default::default(),
+            invalid_application_version: Default::default(),
+            invalid_runtime_version: Default::default(),
+            invalid_response: Default::default(),
+            invalid_download_url: Default::default(),
+            update_not_available: MessageField::some(error::UpdateNotAvailable {
+                state: update::update::State::NO_UPDATE_AVAILABLE.into(),
+                special_fields: Default::default(),
+            }),
+            special_fields: Default::default(),
+        };
+
+        let result = update::update::Error::from(&err);
 
         assert_eq!(expected_result, result);
     }

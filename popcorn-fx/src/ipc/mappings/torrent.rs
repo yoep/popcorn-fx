@@ -1,9 +1,10 @@
 use crate::ipc::proto;
+use crate::ipc::proto::message;
 use crate::ipc::proto::torrent::{torrent, torrent_event};
 use popcorn_fx_core::core::torrents::collection::MagnetInfo;
-use popcorn_fx_core::core::torrents::{Error, TorrentStreamState};
+use popcorn_fx_core::core::torrents::{Error, TorrentInfo, TorrentStreamState};
 use popcorn_fx_torrent::torrent::{
-    TorrentEvent, TorrentHealth, TorrentHealthState, TorrentState, TorrentStats,
+    TorrentEvent, TorrentFileInfo, TorrentHealth, TorrentHealthState, TorrentState, TorrentStats,
 };
 use protobuf::MessageField;
 
@@ -61,6 +62,36 @@ impl From<&MagnetInfo> for proto::torrent::MagnetInfo {
         Self {
             name: value.name.clone(),
             magnet_uri: value.magnet_uri.clone(),
+            special_fields: Default::default(),
+        }
+    }
+}
+
+impl From<&TorrentInfo> for torrent::Info {
+    fn from(value: &TorrentInfo) -> Self {
+        Self {
+            handle: MessageField::some(message::Handle::from(&value.handle)),
+            info_hash: value.info_hash.clone(),
+            uri: value.uri.clone(),
+            name: value.name.clone(),
+            directory_name: value.directory_name.clone(),
+            total_files: value.total_files,
+            files: value.files.iter().map(torrent::info::File::from).collect(),
+            special_fields: Default::default(),
+        }
+    }
+}
+
+impl From<&popcorn_fx_torrent::torrent::File> for torrent::info::File {
+    fn from(value: &popcorn_fx_torrent::torrent::File) -> Self {
+        Self {
+            index: value.index as u32,
+            filename: value.filename(),
+            torrent_path: value.torrent_path.as_os_str().to_string_lossy().to_string(),
+            offset: value.offset as u64,
+            length: value.length() as u64,
+            md5sum: value.info.md5sum.clone(),
+            sha1: value.info.sha1.clone(),
             special_fields: Default::default(),
         }
     }

@@ -445,7 +445,7 @@ mod tests {
     use crate::ipc::proto::player::PlayerPlayRequest;
     use crate::ipc::test::create_channel_pair;
     use crate::tests::default_args;
-    use crate::try_recv;
+    use crate::timeout;
 
     use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::MockPlayer;
@@ -492,7 +492,7 @@ mod tests {
             )
             .await
             .unwrap();
-        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+        let message = timeout!(outgoing.recv(), Duration::from_millis(250))
             .expect("expected to have received an incoming message");
 
         let result = handler.process(message, &outgoing).await;
@@ -502,7 +502,7 @@ mod tests {
             "expected the message to have been process successfully"
         );
 
-        let response = try_recv!(response, Duration::from_millis(250))
+        let response = timeout!(response, Duration::from_millis(250))
             .expect("expected to have received a reply");
         let result = GetPlayerByIdResponse::parse_from_bytes(&response.payload).unwrap();
 
@@ -531,7 +531,7 @@ mod tests {
             .get(GetPlayersRequest::default(), GetPlayersRequest::NAME)
             .await
             .unwrap();
-        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+        let message = timeout!(outgoing.recv(), Duration::from_millis(250))
             .expect("expected to have received an incoming message");
 
         let result = handler.process(message, &outgoing).await;
@@ -541,7 +541,7 @@ mod tests {
             "expected the message to have been process successfully"
         );
 
-        let response = try_recv!(response, Duration::from_millis(250))
+        let response = timeout!(response, Duration::from_millis(250))
             .expect("expected to have received a reply");
         let result = GetPlayersResponse::parse_from_bytes(&response.payload).unwrap();
 
@@ -575,7 +575,7 @@ mod tests {
             )
             .await
             .unwrap();
-        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+        let message = timeout!(outgoing.recv(), Duration::from_millis(250))
             .expect("expected to have received an incoming message");
 
         let result = handler.process(message, &outgoing).await;
@@ -585,7 +585,7 @@ mod tests {
             "expected the message to have been process successfully"
         );
 
-        let response = try_recv!(response, Duration::from_millis(250))
+        let response = timeout!(response, Duration::from_millis(250))
             .expect("expected to have received a reply");
         let result = GetActivePlayerResponse::parse_from_bytes(&response.payload).unwrap();
 
@@ -628,7 +628,7 @@ mod tests {
             )
             .await
             .unwrap();
-        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+        let message = timeout!(outgoing.recv(), Duration::from_millis(250))
             .expect("expected to have received an incoming message");
 
         let result = handler.process(message, &outgoing).await;
@@ -679,7 +679,7 @@ mod tests {
             )
             .await
             .unwrap();
-        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+        let message = timeout!(outgoing.recv(), Duration::from_millis(250))
             .expect("expected to have received an incoming message");
 
         let result = handler.process(message, &outgoing).await;
@@ -689,7 +689,7 @@ mod tests {
             "expected the message to have been process successfully"
         );
 
-        let response = try_recv!(response, Duration::from_millis(250))
+        let response = timeout!(response, Duration::from_millis(250))
             .expect("expected to have received a reply");
         let result = RegisterPlayerResponse::parse_from_bytes(&response.payload).unwrap();
 
@@ -749,7 +749,7 @@ mod tests {
             )
             .await
             .unwrap();
-        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+        let message = timeout!(outgoing.recv(), Duration::from_millis(250))
             .expect("expected to have received an incoming message");
 
         let result = handler.process(message, &outgoing).await;
@@ -779,7 +779,7 @@ mod tests {
             )
             .await
             .unwrap();
-        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+        let message = timeout!(outgoing.recv(), Duration::from_millis(250))
             .expect("expected to have received an incoming message");
 
         let result = handler.process(message, &outgoing).await;
@@ -817,7 +817,7 @@ mod tests {
             )
             .await
             .unwrap();
-        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+        let message = timeout!(outgoing.recv(), Duration::from_millis(250))
             .expect("expected to have received an incoming message");
 
         let result = handler.process(message, &outgoing).await;
@@ -855,7 +855,7 @@ mod tests {
             )
             .await
             .unwrap();
-        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+        let message = timeout!(outgoing.recv(), Duration::from_millis(250))
             .expect("expected to have received an incoming message");
 
         let result = handler.process(message, &outgoing).await;
@@ -893,7 +893,7 @@ mod tests {
             )
             .await
             .unwrap();
-        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+        let message = timeout!(outgoing.recv(), Duration::from_millis(250))
             .expect("expected to have received an incoming message");
 
         let result = handler.process(message, &outgoing).await;
@@ -937,7 +937,7 @@ mod tests {
             )
             .await
             .unwrap();
-        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+        let message = timeout!(outgoing.recv(), Duration::from_millis(250))
             .expect("expected to have received an incoming message");
 
         let result = handler.process(message, &outgoing).await;
@@ -947,7 +947,7 @@ mod tests {
             "expected the message to have been process successfully"
         );
 
-        let result = try_recv!(rx, Duration::from_millis(250))
+        let result = timeout!(rx, Duration::from_millis(250))
             .expect("expected the seek to have been invoked");
         assert_eq!(time, result);
     }
@@ -981,7 +981,7 @@ mod tests {
         let result = player.state().await;
         assert_eq!(PlayerState::Ready, result);
 
-        let request = try_recv!(rx, Duration::from_millis(250)).unwrap();
+        let request = timeout!(rx, Duration::from_millis(250)).unwrap();
         assert_eq!(player_id, request.player_id.as_str());
     }
 
@@ -1012,7 +1012,7 @@ mod tests {
 
         player.play(play_request.clone()).await;
 
-        let request = try_recv!(rx, Duration::from_millis(250)).unwrap();
+        let request = timeout!(rx, Duration::from_millis(250)).unwrap();
         assert_eq!(player_id, request.player_id.as_str());
         assert_eq!(MessageField::some(proto_play_request), request.request);
 
@@ -1037,7 +1037,7 @@ mod tests {
 
         player.pause().await;
 
-        let request = try_recv!(rx, Duration::from_millis(250)).unwrap();
+        let request = timeout!(rx, Duration::from_millis(250)).unwrap();
         assert_eq!(player_id, request.player_id.as_str());
     }
 
@@ -1058,7 +1058,7 @@ mod tests {
 
         player.resume().await;
 
-        let request = try_recv!(rx, Duration::from_millis(250)).unwrap();
+        let request = timeout!(rx, Duration::from_millis(250)).unwrap();
         assert_eq!(player_id, request.player_id.as_str());
     }
 
@@ -1080,7 +1080,7 @@ mod tests {
 
         player.seek(time).await;
 
-        let request = try_recv!(rx, Duration::from_millis(250)).unwrap();
+        let request = timeout!(rx, Duration::from_millis(250)).unwrap();
         assert_eq!(player_id, request.player_id.as_str());
         assert_eq!(time, request.time);
     }
@@ -1102,7 +1102,7 @@ mod tests {
 
         player.stop().await;
 
-        let request = try_recv!(rx, Duration::from_millis(250)).unwrap();
+        let request = timeout!(rx, Duration::from_millis(250)).unwrap();
         assert_eq!(player_id, request.player_id.as_str());
     }
 

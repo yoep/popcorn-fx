@@ -173,7 +173,7 @@ mod tests {
     use crate::ipc::proto::media::media;
     use crate::ipc::test::create_channel_pair;
     use crate::tests::default_args;
-    use crate::try_recv;
+    use crate::timeout;
 
     use popcorn_fx_core::core::media::{Images, MediaIdentifier, MovieOverview};
     use popcorn_fx_core::init_logger;
@@ -199,7 +199,7 @@ mod tests {
             )
             .await
             .unwrap();
-        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+        let message = timeout!(outgoing.recv(), Duration::from_millis(250))
             .expect("expected to have received an incoming message");
 
         let result = handler.process(message, &outgoing).await;
@@ -209,7 +209,7 @@ mod tests {
             "expected the message to have been process successfully"
         );
 
-        let message = try_recv!(response, Duration::from_millis(250))
+        let message = timeout!(response, Duration::from_millis(250))
             .expect("expected to have received a reply");
         let placeholder_response =
             GetPosterPlaceholderResponse::parse_from_bytes(&message.payload).unwrap();
@@ -238,7 +238,7 @@ mod tests {
             )
             .await
             .unwrap();
-        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+        let message = timeout!(outgoing.recv(), Duration::from_millis(250))
             .expect("expected to have received an incoming message");
 
         let result = handler.process(message, &outgoing).await;
@@ -248,7 +248,7 @@ mod tests {
             "expected the message to have been process successfully"
         );
 
-        let message = try_recv!(response, Duration::from_millis(250))
+        let message = timeout!(response, Duration::from_millis(250))
             .expect("expected to have received a reply");
         let placeholder_response =
             GetArtworkPlaceholderResponse::parse_from_bytes(&message.payload).unwrap();
@@ -292,7 +292,7 @@ mod tests {
             )
             .await
             .unwrap();
-        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+        let message = timeout!(outgoing.recv(), Duration::from_millis(250))
             .expect("expected to have received an incoming message");
 
         let result = handler.process(message, &outgoing).await;
@@ -302,7 +302,7 @@ mod tests {
             "expected the message to have been process successfully"
         );
 
-        let message = try_recv!(response, Duration::from_millis(250))
+        let message = timeout!(response, Duration::from_millis(250))
             .expect("expected to have received a reply");
         let response = GetFanartResponse::parse_from_bytes(&message.payload).unwrap();
         assert_eq!(
@@ -349,7 +349,7 @@ mod tests {
             )
             .await
             .unwrap();
-        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+        let message = timeout!(outgoing.recv(), Duration::from_millis(250))
             .expect("expected to have received an incoming message");
 
         let result = handler.process(message, &outgoing).await;
@@ -359,7 +359,7 @@ mod tests {
             "expected the message to have been process successfully"
         );
 
-        let message = try_recv!(response, Duration::from_millis(250))
+        let message = timeout!(response, Duration::from_millis(250))
             .expect("expected to have received a reply");
         let response = GetPosterResponse::parse_from_bytes(&message.payload).unwrap();
         assert_eq!(
@@ -392,7 +392,7 @@ mod tests {
             )
             .await
             .unwrap();
-        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+        let message = timeout!(outgoing.recv(), Duration::from_millis(250))
             .expect("expected to have received an incoming message");
 
         let result = handler.process(message, &outgoing).await;
@@ -402,7 +402,7 @@ mod tests {
             "expected the message to have been process successfully"
         );
 
-        let message = try_recv!(response, Duration::from_millis(250))
+        let message = timeout!(response, Duration::from_millis(250))
             .expect("expected to have received a reply");
         let response = GetImageResponse::parse_from_bytes(&message.payload).unwrap();
         assert_eq!(

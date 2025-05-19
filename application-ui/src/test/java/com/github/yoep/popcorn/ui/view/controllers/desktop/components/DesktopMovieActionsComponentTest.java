@@ -9,6 +9,7 @@ import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Subtitle;
 import com.github.yoep.popcorn.backend.media.MovieDetails;
 import com.github.yoep.popcorn.backend.player.PlayerManagerListener;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
+import com.github.yoep.popcorn.backend.subtitles.ISubtitleInfo;
 import com.github.yoep.popcorn.backend.subtitles.SubtitleInfoWrapper;
 import com.github.yoep.popcorn.backend.subtitles.ISubtitleService;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
@@ -31,11 +32,16 @@ import org.testfx.util.WaitForAsyncUtils;
 
 import java.net.URL;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Stream;
 
 import static java.util.Arrays.asList;
+import static java.util.Collections.singletonList;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
 
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
@@ -78,6 +84,53 @@ class DesktopMovieActionsComponentTest {
         component.watchNowButton = new PlayerDropDownButton();
         component.watchTrailerButton = new Button();
         component.languageSelection = new LanguageFlagSelection();
+    }
+
+    @Test
+    void testInitializeLanguageSelection() {
+        List<ISubtitleInfo> defaultSubtitles = asList(new SubtitleInfoWrapper(Subtitle.Info.newBuilder()
+                .setLanguage(Subtitle.Language.NONE)
+                .build()), new SubtitleInfoWrapper(Subtitle.Info.newBuilder()
+                .setLanguage(Subtitle.Language.CUSTOM)
+                .build()));
+        when(subtitleService.defaultSubtitles()).thenReturn(CompletableFuture.completedFuture(defaultSubtitles));
+        component.initialize(url, resourceBundle);
+        WaitForAsyncUtils.waitForFxEvents();
+
+        verify(subtitleService).defaultSubtitles();
+        assertEquals(defaultSubtitles, component.defaultSubtitles);
+    }
+
+    @Test
+    void testOnShowMovieDetails_shouldRetrieveAvailableSubtitles() {
+        var media = new MovieDetails(Media.MovieDetails.newBuilder()
+                .setImdbId("tt225500")
+                .build());
+        List<ISubtitleInfo> defaultSubtitles = asList(new SubtitleInfoWrapper(Subtitle.Info.newBuilder()
+                .setLanguage(Subtitle.Language.NONE)
+                .build()), new SubtitleInfoWrapper(Subtitle.Info.newBuilder()
+                .setLanguage(Subtitle.Language.CUSTOM)
+                .build()));
+        var preferredSubtitle = new SubtitleInfoWrapper(Subtitle.Info.newBuilder()
+                .setLanguage(Subtitle.Language.GERMAN)
+                .build());
+        var preferredSubtitleRequestHolder = new AtomicReference<List<ISubtitleInfo>>();
+        when(subtitleService.defaultSubtitles()).thenReturn(CompletableFuture.completedFuture(defaultSubtitles));
+        when(subtitleService.retrieveSubtitles(isA(MovieDetails.class))).thenReturn(CompletableFuture.completedFuture(singletonList(preferredSubtitle)));
+        when(subtitleService.getDefaultOrInterfaceLanguage(isA(List.class))).thenAnswer(invocations -> {
+            preferredSubtitleRequestHolder.set(invocations.getArgument(0, List.class));
+            return CompletableFuture.completedFuture(preferredSubtitle);
+        });
+        component.initialize(url, resourceBundle);
+        WaitForAsyncUtils.waitForFxEvents();
+
+        eventPublisher.publish(new ShowMovieDetailsEvent(this, media));
+        WaitForAsyncUtils.waitForFxEvents();
+
+        verify(subtitleService).retrieveSubtitles(media);
+        verify(subtitleService).getDefaultOrInterfaceLanguage(isA(List.class));
+        assertEquals(1, preferredSubtitleRequestHolder.get().size(), "expected only to have sent the available subtitles");
+        assertEquals(preferredSubtitle, preferredSubtitleRequestHolder.get().getFirst());
     }
 
     @Test

@@ -147,7 +147,7 @@ mod tests {
 
     use crate::ipc::test::create_channel_pair;
     use crate::tests::default_args;
-    use crate::try_recv;
+    use crate::timeout;
 
     use popcorn_fx_core::core::media::{
         Images, MediaIdentifier, MovieOverview, Rating, ShowOverview,
@@ -177,7 +177,7 @@ mod tests {
             )
             .await
             .unwrap();
-        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+        let message = timeout!(outgoing.recv(), Duration::from_millis(250))
             .expect("expected to have received an incoming message");
 
         let result = handler.process(message, &outgoing).await;
@@ -187,7 +187,7 @@ mod tests {
             "expected the message to have been process successfully"
         );
 
-        let response = try_recv!(response, Duration::from_millis(250))
+        let response = timeout!(response, Duration::from_millis(250))
             .expect("expected to have received a reply");
         let result = GetIsLikedResponse::parse_from_bytes(&response.payload).unwrap();
         assert_eq!(false, result.is_liked);
@@ -213,7 +213,7 @@ mod tests {
             )
             .await
             .unwrap();
-        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+        let message = timeout!(outgoing.recv(), Duration::from_millis(250))
             .expect("expected to have received an incoming message");
 
         let result = handler.process(message, &outgoing).await;
@@ -223,7 +223,7 @@ mod tests {
             "expected the message to have been process successfully"
         );
 
-        let response = try_recv!(response, Duration::from_millis(250))
+        let response = timeout!(response, Duration::from_millis(250))
             .expect("expected to have received a reply");
         let result = AddFavoriteResponse::parse_from_bytes(&response.payload).unwrap();
         assert_eq!(
@@ -252,7 +252,7 @@ mod tests {
             )
             .await
             .unwrap();
-        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+        let message = timeout!(outgoing.recv(), Duration::from_millis(250))
             .expect("expected to have received an incoming message");
 
         let result = handler.process(message, &outgoing).await;
@@ -284,7 +284,7 @@ mod tests {
             }))
             .await;
 
-        let response = try_recv!(incoming.recv(), Duration::from_millis(250))
+        let response = timeout!(incoming.recv(), Duration::from_millis(250))
             .expect("expected to have received an event message");
         assert_eq!(favorites::FavoriteEvent::NAME, response.type_.as_str());
 

@@ -53,7 +53,7 @@ mod tests {
     use super::*;
 
     use crate::ipc::test::create_channel_pair;
-    use crate::try_recv;
+    use crate::timeout;
 
     use popcorn_fx_core::init_logger;
     use std::time::Duration;
@@ -76,7 +76,7 @@ mod tests {
             )
             .await
             .unwrap();
-        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+        let message = timeout!(outgoing.recv(), Duration::from_millis(250))
             .expect("expected to have received an incoming message");
 
         let result = handler.process(message, &outgoing).await;
@@ -98,7 +98,7 @@ mod tests {
             )
             .await
             .unwrap();
-        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+        let message = timeout!(outgoing.recv(), Duration::from_millis(250))
             .expect("expected to have received an incoming message");
 
         let result = handler.process(message, &outgoing).await;
@@ -120,7 +120,7 @@ mod tests {
             )
             .await
             .unwrap();
-        let message = try_recv!(outgoing.recv(), Duration::from_millis(250))
+        let message = timeout!(outgoing.recv(), Duration::from_millis(250))
             .expect("expected to have received an incoming message");
 
         let result = handler.process(message, &outgoing).await;

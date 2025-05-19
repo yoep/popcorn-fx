@@ -9,11 +9,7 @@ import com.github.yoep.popcorn.backend.media.MediaHelper;
 import com.github.yoep.popcorn.backend.media.MovieDetails;
 import com.github.yoep.popcorn.backend.messages.SubtitleMessage;
 import com.github.yoep.popcorn.backend.playlists.PlaylistManager;
-import com.github.yoep.popcorn.backend.subtitles.SubtitleHelper;
-import com.github.yoep.popcorn.backend.subtitles.ISubtitleInfo;
-import com.github.yoep.popcorn.backend.subtitles.SubtitleInfoWrapper;
-import com.github.yoep.popcorn.backend.subtitles.ISubtitleService;
-import com.github.yoep.popcorn.backend.subtitles.LanguageSelectionListener;
+import com.github.yoep.popcorn.backend.subtitles.*;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.utils.WatchNowUtils;
 import com.github.yoep.popcorn.ui.view.ViewHelper;
@@ -39,6 +35,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Stream;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -51,8 +48,9 @@ public class DesktopMovieActionsComponent implements Initializable {
     private final DetailsComponentService detailsComponentService;
     private final DesktopMovieQualityComponent desktopMovieQualityComponent;
 
-    private MovieDetails media;
-    private CompletableFuture<List<ISubtitleInfo>> subtitleFuture;
+    MovieDetails media;
+    CompletableFuture<Void> subtitleFuture;
+    List<ISubtitleInfo> defaultSubtitles;
 
     @FXML
     PlayerDropDownButton watchNowButton;
@@ -110,20 +108,18 @@ public class DesktopMovieActionsComponent implements Initializable {
             }
         });
 
-        resetLanguageSelection();
-        languageSelection.addListener(createLanguageListener());
-    }
-
-    private void resetLanguageSelection() {
-        subtitleService.defaultSubtitles().whenComplete((subtitles, throwable) -> {
-            if (throwable == null) {
-                languageSelection.getItems().clear();
-                languageSelection.getItems().addAll(subtitles);
-                languageSelection.select(subtitles.getFirst());
-            } else {
-                log.error("Failed to load none subtitle", throwable);
-            }
-        });
+        subtitleService.defaultSubtitles()
+                .thenAccept(subtitles -> Platform.runLater(() -> {
+                    this.defaultSubtitles = subtitles;
+                    languageSelection.getItems().clear();
+                    languageSelection.getItems().addAll(subtitles);
+                    languageSelection.select(subtitles.getFirst());
+                    languageSelection.addListener(createLanguageListener());
+                }))
+                .exceptionally(ex -> {
+                    log.error("Failed to retrieve default subtitles, {}", ex.getMessage(), ex);
+                    return null;
+                });
     }
 
     private void onShowMovieDetails() {
@@ -141,33 +137,30 @@ public class DesktopMovieActionsComponent implements Initializable {
             subtitleFuture.cancel(true);
         }
 
-        var items = languageSelection.getItems();
-
-        subtitleService.defaultSubtitles().whenComplete((defaultSubtitles, throwable) -> {
-            items.clear();
-            items.addAll(defaultSubtitles);
-            languageSelection.select(defaultSubtitles.getFirst());
+        // reset the subtitles to default
+        Platform.runLater(() -> {
+            languageSelection.getItems().clear();
+            languageSelection.getItems().addAll(defaultSubtitles);
         });
 
-        subtitleFuture = subtitleService
-                .retrieveSubtitles(media)
-                .whenComplete((subtitles, throwable) -> {
-                    if (throwable == null) {
-                        Platform.runLater(() -> {
-                            languageSelection.getItems().clear();
-                            languageSelection.getItems().addAll(subtitles);
-                        });
+        // retrieve the available subtitles
+        subtitleFuture = subtitleService.retrieveSubtitles(media)
+                .thenAccept(subtitles -> {
+                    Platform.runLater(() -> {
+                        languageSelection.getItems().clear();
+                        languageSelection.getItems().addAll(Stream.concat(defaultSubtitles.stream(), subtitles.stream()).toList());
+                    });
 
-                        subtitleService.getDefaultOrInterfaceLanguage(subtitles).whenComplete((subtitle, ex) -> {
-                            if (ex == null) {
-                                languageSelection.select(subtitle);
-                            } else {
-                                log.error("Failed to retrieve default subtitle", ex);
-                            }
-                        });
-                    } else {
-                        log.error(throwable.getMessage(), throwable);
-                    }
+                    subtitleService.getDefaultOrInterfaceLanguage(subtitles)
+                            .thenAccept(subtitle -> Platform.runLater(() -> languageSelection.select(subtitle)))
+                            .exceptionally(ex -> {
+                                log.error("Failed to retrieve preferred subtitle, {}", ex.getMessage(), ex);
+                                return null;
+                            });
+                })
+                .exceptionally(ex -> {
+                    log.error("Failed to retrieve available subtitles, {}", ex.getMessage(), ex);
+                    return null;
                 });
     }
 

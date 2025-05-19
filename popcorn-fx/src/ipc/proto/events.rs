@@ -238,6 +238,9 @@ pub mod event {
     // @@protoc_insertion_point(message:fx.ipc.proto.Event.TorrentDetailsLoaded)
     #[derive(PartialEq,Clone,Default,Debug)]
     pub struct TorrentDetailsLoaded {
+        // message fields
+        // @@protoc_insertion_point(field:fx.ipc.proto.Event.TorrentDetailsLoaded.torrent_info)
+        pub torrent_info: ::protobuf::MessageField<super::super::torrent::torrent::Info>,
         // special fields
         // @@protoc_insertion_point(special_field:fx.ipc.proto.Event.TorrentDetailsLoaded.special_fields)
         pub special_fields: ::protobuf::SpecialFields,
@@ -265,6 +268,9 @@ pub mod event {
         fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
             while let Some(tag) = is.read_raw_tag_or_eof()? {
                 match tag {
+                    10 => {
+                        ::protobuf::rt::read_singular_message_into_field(is, &mut self.torrent_info)?;
+                    },
                     tag => {
                         ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
                     },
@@ -277,12 +283,19 @@ pub mod event {
         #[allow(unused_variables)]
         fn compute_size(&self) -> u64 {
             let mut my_size = 0;
+            if let Some(v) = self.torrent_info.as_ref() {
+                let len = v.compute_size();
+                my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+            }
             my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
             self.special_fields.cached_size().set(my_size as u32);
             my_size
         }
 
         fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+            if let Some(v) = self.torrent_info.as_ref() {
+                ::protobuf::rt::write_message_field_with_cached_size(1, v, os)?;
+            }
             os.write_unknown_fields(self.special_fields.unknown_fields())?;
             ::std::result::Result::Ok(())
         }
@@ -300,11 +313,13 @@ pub mod event {
         }
 
         fn clear(&mut self) {
+            self.torrent_info.clear();
             self.special_fields.clear();
         }
 
         fn default_instance() -> &'static TorrentDetailsLoaded {
             static instance: TorrentDetailsLoaded = TorrentDetailsLoaded {
+                torrent_info: ::protobuf::MessageField::none(),
                 special_fields: ::protobuf::SpecialFields::new(),
             };
             &instance

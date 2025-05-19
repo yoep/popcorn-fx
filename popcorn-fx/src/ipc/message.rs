@@ -3,7 +3,7 @@ use crate::ipc::errors::{Error, Result};
 use crate::ipc::proto::application::ApplicationTerminationRequest;
 use crate::ipc::proto::message::FxMessage;
 use async_trait::async_trait;
-use log::{debug, error, trace, warn};
+use log::{debug, error, warn};
 use protobuf::{Enum, EnumOrUnknown, Message};
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -93,8 +93,9 @@ impl InnerProcessor {
     async fn handle_message(&self, message: FxMessage) -> Result<()> {
         let message_type = message.type_.as_str();
         if message_type == ApplicationTerminationRequest::NAME {
-            trace!("IPC channel processor is being terminated");
+            debug!("IPC channel processor is being terminated");
             self.cancellation_token.cancel();
+            self.channel.close();
             return Ok(());
         } else if message_type.is_empty() {
             return Err(Error::MissingMessageType);
@@ -137,7 +138,7 @@ mod tests {
     use crate::ipc::proto::application::GetApplicationVersionRequest;
     use crate::ipc::proto::log::LogRequest;
     use crate::ipc::test::create_channel_pair;
-    use crate::try_recv;
+    use crate::timeout;
     use mockall::mock;
 
     use popcorn_fx_core::init_logger;
@@ -195,7 +196,7 @@ mod tests {
             .await
             .expect("expected to have send the request message");
 
-        let message = try_recv!(rx.recv(), Duration::from_millis(250))
+        let message = timeout!(rx.recv(), Duration::from_millis(250))
             .expect("expected process to have been invoked");
         assert_eq!(GetApplicationVersionRequest::NAME, message.type_.as_str());
     }

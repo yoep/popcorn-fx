@@ -124,13 +124,21 @@ pub(crate) mod test {
         (incoming_channel, outgoing_channel)
     }
 
+    /// A macro wrapper for [`tokio::time::timeout`] that awaits a future with a timeout duration.
+    ///
+    /// # Returns
+    ///
+    /// It returns the future result or timeout.
     #[macro_export]
-    macro_rules! try_recv {
-        ($receiver:expr, $timeout:expr) => {
-            tokio::select! {
-                _ = tokio::time::sleep($timeout) => panic!("receiver timed out after {}ms", $timeout.as_secs()),
-                result = $receiver => result,
-            }
-        };
+    macro_rules! timeout {
+        ($future:expr, $duration:expr) => {{
+            use tokio::time::timeout;
+            let future = $future;
+            let duration = $duration;
+
+            timeout(duration, future)
+                .await
+                .expect("operation timed-out")
+        }};
     }
 }

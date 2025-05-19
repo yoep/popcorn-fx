@@ -37,6 +37,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
 
 import java.net.URL;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.ResourceBundle;
@@ -138,7 +139,7 @@ public class DetailsTorrentComponent implements Initializable {
                     var extension = FilenameUtils.getExtension(e.getFilename());
                     return SUPPORTED_FILES.contains(extension.toLowerCase());
                 })
-                .sorted()
+                .sorted(Comparator.comparingInt(Torrent.Info.File::getIndex))
                 .toList();
 
         subtitleService.defaultSubtitles()

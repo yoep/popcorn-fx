@@ -447,6 +447,8 @@ pub mod update {
         pub invalid_response: ::protobuf::MessageField<error::InvalidResponse>,
         // @@protoc_insertion_point(field:fx.ipc.proto.Update.Error.invalid_download_url)
         pub invalid_download_url: ::protobuf::MessageField<error::InvalidDownloadUrl>,
+        // @@protoc_insertion_point(field:fx.ipc.proto.Update.Error.update_not_available)
+        pub update_not_available: ::protobuf::MessageField<error::UpdateNotAvailable>,
         // special fields
         // @@protoc_insertion_point(special_field:fx.ipc.proto.Update.Error.special_fields)
         pub special_fields: ::protobuf::SpecialFields,
@@ -492,6 +494,9 @@ pub mod update {
                     50 => {
                         ::protobuf::rt::read_singular_message_into_field(is, &mut self.invalid_download_url)?;
                     },
+                    58 => {
+                        ::protobuf::rt::read_singular_message_into_field(is, &mut self.update_not_available)?;
+                    },
                     tag => {
                         ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
                     },
@@ -527,6 +532,10 @@ pub mod update {
                 let len = v.compute_size();
                 my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
             }
+            if let Some(v) = self.update_not_available.as_ref() {
+                let len = v.compute_size();
+                my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+            }
             my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
             self.special_fields.cached_size().set(my_size as u32);
             my_size
@@ -551,6 +560,9 @@ pub mod update {
             if let Some(v) = self.invalid_download_url.as_ref() {
                 ::protobuf::rt::write_message_field_with_cached_size(6, v, os)?;
             }
+            if let Some(v) = self.update_not_available.as_ref() {
+                ::protobuf::rt::write_message_field_with_cached_size(7, v, os)?;
+            }
             os.write_unknown_fields(self.special_fields.unknown_fields())?;
             ::std::result::Result::Ok(())
         }
@@ -574,6 +586,7 @@ pub mod update {
             self.invalid_runtime_version.clear();
             self.invalid_response.clear();
             self.invalid_download_url.clear();
+            self.update_not_available.clear();
             self.special_fields.clear();
         }
 
@@ -585,6 +598,7 @@ pub mod update {
                 invalid_runtime_version: ::protobuf::MessageField::none(),
                 invalid_response: ::protobuf::MessageField::none(),
                 invalid_download_url: ::protobuf::MessageField::none(),
+                update_not_available: ::protobuf::MessageField::none(),
                 special_fields: ::protobuf::SpecialFields::new(),
             };
             &instance
@@ -1069,6 +1083,96 @@ pub mod update {
             }
         }
 
+        // @@protoc_insertion_point(message:fx.ipc.proto.Update.Error.UpdateNotAvailable)
+        #[derive(PartialEq,Clone,Default,Debug)]
+        pub struct UpdateNotAvailable {
+            // message fields
+            // @@protoc_insertion_point(field:fx.ipc.proto.Update.Error.UpdateNotAvailable.state)
+            pub state: ::protobuf::EnumOrUnknown<super::State>,
+            // special fields
+            // @@protoc_insertion_point(special_field:fx.ipc.proto.Update.Error.UpdateNotAvailable.special_fields)
+            pub special_fields: ::protobuf::SpecialFields,
+        }
+
+        impl<'a> ::std::default::Default for &'a UpdateNotAvailable {
+            fn default() -> &'a UpdateNotAvailable {
+                <UpdateNotAvailable as ::protobuf::Message>::default_instance()
+            }
+        }
+
+        impl UpdateNotAvailable {
+            pub fn new() -> UpdateNotAvailable {
+                ::std::default::Default::default()
+            }
+        }
+
+        impl ::protobuf::Message for UpdateNotAvailable {
+            const NAME: &'static str = "UpdateNotAvailable";
+
+            fn is_initialized(&self) -> bool {
+                true
+            }
+
+            fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+                while let Some(tag) = is.read_raw_tag_or_eof()? {
+                    match tag {
+                        8 => {
+                            self.state = is.read_enum_or_unknown()?;
+                        },
+                        tag => {
+                            ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                        },
+                    };
+                }
+                ::std::result::Result::Ok(())
+            }
+
+            // Compute sizes of nested messages
+            #[allow(unused_variables)]
+            fn compute_size(&self) -> u64 {
+                let mut my_size = 0;
+                if self.state != ::protobuf::EnumOrUnknown::new(super::State::CHECKING_FOR_NEW_VERSION) {
+                    my_size += ::protobuf::rt::int32_size(1, self.state.value());
+                }
+                my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+                self.special_fields.cached_size().set(my_size as u32);
+                my_size
+            }
+
+            fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+                if self.state != ::protobuf::EnumOrUnknown::new(super::State::CHECKING_FOR_NEW_VERSION) {
+                    os.write_enum(1, ::protobuf::EnumOrUnknown::value(&self.state))?;
+                }
+                os.write_unknown_fields(self.special_fields.unknown_fields())?;
+                ::std::result::Result::Ok(())
+            }
+
+            fn special_fields(&self) -> &::protobuf::SpecialFields {
+                &self.special_fields
+            }
+
+            fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+                &mut self.special_fields
+            }
+
+            fn new() -> UpdateNotAvailable {
+                UpdateNotAvailable::new()
+            }
+
+            fn clear(&mut self) {
+                self.state = ::protobuf::EnumOrUnknown::new(super::State::CHECKING_FOR_NEW_VERSION);
+                self.special_fields.clear();
+            }
+
+            fn default_instance() -> &'static UpdateNotAvailable {
+                static instance: UpdateNotAvailable = UpdateNotAvailable {
+                    state: ::protobuf::EnumOrUnknown::from_i32(0),
+                    special_fields: ::protobuf::SpecialFields::new(),
+                };
+                &instance
+            }
+        }
+
         #[derive(Clone,Copy,PartialEq,Eq,Debug,Hash)]
         // @@protoc_insertion_point(enum:fx.ipc.proto.Update.Error.Type)
         pub enum Type {
@@ -1084,6 +1188,8 @@ pub mod update {
             RESPONSE = 4,
             // @@protoc_insertion_point(enum_value:fx.ipc.proto.Update.Error.Type.INVALID_DOWNLOAD_URL)
             INVALID_DOWNLOAD_URL = 5,
+            // @@protoc_insertion_point(enum_value:fx.ipc.proto.Update.Error.Type.UPDATE_NOT_AVAILABLE)
+            UPDATE_NOT_AVAILABLE = 6,
         }
 
         impl ::protobuf::Enum for Type {
@@ -1101,6 +1207,7 @@ pub mod update {
                     3 => ::std::option::Option::Some(Type::UNKNOWN_VERSION),
                     4 => ::std::option::Option::Some(Type::RESPONSE),
                     5 => ::std::option::Option::Some(Type::INVALID_DOWNLOAD_URL),
+                    6 => ::std::option::Option::Some(Type::UPDATE_NOT_AVAILABLE),
                     _ => ::std::option::Option::None
                 }
             }
@@ -1113,6 +1220,7 @@ pub mod update {
                     "UNKNOWN_VERSION" => ::std::option::Option::Some(Type::UNKNOWN_VERSION),
                     "RESPONSE" => ::std::option::Option::Some(Type::RESPONSE),
                     "INVALID_DOWNLOAD_URL" => ::std::option::Option::Some(Type::INVALID_DOWNLOAD_URL),
+                    "UPDATE_NOT_AVAILABLE" => ::std::option::Option::Some(Type::UPDATE_NOT_AVAILABLE),
                     _ => ::std::option::Option::None
                 }
             }
@@ -1124,6 +1232,7 @@ pub mod update {
                 Type::UNKNOWN_VERSION,
                 Type::RESPONSE,
                 Type::INVALID_DOWNLOAD_URL,
+                Type::UPDATE_NOT_AVAILABLE,
             ];
         }
 

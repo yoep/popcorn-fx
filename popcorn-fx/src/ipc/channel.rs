@@ -403,7 +403,7 @@ mod tests {
 
     use crate::ipc::proto::update::{update, GetUpdateStateRequest, GetUpdateStateResponse};
     use crate::ipc::test::create_channel_pair;
-    use crate::try_recv;
+    use crate::timeout;
 
     use popcorn_fx_core::init_logger;
     use std::time::Duration;
@@ -420,7 +420,7 @@ mod tests {
             )
             .await
             .unwrap();
-        let message = try_recv!(outgoing.recv(), Duration::from_millis(200))
+        let message = timeout!(outgoing.recv(), Duration::from_millis(200))
             .expect("expected to receive a message");
 
         let result = outgoing
@@ -435,8 +435,8 @@ mod tests {
             .await;
         assert_eq!(Ok(()), result, "expected the response to have been sent");
 
-        let result = try_recv!(receiver, Duration::from_millis(200))
-            .expect("expected to receive a response");
+        let result =
+            timeout!(receiver, Duration::from_millis(200)).expect("expected to receive a response");
         assert_eq!(GetUpdateStateResponse::NAME, result.type_.as_str());
     }
 }

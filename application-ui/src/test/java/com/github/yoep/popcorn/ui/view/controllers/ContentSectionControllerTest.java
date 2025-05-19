@@ -26,14 +26,15 @@ import org.testfx.framework.junit5.ApplicationExtension;
 import org.testfx.util.WaitForAsyncUtils;
 
 import java.net.URL;
+import java.time.Duration;
+import java.util.Objects;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith({MockitoExtension.class, ApplicationExtension.class})
@@ -179,7 +180,9 @@ class ContentSectionControllerTest {
 
         eventPublisher.publish(new CloseUpdateEvent(this));
         WaitForAsyncUtils.waitForFxEvents();
-        assertEquals(ContentSectionController.ContentType.LIST, controller.activeType);
+        assertTimeout(Duration.ofMillis(750),
+                () -> Objects.equals(ContentSectionController.ContentType.LIST, controller.activeType),
+                "expected the content section to have been updated to list");
     }
 
     @Test

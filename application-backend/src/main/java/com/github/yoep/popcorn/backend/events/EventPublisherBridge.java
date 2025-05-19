@@ -46,9 +46,7 @@ public class EventPublisherBridge implements FxCallback<Event> {
             case PLAYBACK_STATE_CHANGED -> eventPublisher.publishEvent(new PlayerStateEvent(this, message.getPlaybackStateChanged().getNewState()));
             case LOADING_STARTED -> eventPublisher.publishEvent(new LoadingStartedEvent(this));
             case LOADING_COMPLETED -> eventPublisher.publishEvent(new LoadingCompletedEvent(this));
-            case TORRENT_DETAILS_LOADED -> {
-                // TODO
-            }
+            case TORRENT_DETAILS_LOADED -> eventPublisher.publish(new ShowTorrentDetailsEvent(this, message.getTorrentDetailsLoaded().getTorrentInfo()));
             case CLOSE_PLAYER -> eventPublisher.publishEvent(new ClosePlayerEvent(this, ClosePlayerEvent.Reason.END_OF_VIDEO));
             case UNRECOGNIZED -> log.error("Unrecognized event type: {}", message.getType());
         }

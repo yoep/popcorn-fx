@@ -4,6 +4,11 @@ use std::str::FromStr;
 use popcorn_fx_core::core::players::PlayerState;
 
 use crate::dlna;
+use crate::dlna::{DlnaError, Result};
+
+const DLNA_FIELD_SPEED: &str = "CurrentSpeed";
+const DLNA_FIELD_STATE: &str = "CurrentTransportState";
+const DLNA_FIELD_STATUS: &str = "CurrentTransportStatus";
 
 /// Represents an event received from UPnP.
 #[derive(Debug, PartialEq)]
@@ -64,16 +69,34 @@ pub struct TransportInfo {
     pub current_transport_status: String,
 }
 
-impl From<HashMap<String, String>> for TransportInfo {
-    fn from(map: HashMap<String, String>) -> Self {
-        Self {
-            current_speed: map.get("CurrentSpeed").unwrap().parse().unwrap(),
-            current_transport_state: map.get("CurrentTransportState").unwrap().parse().unwrap(),
-            current_transport_status: map
-                .get("CurrentTransportStatus")
-                .cloned()
-                .unwrap_or_default(),
-        }
+impl TryFrom<HashMap<String, String>> for TransportInfo {
+    type Error = DlnaError;
+
+    fn try_from(map: HashMap<String, String>) -> Result<Self> {
+        let current_speed = map
+            .get(DLNA_FIELD_SPEED)
+            .ok_or(DlnaError::Device(format!(
+                "missing field {}",
+                DLNA_FIELD_SPEED
+            )))?
+            .parse()
+            .map_err(|e| {
+                DlnaError::Device(format!("device returned invalid speed value, {}", e))
+            })?;
+        let current_transport_state = map
+            .get(DLNA_FIELD_STATE)
+            .ok_or(DlnaError::Device(format!(
+                "missing field {}",
+                DLNA_FIELD_STATE
+            )))?
+            .parse()?;
+        let current_transport_status = map.get(DLNA_FIELD_STATUS).cloned().unwrap_or_default();
+
+        Ok(Self {
+            current_speed,
+            current_transport_state,
+            current_transport_status,
+        })
     }
 }
 
@@ -95,9 +118,9 @@ pub enum UpnpState {
 }
 
 impl FromStr for UpnpState {
-    type Err = dlna::DlnaError;
+    type Err = DlnaError;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn from_str(s: &str) -> Result<Self> {
         match s {
             "STOPPED" => Ok(UpnpState::Stopped),
             "PLAYING" => Ok(UpnpState::Playing),
@@ -159,7 +182,7 @@ mod tests {
     }
 
     #[test]
-    fn test_transport_info_from_hashmap() {
+    fn test_transport_info_from_valid_hashmap() {
         let status = "OK";
         let map: HashMap<String, String> = vec![
             ("CurrentSpeed".to_string(), "1".to_string()),
@@ -174,9 +197,41 @@ mod tests {
             current_transport_status: status.to_string(),
         };
 
-        let result = TransportInfo::from(map);
+        let result = TransportInfo::try_from(map).expect("expected the info to have been mapped");
 
         assert_eq!(expected_result, result);
+    }
+
+    #[test]
+    fn test_transport_info_from_invalid_hashmap() {
+        let map: HashMap<String, String> = vec![
+            ("CurrentSpeed".to_string(), "FooBar".to_string()),
+            ("CurrentTransportState".to_string(), "PLAYING".to_string()),
+            ("CurrentTransportStatus".to_string(), "Lorem".to_string()),
+        ]
+        .into_iter()
+        .collect();
+
+        let result = TransportInfo::try_from(map);
+        assert!(
+            result.is_err(),
+            "expected an error to have been returned, got {:?} instead",
+            result
+        );
+
+        if let Err(DlnaError::Device(msg)) = &result {
+            assert!(
+                msg.starts_with("device returned invalid speed value"),
+                "expected invalid speed message, but got \"{:?}\" instead",
+                msg
+            );
+        } else {
+            assert!(
+                false,
+                "expected DlnaError::Device, but got {:?} instead",
+                result
+            );
+        }
     }
 
     #[test]

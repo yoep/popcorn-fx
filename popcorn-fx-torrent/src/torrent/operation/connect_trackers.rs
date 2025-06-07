@@ -109,7 +109,7 @@ mod tests {
     use super::*;
 
     use crate::torrent::{TorrentConfig, TorrentEvent, TorrentFlags};
-    use crate::{create_torrent, recv_timeout};
+    use crate::{create_torrent, timeout};
 
     use fx_callback::Callback;
     use popcorn_fx_core::init_logger;
@@ -148,11 +148,12 @@ mod tests {
         let result = operation.execute(&inner).await;
         assert_eq!(TorrentOperationResult::Stop, result, "expected the chain to stop if the metadata is unknown and no tracker connections have yet been established");
 
-        recv_timeout!(
-            &mut rx,
+        timeout!(
+            rx.recv(),
             Duration::from_secs(2),
             "expected a tracker connection to have been established"
-        );
+        )
+        .unwrap();
         let result = operation.execute(&inner).await;
         assert_eq!(TorrentOperationResult::Continue, result);
     }

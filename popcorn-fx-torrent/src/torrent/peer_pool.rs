@@ -118,10 +118,13 @@ impl PeerPool {
         mutex.extend(addrs);
     }
 
-    /// Remove the given peer addrs from the pool's available peer addrs.
-    pub async fn remove_available_peer_addrs(&self, addrs: Vec<SocketAddr>) {
+    /// Updates the given peer addresses to be no longer in use.
+    pub async fn peer_connections_closed(&self, addrs: Vec<SocketAddr>) {
         let mut mutex = self.peer_list.lock().await;
-        mutex.retain(|e| !addrs.contains(&e.addr));
+
+        for peer in mutex.iter_mut().filter(|e| addrs.contains(&e.addr)) {
+            peer.is_in_use = false;
+        }
     }
 
     /// Try to get the given amount of peer list addresses from the pool.

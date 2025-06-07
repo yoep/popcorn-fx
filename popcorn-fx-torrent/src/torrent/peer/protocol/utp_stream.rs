@@ -1064,7 +1064,7 @@ mod tests {
 
     use crate::torrent::peer::protocol::tests::UtpPacketCaptureExtension;
     use crate::torrent::peer::tests::{create_utp_socket, create_utp_stream_pair};
-    use crate::{create_utp_socket_pair, recv_timeout};
+    use crate::{create_utp_socket_pair, timeout};
 
     use popcorn_fx_core::{assert_timeout, init_logger};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -1388,7 +1388,7 @@ mod tests {
         );
 
         // check the read result of the receiving stream
-        let (result_buffer_len, buffer) = recv_timeout!(&mut rx, Duration::from_millis(500));
+        let (result_buffer_len, buffer) = timeout!(rx.recv(), Duration::from_millis(500)).unwrap();
         let result = String::from_utf8(buffer).unwrap();
         assert_eq!(
             bytes_len, result_buffer_len,
@@ -1451,7 +1451,7 @@ mod tests {
         incoming_stream.write(bytes).await.unwrap();
         incoming_stream.flush().await.unwrap();
 
-        let (result_buffer_len, buffer) = recv_timeout!(&mut rx, Duration::from_millis(500));
+        let (result_buffer_len, buffer) = timeout!(rx.recv(), Duration::from_millis(500)).unwrap();
         let result = String::from_utf8(buffer).unwrap();
         assert_eq!(
             bytes_len, result_buffer_len,

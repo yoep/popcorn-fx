@@ -1,5 +1,5 @@
 use crate::torrent::tracker::TrackerError;
-use crate::torrent::{fs, peer, TorrentHandle};
+use crate::torrent::{dht, fs, peer, TorrentHandle};
 use thiserror::Error;
 
 /// The result type for the torrent package.
@@ -63,6 +63,8 @@ pub enum TorrentError {
     Tracker(TrackerError),
     #[error("peer error: {0}")]
     Peer(peer::Error),
+    #[error("dht error: {0}")]
+    Dht(dht::Error),
     // TODO: rework to [std::io::Error]
     #[error("an io error occurred, {0}")]
     Io(String),
@@ -76,37 +78,43 @@ pub enum TorrentError {
 
 impl From<TrackerError> for TorrentError {
     fn from(error: TrackerError) -> Self {
-        TorrentError::Tracker(error)
+        Self::Tracker(error)
     }
 }
 
 impl From<peer::Error> for TorrentError {
     fn from(error: peer::Error) -> Self {
-        TorrentError::Peer(error)
+        Self::Peer(error)
     }
 }
 
 impl From<std::io::Error> for TorrentError {
     fn from(error: std::io::Error) -> Self {
-        TorrentError::Io(error.to_string())
+        Self::Io(error.to_string())
     }
 }
 
 impl From<serde_bencode::Error> for TorrentError {
     fn from(error: serde_bencode::Error) -> Self {
-        TorrentError::TorrentParse(error.to_string())
+        Self::TorrentParse(error.to_string())
     }
 }
 
 impl From<PieceError> for TorrentError {
     fn from(error: PieceError) -> Self {
-        TorrentError::Piece(error)
+        Self::Piece(error)
     }
 }
 
 impl From<fs::Error> for TorrentError {
     fn from(error: fs::Error) -> Self {
-        TorrentError::Io(error.to_string())
+        Self::Io(error.to_string())
+    }
+}
+
+impl From<dht::Error> for TorrentError {
+    fn from(error: dht::Error) -> Self {
+        Self::Dht(error)
     }
 }
 

@@ -179,10 +179,10 @@ impl TorrentConnectPeersOperation {
                 }
             });
         } else {
-            // put the address back into the peer pool as no permit was granted from making the connection
+            // release the address within the peer pool as no permit was granted from making the connection
             context
                 .peer_pool()
-                .add_peer_addresses(vec![peer_addr], context.addr())
+                .peer_connections_closed(vec![peer_addr])
                 .await;
         }
     }

@@ -1,3 +1,4 @@
+use crate::torrent::dht::NodeServer;
 use crate::torrent::errors::Result;
 use crate::torrent::file::{File, FilePriority};
 use crate::torrent::fs::TorrentFileStorage;
@@ -388,10 +389,7 @@ impl TorrentConfigBuilder {
 /// # Examples
 ///
 /// ```rust,no_run
-/// use std::sync::Arc;
-/// use std::time::Duration;
-/// use tokio::runtime::Runtime;
-/// use popcorn_fx_torrent::torrent::{Torrent, TorrentFlags, TorrentMetadata, TorrentRequest, MagnetResult, ExtensionFactories};
+/// use popcorn_fx_torrent::torrent::{Torrent, TorrentFlags, TorrentMetadata, TorrentRequest, MagnetResult, ExtensionFactories, Result};
 /// use popcorn_fx_torrent::torrent::fs::TorrentFileStorage;
 /// use popcorn_fx_torrent::torrent::peer::extension::Extensions;
 /// use popcorn_fx_torrent::torrent::peer::{PeerDiscovery, TcpPeerDiscovery};
@@ -400,20 +398,17 @@ impl TorrentConfigBuilder {
 ///     metadata: TorrentMetadata,
 ///     extensions: ExtensionFactories,
 ///     storage: Box<dyn TorrentFileStorage>
-/// ) -> MagnetResult<Torrent> {
-///     // create a shared runtime
-///     let runtime = Arc::new(Runtime::new().unwrap());
+/// ) -> Result<Torrent> {
 ///     // create a tcp peer discovery for dialing and accepting tpc connections
 ///     let peer_discovery = TcpPeerDiscovery::new();
-///     let request = Torrent::request()
+///
+///     Torrent::request()
 ///         .metadata(metadata)
 ///         .options(TorrentFlags::AutoManaged)
 ///         .extensions(extensions)
 ///         .storage(storage)
 ///         .peer_discovery(Box::new(peer_discovery))
-///         .runtime(runtime);
-///
-///     Torrent::try_from(request)
+///         .build()
 /// }
 /// ```
 #[derive(Debug, Default)]
@@ -434,6 +429,8 @@ pub struct TorrentRequest {
     storage: Option<Box<dyn TorrentFileStorage>>,
     /// The operations used by the torrent for processing data
     operations: Option<Vec<Box<dyn TorrentOperation>>>,
+    /// The DHT node server to use for discovering peers
+    dht: Option<NodeServer>,
 }
 
 impl TorrentRequest {
@@ -503,37 +500,57 @@ impl TorrentRequest {
         self
     }
 
+    /// Set the DHT node server to use for discovering peers.
+    pub fn dht(&mut self, dht: NodeServer) -> &mut Self {
+        self.dht = Some(dht);
+        self
+    }
+
+    /// Set the optional DHT node server to use for discovering peers.
+    /// This will override any previously configured DHT node server, even if the value is [None].
+    pub fn dht_option(&mut self, dht: Option<NodeServer>) -> &mut Self {
+        self.dht = dht;
+        self
+    }
+
     /// Build the torrent from the given data.
     /// This is the same as calling `Torrent::try_from(self)`.
-    pub fn build(self) -> Result<Torrent> {
+    pub fn build(&mut self) -> Result<Torrent> {
         Torrent::try_from(self)
     }
 }
 
-impl TryFrom<TorrentRequest> for Torrent {
+impl TryFrom<&mut TorrentRequest> for Torrent {
     type Error = TorrentError;
 
-    fn try_from(request: TorrentRequest) -> Result<Self> {
-        let metadata = request.metadata.ok_or(TorrentError::InvalidRequest(
+    fn try_from(request: &mut TorrentRequest) -> Result<Self> {
+        let metadata = request.metadata.take().ok_or(TorrentError::InvalidRequest(
             "metadata is missing".to_string(),
         ))?;
-        let peer_discoveries = request.peer_discoveries.unwrap_or(Vec::with_capacity(0));
+        let peer_discoveries = request
+            .peer_discoveries
+            .take()
+            .unwrap_or(Vec::with_capacity(0));
         let protocol_extensions = request
             .protocol_extensions
             .unwrap_or_else(DEFAULT_TORRENT_PROTOCOL_EXTENSIONS);
         let extensions = request
             .extensions
+            .take()
             .unwrap_or_else(|| DEFAULT_TORRENT_EXTENSIONS());
         let options = request.options.unwrap_or(TorrentFlags::default());
         let config = request
             .config
+            .take()
             .unwrap_or_else(|| TorrentConfig::builder().build());
-        let storage = request.storage.ok_or(TorrentError::InvalidRequest(
+        let storage = request.storage.take().ok_or(TorrentError::InvalidRequest(
             "file storage is missing".to_string(),
         ))?;
         let operations = request
             .operations
+            .take()
             .unwrap_or_else(|| DEFAULT_TORRENT_OPERATIONS().iter().map(|e| e()).collect());
+        let dht = request.dht.take();
 
         Ok(Self::new(
             metadata,
@@ -544,6 +561,7 @@ impl TryFrom<TorrentRequest> for Torrent {
             config,
             storage,
             operations,
+            dht,
         ))
     }
 }
@@ -647,6 +665,7 @@ pub struct Torrent {
 
 impl Torrent {
     /// Create a new request builder for creating a new torrent.
+    /// See [TorrentRequest] for more information.
     pub fn request() -> TorrentRequest {
         TorrentRequest::default()
     }
@@ -660,6 +679,7 @@ impl Torrent {
         config: TorrentConfig,
         storage: Box<dyn TorrentFileStorage>,
         operations: Vec<Box<dyn TorrentOperation>>,
+        dht: Option<NodeServer>,
     ) -> Self {
         let handle = TorrentHandle::new();
         let peer_id = PeerId::new();
@@ -686,6 +706,7 @@ impl Torrent {
                 info_hash.clone(),
                 config.tracker_connection_timeout.clone(),
             ),
+            dht,
             peer_pool: PeerPool::new(handle, config.peers_upper_limit, max_peers_in_flight),
             peer_subscriber,
             peer_discoveries: Arc::new(peer_discoveries),
@@ -1412,6 +1433,8 @@ pub struct TorrentContext {
     metadata: RwLock<TorrentMetadata>,
     /// The manager of the trackers for the torrent
     tracker_manager: TrackerManager,
+    /// The dht server of the torrent
+    dht: Option<NodeServer>,
 
     /// The pool of peer connections
     peer_pool: PeerPool,
@@ -2710,7 +2733,7 @@ impl TorrentContext {
     }
 
     async fn handle_dropped_peers(&self, peers: Vec<SocketAddr>) {
-        self.peer_pool.remove_available_peer_addrs(peers).await;
+        self.peer_pool.peer_connections_closed(peers).await;
     }
 
     async fn process_pending_request_rejected(&self, request_rejection: PendingRequestRejected) {
@@ -3557,7 +3580,7 @@ mod tests {
         TorrentFileValidationOperation,
     };
     use crate::torrent::InfoHash;
-    use crate::{create_torrent, recv_timeout};
+    use crate::{create_torrent, timeout};
 
     use log::LevelFilter;
     use popcorn_fx_core::init_logger;
@@ -3632,11 +3655,12 @@ mod tests {
             }
         });
 
-        recv_timeout!(
-            &mut rx,
+        timeout!(
+            rx.recv(),
             Duration::from_secs(30),
             "expected to receive a MetadataChanged event"
-        );
+        )
+        .unwrap();
         let result = torrent.metadata().await.unwrap();
 
         assert_ne!(
@@ -3857,11 +3881,12 @@ mod tests {
             .await;
 
         // wait for all pieces to be completed (finished state)
-        recv_timeout!(
-            &mut rx_state,
+        timeout!(
+            rx_state.recv(),
             Duration::from_secs(90),
             "expected the torrent to enter the FINISHED state"
-        );
+        )
+        .unwrap();
 
         // validate the pieces and received data
         let pieces = target_torrent
@@ -3932,11 +3957,12 @@ mod tests {
             }
         });
 
-        recv_timeout!(
-            &mut rx,
+        timeout!(
+            rx.recv(),
             Duration::from_millis(200),
             "expected the pieces to be created"
-        );
+        )
+        .unwrap();
 
         let result = context.piece_part(0, 16000).await;
         assert_eq!(
@@ -3976,11 +4002,12 @@ mod tests {
         });
 
         // wait for the pieces changed event
-        recv_timeout!(
-            &mut rx,
+        timeout!(
+            rx.recv(),
             Duration::from_millis(200),
             "expected the pieces to be created"
-        );
+        )
+        .unwrap();
         let pieces = torrent.pieces().await.unwrap();
 
         assert_ne!(0, pieces.len(), "expected the pieces to have been created");
@@ -4016,11 +4043,12 @@ mod tests {
             }
         });
 
-        let _ = recv_timeout!(
-            &mut rx,
+        let _ = timeout!(
+            rx.recv(),
             Duration::from_millis(200),
             "expected the files to be created"
-        );
+        )
+        .unwrap();
         let files = torrent.files().await;
 
         assert_eq!(1, files.len(), "expected the files to have been created");
@@ -4069,11 +4097,12 @@ mod tests {
         });
 
         // wait for the expected state
-        recv_timeout!(
-            &mut rx,
+        timeout!(
+            rx.recv(),
             Duration::from_secs(8),
             "expected the torrent to be initialized"
-        );
+        )
+        .unwrap();
 
         // prioritize the first 30 pieces
         let mut priorities = torrent.piece_priorities().await;
@@ -4401,11 +4430,12 @@ mod tests {
 
         context.update_state(expected_state).await;
 
-        let result = recv_timeout!(
-            &mut rx,
+        let result = timeout!(
+            rx.recv(),
             Duration::from_millis(200),
             "expected a state change event"
-        );
+        )
+        .unwrap();
         assert_eq!(
             expected_state, result,
             "expected the state change event to match the new state"

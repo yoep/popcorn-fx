@@ -11,8 +11,11 @@ pub struct Collection {
 
 impl Collection {
     /// Verify if the collection contains the given uri.
+    /// The matching of the uri is case-insensitive.
     pub fn contains(&self, uri: &str) -> bool {
-        self.torrents.iter().any(|e| e.magnet_uri.as_str() == uri)
+        self.torrents
+            .iter()
+            .any(|e| Self::normalize(e.magnet_uri.as_str()) == Self::normalize(uri))
     }
 
     /// Insert the given magnet info into the collection.
@@ -41,6 +44,11 @@ impl Collection {
             let info = self.torrents.remove(index);
             info!("Removed magnet {} from collection", info)
         }
+    }
+
+    /// Normalize the given uri for comparison.
+    fn normalize(uri: &str) -> String {
+        uri.trim().to_lowercase()
     }
 }
 

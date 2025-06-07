@@ -162,6 +162,15 @@ pub struct TorrentFileInfo {
 }
 
 impl TorrentFileInfo {
+    /// Get the filename of the torrent file.
+    /// If the file information belongs to a [TorrentFiles::Single], the returned string will be empty.
+    pub fn filename(&self) -> String {
+        self.path()
+            .file_name()
+            .map(|e| e.to_string_lossy().to_string())
+            .unwrap_or_default()
+    }
+
     /// Get the path to the file within the torrent.
     /// If the file information belongs to a [TorrentFiles::Single], the returned path will be empty.
     pub fn path(&self) -> PathBuf {
@@ -582,6 +591,8 @@ pub struct TorrentMetadata {
     pub magnet_uri: Option<String>,
     #[serde(rename = "announce-list")]
     pub announce_list: Option<Vec<Vec<String>>>,
+    /// The DHT nodes for this torrent/
+    pub nodes: Option<Vec<TorrentNode>>,
     /// Optional creation date of the torrent.
     #[serde(rename = "creation date")]
     pub creation_date: Option<u64>,
@@ -807,17 +818,23 @@ impl TryFrom<&TorrentMetadata> for Magnet {
         if let Some(uri) = value.magnet_uri.as_ref() {
             Magnet::from_str(uri)
         } else {
+            let topic_version = if value.info_hash.has_v2() {
+                "btmh"
+            } else {
+                "btih"
+            };
             let mut builder = Magnet::builder();
-            let trackers = value
-                .announce_list
-                .iter()
-                .flat_map(|e| (*e).clone())
-                .flat_map(|e| e)
-                .collect();
 
             builder
-                .exact_topic(value.info_hash.to_string())
-                .address_trackers(trackers);
+                .exact_topic(format!("urn:{}:{}", topic_version, value.info_hash))
+                .address_trackers(
+                    value
+                        .announce_list
+                        .iter()
+                        .flat_map(|e| (*e).clone())
+                        .flat_map(|e| e)
+                        .collect(),
+                );
 
             if let Some(name) = value.name() {
                 builder.display_name(name);
@@ -845,6 +862,7 @@ pub struct TorrentMetadataBuilder {
     announce: Option<String>,
     info: Option<TorrentMetadataInfo>,
     announce_list: Option<Vec<Vec<String>>>,
+    nodes: Option<Vec<TorrentNode>>,
     creation_date: Option<u64>,
     comment: Option<String>,
     created_by: Option<String>,
@@ -917,6 +935,29 @@ impl TorrentMetadataBuilder {
     /// The updated `TorrentInfoBuilder` instance.
     pub fn announce_list(mut self, announce_list: Vec<Vec<String>>) -> Self {
         self.announce_list = Some(announce_list);
+        self
+    }
+
+    /// Set the given nodes for the torrent to use within the DHT discovery.
+    ///
+    /// # Arguments
+    ///
+    /// * `nodes` - The DHT nodes to add.
+    pub fn nodes(mut self, nodes: Vec<TorrentNode>) -> Self {
+        let builder_nodes = &mut self.nodes.get_or_insert(Vec::new());
+        for node in nodes {
+            builder_nodes.push(node);
+        }
+        self
+    }
+
+    /// Add the given node to the torrent DHT nodes for discovery.
+    ///
+    /// # Arguments
+    ///
+    /// * `node` - The DHT node info to add.
+    pub fn node(&mut self, node: TorrentNode) -> &mut Self {
+        self.nodes.get_or_insert(Vec::new()).push(node);
         self
     }
 
@@ -1049,6 +1090,7 @@ impl TorrentMetadataBuilder {
             piece_layers: self.piece_layers,
             magnet_uri: None,
             announce_list: self.announce_list,
+            nodes: self.nodes,
             creation_date: self.creation_date,
             comment: self.comment,
             created_by: self.created_by,
@@ -1061,43 +1103,135 @@ impl TorrentMetadataBuilder {
     }
 }
 
-#[derive(Debug)]
-struct FileTreeVisitor;
+/// The DHT node information for a torrent.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TorrentNode {
+    /// The host address of the node.
+    /// This can either be a DNS-, IPv4 or IPv6 address.
+    pub host: String,
+    pub port: u16,
+}
 
-impl<'de> Visitor<'de> for FileTreeVisitor {
-    type Value = FileTree;
-
-    fn expecting(&self, f: &mut Formatter) -> std::fmt::Result {
-        write!(f, "expected a valid bencoded file tree")
-    }
-
-    fn visit_map<A>(self, mut map: A) -> std::result::Result<Self::Value, A::Error>
+impl Serialize for TorrentNode {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
-        A: MapAccess<'de>,
+        S: Serializer,
     {
-        let mut file_tree = None;
+        HashMap::from([(&self.host, self.port)]).serialize(serializer)
+    }
+}
 
-        while let Some(key) = map.next_key::<String>()? {
-            if key == "" {
-                let file_node = map.next_value::<FileNode>()?;
-                file_tree = Some(FileTree::File(file_node));
-            } else {
-                let tree = map.next_value::<FileTree>()?;
-                if let FileTree::Dir(file_tree_dir) =
-                    file_tree.get_or_insert(FileTree::Dir(Default::default()))
-                {
-                    file_tree_dir.insert(key, tree);
-                } else {
-                    return Err(Error::custom(
-                        "unexpected FileTree value, expected FileTree::Dir",
-                    ));
-                }
-            }
+impl<'de> Deserialize<'de> for TorrentNode {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let map = HashMap::<String, u16>::deserialize(deserializer)?;
+        if let Some((host, port)) = map.into_iter().next() {
+            Ok(Self { host, port })
+        } else {
+            Err(Error::custom("expected a torrent node pair"))
+        }
+    }
+}
+
+mod serde_torrent {
+    use super::*;
+
+    #[derive(Debug)]
+    pub struct FileTreeVisitor;
+
+    impl<'de> Visitor<'de> for FileTreeVisitor {
+        type Value = FileTree;
+
+        fn expecting(&self, f: &mut Formatter) -> std::fmt::Result {
+            write!(f, "expected a valid bencoded file tree")
         }
 
-        match file_tree {
-            Some(e) => Ok(e),
-            None => Err(Error::custom("file tree map is empty")),
+        fn visit_map<A>(self, mut map: A) -> std::result::Result<Self::Value, A::Error>
+        where
+            A: MapAccess<'de>,
+        {
+            let mut file_tree = None;
+
+            while let Some(key) = map.next_key::<String>()? {
+                if key == "" {
+                    let file_node = map.next_value::<FileNode>()?;
+                    file_tree = Some(FileTree::File(file_node));
+                } else {
+                    let tree = map.next_value::<FileTree>()?;
+                    if let FileTree::Dir(file_tree_dir) =
+                        file_tree.get_or_insert(FileTree::Dir(Default::default()))
+                    {
+                        file_tree_dir.insert(key, tree);
+                    } else {
+                        return Err(Error::custom(
+                            "unexpected FileTree value, expected FileTree::Dir",
+                        ));
+                    }
+                }
+            }
+
+            match file_tree {
+                Some(e) => Ok(e),
+                None => Err(Error::custom("file tree map is empty")),
+            }
+        }
+    }
+
+    #[derive(Debug)]
+    struct StringBytes(String);
+
+    impl<'de> Deserialize<'de> for StringBytes {
+        fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            deserializer.deserialize_any(StringBytesVisitor {})
+        }
+    }
+
+    #[derive(Debug)]
+    struct StringBytesVisitor;
+
+    impl<'de> Visitor<'de> for StringBytesVisitor {
+        type Value = StringBytes;
+
+        fn expecting(&self, f: &mut Formatter) -> std::fmt::Result {
+            write!(f, "expected a string byte array")
+        }
+
+        fn visit_bytes<E>(self, v: &[u8]) -> std::result::Result<Self::Value, E>
+        where
+            E: Error,
+        {
+            Ok(StringBytes(String::from_utf8_lossy(v).to_string()))
+        }
+    }
+
+    #[derive(Debug)]
+    pub struct PieceLayersVisitor;
+
+    impl<'de> Visitor<'de> for PieceLayersVisitor {
+        type Value = PieceLayers;
+
+        fn expecting(&self, f: &mut Formatter) -> std::fmt::Result {
+            write!(f, "expected a dictionary of bytes representing strings")
+        }
+
+        fn visit_map<A>(self, mut map: A) -> std::result::Result<Self::Value, A::Error>
+        where
+            A: MapAccess<'de>,
+        {
+            let mut result = HashMap::new();
+
+            while let Some((key, value)) = map.next_entry::<StringBytes, StringBytes>()? {
+                let key_str = key.0;
+                let value_str = value.0;
+                result.insert(key_str, value_str);
+            }
+
+            Ok(result)
         }
     }
 }
@@ -1130,63 +1264,7 @@ pub mod serde_file_tree {
     where
         D: Deserializer<'de>,
     {
-        D::deserialize_map(deserializer, FileTreeVisitor {})
-    }
-}
-
-#[derive(Debug)]
-struct StringBytes(String);
-
-impl<'de> Deserialize<'de> for StringBytes {
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        deserializer.deserialize_any(StringBytesVisitor {})
-    }
-}
-
-#[derive(Debug)]
-struct StringBytesVisitor;
-
-impl<'de> Visitor<'de> for StringBytesVisitor {
-    type Value = StringBytes;
-
-    fn expecting(&self, f: &mut Formatter) -> std::fmt::Result {
-        write!(f, "expected a string byte array")
-    }
-
-    fn visit_bytes<E>(self, v: &[u8]) -> std::result::Result<Self::Value, E>
-    where
-        E: Error,
-    {
-        Ok(StringBytes(String::from_utf8_lossy(v).to_string()))
-    }
-}
-
-#[derive(Debug)]
-struct PieceLayersVisitor;
-
-impl<'de> Visitor<'de> for PieceLayersVisitor {
-    type Value = PieceLayers;
-
-    fn expecting(&self, f: &mut Formatter) -> std::fmt::Result {
-        write!(f, "expected a dictionary of bytes representing strings")
-    }
-
-    fn visit_map<A>(self, mut map: A) -> std::result::Result<Self::Value, A::Error>
-    where
-        A: MapAccess<'de>,
-    {
-        let mut result = HashMap::new();
-
-        while let Some((key, value)) = map.next_entry::<StringBytes, StringBytes>()? {
-            let key_str = key.0;
-            let value_str = value.0;
-            result.insert(key_str, value_str);
-        }
-
-        Ok(result)
+        D::deserialize_map(deserializer, serde_torrent::FileTreeVisitor {})
     }
 }
 
@@ -1219,7 +1297,10 @@ pub mod serde_piece_layers {
     where
         D: Deserializer<'de>,
     {
-        Ok(Some(deserializer.deserialize_map(PieceLayersVisitor {})?).filter(|e| !e.is_empty()))
+        Ok(
+            Some(deserializer.deserialize_map(serde_torrent::PieceLayersVisitor {})?)
+                .filter(|e| !e.is_empty()),
+        )
     }
 }
 

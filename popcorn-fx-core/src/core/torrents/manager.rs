@@ -111,6 +111,7 @@ impl FxTorrentManager {
             .client_name("PopcornFX");
         let session: Box<dyn Session> = session
             .build()
+            .await
             .map(|e| Box::new(e))
             .map_err(|e| Error::TorrentError(e.to_string()))?;
         let inner = Arc::new(InnerTorrentManager {

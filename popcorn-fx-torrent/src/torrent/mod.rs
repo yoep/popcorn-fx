@@ -14,6 +14,9 @@ pub use torrent_metadata::*;
 pub use torrent_peer::*;
 
 mod compact;
+#[cfg(feature = "dht")]
+pub mod dht;
+mod dns;
 mod errors;
 mod file;
 pub mod fs;
@@ -136,13 +139,20 @@ pub mod tests {
         BitTorrentPeer, PeerDiscovery, PeerId, PeerStream, TcpPeerDiscovery, UtpPeerDiscovery,
     };
 
+    use log::LevelFilter;
+    use log4rs::append::console::ConsoleAppender;
+    use log4rs::config::{Appender, Root};
+    use log4rs::encode::pattern::PatternEncoder;
+    use log4rs::Config;
     use popcorn_fx_core::testing::read_test_file_to_bytes;
     use std::net::SocketAddr;
     use std::str::FromStr;
+    use std::sync::Once;
     use std::time::Duration;
     use tokio::net::TcpStream;
-    use tokio::select;
-    use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver};
+    use tokio::sync::mpsc::unbounded_channel;
+
+    static INIT: Once = Once::new();
 
     /// Create the torrent metadata from the given uri.
     /// The uri can either point to a `.torrent` file or a magnet link.
@@ -242,42 +252,67 @@ pub mod tests {
         create_torrent_from_uri(uri, temp_dir, options, config, operations, discoveries).await
     }
 
-    /// Receive a message from the given receiver, or panic if the timeout is reached.
-    #[macro_export]
-    macro_rules! recv_timeout {
-        ($receiver:expr, $timeout:expr) => {
-            crate::torrent::tests::recv_timeout(
-                $receiver,
-                $timeout,
-                "expected to receive an instance",
-            )
-            .await
-        };
-        ($receiver:expr, $timeout:expr, $message:expr) => {
-            crate::torrent::tests::recv_timeout($receiver, $timeout, $message).await
-        };
-    }
-
-    /// Receive a message from the given receiver, or panic if the timeout is reached.
-    ///
-    /// # Arguments
-    ///
-    /// * `receiver` - The receiver to receive the message from.
-    /// * `timeout` - The timeout to wait for the message.
-    /// * `message` - The message to print if the timeout is reached.
+    /// A macro wrapper for [`tokio::time::timeout`] that awaits a future with a timeout duration.
     ///
     /// # Returns
     ///
-    /// It returns the received instance of `T`.
-    pub(crate) async fn recv_timeout<T>(
-        receiver: &mut UnboundedReceiver<T>,
-        timeout: Duration,
-        message: &str,
-    ) -> T {
-        select! {
-            _ = tokio::time::sleep(timeout) => panic!("receiver timed-out, {}", message),
-            result = receiver.recv() => result.expect(message)
-        }
+    /// It returns the future result or timeout.
+    #[macro_export]
+    macro_rules! timeout {
+        ($future:expr, $duration:expr) => {{
+            use std::io;
+            use tokio::time::timeout;
+            let future = $future;
+            let duration = $duration;
+
+            timeout(duration, future)
+                .await
+                .map_err(|_| {
+                    io::Error::new(
+                        io::ErrorKind::TimedOut,
+                        format!("after {}.{:03}s", duration.as_secs(), duration.as_millis()),
+                    )
+                })
+                .expect("operation timed-out")
+        }};
+        ($future:expr, $duration:expr, $message:expr) => {{
+            use std::io;
+            use tokio::time::timeout;
+            let future = $future;
+            let duration = $duration;
+
+            timeout(duration, future)
+                .await
+                .map_err(|_| {
+                    io::Error::new(
+                        io::ErrorKind::TimedOut,
+                        format!("after {}.{:03}s", duration.as_secs(), duration.as_millis()),
+                    )
+                })
+                .expect($message)
+        }};
+    }
+
+    /// Receive a message result from the given receiver, or panic if the timeout is reached.
+    /// Accepts an optional custom (panic) error message.
+    #[macro_export]
+    macro_rules! recv_timeout {
+        ($receiver:expr, $duration:expr) => {{
+            use crate::timeout;
+            use tokio::pin;
+            let receiver = $receiver;
+            let future = pin!(receiver.recv());
+
+            timeout!(future, $duration).unwrap()
+        }};
+        ($receiver:expr, $duration:expr, $message:expr) => {{
+            use crate::timeout;
+            use tokio::pin;
+            let receiver = $receiver;
+            let future = pin!(receiver.recv());
+
+            timeout!(future, $duration, $message).unwrap()
+        }};
     }
 
     #[macro_export]
@@ -356,9 +391,37 @@ pub mod tests {
         .await
         .expect("expected the outgoing connection to succeed");
 
-        let incoming_peer =
-            recv_timeout!(&mut rx, Duration::from_secs(1), "expected an incoming peer")
-                .expect("expected an incoming peer");
+        let incoming_peer = timeout!(
+            rx.recv(),
+            Duration::from_secs(1),
+            "expected an incoming peer"
+        )
+        .unwrap()
+        .expect("expected an incoming peer");
         (incoming_peer, outgoing_peer)
+    }
+
+    /// Initializes the logger with the specified log level.
+    #[macro_export]
+    macro_rules! init_logger {
+        ($level:expr) => {
+            crate::torrent::tests::init_logger_level($level)
+        };
+        () => {
+            crate::torrent::tests::init_logger_level(log::LevelFilter::Trace)
+        };
+    }
+
+    /// Initializes the logger with the specified log level.
+    pub(crate) fn init_logger_level(level: LevelFilter) {
+        INIT.call_once(|| {
+            log4rs::init_config(Config::builder()
+                .appender(Appender::builder().build("stdout", Box::new(ConsoleAppender::builder()
+                    .encoder(Box::new(PatternEncoder::new("\x1B[37m{d(%Y-%m-%d %H:%M:%S%.3f)}\x1B[0m {h({l:>5.5})} \x1B[35m{I:>6.6}\x1B[0m \x1B[37m---\x1B[0m \x1B[37m[{T:>15.15}]\x1B[0m \x1B[36m{t:<60.60}\x1B[0m \x1B[37m:\x1B[0m {m}{n}")))
+                    .build())))
+                .build(Root::builder().appender("stdout").build(level))
+                .unwrap())
+                .unwrap();
+        })
     }
 }

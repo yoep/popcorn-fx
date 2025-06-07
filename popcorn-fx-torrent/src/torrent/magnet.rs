@@ -170,6 +170,32 @@ impl Magnet {
         url
     }
 
+    /// Verify if the given topic (xt) is valid or not.
+    ///
+    /// # Returns
+    ///
+    /// It returns an error when the topic is invalid.
+    pub fn is_valid_topic(xt: &str) -> MagnetResult<()> {
+        let sections = xt.split(":").collect::<Vec<&str>>();
+        if sections.len() != 3 {
+            return Err(MagnetError::InvalidValue(
+                "xt requires format \"urn:XXX:XXX\"".to_string(),
+            ));
+        }
+        if sections[0] != "urn" {
+            return Err(MagnetError::InvalidValue(
+                "xt requires the first section to be \"urn\"".to_string(),
+            ));
+        }
+        if sections[1].len() != 4 {
+            return Err(MagnetError::InvalidValue(
+                "xt requires the second section to have a size of 4 chars".to_string(),
+            ));
+        }
+
+        Ok(())
+    }
+
     /// Check if the given uri contains an encoded `&` as `&amp`.
     fn contains_encoded_ampersand(uri: &str) -> bool {
         uri.contains("&amp;")
@@ -405,27 +431,30 @@ impl MagnetBuilder {
     ///
     /// - `Ok(Magnet)`: A `Magnet` instance with the specified configuration.
     /// - `Err(MagnetError::InvalidUri)`: If the exact topic is not set, indicating an invalid magnet link.
-    pub fn build(self) -> MagnetResult<Magnet> {
-        if let Some(exact_topic) = self.exact_topics {
-            let tracker_addresses = self.address_tracker.unwrap_or(Vec::new());
-            let web_seeds = self.web_seed.unwrap_or(Vec::new());
+    pub fn build(&mut self) -> MagnetResult<Magnet> {
+        let exact_topics = self.exact_topics.take().ok_or(MagnetError::InvalidUri)?;
 
-            Ok(Magnet {
-                exact_topics: exact_topic,
-                display_name: self.display_name,
-                exact_length: self.exact_length,
-                tracker_addresses,
-                web_seeds,
-                acceptable_source: self.acceptable_source,
-                exact_source: self.exact_source,
-                keyword_topic: self.keyword_topic,
-                manifest_topic: self.manifest_topic,
-                select_only: self.select_only,
-                peer: self.peer,
-            })
-        } else {
-            Err(MagnetError::InvalidUri)
+        // validate the topics
+        for topic in exact_topics.iter() {
+            Magnet::is_valid_topic(topic.as_str())?;
         }
+
+        let tracker_addresses = self.address_tracker.take().unwrap_or(Vec::new());
+        let web_seeds = self.web_seed.take().unwrap_or(Vec::new());
+
+        Ok(Magnet {
+            exact_topics,
+            display_name: self.display_name.take(),
+            exact_length: self.exact_length.take(),
+            tracker_addresses,
+            web_seeds,
+            acceptable_source: self.acceptable_source.drain(..).collect(),
+            exact_source: self.exact_source.take(),
+            keyword_topic: self.keyword_topic.take(),
+            manifest_topic: self.manifest_topic.take(),
+            select_only: self.select_only.take(),
+            peer: self.peer.take(),
+        })
     }
 }
 

@@ -26,7 +26,7 @@ use tokio::sync::RwLock;
 use tokio::{select, time};
 
 use crate::available_port;
-use crate::torrent::dht::{NodeServer, DEFAULT_BOOTSTRAP_SERVERS};
+use crate::torrent::dht::{DhtTracker, DEFAULT_BOOTSTRAP_SERVERS};
 use crate::torrent::dns::DnsResolver;
 #[cfg(test)]
 pub use mock::*;
@@ -678,7 +678,7 @@ struct InnerSession {
     /// The client name of the session, exchanged with peers that support `LTEP`
     client_name: String,
     /// The DHT node server of the session
-    dht: Option<NodeServer>,
+    dht: Option<DhtTracker>,
     /// The currently active torrents within the session
     torrents: RwLock<HashMap<InfoHash, Torrent>>,
     /// The enabled protocol extensions of the session
@@ -702,22 +702,21 @@ impl InnerSession {
         torrent_operations: Vec<TorrentOperationFactory>,
         port_range: std::ops::Range<u16>,
     ) -> Result<Self> {
-        let mut dht_node_server = NodeServer::builder();
+        let mut dht_node_server = DhtTracker::builder();
 
-        // TODO: enable again once fully implemented
-        // for addr in DEFAULT_BOOTSTRAP_SERVERS() {
-        //     match DnsResolver::from_str(addr) {
-        //         Ok(resolver) => resolver
-        //             .resolve()
-        //             .await
-        //             .into_iter()
-        //             .flatten()
-        //             .for_each(|addr| {
-        //                 dht_node_server.bootstrap_node(addr);
-        //             }),
-        //         Err(e) => debug!("Failed to resolve IP of node bootstrap \"{}\", {}", addr, e),
-        //     }
-        // }
+        for addr in DEFAULT_BOOTSTRAP_SERVERS() {
+            match DnsResolver::from_str(addr) {
+                Ok(resolver) => resolver
+                    .resolve()
+                    .await
+                    .into_iter()
+                    .flatten()
+                    .for_each(|addr| {
+                        dht_node_server.bootstrap_node(addr);
+                    }),
+                Err(e) => debug!("Failed to resolve IP of node bootstrap \"{}\", {}", addr, e),
+            }
+        }
 
         Ok(Self {
             handle: Default::default(),

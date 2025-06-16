@@ -8,6 +8,7 @@ pub use piece::*;
 use piece_pool::*;
 pub use session::*;
 use std::net::{SocketAddr, TcpListener};
+use std::ops::Range;
 pub use torrent::*;
 pub use torrent_health::*;
 pub use torrent_metadata::*;
@@ -127,6 +128,23 @@ macro_rules! available_port {
     () => {
         crate::torrent::available_port(1000, u16::MAX)
     };
+}
+
+/// Get the overlapping range of two ranges.
+/// It returns the overlapping range if there is one, else [None].
+#[inline]
+pub(crate) fn overlapping_range<T>(r1: Range<T>, r2: &Range<T>) -> Option<Range<T>>
+where
+    T: Ord + Copy,
+{
+    let start = r1.start.max(r2.start);
+    let end = r1.end.min(r2.end);
+
+    if start < end {
+        Some(start..end)
+    } else {
+        None
+    }
 }
 
 #[cfg(test)]
@@ -423,5 +441,27 @@ pub mod tests {
                 .unwrap())
                 .unwrap();
         })
+    }
+
+    mod overlapping_range {
+        use super::*;
+
+        #[test]
+        fn test_overlap_range() {
+            let r1 = 0..10;
+            let r2 = 5..15;
+            let result = overlapping_range(r1, &r2);
+            assert_eq!(Some(5..10), result);
+
+            let r1 = 16..32;
+            let r2 = 30..64;
+            let result = overlapping_range(r1, &r2);
+            assert_eq!(Some(30..32), result);
+
+            let r1 = 128..256;
+            let r2 = 512..1024;
+            let result = overlapping_range(r1, &r2);
+            assert_eq!(None, result);
+        }
     }
 }

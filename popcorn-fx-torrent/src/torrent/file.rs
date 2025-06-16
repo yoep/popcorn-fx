@@ -1,4 +1,4 @@
-use crate::torrent::{FileAttributeFlags, PiecePriority, TorrentFileInfo};
+use crate::torrent::{overlapping_range, FileAttributeFlags, PiecePriority, TorrentFileInfo};
 use log::warn;
 use std::hash::Hash;
 use std::ops::Range;
@@ -172,22 +172,6 @@ impl Hash for File {
     }
 }
 
-/// Get the overlapping range of two ranges.
-/// It returns the overlapping range if there is one, else [None].
-pub fn overlapping_range<T>(r1: Range<T>, r2: &Range<T>) -> Option<Range<T>>
-where
-    T: Ord + Copy,
-{
-    let start = r1.start.max(r2.start);
-    let end = r1.end.min(r2.end);
-
-    if start < end {
-        Some(start..end)
-    } else {
-        None
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -288,24 +272,6 @@ mod tests {
         let data = (0..448).map(|i| i as u8).collect::<Vec<u8>>();
         let result = file.torrent_applicable_bytes(&(64..512), data.as_slice());
         assert_eq!(Some(&data[0..64]), result);
-    }
-
-    #[test]
-    fn test_overlap_range() {
-        let r1 = 0..10;
-        let r2 = 5..15;
-        let result = overlapping_range(r1, &r2);
-        assert_eq!(Some(5..10), result);
-
-        let r1 = 16..32;
-        let r2 = 30..64;
-        let result = overlapping_range(r1, &r2);
-        assert_eq!(Some(30..32), result);
-
-        let r1 = 128..256;
-        let r2 = 512..1024;
-        let result = overlapping_range(r1, &r2);
-        assert_eq!(None, result);
     }
 
     fn new_file(offset: usize, length: usize) -> File {

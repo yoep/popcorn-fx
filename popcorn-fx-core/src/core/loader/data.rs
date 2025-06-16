@@ -164,6 +164,13 @@ impl Torrent for TorrentData {
         }
     }
 
+    async fn file_by_name(&self, name: &str) -> Option<torrent::File> {
+        match self {
+            TorrentData::Torrent(e) => e.file_by_name(name).await,
+            TorrentData::Stream(e) => e.file_by_name(name).await,
+        }
+    }
+
     async fn largest_file(&self) -> Option<torrent::File> {
         match self {
             TorrentData::Torrent(e) => e.largest_file().await,

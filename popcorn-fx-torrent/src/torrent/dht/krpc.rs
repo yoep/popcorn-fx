@@ -1,5 +1,7 @@
 use crate::torrent::dht::{Error, NodeId, Result};
+use crate::torrent::{CompactIpAddr, InfoHash};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+use serde_bytes::ByteBuf;
 use std::collections::HashMap;
 use std::result;
 
@@ -41,6 +43,10 @@ impl QueryMessage {
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)] // as we don't have a specific type defined in response, we need to keep in mind the order of the values within this enum
 pub enum ResponseMessage {
+    GetPeers {
+        #[serde(rename = "r")]
+        response: GetPeersResponse,
+    },
     FindNode {
         #[serde(rename = "r")]
         response: FindNodeResponse,
@@ -55,6 +61,7 @@ impl ResponseMessage {
     /// Get the name/type of the response message.
     pub fn name(&self) -> &str {
         match self {
+            ResponseMessage::GetPeers { .. } => "get_peers",
             ResponseMessage::FindNode { .. } => "find_node",
             ResponseMessage::Ping { .. } => "ping",
         }
@@ -80,6 +87,24 @@ pub struct FindNodeResponse {
     /// The compact node info or the closest good nodes.
     #[serde(with = "serde_bytes")]
     pub nodes: Vec<u8>,
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub struct GetPeersRequest {
+    pub id: NodeId,
+    /// The info hash of the torrent to retrieve peers for.
+    pub info_hash: InfoHash,
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub struct GetPeersResponse {
+    pub id: NodeId,
+    #[serde(with = "serde_bytes")]
+    pub token: Vec<u8>,
+    #[serde(default)]
+    pub values: Option<Vec<ByteBuf>>,
+    #[serde(default, with = "serde_bytes")]
+    pub nodes: Option<Vec<u8>>,
 }
 
 /// The error message.
@@ -178,12 +203,13 @@ pub struct Message {
     pub version: Option<String>,
     #[serde(flatten)]
     pub payload: MessagePayload,
-    /// The node's external IP
-    #[serde(default, with = "serde_bytes")]
-    pub ip: Option<Vec<u8>>,
+    /// The node's external IP.
+    /// See BEP42 for more info.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ip: Option<CompactIpAddr>,
     /// The node's external port
-    #[serde(default, with = "serde_bytes")]
-    pub port: Option<[u8; 2]>,
+    #[serde(default, skip_serializing_if = "Option::is_none", with = "serde_bytes")]
+    pub port: Option<[u8; 2]>, // this field is present in libtorrent, but not documented in a BEP
 }
 
 impl Message {
@@ -203,7 +229,7 @@ pub(crate) struct MessageBuilder {
     transaction_id: Option<Vec<u8>>,
     version: Option<String>,
     payload: Option<MessagePayload>,
-    ip: Option<Vec<u8>>,
+    ip: Option<CompactIpAddr>,
     port: Option<[u8; 2]>,
 }
 
@@ -237,8 +263,8 @@ impl MessageBuilder {
         self
     }
 
-    /// Set the node's external IP address.
-    pub fn ip(&mut self, ip: Vec<u8>) -> &mut Self {
+    /// Set the node's external compact IP address.
+    pub fn ip(&mut self, ip: CompactIpAddr) -> &mut Self {
         self.ip = Some(ip);
         self
     }

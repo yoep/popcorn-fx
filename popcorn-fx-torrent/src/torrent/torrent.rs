@@ -1,4 +1,4 @@
-use crate::torrent::dht::NodeServer;
+use crate::torrent::dht::DhtTracker;
 use crate::torrent::errors::Result;
 use crate::torrent::file::{File, FilePriority};
 use crate::torrent::fs::TorrentFileStorage;
@@ -430,7 +430,7 @@ pub struct TorrentRequest {
     /// The operations used by the torrent for processing data
     operations: Option<Vec<Box<dyn TorrentOperation>>>,
     /// The DHT node server to use for discovering peers
-    dht: Option<NodeServer>,
+    dht: Option<DhtTracker>,
 }
 
 impl TorrentRequest {
@@ -501,14 +501,14 @@ impl TorrentRequest {
     }
 
     /// Set the DHT node server to use for discovering peers.
-    pub fn dht(&mut self, dht: NodeServer) -> &mut Self {
+    pub fn dht(&mut self, dht: DhtTracker) -> &mut Self {
         self.dht = Some(dht);
         self
     }
 
     /// Set the optional DHT node server to use for discovering peers.
     /// This will override any previously configured DHT node server, even if the value is [None].
-    pub fn dht_option(&mut self, dht: Option<NodeServer>) -> &mut Self {
+    pub fn dht_option(&mut self, dht: Option<DhtTracker>) -> &mut Self {
         self.dht = dht;
         self
     }
@@ -679,7 +679,7 @@ impl Torrent {
         config: TorrentConfig,
         storage: Box<dyn TorrentFileStorage>,
         operations: Vec<Box<dyn TorrentOperation>>,
-        dht: Option<NodeServer>,
+        dht: Option<DhtTracker>,
     ) -> Self {
         let handle = TorrentHandle::new();
         let peer_id = PeerId::new();
@@ -978,6 +978,14 @@ impl Torrent {
         }
 
         false
+    }
+
+    /// Prioritize the given bytes within the torrent.
+    /// This will match the bytes against the relevant pieces, and prioritize those pieces.
+    pub async fn prioritize_bytes(&self, bytes: &std::ops::Range<usize>, priority: PiecePriority) {
+        if let Some(inner) = self.instance() {
+            inner.prioritize_bytes(bytes, priority).await;
+        }
     }
 
     /// Get if the given byte range has completed downloading, validating and written to the storage.
@@ -1434,7 +1442,7 @@ pub struct TorrentContext {
     /// The manager of the trackers for the torrent
     tracker_manager: TrackerManager,
     /// The dht server of the torrent
-    dht: Option<NodeServer>,
+    dht: Option<DhtTracker>,
 
     /// The pool of peer connections
     peer_pool: PeerPool,
@@ -1888,6 +1896,18 @@ impl TorrentContext {
         }
     }
 
+    /// Prioritize the given bytes within the torrent.
+    /// This will match the bytes against the relevant pieces, and prioritize those pieces.
+    pub async fn prioritize_bytes(&self, bytes: &std::ops::Range<usize>, priority: PiecePriority) {
+        let piece_priorities = self
+            .find_relevant_pieces_for_bytes(bytes)
+            .await
+            .into_iter()
+            .map(|piece| (piece.index, priority))
+            .collect();
+        self.prioritize_pieces(piece_priorities).await;
+    }
+
     /// Check if the torrent has completed downloading all wanted pieces.
     pub async fn is_completed(&self) -> bool {
         let mutex = self.pieces.read().await;
@@ -2003,6 +2023,28 @@ impl TorrentContext {
     pub async fn find_relevant_files_for_piece(&self, piece: &Piece) -> Vec<File> {
         self.find_relevant_files_for_bytes(&piece.torrent_range())
             .await
+    }
+
+    /// Get all relevant pieces for the given torrent byte range.
+    ///
+    /// # Arguments
+    ///
+    /// * `torrent_bytes` - The torrent byte range to retrieve the relevant pieces of.
+    ///
+    /// # Returns
+    ///
+    /// It returns all pieces with at least 1 byte overlapping with the given range.
+    pub async fn find_relevant_pieces_for_bytes(
+        &self,
+        torrent_bytes: &std::ops::Range<usize>,
+    ) -> Vec<Piece> {
+        let pieces = self.pieces.read().await;
+
+        pieces
+            .iter()
+            .filter(|e| e.contains(torrent_bytes))
+            .cloned()
+            .collect()
     }
 
     /// Try to find the [PiecePart] for the given piece and begin index.
@@ -3513,7 +3555,8 @@ impl Drop for TorrentContext {
 /// - `bytes`: The size in bytes to be formatted.
 ///
 /// # Returns
-/// Returns the formatted byte size with the corresponding unit.
+///
+/// It returns the formatted byte size with the corresponding unit.
 ///
 /// # Example
 ///

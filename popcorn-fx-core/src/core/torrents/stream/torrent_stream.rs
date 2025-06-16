@@ -87,6 +87,14 @@ impl Torrent for DefaultTorrentStream {
         Vec::with_capacity(0)
     }
 
+    async fn file_by_name(&self, name: &str) -> Option<torrent::File> {
+        if let Some(context) = self.instance() {
+            return context.torrent.file_by_name(name).await;
+        }
+
+        None
+    }
+
     async fn largest_file(&self) -> Option<torrent::File> {
         if let Some(context) = self.instance() {
             return context.largest_file().await;
@@ -489,6 +497,10 @@ impl Torrent for TorrentStreamContext {
         self.torrent.files().await
     }
 
+    async fn file_by_name(&self, name: &str) -> Option<torrent::File> {
+        self.torrent.file_by_name(name).await
+    }
+
     async fn largest_file(&self) -> Option<torrent::File> {
         self.torrent.largest_file().await
     }
@@ -536,7 +548,8 @@ impl TorrentStream for TorrentStreamContext {
         if !self.cancellation_token.is_cancelled() {
             let mutex = self.state.lock().await;
             if *mutex == TorrentStreamState::Streaming {
-                DefaultTorrentStreamingResource::new(self.torrent.clone(), &self.torrent_filename)
+                FXTorrentStreamingResource::new(self.torrent.clone(), &self.torrent_filename)
+                    .await
                     .map(|e| TorrentStreamingResourceWrapper::new(e))
             } else {
                 Err(Error::InvalidStreamState(*mutex))
@@ -553,12 +566,13 @@ impl TorrentStream for TorrentStreamContext {
     ) -> torrents::Result<TorrentStreamingResourceWrapper> {
         let mutex = self.state.lock().await;
         if *mutex == TorrentStreamState::Streaming {
-            DefaultTorrentStreamingResource::new_offset(
+            FXTorrentStreamingResource::new_offset(
                 self.torrent.clone(),
                 &self.torrent_filename,
                 offset,
                 len,
             )
+            .await
             .map(|e| TorrentStreamingResourceWrapper::new(e))
         } else {
             Err(Error::InvalidStreamState(mutex.clone()))
@@ -577,11 +591,12 @@ impl TorrentStream for TorrentStreamContext {
 /// The default implementation of a [Stream] for torrents.
 #[derive(Debug, Display)]
 #[display(fmt = "{}", "torrent.handle()")]
-pub struct DefaultTorrentStreamingResource {
+pub struct FXTorrentStreamingResource {
     torrent: Arc<Box<dyn Torrent>>,
     torrent_filename: String,
     /// The open reader handle to the torrent file
     file: File,
+    /// The absolute path to the torrent file
     filepath: PathBuf,
     /// The total length of the file resource.
     resource_length: u64,
@@ -593,15 +608,15 @@ pub struct DefaultTorrentStreamingResource {
     len: u64,
 }
 
-impl DefaultTorrentStreamingResource {
+impl FXTorrentStreamingResource {
     /// Create a new streaming resource which will read the full [Torrent].
-    pub fn new(torrent: Arc<Box<dyn Torrent>>, filename: &str) -> torrents::Result<Self> {
-        Self::new_offset(torrent, filename, 0, None)
+    pub async fn new(torrent: Arc<Box<dyn Torrent>>, filename: &str) -> torrents::Result<Self> {
+        Self::new_offset(torrent, filename, 0, None).await
     }
 
     /// Create a new streaming resource for the given offset.
     /// If no `len` is given, the streaming resource will be read till it's end.
-    pub fn new_offset(
+    pub async fn new_offset(
         torrent: Arc<Box<dyn Torrent>>,
         filename: &str,
         offset: u64,
@@ -615,83 +630,94 @@ impl DefaultTorrentStreamingResource {
             handle,
             torrent
         );
-        futures::executor::block_on(async {
-            let files = torrent.files().await;
+        let files = torrent.files().await;
 
-            // check if the torrent handle is still valid
-            if files.is_empty() {
-                debug!(
-                    "Torrent streaming resource {} failed to create, invalid handle",
-                    handle
-                );
-                return Err(Error::InvalidHandle(handle.to_string()));
-            }
-
-            // try to find the given filename within the torrent
-            trace!(
-                "Torrent streaming resource {} is searching for file {} in {:?}",
-                handle,
-                filename,
-                files
+        // check if the torrent handle is still valid
+        if files.is_empty() {
+            debug!(
+                "Torrent streaming resource {} failed to create, invalid handle",
+                handle
             );
-            if let Some(torrent_file) = files
-                .into_iter()
-                .find(|e| Self::normalize(e.filename()) == Self::normalize(filename))
-            {
-                trace!(
-                    "Torrent streaming resource {} is opening file {:?}",
-                    handle,
-                    torrent_file.io_path
-                );
-                fs::OpenOptions::new()
-                    .read(true)
-                    .open(&torrent_file.io_path)
-                    .map(|mut file| {
-                        let resource_length =
-                            Self::file_bytes(&mut file).expect("expected a file length");
-                        let mut stream_length = len.unwrap_or_else(|| resource_length);
-                        let stream_end = offset + stream_length;
+            return Err(Error::InvalidHandle(handle.to_string()));
+        }
 
-                        if stream_end > resource_length {
-                            warn!(
-                                "Requested stream range ({}-{}) is larger than {} resource length",
-                                &offset, &stream_end, &resource_length
-                            );
-                            stream_length = resource_length - offset;
-                        }
+        // try to find the given filename within the torrent
+        trace!(
+            "Torrent streaming resource {} is searching for file {} in {:?}",
+            handle,
+            filename,
+            files
+        );
+        if let Some(torrent_file) = files
+            .into_iter()
+            .find(|e| Self::normalize(e.filename()) == Self::normalize(filename))
+        {
+            trace!(
+                "Torrent streaming resource {} is opening file {:?}",
+                handle,
+                torrent_file.io_path
+            );
+            fs::OpenOptions::new()
+                .read(true)
+                .open(&torrent_file.io_path)
+                .map_err(|e| {
+                    warn!(
+                        "Torrent streaming resource {} failed to open torrent file {:?}, {}",
+                        handle, torrent_file.io_path, e
+                    );
+                    Error::FileNotFound(filename.to_string())
+                })
+                .and_then(|mut file| {
+                    let resource_length = Self::file_bytes(&mut file)?;
+                    let mut stream_length = len.unwrap_or_else(|| resource_length);
+                    let stream_end = offset + stream_length;
 
-                        Self {
-                            torrent,
-                            torrent_filename: filename.to_string(),
-                            file,
-                            filepath: torrent_file.io_path.clone(),
-                            resource_length,
-                            cursor: offset as usize,
-                            offset,
-                            len: stream_length,
-                        }
-                    })
-                    .map_err(|e| {
+                    if stream_end > resource_length {
                         warn!(
-                            "Failed to open torrent file {:?}, {}",
-                            torrent_file.io_path, e
+                            "Requested stream range ({}-{}) is larger than {} resource length",
+                            &offset, &stream_end, &resource_length
                         );
-                        Error::FileNotFound(filename.to_string())
+                        stream_length = resource_length - offset;
+                    }
+
+                    Ok(Self {
+                        torrent,
+                        torrent_filename: filename.to_string(),
+                        file,
+                        filepath: torrent_file.io_path.clone(),
+                        resource_length,
+                        cursor: offset as usize,
+                        offset,
+                        len: stream_length,
                     })
-            } else {
-                debug!(
-                    "Torrent streaming resource {} failed to create, file {} not found",
-                    handle, filename
-                );
-                Err(Error::FileNotFound(filename.to_string()))
-            }
-        })
+                })
+        } else {
+            debug!(
+                "Torrent streaming resource {} failed to create, file {} not found",
+                handle, filename
+            );
+            Err(Error::FileNotFound(filename.to_string()))
+        }
     }
 
     /// Wait for the current cursor to become available.
     fn wait_for(&mut self, cx: &mut Context) -> Poll<Option<StreamBytesResult>> {
         let waker = cx.waker().clone();
-        let buffer = self.next_buffer();
+        let mut buffer = self.next_buffer();
+
+        // request the torrent file info
+        let file_info =
+            match pin!(self.torrent.file_by_name(self.torrent_filename.as_str())).poll(cx) {
+                Poll::Ready(e) => e,
+                Poll::Pending => return Poll::Pending,
+            };
+
+        // make the buffer relative to the offset within the torrent
+        if let Some(file_info) = file_info {
+            buffer = buffer.start + file_info.offset..buffer.end + file_info.offset;
+        } else {
+            warn!("Torrent streaming resource {} is unable to update buffer info, torrent file info not found", self);
+        }
 
         // request the torrent to prioritize the buffer
         debug!(
@@ -704,6 +730,7 @@ impl DefaultTorrentStreamingResource {
         }
 
         let mut receiver = self.torrent.subscribe();
+        // FIXME: this is very insufficient and should be refactored to a more global waker
         tokio::spawn(async move {
             while let Some(event) = receiver.recv().await {
                 match &*event {
@@ -778,11 +805,7 @@ impl DefaultTorrentStreamingResource {
         let cursor = self.cursor.clone();
         let range_end = (self.offset + self.len) as usize;
 
-        if cursor + DEFAULT_BUFFER_SIZE <= range_end {
-            DEFAULT_BUFFER_SIZE
-        } else {
-            range_end - cursor
-        }
+        range_end.saturating_sub(cursor).min(DEFAULT_BUFFER_SIZE)
     }
 
     /// Get the next buffer byte range.
@@ -820,7 +843,7 @@ impl DefaultTorrentStreamingResource {
     }
 }
 
-impl TorrentStreamingResource for DefaultTorrentStreamingResource {
+impl TorrentStreamingResource for FXTorrentStreamingResource {
     fn offset(&self) -> u64 {
         self.offset.clone()
     }
@@ -855,10 +878,16 @@ impl TorrentStreamingResource for DefaultTorrentStreamingResource {
     }
 }
 
-impl Stream for DefaultTorrentStreamingResource {
+impl Stream for FXTorrentStreamingResource {
     type Item = StreamBytesResult;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        // check if the current cursor position is out-of-bounds,
+        // if so, return additional bytes
+        if self.cursor as u64 >= self.offset + self.len {
+            return Poll::Ready(None);
+        }
+
         let buffer = self.next_buffer();
         let is_available = match pin!(self.torrent.has_bytes(&buffer)).poll(cx) {
             Poll::Ready(e) => e,
@@ -989,7 +1018,7 @@ mod test {
         torrent.expect_has_bytes().return_const(true);
         let torrent = Arc::new(Box::new(torrent) as Box<dyn Torrent>);
         copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
-        let stream = DefaultTorrentStreamingResource::new(torrent, filename).unwrap();
+        let stream = FXTorrentStreamingResource::new(torrent, filename).unwrap();
         let bytes = read_test_file_to_string(filename).as_bytes().len();
         let expected_result = format!("bytes 0-{}/{}", bytes - 1, bytes);
 
@@ -1011,8 +1040,7 @@ mod test {
         torrent.expect_has_bytes().return_const(true);
         let torrent = Arc::new(Box::new(torrent) as Box<dyn Torrent>);
         copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
-        let stream =
-            DefaultTorrentStreamingResource::new_offset(torrent, filename, 1, Some(3)).unwrap();
+        let stream = FXTorrentStreamingResource::new_offset(torrent, filename, 1, Some(3)).unwrap();
 
         let result = read_stream(stream).await;
 
@@ -1050,7 +1078,7 @@ mod test {
         copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
         let expected_result = read_test_file_to_string(filename);
 
-        let stream = DefaultTorrentStreamingResource::new(torrent, filename).unwrap();
+        let stream = FXTorrentStreamingResource::new(torrent, filename).unwrap();
 
         let range = stream.content_range();
         let result = read_stream(stream).await;
@@ -1090,7 +1118,7 @@ mod test {
         copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
         let expected_result = read_test_file_to_string(filename);
 
-        let stream = DefaultTorrentStreamingResource::new(torrent, filename).unwrap();
+        let stream = FXTorrentStreamingResource::new(torrent, filename).unwrap();
 
         let result = read_stream(stream).await;
 
@@ -1297,7 +1325,7 @@ mod test {
         }
     }
 
-    async fn read_stream(mut stream: DefaultTorrentStreamingResource) -> String {
+    async fn read_stream(mut stream: FXTorrentStreamingResource) -> String {
         let mut data: Option<StreamBytes>;
         let mut result: Vec<u8> = vec![];
 

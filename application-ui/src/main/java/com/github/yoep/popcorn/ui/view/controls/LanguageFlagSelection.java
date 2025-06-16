@@ -278,7 +278,7 @@ public class LanguageFlagSelection extends StackPane {
 
     private void onLoadingChanged(boolean newValue) {
         if (newValue) {
-            StackPane.setAlignment(progressIndicator, Pos.CENTER_LEFT);
+            StackPane.setAlignment(progressIndicator, Pos.CENTER);
             getChildren().add(progressIndicator);
         } else {
             getChildren().removeIf(e -> e == progressIndicator);

@@ -1524,6 +1524,7 @@ impl PeerContext {
                     }
                 }
                 Err(e) => {
+                    // FIXME: we currently reject requests if the piece if overlapping multiple files, but only 1 file is actually written to disk
                     warn!(
                         "Peer {} failed read piece {} data, {}",
                         self, request.index, e

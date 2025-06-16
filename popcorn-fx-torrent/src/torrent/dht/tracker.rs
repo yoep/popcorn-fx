@@ -14,11 +14,11 @@ use std::sync::atomic::{AtomicU16, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::net::UdpSocket;
+use tokio::select;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
-use tokio::sync::oneshot::{Receiver, Sender};
-use tokio::sync::{oneshot, Mutex, MutexGuard};
+use tokio::sync::oneshot::Sender;
+use tokio::sync::{oneshot, Mutex};
 use tokio::time::{interval, timeout};
-use tokio::{select, time};
 use tokio_util::sync::CancellationToken;
 
 /// The maximum size of a single UDP packet.
@@ -38,17 +38,22 @@ pub const DEFAULT_BOOTSTRAP_SERVERS: fn() -> Vec<&'static str> = || {
     ]
 };
 
-/// A server instance of a DHT node.
-/// This instance can be shared between torrent by using [NodeServer::clone].
+/// The ping operation result sender.
+type PingSender = Sender<Result<Node>>;
+/// The find node operation result sender.
+type FindNodeSender = Sender<Result<Vec<Node>>>;
+
+/// A tracker instance for managing DHT nodes.
+/// This instance can be shared between torrents by using [DhtTracker::clone].
 #[derive(Debug, Clone)]
-pub struct NodeServer {
-    inner: Arc<InnerServer>,
+pub struct DhtTracker {
+    inner: Arc<InnerTracker>,
 }
 
-impl NodeServer {
+impl DhtTracker {
     /// Create a new builder instance to create a new node server.
-    pub fn builder() -> NodeServerBuilder {
-        NodeServerBuilder::default()
+    pub fn builder() -> DhtTrackerBuilder {
+        DhtTrackerBuilder::default()
     }
 
     /// Create a new DHT node server with the given node ID.
@@ -62,6 +67,7 @@ impl NodeServer {
         let socket = Arc::new(UdpSocket::bind("0.0.0.0:0").await?);
         let socket_addr = socket.local_addr()?;
         let (sender, receiver) = unbounded_channel();
+        let (command_sender, command_receiver) = unbounded_channel();
         let cancellation_token = CancellationToken::new();
         let reader = NodeReader {
             socket: socket.clone(),
@@ -69,15 +75,15 @@ impl NodeServer {
             sender,
             cancellation_token: cancellation_token.clone(),
         };
-        let inner = Arc::new(InnerServer {
+        let inner = Arc::new(InnerTracker {
             id,
             transaction_id: Default::default(),
             socket,
             socket_addr,
             routing_table: Mutex::new(RoutingTable::new(id, 8)),
             pending_requests: Default::default(),
-            bootstrap_nodes: Mutex::new(bootstrap_nodes),
-            timout: Duration::from_secs(6),
+            timeout: Duration::from_secs(6),
+            command_sender,
             cancellation_token,
         });
 
@@ -88,7 +94,9 @@ impl NodeServer {
 
         let inner_main = inner.clone();
         tokio::spawn(async move {
-            inner_main.start(&inner_main, receiver).await;
+            inner_main
+                .start(bootstrap_nodes, receiver, command_receiver)
+                .await;
         });
 
         Ok(Self { inner })
@@ -112,8 +120,10 @@ impl NodeServer {
     /// Try to ping the given node address.
     /// This functions waits for a response from the node, so it might be recommended to wrap this fn call in a timeout.
     pub async fn ping(&self, addr: SocketAddr) -> Result<()> {
-        let rx = self.inner.ping(&addr).await;
-        rx.await.map_err(|_| Error::Closed)??;
+        let (tx, rx) = oneshot::channel();
+        self.inner.ping(&addr, tx).await;
+        let node = rx.await.map_err(|_| Error::Closed)??;
+        self.inner.add_verified_node(node).await;
         Ok(())
     }
 
@@ -123,7 +133,7 @@ impl NodeServer {
     }
 }
 
-impl Drop for NodeServer {
+impl Drop for DhtTracker {
     fn drop(&mut self) {
         // check if only the main loop remains
         if Arc::strong_count(&self.inner) == 2 {
@@ -133,12 +143,12 @@ impl Drop for NodeServer {
 }
 
 #[derive(Debug, Default)]
-pub struct NodeServerBuilder {
+pub struct DhtTrackerBuilder {
     node_id: Option<NodeId>,
     bootstrap_nodes: Option<Vec<SocketAddr>>,
 }
 
-impl NodeServerBuilder {
+impl DhtTrackerBuilder {
     /// Set the ID of the node server.
     pub fn node_id(&mut self, id: NodeId) -> &mut Self {
         self.node_id = Some(id);
@@ -159,17 +169,28 @@ impl NodeServerBuilder {
     }
 
     /// Try to create a new DHT node server from this builder.
-    pub async fn build(&mut self) -> Result<NodeServer> {
+    pub async fn build(&mut self) -> Result<DhtTracker> {
         let node_id = self.node_id.take().unwrap_or_else(|| NodeId::new());
         let bootstrap_server = self.bootstrap_nodes.take().unwrap_or_default();
 
-        NodeServer::new(node_id, bootstrap_server).await
+        DhtTracker::new(node_id, bootstrap_server).await
     }
+}
+
+/// An internal command executed within the tracker.
+#[derive(Debug)]
+enum TrackerCommand {
+    /// Ping the given node address.
+    Ping(SocketAddr, PingSender),
+    /// Query the closest nodes at the given node address for the target node id.
+    FindNode(NodeId, SocketAddr, FindNodeSender),
+    /// Add the given verified node.
+    AddVerifiedNode(Node),
 }
 
 #[derive(Debug, Display)]
 #[display(fmt = "DHT node server [{}]", socket_addr)]
-pub struct InnerServer {
+struct InnerTracker {
     /// The unique ID of the server
     id: NodeId,
     /// The current transaction ID of the node server
@@ -182,24 +203,27 @@ pub struct InnerServer {
     routing_table: Mutex<RoutingTable>,
     /// The currently pending requests of the server
     pending_requests: Mutex<HashMap<TransactionKey, PendingRequest>>,
-    /// The bootstrap nodes for the server to initialize nodes
-    bootstrap_nodes: Mutex<Vec<SocketAddr>>,
     /// The timeout duration of packages
-    timout: Duration,
+    timeout: Duration,
+    /// The underlying async command sender
+    command_sender: UnboundedSender<TrackerCommand>,
     /// The cancellation token of the server
     cancellation_token: CancellationToken,
 }
 
-impl InnerServer {
+impl InnerTracker {
     async fn start(
         &self,
-        inner: &Arc<Self>,
+        bootstrap_nodes: Vec<SocketAddr>,
         mut receiver: UnboundedReceiver<(Message, SocketAddr)>,
+        mut command_receiver: UnboundedReceiver<TrackerCommand>,
     ) {
-        if self.should_bootstrap().await {
-            let inner = inner.clone();
+        if bootstrap_nodes.len() > 0 {
+            let tracker_id = self.id;
+            let tracker_info = self.to_string();
+            let command_sender = self.command_sender.clone();
             tokio::spawn(async move {
-                inner.bootstrap().await;
+                Self::bootstrap(tracker_id, tracker_info, bootstrap_nodes, command_sender).await;
             });
         }
 
@@ -215,6 +239,7 @@ impl InnerServer {
                         warn!("DHT node server failed to process incoming message, {}", e);
                     }
                 },
+                Some(command) = command_receiver.recv() => self.handle_command(command).await,
                 _ = refresh_interval.tick() => self.refresh_routing_table().await,
                 _ = cleanup_interval.tick() => self.cleanup_pending_requests().await,
             }
@@ -231,7 +256,7 @@ impl InnerServer {
         // check the type of the message
         match &message.payload {
             MessagePayload::Query(query) => match query {
-                QueryMessage::Ping { request } => {
+                QueryMessage::Ping { .. } => {
                     self.send_response(
                         &message,
                         ResponseMessage::Ping {
@@ -240,9 +265,6 @@ impl InnerServer {
                         &addr,
                     )
                     .await?;
-
-                    // add the node in case we don't know it yet
-                    self.add_node(Node::new(request.id, addr)).await;
                 }
                 QueryMessage::FindNode { request } => {
                     let routing_table = self.routing_table.lock().await;
@@ -277,6 +299,9 @@ impl InnerServer {
                     let reply: Result<Reply>;
 
                     match response {
+                        ResponseMessage::Ping { response } => {
+                            reply = Ok(Reply::Ping(Node::new(response.id, addr)));
+                        }
                         ResponseMessage::FindNode { response } => {
                             trace!("{} parsing compact nodes", self);
                             let nodes = CompactIPv4Nodes::try_from(response.nodes.as_slice()).map(
@@ -292,15 +317,22 @@ impl InnerServer {
                             reply = match nodes {
                                 Ok(nodes) => {
                                     debug!("{} discovered a total of {} nodes", self, nodes.len());
-                                    self.add_nodes(nodes.as_slice()).await;
+                                    futures::future::join_all(
+                                        nodes
+                                            .iter()
+                                            .map(|e| self.add_node(e.clone()))
+                                            .collect::<Vec<_>>(),
+                                    )
+                                    .await;
+
                                     Ok(Reply::FindNode(nodes))
                                 }
                                 Err(e) => Err(e),
                             }
                         }
-                        ResponseMessage::Ping { response } => {
-                            self.add_node(Node::new(response.id, addr)).await;
-                            reply = Ok(Reply::Ping);
+                        ResponseMessage::GetPeers { response } => {
+                            trace!("{} parsing compact peers", self);
+                            todo!()
                         }
                     }
 
@@ -328,34 +360,40 @@ impl InnerServer {
         Ok(())
     }
 
+    /// Process a received tracker command.
+    async fn handle_command(&self, command: TrackerCommand) {
+        match command {
+            TrackerCommand::Ping(addr, sender) => self.ping(&addr, sender).await,
+            TrackerCommand::FindNode(id, addr, sender) => self.find_node(id, &addr, sender).await,
+            TrackerCommand::AddVerifiedNode(node) => self.add_verified_node(node).await,
+        }
+    }
+
     /// Ping the given node address.
     ///
     /// # Arguments
     ///
     /// * `addr` - the node address to ping.
-    ///
-    /// # Returns
-    ///
-    /// Returns the outgoing ping result with a receiver that completes when a response has been received.
-    async fn ping(&self, addr: &SocketAddr) -> Receiver<Result<()>> {
-        let (tx, rx) = oneshot::channel();
-
+    /// * `sender` - The result sender for the ping operation.
+    async fn ping(&self, addr: &SocketAddr, sender: PingSender) {
         self.send_query(
             QueryMessage::Ping {
                 request: PingMessage { id: self.id },
             },
             addr,
-            PendingRequestType::Ping(tx),
+            PendingRequestType::Ping(sender),
         )
         .await;
-
-        rx
     }
 
     /// Find the closest nodes to the given target node id.
-    async fn find_node(&self, target_id: NodeId, addr: &SocketAddr) -> Receiver<Result<Vec<Node>>> {
-        let (tx, rx) = oneshot::channel();
-
+    ///
+    /// # Arguments
+    ///
+    /// * `target_id` - The target node id to retrieve the closest nodes of.
+    /// * `addr` - The node address to query.
+    /// * `sender` - Teh result sender for the find node operation.
+    async fn find_node(&self, target_id: NodeId, addr: &SocketAddr, sender: FindNodeSender) {
         self.send_query(
             QueryMessage::FindNode {
                 request: FindNodeRequest {
@@ -364,11 +402,9 @@ impl InnerServer {
                 },
             },
             addr,
-            PendingRequestType::FindNode(tx),
+            PendingRequestType::FindNode(sender),
         )
         .await;
-
-        rx
     }
 
     /// Send a new query to the given node address.
@@ -439,6 +475,7 @@ impl InnerServer {
         let message = Message::builder()
             .transaction_id(message.transaction_id())
             .payload(MessagePayload::Response(response))
+            .ip((*addr).into())
             .build()?;
 
         self.send(message, addr).await
@@ -459,10 +496,15 @@ impl InnerServer {
             message
         );
         let start_time = Instant::now();
-        select! {
-            _ = time::sleep(self.timout) => Err(Error::Io(io::Error::new(io::ErrorKind::TimedOut, format!("connection to {} has timed out", addr)))),
-            result = self.socket.send_to(bytes.as_slice(), addr) => result.map_err(|e| Error::from(e)),
-        }?;
+        timeout(self.timeout, self.socket.send_to(bytes.as_slice(), addr))
+            .await
+            .map_err(|_| {
+                Error::Io(io::Error::new(
+                    io::ErrorKind::TimedOut,
+                    format!("connection to {} has timed out", addr),
+                ))
+            })?
+            .map_err(Error::from)?;
         let elapsed = start_time.elapsed();
         trace!(
             "{} sent {} bytes to {} in {}.{:03}ms",
@@ -476,49 +518,32 @@ impl InnerServer {
         Ok(())
     }
 
-    /// Bootstrap the node server by querying the initial node addresses.
-    async fn bootstrap(&self) {
-        let bootstrap_nodes = self.bootstrap_nodes.lock().await;
-        let mut futures = vec![];
-
-        // iterate over the initial bootstrap nodes
-        debug!("{} is bootstrapping {} nodes", self, bootstrap_nodes.len());
-        for addr in bootstrap_nodes.iter() {
-            futures.push(async move {
-                match timeout(Duration::from_secs(3), self.ping(addr).await).await {
-                    Ok(_) => {
-                        timeout(Duration::from_secs(2), self.find_node(self.id, addr).await).await
-                    }
-                    Err(e) => Err(e),
-                }
-            });
-        }
-
-        let total_bootstrapped_nodes = futures::future::join_all(futures)
-            .await
-            .into_iter()
-            .filter(|result| result.is_ok())
-            .count();
-        info!("{} bootstrapped {} nodes", self, total_bootstrapped_nodes);
-    }
-
-    /// Try to add the given nodes to the routing table.
-    async fn add_nodes(&self, nodes: &[Node]) {
-        let mut routing_table = self.routing_table.lock().await;
-        for node in nodes {
-            self.add_node_with_lock(node.clone(), &mut routing_table);
-        }
-    }
-
     /// Try to add the given node to the routing table.
+    /// The node will be pinged before it's being added to the routing table.
     async fn add_node(&self, node: Node) {
-        let mut routing_table = self.routing_table.lock().await;
-        self.add_node_with_lock(node, &mut routing_table);
+        let (tx, rx) = oneshot::channel();
+        self.ping(&node.addr, tx).await;
+
+        let tracker_info = self.to_string();
+        let command_sender = self.command_sender.clone();
+        tokio::spawn(async move {
+            let addr = node.addr;
+            // let _ = command_sender.send(TrackerCommand::Ping(node.addr, tx));
+
+            match timeout(Duration::from_secs(3), rx).await {
+                Ok(_) => {
+                    let _ = command_sender.send(TrackerCommand::AddVerifiedNode(node));
+                }
+                Err(e) => trace!("{} failed to ping {}, {}", tracker_info, addr, e),
+            }
+        });
     }
 
-    fn add_node_with_lock(&self, node: Node, routing_table: &mut MutexGuard<'_, RoutingTable>) {
+    /// Add the given verified node.
+    /// This should only be called if the node could be reached with a ping.
+    async fn add_verified_node(&self, node: Node) {
         let addr = node.addr;
-        if routing_table.add_node(node) {
+        if self.routing_table.lock().await.add_node(node) {
             debug!("{} added new node {}", self, addr);
         }
     }
@@ -558,14 +583,6 @@ impl InnerServer {
         }
     }
 
-    /// Check if the node server needs to be bootstrapped.
-    async fn should_bootstrap(&self) -> bool {
-        let bootstrap_nodes = self.bootstrap_nodes.lock().await;
-        let routing_table = self.routing_table.lock().await;
-
-        routing_table.len() == 0 && bootstrap_nodes.len() > 0
-    }
-
     /// Get the next transaction ID for sending a new message.
     /// The transaction ID within the server will be automatically wrapped when [u16::MAX] has been reached.
     fn next_transaction_id(&self) -> u16 {
@@ -593,24 +610,99 @@ impl InnerServer {
         self.cancellation_token.cancel();
     }
 
+    /// Bootstrap the given nodes for a tracker through the given command sender.
+    async fn bootstrap(
+        tracker_id: NodeId,
+        tracker_info: String,
+        bootstrap_nodes: Vec<SocketAddr>,
+        command_sender: UnboundedSender<TrackerCommand>,
+    ) {
+        let mut futures = vec![];
+
+        // iterate over the initial bootstrap nodes
+        debug!(
+            "{} is bootstrapping {} nodes",
+            tracker_info,
+            bootstrap_nodes.len()
+        );
+        for addr in bootstrap_nodes.iter() {
+            let command_sender = command_sender.clone();
+            futures.push(Self::bootstrap_node(addr, tracker_id, command_sender));
+        }
+
+        let total_bootstrapped_nodes = futures::future::join_all(futures)
+            .await
+            .into_iter()
+            .filter(|result| result.is_ok())
+            .count();
+        info!(
+            "{} bootstrapped {} nodes",
+            tracker_info, total_bootstrapped_nodes
+        );
+    }
+
+    /// Bootstrap from the given node address.
+    async fn bootstrap_node(
+        addr: &SocketAddr,
+        tracker_id: NodeId,
+        command_sender: UnboundedSender<TrackerCommand>,
+    ) -> Result<()> {
+        let (tx, rx) = oneshot::channel();
+        let _ = command_sender.send(TrackerCommand::Ping(*addr, tx));
+        let node = timeout(Duration::from_secs(6), rx)
+            .await
+            .map_err(|_| Error::Timeout)?
+            .map_err(|_| Error::Closed)??;
+
+        // add the bootstrap node
+        let _ = command_sender.send(TrackerCommand::AddVerifiedNode(node));
+
+        // request available nodes from the bootstrap node
+        let (tx, rx) = oneshot::channel();
+        let _ = command_sender.send(TrackerCommand::FindNode(tracker_id, *addr, tx));
+
+        timeout(Duration::from_secs(6), rx)
+            .await
+            .map(|_| ())
+            .map_err(|_| Error::Timeout)
+    }
+
     fn send_reply(response: PendingRequestType, result: Result<Reply>) {
         match response {
             PendingRequestType::Ping(tx) => {
-                let _ = tx.send(result.map(|_| ()));
+                let _ = tx.send(Self::map_reply(result, "Ping", |r| match r {
+                    Reply::Ping(node) => Some(node),
+                    _ => None,
+                }));
             }
             PendingRequestType::FindNode(tx) => {
-                let _ = tx.send(result.and_then(|r| {
-                    if let Reply::FindNode(nodes) = r {
-                        Ok(nodes)
-                    } else {
-                        Err(Error::InvalidMessage(format!(
-                            "expected Reply::FindNode, but got {:?} instead",
-                            r
-                        )))
-                    }
+                let _ = tx.send(Self::map_reply(result, "FindNode", |r| match r {
+                    Reply::FindNode(nodes) => Some(nodes),
+                    _ => None,
+                }));
+            }
+            PendingRequestType::GetPeers(tx) => {
+                let _ = tx.send(Self::map_reply(result, "GetPeers", |r| match r {
+                    Reply::GetPeers(peers) => Some(peers),
+                    _ => None,
                 }));
             }
         };
+    }
+
+    fn map_reply<T, F>(result: Result<Reply>, expected_variant: &str, f: F) -> Result<T>
+    where
+        F: FnOnce(Reply) -> Option<T>,
+    {
+        result.and_then(|r| {
+            let r_type = format!("{:?}", r);
+            f(r).ok_or_else(|| {
+                Error::InvalidMessage(format!(
+                    "expected Reply::{}, but got {} instead",
+                    expected_variant, r_type
+                ))
+            })
+        })
     }
 
     fn send_error(response: PendingRequestType, err: Error) {
@@ -619,6 +711,9 @@ impl InnerServer {
                 let _ = tx.send(Err(err));
             }
             PendingRequestType::FindNode(tx) => {
+                let _ = tx.send(Err(err));
+            }
+            PendingRequestType::GetPeers(tx) => {
                 let _ = tx.send(Err(err));
             }
         }
@@ -689,15 +784,17 @@ struct PendingRequest {
 /// It determines which result should be sent back to the waiter.
 #[derive(Debug)]
 enum PendingRequestType {
-    Ping(Sender<Result<()>>),
+    Ping(Sender<Result<Node>>),
     FindNode(Sender<Result<Vec<Node>>>),
+    GetPeers(Sender<Result<Vec<SocketAddr>>>),
 }
 
 /// The processed message which will be used as reply.
 #[derive(Debug)]
 enum Reply {
-    Ping,
+    Ping(Node),
     FindNode(Vec<Node>),
+    GetPeers(Vec<SocketAddr>),
 }
 
 #[derive(Debug, Display, Clone, PartialEq, Eq, Hash)]
@@ -715,10 +812,10 @@ mod tests {
     use crate::{init_logger, timeout};
 
     #[tokio::test]
-    async fn test_server_new() {
+    async fn test_tracker_new() {
         init_logger!();
         let node_id = NodeId::new();
-        let result = NodeServer::new(node_id, Vec::new())
+        let result = DhtTracker::new(node_id, Vec::new())
             .await
             .expect("expected a new DHT server");
 
@@ -789,11 +886,12 @@ mod tests {
         use super::*;
         use crate::torrent::dns::DnsResolver;
         use std::str::FromStr;
+        use tokio::time;
 
-        #[tokio::test]
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
         async fn test_bootstrap_nodes() {
             init_logger!();
-            let mut node_server = NodeServer::builder();
+            let mut node_server = DhtTracker::builder();
 
             for addr in DEFAULT_BOOTSTRAP_SERVERS().drain(0..2) {
                 match DnsResolver::from_str(addr) {
@@ -814,7 +912,7 @@ mod tests {
             let node_server = node_server.build().await.unwrap();
 
             select! {
-                _ = time::sleep(Duration::from_secs(10)) => assert!(false, "timed-out while bootstrapping nodes"),
+                _ = time::sleep(Duration::from_secs(20)) => assert!(false, "timed-out while bootstrapping nodes"),
                 _ = async {
                     while node_server.inner.routing_table.lock().await.len() <= 1 {
                         time::sleep(Duration::from_millis(50)).await;

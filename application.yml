@@ -26,3 +26,5 @@ popcorn:
       level: error
     popcorn_fx_torrent:
       level: info
+    popcorn_fx_torrent::torrent::dht:
+      level: debug

@@ -30,6 +30,17 @@ pub trait Torrent: Debug + DowncastSync + Callback<TorrentEvent> + Send + Sync {
     /// It might return an empty array if the metadata is unknown.
     async fn files(&self) -> Vec<torrent::File>;
 
+    /// Get the torrent file information by its name.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The torrent filename.
+    ///
+    /// # Returns
+    ///
+    /// It returns the torrent file info for the given torrent filename if found, else [None].
+    async fn file_by_name(&self, name: &str) -> Option<torrent::File>;
+
     /// Get the largest file of the torrent.
     /// It returns [None] if the metadata is currently unknown of the torrent.
     async fn largest_file(&self) -> Option<torrent::File>;
@@ -83,6 +94,13 @@ impl Torrent for torrent::Torrent {
         self.files().await
     }
 
+    async fn file_by_name(&self, name: &str) -> Option<torrent::File> {
+        self.files()
+            .await
+            .into_iter()
+            .find(|e| e.info.filename() == name)
+    }
+
     async fn largest_file(&self) -> Option<torrent::File> {
         let mut result: Option<torrent::File> = None;
 
@@ -108,7 +126,7 @@ impl Torrent for torrent::Torrent {
     }
 
     async fn prioritize_bytes(&self, bytes: &std::ops::Range<usize>) {
-        self.prioritize_bytes(bytes).await
+        self.prioritize_bytes(bytes, PiecePriority::Now).await
     }
 
     async fn prioritize_pieces(&self, pieces: &[u32]) {
@@ -264,6 +282,7 @@ mod mock {
         impl Torrent for Torrent {
             fn handle(&self) -> TorrentHandle;
             async fn files(&self) -> Vec<torrent::File>;
+            async fn file_by_name(&self, name: &str) -> Option<torrent::File>;
             async fn largest_file(&self) -> Option<torrent::File>;
             async fn has_bytes(&self, bytes: &Range<usize>) -> bool;
             async fn has_piece(&self, piece: usize) -> bool;

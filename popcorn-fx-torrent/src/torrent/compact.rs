@@ -8,6 +8,9 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::Formatter;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
+const COMPACT_IPV4_ADDR_LEN: usize = 6;
+const COMPACT_IPV6_ADDR_LEN: usize = 18;
+
 /// A list of compact IPv4 addresses
 pub type CompactIpv4Addrs = Vec<CompactIpv4Addr>;
 
@@ -17,11 +20,11 @@ impl CompactIpv4AddrsVisitor {
     /// Parse multiple compact IPv4 addresses from the given bytes.
     fn parse_addrs_bytes(bytes: &[u8]) -> CompactIpv4Addrs {
         let mut addrs = Vec::new();
-        let addr_count = bytes.len() / 6;
+        let addr_count = bytes.len() / COMPACT_IPV4_ADDR_LEN;
 
         for i in 0..addr_count {
-            let start = i * 6;
-            let end = start + 6;
+            let start = i * COMPACT_IPV4_ADDR_LEN;
+            let end = start + COMPACT_IPV4_ADDR_LEN;
 
             match CompactIpv4AddrVisitor::parse_bytes(&bytes[start..end]) {
                 Ok(addr) => addrs.push(addr),
@@ -132,8 +135,8 @@ impl TryFrom<SocketAddr> for CompactIpv4Addr {
     }
 }
 
-impl From<&CompactIpv4Addr> for [u8; 6] {
-    fn from(value: &CompactIpv4Addr) -> [u8; 6] {
+impl From<&CompactIpv4Addr> for [u8; COMPACT_IPV4_ADDR_LEN] {
+    fn from(value: &CompactIpv4Addr) -> [u8; COMPACT_IPV4_ADDR_LEN] {
         let ip: [u8; 4] = value.ip.octets();
         let port = value.port.to_be_bytes();
 
@@ -165,7 +168,7 @@ struct CompactIpv4AddrVisitor;
 impl CompactIpv4AddrVisitor {
     /// Parse a single compact IPv4 address from the given bytes.
     fn parse_bytes(bytes: &[u8]) -> Result<CompactIpv4Addr> {
-        if bytes.len() != 6 {
+        if bytes.len() != COMPACT_IPV4_ADDR_LEN {
             return Err(TorrentError::AddressParse(
                 "expected a byte slice of a compact ipv4 address".to_string(),
             ));
@@ -227,11 +230,11 @@ struct CompactIpv6AddrsVisitor;
 impl CompactIpv6AddrsVisitor {
     fn parse_bytes(bytes: &[u8]) -> CompactIpv6Addrs {
         let mut addrs = Vec::new();
-        let addr_count = bytes.len() / 18;
+        let addr_count = bytes.len() / COMPACT_IPV6_ADDR_LEN;
 
         for i in 0..addr_count {
-            let start = i * 18;
-            let end = start + 18;
+            let start = i * COMPACT_IPV6_ADDR_LEN;
+            let end = start + COMPACT_IPV6_ADDR_LEN;
 
             match CompactIpv6AddrVisitor::parse_bytes(&bytes[start..end]) {
                 Ok(addr) => addrs.push(addr),
@@ -351,7 +354,7 @@ impl Serialize for CompactIpv6Addr {
         let ip_bytes: [u8; 16] = self.ip.octets();
         let port_bytes = self.port.to_be_bytes();
 
-        let mut bytes = Vec::with_capacity(18);
+        let mut bytes = Vec::with_capacity(COMPACT_IPV6_ADDR_LEN);
         bytes.extend_from_slice(&ip_bytes);
         bytes.extend_from_slice(&port_bytes);
 
@@ -372,7 +375,7 @@ struct CompactIpv6AddrVisitor;
 
 impl CompactIpv6AddrVisitor {
     fn parse_bytes(bytes: &[u8]) -> Result<CompactIpv6Addr> {
-        if bytes.len() != 18 {
+        if bytes.len() != COMPACT_IPV6_ADDR_LEN {
             return Err(TorrentError::AddressParse(
                 "expected a byte slice of a compact ipv6 address".to_string(),
             ));
@@ -387,7 +390,7 @@ impl CompactIpv6AddrVisitor {
     }
 }
 
-impl<'de> serde::de::Visitor<'de> for CompactIpv6AddrVisitor {
+impl<'de> Visitor<'de> for CompactIpv6AddrVisitor {
     type Value = CompactIpv6Addr;
 
     fn expecting(&self, f: &mut Formatter) -> std::fmt::Result {
@@ -396,13 +399,13 @@ impl<'de> serde::de::Visitor<'de> for CompactIpv6AddrVisitor {
 
     fn visit_bytes<E>(self, v: &[u8]) -> std::result::Result<Self::Value, E>
     where
-        E: serde::de::Error,
+        E: Error,
     {
         if v.len() != 18 {
-            return Err(serde::de::Error::invalid_length(v.len(), &self));
+            return Err(Error::invalid_length(v.len(), &self));
         }
 
-        Self::parse_bytes(v).map_err(|e| serde::de::Error::custom(e))
+        Self::parse_bytes(v).map_err(|e| Error::custom(e))
     }
 }
 
@@ -415,7 +418,7 @@ pub mod compact_ipv6 {
         serializer: S,
     ) -> std::result::Result<S::Ok, S::Error>
     where
-        S: serde::Serializer,
+        S: Serializer,
     {
         serde::Serialize::serialize(&addrs, serializer)
     }
@@ -428,7 +431,7 @@ pub mod compact_ipv6 {
     }
 }
 
-/// A compact representation of an ipv4 or ipv6 address without port.
+/// A compact representation of an IPv44 or IPv66 address without port.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CompactIp {
     pub ip: IpAddr,
@@ -494,6 +497,87 @@ impl<'de> Visitor<'de> for CompactIpVisitor {
         }
 
         Ok(CompactIp { ip: addr })
+    }
+}
+
+/// A compact IP address which can either be represented as IPv4 or IPv6.
+#[derive(Debug, Clone, PartialEq)]
+pub enum CompactIpAddr {
+    IPv4(CompactIpv4Addr),
+    IPv6(CompactIpv6Addr),
+}
+
+impl Serialize for CompactIpAddr {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            CompactIpAddr::IPv4(e) => e.serialize(serializer),
+            CompactIpAddr::IPv6(e) => e.serialize(serializer),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for CompactIpAddr {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_bytes(CompactIpAddrVisitor)
+    }
+}
+
+impl From<CompactIpv4Addr> for CompactIpAddr {
+    fn from(value: CompactIpv4Addr) -> Self {
+        Self::IPv4(value)
+    }
+}
+
+impl From<CompactIpv6Addr> for CompactIpAddr {
+    fn from(value: CompactIpv6Addr) -> Self {
+        Self::IPv6(value)
+    }
+}
+
+impl From<SocketAddr> for CompactIpAddr {
+    fn from(value: SocketAddr) -> Self {
+        if value.is_ipv4() {
+            match value.try_into() {
+                Ok(addr) => CompactIpAddr::IPv4(addr),
+                Err(e) => unreachable!("The socket address should be IPv4 compatible, {}", e),
+            }
+        } else {
+            match value.try_into() {
+                Ok(addr) => CompactIpAddr::IPv6(addr),
+                Err(e) => unreachable!("The socket address should be IPv6 compatible, {}", e),
+            }
+        }
+    }
+}
+
+struct CompactIpAddrVisitor;
+
+impl<'de> Visitor<'de> for CompactIpAddrVisitor {
+    type Value = CompactIpAddr;
+
+    fn expecting(&self, f: &mut Formatter) -> std::fmt::Result {
+        write!(f, "expected a compact ip address as bytes")
+    }
+
+    fn visit_bytes<E>(self, bytes: &[u8]) -> std::result::Result<Self::Value, E>
+    where
+        E: Error,
+    {
+        match bytes.len() {
+            COMPACT_IPV4_ADDR_LEN => CompactIpv4Addr::try_from(bytes)
+                .map(CompactIpAddr::IPv4)
+                .map_err(|e| Error::custom(e)),
+            COMPACT_IPV6_ADDR_LEN => CompactIpv6Addr::try_from(bytes)
+                .map(CompactIpAddr::IPv6)
+                .map_err(|e| Error::custom(e)),
+            _ => Err(Error::invalid_length(bytes.len(), &self)),
+        }
     }
 }
 
@@ -577,33 +661,38 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_compact_ipv6_addr() {
-        let expected_result = CompactIpv6Addr {
-            ip: Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1),
-            port: 9090,
-        };
-        let bytes = serde_bencode::to_bytes(&expected_result).unwrap();
+    #[cfg(test)]
+    mod tests_compact_ipv6 {
+        use super::*;
 
-        let result = serde_bencode::from_bytes::<CompactIpv6Addr>(&bytes).unwrap();
-
-        assert_eq!(expected_result, result);
-    }
-
-    #[test]
-    fn test_compact_ipv6_mod() {
-        let expected_result = TestIpv6List {
-            text: "test".to_string(),
-            addrs: vec![CompactIpv6Addr {
+        #[test]
+        fn test_compact_ipv6_addr() {
+            let expected_result = CompactIpv6Addr {
                 ip: Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1),
                 port: 9090,
-            }],
-        };
-        let bytes = serde_bencode::to_bytes(&expected_result).unwrap();
+            };
+            let bytes = serde_bencode::to_bytes(&expected_result).unwrap();
 
-        let result = serde_bencode::from_bytes::<TestIpv6List>(&bytes).unwrap();
+            let result = serde_bencode::from_bytes::<CompactIpv6Addr>(&bytes).unwrap();
 
-        assert_eq!(expected_result, result);
+            assert_eq!(expected_result, result);
+        }
+
+        #[test]
+        fn test_compact_ipv6_mod() {
+            let expected_result = TestIpv6List {
+                text: "test".to_string(),
+                addrs: vec![CompactIpv6Addr {
+                    ip: Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1),
+                    port: 9090,
+                }],
+            };
+            let bytes = serde_bencode::to_bytes(&expected_result).unwrap();
+
+            let result = serde_bencode::from_bytes::<TestIpv6List>(&bytes).unwrap();
+
+            assert_eq!(expected_result, result);
+        }
     }
 
     #[test]
@@ -620,6 +709,25 @@ mod tests {
         };
         let bytes = serde_bencode::to_bytes(&expected_result).unwrap();
         let result = serde_bencode::from_bytes(&bytes).unwrap();
+        assert_eq!(expected_result, result);
+    }
+
+    #[test]
+    fn test_compact_ip_addr() {
+        let expected_result = CompactIpAddr::IPv4(CompactIpv4Addr {
+            ip: Ipv4Addr::new(127, 0, 0, 1),
+            port: 9090,
+        });
+        let bytes = serde_bencode::to_bytes(&expected_result).unwrap();
+        let result = serde_bencode::from_bytes::<CompactIpAddr>(&bytes).unwrap();
+        assert_eq!(expected_result, result);
+
+        let expected_result = CompactIpAddr::IPv6(CompactIpv6Addr {
+            ip: Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 16),
+            port: 20021,
+        });
+        let bytes = serde_bencode::to_bytes(&expected_result).unwrap();
+        let result = serde_bencode::from_bytes::<CompactIpAddr>(&bytes).unwrap();
         assert_eq!(expected_result, result);
     }
 }

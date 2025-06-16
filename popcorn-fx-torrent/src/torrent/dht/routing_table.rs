@@ -114,6 +114,7 @@ impl Bucket {
 
         if self.nodes.len() < self.max_size {
             self.nodes.push(node);
+            self.last_changed = Instant::now();
             return true;
         } else {
             if let Some(position) = self
@@ -126,6 +127,7 @@ impl Bucket {
                 // remove the first bad node to free up some space
                 let _ = self.nodes.remove(position);
                 self.nodes.push(node);
+                self.last_changed = Instant::now();
                 return true;
             }
         }

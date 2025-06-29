@@ -1,10 +1,10 @@
 use crate::torrent::errors::Result;
 use crate::torrent::fs::TorrentFileSystemStorage;
 use crate::torrent::operation::TorrentTrackersOperation;
-use crate::torrent::peer::{ProtocolExtensionFlags, TcpPeerDiscovery};
+use crate::torrent::peer::{ProtocolExtensionFlags, TcpPeerDiscovery, UtpPeerDiscovery};
 use crate::torrent::torrent::Torrent;
 use crate::torrent::{
-    peer, ExtensionFactories, ExtensionFactory, InfoHash, Magnet, TorrentConfig, TorrentError,
+    ExtensionFactories, ExtensionFactory, InfoHash, Magnet, TorrentConfig, TorrentError,
     TorrentEvent, TorrentFlags, TorrentHandle, TorrentHealth, TorrentMetadata, TorrentOperation,
     TorrentOperationFactory, DEFAULT_TORRENT_EXTENSIONS, DEFAULT_TORRENT_OPERATIONS,
     DEFAULT_TORRENT_PROTOCOL_EXTENSIONS,
@@ -14,7 +14,7 @@ use async_trait::async_trait;
 use derive_more::Display;
 use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use fx_handle::Handle;
-use log::{debug, trace};
+use log::{debug, trace, warn};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::io::Read;
@@ -22,10 +22,9 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock};
 use tokio::{select, time};
 
-use crate::available_port;
 use crate::torrent::dht::{DhtTracker, DEFAULT_BOOTSTRAP_SERVERS};
 use crate::torrent::dns::DnsResolver;
 #[cfg(test)]
@@ -34,15 +33,32 @@ pub use mock::*;
 /// A unique handle identifier of a [Session].
 pub type SessionHandle = Handle;
 
-/// The torrent session events.
+/// The state of a torrent session.
+#[derive(Debug, Display, Copy, Clone, PartialEq)]
+pub enum SessionState {
+    /// This is the initial state of the session while it's creating the underlying listeners.
+    #[display(fmt = "initializing")]
+    Initializing,
+    /// The running state of the session in which it's able to process torrents.
+    #[display(fmt = "running")]
+    Running,
+    /// The error state which indicates that the session failed to initialize.
+    #[display(fmt = "error")]
+    Error,
+}
+
+/// The events of a torrent session.
 #[derive(Debug, Display, Clone, PartialEq)]
 pub enum SessionEvent {
     /// Indicates that a new torrent was added to the session.
-    #[display(fmt = "Torrent added: {}", _0)]
+    #[display(fmt = "torrent {} has been added", _0)]
     TorrentAdded(TorrentHandle),
     /// Indicates that a torrent has been removed from the session.
-    #[display(fmt = "Torrent removed: {}", _0)]
+    #[display(fmt = "torrent {} has been removed", _0)]
     TorrentRemoved(TorrentHandle),
+    /// Indicates that the session state has changed.
+    #[display(fmt = "session state changed to {:?}", _0)]
+    StateChanged(SessionState),
 }
 
 /// A torrent session which isolates torrents from each-other.
@@ -58,6 +74,13 @@ pub trait Session: Debug + Callback<SessionEvent> + Send + Sync {
     ///
     /// Returns the unique session handle for this session.
     fn handle(&self) -> SessionHandle;
+
+    /// Get the current state of the session.
+    ///
+    /// # Returns
+    ///
+    /// It returns the state of the session.
+    async fn state(&self) -> SessionState;
 
     /// Get the torrent based on the given handle.
     /// It returns a weak reference to the torrent, which can be invalidated at any moment.
@@ -262,35 +285,40 @@ impl FxTorrentSession {
     /// * `protocol_extensions` - The protocol extensions to use for this session.
     /// * `extensions` - The peer extensions to use for this session.
     /// * `operations` - The torrent operations to use for this session.
-    /// * `port_range` - The port range used by torrents of the session to listen on incoming connections.
     ///
     /// # Returns
     ///
     /// Returns the session when initialized successfully or an error on failure.
-    pub async fn new<P: AsRef<Path>, S: AsRef<str>>(
+    pub fn new<P: AsRef<Path>, S: AsRef<str>>(
         base_path: P,
         client_name: S,
         protocol_extensions: ProtocolExtensionFlags,
         extensions: ExtensionFactories,
         operations: Vec<TorrentOperationFactory>,
-        port_range: std::ops::Range<u16>,
-    ) -> Result<Self> {
-        trace!("Trying to create a new torrent session");
-        let torrent_storage_location = base_path.as_ref().to_path_buf();
-        let inner = Arc::new(
-            InnerSession::new(
-                torrent_storage_location,
-                client_name.as_ref().to_string(),
-                protocol_extensions,
-                extensions,
-                operations,
-                port_range,
-            )
-            .await?,
-        );
+    ) -> Self {
+        let handle = SessionHandle::new();
+
+        trace!("Creating new torrent session {}", handle);
+        let inner = Arc::new(InnerSession {
+            handle,
+            state: Mutex::new(SessionState::Initializing),
+            base_path: RwLock::new(base_path.as_ref().to_path_buf()),
+            client_name: client_name.as_ref().to_string(),
+            dht: Default::default(),
+            torrents: Default::default(),
+            protocol_extensions,
+            extension_factories: extensions,
+            torrent_operations: operations,
+            callbacks: MultiThreadedCallback::new(),
+        });
+
+        let main_inner = inner.clone();
+        tokio::spawn(async move {
+            main_inner.start().await;
+        });
 
         debug!("Created new torrent session {}", inner.handle);
-        Ok(Self { inner })
+        Self { inner }
     }
 
     /// Try to find an existing torrent within the session based on the info hash,
@@ -315,6 +343,8 @@ impl FxTorrentSession {
         tracker_timeout: Option<Duration>,
         send_callback_event: bool,
     ) -> Result<Torrent> {
+        self.inner.assert_state().await?;
+
         trace!(
             "Trying to add {:?} to session {}",
             torrent_info,
@@ -344,21 +374,27 @@ impl FxTorrentSession {
         }
 
         let storage_path = self.inner.base_path.read().await.clone();
-        trace!("Trying to create new torrent for info hash {}", info_hash);
+        trace!(
+            "Session {} is creating new torrent for info hash {}",
+            self,
+            info_hash
+        );
         let tcp_peer_discovery = self.inner.create_tcp_peer_discovery().await?;
+        let utp_peer_discovery = self.inner.create_utp_peer_discovery().await?;
+        let dht_tracker = self.inner.dht.lock().await.clone();
         let torrent = Torrent::request()
             .metadata(torrent_info)
             .options(options)
             .config(config.build())
             .peer_discoveries(vec![
                 Box::new(tcp_peer_discovery),
-                // Box::new(UtpPeerDiscovery::new(tcp_peer_discovery.port()).await?),
+                Box::new(utp_peer_discovery),
             ])
             .protocol_extensions(self.inner.protocol_extensions)
             .extensions(self.inner.extensions())
             .operations(self.inner.torrent_operations())
             .storage(Box::new(TorrentFileSystemStorage::new(storage_path)))
-            .dht_option(self.inner.dht.clone())
+            .dht_option(dht_tracker)
             .build()?;
         let result_torrent = torrent.clone();
 
@@ -369,13 +405,13 @@ impl FxTorrentSession {
         Ok(result_torrent)
     }
 
-    async fn wait_for_metadata(torrent: &Torrent) -> Result<TorrentMetadata> {
+    async fn wait_for_metadata(torrent: &Torrent) -> TorrentMetadata {
         let mut receiver = torrent.subscribe();
 
         loop {
             if let Some(event) = receiver.recv().await {
-                if let TorrentEvent::MetadataChanged = *event {
-                    return torrent.metadata().await;
+                if let TorrentEvent::MetadataChanged(metadata) = &*event {
+                    return metadata.clone();
                 }
             }
         }
@@ -386,6 +422,10 @@ impl FxTorrentSession {
 impl Session for FxTorrentSession {
     fn handle(&self) -> SessionHandle {
         self.inner.handle
+    }
+
+    async fn state(&self) -> SessionState {
+        *self.inner.state.lock().await
     }
 
     async fn find_torrent_by_handle(&self, handle: &TorrentHandle) -> Option<Torrent> {
@@ -427,7 +467,7 @@ impl Session for FxTorrentSession {
                 .storage(Box::new(TorrentFileSystemStorage::new(
                     &self.inner.base_path.read().await.clone(),
                 )))
-                .dht_option(self.inner.dht.clone())
+                .dht_option(self.inner.dht.lock().await.clone())
                 .build()?,
         };
 
@@ -475,6 +515,8 @@ impl Session for FxTorrentSession {
     }
 
     async fn fetch_magnet(&self, magnet_uri: &str, timeout: Duration) -> Result<TorrentMetadata> {
+        self.inner.assert_state().await?;
+
         trace!("Trying to fetch magnet {}", magnet_uri);
         let torrent_info = self.resolve(magnet_uri)?;
         let torrent = self
@@ -500,11 +542,13 @@ impl Session for FxTorrentSession {
         trace!("Trying to fetch metadata for {}", magnet_uri);
         select! {
             _ = time::sleep(timeout) => Err(TorrentError::Timeout),
-            result = Self::wait_for_metadata(&torrent) => result,
+            result = Self::wait_for_metadata(&torrent) => Ok(result),
         }
     }
 
     async fn add_torrent_from_uri(&self, uri: &str, options: TorrentFlags) -> Result<Torrent> {
+        self.inner.assert_state().await?;
+
         let torrent_info = self.resolve(uri)?;
         self.add_torrent_from_info(torrent_info, options).await
     }
@@ -514,6 +558,8 @@ impl Session for FxTorrentSession {
         torrent_info: TorrentMetadata,
         options: TorrentFlags,
     ) -> Result<Torrent> {
+        self.inner.assert_state().await?;
+
         self.find_or_add_torrent(torrent_info, options, None, None, true)
             .await
     }
@@ -561,7 +607,6 @@ pub struct FxTorrentSessionBuilder {
     protocol_extensions: Option<ProtocolExtensionFlags>,
     extension_factories: Option<ExtensionFactories>,
     operation_factories: Option<Vec<TorrentOperationFactory>>,
-    port_range: Option<std::ops::Range<u16>>,
 }
 
 impl FxTorrentSessionBuilder {
@@ -623,19 +668,13 @@ impl FxTorrentSessionBuilder {
         self
     }
 
-    /// Set the port range which are used by torrents of the session to listen on incoming connections.
-    pub fn port_range(&mut self, port_range: std::ops::Range<u16>) -> &mut Self {
-        self.port_range = Some(port_range);
-        self
-    }
-
     /// Create a new torrent session from this builder.
     /// The only required field within this builder is the base path for the torrent storage.
     ///
     /// # Returns
     ///
     /// It returns an error when one of the required is not set.
-    pub async fn build(&mut self) -> Result<FxTorrentSession> {
+    pub fn build(&mut self) -> Result<FxTorrentSession> {
         let base_path = self.base_path.take().ok_or(TorrentError::InvalidSession(
             "base path is required".to_string(),
         ))?;
@@ -653,17 +692,14 @@ impl FxTorrentSessionBuilder {
             .operation_factories
             .take()
             .unwrap_or_else(DEFAULT_TORRENT_OPERATIONS);
-        let port_range = self.port_range.take().unwrap_or(6881..32000);
 
-        FxTorrentSession::new(
+        Ok(FxTorrentSession::new(
             base_path,
             client_name,
             protocol_extensions,
             extensions,
             torrent_operations,
-            port_range,
-        )
-        .await
+        ))
     }
 }
 
@@ -673,12 +709,14 @@ impl FxTorrentSessionBuilder {
 struct InnerSession {
     /// The unique session identifier
     handle: SessionHandle,
+    /// The state of the session
+    state: Mutex<SessionState>,
     /// The base path for the torrent storage of the session
     base_path: RwLock<PathBuf>,
     /// The client name of the session, exchanged with peers that support `LTEP`
     client_name: String,
     /// The DHT node server of the session
-    dht: Option<DhtTracker>,
+    dht: Mutex<Option<DhtTracker>>,
     /// The currently active torrents within the session
     torrents: RwLock<HashMap<InfoHash, Torrent>>,
     /// The enabled protocol extensions of the session
@@ -689,20 +727,24 @@ struct InnerSession {
     torrent_operations: Vec<TorrentOperationFactory>,
     /// The event callbacks of the session
     callbacks: MultiThreadedCallback<SessionEvent>,
-    /// The port range which are used by torrents of the session to listen on incoming connections
-    port_range: std::ops::Range<u16>,
 }
 
 impl InnerSession {
-    async fn new(
-        base_path: PathBuf,
-        client_name: String,
-        protocol_extensions: ProtocolExtensionFlags,
-        extensions: ExtensionFactories,
-        torrent_operations: Vec<TorrentOperationFactory>,
-        port_range: std::ops::Range<u16>,
-    ) -> Result<Self> {
-        let mut dht_node_server = DhtTracker::builder();
+    /// Start the main loop of the session.
+    async fn start(&self) {
+        if let Err(e) = self.initialize_dht_tracker().await {
+            warn!("Session {} failed to initialize, {}", self, e);
+            self.update_state(SessionState::Error).await;
+            return;
+        }
+
+        self.update_state(SessionState::Running).await;
+    }
+
+    /// Initialize the DHT tracker of the session.
+    #[cfg(feature = "dht")]
+    async fn initialize_dht_tracker(&self) -> Result<()> {
+        let mut dht_tracker_builder = DhtTracker::builder();
 
         for addr in DEFAULT_BOOTSTRAP_SERVERS() {
             match DnsResolver::from_str(addr) {
@@ -712,24 +754,43 @@ impl InnerSession {
                     .into_iter()
                     .flatten()
                     .for_each(|addr| {
-                        dht_node_server.bootstrap_node(addr);
+                        dht_tracker_builder.bootstrap_node(addr);
                     }),
                 Err(e) => debug!("Failed to resolve IP of node bootstrap \"{}\", {}", addr, e),
             }
         }
 
-        Ok(Self {
-            handle: Default::default(),
-            base_path: RwLock::new(base_path),
-            client_name,
-            protocol_extensions,
-            extension_factories: extensions,
-            torrent_operations,
-            dht: Some(dht_node_server.build().await?),
-            torrents: Default::default(),
-            callbacks: MultiThreadedCallback::new(),
-            port_range,
-        })
+        let dht_tracker = dht_tracker_builder.build().await?;
+
+        *self.dht.lock().await = Some(dht_tracker);
+        Ok(())
+    }
+
+    #[cfg(not(feature = "dht"))]
+    async fn initialize_dht_tracker(&self) -> Result<()> {
+        Ok(())
+    }
+
+    /// Verify that the session is in the expected state to execute actions.
+    async fn assert_state(&self) -> Result<()> {
+        let state = self.state.lock().await;
+        if *state != SessionState::Running {
+            return Err(TorrentError::InvalidSessionState(*state));
+        }
+
+        Ok(())
+    }
+
+    /// Update the state of the session.
+    /// This will trigger an event callback for the session if the state is different from the current state.
+    async fn update_state(&self, state: SessionState) {
+        let mut mutex = self.state.lock().await;
+        if *mutex == state {
+            return;
+        }
+
+        *mutex = state;
+        self.callbacks.invoke(SessionEvent::StateChanged(state));
     }
 
     /// Get the enabled peer extensions of the session.
@@ -821,31 +882,21 @@ impl InnerSession {
     ///
     /// It returns a [TcpPeerDiscovery] on success, else the underlying `bind` failure.
     async fn create_tcp_peer_discovery(&self) -> Result<TcpPeerDiscovery> {
-        const PORT_ERROR_MESSAGE: &str = "network interface has no available ports";
-        let mut attempts = 0;
-        let mut port_start = self.port_range.start;
+        TcpPeerDiscovery::new()
+            .await
+            .map_err(|e| TorrentError::Peer(e))
+    }
 
-        while attempts < 3 {
-            let port = available_port!(port_start, self.port_range.end)
-                .ok_or(TorrentError::Io(PORT_ERROR_MESSAGE.to_string()))?;
-
-            return match TcpPeerDiscovery::new_with_port(port).await {
-                Ok(e) => Ok(e),
-                Err(peer_err) => {
-                    if let peer::Error::Io(io_err) = &peer_err {
-                        if io_err.kind() != std::io::ErrorKind::AddrInUse {
-                            attempts += 1;
-                            port_start = port + 1;
-                            continue;
-                        }
-                    }
-
-                    Err(TorrentError::Peer(peer_err))
-                }
-            };
-        }
-
-        Err(TorrentError::Io(PORT_ERROR_MESSAGE.to_string()))
+    /// Try to create a uTP peer discovery which listens for incoming connections within the configured port range of the session.
+    /// This function might try multiple times to find a free port and return an error if none is available.
+    ///
+    /// # Returns
+    ///
+    /// It returns a [UtpPeerDiscovery] on success, else the underlying `bind` failure.
+    async fn create_utp_peer_discovery(&self) -> Result<UtpPeerDiscovery> {
+        UtpPeerDiscovery::new()
+            .await
+            .map_err(|e| TorrentError::Peer(e))
     }
 }
 
@@ -861,6 +912,7 @@ mod mock {
         #[async_trait]
         impl Session for Session {
             fn handle(&self) -> SessionHandle;
+            async fn state(&self) -> SessionState;
             async fn find_torrent_by_handle(&self, handle: &TorrentHandle) -> Option<Torrent>;
             async fn find_torrent_by_info_hash(&self, info_hash: &InfoHash) -> Option<Torrent>;
             async fn torrent_health_from_info(&self, torrent_info: &TorrentMetadata) -> Result<TorrentHealth>;
@@ -1074,14 +1126,11 @@ pub mod tests {
     }
 
     async fn create_session(temp_path: &str) -> FxTorrentSession {
-        let mut session = FxTorrentSession::builder();
-        session
+        FxTorrentSession::builder()
             .base_path(temp_path)
             .client_name("test")
-            .extensions(DEFAULT_TORRENT_EXTENSIONS());
-        session
+            .extensions(DEFAULT_TORRENT_EXTENSIONS())
             .build()
-            .await
             .expect("expected a session to have been created")
     }
 }

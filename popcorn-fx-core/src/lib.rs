@@ -26,7 +26,7 @@ pub mod testing {
     use log4rs::Config;
     use mockall::mock;
     use popcorn_fx_torrent::torrent;
-    use popcorn_fx_torrent::torrent::TorrentStats;
+    use popcorn_fx_torrent::torrent::{File, TorrentStats};
     use std::fmt::{Display, Formatter};
     use std::fs::OpenOptions;
     use std::io::Read;
@@ -255,6 +255,7 @@ pub mod testing {
         impl Torrent for InnerTorrentStream {
             fn handle(&self) -> TorrentHandle;
             async fn files(&self) -> Vec<torrent::File>;
+            async fn file_by_name(&self, name: &str) -> Option<File>;
             async fn largest_file(&self) -> Option<torrent::File>;
             async fn has_bytes(&self, bytes: &std::ops::Range<usize>) -> bool;
             async fn has_piece(&self, piece: usize) -> bool;
@@ -292,6 +293,9 @@ pub mod testing {
         }
         async fn files(&self) -> Vec<torrent::File> {
             self.inner.files().await
+        }
+        async fn file_by_name(&self, name: &str) -> Option<File> {
+            self.inner.file_by_name(name).await
         }
         async fn largest_file(&self) -> Option<torrent::File> {
             self.inner.largest_file().await

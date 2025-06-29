@@ -4,7 +4,7 @@ use crate::ipc::proto::torrent::{torrent, torrent_event};
 use popcorn_fx_core::core::torrents::collection::MagnetInfo;
 use popcorn_fx_core::core::torrents::{Error, TorrentInfo, TorrentStreamState};
 use popcorn_fx_torrent::torrent::{
-    TorrentEvent, TorrentFileInfo, TorrentHealth, TorrentHealthState, TorrentState, TorrentStats,
+    TorrentEvent, TorrentHealth, TorrentHealthState, TorrentState, TorrentStats,
 };
 use protobuf::MessageField;
 
@@ -109,7 +109,7 @@ impl From<&TorrentEvent> for proto::torrent::TorrentEvent {
                     special_fields: Default::default(),
                 });
             }
-            TorrentEvent::MetadataChanged => {
+            TorrentEvent::MetadataChanged(_) => {
                 event.event = torrent_event::Event::METADATA_CHANGED.into();
             }
             TorrentEvent::PeerConnected(_) => {
@@ -121,7 +121,7 @@ impl From<&TorrentEvent> for proto::torrent::TorrentEvent {
             TorrentEvent::TrackersChanged => {
                 event.event = torrent_event::Event::TRACKERS_CHANGED.into();
             }
-            TorrentEvent::PiecesChanged => {
+            TorrentEvent::PiecesChanged(_) => {
                 event.event = torrent_event::Event::PIECES_CHANGED.into();
             }
             TorrentEvent::PiecePrioritiesChanged => {

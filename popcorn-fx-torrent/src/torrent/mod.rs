@@ -76,6 +76,79 @@ const DEFAULT_TORRENT_OPERATIONS: fn() -> Vec<TorrentOperationFactory> = || {
     ]
 };
 
+/// Formats the given number of bytes into a human-readable format with appropriate units.
+///
+/// This function converts a byte size into a more readable format using common storage units (B, KB, MB, GB, TB).
+/// The result is rounded to two decimal places for clarity. It ensures that the byte count is represented with
+/// the most appropriate unit based on the size of the input. The units scale based on powers of 1024.
+///
+/// # Arguments
+/// - `bytes`: The size in bytes to be formatted.
+///
+/// # Returns
+///
+/// It returns the formatted byte size with the corresponding unit.
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use popcorn_fx_torrent::torrent::format_bytes;
+///
+/// let formatted = format_bytes(1048576);
+/// println!("{}", formatted); // "1.00 MB"
+/// ```
+///
+/// # Notes
+/// The function uses the binary system for scaling (i.e., 1024 bytes = 1 KB).
+pub fn format_bytes(bytes: usize) -> String {
+    let units = ["B", "KB", "MB", "GB", "TB"];
+    let mut value = bytes as f64;
+    let mut unit = 0;
+
+    while value >= 1024.0 && unit < units.len() - 1 {
+        value /= 1024.0;
+        unit += 1;
+    }
+
+    format!("{:.2} {}", value, units[unit])
+}
+
+/// Calculates the data transfer rate in bytes per second.
+///
+/// This function computes the data transfer rate based on the number of bytes transferred and the
+/// elapsed time in microseconds. It returns the rate as bytes per second (B/s). If the elapsed time is less
+/// than one second (1,000,000 microseconds), it simply returns the number of bytes as the rate.
+///
+/// # Arguments
+/// - `bytes`: The number of bytes transferred.
+/// - `elapsed_micro_secs`: The time elapsed in microseconds.
+///
+/// # Returns
+/// A `u64` representing the data transfer rate in bytes per second (B/s).
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use popcorn_fx_torrent::torrent::calculate_byte_rate;
+///
+/// let rate = calculate_byte_rate(1_000_000, 1_500_000);
+/// println!("{}", rate); // "666666" (bytes per second);
+///
+/// let rate = calculate_byte_rate(1_000_000, 2_000_000);
+/// println!("{}", rate); // "500000" (bytes per second);
+/// ```
+///
+/// # Notes
+/// The function assumes that the elapsed time is given in microseconds. If the elapsed time is very short,
+/// it will default to the total byte count as the rate.
+pub fn calculate_byte_rate(bytes: usize, elapsed_micro_secs: u128) -> u64 {
+    if elapsed_micro_secs <= 1_000_000 {
+        return bytes as u64;
+    }
+
+    ((bytes as u128 * 1_000_000) / elapsed_micro_secs) as u64
+}
+
 /// Retrieves an available port on the local machine.
 ///
 /// This function searches for an available port on all network interfaces at the time of invocation.

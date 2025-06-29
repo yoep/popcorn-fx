@@ -315,10 +315,7 @@ impl AsyncRead for UtpStream {
         };
 
         if data.is_empty() {
-            match self.inner.register_read_waker(cx) {
-                Some(e) => return e,
-                None => {}
-            }
+            return self.inner.register_read_waker(cx);
         }
 
         let to_copy = std::cmp::min(data.len(), buf.remaining());
@@ -629,7 +626,7 @@ impl UtpStreamContext {
         }
     }
 
-    /// Handle the given potential syn ack sequence number of the remote peer.
+    /// Handle the `SYN_ACK` sequence number sent by the remote peer if applicable.
     ///
     /// # Returns
     ///
@@ -680,9 +677,11 @@ impl UtpStreamContext {
                 self.handle_received_payload(payload).await;
             }
             Message::Terminate(_) => {
+                debug!("Utp stream {} received termination message", self);
                 self.handle_close_message().await;
             }
             Message::Close(_) => {
+                debug!("Utp stream {} received close message", self);
                 self.handle_close_message().await;
             }
             _ => {}
@@ -778,7 +777,7 @@ impl UtpStreamContext {
         let start_time = Instant::now();
         self.socket.send(packet.clone(), addr).await?;
         let elapsed = start_time.elapsed();
-        trace!(
+        debug!(
             "Utp stream {} sent {:?} in {}.{:03}ms",
             self,
             pending_packet.packet,
@@ -912,11 +911,11 @@ impl UtpStreamContext {
         }
 
         let result = self.send_close().await;
-        self.socket.close_connection(self.key).await;
         // update the state to close before cancelling the context
         // as the main loop might otherwise execute the close twice
         self.update_state(UtpStreamState::Closed).await;
         self.cancellation_token.cancel();
+        self.socket.close_connection(self.key).await;
         self.notify_write_waker().await;
         self.notify_read_waker().await;
         result
@@ -943,25 +942,27 @@ impl UtpStreamContext {
         }
     }
 
-    /// Register a new read waker for the given context.
-    fn register_read_waker(
-        &self,
-        cx: &mut Context,
-    ) -> Option<Poll<std::result::Result<(), io::Error>>> {
-        match pin!(self.state.read()).poll(cx) {
-            Poll::Ready(state) => {
-                if *state != UtpStreamState::Closed {
-                    if let Poll::Ready(mut mutex) = pin!(self.read_buffer_waker.lock()).poll(cx) {
-                        *mutex = Some(cx.waker().clone());
-                    }
+    /// Register a new waker which will be notified when more read data is available.
+    ///
+    /// # Returns
+    ///
+    /// It returns [Poll::Pending] unless the stream is being closed, else [Poll::Ready].
+    fn register_read_waker(&self, cx: &mut Context) -> Poll<std::result::Result<(), io::Error>> {
+        let state = match pin!(self.state.read()).poll(cx) {
+            Poll::Pending => return Poll::Pending,
+            Poll::Ready(state) => state,
+        };
 
-                    Some(Poll::Pending)
-                } else {
-                    Some(Poll::Ready(Ok(())))
-                }
-            }
-            Poll::Pending => Some(Poll::Pending),
+        // if the stream is being closed, we don't register a waker anymore
+        if *state == UtpStreamState::Closed {
+            return Poll::Ready(Ok(()));
         }
+
+        if let Poll::Ready(mut mutex) = pin!(self.read_buffer_waker.lock()).poll(cx) {
+            *mutex = Some(cx.waker().clone());
+        }
+
+        Poll::Pending
     }
 
     /// Calculate the range of outgoing packets that need to be acknowledged.

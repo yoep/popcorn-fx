@@ -12,9 +12,9 @@ use crate::torrent::tracker::{
     TrackerManagerEvent,
 };
 use crate::torrent::{
-    FileAttributeFlags, FileIndex, PeerPool, Piece, PieceIndex, PiecePart, PiecePool,
-    PiecePriority, TorrentError, TorrentMetadata, TorrentMetadataInfo, DEFAULT_TORRENT_EXTENSIONS,
-    DEFAULT_TORRENT_OPERATIONS, DEFAULT_TORRENT_PROTOCOL_EXTENSIONS,
+    calculate_byte_rate, format_bytes, FileAttributeFlags, FileIndex, PeerPool, Piece, PieceIndex,
+    PiecePart, PiecePool, PiecePriority, TorrentError, TorrentMetadata, TorrentMetadataInfo,
+    DEFAULT_TORRENT_EXTENSIONS, DEFAULT_TORRENT_OPERATIONS, DEFAULT_TORRENT_PROTOCOL_EXTENSIONS,
 };
 use async_trait::async_trait;
 use bit_vec::BitVec;
@@ -617,7 +617,7 @@ pub enum TorrentEvent {
     StateChanged(TorrentState),
     /// Invoked when the torrent metadata has been changed
     #[display(fmt = "torrent metadata has been changed")]
-    MetadataChanged,
+    MetadataChanged(TorrentMetadata),
     /// Invoked when a new peer connection has been established
     #[display(fmt = "peer {} has been connected", _0)]
     PeerConnected(PeerClientInfo),
@@ -628,8 +628,8 @@ pub enum TorrentEvent {
     #[display(fmt = "trackers have changed")]
     TrackersChanged,
     /// Invoked when the pieces have changed of the torrent
-    #[display(fmt = "torrent pieces have changed")]
-    PiecesChanged,
+    #[display(fmt = "torrent pieces have changed to {}", _0)]
+    PiecesChanged(usize),
     /// Invoked when the priorities of the torrent pieces have changed
     #[display(fmt = "torrent piece priorities have changed")]
     PiecePrioritiesChanged,
@@ -649,7 +649,7 @@ pub enum TorrentEvent {
 
 /// A torrent is an actual tracked torrent which is communicating with one or more trackers and peers.
 ///
-/// Use [crate::torrent::TorrentMetadata] if you only want to retrieve the metadata of a torrent.
+/// Use [TorrentMetadata] if you only want to retrieve the metadata of a torrent.
 #[derive(Debug)]
 pub struct Torrent {
     handle: TorrentHandle,
@@ -771,16 +771,6 @@ impl Torrent {
         self.peer_id
     }
 
-    /// Get the unique peer id of this torrent as a reference.
-    /// This id is used within the peer clients to identify with remote peers.
-    ///
-    /// # Returns
-    ///
-    /// Returns the unique peer id of this torrent.
-    pub fn peer_id_as_ref(&self) -> &PeerId {
-        &self.peer_id
-    }
-
     /// Get the port of one of the listeners for accepting incoming peer connections.
     /// This is most of the time the port of the first listener.
     ///
@@ -814,11 +804,28 @@ impl Torrent {
         self.instance().is_some()
     }
 
+    /// Get the absolute path to the torrent location.
+    /// This can either be a file or directory to the torrent depending on the type of the torrent.
+    ///
+    /// The path is only available when the `metadata` of the torrent is known.
+    /// See [Torrent::is_metadata_known].
+    ///
+    /// # Returns
+    ///
+    /// It returns the location of the torrent if the metadata is known, else [None].
+    pub async fn path(&self) -> Option<PathBuf> {
+        if let Some(inner) = self.instance() {
+            return inner.path().await;
+        }
+
+        None
+    }
+
     /// Get the current state of the torrent.
     ///
     /// # Returns
     ///
-    /// Returns the state of this torrent.
+    /// It returns the state of this torrent.
     pub async fn state(&self) -> TorrentState {
         match self.instance() {
             None => TorrentState::Error,
@@ -831,7 +838,7 @@ impl Torrent {
     ///
     /// # Returns
     ///
-    /// Returns the statics of this torrent.
+    /// It returns the statics of this torrent.
     pub async fn stats(&self) -> TorrentStats {
         match self.instance() {
             None => TorrentStats::default(),
@@ -898,10 +905,23 @@ impl Torrent {
     ///
     /// # Returns
     ///
-    /// Returns the total pieces of this torrent when known.
+    /// It returns the total pieces of this torrent when known.
     pub async fn total_pieces(&self) -> usize {
         if let Some(inner) = self.instance() {
             return inner.total_pieces().await;
+        }
+
+        0
+    }
+
+    /// Get the total number of completed pieces for this torrent.
+    ///
+    /// # Returns
+    ///
+    /// It returns the total amount of completed pieces of this torrent when known.
+    pub async fn total_completed_pieces(&self) -> usize {
+        if let Some(inner) = self.instance() {
+            return inner.total_completed_pieces().await;
         }
 
         0
@@ -1613,9 +1633,15 @@ impl TorrentContext {
         self.protocol_extensions
     }
 
-    /// Get the enabled protocol extensions for the torrent as reference.
-    pub fn protocol_extensions_as_ref(&self) -> &ProtocolExtensionFlags {
-        &self.protocol_extensions
+    /// Get the absolute path to the torrent location.
+    /// This can either be a file or directory to the torrent depending on the type of the torrent.
+    pub async fn path(&self) -> Option<PathBuf> {
+        let metadata = self.metadata.read().await;
+        if let Some(info) = &metadata.info {
+            return Some(self.storage.path().join(info.name()));
+        }
+
+        None
     }
 
     /// Get the state of the torrent.
@@ -1669,12 +1695,6 @@ impl TorrentContext {
     /// It returns false when the torrent is still retrieving the metadata, else true.
     pub async fn is_metadata_known(&self) -> bool {
         self.metadata.read().await.info.is_some()
-    }
-
-    /// Get the active protocol extensions of the torrent.
-    /// It returns an owned instance of the protocol extensions.
-    pub fn procotol_extensions(&self) -> ProtocolExtensionFlags {
-        self.protocol_extensions
     }
 
     /// Get an instance of the torrent command event sender.
@@ -2243,19 +2263,18 @@ impl TorrentContext {
     /// connection is based on a magnet link.
     ///
     /// If the data was already known, this method does nothing.
-    pub async fn add_metadata(&self, metadata: TorrentMetadataInfo) {
-        let mut mutex = self.metadata.write().await;
-        let is_metadata_known = mutex.info.is_some();
-        let info_hash = mutex.info_hash.clone();
+    pub async fn add_metadata(&self, metadata_info: TorrentMetadataInfo) {
+        let mut metadata = self.metadata.write().await;
 
         // verify if the metadata of the torrent is already known
         // if so, we ignore this update
-        if is_metadata_known {
+        if metadata.info.is_some() {
             return;
         }
 
         // validate the received metadata against our info hash
-        let is_metadata_invalid = metadata
+        let info_hash = metadata.info_hash.clone();
+        let is_metadata_invalid = metadata_info
             .info_hash()
             .map(|metadata_info_hash| metadata_info_hash != info_hash)
             .map_err(|e| {
@@ -2270,9 +2289,9 @@ impl TorrentContext {
             return;
         }
 
-        (*mutex).info = Some(metadata);
+        (*metadata).info = Some(metadata_info);
         debug!("Torrent {} updated metadata of {}", self, info_hash);
-        self.invoke_event(TorrentEvent::MetadataChanged);
+        self.invoke_event(TorrentEvent::MetadataChanged(metadata.clone()));
     }
 
     /// Announce the torrent to all trackers.
@@ -2534,7 +2553,7 @@ impl TorrentContext {
             self, total_pieces
         );
         self.update_interested_pieces_stats().await;
-        self.invoke_event(TorrentEvent::PiecesChanged);
+        self.invoke_event(TorrentEvent::PiecesChanged(total_pieces));
     }
 
     /// Set the given piece as completed.
@@ -3545,75 +3564,6 @@ impl Drop for TorrentContext {
     }
 }
 
-/// Formats the given number of bytes into a human-readable format with appropriate units.
-///
-/// This function converts a byte size into a more readable format using common storage units (B, KB, MB, GB, TB).
-/// The result is rounded to two decimal places for clarity. It ensures that the byte count is represented with
-/// the most appropriate unit based on the size of the input. The units scale based on powers of 1024.
-///
-/// # Arguments
-/// - `bytes`: The size in bytes to be formatted.
-///
-/// # Returns
-///
-/// It returns the formatted byte size with the corresponding unit.
-///
-/// # Example
-///
-/// ```rust,no_run
-/// let formatted = format_bytes(1048576);
-/// println!("{}", formatted); // "1.00 MB"
-/// ```
-///
-/// # Notes
-/// The function uses the binary system for scaling (i.e., 1024 bytes = 1 KB).
-pub(crate) fn format_bytes(bytes: usize) -> String {
-    let units = ["B", "KB", "MB", "GB", "TB"];
-    let mut value = bytes as f64;
-    let mut unit = 0;
-
-    while value >= 1024.0 && unit < units.len() - 1 {
-        value /= 1024.0;
-        unit += 1;
-    }
-
-    format!("{:.2} {}", value, units[unit])
-}
-
-/// Calculates the data transfer rate in bytes per second.
-///
-/// This function computes the data transfer rate based on the number of bytes transferred and the
-/// elapsed time in microseconds. It returns the rate as bytes per second (B/s). If the elapsed time is less
-/// than one second (1,000,000 microseconds), it simply returns the number of bytes as the rate.
-///
-/// # Arguments
-/// - `bytes`: The number of bytes transferred.
-/// - `elapsed_micro_secs`: The time elapsed in microseconds.
-///
-/// # Returns
-/// A `u64` representing the data transfer rate in bytes per second (B/s).
-///
-/// # Example
-///
-/// ```rust,no_run
-/// let rate = calculate_byte_rate(1_000_000, 1_500_000);
-/// println!("{}", rate); // "666666" (bytes per second);
-///
-/// let rate = calculate_byte_rate(1_000_000, 2_000_000);
-/// println!("{}", rate); // "500000" (bytes per second);
-/// ```
-///
-/// # Notes
-/// The function assumes that the elapsed time is given in microseconds. If the elapsed time is very short,
-/// it will default to the total byte count as the rate.
-pub(crate) fn calculate_byte_rate(bytes: usize, elapsed_micro_secs: u128) -> u64 {
-    if elapsed_micro_secs <= 1_000_000 {
-        return bytes as u64;
-    }
-
-    ((bytes as u128 * 1_000_000) / elapsed_micro_secs) as u64
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -3688,7 +3638,7 @@ mod tests {
         tokio::spawn(async move {
             loop {
                 if let Some(event) = receiver.recv().await {
-                    if let TorrentEvent::MetadataChanged = *event {
+                    if let TorrentEvent::MetadataChanged(_) = *event {
                         tx.send(()).unwrap();
                         break;
                     }
@@ -3991,7 +3941,7 @@ mod tests {
         tokio::spawn(async move {
             loop {
                 if let Some(event) = receiver.recv().await {
-                    if let TorrentEvent::PiecesChanged = *event {
+                    if let TorrentEvent::PiecesChanged(_) = *event {
                         tx.send(()).unwrap();
                     }
                 } else {
@@ -4035,7 +3985,7 @@ mod tests {
         tokio::spawn(async move {
             loop {
                 if let Some(event) = receiver.recv().await {
-                    if let TorrentEvent::PiecesChanged = *event {
+                    if let TorrentEvent::PiecesChanged(_) = *event {
                         tx.send(()).unwrap();
                     }
                 } else {

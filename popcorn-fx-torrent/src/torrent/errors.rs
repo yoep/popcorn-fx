@@ -1,5 +1,5 @@
 use crate::torrent::tracker::TrackerError;
-use crate::torrent::{dht, fs, peer, TorrentHandle};
+use crate::torrent::{dht, fs, peer, SessionState, TorrentHandle};
 use thiserror::Error;
 
 /// The result type for the torrent package.
@@ -51,11 +51,13 @@ pub enum TorrentError {
     InvalidTopic(String),
     #[error("the provided info hash is invalid, {0}")]
     InvalidInfoHash(String),
-    #[error("the torrent handle {0} is no longer valid or invalid")]
+    #[error("torrent handle {0} is no longer valid or invalid")]
     InvalidHandle(TorrentHandle),
-    #[error("the torrent request is invalid, {0}")]
+    #[error("session is in invalid state {0}")]
+    InvalidSessionState(SessionState),
+    #[error("torrent request is invalid, {0}")]
     InvalidRequest(String),
-    #[error("the session is invalid, {0}")]
+    #[error("session is invalid, {0}")]
     InvalidSession(String),
     #[error("the specified range {0:?} is invalid")]
     InvalidRange(std::ops::Range<usize>),

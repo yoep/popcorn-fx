@@ -7,6 +7,7 @@ use serde::de::{Error, MapAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Debug, Display, Formatter};
+use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
 use std::str::FromStr;
 use url::Url;
@@ -591,7 +592,7 @@ pub struct TorrentMetadata {
     pub magnet_uri: Option<String>,
     #[serde(rename = "announce-list")]
     pub announce_list: Option<Vec<Vec<String>>>,
-    /// The DHT nodes for this torrent/
+    /// The DHT nodes for this torrent.
     pub nodes: Option<Vec<TorrentNode>>,
     /// Optional creation date of the torrent.
     #[serde(rename = "creation date")]
@@ -1112,6 +1113,16 @@ pub struct TorrentNode {
     pub port: u16,
 }
 
+impl TorrentNode {
+    /// Get the socket address for the torrent node.
+    pub fn socket_addr(&self) -> Result<SocketAddr> {
+        match IpAddr::from_str(&self.host) {
+            Ok(ip) => Ok(SocketAddr::new(ip, self.port)),
+            Err(e) => Err(TorrentError::AddressParse(e.to_string())),
+        }
+    }
+}
+
 impl Serialize for TorrentNode {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
@@ -1456,14 +1467,14 @@ mod tests {
     fn test_magnet_try_from_torrent_info() {
         init_logger!();
         let data = read_test_file_to_bytes("debian-udp.torrent");
-        let expected_result = "magnet:?xt=EADAF0EFEA39406914414D359E0EA16416409BD7&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce";
+        let expected_result = "magnet:?xt=urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce";
         let info = TorrentMetadata::try_from(data.as_slice()).unwrap();
 
         let magnet = Magnet::try_from(&info).unwrap();
 
         let result = magnet.to_string();
         assert_eq!(
-            vec!["EADAF0EFEA39406914414D359E0EA16416409BD7"],
+            vec!["urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7"],
             magnet.xt()
         );
         assert_eq!(expected_result, result.as_str());

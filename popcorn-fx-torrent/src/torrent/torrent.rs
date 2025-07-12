@@ -1060,12 +1060,12 @@ impl Torrent {
     }
 
     /// Get the total amount of active peer connections of the torrent.
-    pub async fn active_peer_connections(&self) -> Result<usize> {
-        let inner = self
-            .instance()
-            .ok_or(TorrentError::InvalidHandle(self.handle))?;
+    pub async fn active_peer_connections(&self) -> usize {
+        if let Some(inner) = self.instance() {
+            return inner.active_peer_connections().await;
+        }
 
-        Ok(inner.active_peer_connections().await)
+        0
     }
 
     /// Check if the torrent has completed downloading all wanted pieces.
@@ -1713,6 +1713,11 @@ impl TorrentContext {
     /// This only counts trackers which have at least made one successful announcement.
     pub async fn active_tracker_connections(&self) -> usize {
         self.tracker_manager.total_trackers().await
+    }
+
+    /// Get the DHT tracker of the torrent.
+    pub fn dht(&self) -> Option<&DhtTracker> {
+        self.dht.as_ref()
     }
 
     /// Get the total amount of pieces for this torrent.

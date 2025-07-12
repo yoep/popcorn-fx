@@ -37,8 +37,9 @@ mod torrent_peer;
 mod tracker;
 
 use crate::torrent::operation::{
-    TorrentConnectPeersOperation, TorrentCreateFilesOperation, TorrentCreatePiecesOperation,
-    TorrentFileValidationOperation, TorrentMetadataOperation, TorrentTrackersOperation,
+    TorrentConnectDhtNodesOperation, TorrentConnectPeersOperation, TorrentCreateFilesOperation,
+    TorrentCreatePiecesOperation, TorrentFileValidationOperation, TorrentMetadataOperation,
+    TorrentTrackersOperation,
 };
 #[cfg(feature = "extension-donthave")]
 use crate::torrent::peer::extension::donthave::DontHaveExtension;
@@ -68,6 +69,7 @@ const DEFAULT_TORRENT_EXTENSIONS: fn() -> ExtensionFactories = || {
 const DEFAULT_TORRENT_OPERATIONS: fn() -> Vec<TorrentOperationFactory> = || {
     vec![
         || Box::new(TorrentTrackersOperation::new()),
+        || Box::new(TorrentConnectDhtNodesOperation::new()),
         || Box::new(TorrentConnectPeersOperation::new()),
         || Box::new(TorrentMetadataOperation::new()),
         || Box::new(TorrentCreatePiecesOperation::new()),
@@ -230,6 +232,7 @@ pub mod tests {
         BitTorrentPeer, PeerDiscovery, PeerId, PeerStream, TcpPeerDiscovery, UtpPeerDiscovery,
     };
 
+    use crate::torrent::dht::{DhtTracker, DhtTrackerBuilder};
     use log::LevelFilter;
     use log4rs::append::console::ConsoleAppender;
     use log4rs::config::{Appender, Root};
@@ -313,15 +316,17 @@ pub mod tests {
         discoveries: Vec<Box<dyn PeerDiscovery>>,
     ) -> Torrent {
         let torrent_info = create_metadata(uri);
-        let mut request = Torrent::request();
-        request
+        let dht = DhtTracker::builder().build().await.unwrap();
+        Torrent::request()
             .metadata(torrent_info)
             .peer_discoveries(discoveries)
             .options(options)
             .config(config)
             .operations(operations.iter().map(|e| e()).collect())
-            .storage(Box::new(TorrentFileSystemStorage::new(temp_dir)));
-        request.build().unwrap()
+            .storage(Box::new(TorrentFileSystemStorage::new(temp_dir)))
+            .dht(dht)
+            .build()
+            .unwrap()
     }
 
     pub async fn create_torrent_with_default_discoveries(

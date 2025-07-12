@@ -4,6 +4,7 @@ use crate::torrent::{
 };
 use async_trait::async_trait;
 use log::{debug, warn};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -11,7 +12,7 @@ use tokio::sync::Mutex;
 /// This operation add the trackers in a "fire-and-forget" mode and only waits for one tracker connection to have been established.
 #[derive(Debug)]
 pub struct TorrentTrackersOperation {
-    initialized: Mutex<bool>,
+    initialized: AtomicBool,
     cached_tiered_trackers: Mutex<Vec<TrackerEntry>>,
 }
 
@@ -50,7 +51,7 @@ impl TorrentTrackersOperation {
             .collect();
 
         *self.cached_tiered_trackers.lock().await = tracker_entries;
-        *self.initialized.lock().await = true;
+        self.initialized.store(true, Ordering::Relaxed);
         true
     }
 
@@ -83,7 +84,7 @@ impl TorrentOperation for TorrentTrackersOperation {
 
     async fn execute(&self, torrent: &Arc<TorrentContext>) -> TorrentOperationResult {
         // build the tiered trackers cache if needed
-        if !*self.initialized.lock().await {
+        if !self.initialized.load(Ordering::Relaxed) {
             // if we're unable to create the tiered trackers
             // then stop the operation chain as we're unable to continue
             if !self.create_trackers_cache(&torrent).await {

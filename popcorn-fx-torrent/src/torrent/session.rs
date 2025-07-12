@@ -573,7 +573,7 @@ impl Session for FxTorrentSession {
         let mut total_connections = 0;
 
         for torrent in torrents.values() {
-            total_connections += torrent.active_peer_connections().await.unwrap_or_default();
+            total_connections += torrent.active_peer_connections().await;
         }
 
         total_connections
@@ -945,6 +945,8 @@ pub mod tests {
     use std::time::Duration;
     use tempfile::tempdir;
     use tokio::sync::mpsc::unbounded_channel;
+    use tokio::sync::oneshot;
+    use tokio::time::timeout;
 
     #[tokio::test]
     async fn test_session_find_torrent() {
@@ -1126,11 +1128,34 @@ pub mod tests {
     }
 
     async fn create_session(temp_path: &str) -> FxTorrentSession {
-        FxTorrentSession::builder()
+        let session = FxTorrentSession::builder()
             .base_path(temp_path)
             .client_name("test")
             .extensions(DEFAULT_TORRENT_EXTENSIONS())
             .build()
-            .expect("expected a session to have been created")
+            .expect("expected a session to have been created");
+        let (tx, rx) = oneshot::channel();
+
+        let mut receiver = session.subscribe();
+        tokio::spawn(async move {
+            while let Some(event) = receiver.recv().await {
+                if let SessionEvent::StateChanged(state) = &*event {
+                    tx.send(*state).unwrap();
+                    return;
+                }
+            }
+        });
+
+        let state =
+            timeout!(rx, Duration::from_millis(500)).expect("expected to receive a session state");
+        if state != SessionState::Running {
+            assert!(
+                false,
+                "expected the session to have been running, but got {:?} instead",
+                state
+            );
+        }
+
+        session
     }
 }

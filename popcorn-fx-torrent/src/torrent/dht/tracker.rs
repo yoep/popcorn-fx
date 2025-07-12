@@ -118,7 +118,7 @@ impl DhtTracker {
     }
 
     /// Try to ping the given node address.
-    /// This functions waits for a response from the node, so it might be recommended to wrap this fn call in a timeout.
+    /// This function waits for a response from the node, so it might be recommended to wrap this fn call in a timeout.
     pub async fn ping(&self, addr: SocketAddr) -> Result<()> {
         let (tx, rx) = oneshot::channel();
         self.inner.ping(&addr, tx).await;

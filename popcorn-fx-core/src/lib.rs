@@ -32,7 +32,7 @@ pub mod testing {
     use std::io::Read;
     use std::ops::Range;
     use std::path::PathBuf;
-    use std::sync::{Once, Weak};
+    use std::sync::Once;
     use std::time::Duration;
     use std::{env, fs};
     use tempfile::TempDir;

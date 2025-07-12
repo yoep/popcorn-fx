@@ -29,4 +29,4 @@ popcorn:
     popcorn_fx_torrent::torrent::dht:
       level: debug
     popcorn_fx_torrent::torrent::peer::protocol:
-      level: debug
+      level: info

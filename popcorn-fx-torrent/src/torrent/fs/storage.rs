@@ -122,7 +122,7 @@ impl TorrentFileSystemStorage {
             let parent_directory = absolute_path.parent().unwrap_or(self.base_path.as_path());
             tokio::fs::create_dir_all(parent_directory)
                 .await
-                .map_err(|e| Error::Io(e.to_string()))?;
+                .map_err(|e| Error::Io(e))?;
         }
 
         Ok(tokio::fs::OpenOptions::new()
@@ -228,9 +228,9 @@ impl TorrentFileStorage for TorrentFileSystemStorage {
         let (bytes_read, bytes) = self.internal_read(filepath, range).await?;
 
         if bytes_read != expected_bytes {
-            Err(Error::Io(format!(
-                "EOF reached at {}/{}",
-                bytes_read, expected_bytes
+            Err(Error::Io(io::Error::new(
+                io::ErrorKind::UnexpectedEof,
+                format!("EOF reached at {}/{}", bytes_read, expected_bytes),
             )))
         } else {
             Ok(bytes)
@@ -346,10 +346,11 @@ mod tests {
         assert_eq!(30, result.len());
 
         let result = storage.read(filename.as_ref(), 0..512000).await;
-        assert_eq!(
-            Err(Error::Io("EOF reached at 262144/512000".to_string())),
-            result
-        );
+        let err_text = result
+            .err()
+            .expect("expected an error to have been returned")
+            .to_string();
+        assert_eq!("EOF reached at 262144/512000".to_string(), err_text);
     }
 
     #[tokio::test]

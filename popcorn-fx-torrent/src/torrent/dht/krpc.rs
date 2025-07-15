@@ -23,7 +23,10 @@ pub enum QueryMessage {
         request: FindNodeRequest,
     },
     #[serde(rename = "get_peers")]
-    GetPeers,
+    GetPeers {
+        #[serde(rename = "a")]
+        request: GetPeersRequest,
+    },
     #[serde(rename = "announce_peer")]
     AnnouncePeer,
 }
@@ -34,7 +37,7 @@ impl QueryMessage {
         match self {
             QueryMessage::Ping { .. } => "ping",
             QueryMessage::FindNode { .. } => "find_node",
-            QueryMessage::GetPeers => "get_peers",
+            QueryMessage::GetPeers { .. } => "get_peers",
             QueryMessage::AnnouncePeer => "announce_peer",
         }
     }

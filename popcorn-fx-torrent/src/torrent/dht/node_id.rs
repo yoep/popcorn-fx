@@ -121,19 +121,20 @@ impl NodeId {
     /// When both nodes are the same, the result will be 0.
     /// When the nodes don't match at all, the result is [MAX_DISTANCE].
     pub fn distance(&self, node: &NodeId) -> u8 {
-        MAX_DISTANCE - self.xor(node).leading_zeros()
+        let leading_zeros = self.xor(node).leading_zeros();
+        MAX_DISTANCE - leading_zeros
     }
 }
 
 impl Display for NodeId {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", String::from_utf8_lossy(&self.0))
+        write!(f, "{:x?}", self.0)
     }
 }
 
 impl Debug for NodeId {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", String::from_utf8_lossy(&self.0))
+        write!(f, "{:x?}", self.0)
     }
 }
 
@@ -287,7 +288,7 @@ mod tests {
         use super::*;
 
         #[test]
-        fn test_same_node() {
+        fn test_same_node_closest_distance() {
             let node1 = NodeId::try_from(
                 Sha1::digest("ffff740985723049587230495872304958703294").as_slice(),
             )
@@ -316,31 +317,61 @@ mod tests {
         }
 
         #[test]
-        fn test_fartest_distance() {
+        fn test_closest_distance() {
             let node1 = NodeId::try_from(
                 Sha1::digest("ffffffffffffffffffffffffffffffffffffffff").as_slice(),
             )
             .unwrap();
             let node2 = NodeId::try_from(
-                Sha1::digest("0000000000000000000000000000000000000000").as_slice(),
+                Sha1::digest("ffffffffffffffffffffffffffffffffffffffff").as_slice(),
             )
             .unwrap();
             let result = node1.distance(&node2);
-            assert_eq!(159, result, "expected the nodes to not match");
+            assert_eq!(0, result, "expected the nodes to not match");
+        }
+
+        #[test]
+        fn test_fartest_distance() {
+            let node1 = NodeId::try_from([0xff; 20]).unwrap();
+            let node2 = NodeId::try_from([0x00; 20]).unwrap();
+            let result = node1.distance(&node2);
+            assert_eq!(MAX_DISTANCE, result, "expected the nodes to not match");
         }
 
         #[test]
         fn test_almost_fartest_distance() {
-            let node1 = NodeId::try_from(
-                Sha1::digest("8000000000000000000000000000000000000000").as_slice(),
-            )
-            .unwrap();
-            let node2 = NodeId::try_from(
-                Sha1::digest("fffffffffffffffffffffffffffffffffffffffe").as_slice(),
-            )
-            .unwrap();
+            let node1 = create_with_leading_zeros(1);
+            let node2 = NodeId::try_from([0x00; 20]).unwrap();
+            let result = node1.distance(&node2);
+            assert_eq!(159, result);
+        }
+
+        #[test]
+        fn test_near_fartest_distance() {
+            let node1 = create_with_leading_zeros(2);
+            let node2 = NodeId::try_from([0x00; 20]).unwrap();
             let result = node1.distance(&node2);
             assert_eq!(158, result);
+        }
+
+        fn create_with_leading_zeros(leading_zeros: usize) -> NodeId {
+            let mut bytes = vec![0xffu8; 20];
+            let mut bits_remaining = leading_zeros;
+
+            for byte in &mut bytes {
+                if bits_remaining >= 8 {
+                    *byte = 0;
+                    bits_remaining -= 8;
+                } else if bits_remaining > 0 {
+                    // keep the trailing (8 - bits_remaining) bits as 1
+                    *byte &= 0xFFu8 >> bits_remaining;
+                    break;
+                } else {
+                    break;
+                }
+            }
+
+            NodeId::try_from(bytes.as_slice()).unwrap()
         }
     }
 }

@@ -14,11 +14,11 @@ use std::sync::atomic::{AtomicU16, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::net::UdpSocket;
-use tokio::select;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::sync::oneshot::Sender;
 use tokio::sync::{oneshot, Mutex};
 use tokio::time::{interval, timeout};
+use tokio::{select, time};
 use tokio_util::sync::CancellationToken;
 
 /// The maximum size of a single UDP packet.
@@ -119,12 +119,39 @@ impl DhtTracker {
 
     /// Try to ping the given node address.
     /// This function waits for a response from the node, so it might be recommended to wrap this fn call in a timeout.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    ///  use std::net::SocketAddr;
+    ///  use std::time::Duration;
+    ///  use tokio::select;
+    ///  use tokio::time;
+    ///  use popcorn_fx_torrent::torrent::dht::DhtTracker;
+    ///
+    ///  async fn example(dht_tracker: &DhtTracker, target_addr: SocketAddr) {
+    ///     select! {
+    ///         _ = time::sleep(Duration::from_secs(10)) => return,
+    ///         result = dht_tracker.ping(target_addr) => {
+    ///             // do something with the result response
+    ///             return
+    ///         }
+    ///     }
+    ///  }
+    /// ```
     pub async fn ping(&self, addr: SocketAddr) -> Result<()> {
         let (tx, rx) = oneshot::channel();
         self.inner.ping(&addr, tx).await;
         let node = rx.await.map_err(|_| Error::Closed)??;
         self.inner.add_verified_node(node).await;
         Ok(())
+    }
+
+    /// Try to find nearby nodes for the given node id.
+    /// This function waits for a response from one or more nodes within the routing table.
+    /// Each query to a node is limited to the given timeout.
+    pub async fn find_nodes(&self, target_id: NodeId, timeout: Duration) -> Result<Vec<Node>> {
+        self.inner.find_nodes(target_id, timeout).await
     }
 
     /// Close the DHT node server.
@@ -256,7 +283,9 @@ impl InnerTracker {
         // check the type of the message
         match &message.payload {
             MessagePayload::Query(query) => match query {
-                QueryMessage::Ping { .. } => {
+                QueryMessage::Ping { request } => {
+                    self.add_verified_node(Node::new(request.id, addr.clone()))
+                        .await;
                     self.send_response(
                         &message,
                         ResponseMessage::Ping {
@@ -284,7 +313,7 @@ impl InnerTracker {
                     )
                     .await?;
                 }
-                QueryMessage::GetPeers => {}
+                QueryMessage::GetPeers { request } => {}
                 QueryMessage::AnnouncePeer => {}
             },
             MessagePayload::Response(response) => {
@@ -386,7 +415,53 @@ impl InnerTracker {
         .await;
     }
 
-    /// Find the closest nodes to the given target node id.
+    /// Find the closest nodes for the given target node id.
+    /// This will query all stored nodes within the routing table.
+    ///
+    /// # Arguments
+    ///
+    /// * `target_id` - The target node id to retrieve the closest nodes of.
+    /// * `timeout` - The timeout of the query for individual nodes.
+    async fn find_nodes(&self, target_id: NodeId, timeout: Duration) -> Result<Vec<Node>> {
+        let nodes: Vec<Node>;
+
+        {
+            let routing_table = self.routing_table.lock().await;
+            nodes = routing_table.nodes();
+        }
+
+        let futures: Vec<_> = nodes
+            .into_iter()
+            .map(|node| async move {
+                let (tx, rx) = oneshot::channel();
+                self.find_node(target_id, &node.addr, tx).await;
+                select! {
+                    _ = time::sleep(timeout) => Err(Error::Timeout),
+                    result = rx => {
+                        match result {
+                            Ok(e) => e,
+                            Err(_) => Err(Error::Closed),
+                        }
+                    },
+                }
+            })
+            .collect();
+
+        Ok(futures::future::join_all(futures)
+            .await
+            .into_iter()
+            .map(|result| match result {
+                Err(e) => {
+                    trace!("{} failed to query nodes, {}", self, e);
+                    Vec::with_capacity(0)
+                }
+                Ok(e) => e,
+            })
+            .flatten()
+            .collect())
+    }
+
+    /// Find the closest nodes for the given target node id.
     ///
     /// # Arguments
     ///
@@ -846,15 +921,15 @@ mod tests {
             )
             .expect("expected the ping to have been succeeded");
 
-            // check if the incoming server has added the outgoing node
+            // check if the incoming server has added the node that pinged it
             let routing_table = incoming.inner.routing_table.lock().await;
             let result = routing_table.find_node(&outgoing.id());
             assert_ne!(
                 None, result,
-                "expected the outgoing ping node to have been found within the routing table"
+                "expected the incoming ping node to have been added to the routing table"
             );
 
-            // check if the outgoing server has added the node that was pinged
+            // check if the outgoing server has added the pinged target node
             let routing_table = outgoing.inner.routing_table.lock().await;
             let result = routing_table.find_node(&incoming.id());
             assert_ne!(
@@ -879,6 +954,38 @@ mod tests {
                 result,
                 "expected an invalid address error"
             );
+        }
+    }
+
+    mod find_node {
+        use super::*;
+
+        #[tokio::test]
+        async fn test_find_node() {
+            init_logger!();
+            let node_ip = SocketAddr::from(([127, 0, 0, 1], 7000));
+            let node = Node::new(NodeId::from_ip(&node_ip), node_ip);
+            let nearby_node_ip = SocketAddr::from(([127, 0, 0, 2], 7600));
+            let (incoming, outgoing) = create_node_server_pair().await;
+
+            // register the incoming tracker with the outgoing tracker
+            outgoing
+                .inner
+                .add_verified_node(Node::new(
+                    incoming.id(),
+                    ([127, 0, 0, 1], incoming.port()).into(),
+                ))
+                .await;
+
+            // add a node within the incoming tracker which we can retrieve
+            incoming.inner.add_verified_node(node).await;
+
+            // request the node info from the nearby node
+            let result = outgoing
+                .find_nodes(NodeId::from_ip(&nearby_node_ip), Duration::from_millis(500))
+                .await
+                .expect("expected to retrieve relevant nodes");
+            assert_eq!(1, result.len(), "expected one node to have been present");
         }
     }
 

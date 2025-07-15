@@ -3263,13 +3263,10 @@ impl TorrentContext {
                         continue;
                     } else {
                         let absolute_path = file.io_path.clone();
-                        return Err(TorrentError::Io(
-                            io::Error::new(
-                                io::ErrorKind::NotFound,
-                                format!("file {:?} not found", absolute_path),
-                            )
-                            .to_string(),
-                        ));
+                        return Err(TorrentError::Io(io::Error::new(
+                            io::ErrorKind::NotFound,
+                            format!("file {:?} not found", absolute_path),
+                        )));
                     }
                 }
                 // read the bytes from the io storage with additional 0 bits when the range is larger than the available data
@@ -3281,9 +3278,9 @@ impl TorrentContext {
                 let bytes_len = bytes.len();
 
                 if cursor + bytes_len > torrent_range.len() {
-                    return Err(TorrentError::Io(format!(
-                        "received excess bytes from file {:?}",
-                        file.torrent_path
+                    return Err(TorrentError::Io(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        format!("received excess bytes from file {:?}", file.torrent_path),
                     )));
                 }
 
@@ -3291,9 +3288,12 @@ impl TorrentContext {
                 cursor += bytes_len;
             } else {
                 warn!("Torrent {} couldn't determine the correct file io byte range of {:?} for file {:?}", self, torrent_range, file);
-                return Err(TorrentError::Io(format!(
-                    "failed to determine file io range {:?} for file {:?}",
-                    torrent_range, file.torrent_path
+                return Err(TorrentError::Io(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    format!(
+                        "failed to determine file io range {:?} for file {:?}",
+                        torrent_range, file.torrent_path
+                    ),
                 )));
             }
         }
@@ -3336,9 +3336,12 @@ impl TorrentContext {
         // get all files that have this piece
         let relevant_files = self.find_relevant_files_for_piece(piece).await;
         if relevant_files.is_empty() {
-            return Err(TorrentError::Io(format!(
-                "failed to find relevant torrent files for piece {}",
-                piece_index
+            return Err(TorrentError::Io(io::Error::new(
+                io::ErrorKind::Other,
+                format!(
+                    "failed to find relevant torrent files for piece {}",
+                    piece_index
+                ),
             )));
         }
 
@@ -3407,15 +3410,18 @@ impl TorrentContext {
                                 e
                             );
                             self.update_state(TorrentState::Error).await;
-                            return Err(TorrentError::Io(e.to_string()));
+                            return Err(TorrentError::from(e));
                         }
                     }
                 } else {
                     self.update_state(TorrentState::Error).await;
-                    return Err(TorrentError::Io(format!(
-                        "couldn't determine the correct file io byte range of {:?} for piece {}",
-                        piece.torrent_range(),
-                        piece_index
+                    return Err(TorrentError::Io(io::Error::new(
+                        io::ErrorKind::Other,
+                        format!(
+                            "couldn't determine the correct file io byte range of {:?} for piece {}",
+                            piece.torrent_range(),
+                            piece_index
+                        ),
                     )));
                 }
             }

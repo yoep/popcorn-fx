@@ -31,6 +31,15 @@ impl RoutingTable {
         self.buckets.iter().map(|(_, bucket)| bucket.len()).sum()
     }
 
+    /// Get all nodes within the routing table.
+    pub fn nodes(&self) -> Vec<Node> {
+        self.buckets
+            .iter()
+            .map(|(_, bucket)| bucket.nodes.clone())
+            .flatten()
+            .collect()
+    }
+
     /// Try to find the node within the routing table for the given ID.
     pub fn find_node(&self, id: &NodeId) -> Option<&Node> {
         let distance = self.id.distance(id);
@@ -165,11 +174,16 @@ mod tests {
             let mut routing_table = RoutingTable::new(node_id, 2);
 
             let result = routing_table.add_node(node);
-
             assert_eq!(
                 false, result,
                 "expected the node ID of the routing table to not have been added"
-            )
+            );
+
+            let result = routing_table.len();
+            assert_eq!(
+                1, result,
+                "expected the node to have been stored within the routing table"
+            );
         }
     }
 

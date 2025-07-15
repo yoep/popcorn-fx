@@ -17,6 +17,7 @@ use fx_handle::Handle;
 use log::{debug, trace, warn};
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::io;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
@@ -494,18 +495,18 @@ impl Session for FxTorrentSession {
             .map(|e| Ok::<TorrentMetadata, TorrentError>(e))
             .unwrap_or_else(|_| {
                 PathBuf::from_str(uri)
-                    .map_err(|e| TorrentError::Io(e.to_string()))
+                    .map_err(|e| TorrentError::Io(io::Error::new(io::ErrorKind::InvalidInput, e)))
                     .and_then(|filepath| {
                         std::fs::OpenOptions::new()
                             .create(false)
                             .read(true)
                             .open(filepath)
-                            .map_err(|e| TorrentError::Io(e.to_string()))
+                            .map_err(|e| TorrentError::Io(e))
                     })
                     .and_then(|mut file| {
                         let mut buffer = vec![];
                         if let Err(e) = file.read_to_end(&mut buffer) {
-                            return Err(TorrentError::Io(e.to_string()));
+                            return Err(TorrentError::Io(e));
                         }
 
                         Ok(buffer)

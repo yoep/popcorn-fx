@@ -1,4 +1,4 @@
-use crate::torrent::dht::NodeId;
+use crate::torrent::dht::{Error, NodeId, Result};
 use rand::{rng, Rng};
 use sha1::{Digest, Sha1};
 use std::net::{IpAddr, SocketAddr};
@@ -16,6 +16,8 @@ pub struct Node {
     pub addr: SocketAddr,
     /// The unique token of the node
     pub token: Token,
+    /// The token to use for announcing a peer
+    pub announce_token: Option<Token>,
     /// The current state of the node
     pub state: NodeState,
 }
@@ -27,6 +29,7 @@ impl Node {
             id,
             addr,
             token: Token::new(),
+            announce_token: None,
             state: NodeState::Good,
         }
     }
@@ -34,6 +37,11 @@ impl Node {
     /// Generate a new token for the given peer address.
     pub fn generate_token(&self, addr: IpAddr) -> [u8; TOKEN_SIZE] {
         self.token.generate_token(addr)
+    }
+
+    /// Update the opaque token for this node.
+    pub fn update_announce_token(&mut self, token: Token) {
+        self.announce_token = Some(token);
     }
 
     /// Get the distance between this node and the target node.
@@ -90,6 +98,24 @@ impl Token {
     }
 }
 
+impl TryFrom<&[u8]> for Token {
+    type Error = Error;
+
+    fn try_from(value: &[u8]) -> Result<Self> {
+        if value.len() != TOKEN_SIZE {
+            return Err(Error::InvalidToken);
+        }
+
+        let secret: [u8; TOKEN_SECRET_SIZE] = value.try_into().map_err(|_| Error::InvalidToken)?;
+
+        Ok(Self {
+            secret,
+            old_secret: secret,
+            last_refreshed: Instant::now(),
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -104,5 +130,27 @@ mod tests {
         let result = node.generate_token(peer_addr);
 
         assert_ne!([0u8; TOKEN_SIZE], result);
+    }
+
+    mod token {
+        use super::*;
+
+        #[test]
+        fn test_token_from_byte_slice() {
+            let token = "aoeusnth".as_bytes();
+
+            let result = Token::try_from(token).expect("expected the token value to be valid");
+
+            assert_eq!(
+                result.secret,
+                token[..token.len()],
+                "expected the token secret to match the parsed value"
+            );
+            assert_eq!(
+                result.old_secret,
+                token[..token.len()],
+                "expected the old secret to match the parsed value"
+            );
+        }
     }
 }

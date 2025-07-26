@@ -755,7 +755,7 @@ impl InnerSession {
                     .into_iter()
                     .flatten()
                     .for_each(|addr| {
-                        dht_tracker_builder.bootstrap_node(addr);
+                        dht_tracker_builder.routing_node(addr);
                     }),
                 Err(e) => debug!("Failed to resolve IP of node bootstrap \"{}\", {}", addr, e),
             }
@@ -947,7 +947,6 @@ pub mod tests {
     use tempfile::tempdir;
     use tokio::sync::mpsc::unbounded_channel;
     use tokio::sync::oneshot;
-    use tokio::time::timeout;
 
     #[tokio::test]
     async fn test_session_find_torrent() {

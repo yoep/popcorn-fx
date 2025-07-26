@@ -32,7 +32,7 @@ impl NodeId {
     /// See BEP42 for more info.
     ///
     /// If you want to use a fixed byte for hashing, use [Self::from_ip_with_rand] instead.
-    pub fn from_ip(addr: &SocketAddr) -> Self {
+    pub fn from_ip(addr: &IpAddr) -> Self {
         Self::from_ip_with_rand(addr, rng().random::<u8>())
     }
 
@@ -43,11 +43,11 @@ impl NodeId {
     ///
     /// * `addr` - The IP address create a new node id for.
     /// * `rand` - The random byte to use for hashing the ip address.
-    pub fn from_ip_with_rand(addr: &SocketAddr, rand: u8) -> Self {
+    pub fn from_ip_with_rand(ip: &IpAddr, rand: u8) -> Self {
         const IPV4_MASK: [u8; 4] = [0x03, 0x0f, 0x3f, 0xff];
         const IPV6_MASK: [u8; 8] = [0x01, 0x03, 0x07, 0x0f, 0x1f, 0x3f, 0x7f, 0xff];
 
-        let (mut ip_bytes, mask): (Vec<u8>, &[u8]) = match addr.ip() {
+        let (mut ip_bytes, mask): (Vec<u8>, &[u8]) = match ip {
             IpAddr::V4(ipv4) => (ipv4.octets().to_vec(), &IPV4_MASK),
             IpAddr::V6(ipv6) => (ipv6.octets()[..8].to_vec(), &IPV6_MASK),
         };
@@ -124,6 +124,25 @@ impl NodeId {
         let leading_zeros = self.xor(node).leading_zeros();
         MAX_DISTANCE - leading_zeros
     }
+
+    /// Verify if this node matches the given source ip.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if the source ip is valid, else `false`.
+    pub fn verify_id(&self, source_ip: &IpAddr) -> bool {
+        // no need to verify local IPs, they would be incorrect anyway
+        if source_ip.is_local() {
+            return true;
+        }
+
+        let verification_id = NodeId::from_ip_with_rand(&source_ip, self.0[19]);
+
+        // check if the first 21 bits match
+        self.0[0] == verification_id.0[0]
+            && self.0[1] == verification_id.0[1]
+            && (self.0[2] & 0xf8) == (verification_id.0[2] & 0xf8)
+    }
 }
 
 impl Display for NodeId {
@@ -161,7 +180,7 @@ impl TryFrom<&[u8]> for NodeId {
 
 impl From<&SocketAddr> for NodeId {
     fn from(value: &SocketAddr) -> Self {
-        Self::from_ip(value)
+        Self::from_ip(&value.ip())
     }
 }
 
@@ -182,6 +201,39 @@ impl<'de> Deserialize<'de> for NodeId {
         Ok(Self::from(&serde_bytes::deserialize::<[u8; 20], D>(
             deserializer,
         )?))
+    }
+}
+
+pub trait IsLocal {
+    /// Verify if the ip address is a local address.
+    ///
+    /// # Returns
+    ///
+    /// It returns `true` when the address is a local address, else `false`.
+    fn is_local(&self) -> bool;
+}
+
+impl IsLocal for IpAddr {
+    fn is_local(&self) -> bool {
+        match self {
+            IpAddr::V4(ipv4) => {
+                let ip = u32::from_be_bytes(ipv4.octets());
+
+                (ip & 0xff000000) == 0x0a000000       // 10.x.x.x
+                    || (ip & 0xfff00000) == 0xac100000 // 172.16.x.x
+                    || (ip & 0xffff0000) == 0xc0a80000 // 192.168.x.x
+                    || (ip & 0xffff0000) == 0xa9fe0000 // 169.254.x.x
+                    || (ip & 0xff000000) == 0x7f000000 // 127.x.x.x
+                    || (ip & 0xffc00000) == 0x64400000 // 100.64.0.0/10
+            }
+            IpAddr::V6(ipv6) => {
+                let ipv6_bytes = ipv6.octets();
+                ipv6.is_loopback()
+                    || ipv6.is_unicast_link_local()
+                    || ipv6.is_unique_local()
+                    || (ipv6_bytes[0] & 0xfe) == 0xfc
+            }
+        }
     }
 }
 
@@ -223,8 +275,33 @@ mod tests {
         use super::*;
 
         #[test]
+        fn test_from_ip() {
+            let ip: IpAddr = [10, 0, 0, 100].into();
+            let node = NodeId::from_ip(&ip);
+
+            // check if the first 21 bits match when using the same random secret
+            let left_bits =
+                ((node.0[0] as u32) << 16 | (node.0[1] as u32) << 8 | node.0[2] as u32) >> 3;
+            let result = NodeId::from_ip_with_rand(&ip, node.0[19]);
+            let right_bits =
+                ((result.0[0] as u32) << 16 | (result.0[1] as u32) << 8 | result.0[2] as u32) >> 3;
+
+            assert_eq!(
+                left_bits, right_bits,
+                "expected a unique part to have been generated"
+            );
+
+            // check if a different node is generated with a new random
+            let result = NodeId::from_ip(&ip);
+            assert_ne!(
+                node, result,
+                "expected different nodes to have been generated"
+            )
+        }
+
+        #[test]
         fn test_from_ip_rand_1() {
-            let ip = SocketAddr::from(([124, 31, 75, 21], 6881));
+            let ip = [124, 31, 75, 21].into();
             let rand = 1;
 
             let result = NodeId::from_ip_with_rand(&ip, rand);
@@ -239,7 +316,7 @@ mod tests {
 
         #[test]
         fn test_from_ip_rand_86() {
-            let ip = SocketAddr::from(([21, 75, 31, 124], 6881));
+            let ip = [21, 75, 31, 124].into();
             let rand = 86;
 
             let result = NodeId::from_ip_with_rand(&ip, rand);
@@ -254,7 +331,7 @@ mod tests {
 
         #[test]
         fn test_from_ip_rand_22() {
-            let ip = SocketAddr::from(([65, 23, 51, 170], 6881));
+            let ip = [21, 75, 31, 124].into();
             let rand = 22;
 
             let result = NodeId::from_ip_with_rand(&ip, rand);

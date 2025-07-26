@@ -8,8 +8,8 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::Formatter;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
-const COMPACT_IPV4_ADDR_LEN: usize = 6;
-const COMPACT_IPV6_ADDR_LEN: usize = 18;
+pub(crate) const COMPACT_IPV4_ADDR_LEN: usize = 6;
+pub(crate) const COMPACT_IPV6_ADDR_LEN: usize = 18;
 
 /// A list of compact IPv4 addresses
 pub type CompactIpv4Addrs = Vec<CompactIpv4Addr>;
@@ -139,8 +139,12 @@ impl From<&CompactIpv4Addr> for [u8; COMPACT_IPV4_ADDR_LEN] {
     fn from(value: &CompactIpv4Addr) -> [u8; COMPACT_IPV4_ADDR_LEN] {
         let ip: [u8; 4] = value.ip.octets();
         let port = value.port.to_be_bytes();
+        let mut bytes = [0u8; COMPACT_IPV4_ADDR_LEN];
 
-        [ip[0], ip[1], ip[2], ip[3], port[0], port[1]]
+        bytes[0..4].copy_from_slice(&ip);
+        bytes[4..].copy_from_slice(&port);
+
+        bytes
     }
 }
 
@@ -343,6 +347,19 @@ impl TryFrom<&[u8]> for CompactIpv6Addr {
 
     fn try_from(bytes: &[u8]) -> Result<Self> {
         CompactIpv6AddrVisitor::parse_bytes(bytes)
+    }
+}
+
+impl From<&CompactIpv6Addr> for [u8; COMPACT_IPV6_ADDR_LEN] {
+    fn from(value: &CompactIpv6Addr) -> [u8; COMPACT_IPV6_ADDR_LEN] {
+        let ip: [u8; 16] = value.ip.octets();
+        let port = value.port.to_be_bytes();
+        let mut bytes = [0u8; COMPACT_IPV6_ADDR_LEN];
+
+        bytes[..16].copy_from_slice(&ip);
+        bytes[16..].copy_from_slice(&port);
+
+        bytes
     }
 }
 

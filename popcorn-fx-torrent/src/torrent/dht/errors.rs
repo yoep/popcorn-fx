@@ -16,6 +16,8 @@ pub enum Error {
     InvalidNodeId,
     #[error("address is invalid")]
     InvalidAddr,
+    #[error("token is invalid")]
+    InvalidToken,
     #[error("response error code {0}, {1}")]
     Response(u16, String),
     #[error("timed-out while waiting for a response from the node")]
@@ -53,6 +55,7 @@ impl PartialEq for Error {
             (Self::InvalidTransactionId, Self::InvalidTransactionId) => true,
             (Self::InvalidNodeId, Self::InvalidNodeId) => true,
             (Self::InvalidAddr, Self::InvalidAddr) => true,
+            (Self::InvalidToken, Self::InvalidToken) => true,
             (Self::Response(code, _), Self::Response(other_code, _)) => code == other_code,
             (Self::Timeout, Self::Timeout) => true,
             (Self::Parse(_), Self::Parse(_)) => true,

@@ -13,13 +13,28 @@ mod tracker;
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    /// Create a new DHT tracker server pair.
+    #[macro_export]
+    macro_rules! create_node_server_pair {
+        () => {{
+            use crate::create_node_server_pair;
+            use crate::torrent::dht::node_id::NodeId;
 
-    /// Create a new DHT node server pair.
-    pub async fn create_node_server_pair() -> (DhtTracker, DhtTracker) {
-        let node1 = DhtTracker::builder().build().await.unwrap();
-        let node2 = DhtTracker::builder().build().await.unwrap();
+            create_node_server_pair!(NodeId::new(), NodeId::new())
+        }};
+        ($node_id1:expr, $node_id2:expr) => {{
+            let left_node = DhtTracker::builder()
+                .node_id($node_id1)
+                .build()
+                .await
+                .unwrap();
+            let right_node = DhtTracker::builder()
+                .node_id($node_id2)
+                .build()
+                .await
+                .unwrap();
 
-        (node1, node2)
+            (left_node, right_node)
+        }};
     }
 }

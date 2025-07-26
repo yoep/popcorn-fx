@@ -1,10 +1,11 @@
-use crate::torrent::dht::compact::CompactIPv4Nodes;
+use crate::torrent::dht::compact::{CompactIPv4Nodes, CompactIPv6Nodes};
 use crate::torrent::dht::krpc::{
-    FindNodeRequest, FindNodeResponse, Message, MessagePayload, PingMessage, QueryMessage,
-    ResponseMessage,
+    FindNodeRequest, FindNodeResponse, GetPeersRequest, Message, MessagePayload, PingMessage,
+    QueryMessage, ResponseMessage,
 };
 use crate::torrent::dht::routing_table::RoutingTable;
-use crate::torrent::dht::{Error, Node, NodeId, Result};
+use crate::torrent::dht::{Error, Node, NodeId, Result, Token};
+use crate::torrent::{CompactIpv4Addr, CompactIpv6Addr, InfoHash, COMPACT_IPV6_ADDR_LEN};
 use derive_more::Display;
 use log::{debug, info, trace, warn};
 use std::collections::HashMap;
@@ -24,7 +25,9 @@ use tokio_util::sync::CancellationToken;
 /// The maximum size of a single UDP packet.
 const MAX_PACKET_SIZE: usize = 65_535;
 const REFRESH_INTERVAL_MINUTES: u64 = 15;
+const SEND_PACKAGE_TIMEOUT_AFTER_SECS: u64 = 6;
 const RESPONSE_TIMEOUT_AFTER_SECS: u64 = 8;
+const DEFAULT_BUCKET_SIZE: usize = 8;
 pub const DEFAULT_BOOTSTRAP_SERVERS: fn() -> Vec<&'static str> = || {
     vec![
         "router.utorrent.com:6881",
@@ -62,8 +65,8 @@ impl DhtTracker {
     /// # Arguments
     ///
     /// * `id` - The node ID of the DHT server.
-    /// * `bootstrap_nodes` - The initial nodes to bootstrap the DHT server from.
-    pub async fn new(id: NodeId, bootstrap_nodes: Vec<SocketAddr>) -> Result<Self> {
+    /// * `routing_nodes` - The router nodes only used for searching new nodes. These are never returned in a response.
+    pub async fn new(id: NodeId, routing_nodes: Vec<Node>) -> Result<Self> {
         let socket = Arc::new(UdpSocket::bind("0.0.0.0:0").await?);
         let socket_addr = socket.local_addr()?;
         let (sender, receiver) = unbounded_channel();
@@ -80,9 +83,9 @@ impl DhtTracker {
             transaction_id: Default::default(),
             socket,
             socket_addr,
-            routing_table: Mutex::new(RoutingTable::new(id, 8)),
+            routing_table: Mutex::new(RoutingTable::new(id, DEFAULT_BUCKET_SIZE, routing_nodes)),
             pending_requests: Default::default(),
-            timeout: Duration::from_secs(6),
+            send_timeout: Duration::from_secs(SEND_PACKAGE_TIMEOUT_AFTER_SECS),
             command_sender,
             cancellation_token,
         });
@@ -94,9 +97,7 @@ impl DhtTracker {
 
         let inner_main = inner.clone();
         tokio::spawn(async move {
-            inner_main
-                .start(bootstrap_nodes, receiver, command_receiver)
-                .await;
+            inner_main.start(receiver, command_receiver).await;
         });
 
         Ok(Self { inner })
@@ -115,6 +116,15 @@ impl DhtTracker {
     /// Get the port on which the DHT server is running.
     pub fn port(&self) -> u16 {
         self.inner.socket_addr.port()
+    }
+
+    /// Add the given router node address to the tracker.
+    pub fn add_router_node(&self, addr: SocketAddr) {
+        let node = Node::new(NodeId::from(&addr), addr);
+        let _ = self
+            .inner
+            .command_sender
+            .send(TrackerCommand::AddRouterNode(node));
     }
 
     /// Try to ping the given node address.
@@ -149,9 +159,20 @@ impl DhtTracker {
 
     /// Try to find nearby nodes for the given node id.
     /// This function waits for a response from one or more nodes within the routing table.
-    /// Each query to a node is limited to the given timeout.
+    /// Each queried node is limited to the given timeout.
     pub async fn find_nodes(&self, target_id: NodeId, timeout: Duration) -> Result<Vec<Node>> {
         self.inner.find_nodes(target_id, timeout).await
+    }
+
+    /// Try to find peers for the given torrent info hash.
+    ///This function waits for a response from one oe more nodes within the routing table.
+    /// Each queried node is limited to the given timeout.
+    pub async fn get_peers(
+        &self,
+        info_hash: &InfoHash,
+        timeout: Duration,
+    ) -> Result<Vec<SocketAddr>> {
+        self.inner.get_peers(info_hash, timeout).await
     }
 
     /// Close the DHT node server.
@@ -172,7 +193,7 @@ impl Drop for DhtTracker {
 #[derive(Debug, Default)]
 pub struct DhtTrackerBuilder {
     node_id: Option<NodeId>,
-    bootstrap_nodes: Option<Vec<SocketAddr>>,
+    routing_nodes: Option<Vec<SocketAddr>>,
 }
 
 impl DhtTrackerBuilder {
@@ -182,23 +203,29 @@ impl DhtTrackerBuilder {
         self
     }
 
-    /// Add the given address to the bootstrap nodes.
-    pub fn bootstrap_node(&mut self, addr: SocketAddr) -> &mut Self {
-        self.bootstrap_nodes.get_or_insert_default().push(addr);
+    /// Add the given address to the routing nodes used for searching new nodes.
+    pub fn routing_node(&mut self, addr: SocketAddr) -> &mut Self {
+        self.routing_nodes.get_or_insert_default().push(addr);
         self
     }
 
-    /// Set the initial bootstrap nodes to use.
-    /// This replaces any already existing configured bootstrap nodes.
-    pub fn bootstrap_nodes(&mut self, nodes: Vec<SocketAddr>) -> &mut Self {
-        self.bootstrap_nodes = Some(nodes);
+    /// Set the routing nodes to use for searching new nodes.
+    /// This replaces any already existing configured routing nodes.
+    pub fn routing_nodes(&mut self, nodes: Vec<SocketAddr>) -> &mut Self {
+        self.routing_nodes = Some(nodes);
         self
     }
 
     /// Try to create a new DHT node server from this builder.
     pub async fn build(&mut self) -> Result<DhtTracker> {
         let node_id = self.node_id.take().unwrap_or_else(|| NodeId::new());
-        let bootstrap_server = self.bootstrap_nodes.take().unwrap_or_default();
+        let bootstrap_server = self
+            .routing_nodes
+            .take()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|addr| Node::new(NodeId::from(&addr), addr))
+            .collect();
 
         DhtTracker::new(node_id, bootstrap_server).await
     }
@@ -211,8 +238,12 @@ enum TrackerCommand {
     Ping(SocketAddr, PingSender),
     /// Query the closest nodes at the given node address for the target node id.
     FindNode(NodeId, SocketAddr, FindNodeSender),
-    /// Add the given verified node.
+    /// Try to add the node to the routing by first verifying if it's valid
+    AddNode(Node),
+    /// Add the verified node to the routing table
     AddVerifiedNode(Node),
+    /// Add the router node to the routing table
+    AddRouterNode(Node),
 }
 
 #[derive(Debug, Display)]
@@ -230,8 +261,8 @@ struct InnerTracker {
     routing_table: Mutex<RoutingTable>,
     /// The currently pending requests of the server
     pending_requests: Mutex<HashMap<TransactionKey, PendingRequest>>,
-    /// The timeout duration of packages
-    timeout: Duration,
+    /// The timeout while trying to send packages to a target address
+    send_timeout: Duration,
     /// The underlying async command sender
     command_sender: UnboundedSender<TrackerCommand>,
     /// The cancellation token of the server
@@ -241,17 +272,20 @@ struct InnerTracker {
 impl InnerTracker {
     async fn start(
         &self,
-        bootstrap_nodes: Vec<SocketAddr>,
         mut receiver: UnboundedReceiver<(Message, SocketAddr)>,
         mut command_receiver: UnboundedReceiver<TrackerCommand>,
     ) {
-        if bootstrap_nodes.len() > 0 {
-            let tracker_id = self.id;
-            let tracker_info = self.to_string();
-            let command_sender = self.command_sender.clone();
-            tokio::spawn(async move {
-                Self::bootstrap(tracker_id, tracker_info, bootstrap_nodes, command_sender).await;
-            });
+        {
+            let routing_table = self.routing_table.lock().await;
+            if routing_table.router_nodes().len() > 0 {
+                let tracker_id = self.id;
+                let tracker_info = self.to_string();
+                let command_sender = self.command_sender.clone();
+                let router_nodes = routing_table.router_nodes().to_vec();
+                tokio::spawn(async move {
+                    Self::bootstrap(tracker_id, tracker_info, router_nodes, command_sender).await;
+                });
+            }
         }
 
         let mut refresh_interval = interval(Duration::from_secs(60 * REFRESH_INTERVAL_MINUTES));
@@ -276,7 +310,13 @@ impl InnerTracker {
 
     /// Try to process an incoming DHT message from the given node address.
     async fn handle_incoming_message(&self, message: Message, addr: SocketAddr) -> Result<()> {
-        trace!("{} received message from {}, {:?}", self, addr, message);
+        trace!(
+            "{} received message (transaction {}) from {}, {:?}",
+            self,
+            message.transaction_id(),
+            addr,
+            message
+        );
         let id = message.transaction_id();
         let key = TransactionKey { id, addr };
 
@@ -313,7 +353,7 @@ impl InnerTracker {
                     )
                     .await?;
                 }
-                QueryMessage::GetPeers { request } => {}
+                QueryMessage::GetPeers { .. } => {}
                 QueryMessage::AnnouncePeer => {}
             },
             MessagePayload::Response(response) => {
@@ -332,12 +372,10 @@ impl InnerTracker {
                             reply = Ok(Reply::Ping(Node::new(response.id, addr)));
                         }
                         ResponseMessage::FindNode { response } => {
-                            trace!("{} parsing compact nodes", self);
                             let nodes = CompactIPv4Nodes::try_from(response.nodes.as_slice()).map(
-                                |nodes| {
-                                    nodes
-                                        .as_slice()
-                                        .iter()
+                                |compact_nodes| {
+                                    compact_nodes
+                                        .into_iter()
                                         .map(|node| Node::new(node.id, node.addr.clone().into()))
                                         .collect::<Vec<Node>>()
                                 },
@@ -346,13 +384,11 @@ impl InnerTracker {
                             reply = match nodes {
                                 Ok(nodes) => {
                                     debug!("{} discovered a total of {} nodes", self, nodes.len());
-                                    futures::future::join_all(
-                                        nodes
-                                            .iter()
-                                            .map(|e| self.add_node(e.clone()))
-                                            .collect::<Vec<_>>(),
-                                    )
-                                    .await;
+                                    for node in &nodes {
+                                        let _ = self
+                                            .command_sender
+                                            .send(TrackerCommand::AddNode(node.clone()));
+                                    }
 
                                     Ok(Reply::FindNode(nodes))
                                 }
@@ -360,8 +396,56 @@ impl InnerTracker {
                             }
                         }
                         ResponseMessage::GetPeers { response } => {
-                            trace!("{} parsing compact peers", self);
-                            todo!()
+                            if let Err(e) = self
+                                .update_announce_token(&response.id, &response.token)
+                                .await
+                            {
+                                reply = Err(e);
+                            } else {
+                                if let Some(nodes) = &response.nodes {
+                                    match self.parse_compact_nodes(nodes.as_slice()) {
+                                        Ok(nodes) => {
+                                            for node in nodes {
+                                                let _ = self
+                                                    .command_sender
+                                                    .send(TrackerCommand::AddNode(node));
+                                            }
+                                        }
+                                        Err(e) => warn!("{} failed to parse nodes, {}", self, e),
+                                    }
+                                }
+
+                                let peers = if let Some(peers) = &response.values {
+                                    peers
+                                        .iter()
+                                        .map(|e| {
+                                            if e.len() == COMPACT_IPV6_ADDR_LEN {
+                                                CompactIpv6Addr::try_from(e.as_slice())
+                                                    .map(Into::<SocketAddr>::into)
+                                                    .map_err(|e| {
+                                                        Error::Parse(format!(
+                                                            "failed to parse compact peer, {}",
+                                                            e
+                                                        ))
+                                                    })
+                                            } else {
+                                                CompactIpv4Addr::try_from(e.as_slice())
+                                                    .map(Into::<SocketAddr>::into)
+                                                    .map_err(|e| {
+                                                        Error::Parse(format!(
+                                                            "failed to parse compact peer, {}",
+                                                            e
+                                                        ))
+                                                    })
+                                            }
+                                        })
+                                        .collect::<Result<Vec<SocketAddr>>>()
+                                } else {
+                                    Ok(Vec::with_capacity(0))
+                                };
+
+                                reply = peers.map(Reply::GetPeers)
+                            }
                         }
                     }
 
@@ -394,7 +478,9 @@ impl InnerTracker {
         match command {
             TrackerCommand::Ping(addr, sender) => self.ping(&addr, sender).await,
             TrackerCommand::FindNode(id, addr, sender) => self.find_node(id, &addr, sender).await,
+            TrackerCommand::AddNode(node) => self.add_node(node).await,
             TrackerCommand::AddVerifiedNode(node) => self.add_verified_node(node).await,
+            TrackerCommand::AddRouterNode(node) => self.add_router_node(node).await,
         }
     }
 
@@ -427,7 +513,7 @@ impl InnerTracker {
 
         {
             let routing_table = self.routing_table.lock().await;
-            nodes = routing_table.nodes();
+            nodes = routing_table.search_nodes();
         }
 
         let futures: Vec<_> = nodes
@@ -450,14 +536,13 @@ impl InnerTracker {
         Ok(futures::future::join_all(futures)
             .await
             .into_iter()
-            .map(|result| match result {
+            .flat_map(|result| match result {
                 Err(e) => {
                     trace!("{} failed to query nodes, {}", self, e);
                     Vec::with_capacity(0)
                 }
                 Ok(e) => e,
             })
-            .flatten()
             .collect())
     }
 
@@ -480,6 +565,64 @@ impl InnerTracker {
             PendingRequestType::FindNode(sender),
         )
         .await;
+    }
+
+    /// Get peers for the given torrent info hash.
+    ///
+    /// # Arguments
+    ///
+    /// * `info_hash` - The info hash to search peers for.
+    /// * `timeout` - The timeout of the query for individual nodes.
+    async fn get_peers(&self, info_hash: &InfoHash, timeout: Duration) -> Result<Vec<SocketAddr>> {
+        let nodes: Vec<Node>;
+
+        {
+            let routing_table = self.routing_table.lock().await;
+            nodes = routing_table.search_nodes();
+        }
+
+        let futures: Vec<_> = nodes
+            .into_iter()
+            .map(|node| {
+                let info_hash = info_hash.clone();
+                async move {
+                    let (tx, rx) = oneshot::channel();
+                    self.send_query(
+                        QueryMessage::GetPeers {
+                            request: GetPeersRequest {
+                                id: self.id,
+                                info_hash,
+                            },
+                        },
+                        &node.addr,
+                        PendingRequestType::GetPeers(tx),
+                    )
+                    .await;
+
+                    select! {
+                        _ = time::sleep(timeout) => Err(Error::Timeout),
+                        result = rx => {
+                            match result {
+                                Ok(e) => e,
+                                Err(_) => Err(Error::Closed),
+                            }
+                        },
+                    }
+                }
+            })
+            .collect();
+
+        Ok(futures::future::join_all(futures)
+            .await
+            .into_iter()
+            .flat_map(|result| match result {
+                Err(e) => {
+                    trace!("{} failed to get peers, {}", self, e);
+                    Vec::with_capacity(0)
+                }
+                Ok(e) => e,
+            })
+            .collect())
     }
 
     /// Send a new query to the given node address.
@@ -513,7 +656,10 @@ impl InnerTracker {
             }
         };
 
-        debug!("{} is sending query \"{}\" to {}", self, name, addr);
+        debug!(
+            "{} is sending query \"{}\" (transaction {}) to {}",
+            self, name, id, addr
+        );
         match self.send(message, addr).await {
             Ok(_) => {
                 self.pending_requests.lock().await.insert(
@@ -564,22 +710,26 @@ impl InnerTracker {
         let bytes = serde_bencode::to_bytes(&message)?;
 
         trace!(
-            "{} is sending message ({} bytes) to {}, {:?}",
+            "{} is sending message ({} bytes, transaction {}) to {}, {:?}",
             self,
             bytes.len(),
+            message.transaction_id(),
             addr,
             message
         );
         let start_time = Instant::now();
-        timeout(self.timeout, self.socket.send_to(bytes.as_slice(), addr))
-            .await
-            .map_err(|_| {
-                Error::Io(io::Error::new(
-                    io::ErrorKind::TimedOut,
-                    format!("connection to {} has timed out", addr),
-                ))
-            })?
-            .map_err(Error::from)?;
+        timeout(
+            self.send_timeout,
+            self.socket.send_to(bytes.as_slice(), addr),
+        )
+        .await
+        .map_err(|_| {
+            Error::Io(io::Error::new(
+                io::ErrorKind::TimedOut,
+                format!("connection to {} has timed out", addr),
+            ))
+        })?
+        .map_err(Error::from)?;
         let elapsed = start_time.elapsed();
         trace!(
             "{} sent {} bytes to {} in {}.{:03}ms",
@@ -618,9 +768,15 @@ impl InnerTracker {
     /// This should only be called if the node could be reached with a ping.
     async fn add_verified_node(&self, node: Node) {
         let addr = node.addr;
-        if self.routing_table.lock().await.add_node(node) {
-            debug!("{} added new node {}", self, addr);
+        if let Some(bucket) = self.routing_table.lock().await.add_node(node) {
+            debug!("{} added node {} to bucket {}", self, addr, bucket);
         }
+    }
+
+    /// Add the given router node to the routing table.
+    /// These will only be used during searches, but never returned in a response.
+    async fn add_router_node(&self, node: Node) {
+        self.routing_table.lock().await.add_router_node(node)
     }
 
     /// Refresh the nodes within the routing table.
@@ -658,6 +814,28 @@ impl InnerTracker {
         }
     }
 
+    /// Try to update the announce token for the given node ID.
+    ///
+    /// It returns an error when the node ID couldn't be found within the routing table or the token value is invalid.
+    async fn update_announce_token(
+        &self,
+        id: &NodeId,
+        token_value: impl AsRef<[u8]>,
+    ) -> Result<()> {
+        let mut routing_table = self.routing_table.lock().await;
+        let node = routing_table
+            .find_node_mut(id)
+            .ok_or(Error::InvalidNodeId)?;
+        let token = Token::try_from(token_value.as_ref())?;
+        node.update_announce_token(token);
+        Ok(())
+    }
+
+    /// Check if the current track is an IPv4 tracker.
+    fn is_ipv4(&self) -> bool {
+        self.socket_addr.is_ipv4()
+    }
+
     /// Get the next transaction ID for sending a new message.
     /// The transaction ID within the server will be automatically wrapped when [u16::MAX] has been reached.
     fn next_transaction_id(&self) -> u16 {
@@ -676,6 +854,17 @@ impl InnerTracker {
         }
     }
 
+    /// Parse the given compact nodes byte slice into nodes.
+    fn parse_compact_nodes(&self, compact_nodes_bytes: &[u8]) -> Result<Vec<Node>> {
+        if self.is_ipv4() {
+            CompactIPv4Nodes::try_from(compact_nodes_bytes)
+                .map(|nodes| nodes.into_iter().map(Node::from).collect())
+        } else {
+            CompactIPv6Nodes::try_from(compact_nodes_bytes)
+                .map(|nodes| nodes.into_iter().map(Node::from).collect())
+        }
+    }
+
     fn close(&self) {
         if self.cancellation_token.is_cancelled() {
             return;
@@ -689,7 +878,7 @@ impl InnerTracker {
     async fn bootstrap(
         tracker_id: NodeId,
         tracker_info: String,
-        bootstrap_nodes: Vec<SocketAddr>,
+        bootstrap_nodes: Vec<Node>,
         command_sender: UnboundedSender<TrackerCommand>,
     ) {
         let mut futures = vec![];
@@ -700,9 +889,9 @@ impl InnerTracker {
             tracker_info,
             bootstrap_nodes.len()
         );
-        for addr in bootstrap_nodes.iter() {
+        for node in bootstrap_nodes.iter() {
             let command_sender = command_sender.clone();
-            futures.push(Self::bootstrap_node(addr, tracker_id, command_sender));
+            futures.push(Self::bootstrap_node(&node.addr, tracker_id, command_sender));
         }
 
         let total_bootstrapped_nodes = futures::future::join_all(futures)
@@ -883,27 +1072,39 @@ struct TransactionKey {
 mod tests {
     use super::*;
 
-    use crate::torrent::dht::tests::create_node_server_pair;
+    use crate::create_node_server_pair;
     use crate::{init_logger, timeout};
 
-    #[tokio::test]
-    async fn test_tracker_new() {
-        init_logger!();
-        let node_id = NodeId::new();
-        let result = DhtTracker::new(node_id, Vec::new())
-            .await
-            .expect("expected a new DHT server");
+    mod new {
+        use super::*;
 
-        assert_eq!(
-            node_id,
-            result.id(),
-            "expected a new random node ID to have been generated"
-        );
-        assert_ne!(
-            0,
-            result.port(),
-            "expected a server port to have been present"
-        );
+        #[tokio::test]
+        async fn test_tracker_new() {
+            init_logger!();
+            let node_id = NodeId::new();
+            let tracker = DhtTracker::new(node_id, Vec::new())
+                .await
+                .expect("expected a new DHT server");
+
+            // verify the tracker id
+            assert_eq!(
+                node_id,
+                tracker.id(),
+                "expected a new random node ID to have been generated"
+            );
+            assert_ne!(
+                0,
+                tracker.port(),
+                "expected a server port to have been present"
+            );
+
+            // verify the routing table id
+            let routing_table_id = tracker.inner.routing_table.lock().await.id;
+            assert_eq!(
+                node_id, routing_table_id,
+                "expected the routing table id to match the given ID"
+            );
+        }
     }
 
     mod ping {
@@ -912,7 +1113,7 @@ mod tests {
         #[tokio::test]
         async fn test_ping_valid_address() {
             init_logger!();
-            let (incoming, outgoing) = create_node_server_pair().await;
+            let (incoming, outgoing) = create_node_server_pair!();
 
             let _ = timeout!(
                 outgoing.ping(([127, 0, 0, 1], incoming.port()).into()),
@@ -941,7 +1142,7 @@ mod tests {
         #[tokio::test]
         async fn test_ping_invalid_address() {
             init_logger!();
-            let (incoming, outgoing) = create_node_server_pair().await;
+            let (incoming, outgoing) = create_node_server_pair!();
 
             let result = timeout!(
                 outgoing.ping(incoming.addr()), // this will try to send to 0.0.0.0:X
@@ -963,10 +1164,53 @@ mod tests {
         #[tokio::test]
         async fn test_find_node() {
             init_logger!();
-            let node_ip = SocketAddr::from(([127, 0, 0, 1], 7000));
-            let node = Node::new(NodeId::from_ip(&node_ip), node_ip);
-            let nearby_node_ip = SocketAddr::from(([127, 0, 0, 2], 7600));
-            let (incoming, outgoing) = create_node_server_pair().await;
+            let rand = 2;
+            let search_node_id = NodeId::from_ip_with_rand(&[132, 141, 12, 40].into(), rand);
+            let node_incoming_id = NodeId::from_ip_with_rand(&[127, 0, 0, 1].into(), rand);
+            let node_outgoing_id = NodeId::from_ip_with_rand(&[127, 0, 0, 1].into(), rand);
+            let (incoming, outgoing) = create_node_server_pair!(node_incoming_id, node_outgoing_id);
+
+            // register the incoming tracker with the outgoing tracker
+            outgoing
+                .inner
+                .add_router_node(Node::new(
+                    incoming.id(),
+                    ([127, 0, 0, 1], incoming.port()).into(),
+                ))
+                .await;
+
+            // calculate the bucket which will be retrieved by the search node
+            let bucket_index = node_incoming_id.distance(&search_node_id);
+            // create a node which matches the search bucket index
+            let mut nearby_node = NodeId::new();
+            while node_incoming_id.distance(&nearby_node) != bucket_index {
+                nearby_node = NodeId::new();
+            }
+            incoming
+                .inner
+                .add_verified_node(Node::new(nearby_node, ([132, 141, 45, 30], 8090).into()))
+                .await;
+
+            // request the node info from the nearby node
+            let result = outgoing
+                .find_nodes(search_node_id, Duration::from_millis(500))
+                .await
+                .expect("expected to retrieve relevant nodes");
+            assert_eq!(1, result.len(), "expected one node to have been present");
+        }
+    }
+
+    mod get_peers {
+        use super::*;
+
+        use std::str::FromStr;
+
+        #[tokio::test]
+        async fn test_get_peers() {
+            init_logger!();
+            let info_hash = InfoHash::from_str("urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7")
+                .expect("expected a valid hash");
+            let (incoming, outgoing) = create_node_server_pair!();
 
             // register the incoming tracker with the outgoing tracker
             outgoing
@@ -977,15 +1221,10 @@ mod tests {
                 ))
                 .await;
 
-            // add a node within the incoming tracker which we can retrieve
-            incoming.inner.add_verified_node(node).await;
-
-            // request the node info from the nearby node
             let result = outgoing
-                .find_nodes(NodeId::from_ip(&nearby_node_ip), Duration::from_millis(500))
+                .get_peers(&info_hash, Duration::from_secs(2))
                 .await
-                .expect("expected to retrieve relevant nodes");
-            assert_eq!(1, result.len(), "expected one node to have been present");
+                .expect("expected to get peers");
         }
     }
 
@@ -1009,7 +1248,7 @@ mod tests {
                             .into_iter()
                             .flatten()
                             .for_each(|addr| {
-                                node_server.bootstrap_node(addr);
+                                node_server.routing_node(addr);
                             })
                     }
                     Err(e) => warn!("Failed to resolve IP of node bootstrap \"{}\", {}", addr, e),

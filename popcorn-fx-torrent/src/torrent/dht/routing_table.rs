@@ -3,6 +3,7 @@ use itertools::Itertools;
 use log::trace;
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
+use std::net::SocketAddr;
 use std::time::Instant;
 
 #[derive(Debug)]
@@ -14,15 +15,18 @@ pub struct RoutingTable {
     /// The number of nodes that can be stored within a bucket.
     /// This is the "K" value as described in BEP5.
     pub bucket_size: usize,
+    /// The router nodes of the routing table used for searching.
+    router_nodes: Vec<Node>,
 }
 
 impl RoutingTable {
     /// Create a new routing table for the given root node.
-    pub fn new(id: NodeId, bucket_size: usize) -> Self {
+    pub fn new(id: NodeId, bucket_size: usize, router_nodes: Vec<Node>) -> Self {
         Self {
             id,
             buckets: Default::default(),
             bucket_size,
+            router_nodes,
         }
     }
 
@@ -31,13 +35,27 @@ impl RoutingTable {
         self.buckets.iter().map(|(_, bucket)| bucket.len()).sum()
     }
 
-    /// Get all nodes within the routing table.
+    /// Get all bucket nodes within the routing table.
+    /// Does not include any router nodes.
     pub fn nodes(&self) -> Vec<Node> {
         self.buckets
             .iter()
-            .map(|(_, bucket)| bucket.nodes.clone())
-            .flatten()
+            .flat_map(|(_, bucket)| bucket.nodes.iter().cloned())
             .collect()
+    }
+
+    /// Get all nodes used during search operations.
+    /// Includes both bucket and router nodes.
+    pub fn search_nodes(&self) -> Vec<Node> {
+        let mut nodes = self.nodes();
+        nodes.extend(self.router_nodes.iter().cloned());
+        nodes
+    }
+
+    /// Get all router nodes in the routing table.
+    /// These nodes are only used for search and should not appear in responses.
+    pub fn router_nodes(&self) -> &[Node] {
+        &self.router_nodes
     }
 
     /// Try to find the node within the routing table for the given ID.
@@ -46,6 +64,15 @@ impl RoutingTable {
         self.buckets
             .get(&distance)
             .and_then(|bucket| bucket.nodes.iter().find(|node| &node.id == id))
+    }
+
+    /// Try to find the node within the routing table for the given ID.
+    /// It returns a mutable reference to the stored node when found.
+    pub fn find_node_mut(&mut self, id: &NodeId) -> Option<&mut Node> {
+        let distance = self.id.distance(id);
+        self.buckets
+            .get_mut(&distance)
+            .and_then(|bucket| bucket.nodes.iter_mut().find(|node| &node.id == id))
     }
 
     /// Try to find all nodes within the bucket of the given target node ID.
@@ -58,11 +85,15 @@ impl RoutingTable {
     }
 
     /// Try to add the given node to the routing table.
-    pub fn add_node(&mut self, node: Node) -> bool {
+    ///
+    /// # Returns
+    ///
+    /// It returns the bucket id to which the node has been added, else [None].
+    pub fn add_node(&mut self, node: Node) -> Option<u8> {
         let distance = self.id.distance(&node.id);
         if distance == 0 {
             trace!("Routing table is ignoring node, node has same ID as the routing table");
-            return false;
+            return None;
         }
 
         let bucket = self
@@ -71,11 +102,26 @@ impl RoutingTable {
             .or_insert_with(|| Bucket::new(self.bucket_size));
         // check if the node already exists within the bucket
         if bucket.nodes.contains(&node) {
-            return false;
+            return None;
         }
 
         // try to add the node within the bucket
-        bucket.add(node)
+        if bucket.add(node) {
+            Some(distance)
+        } else {
+            None
+        }
+    }
+
+    /// Add the given router node to the routing table.
+    /// These will only be used during searches, but never returned in a response.
+    pub fn add_router_node(&mut self, node: Node) {
+        // check if the router node is already known
+        if self.contains_router_node(&node.addr) {
+            return;
+        }
+
+        self.router_nodes.push(node);
     }
 
     /// Refresh all buckets within the routing table.
@@ -87,6 +133,11 @@ impl RoutingTable {
         for (_, bucket) in self.buckets.iter_mut() {
             bucket.refresh().await;
         }
+    }
+
+    /// Check if the given address is already registered as a router node.
+    fn contains_router_node(&self, addr: &SocketAddr) -> bool {
+        self.router_nodes.iter().find(|e| e.addr == *addr).is_some()
     }
 }
 
@@ -171,19 +222,30 @@ mod tests {
             init_logger!();
             let node_id = NodeId::new();
             let node = Node::new(node_id, ([127, 0, 0, 1], 9000).into());
-            let mut routing_table = RoutingTable::new(node_id, 2);
+            let mut routing_table = RoutingTable::new(node_id, 2, Vec::with_capacity(0));
 
             let result = routing_table.add_node(node);
             assert_eq!(
-                false, result,
+                None, result,
                 "expected the node ID of the routing table to not have been added"
             );
 
             let result = routing_table.len();
-            assert_eq!(
-                1, result,
-                "expected the node to have been stored within the routing table"
-            );
+            assert_eq!(0, result, "expected the node to not have been stored");
+        }
+
+        #[test]
+        fn test_add_node() {
+            init_logger!();
+            let node_id = NodeId::new();
+            let node = Node::new(node_id, ([127, 0, 0, 1], 10000).into());
+            let mut routing_table = RoutingTable::new(NodeId::new(), 10, Vec::with_capacity(0));
+
+            let result = routing_table.add_node(node);
+            assert_ne!(None, result, "expected the node to have been added");
+
+            let result = routing_table.len();
+            assert_eq!(1, result, "expected the node to have been stored");
         }
     }
 

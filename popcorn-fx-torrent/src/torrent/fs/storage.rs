@@ -350,7 +350,10 @@ mod tests {
             .err()
             .expect("expected an error to have been returned")
             .to_string();
-        assert_eq!("EOF reached at 262144/512000".to_string(), err_text);
+        assert_eq!(
+            "an io error occurred, EOF reached at 262144/512000".to_string(),
+            err_text
+        );
     }
 
     #[tokio::test]

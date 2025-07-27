@@ -147,7 +147,7 @@ impl TryFrom<&[u8]> for Token {
     type Error = Error;
 
     fn try_from(value: &[u8]) -> Result<Self> {
-        if value.len() != TOKEN_SIZE {
+        if value.len() != TOKEN_SECRET_SIZE {
             return Err(Error::InvalidToken);
         }
 
@@ -182,7 +182,7 @@ mod tests {
 
         #[test]
         fn test_token_from_byte_slice() {
-            let token = "aoeusnth".as_bytes();
+            let token = "aoeusnthaoeusnthaoeu".as_bytes();
 
             let result = Token::try_from(token).expect("expected the token value to be valid");
 

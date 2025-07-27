@@ -90,14 +90,21 @@ impl PartialEq for TorrentError {
             (Self::InvalidSessionState(_), Self::InvalidSessionState(_)) => true,
             (Self::InvalidRequest(_), Self::InvalidRequest(_)) => true,
             (Self::InvalidSession(_), Self::InvalidSession(_)) => true,
-            (Self::Peer(_), Self::Peer(_)) => true,
-            (Self::Dht(_), Self::Dht(_)) => true,
+            (Self::Tracker(le), Self::Tracker(re)) => le == re,
+            (Self::Peer(le), Self::Peer(re)) => le == re,
+            (Self::Dht(le), Self::Dht(re)) => le == re,
             (Self::Io(_), Self::Io(_)) => true,
             (Self::Timeout, Self::Timeout) => true,
             (Self::Piece(_), Self::Piece(_)) => true,
             (Self::DataUnavailable, Self::DataUnavailable) => true,
             _ => false,
         }
+    }
+}
+
+impl From<MagnetError> for TorrentError {
+    fn from(err: MagnetError) -> Self {
+        TorrentError::Magnet(err)
     }
 }
 
@@ -155,24 +162,35 @@ mod tests {
     use std::io;
 
     #[test]
-    fn test_torrent_error_from_tracker_error() {
-        let err = TrackerError::Connection("foo bar".to_string());
+    fn test_torrent_error_from_magnet_error() {
+        let err_text = "lorem ipsum dolor";
+        let err = MagnetError::Parse(err_text.to_string());
+        let expected_result = TorrentError::Magnet(err.clone());
 
         let result: TorrentError = err.into();
 
-        assert_eq!(
-            result,
-            TorrentError::Tracker(TrackerError::Connection("foo bar".to_string()))
-        );
+        assert_eq!(expected_result, result)
+    }
+
+    #[test]
+    fn test_torrent_error_from_tracker_error() {
+        let err_text = "foo bar";
+        let err = TrackerError::Connection(err_text.to_string());
+        let expected_result = TorrentError::Tracker(err.clone());
+
+        let result: TorrentError = err.into();
+
+        assert_eq!(expected_result, result);
     }
 
     #[test]
     fn test_torrent_error_from_peer_error() {
         let err = peer::Error::InvalidPeerId;
+        let expected_result = TorrentError::Peer(peer::Error::InvalidPeerId);
 
         let result: TorrentError = err.into();
 
-        assert_eq!(result, TorrentError::Peer(peer::Error::InvalidPeerId));
+        assert_eq!(expected_result, result);
     }
 
     #[test]
@@ -183,6 +201,6 @@ mod tests {
         let result: TorrentError = io_err.into();
 
         let err_text = result.to_string();
-        assert_eq!(error, err_text);
+        assert_eq!(format!("an io error occurred, {}", error), err_text);
     }
 }

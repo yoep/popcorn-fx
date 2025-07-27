@@ -490,7 +490,7 @@ impl Session for FxTorrentSession {
     fn resolve(&self, uri: &str) -> Result<TorrentMetadata> {
         trace!("Resolving torrent uri {}", uri);
         Magnet::from_str(uri)
-            .map_err(|e| TorrentError::Magnet(e))
+            .map_err(Into::<TorrentError>::into)
             .and_then(|e| TorrentMetadata::try_from(e))
             .map(|e| Ok::<TorrentMetadata, TorrentError>(e))
             .unwrap_or_else(|_| {

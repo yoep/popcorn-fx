@@ -422,32 +422,22 @@ pub mod testing {
     #[macro_export]
     macro_rules! assert_timeout {
         ($timeout:expr, $condition:expr) => {{
-            let result = tokio::select! {
-                _ = tokio::time::sleep($timeout) => false,
-                result = async {
-                    loop {
-                        if $condition {
-                            return true;
-                        }
-                        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-                    }
-                } => result,
-            };
-
-            if !result {
-                assert!(false, "Timeout assertion failed after {:?}", $timeout);
-            }
+            assert_timeout!($timeout, $condition, "")
         }};
         ($timeout:expr, $condition:expr, $message:expr) => {{
-            let result = tokio::select! {
-                _ = tokio::time::sleep($timeout) => false,
+            use std::time::Duration;
+            use tokio::select;
+            use tokio::time;
+
+            let result = select! {
+                _ = time::sleep($timeout) => false,
                 result = async {
                     loop {
                         if $condition {
                             return true;
                         }
 
-                        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+                        time::sleep(Duration::from_millis(10)).await;
                     }
                 } => result,
             };

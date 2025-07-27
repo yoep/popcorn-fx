@@ -9,6 +9,9 @@ const TOKEN_SIZE: usize = 4;
 const QUESTIONABLE_NODE_AFTER: Duration = Duration::from_secs(15 * 60); // 15 mins.
 const QUESTIONABLE_NODE_AFTER_TIMEOUTS: usize = 5;
 
+/// A node token type alias.
+pub type Token = [u8; TOKEN_SIZE];
+
 /// The node information within the DHT network
 #[derive(Debug, Clone)]
 pub struct Node {
@@ -17,9 +20,9 @@ pub struct Node {
     /// The address of the node within the DHT network
     pub addr: SocketAddr,
     /// The unique token of the node
-    pub token: Token,
+    pub token: TokenSecret,
     /// The token to use for announcing a peer
-    pub announce_token: Option<Token>,
+    pub announce_token: Option<TokenSecret>,
     /// The current state of the node
     pub state: NodeState,
     /// The last time we received a message from the node
@@ -34,7 +37,7 @@ impl Node {
         Self {
             id,
             addr,
-            token: Token::new(),
+            token: TokenSecret::new(),
             announce_token: None,
             state: NodeState::Good,
             last_seen: Instant::now(),
@@ -43,12 +46,12 @@ impl Node {
     }
 
     /// Generate a new token for the given peer address.
-    pub fn generate_token(&self, addr: IpAddr) -> [u8; TOKEN_SIZE] {
+    pub fn generate_token(&self, addr: IpAddr) -> Token {
         self.token.generate_token(addr)
     }
 
     /// Update the opaque token for this node.
-    pub fn update_announce_token(&mut self, token: Token) {
+    pub fn update_announce_token(&mut self, token: TokenSecret) {
         self.announce_token = Some(token);
     }
 
@@ -112,13 +115,13 @@ impl NodeState {
 
 /// The token information of a node.
 #[derive(Debug, Clone)]
-pub struct Token {
+pub struct TokenSecret {
     secret: [u8; TOKEN_SECRET_SIZE],
     old_secret: [u8; TOKEN_SECRET_SIZE],
     last_refreshed: Instant,
 }
 
-impl Token {
+impl TokenSecret {
     pub fn new() -> Self {
         let mut random = rng();
         Self {
@@ -143,7 +146,7 @@ impl Token {
     }
 }
 
-impl TryFrom<&[u8]> for Token {
+impl TryFrom<&[u8]> for TokenSecret {
     type Error = Error;
 
     fn try_from(value: &[u8]) -> Result<Self> {
@@ -184,7 +187,8 @@ mod tests {
         fn test_token_from_byte_slice() {
             let token = "aoeusnthaoeusnthaoeu".as_bytes();
 
-            let result = Token::try_from(token).expect("expected the token value to be valid");
+            let result =
+                TokenSecret::try_from(token).expect("expected the token value to be valid");
 
             assert_eq!(
                 result.secret,

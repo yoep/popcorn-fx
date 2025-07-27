@@ -521,6 +521,39 @@ pub mod tests {
         })
     }
 
+    #[macro_export]
+    macro_rules! assert_timeout {
+        ($timeout:expr, $condition:expr) => {{
+            assert_timeout!($timeout, $condition, "")
+        }};
+        ($timeout:expr, $condition:expr, $message:expr) => {{
+            use std::time::Duration;
+            use tokio::select;
+            use tokio::time;
+
+            let result = select! {
+                _ = time::sleep($timeout) => false,
+                result = async {
+                    loop {
+                        if $condition {
+                            return true;
+                        }
+
+                        time::sleep(Duration::from_millis(10)).await;
+                    }
+                } => result,
+            };
+
+            if !result {
+                assert!(
+                    false,
+                    concat!("Timeout assertion failed after {:?}: ", $message),
+                    $timeout
+                );
+            }
+        }};
+    }
+
     mod overlapping_range {
         use super::*;
 

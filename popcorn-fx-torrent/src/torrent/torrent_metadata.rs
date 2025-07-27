@@ -1324,174 +1324,6 @@ mod tests {
     use std::str::FromStr;
 
     #[test]
-    fn test_torrent_info_tiered_trackers() {
-        init_logger!();
-        let announce = "udp://example.tracker.org:6969/announce";
-        let info = TorrentMetadataBuilder::builder()
-            .announce(announce)
-            .announce_list(vec![
-                vec![
-                    "http://foobar.tracker.org:6970/announce".to_string(),
-                    "http://foobar.tracker.org:6971/announce".to_string(),
-                ],
-                vec!["udp://first_tier.tracker.org:6900/announce".to_string()],
-            ])
-            .info_hash(
-                InfoHash::from_str(
-                    "urn:btmh:1220cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
-                )
-                .unwrap(),
-            )
-            .build();
-        let expected_result: BTreeMap<u8, Vec<Url>> = vec![
-            (
-                0u8,
-                vec![
-                    Url::parse(announce).unwrap(),
-                    Url::parse("http://foobar.tracker.org:6970/announce").unwrap(),
-                    Url::parse("http://foobar.tracker.org:6971/announce").unwrap(),
-                ],
-            ),
-            (
-                1u8,
-                vec![Url::parse("udp://first_tier.tracker.org:6900/announce").unwrap()],
-            ),
-        ]
-        .into_iter()
-        .collect();
-
-        let result = info.tiered_trackers();
-
-        assert_eq!(expected_result, result);
-    }
-
-    #[test]
-    fn test_torrent_info_try_from_bytes_v1() {
-        init_logger!();
-        let announce = "http://bttracker.debian.org:6969/announce";
-        let data = read_test_file_to_bytes("debian.torrent");
-        let expected_name = "debian-11.6.0-amd64-netinst.iso";
-        let expected_piece_length = 262144;
-        let expected_files = TorrentFiles::Single {
-            file: TorrentFileInfo {
-                length: 406847488,
-                path: None,
-                path_utf8: None,
-                md5sum: None,
-                attr: None,
-                symlink_path: None,
-                sha1: None,
-            },
-        };
-
-        let info = TorrentMetadata::try_from(data.as_slice()).unwrap();
-
-        assert_eq!(announce, info.announce.expect("expected announce").as_str());
-        assert_ne!(
-            None, info.info,
-            "expected the metadata to have been present"
-        );
-        let metadata = info.info.unwrap();
-        assert_eq!(
-            expected_name, metadata.name,
-            "expected the piece length to match"
-        );
-        assert_eq!(
-            expected_piece_length, metadata.piece_length,
-            "expected the piece length to match"
-        );
-        assert_eq!(expected_files, metadata.files);
-    }
-
-    #[test]
-    fn test_torrent_info_try_from_bytes_v2() {
-        init_logger!();
-        let data = read_test_file_to_bytes("v2.torrent");
-        let expected_name = "bittorrent-v2-test";
-        let expected_piece_length = 4194304;
-        let expected_total_files = 11;
-
-        let info =
-            TorrentMetadata::try_from(data.as_slice()).expect("expected the v2 torrent to parse");
-
-        assert_ne!(
-            None, info.info,
-            "expected the metadata to have been present"
-        );
-        let metadata = info.info.unwrap();
-        assert_eq!(
-            expected_name, metadata.name,
-            "expected the piece length to match"
-        );
-        assert_eq!(
-            expected_piece_length, metadata.piece_length,
-            "expected the piece length to match"
-        );
-        assert_eq!(expected_total_files, metadata.total_files());
-    }
-
-    #[test]
-    fn test_torrent_info_files_v2() {
-        init_logger!();
-        let data = read_test_file_to_bytes("v2.torrent");
-
-        let info =
-            TorrentMetadata::try_from(data.as_slice()).expect("expected the v2 torrent to parse");
-        assert_ne!(
-            None, info.info,
-            "expected the metadata to have been present"
-        );
-
-        let metadata = info.info.unwrap();
-        let result = metadata.files();
-        assert_eq!(11, result.len());
-    }
-
-    #[test]
-    fn test_torrent_info_try_from_magnet() {
-        init_logger!();
-        let uri = "magnet:?xt=urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7&dn=debian-12.4.0-amd64-DVD-1.iso&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce";
-        let magnet = Magnet::from_str(uri).unwrap();
-
-        let result = TorrentMetadata::try_from(magnet).unwrap();
-
-        let info_hash = &result.info_hash;
-        assert_eq!(
-            Some("eadaf0efea39406914414d359e0ea16416409bd7".to_uppercase()),
-            info_hash.v1_as_str()
-        );
-        assert_eq!(Some("debian-12.4.0-amd64-DVD-1.iso"), result.name());
-    }
-
-    #[test]
-    fn test_magnet_try_from_torrent_info() {
-        init_logger!();
-        let data = read_test_file_to_bytes("debian-udp.torrent");
-        let expected_result = "magnet:?xt=urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce";
-        let info = TorrentMetadata::try_from(data.as_slice()).unwrap();
-
-        let magnet = Magnet::try_from(&info).unwrap();
-
-        let result = magnet.to_string();
-        assert_eq!(
-            vec!["urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7"],
-            magnet.xt()
-        );
-        assert_eq!(expected_result, result.as_str());
-    }
-
-    #[test]
-    fn test_torrent_info_create_info_hash() {
-        init_logger!();
-        let torrent = read_test_file_to_bytes("debian-udp.torrent");
-        let info = TorrentMetadata::try_from(torrent.as_slice()).unwrap();
-
-        let result = info.calculate_info_hash().unwrap();
-
-        assert_eq!(info.info_hash, result);
-    }
-
-    #[test]
     fn test_file_attribute_flags_from_str() {
         let result = FileAttributeFlags::from_str("x").unwrap();
         assert_eq!(FileAttributeFlags::Executable, result);
@@ -1519,91 +1351,304 @@ mod tests {
         assert_eq!(expected_result, result);
     }
 
-    #[test]
-    fn test_torrent_file_path() {
-        let expected_result = PathBuf::from("foo/bar");
-        let file = TorrentFileInfo {
-            length: 0,
-            path: Some(vec!["foo".to_string(), "bar".to_string()]),
-            path_utf8: None,
-            md5sum: None,
-            attr: None,
-            symlink_path: None,
-            sha1: None,
-        };
-        let result = file.path();
-        assert_eq!(expected_result, result);
+    mod torrent_metadata {
+        use super::*;
 
-        let expected_result = PathBuf::from("esta/dolor");
-        let file = TorrentFileInfo {
-            length: 0,
-            path: Some(vec!["this".to_string(), "is invalid".to_string()]),
-            path_utf8: Some(vec!["esta".to_string(), "dolor".to_string()]),
-            md5sum: None,
-            attr: None,
-            symlink_path: None,
-            sha1: None,
-        };
-        let result = file.path();
-        assert_eq!(expected_result, result);
+        #[test]
+        fn test_tiered_trackers() {
+            init_logger!();
+            let announce = "udp://example.tracker.org:6969/announce";
+            let info = TorrentMetadataBuilder::builder()
+                .announce(announce)
+                .announce_list(vec![
+                    vec![
+                        "http://foobar.tracker.org:6970/announce".to_string(),
+                        "http://foobar.tracker.org:6971/announce".to_string(),
+                    ],
+                    vec!["udp://first_tier.tracker.org:6900/announce".to_string()],
+                ])
+                .info_hash(
+                    InfoHash::from_str(
+                        "urn:btmh:1220cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+                    )
+                        .unwrap(),
+                )
+                .build();
+            let expected_result: BTreeMap<u8, Vec<Url>> = vec![
+                (
+                    0u8,
+                    vec![
+                        Url::parse(announce).unwrap(),
+                        Url::parse("http://foobar.tracker.org:6970/announce").unwrap(),
+                        Url::parse("http://foobar.tracker.org:6971/announce").unwrap(),
+                    ],
+                ),
+                (
+                    1u8,
+                    vec![Url::parse("udp://first_tier.tracker.org:6900/announce").unwrap()],
+                ),
+            ]
+            .into_iter()
+            .collect();
+
+            let result = info.tiered_trackers();
+
+            assert_eq!(expected_result, result);
+        }
+
+        #[test]
+        fn test_try_from_bytes_v1() {
+            init_logger!();
+            let announce = "http://bttracker.debian.org:6969/announce";
+            let data = read_test_file_to_bytes("debian.torrent");
+            let expected_name = "debian-11.6.0-amd64-netinst.iso";
+            let expected_piece_length = 262144;
+            let expected_files = TorrentFiles::Single {
+                file: TorrentFileInfo {
+                    length: 406847488,
+                    path: None,
+                    path_utf8: None,
+                    md5sum: None,
+                    attr: None,
+                    symlink_path: None,
+                    sha1: None,
+                },
+            };
+
+            let info = TorrentMetadata::try_from(data.as_slice()).unwrap();
+
+            assert_eq!(announce, info.announce.expect("expected announce").as_str());
+            assert_ne!(
+                None, info.info,
+                "expected the metadata to have been present"
+            );
+            let metadata = info.info.unwrap();
+            assert_eq!(
+                expected_name, metadata.name,
+                "expected the piece length to match"
+            );
+            assert_eq!(
+                expected_piece_length, metadata.piece_length,
+                "expected the piece length to match"
+            );
+            assert_eq!(expected_files, metadata.files);
+        }
+
+        #[test]
+        fn test_try_from_bytes_v2() {
+            init_logger!();
+            let data = read_test_file_to_bytes("v2.torrent");
+            let expected_name = "bittorrent-v2-test";
+            let expected_piece_length = 4194304;
+            let expected_total_files = 11;
+
+            let info = TorrentMetadata::try_from(data.as_slice())
+                .expect("expected the v2 torrent to parse");
+
+            assert_ne!(
+                None, info.info,
+                "expected the metadata to have been present"
+            );
+            let metadata = info.info.unwrap();
+            assert_eq!(
+                expected_name, metadata.name,
+                "expected the piece length to match"
+            );
+            assert_eq!(
+                expected_piece_length, metadata.piece_length,
+                "expected the piece length to match"
+            );
+            assert_eq!(expected_total_files, metadata.total_files());
+        }
+
+        #[test]
+        fn test_files_v2() {
+            init_logger!();
+            let data = read_test_file_to_bytes("v2.torrent");
+
+            let info = TorrentMetadata::try_from(data.as_slice())
+                .expect("expected the v2 torrent to parse");
+            assert_ne!(
+                None, info.info,
+                "expected the metadata to have been present"
+            );
+
+            let metadata = info.info.unwrap();
+            let result = metadata.files();
+            assert_eq!(11, result.len());
+        }
+
+        #[test]
+        fn test_try_from_magnet() {
+            init_logger!();
+            let uri = "magnet:?xt=urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7&dn=debian-12.4.0-amd64-DVD-1.iso&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce";
+            let magnet = Magnet::from_str(uri).unwrap();
+
+            let result = TorrentMetadata::try_from(magnet).unwrap();
+
+            let info_hash = &result.info_hash;
+            assert_eq!(
+                Some("eadaf0efea39406914414d359e0ea16416409bd7".to_uppercase()),
+                info_hash.v1_as_str()
+            );
+            assert_eq!(Some("debian-12.4.0-amd64-DVD-1.iso"), result.name());
+        }
+
+        #[test]
+        fn test_magnet_try_from() {
+            init_logger!();
+            let data = read_test_file_to_bytes("debian-udp.torrent");
+            let expected_result = "magnet:?xt=urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Ftracker.bittor.pw%3A1337%2Fannounce&tr=udp%3A%2F%2Fpublic.popcorn-tracker.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce";
+            let info = TorrentMetadata::try_from(data.as_slice()).unwrap();
+
+            let magnet = Magnet::try_from(&info).unwrap();
+
+            let result = magnet.to_string();
+            assert_eq!(
+                vec!["urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7"],
+                magnet.xt()
+            );
+            assert_eq!(expected_result, result.as_str());
+        }
+
+        #[test]
+        fn test_create_info_hash() {
+            init_logger!();
+            let torrent = read_test_file_to_bytes("debian-udp.torrent");
+            let info = TorrentMetadata::try_from(torrent.as_slice()).unwrap();
+
+            let result = info.calculate_info_hash().unwrap();
+
+            assert_eq!(info.info_hash, result);
+        }
     }
 
-    #[test]
-    fn test_torrent_file_path_segments() {
-        let expected_result = vec!["foo".to_string(), "bar".to_string()];
-        let file = TorrentFileInfo {
-            length: 0,
-            path: Some(expected_result.clone()),
-            path_utf8: None,
-            md5sum: None,
-            attr: None,
-            symlink_path: None,
-            sha1: None,
-        };
-        let result = file.path_segments();
-        assert_eq!(expected_result, result);
+    mod torrent_file_info {
+        use super::*;
 
-        let expected_result = vec!["esta".to_string(), "dolor".to_string()];
-        let file = TorrentFileInfo {
-            length: 0,
-            path: Some(vec!["this".to_string(), "is invalid".to_string()]),
-            path_utf8: Some(expected_result.clone()),
-            md5sum: None,
-            attr: None,
-            symlink_path: None,
-            sha1: None,
-        };
-        let result = file.path_segments();
-        assert_eq!(expected_result, result);
-    }
+        #[test]
+        fn test_filename() {
+            let filename = "MyMovieFilename.mp4";
 
-    #[test]
-    fn test_torrent_metadata_info_path() {
-        let file_info = TorrentFileInfo {
-            length: 0,
-            path: Some(vec!["TorrentFile.mp4".to_string()]),
-            path_utf8: None,
-            md5sum: None,
-            attr: None,
-            symlink_path: None,
-            sha1: None,
-        };
-        let metadata = TorrentMetadataInfo {
-            piece_length: 0,
-            pieces: vec![],
-            name: "MyTorrentDir".to_string(),
-            name_utf8: None,
-            private: None,
-            source: None,
-            meta_version: None,
-            files: TorrentFiles::Multiple {
-                files: vec![file_info.clone()],
-            },
-        };
-        let expected_result = PathBuf::from("MyTorrentDir/TorrentFile.mp4");
+            let file_with_path = TorrentFileInfo {
+                length: 0,
+                path: Some(vec!["foo".to_string(), filename.to_string()]),
+                path_utf8: None,
+                md5sum: None,
+                attr: None,
+                symlink_path: None,
+                sha1: None,
+            };
+            let result = file_with_path.filename();
+            assert_eq!(
+                filename,
+                result.as_str(),
+                "expected the filename to have been retrieved from the path"
+            );
 
-        let result = metadata.path(&file_info);
+            let file_with_path_utf8 = TorrentFileInfo {
+                length: 0,
+                path: None,
+                path_utf8: Some(vec!["foo".to_string(), filename.to_string()]),
+                md5sum: None,
+                attr: None,
+                symlink_path: None,
+                sha1: None,
+            };
+            let result = file_with_path_utf8.filename();
+            assert_eq!(
+                filename,
+                result.as_str(),
+                "expected the filename to have been retrieved from the path_utf8"
+            );
+        }
 
-        assert_eq!(expected_result, result);
+        #[test]
+        fn test_torrent_file_path() {
+            let expected_result = PathBuf::from("foo/bar");
+            let file = TorrentFileInfo {
+                length: 0,
+                path: Some(vec!["foo".to_string(), "bar".to_string()]),
+                path_utf8: None,
+                md5sum: None,
+                attr: None,
+                symlink_path: None,
+                sha1: None,
+            };
+            let result = file.path();
+            assert_eq!(expected_result, result);
+
+            let expected_result = PathBuf::from("esta/dolor");
+            let file = TorrentFileInfo {
+                length: 0,
+                path: Some(vec!["this".to_string(), "is invalid".to_string()]),
+                path_utf8: Some(vec!["esta".to_string(), "dolor".to_string()]),
+                md5sum: None,
+                attr: None,
+                symlink_path: None,
+                sha1: None,
+            };
+            let result = file.path();
+            assert_eq!(expected_result, result);
+        }
+
+        #[test]
+        fn test_torrent_file_path_segments() {
+            let expected_result = vec!["foo".to_string(), "bar".to_string()];
+            let file = TorrentFileInfo {
+                length: 0,
+                path: Some(expected_result.clone()),
+                path_utf8: None,
+                md5sum: None,
+                attr: None,
+                symlink_path: None,
+                sha1: None,
+            };
+            let result = file.path_segments();
+            assert_eq!(expected_result, result);
+
+            let expected_result = vec!["esta".to_string(), "dolor".to_string()];
+            let file = TorrentFileInfo {
+                length: 0,
+                path: Some(vec!["this".to_string(), "is invalid".to_string()]),
+                path_utf8: Some(expected_result.clone()),
+                md5sum: None,
+                attr: None,
+                symlink_path: None,
+                sha1: None,
+            };
+            let result = file.path_segments();
+            assert_eq!(expected_result, result);
+        }
+
+        #[test]
+        fn test_torrent_metadata_info_path() {
+            let file_info = TorrentFileInfo {
+                length: 0,
+                path: Some(vec!["TorrentFile.mp4".to_string()]),
+                path_utf8: None,
+                md5sum: None,
+                attr: None,
+                symlink_path: None,
+                sha1: None,
+            };
+            let metadata = TorrentMetadataInfo {
+                piece_length: 0,
+                pieces: vec![],
+                name: "MyTorrentDir".to_string(),
+                name_utf8: None,
+                private: None,
+                source: None,
+                meta_version: None,
+                files: TorrentFiles::Multiple {
+                    files: vec![file_info.clone()],
+                },
+            };
+            let expected_result = PathBuf::from("MyTorrentDir/TorrentFile.mp4");
+
+            let result = metadata.path(&file_info);
+
+            assert_eq!(expected_result, result);
+        }
     }
 }

@@ -1,10 +1,10 @@
 use crate::torrent::dht::compact::{CompactIPv4Nodes, CompactIPv6Nodes};
 use crate::torrent::dht::krpc::{
-    FindNodeRequest, FindNodeResponse, GetPeersRequest, Message, MessagePayload, PingMessage,
-    QueryMessage, ResponseMessage,
+    ErrorMessage, FindNodeRequest, FindNodeResponse, GetPeersRequest, GetPeersResponse, Message,
+    MessagePayload, PingMessage, QueryMessage, ResponseMessage,
 };
 use crate::torrent::dht::routing_table::RoutingTable;
-use crate::torrent::dht::{Error, Node, NodeId, Result, Token};
+use crate::torrent::dht::{Error, Node, NodeId, Result, Token, TokenSecret};
 use crate::torrent::{CompactIpv4Addr, CompactIpv6Addr, InfoHash, COMPACT_IPV6_ADDR_LEN};
 use derive_more::Display;
 use log::{debug, info, trace, warn};
@@ -353,7 +353,38 @@ impl InnerTracker {
                     )
                     .await?;
                 }
-                QueryMessage::GetPeers { .. } => {}
+                QueryMessage::GetPeers { request } => {
+                    let token: Token;
+
+                    {
+                        let mut routing_table = self.routing_table.lock().await;
+                        if let Some(node) = routing_table.find_node_mut(&request.id) {
+                            token = node.generate_token(addr.ip());
+                        } else {
+                            return self
+                                .send_error(
+                                    &message,
+                                    ErrorMessage::Generic("unknown node id".to_string()),
+                                    &addr,
+                                )
+                                .await;
+                        }
+                    }
+
+                    self.send_response(
+                        &message,
+                        ResponseMessage::GetPeers {
+                            response: GetPeersResponse {
+                                id: self.id,
+                                token: token.to_vec(),
+                                values: None,
+                                nodes: None,
+                            },
+                        },
+                        &addr,
+                    )
+                    .await?;
+                }
                 QueryMessage::AnnouncePeer => {}
             },
             MessagePayload::Response(response) => {
@@ -641,7 +672,7 @@ impl InnerTracker {
     async fn send_query(&self, query: QueryMessage, addr: &SocketAddr, tx: PendingRequestType) {
         // validate the remote node address
         if addr.ip().is_unspecified() || addr.port() == 0 {
-            Self::send_error(tx, Error::InvalidAddr);
+            Self::pending_request_error(tx, Error::InvalidAddr);
             return;
         }
 
@@ -654,7 +685,7 @@ impl InnerTracker {
         {
             Ok(message) => message,
             Err(err) => {
-                Self::send_error(tx, err);
+                Self::pending_request_error(tx, err);
                 return;
             }
         };
@@ -674,7 +705,7 @@ impl InnerTracker {
                 );
             }
             Err(err) => {
-                Self::send_error(tx, err);
+                Self::pending_request_error(tx, err);
             }
         }
     }
@@ -699,6 +730,28 @@ impl InnerTracker {
         let message = Message::builder()
             .transaction_id(message.transaction_id())
             .payload(MessagePayload::Response(response))
+            .ip((*addr).into())
+            .build()?;
+
+        self.send(message, addr).await
+    }
+
+    /// Send the given error response for a query message.
+    ///
+    /// # Arguments
+    ///
+    /// * `message` - The original query message.
+    /// * `error` - The error payload.
+    /// * `addr` - The node address to send the response to.
+    async fn send_error(
+        &self,
+        message: &Message,
+        error: ErrorMessage,
+        addr: &SocketAddr,
+    ) -> Result<()> {
+        let message = Message::builder()
+            .transaction_id(message.transaction_id())
+            .payload(MessagePayload::Error(error))
             .ip((*addr).into())
             .build()?;
 
@@ -829,7 +882,7 @@ impl InnerTracker {
         for key in timed_out_request_keys {
             self.node_timeout(&key.addr).await;
             if let Some(request) = pending_requests.remove(&key) {
-                Self::send_error(request.request_type, Error::Timeout);
+                Self::pending_request_error(request.request_type, Error::Timeout);
             }
         }
     }
@@ -846,7 +899,7 @@ impl InnerTracker {
         let node = routing_table
             .find_node_mut(id)
             .ok_or(Error::InvalidNodeId)?;
-        let token = Token::try_from(token_value.as_ref())?;
+        let token = TokenSecret::try_from(token_value.as_ref())?;
         node.update_announce_token(token);
         Ok(())
     }
@@ -989,7 +1042,8 @@ impl InnerTracker {
         })
     }
 
-    fn send_error(response: PendingRequestType, err: Error) {
+    /// Invoke the given [Error] for a pending request.
+    fn pending_request_error(response: PendingRequestType, err: Error) {
         match response {
             PendingRequestType::Ping(tx) => {
                 let _ = tx.send(Err(err));
@@ -1127,6 +1181,49 @@ mod tests {
         }
     }
 
+    mod add_router_node {
+        use super::*;
+        use crate::assert_timeout;
+
+        #[tokio::test]
+        async fn test_add_router_node() {
+            init_logger!();
+            let socket_addr: SocketAddr = ([133, 156, 76, 80], 8900).into();
+            let tracker = DhtTracker::builder().build().await.unwrap();
+
+            tracker.add_router_node(socket_addr.clone());
+            assert_timeout!(
+                Duration::from_millis(500),
+                tracker
+                    .inner
+                    .routing_table
+                    .lock()
+                    .await
+                    .router_nodes()
+                    .len()
+                    == 1,
+                "expected the router node to have been added to the routing table"
+            );
+
+            let router_nodes = tracker
+                .inner
+                .routing_table
+                .lock()
+                .await
+                .router_nodes()
+                .to_vec();
+            assert_eq!(
+                router_nodes.len(),
+                1,
+                "expected the node to have been added to the router nodes"
+            );
+            assert_eq!(
+                socket_addr, router_nodes[0].addr,
+                "expected the router node to match the router address"
+            );
+        }
+    }
+
     mod ping {
         use super::*;
 
@@ -1242,6 +1339,11 @@ mod tests {
                 .get_peers(&info_hash, Duration::from_secs(2))
                 .await
                 .expect("expected to get peers");
+            assert_eq!(
+                Vec::<SocketAddr>::with_capacity(0),
+                result,
+                "expected an empty peers list to have been returned"
+            );
         }
     }
 

@@ -3674,80 +3674,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_torrent_prioritize_pieces() {
-        init_logger!();
-        let temp_dir = tempdir().unwrap();
-        let temp_path = temp_dir.path().to_str().unwrap();
-        let operation = TorrentCreatePiecesOperation::new();
-        let torrent = create_torrent!(
-            "debian-udp.torrent",
-            temp_path,
-            TorrentFlags::none(),
-            TorrentConfig::default(),
-            vec![]
-        );
-        let context = torrent.instance().unwrap();
-
-        // create the pieces
-        operation.execute(&context).await;
-
-        // only request the first piece
-        let mut priorities = torrent.piece_priorities().await;
-        priorities[8].1 = PiecePriority::High;
-        priorities[9].1 = PiecePriority::High;
-        for priority in &mut priorities[10..] {
-            priority.1 = PiecePriority::None;
-        }
-        torrent.prioritize_pieces(priorities).await;
-
-        // check the new priorities of the pieces
-        let result = torrent
-            .pieces()
-            .await
-            .expect("expected the pieces to be present");
-        for piece in 0..8 {
-            let priority = PiecePriority::Normal;
-            assert_eq!(
-                priority, result[piece].priority,
-                "expected piece {} to have priority {:?}",
-                piece, priority
-            );
-        }
-        for piece in 9..10 {
-            let priority = PiecePriority::High;
-            assert_eq!(
-                priority, result[piece].priority,
-                "expected piece {} to have priority {:?}",
-                piece, priority
-            );
-        }
-        for piece in 10..20 {
-            let priority = PiecePriority::None;
-            assert_eq!(
-                priority, result[piece].priority,
-                "expected piece {} to have priority {:?}",
-                piece, priority
-            );
-        }
-
-        // check the wanted pieces
-        let expected_wanted_pieces = vec![8, 9, 0, 1, 2, 3, 4, 5, 6, 7];
-        let result = context.wanted_pieces().await;
-        assert_eq!(
-            expected_wanted_pieces, result,
-            "expected only piece 0 to be wanted"
-        );
-
-        // check the interested pieces
-        let expected_interested_pieces = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-        let result = context.interested_pieces().await;
-        assert_eq!(
-            expected_interested_pieces, result,
-            "expected only piece 0 to be interested"
-        );
-    }
-
-    #[tokio::test]
     async fn test_torrent_total_wanted_pieces() {
         init_logger!();
         let temp_dir = tempdir().unwrap();
@@ -4516,5 +4442,112 @@ mod tests {
         };
         let result = stats.progress();
         assert_eq!(0.997, result);
+    }
+
+    mod prioritize {
+        use super::*;
+
+        #[tokio::test]
+        async fn test_torrent_prioritize_pieces() {
+            init_logger!();
+            let temp_dir = tempdir().unwrap();
+            let temp_path = temp_dir.path().to_str().unwrap();
+            let operation = TorrentCreatePiecesOperation::new();
+            let torrent = create_torrent!(
+                "debian-udp.torrent",
+                temp_path,
+                TorrentFlags::none(),
+                TorrentConfig::default(),
+                vec![]
+            );
+            let context = torrent.instance().unwrap();
+
+            // create the pieces
+            operation.execute(&context).await;
+
+            // only request the first piece
+            let mut priorities = torrent.piece_priorities().await;
+            priorities[8].1 = PiecePriority::High;
+            priorities[9].1 = PiecePriority::High;
+            for priority in &mut priorities[10..] {
+                priority.1 = PiecePriority::None;
+            }
+            torrent.prioritize_pieces(priorities).await;
+
+            // check the new priorities of the pieces
+            let result = torrent
+                .pieces()
+                .await
+                .expect("expected the pieces to be present");
+            for piece in 0..8 {
+                let priority = PiecePriority::Normal;
+                assert_eq!(
+                    priority, result[piece].priority,
+                    "expected piece {} to have priority {:?}",
+                    piece, priority
+                );
+            }
+            for piece in 9..10 {
+                let priority = PiecePriority::High;
+                assert_eq!(
+                    priority, result[piece].priority,
+                    "expected piece {} to have priority {:?}",
+                    piece, priority
+                );
+            }
+            for piece in 10..20 {
+                let priority = PiecePriority::None;
+                assert_eq!(
+                    priority, result[piece].priority,
+                    "expected piece {} to have priority {:?}",
+                    piece, priority
+                );
+            }
+
+            // check the wanted pieces
+            let expected_wanted_pieces = vec![8, 9, 0, 1, 2, 3, 4, 5, 6, 7];
+            let result = context.wanted_pieces().await;
+            assert_eq!(
+                expected_wanted_pieces, result,
+                "expected only piece 0 to be wanted"
+            );
+
+            // check the interested pieces
+            let expected_interested_pieces = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+            let result = context.interested_pieces().await;
+            assert_eq!(
+                expected_interested_pieces, result,
+                "expected only piece 0 to be interested"
+            );
+        }
+
+        #[tokio::test]
+        async fn test_prioritize_bytes() {
+            init_logger!();
+            let temp_dir = tempdir().unwrap();
+            let temp_path = temp_dir.path().to_str().unwrap();
+            let operation = TorrentCreatePiecesOperation::new();
+            let torrent = create_torrent!(
+                "debian-udp.torrent",
+                temp_path,
+                TorrentFlags::none(),
+                TorrentConfig::default(),
+                vec![]
+            );
+            let context = torrent.instance().unwrap();
+            let piece_length = context.metadata().await.info.unwrap().piece_length as usize;
+            let range = 0usize..(2 * piece_length);
+
+            // create the torrent pieces
+            operation.execute(&context).await;
+
+            // prioritize the first 2 pieces through the bytes
+            torrent.prioritize_bytes(&range, PiecePriority::High).await;
+
+            let priorities = torrent.piece_priorities().await;
+            assert_eq!(Some(&(0usize, PiecePriority::High)), priorities.get(0));
+            assert_eq!(Some(&(1usize, PiecePriority::High)), priorities.get(1));
+            assert_eq!(Some(&(2usize, PiecePriority::Normal)), priorities.get(2));
+        }
     }
 }

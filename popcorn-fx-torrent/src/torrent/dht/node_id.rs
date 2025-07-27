@@ -12,7 +12,7 @@ const MAX_DISTANCE: u8 = NODE_ID_SIZE as u8 * 8; // = 160
 const CRC32: Crc<u32> = Crc::<u32>::new(&CRC_32_ISCSI);
 
 /// The unique DHT node identifier.
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Hash)]
 pub struct NodeId([u8; NODE_ID_SIZE]);
 
 impl NodeId {

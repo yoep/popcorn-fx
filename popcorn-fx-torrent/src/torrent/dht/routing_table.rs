@@ -15,7 +15,7 @@ pub struct RoutingTable {
     /// The number of nodes that can be stored within a bucket.
     /// This is the "K" value as described in BEP5.
     pub bucket_size: usize,
-    /// The router nodes of the routing table used for searching.
+    /// The router nodes of the routing table used only for searching.
     router_nodes: Vec<Node>,
 }
 
@@ -73,6 +73,14 @@ impl RoutingTable {
         self.buckets
             .get_mut(&distance)
             .and_then(|bucket| bucket.nodes.iter_mut().find(|node| &node.id == id))
+    }
+
+    /// Try to find the node within the routing table for the given address.
+    /// It returns a mutable reference to the stored node when found.
+    pub fn find_node_by_addr_mut(&mut self, addr: &SocketAddr) -> Option<&mut Node> {
+        self.buckets
+            .iter_mut()
+            .find_map(|(_, bucket)| bucket.find_by_addr_mut(addr))
     }
 
     /// Try to find all nodes within the bucket of the given target node ID.
@@ -193,6 +201,11 @@ impl Bucket {
         }
 
         false
+    }
+
+    /// Try to find a node by the given address.
+    fn find_by_addr_mut(&mut self, addr: &SocketAddr) -> Option<&mut Node> {
+        self.nodes.iter_mut().find(|e| e.addr == *addr)
     }
 
     /// Refresh the nodes within this bucket.

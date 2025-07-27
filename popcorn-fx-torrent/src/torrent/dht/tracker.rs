@@ -369,9 +369,11 @@ impl InnerTracker {
 
                     match response {
                         ResponseMessage::Ping { response } => {
+                            self.node_queried(&response.id).await;
                             reply = Ok(Reply::Ping(Node::new(response.id, addr)));
                         }
                         ResponseMessage::FindNode { response } => {
+                            self.node_queried(&response.id).await;
                             let nodes = CompactIPv4Nodes::try_from(response.nodes.as_slice()).map(
                                 |compact_nodes| {
                                     compact_nodes
@@ -396,6 +398,7 @@ impl InnerTracker {
                             }
                         }
                         ResponseMessage::GetPeers { response } => {
+                            self.node_queried(&response.id).await;
                             if let Err(e) = self
                                 .update_announce_token(&response.id, &response.token)
                                 .await
@@ -779,6 +782,22 @@ impl InnerTracker {
         self.routing_table.lock().await.add_router_node(node)
     }
 
+    /// Update the node metrics with a successful query.
+    async fn node_queried(&self, node_id: &NodeId) {
+        let mut routing_table = self.routing_table.lock().await;
+        if let Some(node) = routing_table.find_node_mut(node_id) {
+            node.confirmed();
+        }
+    }
+
+    /// Update the node metrics with a timed out query.
+    async fn node_timeout(&self, node_addr: &SocketAddr) {
+        let mut routing_table = self.routing_table.lock().await;
+        if let Some(node) = routing_table.find_node_by_addr_mut(node_addr) {
+            node.timed_out();
+        }
+    }
+
     /// Refresh the nodes within the routing table.
     async fn refresh_routing_table(&self) {
         let mut routing_table = self.routing_table.lock().await;
@@ -808,6 +827,7 @@ impl InnerTracker {
             timed_out_request_keys.len()
         );
         for key in timed_out_request_keys {
+            self.node_timeout(&key.addr).await;
             if let Some(request) = pending_requests.remove(&key) {
                 Self::send_error(request.request_type, Error::Timeout);
             }
@@ -1182,10 +1202,7 @@ mod tests {
             // calculate the bucket which will be retrieved by the search node
             let bucket_index = node_incoming_id.distance(&search_node_id);
             // create a node which matches the search bucket index
-            let mut nearby_node = NodeId::new();
-            while node_incoming_id.distance(&nearby_node) != bucket_index {
-                nearby_node = NodeId::new();
-            }
+            let nearby_node = create_bucket_matching_node(bucket_index, node_incoming_id);
             incoming
                 .inner
                 .add_verified_node(Node::new(nearby_node, ([132, 141, 45, 30], 8090).into()))
@@ -1230,44 +1247,60 @@ mod tests {
 
     mod bootstrap {
         use super::*;
-        use crate::torrent::dns::DnsResolver;
-        use std::str::FromStr;
         use tokio::time;
 
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
         async fn test_bootstrap_nodes() {
             init_logger!();
-            let mut node_server = DhtTracker::builder();
+            let rand = 13;
+            let node_id = NodeId::from_ip_with_rand(&[141, 130, 12, 89].into(), rand);
+            let bootstrap_node_id = NodeId::from_ip_with_rand(&[180, 13, 0, 3].into(), rand);
+            let find_node_id = NodeId::from_ip_with_rand(&[127, 0, 0, 1].into(), rand);
+            let (bootstrap_node, find_node) =
+                create_node_server_pair!(bootstrap_node_id, find_node_id);
 
-            for addr in DEFAULT_BOOTSTRAP_SERVERS().drain(0..2) {
-                match DnsResolver::from_str(addr) {
-                    Ok(resolver) => {
-                        resolver
-                            .resolve()
-                            .await
-                            .into_iter()
-                            .flatten()
-                            .for_each(|addr| {
-                                node_server.routing_node(addr);
-                            })
-                    }
-                    Err(e) => warn!("Failed to resolve IP of node bootstrap \"{}\", {}", addr, e),
-                }
-            }
+            // add a node to the bootstrap node which can be found by the `find_node` search
+            let distance = bootstrap_node_id.distance(&node_id);
+            let node_id = create_bucket_matching_node(distance, bootstrap_node_id);
+            bootstrap_node
+                .inner
+                .add_verified_node(Node::new(
+                    NodeId::new(),
+                    ([127, 0, 0, 1], find_node.port()).into(),
+                ))
+                .await;
 
-            let node_server = node_server.build().await.unwrap();
+            let tracker = DhtTracker::builder()
+                .node_id(node_id)
+                .routing_nodes(vec![
+                    ([127, 0, 0, 1], bootstrap_node.port()).into(),
+                    ([127, 0, 0, 1], find_node.port()).into(),
+                ])
+                .build()
+                .await
+                .expect("expected a new DHT tracker to have been created");
 
             select! {
                 _ = time::sleep(Duration::from_secs(20)) => assert!(false, "timed-out while bootstrapping nodes"),
                 _ = async {
-                    while node_server.inner.routing_table.lock().await.len() <= 1 {
+                    while tracker.inner.routing_table.lock().await.len() <= 1 {
                         time::sleep(Duration::from_millis(50)).await;
                     }
                 } => {},
             }
 
-            let result = node_server.inner.routing_table.lock().await.len();
+            let result = tracker.inner.routing_table.lock().await.len();
             assert_ne!(0, result, "expected at least one bootstrap node");
         }
+    }
+
+    fn create_bucket_matching_node(bucket_index: u8, routing_table_id: NodeId) -> NodeId {
+        let mut node_id = NodeId::new();
+
+        while routing_table_id.distance(&node_id) != bucket_index {
+            node_id = NodeId::new();
+        }
+
+        node_id
     }
 }

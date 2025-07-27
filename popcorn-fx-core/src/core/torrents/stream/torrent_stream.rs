@@ -9,7 +9,6 @@ use derive_more::Display;
 use futures::Future;
 use futures::Stream;
 use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
-use fx_handle::Handle;
 use itertools::Itertools;
 use log::{debug, error, info, trace, warn};
 use popcorn_fx_torrent::torrent;
@@ -1018,7 +1017,9 @@ mod test {
         torrent.expect_has_bytes().return_const(true);
         let torrent = Arc::new(Box::new(torrent) as Box<dyn Torrent>);
         copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
-        let stream = FXTorrentStreamingResource::new(torrent, filename).unwrap();
+        let stream = FXTorrentStreamingResource::new(torrent, filename)
+            .await
+            .unwrap();
         let bytes = read_test_file_to_string(filename).as_bytes().len();
         let expected_result = format!("bytes 0-{}/{}", bytes - 1, bytes);
 
@@ -1040,7 +1041,9 @@ mod test {
         torrent.expect_has_bytes().return_const(true);
         let torrent = Arc::new(Box::new(torrent) as Box<dyn Torrent>);
         copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
-        let stream = FXTorrentStreamingResource::new_offset(torrent, filename, 1, Some(3)).unwrap();
+        let stream = FXTorrentStreamingResource::new_offset(torrent, filename, 1, Some(3))
+            .await
+            .unwrap();
 
         let result = read_stream(stream).await;
 
@@ -1054,7 +1057,8 @@ mod test {
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().join(filename);
         let mut a = Some(true);
-        let files = vec![create_file_from_temp_path(temp_path.clone())];
+        let file = create_file_from_temp_path(temp_path.clone());
+        let files = vec![file.clone()];
         let callbacks = MultiThreadedCallback::new();
         let callback_receiver = callbacks.subscribe();
         let mut torrent = MockTorrent::new();
@@ -1074,11 +1078,17 @@ mod test {
             .expect_subscribe()
             .times(1)
             .return_once(move || callback_receiver);
+        torrent
+            .expect_file_by_name()
+            .times(1)
+            .returning(move |_| Some(file.clone()));
         let torrent = Arc::new(Box::new(torrent) as Box<dyn Torrent>);
         copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
         let expected_result = read_test_file_to_string(filename);
 
-        let stream = FXTorrentStreamingResource::new(torrent, filename).unwrap();
+        let stream = FXTorrentStreamingResource::new(torrent, filename)
+            .await
+            .unwrap();
 
         let range = stream.content_range();
         let result = read_stream(stream).await;
@@ -1094,7 +1104,8 @@ mod test {
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().join(filename);
         let mut a = Some(true);
-        let files = vec![create_file_from_temp_path(temp_path.clone())];
+        let file = create_file_from_temp_path(temp_path.clone());
+        let files = vec![file.clone()];
         let callback = MultiThreadedCallback::new();
         let callback_subscription = callback.subscribe();
         let mut torrent = MockTorrent::new();
@@ -1111,6 +1122,10 @@ mod test {
         });
         torrent.expect_prioritize_bytes().return_const(());
         torrent
+            .expect_file_by_name()
+            .times(1)
+            .returning(move |_| Some(file.clone()));
+        torrent
             .expect_subscribe()
             .times(1)
             .return_once(move || callback_subscription);
@@ -1118,7 +1133,9 @@ mod test {
         copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
         let expected_result = read_test_file_to_string(filename);
 
-        let stream = FXTorrentStreamingResource::new(torrent, filename).unwrap();
+        let stream = FXTorrentStreamingResource::new(torrent, filename)
+            .await
+            .unwrap();
 
         let result = read_stream(stream).await;
 

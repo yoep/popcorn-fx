@@ -2,10 +2,12 @@ use crate::torrent::dht::{Error, NodeId, Result};
 use rand::{rng, Rng};
 use sha1::{Digest, Sha1};
 use std::net::{IpAddr, SocketAddr};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 const TOKEN_SECRET_SIZE: usize = 20;
 const TOKEN_SIZE: usize = 4;
+const QUESTIONABLE_NODE_AFTER: Duration = Duration::from_secs(15 * 60); // 15 mins.
+const QUESTIONABLE_NODE_AFTER_TIMEOUTS: usize = 5;
 
 /// The node information within the DHT network
 #[derive(Debug, Clone)]
@@ -20,6 +22,10 @@ pub struct Node {
     pub announce_token: Option<Token>,
     /// The current state of the node
     pub state: NodeState,
+    /// The last time we received a message from the node
+    pub last_seen: Instant,
+    /// The number of times the node failed to respond to a query in a row
+    pub timeout_count: usize,
 }
 
 impl Node {
@@ -31,6 +37,8 @@ impl Node {
             token: Token::new(),
             announce_token: None,
             state: NodeState::Good,
+            last_seen: Instant::now(),
+            timeout_count: 0,
         }
     }
 
@@ -42,6 +50,24 @@ impl Node {
     /// Update the opaque token for this node.
     pub fn update_announce_token(&mut self, token: Token) {
         self.announce_token = Some(token);
+    }
+
+    /// Update the state of the node.
+    pub fn update_state(&mut self, state: NodeState) {
+        self.state = state;
+    }
+
+    /// The node has successfully responded to a query.
+    pub fn confirmed(&mut self) {
+        self.last_seen = Instant::now();
+        self.timeout_count = 0;
+        self.state = NodeState::Good;
+    }
+
+    /// Increase the number of times the node failed to respond to a query.
+    pub fn timed_out(&mut self) {
+        self.timeout_count += 1;
+        self.state = NodeState::calculate(Instant::now() - self.last_seen, self.timeout_count);
     }
 
     /// Get the distance between this node and the target node.
@@ -63,6 +89,25 @@ pub enum NodeState {
     Good = 0,
     Questionable = 1,
     Bad = 2,
+}
+
+impl NodeState {
+    /// Calculate the node state from the given metrics.
+    ///
+    /// A good node is a node has responded to one of our queries within the last 15 minutes.
+    /// After 15 minutes of inactivity, a node becomes questionable.
+    /// Nodes become bad when they fail to respond to multiple queries in a row.
+    pub fn calculate(last_seen_since: Duration, timeout_count: usize) -> Self {
+        if timeout_count > QUESTIONABLE_NODE_AFTER_TIMEOUTS {
+            return Self::Questionable;
+        }
+
+        if last_seen_since < QUESTIONABLE_NODE_AFTER {
+            return Self::Good;
+        }
+
+        Self::Bad
+    }
 }
 
 /// The token information of a node.
@@ -151,6 +196,31 @@ mod tests {
                 token[..token.len()],
                 "expected the old secret to match the parsed value"
             );
+        }
+    }
+
+    mod node_state {
+        use super::*;
+
+        #[test]
+        fn test_calculate_good_state() {
+            let result = NodeState::calculate(Duration::from_secs(3 * 60), 0);
+            assert_eq!(NodeState::Good, result);
+
+            let result = NodeState::calculate(Duration::from_secs(10 * 60), 2);
+            assert_eq!(NodeState::Good, result);
+        }
+
+        #[test]
+        fn test_calculate_questionable_state() {
+            let result = NodeState::calculate(Duration::from_secs(10 * 60), 6);
+            assert_eq!(NodeState::Questionable, result);
+        }
+
+        #[test]
+        fn test_calculate_bad_state() {
+            let result = NodeState::calculate(Duration::from_secs(16 * 60), 0);
+            assert_eq!(NodeState::Bad, result);
         }
     }
 }

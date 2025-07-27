@@ -773,7 +773,11 @@ mod tests {
             Duration::from_millis(200),
             "expected to receive the player state"
         );
-        assert_eq!(PlayerState::Playing, result);
+        assert_eq!(
+            PlayerState::Playing,
+            result,
+            "expected the player to be playing"
+        );
 
         let result = recv_timeout!(
             &mut rx_time,

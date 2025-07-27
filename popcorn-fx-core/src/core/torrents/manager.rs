@@ -12,8 +12,8 @@ use log::{debug, error, trace, warn};
 #[cfg(any(test, feature = "testing"))]
 pub use mock::*;
 use popcorn_fx_torrent::torrent::{
-    FileIndex, FilePriority, FxTorrentSession, Magnet, Session, TorrentEvent, TorrentFiles,
-    TorrentFlags, TorrentHealth, TorrentState,
+    FileIndex, FilePriority, FxTorrentSession, Magnet, Session, SessionEvent, SessionState,
+    TorrentEvent, TorrentFiles, TorrentFlags, TorrentHealth, TorrentState,
 };
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -219,6 +219,8 @@ impl InnerTorrentManager {
     }
 
     async fn create(&self, uri: &str) -> Result<Box<dyn Torrent>> {
+        self.await_session_ready_state().await?;
+
         trace!(
             "Torrent manager is creating torrent from magnet link {}",
             uri
@@ -236,6 +238,8 @@ impl InnerTorrentManager {
     }
 
     async fn info<'a>(&'a self, handle: &TorrentHandle) -> Result<TorrentInfo> {
+        self.await_session_ready_state().await?;
+
         match self.session.find_torrent_by_handle(handle).await {
             Some(torrent) => {
                 let mut receiver = torrent.subscribe();
@@ -291,6 +295,8 @@ impl InnerTorrentManager {
     }
 
     async fn download(&self, handle: &TorrentHandle, filename: &str) -> Result<()> {
+        self.await_session_ready_state().await?;
+
         let torrent = self
             .session
             .find_torrent_by_handle(handle)
@@ -333,6 +339,8 @@ impl InnerTorrentManager {
     }
 
     async fn health_from_uri<'a>(&'a self, url: &'a str) -> Result<TorrentHealth> {
+        self.await_session_ready_state().await?;
+
         trace!("Retrieving torrent health from magnet link {}", url);
         self.session
             .torrent_health_from_uri(url)
@@ -420,6 +428,35 @@ impl InnerTorrentManager {
             .user_settings_ref(|e| e.torrent().clone())
             .await;
         Self::clean_directory(&settings);
+    }
+
+    /// Wait for the session have be initialized and ready for accepting operations.
+    async fn await_session_ready_state(&self) -> Result<()> {
+        let mut receiver = self.session.subscribe();
+        match self.session.state().await {
+            SessionState::Initializing => {
+                while let Some(event) = receiver.recv().await {
+                    if let SessionEvent::StateChanged(state) = &*event {
+                        if *state == SessionState::Running {
+                            return Ok(());
+                        } else {
+                            return Err(Error::TorrentError(format!(
+                                "session state is invalid, state {}",
+                                state
+                            )));
+                        }
+                    }
+                }
+
+                Err(Error::TorrentError(
+                    "torrent session has closed".to_string(),
+                ))
+            }
+            SessionState::Running => Ok(()),
+            SessionState::Error => Err(Error::TorrentError(
+                "session state is invalid, state SessionState::Error".to_string(),
+            )),
+        }
     }
 
     /// Wait for the torrent files to be created.

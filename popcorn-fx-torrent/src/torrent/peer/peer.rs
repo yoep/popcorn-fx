@@ -1524,6 +1524,7 @@ impl PeerContext {
                     }
                 }
                 Err(e) => {
+                    // FIXME: we currently reject requests if the piece if overlapping multiple files, but only 1 file is actually written to disk
                     warn!(
                         "Peer {} failed read piece {} data, {}",
                         self, request.index, e
@@ -1545,7 +1546,7 @@ impl PeerContext {
     /// Handle an event that has been triggered by the [Torrent].
     async fn handle_torrent_event(&self, event: &TorrentEvent) {
         match event {
-            TorrentEvent::PiecesChanged => {
+            TorrentEvent::PiecesChanged(_) => {
                 trace!("Peer {} updating client piece bitfield", self);
                 // retrieve the torrent pieces bitfield and store it as the client bitfield
                 let piece_bitfield = self.torrent.piece_bitfield().await;
@@ -2966,7 +2967,7 @@ mod tests {
         tokio::spawn(async move {
             loop {
                 if let Some(event) = receiver.recv().await {
-                    if let TorrentEvent::MetadataChanged = *event {
+                    if let TorrentEvent::MetadataChanged(_) = *event {
                         tx.send(()).await.unwrap();
                     }
                 } else {

@@ -130,7 +130,28 @@ impl HttpConnection {
         &self,
         response: std::result::Result<Response, Error>,
     ) -> Result<AnnounceEntryResponse> {
-        let bytes = response?.bytes().await?;
+        let response = response?;
+        let status_code = response.status();
+        let bytes = response.bytes().await?;
+
+        // check the response status code from the http tracker
+        // if it's unsuccessful, we don't try to parse the response body
+        if !status_code.is_success() {
+            debug!(
+                "Http tracker {} received invalid status code {}",
+                self, status_code
+            );
+            trace!(
+                "Http tracker {} response: {}",
+                self,
+                String::from_utf8_lossy(bytes.as_ref())
+            );
+            return Err(TrackerError::AnnounceError(format!(
+                "received invalid status code {}",
+                status_code
+            )));
+        }
+
         trace!(
             "Http tracker {} received {} bytes, {}",
             self,

@@ -370,76 +370,129 @@ mod tests {
     use std::str::FromStr;
     use tokio::net::TcpListener;
 
-    #[tokio::test]
-    async fn test_peer_connection_utp_receive() {
-        init_logger!();
-        let data = "Mauris venenatis malesuada tellus vel imperdiet. Pellentesque quis blandit tellus. Aenean commodo neque id sem dictum aliquam at vel arcu.";
-        let hash = "urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7";
-        let info_hash = InfoHash::from_str(hash).unwrap();
-        let peer_id = PeerId::new();
-        let protocol_extension_flags = ProtocolExtensionFlags::LTEP;
-        let incoming_capture = UtpPacketCaptureExtension::new();
-        let outgoing_capture = UtpPacketCaptureExtension::new();
-        let (incoming_socket, outgoing_socket) = create_utp_socket_pair!(
-            vec![Box::new(incoming_capture.clone())],
-            vec![Box::new(outgoing_capture.clone())]
-        );
-        let (incoming_stream, mut outgoing_stream) =
-            create_utp_stream_pair(&incoming_socket, &outgoing_socket).await;
-        let connection =
-            PeerConnection::<UtpStream>::new_utp(peer_id, incoming_stream.addr(), incoming_stream);
+    mod utp {
+        use super::*;
+        use crate::timeout;
+        use std::time::Duration;
 
-        // write the handshake to the receiving connection
-        let handshake = Handshake::new(info_hash.clone(), peer_id, protocol_extension_flags);
-        let handshake_bytes = TryInto::<Vec<u8>>::try_into(handshake).unwrap();
-        outgoing_stream.write_all(&handshake_bytes).await.unwrap();
-        outgoing_stream.flush().await.unwrap();
+        #[tokio::test]
+        async fn test_peer_connection_receive() {
+            init_logger!();
+            let data = "Mauris venenatis malesuada tellus vel imperdiet. Pellentesque quis blandit tellus. Aenean commodo neque id sem dictum aliquam at vel arcu.";
+            let hash = "urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7";
+            let info_hash = InfoHash::from_str(hash).unwrap();
+            let peer_id = PeerId::new();
+            let protocol_extension_flags = ProtocolExtensionFlags::LTEP;
+            let incoming_capture = UtpPacketCaptureExtension::new();
+            let outgoing_capture = UtpPacketCaptureExtension::new();
+            let (incoming_socket, outgoing_socket) = create_utp_socket_pair!(
+                vec![Box::new(incoming_capture.clone())],
+                vec![Box::new(outgoing_capture.clone())]
+            );
+            let (incoming_stream, mut outgoing_stream) =
+                create_utp_stream_pair(&incoming_socket, &outgoing_socket).await;
+            let connection = PeerConnection::<UtpStream>::new_utp(
+                peer_id,
+                incoming_stream.addr(),
+                incoming_stream,
+            );
 
-        // try to get the handshake from the receiving stream
-        let result = connection
-            .recv()
-            .await
-            .expect("expected to receive the handshake");
-        if let PeerResponse::Handshake(result) = result {
+            // write the handshake to the receiving connection
+            let handshake = Handshake::new(info_hash.clone(), peer_id, protocol_extension_flags);
+            let handshake_bytes = TryInto::<Vec<u8>>::try_into(handshake).unwrap();
+            outgoing_stream.write_all(&handshake_bytes).await.unwrap();
+            outgoing_stream.flush().await.unwrap();
+
+            // try to get the handshake from the receiving stream
+            let result = connection
+                .recv()
+                .await
+                .expect("expected to receive the handshake");
+            if let PeerResponse::Handshake(result) = result {
+                assert_eq!(
+                    info_hash, result.info_hash,
+                    "expected the info hash to match"
+                );
+                assert_eq!(peer_id, result.peer_id, "expected the peer id to match");
+                assert_eq!(
+                    protocol_extension_flags, result.supported_extensions,
+                    "expected the supported protocol extensions to match"
+                );
+            } else {
+                assert!(
+                    false,
+                    "expected PeerResponse::Handshake, but got {:?} instead",
+                    result
+                );
+            }
+
+            // write some random data to the receiving connection
+            let message = Message::Piece(Piece {
+                index: 0,
+                begin: 0,
+                data: data.as_bytes().to_vec(),
+            });
+            let bytes = message_as_bytes(&message);
+            outgoing_stream.write_all(&bytes).await.unwrap();
+            outgoing_stream.flush().await.unwrap();
+
+            // try to read the message from the receiving stream
+            let result = connection
+                .recv()
+                .await
+                .expect("expected to receive the message");
+            if let PeerResponse::Message(result, _) = result {
+                assert_eq!(message, result, "expected the message to match");
+            } else {
+                assert!(
+                    false,
+                    "expected PeerResponse::Message, but got {:?} instead",
+                    result
+                );
+            }
+        }
+
+        #[tokio::test]
+        async fn test_peer_connection_write() {
+            init_logger!();
+            let info_hash =
+                InfoHash::from_str("urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7").unwrap();
+            let peer_id = PeerId::new();
+            let protocol_extensions = ProtocolExtensionFlags::Fast;
+            let handshake = Handshake::new(info_hash.clone(), peer_id, protocol_extensions);
+            let handshake_bytes = TryInto::<Vec<u8>>::try_into(handshake).unwrap();
+            let (incoming_socket, outgoing_socket) = create_utp_socket_pair!();
+            let (mut incoming_stream, outgoing_stream) =
+                create_utp_stream_pair(&incoming_socket, &outgoing_socket).await;
+            let outgoing_stream_addr = outgoing_stream.addr();
+            let connection = PeerConnection::<UtpStream>::new_utp(
+                peer_id,
+                outgoing_stream_addr,
+                outgoing_stream,
+            );
+
+            connection
+                .write(handshake_bytes.as_slice())
+                .await
+                .expect("expected the handshake to have been written");
+
+            let mut buffer = vec![0u8; HANDSHAKE_MESSAGE_LENGTH];
+            let _ = timeout!(
+                incoming_stream.read_exact(&mut buffer),
+                Duration::from_millis(500),
+                "expected to have received the handshake bytes"
+            )
+            .unwrap();
+
+            let result = Handshake::from_bytes(&outgoing_stream_addr, buffer.as_slice()).unwrap();
             assert_eq!(
                 info_hash, result.info_hash,
                 "expected the info hash to match"
             );
             assert_eq!(peer_id, result.peer_id, "expected the peer id to match");
             assert_eq!(
-                protocol_extension_flags, result.supported_extensions,
+                protocol_extensions, result.supported_extensions,
                 "expected the supported protocol extensions to match"
-            );
-        } else {
-            assert!(
-                false,
-                "expected PeerResponse::Handshake, but got {:?} instead",
-                result
-            );
-        }
-
-        // write some random data to the receiving connection
-        let message = Message::Piece(Piece {
-            index: 0,
-            begin: 0,
-            data: data.as_bytes().to_vec(),
-        });
-        let bytes = message_as_bytes(&message);
-        outgoing_stream.write_all(&bytes).await.unwrap();
-        outgoing_stream.flush().await.unwrap();
-
-        // try to read the message from the receiving stream
-        let result = connection
-            .recv()
-            .await
-            .expect("expected to receive the message");
-        if let PeerResponse::Message(result, _) = result {
-            assert_eq!(message, result, "expected the message to match");
-        } else {
-            assert!(
-                false,
-                "expected PeerResponse::Message, but got {:?} instead",
-                result
             );
         }
     }

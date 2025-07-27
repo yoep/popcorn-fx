@@ -20,7 +20,7 @@ pub mod webseed;
 pub mod tests {
     use super::*;
 
-    use crate::recv_timeout;
+    use crate::timeout;
     use crate::torrent::peer::protocol::{UtpSocket, UtpSocketExtensions, UtpStream};
     use crate::torrent::{available_port, Torrent};
 
@@ -125,7 +125,7 @@ pub mod tests {
         .await
         .expect("expected an outgoing uTP peer");
 
-        let incoming_peer = recv_timeout!(&mut rx, Duration::from_secs(1));
+        let incoming_peer = timeout!(rx.recv(), Duration::from_secs(1)).unwrap();
 
         (incoming_peer, outgoing_peer)
     }

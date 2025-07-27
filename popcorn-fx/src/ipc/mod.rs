@@ -85,9 +85,15 @@ pub(crate) mod test {
         let name = format!("fx-{}.sock", name_id)
             .to_ns_name::<GenericNamespaced>()
             .unwrap();
-        let opts = ListenerOptions::new().name(name.clone());
 
-        (name, opts.create_tokio().unwrap())
+        loop {
+            let opts = ListenerOptions::new().name(name.clone());
+            let socket_result = opts.create_tokio();
+
+            if let Ok(socket) = socket_result {
+                return (name, socket);
+            }
+        }
     }
 
     /// Asynchronously creates a pair of interconnected IPC channels.

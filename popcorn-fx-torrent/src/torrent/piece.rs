@@ -1,7 +1,8 @@
-use crate::torrent::InfoHash;
+use crate::torrent::{overlapping_range, InfoHash};
 use bit_vec::BitVec;
 use log::trace;
 use std::cmp::Ordering;
+use std::ops::Range;
 
 /// The maximum size in bytes of a piece part can be requested from a peer.
 pub const MAX_PIECE_PART_SIZE: usize = 16 * 1024; // 16 KiB
@@ -151,6 +152,16 @@ impl Piece {
     /// Get if this piece has partially completed data.
     pub fn is_partially_completed(&self) -> bool {
         !self.completed_parts.all() && !self.completed_parts.none()
+    }
+
+    /// Check if the piece contains some bytes from the given torrent byte range.
+    ///
+    /// # Returns
+    ///
+    /// It returns `true` when at least 1 byte overlaps with the given range, else `false`.
+    pub fn contains(&self, range: &Range<usize>) -> bool {
+        let piece_range = self.torrent_range();
+        overlapping_range(piece_range, range).is_some()
     }
 
     /// Get the byte range of the piece within the torrent.

@@ -59,7 +59,7 @@ impl TcpPeerDiscovery {
             .transpose()?
             .ok_or(Error::Io(io::Error::new(
                 io::ErrorKind::Other,
-                "unable to get bound socket port",
+                "unable to get bounded socket port",
             )))?;
         let inner = Arc::new(InnerTcpPeerDiscovery {
             handle: TcpPeerDiscoveryHandle::new(),
@@ -240,7 +240,7 @@ mod tests {
     use crate::torrent::peer::tests::new_tcp_peer_discovery;
     use crate::torrent::peer::PeerState;
     use crate::torrent::{TorrentConfig, TorrentFlags};
-    use crate::{create_torrent, recv_timeout};
+    use crate::{create_torrent, timeout};
 
     use popcorn_fx_core::init_logger;
     use tempfile::tempdir;
@@ -328,11 +328,13 @@ mod tests {
             .await
             .expect("expected the connection to succeed");
 
-        let result = recv_timeout!(
-            &mut rx,
+        let result = timeout!(
+            rx.recv(),
             Duration::from_millis(200),
             "expected to receive an incoming connection"
-        );
+        )
+        .unwrap();
+
         if let PeerStream::Tcp(_) = result.stream {
         } else {
             assert!(

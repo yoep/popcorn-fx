@@ -184,10 +184,17 @@ impl TryFrom<&[u8]> for Packet {
     fn try_from(value: &[u8]) -> Result<Self> {
         let mut cursor = Cursor::new(value);
 
-        // read the type & version from the first byte
+        // start by reading the version from the first byte
         let byte = cursor.read_u8()?;
-        let state_type = StateType::try_from(byte >> 4)?;
         let version = byte & 0x0f;
+
+        // if the version doesn't match v1, we reject the packet
+        if version != 1 {
+            return Err(Error::UnsupportedVersion(version as u32));
+        }
+
+        let state_type_value = byte >> 4;
+        let state_type = StateType::try_from(state_type_value)?;
         // read the extension from the second byte
         let extension = Extension::try_from(cursor.read_u8()?)?;
         let connection_id = cursor.read_u16::<BigEndian>()?;

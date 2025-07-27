@@ -139,7 +139,7 @@ public class DetailsTorrentComponent implements Initializable {
                     var extension = FilenameUtils.getExtension(e.getFilename());
                     return SUPPORTED_FILES.contains(extension.toLowerCase());
                 })
-                .sorted(Comparator.comparingInt(Torrent.Info.File::getIndex))
+                .sorted(Comparator.comparing(Torrent.Info.File::getFilename))
                 .toList();
 
         subtitleService.defaultSubtitles()

@@ -1,10 +1,10 @@
+use crate::torrent::dns::DnsResolver;
 use crate::torrent::peer::PeerId;
 use crate::torrent::tracker::http::HttpConnection;
 use crate::torrent::tracker::udp::UdpConnection;
 use crate::torrent::tracker::{AnnounceEvent, Result, TrackerError};
 use crate::torrent::InfoHash;
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
 use derive_more::Display;
 use fx_handle::Handle;
 use log::{debug, trace};
@@ -12,8 +12,8 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::net::SocketAddr;
-use std::time::Duration;
-use tokio::net::lookup_host;
+use std::ops::Sub;
+use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
 use tokio::{select, time};
 use url::Url;
@@ -139,7 +139,7 @@ pub struct Tracker {
     /// The interval in seconds to do another announcement to the tracker
     announcement_interval_seconds: RwLock<u64>,
     /// The last time an announcement was made by this tracker
-    last_announcement: RwLock<DateTime<Utc>>,
+    last_announcement: RwLock<Instant>,
 }
 
 impl Tracker {
@@ -157,10 +157,12 @@ impl Tracker {
     ) -> Result<Self> {
         trace!("Trying to create new tracker for {}", url);
         let handle = TrackerHandle::new();
-        let endpoints = Self::resolve(&url).await?;
+        let endpoints = DnsResolver::new(url.to_string())
+            .resolve()
+            .await
+            .map_err(|e| TrackerError::Io(e.to_string()))?;
         let connection =
             Self::create_connection(&url, peer_id, peer_port, &endpoints, timeout.clone()).await?;
-        let last_announcement = DateTime::from_timestamp(0, 0).unwrap();
 
         trace!("Resolved tracker {} to {:?}", url, endpoints);
         Ok(Self {
@@ -173,7 +175,9 @@ impl Tracker {
             connection,
             timeout,
             announcement_interval_seconds: RwLock::new(announcement_interval_seconds),
-            last_announcement: RwLock::new(last_announcement),
+            last_announcement: RwLock::new(
+                Instant::now().sub(Duration::from_secs(DEFAULT_ANNOUNCEMENT_INTERVAL_SECONDS)),
+            ),
         })
     }
 
@@ -200,7 +204,7 @@ impl Tracker {
     /// # Returns
     ///
     /// Returns the last time this tracker made an announcement.
-    pub async fn last_announcement(&self) -> DateTime<Utc> {
+    pub async fn last_announcement(&self) -> Instant {
         self.last_announcement.read().await.clone()
     }
 
@@ -220,7 +224,7 @@ impl Tracker {
             Ok(e) => {
                 {
                     let mut mutex = self.last_announcement.write().await;
-                    *mutex = Utc::now();
+                    *mutex = Instant::now();
                 }
                 {
                     let mut mutex = self.announcement_interval_seconds.write().await;
@@ -280,17 +284,6 @@ impl Tracker {
 
         debug!("Tracker {} connection established", url);
         Ok(connection)
-    }
-
-    async fn resolve(url: &Url) -> Result<Vec<SocketAddr>> {
-        let host = url.host_str().unwrap();
-        let port = url.port().unwrap_or(80);
-
-        trace!("Resolving tracker {}:{}", host, port);
-        lookup_host((host, port))
-            .await
-            .map(|e| e.collect())
-            .map_err(|e| TrackerError::Io(e.to_string()))
     }
 }
 

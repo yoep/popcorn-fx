@@ -15,8 +15,7 @@ use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use log::{debug, error, info, trace, warn};
 use reqwest::header::HeaderMap;
 use reqwest::{Client, ClientBuilder, Error, Response};
-use serde_xml_rs::from_str;
-use thiserror::Error;
+use serde_xml_rs::from_reader;
 use tokio::select;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::sync::Mutex;
@@ -24,11 +23,10 @@ use tokio::time::interval;
 use tokio_util::sync::CancellationToken;
 use url::Url;
 
+use crate::vlc::{Result, VlcError, VlcStatus};
 use popcorn_fx_core::core::players::{PlayRequest, Player, PlayerEvent, PlayerState};
 use popcorn_fx_core::core::subtitles::matcher::SubtitleMatcher;
 use popcorn_fx_core::core::subtitles::{SubtitleManager, SubtitleProvider};
-
-use crate::vlc::VlcStatus;
 
 pub const VLC_ID: &str = "vlc";
 const VLC_GRAPHIC_RESOURCE: &[u8] = include_bytes!("../../resources/external-vlc-icon.png");
@@ -318,7 +316,7 @@ impl InnerVlcPlayer {
         trace!("Checking external VLC player status for {:?}", self);
         match self.retrieve_status().await {
             Ok(status) => {
-                debug!("Received external VLC status {:?}", status);
+                debug!("{} received external VLC status {:?}", self, status);
                 self.update_state_async(PlayerState::from(status.state))
                     .await;
                 self.callbacks
@@ -335,22 +333,21 @@ impl InnerVlcPlayer {
         }
     }
 
-    async fn retrieve_status(&self) -> Result<VlcStatus, VlcError> {
+    async fn retrieve_status(&self) -> Result<VlcStatus> {
         let uri = self.build_uri(vec![]);
-        debug!("Retrieving status from {}", uri);
+        debug!("{} retrieving status from {}", self, uri);
         self.execute_request(uri)
             .await
             .map_err(|e| VlcError::Request(e.to_string()))?
-            .text()
+            .bytes()
             .await
             .map_err(|e| VlcError::Request(e.to_string()))
             .and_then(|body| {
-                from_str::<VlcStatus>(body.as_str())
-                    .map_err(|err| VlcError::Parsing(err.to_string()))
+                from_reader(body.as_ref()).map_err(|err| VlcError::Parsing(err.to_string()))
             })
     }
 
-    async fn execute_request(&self, uri: Url) -> Result<Response, Error> {
+    async fn execute_request(&self, uri: Url) -> std::result::Result<Response, Error> {
         self.client
             .get(uri)
             .basic_auth("", Some(self.password.as_str()))
@@ -496,14 +493,6 @@ impl InnerVlcPlayer {
             debug!("Vlv player failed to send command, {}", e);
         }
     }
-}
-
-#[derive(Debug, Clone, Error)]
-enum VlcError {
-    #[error("failed to send request, {0}")]
-    Request(String),
-    #[error("failed to parse response body, {0}")]
-    Parsing(String),
 }
 
 #[derive(Debug, Display)]
@@ -773,7 +762,11 @@ mod tests {
             Duration::from_millis(200),
             "expected to receive the player state"
         );
-        assert_eq!(PlayerState::Playing, result);
+        assert_eq!(
+            PlayerState::Playing,
+            result,
+            "expected the player to be playing"
+        );
 
         let result = recv_timeout!(
             &mut rx_time,

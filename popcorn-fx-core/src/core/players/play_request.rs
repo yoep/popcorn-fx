@@ -139,18 +139,21 @@ impl TryFrom<&mut LoadingData> for PlayRequest {
         if let Some(e) = value.auto_resume_timestamp {
             builder.auto_resume_timestamp(e);
         }
-        if let Some(media) = media.as_ref().and_then(|e| e.into_overview()) {
-            builder.background(media.images().fanart());
+        match value.parent_media.take() {
+            Some(parent) => {
+                if let Some(overview) = parent.into_overview() {
+                    builder.background(overview.images().fanart());
+                }
+                builder.parent_media(parent);
+            }
+            None => {
+                if let Some(media) = media.as_ref().and_then(|e| e.into_overview()) {
+                    builder.background(media.images().fanart());
+                }
+            }
         }
         if let Some(media) = media {
             builder.media(media);
-        }
-        if let Some(media_identifier) = value.parent_media.take() {
-            if let Some(media) = media_identifier.into_overview() {
-                builder.background(media.images().fanart());
-            }
-
-            builder.parent_media(media_identifier);
         }
         if let Some(e) = value.quality.take() {
             builder.quality(e.as_str());

@@ -259,7 +259,7 @@ mod tests {
     use crate::tests::default_args;
     use crate::timeout;
 
-    use popcorn_fx_core::init_logger;
+    use popcorn_fx_core::{assert_timeout, init_logger};
     use protobuf::EnumOrUnknown;
     use std::time::Duration;
     use tempfile::tempdir;

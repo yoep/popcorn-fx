@@ -1,20 +1,34 @@
+use std::io;
 use std::path::PathBuf;
 use thiserror::Error;
 
+/// The result type of file system operations.
 pub type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Debug, Clone, Error, PartialEq)]
+/// The file system specific errors.
+#[derive(Debug, Error)]
 pub enum Error {
     #[error("the requested torrent piece data is unavailable")]
     Unavailable,
     #[error("the torrent filepath {0} is invalid")]
     InvalidFilepath(PathBuf),
     #[error("an io error occurred, {0}")]
-    Io(String),
+    Io(io::Error),
 }
 
-impl From<std::io::Error> for Error {
-    fn from(error: std::io::Error) -> Self {
-        Error::Io(error.to_string())
+impl PartialEq for Error {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Error::Unavailable, Error::Unavailable) => true,
+            (Error::InvalidFilepath(_), Error::InvalidFilepath(_)) => true,
+            (Error::Io(_), Error::Io(_)) => true,
+            _ => false,
+        }
+    }
+}
+
+impl From<io::Error> for Error {
+    fn from(error: io::Error) -> Self {
+        Error::Io(error)
     }
 }

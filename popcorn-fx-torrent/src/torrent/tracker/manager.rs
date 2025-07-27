@@ -9,7 +9,6 @@ use crate::torrent::tracker::{
     TrackerError, TrackerHandle,
 };
 use crate::torrent::InfoHash;
-use chrono::Utc;
 use derive_more::Display;
 use futures::future;
 use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
@@ -559,14 +558,14 @@ impl InnerTrackerManager {
     /// * `manager` - The `InnerTrackerManager` to perform announcements with.
     async fn do_automatic_announcements(&self) {
         let mut mutex = self.trackers.write().await;
-        let now = Utc::now();
+        let now = Instant::now();
 
         for tracker in mutex.as_mut_slice() {
             let interval = tracker.announcement_interval().await;
             let last_announcement = tracker.last_announcement().await;
-            let delta = now.signed_duration_since(last_announcement);
+            let delta = now - last_announcement;
 
-            if delta.num_seconds() >= interval as i64 {
+            if delta.as_secs() >= interval {
                 match self.announce_tracker(tracker, AnnounceEvent::Started).await {
                     Ok(_) => {}
                     Err(e) => warn!("Failed make an announcement for {}, {}", tracker, e),
@@ -580,7 +579,7 @@ impl InnerTrackerManager {
 mod tests {
     use super::*;
 
-    use crate::recv_timeout;
+    use crate::timeout;
 
     use popcorn_fx_core::init_logger;
     use std::str::FromStr;
@@ -668,11 +667,12 @@ mod tests {
             .await
             .expect("expected the tracker to have been created");
 
-        let result = recv_timeout!(
-            &mut rx,
+        let result = timeout!(
+            rx.recv(),
             Duration::from_millis(200),
             "expected to receive an event"
-        );
+        )
+        .unwrap();
         if let TrackerManagerEvent::TrackerAdded(_) = result {
         } else {
             assert!(

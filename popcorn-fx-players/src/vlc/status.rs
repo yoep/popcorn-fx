@@ -1,10 +1,14 @@
-use serde::Deserialize;
-
+use crate::vlc::{Result, VlcError};
 use popcorn_fx_core::core::players::PlayerState;
+use serde::de::{Error, Visitor};
+use serde::{Deserialize, Deserializer};
+use std::fmt::Formatter;
+use std::str::FromStr;
+
+const VLC_STATE_VARIANTS: [&str; 3] = ["paused", "playing", "stopped"];
 
 /// Represents the state of a VLC player.
-#[derive(Debug, Clone, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, Clone, PartialEq)]
 pub enum VlcState {
     /// Represents the paused state of a VLC player.
     Paused,
@@ -24,6 +28,33 @@ impl From<VlcState> for PlayerState {
     }
 }
 
+impl FromStr for VlcState {
+    type Err = VlcError;
+
+    fn from_str(value: &str) -> Result<Self> {
+        let normalized_value = value.trim().to_lowercase();
+
+        match normalized_value.as_str() {
+            "paused" => Ok(VlcState::Paused),
+            "playing" => Ok(VlcState::Playing),
+            "stopped" => Ok(VlcState::Stopped),
+            _ => Err(VlcError::Parsing(format!(
+                "invalid vlc state value {}",
+                value
+            ))),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for VlcState {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_str(VlcStateVisitor)
+    }
+}
+
 /// Represents the status of a VLC player.
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 #[serde(rename = "root")]
@@ -38,10 +69,25 @@ pub struct VlcStatus {
     pub state: VlcState,
 }
 
+struct VlcStateVisitor;
+
+impl<'de> Visitor<'de> for VlcStateVisitor {
+    type Value = VlcState;
+
+    fn expecting(&self, f: &mut Formatter) -> std::fmt::Result {
+        write!(f, "expected text representing a VLC state")
+    }
+
+    fn visit_str<E>(self, value: &str) -> std::result::Result<Self::Value, E>
+    where
+        E: Error,
+    {
+        VlcState::from_str(value).map_err(|e| Error::unknown_variant(value, &VLC_STATE_VARIANTS))
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use serde_xml_rs::from_str;
-
     use super::*;
 
     #[test]
@@ -49,6 +95,13 @@ mod tests {
         assert_eq!(PlayerState::Paused, PlayerState::from(VlcState::Paused));
         assert_eq!(PlayerState::Playing, PlayerState::from(VlcState::Playing));
         assert_eq!(PlayerState::Stopped, PlayerState::from(VlcState::Stopped));
+    }
+
+    #[test]
+    fn test_vlc_state_from_str() {
+        assert_eq!(Ok(VlcState::Paused), VlcState::from_str("Paused"));
+        assert_eq!(Ok(VlcState::Playing), VlcState::from_str("Playing"));
+        assert_eq!(Ok(VlcState::Stopped), VlcState::from_str("Stopped"));
     }
 
     #[test]
@@ -68,8 +121,8 @@ mod tests {
             state: VlcState::Paused,
         };
 
-        let result: VlcStatus =
-            from_str(response).expect("expected the vlc response to have been parsed");
+        let result: VlcStatus = serde_xml_rs::from_str(response)
+            .expect("expected the vlc response to have been parsed");
 
         assert_eq!(expected_result, result)
     }

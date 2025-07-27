@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -39,6 +40,7 @@ public class DesktopSerieActionsComponent implements Initializable, SerieActions
     private final DesktopSerieQualityComponent desktopSerieQualityComponent;
     private final PlaylistManager playlistManager;
     private final DetailsComponentService detailsComponentService;
+    private final AtomicBoolean initializing = new AtomicBoolean(false);
 
     private ShowDetails media;
     private Episode episode;
@@ -71,6 +73,11 @@ public class DesktopSerieActionsComponent implements Initializable, SerieActions
 
     private void initializeLanguage() {
         languageSelection.selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            if (initializing.get()) {
+                initializing.set(false);
+                return;
+            }
+
             if (newValue.getLanguage() == Subtitle.Language.CUSTOM) {
                 detailsComponentService.onCustomSubtitleSelected(() ->
                         subtitleService.defaultSubtitles()
@@ -116,8 +123,11 @@ public class DesktopSerieActionsComponent implements Initializable, SerieActions
         subtitleService.defaultSubtitles().whenComplete((defaultSubtitles, throwable) -> {
             if (throwable == null) {
                 Platform.runLater(() -> {
+                    initializing.set(true);
+
                     languages.clear();
                     languages.setAll(defaultSubtitles);
+                    languageSelection.setLoading(true);
                     languageSelection.select(defaultSubtitles.getFirst());
                 });
             } else {
@@ -128,7 +138,10 @@ public class DesktopSerieActionsComponent implements Initializable, SerieActions
                 Platform.runLater(() -> languageSelection.getItems().addAll(subtitles));
 
                 subtitleService.getDefaultOrInterfaceLanguage(subtitles).thenAccept(subtitle ->
-                        Platform.runLater(() -> languageSelection.select(subtitle)));
+                        Platform.runLater(() -> {
+                            languageSelection.select(subtitle);
+                            languageSelection.setLoading(false);
+                        }));
             });
         });
     }

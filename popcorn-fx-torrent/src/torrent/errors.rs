@@ -1,5 +1,7 @@
+use crate::torrent::fs::Error;
 use crate::torrent::tracker::TrackerError;
-use crate::torrent::{fs, peer, TorrentHandle};
+use crate::torrent::{dht, fs, peer, SessionState, TorrentHandle};
+use std::io;
 use thiserror::Error;
 
 /// The result type for the torrent package.
@@ -37,7 +39,7 @@ pub enum PieceError {
     InvalidChunkSize(usize, usize),
 }
 
-#[derive(Debug, Error, PartialEq)]
+#[derive(Debug, Error)]
 pub enum TorrentError {
     #[error("failed to parse magnet uri, {0}")]
     Magnet(MagnetError),
@@ -51,11 +53,13 @@ pub enum TorrentError {
     InvalidTopic(String),
     #[error("the provided info hash is invalid, {0}")]
     InvalidInfoHash(String),
-    #[error("the torrent handle {0} is no longer valid or invalid")]
+    #[error("torrent handle {0} is no longer valid or invalid")]
     InvalidHandle(TorrentHandle),
-    #[error("the torrent request is invalid, {0}")]
+    #[error("session is in invalid state {0}")]
+    InvalidSessionState(SessionState),
+    #[error("torrent request is invalid, {0}")]
     InvalidRequest(String),
-    #[error("the session is invalid, {0}")]
+    #[error("session is invalid, {0}")]
     InvalidSession(String),
     #[error("the specified range {0:?} is invalid")]
     InvalidRange(std::ops::Range<usize>),
@@ -63,9 +67,10 @@ pub enum TorrentError {
     Tracker(TrackerError),
     #[error("peer error: {0}")]
     Peer(peer::Error),
-    // TODO: rework to [std::io::Error]
+    #[error("dht error: {0}")]
+    Dht(dht::Error),
     #[error("an io error occurred, {0}")]
-    Io(String),
+    Io(io::Error),
     #[error("the torrent operation has timed out")]
     Timeout,
     #[error("a torrent piece error occurred, {0}")]
@@ -74,39 +79,83 @@ pub enum TorrentError {
     DataUnavailable,
 }
 
+impl PartialEq for TorrentError {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Magnet(_), Self::Magnet(_)) => true,
+            (Self::TorrentParse(_), Self::TorrentParse(_)) => true,
+            (Self::AddressParse(_), Self::AddressParse(_)) => true,
+            (Self::InvalidMetadata(_), Self::InvalidMetadata(_)) => true,
+            (Self::InvalidTopic(_), Self::InvalidTopic(_)) => true,
+            (Self::InvalidInfoHash(le), Self::InvalidInfoHash(re)) => le == re,
+            (Self::InvalidHandle(_), Self::InvalidHandle(_)) => true,
+            (Self::InvalidSessionState(_), Self::InvalidSessionState(_)) => true,
+            (Self::InvalidRequest(_), Self::InvalidRequest(_)) => true,
+            (Self::InvalidSession(_), Self::InvalidSession(_)) => true,
+            (Self::InvalidRange(_), Self::InvalidRange(_)) => true,
+            (Self::Tracker(le), Self::Tracker(re)) => le == re,
+            (Self::Peer(le), Self::Peer(re)) => le == re,
+            (Self::Dht(le), Self::Dht(re)) => le == re,
+            (Self::Io(_), Self::Io(_)) => true,
+            (Self::Timeout, Self::Timeout) => true,
+            (Self::Piece(_), Self::Piece(_)) => true,
+            (Self::DataUnavailable, Self::DataUnavailable) => true,
+            _ => false,
+        }
+    }
+}
+
+impl From<MagnetError> for TorrentError {
+    fn from(err: MagnetError) -> Self {
+        TorrentError::Magnet(err)
+    }
+}
+
 impl From<TrackerError> for TorrentError {
     fn from(error: TrackerError) -> Self {
-        TorrentError::Tracker(error)
+        Self::Tracker(error)
     }
 }
 
 impl From<peer::Error> for TorrentError {
     fn from(error: peer::Error) -> Self {
-        TorrentError::Peer(error)
+        Self::Peer(error)
     }
 }
 
-impl From<std::io::Error> for TorrentError {
-    fn from(error: std::io::Error) -> Self {
-        TorrentError::Io(error.to_string())
+impl From<io::Error> for TorrentError {
+    fn from(err: io::Error) -> Self {
+        Self::Io(err)
     }
 }
 
 impl From<serde_bencode::Error> for TorrentError {
     fn from(error: serde_bencode::Error) -> Self {
-        TorrentError::TorrentParse(error.to_string())
+        Self::TorrentParse(error.to_string())
     }
 }
 
 impl From<PieceError> for TorrentError {
     fn from(error: PieceError) -> Self {
-        TorrentError::Piece(error)
+        Self::Piece(error)
     }
 }
 
 impl From<fs::Error> for TorrentError {
-    fn from(error: fs::Error) -> Self {
-        TorrentError::Io(error.to_string())
+    fn from(err: fs::Error) -> Self {
+        match err {
+            Error::Unavailable => Self::Io(io::Error::new(io::ErrorKind::Other, err.to_string())),
+            Error::InvalidFilepath(e) => {
+                Self::Io(io::Error::new(io::ErrorKind::NotFound, format!("{:?}", e)))
+            }
+            Error::Io(e) => Self::Io(e),
+        }
+    }
+}
+
+impl From<dht::Error> for TorrentError {
+    fn from(error: dht::Error) -> Self {
+        Self::Dht(error)
     }
 }
 
@@ -116,32 +165,45 @@ mod tests {
     use std::io;
 
     #[test]
-    fn test_torrent_error_from_tracker_error() {
-        let err = TrackerError::Connection("foo bar".to_string());
+    fn test_torrent_error_from_magnet_error() {
+        let err_text = "lorem ipsum dolor";
+        let err = MagnetError::Parse(err_text.to_string());
+        let expected_result = TorrentError::Magnet(err.clone());
 
         let result: TorrentError = err.into();
 
-        assert_eq!(
-            result,
-            TorrentError::Tracker(TrackerError::Connection("foo bar".to_string()))
-        );
+        assert_eq!(expected_result, result)
+    }
+
+    #[test]
+    fn test_torrent_error_from_tracker_error() {
+        let err_text = "foo bar";
+        let err = TrackerError::Connection(err_text.to_string());
+        let expected_result = TorrentError::Tracker(err.clone());
+
+        let result: TorrentError = err.into();
+
+        assert_eq!(expected_result, result);
     }
 
     #[test]
     fn test_torrent_error_from_peer_error() {
         let err = peer::Error::InvalidPeerId;
+        let expected_result = TorrentError::Peer(peer::Error::InvalidPeerId);
 
         let result: TorrentError = err.into();
 
-        assert_eq!(result, TorrentError::Peer(peer::Error::InvalidPeerId));
+        assert_eq!(expected_result, result);
     }
 
     #[test]
     fn test_torrent_error_from_io_error() {
-        let err = io::Error::new(io::ErrorKind::Other, "foo bar");
+        let error = "foo bar";
+        let io_err = io::Error::new(io::ErrorKind::Other, error);
 
-        let result: TorrentError = err.into();
+        let result: TorrentError = io_err.into();
 
-        assert_eq!(result, TorrentError::Io("foo bar".to_string()));
+        let err_text = result.to_string();
+        assert_eq!(format!("an io error occurred, {}", error), err_text);
     }
 }

@@ -301,21 +301,22 @@ public class ShowDetailsComponent extends AbstractDesktopDetailsComponent<ShowDe
 
     private void selectUnwatchedSeason() {
         var seasons = this.seasons.getItems();
-        showHelperService.getUnwatchedSeason(seasons, media).whenComplete((season, throwable) -> {
-            if (throwable == null) {
-                Platform.runLater(() -> this.seasons.setSelectedItem(season));
-                selectUnwatchedEpisode(season);
-            } else {
-                log.error("Failed to retrieve unwatched season", throwable);
-            }
-        });
+        showHelperService.getUnwatchedSeason(seasons, media)
+                .thenAccept(season -> {
+                    Platform.runLater(() -> this.seasons.setSelectedItem(season));
+                    selectUnwatchedEpisode(season);
+                })
+                .exceptionally(throwable -> {
+                    log.error("Failed to load unwatched season", throwable);
+                    return null;
+                });
     }
 
     private void selectUnwatchedEpisode(Season newSeason) {
         var episodes = this.episodes.getItems();
         showHelperService.getUnwatchedEpisode(episodes, newSeason)
                 .thenAccept(episode ->
-                        episode.ifPresent(e -> Platform.runLater(() -> this.episodes.setSelectedItem(e)))
+                        episode.ifPresent(e -> Platform.runLater(() -> this.episodes.setSelectedItem(e, true)))
                 ).exceptionally(ex -> {
                     log.error("Failed to get unwatched episode, {}", ex.getMessage(), ex);
                     return null;

@@ -4,7 +4,7 @@ use crate::ipc::proto::torrent::{torrent, torrent_event};
 use popcorn_fx_core::core::torrents::collection::MagnetInfo;
 use popcorn_fx_core::core::torrents::{Error, TorrentInfo, TorrentStreamState};
 use popcorn_fx_torrent::torrent::{
-    TorrentEvent, TorrentFileInfo, TorrentHealth, TorrentHealthState, TorrentState, TorrentStats,
+    TorrentEvent, TorrentHealth, TorrentHealthState, TorrentState, TorrentStats,
 };
 use protobuf::MessageField;
 
@@ -109,7 +109,7 @@ impl From<&TorrentEvent> for proto::torrent::TorrentEvent {
                     special_fields: Default::default(),
                 });
             }
-            TorrentEvent::MetadataChanged => {
+            TorrentEvent::MetadataChanged(_) => {
                 event.event = torrent_event::Event::METADATA_CHANGED.into();
             }
             TorrentEvent::PeerConnected(_) => {
@@ -121,7 +121,7 @@ impl From<&TorrentEvent> for proto::torrent::TorrentEvent {
             TorrentEvent::TrackersChanged => {
                 event.event = torrent_event::Event::TRACKERS_CHANGED.into();
             }
-            TorrentEvent::PiecesChanged => {
+            TorrentEvent::PiecesChanged(_) => {
                 event.event = torrent_event::Event::PIECES_CHANGED.into();
             }
             TorrentEvent::PiecePrioritiesChanged => {
@@ -213,6 +213,8 @@ impl From<&Error> for torrent::Error {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use popcorn_fx_core::testing::read_test_file_to_bytes;
+    use popcorn_fx_torrent::torrent::TorrentMetadata;
 
     #[test]
     fn test_health_state_from() {
@@ -314,7 +316,9 @@ mod tests {
 
     #[test]
     fn test_torrent_event_from_metadata_changed() {
-        let event = TorrentEvent::MetadataChanged;
+        let metadata_bytes = read_test_file_to_bytes("debian.torrent");
+        let metadata = TorrentMetadata::try_from(metadata_bytes.as_slice()).unwrap();
+        let event = TorrentEvent::MetadataChanged(metadata);
         let expected_result = proto::torrent::TorrentEvent {
             torrent_handle: Default::default(),
             event: torrent_event::Event::METADATA_CHANGED.into(),

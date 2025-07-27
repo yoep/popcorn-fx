@@ -26,13 +26,13 @@ pub mod testing {
     use log4rs::Config;
     use mockall::mock;
     use popcorn_fx_torrent::torrent;
-    use popcorn_fx_torrent::torrent::TorrentStats;
+    use popcorn_fx_torrent::torrent::{File, TorrentStats};
     use std::fmt::{Display, Formatter};
     use std::fs::OpenOptions;
     use std::io::Read;
     use std::ops::Range;
     use std::path::PathBuf;
-    use std::sync::{Once, Weak};
+    use std::sync::Once;
     use std::time::Duration;
     use std::{env, fs};
     use tempfile::TempDir;
@@ -255,6 +255,7 @@ pub mod testing {
         impl Torrent for InnerTorrentStream {
             fn handle(&self) -> TorrentHandle;
             async fn files(&self) -> Vec<torrent::File>;
+            async fn file_by_name(&self, name: &str) -> Option<File>;
             async fn largest_file(&self) -> Option<torrent::File>;
             async fn has_bytes(&self, bytes: &std::ops::Range<usize>) -> bool;
             async fn has_piece(&self, piece: usize) -> bool;
@@ -292,6 +293,9 @@ pub mod testing {
         }
         async fn files(&self) -> Vec<torrent::File> {
             self.inner.files().await
+        }
+        async fn file_by_name(&self, name: &str) -> Option<File> {
+            self.inner.file_by_name(name).await
         }
         async fn largest_file(&self) -> Option<torrent::File> {
             self.inner.largest_file().await
@@ -418,32 +422,22 @@ pub mod testing {
     #[macro_export]
     macro_rules! assert_timeout {
         ($timeout:expr, $condition:expr) => {{
-            let result = tokio::select! {
-                _ = tokio::time::sleep($timeout) => false,
-                result = async {
-                    loop {
-                        if $condition {
-                            return true;
-                        }
-                        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-                    }
-                } => result,
-            };
-
-            if !result {
-                assert!(false, "Timeout assertion failed after {:?}", $timeout);
-            }
+            assert_timeout!($timeout, $condition, "")
         }};
         ($timeout:expr, $condition:expr, $message:expr) => {{
-            let result = tokio::select! {
-                _ = tokio::time::sleep($timeout) => false,
+            use std::time::Duration;
+            use tokio::select;
+            use tokio::time;
+
+            let result = select! {
+                _ = time::sleep($timeout) => false,
                 result = async {
                     loop {
                         if $condition {
                             return true;
                         }
 
-                        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+                        time::sleep(Duration::from_millis(10)).await;
                     }
                 } => result,
             };

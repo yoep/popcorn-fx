@@ -97,7 +97,7 @@ impl_downcast!(sync TorrentStream);
 /// The streaming resource of a [TorrentStream].
 /// It allows a [Torrent] to be streamed over HTTP.
 pub trait TorrentStreamingResource: Stream<Item = StreamBytesResult> + Send {
-    /// The starting offset of the stream in regards to the resource bytes.
+    /// The starting offset of the stream in regard to the resource bytes.
     /// This will be the initial seek offset within the resource bytes and is 0 index based.
     fn offset(&self) -> u64;
 

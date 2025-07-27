@@ -6,7 +6,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use derive_more::Display;
 use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
-use log::{debug, error, trace};
+use log::{debug, error, trace, warn};
 use rupnp::{Device, Service};
 use tokio::select;
 use tokio::sync::mpsc::error::SendError;
@@ -25,6 +25,7 @@ use popcorn_fx_core::core::utils::time::{
 
 use crate::dlna;
 use crate::dlna::models::{PositionInfo, TransportInfo, UpnpEvent};
+use crate::dlna::DlnaError;
 
 const DLNA_GRAPHIC_RESOURCE: &[u8] = include_bytes!("../../resources/external-dlna-icon.png");
 const DLNA_PLAYER_DESCRIPTION: &str = "DLNA Player";
@@ -341,9 +342,14 @@ impl InnerPlayer {
             .await
         {
             trace!("Received UPnP transport info: {:?}", info);
-            let event = UpnpEvent::State(TransportInfo::from(info));
-            if let Err(e) = self.event_sender.send(event) {
-                self.handle_poll_event_error(e).await;
+            match TransportInfo::try_from(info) {
+                Ok(info) => {
+                    let event = UpnpEvent::State(info);
+                    if let Err(e) = self.event_sender.send(event) {
+                        self.handle_poll_event_error(e).await;
+                    }
+                }
+                Err(e) => warn!("Failed to parse UPnP transport info, {}", e),
             }
         }
     }

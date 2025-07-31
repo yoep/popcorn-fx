@@ -7,7 +7,7 @@ popcorn:
     popcorn_fx:
       level: warn
     popcorn_fx::ffi:
-      level: info
+      level: trace
     popcorn_fx_core:
       level: info
     popcorn_fx_core::core::loader:
@@ -27,6 +27,6 @@ popcorn:
     popcorn_fx_torrent:
       level: info
     popcorn_fx_torrent::torrent::dht:
-      level: debug
+      level: info
     popcorn_fx_torrent::torrent::peer::protocol:
       level: info

@@ -50,7 +50,6 @@ endif
 
 prerequisites-cargo:  ## Install the requirements for Cargo
 	@echo Installing Cargo plugins
-	@cargo install cbindgen
 	@cargo install cargo-nextest
 	@cargo install cargo-llvm-cov
 	@cargo install grcov

@@ -8,11 +8,9 @@ use crate::ipc::{
 };
 use clap::{CommandFactory, Error, FromArgMatches};
 use interprocess::local_socket;
-use interprocess::local_socket::tokio::prelude::LocalSocketStream;
-use interprocess::local_socket::traits::tokio::Stream;
-use interprocess::local_socket::{
-    GenericFilePath, GenericNamespaced, NameType, ToFsName, ToNsName,
-};
+use interprocess::local_socket::tokio::prelude::{LocalSocketListener, LocalSocketStream};
+use interprocess::local_socket::traits::tokio::{Listener, Stream};
+use interprocess::local_socket::{GenericFilePath, GenericNamespaced, ListenerOptions, NameType, ToFsName, ToNsName};
 use log::info;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -36,7 +34,9 @@ async fn main() -> io::Result<()> {
         socket_path_str.to_fs_name::<GenericFilePath>()?
     };
 
-    let conn = LocalSocketStream::connect(socket_path).await?;
+    let opts = ListenerOptions::new().name(socket_path);
+    let listener = opts.create_tokio()?;
+    let conn = listener.accept().await?;
 
     popcorn_fx_args()
         .map(|args| start(conn, args))

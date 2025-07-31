@@ -4,12 +4,11 @@ import com.github.yoep.popcorn.backend.lib.ipc.protobuf.FxMessage;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.*;
-import java.net.StandardProtocolFamily;
+import java.net.SocketAddress;
 import java.net.UnixDomainSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.Channels;
-import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -21,11 +20,13 @@ import static java.util.Arrays.asList;
 
 @Slf4j
 public class FxLib implements Closeable {
+    static final int MAX_RETRIES = 20;
+    static final int BACKOFF_DELAY = 50;
+
     BufferedInputStream reader;
     BufferedOutputStream writer;
     Process process;
     RandomAccessFile namedPipe;
-    ServerSocketChannel unixSocket;
     SocketChannel channel;
 
     public FxLib(String[] args) {
@@ -45,8 +46,8 @@ public class FxLib implements Closeable {
         if (namedPipe != null) {
             namedPipe.close();
         }
-        if (unixSocket != null) {
-            unixSocket.close();
+        if (channel != null) {
+            channel.close();
         }
         if (process != null && process.isAlive()) {
             process.destroy();
@@ -102,9 +103,9 @@ public class FxLib implements Closeable {
     /**
      * Launch the library subprocess for this lib instance.
      *
-     * @param socketPath The socket path to which the lib needs to connect to.
+     * @param socketPath        The socket path to which the lib needs to connect to.
      * @param libraryExecutable The executable filename of the library.
-     * @param args       The library arguments.
+     * @param args              The library arguments.
      * @return Returns the library process.
      * @throws IOException Throws an IO exception when the library couldn't be started.
      */
@@ -117,34 +118,84 @@ public class FxLib implements Closeable {
     }
 
     private void createNamedPipe(String[] args) throws Exception {
+        var attempts = 0;
         var socketPath = "libfx";
+        var pipePath = String.format("\\\\.\\pipe\\%s", socketPath);
 
-        namedPipe = new RandomAccessFile(String.format("\\\\.\\pipe\\%s", socketPath), "rw");
         process = launchLibProcess(socketPath, "libfx.exe", args);
 
-        var fd = namedPipe.getFD();
-        reader = new BufferedInputStream(new FileInputStream(fd));
-        writer = new BufferedOutputStream(new FileOutputStream(fd));
+        while (attempts < MAX_RETRIES) {
+            try {
+                namedPipe = new RandomAccessFile(pipePath, "rw");
+                initializePipeStream();
+                return;
+            } catch (FileNotFoundException ex) {
+                log.trace("Failed to open pipe", ex);
+                attempts++;
+                Thread.sleep(calculateBackoffDelay(attempts));
+            }
+        }
+
+        throw new FxLibException("Failed to start IPC process, named pipe failed to create");
     }
 
     private void createDomainSocket(String[] args) throws Exception {
+        var attempts = 0;
         var socketPath = String.format("/tmp/libfx.%s.sock", UUID.randomUUID().toString().replace("-", ""));
         Files.deleteIfExists(Paths.get(socketPath));
 
-        var address = UnixDomainSocketAddress.of(socketPath);
-        unixSocket = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
-        unixSocket.bind(address);
         process = launchLibProcess(socketPath, "libfx", args);
 
-        channel = unixSocket.accept();
-        unixSocket.configureBlocking(false);
+        var address = UnixDomainSocketAddress.of(socketPath);
+        channel = SocketChannel.open();
+
+        while (attempts < MAX_RETRIES) {
+            if (trySocketConnection(address)) {
+                break;
+            }
+
+            attempts++;
+            Thread.sleep(calculateBackoffDelay(attempts));
+        }
 
         reader = new BufferedInputStream(Channels.newInputStream(channel));
         writer = new BufferedOutputStream(Channels.newOutputStream(channel));
     }
 
+    /**
+     * Try to connect to the given unix domain socket.
+     *
+     * @param address The socket address to connect to.
+     * @return Returns true when the connection succeeded, else false.
+     */
+    private boolean trySocketConnection(SocketAddress address) {
+        try {
+            channel.connect(address);
+            channel.configureBlocking(false);
+            return true;
+        } catch (IOException ex) {
+            log.trace("Failed to open connection", ex);
+            return false;
+        }
+    }
+
+    /**
+     * Initialize the reader and writer for the named pipe.
+     *
+     * @throws IOException Is thrown when the FileDescriptor cannot be retrieved for the named pipe.
+     */
+    private void initializePipeStream() throws IOException {
+        var fd = namedPipe.getFD();
+        reader = new BufferedInputStream(new FileInputStream(fd));
+        writer = new BufferedOutputStream(new FileOutputStream(fd));
+    }
+
     static boolean isWindows() {
         return System.getProperty("os.name").toLowerCase().contains("win");
+    }
+
+    static int calculateBackoffDelay(int attempts) {
+        return attempts * BACKOFF_DELAY;
     }
 
     /**

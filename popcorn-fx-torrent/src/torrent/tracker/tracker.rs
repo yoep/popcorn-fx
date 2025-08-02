@@ -14,12 +14,13 @@ use std::fmt::Debug;
 use std::net::SocketAddr;
 use std::ops::Sub;
 use std::time::{Duration, Instant};
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock};
 use tokio::{select, time};
 use url::Url;
 
 const DEFAULT_CONNECTION_TIMEOUT_SECONDS: u64 = 10;
 const DEFAULT_ANNOUNCEMENT_INTERVAL_SECONDS: u64 = 120;
+const DISABLE_TRACKER_AFTER_FAILURES: usize = 6;
 
 /// The announcement information for a tracker.
 /// This is the most recent torrent information that should be shared with the tracker.
@@ -124,6 +125,26 @@ pub trait TrackerConnection: Debug + Send + Sync {
 /// The tracker identifier handle
 pub type TrackerHandle = Handle;
 
+/// The state of a tracker.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum TrackerState {
+    /// Tracker is active and can be used for sending queries
+    Active,
+    /// Tracker is bad and disabled for further
+    Disabled,
+}
+
+impl TrackerState {
+    /// Calculate the state of a tracker based on the given metrics
+    pub fn calculate(failure_count: usize) -> Self {
+        if failure_count > DISABLE_TRACKER_AFTER_FAILURES {
+            return TrackerState::Disabled;
+        }
+
+        TrackerState::Active
+    }
+}
+
 #[derive(Debug, Display)]
 #[display(fmt = "[{}] ({}){}", handle, tier, url)]
 pub struct Tracker {
@@ -143,9 +164,14 @@ pub struct Tracker {
     announcement_interval_seconds: RwLock<u64>,
     /// The last time an announcement was made by this tracker
     last_announcement: RwLock<Instant>,
+    /// The state of the tracker.
+    state: Mutex<TrackerState>,
+    /// The number of times the tracker returned an error or timed out to a query in a row.
+    fail_count: Mutex<usize>,
 }
 
 impl Tracker {
+    /// Create a new builder instance for creating a [Tracker].
     pub fn builder() -> TrackerBuilder {
         TrackerBuilder::builder()
     }
@@ -176,16 +202,24 @@ impl Tracker {
             last_announcement: RwLock::new(
                 Instant::now().sub(Duration::from_secs(DEFAULT_ANNOUNCEMENT_INTERVAL_SECONDS)),
             ),
+            state: Mutex::new(TrackerState::Active),
+            fail_count: Default::default(),
         })
     }
 
-    /// The unique handle for this tracker.
+    /// Get the unique handle of the tracker.
     pub fn handle(&self) -> TrackerHandle {
         self.handle
     }
 
+    /// Get the url of the tracker.
     pub fn url(&self) -> &Url {
         &self.url
+    }
+
+    /// Get the current state of the tracker.
+    pub async fn state(&self) -> TrackerState {
+        *self.state.lock().await
     }
 
     /// Get the expected announcement interval in seconds.
@@ -229,9 +263,13 @@ impl Tracker {
                     *mutex = e.interval_seconds;
                 }
 
+                self.confirm().await;
                 Ok(e)
             }
-            Err(e) => Err(e),
+            Err(e) => {
+                self.fail().await;
+                Err(e)
+            }
         }
     }
 
@@ -246,7 +284,29 @@ impl Tracker {
     /// It returns the scrape metrics result from the tracker for the given info hashes.
     pub async fn scrape(&self, hashes: &[InfoHash]) -> Result<ScrapeResult> {
         trace!("Tracker {} is scraping {:?}", self, hashes);
-        self.connection.scrape(hashes).await
+        match self.connection.scrape(hashes).await {
+            Ok(e) => {
+                self.confirm().await;
+                Ok(e)
+            }
+            Err(e) => {
+                self.fail().await;
+                Err(e)
+            }
+        }
+    }
+
+    /// Confirm the last query made by the tracker.
+    async fn confirm(&self) {
+        *self.fail_count.lock().await = 0
+    }
+
+    /// Increase the failure count of the tracker.
+    async fn fail(&self) {
+        let mut fail_count = self.fail_count.lock().await;
+
+        *fail_count += 1;
+        *self.state.lock().await = TrackerState::calculate(*fail_count);
     }
 
     async fn create_connection(
@@ -298,37 +358,46 @@ impl TrackerBuilder {
         Self::default()
     }
 
-    pub fn url(mut self, url: Url) -> Self {
+    /// Set the url of the tracker.
+    pub fn url(&mut self, url: Url) -> &mut Self {
         self.url = Some(url);
         self
     }
 
-    pub fn tier(mut self, tier: u8) -> Self {
+    /// Set the tier of the tracker.
+    pub fn tier(&mut self, tier: u8) -> &mut Self {
         self.tier = Some(tier);
         self
     }
 
-    pub fn timeout(mut self, timeout: Duration) -> Self {
+    /// Set the query timeout of the tracker.
+    pub fn timeout(&mut self, timeout: Duration) -> &mut Self {
         self.timeout = Some(timeout);
         self
     }
 
+    /// Set the interval between announcements made by the tracker.
     pub fn default_announcement_interval_seconds(
-        mut self,
+        &mut self,
         announcement_interval_seconds: u64,
-    ) -> Self {
+    ) -> &mut Self {
         self.default_announcement_interval_seconds = Some(announcement_interval_seconds);
         self
     }
 
-    pub async fn build(self) -> Result<Tracker> {
-        let url = self.url.expect("expected the url to be set");
-        let tier = self.tier.unwrap_or(0);
+    /// Try to create a new [Tracker] instance from this builder.
+    ///
+    /// Returns an error when the [TrackerBuilder::url] has not been set.
+    pub async fn build(&mut self) -> Result<Tracker> {
+        let url = self.url.take().expect("expected the url to be set");
+        let tier = self.tier.take().unwrap_or(0);
         let timeout = self
             .timeout
+            .take()
             .unwrap_or(Duration::from_secs(DEFAULT_CONNECTION_TIMEOUT_SECONDS));
         let default_announcement_interval_seconds = self
             .default_announcement_interval_seconds
+            .take()
             .unwrap_or(DEFAULT_ANNOUNCEMENT_INTERVAL_SECONDS);
 
         Tracker::new(url, tier, timeout, default_announcement_interval_seconds).await
@@ -405,6 +474,27 @@ mod tests {
             result.files.len(),
             "expected the scrape files to match the files from the info hash"
         );
+    }
+
+    mod tracker_state_calculate {
+        use super::*;
+
+        #[test]
+        fn test_active() {
+            let failure_count = DISABLE_TRACKER_AFTER_FAILURES.saturating_sub(2);
+
+            assert_eq!(TrackerState::Active, TrackerState::calculate(failure_count));
+        }
+
+        #[test]
+        fn test_disabled() {
+            let failure_count = DISABLE_TRACKER_AFTER_FAILURES + 5;
+
+            assert_eq!(
+                TrackerState::Disabled,
+                TrackerState::calculate(failure_count)
+            );
+        }
     }
 
     async fn execute_tracker_announcement(info: &TorrentMetadata) -> AnnounceEntryResponse {

@@ -14,7 +14,7 @@ use tokio::{select, time};
 /// # Example new instance
 ///
 /// Use the [ProviderManagerBuilder] to build new instance of this manager.
-/// ```no_run
+/// ```rust,no_run
 /// use popcorn_fx_core::core::media::providers::ProviderManagerBuilder;
 /// let manager = ProviderManagerBuilder::new()
 ///     .with_provider(ProviderA::new())

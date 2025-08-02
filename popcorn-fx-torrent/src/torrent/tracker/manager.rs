@@ -7,14 +7,14 @@ use std::time::{Duration, Instant};
 use crate::torrent::peer::PeerId;
 use crate::torrent::tracker::{
     AnnounceEntryResponse, Announcement, Result, ScrapeFileMetrics, ScrapeResult, Tracker,
-    TrackerError, TrackerHandle,
+    TrackerError, TrackerHandle, TrackerState,
 };
 use crate::torrent::InfoHash;
 use derive_more::Display;
 use futures::future;
 use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use log::{debug, info, trace, warn};
-use tokio::sync::{Mutex, MutexGuard, RwLock};
+use tokio::sync::{Mutex, MutexGuard, RwLock, RwLockReadGuard};
 use tokio::{select, time};
 use tokio_util::sync::CancellationToken;
 use url::Url;
@@ -270,12 +270,22 @@ impl TrackerManager {
         let mut result = ScrapeResult::default();
         let hashes = vec![info_hash.clone()];
 
-        if self.inner.trackers.read().await.is_empty() {
+        let trackers = self.inner.trackers.read().await;
+        if trackers.is_empty() {
             return Err(TrackerError::NoTrackers);
         }
 
-        for tracker in self.inner.trackers.read().await.iter() {
-            match tracker.scrape(&hashes).await {
+        let scrape_results = future::join_all(
+            self.inner
+                .active_trackers(&trackers)
+                .await
+                .iter()
+                .map(|tracker| tracker.scrape(&hashes)),
+        )
+        .await;
+
+        for scrape_result in scrape_results.into_iter() {
+            match scrape_result {
                 Ok(metrics) => {
                     for (hash, metrics) in metrics.files {
                         let file_metrics = result
@@ -367,6 +377,23 @@ impl InnerTrackerManager {
 
         self.announce_all_stopped().await;
         debug!("Tracker manager {} main loop has stopped", self);
+    }
+
+    /// Get all active trackers of the manager.
+    async fn active_trackers<'a>(
+        &self,
+        trackers: &'a RwLockReadGuard<'_, Vec<Tracker>>,
+    ) -> Vec<&'a Tracker> {
+        future::join_all(
+            trackers
+                .iter()
+                .map(|tracker| async move { (tracker, tracker.state().await) }),
+        )
+        .await
+        .into_iter()
+        .filter(|(_, state)| *state == TrackerState::Active)
+        .map(|(tracker, _)| tracker)
+        .collect()
     }
 
     async fn add_torrent(
@@ -540,7 +567,9 @@ impl InnerTrackerManager {
 
         if let Some(torrent) = self.find_torrent(info_hash, &mut torrents).await {
             // start announcing the given hash to each tracker simultaneously
-            let futures: Vec<_> = trackers
+            let futures: Vec<_> = self
+                .active_trackers(&trackers)
+                .await
                 .iter()
                 .map(|tracker| {
                     self.announce_tracker(
@@ -664,12 +693,12 @@ impl InnerTrackerManager {
     ///
     /// * `manager` - The `InnerTrackerManager` to perform announcements with.
     async fn do_automatic_announcements(&self) {
-        let trackers = self.trackers.write().await;
+        let trackers = self.trackers.read().await;
         let torrents = self.torrents.lock().await;
         let now = Instant::now();
 
         for torrent in torrents.iter() {
-            for tracker in trackers.iter() {
+            for tracker in self.active_trackers(&trackers).await {
                 let interval = tracker.announcement_interval().await;
                 let last_announcement = tracker.last_announcement().await;
                 let delta = now - last_announcement;

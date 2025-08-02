@@ -7,7 +7,6 @@ use peer_pool::*;
 pub use piece::*;
 use piece_pool::*;
 pub use session::*;
-use std::net::{SocketAddr, TcpListener};
 use std::ops::Range;
 pub use torrent::*;
 pub use torrent_health::*;
@@ -159,33 +158,6 @@ pub fn calculate_byte_rate(bytes: usize, elapsed_micro_secs: u128) -> u64 {
 ///
 /// # Arguments
 ///
-/// * `lower_bound` - The lower bound of the available port range.
-/// * `upper_bound` - The upper bound of the available port range.
-///
-/// # Returns
-///
-/// Returns an available port if one is found, else `None`.
-pub(crate) fn available_port(lower_bound: u16, upper_bound: u16) -> Option<u16> {
-    let supported_ports: Vec<u16> = (lower_bound..=upper_bound).collect();
-
-    for port in supported_ports {
-        let socket: SocketAddr = ([0, 0, 0, 0], port).into();
-        if TcpListener::bind(socket).is_ok() {
-            return Some(port);
-        }
-    }
-
-    None
-}
-
-/// Retrieves an available port on the local machine.
-///
-/// This function searches for an available port on all network interfaces at the time of invocation.
-/// However, it's important to note that while a port may be available when retrieved, it may become
-/// unavailable by the time you attempt to bind to it, as this function does not reserve the port.
-///
-/// # Arguments
-///
 /// * `lower_bound` - The lower bound of the available port range (optional, default = 1000).
 /// * `upper_bound` - The upper bound of the available port range (optional, default = [u16::MAX]).
 ///
@@ -232,7 +204,8 @@ pub mod tests {
         BitTorrentPeer, PeerDiscovery, PeerId, PeerStream, TcpPeerDiscovery, UtpPeerDiscovery,
     };
 
-    use crate::torrent::dht::{DhtTracker, DhtTrackerBuilder};
+    use crate::torrent::dht::DhtTracker;
+    use crate::torrent::tracker::TrackerManager;
     use log::LevelFilter;
     use log4rs::append::console::ConsoleAppender;
     use log4rs::config::{Appender, Root};
@@ -316,6 +289,7 @@ pub mod tests {
         discoveries: Vec<Box<dyn PeerDiscovery>>,
     ) -> Torrent {
         let torrent_info = create_metadata(uri);
+        let tracker_manager = TrackerManager::new(Duration::from_secs(2));
         let dht = DhtTracker::builder().build().await.unwrap();
         Torrent::request()
             .metadata(torrent_info)
@@ -324,6 +298,7 @@ pub mod tests {
             .config(config)
             .operations(operations.iter().map(|e| e()).collect())
             .storage(Box::new(TorrentFileSystemStorage::new(temp_dir)))
+            .tracker_manager(tracker_manager)
             .dht(dht)
             .build()
             .unwrap()

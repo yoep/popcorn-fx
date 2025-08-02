@@ -241,9 +241,9 @@ impl TorrentOperation for TorrentFileValidationOperation {
 mod tests {
     use super::*;
     use crate::create_torrent;
+    use crate::init_logger;
     use crate::torrent::operation::{TorrentCreateFilesOperation, TorrentCreatePiecesOperation};
     use crate::torrent::{TorrentConfig, TorrentFlags};
-    use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::copy_test_file;
     use std::time::Duration;
     use tempfile::tempdir;

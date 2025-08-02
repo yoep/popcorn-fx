@@ -28,8 +28,11 @@ use tokio::{select, time};
 
 use crate::torrent::dht::{DhtTracker, DEFAULT_BOOTSTRAP_SERVERS};
 use crate::torrent::dns::DnsResolver;
+use crate::torrent::tracker::TrackerManager;
 #[cfg(test)]
 pub use mock::*;
+
+const DEFAULT_TRACKER_TIMEOUT_SECONDS: u64 = 3;
 
 /// A unique handle identifier of a [Session].
 pub type SessionHandle = Handle;
@@ -306,6 +309,7 @@ impl FxTorrentSession {
             base_path: RwLock::new(base_path.as_ref().to_path_buf()),
             client_name: client_name.as_ref().to_string(),
             dht: Default::default(),
+            tracker: TrackerManager::new(Duration::from_secs(DEFAULT_TRACKER_TIMEOUT_SECONDS)),
             torrents: Default::default(),
             protocol_extensions,
             extension_factories: extensions,
@@ -330,7 +334,6 @@ impl FxTorrentSession {
     /// * `torrent_info` - The metadata information of the torrent to add.
     /// * `options` - The torrent options to use when adding the torrent.
     /// * `peer_timeout` - The peer timeout to use when adding the torrent.
-    /// * `tracker_timeout` - The tracker timeout to use when adding the torrent.
     /// * `send_callback_event` - Whether to send a callback event when the torrent is added.
     ///
     /// # Returns
@@ -341,7 +344,6 @@ impl FxTorrentSession {
         torrent_info: TorrentMetadata,
         options: TorrentFlags,
         peer_timeout: Option<Duration>,
-        tracker_timeout: Option<Duration>,
         send_callback_event: bool,
     ) -> Result<Torrent> {
         self.inner.assert_state().await?;
@@ -370,9 +372,6 @@ impl FxTorrentSession {
         if let Some(peer_timeout) = peer_timeout {
             config = config.peer_connection_timeout(peer_timeout);
         }
-        if let Some(tracker_timeout) = tracker_timeout {
-            config = config.tracker_connection_timeout(tracker_timeout);
-        }
 
         let storage_path = self.inner.base_path.read().await.clone();
         trace!(
@@ -395,6 +394,7 @@ impl FxTorrentSession {
             .extensions(self.inner.extensions())
             .operations(self.inner.torrent_operations())
             .storage(Box::new(TorrentFileSystemStorage::new(storage_path)))
+            .tracker_manager(self.inner.tracker.clone())
             .dht_option(dht_tracker)
             .build()?;
         let result_torrent = torrent.clone();
@@ -459,7 +459,6 @@ impl Session for FxTorrentSession {
                         .peers_lower_limit(0)
                         .peers_upper_limit(0)
                         .peer_connection_timeout(Duration::from_secs(0))
-                        .tracker_connection_timeout(Duration::from_secs(1))
                         .build(),
                 )
                 .protocol_extensions(self.inner.protocol_extensions)
@@ -468,6 +467,7 @@ impl Session for FxTorrentSession {
                 .storage(Box::new(TorrentFileSystemStorage::new(
                     &self.inner.base_path.read().await.clone(),
                 )))
+                .tracker_manager(self.inner.tracker.clone())
                 .dht_option(self.inner.dht.lock().await.clone())
                 .build()?,
         };
@@ -525,7 +525,6 @@ impl Session for FxTorrentSession {
                 torrent_info,
                 TorrentFlags::Metadata,
                 Some(Duration::from_secs(3)),
-                Some(Duration::from_secs(2)),
                 false,
             )
             .await?;
@@ -561,7 +560,7 @@ impl Session for FxTorrentSession {
     ) -> Result<Torrent> {
         self.inner.assert_state().await?;
 
-        self.find_or_add_torrent(torrent_info, options, None, None, true)
+        self.find_or_add_torrent(torrent_info, options, None, true)
             .await
     }
 
@@ -718,6 +717,8 @@ struct InnerSession {
     client_name: String,
     /// The DHT node server of the session
     dht: Mutex<Option<DhtTracker>>,
+    /// The tracker of the session
+    tracker: TrackerManager,
     /// The currently active torrents within the session
     torrents: RwLock<HashMap<InfoHash, Torrent>>,
     /// The enabled protocol extensions of the session
@@ -940,8 +941,8 @@ pub mod tests {
     use crate::torrent::TorrentHealthState;
     use crate::{create_torrent, timeout};
 
+    use crate::init_logger;
     use log::info;
-    use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::{read_test_file_to_bytes, test_resource_filepath};
     use std::time::Duration;
     use tempfile::tempdir;

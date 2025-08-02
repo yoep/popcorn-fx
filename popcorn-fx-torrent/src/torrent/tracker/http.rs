@@ -1,6 +1,6 @@
-use crate::torrent::peer::PeerId;
 use crate::torrent::tracker::{
     AnnounceEntryResponse, Announcement, Result, ScrapeResult, TrackerConnection, TrackerError,
+    TrackerHandle,
 };
 use crate::torrent::{CompactIpv4Addrs, InfoHash};
 use async_trait::async_trait;
@@ -55,12 +55,10 @@ impl Into<AnnounceEntryResponse> for HttpResponse {
 
 /// The HTTP/HTTPS tracker connection protocol implementation.
 #[derive(Debug, Display)]
-#[display(fmt = "{} ({})", peer_id, url)]
+#[display(fmt = "{} ({})", handle, url)]
 pub struct HttpConnection {
-    /// The unique torrent peer id
-    peer_id: PeerId,
-    /// The port on which the torrent is listening to accept incoming connetions
-    peer_port: u16,
+    /// The handle of the tracker
+    handle: TrackerHandle,
     /// The base url of the http tracker
     url: Url,
     /// The tracker http client
@@ -69,7 +67,7 @@ pub struct HttpConnection {
 }
 
 impl HttpConnection {
-    pub fn new(url: Url, peer_id: PeerId, peer_port: u16, timeout: Duration) -> Self {
+    pub fn new(handle: TrackerHandle, url: Url, timeout: Duration) -> Self {
         let client = Client::builder()
             .redirect(Policy::limited(3))
             .timeout(timeout)
@@ -77,8 +75,7 @@ impl HttpConnection {
             .expect("expected a valid http client");
 
         Self {
-            peer_id,
-            peer_port,
+            handle,
             url,
             client,
             cancellation_token: Default::default(),
@@ -94,8 +91,8 @@ impl HttpConnection {
 
         let base_url = url
             .query_pairs_mut()
-            .append_pair("peer_id", &self.peer_id.to_string())
-            .append_pair("port", &self.peer_port.to_string())
+            .append_pair("peer_id", &announce.peer_id.to_string())
+            .append_pair("port", &announce.peer_port.to_string())
             .append_pair("uploaded", "0")
             .append_pair("downloaded", announce.bytes_completed.to_string().as_str())
             .append_pair("left", announce.bytes_remaining.to_string().as_str())
@@ -232,19 +229,22 @@ impl TrackerConnection for HttpConnection {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use crate::torrent::peer::PeerId;
     use crate::torrent::tests::create_metadata;
     use crate::torrent::tracker::AnnounceEvent;
+
+    use crate::init_logger;
     use log::info;
-    use popcorn_fx_core::init_logger;
     use tokio::runtime::Runtime;
 
     #[tokio::test]
     async fn test_start() {
         init_logger!();
         let torrent_info = create_metadata("ubuntu-https.torrent");
-        let peer_id = PeerId::new();
+        let tracker_handle = TrackerHandle::new();
         let url = torrent_info.trackers().get(0).cloned().unwrap();
-        let mut connection = HttpConnection::new(url, peer_id, 6881, Duration::from_secs(2));
+        let mut connection = HttpConnection::new(tracker_handle, url, Duration::from_secs(2));
 
         let result = connection.start().await;
 
@@ -256,15 +256,18 @@ mod tests {
         init_logger!();
         let expected_hash_value = "info_hash=.%8ED%06%8B%25H%14%EA%1A%7DIi%A9%AF%1Dx%E0%F5%1F";
         let torrent_info = create_metadata("ubuntu-https.torrent");
+        let tracker_handle = TrackerHandle::new();
         let peer_id = PeerId::new();
         let url = torrent_info.trackers().get(0).cloned().unwrap();
         let announce = Announcement {
             info_hash: torrent_info.info_hash,
+            peer_id,
+            peer_port: 0,
             event: AnnounceEvent::Started,
             bytes_completed: 0,
             bytes_remaining: u64::MAX,
         };
-        let connection = HttpConnection::new(url, peer_id, 6881, Duration::from_secs(2));
+        let connection = HttpConnection::new(tracker_handle, url, Duration::from_secs(2));
 
         let url = connection.create_announce_url(announce).unwrap();
         let result = url.query().unwrap();
@@ -281,15 +284,18 @@ mod tests {
         init_logger!();
         let runtime = Runtime::new().expect("expected a runtime");
         let torrent_info = create_metadata("ubuntu-https.torrent");
+        let tracker_handle = TrackerHandle::new();
         let peer_id = PeerId::new();
         let url = torrent_info.trackers().get(0).cloned().unwrap();
         let announce = Announcement {
             info_hash: torrent_info.info_hash,
+            peer_id,
+            peer_port: 6881,
             event: AnnounceEvent::Started,
             bytes_completed: 0,
             bytes_remaining: u64::MAX,
         };
-        let mut connection = HttpConnection::new(url, peer_id, 6881, Duration::from_secs(2));
+        let mut connection = HttpConnection::new(tracker_handle, url, Duration::from_secs(2));
 
         runtime.block_on(connection.start()).unwrap();
         let result = runtime.block_on(connection.announce(announce)).unwrap();
@@ -310,9 +316,9 @@ mod tests {
         init_logger!();
         let runtime = Runtime::new().expect("expected a runtime");
         let torrent_info = create_metadata("ubuntu-https.torrent");
-        let peer_id = PeerId::new();
+        let tracker_handle = TrackerHandle::new();
         let url = torrent_info.trackers().get(0).cloned().unwrap();
-        let mut connection = HttpConnection::new(url, peer_id, 6881, Duration::from_secs(2));
+        let mut connection = HttpConnection::new(tracker_handle, url, Duration::from_secs(2));
 
         runtime.block_on(connection.start()).unwrap();
         let result = runtime

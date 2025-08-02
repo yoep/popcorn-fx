@@ -1,15 +1,22 @@
 use crate::torrent::tracker::TrackerHandle;
+use crate::torrent::InfoHash;
 use serde_bencode::Error;
 use thiserror::Error;
 use tokio::time::error::Elapsed;
 use url::{ParseError, Url};
 
+/// The result type of tracker operations.
 pub type Result<T> = std::result::Result<T, TrackerError>;
 
+/// The tracker specific errors.
 #[derive(Debug, Clone, Error, PartialEq)]
 pub enum TrackerError {
     #[error("the tracker handle {0} is invalid")]
     InvalidHandle(TrackerHandle),
+    #[error("tracker url \"{0}\" is invalid")]
+    InvalidUrl(String),
+    #[error("info hash {0} not found within tracker")]
+    InfoHashNotFound(InfoHash),
     #[error("tracker has no available addresses (left)")]
     Unavailable,
     #[error("an error occurred while connecting to the tracker, {0}")]
@@ -24,12 +31,8 @@ pub enum TrackerError {
     Parse(String),
     #[error("tracker url \"{0}\" is already registered")]
     DuplicateUrl(Url),
-    #[error("tracker url \"{0}\" is invalid")]
-    InvalidUrl(String),
     #[error("the connection to the tracker at \"{0}\" has timed out")]
     Timeout(Url),
-    #[error("unable to start trackers, info hash is missing")]
-    InfoHashMissing,
     #[error("unable to execute the operation, no active trackers available")]
     NoTrackers,
 }

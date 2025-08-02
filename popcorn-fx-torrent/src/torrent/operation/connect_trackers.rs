@@ -112,8 +112,8 @@ mod tests {
     use crate::torrent::{TorrentConfig, TorrentEvent, TorrentFlags};
     use crate::{create_torrent, timeout};
 
+    use crate::init_logger;
     use fx_callback::Callback;
-    use popcorn_fx_core::init_logger;
     use std::time::Duration;
     use tempfile::tempdir;
     use tokio::sync::mpsc::unbounded_channel;

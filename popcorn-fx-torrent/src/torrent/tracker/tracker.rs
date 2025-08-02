@@ -27,6 +27,10 @@ const DEFAULT_ANNOUNCEMENT_INTERVAL_SECONDS: u64 = 120;
 pub struct Announcement {
     /// The info hash of the torrent
     pub info_hash: InfoHash,
+    /// The peer ID of the torrent
+    pub peer_id: PeerId,
+    /// The port of the torrent
+    pub peer_port: u16,
     /// The tracker announcement event
     pub event: AnnounceEvent,
     /// The number of piece bytes completed by the torrent
@@ -127,12 +131,11 @@ pub struct Tracker {
     handle: TrackerHandle,
     /// The tracker url
     url: Url,
+    /// The tier of the tracker
     tier: u8,
-    /// The unique peer id used within the torrent peer communication
-    peer_id: PeerId,
-    /// The peer port on which the torrent is listening for accepting incoming connections
-    peer_port: u16,
+    /// The known addresses of the tracker
     endpoints: Vec<SocketAddr>,
+    /// The underlying communication connection
     connection: Box<dyn TrackerConnection>,
     /// The timeout for tracker connections before failing
     timeout: Duration,
@@ -150,8 +153,6 @@ impl Tracker {
     pub async fn new(
         url: Url,
         tier: u8,
-        peer_id: PeerId,
-        peer_port: u16,
         timeout: Duration,
         announcement_interval_seconds: u64,
     ) -> Result<Self> {
@@ -161,16 +162,13 @@ impl Tracker {
             .resolve()
             .await
             .map_err(|e| TrackerError::Io(e.to_string()))?;
-        let connection =
-            Self::create_connection(&url, peer_id, peer_port, &endpoints, timeout.clone()).await?;
+        let connection = Self::create_connection(handle, &url, &endpoints, timeout.clone()).await?;
 
         trace!("Resolved tracker {} to {:?}", url, endpoints);
         Ok(Self {
             handle,
             url,
             tier,
-            peer_id,
-            peer_port,
             endpoints,
             connection,
             timeout,
@@ -252,9 +250,8 @@ impl Tracker {
     }
 
     async fn create_connection(
+        handle: TrackerHandle,
         url: &Url,
-        peer_id: PeerId,
-        peer_port: u16,
         addrs: &[SocketAddr],
         timeout: Duration,
     ) -> Result<Box<dyn TrackerConnection>> {
@@ -264,15 +261,10 @@ impl Tracker {
 
         match scheme {
             "udp" => {
-                connection = Box::new(UdpConnection::new(addrs, peer_id, peer_port, timeout));
+                connection = Box::new(UdpConnection::new(handle, addrs, timeout));
             }
             "http" | "https" => {
-                connection = Box::new(HttpConnection::new(
-                    url.clone(),
-                    peer_id,
-                    peer_port,
-                    timeout,
-                ));
+                connection = Box::new(HttpConnection::new(handle, url.clone(), timeout));
             }
             _ => return Err(TrackerError::UnsupportedScheme(scheme.to_string())),
         }
@@ -297,8 +289,6 @@ impl Drop for Tracker {
 pub struct TrackerBuilder {
     url: Option<Url>,
     tier: Option<u8>,
-    peer_id: Option<PeerId>,
-    peer_port: Option<u16>,
     timeout: Option<Duration>,
     default_announcement_interval_seconds: Option<u64>,
 }
@@ -318,16 +308,6 @@ impl TrackerBuilder {
         self
     }
 
-    pub fn peer_id(mut self, peer_id: PeerId) -> Self {
-        self.peer_id = Some(peer_id);
-        self
-    }
-
-    pub fn peer_port(mut self, peer_port: u16) -> Self {
-        self.peer_port = Some(peer_port);
-        self
-    }
-
     pub fn timeout(mut self, timeout: Duration) -> Self {
         self.timeout = Some(timeout);
         self
@@ -344,8 +324,6 @@ impl TrackerBuilder {
     pub async fn build(self) -> Result<Tracker> {
         let url = self.url.expect("expected the url to be set");
         let tier = self.tier.unwrap_or(0);
-        let peer_id = self.peer_id.expect("expected the peer id to be set");
-        let peer_port = self.peer_port.unwrap_or(6881);
         let timeout = self
             .timeout
             .unwrap_or(Duration::from_secs(DEFAULT_CONNECTION_TIMEOUT_SECONDS));
@@ -353,21 +331,13 @@ impl TrackerBuilder {
             .default_announcement_interval_seconds
             .unwrap_or(DEFAULT_ANNOUNCEMENT_INTERVAL_SECONDS);
 
-        Tracker::new(
-            url,
-            tier,
-            peer_id,
-            peer_port,
-            timeout,
-            default_announcement_interval_seconds,
-        )
-        .await
+        Tracker::new(url, tier, timeout, default_announcement_interval_seconds).await
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use popcorn_fx_core::init_logger;
+    use crate::init_logger;
     use popcorn_fx_core::testing::read_test_file_to_bytes;
 
     use crate::torrent::TorrentMetadata;
@@ -378,11 +348,9 @@ mod tests {
     async fn test_tracker_new() {
         init_logger!();
         let url = Url::parse("udp://tracker.opentrackr.org:1337").unwrap();
-        let peer_id = PeerId::new();
 
         let result = Tracker::builder()
             .url(url)
-            .peer_id(peer_id)
             .build()
             .await
             .expect("expected the tracker to be created");
@@ -443,6 +411,8 @@ mod tests {
         let info_hash = info.info_hash.clone();
         let announce = Announcement {
             info_hash,
+            peer_id: PeerId::new(),
+            peer_port: 6881,
             event: AnnounceEvent::Started,
             bytes_completed: 0,
             bytes_remaining: u64::MAX,
@@ -456,13 +426,11 @@ mod tests {
     }
 
     async fn create_tracker(metadata: &TorrentMetadata) -> Tracker {
-        let peer_id = PeerId::new();
         let tracker_uris = metadata.tiered_trackers();
         let tracker_uri = tracker_uris.get(&0).map(|e| e.get(0).unwrap()).unwrap();
 
         Tracker::builder()
             .url(tracker_uri.clone())
-            .peer_id(peer_id)
             .timeout(Duration::from_secs(2))
             .build()
             .await

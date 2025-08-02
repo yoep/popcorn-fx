@@ -578,10 +578,10 @@ pub struct UtpSocketId {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::create_utp_socket_pair;
     use crate::torrent::peer::protocol::UtpStreamState;
     use crate::torrent::peer::tests::create_utp_socket;
-    use popcorn_fx_core::{assert_timeout, available_port, init_logger};
+    use crate::{create_utp_socket_pair, init_logger};
+    use popcorn_fx_core::{assert_timeout, available_port};
     use std::time::{SystemTime, UNIX_EPOCH};
 
     #[test]

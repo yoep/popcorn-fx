@@ -2865,9 +2865,9 @@ mod tests {
         TorrentConfig, TorrentFlags, TorrentOperation, TorrentOperationResult, TorrentState,
         DEFAULT_TORRENT_PROTOCOL_EXTENSIONS,
     };
-    use crate::{create_peer_pair, create_torrent, create_utp_socket_pair};
+    use crate::{create_peer_pair, create_torrent, create_utp_socket_pair, init_logger};
 
-    use popcorn_fx_core::{assert_timeout, init_logger};
+    use popcorn_fx_core::assert_timeout;
     use tempfile::tempdir;
     use tokio::sync::mpsc::channel;
 

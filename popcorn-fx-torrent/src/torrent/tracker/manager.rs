@@ -145,7 +145,12 @@ impl TrackerManager {
     /// * `peer_id` - The peer ID of the torrent.
     /// * `peer_port` - The port on which the torrent is listening.
     /// * `info_hash` - The info hash of the torrent.
-    pub async fn add_torrent(&self, peer_id: PeerId, peer_port: u16, info_hash: InfoHash) {
+    pub async fn add_torrent(
+        &self,
+        peer_id: PeerId,
+        peer_port: u16,
+        info_hash: InfoHash,
+    ) -> Result<()> {
         self.inner.add_torrent(peer_id, peer_port, info_hash).await
     }
 
@@ -314,6 +319,11 @@ impl TrackerManager {
             torrent.bytes_completed = bytes_completed as u64;
         }
     }
+
+    /// Close the tracker manager resulting in a termination of its operations.
+    pub fn close(&self) {
+        self.inner.cancellation_token.cancel();
+    }
 }
 
 impl Callback<TrackerManagerEvent> for TrackerManager {
@@ -323,13 +333,6 @@ impl Callback<TrackerManagerEvent> for TrackerManager {
 
     fn subscribe_with(&self, subscriber: Subscriber<TrackerManagerEvent>) {
         self.inner.callbacks.subscribe_with(subscriber)
-    }
-}
-
-impl Drop for TrackerManager {
-    fn drop(&mut self) {
-        trace!("Dropping tracker manager {}", self.inner);
-        self.inner.cancellation_token.cancel();
     }
 }
 
@@ -366,7 +369,16 @@ impl InnerTrackerManager {
         debug!("Tracker manager {} main loop has stopped", self);
     }
 
-    async fn add_torrent(&self, peer_id: PeerId, peer_port: u16, info_hash: InfoHash) {
+    async fn add_torrent(
+        &self,
+        peer_id: PeerId,
+        peer_port: u16,
+        info_hash: InfoHash,
+    ) -> Result<()> {
+        if peer_port == 0 {
+            return Err(TrackerError::InvalidPort(peer_port));
+        }
+
         let mut torrents = self.torrents.lock().await;
 
         // check if the given info hash if unique within the registered torrents
@@ -383,6 +395,8 @@ impl InnerTrackerManager {
             });
             debug!("Tracker manager {} added torrent {}", self, info_hash_txt);
         }
+
+        Ok(())
     }
 
     async fn remove_torrent(&self, info_hash: &InfoHash) {
@@ -709,6 +723,67 @@ mod tests {
     use tokio::sync::mpsc::unbounded_channel;
     use url::Url;
 
+    mod add_torrent {
+        use super::*;
+
+        #[tokio::test]
+        async fn test_valid_torrent() {
+            init_logger!();
+            let peer_id = PeerId::new();
+            let peer_port = 6881;
+            let info_hash =
+                InfoHash::from_str("urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7").unwrap();
+            let expected_result = TrackerTorrent {
+                peer_id,
+                peer_port,
+                info_hash: info_hash.clone(),
+                peers: Default::default(),
+                bytes_completed: 0,
+                bytes_remaining: u64::MAX,
+            };
+            let manager = TrackerManager::new(Duration::from_secs(1));
+
+            {
+                let result = manager
+                    .add_torrent(peer_id, peer_port, info_hash.clone())
+                    .await;
+                assert_eq!(Ok(()), result);
+
+                let torrents = manager.inner.torrents.lock().await;
+                assert_eq!(
+                    1,
+                    torrents.len(),
+                    "expected the torrent to have been registered"
+                );
+                assert_eq!(&expected_result, torrents.get(0).unwrap());
+            }
+
+            {
+                let _ = manager
+                    .add_torrent(PeerId::new(), peer_port, info_hash)
+                    .await;
+                let result = manager.inner.torrents.lock().await;
+                assert_eq!(
+                    1,
+                    result.len(),
+                    "expected the torrent to not have been added as duplicate"
+                );
+            }
+        }
+
+        #[tokio::test]
+        async fn test_invalid_port() {
+            init_logger!();
+            let info_hash =
+                InfoHash::from_str("urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7").unwrap();
+            let manager = TrackerManager::new(Duration::from_secs(1));
+
+            let result = manager.add_torrent(PeerId::new(), 0, info_hash).await;
+
+            assert_eq!(Err(TrackerError::InvalidPort(0)), result);
+        }
+    }
+
     #[tokio::test]
     async fn test_add_tracker() {
         init_logger!();
@@ -726,49 +801,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_add_torrent() {
-        init_logger!();
-        let peer_id = PeerId::new();
-        let peer_port = 6881;
-        let info_hash =
-            InfoHash::from_str("urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7").unwrap();
-        let expected_result = TrackerTorrent {
-            peer_id,
-            peer_port,
-            info_hash: info_hash.clone(),
-            peers: Default::default(),
-            bytes_completed: 0,
-            bytes_remaining: u64::MAX,
-        };
-        let manager = TrackerManager::new(Duration::from_secs(1));
-
-        {
-            manager
-                .add_torrent(peer_id, peer_port, info_hash.clone())
-                .await;
-            let result = manager.inner.torrents.lock().await;
-            assert_eq!(
-                1,
-                result.len(),
-                "expected the torrent to have been registered"
-            );
-            assert_eq!(&expected_result, result.get(0).unwrap());
-        }
-
-        {
-            manager
-                .add_torrent(PeerId::new(), peer_port, info_hash)
-                .await;
-            let result = manager.inner.torrents.lock().await;
-            assert_eq!(
-                1,
-                result.len(),
-                "expected the torrent to not have been added as duplicate"
-            );
-        }
-    }
-
-    #[tokio::test]
     async fn test_remove_torrent() {
         init_logger!();
         let info_hash =
@@ -781,7 +813,8 @@ mod tests {
         {
             manager
                 .add_torrent(PeerId::new(), 6881, info_hash.clone())
-                .await;
+                .await
+                .unwrap();
             let result = manager.inner.torrents.lock().await;
             assert_eq!(
                 1,
@@ -807,7 +840,10 @@ mod tests {
         let entry = TrackerEntry { tier: 0, url };
         let manager = TrackerManager::new(Duration::from_secs(1));
 
-        manager.add_torrent(peer_id, 6881, info_hash.clone()).await;
+        manager
+            .add_torrent(peer_id, 6881, info_hash.clone())
+            .await
+            .unwrap();
 
         manager.add_tracker_entry(entry).await.unwrap();
         let result = manager
@@ -827,7 +863,10 @@ mod tests {
         let entry = TrackerEntry { tier: 0, url };
         let manager = TrackerManager::new(Duration::from_secs(1));
 
-        manager.add_torrent(peer_id, 6881, info_hash.clone()).await;
+        manager
+            .add_torrent(peer_id, 6881, info_hash.clone())
+            .await
+            .unwrap();
 
         manager.add_tracker_entry(entry).await.unwrap();
         let result = manager

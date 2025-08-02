@@ -590,6 +590,16 @@ impl Callback<SessionEvent> for FxTorrentSession {
     }
 }
 
+impl Drop for FxTorrentSession {
+    fn drop(&mut self) {
+        // check if we're the last 2 references to the session
+        // if so, terminate the main loop of the session
+        if Arc::strong_count(&self.inner) == 2 {
+            self.inner.tracker.close();
+        }
+    }
+}
+
 /// The torrent session builder for configuring an [FxTorrentSession].
 ///
 /// # Required fields

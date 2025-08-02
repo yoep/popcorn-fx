@@ -1521,11 +1521,9 @@ impl TorrentContext {
         let mut cleanup_interval = time::interval(Duration::from_secs(30));
 
         // register the torrent within the tracker
-        let info_hash = self.metadata.read().await.info_hash.clone();
-        let peer_port = self.peer_port().unwrap_or_default();
-        self.tracker_manager
-            .add_torrent(self.peer_id, peer_port, info_hash)
-            .await;
+        if !self.add_torrent_to_tracker().await {
+            return;
+        }
 
         // execute the operations at the beginning of the loop
         select! {
@@ -2824,6 +2822,26 @@ impl TorrentContext {
 
     async fn handle_dropped_peers(&self, peers: Vec<SocketAddr>) {
         self.peer_pool.peer_connections_closed(peers).await;
+    }
+
+    async fn add_torrent_to_tracker(&self) -> bool {
+        let info_hash = self.metadata.read().await.info_hash.clone();
+        let peer_port = self.peer_port().unwrap_or(6881);
+
+        if let Err(e) = self
+            .tracker_manager
+            .add_torrent(self.peer_id, peer_port, info_hash)
+            .await
+        {
+            error!(
+                "Torrent {} failed to register with tracker manager, {}",
+                self, e
+            );
+            self.update_state(TorrentState::Error).await;
+            return false;
+        }
+
+        true
     }
 
     async fn process_pending_request_rejected(&self, request_rejection: PendingRequestRejected) {

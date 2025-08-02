@@ -15,6 +15,8 @@ pub enum TrackerError {
     InvalidHandle(TrackerHandle),
     #[error("tracker url \"{0}\" is invalid")]
     InvalidUrl(String),
+    #[error("port {0} is invalid")]
+    InvalidPort(u16),
     #[error("info hash {0} not found within tracker")]
     InfoHashNotFound(InfoHash),
     #[error("tracker has no available addresses (left)")]

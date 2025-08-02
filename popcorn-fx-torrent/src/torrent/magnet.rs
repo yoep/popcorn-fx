@@ -461,7 +461,7 @@ impl MagnetBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use popcorn_fx_core::init_logger;
+    use crate::init_logger;
 
     #[test]
     fn test_magnet_from_str() {

@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fmt::{Debug, Formatter};
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -13,7 +14,7 @@ use derive_more::Display;
 use futures::future;
 use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use log::{debug, info, trace, warn};
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, MutexGuard, RwLock};
 use tokio::{select, time};
 use tokio_util::sync::CancellationToken;
 use url::Url;
@@ -76,16 +77,16 @@ pub struct TrackerEntry {
 /// The event that can be emitted by the tracker manager.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TrackerManagerEvent {
-    /// Invoked when new peer have been discovered
-    PeersDiscovered(Vec<SocketAddr>),
+    /// Invoked when new peers have been discovered for a torrent
+    PeersDiscovered(InfoHash, Vec<SocketAddr>),
     /// Invoked when a new tracker has been added
     TrackerAdded(TrackerHandle),
 }
 
-/// Manages trackers and handles periodic announcements.
+/// Manages torrent trackers and handles periodic announcements.
 ///
 /// The `TrackerManager` is responsible for managing a list of trackers, performing automatic announcements, and handling tracker updates.
-#[derive(Debug, Display)]
+#[derive(Debug, Display, Clone)]
 #[display(fmt = "{}", inner)]
 pub struct TrackerManager {
     inner: Arc<InnerTrackerManager>,
@@ -96,29 +97,17 @@ impl TrackerManager {
     ///
     /// # Arguments
     ///
-    /// * `peer_id` - The peer ID to associate with the manager.
-    /// * `peer_port` - The port number on which the [Torrent] is listening for incoming peer connections.
-    /// * `info_hash` - The info hash of the torrent being tracked by this manager.
     /// * `connection_timeout` - The timeout for tracker connections.
     ///
     /// # Returns
     ///
     /// A `TrackerManager` instance with initialized settings.
-    pub fn new(
-        peer_id: PeerId,
-        peer_port: u16,
-        info_hash: InfoHash,
-        connection_timeout: Duration,
-    ) -> Self {
+    pub fn new(connection_timeout: Duration) -> Self {
         let inner = Arc::new(InnerTrackerManager {
-            peer_id,
-            peer_port,
-            info_hash,
+            handle: Default::default(),
             trackers: Default::default(),
-            peers: Default::default(),
+            torrents: Default::default(),
             connection_timeout,
-            bytes_remaining: RwLock::new(u64::MAX),
-            bytes_completed: Default::default(),
             callbacks: MultiThreadedCallback::new(),
             cancellation_token: Default::default(),
         });
@@ -149,9 +138,39 @@ impl TrackerManager {
         self.inner.trackers.read().await.len()
     }
 
-    /// Get the currently known peers that have been discovered by the trackers.
-    pub async fn discovered_peers(&self) -> Vec<SocketAddr> {
-        self.inner.peers.read().await.clone()
+    /// Register a new torrent to the tracker to discover new peers.
+    ///
+    /// # Arguments
+    ///
+    /// * `peer_id` - The peer ID of the torrent.
+    /// * `peer_port` - The port on which the torrent is listening.
+    /// * `info_hash` - The info hash of the torrent.
+    pub async fn add_torrent(
+        &self,
+        peer_id: PeerId,
+        peer_port: u16,
+        info_hash: InfoHash,
+    ) -> Result<()> {
+        self.inner.add_torrent(peer_id, peer_port, info_hash).await
+    }
+
+    /// Remove the given torrent info hash from the tracker.
+    ///
+    /// # Arguments
+    ///
+    /// * `info_hash` - The info hash of the torrent.
+    pub async fn remove_torrent(&self, info_hash: &InfoHash) {
+        self.inner.remove_torrent(info_hash).await
+    }
+
+    /// Get the discovered peers for the given info hash.
+    /// The info hash should be first registered through the [TrackerManager::add_torrent].
+    pub async fn discovered_peers(&self, info_hash: &InfoHash) -> Option<Vec<SocketAddr>> {
+        let mut torrents = self.inner.torrents.lock().await;
+        self.inner
+            .find_torrent(info_hash, &mut torrents)
+            .await
+            .map(|e| e.peers.iter().cloned().collect())
     }
 
     /// Adds a new tracker to the manager.
@@ -185,15 +204,17 @@ impl TrackerManager {
     }
 
     /// Announces to all trackers with the specified info hash.
-    /// In regard to [self.start_announcing], this will not start an automatic announcement loop
-    /// and is more a one of.
     ///
     /// # Returns
     ///
     /// Returns the announcement response result.
-    pub async fn announce_all(&self, event: AnnounceEvent) -> AnnouncementResult {
+    pub async fn announce_all(
+        &self,
+        info_hash: &InfoHash,
+        event: AnnounceEvent,
+    ) -> AnnouncementResult {
         let start_time = Instant::now();
-        let result = self.inner.announce_all(event).await;
+        let result = self.inner.announce_all(info_hash, event).await;
         let elapsed = start_time.elapsed();
         trace!(
             "Announced to all trackers in {}.{:03} seconds",
@@ -207,41 +228,49 @@ impl TrackerManager {
     pub async fn announce(
         &self,
         handle: TrackerHandle,
+        info_hash: &InfoHash,
         event: AnnounceEvent,
     ) -> Result<AnnouncementResult> {
-        self.inner.announce(handle, event).await
+        self.inner.announce(handle, info_hash, event).await
     }
 
     /// Announces to all the trackers with the specified info hash.
     /// This method will spawn the announcement task and return immediately.
-    pub fn make_announcement_to_all(&self, event: AnnounceEvent) {
+    pub fn make_announcement_to_all(&self, info_hash: &InfoHash, event: AnnounceEvent) {
+        let info_hash = info_hash.clone();
         let inner = self.inner.clone();
         tokio::spawn(async move {
             select! {
                 _ = inner.cancellation_token.cancelled() => return,
-                _ = inner.announce_all(event) => return,
+                _ = inner.announce_all(&info_hash, event) => return,
             }
         });
     }
 
     /// Make a new announcement to the specified tracker for the given event.
     /// This method will spawn the announcement task and return immediately.
-    pub fn make_announcement(&self, handle: TrackerHandle, event: AnnounceEvent) {
+    pub fn make_announcement(
+        &self,
+        handle: TrackerHandle,
+        info_hash: &InfoHash,
+        event: AnnounceEvent,
+    ) {
+        let info_hash = info_hash.clone();
         let inner = self.inner.clone();
         tokio::spawn(async move {
             select! {
                 _ = inner.cancellation_token.cancelled() => return,
-                _ = inner.announce(handle, event) => return,
+                _ = inner.announce(handle, &info_hash, event) => return,
             }
         });
     }
 
-    /// Scrape all active trackers.
-    pub async fn scrape(&self) -> Result<ScrapeResult> {
+    /// Scrape all trackers for peers of the given [InfoHash].
+    pub async fn scrape(&self, info_hash: &InfoHash) -> Result<ScrapeResult> {
         let mut result = ScrapeResult::default();
-        let hashes = vec![self.inner.info_hash.clone()];
+        let hashes = vec![info_hash.clone()];
 
-        if self.inner.trackers.read().await.len() == 0 {
+        if self.inner.trackers.read().await.is_empty() {
             return Err(TrackerError::NoTrackers);
         }
 
@@ -266,23 +295,34 @@ impl TrackerManager {
     }
 
     /// Inform the trackers about the remaining number of piece bytes that need to be downloaded by the torrent.
-    pub async fn update_bytes_remaining(&self, remaining_bytes: usize) {
+    pub async fn update_bytes_remaining(&self, info_hash: &InfoHash, remaining_bytes: usize) {
         trace!(
             "Torrent manager {} is updating remaining bytes to {}",
             self,
             remaining_bytes
         );
-        *self.inner.bytes_remaining.write().await = remaining_bytes as u64;
+        let mut torrents = self.inner.torrents.lock().await;
+        if let Some(torrent) = self.inner.find_torrent(info_hash, &mut torrents).await {
+            torrent.bytes_remaining = remaining_bytes as u64;
+        }
     }
 
     /// Inform the trackers about the number of completed piece bytes by the torrent.
-    pub async fn update_bytes_completed(&self, bytes_completed: usize) {
+    pub async fn update_bytes_completed(&self, info_hash: &InfoHash, bytes_completed: usize) {
         trace!(
             "Tracker manager {} is updating bytes completed to {}",
             self,
             bytes_completed
         );
-        *self.inner.bytes_completed.write().await = bytes_completed as u64;
+        let mut torrents = self.inner.torrents.lock().await;
+        if let Some(torrent) = self.inner.find_torrent(info_hash, &mut torrents).await {
+            torrent.bytes_completed = bytes_completed as u64;
+        }
+    }
+
+    /// Close the tracker manager resulting in a termination of its operations.
+    pub fn close(&self) {
+        self.inner.cancellation_token.cancel();
     }
 }
 
@@ -296,32 +336,18 @@ impl Callback<TrackerManagerEvent> for TrackerManager {
     }
 }
 
-impl Drop for TrackerManager {
-    fn drop(&mut self) {
-        trace!("Dropping tracker manager {}", self.inner);
-        self.inner.cancellation_token.cancel();
-    }
-}
-
 #[derive(Debug, Display)]
-#[display(fmt = "{} ({})", peer_id, info_hash)]
+#[display(fmt = "{}", handle)]
 struct InnerTrackerManager {
-    /// The unique peer id of the torrent
-    peer_id: PeerId,
-    /// The port the torrent is listening on to accept incoming connections
-    peer_port: u16,
-    /// The torrent info hash for which this tracker manager is responsible for
-    info_hash: InfoHash,
-    /// The active trackers
+    /// The unique handle of this tracker
+    handle: TrackerHandle,
+    /// Active trackers being used by this tracker
     trackers: RwLock<Vec<Tracker>>,
-    /// The discovered peers from the trackers
-    peers: RwLock<Vec<SocketAddr>>,
+    /// The torrent being tracked
+    torrents: Mutex<Vec<TrackerTorrent>>,
     /// The timeout of tracker connections
     connection_timeout: Duration,
-    /// The number completed piece bytes
-    bytes_completed: RwLock<u64>,
-    /// The number of remaining piece bytes that need to be downloaded
-    bytes_remaining: RwLock<u64>,
+    /// The callbacks of the tracker
     callbacks: MultiThreadedCallback<TrackerManagerEvent>,
     cancellation_token: CancellationToken,
 }
@@ -339,8 +365,55 @@ impl InnerTrackerManager {
             }
         }
 
-        self.announce_stopped().await;
+        self.announce_all_stopped().await;
         debug!("Tracker manager {} main loop has stopped", self);
+    }
+
+    async fn add_torrent(
+        &self,
+        peer_id: PeerId,
+        peer_port: u16,
+        info_hash: InfoHash,
+    ) -> Result<()> {
+        if peer_port == 0 {
+            return Err(TrackerError::InvalidPort(peer_port));
+        }
+
+        let mut torrents = self.torrents.lock().await;
+
+        // check if the given info hash if unique within the registered torrents
+        // if not, we ignore this registration
+        if !torrents.iter().any(|e| e.info_hash == info_hash) {
+            let info_hash_txt = info_hash.to_string();
+            torrents.push(TrackerTorrent {
+                peer_id,
+                peer_port,
+                info_hash,
+                peers: Default::default(),
+                bytes_completed: Default::default(),
+                bytes_remaining: u64::MAX,
+            });
+            debug!("Tracker manager {} added torrent {}", self, info_hash_txt);
+        }
+
+        Ok(())
+    }
+
+    async fn remove_torrent(&self, info_hash: &InfoHash) {
+        let mut torrents = self.torrents.lock().await;
+
+        if let Some(position) = torrents.iter().position(|e| &e.info_hash == info_hash) {
+            let _ = torrents.remove(position);
+            debug!("Tracker manager {} removed torrent {}", self, info_hash);
+        }
+    }
+
+    async fn find_torrent<'a>(
+        &self,
+        info_hash: &InfoHash,
+        torrents: &'a mut MutexGuard<'_, Vec<TrackerTorrent>>,
+    ) -> Option<&'a mut TrackerTorrent> {
+        torrents.iter_mut().find(|e| &e.info_hash == info_hash)
     }
 
     /// Check if the given url is already registered/known.
@@ -362,8 +435,6 @@ impl InnerTrackerManager {
             .url(entry.url)
             .tier(entry.tier)
             .timeout(self.connection_timeout.clone())
-            .peer_id(self.peer_id.clone())
-            .peer_port(self.peer_port)
             .build()
             .await
         {
@@ -396,14 +467,13 @@ impl InnerTrackerManager {
     /// This will only add unique peer addresses and filter out any duplicate addresses that have already been discovered.
     ///
     /// It returns the total amount of added peer addresses that were added.
-    async fn add_peers(&self, peers: &[SocketAddr]) -> usize {
+    async fn add_peers(&self, torrent: &mut TrackerTorrent, peers: &[SocketAddr]) -> usize {
         trace!("Discovered a total of {} peers, {:?}", peers.len(), peers);
-        let mut mutex = self.peers.write().await;
         let mut unique_new_peer_addrs = Vec::new();
 
         for peer in peers.into_iter() {
-            if !mutex.contains(peer) {
-                mutex.push(peer.clone());
+            if !torrent.peers.contains(peer) {
+                torrent.peers.insert(peer.clone());
                 unique_new_peer_addrs.push(peer.clone());
             }
         }
@@ -414,8 +484,11 @@ impl InnerTrackerManager {
         );
         let total_peers = unique_new_peer_addrs.len();
         if total_peers > 0 {
-            self.send_event(TrackerManagerEvent::PeersDiscovered(unique_new_peer_addrs))
-                .await;
+            self.send_event(TrackerManagerEvent::PeersDiscovered(
+                torrent.info_hash.clone(),
+                unique_new_peer_addrs,
+            ))
+            .await;
         }
 
         total_peers
@@ -424,91 +497,118 @@ impl InnerTrackerManager {
     async fn announce(
         &self,
         handle: TrackerHandle,
+        info_hash: &InfoHash,
         event: AnnounceEvent,
     ) -> Result<AnnouncementResult> {
-        let mutex = self.trackers.read().await;
-        let tracker = mutex
+        let trackers = self.trackers.read().await;
+        let mut torrents = self.torrents.lock().await;
+        let tracker = trackers
             .iter()
             .find(|e| e.handle() == handle)
             .ok_or(TrackerError::InvalidHandle(handle))?;
+        let torrent = self
+            .find_torrent(info_hash, &mut torrents)
+            .await
+            .ok_or(TrackerError::InfoHashNotFound(info_hash.clone()))?;
 
-        match self
-            .announce_tracker(tracker, event)
+        let result = self
+            .announce_tracker(
+                tracker,
+                info_hash,
+                event,
+                torrent.peer_id,
+                torrent.peer_port,
+                torrent.bytes_completed,
+                torrent.bytes_remaining,
+            )
             .await
             .map(|e| AnnouncementResult {
                 total_leechers: e.leechers,
                 total_seeders: e.seeders,
                 peers: e.peers,
-            }) {
-            Ok(e) => {
-                // update the discovered peers
-                self.add_peers(e.peers.as_slice()).await;
-                Ok(e)
-            }
-            Err(e) => Err(e),
-        }
+            })?;
+        self.add_peers(torrent, result.peers.as_slice()).await;
+
+        Ok(result)
     }
 
-    async fn announce_all(&self, event: AnnounceEvent) -> AnnouncementResult {
+    async fn announce_all(&self, info_hash: &InfoHash, event: AnnounceEvent) -> AnnouncementResult {
         let mut result = AnnouncementResult::default();
         let mut total_peers = 0;
-        let mutex = self.trackers.read().await;
+        let trackers = self.trackers.read().await;
+        let mut torrents = self.torrents.lock().await;
 
-        // start announcing the given hash to each tracker simultaneously
-        let futures: Vec<_> = mutex
-            .iter()
-            .map(|tracker| self.announce_tracker(tracker, event))
-            .collect();
+        if let Some(torrent) = self.find_torrent(info_hash, &mut torrents).await {
+            // start announcing the given hash to each tracker simultaneously
+            let futures: Vec<_> = trackers
+                .iter()
+                .map(|tracker| {
+                    self.announce_tracker(
+                        tracker,
+                        info_hash,
+                        event,
+                        torrent.peer_id,
+                        torrent.peer_port,
+                        torrent.bytes_completed,
+                        torrent.bytes_remaining,
+                    )
+                })
+                .collect();
 
-        // wait for all responses to complete
-        let responses = future::join_all(futures).await;
-        for response in responses {
-            match response {
-                Ok(response) => {
-                    result.total_leechers += response.leechers;
-                    result.total_seeders += response.seeders;
-                    result.peers.extend_from_slice(response.peers.as_slice());
+            // wait for all responses to complete
+            let responses = future::join_all(futures).await;
+            for response in responses {
+                match response {
+                    Ok(response) => {
+                        result.total_leechers += response.leechers;
+                        result.total_seeders += response.seeders;
+                        result.peers.extend_from_slice(response.peers.as_slice());
 
-                    total_peers += self.add_peers(response.peers.as_slice()).await;
+                        total_peers += self.add_peers(torrent, response.peers.as_slice()).await;
+                    }
+                    Err(e) => debug!(
+                        "Failed to announce info hash {:?} to tracker, {}",
+                        info_hash, e
+                    ),
                 }
-                Err(e) => debug!(
-                    "Failed to announce info hash {:?} to tracker, {}",
-                    self.info_hash, e
-                ),
             }
+
+            info!(
+                "Discovered a total of {} peers for {}",
+                total_peers, info_hash
+            );
+        } else {
+            warn!(
+                "Tracker {} failed to announce event, torrent {} info hash not found",
+                self, info_hash
+            );
         }
 
-        info!(
-            "Discovered a total of {} peers for {}",
-            total_peers, self.info_hash
-        );
         result
     }
 
-    async fn announce_stopped(&self) {
-        let mut mutex = self.trackers.write().await;
-        let mut futures = Vec::new();
+    async fn announce_all_stopped(&self) {
+        let trackers = self.trackers.write().await;
+        let torrents = self.torrents.lock().await;
+        let mut futures = Vec::with_capacity(trackers.len() * torrents.len());
 
-        debug!(
-            "Announcing stopped event to all trackers for {:?}",
-            self.info_hash
-        );
-        for tracker in mutex.as_mut_slice() {
-            futures.push(self.announce_tracker(tracker, AnnounceEvent::Stopped));
+        for torrent in torrents.iter() {
+            futures.extend(trackers.iter().map(|tracker| {
+                self.announce_tracker(
+                    tracker,
+                    &torrent.info_hash,
+                    AnnounceEvent::Stopped,
+                    torrent.peer_id,
+                    torrent.peer_port,
+                    torrent.bytes_completed,
+                    torrent.bytes_remaining,
+                )
+            }));
         }
 
-        // wait for all responses to complete and filter on errors
-        let responses: Vec<Result<AnnounceEntryResponse>> = future::join_all(futures)
-            .await
-            .into_iter()
-            .filter(|e| e.is_err())
-            .collect();
-        for response in responses {
+        for response in future::join_all(futures).await {
             if let Err(e) = response {
-                debug!(
-                    "Failed to make stopped announcement to tracker for info hash {:?}, {}",
-                    self.info_hash, e
-                );
+                debug!("Failed announce stop event to tracker, {}", e);
             }
         }
     }
@@ -516,14 +616,21 @@ impl InnerTrackerManager {
     async fn announce_tracker(
         &self,
         tracker: &Tracker,
+        info_hash: &InfoHash,
         event: AnnounceEvent,
+        peer_id: PeerId,
+        peer_port: u16,
+        bytes_completed: u64,
+        bytes_remaining: u64,
     ) -> Result<AnnounceEntryResponse> {
         trace!("Announcing event {} to tracker {}", event, tracker);
         let announce = Announcement {
-            info_hash: self.info_hash.clone(),
+            info_hash: info_hash.clone(),
+            peer_id,
+            peer_port,
             event,
-            bytes_completed: *self.bytes_completed.read().await,
-            bytes_remaining: *self.bytes_remaining.read().await,
+            bytes_completed,
+            bytes_remaining,
         };
 
         match tracker.announce(announce).await {
@@ -557,44 +664,132 @@ impl InnerTrackerManager {
     ///
     /// * `manager` - The `InnerTrackerManager` to perform announcements with.
     async fn do_automatic_announcements(&self) {
-        let mut mutex = self.trackers.write().await;
+        let trackers = self.trackers.write().await;
+        let torrents = self.torrents.lock().await;
         let now = Instant::now();
 
-        for tracker in mutex.as_mut_slice() {
-            let interval = tracker.announcement_interval().await;
-            let last_announcement = tracker.last_announcement().await;
-            let delta = now - last_announcement;
+        for torrent in torrents.iter() {
+            for tracker in trackers.iter() {
+                let interval = tracker.announcement_interval().await;
+                let last_announcement = tracker.last_announcement().await;
+                let delta = now - last_announcement;
 
-            if delta.as_secs() >= interval {
-                match self.announce_tracker(tracker, AnnounceEvent::Started).await {
-                    Ok(_) => {}
-                    Err(e) => warn!("Failed make an announcement for {}, {}", tracker, e),
+                if delta.as_secs() >= interval {
+                    if let Err(err) = self
+                        .announce_tracker(
+                            tracker,
+                            &torrent.info_hash,
+                            AnnounceEvent::Started,
+                            torrent.peer_id,
+                            torrent.peer_port,
+                            torrent.bytes_completed,
+                            torrent.bytes_remaining,
+                        )
+                        .await
+                    {
+                        warn!("Failed make an announcement for {}, {}", tracker, err);
+                    }
                 }
             }
         }
     }
 }
 
+/// A torrent peer registered with the tracker.
+#[derive(Debug, PartialEq)]
+pub struct TrackerTorrent {
+    /// The unique peer id of the torrent
+    peer_id: PeerId,
+    /// The port the torrent is listening on to accept incoming connections
+    peer_port: u16,
+    /// The torrent info hash for which this tracker manager is responsible for
+    info_hash: InfoHash,
+    /// The discovered peers for this torrent by the tracker
+    peers: HashSet<SocketAddr>,
+    /// The number completed piece bytes by the torrent
+    bytes_completed: u64,
+    /// The number of remaining piece bytes that need to be downloaded by the torrent
+    bytes_remaining: u64,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    use crate::init_logger;
     use crate::timeout;
 
-    use popcorn_fx_core::init_logger;
     use std::str::FromStr;
     use tokio::sync::mpsc::unbounded_channel;
     use url::Url;
+
+    mod add_torrent {
+        use super::*;
+
+        #[tokio::test]
+        async fn test_valid_torrent() {
+            init_logger!();
+            let peer_id = PeerId::new();
+            let peer_port = 6881;
+            let info_hash =
+                InfoHash::from_str("urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7").unwrap();
+            let expected_result = TrackerTorrent {
+                peer_id,
+                peer_port,
+                info_hash: info_hash.clone(),
+                peers: Default::default(),
+                bytes_completed: 0,
+                bytes_remaining: u64::MAX,
+            };
+            let manager = TrackerManager::new(Duration::from_secs(1));
+
+            {
+                let result = manager
+                    .add_torrent(peer_id, peer_port, info_hash.clone())
+                    .await;
+                assert_eq!(Ok(()), result);
+
+                let torrents = manager.inner.torrents.lock().await;
+                assert_eq!(
+                    1,
+                    torrents.len(),
+                    "expected the torrent to have been registered"
+                );
+                assert_eq!(&expected_result, torrents.get(0).unwrap());
+            }
+
+            {
+                let _ = manager
+                    .add_torrent(PeerId::new(), peer_port, info_hash)
+                    .await;
+                let result = manager.inner.torrents.lock().await;
+                assert_eq!(
+                    1,
+                    result.len(),
+                    "expected the torrent to not have been added as duplicate"
+                );
+            }
+        }
+
+        #[tokio::test]
+        async fn test_invalid_port() {
+            init_logger!();
+            let info_hash =
+                InfoHash::from_str("urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7").unwrap();
+            let manager = TrackerManager::new(Duration::from_secs(1));
+
+            let result = manager.add_torrent(PeerId::new(), 0, info_hash).await;
+
+            assert_eq!(Err(TrackerError::InvalidPort(0)), result);
+        }
+    }
 
     #[tokio::test]
     async fn test_add_tracker() {
         init_logger!();
         let url = Url::parse("udp://tracker.opentrackr.org:1337").unwrap();
-        let peer_id = PeerId::new();
-        let info_hash =
-            InfoHash::from_str("urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7").unwrap();
         let entry = TrackerEntry { tier: 0, url };
-        let manager = TrackerManager::new(peer_id, 6881, info_hash, Duration::from_secs(1));
+        let manager = TrackerManager::new(Duration::from_secs(1));
 
         let result = manager.add_tracker_entry(entry).await;
 
@@ -606,6 +801,36 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_remove_torrent() {
+        init_logger!();
+        let info_hash =
+            InfoHash::from_str("urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7").unwrap();
+        let manager = TrackerManager::new(Duration::from_secs(1));
+
+        // try to remove a non-existing torrent
+        manager.remove_torrent(&info_hash).await;
+
+        {
+            manager
+                .add_torrent(PeerId::new(), 6881, info_hash.clone())
+                .await
+                .unwrap();
+            let result = manager.inner.torrents.lock().await;
+            assert_eq!(
+                1,
+                result.len(),
+                "expected the torrent to have been registered"
+            );
+        }
+
+        {
+            manager.remove_torrent(&info_hash).await;
+            let result = manager.inner.torrents.lock().await;
+            assert_eq!(0, result.len(), "expected the torrent to have been removed");
+        }
+    }
+
+    #[tokio::test]
     async fn test_tracker_manager_announce_all() {
         init_logger!();
         let url = Url::parse("udp://tracker.opentrackr.org:1337").unwrap();
@@ -613,10 +838,17 @@ mod tests {
         let info_hash =
             InfoHash::from_str("urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7").unwrap();
         let entry = TrackerEntry { tier: 0, url };
-        let manager = TrackerManager::new(peer_id, 6881, info_hash, Duration::from_secs(1));
+        let manager = TrackerManager::new(Duration::from_secs(1));
+
+        manager
+            .add_torrent(peer_id, 6881, info_hash.clone())
+            .await
+            .unwrap();
 
         manager.add_tracker_entry(entry).await.unwrap();
-        let result = manager.announce_all(AnnounceEvent::Started).await;
+        let result = manager
+            .announce_all(&info_hash, AnnounceEvent::Started)
+            .await;
 
         assert_ne!(0, result.peers.len(), "expected peers to have been found");
     }
@@ -629,11 +861,16 @@ mod tests {
         let info_hash =
             InfoHash::from_str("urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7").unwrap();
         let entry = TrackerEntry { tier: 0, url };
-        let manager = TrackerManager::new(peer_id, 6881, info_hash, Duration::from_secs(1));
+        let manager = TrackerManager::new(Duration::from_secs(1));
+
+        manager
+            .add_torrent(peer_id, 6881, info_hash.clone())
+            .await
+            .unwrap();
 
         manager.add_tracker_entry(entry).await.unwrap();
         let result = manager
-            .scrape()
+            .scrape(&info_hash)
             .await
             .expect("expected the scrape to succeed");
 
@@ -648,12 +885,9 @@ mod tests {
     async fn test_add_callback() {
         init_logger!();
         let url = Url::parse("udp://tracker.opentrackr.org:1337").unwrap();
-        let peer_id = PeerId::new();
-        let info_hash =
-            InfoHash::from_str("urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7").unwrap();
         let entry = TrackerEntry { tier: 0, url };
         let (tx, mut rx) = unbounded_channel();
-        let manager = TrackerManager::new(peer_id, 6881, info_hash, Duration::from_secs(1));
+        let manager = TrackerManager::new(Duration::from_secs(1));
 
         let mut receiver = manager.subscribe();
         tokio::spawn(async move {
@@ -687,10 +921,7 @@ mod tests {
     async fn test_drop() {
         init_logger!();
         let url = Url::parse("udp://tracker.opentrackr.org:1337").unwrap();
-        let peer_id = PeerId::new();
-        let info_hash =
-            InfoHash::from_str("urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7").unwrap();
-        let manager = TrackerManager::new(peer_id, 6881, info_hash, Duration::from_secs(1));
+        let manager = TrackerManager::new(Duration::from_secs(1));
 
         manager
             .add_tracker_async(TrackerEntry { tier: 0, url })

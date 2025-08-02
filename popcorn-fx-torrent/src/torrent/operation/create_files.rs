@@ -103,9 +103,9 @@ impl TorrentOperation for TorrentCreateFilesOperation {
 mod tests {
     use super::*;
     use crate::create_torrent;
+    use crate::init_logger;
     use crate::torrent::operation::TorrentCreatePiecesOperation;
     use crate::torrent::{TorrentConfig, TorrentFlags};
-    use popcorn_fx_core::init_logger;
     use tempfile::tempdir;
 
     #[tokio::test]

@@ -11,8 +11,8 @@ pub mod testing {
     use crate::core::subtitles::model::SubtitleInfo;
     use crate::core::subtitles::{SubtitleEvent, SubtitleManager, SubtitlePreference};
     use crate::core::torrents::{
-        StreamHandle, Torrent, TorrentEvent, TorrentHandle, TorrentState, TorrentStream,
-        TorrentStreamEvent, TorrentStreamState, TorrentStreamingResourceWrapper,
+        Torrent, TorrentEvent, TorrentHandle, TorrentState, TorrentStream, TorrentStreamEvent,
+        TorrentStreamState, TorrentStreamingResourceWrapper,
     };
     use crate::core::{torrents, Callbacks, CoreCallback};
 

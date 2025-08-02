@@ -254,7 +254,7 @@ impl TorrentFileStorage for TorrentFileSystemStorage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use popcorn_fx_core::init_logger;
+    use crate::init_logger;
     use popcorn_fx_core::testing::copy_test_file;
     use tempfile::tempdir;
 

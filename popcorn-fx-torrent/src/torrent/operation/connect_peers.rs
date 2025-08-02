@@ -224,8 +224,8 @@ impl TorrentOperation for TorrentConnectPeersOperation {
 mod tests {
     use super::*;
     use crate::create_torrent;
+    use crate::init_logger;
     use crate::torrent::{TorrentConfig, TorrentFlags};
-    use popcorn_fx_core::init_logger;
     use tempfile::tempdir;
 
     #[tokio::test]

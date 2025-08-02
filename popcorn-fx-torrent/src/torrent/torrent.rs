@@ -46,7 +46,6 @@ use tokio_util::sync::{
 use url::Url;
 
 const DEFAULT_PEER_TIMEOUT_SECONDS: u64 = 6;
-const DEFAULT_TRACKER_TIMEOUT_SECONDS: u64 = 3;
 const DEFAULT_PEER_LOWER_LIMIT: usize = 10;
 const DEFAULT_PEER_UPPER_LIMIT: usize = 200;
 const DEFAULT_PEER_IN_FLIGHT: usize = 25;
@@ -269,7 +268,6 @@ pub struct TorrentConfig {
     pub peers_in_flight: usize,
     pub peers_upload_slots: usize,
     pub peer_connection_timeout: Duration,
-    pub tracker_connection_timeout: Duration,
     pub max_in_flight_pieces: usize,
 }
 
@@ -299,7 +297,6 @@ pub struct TorrentConfigBuilder {
     peers_in_flight: Option<usize>,
     peers_upload_slots: Option<usize>,
     peer_connection_timeout: Option<Duration>,
-    tracker_connection_timeout: Option<Duration>,
     max_in_flight_pieces: Option<usize>,
 }
 
@@ -339,12 +336,6 @@ impl TorrentConfigBuilder {
         self
     }
 
-    /// Set the timeout for tracker connections.
-    pub fn tracker_connection_timeout(mut self, timeout: Duration) -> Self {
-        self.tracker_connection_timeout = Some(timeout);
-        self
-    }
-
     /// Set the maximum number of in flight pieces which can be requested in parallel from peers.
     pub fn max_in_flight_pieces(mut self, limit: usize) -> Self {
         self.max_in_flight_pieces = Some(limit);
@@ -363,9 +354,6 @@ impl TorrentConfigBuilder {
         let peer_connection_timeout = self
             .peer_connection_timeout
             .unwrap_or(Duration::from_secs(DEFAULT_PEER_TIMEOUT_SECONDS));
-        let tracker_connection_timeout = self
-            .tracker_connection_timeout
-            .unwrap_or(Duration::from_secs(DEFAULT_TRACKER_TIMEOUT_SECONDS));
         let max_in_flight_pieces = self
             .max_in_flight_pieces
             .unwrap_or(DEFAULT_MAX_IN_FLIGHT_PIECES);
@@ -377,7 +365,6 @@ impl TorrentConfigBuilder {
             peers_in_flight,
             peers_upload_slots,
             peer_connection_timeout,
-            tracker_connection_timeout,
             max_in_flight_pieces,
         }
     }
@@ -431,6 +418,8 @@ pub struct TorrentRequest {
     operations: Option<Vec<Box<dyn TorrentOperation>>>,
     /// The DHT node server to use for discovering peers
     dht: Option<DhtTracker>,
+    /// The peer tracker manager for the torrent
+    tracker_manager: Option<TrackerManager>,
 }
 
 impl TorrentRequest {
@@ -513,6 +502,12 @@ impl TorrentRequest {
         self
     }
 
+    /// Set the tracker manager for discovering peers.
+    pub fn tracker_manager(&mut self, tracker_manager: TrackerManager) -> &mut Self {
+        self.tracker_manager.get_or_insert(tracker_manager);
+        self
+    }
+
     /// Build the torrent from the given data.
     /// This is the same as calling `Torrent::try_from(self)`.
     pub fn build(&mut self) -> Result<Torrent> {
@@ -551,6 +546,13 @@ impl TryFrom<&mut TorrentRequest> for Torrent {
             .take()
             .unwrap_or_else(|| DEFAULT_TORRENT_OPERATIONS().iter().map(|e| e()).collect());
         let dht = request.dht.take();
+        let tracker_manager =
+            request
+                .tracker_manager
+                .take()
+                .ok_or(TorrentError::InvalidRequest(
+                    "tracker_manager is missing".to_string(),
+                ))?;
 
         Ok(Self::new(
             metadata,
@@ -562,6 +564,7 @@ impl TryFrom<&mut TorrentRequest> for Torrent {
             storage,
             operations,
             dht,
+            tracker_manager,
         ))
     }
 }
@@ -680,15 +683,12 @@ impl Torrent {
         storage: Box<dyn TorrentFileStorage>,
         operations: Vec<Box<dyn TorrentOperation>>,
         dht: Option<DhtTracker>,
+        tracker_manager: TrackerManager,
     ) -> Self {
         let handle = TorrentHandle::new();
         let peer_id = PeerId::new();
         let peer_discovery_addrs: Vec<SocketAddr> =
             peer_discoveries.iter().map(|e| e.addr()).cloned().collect();
-        let tracker_manager_port = peer_discovery_addrs
-            .get(0)
-            .map(|e| e.port())
-            .unwrap_or_default();
         let info_hash = metadata.info_hash.clone();
         let max_peers_in_flight = config.peers_in_flight.min(config.peers_upper_limit);
         let (event_sender, command_receiver) = unbounded_channel();
@@ -700,12 +700,7 @@ impl Torrent {
             metadata: RwLock::new(metadata),
             peer_id,
             peer_discovery_addrs: peer_discovery_addrs.clone(),
-            tracker_manager: TrackerManager::new(
-                peer_id,
-                tracker_manager_port,
-                info_hash.clone(),
-                config.tracker_connection_timeout.clone(),
-            ),
+            tracker_manager,
             dht,
             peer_pool: PeerPool::new(handle, config.peers_upper_limit, max_peers_in_flight),
             peer_subscriber,
@@ -1525,6 +1520,11 @@ impl TorrentContext {
         let mut operations_tick = time::interval(Duration::from_secs(1));
         let mut cleanup_interval = time::interval(Duration::from_secs(30));
 
+        // register the torrent within the tracker
+        if !self.add_torrent_to_tracker().await {
+            return;
+        }
+
         // execute the operations at the beginning of the loop
         select! {
             _ = self.cancellation_token.cancelled() => return,
@@ -1564,8 +1564,12 @@ impl TorrentContext {
         // shutdown the peer pool
         self.peer_pool.shutdown().await;
         // inform the tracker the torrent is being stopped
+        let metadata = self.metadata.read().await;
         self.tracker_manager
-            .announce_all(AnnounceEvent::Stopped)
+            .announce_all(&metadata.info_hash, AnnounceEvent::Stopped)
+            .await;
+        self.tracker_manager
+            .remove_torrent(&metadata.info_hash)
             .await;
         trace!("Torrent {} main loop ended", self);
     }
@@ -2184,7 +2188,11 @@ impl TorrentContext {
 
     /// Get the list of currently discovered peers.
     pub async fn discovered_peers(&self) -> Vec<SocketAddr> {
-        self.tracker_manager.discovered_peers().await
+        let info_hash = self.metadata.read().await.info_hash.clone();
+        self.tracker_manager
+            .discovered_peers(&info_hash)
+            .await
+            .unwrap_or_else(Vec::new)
     }
 
     /// Try to add the given tracker to the tracker manager of this torrent.
@@ -2302,21 +2310,24 @@ impl TorrentContext {
     /// Announce the torrent to all trackers.
     /// It returns the announcement result collected from all active trackers.
     pub async fn announce_all(&self) -> AnnouncementResult {
+        let metadata = self.metadata.read().await;
         self.tracker_manager
-            .announce_all(AnnounceEvent::Started)
+            .announce_all(&metadata.info_hash, AnnounceEvent::Started)
             .await
     }
 
     /// Announce to all the trackers without waiting for the results.
     pub async fn make_announce_all(&self) {
+        let metadata = self.metadata.read().await;
         self.tracker_manager
-            .make_announcement_to_all(AnnounceEvent::Started)
+            .make_announcement_to_all(&metadata.info_hash, AnnounceEvent::Started)
     }
 
     /// Get the scrape metrics result from scraping all trackers for this torrent.
     pub async fn scrape(&self) -> Result<ScrapeMetrics> {
         trace!("Torrent {} is scraping trackers", self);
-        match self.tracker_manager.scrape().await {
+        let metadata = self.metadata.read().await;
+        match self.tracker_manager.scrape(&metadata.info_hash).await {
             Ok(result) => {
                 let info_hash = self.metadata.read().await.info_hash.clone();
                 if let Some(metrics) = result.files.get(&info_hash) {
@@ -2391,16 +2402,17 @@ impl TorrentContext {
         }
 
         // inform the trackers about the new state
+        let metadata = self.metadata.read().await;
         match &state {
             TorrentState::Downloading => self
                 .tracker_manager
-                .make_announcement_to_all(AnnounceEvent::Started),
+                .make_announcement_to_all(&metadata.info_hash, AnnounceEvent::Started),
             TorrentState::Seeding | TorrentState::Finished => self
                 .tracker_manager
-                .make_announcement_to_all(AnnounceEvent::Completed),
+                .make_announcement_to_all(&metadata.info_hash, AnnounceEvent::Completed),
             TorrentState::Paused => self
                 .tracker_manager
-                .make_announcement_to_all(AnnounceEvent::Paused),
+                .make_announcement_to_all(&metadata.info_hash, AnnounceEvent::Paused),
             _ => {}
         }
 
@@ -2608,11 +2620,13 @@ impl TorrentContext {
             stats_mutex.total_completed_size += total_completed_pieces_size;
 
             // inform the trackers about the completed pieces
+            let metadata = self.metadata.read().await;
             self.tracker_manager
-                .update_bytes_completed(stats_mutex.total_completed_size)
+                .update_bytes_completed(&metadata.info_hash, stats_mutex.total_completed_size)
                 .await;
             self.tracker_manager
                 .update_bytes_remaining(
+                    &metadata.info_hash,
                     stats_mutex
                         .total_size
                         .saturating_sub(stats_mutex.total_completed_size),
@@ -2677,8 +2691,9 @@ impl TorrentContext {
 
         // announce to the trackers if we don't know any peers
         if self.peer_pool.num_connect_candidates().await == 0 {
+            let metadata = self.metadata.read().await;
             self.tracker_manager
-                .make_announcement_to_all(AnnounceEvent::Started);
+                .make_announcement_to_all(&metadata.info_hash, AnnounceEvent::Started);
         }
 
         let wanted_pieces = self.total_wanted_pieces().await;
@@ -2721,8 +2736,10 @@ impl TorrentContext {
     async fn handle_tracker_event(&self, event: TrackerManagerEvent) {
         trace!("Handling event {:?} for torrent {}", event, self);
         match event {
-            TrackerManagerEvent::PeersDiscovered(peers) => {
-                self.handle_discovered_peers(peers).await
+            TrackerManagerEvent::PeersDiscovered(info_hash, peers) => {
+                if info_hash == self.metadata.read().await.info_hash {
+                    self.handle_discovered_peers(peers).await
+                }
             }
             TrackerManagerEvent::TrackerAdded(handle) => {
                 let is_paused = self.options.read().await.contains(TorrentFlags::Paused);
@@ -2736,7 +2753,12 @@ impl TorrentContext {
                     event = AnnounceEvent::Completed;
                 }
 
-                self.tracker_manager.make_announcement(handle, event);
+                {
+                    let metadata = self.metadata.read().await;
+                    self.tracker_manager
+                        .make_announcement(handle, &metadata.info_hash, event);
+                }
+
                 self.invoke_event(TorrentEvent::TrackersChanged);
             }
         }
@@ -2800,6 +2822,26 @@ impl TorrentContext {
 
     async fn handle_dropped_peers(&self, peers: Vec<SocketAddr>) {
         self.peer_pool.peer_connections_closed(peers).await;
+    }
+
+    async fn add_torrent_to_tracker(&self) -> bool {
+        let info_hash = self.metadata.read().await.info_hash.clone();
+        let peer_port = self.peer_port().unwrap_or(6881);
+
+        if let Err(e) = self
+            .tracker_manager
+            .add_torrent(self.peer_id, peer_port, info_hash)
+            .await
+        {
+            error!(
+                "Torrent {} failed to register with tracker manager, {}",
+                self, e
+            );
+            self.update_state(TorrentState::Error).await;
+            return false;
+        }
+
+        true
     }
 
     async fn process_pending_request_rejected(&self, request_rejection: PendingRequestRejected) {
@@ -3586,8 +3628,8 @@ mod tests {
     use crate::torrent::InfoHash;
     use crate::{create_torrent, timeout};
 
+    use crate::init_logger;
     use log::LevelFilter;
-    use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::{copy_test_file, read_test_file_to_bytes};
     use std::ops::Sub;
     use std::str::FromStr;

@@ -22,10 +22,9 @@ pub mod tests {
 
     use crate::timeout;
     use crate::torrent::peer::protocol::{UtpSocket, UtpSocketExtensions, UtpStream};
-    use crate::torrent::{available_port, Torrent};
+    use crate::torrent::Torrent;
 
-    use rand::{rng, Rng};
-    use std::net::SocketAddr;
+    use std::net::{Ipv4Addr, SocketAddr};
     use std::time::Duration;
     use tokio::sync::mpsc::unbounded_channel;
 
@@ -56,13 +55,13 @@ pub mod tests {
     }
 
     pub async fn create_utp_socket() -> UtpSocket {
-        let port_start = rng().random_range(6881..20000);
-        let port = available_port(port_start, 31000).unwrap();
-        let addr = SocketAddr::from(([127, 0, 0, 1], port));
-
-        UtpSocket::new(addr, Duration::from_secs(1), vec![])
-            .await
-            .expect("expected an utp socket")
+        UtpSocket::new(
+            SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)),
+            Duration::from_secs(1),
+            vec![],
+        )
+        .await
+        .expect("expected an utp socket")
     }
 
     pub async fn create_utp_socket_with_port(port: u16) -> UtpSocket {
@@ -134,16 +133,12 @@ pub mod tests {
         incoming_extensions: UtpSocketExtensions,
         outgoing_extensions: UtpSocketExtensions,
     ) -> (UtpSocket, UtpSocket) {
-        let mut rng = rng();
-
-        let port = available_port(rng.random_range(20000..21000), 21000).unwrap();
-        let addr = SocketAddr::from(([127, 0, 0, 1], port));
+        let addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0));
         let left = UtpSocket::new(addr, Duration::from_secs(2), incoming_extensions)
             .await
             .expect("expected a new utp socket");
 
-        let port = available_port(rng.random_range(21000..22000), 22000).unwrap();
-        let addr = SocketAddr::from(([127, 0, 0, 1], port));
+        let addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0));
         let right = UtpSocket::new(addr, Duration::from_secs(2), outgoing_extensions)
             .await
             .expect("expected a new utp socket");

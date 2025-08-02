@@ -359,14 +359,15 @@ where
 mod tests {
     use super::*;
 
+    use crate::create_utp_socket_pair;
     use crate::torrent::peer::protocol::tests::UtpPacketCaptureExtension;
     use crate::torrent::peer::protocol::Piece;
     use crate::torrent::peer::tests::create_utp_stream_pair;
     use crate::torrent::peer::ProtocolExtensionFlags;
     use crate::torrent::InfoHash;
-    use crate::{available_port, create_utp_socket_pair};
 
-    use popcorn_fx_core::init_logger;
+    use crate::init_logger;
+    use std::net::Ipv4Addr;
     use std::str::FromStr;
     use tokio::net::TcpListener;
 
@@ -501,15 +502,15 @@ mod tests {
     async fn test_peer_connection_shutdown() {
         init_logger!();
         let message = "Lorem ipsum dolor";
-        let port = available_port!(30000, 31000).unwrap();
-        let socket_addr = SocketAddr::from(([127, 0, 0, 1], port));
+        let socket_addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0));
         let incoming = TcpListener::bind(socket_addr)
             .await
             .expect("expected the tcp listener to bind");
+        let incoming_port = incoming.local_addr().unwrap().port();
 
         tokio::spawn(async move { while let Ok((_stream, _addr)) = incoming.accept().await {} });
 
-        let outgoing_stream = TcpStream::connect(socket_addr)
+        let outgoing_stream = TcpStream::connect((socket_addr.ip(), incoming_port))
             .await
             .expect("expected to create an outgoing connection");
         let connection =

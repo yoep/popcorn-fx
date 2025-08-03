@@ -376,15 +376,6 @@ impl TrackerBuilder {
         self
     }
 
-    /// Set the interval between announcements made by the tracker.
-    pub fn default_announcement_interval_seconds(
-        &mut self,
-        announcement_interval_seconds: u64,
-    ) -> &mut Self {
-        self.default_announcement_interval_seconds = Some(announcement_interval_seconds);
-        self
-    }
-
     /// Try to create a new [Tracker] instance from this builder.
     ///
     /// Returns an error when the [TrackerBuilder::url] has not been set.
@@ -425,6 +416,21 @@ mod tests {
             .expect("expected the tracker to be created");
 
         assert_eq!(1, result.endpoints.len());
+    }
+
+    #[tokio::test]
+    async fn test_tracker_url() {
+        init_logger!();
+        let url = Url::parse("udp://tracker.opentrackr.org:1337").unwrap();
+        let tracker = Tracker::builder()
+            .url(url.clone())
+            .build()
+            .await
+            .expect("expected the tracker to be created");
+
+        let result = tracker.url();
+
+        assert_eq!(&url, result, "expected the tracker url to match");
     }
 
     #[tokio::test]

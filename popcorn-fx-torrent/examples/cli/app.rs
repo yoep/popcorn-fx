@@ -4,8 +4,8 @@ use futures::FutureExt;
 use futures::StreamExt;
 use fx_callback::{Callback, Subscription};
 use popcorn_fx_torrent::torrent::{
-    format_bytes, FxTorrentSession, InfoHash, Session, SessionEvent, SessionState, Torrent,
-    TorrentEvent, TorrentFlags, TorrentState,
+    format_bytes, FxSessionCache, FxTorrentSession, InfoHash, Session, SessionEvent, SessionState,
+    Torrent, TorrentEvent, TorrentFlags, TorrentState,
 };
 use ratatui::buffer::Buffer;
 use ratatui::layout::Constraint::{Length, Min, Percentage};
@@ -21,6 +21,8 @@ use std::time::Duration;
 use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::{select, time};
 use tokio_util::sync::CancellationToken;
+
+const SESSION_CACHE_LIMIT: usize = 10;
 
 #[derive(Debug)]
 pub struct App {
@@ -45,6 +47,7 @@ impl App {
         let session = FxTorrentSession::builder()
             .client_name("FX torrent")
             .base_path("torrents")
+            .session_cache(FxSessionCache::new(SESSION_CACHE_LIMIT))
             .build()
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
         let session_event_receiver = session.subscribe();

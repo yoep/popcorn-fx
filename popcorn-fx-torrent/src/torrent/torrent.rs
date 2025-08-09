@@ -13,8 +13,9 @@ use crate::torrent::tracker::{
 };
 use crate::torrent::{
     calculate_byte_rate, format_bytes, FileAttributeFlags, FileIndex, PeerPool, Piece, PieceIndex,
-    PiecePart, PiecePool, PiecePriority, TorrentError, TorrentMetadata, TorrentMetadataInfo,
-    DEFAULT_TORRENT_EXTENSIONS, DEFAULT_TORRENT_OPERATIONS, DEFAULT_TORRENT_PROTOCOL_EXTENSIONS,
+    PiecePart, PiecePool, PiecePriority, TorrentError, TorrentFlags, TorrentMetadata,
+    TorrentMetadataInfo, DEFAULT_TORRENT_EXTENSIONS, DEFAULT_TORRENT_OPERATIONS,
+    DEFAULT_TORRENT_PROTOCOL_EXTENSIONS,
 };
 use async_trait::async_trait;
 use bit_vec::BitVec;
@@ -87,42 +88,6 @@ pub type ExtensionFactory = fn() -> Box<dyn Extension>;
 
 /// A list of [Torrent] extension factories.
 pub type ExtensionFactories = Vec<ExtensionFactory>;
-
-/// Possible flags which can be attached to a [Torrent].
-///
-/// The default value for the flag options is [TorrentFlags::AutoManaged],
-/// which will retrieve the metadata if needed and automatically start the download.
-#[bitmask(u16)]
-#[bitmask_config(vec_debug, flags_iter)]
-pub enum TorrentFlags {
-    /// Indicates seed mode where only data is uploaded.
-    SeedMode = 0b0000000000000001,
-    /// Indicates if uploading data is allowed.
-    UploadMode = 0b0000000000000010,
-    /// Indicates if downloading data is allowed.
-    DownloadMode = 0b0000000000000100,
-    /// Indicates share mode.
-    ShareMode = 0b0000000000001000,
-    /// Applies an IP filter.
-    ApplyIpFilter = 0b0000000000010000,
-    /// Torrent is paused.
-    Paused = 0b0000000000100000,
-    /// Complete the torrent metadata from peers if needed.
-    Metadata = 0b0000000001000000,
-    /// Sequential download is enabled.
-    SequentialDownload = 0b0000000010000100,
-    /// Torrent should stop when ready.
-    StopWhenReady = 0b0000000100000000,
-    /// Torrent is auto-managed.
-    /// This means that the torrent may be resumed at any point in time.
-    AutoManaged = 0b0000001001000110,
-}
-
-impl Default for TorrentFlags {
-    fn default() -> Self {
-        TorrentFlags::AutoManaged
-    }
-}
 
 /// The states of the torrent
 #[derive(Debug, Display, Copy, Clone, PartialEq)]

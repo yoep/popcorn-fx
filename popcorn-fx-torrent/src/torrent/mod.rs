@@ -7,8 +7,10 @@ use peer_pool::*;
 pub use piece::*;
 use piece_pool::*;
 pub use session::*;
+pub use session_cache::*;
 use std::ops::Range;
 pub use torrent::*;
+pub use torrent_flags::*;
 pub use torrent_health::*;
 pub use torrent_metadata::*;
 pub use torrent_peer::*;
@@ -29,7 +31,9 @@ mod peer_pool;
 mod piece;
 mod piece_pool;
 mod session;
+mod session_cache;
 mod torrent;
+mod torrent_flags;
 mod torrent_health;
 mod torrent_metadata;
 mod torrent_peer;
@@ -197,6 +201,7 @@ where
 #[cfg(test)]
 pub mod tests {
     use super::*;
+    use std::env;
 
     use crate::torrent::fs::TorrentFileSystemStorage;
     use crate::torrent::peer::tests::new_tcp_peer_discovery;
@@ -211,8 +216,8 @@ pub mod tests {
     use log4rs::config::{Appender, Root};
     use log4rs::encode::pattern::PatternEncoder;
     use log4rs::Config;
-    use popcorn_fx_core::testing::read_test_file_to_bytes;
     use std::net::SocketAddr;
+    use std::path::PathBuf;
     use std::str::FromStr;
     use std::sync::Once;
     use std::time::Duration;
@@ -470,6 +475,34 @@ pub mod tests {
         .unwrap()
         .expect("expected an incoming peer");
         (incoming_peer, outgoing_peer)
+    }
+
+    /// Retrieve the path to the testing resource directory.
+    ///
+    /// It returns the [PathBuf] to the testing resources directory.
+    pub fn test_resource_directory() -> PathBuf {
+        let root_dir = &env::var("CARGO_MANIFEST_DIR").expect("$CARGO_MANIFEST_DIR");
+        let mut source = PathBuf::from(root_dir);
+        source.push("test");
+
+        source
+    }
+
+    /// Retrieve the filepath of a testing resource file.
+    /// These are files located within the "test" directory of the crate.
+    ///
+    /// It returns the created [PathBuf] for the given filename.
+    pub fn test_resource_filepath(filename: &str) -> PathBuf {
+        let mut source = test_resource_directory();
+        source.push(filename);
+
+        source
+    }
+
+    pub fn read_test_file_to_bytes(filename: &str) -> Vec<u8> {
+        let source = test_resource_filepath(filename);
+
+        std::fs::read(&source).unwrap()
     }
 
     /// Initializes the logger with the specified log level.

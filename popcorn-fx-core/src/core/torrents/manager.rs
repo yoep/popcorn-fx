@@ -244,7 +244,7 @@ impl InnerTorrentManager {
             Some(torrent) => {
                 let mut receiver = torrent.subscribe();
 
-                if !torrent.is_metadata_known().await {
+                if torrent.total_files().await.unwrap_or_default() == 0 {
                     if let Some(value) =
                         Self::await_torrent_files(torrent.handle(), &mut receiver).await
                     {

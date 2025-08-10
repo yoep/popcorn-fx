@@ -39,18 +39,32 @@ impl TorrentTrackersOperation {
             return false;
         }
 
-        let tracker_entries = tiered_trackers
-            .into_iter()
-            .map(|(tier, trackers)| {
-                trackers
-                    .into_iter()
-                    .map(|url| TrackerEntry { tier, url })
-                    .collect::<Vec<_>>()
-            })
-            .flatten()
-            .collect();
+        // create the tracker entries of the torrent to which we want to connect
+        {
+            let tracker_entries = tiered_trackers
+                .into_iter()
+                .map(|(tier, trackers)| {
+                    trackers
+                        .into_iter()
+                        .map(|url| TrackerEntry { tier, url })
+                        .collect::<Vec<_>>()
+                })
+                .flatten()
+                .collect();
+            *self.cached_tiered_trackers.lock().await = tracker_entries;
+        }
 
-        *self.cached_tiered_trackers.lock().await = tracker_entries;
+        // retrieve the initial/previously discovered peers from the tracker
+        {
+            let tracker_manager = torrent.tracker_manager();
+            if let Some(initial_discovered_peers) = tracker_manager
+                .discovered_peers(&torrent.metadata_lock().read().await.info_hash)
+                .await
+            {
+                torrent.add_peer_addresses(initial_discovered_peers).await;
+            }
+        }
+
         self.initialized.store(true, Ordering::Relaxed);
         true
     }

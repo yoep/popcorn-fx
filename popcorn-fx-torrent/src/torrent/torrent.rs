@@ -19,7 +19,6 @@ use crate::torrent::{
 };
 use async_trait::async_trait;
 use bit_vec::BitVec;
-use bitmask_enum::bitmask;
 use derive_more::Display;
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
@@ -1602,6 +1601,11 @@ impl TorrentContext {
         self.protocol_extensions
     }
 
+    /// Get the tracker manager for the torrent.
+    pub fn tracker_manager(&self) -> &TrackerManager {
+        &self.tracker_manager
+    }
+
     /// Get the absolute path to the torrent location.
     /// This can either be a file or directory to the torrent depending on the type of the torrent.
     pub async fn path(&self) -> Option<PathBuf> {
@@ -2675,6 +2679,17 @@ impl TorrentContext {
         self.send_command_event(TorrentCommandEvent::State(TorrentState::Paused));
     }
 
+    /// Add the specified peer addresses to the peer pool of the torrent.
+    ///
+    /// These peers will be considered as potential connection targets in the future,
+    /// particularly when the torrent requires additional connections.
+    /// The provided addresses are queued for possible use; there is no immediate
+    /// guarantee that connections will be attempted right away.
+    pub async fn add_peer_addresses(&self, peer_addrs: Vec<SocketAddr>) {
+        let addr = self.peer_discovery_addrs.first().cloned();
+        self.peer_pool.add_peer_addresses(peer_addrs, addr).await;
+    }
+
     /// Handle a command event from the channel of the torrent.
     async fn handle_command_event(&self, event: TorrentCommandEvent) {
         trace!("Torrent {} handling command event {:?}", self, event);
@@ -2703,7 +2718,7 @@ impl TorrentContext {
         match event {
             TrackerManagerEvent::PeersDiscovered(info_hash, peers) => {
                 if info_hash == self.metadata.read().await.info_hash {
-                    self.handle_discovered_peers(peers).await
+                    self.add_peer_addresses(peers).await
                 }
             }
             TrackerManagerEvent::TrackerAdded(handle) => {
@@ -2768,7 +2783,7 @@ impl TorrentContext {
     /// This will update the torrent context info based on an event that occurred within one of its peers.
     async fn handle_peer_event(&self, event: PeerEvent) {
         match event {
-            PeerEvent::PeersDiscovered(peers) => self.handle_discovered_peers(peers).await,
+            PeerEvent::PeersDiscovered(peers) => self.add_peer_addresses(peers).await,
             PeerEvent::PeersDropped(peers) => self.handle_dropped_peers(peers).await,
             PeerEvent::RemoteAvailablePieces(pieces) => {
                 self.update_piece_availabilities(pieces, true).await
@@ -2778,11 +2793,6 @@ impl TorrentContext {
             }
             _ => {}
         }
-    }
-
-    async fn handle_discovered_peers(&self, peer_addrs: Vec<SocketAddr>) {
-        let addr = self.peer_discovery_addrs.first().cloned();
-        self.peer_pool.add_peer_addresses(peer_addrs, addr).await;
     }
 
     async fn handle_dropped_peers(&self, peers: Vec<SocketAddr>) {

@@ -911,6 +911,37 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_discovered_peers() {
+        init_logger!();
+        let info_hash =
+            InfoHash::from_str("urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7").unwrap();
+        let peer_addr = SocketAddr::from(([127, 0, 0, 1], 6882));
+        let manager = TrackerManager::new(Duration::from_secs(1));
+
+        manager.inner.torrents.lock().await.push(TrackerTorrent {
+            peer_id: PeerId::new(),
+            peer_port: 6881,
+            info_hash: info_hash.clone(),
+            peers: vec![peer_addr.clone()].into_iter().collect(),
+            bytes_completed: 0,
+            bytes_remaining: u64::MAX,
+        });
+
+        let result = manager.discovered_peers(&info_hash).await;
+        assert_eq!(
+            true,
+            result.is_some(),
+            "expected the info hash to have been found"
+        );
+        let result = result.unwrap();
+        assert_eq!(
+            Some(&peer_addr),
+            result.get(0),
+            "expected a discovered peer to have been returned"
+        );
+    }
+
+    #[tokio::test]
     async fn test_add_callback() {
         init_logger!();
         let url = Url::parse("udp://tracker.opentrackr.org:1337").unwrap();

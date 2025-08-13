@@ -286,11 +286,11 @@ impl InnerTorrentManager {
                     "Torrent manager has failed to load the metadata of torrent {}",
                     handle
                 );
-                Err(torrents::Error::TorrentResolvingFailed(
+                Err(Error::TorrentResolvingFailed(
                     "metadata info is missing".to_string(),
                 ))
             }
-            None => Err(torrents::Error::InvalidHandle(handle.to_string())),
+            None => Err(Error::InvalidHandle(handle.to_string())),
         }
     }
 
@@ -301,7 +301,7 @@ impl InnerTorrentManager {
             .session
             .find_torrent_by_handle(handle)
             .await
-            .ok_or(torrents::Error::InvalidHandle(handle.to_string()))?;
+            .ok_or(Error::InvalidHandle(handle.to_string()))?;
         let mut receiver = torrent.subscribe();
 
         if torrent.total_files().await.unwrap_or(0) == 0 {

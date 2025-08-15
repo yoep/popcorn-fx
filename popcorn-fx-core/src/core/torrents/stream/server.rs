@@ -478,9 +478,11 @@ mod test {
     async fn test_stream_metadata_info() {
         init_logger!();
         let filename = "large-[123].txt";
-        let total_pieces: usize = 10;
         let temp_dir = tempfile::tempdir().unwrap();
+        let temp_dir_path = temp_dir.path().to_path_buf();
         let file = temp_dir.path().join(filename);
+        let torrent_files = create_torrent_files(&file);
+        let total_pieces = torrent_files[0].pieces.len();
         let client = Client::builder()
             .build()
             .expect("Client should have been created");
@@ -491,10 +493,13 @@ mod test {
         torrent.expect_handle().return_const(TorrentHandle::new());
         torrent
             .expect_files()
-            .returning(move || create_torrent_files(&file));
+            .returning(move || torrent_files.clone());
         torrent.expect_has_bytes().return_const(true);
         torrent.expect_has_piece().returning(|_: usize| true);
         torrent.expect_total_pieces().return_const(total_pieces);
+        torrent
+            .expect_absolute_file_path()
+            .returning(move |file| temp_dir_path.join(&file.torrent_path));
         torrent
             .expect_prioritize_pieces()
             .returning(|_: &[PieceIndex]| {});
@@ -595,8 +600,9 @@ mod test {
     async fn test_start_stream() {
         init_logger!();
         let filename = "large-[123].txt";
-        let total_pieces: usize = 10;
+        let total_pieces: usize = 100;
         let temp_dir = tempfile::tempdir().unwrap();
+        let temp_dir_path = temp_dir.path().to_path_buf();
         let file = temp_dir.path().join(filename);
         let client = Client::builder()
             .build()
@@ -614,6 +620,9 @@ mod test {
         torrent
             .expect_files()
             .returning(move || create_torrent_files(&file));
+        torrent
+            .expect_absolute_file_path()
+            .returning(move |file| temp_dir_path.join(&file.torrent_path));
         torrent.expect_has_bytes().return_const(true);
         torrent.expect_has_piece().returning(|_: usize| true);
         torrent.expect_total_pieces().return_const(total_pieces);
@@ -679,6 +688,7 @@ mod test {
         let filename = "large-[123].txt";
         let total_pieces = 15usize;
         let temp_dir = tempfile::tempdir().unwrap();
+        let temp_dir_path = temp_dir.path().to_path_buf();
         let file = temp_dir.path().join(filename);
         let client = Client::builder()
             .build()
@@ -691,6 +701,9 @@ mod test {
         torrent
             .expect_files()
             .returning(move || create_torrent_files(&file));
+        torrent
+            .expect_absolute_file_path()
+            .returning(move |file| temp_dir_path.join(&file.torrent_path));
         torrent.expect_total_pieces().return_const(total_pieces);
         torrent
             .expect_prioritize_pieces()

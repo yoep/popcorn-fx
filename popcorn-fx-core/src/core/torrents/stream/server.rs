@@ -384,7 +384,7 @@ impl TorrentStreamServer for TorrentStreamServerInner {
             .find(|e| e.filename().to_lowercase() == filename.to_lowercase())
         {
             let filename = file.filename();
-            let filepath = file.io_path.clone();
+            let filepath = torrent.absolute_file_path(&file);
 
             if streams.contains_key(&filename) {
                 debug!(
@@ -469,7 +469,7 @@ mod test {
 
     use fx_callback::MultiThreadedCallback;
     use popcorn_fx_torrent::torrent;
-    use popcorn_fx_torrent::torrent::{TorrentEvent, TorrentFileInfo, TorrentStats};
+    use popcorn_fx_torrent::torrent::{PieceIndex, TorrentEvent, TorrentFileInfo, TorrentStats};
     use reqwest::Client;
     use std::path::PathBuf;
     use std::time::Duration;
@@ -495,7 +495,9 @@ mod test {
         torrent.expect_has_bytes().return_const(true);
         torrent.expect_has_piece().returning(|_: usize| true);
         torrent.expect_total_pieces().return_const(total_pieces);
-        torrent.expect_prioritize_pieces().returning(|_: &[u32]| {});
+        torrent
+            .expect_prioritize_pieces()
+            .returning(|_: &[PieceIndex]| {});
         torrent.expect_sequential_mode().returning(|| {});
         torrent
             .expect_state()
@@ -615,7 +617,9 @@ mod test {
         torrent.expect_has_bytes().return_const(true);
         torrent.expect_has_piece().returning(|_: usize| true);
         torrent.expect_total_pieces().return_const(total_pieces);
-        torrent.expect_prioritize_pieces().returning(|_: &[u32]| {});
+        torrent
+            .expect_prioritize_pieces()
+            .returning(|_: &[PieceIndex]| {});
         torrent.expect_sequential_mode().returning(|| {});
         torrent
             .expect_state()
@@ -688,7 +692,9 @@ mod test {
             .expect_files()
             .returning(move || create_torrent_files(&file));
         torrent.expect_total_pieces().return_const(total_pieces);
-        torrent.expect_prioritize_pieces().returning(|_: &[u32]| {});
+        torrent
+            .expect_prioritize_pieces()
+            .returning(|_: &[PieceIndex]| {});
         torrent
             .expect_state()
             .return_const(TorrentState::Downloading);
@@ -765,7 +771,6 @@ mod test {
         vec![torrent::File {
             index: 0,
             torrent_path: file.clone(),
-            io_path: file.clone(),
             offset: 0,
             info: TorrentFileInfo {
                 length: 0,
@@ -777,6 +782,7 @@ mod test {
                 sha1: None,
             },
             priority: Default::default(),
+            pieces: 0..100,
         }]
     }
 

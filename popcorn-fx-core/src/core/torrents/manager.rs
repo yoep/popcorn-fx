@@ -8,7 +8,7 @@ use chrono::{DateTime, Local};
 use derive_more::Display;
 use downcast_rs::{impl_downcast, DowncastSync};
 use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
-use log::{debug, error, trace, warn};
+use log::{debug, error, info, trace, warn};
 #[cfg(any(test, feature = "testing"))]
 pub use mock::*;
 use popcorn_fx_torrent::torrent::{
@@ -234,7 +234,7 @@ impl InnerTorrentManager {
                     .invoke(TorrentManagerEvent::TorrentAdded(handle));
                 Box::new(torrent) as Box<dyn Torrent>
             })
-            .map_err(|e| torrents::Error::TorrentError(e.to_string()))
+            .map_err(|e| Error::TorrentError(e.to_string()))
     }
 
     async fn info<'a>(&'a self, handle: &TorrentHandle) -> Result<TorrentInfo> {
@@ -255,10 +255,10 @@ impl InnerTorrentManager {
                 let metadata = torrent
                     .metadata()
                     .await
-                    .map_err(|e| torrents::Error::TorrentError(e.to_string()))?;
+                    .map_err(|e| Error::TorrentError(e.to_string()))?;
                 let magnet_uri = Magnet::try_from(&metadata)
                     .map(|e| e.to_string())
-                    .map_err(|e| torrents::Error::TorrentError(e.to_string()))?;
+                    .map_err(|e| Error::TorrentError(e.to_string()))?;
                 if let Some(info) = metadata.info {
                     let directory_name = if let TorrentFiles::Single { .. } = &info.files {
                         None

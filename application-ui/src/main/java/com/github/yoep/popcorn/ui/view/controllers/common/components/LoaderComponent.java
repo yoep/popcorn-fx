@@ -173,7 +173,7 @@ public class LoaderComponent implements Initializable {
         infoComponent.update(new DownloadStatus() {
             @Override
             public float progress() {
-                return progress.getProgress();
+                return Float.min(progress.getProgress(), 1);
             }
 
             @Override

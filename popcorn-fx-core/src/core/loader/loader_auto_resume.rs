@@ -320,7 +320,6 @@ mod tests {
         torrent::File {
             index: 0,
             torrent_path: PathBuf::from(filename),
-            io_path: Default::default(),
             offset: 0,
             info: TorrentFileInfo {
                 length: 0,
@@ -332,6 +331,7 @@ mod tests {
                 sha1: None,
             },
             priority: Default::default(),
+            pieces: 0..100,
         }
     }
 }

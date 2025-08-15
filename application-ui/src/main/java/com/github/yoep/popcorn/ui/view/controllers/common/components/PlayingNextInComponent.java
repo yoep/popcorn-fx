@@ -60,7 +60,7 @@ public class PlayingNextInComponent implements Initializable {
         playlistManager.addListener(new PlaylistManagerListener() {
             @Override
             public void onPlaylistChanged() {
-                // no-op
+                reset();
             }
 
             @Override

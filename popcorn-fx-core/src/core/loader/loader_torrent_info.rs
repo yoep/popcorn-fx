@@ -324,13 +324,11 @@ mod tests {
     #[tokio::test]
     async fn test_process_media_url() {
         init_logger!();
-        let temp_dir = tempdir().expect("expected a temp dir to be created");
         let filename = "MySecondFile";
         let magnet_url = "magnet:?MyFullShowTorrent";
         let expected_torrent_file_info = torrent::File {
             index: 2,
             torrent_path: PathBuf::from(filename),
-            io_path: temp_dir.path().join(filename),
             offset: 0,
             info: TorrentFileInfo {
                 length: 25000,
@@ -342,6 +340,7 @@ mod tests {
                 sha1: None,
             },
             priority: Default::default(),
+            pieces: 0..100,
         };
         let show = ShowOverview {
             imdb_id: "tt000111".to_string(),
@@ -402,7 +401,6 @@ mod tests {
                 torrent::File {
                     index: 1,
                     torrent_path: PathBuf::from("MyFirstFile"),
-                    io_path: temp_dir.path().join("MyFirstFile"),
                     offset: 0,
                     info: TorrentFileInfo {
                         length: 25000,
@@ -414,6 +412,7 @@ mod tests {
                         sha1: None,
                     },
                     priority: Default::default(),
+                    pieces: 0..100,
                 },
                 expected_torrent_file_info.clone(),
             ],

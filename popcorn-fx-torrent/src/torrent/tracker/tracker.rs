@@ -306,7 +306,15 @@ impl Tracker {
         let mut fail_count = self.fail_count.lock().await;
 
         *fail_count += 1;
-        *self.state.lock().await = TrackerState::calculate(*fail_count);
+
+        {
+            let new_state = TrackerState::calculate(*fail_count);
+            let mut state = self.state.lock().await;
+            if *state != new_state {
+                *state = new_state;
+                debug!("Tracker {} state changed to {:?}", self, new_state);
+            }
+        }
     }
 
     async fn create_connection(

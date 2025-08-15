@@ -146,7 +146,6 @@ mod tests {
     use crate::testing::MockTorrentStream;
     use crate::{create_loading_task, init_logger, recv_timeout};
 
-    use fx_handle::Handle;
     use std::time::Duration;
     use tokio::sync::mpsc::unbounded_channel;
 

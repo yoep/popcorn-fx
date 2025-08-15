@@ -283,7 +283,6 @@ impl Callbacks<SubtitleEvent> for InnerSubtitleManager {
 #[cfg(test)]
 mod test {
     use std::path::PathBuf;
-    use std::time::Duration;
     use tempfile::tempdir;
 
     use crate::core::config::{

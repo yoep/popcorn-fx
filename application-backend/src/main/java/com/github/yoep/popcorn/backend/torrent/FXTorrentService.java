@@ -65,7 +65,7 @@ public class FXTorrentService implements TorrentService {
         return new DownloadStatus() {
             @Override
             public float progress() {
-                return stats.getProgress();
+                return Float.min(stats.getProgress(), 1);
             }
 
             @Override

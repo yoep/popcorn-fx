@@ -148,7 +148,6 @@ mod tests {
             files: vec![popcorn_fx_torrent::torrent::File {
                 index: 1,
                 torrent_path: PathBuf::from("torDir/my-file.mp4"),
-                io_path: Default::default(),
                 offset: 1000,
                 info: TorrentFileInfo {
                     length: 25000,
@@ -160,6 +159,7 @@ mod tests {
                     sha1: None,
                 },
                 priority: Default::default(),
+                pieces: 0..100,
             }],
         });
         let expected_result = events::Event {

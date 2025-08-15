@@ -980,6 +980,8 @@ mod test {
         mock.expect_stats().returning(|| TorrentStats::default());
         mock.expect_subscribe()
             .returning(move || subscription_callbacks.subscribe());
+        mock.expect_absolute_file_path()
+            .returning(move |_| temp_path.clone());
         copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
         let torrent_stream = DefaultTorrentStream::new(url, Box::new(mock), filename).await;
 
@@ -1031,12 +1033,15 @@ mod test {
         let filename = "range.txt";
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().join(filename);
-        let file_info = create_file_from_temp_path(temp_path);
+        let file_info = create_file_from_temp_path(temp_path.clone());
         let mut torrent = MockTorrent::new();
         torrent.expect_handle().return_const(TorrentHandle::new());
         torrent
             .expect_files()
             .returning(move || vec![file_info.clone()]);
+        torrent
+            .expect_absolute_file_path()
+            .returning(move |_| temp_path.clone());
         torrent.expect_has_bytes().return_const(true);
         let torrent = Arc::new(Box::new(torrent) as Box<dyn Torrent>);
         copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
@@ -1061,6 +1066,9 @@ mod test {
         let mut torrent = MockTorrent::new();
         torrent.expect_handle().return_const(TorrentHandle::new());
         torrent.expect_files().return_once(move || files);
+        torrent
+            .expect_absolute_file_path()
+            .returning(move |_| temp_path.clone());
         torrent.expect_has_bytes().return_const(true);
         let torrent = Arc::new(Box::new(torrent) as Box<dyn Torrent>);
         copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
@@ -1087,6 +1095,9 @@ mod test {
         let mut torrent = MockTorrent::new();
         torrent.expect_handle().return_const(TorrentHandle::new());
         torrent.expect_files().return_once(move || files);
+        torrent
+            .expect_absolute_file_path()
+            .returning(move |_| temp_path.clone());
         torrent.expect_has_bytes().returning(move |_| {
             if a.is_some() {
                 a.take();
@@ -1134,6 +1145,9 @@ mod test {
         let mut torrent = MockTorrent::new();
         torrent.expect_handle().return_const(TorrentHandle::new());
         torrent.expect_files().return_once(move || files);
+        torrent
+            .expect_absolute_file_path()
+            .returning(move |_| temp_path.clone());
         torrent.expect_has_bytes().returning(move |_| {
             if a.is_some() {
                 a.take();

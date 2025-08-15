@@ -814,7 +814,8 @@ impl UtpStreamContext {
         for pending_packet in pending_packets
             .iter_mut()
             .filter(|e| {
-                timestamp_now - e.packet.timestamp_microseconds > timeout_threshold.min(5000)
+                timestamp_now.saturating_sub(e.packet.timestamp_microseconds)
+                    > timeout_threshold.min(5000)
             })
             .take(10)
         {

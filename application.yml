@@ -28,5 +28,9 @@ popcorn:
       level: info
     popcorn_fx_torrent::torrent::dht:
       level: debug
+    popcorn_fx_torrent::torrent::operation:
+      level: debug
     popcorn_fx_torrent::torrent::peer::protocol:
+      level: info
+    popcorn_fx_torrent::torrent::tracker:
       level: info

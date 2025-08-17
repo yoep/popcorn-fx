@@ -26,7 +26,7 @@ pub mod testing {
     use log4rs::Config;
     use mockall::mock;
     use popcorn_fx_torrent::torrent;
-    use popcorn_fx_torrent::torrent::{File, TorrentStats};
+    use popcorn_fx_torrent::torrent::{File, PieceIndex, TorrentStats};
     use std::fmt::{Display, Formatter};
     use std::fs::OpenOptions;
     use std::io::Read;
@@ -254,13 +254,14 @@ pub mod testing {
         #[async_trait]
         impl Torrent for InnerTorrentStream {
             fn handle(&self) -> TorrentHandle;
+            fn absolute_file_path(&self, file: &torrent::File) -> PathBuf;
             async fn files(&self) -> Vec<torrent::File>;
             async fn file_by_name(&self, name: &str) -> Option<File>;
             async fn largest_file(&self) -> Option<torrent::File>;
             async fn has_bytes(&self, bytes: &std::ops::Range<usize>) -> bool;
             async fn has_piece(&self, piece: usize) -> bool;
             async fn prioritize_bytes(&self, bytes: &std::ops::Range<usize>);
-            async fn prioritize_pieces(&self, pieces: &[u32]);
+            async fn prioritize_pieces(&self, pieces: &[PieceIndex]);
             async fn total_pieces(&self) -> usize;
             async fn sequential_mode(&self);
             async fn state(&self) -> TorrentState;
@@ -291,6 +292,9 @@ pub mod testing {
         fn handle(&self) -> TorrentHandle {
             self.inner.handle()
         }
+        fn absolute_file_path(&self, file: &torrent::File) -> PathBuf {
+            self.inner.absolute_file_path(file)
+        }
         async fn files(&self) -> Vec<torrent::File> {
             self.inner.files().await
         }
@@ -309,7 +313,7 @@ pub mod testing {
         async fn prioritize_bytes(&self, bytes: &Range<usize>) {
             self.inner.prioritize_bytes(bytes).await
         }
-        async fn prioritize_pieces(&self, pieces: &[u32]) {
+        async fn prioritize_pieces(&self, pieces: &[PieceIndex]) {
             self.inner.prioritize_pieces(pieces).await
         }
         async fn total_pieces(&self) -> usize {
@@ -517,14 +521,10 @@ pub mod testing {
 
 #[cfg(test)]
 mod test {
-    use std::collections::HashMap;
-
-    use httpmock::MockServer;
-    use tempfile::TempDir;
-
     use crate::core::config::{ApplicationConfig, PopcornProperties, ProviderProperties};
-
-    use super::*;
+    use httpmock::MockServer;
+    use std::collections::HashMap;
+    use tempfile::TempDir;
 
     pub fn start_mock_server(temp_dir: &TempDir) -> (MockServer, ApplicationConfig) {
         let server = MockServer::start();

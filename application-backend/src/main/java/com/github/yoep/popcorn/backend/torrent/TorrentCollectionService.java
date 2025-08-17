@@ -61,7 +61,7 @@ public class TorrentCollectionService {
                         .build(), AddTorrentCollectionResponse.parser())
                 .thenAccept(response -> {
                     if (response.getResult() == Response.Result.OK) {
-                        log.info("Added torrent to collection, {}", torrent);
+                        log.info("Added torrent ({}) to collection with uri {}", torrent.getName(), torrent.getUri());
                     } else {
                         log.error("Failed to add torrent to collection, {}", response.getError());
                     }

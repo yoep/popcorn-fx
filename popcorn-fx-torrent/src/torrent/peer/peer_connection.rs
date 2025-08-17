@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use byteorder::BigEndian;
 use byteorder::ByteOrder;
 use derive_more::Display;
-use log::{trace, warn};
+use log::{debug, trace, warn};
 use std::fmt::Debug;
 use std::io;
 use std::net::SocketAddr;
@@ -115,6 +115,7 @@ where
                         Err(e) => PeerResponse::Error(e),
                     }
                 }
+                PeerReaderEvent::HandshakeFailed(e) => PeerResponse::Error(e),
                 PeerReaderEvent::Message(message, stats) => PeerResponse::Message(message, stats),
                 PeerReaderEvent::Closed => {
                     let _ = self.close().await;
@@ -189,10 +190,12 @@ where
 unsafe impl<W> Send for PeerWriter<W> where W: AsyncWrite + Debug {}
 
 /// The events of the peer reader.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 enum PeerReaderEvent {
     /// Received a handshake bytes from the remote peer.
     Handshake(Vec<u8>),
+    /// Handshake failed to be read from the remote peer.
+    HandshakeFailed(Error),
     /// Received a message from the remote peer.
     Message(Message, DataTransferStats),
     /// The connection was closed by the remote peer.
@@ -252,7 +255,15 @@ where
                             PeerReaderEvent::Handshake(buffer)
                         );
                     }
-                    Err(e) => warn!("Peer {} failed to read handshake, {}", self, e),
+                    Err(e) => {
+                        debug!("Peer {} failed to read handshake, {}", self, e);
+                        Self::send (
+                            self.to_string().as_str(),
+                            &self.sender,
+                            PeerReaderEvent::HandshakeFailed(e),
+                        );
+                        return;
+                    },
                 }
             }
         }
@@ -360,13 +371,13 @@ mod tests {
     use super::*;
 
     use crate::create_utp_socket_pair;
+    use crate::init_logger;
     use crate::torrent::peer::protocol::tests::UtpPacketCaptureExtension;
     use crate::torrent::peer::protocol::Piece;
     use crate::torrent::peer::tests::create_utp_stream_pair;
     use crate::torrent::peer::ProtocolExtensionFlags;
     use crate::torrent::InfoHash;
 
-    use crate::init_logger;
     use std::net::Ipv4Addr;
     use std::str::FromStr;
     use tokio::net::TcpListener;
@@ -495,6 +506,67 @@ mod tests {
                 protocol_extensions, result.supported_extensions,
                 "expected the supported protocol extensions to match"
             );
+        }
+    }
+
+    mod peer_reader {
+        use super::*;
+
+        use crate::timeout;
+
+        use std::pin::Pin;
+        use std::task::{Context, Poll};
+        use tokio::io::ReadBuf;
+        use tokio::time;
+        use tokio::time::Duration;
+
+        struct HandshakeFailureReader;
+
+        impl AsyncRead for HandshakeFailureReader {
+            fn poll_read(
+                self: Pin<&mut Self>,
+                _: &mut Context<'_>,
+                _: &mut ReadBuf<'_>,
+            ) -> Poll<io::Result<()>> {
+                Poll::Ready(Err(io::Error::new(
+                    io::ErrorKind::ConnectionReset,
+                    "handshake failed",
+                )))
+            }
+        }
+
+        #[tokio::test]
+        async fn test_handshake_failure() {
+            init_logger!();
+            let (sender, mut rx) = unbounded_channel();
+            let mut reader = PeerReader::new(
+                PeerId::new(),
+                SocketAddr::from(([127, 0, 0, 1], 6881)),
+                ConnectionProtocol::Tcp,
+                HandshakeFailureReader {},
+                sender,
+                CancellationToken::new(),
+            );
+
+            let _ = select! {
+                _ = time::sleep(Duration::from_millis(250)) => Err(Error::Io(io::Error::new(io::ErrorKind::TimedOut, "expected the reader main loop to have ended"))),
+                _ = reader.start_read_loop() => Ok(()),
+            }.unwrap();
+
+            let result = timeout!(
+                rx.recv(),
+                Duration::from_millis(500),
+                "expected a peer reader event"
+            )
+            .unwrap();
+            if let PeerReaderEvent::HandshakeFailed(_) = result {
+            } else {
+                assert!(
+                    false,
+                    "expected PeerReaderEvent::HandshakeFailed, but got {:?} instead",
+                    result
+                )
+            }
         }
     }
 

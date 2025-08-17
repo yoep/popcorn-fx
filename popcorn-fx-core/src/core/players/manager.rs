@@ -374,7 +374,6 @@ impl InnerPlayerManager {
 
     async fn handle_player_state_changed(&self, new_state: PlayerState) {
         debug!("Player state changed to {}", new_state);
-
         if let PlayerState::Stopped = &new_state {
             let duration: u64;
 
@@ -620,6 +619,7 @@ mod mock {
 #[cfg(test)]
 mod tests {
     use crate::core::config::{PlaybackSettings, PopcornSettings};
+    use crate::core::event;
     use crate::core::screen::MockScreenService;
     use crate::core::torrents::{MockTorrentManager, MockTorrentStreamServer, TorrentHandle};
     use crate::testing::{MockPlayer, MockTorrentStream};
@@ -628,7 +628,6 @@ mod tests {
     use super::*;
 
     use async_trait::async_trait;
-    use fx_handle::Handle;
     use std::time::Duration;
     use tempfile::tempdir;
     use tokio::sync::mpsc::unbounded_channel;
@@ -683,11 +682,11 @@ mod tests {
         }
 
         async fn request(&self) -> Option<PlayRequest> {
-            todo!()
+            None
         }
 
         async fn current_volume(&self) -> Option<u32> {
-            todo!()
+            None
         }
 
         async fn play(&self, _: PlayRequest) {
@@ -699,15 +698,15 @@ mod tests {
         }
 
         async fn resume(&self) {
-            todo!()
+            // no-op
         }
 
         async fn seek(&self, _: u64) {
-            todo!()
+            // no-op
         }
 
         async fn stop(&self) {
-            todo!()
+            // no-op
         }
     }
 
@@ -1010,16 +1009,16 @@ mod tests {
         let temp_path = temp_dir.path().to_str().unwrap();
         let player_id = "SomeId123";
         let torrent_handle = TorrentHandle::new();
-        let stream_handle = Handle::new();
         let mut stream = MockTorrentStream::new();
         stream.inner.expect_handle().return_const(torrent_handle);
         stream
             .inner
             .expect_stream_handle()
-            .return_const(stream_handle);
+            .return_const(torrent_handle);
         let request = PlayRequest::builder()
             .url("http://localhost/my-video.mkv")
             .title("FooBar")
+            .torrent_stream(Box::new(stream))
             .build();
         let player_callbacks = MultiThreadedCallback::new();
         let player_subscription = player_callbacks.subscribe();
@@ -1031,21 +1030,24 @@ mod tests {
             .times(1)
             .return_once(move || player_subscription);
         player.expect_request().times(1).return_const(request);
+        let (tx_torrent_manager_remove, mut rx_torrent_manager_remove) = unbounded_channel();
         let mut torrent_manager = MockTorrentManager::new();
         torrent_manager
             .expect_remove()
             .times(1)
-            .withf(move |e| e == &torrent_handle)
-            .return_const(());
+            .returning(move |handle| {
+                tx_torrent_manager_remove.send(*handle).unwrap();
+            });
         let mut torrent_stream_server = MockTorrentStreamServer::new();
         torrent_stream_server
             .expect_stop_stream()
             .times(1)
-            .withf(move |handle| handle.clone() == stream_handle)
+            .withf(move |handle| handle.clone() == torrent_handle)
             .return_const(());
         let screen_service = Arc::new(Box::new(MockScreenService::new()) as Box<dyn ScreenService>);
         let settings = ApplicationConfig::builder().storage(temp_path).build();
-        let (tx, mut rx) = unbounded_channel();
+        let (tx_player_manager, mut rx_player_manager) = unbounded_channel();
+        let (tx_events, mut rx_events) = unbounded_channel();
         let manager = DefaultPlayerManager::new(
             settings,
             EventPublisher::default(),
@@ -1054,16 +1056,32 @@ mod tests {
             screen_service,
         );
 
+        // subscribe to the player manager events
         let mut receiver = manager.subscribe();
         tokio::spawn(async move {
-            loop {
-                if let Some(event) = receiver.recv().await {
-                    if let PlayerManagerEvent::PlayerStateChanged(_) = &*event {
-                        tx.send((*event).clone()).unwrap()
-                    }
-                } else {
+            while let Some(event) = receiver.recv().await {
+                if let PlayerManagerEvent::PlayerStateChanged(_) = &*event {
+                    tx_player_manager.send((*event).clone()).unwrap();
                     break;
                 }
+            }
+        });
+
+        // subscribe to the event publisher
+        let mut receiver = manager
+            .inner
+            .event_publisher
+            .subscribe(event::DEFAULT_ORDER)
+            .unwrap();
+        tokio::spawn(async move {
+            while let Some(mut event_handler) = receiver.recv().await {
+                if let Some(Event::ClosePlayer) = event_handler.event_ref() {
+                    tx_events.send(()).unwrap();
+                    event_handler.next();
+                    break;
+                }
+
+                event_handler.next();
             }
         });
 
@@ -1071,19 +1089,36 @@ mod tests {
         assert_eq!(Ok(()), result, "expected the player to have been added");
         manager.set_active_player(player_id).await;
 
-        // invoke an event on the player
+        // invoke the player duration changed event, this is needed for the trigger of `Event::ClosePlayer`
+        player_callbacks.invoke(PlayerEvent::DurationChanged(456800));
+        // invoke the player stopped event
         player_callbacks.invoke(PlayerEvent::StateChanged(PlayerState::Stopped));
 
         // try to receive the player event through the player manager
         let result = recv_timeout!(
-            &mut rx,
-            Duration::from_millis(200),
+            &mut rx_player_manager,
+            Duration::from_millis(500),
             "expected to receive a player event"
         );
         assert_eq!(
             PlayerManagerEvent::PlayerStateChanged(PlayerState::Stopped),
             result
         );
+
+        // try to receive the close player event from the application
+        let _ = recv_timeout!(
+            &mut rx_events,
+            Duration::from_millis(500),
+            "expected to have received a close player event"
+        );
+
+        // verify if the torrent was removed from the torrent manager
+        let result = recv_timeout!(
+            &mut rx_torrent_manager_remove,
+            Duration::from_millis(500),
+            "expected the torrent to have been removed"
+        );
+        assert_eq!(torrent_handle, result);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]

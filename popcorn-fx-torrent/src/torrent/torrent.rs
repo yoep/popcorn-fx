@@ -3781,6 +3781,7 @@ mod tests {
         );
         let context = torrent.instance().unwrap();
 
+        // create the torrent pieces
         operation.execute(&context).await;
 
         // only request the first piece
@@ -3791,7 +3792,7 @@ mod tests {
                 if i < expected_result {
                     (i, PiecePriority::Normal)
                 } else {
-                    (i, PiecePriority::High)
+                    (i, PiecePriority::None)
                 }
             })
             .collect();

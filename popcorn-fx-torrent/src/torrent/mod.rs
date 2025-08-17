@@ -7,9 +7,10 @@ use peer_pool::*;
 pub use piece::*;
 use piece_pool::*;
 pub use session::*;
-use std::net::{SocketAddr, TcpListener};
+pub use session_cache::*;
 use std::ops::Range;
 pub use torrent::*;
+pub use torrent_flags::*;
 pub use torrent_health::*;
 pub use torrent_metadata::*;
 pub use torrent_peer::*;
@@ -30,7 +31,9 @@ mod peer_pool;
 mod piece;
 mod piece_pool;
 mod session;
+mod session_cache;
 mod torrent;
+mod torrent_flags;
 mod torrent_health;
 mod torrent_metadata;
 mod torrent_peer;
@@ -159,33 +162,6 @@ pub fn calculate_byte_rate(bytes: usize, elapsed_micro_secs: u128) -> u64 {
 ///
 /// # Arguments
 ///
-/// * `lower_bound` - The lower bound of the available port range.
-/// * `upper_bound` - The upper bound of the available port range.
-///
-/// # Returns
-///
-/// Returns an available port if one is found, else `None`.
-pub(crate) fn available_port(lower_bound: u16, upper_bound: u16) -> Option<u16> {
-    let supported_ports: Vec<u16> = (lower_bound..=upper_bound).collect();
-
-    for port in supported_ports {
-        let socket: SocketAddr = ([0, 0, 0, 0], port).into();
-        if TcpListener::bind(socket).is_ok() {
-            return Some(port);
-        }
-    }
-
-    None
-}
-
-/// Retrieves an available port on the local machine.
-///
-/// This function searches for an available port on all network interfaces at the time of invocation.
-/// However, it's important to note that while a port may be available when retrieved, it may become
-/// unavailable by the time you attempt to bind to it, as this function does not reserve the port.
-///
-/// # Arguments
-///
 /// * `lower_bound` - The lower bound of the available port range (optional, default = 1000).
 /// * `upper_bound` - The upper bound of the available port range (optional, default = [u16::MAX]).
 ///
@@ -225,6 +201,7 @@ where
 #[cfg(test)]
 pub mod tests {
     use super::*;
+    use std::env;
 
     use crate::torrent::fs::TorrentFileSystemStorage;
     use crate::torrent::peer::tests::new_tcp_peer_discovery;
@@ -232,14 +209,15 @@ pub mod tests {
         BitTorrentPeer, PeerDiscovery, PeerId, PeerStream, TcpPeerDiscovery, UtpPeerDiscovery,
     };
 
-    use crate::torrent::dht::{DhtTracker, DhtTrackerBuilder};
+    use crate::torrent::dht::DhtTracker;
+    use crate::torrent::tracker::TrackerManager;
     use log::LevelFilter;
     use log4rs::append::console::ConsoleAppender;
     use log4rs::config::{Appender, Root};
     use log4rs::encode::pattern::PatternEncoder;
     use log4rs::Config;
-    use popcorn_fx_core::testing::read_test_file_to_bytes;
     use std::net::SocketAddr;
+    use std::path::PathBuf;
     use std::str::FromStr;
     use std::sync::Once;
     use std::time::Duration;
@@ -316,6 +294,7 @@ pub mod tests {
         discoveries: Vec<Box<dyn PeerDiscovery>>,
     ) -> Torrent {
         let torrent_info = create_metadata(uri);
+        let tracker_manager = TrackerManager::new(Duration::from_secs(2));
         let dht = DhtTracker::builder().build().await.unwrap();
         Torrent::request()
             .metadata(torrent_info)
@@ -324,6 +303,7 @@ pub mod tests {
             .config(config)
             .operations(operations.iter().map(|e| e()).collect())
             .storage(Box::new(TorrentFileSystemStorage::new(temp_dir)))
+            .tracker_manager(tracker_manager)
             .dht(dht)
             .build()
             .unwrap()
@@ -495,6 +475,34 @@ pub mod tests {
         .unwrap()
         .expect("expected an incoming peer");
         (incoming_peer, outgoing_peer)
+    }
+
+    /// Retrieve the path to the testing resource directory.
+    ///
+    /// It returns the [PathBuf] to the testing resources directory.
+    pub fn test_resource_directory() -> PathBuf {
+        let root_dir = &env::var("CARGO_MANIFEST_DIR").expect("$CARGO_MANIFEST_DIR");
+        let mut source = PathBuf::from(root_dir);
+        source.push("test");
+
+        source
+    }
+
+    /// Retrieve the filepath of a testing resource file.
+    /// These are files located within the "test" directory of the crate.
+    ///
+    /// It returns the created [PathBuf] for the given filename.
+    pub fn test_resource_filepath(filename: &str) -> PathBuf {
+        let mut source = test_resource_directory();
+        source.push(filename);
+
+        source
+    }
+
+    pub fn read_test_file_to_bytes(filename: &str) -> Vec<u8> {
+        let source = test_resource_filepath(filename);
+
+        std::fs::read(&source).unwrap()
     }
 
     /// Initializes the logger with the specified log level.

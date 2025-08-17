@@ -1524,7 +1524,7 @@ impl PeerContext {
                     }
                 }
                 Err(e) => {
-                    // FIXME: we currently reject requests if the piece if overlapping multiple files, but only 1 file is actually written to disk
+                    // FIXME: we currently reject requests if the piece is overlapping multiple files, but only 1 file is actually written to disk, these pieces should be cached in memory
                     warn!(
                         "Peer {} failed read piece {} data, {}",
                         self, request.index, e
@@ -2865,9 +2865,9 @@ mod tests {
         TorrentConfig, TorrentFlags, TorrentOperation, TorrentOperationResult, TorrentState,
         DEFAULT_TORRENT_PROTOCOL_EXTENSIONS,
     };
-    use crate::{create_peer_pair, create_torrent, create_utp_socket_pair};
+    use crate::{create_peer_pair, create_torrent, create_utp_socket_pair, init_logger};
 
-    use popcorn_fx_core::{assert_timeout, init_logger};
+    use popcorn_fx_core::assert_timeout;
     use tempfile::tempdir;
     use tokio::sync::mpsc::channel;
 

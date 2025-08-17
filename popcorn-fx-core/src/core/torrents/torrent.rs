@@ -8,10 +8,8 @@ use std::fmt::Debug;
 use std::path::PathBuf;
 
 use popcorn_fx_torrent::torrent;
-pub use popcorn_fx_torrent::torrent::TorrentEvent;
-pub use popcorn_fx_torrent::torrent::TorrentState;
-pub use popcorn_fx_torrent::torrent::TorrentStats;
-use popcorn_fx_torrent::torrent::{PieceIndex, PiecePriority, TorrentFlags};
+pub use popcorn_fx_torrent::torrent::{PieceIndex, TorrentEvent, TorrentState, TorrentStats};
+use popcorn_fx_torrent::torrent::{PiecePriority, TorrentFlags};
 
 #[cfg(any(test, feature = "testing"))]
 pub use mock::*;
@@ -25,6 +23,9 @@ pub type TorrentHandle = Handle;
 pub trait Torrent: Debug + DowncastSync + Callback<TorrentEvent> + Send + Sync {
     /// Get the unique identifier handle of the torrent.
     fn handle(&self) -> TorrentHandle;
+
+    /// Get the absolute filesystem path to a given file in the torrent.
+    fn absolute_file_path(&self, file: &torrent::File) -> PathBuf;
 
     /// Get the files of the torrent.
     /// It might return an empty array if the metadata is unknown.
@@ -60,13 +61,13 @@ pub trait Torrent: Debug + DowncastSync + Callback<TorrentEvent> + Send + Sync {
     /// Check if the given piece is downloaded, validated and written to storage.
     ///
     /// It returns true when the piece is present, else false.
-    async fn has_piece(&self, piece: usize) -> bool;
+    async fn has_piece(&self, piece: PieceIndex) -> bool;
 
     /// Prioritize the given bytes to be downloaded.
     async fn prioritize_bytes(&self, bytes: &std::ops::Range<usize>);
 
     /// Prioritize the given piece indexes.
-    async fn prioritize_pieces(&self, pieces: &[u32]);
+    async fn prioritize_pieces(&self, pieces: &[PieceIndex]);
 
     /// Get the total number of pieces in the torrent.
     /// It might return [None] when the metadata is still being retrieved.
@@ -88,6 +89,10 @@ impl_downcast!(sync Torrent);
 impl Torrent for torrent::Torrent {
     fn handle(&self) -> TorrentHandle {
         self.handle()
+    }
+
+    fn absolute_file_path(&self, file: &torrent::File) -> PathBuf {
+        self.absolute_file_path(file)
     }
 
     async fn files(&self) -> Vec<torrent::File> {
@@ -129,7 +134,7 @@ impl Torrent for torrent::Torrent {
         self.prioritize_bytes(bytes, PiecePriority::Now).await
     }
 
-    async fn prioritize_pieces(&self, pieces: &[u32]) {
+    async fn prioritize_pieces(&self, pieces: &[PieceIndex]) {
         let mut priorities = Vec::new();
 
         for piece in pieces {
@@ -281,13 +286,14 @@ mod mock {
         #[async_trait]
         impl Torrent for Torrent {
             fn handle(&self) -> TorrentHandle;
+            fn absolute_file_path(&self, file: &torrent::File) -> PathBuf;
             async fn files(&self) -> Vec<torrent::File>;
             async fn file_by_name(&self, name: &str) -> Option<torrent::File>;
             async fn largest_file(&self) -> Option<torrent::File>;
             async fn has_bytes(&self, bytes: &Range<usize>) -> bool;
             async fn has_piece(&self, piece: usize) -> bool;
             async fn prioritize_bytes(&self, bytes: &Range<usize>);
-            async fn prioritize_pieces(&self, pieces: &[u32]);
+            async fn prioritize_pieces(&self, pieces: &[PieceIndex]);
             async fn total_pieces(&self) -> usize;
             async fn sequential_mode(&self);
             async fn state(&self) -> TorrentState;
@@ -385,7 +391,6 @@ mod test {
         torrent::File {
             index: 0,
             torrent_path: PathBuf::from(relative_path),
-            io_path: Default::default(),
             offset: 0,
             info: TorrentFileInfo {
                 length,
@@ -397,6 +402,7 @@ mod test {
                 sha1: None,
             },
             priority: Default::default(),
+            pieces: 0..100,
         }
     }
 }

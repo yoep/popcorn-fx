@@ -23,6 +23,7 @@ and is based on the `libtorrent` library for functionality and naming convention
 - [ ] [BEP33](https://www.bittorrent.org/beps/bep_0033.html) - DHT scrape
 - [x] [BEP40](https://www.bittorrent.org/beps/bep_0040.html) - Canonical Peer Priority
 - [ ] [BEP42](https://www.bittorrent.org/beps/bep_0042.html) - DHT Security extension (WIP)
+- [ ] [BEP44](https://www.bittorrent.org/beps/bep_0044.html) - Storing arbitrary data in the DHT
 - [x] [BEP47](https://www.bittorrent.org/beps/bep_0047.html) - Padding files and extended file attributes
 - [x] [BEP48](https://www.bittorrent.org/beps/bep_0048.html) - Tracker Protocol Extension: Scrape
 - [ ] [BEP52](https://www.bittorrent.org/beps/bep_0052.html) - The BitTorrent Protocol Specification v2 (WIP)

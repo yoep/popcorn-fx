@@ -814,7 +814,8 @@ impl UtpStreamContext {
         for pending_packet in pending_packets
             .iter_mut()
             .filter(|e| {
-                timestamp_now - e.packet.timestamp_microseconds > timeout_threshold.min(5000)
+                timestamp_now.saturating_sub(e.packet.timestamp_microseconds)
+                    > timeout_threshold.min(5000)
             })
             .take(10)
         {
@@ -1065,9 +1066,9 @@ mod tests {
 
     use crate::torrent::peer::protocol::tests::UtpPacketCaptureExtension;
     use crate::torrent::peer::tests::{create_utp_socket, create_utp_stream_pair};
-    use crate::{create_utp_socket_pair, timeout};
+    use crate::{create_utp_socket_pair, init_logger, timeout};
 
-    use popcorn_fx_core::{assert_timeout, init_logger};
+    use popcorn_fx_core::assert_timeout;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::sync::mpsc::unbounded_channel;
 

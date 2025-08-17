@@ -242,7 +242,7 @@ mod tests {
     use crate::torrent::{TorrentConfig, TorrentFlags};
     use crate::{create_torrent, timeout};
 
-    use popcorn_fx_core::init_logger;
+    use crate::init_logger;
     use tempfile::tempdir;
 
     #[tokio::test]
@@ -307,6 +307,10 @@ mod tests {
 
         let result = listener.port();
 
+        assert_ne!(
+            0, result,
+            "expected the underlying assigned port by the OS the have been returned"
+        );
         assert_eq!(listener.inner.addr.port(), result);
     }
 

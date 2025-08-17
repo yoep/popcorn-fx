@@ -4,17 +4,23 @@ use crate::torrent::operation::TorrentTrackersOperation;
 use crate::torrent::peer::{ProtocolExtensionFlags, TcpPeerDiscovery, UtpPeerDiscovery};
 use crate::torrent::torrent::Torrent;
 use crate::torrent::{
-    ExtensionFactories, ExtensionFactory, InfoHash, Magnet, TorrentConfig, TorrentError,
-    TorrentEvent, TorrentFlags, TorrentHandle, TorrentHealth, TorrentMetadata, TorrentOperation,
-    TorrentOperationFactory, DEFAULT_TORRENT_EXTENSIONS, DEFAULT_TORRENT_OPERATIONS,
-    DEFAULT_TORRENT_PROTOCOL_EXTENSIONS,
+    ExtensionFactories, ExtensionFactory, InfoHash, Magnet, NoSessionCache, TorrentConfig,
+    TorrentError, TorrentEvent, TorrentFlags, TorrentHandle, TorrentHealth, TorrentMetadata,
+    TorrentOperation, TorrentOperationFactory, DEFAULT_TORRENT_EXTENSIONS,
+    DEFAULT_TORRENT_OPERATIONS, DEFAULT_TORRENT_PROTOCOL_EXTENSIONS,
 };
 
+use crate::torrent::dht::{DhtTracker, DEFAULT_BOOTSTRAP_SERVERS};
+use crate::torrent::dns::DnsResolver;
+use crate::torrent::session_cache::{FxSessionCache, SessionCache};
+use crate::torrent::tracker::TrackerManager;
 use async_trait::async_trait;
 use derive_more::Display;
 use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use fx_handle::Handle;
 use log::{debug, trace, warn};
+#[cfg(test)]
+pub use mock::*;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::io;
@@ -23,13 +29,13 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::sync::{Mutex, RwLock};
 use tokio::{select, time};
+use tokio_util::sync::CancellationToken;
 
-use crate::torrent::dht::{DhtTracker, DEFAULT_BOOTSTRAP_SERVERS};
-use crate::torrent::dns::DnsResolver;
-#[cfg(test)]
-pub use mock::*;
+const DEFAULT_TRACKER_TIMEOUT_SECONDS: u64 = 3;
+const DEFAULT_CACHE_LIMIT: usize = 10;
 
 /// A unique handle identifier of a [Session].
 pub type SessionHandle = Handle;
@@ -296,26 +302,32 @@ impl FxTorrentSession {
         protocol_extensions: ProtocolExtensionFlags,
         extensions: ExtensionFactories,
         operations: Vec<TorrentOperationFactory>,
+        session_cache: Box<dyn SessionCache>,
     ) -> Self {
         let handle = SessionHandle::new();
 
         trace!("Creating new torrent session {}", handle);
+        let (command_sender, command_receiver) = unbounded_channel();
         let inner = Arc::new(InnerSession {
             handle,
             state: Mutex::new(SessionState::Initializing),
             base_path: RwLock::new(base_path.as_ref().to_path_buf()),
             client_name: client_name.as_ref().to_string(),
             dht: Default::default(),
+            tracker: TrackerManager::new(Duration::from_secs(DEFAULT_TRACKER_TIMEOUT_SECONDS)),
             torrents: Default::default(),
             protocol_extensions,
             extension_factories: extensions,
             torrent_operations: operations,
+            session_cache: Mutex::new(session_cache),
             callbacks: MultiThreadedCallback::new(),
+            command_sender,
+            cancellation_token: Default::default(),
         });
 
         let main_inner = inner.clone();
         tokio::spawn(async move {
-            main_inner.start().await;
+            main_inner.start(command_receiver).await;
         });
 
         debug!("Created new torrent session {}", inner.handle);
@@ -330,7 +342,6 @@ impl FxTorrentSession {
     /// * `torrent_info` - The metadata information of the torrent to add.
     /// * `options` - The torrent options to use when adding the torrent.
     /// * `peer_timeout` - The peer timeout to use when adding the torrent.
-    /// * `tracker_timeout` - The tracker timeout to use when adding the torrent.
     /// * `send_callback_event` - Whether to send a callback event when the torrent is added.
     ///
     /// # Returns
@@ -341,7 +352,6 @@ impl FxTorrentSession {
         torrent_info: TorrentMetadata,
         options: TorrentFlags,
         peer_timeout: Option<Duration>,
-        tracker_timeout: Option<Duration>,
         send_callback_event: bool,
     ) -> Result<Torrent> {
         self.inner.assert_state().await?;
@@ -364,14 +374,21 @@ impl FxTorrentSession {
             return Ok(torrent);
         }
 
+        let torrent_info = if torrent_info.info.is_some() {
+            torrent_info
+        } else {
+            let session_cache = self.inner.session_cache.lock().await;
+            session_cache
+                .find_metadata(&torrent_info.info_hash)
+                .cloned()
+                .unwrap_or(torrent_info)
+        };
+
         let info_hash = torrent_info.info_hash.clone();
         let mut config = TorrentConfig::builder().client_name(self.inner.client_name.as_str());
 
         if let Some(peer_timeout) = peer_timeout {
             config = config.peer_connection_timeout(peer_timeout);
-        }
-        if let Some(tracker_timeout) = tracker_timeout {
-            config = config.tracker_connection_timeout(tracker_timeout);
         }
 
         let storage_path = self.inner.base_path.read().await.clone();
@@ -395,6 +412,7 @@ impl FxTorrentSession {
             .extensions(self.inner.extensions())
             .operations(self.inner.torrent_operations())
             .storage(Box::new(TorrentFileSystemStorage::new(storage_path)))
+            .tracker_manager(self.inner.tracker.clone())
             .dht_option(dht_tracker)
             .build()?;
         let result_torrent = torrent.clone();
@@ -406,14 +424,11 @@ impl FxTorrentSession {
         Ok(result_torrent)
     }
 
-    async fn wait_for_metadata(torrent: &Torrent) -> TorrentMetadata {
+    async fn wait_for_metadata(torrent: &Torrent) {
         let mut receiver = torrent.subscribe();
-
-        loop {
-            if let Some(event) = receiver.recv().await {
-                if let TorrentEvent::MetadataChanged(metadata) = &*event {
-                    return metadata.clone();
-                }
+        while let Some(event) = receiver.recv().await {
+            if let TorrentEvent::MetadataChanged(_) = &*event {
+                break;
             }
         }
     }
@@ -459,7 +474,6 @@ impl Session for FxTorrentSession {
                         .peers_lower_limit(0)
                         .peers_upper_limit(0)
                         .peer_connection_timeout(Duration::from_secs(0))
-                        .tracker_connection_timeout(Duration::from_secs(1))
                         .build(),
                 )
                 .protocol_extensions(self.inner.protocol_extensions)
@@ -468,6 +482,7 @@ impl Session for FxTorrentSession {
                 .storage(Box::new(TorrentFileSystemStorage::new(
                     &self.inner.base_path.read().await.clone(),
                 )))
+                .tracker_manager(self.inner.tracker.clone())
                 .dht_option(self.inner.dht.lock().await.clone())
                 .build()?,
         };
@@ -520,31 +535,43 @@ impl Session for FxTorrentSession {
 
         trace!("Trying to fetch magnet {}", magnet_uri);
         let torrent_info = self.resolve(magnet_uri)?;
+
+        {
+            // check if we've already cached the metadata in the past
+            let session_cache = self.inner.session_cache.lock().await;
+            if let Some(metadata) = session_cache.find_metadata(&torrent_info.info_hash) {
+                if metadata.info.is_some() {
+                    return Ok(metadata.clone());
+                }
+            }
+        }
+
         let torrent = self
             .find_or_add_torrent(
                 torrent_info,
                 TorrentFlags::Metadata,
                 Some(Duration::from_secs(3)),
-                Some(Duration::from_secs(2)),
                 false,
             )
             .await?;
 
-        // check if the metadata is already fetched
-        let torrent_info = torrent.metadata().await?;
-        if torrent_info.info.is_some() {
-            return Ok(torrent_info);
+        // check if the torrent metadata needs to be fetched, or is already known
+        if torrent.metadata().await?.info.is_none() {
+            // make sure the torrent tries to download the metadata
+            torrent.add_options(TorrentFlags::Metadata).await;
+
+            trace!("Trying to fetch metadata for {}", magnet_uri);
+            select! {
+                _ = time::sleep(timeout) => Err(TorrentError::Timeout),
+                _ = Self::wait_for_metadata(&torrent) => Ok(()),
+            }?;
         }
 
-        // make sure the torrent tries to download the metadata
-        torrent.add_options(TorrentFlags::Metadata).await;
+        // store the metadata within the session cache
+        let metadata = torrent.metadata().await?;
+        self.inner.add_torrent_metadata(&metadata).await;
 
-        // otherwise, wait for the MetadataChanged event
-        trace!("Trying to fetch metadata for {}", magnet_uri);
-        select! {
-            _ = time::sleep(timeout) => Err(TorrentError::Timeout),
-            result = Self::wait_for_metadata(&torrent) => Ok(result),
-        }
+        Ok(metadata)
     }
 
     async fn add_torrent_from_uri(&self, uri: &str, options: TorrentFlags) -> Result<Torrent> {
@@ -561,7 +588,7 @@ impl Session for FxTorrentSession {
     ) -> Result<Torrent> {
         self.inner.assert_state().await?;
 
-        self.find_or_add_torrent(torrent_info, options, None, None, true)
+        self.find_or_add_torrent(torrent_info, options, None, true)
             .await
     }
 
@@ -591,6 +618,17 @@ impl Callback<SessionEvent> for FxTorrentSession {
     }
 }
 
+impl Drop for FxTorrentSession {
+    fn drop(&mut self) {
+        // check if we're the last 2 references to the session
+        // if so, terminate the main loop of the session
+        if Arc::strong_count(&self.inner) == 2 {
+            self.inner.tracker.close();
+            self.inner.cancellation_token.cancel();
+        }
+    }
+}
+
 /// The torrent session builder for configuring an [FxTorrentSession].
 ///
 /// # Required fields
@@ -608,6 +646,7 @@ pub struct FxTorrentSessionBuilder {
     protocol_extensions: Option<ProtocolExtensionFlags>,
     extension_factories: Option<ExtensionFactories>,
     operation_factories: Option<Vec<TorrentOperationFactory>>,
+    session_cache: Option<Box<dyn SessionCache>>,
 }
 
 impl FxTorrentSessionBuilder {
@@ -669,6 +708,18 @@ impl FxTorrentSessionBuilder {
         self
     }
 
+    /// Set the torrent session cache to be used within the session.
+    pub fn session_cache<S: SessionCache + 'static>(&mut self, cache: S) -> &mut Self {
+        self.session_cache = Some(Box::new(cache));
+        self
+    }
+
+    /// Disable the torrent session cache used within the session.
+    pub fn disable_session_cache(&mut self) -> &mut Self {
+        self.session_cache = Some(Box::new(NoSessionCache::new()));
+        self
+    }
+
     /// Create a new torrent session from this builder.
     /// The only required field within this builder is the base path for the torrent storage.
     ///
@@ -693,6 +744,10 @@ impl FxTorrentSessionBuilder {
             .operation_factories
             .take()
             .unwrap_or_else(DEFAULT_TORRENT_OPERATIONS);
+        let session_cache = self
+            .session_cache
+            .take()
+            .unwrap_or_else(|| Box::new(FxSessionCache::new(DEFAULT_CACHE_LIMIT)));
 
         Ok(FxTorrentSession::new(
             base_path,
@@ -700,8 +755,15 @@ impl FxTorrentSessionBuilder {
             protocol_extensions,
             extensions,
             torrent_operations,
+            session_cache,
         ))
     }
+}
+
+#[derive(Debug)]
+enum SessionCommand {
+    /// Store the metadata within the session
+    StoreMetadata(TorrentMetadata),
 }
 
 // TODO: add options which support configuring timeouts etc
@@ -718,6 +780,8 @@ struct InnerSession {
     client_name: String,
     /// The DHT node server of the session
     dht: Mutex<Option<DhtTracker>>,
+    /// The tracker of the session
+    tracker: TrackerManager,
     /// The currently active torrents within the session
     torrents: RwLock<HashMap<InfoHash, Torrent>>,
     /// The enabled protocol extensions of the session
@@ -726,13 +790,17 @@ struct InnerSession {
     extension_factories: ExtensionFactories,
     /// The torrent operations for the session
     torrent_operations: Vec<TorrentOperationFactory>,
+    /// The torrent cache of the session
+    session_cache: Mutex<Box<dyn SessionCache>>,
     /// The event callbacks of the session
     callbacks: MultiThreadedCallback<SessionEvent>,
+    command_sender: UnboundedSender<SessionCommand>,
+    cancellation_token: CancellationToken,
 }
 
 impl InnerSession {
     /// Start the main loop of the session.
-    async fn start(&self) {
+    async fn start(&self, mut command_receiver: UnboundedReceiver<SessionCommand>) {
         if let Err(e) = self.initialize_dht_tracker().await {
             warn!("Session {} failed to initialize, {}", self, e);
             self.update_state(SessionState::Error).await;
@@ -740,6 +808,15 @@ impl InnerSession {
         }
 
         self.update_state(SessionState::Running).await;
+
+        loop {
+            select! {
+                _ = self.cancellation_token.cancelled() => break,
+                Some(command) = command_receiver.recv() => self.handle_command(command).await,
+            }
+        }
+
+        debug!("Session {} main loop ended", self);
     }
 
     /// Initialize the DHT tracker of the session.
@@ -770,6 +847,12 @@ impl InnerSession {
     #[cfg(not(feature = "dht"))]
     async fn initialize_dht_tracker(&self) -> Result<()> {
         Ok(())
+    }
+
+    async fn handle_command(&self, command: SessionCommand) {
+        match command {
+            SessionCommand::StoreMetadata(metadata) => self.add_torrent_metadata(&metadata).await,
+        }
     }
 
     /// Verify that the session is in the expected state to execute actions.
@@ -836,6 +919,16 @@ impl InnerSession {
     async fn add_torrent(&self, info_hash: InfoHash, torrent: Torrent, send_callback_event: bool) {
         let handle = torrent.handle();
 
+        let command_sender = self.command_sender.clone();
+        let mut receiver = torrent.subscribe();
+        tokio::spawn(async move {
+            while let Some(event) = receiver.recv().await {
+                if let TorrentEvent::MetadataChanged(metadata) = &*event {
+                    let _ = command_sender.send(SessionCommand::StoreMetadata(metadata.clone()));
+                }
+            }
+        });
+
         {
             let mut mutex = self.torrents.write().await;
             debug!(
@@ -849,6 +942,11 @@ impl InnerSession {
         if send_callback_event {
             self.callbacks.invoke(SessionEvent::TorrentAdded(handle));
         }
+    }
+
+    async fn add_torrent_metadata(&self, metadata: &TorrentMetadata) {
+        let mut session_cache = self.session_cache.lock().await;
+        session_cache.store_metadata(metadata);
     }
 
     async fn remove_torrent(&self, handle: &TorrentHandle) {
@@ -937,11 +1035,11 @@ mod mock {
 pub mod tests {
     use super::*;
 
+    use crate::init_logger;
     use crate::torrent::TorrentHealthState;
     use crate::{create_torrent, timeout};
 
     use log::info;
-    use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::{read_test_file_to_bytes, test_resource_filepath};
     use std::time::Duration;
     use tempfile::tempdir;

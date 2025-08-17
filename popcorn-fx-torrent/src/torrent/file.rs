@@ -1,4 +1,6 @@
-use crate::torrent::{overlapping_range, FileAttributeFlags, PiecePriority, TorrentFileInfo};
+use crate::torrent::{
+    overlapping_range, FileAttributeFlags, PieceIndex, PiecePriority, TorrentFileInfo,
+};
 use log::warn;
 use std::hash::Hash;
 use std::ops::Range;
@@ -10,30 +12,35 @@ pub type FileIndex = usize;
 /// Alias name for the piece priority of a file.
 pub type FilePriority = PiecePriority;
 
-/// The information of one of the file(s) from a torrent.
+/// The information about a single file within a torrent.
 ///
 /// ## Ranges
 ///
-/// A torrent file has 2 distinct byte ranges,
-/// one that represents the range of bytes within the torrent and one that represents the range of bytes within the io storage device.
+/// A torrent file has two distinct byte ranges:
 ///
-/// Use [File::io_range] to get the byte range of the file on the io storage device.
+/// 1. **Torrent range** — The range of bytes occupied by this file *within the torrent as a whole*.
+/// 2. **I/O range** — The range of bytes occupied by this file *on the storage device*.
 ///
-/// USe [File::torrent_range] to get the byte range of the file within the torrent.
+/// Use [`File::torrent_range`] to get the byte range within the torrent.
+/// Use [`File::io_range`] to get the byte range on the storage device.
 #[derive(Debug, Clone)]
 pub struct File {
     /// The index of the file within the torrent.
     pub index: FileIndex,
     /// The path of the file within the torrent.
     pub torrent_path: PathBuf,
-    /// The absolute filepath of the file on the storage device.
-    pub io_path: PathBuf,
-    /// The offset of the file within the torrent.
+    /// The byte offset of the file within the torrent.
     pub offset: usize,
     /// The original metadata info of the file from the torrent.
     pub info: TorrentFileInfo,
     /// The priority of the file.
+    ///
+    /// This may differ from the underlying piece priorities.
+    /// When the priority is [`FilePriority::None`], the file's bytes will not be written to storage,
+    /// even if a piece containing them has a priority and is being downloaded.
     pub priority: FilePriority,
+    /// The range of torrent pieces that contain this file's data.
+    pub pieces: Range<PieceIndex>,
 }
 
 impl File {
@@ -278,7 +285,6 @@ mod tests {
         File {
             index: 0,
             torrent_path: Default::default(),
-            io_path: Default::default(),
             offset,
             info: TorrentFileInfo {
                 length: length as u64,
@@ -290,6 +296,7 @@ mod tests {
                 sha1: None,
             },
             priority: FilePriority::default(),
+            pieces: 0..100,
         }
     }
 }

@@ -7,7 +7,9 @@ use crate::core::torrents::{
 use async_trait::async_trait;
 use fx_callback::{Callback, Subscriber, Subscription};
 use popcorn_fx_torrent::torrent;
+use popcorn_fx_torrent::torrent::PieceIndex;
 use std::ops::Range;
+use std::path::PathBuf;
 
 /// A structure representing loading data for a media item.
 ///
@@ -157,6 +159,13 @@ impl Torrent for TorrentData {
         }
     }
 
+    fn absolute_file_path(&self, file: &torrent::File) -> PathBuf {
+        match self {
+            TorrentData::Torrent(e) => e.absolute_file_path(file),
+            TorrentData::Stream(e) => e.absolute_file_path(file),
+        }
+    }
+
     async fn files(&self) -> Vec<torrent::File> {
         match self {
             TorrentData::Torrent(e) => e.files().await,
@@ -199,7 +208,7 @@ impl Torrent for TorrentData {
         }
     }
 
-    async fn prioritize_pieces(&self, pieces: &[u32]) {
+    async fn prioritize_pieces(&self, pieces: &[PieceIndex]) {
         match self {
             TorrentData::Torrent(e) => e.prioritize_pieces(pieces).await,
             TorrentData::Stream(e) => e.prioritize_pieces(pieces).await,

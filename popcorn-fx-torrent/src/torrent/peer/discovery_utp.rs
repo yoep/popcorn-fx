@@ -237,7 +237,7 @@ mod tests {
     use crate::create_torrent;
     use crate::torrent::{TorrentConfig, TorrentFlags};
 
-    use popcorn_fx_core::init_logger;
+    use crate::init_logger;
     use tempfile::tempdir;
 
     #[tokio::test]

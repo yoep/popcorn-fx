@@ -4,10 +4,9 @@ use std::io::{Cursor, Read, Write};
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::time::Duration;
 
-use crate::torrent::peer::PeerId;
 use crate::torrent::tracker::manager::AnnounceEvent;
 use crate::torrent::tracker::{
-    AnnounceEntryResponse, Announcement, ScrapeResult, TrackerConnection,
+    AnnounceEntryResponse, Announcement, ScrapeResult, TrackerConnection, TrackerHandle,
 };
 use crate::torrent::tracker::{Result, TrackerError};
 use crate::torrent::InfoHash;
@@ -27,10 +26,10 @@ const ERROR_CONNECTION_NOT_INITIALIZED: &'static str = "udp connection not start
 
 /// The UDP connection of a tracker.
 #[derive(Debug, Display)]
-#[display(fmt = "{} ({})", peer_id, addrs)]
+#[display(fmt = "{}", addrs)]
 pub struct UdpConnection {
-    peer_id: PeerId,
-    peer_port: u16,
+    /// The handle of the tracker
+    handle: TrackerHandle,
     addrs: AddressManager,
     session: Option<UdpConnectionSession>,
     timeout: Duration,
@@ -156,10 +155,9 @@ impl TrackerConnection for UdpConnection {
 }
 
 impl UdpConnection {
-    pub fn new(addrs: &[SocketAddr], peer_id: PeerId, peer_port: u16, timeout: Duration) -> Self {
+    pub fn new(handle: TrackerHandle, addrs: &[SocketAddr], timeout: Duration) -> Self {
         Self {
-            peer_id,
-            peer_port,
+            handle,
             addrs: AddressManager::new(addrs),
             session: Default::default(),
             timeout,
@@ -260,7 +258,7 @@ impl UdpConnection {
         let event = announce.event;
         let request = AnnounceRequest {
             info_hash,
-            peer_id: self.peer_id.value(),
+            peer_id: announce.peer_id.value(),
             downloaded: announce.bytes_completed,
             left: announce.bytes_remaining,
             corrupt: 0,
@@ -270,7 +268,7 @@ impl UdpConnection {
             key: 0,
             num_want: 200,
             redundant: 0,
-            listen_port: self.peer_port,
+            listen_port: announce.peer_port,
         };
 
         trace!(
@@ -627,9 +625,12 @@ struct ScrapeFileMetrics {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use crate::torrent::peer::PeerId;
     use crate::torrent::tests::create_metadata;
     use crate::torrent::TorrentMetadata;
-    use popcorn_fx_core::{available_port, init_logger};
+
+    use crate::init_logger;
     use tokio::net::lookup_host;
 
     #[test]
@@ -645,11 +646,9 @@ mod tests {
     #[tokio::test]
     async fn test_udp_connection_next_addr() {
         init_logger!();
-        let socket_addr = ([127, 0, 0, 1], 1599).try_into().unwrap();
-        let peer_id = PeerId::new();
-        let peer_port = available_port!(6881, 31000).unwrap();
-        let connection =
-            UdpConnection::new(&[socket_addr], peer_id, peer_port, Duration::from_secs(1));
+        let tracker_handle = TrackerHandle::new();
+        let socket_addr = (Ipv4Addr::UNSPECIFIED, 1599).try_into().unwrap();
+        let connection = UdpConnection::new(tracker_handle, &[socket_addr], Duration::from_secs(1));
 
         let result = connection.next_addr().await;
         assert_eq!(Some(&socket_addr), result);
@@ -664,6 +663,8 @@ mod tests {
         let torrent_info = create_metadata("debian-udp.torrent");
         let announce = Announcement {
             info_hash: torrent_info.info_hash.clone(),
+            peer_id: PeerId::new(),
+            peer_port: 6881,
             event: AnnounceEvent::Started,
             bytes_completed: 0,
             bytes_remaining: u64::MAX,
@@ -725,11 +726,10 @@ mod tests {
     }
 
     async fn create_connection(metadata: &TorrentMetadata) -> UdpConnection {
-        let peer_id = PeerId::new();
-        let peer_port = available_port!(6881, 31000).unwrap();
+        let tracker_handle = TrackerHandle::new();
         let addrs = get_tracker_addresses(&metadata).await;
 
-        UdpConnection::new(&addrs, peer_id, peer_port, Duration::from_secs(1))
+        UdpConnection::new(tracker_handle, &addrs, Duration::from_secs(1))
     }
 
     /// Get the unordered tracker addresses of the given torrent info.

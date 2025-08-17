@@ -8,7 +8,7 @@ use chrono::{DateTime, Local};
 use derive_more::Display;
 use downcast_rs::{impl_downcast, DowncastSync};
 use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
-use log::{debug, error, trace, warn};
+use log::{debug, error, info, trace, warn};
 #[cfg(any(test, feature = "testing"))]
 pub use mock::*;
 use popcorn_fx_torrent::torrent::{
@@ -234,7 +234,7 @@ impl InnerTorrentManager {
                     .invoke(TorrentManagerEvent::TorrentAdded(handle));
                 Box::new(torrent) as Box<dyn Torrent>
             })
-            .map_err(|e| torrents::Error::TorrentError(e.to_string()))
+            .map_err(|e| Error::TorrentError(e.to_string()))
     }
 
     async fn info<'a>(&'a self, handle: &TorrentHandle) -> Result<TorrentInfo> {
@@ -244,7 +244,7 @@ impl InnerTorrentManager {
             Some(torrent) => {
                 let mut receiver = torrent.subscribe();
 
-                if !torrent.is_metadata_known().await {
+                if torrent.total_files().await.unwrap_or_default() == 0 {
                     if let Some(value) =
                         Self::await_torrent_files(torrent.handle(), &mut receiver).await
                     {
@@ -255,10 +255,10 @@ impl InnerTorrentManager {
                 let metadata = torrent
                     .metadata()
                     .await
-                    .map_err(|e| torrents::Error::TorrentError(e.to_string()))?;
+                    .map_err(|e| Error::TorrentError(e.to_string()))?;
                 let magnet_uri = Magnet::try_from(&metadata)
                     .map(|e| e.to_string())
-                    .map_err(|e| torrents::Error::TorrentError(e.to_string()))?;
+                    .map_err(|e| Error::TorrentError(e.to_string()))?;
                 if let Some(info) = metadata.info {
                     let directory_name = if let TorrentFiles::Single { .. } = &info.files {
                         None
@@ -286,11 +286,11 @@ impl InnerTorrentManager {
                     "Torrent manager has failed to load the metadata of torrent {}",
                     handle
                 );
-                Err(torrents::Error::TorrentResolvingFailed(
+                Err(Error::TorrentResolvingFailed(
                     "metadata info is missing".to_string(),
                 ))
             }
-            None => Err(torrents::Error::InvalidHandle(handle.to_string())),
+            None => Err(Error::InvalidHandle(handle.to_string())),
         }
     }
 
@@ -301,7 +301,7 @@ impl InnerTorrentManager {
             .session
             .find_torrent_by_handle(handle)
             .await
-            .ok_or(torrents::Error::InvalidHandle(handle.to_string()))?;
+            .ok_or(Error::InvalidHandle(handle.to_string()))?;
         let mut receiver = torrent.subscribe();
 
         if torrent.total_files().await.unwrap_or(0) == 0 {

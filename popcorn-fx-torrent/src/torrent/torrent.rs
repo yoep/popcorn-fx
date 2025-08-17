@@ -13,12 +13,12 @@ use crate::torrent::tracker::{
 };
 use crate::torrent::{
     calculate_byte_rate, format_bytes, FileAttributeFlags, FileIndex, PeerPool, Piece, PieceIndex,
-    PiecePart, PiecePool, PiecePriority, TorrentError, TorrentMetadata, TorrentMetadataInfo,
-    DEFAULT_TORRENT_EXTENSIONS, DEFAULT_TORRENT_OPERATIONS, DEFAULT_TORRENT_PROTOCOL_EXTENSIONS,
+    PiecePart, PiecePool, PiecePriority, TorrentError, TorrentFlags, TorrentMetadata,
+    TorrentMetadataInfo, DEFAULT_TORRENT_EXTENSIONS, DEFAULT_TORRENT_OPERATIONS,
+    DEFAULT_TORRENT_PROTOCOL_EXTENSIONS,
 };
 use async_trait::async_trait;
 use bit_vec::BitVec;
-use bitmask_enum::bitmask;
 use derive_more::Display;
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
@@ -28,7 +28,7 @@ use itertools::Itertools;
 use log::{debug, error, info, trace, warn};
 use sha1::Sha1;
 use sha2::{Digest, Sha256};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Debug, Display, Formatter};
 use std::iter::Filter;
 use std::net::SocketAddr;
@@ -46,7 +46,6 @@ use tokio_util::sync::{
 use url::Url;
 
 const DEFAULT_PEER_TIMEOUT_SECONDS: u64 = 6;
-const DEFAULT_TRACKER_TIMEOUT_SECONDS: u64 = 3;
 const DEFAULT_PEER_LOWER_LIMIT: usize = 10;
 const DEFAULT_PEER_UPPER_LIMIT: usize = 200;
 const DEFAULT_PEER_IN_FLIGHT: usize = 25;
@@ -88,42 +87,6 @@ pub type ExtensionFactory = fn() -> Box<dyn Extension>;
 
 /// A list of [Torrent] extension factories.
 pub type ExtensionFactories = Vec<ExtensionFactory>;
-
-/// Possible flags which can be attached to a [Torrent].
-///
-/// The default value for the flag options is [TorrentFlags::AutoManaged],
-/// which will retrieve the metadata if needed and automatically start the download.
-#[bitmask(u16)]
-#[bitmask_config(vec_debug, flags_iter)]
-pub enum TorrentFlags {
-    /// Indicates seed mode where only data is uploaded.
-    SeedMode = 0b0000000000000001,
-    /// Indicates if uploading data is allowed.
-    UploadMode = 0b0000000000000010,
-    /// Indicates if downloading data is allowed.
-    DownloadMode = 0b0000000000000100,
-    /// Indicates share mode.
-    ShareMode = 0b0000000000001000,
-    /// Applies an IP filter.
-    ApplyIpFilter = 0b0000000000010000,
-    /// Torrent is paused.
-    Paused = 0b0000000000100000,
-    /// Complete the torrent metadata from peers if needed.
-    Metadata = 0b0000000001000000,
-    /// Sequential download is enabled.
-    SequentialDownload = 0b0000000010000100,
-    /// Torrent should stop when ready.
-    StopWhenReady = 0b0000000100000000,
-    /// Torrent is auto-managed.
-    /// This means that the torrent may be resumed at any point in time.
-    AutoManaged = 0b0000001001000110,
-}
-
-impl Default for TorrentFlags {
-    fn default() -> Self {
-        TorrentFlags::AutoManaged
-    }
-}
 
 /// The states of the torrent
 #[derive(Debug, Display, Copy, Clone, PartialEq)]
@@ -253,7 +216,7 @@ impl From<&InternalTorrentStats> for TorrentStats {
             total_downloaded_useful: value.total_downloaded_useful,
             wanted_pieces: value.wanted_pieces,
             completed_pieces: value.completed_pieces,
-            total_size: value.total_size,
+            total_size: value.total_wanted_size,
             total_completed_size: value.total_completed_size,
             total_peers: 0,
         }
@@ -269,7 +232,6 @@ pub struct TorrentConfig {
     pub peers_in_flight: usize,
     pub peers_upload_slots: usize,
     pub peer_connection_timeout: Duration,
-    pub tracker_connection_timeout: Duration,
     pub max_in_flight_pieces: usize,
 }
 
@@ -299,7 +261,6 @@ pub struct TorrentConfigBuilder {
     peers_in_flight: Option<usize>,
     peers_upload_slots: Option<usize>,
     peer_connection_timeout: Option<Duration>,
-    tracker_connection_timeout: Option<Duration>,
     max_in_flight_pieces: Option<usize>,
 }
 
@@ -339,12 +300,6 @@ impl TorrentConfigBuilder {
         self
     }
 
-    /// Set the timeout for tracker connections.
-    pub fn tracker_connection_timeout(mut self, timeout: Duration) -> Self {
-        self.tracker_connection_timeout = Some(timeout);
-        self
-    }
-
     /// Set the maximum number of in flight pieces which can be requested in parallel from peers.
     pub fn max_in_flight_pieces(mut self, limit: usize) -> Self {
         self.max_in_flight_pieces = Some(limit);
@@ -363,9 +318,6 @@ impl TorrentConfigBuilder {
         let peer_connection_timeout = self
             .peer_connection_timeout
             .unwrap_or(Duration::from_secs(DEFAULT_PEER_TIMEOUT_SECONDS));
-        let tracker_connection_timeout = self
-            .tracker_connection_timeout
-            .unwrap_or(Duration::from_secs(DEFAULT_TRACKER_TIMEOUT_SECONDS));
         let max_in_flight_pieces = self
             .max_in_flight_pieces
             .unwrap_or(DEFAULT_MAX_IN_FLIGHT_PIECES);
@@ -377,7 +329,6 @@ impl TorrentConfigBuilder {
             peers_in_flight,
             peers_upload_slots,
             peer_connection_timeout,
-            tracker_connection_timeout,
             max_in_flight_pieces,
         }
     }
@@ -431,6 +382,8 @@ pub struct TorrentRequest {
     operations: Option<Vec<Box<dyn TorrentOperation>>>,
     /// The DHT node server to use for discovering peers
     dht: Option<DhtTracker>,
+    /// The peer tracker manager for the torrent
+    tracker_manager: Option<TrackerManager>,
 }
 
 impl TorrentRequest {
@@ -513,6 +466,12 @@ impl TorrentRequest {
         self
     }
 
+    /// Set the tracker manager for discovering peers.
+    pub fn tracker_manager(&mut self, tracker_manager: TrackerManager) -> &mut Self {
+        self.tracker_manager.get_or_insert(tracker_manager);
+        self
+    }
+
     /// Build the torrent from the given data.
     /// This is the same as calling `Torrent::try_from(self)`.
     pub fn build(&mut self) -> Result<Torrent> {
@@ -551,6 +510,13 @@ impl TryFrom<&mut TorrentRequest> for Torrent {
             .take()
             .unwrap_or_else(|| DEFAULT_TORRENT_OPERATIONS().iter().map(|e| e()).collect());
         let dht = request.dht.take();
+        let tracker_manager =
+            request
+                .tracker_manager
+                .take()
+                .ok_or(TorrentError::InvalidRequest(
+                    "tracker_manager is missing".to_string(),
+                ))?;
 
         Ok(Self::new(
             metadata,
@@ -562,6 +528,7 @@ impl TryFrom<&mut TorrentRequest> for Torrent {
             storage,
             operations,
             dht,
+            tracker_manager,
         ))
     }
 }
@@ -680,15 +647,12 @@ impl Torrent {
         storage: Box<dyn TorrentFileStorage>,
         operations: Vec<Box<dyn TorrentOperation>>,
         dht: Option<DhtTracker>,
+        tracker_manager: TrackerManager,
     ) -> Self {
         let handle = TorrentHandle::new();
         let peer_id = PeerId::new();
         let peer_discovery_addrs: Vec<SocketAddr> =
             peer_discoveries.iter().map(|e| e.addr()).cloned().collect();
-        let tracker_manager_port = peer_discovery_addrs
-            .get(0)
-            .map(|e| e.port())
-            .unwrap_or_default();
         let info_hash = metadata.info_hash.clone();
         let max_peers_in_flight = config.peers_in_flight.min(config.peers_upper_limit);
         let (event_sender, command_receiver) = unbounded_channel();
@@ -700,12 +664,7 @@ impl Torrent {
             metadata: RwLock::new(metadata),
             peer_id,
             peer_discovery_addrs: peer_discovery_addrs.clone(),
-            tracker_manager: TrackerManager::new(
-                peer_id,
-                tracker_manager_port,
-                info_hash.clone(),
-                config.tracker_connection_timeout.clone(),
-            ),
+            tracker_manager,
             dht,
             peer_pool: PeerPool::new(handle, config.peers_upper_limit, max_peers_in_flight),
             peer_subscriber,
@@ -715,7 +674,7 @@ impl Torrent {
             pending_piece_requests: Default::default(),
             request_download_permits: Arc::new(Semaphore::new(config.max_in_flight_pieces)),
             request_upload_permits: Arc::new(Semaphore::new(config.peers_upload_slots)),
-            files: RwLock::new(Vec::with_capacity(0)),
+            files: RwLock::new(BTreeMap::new()),
             protocol_extensions,
             extensions,
             storage,
@@ -802,6 +761,18 @@ impl Torrent {
     /// Returns true if the handle is still valid, else false.
     pub fn is_valid(&self) -> bool {
         self.instance().is_some()
+    }
+
+    /// Get the absolute filesystem path to a given file in the torrent.
+    ///
+    /// This combines the torrent's storage path with the file's [`torrent_path`]
+    /// to produce a full path on the local filesystem.
+    pub fn absolute_file_path(&self, file: &File) -> PathBuf {
+        if let Some(inner) = self.instance() {
+            return inner.absolute_file_path(file);
+        }
+
+        PathBuf::new()
     }
 
     /// Get the absolute path to the torrent location.
@@ -969,12 +940,12 @@ impl Torrent {
 
     /// Get the priorities of the pieces.
     /// It might return an empty array if the metadata is still being retrieved.
-    pub async fn piece_priorities(&self) -> Vec<(PieceIndex, PiecePriority)> {
+    pub async fn piece_priorities(&self) -> BTreeMap<PieceIndex, PiecePriority> {
         if let Some(inner) = self.instance() {
             return inner.piece_priorities().await;
         }
 
-        Vec::with_capacity(0)
+        BTreeMap::new()
     }
 
     /// Set the priorities of the pieces.
@@ -1406,8 +1377,10 @@ struct InternalTorrentStats {
     wanted_pieces: usize,
     /// The amount of pieces which have been completed by the torrent
     completed_pieces: usize,
-    /// The total size, in bytes, of all interested files of the torrent.
-    total_size: usize,
+    /// The total size, in bytes, of all interested pieces of the torrent.
+    total_wanted_size: usize,
+    /// The total size, in bytes, of all interested pieces of the torrent that have been completed
+    total_wanted_completed_size: usize,
     /// The size in bytes of the pieces that have already been completed.
     total_completed_size: usize,
     /// The size in bytes of wasted data due to invalid hashes
@@ -1420,7 +1393,8 @@ impl InternalTorrentStats {
     fn update(&mut self, stats: &InternalTorrentStats) {
         self.wanted_pieces = stats.wanted_pieces;
         self.completed_pieces = stats.completed_pieces;
-        self.total_size = stats.total_size;
+        self.total_wanted_size = stats.total_wanted_size;
+        self.total_wanted_completed_size = stats.total_wanted_completed_size;
         self.total_completed_size = stats.total_completed_size;
         self.total_wasted = stats.total_wasted;
     }
@@ -1438,7 +1412,8 @@ impl Default for InternalTorrentStats {
             total_downloaded_useful: 0,
             wanted_pieces: 0,
             completed_pieces: 0,
-            total_size: 0,
+            total_wanted_size: 0,
+            total_wanted_completed_size: 0,
             total_completed_size: 0,
             total_wasted: 0,
             scraped_at: Instant::now(),
@@ -1484,7 +1459,7 @@ pub struct TorrentContext {
     request_upload_permits: Arc<Semaphore>,
 
     /// The torrent files
-    files: RwLock<Vec<File>>,
+    files: RwLock<BTreeMap<FileIndex, File>>,
     /// The torrent file storage to store the data
     storage: Box<dyn TorrentFileStorage>,
 
@@ -1525,6 +1500,11 @@ impl TorrentContext {
         let mut operations_tick = time::interval(Duration::from_secs(1));
         let mut cleanup_interval = time::interval(Duration::from_secs(30));
 
+        // register the torrent within the tracker
+        if !self.add_torrent_to_tracker().await {
+            return;
+        }
+
         // execute the operations at the beginning of the loop
         select! {
             _ = self.cancellation_token.cancelled() => return,
@@ -1564,8 +1544,12 @@ impl TorrentContext {
         // shutdown the peer pool
         self.peer_pool.shutdown().await;
         // inform the tracker the torrent is being stopped
+        let metadata = self.metadata.read().await;
         self.tracker_manager
-            .announce_all(AnnounceEvent::Stopped)
+            .announce_all(&metadata.info_hash, AnnounceEvent::Stopped)
+            .await;
+        self.tracker_manager
+            .remove_torrent(&metadata.info_hash)
             .await;
         trace!("Torrent {} main loop ended", self);
     }
@@ -1631,6 +1615,11 @@ impl TorrentContext {
     /// Get the enabled protocol extensions for the torrent.
     pub fn protocol_extensions(&self) -> ProtocolExtensionFlags {
         self.protocol_extensions
+    }
+
+    /// Get the tracker manager for the torrent.
+    pub fn tracker_manager(&self) -> &TrackerManager {
+        &self.tracker_manager
     }
 
     /// Get the absolute path to the torrent location.
@@ -1887,7 +1876,7 @@ impl TorrentContext {
     }
 
     /// Get the priorities of the known pieces.
-    pub async fn piece_priorities(&self) -> Vec<(PieceIndex, PiecePriority)> {
+    pub async fn piece_priorities(&self) -> BTreeMap<PieceIndex, PiecePriority> {
         self.pieces
             .read()
             .await
@@ -2038,7 +2027,13 @@ impl TorrentContext {
             .read()
             .await
             .iter()
-            .filter(|e| e.contains(&range))
+            .filter_map(|(_, file)| {
+                if file.contains(&range) {
+                    Some(file)
+                } else {
+                    None
+                }
+            })
             .cloned()
             .collect::<Vec<File>>()
     }
@@ -2100,33 +2095,50 @@ impl TorrentContext {
             .read()
             .await
             .iter()
-            .filter(|e| file.contains(&e.torrent_range()))
+            .filter(|piece| file.contains(&piece.torrent_range()))
             .cloned()
             .collect()
     }
 
-    /// Get the known files of the torrent.
-    /// If the metadata is currently being retrieved, the returned array will be empty.
+    /// Get the list of non-padding files contained in the torrent.
+    ///
+    /// This method filters out any files marked with the [`FileAttributeFlags::PaddingFile`] attribute,
+    /// so padding files will **not** be included in the returned list.
+    ///
+    /// ## Remarks
+    ///
+    /// If the torrent's metadata has not yet been fully retrieved, this method will return an empty vector.
     pub async fn files(&self) -> Vec<File> {
         self.files
             .read()
             .await
             .iter()
             // filter out any padding files
-            .filter(|e| !e.attributes().contains(FileAttributeFlags::PaddingFile))
-            .map(|e| e.clone())
+            .filter_map(|(_, file)| {
+                if !file.attributes().contains(FileAttributeFlags::PaddingFile) {
+                    Some(file)
+                } else {
+                    None
+                }
+            })
+            .cloned()
             .collect()
     }
 
-    /// Get the currently known total files of the torrent.
-    /// If the metadata is currently being retrieved, the returned result will be 0.
+    /// Get the number of non-padding files currently known in the torrent.
+    ///
+    /// Files marked with the [`FileAttributeFlags::PaddingFile`] attribute are excluded from the count.
+    ///
+    /// ## Remarks
+    ///
+    /// If the torrent's metadata has not yet been fully retrieved, this method will return `0`.
     pub async fn total_files(&self) -> usize {
         self.files
             .read()
             .await
             .iter()
             // filter out any padding files
-            .filter(|e| !e.attributes().contains(FileAttributeFlags::PaddingFile))
+            .filter(|(_, file)| !file.attributes().contains(FileAttributeFlags::PaddingFile))
             .count()
     }
 
@@ -2136,11 +2148,11 @@ impl TorrentContext {
     /// Providing all file indexes of the torrent is not required.
     pub async fn prioritize_files(&self, priorities: Vec<(FileIndex, PiecePriority)>) {
         trace!("Torrent {} is prioritizing files {:?}", self, priorities);
-        let mut mutex = self.files.write().await;
-        let mut piece_priorities = HashMap::new();
+        let mut files = self.files.write().await;
+        let mut piece_priorities = BTreeMap::new();
 
         for (file_index, priority) in priorities {
-            if let Some(file) = mutex.get_mut(file_index) {
+            if let Some(file) = files.get_mut(&file_index) {
                 let pieces = self.file_pieces(&file).await;
 
                 // update the priority of the file
@@ -2163,7 +2175,17 @@ impl TorrentContext {
             .await;
     }
 
-    /// Get the path to the torrent storage device.
+    /// Get the absolute filesystem path to a given file in the torrent.
+    ///
+    /// This combines the torrent's storage path with the file's [`torrent_path`]
+    /// to produce a full path on the local filesystem.
+    pub fn absolute_file_path(&self, file: &File) -> PathBuf {
+        PathBuf::from(self.storage.path()).join(file.torrent_path.as_path())
+    }
+
+    /// Get the root storage path of the torrent on the local filesystem.
+    ///
+    /// This is the base directory where all files for the torrent are stored.
     pub fn storage_path(&self) -> &Path {
         self.storage.path()
     }
@@ -2184,7 +2206,11 @@ impl TorrentContext {
 
     /// Get the list of currently discovered peers.
     pub async fn discovered_peers(&self) -> Vec<SocketAddr> {
-        self.tracker_manager.discovered_peers().await
+        let info_hash = self.metadata.read().await.info_hash.clone();
+        self.tracker_manager
+            .discovered_peers(&info_hash)
+            .await
+            .unwrap_or_else(Vec::new)
     }
 
     /// Try to add the given tracker to the tracker manager of this torrent.
@@ -2302,21 +2328,24 @@ impl TorrentContext {
     /// Announce the torrent to all trackers.
     /// It returns the announcement result collected from all active trackers.
     pub async fn announce_all(&self) -> AnnouncementResult {
+        let metadata = self.metadata.read().await;
         self.tracker_manager
-            .announce_all(AnnounceEvent::Started)
+            .announce_all(&metadata.info_hash, AnnounceEvent::Started)
             .await
     }
 
     /// Announce to all the trackers without waiting for the results.
     pub async fn make_announce_all(&self) {
+        let metadata = self.metadata.read().await;
         self.tracker_manager
-            .make_announcement_to_all(AnnounceEvent::Started)
+            .make_announcement_to_all(&metadata.info_hash, AnnounceEvent::Started)
     }
 
     /// Get the scrape metrics result from scraping all trackers for this torrent.
     pub async fn scrape(&self) -> Result<ScrapeMetrics> {
         trace!("Torrent {} is scraping trackers", self);
-        match self.tracker_manager.scrape().await {
+        let metadata = self.metadata.read().await;
+        match self.tracker_manager.scrape(&metadata.info_hash).await {
             Ok(result) => {
                 let info_hash = self.metadata.read().await.info_hash.clone();
                 if let Some(metrics) = result.files.get(&info_hash) {
@@ -2391,16 +2420,17 @@ impl TorrentContext {
         }
 
         // inform the trackers about the new state
+        let metadata = self.metadata.read().await;
         match &state {
             TorrentState::Downloading => self
                 .tracker_manager
-                .make_announcement_to_all(AnnounceEvent::Started),
+                .make_announcement_to_all(&metadata.info_hash, AnnounceEvent::Started),
             TorrentState::Seeding | TorrentState::Finished => self
                 .tracker_manager
-                .make_announcement_to_all(AnnounceEvent::Completed),
+                .make_announcement_to_all(&metadata.info_hash, AnnounceEvent::Completed),
             TorrentState::Paused => self
                 .tracker_manager
-                .make_announcement_to_all(AnnounceEvent::Paused),
+                .make_announcement_to_all(&metadata.info_hash, AnnounceEvent::Paused),
             _ => {}
         }
 
@@ -2579,6 +2609,7 @@ impl TorrentContext {
     /// This function doesn't verify if the pieces are actually valid.
     pub async fn pieces_completed(&self, pieces: Vec<PieceIndex>) {
         trace!("Torrent {} marking pieces {:?} as completed", self, pieces);
+        let mut total_wanted_completed_size = 0;
         let mut total_completed_pieces_size = 0;
         let mut total_completed_pieces = 0;
 
@@ -2590,6 +2621,10 @@ impl TorrentContext {
                     piece.mark_completed();
                     total_completed_pieces_size += piece.length;
                     total_completed_pieces += 1;
+
+                    if piece.priority != PiecePriority::None {
+                        total_wanted_completed_size += piece.length;
+                    }
                 } else {
                     warn!(
                         "Torrent {} received unknown completed piece {}",
@@ -2606,15 +2641,18 @@ impl TorrentContext {
             let mut stats_mutex = self.stats.write().await;
             stats_mutex.completed_pieces += total_completed_pieces;
             stats_mutex.total_completed_size += total_completed_pieces_size;
+            stats_mutex.total_wanted_completed_size += total_wanted_completed_size;
 
             // inform the trackers about the completed pieces
+            let metadata = self.metadata.read().await;
             self.tracker_manager
-                .update_bytes_completed(stats_mutex.total_completed_size)
+                .update_bytes_completed(&metadata.info_hash, stats_mutex.total_completed_size)
                 .await;
             self.tracker_manager
                 .update_bytes_remaining(
+                    &metadata.info_hash,
                     stats_mutex
-                        .total_size
+                        .total_wanted_size
                         .saturating_sub(stats_mutex.total_completed_size),
                 )
                 .await;
@@ -2646,8 +2684,8 @@ impl TorrentContext {
             self
         );
         {
-            let mut mutex = self.files.write().await;
-            *mutex = files;
+            let mut files_mutex = self.files.write().await;
+            *files_mutex = files.into_iter().map(|file| (file.index, file)).collect();
         }
 
         self.invoke_event(TorrentEvent::FilesChanged);
@@ -2655,9 +2693,29 @@ impl TorrentContext {
 
     /// Update the stats info of all interested pieces by the torrent.
     async fn update_interested_pieces_stats(&self) {
+        let mut total_wanted_size = 0;
+        let mut wanted_pieces = 0;
+        let mut completed_pieces = 0;
+        let mut total_completed_size = 0;
+
+        {
+            let pieces = self.pieces.read().await;
+            for piece in pieces.iter().filter(|e| e.priority != PiecePriority::None) {
+                wanted_pieces += 1;
+                total_wanted_size += piece.length;
+
+                if piece.is_completed() {
+                    completed_pieces += 1;
+                    total_completed_size += piece.length;
+                }
+            }
+        }
+
         let mut stats_mutex = self.stats.write().await;
-        stats_mutex.total_size = self.interested_pieces_total_size().await;
-        stats_mutex.wanted_pieces = self.interested_pieces().await.len();
+        stats_mutex.wanted_pieces = wanted_pieces;
+        stats_mutex.total_wanted_size = total_wanted_size;
+        stats_mutex.completed_pieces = completed_pieces;
+        stats_mutex.total_completed_size = total_completed_size;
     }
 
     /// Cancel all currently queued pending requests of the torrent.
@@ -2677,8 +2735,9 @@ impl TorrentContext {
 
         // announce to the trackers if we don't know any peers
         if self.peer_pool.num_connect_candidates().await == 0 {
+            let metadata = self.metadata.read().await;
             self.tracker_manager
-                .make_announcement_to_all(AnnounceEvent::Started);
+                .make_announcement_to_all(&metadata.info_hash, AnnounceEvent::Started);
         }
 
         let wanted_pieces = self.total_wanted_pieces().await;
@@ -2693,6 +2752,17 @@ impl TorrentContext {
         self.add_options(TorrentFlags::Paused).await;
         self.send_command_event(TorrentCommandEvent::OptionsChanged);
         self.send_command_event(TorrentCommandEvent::State(TorrentState::Paused));
+    }
+
+    /// Add the specified peer addresses to the peer pool of the torrent.
+    ///
+    /// These peers will be considered as potential connection targets in the future,
+    /// particularly when the torrent requires additional connections.
+    /// The provided addresses are queued for possible use; there is no immediate
+    /// guarantee that connections will be attempted right away.
+    pub async fn add_peer_addresses(&self, peer_addrs: Vec<SocketAddr>) {
+        let addr = self.peer_discovery_addrs.first().cloned();
+        self.peer_pool.add_peer_addresses(peer_addrs, addr).await;
     }
 
     /// Handle a command event from the channel of the torrent.
@@ -2721,8 +2791,10 @@ impl TorrentContext {
     async fn handle_tracker_event(&self, event: TrackerManagerEvent) {
         trace!("Handling event {:?} for torrent {}", event, self);
         match event {
-            TrackerManagerEvent::PeersDiscovered(peers) => {
-                self.handle_discovered_peers(peers).await
+            TrackerManagerEvent::PeersDiscovered(info_hash, peers) => {
+                if info_hash == self.metadata.read().await.info_hash {
+                    self.add_peer_addresses(peers).await
+                }
             }
             TrackerManagerEvent::TrackerAdded(handle) => {
                 let is_paused = self.options.read().await.contains(TorrentFlags::Paused);
@@ -2736,7 +2808,12 @@ impl TorrentContext {
                     event = AnnounceEvent::Completed;
                 }
 
-                self.tracker_manager.make_announcement(handle, event);
+                {
+                    let metadata = self.metadata.read().await;
+                    self.tracker_manager
+                        .make_announcement(handle, &metadata.info_hash, event);
+                }
+
                 self.invoke_event(TorrentEvent::TrackersChanged);
             }
         }
@@ -2781,7 +2858,7 @@ impl TorrentContext {
     /// This will update the torrent context info based on an event that occurred within one of its peers.
     async fn handle_peer_event(&self, event: PeerEvent) {
         match event {
-            PeerEvent::PeersDiscovered(peers) => self.handle_discovered_peers(peers).await,
+            PeerEvent::PeersDiscovered(peers) => self.add_peer_addresses(peers).await,
             PeerEvent::PeersDropped(peers) => self.handle_dropped_peers(peers).await,
             PeerEvent::RemoteAvailablePieces(pieces) => {
                 self.update_piece_availabilities(pieces, true).await
@@ -2793,13 +2870,28 @@ impl TorrentContext {
         }
     }
 
-    async fn handle_discovered_peers(&self, peer_addrs: Vec<SocketAddr>) {
-        let addr = self.peer_discovery_addrs.first().cloned();
-        self.peer_pool.add_peer_addresses(peer_addrs, addr).await;
-    }
-
     async fn handle_dropped_peers(&self, peers: Vec<SocketAddr>) {
         self.peer_pool.peer_connections_closed(peers).await;
+    }
+
+    async fn add_torrent_to_tracker(&self) -> bool {
+        let info_hash = self.metadata.read().await.info_hash.clone();
+        let peer_port = self.peer_port().unwrap_or(6881);
+
+        if let Err(e) = self
+            .tracker_manager
+            .add_torrent(self.peer_id, peer_port, info_hash)
+            .await
+        {
+            error!(
+                "Torrent {} failed to register with tracker manager, {}",
+                self, e
+            );
+            self.update_state(TorrentState::Error).await;
+            return false;
+        }
+
+        true
     }
 
     async fn process_pending_request_rejected(&self, request_rejection: PendingRequestRejected) {
@@ -3262,7 +3354,7 @@ impl TorrentContext {
                         cursor += file_range.len();
                         continue;
                     } else {
-                        let absolute_path = file.io_path.clone();
+                        let absolute_path = self.absolute_file_path(&file);
                         return Err(TorrentError::Io(io::Error::new(
                             io::ErrorKind::NotFound,
                             format!("file {:?} not found", absolute_path),
@@ -3579,6 +3671,7 @@ impl Drop for TorrentContext {
 mod tests {
     use super::*;
 
+    use crate::init_logger;
     use crate::torrent::operation::{
         TorrentConnectPeersOperation, TorrentCreateFilesOperation, TorrentCreatePiecesOperation,
         TorrentFileValidationOperation,
@@ -3587,7 +3680,6 @@ mod tests {
     use crate::{create_torrent, timeout};
 
     use log::LevelFilter;
-    use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::{copy_test_file, read_test_file_to_bytes};
     use std::ops::Sub;
     use std::str::FromStr;
@@ -3689,13 +3781,21 @@ mod tests {
         );
         let context = torrent.instance().unwrap();
 
+        // create the torrent pieces
         operation.execute(&context).await;
 
         // only request the first piece
-        let mut priorities = torrent.piece_priorities().await;
-        for priority in &mut priorities[expected_result..] {
-            priority.1 = PiecePriority::None;
-        }
+        let total_pieces = torrent.total_pieces().await;
+        let priorities = (0..total_pieces)
+            .into_iter()
+            .map(|i| {
+                if i < expected_result {
+                    (i, PiecePriority::Normal)
+                } else {
+                    (i, PiecePriority::None)
+                }
+            })
+            .collect();
         torrent.prioritize_pieces(priorities).await;
 
         // check the total wanted pieces
@@ -4035,10 +4135,11 @@ mod tests {
         .unwrap();
 
         // prioritize the first 30 pieces
-        let mut priorities = torrent.piece_priorities().await;
-        for priority in &mut priorities[30..] {
-            priority.1 = PiecePriority::None;
-        }
+        let total_pieces = torrent.total_pieces().await;
+        let priorities = (30..total_pieces)
+            .into_iter()
+            .map(|i| (i, PiecePriority::None))
+            .collect();
         torrent.prioritize_pieces(priorities).await;
 
         let result = torrent.is_completed().await;
@@ -4467,11 +4568,19 @@ mod tests {
 
             // only request the first piece
             let mut priorities = torrent.piece_priorities().await;
-            priorities[8].1 = PiecePriority::High;
-            priorities[9].1 = PiecePriority::High;
-            for priority in &mut priorities[10..] {
-                priority.1 = PiecePriority::None;
-            }
+            priorities.insert(8, PiecePriority::High);
+            priorities.insert(9, PiecePriority::High);
+            let priorities = priorities
+                .into_iter()
+                .map(|(i, priority)| {
+                    if i < 10 {
+                        (i, priority)
+                    } else {
+                        (i, PiecePriority::None)
+                    }
+                })
+                .collect();
+
             torrent.prioritize_pieces(priorities).await;
 
             // check the new priorities of the pieces
@@ -4545,9 +4654,76 @@ mod tests {
             torrent.prioritize_bytes(&range, PiecePriority::High).await;
 
             let priorities = torrent.piece_priorities().await;
-            assert_eq!(Some(&(0usize, PiecePriority::High)), priorities.get(0));
-            assert_eq!(Some(&(1usize, PiecePriority::High)), priorities.get(1));
-            assert_eq!(Some(&(2usize, PiecePriority::Normal)), priorities.get(2));
+            assert_eq!(Some(&PiecePriority::High), priorities.get(&0));
+            assert_eq!(Some(&PiecePriority::High), priorities.get(&1));
+            assert_eq!(Some(&PiecePriority::Normal), priorities.get(&2));
+        }
+
+        #[tokio::test]
+        async fn test_prioritize_files() {
+            init_logger!();
+            let temp_dir = tempdir().unwrap();
+            let temp_path = temp_dir.path().to_str().unwrap();
+            let pieces_operation = TorrentCreatePiecesOperation::new();
+            let files_operation = TorrentCreateFilesOperation::new();
+            let torrent = create_torrent!(
+                "multifile.torrent",
+                temp_path,
+                TorrentFlags::none(),
+                TorrentConfig::default(),
+                vec![]
+            );
+            let context = torrent.instance().unwrap();
+
+            // create the pieces and files of the torrent
+            pieces_operation.execute(&context).await;
+            files_operation.execute(&context).await;
+
+            // prioritize only the 2nd file
+            let file_priorities = torrent
+                .files()
+                .await
+                .into_iter()
+                .map(|file| {
+                    if file.index == 1 {
+                        (file.index, FilePriority::Normal)
+                    } else {
+                        (file.index, FilePriority::None)
+                    }
+                })
+                .collect();
+            torrent.prioritize_files(file_priorities).await;
+
+            let priorities = torrent.piece_priorities().await;
+
+            // verify that file 0 is ignored, except for the last piece
+            for piece in 0usize..401usize {
+                assert_eq!(
+                    Some(&PiecePriority::None),
+                    priorities.get(&piece),
+                    "expected the first file (piece {}) to be ignored",
+                    piece
+                );
+            }
+            assert_eq!(Some(&PiecePriority::Normal), priorities.get(&401));
+            // check that file 1 is wanted
+            for piece in 402usize..725usize {
+                assert_eq!(
+                    Some(&PiecePriority::Normal),
+                    priorities.get(&piece),
+                    "expected the second file (piece {}) to be wanted",
+                    piece
+                );
+            }
+            // check that the remaining files are ignored
+            for piece in 725usize..priorities.len() {
+                assert_eq!(
+                    Some(&PiecePriority::None),
+                    priorities.get(&piece),
+                    "expected the remaining files (piece {}) to be ignored",
+                    piece
+                );
+            }
         }
     }
 }

@@ -813,7 +813,7 @@ fn is_false(b: &bool) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use popcorn_fx_core::init_logger;
+    use crate::init_logger;
     use std::str::FromStr;
 
     #[test]

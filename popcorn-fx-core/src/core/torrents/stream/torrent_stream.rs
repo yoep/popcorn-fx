@@ -12,7 +12,7 @@ use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use itertools::Itertools;
 use log::{debug, error, info, trace, warn};
 use popcorn_fx_torrent::torrent;
-use popcorn_fx_torrent::torrent::{FilePriority, TorrentStats};
+use popcorn_fx_torrent::torrent::{FilePriority, PieceIndex, TorrentStats};
 use std::cmp::{max, min};
 use std::fmt::Debug;
 use std::fs;
@@ -29,6 +29,7 @@ use url::Url;
 
 /// The default buffer size, in bytes, used while streaming the file contents.
 const DEFAULT_BUFFER_SIZE: usize = 131_072; // 128KB
+const PREPARE_FILE_PERCENTAGE: f32 = 0.08; // 8%
 
 /// The buffer byte range type.
 type Buffer = std::ops::Range<usize>;
@@ -78,6 +79,14 @@ impl Torrent for DefaultTorrentStream {
         self.handle
     }
 
+    fn absolute_file_path(&self, file: &torrent::File) -> PathBuf {
+        if let Some(context) = self.instance() {
+            return context.absolute_file_path(file);
+        }
+
+        PathBuf::new()
+    }
+
     async fn files(&self) -> Vec<torrent::File> {
         if let Some(context) = self.instance() {
             return context.files().await;
@@ -124,7 +133,7 @@ impl Torrent for DefaultTorrentStream {
         }
     }
 
-    async fn prioritize_pieces(&self, pieces: &[u32]) {
+    async fn prioritize_pieces(&self, pieces: &[PieceIndex]) {
         if let Some(context) = self.instance() {
             context.prioritize_pieces(pieces).await
         }
@@ -275,7 +284,7 @@ struct TorrentStreamContext {
     /// The url on which this stream is being hosted
     url: Url,
     /// The pieces which should be prepared for the stream
-    preparing_pieces: Arc<Mutex<Vec<u32>>>,
+    preparing_pieces: Arc<Mutex<Vec<PieceIndex>>>,
     /// The state of this stream
     state: Arc<Mutex<TorrentStreamState>>,
     /// The callbacks for this stream
@@ -330,7 +339,7 @@ impl TorrentStreamContext {
                     self.verify_ready_to_stream().await;
                 }
             }
-            TorrentEvent::PieceCompleted(piece) => self.on_piece_finished(*piece as u32).await,
+            TorrentEvent::PieceCompleted(piece) => self.on_piece_finished(*piece).await,
             TorrentEvent::Stats(status) => self.on_download_status(status.clone()),
             _ => {}
         }
@@ -372,7 +381,7 @@ impl TorrentStreamContext {
         }
     }
 
-    async fn on_piece_finished(&self, piece: u32) {
+    async fn on_piece_finished(&self, piece: PieceIndex) {
         trace!(
             "Torrent stream {} received piece {} completion",
             self,
@@ -425,34 +434,42 @@ impl TorrentStreamContext {
             .invoke(TorrentStreamEvent::StateChanged(new_state));
     }
 
-    async fn preparation_pieces(torrent: &Box<dyn Torrent>) -> Vec<u32> {
-        let total_pieces = torrent.total_pieces().await;
+    async fn preparation_pieces(torrent: &Box<dyn Torrent>) -> Vec<PieceIndex> {
         if let Some(file) = torrent
             .files()
             .await
             .iter()
             .find(|e| e.priority != FilePriority::None)
         {
+            let total_file_pieces = file.pieces.len();
             trace!(
                 "Calculating preparation pieces of {:?} for a total of {} pieces",
                 file,
-                total_pieces
+                total_file_pieces
             );
-            let number_of_preparation_pieces = max(8, (total_pieces as f32 * 0.08) as u32);
+            // prepare at least 8 (if available), or the ceil of the PREPARE_FILE_PERCENTAGE
+            let prepare_at_least = min(8, total_file_pieces);
+            let percentage_count =
+                ((total_file_pieces as f32) * PREPARE_FILE_PERCENTAGE).ceil() as usize;
             let number_of_preparation_pieces =
-                min(number_of_preparation_pieces, (total_pieces - 1) as u32);
-            let start_of_end_piece_index = max(0, total_pieces - 3);
+                max(prepare_at_least, percentage_count).min(total_file_pieces);
             let mut pieces = vec![];
 
-            // prepare the first 8% of pieces if it doesn't exceed the total pieces
-            for i in 0..number_of_preparation_pieces {
+            // prepare the first `PREPARE_FILE_PERCENTAGE` of pieces if it doesn't exceed the total file pieces
+            let starting_section_start = file.pieces.start;
+            let starting_section_end = file
+                .pieces
+                .start
+                .saturating_add(number_of_preparation_pieces)
+                .min(file.pieces.end);
+            for i in starting_section_start..starting_section_end {
                 pieces.push(i);
             }
 
             // prepare the last 3 pieces
             // this is done for determining the video length during streaming
-            for i in start_of_end_piece_index..total_pieces {
-                pieces.push(i as u32);
+            for i in file.pieces.end.saturating_sub(3)..file.pieces.end {
+                pieces.push(i);
             }
 
             if pieces.is_empty() {
@@ -492,6 +509,10 @@ impl Torrent for TorrentStreamContext {
         self.torrent.handle()
     }
 
+    fn absolute_file_path(&self, file: &torrent::File) -> PathBuf {
+        self.torrent.absolute_file_path(file)
+    }
+
     async fn files(&self) -> Vec<torrent::File> {
         self.torrent.files().await
     }
@@ -516,7 +537,7 @@ impl Torrent for TorrentStreamContext {
         self.torrent.prioritize_bytes(bytes).await
     }
 
-    async fn prioritize_pieces(&self, pieces: &[u32]) {
+    async fn prioritize_pieces(&self, pieces: &[PieceIndex]) {
         self.torrent.prioritize_pieces(pieces).await
     }
 
@@ -651,18 +672,19 @@ impl FXTorrentStreamingResource {
             .into_iter()
             .find(|e| Self::normalize(e.filename()) == Self::normalize(filename))
         {
+            let absolute_filepath = torrent.absolute_file_path(&torrent_file);
             trace!(
                 "Torrent streaming resource {} is opening file {:?}",
                 handle,
-                torrent_file.io_path
+                absolute_filepath
             );
             fs::OpenOptions::new()
                 .read(true)
-                .open(&torrent_file.io_path)
+                .open(&absolute_filepath)
                 .map_err(|e| {
                     warn!(
                         "Torrent streaming resource {} failed to open torrent file {:?}, {}",
-                        handle, torrent_file.io_path, e
+                        handle, absolute_filepath, e
                     );
                     Error::FileNotFound(filename.to_string())
                 })
@@ -683,7 +705,7 @@ impl FXTorrentStreamingResource {
                         torrent,
                         torrent_filename: filename.to_string(),
                         file,
-                        filepath: torrent_file.io_path.clone(),
+                        filepath: absolute_filepath,
                         resource_length,
                         cursor: offset as usize,
                         offset,
@@ -951,12 +973,15 @@ mod test {
         mock.expect_has_bytes().return_const(true);
         mock.expect_has_piece().return_const(true);
         mock.expect_total_pieces().return_const(total_pieces);
-        mock.expect_prioritize_pieces().returning(|_: &[u32]| {});
+        mock.expect_prioritize_pieces()
+            .returning(|_: &[PieceIndex]| {});
         mock.expect_sequential_mode().returning(|| {});
         mock.expect_state().return_const(TorrentState::Downloading);
         mock.expect_stats().returning(|| TorrentStats::default());
         mock.expect_subscribe()
             .returning(move || subscription_callbacks.subscribe());
+        mock.expect_absolute_file_path()
+            .returning(move |_| temp_path.clone());
         copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
         let torrent_stream = DefaultTorrentStream::new(url, Box::new(mock), filename).await;
 
@@ -1008,12 +1033,15 @@ mod test {
         let filename = "range.txt";
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().join(filename);
-        let file_info = create_file_from_temp_path(temp_path);
+        let file_info = create_file_from_temp_path(temp_path.clone());
         let mut torrent = MockTorrent::new();
         torrent.expect_handle().return_const(TorrentHandle::new());
         torrent
             .expect_files()
             .returning(move || vec![file_info.clone()]);
+        torrent
+            .expect_absolute_file_path()
+            .returning(move |_| temp_path.clone());
         torrent.expect_has_bytes().return_const(true);
         let torrent = Arc::new(Box::new(torrent) as Box<dyn Torrent>);
         copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
@@ -1038,6 +1066,9 @@ mod test {
         let mut torrent = MockTorrent::new();
         torrent.expect_handle().return_const(TorrentHandle::new());
         torrent.expect_files().return_once(move || files);
+        torrent
+            .expect_absolute_file_path()
+            .returning(move |_| temp_path.clone());
         torrent.expect_has_bytes().return_const(true);
         let torrent = Arc::new(Box::new(torrent) as Box<dyn Torrent>);
         copy_test_file(temp_dir.path().to_str().unwrap(), filename, None);
@@ -1064,6 +1095,9 @@ mod test {
         let mut torrent = MockTorrent::new();
         torrent.expect_handle().return_const(TorrentHandle::new());
         torrent.expect_files().return_once(move || files);
+        torrent
+            .expect_absolute_file_path()
+            .returning(move |_| temp_path.clone());
         torrent.expect_has_bytes().returning(move |_| {
             if a.is_some() {
                 a.take();
@@ -1111,6 +1145,9 @@ mod test {
         let mut torrent = MockTorrent::new();
         torrent.expect_handle().return_const(TorrentHandle::new());
         torrent.expect_files().return_once(move || files);
+        torrent
+            .expect_absolute_file_path()
+            .returning(move |_| temp_path.clone());
         torrent.expect_has_bytes().returning(move |_| {
             if a.is_some() {
                 a.take();
@@ -1158,10 +1195,9 @@ mod test {
         torrent.expect_files().return_once(move || files);
         torrent.expect_has_bytes().return_const(true);
         torrent.expect_has_piece().return_const(false);
-        torrent.expect_total_pieces().returning(|| 100);
         torrent
             .expect_prioritize_pieces()
-            .returning(move |pieces: &[u32]| {
+            .returning(move |pieces: &[PieceIndex]| {
                 tx.send(pieces.to_vec()).unwrap();
             });
         torrent.expect_sequential_mode().times(1).returning(|| {});
@@ -1174,8 +1210,26 @@ mod test {
         torrent
             .expect_subscribe()
             .returning(move || subscribe_callbacks.subscribe());
+        torrent.expect_files().returning(move || {
+            vec![torrent::File {
+                index: 0,
+                torrent_path: Default::default(),
+                offset: 0,
+                info: TorrentFileInfo {
+                    length: 0,
+                    path: None,
+                    path_utf8: None,
+                    md5sum: None,
+                    attr: None,
+                    symlink_path: None,
+                    sha1: None,
+                },
+                priority: FilePriority::Normal,
+                pieces: 0..101,
+            }]
+        });
         let stream = DefaultTorrentStream::new(url, Box::new(torrent), filename).await;
-        let expected_pieces: Vec<u32> = vec![0, 1, 2, 3, 4, 5, 6, 7, 97, 98, 99];
+        let expected_pieces: Vec<PieceIndex> = vec![0, 1, 2, 3, 4, 5, 6, 7, 97, 98, 99];
 
         let pieces = recv_timeout!(&mut rx, Duration::from_millis(200));
         assert_eq!(expected_pieces.clone(), pieces);
@@ -1218,7 +1272,7 @@ mod test {
         mock.expect_total_pieces().return_const(total_pieces);
         mock.expect_prioritize_pieces()
             .times(0)
-            .returning(|_: &[u32]| {});
+            .returning(|_: &[PieceIndex]| {});
         mock.expect_state().return_const(TorrentState::Finished);
         mock.expect_stats()
             .returning(|| torrent_stats_not_completed());
@@ -1254,7 +1308,7 @@ mod test {
         mock.expect_total_pieces().return_const(total_pieces);
         mock.expect_prioritize_pieces()
             .times(0)
-            .returning(|_: &[u32]| {});
+            .returning(|_: &[PieceIndex]| {});
         mock.expect_state().return_const(TorrentState::Seeding);
         mock.expect_stats().returning(|| TorrentStats {
             upload: 0,
@@ -1306,7 +1360,9 @@ mod test {
         torrent.expect_has_piece().return_const(false);
         torrent.expect_sequential_mode().return_const(());
         torrent.expect_total_pieces().return_const(total_pieces);
-        torrent.expect_prioritize_pieces().returning(|_: &[u32]| {});
+        torrent
+            .expect_prioritize_pieces()
+            .returning(|_: &[PieceIndex]| {});
         torrent
             .expect_state()
             .return_const(TorrentState::Downloading);
@@ -1362,7 +1418,6 @@ mod test {
         torrent::File {
             index: 0,
             torrent_path: temp_path.clone(),
-            io_path: temp_path.clone(),
             offset: 0,
             info: TorrentFileInfo {
                 length: 0,
@@ -1374,6 +1429,7 @@ mod test {
                 sha1: None,
             },
             priority: Default::default(),
+            pieces: 0..100,
         }
     }
 

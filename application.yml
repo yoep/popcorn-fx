@@ -3,11 +3,9 @@ popcorn:
     jvm:
       level: info
     libfx::ipc:
-      level: info
+      level: debug
     popcorn_fx:
       level: warn
-    popcorn_fx::ffi:
-      level: trace
     popcorn_fx_core:
       level: info
     popcorn_fx_core::core::loader:

@@ -30,14 +30,6 @@ public interface ViewLoader {
     void show(Stage window, String view, ViewProperties properties);
 
     /**
-     * Show the given view in a new window.
-     *
-     * @param view       The FXML file to load and show.
-     * @param properties The properties of the window.
-     */
-    void showWindow(String view, ViewProperties properties);
-
-    /**
      * Show the given pane in a new window.
      *
      * @param pane       The root pane to show in the window.

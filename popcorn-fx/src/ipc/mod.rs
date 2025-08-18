@@ -45,14 +45,11 @@ pub(crate) mod test {
     use crate::ipc::proto::message::FxMessage;
 
     use async_trait::async_trait;
-    use interprocess::local_socket;
-    use interprocess::local_socket::tokio::prelude::LocalSocketStream;
-    use interprocess::local_socket::traits::tokio::{Listener, Stream};
-    use interprocess::local_socket::{GenericNamespaced, ListenerOptions, Name, ToNsName};
     use mockall::mock;
-    use rand::{rng, Rng};
     use std::fmt::{Display, Formatter};
+    use std::net::SocketAddr;
     use std::time::Duration;
+    use tokio::net::{TcpListener, TcpStream};
     use tokio::sync::oneshot;
 
     mock! {
@@ -75,25 +72,23 @@ pub(crate) mod test {
         }
     }
 
-    /// Create a new local socket listener.
+    /// Create a new socket listener.
     ///
     /// # Returns
     ///
-    /// It returns the unique socket name and the listener which accepts incoming connections.
-    pub fn create_local_socket<'s>() -> (Name<'s>, local_socket::tokio::Listener) {
-        let name_id = rng().random_range(0..60000);
-        let name = format!("fx-{}.sock", name_id)
-            .to_ns_name::<GenericNamespaced>()
-            .unwrap();
+    /// It returns the socket listener and listener socket address.
+    #[macro_export]
+    macro_rules! create_local_socket {
+        () => {{
+            use core::net::SocketAddr;
+            use tokio::net::TcpListener;
 
-        loop {
-            let opts = ListenerOptions::new().name(name.clone());
-            let socket_result = opts.create_tokio();
+            let socket_address: SocketAddr = ([127, 0, 0, 1], 0).into();
+            let listener = TcpListener::bind(socket_address).await.unwrap();
+            let socket_address = listener.local_addr().unwrap();
 
-            if let Ok(socket) = socket_result {
-                return (name, socket);
-            }
-        }
+            (listener, socket_address)
+        }};
     }
 
     /// Asynchronously creates a pair of interconnected IPC channels.
@@ -109,20 +104,18 @@ pub(crate) mod test {
     /// - Panics if connecting to the local socket fails.
     /// - Panics if the accepted connection cannot be received.
     pub async fn create_channel_pair() -> (IpcChannel, IpcChannel) {
-        let (name, listener) = create_local_socket();
+        let (listener, socket_address) = create_local_socket!();
         let (tx, rx) = oneshot::channel();
 
         tokio::spawn(async move {
             match listener.accept().await {
-                Ok(conn) => tx.send(conn).unwrap(),
+                Ok((stream, _)) => tx.send(stream).unwrap(),
                 Err(e) => panic!("{}", e),
             }
         });
 
-        let conn = LocalSocketStream::connect(name)
-            .await
-            .expect("failed to connect to local socket");
-        let outgoing_channel = IpcChannel::new(conn, Duration::from_secs(1));
+        let stream = TcpStream::connect(socket_address).await.unwrap();
+        let outgoing_channel = IpcChannel::new(stream, Duration::from_secs(1));
 
         let conn = rx.await.expect("failed to receive incoming connection");
         let incoming_channel = IpcChannel::new(conn, Duration::from_secs(1));

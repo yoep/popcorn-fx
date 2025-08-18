@@ -13,6 +13,7 @@ assets/*/vlc/vlc-*/
 assets/mac/*.dylib
 assets/windows/**.dll
 assets/windows/**.exe
+assets/windows/**.pdb
 assets/windows/vlc/lua/
 assets/windows/vlc/plugins/
 assets/windows/vlc/vlc-*/

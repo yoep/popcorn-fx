@@ -346,42 +346,42 @@ impl VlcTranscoderDiscovery {
     pub fn do_libvlc_discovery(
         directories: Vec<String>,
     ) -> Option<(libvlc_instance_t, LibraryHandle)> {
-        for path in directories {
+        for dir in directories {
             // search for all specific library filenames defined for the current os
-            let mut filenames: Vec<String> = vec![];
-            for filename in LIBVLC_FILENAME_PATTERNS {
-                if let Some(filename) = Self::find_filename_pattern(&path, filename) {
-                    filenames.push(filename);
-                }
-            }
+            let filenames: Vec<String> = LIBVLC_FILENAME_PATTERNS
+                .iter()
+                .filter_map(|pattern| Self::find_filename_pattern(dir.as_str(), pattern))
+                .collect();
 
             if filenames.is_empty() {
-                continue;
+                debug!("No VLC library filename patterns matched in {:?}", dir);
+                return None;
             }
 
             // try to load all libraries for the found filenames
-            let mut libraries: Vec<Library> = vec![];
-            for filename in filenames {
-                if let Some(library) = Self::load_library(path.as_str(), filename.as_str()) {
-                    libraries.push(library);
-                }
-            }
+            let libraries: Vec<Library> = filenames
+                .iter()
+                .filter_map(|name| Self::load_library(dir.as_str(), name))
+                .collect();
 
             // try to find the plugin path
-            return if let Some(plugin_path) = Self::search_plugins_path(path.as_str()) {
+            if let Some(plugin_path) = Self::search_plugins_path(dir.as_str()) {
                 let mut libraries_iter = libraries.into_iter();
-                let libvlc_core = libraries_iter.next();
-                let libvlc = libraries_iter.next();
 
-                let handle =
-                    LibraryHandle::new(path, plugin_path, libvlc.unwrap(), libvlc_core.unwrap());
-                handle.libvlc_instance().map(|instance| (instance, handle))
-            } else {
-                None
-            };
+                if let Some(libvlc_core) = libraries_iter.next() {
+                    if let Some(libvlc) = libraries_iter.next() {
+                        let handle = LibraryHandle::new(dir, plugin_path, libvlc, libvlc_core);
+
+                        return handle.libvlc_instance().map(|instance| (instance, handle));
+                    } else {
+                        debug!("VLC library not found")
+                    }
+                } else {
+                    debug!("VLC core not found")
+                }
+            }
         }
 
-        debug!("VLC library couldn't be found");
         None
     }
 

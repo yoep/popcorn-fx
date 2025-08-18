@@ -25,7 +25,7 @@ $(info Detected Rust version: $(shell rustc --version))
 
 ## Set the system information
 ifeq ($(SYSTEM),Windows)
-LIBRARY_EXECUTABLE := "libfx.exe"
+LIBRARY_EXECUTABLE := "libfx.{exe,pdb}"
 EXECUTABLE := "popcorn-time.exe"
 ASSETS := windows
 PYTHON := python.exe

@@ -7,14 +7,12 @@ use crate::ipc::{
     WatchedMessageHandler,
 };
 use clap::{CommandFactory, Error, FromArgMatches};
-use interprocess::local_socket;
-use interprocess::local_socket::tokio::prelude::{LocalSocketListener, LocalSocketStream};
-use interprocess::local_socket::traits::tokio::{Listener, Stream};
-use interprocess::local_socket::{GenericFilePath, GenericNamespaced, ListenerOptions, NameType, ToFsName, ToNsName};
 use log::info;
+use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use std::{env, io};
+use tokio::net::TcpStream;
 use tokio::select;
 
 mod fx;
@@ -22,24 +20,17 @@ mod ipc;
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
-    let socket_path_str = env::args().nth(1).ok_or(io::Error::new(
-        io::ErrorKind::NotFound,
-        "expected a socket/pipe path",
-    ))?;
-    let socket_path = if GenericNamespaced::is_supported() {
-        socket_path_str
-            .replace("/tmp/", "")
-            .to_ns_name::<GenericNamespaced>()?
-    } else {
-        socket_path_str.to_fs_name::<GenericFilePath>()?
-    };
+    let socket_port: u16 = env::args()
+        .nth(1)
+        .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "expected a socket port"))?
+        .parse()
+        .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e))?;
 
-    let opts = ListenerOptions::new().name(socket_path);
-    let listener = opts.create_tokio()?;
-    let conn = listener.accept().await?;
+    let socket_address: SocketAddr = ([127, 0, 0, 1], socket_port).into();
+    let stream = TcpStream::connect(socket_address).await?;
 
     popcorn_fx_args()
-        .map(|args| start(conn, args))
+        .map(|args| start(stream, args))
         .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?
         .await
 }
@@ -47,7 +38,7 @@ async fn main() -> io::Result<()> {
 /// Start the Popcorn FX application with the given local socket connection and arguments.
 /// This future will keep running until the application is being terminated.
 /// Ends immediately if an error occurred while creating the application instance.
-async fn start(conn: local_socket::tokio::Stream, args: PopcornFxArgs) -> io::Result<()> {
+async fn start(conn: TcpStream, args: PopcornFxArgs) -> io::Result<()> {
     let start = Instant::now();
     let popcorn_fx = PopcornFX::new(args)
         .await
@@ -132,9 +123,6 @@ fn popcorn_fx_args() -> Result<PopcornFxArgs, Error> {
 mod tests {
     use super::*;
 
-    use crate::ipc::test::create_local_socket;
-
-    use interprocess::local_socket::traits::tokio::Listener;
     use log::error;
     use popcorn_fx_core::init_logger;
     use std::path::PathBuf;
@@ -173,7 +161,7 @@ mod tests {
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().to_str().unwrap();
         let (tx, rx) = channel();
-        let (name, listener) = create_local_socket();
+        let (listener, socket_address) = create_local_socket!();
 
         tokio::spawn(async move {
             match listener.accept().await {
@@ -182,7 +170,7 @@ mod tests {
             }
         });
 
-        let conn = LocalSocketStream::connect(name).await.unwrap();
+        let conn = TcpStream::connect(socket_address).await.unwrap();
         let args = default_args(temp_path);
 
         tokio::spawn(async move {

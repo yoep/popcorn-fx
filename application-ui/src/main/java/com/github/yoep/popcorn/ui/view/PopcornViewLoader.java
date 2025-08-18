@@ -19,7 +19,6 @@ import javafx.stage.Screen;
 import javafx.stage.Stage;
 import lombok.extern.slf4j.Slf4j;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Objects;
@@ -29,6 +28,7 @@ import java.util.Optional;
 public class PopcornViewLoader implements ViewLoader {
     static final String COMMON_DIRECTORY = "common";
     static final String VIEW_DIRECTORY = "/views";
+    static final String VIEW_SEPARATOR = "/";
 
     private final IoC applicationInstance;
     private final ApplicationConfig applicationConfig;
@@ -72,11 +72,6 @@ public class PopcornViewLoader implements ViewLoader {
     @Override
     public void show(Stage window, String view, ViewProperties properties) {
         showScene(window, view, properties);
-    }
-
-    @Override
-    public void showWindow(String view, ViewProperties properties) {
-//        Platform.runLater(() -> showScene(new Stage(), view, controller, properties));
     }
 
     @Override
@@ -142,13 +137,13 @@ public class PopcornViewLoader implements ViewLoader {
         } else {
             var base = isTvMode() ? "tv" : "desktop";
 
-            return doLoadResource(base + File.separator + view);
+            return doLoadResource(base + VIEW_SEPARATOR + view);
         }
     }
 
     private FXMLLoader doLoadResource(String view) {
         Objects.requireNonNull(view, "view cannot be null");
-        var fxmlFilePath = VIEW_DIRECTORY + File.separator + view;
+        var fxmlFilePath = VIEW_DIRECTORY + VIEW_SEPARATOR + view;
         var loader = loadResourceWithClass(fxmlFilePath, PopcornViewLoader.class);
 
         if (loader.isEmpty()) {
@@ -173,7 +168,7 @@ public class PopcornViewLoader implements ViewLoader {
 
     private SceneInfo loadView(String view, ViewProperties properties) throws ViewNotFoundException {
         Objects.requireNonNull(view, "view cannot be null");
-        var fxmlResourceFile = PopcornViewLoader.class.getResource(VIEW_DIRECTORY + File.separator + view);
+        var fxmlResourceFile = PopcornViewLoader.class.getResource(VIEW_DIRECTORY + VIEW_SEPARATOR + view);
 
         if (fxmlResourceFile != null) {
             var loader = new FXMLLoader(fxmlResourceFile, localeText.getResourceBundle());
@@ -250,7 +245,7 @@ public class PopcornViewLoader implements ViewLoader {
             window.setResizable(properties.isResizable());
 
         Optional.ofNullable(properties.getIcon())
-                .filter(e -> e != null && !e.isBlank())
+                .filter(e -> !e.isBlank())
                 .ifPresent(icon -> window.getIcons().add(loadWindowIcon(icon)));
 
         if (properties.isCenterOnScreen()) {
@@ -271,7 +266,7 @@ public class PopcornViewLoader implements ViewLoader {
     }
 
     private Image loadWindowIcon(String iconName) {
-        return Optional.ofNullable(PopcornViewLoader.class.getResourceAsStream("/images" + File.separator + iconName))
+        return Optional.ofNullable(PopcornViewLoader.class.getResourceAsStream("/images" + VIEW_SEPARATOR + iconName))
                 .map(Image::new)
                 .orElseThrow(() -> new ViewException("Icon '" + iconName + "' not found"));
     }

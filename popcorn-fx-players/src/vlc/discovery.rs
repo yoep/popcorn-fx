@@ -1,9 +1,10 @@
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 use std::sync::Arc;
 
 use async_trait::async_trait;
 use derive_more::Display;
 use log::{debug, info, trace, warn};
+use tokio::process::Command;
 use tokio::sync::Mutex;
 
 use popcorn_fx_core::core::players::PlayerManager;
@@ -45,13 +46,28 @@ impl VlcDiscovery {
     }
 
     #[cfg(target_os = "windows")]
-    fn command() -> Command {
-        Command::new("where.exe")
+    fn which_program() -> &'static str {
+        "where.exe"
     }
 
-    #[cfg(any(target_os = "linux", target_os = "macos"))]
-    fn command() -> Command {
-        Command::new("which")
+    #[cfg(target_family = "unix")]
+    fn which_program() -> &'static str {
+        "which"
+    }
+
+    async fn is_vlc_available() -> bool {
+        let mut cmd = Command::new(Self::which_program());
+        let status = cmd
+            .arg("vlc")
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .await;
+
+        match status {
+            Ok(s) => s.success(),
+            Err(_) => false,
+        }
     }
 }
 
@@ -62,47 +78,34 @@ impl Discovery for VlcDiscovery {
     }
 
     async fn start_discovery(&self) -> crate::Result<()> {
-        let state: DiscoveryState;
-
-        {
-            let mutex = self.state.lock().await;
-            state = mutex.clone();
+        let current_state = { *self.state.lock().await };
+        if current_state == DiscoveryState::Running {
+            return Err(DiscoveryError::InvalidState(current_state));
         }
 
-        if state != DiscoveryState::Running {
-            trace!("Searching for external VLC executable");
-            self.update_state_async(DiscoveryState::Running).await;
-            if Self::command()
-                .arg("vlc")
-                .stdout(Stdio::null())
-                .status()
-                .map(|e| e.success())
-                .unwrap_or(false)
-            {
-                trace!("Creating new external VLC player instance");
-                let vlc_player = VlcPlayer::builder()
-                    .subtitle_manager(self.subtitle_manager.clone())
-                    .subtitle_provider(self.subtitle_provider.clone())
-                    .build();
-                debug!("Created new external VLC player {:?}", vlc_player);
-                if let Err(e) = self.player_manager.add_player(Box::new(vlc_player)) {
-                    warn!("Failed to register VLC player, {}", e);
-                    self.update_state_async(DiscoveryState::Error).await;
-                    return Err(DiscoveryError::Initialization(
-                        "Unable to add external VLC player".to_string(),
-                    ));
-                } else {
-                    info!("Added new external VLC player");
-                }
+        trace!("Searching for external VLC executable");
+        self.update_state_async(DiscoveryState::Running).await;
+        if Self::is_vlc_available().await {
+            trace!("Creating new external VLC player instance");
+            let vlc_player = VlcPlayer::builder()
+                .subtitle_manager(self.subtitle_manager.clone())
+                .subtitle_provider(self.subtitle_provider.clone())
+                .build();
+            debug!("Created new external VLC player {:?}", vlc_player);
+            if let Err(e) = self.player_manager.add_player(Box::new(vlc_player)) {
+                warn!("Failed to register VLC player, {}", e);
+                self.update_state_async(DiscoveryState::Error).await;
+                return Err(DiscoveryError::Initialization(
+                    "Unable to add external VLC player".to_string(),
+                ));
             } else {
-                info!("External VLC executable not found, external VLC player won't be registered");
+                info!("Added new external VLC player");
             }
-
-            self.update_state_async(DiscoveryState::Stopped).await;
         } else {
-            return Err(DiscoveryError::InvalidState(state));
+            info!("External VLC executable not found, external VLC player won't be registered");
         }
 
+        self.update_state_async(DiscoveryState::Stopped).await;
         Ok(())
     }
 

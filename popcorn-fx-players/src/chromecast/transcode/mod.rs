@@ -24,7 +24,7 @@ pub enum TranscodeType {
 }
 
 /// The state of the transcoding process.
-#[derive(Debug, Display, Clone, PartialEq)]
+#[derive(Debug, Display, Copy, Clone, PartialEq)]
 pub enum TranscodeState {
     /// The state of the transcoding process is unknown.
     Unknown,
@@ -54,7 +54,7 @@ pub struct TranscodeOutput {
 #[async_trait]
 pub trait Transcoder: Debug + Sync + Send {
     /// Gets the current state of the transcoder.
-    fn state(&self) -> TranscodeState;
+    async fn state(&self) -> TranscodeState;
 
     /// Transcodes the input media stream into a transcoded output stream.
     ///

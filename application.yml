@@ -3,7 +3,7 @@ popcorn:
     jvm:
       level: info
     libfx::ipc:
-      level: debug
+      level: info
     popcorn_fx:
       level: warn
     popcorn_fx_core:
@@ -22,6 +22,8 @@ popcorn:
       level: warn
     popcorn_fx_opensubtitles:
       level: error
+    popcorn_fx_players::vlc:
+      level: debug
     popcorn_fx_torrent:
       level: info
     popcorn_fx_torrent::torrent::dht:

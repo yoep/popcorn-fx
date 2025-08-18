@@ -10,7 +10,7 @@ pub struct NoOpTranscoder;
 #[async_trait]
 impl Transcoder for NoOpTranscoder {
     /// Gets the current state of the transcoder.
-    fn state(&self) -> TranscodeState {
+    async fn state(&self) -> TranscodeState {
         TranscodeState::Stopped
     }
 
@@ -45,7 +45,7 @@ mod tests {
     async fn test_state() {
         let transcoder = NoOpTranscoder {};
 
-        let result = transcoder.state();
+        let result = transcoder.state().await;
 
         assert_eq!(TranscodeState::Stopped, result);
     }
@@ -65,6 +65,7 @@ mod tests {
 
         transcoder.stop().await;
 
-        assert_eq!(TranscodeState::Stopped, transcoder.state());
+        let result = transcoder.state().await;
+        assert_eq!(TranscodeState::Stopped, result);
     }
 }

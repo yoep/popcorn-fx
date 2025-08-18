@@ -93,14 +93,14 @@ public class FxLib implements Closeable {
     /**
      * Launch the library subprocess for this lib instance.
      *
-     * @param socketPath        The socket path to which the lib needs to connect to.
+     * @param sockerPort        The socket port to which the lib needs to connect to.
      * @param libraryExecutable The executable filename of the library.
      * @param args              The library arguments.
      * @return Returns the library process.
      * @throws IOException Throws an IO exception when the library couldn't be started.
      */
-    Process launchLibProcess(String socketPath, String libraryExecutable, String[] args) throws IOException {
-        var processCommand = new ArrayList<>(asList(libraryExecutable, socketPath));
+    Process launchLibProcess(String sockerPort, String libraryExecutable, String[] args) throws IOException {
+        var processCommand = new ArrayList<>(asList(libraryExecutable, sockerPort));
         processCommand.addAll(asList(args));
         return new ProcessBuilder(processCommand)
                 .inheritIO()

@@ -4,37 +4,26 @@ import com.github.yoep.popcorn.backend.lib.ipc.protobuf.FxMessage;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.*;
-import java.net.StandardProtocolFamily;
-import java.net.UnixDomainSocketAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.channels.Channels;
-import java.nio.channels.ServerSocketChannel;
-import java.nio.channels.SocketChannel;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Objects;
-import java.util.UUID;
 
 import static java.util.Arrays.asList;
 
 @Slf4j
 public class FxLib implements Closeable {
-    BufferedInputStream reader;
-    BufferedOutputStream writer;
+    InputStream reader;
+    OutputStream writer;
     Process process;
-    RandomAccessFile namedPipe;
-    ServerSocketChannel unixSocket;
-    SocketChannel channel;
+    ServerSocket serverSocket;
+    Socket socket;
 
     public FxLib(String[] args) {
         try {
-            if (isWindows()) {
-                createNamedPipe(args);
-            } else {
-                createDomainSocket(args);
-            }
+            createSocket(args);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -42,12 +31,14 @@ public class FxLib implements Closeable {
 
     @Override
     public void close() throws IOException {
-        if (namedPipe != null) {
-            namedPipe.close();
-        }
-        if (unixSocket != null) {
-            unixSocket.close();
-        }
+        // close the IO streams before closing any underlying channels
+        reader.close();
+        writer.close();
+
+        // close the underlying sockets
+        socket.close();
+        serverSocket.close();
+
         if (process != null && process.isAlive()) {
             process.destroy();
         }
@@ -102,45 +93,37 @@ public class FxLib implements Closeable {
     /**
      * Launch the library subprocess for this lib instance.
      *
-     * @param socketPath The socket path to which the lib needs to connect to.
+     * @param sockerPort        The socket port to which the lib needs to connect to.
      * @param libraryExecutable The executable filename of the library.
-     * @param args       The library arguments.
+     * @param args              The library arguments.
      * @return Returns the library process.
      * @throws IOException Throws an IO exception when the library couldn't be started.
      */
-    Process launchLibProcess(String socketPath, String libraryExecutable, String[] args) throws IOException {
-        var processCommand = new ArrayList<>(asList(libraryExecutable, socketPath));
+    Process launchLibProcess(String sockerPort, String libraryExecutable, String[] args) throws IOException {
+        var processCommand = new ArrayList<>(asList(libraryExecutable, sockerPort));
         processCommand.addAll(asList(args));
         return new ProcessBuilder(processCommand)
                 .inheritIO()
                 .start();
     }
 
-    private void createNamedPipe(String[] args) throws Exception {
-        var socketPath = "libfx";
+    private void createSocket(String[] args) {
+        try (var serverSocket = new ServerSocket(0)) {
+            var port = serverSocket.getLocalPort();
+            var libraryExecutable = isWindows() ? "libfx.exe" : "libfx";
 
-        namedPipe = new RandomAccessFile(String.format("\\\\.\\pipe\\%s", socketPath), "rw");
-        process = launchLibProcess(socketPath, "libfx.exe", args);
+            process = launchLibProcess(String.valueOf(port), libraryExecutable, args);
 
-        var fd = namedPipe.getFD();
-        reader = new BufferedInputStream(new FileInputStream(fd));
-        writer = new BufferedOutputStream(new FileOutputStream(fd));
-    }
+            var socket = serverSocket.accept();
 
-    private void createDomainSocket(String[] args) throws Exception {
-        var socketPath = String.format("/tmp/libfx.%s.sock", UUID.randomUUID().toString().replace("-", ""));
-        Files.deleteIfExists(Paths.get(socketPath));
+            reader = new BufferedInputStream(socket.getInputStream());
+            writer = new BufferedOutputStream(socket.getOutputStream());
 
-        var address = UnixDomainSocketAddress.of(socketPath);
-        unixSocket = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
-        unixSocket.bind(address);
-        process = launchLibProcess(socketPath, "libfx", args);
-
-        channel = unixSocket.accept();
-        unixSocket.configureBlocking(false);
-
-        reader = new BufferedInputStream(Channels.newInputStream(channel));
-        writer = new BufferedOutputStream(Channels.newOutputStream(channel));
+            this.socket = socket;
+            this.serverSocket = serverSocket;
+        } catch (IOException ex) {
+            throw new FxLibException(String.format("Failed to start IPC process, %s", ex.getMessage()), ex);
+        }
     }
 
     static boolean isWindows() {

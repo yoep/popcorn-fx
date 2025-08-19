@@ -1,8 +1,6 @@
 use crate::ipc::errors::{Error, Result};
 use crate::ipc::proto::message::FxMessage;
 use byteorder::{BigEndian, ByteOrder};
-use interprocess::local_socket;
-use interprocess::local_socket::tokio::{RecvHalf, SendHalf, Stream};
 use log::{debug, error, trace, warn};
 use protobuf::Message;
 use std::collections::HashMap;
@@ -10,7 +8,8 @@ use std::io;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::{split, AsyncRead, AsyncReadExt, AsyncWriteExt, ReadHalf, WriteHalf};
+use tokio::net::TcpStream;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::sync::{oneshot, Mutex, MutexGuard, Notify};
 use tokio::{select, time};
@@ -23,8 +22,8 @@ pub struct IpcChannel {
 }
 
 impl IpcChannel {
-    pub fn new(stream: Stream, timeout: Duration) -> Self {
-        let (reader, writer) = local_socket::traits::tokio::Stream::split(stream);
+    pub fn new(stream: TcpStream, timeout: Duration) -> Self {
+        let (reader, writer) = split(stream);
         let (reader_sender, reader_receiver) = unbounded_channel();
 
         let inner = Arc::new(InnerIpcChannel {
@@ -180,7 +179,7 @@ impl FxMessageBuilder {
 #[derive(Debug)]
 struct InnerIpcChannel {
     sequence_id: AtomicU32,
-    writer: Mutex<SendHalf>,
+    writer: Mutex<WriteHalf<TcpStream>>,
     buffer: Mutex<Vec<FxMessage>>,
     buffer_notify: Notify,
     pending_requests: Mutex<HashMap<u32, oneshot::Sender<FxMessage>>>,
@@ -294,6 +293,11 @@ impl InnerIpcChannel {
         let mut length_buffer = vec![0u8; 4];
         BigEndian::write_u32(&mut length_buffer[..4], bytes.len() as u32);
 
+        trace!(
+            "IPC channel is trying to write message \"{}\" ({} bytes)",
+            message_type,
+            bytes.len()
+        );
         let start_time = Instant::now();
         select! {
             _ = time::sleep(self.timeout) => Err(Error::Io(io::Error::new(io::ErrorKind::TimedOut, "writer timed out sending payload"))),
@@ -311,7 +315,7 @@ impl InnerIpcChannel {
     }
 
     async fn write_channel_message(
-        writer: &mut MutexGuard<'_, SendHalf>,
+        writer: &mut MutexGuard<'_, WriteHalf<TcpStream>>,
         length_buffer: &[u8],
         bytes: &[u8],
     ) -> Result<()> {
@@ -323,14 +327,14 @@ impl InnerIpcChannel {
 }
 
 #[derive(Debug)]
-struct IpcChannelReader {
-    reader: RecvHalf,
+struct IpcChannelReader<R: AsyncRead> {
+    reader: ReadHalf<R>,
     sender: UnboundedSender<FxMessage>,
     timeout: Duration,
     cancellation_token: CancellationToken,
 }
 
-impl IpcChannelReader {
+impl<R: AsyncRead> IpcChannelReader<R> {
     async fn start(&mut self) {
         loop {
             let mut buffer = [0u8; 4];
@@ -342,7 +346,7 @@ impl IpcChannelReader {
                         Ok(0) => {
                             trace!("IPC channel reader received EOF");
                             self.cancellation_token.cancel();
-                            break
+                            break;
                         },
                         Ok(len) => {
                             if let Err(e) = self.handle_received_message(&buffer, len).await {

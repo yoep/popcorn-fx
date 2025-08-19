@@ -1,6 +1,6 @@
-use log::{info, trace, warn};
-use tokio::sync::Mutex;
-
+use crate::platform::SystemPlatform;
+use log::{error, info, trace, warn};
+use std::sync::Mutex;
 use windows::core::Result;
 use windows::core::{PCWSTR, PWSTR};
 use windows::Win32::Foundation::HANDLE;
@@ -10,8 +10,6 @@ use windows::Win32::System::Power::{
 use windows::Win32::System::Threading::{
     POWER_REQUEST_CONTEXT_SIMPLE_STRING, REASON_CONTEXT, REASON_CONTEXT_0,
 };
-
-use crate::platform::SystemPlatform;
 
 const WINDOW_NAME: &str = "Popcorn Time";
 
@@ -41,48 +39,53 @@ impl SystemPlatform for PlatformWin {
             trace!("Creating new windows power request");
             let request: Result<HANDLE> = PowerCreateRequest(&context);
 
-            return match request {
+            match request {
                 Err(ex) => {
                     warn!("Failed to disable windows screensaver, {}", ex);
                     false
                 }
                 Ok(handle) => {
                     trace!("Storing windows screensaver handle");
-                    let mut mutex = self.screensaver_request.blocking_lock();
-                    *mutex = Some(handle);
+                    match self.screensaver_request.lock() {
+                        Ok(mut mutex) => {
+                            *mutex = Some(handle);
 
-                    if PowerSetRequest(handle, PowerRequestDisplayRequired).as_bool() {
-                        info!("Screensaver has been disabled");
-                        true
-                    } else {
-                        false
+                            if PowerSetRequest(handle, PowerRequestDisplayRequired).is_ok() {
+                                info!("Screensaver has been disabled");
+                                return true;
+                            }
+                        }
+                        Err(e) => error!("Failed to acquire windows screensaver lock, {}", e),
                     }
+
+                    false
                 }
-            };
+            }
         }
     }
 
     fn enable_screensaver(&self) -> bool {
         // verify if a request was made before to disable it
         // otherwise, ignore this call
-        let mut mutex = self.screensaver_request.blocking_lock();
-
-        if let Some(handle) = *mutex {
-            if unsafe { PowerClearRequest(handle, PowerRequestDisplayRequired).as_bool() } {
-                info!("Screensaver has been enabled");
-                *mutex = None;
-                true
+        if let Ok(mut mutex) = self.screensaver_request.lock() {
+            if let Some(handle) = *mutex {
+                if unsafe { PowerClearRequest(handle, PowerRequestDisplayRequired).is_ok() } {
+                    info!("Screensaver has been enabled");
+                    *mutex = None;
+                    return true;
+                } else {
+                    warn!("Failed to enabled windows screensaver");
+                }
             } else {
-                warn!("Failed to enabled windows screensaver");
-                false
+                trace!("Windows screensaver not disabled, not trying to clear power request");
+                return true;
             }
-        } else {
-            trace!("Windows screensaver not disabled, not trying to clear power request");
-            true
         }
+
+        false
     }
 
-    fn window_handle(&self) -> Option<*mut std::ffi::c_void> {
+    fn window_handle(&self) -> Option<*mut core::ffi::c_void> {
         let mut encoded_name = WINDOW_NAME
             .encode_utf16()
             .chain([0u16])
@@ -96,15 +99,19 @@ impl SystemPlatform for PlatformWin {
             )
         };
 
-        if handle.0 == 0 {
-            warn!(
-                "Windows window handle for \"{}\" couldn't be found",
-                WINDOW_NAME
-            );
-            None
-        } else {
-            trace!("Converting window handle {:?} to std::ffi::c_void", handle);
-            Some(handle.0 as *mut std::ffi::c_void)
+        match handle {
+            Ok(handle) => {
+                if handle.is_invalid() {
+                    warn!("Failed to find window handle");
+                    None
+                } else {
+                    Some(handle.0)
+                }
+            }
+            Err(err) => {
+                warn!("Failed to retrieve window handle, {}", err);
+                None
+            }
         }
     }
 }
@@ -116,6 +123,9 @@ impl Default for PlatformWin {
         }
     }
 }
+
+unsafe impl Send for PlatformWin {}
+unsafe impl Sync for PlatformWin {}
 
 #[cfg(test)]
 mod test {

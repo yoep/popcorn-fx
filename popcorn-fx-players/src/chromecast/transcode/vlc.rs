@@ -1,16 +1,15 @@
-use std::ffi::{c_char, CString};
-use std::path::PathBuf;
-use std::string::ToString;
-use std::{env, fs};
-
 use async_trait::async_trait;
 use libloading::Library;
 use log::{debug, error, trace, warn};
-use regex::Regex;
-use tokio::sync::Mutex;
-
-use popcorn_fx_core::core::block_in_place;
 use popcorn_fx_core::core::utils::network::available_socket;
+use regex::Regex;
+use std::ffi::{c_char, CString};
+use std::path::PathBuf;
+use std::string::ToString;
+use std::sync::Arc;
+use std::{env, fs};
+use tokio::sync::Mutex;
+use tokio_util::sync::CancellationToken;
 
 use crate::chromecast::transcode;
 use crate::chromecast::transcode::lib_vlc::{
@@ -62,11 +61,7 @@ const LIBVLC_PLUGIN_PATHS: [&str; 2] = ["plugins", "vlc\\plugins"];
 /// http stream with the transcoded media.
 #[derive(Debug)]
 pub struct VlcTranscoder {
-    library: LibraryHandle,
-    instance: LibvlcInstanceT<libvlc_instance_t>,
-    media_player: Mutex<Option<LibvlcInstanceT<libvlc_media_player_t>>>,
-    media: Mutex<Option<LibvlcInstanceT<libvlc_media_t>>>,
-    state: Mutex<TranscodeState>,
+    inner: Arc<InnerVlcTranscoder>,
 }
 
 impl VlcTranscoder {
@@ -93,20 +88,21 @@ impl VlcTranscoder {
     /// let transcoder = VlcTranscoder::new(instance, library);
     /// ```
     pub fn new(instance: libvlc_instance_t, library: LibraryHandle) -> Self {
-        Self {
+        let inner = Arc::new(InnerVlcTranscoder {
             library,
             instance: LibvlcInstanceT::new(instance),
             media_player: Default::default(),
             media: Default::default(),
             state: Mutex::new(TranscodeState::Unknown),
-        }
-    }
+            cancellation_token: Default::default(),
+        });
 
-    async fn update_state_async(&self, state: TranscodeState) {
-        let mut mutex = self.state.lock().await;
-        trace!("Updating transcoder state to {:?}", state);
-        *mutex = state.clone();
-        debug!("Transcoder state changed to {:?}", state);
+        let inner_main = inner.clone();
+        tokio::spawn(async move {
+            inner_main.start().await;
+        });
+
+        Self { inner }
     }
 
     async fn create_media_player(
@@ -114,15 +110,16 @@ impl VlcTranscoder {
     ) -> transcode::Result<LibvlcInstanceT<libvlc_media_player_t>> {
         trace!("Creating new VLC media player instance");
         let native_fn = self
+            .inner
             .library
             .get::<libvlc_media_player_new>(b"libvlc_media_player_new")
             .map_err(|e| TranscodeError::Initialization(e.to_string()))?;
-        let media_player = native_fn(self.instance.0);
+        let media_player = native_fn(self.inner.instance.0);
 
         let media_player = LibvlcInstanceT::new(media_player);
         trace!("Created new VLC media player instance {:?}", media_player);
         {
-            let mut mutex = self.media_player.lock().await;
+            let mut mutex = self.inner.media_player.lock().await;
             *mutex = Some(media_player.clone());
             debug!("Stored new VLC media player instance {:?}", media_player);
         }
@@ -135,19 +132,21 @@ impl VlcTranscoder {
         options: &[&str],
     ) -> transcode::Result<LibvlcInstanceT<libvlc_media_t>> {
         let native_fn = self
+            .inner
             .library
             .get::<libvlc_media_new_location>(b"libvlc_media_new_location\0")
             .map_err(|e| TranscodeError::Initialization(e.to_string()))?;
         let murl = CString::new(url).map_err(|e| TranscodeError::Initialization(e.to_string()))?;
 
         // release the current media item if one is present
-        self.release_media().await;
+        self.inner.release_media().await;
 
-        let media = LibvlcInstanceT::new(native_fn(self.instance.0, murl.into_raw()));
+        let media = LibvlcInstanceT::new(native_fn(self.inner.instance.0, murl.into_raw()));
         debug!("Created new media item {:?}", media);
 
         // initialize the media options
         let option_fn = self
+            .inner
             .library
             .get::<libvlc_media_add_option>(b"libvlc_media_add_option\0")
             .map_err(|e| TranscodeError::Initialization(e.to_string()))?;
@@ -157,10 +156,139 @@ impl VlcTranscoder {
         }
 
         {
-            let mut mutex = self.media.lock().await;
+            let mut mutex = self.inner.media.lock().await;
             *mutex = Some(media.clone());
         }
         Ok(media)
+    }
+
+    fn parse_string<S: Into<Vec<u8>>>(value: S) -> *mut c_char {
+        CString::new(value.into())
+            .expect("Failed to create C string")
+            .into_raw()
+    }
+
+    fn change_media(
+        &self,
+        media_player: LibvlcInstanceT<libvlc_media_player_t>,
+        media: LibvlcInstanceT<libvlc_media_t>,
+    ) -> transcode::Result<()> {
+        let native_fn = self
+            .inner
+            .library
+            .get::<libvlc_media_player_set_media>(b"libvlc_media_player_set_media\0")
+            .map_err(|e| TranscodeError::Initialization(e.to_string()))?;
+        native_fn(media_player.0, media.0);
+        debug!(
+            "Changed media on media player {:?} to {:?}",
+            media_player, media
+        );
+        Ok(())
+    }
+
+    fn play(&self, media_player: LibvlcInstanceT<libvlc_media_player_t>) -> transcode::Result<()> {
+        let native_fn = self
+            .inner
+            .library
+            .get::<libvlc_media_player_play>(b"libvlc_media_player_play\0")
+            .map_err(|e| TranscodeError::Initialization(e.to_string()))?;
+
+        if native_fn(media_player.0) != 0 {
+            return Err(TranscodeError::Initialization(
+                "transcoding failed to start".to_string(),
+            ));
+        }
+
+        debug!("Started transcoding on media player {:?}", media_player);
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl Transcoder for VlcTranscoder {
+    async fn state(&self) -> TranscodeState {
+        *self.inner.state.lock().await
+    }
+
+    async fn transcode(&self, url: &str) -> transcode::Result<TranscodeOutput> {
+        self.inner
+            .update_state_async(TranscodeState::Preparing)
+            .await;
+        let filename = PathBuf::from(url)
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string();
+        let socket = available_socket();
+        let destination = format!("{}/{}", socket, filename);
+
+        let media_player = self.inner.media_player.lock().await.clone();
+        let media_player = match media_player {
+            Some(media_player) => media_player,
+            None => self.create_media_player().await?,
+        };
+        let media = self.create_media(url, &[
+            format!(":sout=#transcode{{vcodec=h264,vb=2048,fps=24,maxwidth=1920,maxheight=1080,acodec=mp3,ab=128,channels=2,threads=0}}:std{{mux=avformat{{mux=matroska,options={{live=1}},reset-ts}},dst={},access=http}}", destination).as_str(),
+            ":demux-filter=demux_chromecast",
+            ":sout-mux-caching=8192",
+            ":sout-all",
+            ":sout-keep",
+        ]).await?;
+
+        self.inner
+            .update_state_async(TranscodeState::Starting)
+            .await;
+        self.change_media(media_player, media)?;
+        self.play(media_player)?;
+
+        self.inner
+            .update_state_async(TranscodeState::Transcoding)
+            .await;
+        Ok(TranscodeOutput {
+            url: format!("http://{}", destination),
+            // VLC transcoding only supports live output
+            // this limits the buffering options as well as the ability to seek within the stream
+            output_type: TranscodeType::Live,
+        })
+    }
+
+    async fn stop(&self) {
+        self.inner.stop().await
+    }
+}
+
+unsafe impl Sync for VlcTranscoder {}
+
+unsafe impl Send for VlcTranscoder {}
+
+impl Drop for VlcTranscoder {
+    fn drop(&mut self) {
+        self.inner.cancellation_token.cancel();
+    }
+}
+
+#[derive(Debug)]
+struct InnerVlcTranscoder {
+    library: LibraryHandle,
+    instance: LibvlcInstanceT<libvlc_instance_t>,
+    media_player: Mutex<Option<LibvlcInstanceT<libvlc_media_player_t>>>,
+    media: Mutex<Option<LibvlcInstanceT<libvlc_media_t>>>,
+    state: Mutex<TranscodeState>,
+    cancellation_token: CancellationToken,
+}
+
+impl InnerVlcTranscoder {
+    async fn start(&self) {
+        self.cancellation_token.cancelled().await;
+        self.stop().await;
+    }
+
+    async fn update_state_async(&self, state: TranscodeState) {
+        let mut mutex = self.state.lock().await;
+        trace!("Updating transcoder state to {:?}", state);
+        *mutex = state.clone();
+        debug!("Transcoder state changed to {:?}", state);
     }
 
     async fn release_media(&self) {
@@ -199,45 +327,6 @@ impl VlcTranscoder {
         }
     }
 
-    fn parse_string<S: Into<Vec<u8>>>(value: S) -> *mut c_char {
-        CString::new(value.into())
-            .expect("Failed to create C string")
-            .into_raw()
-    }
-
-    fn change_media(
-        &self,
-        media_player: LibvlcInstanceT<libvlc_media_player_t>,
-        media: LibvlcInstanceT<libvlc_media_t>,
-    ) -> transcode::Result<()> {
-        let native_fn = self
-            .library
-            .get::<libvlc_media_player_set_media>(b"libvlc_media_player_set_media\0")
-            .map_err(|e| TranscodeError::Initialization(e.to_string()))?;
-        native_fn(media_player.0, media.0);
-        debug!(
-            "Changed media on media player {:?} to {:?}",
-            media_player, media
-        );
-        Ok(())
-    }
-
-    fn play(&self, media_player: LibvlcInstanceT<libvlc_media_player_t>) -> transcode::Result<()> {
-        let native_fn = self
-            .library
-            .get::<libvlc_media_player_play>(b"libvlc_media_player_play\0")
-            .map_err(|e| TranscodeError::Initialization(e.to_string()))?;
-
-        if native_fn(media_player.0) != 0 {
-            return Err(TranscodeError::Initialization(
-                "transcoding failed to start".to_string(),
-            ));
-        }
-
-        debug!("Started transcoding on media player {:?}", media_player);
-        Ok(())
-    }
-
     async fn stop_player(&self) -> transcode::Result<()> {
         if let Some(media_player) = self.media_player.lock().await.clone() {
             trace!("Stopping the transcoding media player");
@@ -253,51 +342,6 @@ impl VlcTranscoder {
 
         Ok(())
     }
-}
-
-#[async_trait]
-impl Transcoder for VlcTranscoder {
-    fn state(&self) -> TranscodeState {
-        let mutex = block_in_place(self.state.lock());
-        mutex.clone()
-    }
-
-    async fn transcode(&self, url: &str) -> transcode::Result<TranscodeOutput> {
-        self.update_state_async(TranscodeState::Preparing).await;
-        let filename = PathBuf::from(url)
-            .file_name()
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .to_string();
-        let socket = available_socket();
-        let destination = format!("{}/{}", socket, filename);
-
-        let media_player = self.media_player.lock().await.clone();
-        let media_player = match media_player {
-            Some(media_player) => media_player,
-            None => self.create_media_player().await?,
-        };
-        let media = self.create_media(url, &[
-            format!(":sout=#transcode{{vcodec=h264,vb=2048,fps=24,maxwidth=1920,maxheight=1080,acodec=mp3,ab=128,channels=2,threads=0}}:std{{mux=avformat{{mux=matroska,options={{live=1}},reset-ts}},dst={},access=http}}", destination).as_str(),
-            ":demux-filter=demux_chromecast",
-            ":sout-mux-caching=8192",
-            ":sout-all",
-            ":sout-keep",
-        ]).await?;
-
-        self.update_state_async(TranscodeState::Starting).await;
-        self.change_media(media_player, media)?;
-        self.play(media_player)?;
-
-        self.update_state_async(TranscodeState::Transcoding).await;
-        Ok(TranscodeOutput {
-            url: format!("http://{}", destination),
-            // VLC transcoding only supports live output
-            // this limits the buffering options as well as the ability to seek within the stream
-            output_type: TranscodeType::Live,
-        })
-    }
 
     async fn stop(&self) {
         let _ = self.stop_player().await;
@@ -306,16 +350,8 @@ impl Transcoder for VlcTranscoder {
     }
 }
 
-unsafe impl Sync for VlcTranscoder {}
-
-unsafe impl Send for VlcTranscoder {}
-
-impl Drop for VlcTranscoder {
-    fn drop(&mut self) {
-        // make sure we release the VLC instances before dropping the transcoder
-        block_in_place(self.stop());
-    }
-}
+unsafe impl Send for InnerVlcTranscoder {}
+unsafe impl Sync for InnerVlcTranscoder {}
 
 /// Represents a VLC transcoder discovery mechanism.
 pub struct VlcTranscoderDiscovery {}
@@ -346,42 +382,42 @@ impl VlcTranscoderDiscovery {
     pub fn do_libvlc_discovery(
         directories: Vec<String>,
     ) -> Option<(libvlc_instance_t, LibraryHandle)> {
-        for path in directories {
+        for dir in directories {
             // search for all specific library filenames defined for the current os
-            let mut filenames: Vec<String> = vec![];
-            for filename in LIBVLC_FILENAME_PATTERNS {
-                if let Some(filename) = Self::find_filename_pattern(&path, filename) {
-                    filenames.push(filename);
-                }
-            }
+            let filenames: Vec<String> = LIBVLC_FILENAME_PATTERNS
+                .iter()
+                .filter_map(|pattern| Self::find_filename_pattern(&dir, pattern))
+                .collect();
 
             if filenames.is_empty() {
+                trace!("No VLC library filename patterns matched in {:?}", dir);
                 continue;
             }
 
             // try to load all libraries for the found filenames
-            let mut libraries: Vec<Library> = vec![];
-            for filename in filenames {
-                if let Some(library) = Self::load_library(path.as_str(), filename.as_str()) {
-                    libraries.push(library);
-                }
-            }
+            let libraries: Vec<Library> = filenames
+                .iter()
+                .filter_map(|name| Self::load_library(dir.as_str(), name))
+                .collect();
 
             // try to find the plugin path
-            return if let Some(plugin_path) = Self::search_plugins_path(path.as_str()) {
+            if let Some(plugin_path) = Self::search_plugins_path(dir.as_str()) {
                 let mut libraries_iter = libraries.into_iter();
-                let libvlc_core = libraries_iter.next();
-                let libvlc = libraries_iter.next();
 
-                let handle =
-                    LibraryHandle::new(path, plugin_path, libvlc.unwrap(), libvlc_core.unwrap());
-                handle.libvlc_instance().map(|instance| (instance, handle))
-            } else {
-                None
-            };
+                if let Some(libvlc_core) = libraries_iter.next() {
+                    if let Some(libvlc) = libraries_iter.next() {
+                        let handle = LibraryHandle::new(dir, plugin_path, libvlc, libvlc_core);
+
+                        return handle.libvlc_instance().map(|instance| (instance, handle));
+                    } else {
+                        debug!("VLC library not found")
+                    }
+                } else {
+                    debug!("VLC core not found")
+                }
+            }
         }
 
-        debug!("VLC library couldn't be found");
         None
     }
 
@@ -448,16 +484,15 @@ impl VlcTranscoderDiscovery {
         let regex =
             Regex::new(filename_pattern).expect("expected the filename regex pattern to be valid");
 
-        if let Ok(read) = fs::read_dir(lib_path) {
-            for entry in read {
-                if let Ok(entry) = entry {
-                    let filename = entry.file_name();
-                    let filename = filename.to_str().unwrap();
+        let read_dir = fs::read_dir(lib_path).ok()?;
+        for entry in read_dir.flatten() {
+            let filename = entry.file_name();
+            let Some(name) = filename.to_str() else {
+                continue;
+            };
 
-                    if regex.is_match(filename) {
-                        return Some(filename.to_string());
-                    }
-                }
+            if regex.is_match(name) {
+                return Some(name.to_string());
             }
         }
 
@@ -491,27 +526,24 @@ impl VlcTranscoderDiscovery {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
+    use super::*;
 
     use popcorn_fx_core::init_logger;
     use popcorn_fx_core::testing::write_tmp_dir_file;
     use tempfile::tempdir;
-    use tokio::runtime::Runtime;
 
-    use super::*;
-
-    #[test]
-    fn test_vlc_transcoder_state() {
+    #[tokio::test]
+    async fn test_vlc_transcoder_state() {
         init_logger!();
         let transcoder = VlcTranscoderDiscovery::discover().unwrap();
 
-        let result = transcoder.state();
+        let result = transcoder.state().await;
 
         assert_eq!(TranscodeState::Unknown, result);
     }
 
-    #[test]
-    fn test_vlc_transcoder_discovery() {
+    #[tokio::test]
+    async fn test_vlc_transcoder_discovery() {
         init_logger!();
 
         let result = VlcTranscoderDiscovery::discover();
@@ -522,20 +554,22 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_vlc_transcoder_transcode() {
+    #[tokio::test]
+    async fn test_vlc_transcoder_transcode() {
         init_logger!();
-        let runtime = Arc::new(Runtime::new().unwrap());
         let transcoder = VlcTranscoderDiscovery::discover().unwrap();
 
-        let result = runtime
-            .block_on(transcoder.transcode("http://localhost:8900/my-video.mp4"))
-            .expect("expected a transcodig stream to be returned");
+        let result = transcoder
+            .transcode("http://localhost:8900/my-video.mp4")
+            .await
+            .unwrap();
 
         assert_ne!(String::new(), result.url);
         assert_eq!(TranscodeType::Live, result.output_type);
-        assert_eq!(TranscodeState::Transcoding, transcoder.state());
-        runtime.block_on(transcoder.stop());
+        assert_eq!(TranscodeState::Transcoding, transcoder.state().await);
+
+        transcoder.stop().await;
+        assert_eq!(TranscodeState::Stopped, transcoder.state().await);
     }
 
     #[test]

@@ -7,10 +7,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.net.StandardProtocolFamily;
-import java.net.UnixDomainSocketAddress;
+import java.net.Socket;
 import java.nio.ByteBuffer;
-import java.nio.channels.SocketChannel;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -25,12 +23,12 @@ class FxLibTest {
 
     @Test
     void testNewInstance() throws IOException {
-        var socketChannel = new AtomicReference<SocketChannel>();
+        var socketChannel = new AtomicReference<Socket>();
 
         try (var fxLib = new FxLib(new String[0]) {
             @Override
-            Process launchLibProcess(String socketPath, String libraryExecutable, String[] args) {
-                return FxLibTest.launchLibProcess(socketPath, socketChannel);
+            Process launchLibProcess(String sockerPort, String libraryExecutable, String[] args) {
+                return FxLibTest.launchLibProcess(sockerPort, socketChannel);
             }
         }) {
             assertTimeout(Duration.ofSeconds(1), () -> socketChannel.get() != null, "expected a socket channel to have been created");
@@ -41,7 +39,7 @@ class FxLibTest {
 
     @Test
     void testReceive() throws IOException, ExecutionException, InterruptedException, TimeoutException {
-        var socketChannel = new AtomicReference<SocketChannel>();
+        var socketChannel = new AtomicReference<Socket>();
         var messageType = FxChannel.typeFrom(GetMediaDetailsRequest.class);
         var message = FxMessage.newBuilder()
                 .setType(messageType)
@@ -54,15 +52,15 @@ class FxLibTest {
 
         try (var fxLib = new FxLib(new String[0]) {
             @Override
-            Process launchLibProcess(String socketPath, String libraryExecutable, String[] args) {
-                return FxLibTest.launchLibProcess(socketPath, socketChannel);
+            Process launchLibProcess(String sockerPort, String libraryExecutable, String[] args) {
+                return FxLibTest.launchLibProcess(sockerPort, socketChannel);
             }
         }) {
             assertTimeout(Duration.ofSeconds(1), () -> socketChannel.get() != null, "expected a socket channel to have been created");
 
             var future = CompletableFuture.supplyAsync(fxLib::receive);
             buffer.flip();
-            socketChannel.get().write(buffer);
+            socketChannel.get().getOutputStream().write(buffer.array());
             var result = future.get(2, TimeUnit.SECONDS);
 
             assertNotNull(result, "expected to receive a message");
@@ -73,7 +71,7 @@ class FxLibTest {
 
     @Test
     void testSend() throws IOException {
-        var socketChannel = new AtomicReference<SocketChannel>();
+        var socketChannel = new AtomicReference<Socket>();
         var messageType = FxChannel.typeFrom(GetActivePlayerRequest.class);
         var message = FxMessage.newBuilder()
                 .setType(messageType)
@@ -82,8 +80,8 @@ class FxLibTest {
 
         try (var fxLib = new FxLib(new String[0]) {
             @Override
-            Process launchLibProcess(String socketPath, String libraryExecutable, String[] args) {
-                return FxLibTest.launchLibProcess(socketPath, socketChannel);
+            Process launchLibProcess(String sockerPort, String libraryExecutable, String[] args) {
+                return FxLibTest.launchLibProcess(sockerPort, socketChannel);
             }
         }) {
             assertTimeout(Duration.ofSeconds(1), () -> socketChannel.get() != null, "expected a socket channel to have been created");
@@ -97,13 +95,12 @@ class FxLibTest {
         }
     }
 
-    private static Process launchLibProcess(String socketPath, AtomicReference<SocketChannel> socketChannel) {
-        var address = UnixDomainSocketAddress.of(socketPath);
+    private static Process launchLibProcess(String socketPort, AtomicReference<Socket> socketChannel) {
+        var port = Integer.parseInt(socketPort);
+
         new Thread(() -> {
             try {
-                var clientChannel = SocketChannel.open(StandardProtocolFamily.UNIX);
-                clientChannel.connect(address);
-                socketChannel.set(clientChannel);
+                socketChannel.set(new Socket("localhost", port));
             } catch (IOException ex) {
                 log.error("Socket channel error", ex);
             }
@@ -111,13 +108,14 @@ class FxLibTest {
         return null;
     }
 
-    private static FxMessage readMessageFromChannel(SocketChannel socketChannel) throws IOException {
+    private static FxMessage readMessageFromChannel(Socket socket) throws IOException {
         var lengthBuffer = ByteBuffer.allocate(4);
+        var inputStream = socket.getInputStream();
 
-        socketChannel.read(lengthBuffer);
+        lengthBuffer.put(inputStream.readNBytes(4));
         var length = FxLib.fromBigEndian(lengthBuffer.array());
         var messageBuffer = ByteBuffer.allocate(length);
-        socketChannel.read(messageBuffer);
+        messageBuffer.put(inputStream.readNBytes(length));
 
         return FxMessage.parseFrom(messageBuffer.array());
     }

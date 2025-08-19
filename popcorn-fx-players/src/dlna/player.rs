@@ -311,7 +311,7 @@ impl InnerPlayer {
             Err(e) => {
                 error!("Failed to execute {} UPnP action, {}", action, e);
                 self.update_state(PlayerState::Error).await;
-                Err(dlna::DlnaError::ServiceCommand)
+                Err(DlnaError::ServiceCommand)
             }
         }
     }

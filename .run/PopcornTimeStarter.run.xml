@@ -2,7 +2,7 @@
   <configuration default="false" name="PopcornTimeStarter" type="Application" factoryName="Application" nameIsGenerated="true">
     <envs>
       <env name="RUST_BACKTRACE" value="1" />
-      <env name="PATH" value="assets/mac:assets/debian:${PATH}" />
+      <env name="PATH" value="assets/mac:${PATH}" />
     </envs>
     <option name="MAIN_CLASS_NAME" value="com.github.yoep.popcorn.PopcornTimeStarter" />
     <module name="application" />

@@ -82,7 +82,7 @@ impl<'de> Visitor<'de> for VlcStateVisitor {
     where
         E: Error,
     {
-        VlcState::from_str(value).map_err(|e| Error::unknown_variant(value, &VLC_STATE_VARIANTS))
+        VlcState::from_str(value).map_err(|_| Error::unknown_variant(value, &VLC_STATE_VARIANTS))
     }
 }
 

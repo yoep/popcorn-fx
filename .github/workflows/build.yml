@@ -83,7 +83,6 @@ jobs:
           files: ./application/target/site/jacoco-aggregate/jacoco.xml,./target/lcov.info
           flags: unittests
           name: codecov-umbrella
-          verbose: true
 
   build:
     name: Build

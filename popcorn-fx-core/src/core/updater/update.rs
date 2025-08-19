@@ -875,8 +875,9 @@ impl InnerUpdater {
                             true
                         } else {
                             warn!(
-                                "Runtime download link is unavailable, status {}",
-                                response.status()
+                                "Runtime download link is unavailable (status {}), {}",
+                                response.status(),
+                                url.as_str()
                             );
                             false
                         }

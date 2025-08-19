@@ -9,11 +9,26 @@ To run the application from source code locally, add the following VM options.
 
 The following dependencies are required for development:
 
-- Java 17+
-- OpenJFX 19+
-- Make
-- Rust/Cargo
+- Java 21+
+- [OpenJFX 19+](https://gluonhq.com/products/javafx/)
+- [Rust](https://www.rust-lang.org/tools/install)
+- [Protoc](https://protobuf.dev/installation/) (_optional_, Protobuf compiler)
 - Make (_optional, recommended to use_)
+
+### Windows
+
+- InnoSetup
+- Use `make` from msys2
+
+_install InnoSetup_
+```shell
+choco install innosetup
+```
+
+_install msys2_
+```shell
+choco install msys2
+```
 
 ## Getting started
 
@@ -22,8 +37,6 @@ Use one of the following provided goals.
 
 Most of the targets also have a specific sub-task for Cargo or Java only.
 _e.g.: build-cargo, build-java_
-
-_The **cbingen** plugin for Cargo will always be installed through Make for almost all targets_
 
 ### clean
 

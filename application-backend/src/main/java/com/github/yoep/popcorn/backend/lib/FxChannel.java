@@ -143,20 +143,26 @@ public class FxChannel implements Closeable {
             String type,
             Parser<T> parser
     ) {
-        var id = sendBytes(request, type, null);
-        var future = new CompletableFuture<T>();
+        var sequenceId = this.sequenceId.incrementAndGet();
+        var future = (CompletableFuture<T>) null;
 
         if (parser != null) {
-            requests.add(new PendingRequest<>(id, parser, future));
-            return future;
-        } else {
-            return null;
+            future = new CompletableFuture<T>();
+            requests.add(new PendingRequest<>(sequenceId, parser, future));
         }
+
+        sendBytes(request, type, sequenceId, null);
+
+        return future;
     }
 
-    private int sendBytes(ByteString bytes, String type, Integer replyToId) {
-        log.trace("IPC channel is sending {}", type);
+    private void sendBytes(ByteString bytes, String type, Integer replyToId) {
         var sequenceId = this.sequenceId.incrementAndGet();
+        sendBytes(bytes, type, sequenceId, replyToId);
+    }
+
+    private void sendBytes(ByteString bytes, String type, int sequenceId, Integer replyToId) {
+        log.trace("IPC channel is sending {}", type);
         var messageBuilder = FxMessage.newBuilder()
                 .setType(type)
                 .setSequenceId(sequenceId)
@@ -166,8 +172,6 @@ public class FxChannel implements Closeable {
                 .ifPresent(messageBuilder::setReplyTo);
 
         fxLib.send(messageBuilder.build());
-
-        return sequenceId;
     }
 
     private void processMessage(FxMessage message) {

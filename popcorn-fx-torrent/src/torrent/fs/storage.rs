@@ -4,7 +4,8 @@ use std::fmt::Debug;
 use std::io;
 use std::ops::Range;
 use std::path::{Path, PathBuf};
-use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
+use tokio::io::{AsyncSeekExt, AsyncWriteExt};
+use tokio::task::spawn_blocking;
 
 /// Trait for handling the torrent file storage.
 /// A [TorrentFileStorage] should always be specific to a single [Torrent].
@@ -104,18 +105,22 @@ impl TorrentFileSystemStorage {
         target.starts_with(&base)
     }
 
+    /// Assert if the given filepath is valid within the storage.
+    fn assert_valid_filepath<P: AsRef<Path>>(&self, filepath: P) -> Result<()> {
+        if !self.is_valid_filepath(&filepath) {
+            return Err(Error::InvalidFilepath(filepath.as_ref().to_path_buf()));
+        }
+
+        Ok(())
+    }
+
     async fn internal_open<P: AsRef<Path>>(
         &self,
         filepath: P,
         writeable: bool,
     ) -> Result<tokio::fs::File> {
         let absolute_path = self.absolute_filepath(filepath);
-
-        // check if the given filepath is valid before trying to open it
-        // if it's leaving the storage path, it's invalid
-        if !self.is_valid_filepath(&absolute_path) {
-            return Err(Error::InvalidFilepath(absolute_path));
-        }
+        self.assert_valid_filepath(&absolute_path)?;
 
         // make sure that the parent directories exists
         if writeable {
@@ -141,22 +146,44 @@ impl TorrentFileSystemStorage {
         filepath: &Path,
         range: Range<usize>,
     ) -> Result<(usize, Vec<u8>)> {
-        let mut file = self.internal_open(filepath, false).await?;
-        let mut buffer = vec![0u8; range.len()];
-        let mut total_bytes_read = 0;
+        let absolute_path = self.absolute_filepath(filepath);
+        self.assert_valid_filepath(&absolute_path)?;
 
-        file.seek(io::SeekFrom::Start(range.start as u64)).await?;
-        // read data until we reach the end of the requested range
-        while total_bytes_read < range.len() {
-            let bytes_read = file.read(&mut buffer[total_bytes_read..]).await?;
-            total_bytes_read += bytes_read;
-            // if no more data is available, break out of the loop
-            if bytes_read == 0 {
-                break;
+        spawn_blocking(move || -> Result<(usize, Vec<u8>)> {
+            let file = std::fs::OpenOptions::new()
+                .read(true)
+                .write(false)
+                .create(false)
+                .open(&absolute_path)?;
+
+            // pre-allocate the buffer
+            let mut buffer = vec![0u8; range.len()];
+            let offset = range.start as u64;
+
+            // check if the offset is available within the file
+            let file_len = file.metadata()?.len();
+            if offset >= file_len {
+                return Ok((0, buffer));
             }
-        }
 
-        Ok((total_bytes_read, buffer))
+            let bytes_to_read = ((file_len - offset) as usize).min(buffer.len());
+
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::FileExt;
+                let bytes_read = file.read_at(&mut buffer[..bytes_to_read], offset)?;
+                Ok((bytes_read, buffer))
+            }
+
+            #[cfg(windows)]
+            {
+                use std::os::windows::fs::FileExt;
+                let bytes_read = file.seek_read(&mut buf[..to_read], offset)?;
+                Ok((bytes_read, buf))
+            }
+        })
+        .await
+        .map_err(|e| Error::Io(io::Error::new(io::ErrorKind::Other, e)))?
     }
 
     /// Get the canonicalized path for the given path.
@@ -243,18 +270,19 @@ impl TorrentFileStorage for TorrentFileSystemStorage {
     }
 
     async fn read_to_end(&self, filepath: &Path) -> Result<Vec<u8>> {
-        let mut file = self.internal_open(filepath, false).await?;
-        let mut buffer = Vec::new();
+        let absolute_path = self.absolute_filepath(filepath);
+        self.assert_valid_filepath(&absolute_path)?;
 
-        file.read_to_end(&mut buffer).await?;
-        Ok(buffer)
+        Ok(tokio::fs::read(&absolute_path).await?)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
     use crate::init_logger;
+
     use popcorn_fx_core::testing::copy_test_file;
     use tempfile::tempdir;
 

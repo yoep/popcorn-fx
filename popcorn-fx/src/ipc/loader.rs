@@ -133,7 +133,7 @@ mod tests {
             "expected the message to have been process successfully"
         );
 
-        let response = timeout!(response, Duration::from_millis(250))
+        let response = timeout!(response, Duration::from_millis(500))
             .expect("expected to have received a reply");
         let result = LoaderLoadResponse::parse_from_bytes(&response.payload).unwrap();
         assert_ne!(

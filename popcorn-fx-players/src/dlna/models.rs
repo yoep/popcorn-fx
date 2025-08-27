@@ -3,7 +3,6 @@ use std::str::FromStr;
 
 use popcorn_fx_core::core::players::PlayerState;
 
-use crate::dlna;
 use crate::dlna::{DlnaError, Result};
 
 const DLNA_FIELD_SPEED: &str = "CurrentSpeed";
@@ -126,8 +125,9 @@ impl FromStr for UpnpState {
             "PLAYING" => Ok(UpnpState::Playing),
             "PAUSED_PLAYBACK" => Ok(UpnpState::PausedPlayback),
             "TRANSITIONING" => Ok(UpnpState::Transitioning),
+            "LG_TRANSITIONING" => Ok(UpnpState::Transitioning),
             "NO_MEDIA_PRESENT" => Ok(UpnpState::NoMediaPresent),
-            _ => Err(dlna::DlnaError::InvalidTransportState(s.to_string())),
+            _ => Err(DlnaError::InvalidTransportState(s.to_string())),
         }
     }
 }

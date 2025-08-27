@@ -23,8 +23,6 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
-import static uk.co.caprica.vlcj.binding.LibVlc.libvlc_errmsg;
-
 @Slf4j
 @ToString
 @EqualsAndHashCode(callSuper = true)
@@ -255,10 +253,9 @@ public class VideoPlayerVlc extends AbstractVideoPlayer implements VideoPlayback
 
             @Override
             public void error(MediaPlayer mediaPlayer) {
-                var message = libvlc_errmsg();
-
-                log.error("VLC error encountered, error: {}", message);
-                setError(new VideoPlayerException("VLC media player went into error state, error: " + message));
+                // we can no longer access the lib vlc error message, so a generic message will have to do
+                log.error("VLC encountered an error");
+                setError(new VideoPlayerException("VLC media player went into error state"));
             }
 
             @Override

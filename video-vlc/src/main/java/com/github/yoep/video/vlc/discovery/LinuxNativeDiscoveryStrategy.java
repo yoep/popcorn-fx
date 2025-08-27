@@ -1,9 +1,9 @@
 package com.github.yoep.video.vlc.discovery;
 
+import com.github.yoep.video.vlc.LibC;
+import com.github.yoep.video.vlc.RuntimeUtil;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
-import uk.co.caprica.vlcj.binding.LibC;
-import uk.co.caprica.vlcj.binding.RuntimeUtil;
 
 @ToString
 @EqualsAndHashCode(callSuper = true)

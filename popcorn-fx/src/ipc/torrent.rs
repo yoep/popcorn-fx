@@ -306,9 +306,12 @@ mod tests {
             .expect("expected to have received a reply");
         let result = TorrentHealthResponse::parse_from_bytes(&response.payload).unwrap();
 
+        let response_result = result.result.unwrap();
         assert_eq!(
-            Into::<EnumOrUnknown<response::Result>>::into(response::Result::OK),
-            result.result
+            response::Result::OK,
+            response_result,
+            "expected response result OK, got {:?} instead",
+            result
         );
         assert_ne!(MessageField::none(), result.health);
     }

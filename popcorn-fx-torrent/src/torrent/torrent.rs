@@ -50,7 +50,7 @@ const DEFAULT_PEER_LOWER_LIMIT: usize = 10;
 const DEFAULT_PEER_UPPER_LIMIT: usize = 200;
 const DEFAULT_PEER_IN_FLIGHT: usize = 25;
 const DEFAULT_PEER_UPLOAD_SLOTS: usize = 50;
-const DEFAULT_MAX_IN_FLIGHT_PIECES: usize = 128;
+const DEFAULT_MAX_IN_FLIGHT_PIECES: usize = 256;
 const DEFAULT_PEER_CLIENT_NAME: &str = "PopcornFX";
 const PEER_REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
 

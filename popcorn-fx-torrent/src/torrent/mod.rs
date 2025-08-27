@@ -203,7 +203,7 @@ pub mod tests {
     use super::*;
     use std::env;
 
-    use crate::torrent::fs::TorrentFileSystemStorage;
+    use crate::torrent::fs::TorrentFileStorage;
     use crate::torrent::peer::tests::new_tcp_peer_discovery;
     use crate::torrent::peer::{
         BitTorrentPeer, PeerDiscovery, PeerId, PeerStream, TcpPeerDiscovery, UtpPeerDiscovery,
@@ -302,7 +302,7 @@ pub mod tests {
             .options(options)
             .config(config)
             .operations(operations.iter().map(|e| e()).collect())
-            .storage(Box::new(TorrentFileSystemStorage::new(temp_dir)))
+            .storage(TorrentFileStorage::new(temp_dir))
             .tracker_manager(tracker_manager)
             .dht(dht)
             .build()

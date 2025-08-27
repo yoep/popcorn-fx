@@ -329,7 +329,7 @@ mod tests {
         let expected_torrent_file_info = torrent::File {
             index: 2,
             torrent_path: PathBuf::from(filename),
-            offset: 0,
+            torrent_offset: 0,
             info: TorrentFileInfo {
                 length: 25000,
                 path: None,
@@ -401,7 +401,7 @@ mod tests {
                 torrent::File {
                     index: 1,
                     torrent_path: PathBuf::from("MyFirstFile"),
-                    offset: 0,
+                    torrent_offset: 0,
                     info: TorrentFileInfo {
                         length: 25000,
                         path: None,

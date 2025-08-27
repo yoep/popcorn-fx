@@ -348,7 +348,7 @@ impl TorrentConfigBuilder {
 /// fn create_new_torrent(
 ///     metadata: TorrentMetadata,
 ///     extensions: ExtensionFactories,
-///     storage: Box<dyn TorrentFileStorage>
+///     storage: TorrentFileStorage,
 /// ) -> Result<Torrent> {
 ///     // create a tcp peer discovery for dialing and accepting tpc connections
 ///     let peer_discovery = TcpPeerDiscovery::new();
@@ -377,7 +377,7 @@ pub struct TorrentRequest {
     /// The factories for creating the peer extensions that should be enabled for this torrent
     extensions: Option<ExtensionFactories>,
     /// The storage strategy to use for the torrent data
-    storage: Option<Box<dyn TorrentFileStorage>>,
+    storage: Option<TorrentFileStorage>,
     /// The operations used by the torrent for processing data
     operations: Option<Vec<Box<dyn TorrentOperation>>>,
     /// The DHT node server to use for discovering peers
@@ -436,7 +436,7 @@ impl TorrentRequest {
     }
 
     /// Set the underlying storage for storing the torrent file data.
-    pub fn storage(&mut self, storage: Box<dyn TorrentFileStorage>) -> &mut Self {
+    pub fn storage(&mut self, storage: TorrentFileStorage) -> &mut Self {
         self.storage = Some(storage);
         self
     }
@@ -644,7 +644,7 @@ impl Torrent {
         extensions: ExtensionFactories,
         options: TorrentFlags,
         config: TorrentConfig,
-        storage: Box<dyn TorrentFileStorage>,
+        storage: TorrentFileStorage,
         operations: Vec<Box<dyn TorrentOperation>>,
         dht: Option<DhtTracker>,
         tracker_manager: TrackerManager,
@@ -1461,7 +1461,7 @@ pub struct TorrentContext {
     /// The torrent files
     files: RwLock<BTreeMap<FileIndex, File>>,
     /// The torrent file storage to store the data
-    storage: Box<dyn TorrentFileStorage>,
+    storage: TorrentFileStorage,
 
     /// The immutable enabled protocol extensions for this torrent
     protocol_extensions: ProtocolExtensionFlags,
@@ -3477,7 +3477,11 @@ impl TorrentContext {
                     let start_time = Instant::now();
                     match self
                         .storage
-                        .write(&file.torrent_path, file_io_range.start, applicable_bytes)
+                        .write(
+                            &file.torrent_path,
+                            file_io_range.start as u64,
+                            applicable_bytes,
+                        )
                         .await
                     {
                         Ok(_) => {

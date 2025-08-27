@@ -88,7 +88,7 @@ impl From<&popcorn_fx_torrent::torrent::File> for torrent::info::File {
             index: value.index as u32,
             filename: value.filename(),
             torrent_path: value.torrent_path.as_os_str().to_string_lossy().to_string(),
-            offset: value.offset as u64,
+            offset: value.torrent_offset as u64,
             length: value.length() as u64,
             md5sum: value.info.md5sum.clone(),
             sha1: value.info.sha1.clone(),

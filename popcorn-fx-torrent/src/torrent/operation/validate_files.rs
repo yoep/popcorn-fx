@@ -293,7 +293,7 @@ mod tests {
         assert_eq!(TorrentOperationResult::Continue, result);
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_execute() {
         init_logger!();
         let temp_dir = tempdir().unwrap();

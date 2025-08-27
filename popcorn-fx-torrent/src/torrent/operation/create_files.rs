@@ -81,7 +81,7 @@ impl TorrentCreateFilesOperation {
         File {
             index,
             torrent_path,
-            offset,
+            torrent_offset: offset,
             info: file_info,
             priority: Default::default(),
             pieces: file_piece_start..file_piece_end + 1, // as the range is exclusive, add 1 to the end range

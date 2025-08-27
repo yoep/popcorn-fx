@@ -391,7 +391,7 @@ mod test {
         torrent::File {
             index: 0,
             torrent_path: PathBuf::from(relative_path),
-            offset: 0,
+            torrent_offset: 0,
             info: TorrentFileInfo {
                 length,
                 path: None,

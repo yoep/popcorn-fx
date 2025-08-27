@@ -30,7 +30,7 @@ pub struct File {
     /// The path of the file within the torrent.
     pub torrent_path: PathBuf,
     /// The byte offset of the file within the torrent.
-    pub offset: usize,
+    pub torrent_offset: usize,
     /// The original metadata info of the file from the torrent.
     pub info: TorrentFileInfo,
     /// The priority of the file.
@@ -82,7 +82,7 @@ impl File {
     /// It returns a `Range<usize>` indicating the file's position in bytes within the torrent,
     /// starting from its offset and extending to its length.
     pub fn torrent_range(&self) -> Range<usize> {
-        self.offset..(self.offset + self.length())
+        self.torrent_offset..(self.torrent_offset + self.length())
     }
 
     /// Get the portion of the given torrent byte range that corresponds to the file's storage range.
@@ -97,8 +97,8 @@ impl File {
     /// storage range. If there is no overlap, `None` is returned.
     pub fn io_applicable_byte_range(&self, torrent_bytes: &Range<usize>) -> Option<Range<usize>> {
         overlapping_range(self.torrent_range(), &torrent_bytes).map(|e| {
-            let start_offset = e.start.saturating_sub(self.offset);
-            start_offset..e.end - self.offset
+            let start_offset = e.start.saturating_sub(self.torrent_offset);
+            start_offset..e.end - self.torrent_offset
         })
     }
 
@@ -166,7 +166,7 @@ impl File {
 impl PartialEq<Self> for File {
     fn eq(&self, other: &Self) -> bool {
         self.torrent_path == other.torrent_path
-            && self.offset == other.offset
+            && self.torrent_offset == other.torrent_offset
             && self.length() == other.length()
     }
 }
@@ -285,7 +285,7 @@ mod tests {
         File {
             index: 0,
             torrent_path: Default::default(),
-            offset,
+            torrent_offset: offset,
             info: TorrentFileInfo {
                 length: length as u64,
                 path: None,

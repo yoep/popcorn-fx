@@ -1,5 +1,5 @@
 use crate::torrent::errors::Result;
-use crate::torrent::fs::TorrentFileSystemStorage;
+use crate::torrent::fs::TorrentFileStorage;
 use crate::torrent::operation::TorrentTrackersOperation;
 use crate::torrent::peer::{ProtocolExtensionFlags, TcpPeerDiscovery, UtpPeerDiscovery};
 use crate::torrent::torrent::Torrent;
@@ -411,7 +411,7 @@ impl FxTorrentSession {
             .protocol_extensions(self.inner.protocol_extensions)
             .extensions(self.inner.extensions())
             .operations(self.inner.torrent_operations())
-            .storage(Box::new(TorrentFileSystemStorage::new(storage_path)))
+            .storage(TorrentFileStorage::new(storage_path))
             .tracker_manager(self.inner.tracker.clone())
             .dht_option(dht_tracker)
             .build()?;
@@ -479,9 +479,9 @@ impl Session for FxTorrentSession {
                 .protocol_extensions(self.inner.protocol_extensions)
                 .extensions(self.inner.extensions())
                 .operations(vec![Box::new(TorrentTrackersOperation::new())])
-                .storage(Box::new(TorrentFileSystemStorage::new(
+                .storage(TorrentFileStorage::new(
                     &self.inner.base_path.read().await.clone(),
-                )))
+                ))
                 .tracker_manager(self.inner.tracker.clone())
                 .dht_option(self.inner.dht.lock().await.clone())
                 .build()?,

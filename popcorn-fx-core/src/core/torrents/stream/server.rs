@@ -784,7 +784,7 @@ mod test {
         vec![torrent::File {
             index: 0,
             torrent_path: file.clone(),
-            offset: 0,
+            torrent_offset: 0,
             info: TorrentFileInfo {
                 length: 0,
                 path: None,

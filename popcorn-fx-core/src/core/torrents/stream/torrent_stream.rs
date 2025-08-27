@@ -735,7 +735,7 @@ impl FXTorrentStreamingResource {
 
         // make the buffer relative to the offset within the torrent
         if let Some(file_info) = file_info {
-            buffer = buffer.start + file_info.offset..buffer.end + file_info.offset;
+            buffer = buffer.start + file_info.torrent_offset..buffer.end + file_info.torrent_offset;
         } else {
             warn!("Torrent streaming resource {} is unable to update buffer info, torrent file info not found", self);
         }
@@ -1214,7 +1214,7 @@ mod test {
             vec![torrent::File {
                 index: 0,
                 torrent_path: Default::default(),
-                offset: 0,
+                torrent_offset: 0,
                 info: TorrentFileInfo {
                     length: 0,
                     path: None,
@@ -1418,7 +1418,7 @@ mod test {
         torrent::File {
             index: 0,
             torrent_path: temp_path.clone(),
-            offset: 0,
+            torrent_offset: 0,
             info: TorrentFileInfo {
                 length: 0,
                 path: None,

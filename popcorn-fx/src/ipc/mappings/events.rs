@@ -148,7 +148,7 @@ mod tests {
             files: vec![popcorn_fx_torrent::torrent::File {
                 index: 1,
                 torrent_path: PathBuf::from("torDir/my-file.mp4"),
-                offset: 1000,
+                torrent_offset: 1000,
                 info: TorrentFileInfo {
                     length: 25000,
                     path: None,

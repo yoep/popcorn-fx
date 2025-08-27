@@ -36,9 +36,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: "main"

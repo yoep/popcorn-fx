@@ -65,7 +65,7 @@ class FxChannelTest {
             message.set(invocations.getArgument(0, FxMessage.class));
             return null;
         }).when(fxLib).send(isA(FxMessage.class));
-        when(fxLib.receive()).thenAnswer(invocations -> {
+        lenient().when(fxLib.receive()).thenAnswer(invocations -> {
             while (true) {
                 Thread.yield();
             }
@@ -86,7 +86,7 @@ class FxChannelTest {
             message.set(invocations.getArgument(0, FxMessage.class));
             return null;
         }).when(fxLib).send(isA(FxMessage.class));
-        when(fxLib.receive()).thenAnswer(invocations -> {
+        lenient().when(fxLib.receive()).thenAnswer(invocations -> {
             while (true) {
                 Thread.yield();
             }
@@ -119,7 +119,7 @@ class FxChannelTest {
 
     @Test
     void testClose() throws IOException {
-        when(fxLib.receive()).thenAnswer(invocations -> {
+        lenient().when(fxLib.receive()).thenAnswer(invocations -> {
             while (true) {
                 Thread.yield();
             }

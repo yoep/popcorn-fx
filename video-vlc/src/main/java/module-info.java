@@ -7,7 +7,7 @@ module video.vlc {
     requires org.slf4j;
     requires uk.co.caprica.vlcj.javafx;
     requires uk.co.caprica.vlcj;
-    requires vlcj.natives;
+    requires uk.co.caprica.vlcj.natives;
 
     requires static lombok;
 

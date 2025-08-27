@@ -1,14 +1,13 @@
 package com.github.yoep.popcorn.backend.lib;
 
 import com.github.yoep.popcorn.backend.lib.ipc.protobuf.*;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.IOException;
-import java.util.Queue;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -23,29 +22,21 @@ class FxChannelTest {
     private FxLib fxLib;
     private FxChannel channel;
 
-    private final Queue<FxMessage> messages = new ConcurrentLinkedQueue<>();
-
-    @BeforeEach
-    void setUp() {
-        var executor = Executors.newCachedThreadPool(e -> new Thread(e, "popcorn-fx-test"));
-        lenient().when(fxLib.receive()).thenAnswer(invocation -> {
-            while (true) {
-                if (!messages.isEmpty()) {
-                    return messages.poll();
-                }
-                Thread.yield();
-            }
-        });
-        channel = new FxChannel(fxLib, executor);
+    @AfterEach
+    void tearDown() throws IOException {
+        channel.close();
     }
 
     @Test
     void testSend_MessageWithResponse() throws ExecutionException, InterruptedException, TimeoutException {
         var message = new AtomicReference<FxMessage>();
+        var messages = new LinkedBlockingQueue<FxMessage>();
         doAnswer(invocations -> {
             message.set(invocations.getArgument(0, FxMessage.class));
             return null;
         }).when(fxLib).send(isA(FxMessage.class));
+        when(fxLib.receive()).thenAnswer(invocations -> messages.take());
+        channel = new FxChannel(fxLib, Executors.newCachedThreadPool(e -> new Thread(e, "popcorn-fx-test")));
 
         var future = channel.send(GetPlayerVolumeRequest.getDefaultInstance(), GetPlayerVolumeResponse.parser());
         messages.add(FxMessage.newBuilder()
@@ -74,6 +65,12 @@ class FxChannelTest {
             message.set(invocations.getArgument(0, FxMessage.class));
             return null;
         }).when(fxLib).send(isA(FxMessage.class));
+        when(fxLib.receive()).thenAnswer(invocations -> {
+            while (true) {
+                Thread.yield();
+            }
+        });
+        channel = new FxChannel(fxLib, Executors.newCachedThreadPool(e -> new Thread(e, "popcorn-fx-test")));
 
         channel.send(LogRequest.getDefaultInstance());
 
@@ -89,6 +86,12 @@ class FxChannelTest {
             message.set(invocations.getArgument(0, FxMessage.class));
             return null;
         }).when(fxLib).send(isA(FxMessage.class));
+        when(fxLib.receive()).thenAnswer(invocations -> {
+            while (true) {
+                Thread.yield();
+            }
+        });
+        channel = new FxChannel(fxLib, Executors.newCachedThreadPool(e -> new Thread(e, "popcorn-fx-test")));
 
         channel.send(LogRequest.getDefaultInstance(), replyTo);
 
@@ -100,6 +103,9 @@ class FxChannelTest {
     @Test
     void testSubscribe() {
         var callback = mock(FxCallback.class);
+        var messages = new LinkedBlockingQueue<FxMessage>();
+        when(fxLib.receive()).thenAnswer(invocations -> messages.take());
+        channel = new FxChannel(fxLib, Executors.newCachedThreadPool(e -> new Thread(e, "popcorn-fx-test")));
 
         channel.subscribe(FxChannel.typeFrom(Event.class), Event.parser(), callback);
         messages.add(FxMessage.newBuilder()
@@ -113,6 +119,13 @@ class FxChannelTest {
 
     @Test
     void testClose() throws IOException {
+        when(fxLib.receive()).thenAnswer(invocations -> {
+            while (true) {
+                Thread.yield();
+            }
+        });
+        channel = new FxChannel(fxLib, Executors.newCachedThreadPool(e -> new Thread(e, "popcorn-fx-test")));
+
         channel.close();
 
         verify(fxLib).close();

@@ -242,8 +242,8 @@ impl TorrentFileStorage {
             #[cfg(windows)]
             {
                 use std::os::windows::fs::FileExt;
-                let bytes_read = file.seek_read(&mut buf[..to_read], offset)?;
-                Ok((bytes_read, buf))
+                let bytes_read = file.seek_read(&mut buffer[..bytes_to_read], offset)?;
+                Ok((bytes_read, buffer))
             }
         })
         .await

@@ -41,7 +41,7 @@
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
 
-        <commons-io.version>2.14.0</commons-io.version>
+        <commons-io.version>2.20.0</commons-io.version>
         <hamcrest.version>2.2</hamcrest.version>
         <jacoco.version>0.8.12</jacoco.version>
         <javafx.version>22.0.1</javafx.version>
@@ -49,11 +49,11 @@
         <log4j-to-slf4j.version>2.23.1</log4j-to-slf4j.version>
         <logback-classic.version>1.5.5</logback-classic.version>
         <lombok.version>1.18.30</lombok.version>
-        <mockito.version>5.17.0</mockito.version>
+        <mockito.version>5.19.0</mockito.version>
         <slf4j-api.version>2.0.13</slf4j-api.version>
         <testfx.version>4.0.18</testfx.version>
-        <vlcj-javafx.version>1.1.0</vlcj-javafx.version>
-        <vlcj.version>4.7.3</vlcj.version>
+        <vlcj-javafx.version>1.2.0</vlcj-javafx.version>
+        <vlcj.version>4.11.0</vlcj.version>
     </properties>
 
     <dependencyManagement>

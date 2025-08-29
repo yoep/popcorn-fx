@@ -1,14 +1,15 @@
 package com.github.yoep.video.vlc.discovery;
 
 import com.github.yoep.video.vlc.LibC;
-import com.github.yoep.video.vlc.RuntimeUtil;
 import com.sun.jna.NativeLibrary;
+import com.sun.jna.Platform;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
 @ToString
 @EqualsAndHashCode(callSuper = true)
 public class OsxNativeDiscoveryStrategy extends DirectoryProviderDiscoveryStrategy {
+    static final String LIBRARY_NAME = "vlccore";
 
     private static final String[] FILENAME_PATTERNS = new String[]{
             "libvlc\\.dylib",
@@ -28,7 +29,7 @@ public class OsxNativeDiscoveryStrategy extends DirectoryProviderDiscoveryStrate
 
     @Override
     public boolean supported() {
-        return RuntimeUtil.isMac();
+        return Platform.isMac();
     }
 
     @Override
@@ -44,8 +45,8 @@ public class OsxNativeDiscoveryStrategy extends DirectoryProviderDiscoveryStrate
      * @param path
      */
     private void forceLoadLibVlcCore(String path) {
-        NativeLibrary.addSearchPath(RuntimeUtil.getLibVlcCoreLibraryName(), path);
-        NativeLibrary.getInstance(RuntimeUtil.getLibVlcCoreLibraryName());
+        NativeLibrary.addSearchPath(LIBRARY_NAME, path);
+        NativeLibrary.getInstance(LIBRARY_NAME);
     }
 
     @Override

@@ -1,7 +1,7 @@
 package com.github.yoep.video.vlc.discovery;
 
 import com.github.yoep.video.vlc.LibC;
-import com.github.yoep.video.vlc.RuntimeUtil;
+import com.sun.jna.Platform;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
@@ -24,7 +24,7 @@ public class WindowsNativeDiscoveryStrategy extends DirectoryProviderDiscoverySt
 
     @Override
     public boolean supported() {
-        return RuntimeUtil.isWindows();
+        return Platform.isWindows();
     }
 
     @Override

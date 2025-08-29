@@ -8,7 +8,7 @@ use chrono::{DateTime, Local};
 use derive_more::Display;
 use downcast_rs::{impl_downcast, DowncastSync};
 use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
-use log::{debug, error, info, trace, warn};
+use log::{debug, error, trace, warn};
 #[cfg(any(test, feature = "testing"))]
 pub use mock::*;
 use popcorn_fx_torrent::torrent::{

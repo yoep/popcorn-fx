@@ -617,7 +617,13 @@ mod tests {
         let result =
             GetFileAvailableSubtitlesResponse::parse_from_bytes(&response.payload).unwrap();
 
-        assert_eq!(response::Result::OK, result.result.unwrap());
+        let response_result = result.result.unwrap();
+        assert_eq!(
+            response::Result::OK,
+            response_result,
+            "expected response result OK, got {:?} instead",
+            result
+        );
         assert_ne!(Vec::<subtitle::Info>::new(), result.subtitles);
     }
 

@@ -10,8 +10,8 @@ import static java.util.Arrays.asList;
 
 @Slf4j
 abstract class DirectoryProviderDiscoveryStrategy extends BaseNativeDiscoveryStrategy {
-    private static final String VLC_PATH_PROPERTY = "vlc.path";
-    private static final String BUNDLED_LIB_PATH = System.getProperty("user.dir");
+    static final String VLC_PATH_PROPERTY = "vlc.path";
+    static final String BUNDLED_LIB_PATH = System.getProperty("user.dir");
 
     /**
      * Service loader for the directory provider implementations.

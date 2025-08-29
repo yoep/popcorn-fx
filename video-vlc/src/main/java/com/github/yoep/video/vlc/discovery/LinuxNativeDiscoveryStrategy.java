@@ -1,9 +1,9 @@
 package com.github.yoep.video.vlc.discovery;
 
+import com.github.yoep.video.vlc.LibC;
+import com.sun.jna.Platform;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
-import uk.co.caprica.vlcj.binding.LibC;
-import uk.co.caprica.vlcj.binding.RuntimeUtil;
 
 @ToString
 @EqualsAndHashCode(callSuper = true)
@@ -24,7 +24,7 @@ public class LinuxNativeDiscoveryStrategy extends DirectoryProviderDiscoveryStra
 
     @Override
     public boolean supported() {
-        return RuntimeUtil.isNix();
+        return Platform.isLinux();
     }
 
     @Override

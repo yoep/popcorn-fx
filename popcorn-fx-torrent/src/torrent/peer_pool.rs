@@ -1,16 +1,27 @@
 use crate::torrent::peer::{Peer, PeerHandle, PeerState};
 use crate::torrent::{TorrentHandle, TorrentPeer};
+use derive_more::Display;
 use itertools::Itertools;
 use log::{debug, trace, warn};
 use std::net::SocketAddr;
-use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::{Mutex, OwnedSemaphorePermit, RwLock, Semaphore};
+use thiserror::Error;
+use tokio::sync::{Mutex, RwLock};
 use tokio::{select, time};
+
+/// The failure reason when adding a peer failed.
+#[derive(Debug, Error, PartialEq)]
+pub enum Reason {
+    #[error("peer already exists within the pool")]
+    Duplicate,
+    #[error("pool limit has been reached")]
+    LimitReached,
+}
 
 /// The torrent peer pool manager for a single torrent.
 /// This manager is responsible for managing the torrent peer information and actual active peers.
-#[derive(Debug)]
+#[derive(Debug, Display)]
+#[display(fmt = "{}", handle)]
 pub struct PeerPool {
     /// The unique handle of the torrent
     handle: TorrentHandle,
@@ -20,31 +31,27 @@ pub struct PeerPool {
     peer_list: Mutex<Vec<TorrentPeer>>,
     /// The maximum amount of peers allowed in the pool
     limit: Mutex<usize>,
-    /// The semaphore to limit the number of active peers and in-flight peers for the pool
-    permits: Arc<Semaphore>,
 }
 
 impl PeerPool {
     /// Create a new peer pool for the given torrent handle.
-    ///
-    /// The pool limit defines the maximum amount of peer connections that can be active for the torrent.
-    /// The maximum in flight sets the maximum amount of peer connections that can be tried to be established at the same moment.
-    pub fn new(handle: TorrentHandle, pool_limit: usize, max_in_flight: usize) -> Self {
-        let max_in_flight = max_in_flight.min(pool_limit);
-
+    pub fn new(handle: TorrentHandle, pool_limit: usize) -> Self {
         Self {
             handle,
             peers: Default::default(),
             peer_list: Default::default(),
             limit: Mutex::new(pool_limit),
-            permits: Arc::new(Semaphore::new(pool_limit.min(max_in_flight))),
         }
     }
 
-    /// Check if at least one permit for a new connection is available.
-    ///
-    pub fn is_permit_available(&self) -> bool {
-        self.permits.available_permits() > 0
+    /// Get the total amount of peer connections within the pool.
+    pub async fn len(&self) -> usize {
+        self.peers.read().await.len()
+    }
+
+    /// Get the limit of the peer pool.
+    pub async fn pool_limit(&self) -> usize {
+        *self.limit.lock().await
     }
 
     /// Add the given [TcpPeer] to this peer pool.
@@ -52,19 +59,27 @@ impl PeerPool {
     /// the peer won't be added to the pool and the function will return [None].
     ///
     /// It returns a [Subscription] to receive peer events when the peer is added to the pool.
-    pub async fn add_peer(&self, peer: Box<dyn Peer>) -> bool {
-        let mut mutex = self.peers.write().await;
+    pub async fn add_peer(&self, peer: Box<dyn Peer>) -> Result<(), Reason> {
+        let mut peers = self.peers.write().await;
+        let pool_limit = *self.limit.lock().await;
 
-        if mutex.iter().any(|e| e.handle() == peer.handle()) {
-            warn!(
-                "Duplicate peer {} detected for torrent {}",
-                peer, self.handle
+        // check if we've reached the pool limit
+        if peers.len() >= pool_limit {
+            debug!(
+                "Peer pool {} is unable to add peer, pool limit reached",
+                self
             );
-            return false;
+            return Err(Reason::LimitReached);
         }
 
-        mutex.push(peer);
-        true
+        // check if the peer already exists within the pool
+        if peers.iter().any(|e| e.handle() == peer.handle()) {
+            warn!("Peer pool {} detected duplicate peer {}", self, peer);
+            return Err(Reason::Duplicate);
+        }
+
+        peers.push(peer);
+        Ok(())
     }
 
     /// Remove the [TcpPeer] from the pool by the given [PeerHandle].
@@ -134,12 +149,13 @@ impl PeerPool {
     ///
     /// * `len` - The total number of peer list address to retrieve.
     pub async fn new_connection_candidates(&self, len: usize) -> Vec<SocketAddr> {
-        let mut mutex = self.peer_list.lock().await;
-        let remaining_permits = self.permits.available_permits();
-        let len = len.min(remaining_permits).min(mutex.len());
+        let mut peer_list = self.peer_list.lock().await;
+        let pool_limit = *self.limit.lock().await;
+        let remaining_slots = pool_limit - self.peers.read().await.len();
+        let len = len.min(remaining_slots).min(peer_list.len());
         let mut result = Vec::new();
 
-        for candidate in mutex
+        for candidate in peer_list
             .iter_mut()
             .filter(|peer| peer.is_connect_candidate())
             .sorted()
@@ -168,35 +184,16 @@ impl PeerPool {
 
     /// Set a new maximum amount of peers allowed in the pool.
     pub async fn set_pool_limit(&self, limit: usize) {
-        let mut mutex = self.limit.lock().await;
-        let change = limit as i32 - *mutex as i32;
-
-        if change > 0 {
-            self.permits.add_permits(change as usize);
-        } else {
-            self.permits.forget_permits(change as usize);
-        }
-
-        *mutex = limit;
-    }
-
-    /// Try to get a permit for creating a new peer connection.
-    /// This permit limits the amount of active peers in the pool and from overcommitment.
-    pub async fn permit(&self) -> Option<OwnedSemaphorePermit> {
-        if self.permits.available_permits() == 0 {
-            return None;
-        }
-
-        self.permits.clone().acquire_owned().await.ok()
+        *self.limit.lock().await = limit;
     }
 
     /// Remove any closed or invalid peers from the pool.
     /// The cleanup tries to close the peer connection within a timely manner if possible.
     pub async fn clean(&self) {
-        let mut mutex = self.peers.write().await;
+        let mut peers = self.peers.write().await;
         let mut handles_to_remove = vec![];
 
-        for peer in mutex.iter() {
+        for peer in peers.iter() {
             let state = peer.state().await;
             if state == PeerState::Closed || state == PeerState::Error {
                 handles_to_remove.push(peer.handle());
@@ -209,7 +206,7 @@ impl PeerPool {
             }
         }
 
-        mutex.retain(|e| !handles_to_remove.contains(&e.handle()));
+        peers.retain(|e| !handles_to_remove.contains(&e.handle()));
         debug!("Cleaned a total of {} peers", handles_to_remove.len());
     }
 
@@ -231,48 +228,62 @@ impl PeerPool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     use crate::init_logger;
     use crate::torrent::{TorrentConfig, TorrentFlags};
     use crate::{create_peer_pair, create_torrent};
 
-    #[test]
-    fn test_peer_pool_new_max_inflight_larger_than_pool_limit() {
-        init_logger!();
-        let pool_limit = 2;
-        let pool = PeerPool::new(TorrentHandle::new(), pool_limit, 10);
+    mod add_peer {
+        use super::*;
 
-        let result = pool.permits.available_permits();
+        use crate::torrent::peer::tests::MockPeer;
 
-        assert_eq!(
-            pool_limit, result,
-            "expected the max in flight to not be larger than the pool limit"
-        );
-    }
+        #[tokio::test]
+        async fn test_add_peer() {
+            init_logger!();
+            let peer_handle = PeerHandle::new();
+            let mut peer = MockPeer::new();
+            peer.expect_handle().return_const(peer_handle);
+            let pool = PeerPool::new(TorrentHandle::new(), 2);
 
-    #[tokio::test]
-    async fn test_peer_pool_is_permit_available() {
-        init_logger!();
-        let pool = PeerPool::new(TorrentHandle::new(), 2, 1);
+            let result = pool.add_peer(Box::new(peer)).await;
+            assert_eq!(Ok(()), result, "expected the peer to have been added");
 
-        let permit = pool.permit().await;
-        assert!(permit.is_some(), "expected a permit");
+            let result = pool.peers.read().await.len();
+            assert_eq!(
+                1, result,
+                "expected the peer to have been present within the pool"
+            );
+        }
 
-        let result = pool.is_permit_available();
-        assert_eq!(
-            false, result,
-            "expected no additional permits to have been available"
-        );
+        #[tokio::test]
+        async fn test_limit_reached() {
+            init_logger!();
+            let peer_handle1 = PeerHandle::new();
+            let peer_handle2 = PeerHandle::new();
+            let mut peer1 = MockPeer::new();
+            peer1.expect_handle().return_const(peer_handle1);
+            let mut peer2 = MockPeer::new();
+            peer2.expect_handle().return_const(peer_handle2);
+            let pool = PeerPool::new(TorrentHandle::new(), 1);
 
-        drop(permit);
-        let result = pool.is_permit_available();
-        assert_eq!(true, result, "expected a permit to have been available");
+            let result = pool.add_peer(Box::new(peer1)).await;
+            assert_eq!(Ok(()), result, "expected the peer to have been added");
+
+            let result = pool.add_peer(Box::new(peer2)).await;
+            assert_eq!(
+                Err(Reason::LimitReached),
+                result,
+                "expected the peer to not have been added"
+            );
+        }
     }
 
     #[tokio::test]
     async fn test_peer_pool_add_available_peer_addrs() {
         init_logger!();
         let expected_result = vec![SocketAddr::from(([127, 0, 0, 1], 1900))];
-        let pool = PeerPool::new(TorrentHandle::new(), 2, 1);
+        let pool = PeerPool::new(TorrentHandle::new(), 2);
 
         pool.add_peer_addresses(expected_result.clone(), None).await;
         let result = pool.num_connect_candidates().await;
@@ -295,10 +306,10 @@ mod tests {
             vec![]
         );
         let (peer1, peer2) = create_peer_pair!(&torrent);
-        let pool = PeerPool::new(TorrentHandle::new(), 2, 1);
+        let pool = PeerPool::new(TorrentHandle::new(), 2);
 
-        pool.add_peer(Box::new(peer1)).await;
-        pool.add_peer(Box::new(peer2)).await;
+        let _ = pool.add_peer(Box::new(peer1)).await;
+        let _ = pool.add_peer(Box::new(peer2)).await;
         let result = pool.peers.read().await.len();
         assert_eq!(
             2, result,

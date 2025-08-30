@@ -22,11 +22,47 @@ pub mod tests {
 
     use crate::timeout;
     use crate::torrent::peer::protocol::{UtpSocket, UtpSocketExtensions, UtpStream};
-    use crate::torrent::Torrent;
+    use crate::torrent::peer::Peer;
+    use crate::torrent::{PieceIndex, Torrent};
 
+    use async_trait::async_trait;
+    use bit_vec::BitVec;
+    use fx_callback::{Callback, Subscriber, Subscription};
+    use mockall::mock;
+    use std::fmt::{Display, Formatter};
     use std::net::{Ipv4Addr, SocketAddr};
     use std::time::Duration;
     use tokio::sync::mpsc::unbounded_channel;
+
+    mock! {
+        #[derive(Debug)]
+        pub Peer {}
+
+        #[async_trait]
+        impl Peer for Peer {
+            fn handle(&self) -> PeerHandle;
+            fn handle_as_ref(&self) -> &PeerHandle;
+            fn client(&self) -> PeerClientInfo;
+            fn addr(&self) -> SocketAddr;
+            fn addr_as_ref(&self) -> &SocketAddr;
+            async fn state(&self) -> PeerState;
+            async fn stats(&self) -> PeerStats;
+            async fn remote_piece_bitfield(&self) -> BitVec;
+            fn notify_piece_availability(&self, pieces: Vec<PieceIndex>);
+            async fn close(&self);
+        }
+
+        impl Callback<PeerEvent> for Peer {
+            fn subscribe(&self) -> Subscription<PeerEvent>;
+            fn subscribe_with(&self, subscriber: Subscriber<PeerEvent>);
+        }
+    }
+
+    impl Display for MockPeer {
+        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+            write!(f, "MockPeer")
+        }
+    }
 
     /// Create a new uTP socket.
     #[macro_export]

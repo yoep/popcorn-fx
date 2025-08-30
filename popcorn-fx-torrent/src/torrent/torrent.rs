@@ -654,7 +654,6 @@ impl Torrent {
         let peer_discovery_addrs: Vec<SocketAddr> =
             peer_discoveries.iter().map(|e| e.addr()).cloned().collect();
         let info_hash = metadata.info_hash.clone();
-        let max_peers_in_flight = config.peers_in_flight.min(config.peers_upper_limit);
         let (event_sender, command_receiver) = unbounded_channel();
         let (peer_subscriber, peer_event_receiver) = unbounded_channel();
         let cancellation_token = CancellationToken::new();
@@ -666,7 +665,7 @@ impl Torrent {
             peer_discovery_addrs: peer_discovery_addrs.clone(),
             tracker_manager,
             dht,
-            peer_pool: PeerPool::new(handle, config.peers_upper_limit, max_peers_in_flight),
+            peer_pool: PeerPool::new(handle, config.peers_upper_limit),
             peer_subscriber,
             peer_discoveries: Arc::new(peer_discoveries),
             pieces: RwLock::new(Vec::with_capacity(0)),
@@ -2246,19 +2245,19 @@ impl TorrentContext {
     /// Add the given peer to this torrent.
     /// Duplicate peers will be ignored and dropped.
     async fn add_peer(&self, peer: Box<dyn Peer>) {
-        trace!("Peer {} is being added to torrent {}", peer, self);
+        trace!("Torrent {} is trying to add new peer {}", self, peer);
         let info = peer.client();
         let subscriber = self.peer_subscriber.clone();
         peer.subscribe_with(subscriber);
 
-        if self.peer_pool.add_peer(peer).await {
-            debug!("Peer {} added to torrent {}", info, self);
-            self.invoke_event(TorrentEvent::PeerConnected(info));
-        } else {
-            debug!(
-                "Peer {} has not been added to torrent {}, reason: duplicate",
-                info, self
-            );
+        match self.peer_pool.add_peer(peer).await {
+            Ok(_) => {
+                debug!("Torrent {} added peer {}", self, info);
+                self.invoke_event(TorrentEvent::PeerConnected(info));
+            }
+            Err(e) => {
+                debug!("Torrent {} failed to add peer {}, {}", self, info, e);
+            }
         }
     }
 

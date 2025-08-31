@@ -132,7 +132,7 @@ impl TorrentConnectPeersOperation {
                     context
                 );
 
-                let futures: Vec<_> = peer_addrs
+                let peers: Vec<_> = peer_addrs
                     .into_iter()
                     .filter_map(|addr| {
                         if let Some(permit) = permits.split(1) {
@@ -141,14 +141,14 @@ impl TorrentConnectPeersOperation {
                             None
                         }
                     })
-                    .map(|(addr, permit)| {
-                        Self::create_peer_with_dialers(context.clone(), addr, permit)
-                    })
                     .collect();
 
-                tokio::spawn(async move {
-                    future::join_all(futures).await;
-                });
+                for (addr, permit) in peers {
+                    let runtime_context = context.clone();
+                    tokio::spawn(async move {
+                        Self::create_peer_with_dialers(runtime_context, addr, permit).await;
+                    });
+                }
             }
             Err(e) => warn!(
                 "Torrent {} peer connections failed to acquire permits, {}",
@@ -170,7 +170,7 @@ impl TorrentConnectPeersOperation {
 
         match self.permits.clone().acquire_many_owned(len as u32).await {
             Ok(mut permits) => {
-                let futures = webseed_urls
+                let webseeds = webseed_urls
                     .drain(..len)
                     .filter_map(|url| {
                         if let Some(permit) = permits.split(1) {
@@ -180,12 +180,14 @@ impl TorrentConnectPeersOperation {
                             None
                         }
                     })
-                    .map(|(url, permit)| Self::create_http_peer(context.clone(), url, permit))
                     .collect::<Vec<_>>();
 
-                tokio::spawn(async move {
-                    future::join_all(futures).await;
-                });
+                for (url, permit) in webseeds {
+                    let runtime_context = context.clone();
+                    tokio::spawn(async move {
+                        Self::create_http_peer(runtime_context, url, permit).await;
+                    });
+                }
 
                 *wanted_connections = *wanted_connections - len;
             }

@@ -809,7 +809,6 @@ impl InnerTracker {
         let command_sender = self.command_sender.clone();
         tokio::spawn(async move {
             let addr = node.addr;
-            // let _ = command_sender.send(TrackerCommand::Ping(node.addr, tx));
 
             match timeout(Duration::from_secs(3), rx).await {
                 Ok(_) => {

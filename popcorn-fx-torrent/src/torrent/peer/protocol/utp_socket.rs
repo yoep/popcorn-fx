@@ -60,8 +60,16 @@ pub(crate) struct UtpConnId {
 impl UtpConnId {
     pub fn new() -> Self {
         let mut thread_ng = rng();
-        let connection_id_recv: u16 = thread_ng.random();
-        let connection_id_send: u16 = connection_id_recv + 1;
+        let mut connection_id_recv: u16;
+        let connection_id_send: u16;
+
+        loop {
+            connection_id_recv = thread_ng.random();
+            if connection_id_recv < u16::MAX {
+                connection_id_send = connection_id_recv.saturating_add(1);
+                break;
+            }
+        }
 
         Self {
             recv_id: connection_id_recv,

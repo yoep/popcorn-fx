@@ -166,6 +166,8 @@ pub struct TorrentStats {
     pub total_size: usize,
     /// The size in bytes of the pieces that have already been completed.
     pub total_completed_size: usize,
+    /// The size in bytes of wasted data due to invalid hashes
+    pub total_wasted: usize,
     /// The currently total active peer connections.
     pub total_peers: usize,
 }
@@ -218,6 +220,7 @@ impl From<&InternalTorrentStats> for TorrentStats {
             completed_pieces: value.completed_pieces,
             total_size: value.total_wanted_size,
             total_completed_size: value.total_completed_size,
+            total_wasted: value.total_wasted,
             total_peers: 0,
         }
     }
@@ -1996,18 +1999,14 @@ impl TorrentContext {
 
         let is_finished = matches!(state, TorrentState::Finished | TorrentState::Seeding);
         let is_retrieving_data = options.contains(TorrentFlags::DownloadMode);
+        let is_retrieving_metadata =
+            options.contains(TorrentFlags::Metadata) && state == TorrentState::RetrievingMetadata;
 
         let peer_lower_bound = config.peers_lower_limit;
         let peer_upper_bound = config.peers_upper_limit;
 
-        // prioritize metadata retrieval, allow up to double the lower bound for faster metadata resolution
-        if options.contains(TorrentFlags::Metadata) && state == TorrentState::RetrievingMetadata {
-            let desired_peer_count = peer_upper_bound.min(peer_lower_bound * 2);
-            return desired_peer_count.saturating_sub(currently_active_peers);
-        }
-
-        // if downloading, aim for the upper bound
-        if is_retrieving_data && !is_finished {
+        // if we're downloading or retrieving metadata, aim for the upper bound
+        if is_retrieving_metadata || (is_retrieving_data && !is_finished) {
             return peer_upper_bound.saturating_sub(currently_active_peers);
         }
 
@@ -3223,7 +3222,7 @@ impl TorrentContext {
         file: &File,
         range: std::ops::Range<usize>,
     ) -> Result<Vec<u8>> {
-        if range.end > file.length() {
+        if range.end > file.len() {
             return Err(TorrentError::InvalidRange(range));
         }
 
@@ -4500,6 +4499,7 @@ mod tests {
             completed_pieces: 20,
             total_size: 0,
             total_completed_size: 0,
+            total_wasted: 0,
             total_peers: 0,
         };
         let result = stats.progress();
@@ -4521,6 +4521,7 @@ mod tests {
             completed_pieces: 50,
             total_size: 1024,
             total_completed_size: 512,
+            total_wasted: 0,
             total_peers: 0,
         };
         let result = stats.progress();
@@ -4542,6 +4543,7 @@ mod tests {
             completed_pieces: 835,
             total_size: 0,
             total_completed_size: 0,
+            total_wasted: 0,
             total_peers: 0,
         };
         let result = stats.progress();

@@ -6,7 +6,8 @@ import javafx.scene.layout.VBox;
 import java.util.List;
 
 public class AboutDetails extends VBox {
-    private static final String STYLE_CLASS = "about-details";
+    static final String STYLE_CLASS = "about-details";
+    static final Object lock = new Object();
 
     public AboutDetails() {
         init();
@@ -29,11 +30,13 @@ public class AboutDetails extends VBox {
     }
 
     private void renderItems(List<ComponentInfo> items) {
-        this.getChildren().clear();
+        synchronized (lock) {
+            this.getChildren().clear();
 
-        items.forEach(e -> {
-            var card = new AboutCard(e);
-            this.getChildren().add(card);
-        });
+            items.forEach(e -> {
+                var card = new AboutCard(e);
+                this.getChildren().add(card);
+            });
+        }
     }
 }

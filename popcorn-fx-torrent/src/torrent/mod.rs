@@ -41,8 +41,8 @@ mod tracker;
 
 use crate::torrent::operation::{
     TorrentConnectDhtNodesOperation, TorrentConnectPeersOperation, TorrentCreateFilesOperation,
-    TorrentCreatePiecesOperation, TorrentFileValidationOperation, TorrentMetadataOperation,
-    TorrentTrackersOperation,
+    TorrentCreatePiecesOperation, TorrentDhtPeersOperation, TorrentFileValidationOperation,
+    TorrentMetadataOperation, TorrentTrackersOperation,
 };
 #[cfg(feature = "extension-donthave")]
 use crate::torrent::peer::extension::donthave::DontHaveExtension;
@@ -72,7 +72,10 @@ const DEFAULT_TORRENT_EXTENSIONS: fn() -> ExtensionFactories = || {
 const DEFAULT_TORRENT_OPERATIONS: fn() -> Vec<TorrentOperationFactory> = || {
     vec![
         || Box::new(TorrentTrackersOperation::new()),
+        #[cfg(feature = "dht")]
         || Box::new(TorrentConnectDhtNodesOperation::new()),
+        #[cfg(feature = "dht")]
+        || Box::new(TorrentDhtPeersOperation::new()),
         || Box::new(TorrentConnectPeersOperation::new()),
         || Box::new(TorrentMetadataOperation::new()),
         || Box::new(TorrentCreatePiecesOperation::new()),
@@ -213,7 +216,7 @@ pub mod tests {
     use crate::torrent::tracker::TrackerManager;
     use log::LevelFilter;
     use log4rs::append::console::ConsoleAppender;
-    use log4rs::config::{Appender, Root};
+    use log4rs::config::{Appender, Logger, Root};
     use log4rs::encode::pattern::PatternEncoder;
     use log4rs::Config;
     use std::net::SocketAddr;
@@ -523,6 +526,8 @@ pub mod tests {
                 .appender(Appender::builder().build("stdout", Box::new(ConsoleAppender::builder()
                     .encoder(Box::new(PatternEncoder::new("\x1B[37m{d(%Y-%m-%d %H:%M:%S%.3f)}\x1B[0m {h({l:>5.5})} \x1B[35m{I:>6.6}\x1B[0m \x1B[37m---\x1B[0m \x1B[37m[{T:>15.15}]\x1B[0m \x1B[36m{t:<60.60}\x1B[0m \x1B[37m:\x1B[0m {m}{n}")))
                     .build())))
+                .logger(Logger::builder().build("fx_callback", LevelFilter::Info))
+                .logger(Logger::builder().build("mio", LevelFilter::Info))
                 .build(Root::builder().appender("stdout").build(level))
                 .unwrap())
                 .unwrap();

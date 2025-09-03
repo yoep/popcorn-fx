@@ -18,15 +18,19 @@ use ratatui::widgets::{Paragraph, Tabs, Widget};
 use ratatui::{DefaultTerminal, Frame};
 use std::fmt::Debug;
 use std::io;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver};
 use tokio::{select, time};
 use tokio_util::sync::CancellationToken;
 
+const APP_CLIENT_NAME: &str = "FX torrent";
+const APP_DEFAULT_STORAGE: &str = "torrents";
 const APP_QUIT_KEY: char = 'q';
 const TAB_NAME_LEN: usize = 16;
 const SESSION_CACHE_LIMIT: usize = 10;
+const RENDER_INTERVAL: Duration = Duration::from_millis(200);
 
 #[async_trait]
 pub trait FXWidget: Debug {
@@ -101,18 +105,15 @@ pub struct App {
     session_state: SessionState,
     session: FxTorrentSession,
     session_event_receiver: Subscription<SessionEvent>,
+    settings: AppSettings,
     app_command_receiver: UnboundedReceiver<AppCommand>,
     cancellation_token: CancellationToken,
 }
 
 impl App {
     pub fn new(log_receiver: UnboundedReceiver<LogEntry>) -> io::Result<Self> {
-        let session = FxTorrentSession::builder()
-            .client_name("FX torrent")
-            .base_path("torrents")
-            .session_cache(FxSessionCache::new(SESSION_CACHE_LIMIT))
-            .build()
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        let settings = AppSettings::default();
+        let session = Self::create_session(&settings)?;
         let session_event_receiver = session.subscribe();
         let (app_sender, app_receiver) = unbounded_channel();
         let menu = MenuWidget::new(app_sender, log_receiver);
@@ -124,6 +125,7 @@ impl App {
             session_state: SessionState::Initializing,
             session,
             session_event_receiver,
+            settings,
             app_command_receiver: app_receiver,
             cancellation_token: Default::default(),
         })
@@ -137,7 +139,7 @@ impl App {
 
             select! {
                 _ = self.cancellation_token.cancelled() => return Ok(()),
-                _ = time::sleep(Duration::from_millis(100)) => {},
+                _ = time::sleep(RENDER_INTERVAL) => {},
                 event = reader.next().fuse() => self.handle_event(event).await,
                 Some(command) = self.app_command_receiver.recv() => self.handle_command(command).await,
                 Some(event) = self.session_event_receiver.recv() => self.handle_session_event(&*event).await,
@@ -161,6 +163,8 @@ impl App {
     async fn handle_command(&mut self, command: AppCommand) {
         match command {
             AppCommand::AddTorrentUri(uri) => self.add_torrent_uri(uri.as_str()).await,
+            AppCommand::DhtEnabled(enabled) => self.update_dht(enabled),
+            AppCommand::TrackerEnabled(enabled) => self.update_trackers(enabled),
             AppCommand::Quit => self.cancellation_token.cancel(),
         }
     }
@@ -239,9 +243,18 @@ impl App {
         {
             Ok(torrent) => match torrent.metadata().await {
                 Ok(metadata) => {
-                    let name = metadata.name().unwrap_or("<unknown>");
+                    let name = metadata
+                        .info
+                        .as_ref()
+                        .map(|info| info.name())
+                        .unwrap_or_else(|| {
+                            metadata
+                                .name()
+                                .map(|e| e.to_string())
+                                .unwrap_or("<unknown>".to_string())
+                        });
                     self.tabs
-                        .push(Box::new(TorrentInfoWidget::new(name, torrent)));
+                        .push(Box::new(TorrentInfoWidget::new(&name, torrent)));
                 }
                 Err(e) => {
                     warn!("Torrent uri {} has been dropped too early, {}", uri, e);
@@ -251,6 +264,20 @@ impl App {
                 error!("Failed to add torrent {}: {}", uri, e);
             }
         }
+    }
+
+    fn update_dht(&mut self, enabled: bool) {
+        self.settings.dht_enabled = enabled;
+        match Self::create_session(&self.settings) {
+            Ok(session) => {
+                self.session = session;
+            }
+            Err(e) => error!("Failed to create session: {}", e),
+        }
+    }
+
+    fn update_trackers(&mut self, enabled: bool) {
+        self.settings.trackers_enabled = enabled;
     }
 
     fn render(&mut self, frame: &mut Frame) {
@@ -295,16 +322,41 @@ impl App {
         .render(footer_area, frame.buffer_mut());
     }
 
-    pub fn print_optional_string<S: ToString>(value: Option<S>) -> String {
-        value
-            .as_ref()
-            .map(|e| e.to_string())
-            .unwrap_or(String::default())
+    fn create_session(settings: &AppSettings) -> io::Result<FxTorrentSession> {
+        FxTorrentSession::builder()
+            .client_name(APP_CLIENT_NAME)
+            .base_path(&settings.storage)
+            .session_cache(FxSessionCache::new(SESSION_CACHE_LIMIT))
+            .build()
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
     }
 }
 
 #[derive(Debug)]
 pub enum AppCommand {
+    /// Try to add the given torrent uri to the app
     AddTorrentUri(String),
+    /// Set if DHT is enabled
+    DhtEnabled(bool),
+    /// Set if trackers are enabled
+    TrackerEnabled(bool),
+    /// Quit the app
     Quit,
+}
+
+#[derive(Debug, Clone)]
+struct AppSettings {
+    storage: PathBuf,
+    dht_enabled: bool,
+    trackers_enabled: bool,
+}
+
+impl Default for AppSettings {
+    fn default() -> Self {
+        Self {
+            storage: PathBuf::from(APP_DEFAULT_STORAGE),
+            dht_enabled: true,
+            trackers_enabled: true,
+        }
+    }
 }

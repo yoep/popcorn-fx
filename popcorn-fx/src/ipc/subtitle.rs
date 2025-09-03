@@ -747,7 +747,12 @@ mod tests {
             .expect("expected to have received a reply");
         let result = DownloadAndParseSubtitleResponse::parse_from_bytes(&response.payload).unwrap();
 
-        assert_eq!(response::Result::OK, result.result.unwrap());
+        assert_eq!(
+            response::Result::OK,
+            result.result.unwrap(),
+            "expected Result::OK, but got {:?} instead",
+            result
+        );
         assert_eq!(MessageField::some(subtitle_info), result.subtitle.info);
         assert_ne!(
             "", &result.subtitle.file_path,

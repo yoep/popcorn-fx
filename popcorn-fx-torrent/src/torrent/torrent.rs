@@ -14,7 +14,7 @@ use crate::torrent::tracker::{
 use crate::torrent::{
     calculate_byte_rate, format_bytes, FileAttributeFlags, FileIndex, PeerPool, Piece, PieceIndex,
     PiecePart, PiecePool, PiecePriority, TorrentError, TorrentFlags, TorrentMetadata,
-    TorrentMetadataInfo, DEFAULT_TORRENT_EXTENSIONS, DEFAULT_TORRENT_OPERATIONS,
+    TorrentMetadataInfo, TorrentPeer, DEFAULT_TORRENT_EXTENSIONS, DEFAULT_TORRENT_OPERATIONS,
     DEFAULT_TORRENT_PROTOCOL_EXTENSIONS,
 };
 use async_trait::async_trait;
@@ -98,7 +98,7 @@ pub enum TorrentState {
     #[display(fmt = "retrieving metadata")]
     RetrievingMetadata,
     /// The torrent has not started its download yet, and is currently checking existing files.
-    #[display(fmt = "checking files")]
+    #[display(fmt = "validating files")]
     CheckingFiles,
     /// The torrent is being downloaded. This is the state most torrents will be in most of the time.
     #[display(fmt = "downloading")]
@@ -1067,6 +1067,27 @@ impl Torrent {
         }
 
         Ok(inner.announce_all().await)
+    }
+
+    /// Get a "weak" reference to a peer in this torrent identified by `handle`.
+    ///
+    /// This looks up the `handle` within the peer pool of the torrent.
+    /// When found, it will create a weak reference to the [Peer].
+    /// Before calling a method, make sure to check if the reference is still valid by calling [TorrentPeer::is_valid].
+    ///
+    /// # Arguments
+    ///
+    /// * `handle` — The [`PeerHandle`] reference to look up.
+    ///
+    /// # Returns
+    ///
+    /// It returns the torrent peer (weak reference) when found, else [None].
+    pub async fn peer(&self, handle: &PeerHandle) -> Option<TorrentPeer> {
+        if let Some(inner) = self.instance() {
+            return inner.peer_pool.get(&handle).await;
+        }
+
+        None
     }
 
     /// Scrape the trackers of the torrent to retrieve the metrics.
@@ -2261,16 +2282,9 @@ impl TorrentContext {
     }
 
     /// Remove the given peer from the torrent as it has been closed.
-    async fn remove_peer(&self, handle: PeerHandle) {
+    async fn remove_peer(&self, handle: &PeerHandle) {
         trace!("Removing peer {} from torrent {}", handle, self);
-        if let Some(peer) = self
-            .peer_pool
-            .peers
-            .read()
-            .await
-            .iter()
-            .find(|e| e.handle() == handle)
-        {
+        if let Some(peer) = self.peer_pool.peers.read().await.get(&handle) {
             let mut mutex = self.pieces.write().await;
             let bitfield = peer.remote_piece_bitfield().await;
 
@@ -2282,8 +2296,8 @@ impl TorrentContext {
             }
         }
 
-        if let Some(peer) = self.peer_pool.remove_peer(handle).await {
-            self.invoke_event(TorrentEvent::PeerDisconnected(peer.client()));
+        if let Some(peer_info) = self.peer_pool.remove_peer(handle).await {
+            self.invoke_event(TorrentEvent::PeerDisconnected(peer_info));
         }
     }
 
@@ -2450,7 +2464,7 @@ impl TorrentContext {
             let peer_mutex = self.peer_pool.peers.read().await;
             total_peers = peer_mutex.len();
             // only collect the metrics of peers that are not closed
-            for peer in peer_mutex.iter() {
+            for peer in peer_mutex.values() {
                 // copy the peer metrics into a buffer to release the peers lock as soon as possible
                 peer_metrics.push(peer.stats().await);
             }
@@ -2557,7 +2571,7 @@ impl TorrentContext {
                 let peer_mutex = self.peer_pool.peers.read().await;
 
                 peer_count = peer_mutex.len();
-                for peer in peer_mutex.iter() {
+                for peer in peer_mutex.values() {
                     let bitfield = peer.remote_piece_bitfield().await;
                     for (piece_index, _) in bitfield.iter().enumerate().filter(|(_, value)| *value)
                     {
@@ -2770,7 +2784,7 @@ impl TorrentContext {
             TorrentCommandEvent::OptionsChanged => self.options_changed().await,
             TorrentCommandEvent::ConnectToTracker(e) => self.add_tracker_async(e).await,
             TorrentCommandEvent::PeerConnected(peer) => self.add_peer(peer).await,
-            TorrentCommandEvent::PeerClosed(handle) => self.remove_peer(handle).await,
+            TorrentCommandEvent::PeerClosed(handle) => self.remove_peer(&handle).await,
             TorrentCommandEvent::PiecePartCompleted(part, data) => {
                 self.process_completed_piece_part(part, data).await
             }
@@ -3526,7 +3540,7 @@ impl TorrentContext {
 
     /// Notify the peers about the pieces that have become available.
     async fn notify_peers_have_pieces(&self, pieces: Vec<PieceIndex>) {
-        for peer in self.peer_pool.peers.read().await.iter() {
+        for peer in self.peer_pool.peers.read().await.values() {
             peer.notify_piece_availability(pieces.clone());
         }
     }

@@ -512,10 +512,9 @@ impl UtpSocketContext {
                     key_to_remove = Some(key.clone());
                 }
             } else {
-                trace!(
+                debug!(
                     "Utp socket {} received packet with unknown connection id {}",
-                    self,
-                    packet.connection_id
+                    self, packet.connection_id
                 );
             }
         }

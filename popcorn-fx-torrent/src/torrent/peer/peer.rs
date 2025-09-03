@@ -95,6 +95,13 @@ pub trait Peer: Debug + Display + Send + Sync + Callback<PeerEvent> {
     /// It returns the metrics of the connection transfer data.
     async fn stats(&self) -> PeerStats;
 
+    /// Get whether the remote peer is a **seed** (i.e., it has every piece).
+    ///
+    /// A peer is considered a seed when its remote bitfield is **known** and **all bits are set**.
+    /// If the bitfield has not been received yet (e.g., the handshake/bitfield exchange has not
+    /// completed), this method returns `false`.
+    async fn is_seed(&self) -> bool;
+
     /// Get the available pieces of the remote peer as a bit vector.
     ///
     /// # Returns
@@ -456,7 +463,7 @@ impl From<(&PeerClientInfo, &PeerClientInfo)> for PeerPriority {
 /// This [Peer] exchanges torrent data with remote peers through the specified BEP3 BitTorrent protocol.
 ///
 /// It communicates with remote peers over TCP or uTP, see [PeerConn] for more info.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BitTorrentPeer {
     inner: Arc<PeerContext>,
 }
@@ -956,6 +963,10 @@ impl Peer for BitTorrentPeer {
         self.inner.stats().await
     }
 
+    async fn is_seed(&self) -> bool {
+        self.inner.is_seed().await
+    }
+
     async fn remote_piece_bitfield(&self) -> BitVec {
         self.inner.remote_piece_bitfield().await
     }
@@ -1298,13 +1309,6 @@ impl PeerContext {
         remote_pieces.len() >= torrent_total_pieces && remote_pieces.all()
     }
 
-    /// Check if the remote peer is a seed.
-    /// This means that the remote peer has all pieces available and is seeding the torrent.
-    pub async fn is_seed(&self) -> bool {
-        let mutex = self.remote_pieces.read().await;
-        mutex.len() > 0 && mutex.all()
-    }
-
     /// Check if a specific protocol extension is supported by the remote peer.
     /// If the client or the remote peer don't support the given extension, `false` is returned.
     pub async fn is_protocol_enabled(&self, extension: ProtocolExtensionFlags) -> bool {
@@ -1381,6 +1385,16 @@ impl PeerContext {
             .into_iter()
             .filter(|piece| remote_has_all_pieces || remote_pieces.get(*piece).unwrap_or(false))
             .any(|e| !mutex.contains_key(&e))
+    }
+
+    /// Get whether the remote peer is a **seed** (i.e., it has every piece).
+    ///
+    /// A peer is considered a seed when its remote bitfield is **known** and **all bits are set**.
+    /// If the bitfield has not been received yet (e.g., the handshake/bitfield exchange has not
+    /// completed), this method returns `false`.
+    async fn is_seed(&self) -> bool {
+        let remote_pieces = self.remote_pieces.read().await;
+        remote_pieces.len() > 0 && remote_pieces.all()
     }
 
     /// Handle events that are sent from the peer reader.
@@ -1554,10 +1568,12 @@ impl PeerContext {
                 *self.client_pieces.write().await = piece_bitfield;
 
                 // extend the remote pieces bitfield if needed
-                let mut mutex = self.remote_pieces.write().await;
-                if mutex.len() < bitfield_len {
-                    let additional_len = bitfield_len - mutex.len();
-                    mutex.extend(vec![false; additional_len]);
+                {
+                    let mut mutex = self.remote_pieces.write().await;
+                    if mutex.len() < bitfield_len {
+                        let additional_len = bitfield_len - mutex.len();
+                        mutex.extend(vec![false; additional_len]);
+                    }
                 }
 
                 self.send_command_event(PeerCommandEvent::DetermineClientInterestState);
@@ -2063,7 +2079,7 @@ impl PeerContext {
     ///
     /// The range of the piece will be checked against the known pieces of the torrent, if known.
     /// If the piece is out-of-range, the update will be ignored.
-    pub async fn remote_has_piece(&self, piece: PieceIndex, has_piece: bool) {
+    pub(crate) async fn remote_has_piece(&self, piece: PieceIndex, has_piece: bool) {
         let total_pieces = self.torrent.total_pieces().await;
         let is_metadata_known = self.torrent.is_metadata_known().await;
 
@@ -2110,8 +2126,8 @@ impl PeerContext {
     /// Update the remote piece availability based on the supplied [BitVec].
     async fn update_remote_pieces(&self, pieces: BitVec) {
         {
-            let mut mutex = self.remote_pieces.write().await;
-            *mutex = pieces.clone();
+            let mut remote_pieces = self.remote_pieces.write().await;
+            *remote_pieces = pieces.clone();
             debug!(
                 "Peer {} updated {}/{} remote available pieces",
                 self,

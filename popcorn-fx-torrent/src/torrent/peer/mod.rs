@@ -47,6 +47,7 @@ pub mod tests {
             fn addr_as_ref(&self) -> &SocketAddr;
             async fn state(&self) -> PeerState;
             async fn stats(&self) -> PeerStats;
+            async fn is_seed(&self) -> bool;
             async fn remote_piece_bitfield(&self) -> BitVec;
             fn notify_piece_availability(&self, pieces: Vec<PieceIndex>);
             async fn close(&self);

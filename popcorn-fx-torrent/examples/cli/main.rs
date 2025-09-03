@@ -2,6 +2,7 @@ mod app;
 mod app_logger;
 mod menu;
 mod torrent_info;
+mod widget;
 
 use crate::app::App;
 use crate::app_logger::AppLogger;
@@ -18,7 +19,7 @@ async fn main() -> io::Result<()> {
     let terminal = ratatui::init();
 
     log::set_boxed_logger(Box::new(app_logger))
-        .map(|()| log::set_max_level(LevelFilter::Info))
+        .map(|()| log::set_max_level(LevelFilter::Debug))
         .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
     let result = select! {
         _ = tokio::signal::ctrl_c() => Ok(()),

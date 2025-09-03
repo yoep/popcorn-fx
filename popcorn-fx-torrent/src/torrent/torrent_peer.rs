@@ -1,76 +1,153 @@
+use crate::torrent::peer::{
+    ConnectionDirection, ConnectionProtocol, Peer, PeerClientInfo, PeerEvent, PeerHandle, PeerId,
+    PeerState, PeerStats,
+};
+use crate::torrent::PieceIndex;
+use async_trait::async_trait;
+use bit_vec::BitVec;
 use crc::{Crc, CRC_32_ISCSI};
+use fx_callback::{Callback, Subscriber, Subscription};
 use std::cmp::Ordering;
+use std::fmt::{Display, Formatter};
 use std::net::{IpAddr, SocketAddr};
+use std::sync::{Arc, Weak};
+use tokio::sync::mpsc::unbounded_channel;
 
 const CRC32: Crc<u32> = Crc::<u32>::new(&CRC_32_ISCSI);
 
-/// The torrent peer address information.
+/// A lightweight, non-owning handle to a remote [`Peer`] managed by a torrent's pool.
+///
+/// As this is a weak reference to a [Peer], call [TorrentPeer::is_valid] to check if the reference is still valid.
 #[derive(Debug)]
-pub(crate) struct TorrentPeer {
-    /// The address of a remote peer.
-    pub addr: SocketAddr,
-    /// Indicates if this peer address is in use by the torrent.
-    pub is_in_use: bool,
-    /// Indicates if this peer has been identified as a seed.
-    pub is_seed: bool,
-    /// Indicates if this peer has been banned from establishing a connection.
-    pub is_banned: bool,
-    /// The peer priority rank.
-    pub rank: PeerPriority,
+pub struct TorrentPeer {
+    handle: PeerHandle,
+    addr: SocketAddr,
+    inner: Weak<dyn Peer>,
 }
 
 impl TorrentPeer {
-    /// Create a new torrent peer address information.
-    pub fn new(addr: SocketAddr) -> Self {
+    /// Create a weak handle from a strong reference to a peer.
+    pub(crate) fn new(peer: &Arc<dyn Peer>) -> Self {
         Self {
-            addr,
-            is_in_use: false,
-            is_seed: false,
-            is_banned: false,
-            rank: PeerPriority::none(),
+            handle: peer.handle(),
+            addr: peer.addr(),
+            inner: Arc::downgrade(peer),
         }
     }
 
-    /// Create a new torrent peer address information.
-    /// This peer address contains a rank based against the current torrent listening address.
-    pub fn new_with_rank(addr: SocketAddr, torrent_addr: &SocketAddr) -> Self {
-        let rank = PeerPriority::from((torrent_addr, &addr));
-        Self {
-            addr,
-            is_in_use: false,
-            is_seed: false,
-            is_banned: false,
-            rank,
+    /// Check if this torrent peer is still valid.
+    /// It returns `false` when the underlying peer has been closed.
+    pub fn is_valid(&self) -> bool {
+        self.inner.strong_count() > 0
+    }
+
+    /// Try to get a strong reference to the underlying peer implementation.
+    fn instance(&self) -> Option<Arc<dyn Peer>> {
+        self.inner.upgrade()
+    }
+}
+
+#[async_trait]
+impl Peer for TorrentPeer {
+    fn handle(&self) -> PeerHandle {
+        self.handle
+    }
+
+    fn handle_as_ref(&self) -> &PeerHandle {
+        &self.handle
+    }
+
+    fn client(&self) -> PeerClientInfo {
+        if let Some(inner) = self.instance() {
+            return inner.client();
+        }
+
+        PeerClientInfo {
+            handle: self.handle,
+            id: PeerId::new(),
+            addr: self.addr.clone(),
+            connection_type: ConnectionDirection::Inbound,
+            connection_protocol: ConnectionProtocol::Other,
         }
     }
 
-    /// Check if this peer is a candidate for establishing a new connection.
-    ///
-    /// # Returns
-    ///
-    /// It returns true when the peer is a candidate, else false.
-    pub fn is_connect_candidate(&self) -> bool {
-        !self.is_in_use && !self.is_banned
+    fn addr(&self) -> SocketAddr {
+        self.addr.clone()
+    }
+
+    fn addr_as_ref(&self) -> &SocketAddr {
+        &self.addr
+    }
+
+    async fn state(&self) -> PeerState {
+        if let Some(inner) = self.instance() {
+            return inner.state().await;
+        }
+
+        PeerState::Closed
+    }
+
+    async fn stats(&self) -> PeerStats {
+        if let Some(inner) = self.instance() {
+            return inner.stats().await;
+        }
+
+        PeerStats::default()
+    }
+
+    async fn is_seed(&self) -> bool {
+        if let Some(inner) = self.instance() {
+            return inner.is_seed().await;
+        }
+
+        false
+    }
+
+    async fn remote_piece_bitfield(&self) -> BitVec {
+        if let Some(inner) = self.instance() {
+            return inner.remote_piece_bitfield().await;
+        }
+
+        BitVec::default()
+    }
+
+    fn notify_piece_availability(&self, pieces: Vec<PieceIndex>) {
+        if let Some(inner) = self.instance() {
+            inner.notify_piece_availability(pieces)
+        }
+    }
+
+    async fn close(&self) {
+        if let Some(inner) = self.instance() {
+            inner.close().await
+        }
     }
 }
 
-impl PartialEq for TorrentPeer {
-    fn eq(&self, other: &Self) -> bool {
-        self.addr == other.addr
+impl Callback<PeerEvent> for TorrentPeer {
+    fn subscribe(&self) -> Subscription<PeerEvent> {
+        if let Some(inner) = self.instance() {
+            return inner.subscribe();
+        }
+
+        let (_, rx) = unbounded_channel();
+        rx
+    }
+
+    fn subscribe_with(&self, subscriber: Subscriber<PeerEvent>) {
+        if let Some(inner) = self.instance() {
+            inner.subscribe_with(subscriber)
+        }
     }
 }
 
-impl PartialOrd for TorrentPeer {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.rank.partial_cmp(&other.rank)
-    }
-}
+impl Display for TorrentPeer {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if let Some(inner) = self.instance() {
+            return write!(f, "{}", inner);
+        }
 
-impl Eq for TorrentPeer {}
-
-impl Ord for TorrentPeer {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other).unwrap_or(Ordering::Equal)
+        write!(f, "invalid torrent peer")
     }
 }
 
@@ -185,7 +262,7 @@ impl PeerPriority {
         Some(Self::crc32_hash_pair(&bytes, &other_bytes))
     }
 
-    fn none() -> Self {
+    pub fn none() -> Self {
         Self(None)
     }
 
@@ -239,79 +316,83 @@ impl From<(&SocketAddr, &SocketAddr)> for PeerPriority {
 }
 
 #[cfg(test)]
+impl From<Option<u32>> for PeerPriority {
+    fn from(value: Option<u32>) -> Self {
+        Self(value)
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use std::str::FromStr;
 
-    #[cfg(test)]
     mod torrent_peer {
         use super::*;
+        use crate::torrent::peer::tests::MockPeer;
 
         #[test]
-        fn test_is_connect_candidate() {
-            let peer = TorrentPeer {
-                addr: ([127, 0, 0, 1], 8090).into(),
-                is_in_use: false,
-                is_seed: false,
-                is_banned: false,
-                rank: PeerPriority::none(),
-            };
-            assert_eq!(
-                true,
-                peer.is_connect_candidate(),
-                "expected the peer to be a candidate"
-            );
+        fn test_is_valid() {
+            let mut peer = MockPeer::new();
+            peer.expect_handle().return_const(PeerHandle::new());
+            peer.expect_addr()
+                .return_const(SocketAddr::from(([127, 0, 0, 1], 6881)));
+            let peer = Arc::from(Box::new(peer) as Box<dyn Peer>);
+            let torrent_peer = TorrentPeer::new(&peer);
 
-            let peer = TorrentPeer {
-                addr: ([127, 0, 0, 1], 8090).into(),
-                is_in_use: true,
-                is_seed: false,
-                is_banned: false,
-                rank: PeerPriority::none(),
-            };
-            assert_eq!(
-                false,
-                peer.is_connect_candidate(),
-                "expected a in-use peer to not have been a candidate"
-            );
+            let result = torrent_peer.is_valid();
+            assert_eq!(true, result, "expected the torrent peer to be valid");
 
-            let peer = TorrentPeer {
-                addr: ([127, 0, 0, 1], 8090).into(),
-                is_in_use: false,
-                is_seed: false,
-                is_banned: true,
-                rank: PeerPriority::none(),
-            };
-            assert_eq!(
-                false,
-                peer.is_connect_candidate(),
-                "expected a banned peer to not have been a candidate"
-            );
+            drop(peer);
+            let result = torrent_peer.is_valid();
+            assert_eq!(false, result, "expected the torrent peer to be invalid");
         }
 
         #[test]
-        fn test_order() {
-            let peer1 = TorrentPeer {
-                addr: ([127, 0, 0, 1], 8090).into(),
-                is_in_use: false,
-                is_seed: false,
-                is_banned: false,
-                rank: PeerPriority(Some(30)),
-            };
-            let peer2 = TorrentPeer {
-                addr: ([127, 0, 0, 1], 8090).into(),
-                is_in_use: false,
-                is_seed: false,
-                is_banned: false,
-                rank: PeerPriority(Some(10)),
-            };
+        fn test_handle() {
+            let handle = PeerHandle::new();
+            let mut peer = MockPeer::new();
+            peer.expect_handle().return_const(handle);
+            peer.expect_addr()
+                .return_const(SocketAddr::from(([127, 0, 0, 1], 6881)));
+            let peer = Arc::from(Box::new(peer) as Box<dyn Peer>);
+            let torrent_peer = TorrentPeer::new(&peer);
 
-            assert_eq!(Ordering::Less, peer1.cmp(&peer2));
-            assert_eq!(Ordering::Greater, peer2.cmp(&peer1));
+            let result = torrent_peer.handle();
+            assert_eq!(handle, result, "expected the peer handle to match");
+
+            drop(peer);
+            let result = torrent_peer.handle();
+            assert_eq!(handle, result, "expected the peer handle to match");
+        }
+
+        #[tokio::test]
+        async fn test_state() {
+            let mut peer = MockPeer::new();
+            peer.expect_handle().return_const(PeerHandle::new());
+            peer.expect_addr()
+                .return_const(SocketAddr::from(([127, 0, 0, 1], 6881)));
+            peer.expect_state().returning(|| PeerState::Downloading);
+            let peer = Arc::from(Box::new(peer) as Box<dyn Peer>);
+            let torrent_peer = TorrentPeer::new(&peer);
+
+            let result = torrent_peer.state().await;
+            assert_eq!(
+                PeerState::Downloading,
+                result,
+                "expected the torrent state to be downloaded"
+            );
+
+            drop(peer);
+            let result = torrent_peer.state().await;
+            assert_eq!(
+                PeerState::Closed,
+                result,
+                "expected the torrent state to be closed"
+            );
         }
     }
 
-    #[cfg(test)]
     mod peer_priority {
         use super::*;
 

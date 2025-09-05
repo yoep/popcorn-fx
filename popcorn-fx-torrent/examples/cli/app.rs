@@ -1,363 +1,362 @@
-use crossterm::event::{Event, EventStream, KeyCode};
-use futures::future::pending;
-use futures::FutureExt;
+use crate::app_logger::LogEntry;
+use crate::menu::MenuWidget;
+use crate::torrent_info::TorrentInfoWidget;
+use async_trait::async_trait;
+use crossterm::event::{Event, EventStream, KeyCode, KeyEvent};
 use futures::StreamExt;
+use futures::{future, FutureExt};
 use fx_callback::{Callback, Subscription};
+use fx_handle::Handle;
+use log::{error, warn};
 use popcorn_fx_torrent::torrent::{
-    format_bytes, FxSessionCache, FxTorrentSession, InfoHash, Session, SessionEvent, SessionState,
-    Torrent, TorrentEvent, TorrentFlags, TorrentState,
+    FxSessionCache, FxTorrentSession, Session, SessionEvent, SessionState, TorrentFlags,
 };
-use ratatui::buffer::Buffer;
-use ratatui::layout::Constraint::{Length, Min, Percentage};
-use ratatui::layout::{Layout, Rect};
-use ratatui::prelude::Line;
-use ratatui::style::{Color, Style};
-use ratatui::widgets::{Block, Gauge, Paragraph, Sparkline, Widget};
-use ratatui::DefaultTerminal;
+use ratatui::layout::Constraint::{Length, Min};
+use ratatui::layout::{Alignment, Layout, Rect};
+use ratatui::text::Line;
+use ratatui::widgets::{Paragraph, Tabs, Widget};
+use ratatui::{DefaultTerminal, Frame};
+use std::fmt::Debug;
 use std::io;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use tokio::sync::mpsc::UnboundedReceiver;
+use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver};
 use tokio::{select, time};
 use tokio_util::sync::CancellationToken;
 
+const APP_CLIENT_NAME: &str = "FX torrent";
+const APP_DEFAULT_STORAGE: &str = "torrents";
+const APP_QUIT_KEY: char = 'q';
+const TAB_NAME_LEN: usize = 16;
 const SESSION_CACHE_LIMIT: usize = 10;
+const RENDER_INTERVAL: Duration = Duration::from_millis(200);
+
+#[async_trait]
+pub trait FXWidget: Debug {
+    /// Get the unique handle of the widget.
+    fn handle(&self) -> Handle;
+
+    /// Get the name of the widget.
+    fn name(&self) -> &str;
+
+    /// Execute a widget tick that allows to process events.
+    async fn tick(&mut self);
+
+    /// Handle the specified key event within this widget.
+    fn on_key_event(&mut self, key: FXKeyEvent);
+
+    /// Handle a paste event within this widget.
+    fn on_paste_event(&mut self, text: String);
+
+    /// Render this widget for the given frame and area.
+    fn render(&self, frame: &mut Frame, area: Rect);
+}
+
+#[derive(Debug, Clone)]
+pub struct FXKeyEvent {
+    inner: Arc<InnerFxKeyEvent>,
+}
+
+impl FXKeyEvent {
+    pub fn code(&self) -> KeyCode {
+        self.inner.event.code
+    }
+
+    /// Check if the event is consumed.
+    /// If not, propagation is allowed, else stop.
+    pub fn is_consumed(&self) -> bool {
+        if let Ok(consumed) = self.inner.consumed.lock() {
+            *consumed
+        } else {
+            false
+        }
+    }
+
+    /// Marks this event as consumed. This stops its further propagation.
+    pub fn consume(&mut self) {
+        if let Ok(mut consumed) = self.inner.consumed.lock() {
+            *consumed = true;
+        }
+    }
+}
+
+impl From<KeyEvent> for FXKeyEvent {
+    fn from(value: KeyEvent) -> Self {
+        Self {
+            inner: Arc::new(InnerFxKeyEvent {
+                event: value,
+                consumed: Default::default(),
+            }),
+        }
+    }
+}
+
+#[derive(Debug)]
+struct InnerFxKeyEvent {
+    event: KeyEvent,
+    consumed: Mutex<bool>,
+}
 
 #[derive(Debug)]
 pub struct App {
-    /// The data of the application
-    data: AppData,
-    /// The logs of the application
-    logs: Vec<String>,
-    /// The underlying torrent session used by the app
+    tabs: Vec<Box<dyn FXWidget>>,
+    selected_tab_handle: Handle,
+    session_state: SessionState,
     session: FxTorrentSession,
-    /// The underlying torrent being downloaded by the app
-    torrent: Option<Torrent>,
-    /// The event subscription of the torrent session
     session_event_receiver: Subscription<SessionEvent>,
-    /// The event subscription of the torrent
-    torrent_event_receiver: Option<Subscription<TorrentEvent>>,
+    settings: AppSettings,
+    app_command_receiver: UnboundedReceiver<AppCommand>,
     cancellation_token: CancellationToken,
 }
 
 impl App {
-    pub fn new() -> io::Result<Self> {
-        let data = AppData::default();
-        let session = FxTorrentSession::builder()
-            .client_name("FX torrent")
-            .base_path("torrents")
-            .session_cache(FxSessionCache::new(SESSION_CACHE_LIMIT))
-            .build()
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+    pub fn new(log_receiver: UnboundedReceiver<LogEntry>) -> io::Result<Self> {
+        let settings = AppSettings::default();
+        let session = Self::create_session(&settings)?;
         let session_event_receiver = session.subscribe();
+        let (app_sender, app_receiver) = unbounded_channel();
+        let menu = MenuWidget::new(app_sender, log_receiver);
+        let menu_handle = menu.handle();
 
         Ok(Self {
-            data,
-            logs: vec![],
+            tabs: vec![Box::new(menu)],
+            selected_tab_handle: menu_handle,
+            session_state: SessionState::Initializing,
             session,
-            torrent: None,
             session_event_receiver,
-            torrent_event_receiver: None,
+            settings,
+            app_command_receiver: app_receiver,
             cancellation_token: Default::default(),
         })
     }
 
-    pub async fn run(
-        &mut self,
-        mut terminal: DefaultTerminal,
-        mut command_receiver: UnboundedReceiver<AppCommand>,
-        torrent_uri: &str,
-    ) -> io::Result<()> {
+    pub async fn run(&mut self, mut terminal: DefaultTerminal) -> io::Result<()> {
         let mut reader = EventStream::new();
 
         loop {
-            terminal.draw(|frame| frame.render_widget(&*self, frame.area()))?;
+            terminal.draw(|frame| self.render(frame))?;
 
             select! {
                 _ = self.cancellation_token.cancelled() => return Ok(()),
-                _ = time::sleep(Duration::from_millis(100)) => {},
+                _ = time::sleep(RENDER_INTERVAL) => {},
                 event = reader.next().fuse() => self.handle_event(event).await,
-                Some(command) = command_receiver.recv() => self.handle_command(command).await,
-                Some(event) = self.session_event_receiver.recv() => self.handle_session_event(&*event, torrent_uri).await,
-                Some(event) = async {
-                    match self.torrent_event_receiver.as_mut() {
-                        Some(receiver) => receiver.recv().await,
-                        None => pending::<Option<Arc<TorrentEvent>>>().await,
-                    }
-                } => self.handle_torrent_event(&*event).await,
+                Some(command) = self.app_command_receiver.recv() => self.handle_command(command).await,
+                Some(event) = self.session_event_receiver.recv() => self.handle_session_event(&*event).await,
             }
+
+            // tick all widgets, which allows them to process events
+            future::join_all(self.tabs.iter_mut().map(|e| e.tick()).collect::<Vec<_>>()).await;
         }
     }
 
-    async fn handle_session_event(&mut self, event: &SessionEvent, torrent_uri: &str) {
+    async fn handle_session_event(&mut self, event: &SessionEvent) {
         match event {
-            SessionEvent::TorrentAdded(handle) => {
-                if let Some(torrent) = self.session.find_torrent_by_handle(handle).await {
-                    if let Ok(metadata) = torrent.metadata().await {
-                        self.data.torrent_name = metadata.name().map(|e| e.to_string());
-                        self.data.torrent_info_hash = Some(metadata.info_hash);
-                    }
-
-                    self.subscribe_to_torrent(&torrent);
-                }
-            }
+            SessionEvent::TorrentAdded(_) => {}
             SessionEvent::TorrentRemoved(_) => {}
             SessionEvent::StateChanged(state) => {
-                self.data.session_state = *state;
-
-                if *state == SessionState::Running {
-                    if let Ok(torrent) = self
-                        .session
-                        .add_torrent_from_uri(torrent_uri, TorrentFlags::none())
-                        .await
-                    {
-                        self.torrent = Some(torrent);
-                    }
-                }
-            }
-        }
-    }
-
-    async fn handle_torrent_event(&mut self, event: &TorrentEvent) {
-        match event {
-            TorrentEvent::StateChanged(state) => {
-                self.data.torrent_state = Some(*state);
-            }
-            TorrentEvent::MetadataChanged(metadata) => {
-                self.data.torrent_name = metadata.name().map(|e| e.to_string());
-                self.data.torrent_info_hash = Some(metadata.info_hash.clone());
-
-                if let Some(torrent) = self.torrent.as_ref() {
-                    self.data.torrent_path = torrent.path().await;
-                }
-                if let Some(info) = metadata.info.as_ref() {
-                    self.data.torrent_size = Some(info.len());
-                }
-            }
-            TorrentEvent::PeerConnected(_) => {
-                if let Some(torrent) = self.torrent.as_ref() {
-                    self.data.torrent_peers = torrent.active_peer_connections().await;
-                }
-            }
-            TorrentEvent::PeerDisconnected(_) => {
-                if let Some(torrent) = self.torrent.as_ref() {
-                    self.data.torrent_peers = torrent.active_peer_connections().await;
-                }
-            }
-            TorrentEvent::TrackersChanged => {}
-            TorrentEvent::PiecesChanged(total_pieces) => {
-                self.data.torrent_total_pieces = *total_pieces;
-            }
-            TorrentEvent::PiecePrioritiesChanged => {}
-            TorrentEvent::PieceCompleted(_) => {
-                if let Some(torrent) = self.torrent.as_ref() {
-                    self.data.torrent_completed_pieces = torrent.total_completed_pieces().await;
-                }
-            }
-            TorrentEvent::FilesChanged => {
-                if let Some(torrent) = self.torrent.as_ref() {
-                    self.data.torrent_total_files = torrent.total_files().await.unwrap_or(0);
-                }
-            }
-            TorrentEvent::OptionsChanged => {}
-            TorrentEvent::Stats(stats) => {
-                self.data.torrent_progress = stats.progress();
-                self.data.torrent_down.push(stats.download_rate);
-                self.data.torrent_up.push(stats.upload_rate);
-
-                if self.data.torrent_down.len() > 100 {
-                    self.data.torrent_down.remove(0);
-                }
-                if self.data.torrent_up.len() > 100 {
-                    self.data.torrent_up.remove(0);
-                }
+                self.session_state = *state;
             }
         }
     }
 
     async fn handle_command(&mut self, command: AppCommand) {
         match command {
-            AppCommand::Log(log) => {
-                self.logs.push(log);
-                if self.logs.len() > 10 {
-                    self.logs.remove(0);
-                }
-            }
+            AppCommand::AddTorrentUri(uri) => self.add_torrent_uri(uri.as_str()).await,
+            AppCommand::DhtEnabled(enabled) => self.update_dht(enabled),
+            AppCommand::TrackerEnabled(enabled) => self.update_trackers(enabled),
+            AppCommand::Quit => self.cancellation_token.cancel(),
         }
     }
 
-    fn subscribe_to_torrent(&mut self, torrent: &Torrent) {
-        self.torrent_event_receiver = Some(torrent.subscribe());
+    fn selected_tab(&mut self) -> (usize, &mut Box<dyn FXWidget>) {
+        let selected_tab = self
+            .tabs
+            .iter()
+            .position(|e| &e.handle() == &self.selected_tab_handle)
+            .unwrap_or(0);
+
+        (
+            selected_tab,
+            self.tabs
+                .iter_mut()
+                .nth(selected_tab)
+                .expect("expected the tab to exist"),
+        )
     }
 
-    async fn handle_event(&self, event: Option<io::Result<Event>>) {
+    fn select_tab(&mut self, tab_index: usize) {
+        self.selected_tab_handle = self
+            .tabs
+            .iter()
+            .nth(tab_index)
+            .or_else(|| self.tabs.iter().nth(0))
+            .map(|e| e.handle())
+            .expect("expected the tab to exist");
+    }
+
+    async fn handle_event(&mut self, event: Option<io::Result<Event>>) {
         match event {
-            Some(Ok(event)) => {
-                if let Event::Key(key) = event {
-                    if key.code == KeyCode::Char('q') {
-                        self.cancellation_token.cancel();
+            Some(Ok(event)) => match event {
+                Event::Key(key) => {
+                    let (_, selected_tab) = self.selected_tab();
+                    let event = FXKeyEvent::from(key);
+
+                    // invoke the event within the active tab
+                    selected_tab.on_key_event(event.clone());
+
+                    // check if the event was consumed
+                    if !event.is_consumed() {
+                        match event.code() {
+                            KeyCode::Char(APP_QUIT_KEY) => self.cancellation_token.cancel(),
+                            KeyCode::Left => {
+                                let position = self.selected_tab().0.saturating_sub(1);
+                                self.select_tab(position);
+                            }
+                            KeyCode::Right => {
+                                let mut position = self.selected_tab().0.saturating_add(1);
+                                if position > self.tabs.len() {
+                                    position = self.tabs.len() - 1;
+                                }
+
+                                self.select_tab(position);
+                            }
+                            _ => {}
+                        }
                     }
                 }
-            }
+                Event::Paste(text) => {
+                    let (_, selected_tab) = self.selected_tab();
+                    selected_tab.on_paste_event(text);
+                }
+                _ => {}
+            },
             _ => {}
         }
     }
 
-    fn print_optional_string<S: ToString>(value: Option<S>) -> String {
-        value
-            .as_ref()
-            .map(|e| e.to_string())
-            .unwrap_or(String::default())
-    }
-}
-
-impl Widget for &App {
-    fn render(self, area: Rect, buf: &mut Buffer)
-    where
-        Self: Sized,
-    {
-        let main = Layout::vertical([Length(1), Min(0), Length(4), Min(0)]);
-        let [title_area, header_area, progress_area, log_area] = main.areas(area);
-        let header = Layout::horizontal([Percentage(50), Percentage(50)]);
-        let [metadata_area, performance_area] = header.areas(header_area);
-        let performance = Layout::vertical([Percentage(50), Percentage(50)]);
-        let [down_performance, up_performance] = performance.areas(performance_area);
-
-        // render the title
-        Block::bordered()
-            .title(format!(" FX Torrent - {:?} ", self.data.session_state))
-            .render(title_area, buf);
-
-        // render the metadata
-        Paragraph::new(vec![
-            Line::from(format!(
-                "Name: {}",
-                App::print_optional_string(self.data.torrent_name.as_ref())
-            )),
-            Line::from(format!(
-                "State: {}",
-                App::print_optional_string(self.data.torrent_state.as_ref())
-            )),
-            Line::from(format!(
-                "Path: {}",
-                App::print_optional_string(
-                    self.data.torrent_path.as_ref().and_then(|e| e.to_str())
-                )
-            )),
-            Line::from(format!(
-                "Size: {}",
-                App::print_optional_string(
-                    self.data
-                        .torrent_size
+    async fn add_torrent_uri(&mut self, uri: &str) {
+        match self
+            .session
+            .add_torrent_from_uri(uri, TorrentFlags::default())
+            .await
+        {
+            Ok(torrent) => match torrent.metadata().await {
+                Ok(metadata) => {
+                    let name = metadata
+                        .info
                         .as_ref()
-                        .map(|e| *e)
-                        .map(format_bytes)
-                )
-            )),
-            Line::from(format!(
-                "Info hash: {}",
-                App::print_optional_string(self.data.torrent_info_hash.as_ref())
-            )),
-            Line::from(format!(
-                "Pieces: {}/{}",
-                self.data.torrent_completed_pieces, self.data.torrent_total_pieces
-            )),
-            Line::from(format!("Files: {}", self.data.torrent_total_files)),
-            Line::from(format!("Connected peers: {}", self.data.torrent_peers)),
-        ])
-        .block(Block::bordered().title(" Metadata "))
-        .render(metadata_area, buf);
+                        .map(|info| info.name())
+                        .unwrap_or_else(|| {
+                            metadata
+                                .name()
+                                .map(|e| e.to_string())
+                                .unwrap_or("<unknown>".to_string())
+                        });
+                    self.tabs
+                        .push(Box::new(TorrentInfoWidget::new(&name, torrent)));
+                }
+                Err(e) => {
+                    warn!("Torrent uri {} has been dropped too early, {}", uri, e);
+                }
+            },
+            Err(e) => {
+                error!("Failed to add torrent {}: {}", uri, e);
+            }
+        }
+    }
 
-        // render the performance
-        Sparkline::default()
-            .block(Block::bordered().title(format!(
-                    "Down: {}/s",
-                    format_bytes(
-                        self.data
-                            .torrent_down
-                            .last()
-                            .map(|e| *e as usize)
-                            .unwrap_or(0)
-                    )
-                )))
-            .data(&self.data.torrent_down)
-            .style(Style::default().fg(Color::Yellow))
-            .render(down_performance, buf);
+    fn update_dht(&mut self, enabled: bool) {
+        self.settings.dht_enabled = enabled;
+        match Self::create_session(&self.settings) {
+            Ok(session) => {
+                self.session = session;
+            }
+            Err(e) => error!("Failed to create session: {}", e),
+        }
+    }
 
-        Sparkline::default()
-            .block(Block::bordered().title(format!(
-                "Up: {}/s",
-                format_bytes(
-                    self.data
-                        .torrent_up
-                        .last()
-                        .map(|e| *e as usize)
-                        .unwrap_or(0)
-                )
-            )))
-            .data(&self.data.torrent_up)
-            .style(Style::default().fg(Color::Yellow))
-            .render(up_performance, buf);
+    fn update_trackers(&mut self, enabled: bool) {
+        self.settings.trackers_enabled = enabled;
+    }
 
-        // render the progress
-        Gauge::default()
-            .block(Block::bordered().title("Progress"))
-            .gauge_style(Style::default().fg(Color::Yellow))
-            .ratio(self.data.torrent_progress as f64)
-            .label(format!("{:.1}%", self.data.torrent_progress * 100f32))
-            .render(progress_area, buf);
+    fn render(&mut self, frame: &mut Frame) {
+        let area = frame.area();
 
-        // render the logs
-        Paragraph::new(
-            self.logs
-                .iter()
-                .map(|l| Line::from(l.clone()))
-                .collect::<Vec<_>>(),
-        )
-        .block(Block::bordered().title(" Logs "))
-        .render(log_area, buf);
+        let main = Layout::vertical([Length(1), Min(0), Length(1)]);
+        let [header_area, content_area, footer_area] = main.areas(area);
+        let header = Layout::horizontal([Min(0), Min(10)]);
+        let [tabs_area, title_area] = header.areas(header_area);
+        let session_state = self.session_state.to_string();
+        let titles: Vec<String> = self
+            .tabs
+            .iter()
+            .map(|e| {
+                let name = e.name();
+                let len = name.len().min(TAB_NAME_LEN);
+
+                format!("  {}  ", name.chars().take(len).collect::<String>())
+            })
+            .collect();
+        let (selected_tab_index, selected_tab) = self.selected_tab();
+
+        // render the header
+        Tabs::new(titles)
+            .select(selected_tab_index)
+            .padding("", "")
+            .divider(" ")
+            .render(tabs_area, frame.buffer_mut());
+        Paragraph::new(format!("FX Torrent - {}", session_state))
+            .alignment(Alignment::Right)
+            .render(title_area, frame.buffer_mut());
+
+        // render the contents
+        selected_tab.render(frame, content_area);
+
+        // render the footer
+        Line::raw(format!(
+            "◄ ► to change tab | Press {} to quit",
+            APP_QUIT_KEY
+        ))
+        .centered()
+        .render(footer_area, frame.buffer_mut());
+    }
+
+    fn create_session(settings: &AppSettings) -> io::Result<FxTorrentSession> {
+        FxTorrentSession::builder()
+            .client_name(APP_CLIENT_NAME)
+            .base_path(&settings.storage)
+            .session_cache(FxSessionCache::new(SESSION_CACHE_LIMIT))
+            .build()
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
     }
 }
 
 #[derive(Debug)]
 pub enum AppCommand {
-    Log(String),
+    /// Try to add the given torrent uri to the app
+    AddTorrentUri(String),
+    /// Set if DHT is enabled
+    DhtEnabled(bool),
+    /// Set if trackers are enabled
+    TrackerEnabled(bool),
+    /// Quit the app
+    Quit,
 }
 
-#[derive(Debug)]
-struct AppData {
-    session_state: SessionState,
-    torrent_name: Option<String>,
-    torrent_path: Option<PathBuf>,
-    torrent_state: Option<TorrentState>,
-    torrent_size: Option<usize>,
-    torrent_info_hash: Option<InfoHash>,
-    torrent_total_pieces: usize,
-    torrent_completed_pieces: usize,
-    torrent_total_files: usize,
-    torrent_peers: usize,
-    torrent_progress: f32,
-    torrent_down: Vec<u64>,
-    torrent_up: Vec<u64>,
+#[derive(Debug, Clone)]
+struct AppSettings {
+    storage: PathBuf,
+    dht_enabled: bool,
+    trackers_enabled: bool,
 }
 
-impl Default for AppData {
+impl Default for AppSettings {
     fn default() -> Self {
         Self {
-            session_state: SessionState::Initializing,
-            torrent_name: None,
-            torrent_path: None,
-            torrent_state: None,
-            torrent_size: None,
-            torrent_info_hash: None,
-            torrent_total_pieces: 0,
-            torrent_completed_pieces: 0,
-            torrent_total_files: 0,
-            torrent_peers: 0,
-            torrent_progress: 0.0,
-            torrent_down: vec![],
-            torrent_up: vec![],
+            storage: PathBuf::from(APP_DEFAULT_STORAGE),
+            dht_enabled: true,
+            trackers_enabled: true,
         }
     }
 }

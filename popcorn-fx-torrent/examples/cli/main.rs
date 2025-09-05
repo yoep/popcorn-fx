@@ -1,28 +1,29 @@
 mod app;
 mod app_logger;
+mod menu;
+mod torrent_info;
+mod widget;
 
 use crate::app::App;
 use crate::app_logger::AppLogger;
-use log::set_boxed_logger;
-use std::{env, io};
+use log::LevelFilter;
+use std::io;
 use tokio::select;
 use tokio::sync::mpsc::unbounded_channel;
 
-#[tokio::main]
+#[tokio::main(flavor = "multi_thread")]
 async fn main() -> io::Result<()> {
-    let torrent_uri = env::args().nth(1).ok_or(io::Error::new(
-        io::ErrorKind::NotFound,
-        "expected a torrent uri to have been provided",
-    ))?;
-    let (command_sender, command_receiver) = unbounded_channel();
-    let app_logger = AppLogger::new(command_sender);
-    let mut app = App::new()?;
+    let (log_sender, log_receiver) = unbounded_channel();
+    let app_logger = AppLogger::new(log_sender.clone());
+    let mut app = App::new(log_receiver)?;
     let terminal = ratatui::init();
 
-    set_boxed_logger(Box::new(app_logger)).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+    log::set_boxed_logger(Box::new(app_logger))
+        .map(|()| log::set_max_level(LevelFilter::Debug))
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
     let result = select! {
         _ = tokio::signal::ctrl_c() => Ok(()),
-        result = app.run(terminal, command_receiver, torrent_uri.as_str()) => result,
+        result = app.run(terminal) => result,
     };
 
     ratatui::restore();

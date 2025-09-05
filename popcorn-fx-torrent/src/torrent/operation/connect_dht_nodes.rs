@@ -67,6 +67,11 @@ impl InnerConnectDhtNodesOperation {
 
         if let Some(dht) = context.dht() {
             if let Some(nodes) = metadata.nodes.as_ref() {
+                trace!(
+                    "Torrent {} is trying to add {} DHT node(s)",
+                    context,
+                    nodes.len()
+                );
                 let mut futures: Vec<_> = vec![];
 
                 for node in nodes.iter() {

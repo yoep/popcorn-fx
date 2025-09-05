@@ -1,17 +1,17 @@
 use crate::torrent::{PieceError, PieceIndex, PiecePart};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use tokio::sync::RwLock;
 
 /// The piece pool stores piece chunks/parts that have been received from remote peers.
 #[derive(Debug)]
 pub struct PiecePool {
-    pool: RwLock<HashMap<PieceIndex, Vec<u8>>>,
+    pool: RwLock<BTreeMap<PieceIndex, Vec<u8>>>,
 }
 
 impl PiecePool {
     pub fn new() -> Self {
         Self {
-            pool: RwLock::new(HashMap::new()),
+            pool: RwLock::new(BTreeMap::new()),
         }
     }
 

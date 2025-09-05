@@ -816,6 +816,7 @@ mod test {
             completed_pieces: 2,
             total_size: 10000,
             total_completed_size: 2000,
+            total_wasted: 0,
             total_peers: 10,
         }
     }

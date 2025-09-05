@@ -69,6 +69,7 @@ pub mod testing {
                 .logger(Logger::builder().build("mio", LevelFilter::Info))
                 .logger(Logger::builder().build("neli", LevelFilter::Info))
                 .logger(Logger::builder().build("polling", LevelFilter::Info))
+                .logger(Logger::builder().build("reqwest", LevelFilter::Info))
                 .logger(Logger::builder().build("rustls", LevelFilter::Info))
                 .logger(Logger::builder().build("serde_xml_rs", LevelFilter::Info))
                 .logger(Logger::builder().build("tracing", LevelFilter::Info))

@@ -50,8 +50,8 @@ impl File {
             .unwrap_or_else(|| Self::filename_from_path(&self.info.path()).unwrap_or(String::new()))
     }
 
-    /// Get the total bytes of the torrent file.
-    pub fn length(&self) -> usize {
+    /// Get the total amount of bytes in the torrent file.
+    pub fn len(&self) -> usize {
         self.info.length as usize
     }
 
@@ -72,7 +72,7 @@ impl File {
     /// It returns a `Range<usize>` representing the start and end byte positions of the file
     /// within the storage device.
     pub fn io_range(&self) -> Range<usize> {
-        0..self.length()
+        0..self.len()
     }
 
     /// Get the byte range of the file within the torrent.
@@ -82,7 +82,7 @@ impl File {
     /// It returns a `Range<usize>` indicating the file's position in bytes within the torrent,
     /// starting from its offset and extending to its length.
     pub fn torrent_range(&self) -> Range<usize> {
-        self.torrent_offset..(self.torrent_offset + self.length())
+        self.torrent_offset..(self.torrent_offset + self.len())
     }
 
     /// Get the portion of the given torrent byte range that corresponds to the file's storage range.
@@ -167,7 +167,7 @@ impl PartialEq<Self> for File {
     fn eq(&self, other: &Self) -> bool {
         self.torrent_path == other.torrent_path
             && self.torrent_offset == other.torrent_offset
-            && self.length() == other.length()
+            && self.len() == other.len()
     }
 }
 

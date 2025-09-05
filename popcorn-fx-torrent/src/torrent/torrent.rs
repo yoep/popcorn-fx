@@ -14,7 +14,7 @@ use crate::torrent::tracker::{
 use crate::torrent::{
     calculate_byte_rate, format_bytes, FileAttributeFlags, FileIndex, PeerPool, Piece, PieceIndex,
     PiecePart, PiecePool, PiecePriority, TorrentError, TorrentFlags, TorrentMetadata,
-    TorrentMetadataInfo, DEFAULT_TORRENT_EXTENSIONS, DEFAULT_TORRENT_OPERATIONS,
+    TorrentMetadataInfo, TorrentPeer, DEFAULT_TORRENT_EXTENSIONS, DEFAULT_TORRENT_OPERATIONS,
     DEFAULT_TORRENT_PROTOCOL_EXTENSIONS,
 };
 use async_trait::async_trait;
@@ -98,7 +98,7 @@ pub enum TorrentState {
     #[display(fmt = "retrieving metadata")]
     RetrievingMetadata,
     /// The torrent has not started its download yet, and is currently checking existing files.
-    #[display(fmt = "checking files")]
+    #[display(fmt = "validating files")]
     CheckingFiles,
     /// The torrent is being downloaded. This is the state most torrents will be in most of the time.
     #[display(fmt = "downloading")]
@@ -166,6 +166,8 @@ pub struct TorrentStats {
     pub total_size: usize,
     /// The size in bytes of the pieces that have already been completed.
     pub total_completed_size: usize,
+    /// The size in bytes of wasted data due to invalid hashes
+    pub total_wasted: usize,
     /// The currently total active peer connections.
     pub total_peers: usize,
 }
@@ -218,6 +220,7 @@ impl From<&InternalTorrentStats> for TorrentStats {
             completed_pieces: value.completed_pieces,
             total_size: value.total_wanted_size,
             total_completed_size: value.total_completed_size,
+            total_wasted: value.total_wasted,
             total_peers: 0,
         }
     }
@@ -654,7 +657,6 @@ impl Torrent {
         let peer_discovery_addrs: Vec<SocketAddr> =
             peer_discoveries.iter().map(|e| e.addr()).cloned().collect();
         let info_hash = metadata.info_hash.clone();
-        let max_peers_in_flight = config.peers_in_flight.min(config.peers_upper_limit);
         let (event_sender, command_receiver) = unbounded_channel();
         let (peer_subscriber, peer_event_receiver) = unbounded_channel();
         let cancellation_token = CancellationToken::new();
@@ -666,7 +668,7 @@ impl Torrent {
             peer_discovery_addrs: peer_discovery_addrs.clone(),
             tracker_manager,
             dht,
-            peer_pool: PeerPool::new(handle, config.peers_upper_limit, max_peers_in_flight),
+            peer_pool: PeerPool::new(handle, config.peers_upper_limit),
             peer_subscriber,
             peer_discoveries: Arc::new(peer_discoveries),
             pieces: RwLock::new(Vec::with_capacity(0)),
@@ -1065,6 +1067,27 @@ impl Torrent {
         }
 
         Ok(inner.announce_all().await)
+    }
+
+    /// Get a "weak" reference to a peer in this torrent identified by `handle`.
+    ///
+    /// This looks up the `handle` within the peer pool of the torrent.
+    /// When found, it will create a weak reference to the [Peer].
+    /// Before calling a method, make sure to check if the reference is still valid by calling [TorrentPeer::is_valid].
+    ///
+    /// # Arguments
+    ///
+    /// * `handle` — The [`PeerHandle`] reference to look up.
+    ///
+    /// # Returns
+    ///
+    /// It returns the torrent peer (weak reference) when found, else [None].
+    pub async fn peer(&self, handle: &PeerHandle) -> Option<TorrentPeer> {
+        if let Some(inner) = self.instance() {
+            return inner.peer_pool.get(&handle).await;
+        }
+
+        None
     }
 
     /// Scrape the trackers of the torrent to retrieve the metrics.
@@ -1997,18 +2020,14 @@ impl TorrentContext {
 
         let is_finished = matches!(state, TorrentState::Finished | TorrentState::Seeding);
         let is_retrieving_data = options.contains(TorrentFlags::DownloadMode);
+        let is_retrieving_metadata =
+            options.contains(TorrentFlags::Metadata) && state == TorrentState::RetrievingMetadata;
 
         let peer_lower_bound = config.peers_lower_limit;
         let peer_upper_bound = config.peers_upper_limit;
 
-        // prioritize metadata retrieval, allow up to double the lower bound for faster metadata resolution
-        if options.contains(TorrentFlags::Metadata) && state == TorrentState::RetrievingMetadata {
-            let desired_peer_count = peer_upper_bound.min(peer_lower_bound * 2);
-            return desired_peer_count.saturating_sub(currently_active_peers);
-        }
-
-        // if downloading, aim for the upper bound
-        if is_retrieving_data && !is_finished {
+        // if we're downloading or retrieving metadata, aim for the upper bound
+        if is_retrieving_metadata || (is_retrieving_data && !is_finished) {
             return peer_upper_bound.saturating_sub(currently_active_peers);
         }
 
@@ -2246,33 +2265,26 @@ impl TorrentContext {
     /// Add the given peer to this torrent.
     /// Duplicate peers will be ignored and dropped.
     async fn add_peer(&self, peer: Box<dyn Peer>) {
-        trace!("Peer {} is being added to torrent {}", peer, self);
+        trace!("Torrent {} is trying to add new peer {}", self, peer);
         let info = peer.client();
         let subscriber = self.peer_subscriber.clone();
         peer.subscribe_with(subscriber);
 
-        if self.peer_pool.add_peer(peer).await {
-            debug!("Peer {} added to torrent {}", info, self);
-            self.invoke_event(TorrentEvent::PeerConnected(info));
-        } else {
-            debug!(
-                "Peer {} has not been added to torrent {}, reason: duplicate",
-                info, self
-            );
+        match self.peer_pool.add_peer(peer).await {
+            Ok(_) => {
+                debug!("Torrent {} added peer {}", self, info);
+                self.invoke_event(TorrentEvent::PeerConnected(info));
+            }
+            Err(e) => {
+                debug!("Torrent {} failed to add peer {}, {}", self, info, e);
+            }
         }
     }
 
     /// Remove the given peer from the torrent as it has been closed.
-    async fn remove_peer(&self, handle: PeerHandle) {
+    async fn remove_peer(&self, handle: &PeerHandle) {
         trace!("Removing peer {} from torrent {}", handle, self);
-        if let Some(peer) = self
-            .peer_pool
-            .peers
-            .read()
-            .await
-            .iter()
-            .find(|e| e.handle() == handle)
-        {
+        if let Some(peer) = self.peer_pool.peers.read().await.get(&handle) {
             let mut mutex = self.pieces.write().await;
             let bitfield = peer.remote_piece_bitfield().await;
 
@@ -2284,8 +2296,8 @@ impl TorrentContext {
             }
         }
 
-        if let Some(peer) = self.peer_pool.remove_peer(handle).await {
-            self.invoke_event(TorrentEvent::PeerDisconnected(peer.client()));
+        if let Some(peer_info) = self.peer_pool.remove_peer(handle).await {
+            self.invoke_event(TorrentEvent::PeerDisconnected(peer_info));
         }
     }
 
@@ -2452,7 +2464,7 @@ impl TorrentContext {
             let peer_mutex = self.peer_pool.peers.read().await;
             total_peers = peer_mutex.len();
             // only collect the metrics of peers that are not closed
-            for peer in peer_mutex.iter() {
+            for peer in peer_mutex.values() {
                 // copy the peer metrics into a buffer to release the peers lock as soon as possible
                 peer_metrics.push(peer.stats().await);
             }
@@ -2559,7 +2571,7 @@ impl TorrentContext {
                 let peer_mutex = self.peer_pool.peers.read().await;
 
                 peer_count = peer_mutex.len();
-                for peer in peer_mutex.iter() {
+                for peer in peer_mutex.values() {
                     let bitfield = peer.remote_piece_bitfield().await;
                     for (piece_index, _) in bitfield.iter().enumerate().filter(|(_, value)| *value)
                     {
@@ -2772,7 +2784,7 @@ impl TorrentContext {
             TorrentCommandEvent::OptionsChanged => self.options_changed().await,
             TorrentCommandEvent::ConnectToTracker(e) => self.add_tracker_async(e).await,
             TorrentCommandEvent::PeerConnected(peer) => self.add_peer(peer).await,
-            TorrentCommandEvent::PeerClosed(handle) => self.remove_peer(handle).await,
+            TorrentCommandEvent::PeerClosed(handle) => self.remove_peer(&handle).await,
             TorrentCommandEvent::PiecePartCompleted(part, data) => {
                 self.process_completed_piece_part(part, data).await
             }
@@ -3224,7 +3236,7 @@ impl TorrentContext {
         file: &File,
         range: std::ops::Range<usize>,
     ) -> Result<Vec<u8>> {
-        if range.end > file.length() {
+        if range.end > file.len() {
             return Err(TorrentError::InvalidRange(range));
         }
 
@@ -3528,7 +3540,7 @@ impl TorrentContext {
 
     /// Notify the peers about the pieces that have become available.
     async fn notify_peers_have_pieces(&self, pieces: Vec<PieceIndex>) {
-        for peer in self.peer_pool.peers.read().await.iter() {
+        for peer in self.peer_pool.peers.read().await.values() {
             peer.notify_piece_availability(pieces.clone());
         }
     }
@@ -4501,6 +4513,7 @@ mod tests {
             completed_pieces: 20,
             total_size: 0,
             total_completed_size: 0,
+            total_wasted: 0,
             total_peers: 0,
         };
         let result = stats.progress();
@@ -4522,6 +4535,7 @@ mod tests {
             completed_pieces: 50,
             total_size: 1024,
             total_completed_size: 512,
+            total_wasted: 0,
             total_peers: 0,
         };
         let result = stats.progress();
@@ -4543,6 +4557,7 @@ mod tests {
             completed_pieces: 835,
             total_size: 0,
             total_completed_size: 0,
+            total_wasted: 0,
             total_peers: 0,
         };
         let result = stats.progress();

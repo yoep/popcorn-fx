@@ -89,7 +89,7 @@ impl From<&popcorn_fx_torrent::torrent::File> for torrent::info::File {
             filename: value.filename(),
             torrent_path: value.torrent_path.as_os_str().to_string_lossy().to_string(),
             offset: value.torrent_offset as u64,
-            length: value.length() as u64,
+            length: value.len() as u64,
             md5sum: value.info.md5sum.clone(),
             sha1: value.info.sha1.clone(),
             special_fields: Default::default(),
@@ -375,6 +375,7 @@ mod tests {
             completed_pieces: 12,
             total_size: 200000,
             total_completed_size: 14000,
+            total_wasted: 0,
             total_peers: 67,
         });
         let expected_result = proto::torrent::TorrentEvent {

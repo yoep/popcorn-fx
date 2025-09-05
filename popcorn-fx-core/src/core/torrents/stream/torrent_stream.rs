@@ -1326,6 +1326,7 @@ mod test {
             completed_pieces: 30,
             total_size: 15000,
             total_completed_size: 15000,
+            total_wasted: 0,
             total_peers: 15,
         });
         mock.expect_subscribe()
@@ -1450,6 +1451,7 @@ mod test {
             completed_pieces: 0,
             total_size: 0,
             total_completed_size: 0,
+            total_wasted: 0,
             total_peers: 0,
         }
     }

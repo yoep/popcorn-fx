@@ -13,7 +13,6 @@ import com.github.yoep.popcorn.backend.lib.ipc.protobuf.Player;
 import com.github.yoep.popcorn.backend.player.PlayerAction;
 import com.github.yoep.popcorn.backend.settings.ApplicationConfig;
 import com.github.yoep.popcorn.backend.subtitles.ISubtitle;
-import com.github.yoep.popcorn.backend.subtitles.SubtitleWrapper;
 import com.github.yoep.popcorn.backend.utils.LocaleText;
 import com.github.yoep.popcorn.ui.events.SubtitleOffsetEvent;
 import com.github.yoep.popcorn.ui.view.ViewLoader;
@@ -268,7 +267,7 @@ public class PopcornPlayerSectionController implements Initializable {
     }
 
     private void onVideoViewChanged(Node view) {
-        videoView.getChildren().setAll(view);
+        Platform.runLater(() -> videoView.getChildren().setAll(view));
     }
 
     private void onVolumeChanged(int volume) {

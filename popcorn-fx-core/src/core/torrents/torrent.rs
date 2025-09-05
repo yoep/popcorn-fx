@@ -111,7 +111,7 @@ impl Torrent for torrent::Torrent {
 
         for file in self.files().await {
             if let Some(current) = result.as_ref() {
-                if current.length() < file.length() {
+                if current.len() < file.len() {
                     result = Some(file);
                 }
             } else {
@@ -209,9 +209,9 @@ impl TorrentInfo {
         let mut index: usize = 0;
 
         for file in self.files.iter() {
-            if file.length() > largest_file_size {
+            if file.len() > largest_file_size {
                 largest_file_index = Some(index);
-                largest_file_size = file.length();
+                largest_file_size = file.len();
             }
 
             index += 1;

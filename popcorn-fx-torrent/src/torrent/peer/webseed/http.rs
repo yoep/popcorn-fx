@@ -30,7 +30,7 @@ const URL_ENCODE_RESERVED: &AsciiSet = &NON_ALPHANUMERIC
     .remove(b'.');
 
 /// The HTTP peer, also known as webseed, implementation that exchanges data with a HTTP server.
-#[derive(Debug, Display)]
+#[derive(Debug, Display, Clone)]
 #[display(fmt = "{}", inner)]
 pub struct HttpPeer {
     inner: Arc<HttpPeerContext>,
@@ -105,6 +105,10 @@ impl Peer for HttpPeer {
 
     async fn stats(&self) -> PeerStats {
         self.inner.stats.read().await.clone()
+    }
+
+    async fn is_seed(&self) -> bool {
+        true
     }
 
     async fn remote_piece_bitfield(&self) -> BitVec {

@@ -2871,7 +2871,7 @@ impl TorrentContext {
     async fn handle_peer_event(&self, event: PeerEvent) {
         match event {
             PeerEvent::PeersDiscovered(peers) => self.add_peer_addresses(peers).await,
-            PeerEvent::PeersDropped(peers) => self.handle_dropped_peers(peers).await,
+            PeerEvent::PeersDropped(peers) => self.decrease_peer_addr_priority(peers).await,
             PeerEvent::RemoteAvailablePieces(pieces) => {
                 self.update_piece_availabilities(pieces, true).await
             }
@@ -2882,8 +2882,10 @@ impl TorrentContext {
         }
     }
 
-    async fn handle_dropped_peers(&self, peers: Vec<SocketAddr>) {
-        self.peer_pool.peer_connections_closed(peers).await;
+    async fn decrease_peer_addr_priority(&self, peers: Vec<SocketAddr>) {
+        for peer in peers {
+            self.peer_pool.update_peer_rank(&peer, -1).await;
+        }
     }
 
     async fn add_torrent_to_tracker(&self) -> bool {

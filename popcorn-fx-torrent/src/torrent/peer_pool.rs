@@ -12,13 +12,26 @@ use thiserror::Error;
 use tokio::sync::{Mutex, RwLock, RwLockWriteGuard};
 use tokio::time;
 
+const CONNECTION_FAILURE_THRESHOLD: usize = 3;
+
 /// The failure reason when adding a peer failed.
 #[derive(Debug, Error, PartialEq)]
-pub enum Reason {
+pub enum AddReason {
     #[error("peer already exists within the pool")]
     Duplicate,
     #[error("pool limit has been reached")]
     LimitReached,
+}
+
+/// The reason why a peer has been closed.
+#[derive(Debug, PartialEq)]
+pub enum CloseReason {
+    /// Establishing a connection to the remote peer failed.
+    ConnectionFailed,
+    /// The client has closed the connection with the remote peer.
+    Client,
+    /// The remote peer has closed the connection.
+    Remote,
 }
 
 /// The torrent peer pool manager for a single torrent.
@@ -71,7 +84,7 @@ impl PeerPool {
     /// the peer won't be added to the pool and the function will return [None].
     ///
     /// It returns a [Subscription] to receive peer events when the peer is added to the pool.
-    pub async fn add_peer(&self, peer: Box<dyn Peer>) -> Result<(), Reason> {
+    pub async fn add_peer(&self, peer: Box<dyn Peer>) -> Result<(), AddReason> {
         let mut peers = self.peers.write().await;
         let pool_limit = *self.limit.lock().await;
         let handle = peer.handle();
@@ -82,13 +95,13 @@ impl PeerPool {
                 "Peer pool {} is unable to add peer {}, pool limit reached",
                 self, handle
             );
-            return Err(Reason::LimitReached);
+            return Err(AddReason::LimitReached);
         }
 
         // check if the peer already exists within the pool
         if peers.contains_key(&handle) {
             warn!("Peer pool {} detected duplicate peer {}", self, peer);
-            return Err(Reason::Duplicate);
+            return Err(AddReason::Duplicate);
         }
 
         peers.insert(handle, Arc::from(peer));
@@ -146,12 +159,36 @@ impl PeerPool {
         peer_list.extend(addrs);
     }
 
-    /// Updates the given peer addresses to be no longer in use.
-    pub async fn peer_connections_closed(&self, addrs: Vec<SocketAddr>) {
+    /// Updates the given peer address to be no longer in use.
+    pub async fn peer_connection_closed(&self, addr: &SocketAddr, reason: CloseReason) {
         let mut peer_list = self.peer_list.lock().await;
 
-        for (_, peer) in peer_list.iter_mut().filter(|(e, _)| addrs.contains(e)) {
+        if let Some(peer) = peer_list.get_mut(addr) {
+            match reason {
+                CloseReason::ConnectionFailed => {
+                    peer.failure_count = peer.failure_count.saturating_add(1);
+                }
+                _ => {}
+            }
+
             peer.is_in_use = false;
+        }
+    }
+
+    /// Update the peer priority of the given address.
+    pub async fn update_peer_rank(&self, addr: &SocketAddr, change: i32) {
+        let mut peer_list = self.peer_list.lock().await;
+
+        if let Some(peer) = peer_list.get_mut(addr) {
+            let mut rank = peer.rank.take().unwrap_or(0);
+
+            if change < 0 {
+                rank = rank.saturating_sub(1);
+            } else {
+                rank = rank.saturating_add(1);
+            }
+
+            peer.rank = PeerPriority::from(rank);
         }
     }
 
@@ -266,18 +303,20 @@ impl PeerPool {
 }
 
 /// The address information of a peer for the torrent.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct PeerInfo {
     /// The address of a remote peer.
-    pub addr: SocketAddr,
+    addr: SocketAddr,
     /// Indicates if this peer address is in use by the torrent.
-    pub is_in_use: bool,
+    is_in_use: bool,
     /// Indicates if this peer has been identified as a seed.
-    pub is_seed: bool,
+    is_seed: bool,
     /// Indicates if this peer has been banned from establishing a connection.
-    pub is_banned: bool,
+    is_banned: bool,
+    /// The number of failures when trying to connect to the remote peer.
+    failure_count: usize,
     /// The peer priority rank.
-    pub rank: PeerPriority,
+    rank: PeerPriority,
 }
 
 impl PeerInfo {
@@ -288,6 +327,7 @@ impl PeerInfo {
             is_in_use: false,
             is_seed: false,
             is_banned: false,
+            failure_count: 0,
             rank: PeerPriority::none(),
         }
     }
@@ -301,6 +341,7 @@ impl PeerInfo {
             is_in_use: false,
             is_seed: false,
             is_banned: false,
+            failure_count: 0,
             rank,
         }
     }
@@ -311,7 +352,7 @@ impl PeerInfo {
     ///
     /// It returns true when the peer is a candidate, else false.
     pub fn is_connect_candidate(&self) -> bool {
-        !self.is_in_use && !self.is_banned
+        !self.is_in_use && !self.is_banned && self.failure_count < CONNECTION_FAILURE_THRESHOLD
     }
 }
 
@@ -323,6 +364,18 @@ impl PartialEq for PeerInfo {
 
 impl PartialOrd for PeerInfo {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        // always prefer known seeds over rank
+        if self.is_seed && !other.is_seed {
+            return Some(Ordering::Less);
+        } else if other.is_seed && !self.is_seed {
+            return Some(Ordering::Greater);
+        }
+
+        // always prefer lesser failed addresses above rank
+        if self.failure_count != other.failure_count {
+            return self.failure_count.partial_cmp(&other.failure_count);
+        }
+
         self.rank.partial_cmp(&other.rank)
     }
 }
@@ -339,9 +392,7 @@ impl Ord for PeerInfo {
 mod tests {
     use super::*;
 
-    use crate::create_torrent;
     use crate::init_logger;
-    use crate::torrent::{TorrentConfig, TorrentFlags};
 
     mod peer_pool {
         use super::*;
@@ -386,7 +437,7 @@ mod tests {
 
                 let result = pool.add_peer(Box::new(peer2)).await;
                 assert_eq!(
-                    Err(Reason::LimitReached),
+                    Err(AddReason::LimitReached),
                     result,
                     "expected the peer to not have been added"
                 );
@@ -453,6 +504,7 @@ mod tests {
                 is_in_use: false,
                 is_seed: false,
                 is_banned: false,
+                failure_count: 0,
                 rank: PeerPriority::none(),
             };
             assert_eq!(
@@ -466,6 +518,7 @@ mod tests {
                 is_in_use: true,
                 is_seed: false,
                 is_banned: false,
+                failure_count: 0,
                 rank: PeerPriority::none(),
             };
             assert_eq!(
@@ -479,6 +532,7 @@ mod tests {
                 is_in_use: false,
                 is_seed: false,
                 is_banned: true,
+                failure_count: 0,
                 rank: PeerPriority::none(),
             };
             assert_eq!(
@@ -488,25 +542,110 @@ mod tests {
             );
         }
 
-        #[test]
-        fn test_order() {
-            let peer1 = PeerInfo {
-                addr: ([127, 0, 0, 1], 8090).into(),
-                is_in_use: false,
-                is_seed: false,
-                is_banned: false,
-                rank: PeerPriority::from(Some(30)),
-            };
-            let peer2 = PeerInfo {
-                addr: ([127, 0, 0, 1], 8090).into(),
-                is_in_use: false,
-                is_seed: false,
-                is_banned: false,
-                rank: PeerPriority::from(Some(10)),
-            };
+        #[tokio::test]
+        async fn test_update_peer_priority() {
+            init_logger!();
+            let peer_address = SocketAddr::from(([127, 0, 0, 3], 6881));
+            let pool = PeerPool::new(TorrentHandle::new(), 2);
 
-            assert_eq!(Ordering::Less, peer1.cmp(&peer2));
-            assert_eq!(Ordering::Greater, peer2.cmp(&peer1));
+            // add the peer address to the pool
+            pool.add_peer_addresses(vec![peer_address.clone()], None)
+                .await;
+
+            // decrease the peer address priority
+            pool.update_peer_rank(&peer_address, -1).await;
+            let mut result = pool
+                .peer_list
+                .lock()
+                .await
+                .get(&peer_address)
+                .cloned()
+                .unwrap();
+            assert_eq!(Some(0), result.rank.take());
+
+            // increase the peer address priority
+            pool.update_peer_rank(&peer_address, 1).await;
+            let mut result = pool
+                .peer_list
+                .lock()
+                .await
+                .get(&peer_address)
+                .cloned()
+                .unwrap();
+            assert_eq!(Some(1), result.rank.take());
+        }
+
+        mod order {
+            use super::*;
+
+            #[test]
+            fn test_rank() {
+                let peer1 = PeerInfo {
+                    addr: ([127, 0, 0, 1], 8090).into(),
+                    is_in_use: false,
+                    is_seed: false,
+                    is_banned: false,
+                    failure_count: 0,
+                    rank: PeerPriority::from(30),
+                };
+                let peer2 = PeerInfo {
+                    addr: ([127, 0, 0, 1], 8090).into(),
+                    is_in_use: false,
+                    is_seed: false,
+                    is_banned: false,
+                    failure_count: 0,
+                    rank: PeerPriority::from(10),
+                };
+
+                assert_eq!(Ordering::Less, peer1.cmp(&peer2));
+                assert_eq!(Ordering::Greater, peer2.cmp(&peer1));
+            }
+
+            #[test]
+            fn test_seed() {
+                let peer1 = PeerInfo {
+                    addr: ([127, 0, 0, 1], 8090).into(),
+                    is_in_use: false,
+                    is_seed: false,
+                    is_banned: false,
+                    failure_count: 0,
+                    rank: PeerPriority::none(),
+                };
+                let peer2 = PeerInfo {
+                    addr: ([127, 0, 0, 1], 8090).into(),
+                    is_in_use: false,
+                    is_seed: true,
+                    is_banned: false,
+                    failure_count: 0,
+                    rank: PeerPriority::none(),
+                };
+
+                assert_eq!(Ordering::Greater, peer1.cmp(&peer2));
+                assert_eq!(Ordering::Less, peer2.cmp(&peer1));
+            }
+
+            #[test]
+            fn test_failure_count() {
+                let peer1 = PeerInfo {
+                    addr: ([127, 0, 0, 1], 8090).into(),
+                    is_in_use: false,
+                    is_seed: false,
+                    is_banned: false,
+                    failure_count: 2,
+                    rank: PeerPriority::none(),
+                };
+                let peer2 = PeerInfo {
+                    addr: ([127, 0, 0, 1], 8090).into(),
+                    is_in_use: false,
+                    is_seed: false,
+                    is_banned: false,
+                    failure_count: 0,
+                    rank: PeerPriority::none(),
+                };
+
+                assert_eq!(Ordering::Greater, peer1.cmp(&peer2));
+                assert_eq!(Ordering::Less, peer2.cmp(&peer1));
+            }
         }
     }
 }

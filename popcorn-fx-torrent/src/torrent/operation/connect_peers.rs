@@ -1,4 +1,5 @@
 use crate::torrent::peer::webseed::HttpPeer;
+use crate::torrent::peer_pool::CloseReason;
 use crate::torrent::{
     TorrentCommandEvent, TorrentContext, TorrentOperation, TorrentOperationResult,
 };
@@ -265,7 +266,7 @@ impl TorrentConnectPeersOperation {
                 );
                 context
                     .peer_pool()
-                    .peer_connections_closed(vec![peer_addr])
+                    .peer_connection_closed(&peer_addr, CloseReason::ConnectionFailed)
                     .await;
                 break;
             }

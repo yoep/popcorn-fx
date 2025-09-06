@@ -262,6 +262,8 @@ impl PeerPriority {
         Some(Self::crc32_hash_pair(&bytes, &other_bytes))
     }
 
+    /// Create an empty peer priority.
+    /// This priority has no underlying value.
     pub fn none() -> Self {
         Self(None)
     }
@@ -315,10 +317,9 @@ impl From<(&SocketAddr, &SocketAddr)> for PeerPriority {
     }
 }
 
-#[cfg(test)]
-impl From<Option<u32>> for PeerPriority {
-    fn from(value: Option<u32>) -> Self {
-        Self(value)
+impl From<u32> for PeerPriority {
+    fn from(value: u32) -> Self {
+        Self(Some(value))
     }
 }
 

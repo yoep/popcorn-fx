@@ -1,4 +1,4 @@
-use crate::app_logger::LogEntry;
+use crate::app_logger::{AppLogger, LogEntry};
 use crate::menu::MenuWidget;
 use crate::torrent_info::TorrentInfoWidget;
 use async_trait::async_trait;
@@ -8,8 +8,14 @@ use futures::{future, FutureExt};
 use fx_callback::{Callback, Subscription};
 use fx_handle::Handle;
 use log::{error, warn};
+use popcorn_fx_torrent::torrent::operation::{
+    TorrentConnectPeersOperation, TorrentCreateFilesOperation, TorrentCreatePiecesOperation,
+    TorrentDhtNodesOperation, TorrentDhtPeersOperation, TorrentFileValidationOperation,
+    TorrentMetadataOperation, TorrentTrackersOperation,
+};
 use popcorn_fx_torrent::torrent::{
     FxSessionCache, FxTorrentSession, Session, SessionEvent, SessionState, TorrentFlags,
+    TorrentOperationFactory,
 };
 use ratatui::layout::Constraint::{Length, Min};
 use ratatui::layout::{Alignment, Layout, Rect};
@@ -111,12 +117,12 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(log_receiver: UnboundedReceiver<LogEntry>) -> io::Result<Self> {
+    pub fn new(logger: AppLogger) -> io::Result<Self> {
         let settings = AppSettings::default();
         let session = Self::create_session(&settings)?;
         let session_event_receiver = session.subscribe();
         let (app_sender, app_receiver) = unbounded_channel();
-        let menu = MenuWidget::new(app_sender, log_receiver);
+        let menu = MenuWidget::new(app_sender, logger);
         let menu_handle = menu.handle();
 
         Ok(Self {
@@ -278,6 +284,12 @@ impl App {
 
     fn update_trackers(&mut self, enabled: bool) {
         self.settings.trackers_enabled = enabled;
+        match Self::create_session(&self.settings) {
+            Ok(session) => {
+                self.session = session;
+            }
+            Err(e) => error!("Failed to create session: {}", e),
+        }
     }
 
     fn render(&mut self, frame: &mut Frame) {
@@ -323,10 +335,28 @@ impl App {
     }
 
     fn create_session(settings: &AppSettings) -> io::Result<FxTorrentSession> {
+        let mut operations: Vec<TorrentOperationFactory> = vec![
+            || Box::new(TorrentConnectPeersOperation::new()),
+            || Box::new(TorrentMetadataOperation::new()),
+            || Box::new(TorrentCreatePiecesOperation::new()),
+            || Box::new(TorrentCreateFilesOperation::new()),
+            || Box::new(TorrentFileValidationOperation::new()),
+        ];
+
+        if settings.dht_enabled {
+            operations.insert(0, || Box::new(TorrentDhtNodesOperation::new()));
+            operations.insert(1, || Box::new(TorrentDhtPeersOperation::new()));
+        }
+
+        if settings.trackers_enabled {
+            operations.insert(0, || Box::new(TorrentTrackersOperation::new()));
+        }
+
         FxTorrentSession::builder()
             .client_name(APP_CLIENT_NAME)
             .base_path(&settings.storage)
             .session_cache(FxSessionCache::new(SESSION_CACHE_LIMIT))
+            .operations(operations)
             .build()
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
     }

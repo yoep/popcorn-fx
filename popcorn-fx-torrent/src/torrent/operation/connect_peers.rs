@@ -15,6 +15,7 @@ use url::Url;
 
 const BURST_DURATION: Duration = Duration::from_secs(10);
 
+/// Establishes additional peer connections for the torrent.
 #[derive(Debug)]
 pub struct TorrentConnectPeersOperation {
     webseed_urls: Mutex<Option<Vec<Url>>>,

@@ -40,8 +40,8 @@ mod torrent_peer;
 mod tracker;
 
 use crate::torrent::operation::{
-    TorrentConnectDhtNodesOperation, TorrentConnectPeersOperation, TorrentCreateFilesOperation,
-    TorrentCreatePiecesOperation, TorrentDhtPeersOperation, TorrentFileValidationOperation,
+    TorrentConnectPeersOperation, TorrentCreateFilesOperation, TorrentCreatePiecesOperation,
+    TorrentDhtNodesOperation, TorrentDhtPeersOperation, TorrentFileValidationOperation,
     TorrentMetadataOperation, TorrentTrackersOperation,
 };
 #[cfg(feature = "extension-donthave")]
@@ -73,7 +73,7 @@ const DEFAULT_TORRENT_OPERATIONS: fn() -> Vec<TorrentOperationFactory> = || {
     vec![
         || Box::new(TorrentTrackersOperation::new()),
         #[cfg(feature = "dht")]
-        || Box::new(TorrentConnectDhtNodesOperation::new()),
+        || Box::new(TorrentDhtNodesOperation::new()),
         #[cfg(feature = "dht")]
         || Box::new(TorrentDhtPeersOperation::new()),
         || Box::new(TorrentConnectPeersOperation::new()),

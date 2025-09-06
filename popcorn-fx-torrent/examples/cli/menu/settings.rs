@@ -46,8 +46,11 @@ impl MenuSettings {
     }
 
     fn selected_index(&self) -> usize {
-        let state = self.state.lock().expect("Mutex poisoned");
-        state.selected().unwrap_or(0)
+        self.state
+            .lock()
+            .ok()
+            .and_then(|e| e.selected())
+            .unwrap_or(0)
     }
 
     fn selected(&self) -> &Box<dyn Setting> {
@@ -76,21 +79,21 @@ impl MenuSectionWidget for MenuSettings {
         if self.active_menu == ActiveMenuSetting::Overview {
             match key.code() {
                 KeyCode::Up => {
+                    key.consume();
+                    let selected = self.selected_index();
                     if let Ok(mut state) = self.state.lock() {
                         key.consume();
-                        let offset = state.selected().unwrap_or(0).saturating_sub(1);
+                        let offset = selected.saturating_sub(1);
                         state.select(Some(offset));
                     }
                 }
                 KeyCode::Down => {
+                    key.consume();
+                    let selected = self.selected_index().saturating_add(1);
                     if let Ok(mut state) = self.state.lock() {
-                        key.consume();
-                        let mut offset = state.selected().unwrap_or(0).saturating_add(1);
-                        if offset > self.items.len() {
-                            offset = self.items.len() - 1;
+                        if selected < self.items.len() - 1 {
+                            state.select(Some(selected));
                         }
-
-                        state.select(Some(offset));
                     }
                 }
                 KeyCode::Esc | KeyCode::Backspace => {

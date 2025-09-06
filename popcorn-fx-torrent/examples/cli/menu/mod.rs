@@ -1,6 +1,7 @@
 use crate::app::{AppCommand, FXKeyEvent, FXWidget};
-use crate::app_logger::LogEntry;
+use crate::app_logger::AppLogger;
 use crate::menu::add_torrent::MenuAddTorrent;
+use crate::menu::logging::MenuLogging;
 use crate::menu::overview::MenuOverview;
 use crate::menu::settings::MenuSettings;
 use crate::menu::widget::MenuSectionWidget;
@@ -19,6 +20,7 @@ use std::str::FromStr;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 
 mod add_torrent;
+mod logging;
 mod overview;
 mod settings;
 mod widget;
@@ -33,14 +35,11 @@ pub struct MenuWidget {
     logs: Vec<String>,
     app_sender: UnboundedSender<AppCommand>,
     menu_receiver: UnboundedReceiver<MenuCommand>,
-    log_receiver: UnboundedReceiver<LogEntry>,
+    logger: AppLogger,
 }
 
 impl MenuWidget {
-    pub fn new(
-        app_sender: UnboundedSender<AppCommand>,
-        log_receiver: UnboundedReceiver<LogEntry>,
-    ) -> Self {
+    pub fn new(app_sender: UnboundedSender<AppCommand>, logger: AppLogger) -> Self {
         let (menu_sender, menu_receiver) = unbounded_channel();
 
         Self {
@@ -57,7 +56,11 @@ impl MenuWidget {
                 ),
                 (
                     MenuSection::Settings,
-                    Box::new(MenuSettings::new(app_sender.clone(), menu_sender)),
+                    Box::new(MenuSettings::new(app_sender.clone(), menu_sender.clone())),
+                ),
+                (
+                    MenuSection::Logging,
+                    Box::new(MenuLogging::new(logger.clone(), menu_sender)),
                 ),
             ]
             .into_iter()
@@ -66,7 +69,7 @@ impl MenuWidget {
             logs: vec![],
             app_sender,
             menu_receiver,
-            log_receiver,
+            logger,
         }
     }
 
@@ -155,7 +158,7 @@ impl FXWidget for MenuWidget {
             self.handle_command(command);
         }
 
-        while let Ok(entry) = self.log_receiver.try_recv() {
+        while let Some(entry) = self.logger.next() {
             self.log(entry.text);
         }
     }
@@ -192,6 +195,7 @@ enum MenuSection {
     Overview,
     AddTorrent,
     Settings,
+    Logging,
 }
 
 #[derive(Debug, Display, Clone, PartialEq)]
@@ -200,12 +204,14 @@ enum MenuItem {
     AddTorrent,
     #[display(fmt = "Settings")]
     Settings,
+    #[display(fmt = "Logging")]
+    Logging,
     #[display(fmt = "Quit")]
     Quit,
 }
 
 impl MenuItem {
     pub fn all() -> Vec<MenuItem> {
-        vec![Self::AddTorrent, Self::Settings, Self::Quit]
+        vec![Self::AddTorrent, Self::Settings, Self::Logging, Self::Quit]
     }
 }

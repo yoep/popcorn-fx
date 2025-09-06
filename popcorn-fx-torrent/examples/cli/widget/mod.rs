@@ -1,7 +1,9 @@
 pub use checkbox::*;
+pub use combobox::*;
 pub use input::*;
 
 mod checkbox;
+mod combobox;
 mod input;
 
 /// Print the given optional string value.

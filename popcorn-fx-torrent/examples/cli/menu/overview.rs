@@ -48,6 +48,11 @@ impl MenuOverview {
                     .menu_sender
                     .send(MenuCommand::SelectSection(MenuSection::Settings));
             }
+            MenuItem::Logging => {
+                let _ = self
+                    .menu_sender
+                    .send(MenuCommand::SelectSection(MenuSection::Logging));
+            }
             MenuItem::Quit => {
                 let _ = self.app_sender.send(AppCommand::Quit);
             }
@@ -123,7 +128,8 @@ impl Widget for &MenuOverview {
             .block(Block::new().title("Options").borders(Borders::ALL))
             .highlight_style(Style::new().bg(Color::DarkGray));
 
-        let mut state = self.state.lock().expect("Mutex poisoned");
-        StatefulWidget::render(menu_list, area, buf, &mut state);
+        if let Ok(mut state) = self.state.lock() {
+            StatefulWidget::render(menu_list, area, buf, &mut state);
+        }
     }
 }

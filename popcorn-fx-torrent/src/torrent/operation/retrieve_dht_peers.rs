@@ -8,6 +8,7 @@ use tokio::sync::Mutex;
 const RETRIEVE_INTERVAL: Duration = Duration::from_secs(90);
 const RETRIEVE_TIMEOUT: Duration = Duration::from_secs(3);
 
+/// Retrieve potential peer addresses for the torrent through the DHT network.
 #[derive(Debug)]
 pub struct TorrentDhtPeersOperation {
     last_executed: Mutex<Option<Instant>>,

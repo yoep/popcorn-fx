@@ -6,6 +6,7 @@ pub use tracker::*;
 mod compact;
 mod errors;
 mod krpc;
+mod metrics;
 mod node;
 mod node_id;
 mod routing_table;

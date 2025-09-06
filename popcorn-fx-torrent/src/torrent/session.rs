@@ -1,26 +1,24 @@
+#[cfg(feature = "dht")]
+use crate::torrent::dht::{DhtTracker, DEFAULT_BOOTSTRAP_SERVERS};
+use crate::torrent::dns::DnsResolver;
 use crate::torrent::errors::Result;
 use crate::torrent::fs::TorrentFileStorage;
 use crate::torrent::operation::TorrentTrackersOperation;
 use crate::torrent::peer::{ProtocolExtensionFlags, TcpPeerDiscovery, UtpPeerDiscovery};
+use crate::torrent::session_cache::{FxSessionCache, SessionCache};
 use crate::torrent::torrent::Torrent;
+use crate::torrent::tracker::TrackerManager;
 use crate::torrent::{
     ExtensionFactories, ExtensionFactory, InfoHash, Magnet, NoSessionCache, TorrentConfig,
     TorrentError, TorrentEvent, TorrentFlags, TorrentHandle, TorrentHealth, TorrentMetadata,
     TorrentOperation, TorrentOperationFactory, DEFAULT_TORRENT_EXTENSIONS,
     DEFAULT_TORRENT_OPERATIONS, DEFAULT_TORRENT_PROTOCOL_EXTENSIONS,
 };
-
-use crate::torrent::dht::{DhtTracker, DEFAULT_BOOTSTRAP_SERVERS};
-use crate::torrent::dns::DnsResolver;
-use crate::torrent::session_cache::{FxSessionCache, SessionCache};
-use crate::torrent::tracker::TrackerManager;
 use async_trait::async_trait;
 use derive_more::Display;
 use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use fx_handle::Handle;
 use log::{debug, trace, warn};
-#[cfg(test)]
-pub use mock::*;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::io;
@@ -33,6 +31,9 @@ use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::sync::{Mutex, RwLock};
 use tokio::{select, time};
 use tokio_util::sync::CancellationToken;
+
+#[cfg(test)]
+pub use mock::*;
 
 const DEFAULT_TRACKER_TIMEOUT_SECONDS: u64 = 3;
 const DEFAULT_CACHE_LIMIT: usize = 10;
@@ -81,6 +82,10 @@ pub trait Session: Debug + Callback<SessionEvent> + Send + Sync {
     ///
     /// Returns the unique session handle for this session.
     fn handle(&self) -> SessionHandle;
+
+    /// Get the DHT tracker of the session, if one is present.
+    #[cfg(feature = "dht")]
+    async fn dht(&self) -> Option<DhtTracker>;
 
     /// Get the current state of the session.
     ///
@@ -439,6 +444,10 @@ impl FxTorrentSession {
 impl Session for FxTorrentSession {
     fn handle(&self) -> SessionHandle {
         self.inner.handle
+    }
+
+    async fn dht(&self) -> Option<DhtTracker> {
+        self.inner.dht.lock().await.clone()
     }
 
     async fn state(&self) -> SessionState {
@@ -1031,6 +1040,7 @@ mod mock {
         #[async_trait]
         impl Session for Session {
             fn handle(&self) -> SessionHandle;
+            async fn dht(&self) -> Option<DhtTracker>;
             async fn state(&self) -> SessionState;
             async fn find_torrent_by_handle(&self, handle: &TorrentHandle) -> Option<Torrent>;
             async fn find_torrent_by_info_hash(&self, info_hash: &InfoHash) -> Option<Torrent>;

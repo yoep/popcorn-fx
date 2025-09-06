@@ -1,4 +1,5 @@
 use crate::app_logger::{AppLogger, LogEntry};
+use crate::dht_info::{DhtInfoWidget, DHT_INFO_WIDGET_NAME};
 use crate::menu::MenuWidget;
 use crate::torrent_info::TorrentInfoWidget;
 use async_trait::async_trait;
@@ -27,7 +28,7 @@ use std::io;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver};
+use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::{select, time};
 use tokio_util::sync::CancellationToken;
 
@@ -37,6 +38,9 @@ const APP_QUIT_KEY: char = 'q';
 const TAB_NAME_LEN: usize = 16;
 const SESSION_CACHE_LIMIT: usize = 10;
 const RENDER_INTERVAL: Duration = Duration::from_millis(200);
+
+/// The app command sender type.
+pub type AppCommandSender = UnboundedSender<AppCommand>;
 
 #[async_trait]
 pub trait FXWidget: Debug {
@@ -171,6 +175,7 @@ impl App {
             AppCommand::AddTorrentUri(uri) => self.add_torrent_uri(uri.as_str()).await,
             AppCommand::DhtEnabled(enabled) => self.update_dht(enabled),
             AppCommand::TrackerEnabled(enabled) => self.update_trackers(enabled),
+            AppCommand::DhtInfo(app_sender) => self.show_dht_info(app_sender).await,
             AppCommand::Quit => self.cancellation_token.cancel(),
         }
     }
@@ -274,6 +279,7 @@ impl App {
 
     fn update_dht(&mut self, enabled: bool) {
         self.settings.dht_enabled = enabled;
+        self.remove_dht_info();
         match Self::create_session(&self.settings) {
             Ok(session) => {
                 self.session = session;
@@ -284,12 +290,30 @@ impl App {
 
     fn update_trackers(&mut self, enabled: bool) {
         self.settings.trackers_enabled = enabled;
+        self.remove_dht_info();
         match Self::create_session(&self.settings) {
             Ok(session) => {
                 self.session = session;
             }
             Err(e) => error!("Failed to create session: {}", e),
         }
+    }
+
+    async fn show_dht_info(&mut self, app_sender: AppCommandSender) {
+        if !self.tabs.iter().any(|e| e.name() == DHT_INFO_WIDGET_NAME) {
+            if let Some(dht) = self.session.dht().await {
+                self.tabs
+                    .insert(1, Box::new(DhtInfoWidget::new(dht, app_sender)));
+            } else {
+                return;
+            }
+        }
+
+        self.select_tab(1);
+    }
+
+    fn remove_dht_info(&mut self) {
+        self.tabs.retain(|e| e.name() != DHT_INFO_WIDGET_NAME)
     }
 
     fn render(&mut self, frame: &mut Frame) {
@@ -371,6 +395,8 @@ pub enum AppCommand {
     DhtEnabled(bool),
     /// Set if trackers are enabled
     TrackerEnabled(bool),
+    /// Show the DHT info widget
+    DhtInfo(AppCommandSender),
     /// Quit the app
     Quit,
 }

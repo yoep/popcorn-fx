@@ -25,6 +25,7 @@ pub mod fs;
 mod info_hash;
 mod magnet;
 mod merkle;
+pub mod metrics;
 pub mod operation;
 pub mod peer;
 mod peer_pool;

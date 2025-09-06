@@ -131,20 +131,32 @@ impl RoutingTable {
 
     /// Add the given router node to the routing table.
     /// These will only be used during searches, but never returned in a response.
-    pub fn add_router_node(&mut self, node: Node) {
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` when the router node has been added, else `false`.
+    pub fn add_router_node(&mut self, node: Node) -> bool {
         // check if the router node is already known
         if self.contains_router_node(&node.addr) {
-            return;
+            return false;
         }
 
         self.router_nodes.push(node);
+        true
     }
 
     /// Remove the router node to the routing table.
-    pub fn remove_router_node(&mut self, node: &Node) {
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` when the router node has been removed, else `false`.
+    pub fn remove_router_node(&mut self, node: &Node) -> bool {
         if let Some(position) = self.router_nodes.iter().position(|e| e.id == node.id) {
             self.router_nodes.remove(position);
+            return true;
         }
+
+        false
     }
 
     /// Refresh all buckets within the routing table.

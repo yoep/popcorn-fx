@@ -15,7 +15,7 @@ use ratatui::layout::Constraint::{Fill, Length, Min, Percentage};
 use ratatui::layout::{Layout, Rect};
 use ratatui::prelude::{Alignment, Color, Style};
 use ratatui::style::Stylize;
-use ratatui::text::Line;
+use ratatui::text::{Line, Span};
 use ratatui::widgets::{
     Block, Cell, Gauge, HighlightSpacing, List, ListItem, Paragraph, Row, Sparkline,
     StatefulWidget, Table, TableState, Widget,
@@ -25,6 +25,8 @@ use std::collections::HashMap;
 use std::ops::Range;
 use std::path::PathBuf;
 use std::sync::Mutex;
+
+const PERFORMANCE_HISTORY: usize = 150;
 
 #[derive(Debug)]
 pub struct TorrentInfoWidget {
@@ -103,10 +105,10 @@ impl TorrentInfoWidget {
                 data.down.push(stats.download_rate);
                 data.up.push(stats.upload_rate);
 
-                if data.down.len() > 100 {
+                if data.down.len() > PERFORMANCE_HISTORY {
                     data.down.remove(0);
                 }
-                if data.up.len() > 100 {
+                if data.up.len() > PERFORMANCE_HISTORY {
                     data.up.remove(0);
                 }
             }
@@ -163,31 +165,44 @@ impl Widget for &TorrentInfoWidget {
 
         // render the metadata
         Paragraph::new(vec![
-            Line::from(format!("Name: {}", self.name)),
-            Line::from(format!(
-                "State: {}",
-                print_optional_string(data.state.as_ref())
-            )),
-            Line::from(format!(
-                "Path: {}",
-                print_optional_string(self.data.path.as_ref().and_then(|e| e.to_str()))
-            )),
-            Line::from(format!(
-                "Info hash: {}",
-                print_optional_string(self.data.info_hash.as_ref())
-            )),
-            Line::from(format!(
-                "Size: {}/{}",
-                format_bytes(self.data.completed_size),
-                format_bytes(self.data.size)
-            )),
-            Line::from(format!(
-                "Pieces: {}/{}",
-                self.data.completed_pieces, self.data.total_pieces
-            )),
-            Line::from(format!("Wasted: {}", format_bytes(self.data.wasted))),
-            Line::from(format!("Files: {}", self.data.total_files)),
-            Line::from(format!("Connected peers: {}", self.data.peers)),
+            Line::from(vec![Span::from("Name: ").bold(), self.name.as_str().into()]),
+            Line::from(vec![
+                Span::from("State: ").bold(),
+                print_optional_string(data.state.as_ref()).into(),
+            ]),
+            Line::from(vec![
+                Span::from("Path: ").bold(),
+                print_optional_string(self.data.path.as_ref().and_then(|e| e.to_str())).into(),
+            ]),
+            Line::from(vec![
+                Span::from("Info hash: ").bold(),
+                print_optional_string(self.data.info_hash.as_ref()).into(),
+            ]),
+            Line::from(vec![
+                Span::from("Size: ").bold(),
+                format!(
+                    "{}/{}",
+                    format_bytes(self.data.completed_size),
+                    format_bytes(self.data.size)
+                )
+                .into(),
+            ]),
+            Line::from(vec![
+                Span::from("Pieces: ").bold(),
+                format!("{}/{}", self.data.completed_pieces, self.data.total_pieces).into(),
+            ]),
+            Line::from(vec![
+                Span::from("Wasted: ").bold(),
+                format_bytes(self.data.wasted).into(),
+            ]),
+            Line::from(vec![
+                Span::from("Files: ").bold(),
+                self.data.total_files.to_string().into(),
+            ]),
+            Line::from(vec![
+                Span::from("Connected peers: ").bold(),
+                self.data.peers.to_string().into(),
+            ]),
         ])
         .block(Block::bordered().title(" Metadata "))
         .render(metadata_area, buf);

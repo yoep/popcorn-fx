@@ -1,4 +1,4 @@
-use crate::app::{AppCommand, FXKeyEvent};
+use crate::app::{AppCommand, AppCommandSender, FXKeyEvent};
 use crate::menu::widget::MenuSectionWidget;
 use crate::menu::{MenuCommand, MenuSection};
 use crate::widget::{CheckboxWidget, InputWidget};
@@ -29,10 +29,7 @@ pub struct MenuSettings {
 }
 
 impl MenuSettings {
-    pub fn new(
-        app_sender: UnboundedSender<AppCommand>,
-        menu_sender: UnboundedSender<MenuCommand>,
-    ) -> Self {
+    pub fn new(app_sender: AppCommandSender, menu_sender: UnboundedSender<MenuCommand>) -> Self {
         Self {
             menu_sender,
             items: vec![
@@ -140,11 +137,11 @@ enum ActiveMenuSetting {
 #[derive(Debug)]
 struct DhtSetting {
     checkbox: CheckboxWidget,
-    app_sender: UnboundedSender<AppCommand>,
+    app_sender: AppCommandSender,
 }
 
 impl DhtSetting {
-    fn new(app_sender: UnboundedSender<AppCommand>) -> Self {
+    fn new(app_sender: AppCommandSender) -> Self {
         Self {
             checkbox: CheckboxWidget::new("DHT", true),
             app_sender,
@@ -174,11 +171,11 @@ impl Setting for DhtSetting {
 #[derive(Debug)]
 struct TrackerSetting {
     checkbox: CheckboxWidget,
-    app_sender: UnboundedSender<AppCommand>,
+    app_sender: AppCommandSender,
 }
 
 impl TrackerSetting {
-    fn new(app_sender: UnboundedSender<AppCommand>) -> Self {
+    fn new(app_sender: AppCommandSender) -> Self {
         Self {
             checkbox: CheckboxWidget::new("Tracker", true),
             app_sender,
@@ -208,11 +205,11 @@ impl Setting for TrackerSetting {
 #[derive(Debug)]
 struct StorageSetting {
     input: InputWidget,
-    app_sender: UnboundedSender<AppCommand>,
+    app_sender: AppCommandSender,
 }
 
 impl StorageSetting {
-    fn new(app_sender: UnboundedSender<AppCommand>) -> Self {
+    fn new(app_sender: AppCommandSender) -> Self {
         Self {
             input: InputWidget::new(),
             app_sender,

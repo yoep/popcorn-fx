@@ -3,10 +3,13 @@ use crate::torrent::dht::krpc::{
     ErrorMessage, FindNodeRequest, FindNodeResponse, GetPeersRequest, GetPeersResponse, Message,
     MessagePayload, PingMessage, QueryMessage, ResponseMessage,
 };
+use crate::torrent::dht::metrics::Metrics;
 use crate::torrent::dht::routing_table::RoutingTable;
 use crate::torrent::dht::{Error, Node, NodeId, Result, Token, TokenSecret};
+use crate::torrent::metrics::Metric;
 use crate::torrent::{CompactIpv4Addr, CompactIpv6Addr, InfoHash, COMPACT_IPV6_ADDR_LEN};
 use derive_more::Display;
+use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use log::{debug, info, trace, warn};
 use std::collections::HashMap;
 use std::io;
@@ -28,8 +31,10 @@ const SEND_PACKAGE_TIMEOUT: Duration = Duration::from_secs(6);
 const RESPONSE_TIMEOUT: Duration = Duration::from_secs(8);
 const ROUTER_PING_TIMEOUT: Duration = Duration::from_secs(6);
 const REFRESH_INTERVAL: Duration = Duration::from_secs(60 * 15);
-const CLEANUP_INTERVAL: Duration = Duration::from_secs(2);
+const CLEANUP_INTERVAL: Duration = Duration::from_secs(3);
+const STATS_INTERVAL: Duration = Duration::from_secs(1);
 const DEFAULT_BUCKET_SIZE: usize = 8;
+
 pub const DEFAULT_BOOTSTRAP_SERVERS: fn() -> Vec<&'static str> = || {
     vec![
         "router.utorrent.com:6881",
@@ -47,6 +52,12 @@ pub const DEFAULT_BOOTSTRAP_SERVERS: fn() -> Vec<&'static str> = || {
 type PingSender = Sender<Result<Node>>;
 /// The find node operation result sender.
 type FindNodeSender = Sender<Result<Vec<Node>>>;
+
+#[derive(Debug)]
+pub enum DhtEvent {
+    NodeAdded(Node),
+    Stats(Metrics),
+}
 
 /// A tracker instance for managing DHT nodes.
 /// This instance can be shared between torrents by using [DhtTracker::clone].
@@ -74,12 +85,16 @@ impl DhtTracker {
         let (sender, receiver) = unbounded_channel();
         let (command_sender, command_receiver) = unbounded_channel();
         let cancellation_token = CancellationToken::new();
+        let metrics = Metrics::new();
         let reader = NodeReader {
             socket: socket.clone(),
             socket_addr,
+            metrics: metrics.clone(),
             sender,
             cancellation_token: cancellation_token.clone(),
         };
+
+        metrics.total_router_nodes.set(routing_nodes.len() as u64);
         let inner = Arc::new(InnerTracker {
             id,
             transaction_id: Default::default(),
@@ -88,7 +103,9 @@ impl DhtTracker {
             routing_table: Mutex::new(RoutingTable::new(id, DEFAULT_BUCKET_SIZE, routing_nodes)),
             pending_requests: Default::default(),
             send_timeout: SEND_PACKAGE_TIMEOUT,
+            metrics,
             command_sender,
+            callbacks: MultiThreadedCallback::new(),
             cancellation_token,
         });
 
@@ -118,6 +135,21 @@ impl DhtTracker {
     /// Get the port on which the DHT server is running.
     pub fn port(&self) -> u16 {
         self.inner.socket_addr.port()
+    }
+
+    /// Get the DHT network metrics of the DHT server.
+    pub fn metrics(&self) -> &Metrics {
+        &self.inner.metrics
+    }
+
+    /// Get the number of nodes within the routing table.
+    pub async fn total_nodes(&self) -> usize {
+        self.inner.routing_table.lock().await.len()
+    }
+
+    /// Get the number of router nodes within the routing table.
+    pub async fn total_router_nodes(&self) -> usize {
+        self.inner.routing_table.lock().await.router_nodes().len()
     }
 
     /// Add the given router node address to the tracker.
@@ -180,6 +212,16 @@ impl DhtTracker {
     /// Close the DHT node server.
     pub fn close(&self) {
         self.inner.close()
+    }
+}
+
+impl Callback<DhtEvent> for DhtTracker {
+    fn subscribe(&self) -> Subscription<DhtEvent> {
+        self.inner.callbacks.subscribe()
+    }
+
+    fn subscribe_with(&self, subscriber: Subscriber<DhtEvent>) {
+        self.inner.callbacks.subscribe_with(subscriber)
     }
 }
 
@@ -267,8 +309,12 @@ struct InnerTracker {
     pending_requests: Mutex<HashMap<TransactionKey, PendingRequest>>,
     /// The timeout while trying to send packages to a target address
     send_timeout: Duration,
+    /// The tracker metrics of the DHT network
+    metrics: Metrics,
     /// The underlying async command sender
     command_sender: UnboundedSender<TrackerCommand>,
+    /// The callback of the tracker
+    callbacks: MultiThreadedCallback<DhtEvent>,
     /// The cancellation token of the server
     cancellation_token: CancellationToken,
 }
@@ -294,6 +340,7 @@ impl InnerTracker {
 
         let mut refresh_interval = interval(REFRESH_INTERVAL);
         let mut cleanup_interval = interval(CLEANUP_INTERVAL);
+        let mut stats_interval = interval(STATS_INTERVAL);
 
         debug!("{} started", self);
         loop {
@@ -305,11 +352,18 @@ impl InnerTracker {
                     }
                 },
                 Some(command) = command_receiver.recv() => self.handle_command(command).await,
+                _ = stats_interval.tick() => self.stats(),
                 _ = refresh_interval.tick() => self.refresh_routing_table().await,
                 _ = cleanup_interval.tick() => self.cleanup_pending_requests().await,
             }
         }
         debug!("{} main loop ended", self);
+    }
+
+    fn stats(&self) {
+        self.callbacks
+            .invoke(DhtEvent::Stats(self.metrics.snapshot()));
+        self.metrics.tick(STATS_INTERVAL);
     }
 
     /// Try to process an incoming DHT message from the given node address.
@@ -501,6 +555,8 @@ impl InnerTracker {
                 }
             }
             MessagePayload::Error(err) => {
+                self.metrics.total_errors.inc();
+
                 if let Some(pending_request) = self.pending_requests.lock().await.remove(&key) {
                     debug!("{} received error for {}", self, key);
                     Self::send_reply(pending_request.request_type, Err(Error::from(err)))
@@ -706,13 +762,17 @@ impl InnerTracker {
         );
         match self.send(message, addr).await {
             Ok(_) => {
-                self.pending_requests.lock().await.insert(
+                let mut pending_requests = self.pending_requests.lock().await;
+                pending_requests.insert(
                     TransactionKey { id, addr: *addr },
                     PendingRequest {
                         request_type: tx,
                         timestamp_sent: Instant::now(),
                     },
                 );
+                self.metrics
+                    .total_pending_queries
+                    .set(pending_requests.len() as u64);
             }
             Err(err) => {
                 Self::pending_request_error(tx, err);
@@ -806,6 +866,7 @@ impl InnerTracker {
             elapsed.as_micros()
         );
 
+        self.metrics.total_bytes_out.inc_by(bytes.len() as u64);
         Ok(())
     }
 
@@ -832,9 +893,15 @@ impl InnerTracker {
     /// Add the given verified node.
     /// This should only be called if the node could be reached with a ping.
     async fn add_verified_node(&self, node: Node) {
-        let addr = node.addr;
+        let event_node = node.clone();
         if let Some(bucket) = self.routing_table.lock().await.add_node(node) {
-            debug!("{} added node {} to bucket {}", self, addr, bucket);
+            self.metrics.total_nodes.inc();
+            debug!(
+                "{} added node {} to bucket {}",
+                self, &event_node.addr, bucket
+            );
+
+            self.callbacks.invoke(DhtEvent::NodeAdded(event_node));
         }
     }
 
@@ -842,14 +909,18 @@ impl InnerTracker {
     /// These will only be used during searches, but never returned in a response.
     async fn add_router_node(&self, node: Node) {
         let addr = node.addr.clone();
-        self.routing_table.lock().await.add_router_node(node);
-        trace!("{} added router node {}", self, addr);
+        if self.routing_table.lock().await.add_router_node(node) {
+            trace!("{} added router node {}", self, addr);
+            self.metrics.total_router_nodes.inc();
+        }
     }
 
     /// Remove the given router node from the routing table.
     async fn remove_router_node(&self, node: &Node) {
-        self.routing_table.lock().await.remove_router_node(node);
-        trace!("{} removed router node {}", self, node.addr);
+        if self.routing_table.lock().await.remove_router_node(node) {
+            trace!("{} removed router node {}", self, node.addr);
+            self.metrics.total_router_nodes.dec();
+        }
     }
 
     /// Update the node metrics with a successful query.
@@ -900,6 +971,10 @@ impl InnerTracker {
                 Self::pending_request_error(request.request_type, Error::Timeout);
             }
         }
+
+        self.metrics
+            .total_pending_queries
+            .set(pending_requests.len() as u64);
     }
 
     /// Try to update the announce token for the given node ID.
@@ -1128,6 +1203,7 @@ impl InnerTracker {
 struct NodeReader {
     socket: Arc<UdpSocket>,
     socket_addr: SocketAddr,
+    metrics: Metrics,
     sender: UnboundedSender<(Message, SocketAddr)>,
     cancellation_token: CancellationToken,
 }
@@ -1172,6 +1248,7 @@ impl NodeReader {
             elapsed.as_micros(),
         );
 
+        self.metrics.total_bytes_in.inc_by(bytes.len() as u64);
         self.sender.send((message, addr)).map_err(|_| Error::Closed)
     }
 }

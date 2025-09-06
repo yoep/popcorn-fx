@@ -1,4 +1,4 @@
-use crate::app::{AppCommand, FXKeyEvent, FXWidget};
+use crate::app::{AppCommand, AppCommandSender, FXKeyEvent, FXWidget};
 use crate::app_logger::AppLogger;
 use crate::menu::add_torrent::MenuAddTorrent;
 use crate::menu::logging::MenuLogging;
@@ -6,7 +6,6 @@ use crate::menu::overview::MenuOverview;
 use crate::menu::settings::MenuSettings;
 use crate::menu::widget::MenuSectionWidget;
 use async_trait::async_trait;
-use derive_more::Display;
 use fx_handle::Handle;
 use ratatui::layout::Constraint::{Fill, Length};
 use ratatui::layout::{Layout, Rect};
@@ -33,13 +32,13 @@ pub struct MenuWidget {
     sections: HashMap<MenuSection, Box<dyn MenuSectionWidget>>,
     active_section: MenuSection,
     logs: Vec<String>,
-    app_sender: UnboundedSender<AppCommand>,
+    app_sender: AppCommandSender,
     menu_receiver: UnboundedReceiver<MenuCommand>,
     logger: AppLogger,
 }
 
 impl MenuWidget {
-    pub fn new(app_sender: UnboundedSender<AppCommand>, logger: AppLogger) -> Self {
+    pub fn new(app_sender: AppCommandSender, logger: AppLogger) -> Self {
         let (menu_sender, menu_receiver) = unbounded_channel();
 
         Self {
@@ -196,22 +195,4 @@ enum MenuSection {
     AddTorrent,
     Settings,
     Logging,
-}
-
-#[derive(Debug, Display, Clone, PartialEq)]
-enum MenuItem {
-    #[display(fmt = "Add torrent")]
-    AddTorrent,
-    #[display(fmt = "Settings")]
-    Settings,
-    #[display(fmt = "Logging")]
-    Logging,
-    #[display(fmt = "Quit")]
-    Quit,
-}
-
-impl MenuItem {
-    pub fn all() -> Vec<MenuItem> {
-        vec![Self::AddTorrent, Self::Settings, Self::Logging, Self::Quit]
-    }
 }

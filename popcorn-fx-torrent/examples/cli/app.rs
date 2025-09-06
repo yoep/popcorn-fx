@@ -357,6 +357,7 @@ impl App {
             .base_path(&settings.storage)
             .session_cache(FxSessionCache::new(SESSION_CACHE_LIMIT))
             .operations(operations)
+            .dht(settings.dht_enabled)
             .build()
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
     }

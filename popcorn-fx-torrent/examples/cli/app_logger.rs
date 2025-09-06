@@ -1,7 +1,14 @@
 use chrono::Local;
 use log::{Level, Log, Metadata, Record};
 use std::collections::VecDeque;
+use std::io;
+use std::io::Write;
 use std::sync::{Arc, Mutex};
+use tokio::fs::{File, OpenOptions};
+use tokio::io::AsyncWriteExt;
+use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
+
+const LOG_FILE_PATH: &str = "fx-torrent.log";
 
 /// A log entry of the application.
 #[derive(Debug)]
@@ -16,6 +23,8 @@ pub struct AppLogger {
 
 impl AppLogger {
     pub fn new() -> Self {
+        let (log_sender, log_receiver) = unbounded_channel();
+
         let inner = Arc::new(InnerAppLogger {
             loggers: Mutex::new(
                 vec![
@@ -54,6 +63,12 @@ impl AppLogger {
                 .collect(),
             ),
             logs: Mutex::new(VecDeque::new()),
+            log_sender,
+        });
+
+        tokio::spawn(async move {
+            let mut logfile_writer = AppLogfileWriter::new();
+            logfile_writer.start(log_receiver).await;
         });
 
         Self { inner }
@@ -97,13 +112,16 @@ impl Log for AppLogger {
         self.inner.send_entry(record);
     }
 
-    fn flush(&self) {}
+    fn flush(&self) {
+        // no-op
+    }
 }
 
 #[derive(Debug)]
 struct InnerAppLogger {
     loggers: Mutex<Vec<Logger>>,
     logs: Mutex<VecDeque<LogEntry>>,
+    log_sender: UnboundedSender<LogEntry>,
 }
 
 impl InnerAppLogger {
@@ -140,18 +158,19 @@ impl InnerAppLogger {
             let target = format!("{}{}", target, " ".repeat(40));
             target[0..40].to_string()
         };
+        let text = format!(
+            "{} {} --- {} : {}",
+            time.format("%Y-%m-%d %H:%M:%S%.f"),
+            record.level(),
+            target,
+            record.args()
+        );
 
         if let Ok(mut logs) = self.logs.lock() {
-            logs.push_back(LogEntry {
-                text: format!(
-                    "{} {} --- {} : {}",
-                    time.format("%Y-%m-%d %H:%M:%S%.f"),
-                    record.level(),
-                    target,
-                    record.args()
-                ),
-            });
+            logs.push_back(LogEntry { text: text.clone() });
         }
+
+        let _ = self.log_sender.send(LogEntry { text });
     }
 
     fn overlap_size(logger: &str, target: &str) -> u32 {
@@ -178,4 +197,32 @@ pub struct Logger {
     pub target: String,
     /// The configured level of the logger
     pub level: Level,
+}
+
+#[derive(Debug)]
+struct AppLogfileWriter {}
+
+impl AppLogfileWriter {
+    fn new() -> Self {
+        Self {}
+    }
+
+    async fn start(&mut self, mut log_receiver: UnboundedReceiver<LogEntry>) {
+        if let Ok(mut file) = Self::create_logfile().await {
+            while let Some(log) = log_receiver.recv().await {
+                let mut buf = Vec::new();
+                let _ = writeln!(buf, "{}", log.text);
+                let _ = file.write_all(&buf).await;
+            }
+        }
+    }
+
+    async fn create_logfile() -> Result<File, io::Error> {
+        OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .open(LOG_FILE_PATH)
+            .await
+    }
 }

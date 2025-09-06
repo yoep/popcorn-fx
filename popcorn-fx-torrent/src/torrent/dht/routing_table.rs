@@ -1,9 +1,9 @@
 use crate::torrent::dht::{Node, NodeId, NodeState};
 use itertools::Itertools;
-use log::trace;
+use log::{debug, trace};
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
-use std::net::SocketAddr;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::time::Instant;
 
 #[derive(Debug)]
@@ -98,6 +98,14 @@ impl RoutingTable {
     ///
     /// It returns the bucket id to which the node has been added, else [None].
     pub fn add_node(&mut self, node: Node) -> Option<u8> {
+        if !Self::is_valid(&node) {
+            debug!(
+                "Routing table is ignoring node {}, node is invalid",
+                node.addr
+            );
+            return None;
+        }
+
         let distance = self.id.distance(&node.id);
         if distance == 0 {
             trace!("Routing table is ignoring node, node has same ID as the routing table");
@@ -132,6 +140,13 @@ impl RoutingTable {
         self.router_nodes.push(node);
     }
 
+    /// Remove the router node to the routing table.
+    pub fn remove_router_node(&mut self, node: &Node) {
+        if let Some(position) = self.router_nodes.iter().position(|e| e.id == node.id) {
+            self.router_nodes.remove(position);
+        }
+    }
+
     /// Refresh all buckets within the routing table.
     pub async fn refresh(&mut self) {
         trace!(
@@ -146,6 +161,17 @@ impl RoutingTable {
     /// Check if the given address is already registered as a router node.
     fn contains_router_node(&self, addr: &SocketAddr) -> bool {
         self.router_nodes.iter().find(|e| e.addr == *addr).is_some()
+    }
+
+    /// Validate if the given node is valid.
+    fn is_valid(node: &Node) -> bool {
+        let addr = &node.addr;
+        let is_unspecified = match addr.ip() {
+            IpAddr::V4(ip) => ip == Ipv4Addr::UNSPECIFIED,
+            IpAddr::V6(ip) => ip == Ipv6Addr::UNSPECIFIED,
+        };
+
+        !is_unspecified && addr.port() != 0
     }
 }
 
@@ -234,7 +260,7 @@ mod tests {
         fn test_add_node_self() {
             init_logger!();
             let node_id = NodeId::new();
-            let node = Node::new(node_id, ([127, 0, 0, 1], 9000).into());
+            let node = Node::new(node_id, (Ipv4Addr::LOCALHOST, 9000).into());
             let mut routing_table = RoutingTable::new(node_id, 2, Vec::with_capacity(0));
 
             let result = routing_table.add_node(node);
@@ -251,7 +277,7 @@ mod tests {
         fn test_add_node() {
             init_logger!();
             let node_id = NodeId::new();
-            let node = Node::new(node_id, ([127, 0, 0, 1], 10000).into());
+            let node = Node::new(node_id, (Ipv4Addr::LOCALHOST, 10000).into());
             let mut routing_table = RoutingTable::new(NodeId::new(), 10, Vec::with_capacity(0));
 
             let result = routing_table.add_node(node);
@@ -260,6 +286,27 @@ mod tests {
             let result = routing_table.len();
             assert_eq!(1, result, "expected the node to have been stored");
         }
+
+        #[test]
+        fn test_add_node_invalid() {
+            init_logger!();
+            let node_unspecified_addr =
+                Node::new(NodeId::new(), (Ipv4Addr::UNSPECIFIED, 1000).into());
+            let node_unspecified_port = Node::new(NodeId::new(), (Ipv4Addr::LOCALHOST, 0).into());
+            let mut routing_table = RoutingTable::new(NodeId::new(), 10, Vec::with_capacity(0));
+
+            let result = routing_table.add_node(node_unspecified_addr);
+            assert_eq!(
+                None, result,
+                "expected unspecified node addr to not be added"
+            );
+
+            let result = routing_table.add_node(node_unspecified_port);
+            assert_eq!(
+                None, result,
+                "expected unspecified node port to not be added"
+            );
+        }
     }
 
     mod bucket {
@@ -267,7 +314,7 @@ mod tests {
 
         #[test]
         fn test_add_empty_bucket() {
-            let node = Node::new(NodeId::new(), ([127, 0, 0, 1], 8900).into());
+            let node = Node::new(NodeId::new(), (Ipv4Addr::LOCALHOST, 8900).into());
             let mut bucket = Bucket::new(8);
 
             let result = bucket.add(node);
@@ -277,7 +324,7 @@ mod tests {
 
         #[test]
         fn test_add_bucket_full() {
-            let node = Node::new(NodeId::new(), ([127, 0, 0, 1], 8900).into());
+            let node = Node::new(NodeId::new(), (Ipv4Addr::LOCALHOST, 8900).into());
             let mut bucket = Bucket::new(2);
             bucket.nodes.push(create_node_with_state(
                 ([198, 168, 0, 1], 8900).into(),
@@ -295,7 +342,7 @@ mod tests {
 
         #[test]
         fn test_add_bucket_full_with_bad_node() {
-            let node = Node::new(NodeId::new(), ([127, 0, 0, 1], 8900).into());
+            let node = Node::new(NodeId::new(), (Ipv4Addr::LOCALHOST, 8900).into());
             let mut bucket = Bucket::new(2);
             bucket.nodes.push(create_node_with_state(
                 ([198, 168, 0, 1], 8900).into(),

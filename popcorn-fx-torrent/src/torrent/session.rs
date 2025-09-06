@@ -303,6 +303,7 @@ impl FxTorrentSession {
         extensions: ExtensionFactories,
         operations: Vec<TorrentOperationFactory>,
         session_cache: Box<dyn SessionCache>,
+        dht_enabled: bool,
     ) -> Self {
         let handle = SessionHandle::new();
 
@@ -327,7 +328,7 @@ impl FxTorrentSession {
 
         let main_inner = inner.clone();
         tokio::spawn(async move {
-            main_inner.start(command_receiver).await;
+            main_inner.start(command_receiver, dht_enabled).await;
         });
 
         debug!("Created new torrent session {}", inner.handle);
@@ -647,6 +648,7 @@ pub struct FxTorrentSessionBuilder {
     extension_factories: Option<ExtensionFactories>,
     operation_factories: Option<Vec<TorrentOperationFactory>>,
     session_cache: Option<Box<dyn SessionCache>>,
+    dht: Option<bool>,
 }
 
 impl FxTorrentSessionBuilder {
@@ -720,6 +722,13 @@ impl FxTorrentSessionBuilder {
         self
     }
 
+    /// Set if DHT is enabled for the session.
+    #[cfg(feature = "dht")]
+    pub fn dht(&mut self, enabled: bool) -> &mut Self {
+        self.dht = Some(enabled);
+        self
+    }
+
     /// Create a new torrent session from this builder.
     /// The only required field within this builder is the base path for the torrent storage.
     ///
@@ -748,6 +757,10 @@ impl FxTorrentSessionBuilder {
             .session_cache
             .take()
             .unwrap_or_else(|| Box::new(FxSessionCache::new(DEFAULT_CACHE_LIMIT)));
+        #[cfg(feature = "dht")]
+        let dht_enabled = self.dht.unwrap_or(true);
+        #[cfg(not(feature = "dht"))]
+        let dht_enabled = false;
 
         Ok(FxTorrentSession::new(
             base_path,
@@ -756,6 +769,7 @@ impl FxTorrentSessionBuilder {
             extensions,
             torrent_operations,
             session_cache,
+            dht_enabled,
         ))
     }
 }
@@ -800,11 +814,17 @@ struct InnerSession {
 
 impl InnerSession {
     /// Start the main loop of the session.
-    async fn start(&self, mut command_receiver: UnboundedReceiver<SessionCommand>) {
-        if let Err(e) = self.initialize_dht_tracker().await {
-            warn!("Session {} failed to initialize, {}", self, e);
-            self.update_state(SessionState::Error).await;
-            return;
+    async fn start(
+        &self,
+        mut command_receiver: UnboundedReceiver<SessionCommand>,
+        dht_enabled: bool,
+    ) {
+        if dht_enabled {
+            if let Err(e) = self.initialize_dht_tracker().await {
+                warn!("Session {} failed to initialize, {}", self, e);
+                self.update_state(SessionState::Error).await;
+                return;
+            }
         }
 
         self.update_state(SessionState::Running).await;

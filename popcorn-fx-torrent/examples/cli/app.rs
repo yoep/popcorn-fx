@@ -302,8 +302,9 @@ impl App {
     async fn show_dht_info(&mut self, app_sender: AppCommandSender) {
         if !self.tabs.iter().any(|e| e.name() == DHT_INFO_WIDGET_NAME) {
             if let Some(dht) = self.session.dht().await {
+                let nodes = dht.nodes().await;
                 self.tabs
-                    .insert(1, Box::new(DhtInfoWidget::new(dht, app_sender)));
+                    .insert(1, Box::new(DhtInfoWidget::new(dht, nodes, app_sender)));
             } else {
                 return;
             }

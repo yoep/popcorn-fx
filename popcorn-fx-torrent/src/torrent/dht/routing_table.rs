@@ -3,7 +3,7 @@ use itertools::Itertools;
 use log::{debug, trace};
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
+use std::net::SocketAddr;
 use std::time::Instant;
 
 #[derive(Debug)]
@@ -58,6 +58,18 @@ impl RoutingTable {
         &self.router_nodes
     }
 
+    /// Check if the given node already exists within the routing table.
+    /// This verifies if the node exists within any bucket or search nodes.
+    pub fn contains(&self, node: &Node) -> bool {
+        let node_id = &node.id;
+        let distance = self.id.distance(node_id);
+        self.buckets
+            .get(&distance)
+            .map(|bucket| bucket.nodes.iter().any(|node| &node.id == node_id))
+            .unwrap_or_default()
+            || self.router_nodes.contains(&node)
+    }
+
     /// Try to find the node within the routing table for the given ID.
     pub fn find_node(&self, id: &NodeId) -> Option<&Node> {
         let distance = self.id.distance(id);
@@ -101,6 +113,13 @@ impl RoutingTable {
         if !Self::is_valid(&node) {
             debug!(
                 "Routing table is ignoring node {}, node is invalid",
+                node.addr
+            );
+            return None;
+        }
+        if self.router_nodes.contains(&node) {
+            debug!(
+                "Routing table is ignoring node {}, node is a known routing nodes",
                 node.addr
             );
             return None;
@@ -177,13 +196,7 @@ impl RoutingTable {
 
     /// Validate if the given node is valid.
     fn is_valid(node: &Node) -> bool {
-        let addr = &node.addr;
-        let is_unspecified = match addr.ip() {
-            IpAddr::V4(ip) => ip == Ipv4Addr::UNSPECIFIED,
-            IpAddr::V6(ip) => ip == Ipv6Addr::UNSPECIFIED,
-        };
-
-        !is_unspecified && addr.port() != 0
+        node.id.verify_id(&node.addr.ip()) && node.addr.port() != 0
     }
 }
 
@@ -263,6 +276,7 @@ impl Bucket {
 mod tests {
     use super::*;
     use crate::init_logger;
+    use std::net::Ipv4Addr;
     use std::net::SocketAddr;
 
     mod routing_table {

@@ -1,37 +1,45 @@
 use crate::app::{AppCommandSender, FXKeyEvent, FXWidget};
 use async_trait::async_trait;
+use crossterm::event::KeyCode;
 use fx_callback::{Callback, Subscription};
 use fx_handle::Handle;
-use popcorn_fx_torrent::torrent::dht::{DhtEvent, DhtTracker};
+use popcorn_fx_torrent::torrent::dht::{DhtEvent, DhtTracker, Node, NodeState};
 use popcorn_fx_torrent::torrent::format_bytes;
-use ratatui::layout::Constraint::Percentage;
+use ratatui::layout::Constraint::{Fill, Min, Percentage};
 use ratatui::layout::{Layout, Rect};
-use ratatui::prelude::{Color, Style};
+use ratatui::prelude::{Color, StatefulWidget, Style};
 use ratatui::style::Stylize;
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Paragraph, Sparkline, Widget};
+use ratatui::widgets::{
+    Block, Borders, Cell, HighlightSpacing, Paragraph, Row, Sparkline, Table, TableState, Widget,
+};
 use ratatui::Frame;
+use std::sync::Mutex;
 
 pub(crate) const DHT_INFO_WIDGET_NAME: &str = "DHT";
 const PERFORMANCE_HISTORY: usize = 150;
+const CHECKMARK_CHAR: &str = "\u{2713}";
 
 #[derive(Debug)]
 pub struct DhtInfoWidget {
     handle: Handle,
     data: DhtData,
     dht: DhtTracker,
+    node_info_widget: DhtNodeInfoWidget,
     event_receiver: Subscription<DhtEvent>,
     app_sender: AppCommandSender,
 }
 
 impl DhtInfoWidget {
-    pub fn new(dht: DhtTracker, app_sender: AppCommandSender) -> Self {
+    pub fn new(dht: DhtTracker, nodes: Vec<Node>, app_sender: AppCommandSender) -> Self {
         let event_receiver = dht.subscribe();
+        let node_info_widget = DhtNodeInfoWidget::new(nodes);
 
         Self {
             handle: Default::default(),
             data: Default::default(),
             dht,
+            node_info_widget,
             event_receiver,
             app_sender,
         }
@@ -39,11 +47,14 @@ impl DhtInfoWidget {
 
     fn handle_event(&mut self, event: &DhtEvent) {
         match event {
-            DhtEvent::NodeAdded(_) => {}
+            DhtEvent::NodeAdded(node) => {
+                self.node_info_widget.add_node(node.clone());
+            }
             DhtEvent::Stats(metrics) => {
                 self.data.total_nodes = metrics.total_nodes.get();
                 self.data.total_router_nodes = metrics.total_router_nodes.get();
                 self.data.total_pending_queries = metrics.total_pending_queries.get();
+                self.data.total_errors = metrics.total_errors.total();
 
                 self.data.bytes_down.push(metrics.total_bytes_in.get());
                 if self.data.bytes_down.len() >= PERFORMANCE_HISTORY {
@@ -76,9 +87,7 @@ impl FXWidget for DhtInfoWidget {
     }
 
     fn on_key_event(&mut self, key: FXKeyEvent) {
-        match key.code() {
-            _ => {}
-        }
+        self.node_info_widget.on_key_event(key);
     }
 
     fn on_paste_event(&mut self, text: String) {
@@ -86,8 +95,10 @@ impl FXWidget for DhtInfoWidget {
     }
 
     fn render(&self, frame: &mut Frame, area: Rect) {
+        let main = Layout::vertical([Min(10), Fill(1)]);
+        let [header_area, details_area] = main.areas(area);
         let header = Layout::horizontal([Percentage(50), Percentage(50)]);
-        let [data_area, performance_area] = header.areas(area);
+        let [data_area, performance_area] = header.areas(header_area);
         let performance_layout = Layout::vertical([Percentage(50), Percentage(50)]);
         let [down_performance, up_performance] = performance_layout.areas(performance_area);
 
@@ -108,6 +119,10 @@ impl FXWidget for DhtInfoWidget {
             Line::from(vec![
                 Span::from("Pending queries: ").bold(),
                 self.data.total_pending_queries.to_string().into(),
+            ]),
+            Line::from(vec![
+                Span::from("Errors: ").bold(),
+                self.data.total_errors.to_string().into(),
             ]),
         ])
         .block(Block::new().title("DHT network").borders(Borders::ALL))
@@ -130,6 +145,9 @@ impl FXWidget for DhtInfoWidget {
             .data(&self.data.bytes_up)
             .style(Style::default().fg(Color::Yellow))
             .render(up_performance, frame.buffer_mut());
+
+        // render the node information
+        self.node_info_widget.render(frame, details_area);
     }
 }
 
@@ -138,6 +156,95 @@ struct DhtData {
     total_nodes: u64,
     total_router_nodes: u64,
     total_pending_queries: u64,
+    total_errors: u64,
     bytes_down: Vec<u64>,
     bytes_up: Vec<u64>,
+}
+
+#[derive(Debug)]
+struct DhtNodeInfoWidget {
+    nodes: Vec<Node>,
+    state: Mutex<TableState>,
+}
+
+impl DhtNodeInfoWidget {
+    fn new(nodes: Vec<Node>) -> Self {
+        Self {
+            nodes,
+            state: Default::default(),
+        }
+    }
+
+    fn add_node(&mut self, node: Node) {
+        self.nodes.push(node);
+    }
+
+    fn on_key_event(&mut self, key: FXKeyEvent) {
+        match key.code() {
+            KeyCode::Up => {
+                if let Ok(mut state) = self.state.lock() {
+                    let offset = state.selected().unwrap_or(0).saturating_sub(1);
+                    state.select(Some(offset));
+                }
+            }
+            KeyCode::Down => {
+                if let Ok(mut state) = self.state.lock() {
+                    let offset = state
+                        .selected()
+                        .unwrap_or(0)
+                        .saturating_add(1)
+                        .max(self.nodes.len().saturating_sub(1));
+
+                    state.select(Some(offset));
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn render(&self, frame: &mut Frame, area: Rect) {
+        let header = vec!["Address", "State", "Secure"]
+            .into_iter()
+            .map(Cell::from)
+            .collect::<Row>()
+            .style(Style::new().bg(Color::Yellow));
+        let rows = self
+            .nodes
+            .iter()
+            .enumerate()
+            .map(|(index, node)| {
+                let color = if index % 2 == 0 {
+                    Color::Rgb(80, 80, 50)
+                } else {
+                    Color::Rgb(80, 80, 80)
+                };
+                let secure = if node.is_secure() { CHECKMARK_CHAR } else { "" };
+
+                Row::new(vec![
+                    node.addr.to_string(),
+                    node_state_as_str(&node.state).to_string(),
+                    secure.to_string(),
+                ])
+                .style(Style::new().bg(color))
+            })
+            .collect::<Vec<Row>>();
+
+        let table = Table::new(rows, [Fill(1), Min(14), Min(6)])
+            .header(header)
+            .block(Block::bordered().title("Nodes"))
+            .row_highlight_style(Style::new().bg(Color::LightYellow))
+            .highlight_spacing(HighlightSpacing::Always);
+
+        if let Ok(mut state) = self.state.lock() {
+            StatefulWidget::render(table, area, frame.buffer_mut(), &mut state);
+        }
+    }
+}
+
+fn node_state_as_str(state: &NodeState) -> &str {
+    match state {
+        NodeState::Good => "Good",
+        NodeState::Questionable => "Questionable",
+        NodeState::Bad => "Bad",
+    }
 }

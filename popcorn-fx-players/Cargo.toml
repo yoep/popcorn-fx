@@ -48,7 +48,7 @@ mockall = "0.12.1"
 protobuf = "3.4.0"
 rcgen = "0.13.1"
 rust_cast = { git = "https://github.com/yoep/rust-cast", features = ["thread_safe", "cast"] }
-socket2 = "0.5.7"
+socket2 = "0.6.0"
 tempfile.workspace = true
 tokio = { workspace = true, features = ["full"] }
 tokio-rustls = "0.26.0"

@@ -4,7 +4,7 @@ use rand::{rng, Rng, RngCore};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use sha1::{Digest, Sha1};
 use std::fmt::{Debug, Display, Formatter};
-use std::net::{IpAddr, SocketAddr};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::result;
 
 const NODE_ID_SIZE: usize = 20;
@@ -12,7 +12,7 @@ const MAX_DISTANCE: u8 = NODE_ID_SIZE as u8 * 8; // = 160
 const CRC32: Crc<u32> = Crc::<u32>::new(&CRC_32_ISCSI);
 
 /// The unique DHT node identifier.
-#[derive(Copy, Clone, PartialEq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct NodeId([u8; NODE_ID_SIZE]);
 
 impl NodeId {
@@ -131,9 +131,21 @@ impl NodeId {
     ///
     /// Returns `true` if the source ip is valid, else `false`.
     pub fn verify_id(&self, source_ip: &IpAddr) -> bool {
+        self.is_secure_id(&source_ip) || self.is_plausible_legacy_id()
+    }
+
+    /// Verify if this node follows the BEP42 verification.
+    pub fn is_secure_id(&self, source_ip: &IpAddr) -> bool {
         // no need to verify local IPs, they would be incorrect anyway
         if source_ip.is_local() {
             return true;
+        }
+        // early fail when the source ip address is unspecified
+        if match source_ip {
+            IpAddr::V4(ip) => ip == &Ipv4Addr::UNSPECIFIED,
+            IpAddr::V6(ip) => ip == &Ipv6Addr::UNSPECIFIED,
+        } {
+            return false;
         }
 
         let verification_id = NodeId::from_ip_with_rand(&source_ip, self.0[19]);
@@ -142,6 +154,12 @@ impl NodeId {
         self.0[0] == verification_id.0[0]
             && self.0[1] == verification_id.0[1]
             && (self.0[2] & 0xf8) == (verification_id.0[2] & 0xf8)
+    }
+
+    fn is_plausible_legacy_id(&self) -> bool {
+        let first = self.0[0];
+        // reject all-zeros and single-byte repeats
+        !self.0.iter().all(|&b| b == 0) && !self.0.iter().all(|&b| b == first)
     }
 }
 
@@ -206,6 +224,20 @@ impl<'de> Deserialize<'de> for NodeId {
 
 pub trait IsLocal {
     /// Verify if the ip address is a local address.
+    /// This includes the following IP blocks:
+    ///
+    /// ```text
+    /// 10.0.0.0/8
+    ///     reserved for local networks
+    /// 172.16.0.0/12
+    ///     reserved for local networks
+    /// 192.168.0.0/16
+    ///     reserved for local networks
+    /// 169.254.0.0/16
+    ///     reserved for self-assigned IPs
+    /// 127.0.0.0/8
+    ///     reserved for loopback
+    /// ```
     ///
     /// # Returns
     ///

@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 const TOKEN_SECRET_SIZE: usize = 20;
 const TOKEN_SIZE: usize = 4;
 const QUESTIONABLE_NODE_AFTER: Duration = Duration::from_secs(15 * 60); // 15 mins.
-const QUESTIONABLE_NODE_AFTER_TIMEOUTS: usize = 5;
+const BAD_NODE_AFTER_TIMEOUTS: usize = 5;
 
 /// A node token type alias.
 pub type Token = [u8; TOKEN_SIZE];
@@ -78,6 +78,12 @@ impl Node {
     pub fn distance(&self, node: &Node) -> u8 {
         self.id.distance(&node.id)
     }
+
+    /// Check if the [NodeId] is valid for its own ip address.
+    /// See BEP42 for more info.
+    pub fn is_secure(&self) -> bool {
+        self.id.verify_id(&self.addr.ip())
+    }
 }
 
 impl PartialEq for Node {
@@ -101,15 +107,15 @@ impl NodeState {
     /// After 15 minutes of inactivity, a node becomes questionable.
     /// Nodes become bad when they fail to respond to multiple queries in a row.
     pub fn calculate(last_seen_since: Duration, timeout_count: usize) -> Self {
-        if timeout_count > QUESTIONABLE_NODE_AFTER_TIMEOUTS {
-            return Self::Questionable;
+        if timeout_count > BAD_NODE_AFTER_TIMEOUTS {
+            return Self::Bad;
         }
 
         if last_seen_since < QUESTIONABLE_NODE_AFTER {
             return Self::Good;
         }
 
-        Self::Bad
+        Self::Questionable
     }
 }
 

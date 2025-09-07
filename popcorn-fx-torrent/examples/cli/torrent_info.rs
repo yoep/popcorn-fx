@@ -306,10 +306,11 @@ impl TorrentFilesWidget {
             }
             KeyCode::Down => {
                 if let Ok(mut state) = self.state.lock() {
-                    let mut offset = state.selected().unwrap_or(0).saturating_add(1);
-                    if offset > self.files.len() {
-                        offset = self.files.len() - 1;
-                    }
+                    let offset = state
+                        .selected()
+                        .unwrap_or(0)
+                        .saturating_add(1)
+                        .max(self.files.len().saturating_sub(1));
 
                     state.select(Some(offset));
                 }
@@ -345,40 +346,40 @@ impl TorrentFilesWidget {
 
 impl Widget for &TorrentFilesWidget {
     fn render(self, area: Rect, buf: &mut Buffer) {
+        let header = vec!["Name", "Priority", "Size", "Progress", "Pieces"]
+            .into_iter()
+            .map(Cell::from)
+            .collect::<Row>()
+            .style(Style::new().bg(Color::Yellow));
+        let rows = self
+            .files
+            .iter()
+            .enumerate()
+            .map(|(index, file)| {
+                let color = if index % 2 == 0 {
+                    Color::Rgb(80, 80, 50)
+                } else {
+                    Color::Rgb(80, 80, 80)
+                };
+
+                Row::new(vec![
+                    file.name.clone(),
+                    priority_text(file.priority).to_string(),
+                    format_bytes(file.size),
+                    format!("{:0.2}%", file.completed_percentage),
+                    format!("{}/{}", file.completed_pieces, file.total_pieces),
+                ])
+                .style(Style::new().bg(color))
+            })
+            .collect::<Vec<Row>>();
+
+        let table = Table::new(rows, [Fill(1), Min(12), Min(16), Min(20), Min(16)])
+            .header(header)
+            .block(Block::bordered().title("Files"))
+            .row_highlight_style(Style::new().bg(Color::LightYellow))
+            .highlight_spacing(HighlightSpacing::Always);
+
         if let Ok(mut state) = self.state.lock() {
-            let header = vec!["Name", "Priority", "Size", "Progress", "Pieces"]
-                .into_iter()
-                .map(Cell::from)
-                .collect::<Row>()
-                .style(Style::new().bg(Color::Yellow));
-            let rows = self
-                .files
-                .iter()
-                .enumerate()
-                .map(|(index, file)| {
-                    let color = if index % 2 == 0 {
-                        Color::Rgb(80, 80, 50)
-                    } else {
-                        Color::Rgb(80, 80, 80)
-                    };
-
-                    Row::new(vec![
-                        file.name.clone(),
-                        priority_text(file.priority).to_string(),
-                        format_bytes(file.size),
-                        format!("{:0.2}%", file.completed_percentage),
-                        format!("{}/{}", file.completed_pieces, file.total_pieces),
-                    ])
-                    .style(Style::new().bg(color))
-                })
-                .collect::<Vec<Row>>();
-
-            let table = Table::new(rows, [Fill(1), Min(12), Min(16), Min(20), Min(16)])
-                .header(header)
-                .block(Block::bordered().title("Files"))
-                .row_highlight_style(Style::new().bg(Color::LightYellow))
-                .highlight_spacing(HighlightSpacing::Always);
-
             StatefulWidget::render(table, area, buf, &mut state);
         }
     }

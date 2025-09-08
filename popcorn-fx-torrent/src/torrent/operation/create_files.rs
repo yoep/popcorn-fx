@@ -195,10 +195,6 @@ mod tests {
         let operation = TorrentCreateFilesOperation::new();
         let context = torrent.instance().unwrap();
         let metadata = context.metadata().await;
-        let metadata_info = metadata
-            .info
-            .as_ref()
-            .expect("expected the metadata info to be present");
 
         // create the torrent pieces
         let result = pieces_operation.execute(&context).await;

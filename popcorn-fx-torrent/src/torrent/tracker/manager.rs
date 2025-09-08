@@ -9,7 +9,7 @@ use crate::torrent::tracker::{
     AnnounceEntryResponse, Announcement, Result, ScrapeFileMetrics, ScrapeResult, Tracker,
     TrackerError, TrackerHandle, TrackerState,
 };
-use crate::torrent::InfoHash;
+use crate::torrent::{InfoHash, Metrics};
 use derive_more::Display;
 use futures::future;
 use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
@@ -145,13 +145,17 @@ impl TrackerManager {
     /// * `peer_id` - The peer ID of the torrent.
     /// * `peer_port` - The port on which the torrent is listening.
     /// * `info_hash` - The info hash of the torrent.
+    /// * `metrics` - The metrics of the torrent.
     pub async fn add_torrent(
         &self,
         peer_id: PeerId,
         peer_port: u16,
         info_hash: InfoHash,
+        metrics: Metrics,
     ) -> Result<()> {
-        self.inner.add_torrent(peer_id, peer_port, info_hash).await
+        self.inner
+            .add_torrent(peer_id, peer_port, info_hash, metrics)
+            .await
     }
 
     /// Remove the given torrent info hash from the tracker.
@@ -304,32 +308,6 @@ impl TrackerManager {
         Ok(result)
     }
 
-    /// Inform the trackers about the remaining number of piece bytes that need to be downloaded by the torrent.
-    pub async fn update_bytes_remaining(&self, info_hash: &InfoHash, remaining_bytes: usize) {
-        trace!(
-            "Torrent manager {} is updating remaining bytes to {}",
-            self,
-            remaining_bytes
-        );
-        let mut torrents = self.inner.torrents.lock().await;
-        if let Some(torrent) = self.inner.find_torrent(info_hash, &mut torrents).await {
-            torrent.bytes_remaining = remaining_bytes as u64;
-        }
-    }
-
-    /// Inform the trackers about the number of completed piece bytes by the torrent.
-    pub async fn update_bytes_completed(&self, info_hash: &InfoHash, bytes_completed: usize) {
-        trace!(
-            "Tracker manager {} is updating bytes completed to {}",
-            self,
-            bytes_completed
-        );
-        let mut torrents = self.inner.torrents.lock().await;
-        if let Some(torrent) = self.inner.find_torrent(info_hash, &mut torrents).await {
-            torrent.bytes_completed = bytes_completed as u64;
-        }
-    }
-
     /// Close the tracker manager resulting in a termination of its operations.
     pub fn close(&self) {
         self.inner.cancellation_token.cancel();
@@ -401,6 +379,7 @@ impl InnerTrackerManager {
         peer_id: PeerId,
         peer_port: u16,
         info_hash: InfoHash,
+        metrics: Metrics,
     ) -> Result<()> {
         if peer_port == 0 {
             return Err(TrackerError::InvalidPort(peer_port));
@@ -416,9 +395,8 @@ impl InnerTrackerManager {
                 peer_id,
                 peer_port,
                 info_hash,
+                metrics,
                 peers: Default::default(),
-                bytes_completed: Default::default(),
-                bytes_remaining: u64::MAX,
             });
             debug!("Tracker manager {} added torrent {}", self, info_hash_txt);
         }
@@ -545,8 +523,8 @@ impl InnerTrackerManager {
                 event,
                 torrent.peer_id,
                 torrent.peer_port,
-                torrent.bytes_completed,
-                torrent.bytes_remaining,
+                torrent.metrics.completed_size.total(),
+                torrent.metrics.bytes_remaining(),
             )
             .await
             .map(|e| AnnouncementResult {
@@ -578,8 +556,8 @@ impl InnerTrackerManager {
                         event,
                         torrent.peer_id,
                         torrent.peer_port,
-                        torrent.bytes_completed,
-                        torrent.bytes_remaining,
+                        torrent.metrics.completed_size.total(),
+                        torrent.metrics.bytes_remaining(),
                     )
                 })
                 .collect();
@@ -629,8 +607,8 @@ impl InnerTrackerManager {
                     AnnounceEvent::Stopped,
                     torrent.peer_id,
                     torrent.peer_port,
-                    torrent.bytes_completed,
-                    torrent.bytes_remaining,
+                    torrent.metrics.completed_size.total(),
+                    torrent.metrics.bytes_remaining(),
                 )
             }));
         }
@@ -711,8 +689,8 @@ impl InnerTrackerManager {
                             AnnounceEvent::Started,
                             torrent.peer_id,
                             torrent.peer_port,
-                            torrent.bytes_completed,
-                            torrent.bytes_remaining,
+                            torrent.metrics.completed_size.total(),
+                            torrent.metrics.bytes_remaining(),
                         )
                         .await
                     {
@@ -735,10 +713,8 @@ pub struct TrackerTorrent {
     info_hash: InfoHash,
     /// The discovered peers for this torrent by the tracker
     peers: HashSet<SocketAddr>,
-    /// The number completed piece bytes by the torrent
-    bytes_completed: u64,
-    /// The number of remaining piece bytes that need to be downloaded by the torrent
-    bytes_remaining: u64,
+    /// A reference to the torrent metrics
+    metrics: Metrics,
 }
 
 #[cfg(test)]
@@ -767,14 +743,13 @@ mod tests {
                 peer_port,
                 info_hash: info_hash.clone(),
                 peers: Default::default(),
-                bytes_completed: 0,
-                bytes_remaining: u64::MAX,
+                metrics: Metrics::new(),
             };
             let manager = TrackerManager::new(Duration::from_secs(1));
 
             {
                 let result = manager
-                    .add_torrent(peer_id, peer_port, info_hash.clone())
+                    .add_torrent(peer_id, peer_port, info_hash.clone(), Metrics::new())
                     .await;
                 assert_eq!(Ok(()), result);
 
@@ -789,7 +764,7 @@ mod tests {
 
             {
                 let _ = manager
-                    .add_torrent(PeerId::new(), peer_port, info_hash)
+                    .add_torrent(PeerId::new(), peer_port, info_hash, Metrics::new())
                     .await;
                 let result = manager.inner.torrents.lock().await;
                 assert_eq!(
@@ -807,7 +782,9 @@ mod tests {
                 InfoHash::from_str("urn:btih:EADAF0EFEA39406914414D359E0EA16416409BD7").unwrap();
             let manager = TrackerManager::new(Duration::from_secs(1));
 
-            let result = manager.add_torrent(PeerId::new(), 0, info_hash).await;
+            let result = manager
+                .add_torrent(PeerId::new(), 0, info_hash, Metrics::new())
+                .await;
 
             assert_eq!(Err(TrackerError::InvalidPort(0)), result);
         }
@@ -841,7 +818,7 @@ mod tests {
 
         {
             manager
-                .add_torrent(PeerId::new(), 6881, info_hash.clone())
+                .add_torrent(PeerId::new(), 6881, info_hash.clone(), Metrics::new())
                 .await
                 .unwrap();
             let result = manager.inner.torrents.lock().await;
@@ -870,7 +847,7 @@ mod tests {
         let manager = TrackerManager::new(Duration::from_secs(1));
 
         manager
-            .add_torrent(peer_id, 6881, info_hash.clone())
+            .add_torrent(peer_id, 6881, info_hash.clone(), Metrics::new())
             .await
             .unwrap();
 
@@ -893,7 +870,7 @@ mod tests {
         let manager = TrackerManager::new(Duration::from_secs(1));
 
         manager
-            .add_torrent(peer_id, 6881, info_hash.clone())
+            .add_torrent(peer_id, 6881, info_hash.clone(), Metrics::new())
             .await
             .unwrap();
 
@@ -923,8 +900,7 @@ mod tests {
             peer_port: 6881,
             info_hash: info_hash.clone(),
             peers: vec![peer_addr.clone()].into_iter().collect(),
-            bytes_completed: 0,
-            bytes_remaining: u64::MAX,
+            metrics: Metrics::default(),
         });
 
         let result = manager.discovered_peers(&info_hash).await;

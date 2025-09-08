@@ -32,7 +32,6 @@ use tokio_util::sync::CancellationToken;
 const MAX_PACKET_SIZE: usize = 65_535;
 const SEND_PACKAGE_TIMEOUT: Duration = Duration::from_secs(6);
 const RESPONSE_TIMEOUT: Duration = Duration::from_secs(8);
-const ROUTER_PING_TIMEOUT: Duration = Duration::from_secs(6);
 const REFRESH_INTERVAL: Duration = Duration::from_secs(60 * 15);
 const CLEANUP_INTERVAL: Duration = Duration::from_secs(3);
 const STATS_INTERVAL: Duration = Duration::from_secs(1);
@@ -97,7 +96,7 @@ impl DhtTracker {
             cancellation_token: cancellation_token.clone(),
         };
 
-        metrics.total_router_nodes.set(routing_nodes.len() as u64);
+        metrics.router_nodes.set(routing_nodes.len() as u64);
         let inner = Arc::new(InnerTracker {
             id,
             transaction_id: Default::default(),
@@ -321,8 +320,6 @@ impl DhtTrackerBuilder {
 /// An internal command executed within the tracker.
 #[derive(Debug)]
 enum TrackerCommand {
-    /// Ping the given node address.
-    Ping(SocketAddr, PingSender),
     /// Query the closest nodes at the given node address for the target node id.
     FindNode(NodeId, SocketAddr, FindNodeSender),
     /// Try to add the node to the routing by first verifying if it's valid
@@ -486,6 +483,7 @@ impl InnerTracker {
                                 token: token.to_vec(),
                                 values: None,
                                 nodes: None,
+                                nodes6: None,
                             },
                         },
                         &addr,
@@ -620,7 +618,13 @@ impl InnerTracker {
                                     Ok(Vec::with_capacity(0))
                                 };
 
-                                reply = peers.map(Reply::GetPeers)
+                                reply = match peers {
+                                    Ok(peers) => {
+                                        self.metrics.discovered_peers.inc_by(peers.len() as u64);
+                                        Ok(Reply::GetPeers(peers))
+                                    }
+                                    Err(e) => Err(e),
+                                }
                             }
                         }
                     }
@@ -631,10 +635,11 @@ impl InnerTracker {
                         "{} received response for unknown request, invalid transaction {}",
                         self, key
                     );
+                    self.metrics.errors.inc();
                 }
             }
             MessagePayload::Error(err) => {
-                self.metrics.total_errors.inc();
+                self.metrics.errors.inc();
 
                 if let Some(pending_request) = self.pending_requests.lock().await.remove(&key) {
                     debug!("{} received error for {}", self, key);
@@ -654,7 +659,6 @@ impl InnerTracker {
     /// Process a received tracker command.
     async fn handle_command(&self, command: TrackerCommand) {
         match command {
-            TrackerCommand::Ping(addr, sender) => self.ping(&addr, sender).await,
             TrackerCommand::FindNode(id, addr, sender) => self.find_node(id, &addr, sender).await,
             TrackerCommand::AddNode(node) => self.add_node(node).await,
             TrackerCommand::AddVerifiedNode(node) => self.add_verified_node(node).await,
@@ -771,6 +775,7 @@ impl InnerTracker {
                             request: GetPeersRequest {
                                 id: self.id,
                                 info_hash,
+                                want: None,
                             },
                         },
                         &node.addr,
@@ -850,7 +855,7 @@ impl InnerTracker {
                     },
                 );
                 self.metrics
-                    .total_pending_queries
+                    .pending_queries
                     .set(pending_requests.len() as u64);
             }
             Err(err) => {
@@ -945,7 +950,7 @@ impl InnerTracker {
             elapsed.as_micros()
         );
 
-        self.metrics.total_bytes_out.inc_by(bytes.len() as u64);
+        self.metrics.bytes_out.inc_by(bytes.len() as u64);
         Ok(())
     }
 
@@ -976,14 +981,24 @@ impl InnerTracker {
         if !routing_table.contains(&node) {
             let event_node = node.clone();
 
-            if let Some(bucket) = routing_table.add_node(node) {
-                self.metrics.total_nodes.inc();
-                debug!(
-                    "{} added node {} to bucket {}",
-                    self, &event_node.addr, bucket
-                );
+            match routing_table.add_node(node) {
+                Ok(bucket_index) => {
+                    self.metrics.nodes.inc();
+                    debug!(
+                        "{} added verified node {} to bucket {}",
+                        self, &event_node.addr, bucket_index
+                    );
 
-                self.callbacks.invoke(DhtEvent::NodeAdded(event_node));
+                    self.callbacks.invoke(DhtEvent::NodeAdded(event_node));
+                }
+                Err(e) => {
+                    trace!(
+                        "{} failed to add verified node {}, {}",
+                        self,
+                        &event_node.addr,
+                        e
+                    );
+                }
             }
         }
     }
@@ -994,7 +1009,7 @@ impl InnerTracker {
         let addr = node.addr.clone();
         if self.routing_table.lock().await.add_router_node(node) {
             trace!("{} added router node {}", self, addr);
-            self.metrics.total_router_nodes.inc();
+            self.metrics.router_nodes.inc();
         }
     }
 
@@ -1002,7 +1017,7 @@ impl InnerTracker {
     async fn remove_router_node(&self, node: &Node) {
         if self.routing_table.lock().await.remove_router_node(node) {
             trace!("{} removed router node {}", self, node.addr);
-            self.metrics.total_router_nodes.dec();
+            self.metrics.router_nodes.dec();
         }
     }
 
@@ -1056,7 +1071,7 @@ impl InnerTracker {
         }
 
         self.metrics
-            .total_pending_queries
+            .pending_queries
             .set(pending_requests.len() as u64);
     }
 
@@ -1133,26 +1148,10 @@ impl InnerTracker {
         );
         let per_target_goal: usize = 64;
         let targets = Self::bootstrap_targets(tracker_id, 8);
-        let futures: Vec<_> = router_nodes
-            .into_iter()
-            .map(|node| async {
-                match Self::ping_bootstrap_node(&node.addr, &command_sender).await {
-                    Ok(_) => Some(node),
-                    Err(_) => {
-                        let _ = command_sender.send(TrackerCommand::RemoveRouterNode(node));
-                        None
-                    }
-                }
-            })
-            .collect();
 
         let mut valid_router_nodes = 0u32;
         let mut discovered_nodes = 0usize;
-        for router_node in futures::future::join_all(futures)
-            .await
-            .into_iter()
-            .filter_map(|node| node)
-        {
+        for router_node in router_nodes {
             valid_router_nodes += 1;
 
             for target in &targets {
@@ -1170,24 +1169,6 @@ impl InnerTracker {
             "{} bootstrapped {} nodes through {} router nodes",
             tracker_info, discovered_nodes, valid_router_nodes
         );
-    }
-
-    async fn ping_bootstrap_node(
-        addr: &SocketAddr,
-        command_sender: &UnboundedSender<TrackerCommand>,
-    ) -> Result<()> {
-        let (tx, rx) = oneshot::channel();
-        let _ = command_sender.send(TrackerCommand::Ping(*addr, tx));
-        let node = timeout(ROUTER_PING_TIMEOUT, rx)
-            .await
-            .map_err(|_| Error::Timeout)?
-            .map_err(|_| Error::Closed)??;
-
-        debug!(
-            "DHT node server successfully connected to router node {}",
-            &node.addr
-        );
-        Ok(())
     }
 
     async fn find_bootstrap_nodes(
@@ -1236,16 +1217,20 @@ impl InnerTracker {
             let futures: Vec<_> = queue
                 .drain(..)
                 .map(|node| async {
-                    Self::find_bootstrap_nodes(node.addr, &target, &command_sender)
-                        .await
-                        .map(|nodes| (node, nodes))
+                    match Self::find_bootstrap_nodes(node.addr, &target, &command_sender).await {
+                        Ok(nodes) => Some((node, nodes)),
+                        Err(_) => {
+                            let _ = command_sender.send(TrackerCommand::RemoveRouterNode(node));
+                            None
+                        }
+                    }
                 })
                 .collect();
 
             for (source_node, nodes) in futures::future::join_all(futures)
                 .await
                 .into_iter()
-                .flat_map(|e| e.ok())
+                .flat_map(|e| e)
             {
                 // as we've got a successful response from the source node, add it as verified
                 let _ = command_sender.send(TrackerCommand::AddVerifiedNode(source_node));
@@ -1340,6 +1325,7 @@ impl NodeReader {
                 _ = self.cancellation_token.cancelled() => break,
                 Ok((len, addr)) = self.socket.recv_from(&mut buffer) => {
                     if let Err(e) = self.handle_incoming_message(&buffer[0..len], addr).await {
+                        self.metrics.errors.inc();
                         warn!("{} failed to read incoming message from {}, {}", self, addr, e);
                     }
                 },
@@ -1370,7 +1356,7 @@ impl NodeReader {
             elapsed.as_micros(),
         );
 
-        self.metrics.total_bytes_in.inc_by(bytes.len() as u64);
+        self.metrics.bytes_in.inc_by(bytes.len() as u64);
         self.sender.send((message, addr)).map_err(|_| Error::Closed)
     }
 }
@@ -1614,6 +1600,7 @@ mod tests {
 
     mod bootstrap {
         use super::*;
+
         use tokio::time;
 
         #[tokio::test(flavor = "multi_thread", worker_threads = 3)]

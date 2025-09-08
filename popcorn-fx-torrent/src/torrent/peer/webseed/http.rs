@@ -1,6 +1,7 @@
+use crate::torrent::metrics::Metric;
 use crate::torrent::peer::{
-    ConnectionDirection, ConnectionProtocol, Error, Peer, PeerClientInfo, PeerEvent, PeerHandle,
-    PeerId, PeerState, PeerStats, Result,
+    ConnectionDirection, ConnectionProtocol, Error, Metrics, Peer, PeerClientInfo, PeerEvent,
+    PeerHandle, PeerId, PeerState, Result,
 };
 use crate::torrent::{PieceIndex, TorrentContext, TorrentFileInfo, TorrentMetadata};
 use async_trait::async_trait;
@@ -18,7 +19,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::select;
-use tokio::sync::RwLock;
 use tokio::time::interval;
 use tokio_util::sync::CancellationToken;
 use url::Url;
@@ -28,6 +28,7 @@ const URL_ENCODE_RESERVED: &AsciiSet = &NON_ALPHANUMERIC
     .remove(b'_')
     .remove(b'~')
     .remove(b'.');
+const STATUS_INTERVAL: Duration = Duration::from_secs(1);
 
 /// The HTTP peer, also known as webseed, implementation that exchanges data with a HTTP server.
 #[derive(Debug, Display, Clone)]
@@ -64,7 +65,7 @@ impl HttpPeer {
             },
             url,
             addr,
-            stats: RwLock::new(Default::default()),
+            metrics: Metrics::new(),
             torrent,
             callbacks: MultiThreadedCallback::new(),
             cancellation_token: Default::default(),
@@ -99,12 +100,12 @@ impl Peer for HttpPeer {
         &self.inner.addr
     }
 
-    async fn state(&self) -> PeerState {
-        PeerState::Idle
+    fn metrics(&self) -> &Metrics {
+        &self.inner.metrics
     }
 
-    async fn stats(&self) -> PeerStats {
-        self.inner.stats.read().await.clone()
+    async fn state(&self) -> PeerState {
+        PeerState::Idle
     }
 
     async fn is_seed(&self) -> bool {
@@ -149,7 +150,7 @@ struct HttpPeerContext {
     client_info: PeerClientInfo,
     url: Url,
     addr: SocketAddr,
-    stats: RwLock<PeerStats>,
+    metrics: Metrics,
     torrent: Arc<TorrentContext>,
     callbacks: MultiThreadedCallback<PeerEvent>,
     cancellation_token: CancellationToken,
@@ -157,11 +158,16 @@ struct HttpPeerContext {
 
 impl HttpPeerContext {
     async fn start(&self) {
+        let mut stats_interval = interval(STATUS_INTERVAL);
         let mut interval = interval(Duration::from_secs(3));
 
         loop {
             select! {
                 _ = self.cancellation_token.cancelled() => break,
+                _ = stats_interval.tick() => {
+                    self.callbacks.invoke(PeerEvent::Stats(self.metrics.snapshot()));
+                    self.metrics.tick(STATUS_INTERVAL);
+                }
                 _ = interval.tick() => self.check_for_wanted_pieces().await,
             }
         }
@@ -210,15 +216,16 @@ impl HttpPeerContext {
                     .send()
                     .await
                     .map_err(|e| Error::Io(io::Error::new(io::ErrorKind::Other, e)))?;
-                let mut stats = self.stats.write().await;
-                stats.download += response.content_length().unwrap_or(0) as usize;
+                self.metrics
+                    .bytes_in
+                    .inc_by(response.content_length().unwrap_or(0));
 
                 if response.status().is_success() {
                     let body = response
                         .bytes()
                         .await
                         .map_err(|e| Error::Io(io::Error::new(io::ErrorKind::Other, e)))?;
-                    stats.download_useful += body.len();
+                    self.metrics.bytes_in_useful.inc_by(body.len() as u64);
 
                     // loop over each part that needs to be completed and fetch it from the body
                     for part in piece.parts_to_request() {

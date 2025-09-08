@@ -2,6 +2,7 @@ use crate::torrent::dht::DhtTracker;
 use crate::torrent::errors::Result;
 use crate::torrent::file::{File, FilePriority};
 use crate::torrent::fs::TorrentFileStorage;
+use crate::torrent::metrics::Metric;
 use crate::torrent::peer::extension::Extension;
 use crate::torrent::peer::{
     BitTorrentPeer, Peer, PeerClientInfo, PeerDiscovery, PeerEntry, PeerEvent, PeerHandle, PeerId,
@@ -12,10 +13,9 @@ use crate::torrent::tracker::{
     TrackerManagerEvent,
 };
 use crate::torrent::{
-    calculate_byte_rate, format_bytes, FileAttributeFlags, FileIndex, PeerPool, Piece, PieceIndex,
-    PiecePart, PiecePool, PiecePriority, TorrentError, TorrentFlags, TorrentMetadata,
-    TorrentMetadataInfo, TorrentPeer, DEFAULT_TORRENT_EXTENSIONS, DEFAULT_TORRENT_OPERATIONS,
-    DEFAULT_TORRENT_PROTOCOL_EXTENSIONS,
+    FileAttributeFlags, FileIndex, Metrics, PeerPool, Piece, PieceIndex, PiecePart, PiecePool,
+    PiecePriority, TorrentError, TorrentFlags, TorrentMetadata, TorrentMetadataInfo, TorrentPeer,
+    DEFAULT_TORRENT_EXTENSIONS, DEFAULT_TORRENT_OPERATIONS, DEFAULT_TORRENT_PROTOCOL_EXTENSIONS,
 };
 use async_trait::async_trait;
 use bit_vec::BitVec;
@@ -30,13 +30,13 @@ use sha1::Sha1;
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Debug, Display, Formatter};
+use std::io;
 use std::iter::Filter;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::slice::Iter;
 use std::sync::{Arc, Weak};
 use std::time::{Duration, Instant};
-use std::{io, mem};
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::sync::{Notify, OwnedSemaphorePermit, RwLock, RwLockReadGuard, Semaphore};
 use tokio::{select, time};
@@ -53,6 +53,7 @@ const DEFAULT_PEER_UPLOAD_SLOTS: usize = 50;
 const DEFAULT_MAX_IN_FLIGHT_PIECES: usize = 256;
 const DEFAULT_PEER_CLIENT_NAME: &str = "PopcornFX";
 const PEER_REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
+const OPERATIONS_INTERVAL: Duration = Duration::from_secs(1);
 
 /// A unique handle identifier of a [Torrent].
 pub type TorrentHandle = Handle;
@@ -129,100 +130,6 @@ impl TorrentState {
 impl Default for TorrentState {
     fn default() -> Self {
         Self::Initializing
-    }
-}
-
-/// The torrent metric statistics of the interactions with active peers.
-/// These statics both include rate based- and torrent lifetime metrics.
-#[derive(Debug, Default, Clone, PartialEq)]
-pub struct TorrentStats {
-    /// The bytes that have been transferred from the peer.
-    pub upload: usize,
-    /// The bytes per second that have been transferred from the peer.
-    pub upload_rate: u64,
-    /// The bytes that contain actual piece payload data.
-    pub upload_useful: usize,
-    /// The bytes per second that contain actual piece payload data.
-    pub upload_useful_rate: u64,
-    /// The bytes that have been transferred to the peer.
-    pub download: usize,
-    /// The bytes per second that the downloaded from the peer.
-    pub download_rate: u64,
-    /// The bytes that contain actual piece payload data.
-    pub download_useful: usize,
-    /// The bytes per second that contain actual piece payload data.
-    pub download_useful_rate: u64,
-    /// The total bytes that have been uploaded during the lifetime of the torrent.
-    pub total_uploaded: usize,
-    /// The total bytes that have been downloaded during the lifetime of the torrent.
-    pub total_downloaded: usize,
-    /// The total bytes of piece data that have downloaded.
-    pub total_downloaded_useful: usize,
-    /// The total amount of pieces which are wanted by the torrent
-    pub wanted_pieces: usize,
-    /// The amount of pieces which have been completed by the torrent
-    pub completed_pieces: usize,
-    /// The total size, in bytes, of all interested files of the torrent.
-    pub total_size: usize,
-    /// The size in bytes of the pieces that have already been completed.
-    pub total_completed_size: usize,
-    /// The size in bytes of wasted data due to invalid hashes
-    pub total_wasted: usize,
-    /// The currently total active peer connections.
-    pub total_peers: usize,
-}
-
-impl TorrentStats {
-    /// Get the progress, as a percentage, of the torrent download.
-    /// The value returned is between 0.0 and 1.0.
-    pub fn progress(&self) -> f32 {
-        if self.wanted_pieces == 0 {
-            return 1.0;
-        }
-
-        let progress = self.completed_pieces as f32 / self.wanted_pieces as f32;
-        (progress * 1000.0).floor() / 1000.0
-    }
-}
-
-impl Display for TorrentStats {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "({:.2}%) {}/{}, {}/{} completed pieces, {} peers, up: {}/s, down: {}/s",
-            self.progress() * 100f32,
-            format_bytes(self.total_completed_size),
-            format_bytes(self.total_size),
-            self.completed_pieces,
-            self.wanted_pieces,
-            self.total_peers,
-            format_bytes(self.upload_rate as usize),
-            format_bytes(self.download_rate as usize),
-        )
-    }
-}
-
-impl From<&InternalTorrentStats> for TorrentStats {
-    fn from(value: &InternalTorrentStats) -> Self {
-        Self {
-            upload: value.upload,
-            upload_rate: 0,
-            upload_useful: value.upload_useful,
-            upload_useful_rate: 0,
-            download: value.download,
-            download_rate: 0,
-            download_useful: value.download_useful,
-            download_useful_rate: 0,
-            total_uploaded: value.total_uploaded,
-            total_downloaded: value.total_downloaded,
-            total_downloaded_useful: value.total_downloaded_useful,
-            wanted_pieces: value.wanted_pieces,
-            completed_pieces: value.completed_pieces,
-            total_size: value.total_wanted_size,
-            total_completed_size: value.total_completed_size,
-            total_wasted: value.total_wasted,
-            total_peers: 0,
-        }
     }
 }
 
@@ -612,9 +519,9 @@ pub enum TorrentEvent {
     /// Invoked when the options of the torrent have been changed
     #[display(fmt = "torrent options have changed")]
     OptionsChanged,
-    /// Invoked when the torrent stats have been updated
+    /// Invoked when the torrent metrics have been updated
     #[display(fmt = "torrent stats changed {:?}", _0)]
-    Stats(TorrentStats),
+    Stats(Metrics),
 }
 
 /// A torrent is an actual tracked torrent which is communicating with one or more trackers and peers.
@@ -626,6 +533,8 @@ pub struct Torrent {
     /// The unique peer id of this torrent
     /// This id is used as our client id when connecting to peers
     peer_id: PeerId,
+    /// The metric stats of the torrent which is a reference.
+    metrics: Metrics,
     /// The reference info of the torrent
     /// If the torrent reference is the original owner, then dropping this instance will stop the torrent
     ref_type: TorrentRefType,
@@ -661,6 +570,7 @@ impl Torrent {
         let (peer_subscriber, peer_event_receiver) = unbounded_channel();
         let cancellation_token = CancellationToken::new();
         let location = storage.path().to_path_buf();
+        let metrics = Metrics::new();
         let context = Arc::new(TorrentContext {
             handle,
             metadata: RwLock::new(metadata),
@@ -683,7 +593,7 @@ impl Torrent {
             state: RwLock::new(Default::default()),
             options: RwLock::new(options),
             config: RwLock::new(config),
-            stats: RwLock::new(InternalTorrentStats::default()),
+            metrics: metrics.clone(),
             event_sender,
             callbacks: MultiThreadedCallback::new(),
             cancellation_token,
@@ -692,6 +602,7 @@ impl Torrent {
         let torrent = Self {
             handle,
             peer_id,
+            metrics,
             ref_type: TorrentRefType::Owner,
             instance: Arc::downgrade(&context),
         };
@@ -812,11 +723,8 @@ impl Torrent {
     /// # Returns
     ///
     /// It returns the statics of this torrent.
-    pub async fn stats(&self) -> TorrentStats {
-        match self.instance() {
-            None => TorrentStats::default(),
-            Some(e) => e.stats().await,
-        }
+    pub async fn metrics(&self) -> &Metrics {
+        &self.metrics
     }
 
     /// Get the metadata of the torrent.
@@ -1246,6 +1154,7 @@ impl Clone for Torrent {
         Self {
             handle: self.handle,
             peer_id: self.peer_id,
+            metrics: self.metrics.clone(),
             ref_type: TorrentRefType::Borrowed,
             instance: self.instance.clone(),
         }
@@ -1259,7 +1168,7 @@ impl PartialEq for Torrent {
 }
 
 impl Display for Torrent {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.handle)
     }
 }
@@ -1378,72 +1287,6 @@ impl Debug for TorrentCommandEvent {
     }
 }
 
-/// The internal torrent metric statics which are collected periodically of the torrent.
-/// These are the inner working stats, which are not exposed outside the [TorrentContext].
-#[derive(Debug, Clone)]
-struct InternalTorrentStats {
-    /// The bytes that have been transferred from the peer.
-    upload: usize,
-    /// The bytes that contain actual piece payload data.
-    upload_useful: usize,
-    /// The bytes that have been transferred to the peer.
-    download: usize,
-    /// The bytes that contain actual piece payload data.
-    download_useful: usize,
-    /// The total bytes that have been uploaded during the lifetime of the torrent.
-    total_uploaded: usize,
-    /// The total bytes that have been downloaded during the lifetime of the torrent.
-    total_downloaded: usize,
-    /// The total bytes, os actual piece data, that have been downloaded during the lifetime of the torrent.
-    total_downloaded_useful: usize,
-    /// The total amount of pieces which are wanted by the torrent
-    wanted_pieces: usize,
-    /// The amount of pieces which have been completed by the torrent
-    completed_pieces: usize,
-    /// The total size, in bytes, of all interested pieces of the torrent.
-    total_wanted_size: usize,
-    /// The total size, in bytes, of all interested pieces of the torrent that have been completed
-    total_wanted_completed_size: usize,
-    /// The size in bytes of the pieces that have already been completed.
-    total_completed_size: usize,
-    /// The size in bytes of wasted data due to invalid hashes
-    total_wasted: usize,
-    /// The time at which these metrics were last updated
-    scraped_at: Instant,
-}
-
-impl InternalTorrentStats {
-    fn update(&mut self, stats: &InternalTorrentStats) {
-        self.wanted_pieces = stats.wanted_pieces;
-        self.completed_pieces = stats.completed_pieces;
-        self.total_wanted_size = stats.total_wanted_size;
-        self.total_wanted_completed_size = stats.total_wanted_completed_size;
-        self.total_completed_size = stats.total_completed_size;
-        self.total_wasted = stats.total_wasted;
-    }
-}
-
-impl Default for InternalTorrentStats {
-    fn default() -> Self {
-        Self {
-            upload: 0,
-            upload_useful: 0,
-            download: 0,
-            download_useful: 0,
-            total_uploaded: 0,
-            total_downloaded: 0,
-            total_downloaded_useful: 0,
-            wanted_pieces: 0,
-            completed_pieces: 0,
-            total_wanted_size: 0,
-            total_wanted_completed_size: 0,
-            total_completed_size: 0,
-            total_wasted: 0,
-            scraped_at: Instant::now(),
-        }
-    }
-}
-
 /// The torrent context data.
 /// This context can be shared by multiple [Torrent] instances, but only one [Torrent] instance can own the context.
 #[derive(Debug)]
@@ -1498,8 +1341,8 @@ pub struct TorrentContext {
     options: RwLock<TorrentFlags>,
     /// The torrent configuration
     config: RwLock<TorrentConfig>,
-    /// The data transfer stats of the torrent
-    stats: RwLock<InternalTorrentStats>,
+    /// The metrics of the torrent
+    metrics: Metrics,
     /// The internal command event sender
     event_sender: UnboundedSender<TorrentCommandEvent>,
     /// The callbacks for the torrent events
@@ -1520,7 +1363,7 @@ impl TorrentContext {
     ) {
         let mut tracker_event_receiver = self.tracker_manager.subscribe();
         // the interval used to execute periodic torrent operations
-        let mut operations_tick = time::interval(Duration::from_secs(1));
+        let mut operations_tick = time::interval(OPERATIONS_INTERVAL);
         let mut cleanup_interval = time::interval(Duration::from_secs(30));
 
         // register the torrent within the tracker
@@ -1662,8 +1505,8 @@ impl TorrentContext {
     }
 
     /// Get the known torrent transfer stats.
-    pub async fn stats(&self) -> TorrentStats {
-        TorrentStats::from(&*self.stats.read().await)
+    pub async fn metrics(&self) -> &Metrics {
+        &self.metrics
     }
 
     /// Get the options of the torrent.
@@ -2450,71 +2293,11 @@ impl TorrentContext {
         self.invoke_event(TorrentEvent::StateChanged(state));
     }
 
-    // TODO: move this to an operation
     async fn update_stats(&self) {
-        // if the torrent is paused, then we don't execute stat updates
-        if self.is_paused().await {
-            return;
-        }
+        self.invoke_event(TorrentEvent::Stats(self.metrics.snapshot()));
+        info!("Torrent {} stats {}", self, self.metrics);
 
-        let mut peer_metrics = Vec::new();
-        let total_peers: usize;
-
-        {
-            let peer_mutex = self.peer_pool.peers.read().await;
-            total_peers = peer_mutex.len();
-            // only collect the metrics of peers that are not closed
-            for peer in peer_mutex.values() {
-                // copy the peer metrics into a buffer to release the peers lock as soon as possible
-                peer_metrics.push(peer.stats().await);
-            }
-        }
-
-        // process the collected peer metrics
-        let mut new_stats = InternalTorrentStats::default();
-        for peer_stats in peer_metrics.into_iter() {
-            new_stats.upload += peer_stats.upload;
-            new_stats.upload_useful += peer_stats.upload_useful;
-            new_stats.download += peer_stats.download;
-            new_stats.download_useful += peer_stats.download_useful;
-            new_stats.total_uploaded += peer_stats.upload;
-            new_stats.total_downloaded += peer_stats.download;
-            new_stats.total_downloaded_useful += peer_stats.download_useful;
-        }
-
-        let mut event_stats: TorrentStats;
-        {
-            let mut mutex = self.stats.write().await;
-            new_stats.update(&*mutex);
-            event_stats = TorrentStats::from(&new_stats);
-            event_stats.total_peers = total_peers;
-
-            // calculate the rates
-            let previous_stats = mem::replace(&mut *mutex, new_stats);
-            let elapsed = previous_stats.scraped_at.elapsed().as_micros();
-
-            event_stats.upload_rate =
-                calculate_byte_rate(mutex.upload.saturating_sub(previous_stats.upload), elapsed);
-            event_stats.upload_useful_rate = calculate_byte_rate(
-                mutex
-                    .upload_useful
-                    .saturating_sub(previous_stats.upload_useful),
-                elapsed,
-            );
-            event_stats.download_rate = calculate_byte_rate(
-                mutex.download.saturating_sub(previous_stats.download),
-                elapsed,
-            );
-            event_stats.download_useful_rate = calculate_byte_rate(
-                mutex
-                    .download_useful
-                    .saturating_sub(previous_stats.download_useful),
-                elapsed,
-            );
-        }
-
-        info!("Torrent {} stats {}", self, event_stats);
-        self.invoke_event(TorrentEvent::Stats(event_stats));
+        self.metrics.tick(OPERATIONS_INTERVAL)
     }
 
     /// Update the availability of the given piece indexes.
@@ -2649,26 +2432,13 @@ impl TorrentContext {
             }
         }
 
-        {
-            let mut stats_mutex = self.stats.write().await;
-            stats_mutex.completed_pieces += total_completed_pieces;
-            stats_mutex.total_completed_size += total_completed_pieces_size;
-            stats_mutex.total_wanted_completed_size += total_wanted_completed_size;
-
-            // inform the trackers about the completed pieces
-            let metadata = self.metadata.read().await;
-            self.tracker_manager
-                .update_bytes_completed(&metadata.info_hash, stats_mutex.total_completed_size)
-                .await;
-            self.tracker_manager
-                .update_bytes_remaining(
-                    &metadata.info_hash,
-                    stats_mutex
-                        .total_wanted_size
-                        .saturating_sub(stats_mutex.total_completed_size),
-                )
-                .await;
-        }
+        self.metrics.completed_pieces.inc_by(total_completed_pieces);
+        self.metrics
+            .completed_size
+            .inc_by(total_completed_pieces_size as u64);
+        self.metrics
+            .wanted_completed_size
+            .inc_by(total_wanted_completed_size as u64);
 
         // inform the subscribers about each completed piece
         for piece in pieces.iter() {
@@ -2705,29 +2475,32 @@ impl TorrentContext {
 
     /// Update the stats info of all interested pieces by the torrent.
     async fn update_interested_pieces_stats(&self) {
-        let mut total_wanted_size = 0;
         let mut wanted_pieces = 0;
-        let mut completed_pieces = 0;
-        let mut total_completed_size = 0;
+        let mut wanted_completed_pieces = 0;
+        let mut wanted_size = 0;
+        let mut wanted_completed_size = 0;
 
         {
             let pieces = self.pieces.read().await;
             for piece in pieces.iter().filter(|e| e.priority != PiecePriority::None) {
                 wanted_pieces += 1;
-                total_wanted_size += piece.length;
+                wanted_size += piece.length;
 
                 if piece.is_completed() {
-                    completed_pieces += 1;
-                    total_completed_size += piece.length;
+                    wanted_completed_pieces += 1;
+                    wanted_completed_size += piece.length;
                 }
             }
         }
 
-        let mut stats_mutex = self.stats.write().await;
-        stats_mutex.wanted_pieces = wanted_pieces;
-        stats_mutex.total_wanted_size = total_wanted_size;
-        stats_mutex.completed_pieces = completed_pieces;
-        stats_mutex.total_completed_size = total_completed_size;
+        self.metrics.wanted_pieces.set(wanted_pieces);
+        self.metrics
+            .wanted_completed_pieces
+            .set(wanted_completed_pieces);
+        self.metrics.wanted_size.set(wanted_size as u64);
+        self.metrics
+            .wanted_completed_size
+            .set(wanted_completed_size as u64);
     }
 
     /// Cancel all currently queued pending requests of the torrent.
@@ -2878,6 +2651,16 @@ impl TorrentContext {
             PeerEvent::RemoteUnavailablePieces(pieces) => {
                 self.update_piece_availabilities(pieces, false).await
             }
+            PeerEvent::Stats(metrics) => {
+                self.metrics.upload.inc_by(metrics.bytes_out.get());
+                self.metrics
+                    .upload_useful
+                    .inc_by(metrics.bytes_out_useful.get());
+                self.metrics.download.inc_by(metrics.bytes_in.get());
+                self.metrics
+                    .download_useful
+                    .inc_by(metrics.bytes_in_useful.get());
+            }
             _ => {}
         }
     }
@@ -2894,7 +2677,7 @@ impl TorrentContext {
 
         if let Err(e) = self
             .tracker_manager
-            .add_torrent(self.peer_id, peer_port, info_hash)
+            .add_torrent(self.peer_id, peer_port, info_hash, self.metrics.clone())
             .await
         {
             error!(
@@ -3001,7 +2784,7 @@ impl TorrentContext {
                         );
                         // reset the pending piece to be retried
                         self.pending_piece_requests.write().await.remove(&piece);
-                        self.stats.write().await.total_wasted += data_size;
+                        self.metrics.wasted.inc_by(data_size as u64);
                     }
                 }
             } else {
@@ -3023,7 +2806,7 @@ impl TorrentContext {
                 }
 
                 // add the data chunk size to the total amount of wasted data
-                self.stats.write().await.total_wasted += data_size;
+                self.metrics.wasted.inc_by(data_size as u64);
             }
         } else {
             warn!(
@@ -4495,75 +4278,6 @@ mod tests {
             expected_state, result,
             "expected the state function to match the new state"
         );
-    }
-
-    #[test]
-    fn test_torrent_transfer_stats_progress() {
-        let stats = TorrentStats {
-            upload: 0,
-            upload_rate: 0,
-            upload_useful: 0,
-            upload_useful_rate: 0,
-            download: 0,
-            download_rate: 0,
-            download_useful: 0,
-            download_useful_rate: 0,
-            total_uploaded: 0,
-            total_downloaded: 0,
-            total_downloaded_useful: 0,
-            wanted_pieces: 100,
-            completed_pieces: 20,
-            total_size: 0,
-            total_completed_size: 0,
-            total_wasted: 0,
-            total_peers: 0,
-        };
-        let result = stats.progress();
-        assert_eq!(0.20, result);
-
-        let stats = TorrentStats {
-            upload: 0,
-            upload_rate: 0,
-            upload_useful: 0,
-            upload_useful_rate: 0,
-            download: 0,
-            download_rate: 0,
-            download_useful: 0,
-            download_useful_rate: 0,
-            total_uploaded: 0,
-            total_downloaded: 0,
-            total_downloaded_useful: 0,
-            wanted_pieces: 100,
-            completed_pieces: 50,
-            total_size: 1024,
-            total_completed_size: 512,
-            total_wasted: 0,
-            total_peers: 0,
-        };
-        let result = stats.progress();
-        assert_eq!(0.50, result);
-
-        let stats = TorrentStats {
-            upload: 0,
-            upload_rate: 0,
-            upload_useful: 0,
-            upload_useful_rate: 0,
-            download: 0,
-            download_rate: 0,
-            download_useful: 0,
-            download_useful_rate: 0,
-            total_uploaded: 0,
-            total_downloaded: 0,
-            total_downloaded_useful: 0,
-            wanted_pieces: 837,
-            completed_pieces: 835,
-            total_size: 0,
-            total_completed_size: 0,
-            total_wasted: 0,
-            total_peers: 0,
-        };
-        let result = stats.progress();
-        assert_eq!(0.997, result);
     }
 
     mod prioritize {

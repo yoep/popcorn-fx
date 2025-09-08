@@ -1,26 +1,22 @@
 use crate::torrent::fs::{Error, Result};
-use std::collections::HashMap;
 use std::fmt::Debug;
+use std::io;
 use std::ops::Range;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use std::{fs, io};
-use tokio::sync::RwLock;
+use tokio::io::{AsyncSeekExt, AsyncWriteExt};
 use tokio::task::spawn_blocking;
 
-/// The underlying torrent file storage handler.
+/// This is the default file system storage implementation.
 /// It stores torrent data on the current file system.
 #[derive(Debug)]
 pub struct TorrentFileStorage {
     base_path: PathBuf,
-    handles: RwLock<HashMap<PathBuf, Arc<fs::File>>>,
 }
 
 impl TorrentFileStorage {
     pub fn new<P: AsRef<Path>>(base_path: P) -> Self {
         Self {
             base_path: base_path.as_ref().to_path_buf(),
-            handles: Default::default(),
         }
     }
 
@@ -28,6 +24,7 @@ impl TorrentFileStorage {
     /// This doesn't check if the file contains any actual data.
     pub fn exists<P: AsRef<Path>>(&self, filepath: P) -> bool {
         let absolute_filepath = self.absolute_filepath(&filepath);
+
         self.is_valid_filepath(&absolute_filepath) && absolute_filepath.exists()
     }
 
@@ -49,56 +46,21 @@ impl TorrentFileStorage {
     ///
     /// Returns an error when the write operation failed.
     pub async fn write(&self, filepath: &Path, offset: u64, bytes: &[u8]) -> Result<()> {
-        let absolute_path = self.absolute_filepath(filepath);
-        self.assert_valid_filepath(&absolute_path)?;
-        let file = self.get_or_open_std(absolute_path).await?;
+        let mut file = self.internal_open(filepath, true).await?;
+        let file_size = file.metadata().await?.len();
 
-        let data = bytes.to_vec();
-        spawn_blocking(move || -> Result<()> {
-            let needed_len = offset.checked_add(data.len() as u64).ok_or_else(|| {
-                Error::Io(io::Error::new(io::ErrorKind::Other, "file length overflow"))
-            })?;
-            let current_len = file.metadata()?.len();
-            if current_len < needed_len {
-                file.set_len(needed_len)?;
-            }
+        // check if the offset is out of bounds
+        if offset > file_size {
+            // write empty bytes to fill the gap
+            file.seek(io::SeekFrom::Start(file_size)).await?;
+            file.write_all(&vec![0; (offset - file_size) as usize])
+                .await?
+        } else {
+            file.seek(io::SeekFrom::Start(offset)).await?;
+        }
 
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::FileExt;
-                let mut written = 0;
-                while written < data.len() {
-                    let n = file.write_at(&data[written..], offset + written as u64)?;
-                    if n == 0 {
-                        return Err(Error::Io(io::Error::new(
-                            io::ErrorKind::WriteZero,
-                            "unable to write data",
-                        )));
-                    }
-                    written += n;
-                }
-                Ok(())
-            }
-
-            #[cfg(windows)]
-            {
-                use std::os::windows::fs::FileExt;
-                let mut written = 0;
-                while written < data.len() {
-                    let n = file.seek_write(&data[written..], offset + written as u64)?;
-                    if n == 0 {
-                        return Err(Error::Io(io::Error::new(
-                            io::ErrorKind::WriteZero,
-                            "unable to write data",
-                        )));
-                    }
-                    written += n;
-                }
-                Ok(())
-            }
-        })
-        .await
-        .map_err(|e| Error::Io(io::Error::new(io::ErrorKind::Other, e)))?
+        file.write_all(bytes).await?;
+        Ok(())
     }
 
     /// Read the given range of bytes from the torrent filepath.
@@ -113,7 +75,6 @@ impl TorrentFileStorage {
     /// It returns the requested byte range.
     pub async fn read(&self, filepath: &Path, range: Range<usize>) -> Result<Vec<u8>> {
         let expected_bytes = range.len();
-        let range = range.start as u64..range.end as u64;
         let (bytes_read, bytes) = self.internal_read(filepath, range).await?;
 
         if bytes_read != expected_bytes {
@@ -138,8 +99,7 @@ impl TorrentFileStorage {
     ///
     /// It returns the requested byte range, padded with `0`.
     pub async fn read_with_padding(&self, filepath: &Path, range: Range<usize>) -> Result<Vec<u8>> {
-        let range = range.start as u64..range.end as u64;
-        let (_, bytes) = self.internal_read(filepath, range).await?;
+        let (_bytes_read, bytes) = self.internal_read(filepath, range).await?;
         Ok(bytes)
     }
 
@@ -155,6 +115,7 @@ impl TorrentFileStorage {
     pub async fn read_to_end(&self, filepath: &Path) -> Result<Vec<u8>> {
         let absolute_path = self.absolute_filepath(filepath);
         self.assert_valid_filepath(&absolute_path)?;
+
         Ok(tokio::fs::read(&absolute_path).await?)
     }
 
@@ -168,6 +129,7 @@ impl TorrentFileStorage {
     fn is_valid_filepath<P: AsRef<Path>>(&self, filepath: P) -> bool {
         let base = Self::canonicalize_unchecked(&self.base_path);
         let target = Self::canonicalize_unchecked(filepath.as_ref());
+
         target.starts_with(&base)
     }
 
@@ -180,50 +142,52 @@ impl TorrentFileStorage {
         Ok(())
     }
 
-    async fn get_or_open_std(&self, absolute_path: PathBuf) -> Result<Arc<fs::File>> {
-        if let Some(file) = self.handles.read().await.get(&absolute_path).cloned() {
-            return Ok(file);
+    async fn internal_open<P: AsRef<Path>>(
+        &self,
+        filepath: P,
+        writeable: bool,
+    ) -> Result<tokio::fs::File> {
+        let absolute_path = self.absolute_filepath(filepath);
+        self.assert_valid_filepath(&absolute_path)?;
+
+        // make sure that the parent directories exists
+        if writeable {
+            let parent_directory = absolute_path.parent().unwrap_or(self.base_path.as_path());
+            tokio::fs::create_dir_all(parent_directory)
+                .await
+                .map_err(|e| Error::Io(e))?;
         }
 
-        let file_path = absolute_path.clone();
-        let parent = absolute_path.parent().map(Path::to_path_buf);
-        let file = spawn_blocking(move || -> Result<fs::File> {
-            if let Some(parent_dir) = parent.as_ref() {
-                fs::create_dir_all(parent_dir)?;
-            }
-
-            let file = fs::OpenOptions::new()
-                .create(true)
-                .read(true)
-                .write(true)
-                .truncate(false)
-                .open(&file_path)?;
-
-            Ok(file)
-        })
-        .await
-        .map_err(|e| Error::Io(io::Error::new(io::ErrorKind::Other, e)))??;
-
-        let file = Arc::new(file);
-        self.handles
-            .write()
-            .await
-            .insert(absolute_path.clone(), file.clone());
-        Ok(file)
+        Ok(tokio::fs::OpenOptions::new()
+            .create(writeable)
+            .read(true)
+            .write(writeable)
+            .truncate(false)
+            .open(absolute_path.clone())
+            .await?)
     }
 
     /// Try to read the byte range from the specified file.
     /// This method applies padding to the missing bytes.
-    async fn internal_read(&self, filepath: &Path, range: Range<u64>) -> Result<(usize, Vec<u8>)> {
+    async fn internal_read(
+        &self,
+        filepath: &Path,
+        range: Range<usize>,
+    ) -> Result<(usize, Vec<u8>)> {
         let absolute_path = self.absolute_filepath(filepath);
         self.assert_valid_filepath(&absolute_path)?;
-        let file = self.get_or_open_std(absolute_path).await?;
 
-        let len = (range.end - range.start) as usize;
         spawn_blocking(move || -> Result<(usize, Vec<u8>)> {
+            let file = std::fs::OpenOptions::new()
+                .read(true)
+                .write(false)
+                .create(false)
+                .open(&absolute_path)?;
+
             // pre-allocate the buffer
-            let mut buffer = vec![0u8; len];
-            let offset = range.start;
+            let mut buffer = vec![0u8; range.len()];
+            let offset = range.start as u64;
+
             // check if the offset is available within the file
             let file_len = file.metadata()?.len();
             if offset >= file_len {
@@ -242,8 +206,8 @@ impl TorrentFileStorage {
             #[cfg(windows)]
             {
                 use std::os::windows::fs::FileExt;
-                let bytes_read = file.seek_read(&mut buffer[..bytes_to_read], offset)?;
-                Ok((bytes_read, buffer))
+                let bytes_read = file.seek_read(&mut buf[..to_read], offset)?;
+                Ok((bytes_read, buf))
             }
         })
         .await
@@ -254,10 +218,11 @@ impl TorrentFileStorage {
     /// This function traverses the path components and resolves ".." and "." appropriately.
     /// It returns the resulting path.
     fn canonicalize_unchecked(path: &Path) -> PathBuf {
+        let components = path.components();
         let mut result = PathBuf::new();
 
         // Traverse the path components and resolve ".." and "." appropriately
-        for component in path.components() {
+        for component in components {
             match component {
                 // Ignore "." (current directory)
                 std::path::Component::CurDir => {}
@@ -286,6 +251,7 @@ mod tests {
 
     use popcorn_fx_core::testing::copy_test_file;
     use tempfile::tempdir;
+    use tokio::fs::OpenOptions;
 
     #[tokio::test]
     async fn test_exists() {
@@ -302,7 +268,12 @@ mod tests {
             "expected the file to not exist"
         );
 
-        storage.get_or_open_std(absolute_filepath).await.unwrap();
+        OpenOptions::new()
+            .create(true)
+            .write(true)
+            .open(absolute_filepath)
+            .await
+            .unwrap();
         assert_eq!(true, storage.exists(filepath), "expected the file to exist");
     }
 

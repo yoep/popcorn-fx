@@ -4,7 +4,7 @@ use crate::ipc::proto::torrent::{torrent, torrent_event};
 use popcorn_fx_core::core::torrents::collection::MagnetInfo;
 use popcorn_fx_core::core::torrents::{Error, TorrentInfo, TorrentStreamState};
 use popcorn_fx_torrent::torrent::{
-    TorrentEvent, TorrentHealth, TorrentHealthState, TorrentState, TorrentStats,
+    Metrics, TorrentEvent, TorrentHealth, TorrentHealthState, TorrentState,
 };
 use protobuf::MessageField;
 
@@ -150,8 +150,8 @@ impl From<&TorrentEvent> for proto::torrent::TorrentEvent {
     }
 }
 
-impl From<&TorrentStats> for torrent_event::Stats {
-    fn from(value: &TorrentStats) -> Self {
+impl From<&Metrics> for torrent_event::Stats {
+    fn from(value: &Metrics) -> Self {
         Self {
             stats: MessageField::some(torrent::Stats::from(value)),
             special_fields: Default::default(),
@@ -159,26 +159,26 @@ impl From<&TorrentStats> for torrent_event::Stats {
     }
 }
 
-impl From<&TorrentStats> for torrent::Stats {
-    fn from(value: &TorrentStats) -> Self {
+impl From<&Metrics> for torrent::Stats {
+    fn from(value: &Metrics) -> Self {
         Self {
             progress: value.progress(),
-            upload: value.upload as u64,
-            upload_rate: value.upload_rate,
-            upload_useful: value.upload_useful as u64,
-            upload_useful_rate: value.upload_useful_rate,
-            download: value.download as u64,
-            download_rate: value.download_rate,
-            download_useful: value.download_useful as u64,
-            download_useful_rate: value.download_useful_rate,
-            total_uploaded: value.total_uploaded as u64,
-            total_downloaded: value.total_downloaded as u64,
-            total_downloaded_useful: value.total_downloaded_useful as u64,
-            wanted_pieces: value.wanted_pieces as u64,
-            completed_pieces: value.completed_pieces as u64,
-            total_size: value.total_size as u64,
-            total_completed_size: value.total_completed_size as u64,
-            total_peers: value.total_peers as u64,
+            upload: value.upload.get(),
+            upload_rate: value.upload.rate() as u64,
+            upload_useful: value.upload_useful.get(),
+            upload_useful_rate: value.upload_useful.rate() as u64,
+            download: value.download.get(),
+            download_rate: value.download.rate() as u64,
+            download_useful: value.download_useful.get(),
+            download_useful_rate: value.download_useful.rate() as u64,
+            total_uploaded: value.upload.total(),
+            total_downloaded: value.download.total(),
+            total_downloaded_useful: value.download_useful.total(),
+            wanted_pieces: value.wanted_pieces.get(),
+            completed_pieces: value.wanted_completed_pieces.get(),
+            total_size: value.wanted_size.get(),
+            total_completed_size: value.wanted_completed_size.get(),
+            total_peers: value.peers.get(),
             special_fields: Default::default(),
         }
     }
@@ -359,25 +359,11 @@ mod tests {
 
     #[test]
     fn test_torrent_event_from_stats() {
-        let event = TorrentEvent::Stats(TorrentStats {
-            upload: 0,
-            upload_rate: 1024,
-            upload_useful: 0,
-            upload_useful_rate: 0,
-            download: 0,
-            download_rate: 0,
-            download_useful: 0,
-            download_useful_rate: 0,
-            total_uploaded: 0,
-            total_downloaded: 17000,
-            total_downloaded_useful: 14000,
-            wanted_pieces: 300,
-            completed_pieces: 12,
-            total_size: 200000,
-            total_completed_size: 14000,
-            total_wasted: 0,
-            total_peers: 67,
-        });
+        let metrics = Metrics::new();
+        metrics.wanted_pieces.set(100);
+        metrics.wanted_completed_pieces.set(60);
+        metrics.peers.set(70);
+        let event = TorrentEvent::Stats(metrics);
         let expected_result = proto::torrent::TorrentEvent {
             torrent_handle: Default::default(),
             event: torrent_event::Event::STATS.into(),
@@ -387,9 +373,9 @@ mod tests {
             piece_completed: Default::default(),
             stats: MessageField::some(torrent_event::Stats {
                 stats: MessageField::some(torrent::Stats {
-                    progress: 0.04,
+                    progress: 0.6,
                     upload: 0,
-                    upload_rate: 1024,
+                    upload_rate: 0,
                     upload_useful: 0,
                     upload_useful_rate: 0,
                     download: 0,
@@ -397,13 +383,13 @@ mod tests {
                     download_useful: 0,
                     download_useful_rate: 0,
                     total_uploaded: 0,
-                    total_downloaded: 17000,
-                    total_downloaded_useful: 14000,
-                    wanted_pieces: 300,
-                    completed_pieces: 12,
-                    total_size: 200000,
-                    total_completed_size: 14000,
-                    total_peers: 67,
+                    total_downloaded: 0,
+                    total_downloaded_useful: 0,
+                    wanted_pieces: 100,
+                    completed_pieces: 60,
+                    total_size: 0,
+                    total_completed_size: 0,
+                    total_peers: 70,
                     special_fields: Default::default(),
                 }),
                 special_fields: Default::default(),

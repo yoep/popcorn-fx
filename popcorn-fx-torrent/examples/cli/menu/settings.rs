@@ -4,7 +4,7 @@ use crate::menu::{MenuCommand, MenuSection};
 use crate::widget::{CheckboxWidget, InputWidget};
 use crossterm::event::KeyCode;
 use ratatui::layout::Rect;
-use ratatui::prelude::{Color, StatefulWidget, Style, Stylize};
+use ratatui::prelude::{Color, StatefulWidget, Style};
 use ratatui::text::Text;
 use ratatui::widgets::{Block, Borders, List, ListState, Widget};
 use ratatui::Frame;

@@ -1,6 +1,6 @@
 use crate::torrent::peer::{
-    ConnectionDirection, ConnectionProtocol, Peer, PeerClientInfo, PeerEvent, PeerHandle, PeerId,
-    PeerState, PeerStats,
+    ConnectionDirection, ConnectionProtocol, Metrics, Peer, PeerClientInfo, PeerEvent, PeerHandle,
+    PeerId, PeerState,
 };
 use crate::torrent::PieceIndex;
 use async_trait::async_trait;
@@ -22,6 +22,7 @@ const CRC32: Crc<u32> = Crc::<u32>::new(&CRC_32_ISCSI);
 pub struct TorrentPeer {
     handle: PeerHandle,
     addr: SocketAddr,
+    metrics: Metrics,
     inner: Weak<dyn Peer>,
 }
 
@@ -31,6 +32,7 @@ impl TorrentPeer {
         Self {
             handle: peer.handle(),
             addr: peer.addr(),
+            metrics: peer.metrics().clone(), // store a reference to the metrics
             inner: Arc::downgrade(peer),
         }
     }
@@ -87,12 +89,8 @@ impl Peer for TorrentPeer {
         PeerState::Closed
     }
 
-    async fn stats(&self) -> PeerStats {
-        if let Some(inner) = self.instance() {
-            return inner.stats().await;
-        }
-
-        PeerStats::default()
+    fn metrics(&self) -> &Metrics {
+        &self.metrics
     }
 
     async fn is_seed(&self) -> bool {

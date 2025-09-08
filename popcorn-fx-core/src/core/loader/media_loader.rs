@@ -13,7 +13,7 @@ use fx_handle::Handle;
 use log::{debug, error, trace};
 #[cfg(any(test, feature = "testing"))]
 pub use mock::*;
-use popcorn_fx_torrent::torrent::TorrentStats;
+use popcorn_fx_torrent::torrent::Metrics;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -170,25 +170,25 @@ pub struct LoadingProgress {
     /// The number of peers connected to the torrent.
     pub peers: usize,
     /// The total download transfer rate in bytes of payload only, not counting protocol chatter.
-    pub download_speed: u64,
+    pub download_speed: u32,
     /// The total upload transfer rate in bytes of payload only, not counting protocol chatter.
-    pub upload_speed: u64,
+    pub upload_speed: u32,
     /// The total amount of data downloaded in bytes.
     pub downloaded: u64,
     /// The total size of the torrent in bytes.
     pub total_size: usize,
 }
 
-impl From<TorrentStats> for LoadingProgress {
-    fn from(value: TorrentStats) -> Self {
+impl From<Metrics> for LoadingProgress {
+    fn from(value: Metrics) -> Self {
         Self {
             progress: value.progress(),
-            seeds: value.total_peers,
-            peers: value.total_peers,
-            download_speed: value.download_useful_rate,
-            upload_speed: value.upload_useful_rate,
-            downloaded: value.total_completed_size as u64,
-            total_size: value.total_size,
+            seeds: value.peers.get() as usize,
+            peers: value.peers.get() as usize,
+            download_speed: value.download_useful.rate(),
+            upload_speed: value.upload_useful.rate(),
+            downloaded: value.wanted_completed_size.get(),
+            total_size: value.wanted_size.get() as usize,
         }
     }
 }

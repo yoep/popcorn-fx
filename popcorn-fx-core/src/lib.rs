@@ -26,7 +26,7 @@ pub mod testing {
     use log4rs::Config;
     use mockall::mock;
     use popcorn_fx_torrent::torrent;
-    use popcorn_fx_torrent::torrent::{File, PieceIndex, TorrentStats};
+    use popcorn_fx_torrent::torrent::{File, Metrics, PieceIndex};
     use std::fmt::{Display, Formatter};
     use std::fs::OpenOptions;
     use std::io::Read;
@@ -266,7 +266,7 @@ pub mod testing {
             async fn total_pieces(&self) -> usize;
             async fn sequential_mode(&self);
             async fn state(&self) -> TorrentState;
-            async fn stats(&self) -> TorrentStats;
+            async fn stats(&self) -> Metrics;
         }
 
         impl Callback<TorrentEvent> for InnerTorrentStream {
@@ -326,7 +326,7 @@ pub mod testing {
         async fn state(&self) -> TorrentState {
             self.inner.state().await
         }
-        async fn stats(&self) -> TorrentStats {
+        async fn stats(&self) -> Metrics {
             self.inner.stats().await
         }
     }

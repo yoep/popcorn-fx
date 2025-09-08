@@ -1,17 +1,37 @@
 use crate::torrent::dht::{Node, NodeId, NodeState};
 use itertools::Itertools;
-use log::{debug, trace};
+use log::trace;
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::net::SocketAddr;
 use std::time::Instant;
+use thiserror::Error;
+
+/// The result type alias for routing table operations.
+pub type Result<T> = std::result::Result<T, Reason>;
+
+/// The reason why a routing table operation failed.
+#[derive(Debug, Clone, Error, PartialEq)]
+pub enum Reason {
+    #[error("node already exists")]
+    Duplicate,
+    #[error("node is invalid")]
+    InvalidNode,
+    #[error("node is known as router")]
+    RouterNode,
+    #[error("bucket has reached its limit")]
+    LimitReached,
+}
+
+/// The bucket index type alias.
+pub type BucketIndex = u8;
 
 #[derive(Debug)]
 pub struct RoutingTable {
     /// The root node ID of the routing table.
     pub id: NodeId,
     /// The buckets of the routing table.
-    pub buckets: BTreeMap<u8, Bucket>,
+    pub buckets: BTreeMap<BucketIndex, Bucket>,
     /// The number of nodes that can be stored within a bucket.
     /// This is the "K" value as described in BEP5.
     pub bucket_size: usize,
@@ -109,27 +129,19 @@ impl RoutingTable {
     /// # Returns
     ///
     /// It returns the bucket id to which the node has been added, else [None].
-    pub fn add_node(&mut self, node: Node) -> Option<u8> {
-        if !Self::is_valid(&node) {
-            debug!(
-                "Routing table is ignoring node {}, node is invalid",
-                node.addr
-            );
-            return None;
+    pub fn add_node(&mut self, node: Node) -> Result<BucketIndex> {
+        if node.id == self.id || !Self::is_valid(&node) {
+            return Err(Reason::InvalidNode);
         }
         if self.router_nodes.contains(&node) {
-            debug!(
-                "Routing table is ignoring node {}, node is a known routing nodes",
-                node.addr
-            );
-            return None;
+            return Err(Reason::RouterNode);
         }
 
         let distance = self.id.distance(&node.id);
-        if distance == 0 {
-            trace!("Routing table is ignoring node, node has same ID as the routing table");
-            return None;
-        }
+        // if distance == 0 {
+        //     trace!("Routing table is ignoring node, node has same ID as the routing table");
+        //     return None;
+        // }
 
         let bucket = self
             .buckets
@@ -137,15 +149,11 @@ impl RoutingTable {
             .or_insert_with(|| Bucket::new(self.bucket_size));
         // check if the node already exists within the bucket
         if bucket.nodes.contains(&node) {
-            return None;
+            return Err(Reason::Duplicate);
         }
 
         // try to add the node within the bucket
-        if bucket.add(node) {
-            Some(distance)
-        } else {
-            None
-        }
+        bucket.add(node).map(|_| distance)
     }
 
     /// Add the given router node to the routing table.
@@ -226,15 +234,11 @@ impl Bucket {
     }
 
     /// Add the given node to the bucket, without exceeding the bucket size.
-    fn add(&mut self, node: Node) -> bool {
-        if self.nodes.iter().any(|n| n.id == node.id) {
-            return false;
-        }
-
+    fn add(&mut self, node: Node) -> Result<()> {
         if self.nodes.len() < self.max_size {
             self.nodes.push(node);
             self.last_changed = Instant::now();
-            return true;
+            return Ok(());
         } else {
             if let Some(position) = self
                 .nodes
@@ -247,11 +251,11 @@ impl Bucket {
                 let _ = self.nodes.remove(position);
                 self.nodes.push(node);
                 self.last_changed = Instant::now();
-                return true;
+                return Ok(());
             }
         }
 
-        false
+        Err(Reason::LimitReached)
     }
 
     /// Try to find a node by the given address.
@@ -291,7 +295,8 @@ mod tests {
 
             let result = routing_table.add_node(node);
             assert_eq!(
-                None, result,
+                Err(Reason::InvalidNode),
+                result,
                 "expected the node ID of the routing table to not have been added"
             );
 
@@ -307,7 +312,7 @@ mod tests {
             let mut routing_table = RoutingTable::new(NodeId::new(), 10, Vec::with_capacity(0));
 
             let result = routing_table.add_node(node);
-            assert_ne!(None, result, "expected the node to have been added");
+            assert!(result.is_ok(), "expected Ok, but got {:?} instead", result);
 
             let result = routing_table.len();
             assert_eq!(1, result, "expected the node to have been stored");
@@ -323,13 +328,15 @@ mod tests {
 
             let result = routing_table.add_node(node_unspecified_addr);
             assert_eq!(
-                None, result,
+                Err(Reason::InvalidNode),
+                result,
                 "expected unspecified node addr to not be added"
             );
 
             let result = routing_table.add_node(node_unspecified_port);
             assert_eq!(
-                None, result,
+                Err(Reason::InvalidNode),
+                result,
                 "expected unspecified node port to not be added"
             );
         }
@@ -345,7 +352,7 @@ mod tests {
 
             let result = bucket.add(node);
 
-            assert_eq!(true, result, "expected the node to have been added");
+            assert!(result.is_ok(), "expected Ok, but got {:?} instead", result);
         }
 
         #[test]
@@ -363,7 +370,11 @@ mod tests {
 
             let result = bucket.add(node);
 
-            assert_eq!(false, result, "expected the node tto not have been added");
+            assert_eq!(
+                Err(Reason::LimitReached),
+                result,
+                "expected the node to not have been added"
+            );
         }
 
         #[test]
@@ -381,7 +392,7 @@ mod tests {
 
             let result = bucket.add(node);
 
-            assert_eq!(true, result, "expected the node to have been added");
+            assert!(result.is_ok(), "expected Ok, but got {:?} instead", result);
         }
     }
 

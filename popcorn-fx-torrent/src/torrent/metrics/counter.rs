@@ -1,5 +1,5 @@
 use crate::torrent::metrics::Metric;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -14,6 +14,7 @@ impl Counter {
             inner: Arc::new(InnerCounter::Mutable {
                 total: Default::default(),
                 counter: Default::default(),
+                avg_5s: Default::default(),
             }),
         }
     }
@@ -34,6 +35,15 @@ impl Counter {
         }
     }
 
+    /// Get the 5s average low-pass rate in counter/s.
+    /// This is based on the libtorrent stats implementation.
+    pub fn rate(&self) -> u32 {
+        match &*self.inner {
+            InnerCounter::Mutable { avg_5s, .. } => avg_5s.load(Ordering::Relaxed),
+            InnerCounter::Snapshot { avg_5s, .. } => *avg_5s,
+        }
+    }
+
     /// Increase the counter by 1.
     pub fn inc(&self) {
         self.inc_by(1)
@@ -42,7 +52,7 @@ impl Counter {
     /// Increase the counter by the given value.
     pub fn inc_by(&self, value: u64) {
         match &*self.inner {
-            InnerCounter::Mutable { total, counter } => {
+            InnerCounter::Mutable { total, counter, .. } => {
                 counter.fetch_add(value, Ordering::Relaxed);
                 total.fetch_add(value, Ordering::Relaxed);
             }
@@ -64,13 +74,27 @@ impl Metric for Counter {
             inner: Arc::new(InnerCounter::Snapshot {
                 total: self.total(),
                 counter: self.get(),
+                avg_5s: self.rate(),
             }),
         }
     }
 
-    fn tick(&self, _: Duration) {
+    fn tick(&self, interval: Duration) {
         match &*self.inner {
-            InnerCounter::Mutable { counter, .. } => counter.store(0, Ordering::Relaxed),
+            InnerCounter::Mutable {
+                counter, avg_5s, ..
+            } => {
+                // calculate the 5s average low-pass with `avg = avg*4/5 + sample/5`
+                if interval != Duration::from_secs(0) {
+                    let sample =
+                        counter.load(Ordering::Relaxed) * 1000u64 / (interval.as_millis() as u64);
+                    let new_avg = ((avg_5s.load(Ordering::Relaxed) as u64) * 4 / 5)
+                        .saturating_add(sample / 5);
+                    avg_5s.store(new_avg.min(u64::from(u32::MAX)) as u32, Ordering::Relaxed);
+                }
+
+                counter.store(0, Ordering::Relaxed)
+            }
             InnerCounter::Snapshot { .. } => {}
         }
     }
@@ -87,10 +111,13 @@ enum InnerCounter {
     Mutable {
         total: AtomicU64,
         counter: AtomicU64,
+        /// 5-second low-pass average (bytes/s)
+        avg_5s: AtomicU32,
     },
     Snapshot {
         total: u64,
         counter: u64,
+        avg_5s: u32,
     },
 }
 
@@ -121,5 +148,18 @@ mod tests {
         counter.tick(Duration::from_secs(1));
         assert_eq!(0, counter.get());
         assert_eq!(1, counter.total());
+    }
+
+    #[test]
+    fn test_rate() {
+        let counter = Counter::new();
+
+        for _ in 0..10 {
+            counter.inc_by(1000);
+            counter.tick(Duration::from_secs(1));
+        }
+
+        let result = counter.rate();
+        assert_eq!(891, result);
     }
 }

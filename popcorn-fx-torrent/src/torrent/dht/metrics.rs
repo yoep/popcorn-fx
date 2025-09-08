@@ -2,57 +2,47 @@ use crate::torrent::metrics::{Counter, Gauge, Metric};
 use std::time::Duration;
 
 /// The DHT tracker metrics.
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct Metrics {
-    pub total_nodes: Gauge,
-    pub total_router_nodes: Gauge,
-    pub total_pending_queries: Gauge,
-    pub total_errors: Counter,
-    pub total_bytes_in: Counter,
-    pub total_bytes_out: Counter,
+    pub nodes: Gauge,
+    pub router_nodes: Gauge,
+    pub pending_queries: Gauge,
+    pub errors: Counter,
+    pub discovered_peers: Counter,
+    pub bytes_in: Counter,
+    pub bytes_out: Counter,
 }
 
 impl Metrics {
     pub fn new() -> Self {
-        Self {
-            total_nodes: Default::default(),
-            total_router_nodes: Default::default(),
-            total_pending_queries: Default::default(),
-            total_errors: Default::default(),
-            total_bytes_in: Default::default(),
-            total_bytes_out: Default::default(),
-        }
+        Self::default()
     }
 }
 
 impl Metric for Metrics {
     fn is_snapshot(&self) -> bool {
-        self.total_nodes.is_snapshot()
+        self.nodes.is_snapshot()
     }
 
     fn snapshot(&self) -> Self {
         Self {
-            total_nodes: self.total_nodes.snapshot(),
-            total_router_nodes: self.total_router_nodes.snapshot(),
-            total_pending_queries: self.total_pending_queries.snapshot(),
-            total_errors: self.total_errors.snapshot(),
-            total_bytes_in: self.total_bytes_in.snapshot(),
-            total_bytes_out: self.total_bytes_out.snapshot(),
+            nodes: self.nodes.snapshot(),
+            router_nodes: self.router_nodes.snapshot(),
+            pending_queries: self.pending_queries.snapshot(),
+            errors: self.errors.snapshot(),
+            discovered_peers: self.discovered_peers.snapshot(),
+            bytes_in: self.bytes_in.snapshot(),
+            bytes_out: self.bytes_out.snapshot(),
         }
     }
 
     fn tick(&self, interval: Duration) {
-        self.total_nodes.tick(interval);
-        self.total_router_nodes.tick(interval);
-        self.total_pending_queries.tick(interval);
-        self.total_errors.tick(interval);
-        self.total_bytes_in.tick(interval);
-        self.total_bytes_out.tick(interval);
-    }
-}
-
-impl Default for Metrics {
-    fn default() -> Self {
-        Self::new()
+        self.nodes.tick(interval);
+        self.router_nodes.tick(interval);
+        self.pending_queries.tick(interval);
+        self.errors.tick(interval);
+        self.discovered_peers.tick(interval);
+        self.bytes_in.tick(interval);
+        self.bytes_out.tick(interval);
     }
 }

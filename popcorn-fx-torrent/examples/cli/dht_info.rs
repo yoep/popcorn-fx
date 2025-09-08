@@ -5,7 +5,7 @@ use fx_callback::{Callback, Subscription};
 use fx_handle::Handle;
 use popcorn_fx_torrent::torrent::dht::{DhtEvent, DhtTracker, Node, NodeState};
 use popcorn_fx_torrent::torrent::format_bytes;
-use ratatui::layout::Constraint::{Fill, Min, Percentage};
+use ratatui::layout::Constraint::{Fill, Length, Min, Percentage};
 use ratatui::layout::{Layout, Rect};
 use ratatui::prelude::{Color, StatefulWidget, Style};
 use ratatui::style::Stylize;
@@ -51,17 +51,18 @@ impl DhtInfoWidget {
                 self.node_info_widget.add_node(node.clone());
             }
             DhtEvent::Stats(metrics) => {
-                self.data.total_nodes = metrics.total_nodes.get();
-                self.data.total_router_nodes = metrics.total_router_nodes.get();
-                self.data.total_pending_queries = metrics.total_pending_queries.get();
-                self.data.total_errors = metrics.total_errors.total();
+                self.data.total_nodes = metrics.nodes.get();
+                self.data.total_router_nodes = metrics.router_nodes.get();
+                self.data.pending_queries = metrics.pending_queries.get();
+                self.data.errors = metrics.errors.total();
+                self.data.discovered_peers = metrics.discovered_peers.total();
 
-                self.data.bytes_down.push(metrics.total_bytes_in.get());
+                self.data.bytes_down.push(metrics.bytes_in.get());
                 if self.data.bytes_down.len() >= PERFORMANCE_HISTORY {
                     let _ = self.data.bytes_down.remove(0);
                 }
 
-                self.data.bytes_up.push(metrics.total_bytes_out.get());
+                self.data.bytes_up.push(metrics.bytes_out.get());
                 if self.data.bytes_up.len() >= PERFORMANCE_HISTORY {
                     let _ = self.data.bytes_up.remove(0);
                 }
@@ -90,12 +91,12 @@ impl FXWidget for DhtInfoWidget {
         self.node_info_widget.on_key_event(key);
     }
 
-    fn on_paste_event(&mut self, text: String) {
+    fn on_paste_event(&mut self, _: String) {
         // no-op
     }
 
     fn render(&self, frame: &mut Frame, area: Rect) {
-        let main = Layout::vertical([Min(10), Fill(1)]);
+        let main = Layout::vertical([Length(10), Fill(1)]);
         let [header_area, details_area] = main.areas(area);
         let header = Layout::horizontal([Percentage(50), Percentage(50)]);
         let [data_area, performance_area] = header.areas(header_area);
@@ -118,11 +119,15 @@ impl FXWidget for DhtInfoWidget {
             ]),
             Line::from(vec![
                 Span::from("Pending queries: ").bold(),
-                self.data.total_pending_queries.to_string().into(),
+                self.data.pending_queries.to_string().into(),
+            ]),
+            Line::from(vec![
+                Span::from("Discovered peers: ").bold(),
+                self.data.discovered_peers.to_string().into(),
             ]),
             Line::from(vec![
                 Span::from("Errors: ").bold(),
-                self.data.total_errors.to_string().into(),
+                self.data.errors.to_string().into(),
             ]),
         ])
         .block(Block::new().title("DHT network").borders(Borders::ALL))
@@ -155,8 +160,9 @@ impl FXWidget for DhtInfoWidget {
 struct DhtData {
     total_nodes: u64,
     total_router_nodes: u64,
-    total_pending_queries: u64,
-    total_errors: u64,
+    pending_queries: u64,
+    errors: u64,
+    discovered_peers: u64,
     bytes_down: Vec<u64>,
     bytes_up: Vec<u64>,
 }

@@ -6,7 +6,7 @@ use downcast_rs::{impl_downcast, DowncastSync};
 use futures::Stream;
 use fx_callback::Callback;
 use fx_handle::Handle;
-use popcorn_fx_torrent::torrent::TorrentStats;
+use popcorn_fx_torrent::torrent::Metrics;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use url::Url;
@@ -48,7 +48,7 @@ pub enum TorrentStreamEvent {
     ///
     /// * `DownloadStatus` - The download status of the torrent stream.
     #[display(fmt = "Torrent stream download status changed to {}", _0)]
-    DownloadStatus(TorrentStats),
+    DownloadStatus(Metrics),
 }
 
 /// A trait for a torrent stream that provides access to torrent streaming information.

@@ -12,7 +12,7 @@ use fx_callback::{Callback, MultiThreadedCallback, Subscriber, Subscription};
 use itertools::Itertools;
 use log::{debug, error, info, trace, warn};
 use popcorn_fx_torrent::torrent;
-use popcorn_fx_torrent::torrent::{FilePriority, PieceIndex, TorrentStats};
+use popcorn_fx_torrent::torrent::{FilePriority, Metrics, PieceIndex};
 use std::cmp::{max, min};
 use std::fmt::Debug;
 use std::fs;
@@ -161,12 +161,12 @@ impl Torrent for DefaultTorrentStream {
         TorrentState::Error
     }
 
-    async fn stats(&self) -> TorrentStats {
+    async fn stats(&self) -> Metrics {
         if let Some(context) = self.instance() {
             return context.stats().await;
         }
 
-        TorrentStats::default()
+        Metrics::default()
     }
 }
 
@@ -406,7 +406,7 @@ impl TorrentStreamContext {
         self.verify_ready_to_stream().await;
     }
 
-    fn on_download_status(&self, download_status: TorrentStats) {
+    fn on_download_status(&self, download_status: Metrics) {
         self.callbacks
             .invoke(TorrentStreamEvent::DownloadStatus(download_status))
     }
@@ -553,7 +553,7 @@ impl Torrent for TorrentStreamContext {
         self.torrent.state().await
     }
 
-    async fn stats(&self) -> TorrentStats {
+    async fn stats(&self) -> Metrics {
         self.torrent.stats().await
     }
 }

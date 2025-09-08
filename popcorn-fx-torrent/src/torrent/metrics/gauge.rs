@@ -20,11 +20,16 @@ impl Gauge {
 
     /// Increase the gauge metric by 1.
     pub fn inc(&self) {
+        self.inc_by(1)
+    }
+
+    /// Increase the gauge metric by the given value.
+    pub fn inc_by(&self, value: u64) {
         match &*self.inner {
             InnerGauge::Mutable { values } => {
                 if let Ok(mut values) = values.lock() {
                     let last_value = values.last().cloned().unwrap_or(0);
-                    values.push(last_value.saturating_add(1));
+                    values.push(last_value.saturating_add(value));
                     Self::limit(&mut values);
                 }
             }
@@ -128,9 +133,7 @@ impl Metric for Gauge {
     }
 
     fn tick(&self, _: Duration) {
-        // if let Ok(mut values) = self.values.lock() {
-        //     values.clear();
-        // }
+        // no-op
     }
 }
 

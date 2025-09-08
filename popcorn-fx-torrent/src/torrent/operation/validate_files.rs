@@ -348,13 +348,15 @@ mod tests {
                 piece
             );
 
-            let result = context.stats().await;
+            let result = context.metrics().await;
             assert_eq!(
-                30, result.completed_pieces,
+                30,
+                result.completed_pieces.get(),
                 "expected completed pieces to be 30"
             );
             assert_ne!(
-                0, result.total_completed_size,
+                0,
+                result.completed_size.get(),
                 "expected total completed size to be > 0"
             );
         }

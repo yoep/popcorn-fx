@@ -8,8 +8,8 @@ use std::fmt::Debug;
 use std::path::PathBuf;
 
 use popcorn_fx_torrent::torrent;
-pub use popcorn_fx_torrent::torrent::{PieceIndex, TorrentEvent, TorrentState, TorrentStats};
-use popcorn_fx_torrent::torrent::{PiecePriority, TorrentFlags};
+use popcorn_fx_torrent::torrent::{Metrics, PiecePriority, TorrentFlags};
+pub use popcorn_fx_torrent::torrent::{PieceIndex, TorrentEvent, TorrentState};
 
 #[cfg(any(test, feature = "testing"))]
 pub use mock::*;
@@ -81,7 +81,7 @@ pub trait Torrent: Debug + DowncastSync + Callback<TorrentEvent> + Send + Sync {
     async fn state(&self) -> TorrentState;
 
     /// Get the torrent metrics statics.
-    async fn stats(&self) -> TorrentStats;
+    async fn stats(&self) -> Metrics;
 }
 impl_downcast!(sync Torrent);
 
@@ -156,7 +156,7 @@ impl Torrent for torrent::Torrent {
         self.state().await
     }
 
-    async fn stats(&self) -> TorrentStats {
+    async fn stats(&self) -> Metrics {
         self.stats().await
     }
 }
@@ -297,7 +297,7 @@ mod mock {
             async fn total_pieces(&self) -> usize;
             async fn sequential_mode(&self);
             async fn state(&self) -> TorrentState;
-            async fn stats(&self) -> TorrentStats;
+            async fn stats(&self) -> Metrics;
         }
 
         impl Callback<TorrentEvent> for Torrent {

@@ -1,13 +1,11 @@
 use crate::core::media::MediaIdentifier;
 use crate::core::playlist::PlaylistItem;
 use crate::core::subtitles::model::{Subtitle, SubtitleInfo};
-use crate::core::torrents::{
-    Torrent, TorrentEvent, TorrentHandle, TorrentState, TorrentStats, TorrentStream,
-};
+use crate::core::torrents::{Torrent, TorrentEvent, TorrentHandle, TorrentState, TorrentStream};
 use async_trait::async_trait;
 use fx_callback::{Callback, Subscriber, Subscription};
 use popcorn_fx_torrent::torrent;
-use popcorn_fx_torrent::torrent::PieceIndex;
+use popcorn_fx_torrent::torrent::{Metrics, PieceIndex};
 use std::ops::Range;
 use std::path::PathBuf;
 
@@ -236,7 +234,7 @@ impl Torrent for TorrentData {
         }
     }
 
-    async fn stats(&self) -> TorrentStats {
+    async fn stats(&self) -> Metrics {
         match self {
             TorrentData::Torrent(e) => e.stats().await,
             TorrentData::Stream(e) => e.stats().await,

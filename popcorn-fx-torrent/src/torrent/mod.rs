@@ -8,12 +8,15 @@ pub use piece::*;
 use piece_pool::*;
 pub use session::*;
 pub use session_cache::*;
-use std::ops::Range;
 pub use torrent::*;
 pub use torrent_flags::*;
 pub use torrent_health::*;
 pub use torrent_metadata::*;
+pub use torrent_metrics::*;
 pub use torrent_peer::*;
+pub use torrent_peer::*;
+
+use std::ops::Range;
 
 mod compact;
 #[cfg(feature = "dht")]
@@ -37,6 +40,7 @@ mod torrent;
 mod torrent_flags;
 mod torrent_health;
 mod torrent_metadata;
+mod torrent_metrics;
 mod torrent_peer;
 mod tracker;
 

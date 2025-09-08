@@ -1,4 +1,4 @@
-use crate::app_logger::{AppLogger, LogEntry};
+use crate::app_logger::AppLogger;
 use crate::dht_info::{DhtInfoWidget, DHT_INFO_WIDGET_NAME};
 use crate::menu::MenuWidget;
 use crate::torrent_info::TorrentInfoWidget;

@@ -1,4 +1,4 @@
-use crate::app::{App, FXKeyEvent, FXWidget};
+use crate::app::{FXKeyEvent, FXWidget};
 use crate::widget::print_optional_string;
 use async_trait::async_trait;
 use crossterm::event::KeyCode;
@@ -67,7 +67,7 @@ impl TorrentInfoWidget {
                     self.name = name;
                 }
                 if let Some(info) = metadata.info.as_ref() {
-                    data.size = info.len();
+                    data.wanted_size = info.len() as u64;
                 }
             }
             TorrentEvent::PeerConnected(peer) => {
@@ -85,11 +85,11 @@ impl TorrentInfoWidget {
             }
             TorrentEvent::TrackersChanged => {}
             TorrentEvent::PiecesChanged(total_pieces) => {
-                data.total_pieces = *total_pieces;
+                data.total_pieces = *total_pieces as u64;
             }
             TorrentEvent::PiecePrioritiesChanged => {}
             TorrentEvent::PieceCompleted(piece) => {
-                data.completed_pieces = self.torrent.total_completed_pieces().await;
+                data.completed_pieces = self.torrent.total_completed_pieces().await as u64;
                 self.files_widget.on_piece_completed(piece);
             }
             TorrentEvent::FilesChanged => {
@@ -100,10 +100,10 @@ impl TorrentInfoWidget {
             TorrentEvent::OptionsChanged => {}
             TorrentEvent::Stats(stats) => {
                 data.progress = stats.progress();
-                data.completed_size = stats.total_completed_size;
-                data.wasted = stats.total_wasted;
-                data.down.push(stats.download_rate);
-                data.up.push(stats.upload_rate);
+                data.wanted_completed_size = stats.wanted_completed_size.get();
+                data.wasted = stats.wasted.total();
+                data.down.push(stats.download.rate() as u64);
+                data.up.push(stats.upload.rate() as u64);
 
                 if data.down.len() > PERFORMANCE_HISTORY {
                     data.down.remove(0);
@@ -152,7 +152,7 @@ impl Widget for &TorrentInfoWidget {
     where
         Self: Sized,
     {
-        let main = Layout::vertical([Min(10), Length(4), Fill(1)]);
+        let main = Layout::vertical([Length(12), Length(4), Fill(1)]);
         let [header_area, progress_area, details_area] = main.areas(area);
         let header = Layout::horizontal([Percentage(50), Percentage(50)]);
         let [metadata_area, performance_area] = header.areas(header_area);
@@ -182,8 +182,8 @@ impl Widget for &TorrentInfoWidget {
                 Span::from("Size: ").bold(),
                 format!(
                     "{}/{}",
-                    format_bytes(self.data.completed_size),
-                    format_bytes(self.data.size)
+                    format_bytes(self.data.wanted_completed_size as usize),
+                    format_bytes(self.data.wanted_size as usize)
                 )
                 .into(),
             ]),
@@ -193,7 +193,7 @@ impl Widget for &TorrentInfoWidget {
             ]),
             Line::from(vec![
                 Span::from("Wasted: ").bold(),
-                format_bytes(self.data.wasted).into(),
+                format_bytes(self.data.wasted as usize).into(),
             ]),
             Line::from(vec![
                 Span::from("Files: ").bold(),
@@ -250,14 +250,14 @@ struct TorrentData {
     path: Option<PathBuf>,
     state: Option<TorrentState>,
     info_hash: Option<InfoHash>,
-    size: usize,
-    total_pieces: usize,
-    completed_pieces: usize,
-    completed_size: usize,
+    total_pieces: u64,
+    completed_pieces: u64,
+    wanted_size: u64,
+    wanted_completed_size: u64,
     total_files: usize,
     peers: usize,
     progress: f32,
-    wasted: usize,
+    wasted: u64,
     down: Vec<u64>,
     up: Vec<u64>,
 }
@@ -268,10 +268,10 @@ impl Default for TorrentData {
             path: None,
             state: None,
             info_hash: None,
-            size: 0,
+            wanted_size: 0,
             total_pieces: 0,
             completed_pieces: 0,
-            completed_size: 0,
+            wanted_completed_size: 0,
             total_files: 0,
             peers: 0,
             progress: 0.0,
@@ -423,11 +423,14 @@ impl TorrentPeersWidget {
         let events_receiver = peer.subscribe();
         let state = peer.state().await;
         let is_seed = peer.is_seed().await;
+        let metrics = peer.metrics();
 
         self.peers.insert(
             peer.handle(),
             TorrentPeerData {
                 client: peer.client(),
+                bytes_in: metrics.bytes_in.rate(),
+                bytes_out: metrics.bytes_out.rate(),
                 peer,
                 state,
                 is_seed,
@@ -450,6 +453,10 @@ impl TorrentPeersWidget {
                     PeerEvent::RemoteAvailablePieces(_) => {
                         peer_data.is_seed = peer_data.peer.is_seed().await;
                     }
+                    PeerEvent::Stats(metrics) => {
+                        peer_data.bytes_in = metrics.bytes_in.rate();
+                        peer_data.bytes_out = metrics.bytes_out.rate();
+                    }
                     _ => {}
                 }
             }
@@ -471,15 +478,24 @@ impl Widget for &TorrentPeersWidget {
                 };
                 let seed_text = if peer.is_seed { " :: seed :: " } else { " :: " };
 
-                Line::from(vec![
-                    peer.client.addr.to_string().into(),
-                    " :: ".into(),
-                    peer.client.connection_protocol.to_string().into(),
-                    seed_text.into(),
-                    peer_state_as_str(&peer.state).into(),
+                ListItem::new(vec![
+                    Line::from(vec![
+                        peer.client.addr.to_string().into(),
+                        " :: ".into(),
+                        peer.client.connection_protocol.to_string().into(),
+                        seed_text.into(),
+                        peer_state_as_str(&peer.state).into(),
+                    ])
+                    .style(Style::new().bold()),
+                    Line::from(vec![
+                        "down: ".into(),
+                        format_bytes(peer.bytes_in as usize).into(),
+                        " - ".into(),
+                        "up: ".into(),
+                        format_bytes(peer.bytes_out as usize).into(),
+                    ]),
                 ])
-                .style(Style::new().bold().bg(color))
-                .into()
+                .style(Style::new().bg(color))
             })
             .collect::<Vec<ListItem>>();
 
@@ -495,6 +511,8 @@ struct TorrentPeerData {
     client: PeerClientInfo,
     state: PeerState,
     is_seed: bool,
+    bytes_in: u32,
+    bytes_out: u32,
     events_receiver: Subscription<PeerEvent>,
 }
 

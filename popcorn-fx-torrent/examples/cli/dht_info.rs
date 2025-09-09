@@ -209,7 +209,7 @@ impl DhtNodeInfoWidget {
     }
 
     fn render(&self, frame: &mut Frame, area: Rect) {
-        let header = vec!["Address", "State", "Secure"]
+        let header = vec!["Address", "State", "Secure", "Queries", "Timeouts"]
             .into_iter()
             .map(Cell::from)
             .collect::<Row>()
@@ -230,12 +230,14 @@ impl DhtNodeInfoWidget {
                     node.addr.to_string(),
                     node_state_as_str(&node.state).to_string(),
                     secure.to_string(),
+                    node.metrics.confirmed_queries.total().to_string(),
+                    node.metrics.timeouts.total().to_string(),
                 ])
                 .style(Style::new().bg(color))
             })
             .collect::<Vec<Row>>();
 
-        let table = Table::new(rows, [Fill(1), Min(14), Min(6)])
+        let table = Table::new(rows, [Fill(1), Min(14), Min(6), Min(8), Min(8)])
             .header(header)
             .block(Block::bordered().title("Nodes"))
             .row_highlight_style(Style::new().bg(Color::LightYellow))

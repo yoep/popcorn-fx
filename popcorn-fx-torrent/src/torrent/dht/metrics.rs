@@ -1,9 +1,9 @@
 use crate::torrent::metrics::{Counter, Gauge, Metric};
 use std::time::Duration;
 
-/// The DHT tracker metrics.
+/// The metrics of the DHT node tracker.
 #[derive(Debug, Default, Clone)]
-pub struct Metrics {
+pub struct DhtMetrics {
     pub nodes: Gauge,
     pub router_nodes: Gauge,
     pub pending_queries: Gauge,
@@ -13,13 +13,13 @@ pub struct Metrics {
     pub bytes_out: Counter,
 }
 
-impl Metrics {
+impl DhtMetrics {
     pub fn new() -> Self {
         Self::default()
     }
 }
 
-impl Metric for Metrics {
+impl Metric for DhtMetrics {
     fn is_snapshot(&self) -> bool {
         self.nodes.is_snapshot()
     }
@@ -44,5 +44,38 @@ impl Metric for Metrics {
         self.discovered_peers.tick(interval);
         self.bytes_in.tick(interval);
         self.bytes_out.tick(interval);
+    }
+}
+
+/// The metrics of a DHT node.
+#[derive(Debug, Default, Clone)]
+pub struct NodeMetrics {
+    /// The amount of times the node has successfully responded to a query.
+    pub confirmed_queries: Counter,
+    /// The number of times the node failed to respond to a query.
+    pub timeouts: Counter,
+}
+
+impl NodeMetrics {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl Metric for NodeMetrics {
+    fn is_snapshot(&self) -> bool {
+        self.confirmed_queries.is_snapshot()
+    }
+
+    fn snapshot(&self) -> Self {
+        Self {
+            confirmed_queries: self.confirmed_queries.snapshot(),
+            timeouts: self.timeouts.snapshot(),
+        }
+    }
+
+    fn tick(&self, interval: Duration) {
+        self.confirmed_queries.tick(interval);
+        self.timeouts.tick(interval);
     }
 }

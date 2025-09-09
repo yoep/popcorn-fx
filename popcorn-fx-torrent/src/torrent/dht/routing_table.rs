@@ -1,10 +1,11 @@
 use crate::torrent::dht::{Node, NodeId, NodeState};
+use crate::torrent::metrics::Metric;
 use itertools::Itertools;
 use log::trace;
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::net::SocketAddr;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use thiserror::Error;
 
 /// The result type alias for routing table operations.
@@ -194,6 +195,15 @@ impl RoutingTable {
         );
         for (_, bucket) in self.buckets.iter_mut() {
             bucket.refresh().await;
+        }
+    }
+
+    /// Call once per tick (typically once per second), providing a tick interval.
+    pub fn tick(&self, interval: Duration) {
+        for (_, bucket) in &self.buckets {
+            for node in &bucket.nodes {
+                node.metrics.tick(interval);
+            }
         }
     }
 

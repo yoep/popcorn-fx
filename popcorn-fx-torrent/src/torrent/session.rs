@@ -88,11 +88,14 @@ pub trait Session: Debug + Callback<SessionEvent> + Send + Sync {
     async fn dht(&self) -> Option<DhtTracker>;
 
     /// Get the current state of the session.
-    ///
-    /// # Returns
-    ///
-    /// It returns the state of the session.
     async fn state(&self) -> SessionState;
+
+    /// Get the location path to the storage of the torrents for this session.
+    async fn base_path(&self) -> PathBuf;
+
+    /// Set a new location path for the storage of the torrents within this session.
+    /// This will only be applicable to new torrents, existing torrents will still use the old location.
+    async fn set_base_path(&self, location: PathBuf);
 
     /// Get the torrent based on the given handle.
     /// It returns a weak reference to the torrent, which can be invalidated at any moment.
@@ -452,6 +455,14 @@ impl Session for FxTorrentSession {
 
     async fn state(&self) -> SessionState {
         *self.inner.state.lock().await
+    }
+
+    async fn base_path(&self) -> PathBuf {
+        self.inner.base_path.read().await.clone()
+    }
+
+    async fn set_base_path(&self, location: PathBuf) {
+        *self.inner.base_path.write().await = location;
     }
 
     async fn find_torrent_by_handle(&self, handle: &TorrentHandle) -> Option<Torrent> {
@@ -1042,6 +1053,8 @@ mod mock {
             fn handle(&self) -> SessionHandle;
             async fn dht(&self) -> Option<DhtTracker>;
             async fn state(&self) -> SessionState;
+            async fn base_path(&self) -> PathBuf;
+            async fn set_base_path(&self, location: PathBuf);
             async fn find_torrent_by_handle(&self, handle: &TorrentHandle) -> Option<Torrent>;
             async fn find_torrent_by_info_hash(&self, info_hash: &InfoHash) -> Option<Torrent>;
             async fn torrent_health_from_info(&self, torrent_info: &TorrentMetadata) -> Result<TorrentHealth>;

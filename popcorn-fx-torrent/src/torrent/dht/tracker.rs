@@ -3,9 +3,8 @@ use crate::torrent::dht::krpc::{
     ErrorMessage, FindNodeRequest, FindNodeResponse, GetPeersRequest, GetPeersResponse, Message,
     MessagePayload, PingMessage, QueryMessage, ResponseMessage,
 };
-use crate::torrent::dht::metrics::Metrics;
 use crate::torrent::dht::routing_table::RoutingTable;
-use crate::torrent::dht::{Error, Node, NodeId, Result, Token, TokenSecret};
+use crate::torrent::dht::{DhtMetrics, Error, Node, NodeId, Result, Token, TokenSecret};
 use crate::torrent::metrics::Metric;
 use crate::torrent::{CompactIpv4Addr, CompactIpv6Addr, InfoHash, COMPACT_IPV6_ADDR_LEN};
 use derive_more::Display;
@@ -58,7 +57,7 @@ type FindNodeSender = Sender<Result<Vec<Node>>>;
 #[derive(Debug)]
 pub enum DhtEvent {
     NodeAdded(Node),
-    Stats(Metrics),
+    Stats(DhtMetrics),
 }
 
 /// A tracker instance for managing DHT nodes.
@@ -87,7 +86,7 @@ impl DhtTracker {
         let (sender, receiver) = unbounded_channel();
         let (command_sender, command_receiver) = unbounded_channel();
         let cancellation_token = CancellationToken::new();
-        let metrics = Metrics::new();
+        let metrics = DhtMetrics::new();
         let reader = NodeReader {
             socket: socket.clone(),
             socket_addr,
@@ -140,7 +139,7 @@ impl DhtTracker {
     }
 
     /// Get the DHT network metrics of the DHT server.
-    pub fn metrics(&self) -> &Metrics {
+    pub fn metrics(&self) -> &DhtMetrics {
         &self.inner.metrics
     }
 
@@ -350,7 +349,7 @@ struct InnerTracker {
     /// The timeout while trying to send packages to a target address
     send_timeout: Duration,
     /// The tracker metrics of the DHT network
-    metrics: Metrics,
+    metrics: DhtMetrics,
     /// The underlying async command sender
     command_sender: UnboundedSender<TrackerCommand>,
     /// The callback of the tracker
@@ -392,18 +391,12 @@ impl InnerTracker {
                     }
                 },
                 Some(command) = command_receiver.recv() => self.handle_command(command).await,
-                _ = stats_interval.tick() => self.stats(),
+                _ = stats_interval.tick() => self.stats_tick().await,
                 _ = refresh_interval.tick() => self.refresh_routing_table().await,
                 _ = cleanup_interval.tick() => self.cleanup_pending_requests().await,
             }
         }
         debug!("{} main loop ended", self);
-    }
-
-    fn stats(&self) {
-        self.callbacks
-            .invoke(DhtEvent::Stats(self.metrics.snapshot()));
-        self.metrics.tick(STATS_INTERVAL);
     }
 
     /// Try to process an incoming DHT message from the given node address.
@@ -1037,6 +1030,14 @@ impl InnerTracker {
         }
     }
 
+    async fn stats_tick(&self) {
+        self.callbacks
+            .invoke(DhtEvent::Stats(self.metrics.snapshot()));
+
+        self.metrics.tick(STATS_INTERVAL);
+        self.routing_table.lock().await.tick(STATS_INTERVAL);
+    }
+
     /// Refresh the nodes within the routing table.
     async fn refresh_routing_table(&self) {
         let mut routing_table = self.routing_table.lock().await;
@@ -1310,7 +1311,7 @@ impl InnerTracker {
 struct NodeReader {
     socket: Arc<UdpSocket>,
     socket_addr: SocketAddr,
-    metrics: Metrics,
+    metrics: DhtMetrics,
     sender: UnboundedSender<(Message, SocketAddr)>,
     cancellation_token: CancellationToken,
 }

@@ -1,4 +1,5 @@
 pub use errors::*;
+pub use metrics::*;
 pub use node::*;
 pub use node_id::*;
 pub use tracker::*;

@@ -1,6 +1,7 @@
 use crate::app::{AppCommand, AppCommandSender, FXKeyEvent};
 use crate::menu::widget::MenuSectionWidget;
 use crate::menu::{MenuCommand, MenuSection};
+use async_trait::async_trait;
 use crossterm::event::KeyCode;
 use derive_more::Display;
 use ratatui::buffer::Buffer;
@@ -63,6 +64,7 @@ impl MenuOverview {
     }
 }
 
+#[async_trait]
 impl MenuSectionWidget for MenuOverview {
     fn preferred_width(&self) -> u16 {
         20
@@ -97,6 +99,7 @@ impl MenuSectionWidget for MenuOverview {
             }
             KeyCode::Char(char) => {
                 if let Some(menu_index) = char.to_digit(10).map(|e| e as usize) {
+                    let menu_index = menu_index - 1;
                     if menu_index < self.items.len() {
                         key.consume();
                         self.select_menu_item(menu_index);
@@ -113,6 +116,10 @@ impl MenuSectionWidget for MenuOverview {
 
     fn render(&self, frame: &mut Frame, area: Rect) {
         Widget::render(self, area, frame.buffer_mut());
+    }
+
+    async fn tick(&mut self) {
+        // no-op
     }
 }
 

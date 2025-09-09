@@ -32,8 +32,8 @@ use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::{select, time};
 use tokio_util::sync::CancellationToken;
 
-const APP_CLIENT_NAME: &str = "FX torrent";
-const APP_DEFAULT_STORAGE: &str = "torrents";
+pub const APP_CLIENT_NAME: &str = "FX torrent";
+pub const APP_DEFAULT_STORAGE: &str = "torrents";
 const APP_QUIT_KEY: char = 'q';
 const TAB_NAME_LEN: usize = 16;
 const SESSION_CACHE_LIMIT: usize = 10;
@@ -175,6 +175,7 @@ impl App {
             AppCommand::AddTorrentUri(uri) => self.add_torrent_uri(uri.as_str()).await,
             AppCommand::DhtEnabled(enabled) => self.update_dht(enabled),
             AppCommand::TrackerEnabled(enabled) => self.update_trackers(enabled),
+            AppCommand::Storage(location) => self.update_storage(location).await,
             AppCommand::DhtInfo(app_sender) => self.show_dht_info(app_sender).await,
             AppCommand::Quit => self.cancellation_token.cancel(),
         }
@@ -249,7 +250,7 @@ impl App {
     async fn add_torrent_uri(&mut self, uri: &str) {
         match self
             .session
-            .add_torrent_from_uri(uri, TorrentFlags::default())
+            .add_torrent_from_uri(uri, TorrentFlags::default() | TorrentFlags::UploadMode)
             .await
         {
             Ok(torrent) => match torrent.metadata().await {
@@ -297,6 +298,10 @@ impl App {
             }
             Err(e) => error!("Failed to create session: {}", e),
         }
+    }
+
+    async fn update_storage(&self, location: PathBuf) {
+        self.session.set_base_path(location).await;
     }
 
     async fn show_dht_info(&mut self, app_sender: AppCommandSender) {
@@ -396,6 +401,8 @@ pub enum AppCommand {
     DhtEnabled(bool),
     /// Set if trackers are enabled
     TrackerEnabled(bool),
+    /// Set the new storage location of the session
+    Storage(PathBuf),
     /// Show the DHT info widget
     DhtInfo(AppCommandSender),
     /// Quit the app

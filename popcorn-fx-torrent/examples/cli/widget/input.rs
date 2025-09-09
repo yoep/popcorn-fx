@@ -14,13 +14,13 @@ pub struct InputWidget {
 impl InputWidget {
     /// Create a new text input widget.
     pub fn new() -> Self {
-        Self::new_with_opts(false)
+        Self::new_with_opts("", false)
     }
 
     /// Create a new text input widget with the given options.
-    pub fn new_with_opts(wrap: bool) -> Self {
+    pub fn new_with_opts<S: AsRef<str>>(text: S, wrap: bool) -> Self {
         Self {
-            text: String::new(),
+            text: text.as_ref().to_string(),
             cursor: 0,
             wrap,
         }
@@ -82,7 +82,9 @@ impl InputWidget {
 
     /// Move the cursor to the right within the input.
     pub fn cursor_right(&mut self) {
-        self.cursor = self.cursor.saturating_add(1);
+        if self.cursor < self.text.len() {
+            self.cursor = self.cursor.saturating_add(1);
+        }
     }
 
     /// Render the input widget in the given area.

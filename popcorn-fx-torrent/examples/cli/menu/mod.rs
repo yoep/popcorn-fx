@@ -16,7 +16,7 @@ use std::collections::HashMap;
 use std::io;
 use std::path::PathBuf;
 use std::str::FromStr;
-use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver};
 
 mod add_torrent;
 mod logging;
@@ -159,6 +159,10 @@ impl FXWidget for MenuWidget {
 
         while let Some(entry) = self.logger.next() {
             self.log(entry.text);
+        }
+
+        for (_, section) in &mut self.sections {
+            section.tick().await;
         }
     }
 

@@ -374,6 +374,7 @@ pub enum PeerEvent {
     PeersDiscovered(Vec<SocketAddr>),
     /// Indicates that one or more peers are dropped from the swarm
     PeersDropped(Vec<SocketAddr>),
+    /// Indicates that the peer metrics have been updated
     Stats(Metrics),
 }
 

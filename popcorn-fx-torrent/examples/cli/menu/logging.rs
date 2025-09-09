@@ -3,6 +3,7 @@ use crate::app_logger::AppLogger;
 use crate::menu::widget::MenuSectionWidget;
 use crate::menu::{MenuCommand, MenuSection};
 use crate::widget::ComboboxWidget;
+use async_trait::async_trait;
 use crossterm::event::KeyCode;
 use log::Level;
 use ratatui::layout::Constraint::{Fill, Length};
@@ -148,6 +149,7 @@ impl MenuLogging {
     }
 }
 
+#[async_trait]
 impl MenuSectionWidget for MenuLogging {
     fn preferred_width(&self) -> u16 {
         32
@@ -180,6 +182,10 @@ impl MenuSectionWidget for MenuLogging {
                 combo.render(area, frame.buffer_mut());
             }
         }
+    }
+
+    async fn tick(&mut self) {
+        // no-op
     }
 }
 

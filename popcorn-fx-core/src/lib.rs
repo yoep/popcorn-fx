@@ -266,7 +266,7 @@ pub mod testing {
             async fn total_pieces(&self) -> usize;
             async fn sequential_mode(&self);
             async fn state(&self) -> TorrentState;
-            async fn stats(&self) -> Metrics;
+            fn stats(&self) -> &Metrics;
         }
 
         impl Callback<TorrentEvent> for InnerTorrentStream {
@@ -326,8 +326,8 @@ pub mod testing {
         async fn state(&self) -> TorrentState {
             self.inner.state().await
         }
-        async fn stats(&self) -> Metrics {
-            self.inner.stats().await
+        fn stats(&self) -> &Metrics {
+            self.inner.stats()
         }
     }
 

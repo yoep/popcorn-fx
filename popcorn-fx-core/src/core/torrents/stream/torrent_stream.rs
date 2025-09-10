@@ -45,6 +45,8 @@ pub struct DefaultTorrentStream {
     handle: TorrentHandle,
     /// The reference type of the stream.
     ref_type: StreamRefType,
+    /// The underlying shared metrics reference
+    metrics: Metrics,
     /// The inner torrent stream instance.
     instance: Weak<TorrentStreamContext>,
 }
@@ -56,6 +58,7 @@ impl DefaultTorrentStream {
         let instance = Self {
             handle,
             ref_type: StreamRefType::Owner,
+            metrics: inner.stats().clone(),
             instance: Arc::downgrade(&inner),
         };
 
@@ -161,12 +164,8 @@ impl Torrent for DefaultTorrentStream {
         TorrentState::Error
     }
 
-    async fn stats(&self) -> Metrics {
-        if let Some(context) = self.instance() {
-            return context.stats().await;
-        }
-
-        Metrics::default()
+    fn stats(&self) -> &Metrics {
+        &self.metrics
     }
 }
 
@@ -252,6 +251,7 @@ impl Clone for DefaultTorrentStream {
         Self {
             handle: self.handle,
             ref_type: StreamRefType::Borrowed,
+            metrics: self.metrics.clone(),
             instance: self.instance.clone(),
         }
     }
@@ -348,7 +348,7 @@ impl TorrentStreamContext {
     /// Prepare the initial pieces required for the torrent stream to be able to start.
     async fn start_preparing_pieces(&self) {
         let state = self.torrent.state().await;
-        let stats = self.torrent.stats().await;
+        let stats = self.torrent.stats();
         trace!(
             "Torrent stream {} preparation with torrent state {}",
             self,
@@ -553,8 +553,8 @@ impl Torrent for TorrentStreamContext {
         self.torrent.state().await
     }
 
-    async fn stats(&self) -> Metrics {
-        self.torrent.stats().await
+    fn stats(&self) -> &Metrics {
+        self.torrent.stats()
     }
 }
 
@@ -977,7 +977,7 @@ mod test {
             .returning(|_: &[PieceIndex]| {});
         mock.expect_sequential_mode().returning(|| {});
         mock.expect_state().return_const(TorrentState::Downloading);
-        mock.expect_stats().returning(|| TorrentStats::default());
+        mock.expect_stats().return_const(Metrics::default());
         mock.expect_subscribe()
             .returning(move || subscription_callbacks.subscribe());
         mock.expect_absolute_file_path()
@@ -1206,7 +1206,7 @@ mod test {
             .return_const(TorrentState::Downloading);
         torrent
             .expect_stats()
-            .returning(|| torrent_stats_not_completed());
+            .return_const(torrent_stats_not_completed());
         torrent
             .expect_subscribe()
             .returning(move || subscribe_callbacks.subscribe());
@@ -1275,7 +1275,7 @@ mod test {
             .returning(|_: &[PieceIndex]| {});
         mock.expect_state().return_const(TorrentState::Finished);
         mock.expect_stats()
-            .returning(|| torrent_stats_not_completed());
+            .return_const(torrent_stats_not_completed());
         mock.expect_subscribe()
             .return_once(move || callback_subscription);
         let stream = DefaultTorrentStream::new(url, Box::new(mock), filename).await;
@@ -1296,11 +1296,14 @@ mod test {
         let total_pieces = 100usize;
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().join(filename);
-        let mut mock = MockTorrent::new();
         let callbacks = MultiThreadedCallback::new();
         let callback_subscription = callbacks.subscribe();
         let url = Url::parse("http://localhost").unwrap();
         let files = vec![create_file_from_temp_path(temp_path.clone())];
+        let metrics = Metrics::new();
+        metrics.wanted_pieces.inc_by(15000);
+        metrics.wanted_completed_pieces.inc_by(15000);
+        let mut mock = MockTorrent::new();
         mock.expect_handle().return_const(TorrentHandle::new());
         mock.expect_files().returning(move || files.clone());
         mock.expect_has_bytes().return_const(true);
@@ -1310,25 +1313,7 @@ mod test {
             .times(0)
             .returning(|_: &[PieceIndex]| {});
         mock.expect_state().return_const(TorrentState::Seeding);
-        mock.expect_stats().returning(|| TorrentStats {
-            upload: 0,
-            upload_rate: 0,
-            upload_useful: 0,
-            upload_useful_rate: 0,
-            download: 0,
-            download_rate: 0,
-            download_useful: 0,
-            download_useful_rate: 0,
-            total_uploaded: 0,
-            total_downloaded: 0,
-            total_downloaded_useful: 0,
-            wanted_pieces: 30,
-            completed_pieces: 30,
-            total_size: 15000,
-            total_completed_size: 15000,
-            total_wasted: 0,
-            total_peers: 15,
-        });
+        mock.expect_stats().return_const(metrics);
         mock.expect_subscribe()
             .return_once(move || callback_subscription);
         let stream = DefaultTorrentStream::new(url, Box::new(mock), filename).await;
@@ -1367,7 +1352,7 @@ mod test {
         torrent
             .expect_state()
             .return_const(TorrentState::Downloading);
-        torrent.expect_stats().returning(|| TorrentStats::default());
+        torrent.expect_stats().return_const(Metrics::default());
         torrent
             .expect_subscribe()
             .return_once(move || callback_subscription);
@@ -1434,25 +1419,9 @@ mod test {
         }
     }
 
-    fn torrent_stats_not_completed() -> TorrentStats {
-        TorrentStats {
-            upload: 0,
-            upload_rate: 0,
-            upload_useful: 0,
-            upload_useful_rate: 0,
-            download: 0,
-            download_rate: 0,
-            download_useful: 0,
-            download_useful_rate: 0,
-            total_uploaded: 0,
-            total_downloaded: 0,
-            total_downloaded_useful: 0,
-            wanted_pieces: 10,
-            completed_pieces: 0,
-            total_size: 0,
-            total_completed_size: 0,
-            total_wasted: 0,
-            total_peers: 0,
-        }
+    fn torrent_stats_not_completed() -> Metrics {
+        let metrics = Metrics::new();
+        metrics.wanted_pieces.inc_by(10);
+        metrics
     }
 }

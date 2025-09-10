@@ -4,7 +4,7 @@ use crate::torrent::{
     TorrentCommandEvent, TorrentContext, TorrentOperation, TorrentOperationResult,
 };
 use async_trait::async_trait;
-use futures::future;
+use futures::{future, TryFutureExt};
 use log::{debug, trace, warn};
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -41,9 +41,9 @@ impl TorrentConnectPeersOperation {
             return;
         }
 
-        let mut mutex = self.webseed_urls.lock().await;
+        let mut webseed_urls = self.webseed_urls.lock().await;
         let metadata = torrent.metadata_lock().read().await;
-        let urls = metadata
+        let mut urls = metadata
             .url_list
             .as_ref()
             .map(|list| {
@@ -52,8 +52,18 @@ impl TorrentConnectPeersOperation {
                     .collect()
             })
             .unwrap_or(Vec::new());
+        let mut http_seeds = metadata
+            .http_seeds
+            .as_ref()
+            .map(|e| {
+                e.iter()
+                    .flat_map(|url| Self::parse_url(torrent, url))
+                    .collect()
+            })
+            .unwrap_or(Vec::new());
+        urls.append(&mut http_seeds);
 
-        *mutex = Some(urls);
+        *webseed_urls = Some(urls);
     }
 
     /// Update the available in-flight permits from the latest torrent config.

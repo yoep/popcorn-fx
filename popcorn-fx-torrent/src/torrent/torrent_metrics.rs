@@ -108,7 +108,7 @@ impl Display for Metrics {
             self.progress() * 100f32,
             format_bytes(self.wanted_completed_size.get() as usize),
             format_bytes(self.wanted_size.get() as usize),
-            self.completed_pieces.get(),
+            self.wanted_completed_pieces.get(),
             self.wanted_pieces.get(),
             self.peers.get(),
             format_bytes(self.upload.rate() as usize),

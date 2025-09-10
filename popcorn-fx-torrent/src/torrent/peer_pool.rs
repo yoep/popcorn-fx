@@ -7,7 +7,7 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use thiserror::Error;
 use tokio::sync::{Mutex, RwLock, RwLockWriteGuard};
 use tokio::time;
@@ -172,6 +172,7 @@ impl PeerPool {
             }
 
             peer.is_in_use = false;
+            peer.last_connected = Some(Instant::now());
         }
     }
 
@@ -317,6 +318,8 @@ struct PeerInfo {
     failure_count: usize,
     /// The peer priority rank.
     rank: PeerPriority,
+    /// The last time the peer connected or disconnected from the torrent
+    last_connected: Option<Instant>,
 }
 
 impl PeerInfo {
@@ -329,6 +332,7 @@ impl PeerInfo {
             is_banned: false,
             failure_count: 0,
             rank: PeerPriority::none(),
+            last_connected: None,
         }
     }
 
@@ -343,6 +347,7 @@ impl PeerInfo {
             is_banned: false,
             failure_count: 0,
             rank,
+            last_connected: None,
         }
     }
 
@@ -506,6 +511,7 @@ mod tests {
                 is_banned: false,
                 failure_count: 0,
                 rank: PeerPriority::none(),
+                last_connected: None,
             };
             assert_eq!(
                 true,
@@ -520,6 +526,7 @@ mod tests {
                 is_banned: false,
                 failure_count: 0,
                 rank: PeerPriority::none(),
+                last_connected: None,
             };
             assert_eq!(
                 false,
@@ -534,6 +541,7 @@ mod tests {
                 is_banned: true,
                 failure_count: 0,
                 rank: PeerPriority::none(),
+                last_connected: None,
             };
             assert_eq!(
                 false,
@@ -587,6 +595,7 @@ mod tests {
                     is_banned: false,
                     failure_count: 0,
                     rank: PeerPriority::from(30),
+                    last_connected: None,
                 };
                 let peer2 = PeerInfo {
                     addr: ([127, 0, 0, 1], 8090).into(),
@@ -595,6 +604,7 @@ mod tests {
                     is_banned: false,
                     failure_count: 0,
                     rank: PeerPriority::from(10),
+                    last_connected: None,
                 };
 
                 assert_eq!(Ordering::Less, peer1.cmp(&peer2));
@@ -610,6 +620,7 @@ mod tests {
                     is_banned: false,
                     failure_count: 0,
                     rank: PeerPriority::none(),
+                    last_connected: None,
                 };
                 let peer2 = PeerInfo {
                     addr: ([127, 0, 0, 1], 8090).into(),
@@ -618,6 +629,7 @@ mod tests {
                     is_banned: false,
                     failure_count: 0,
                     rank: PeerPriority::none(),
+                    last_connected: None,
                 };
 
                 assert_eq!(Ordering::Greater, peer1.cmp(&peer2));
@@ -633,6 +645,7 @@ mod tests {
                     is_banned: false,
                     failure_count: 2,
                     rank: PeerPriority::none(),
+                    last_connected: None,
                 };
                 let peer2 = PeerInfo {
                     addr: ([127, 0, 0, 1], 8090).into(),
@@ -641,6 +654,7 @@ mod tests {
                     is_banned: false,
                     failure_count: 0,
                     rank: PeerPriority::none(),
+                    last_connected: None,
                 };
 
                 assert_eq!(Ordering::Greater, peer1.cmp(&peer2));

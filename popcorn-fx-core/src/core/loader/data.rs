@@ -234,10 +234,10 @@ impl Torrent for TorrentData {
         }
     }
 
-    async fn stats(&self) -> Metrics {
+    fn stats(&self) -> &Metrics {
         match self {
-            TorrentData::Torrent(e) => e.stats().await,
-            TorrentData::Stream(e) => e.stats().await,
+            TorrentData::Torrent(e) => e.stats(),
+            TorrentData::Stream(e) => e.stats(),
         }
     }
 }

@@ -188,7 +188,7 @@ impl FXWidget for MenuWidget {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-enum MenuCommand {
+pub enum MenuCommand {
     SelectSection(MenuSection),
     AddTorrentUri(String),
 }

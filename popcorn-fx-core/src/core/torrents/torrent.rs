@@ -81,7 +81,7 @@ pub trait Torrent: Debug + DowncastSync + Callback<TorrentEvent> + Send + Sync {
     async fn state(&self) -> TorrentState;
 
     /// Get the torrent metrics statics.
-    async fn stats(&self) -> Metrics;
+    fn stats(&self) -> &Metrics;
 }
 impl_downcast!(sync Torrent);
 
@@ -156,8 +156,8 @@ impl Torrent for torrent::Torrent {
         self.state().await
     }
 
-    async fn stats(&self) -> Metrics {
-        self.stats().await
+    fn stats(&self) -> &Metrics {
+        self.metrics()
     }
 }
 
@@ -297,7 +297,7 @@ mod mock {
             async fn total_pieces(&self) -> usize;
             async fn sequential_mode(&self);
             async fn state(&self) -> TorrentState;
-            async fn stats(&self) -> Metrics;
+            fn stats(&self) -> &Metrics;
         }
 
         impl Callback<TorrentEvent> for Torrent {

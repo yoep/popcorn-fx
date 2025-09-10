@@ -63,19 +63,28 @@ public class PopcornTimeStarter {
 
     static void onInit(IoC ioC) {
         var applicationConfig = ioC.getInstance(ApplicationConfig.class);
-        var discoveryStrategies = Arrays.<NativeDiscoveryStrategy>asList(
-                new LinuxNativeDiscoveryStrategy(),
-                new OsxNativeDiscoveryStrategy(),
-                new WindowsNativeDiscoveryStrategy()
-        );
 
         // vlc video player
         if (applicationConfig.isVlcVideoPlayerEnabled()) {
-            var discovery = new NativeDiscovery(discoveryStrategies.toArray(NativeDiscoveryStrategy[]::new));
-            if (discovery.discover()) {
-                ioC.registerInstance(discovery);
-                ioC.registerInstance(new MediaPlayerFactory(discovery));
-            }
+            new Thread(() -> {
+                var discoveryStrategies = Arrays.<NativeDiscoveryStrategy>asList(
+                        new LinuxNativeDiscoveryStrategy(),
+                        new OsxNativeDiscoveryStrategy(),
+                        new WindowsNativeDiscoveryStrategy()
+                );
+                var discovery = new NativeDiscovery(discoveryStrategies.toArray(NativeDiscoveryStrategy[]::new));
+
+                if (discovery.discover()) {
+                    ioC.registerInstance(discovery);
+                    ioC.registerInstance(new MediaPlayerFactory(discovery));
+
+                    ioC.getOptionalInstance(VideoService.class).ifPresentOrElse(
+                            videoService ->
+                                    videoService.addVideoPlayback(new VideoPlayerVlc(ioC.getInstance(MediaPlayerFactory.class)), VideoService.DEFAULT_ORDER),
+                            () -> log.warn("Unable to register VLC video player, VideoService not found")
+                    );
+                }
+            }, "vlcj-discovery").start();
         }
 
         // popcorn fx player
@@ -118,9 +127,6 @@ public class PopcornTimeStarter {
         if (applicationConfig.isYoutubeVideoPlayerEnabled() && Platform.isSupported(ConditionalFeature.WEB)) {
             videoService.addVideoPlayback(new VideoPlayerYoutube(), VideoService.HIGHEST_ORDER);
         }
-
-        ioC.getOptionalInstance(MediaPlayerFactory.class)
-                .ifPresent(e -> videoService.addVideoPlayback(new VideoPlayerVlc(e), VideoService.DEFAULT_ORDER));
 
         // fx video player
         if (applicationConfig.isFxPlayerEnabled()) {

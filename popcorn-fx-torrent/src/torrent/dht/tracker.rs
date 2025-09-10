@@ -1148,27 +1148,22 @@ impl InnerTracker {
             router_nodes.len()
         );
         let per_target_goal: usize = 64;
+        let router_nodes_len = router_nodes.len();
         let targets = Self::bootstrap_targets(tracker_id, 8);
 
-        let mut valid_router_nodes = 0u32;
-        let mut discovered_nodes = 0usize;
-        for router_node in router_nodes {
-            valid_router_nodes += 1;
+        let futures: Vec<_> = router_nodes
+            .into_iter()
+            .flat_map(|node| targets.iter().map(move |t| (node.clone(), *t)))
+            .map(|(node, target)| {
+                Self::iterative_bootstrap_from(vec![node], target, &command_sender, per_target_goal)
+            })
+            .collect();
 
-            for target in &targets {
-                discovered_nodes += Self::iterative_bootstrap_from(
-                    vec![router_node.clone()],
-                    *target,
-                    &command_sender,
-                    per_target_goal,
-                )
-                .await;
-            }
-        }
+        let discovered_nodes: usize = futures::future::join_all(futures).await.into_iter().sum();
 
         info!(
             "{} bootstrapped {} nodes through {} router nodes",
-            tracker_info, discovered_nodes, valid_router_nodes
+            tracker_info, discovered_nodes, router_nodes_len
         );
     }
 

@@ -723,7 +723,7 @@ impl Torrent {
     /// # Returns
     ///
     /// It returns the statics of this torrent.
-    pub async fn metrics(&self) -> &Metrics {
+    pub fn metrics(&self) -> &Metrics {
         &self.metrics
     }
 
@@ -1414,9 +1414,7 @@ impl TorrentContext {
         self.tracker_manager
             .announce_all(&metadata.info_hash, AnnounceEvent::Stopped)
             .await;
-        self.tracker_manager
-            .remove_torrent(&metadata.info_hash)
-            .await;
+        self.tracker_manager.remove_torrent(&metadata.info_hash);
         trace!("Torrent {} main loop ended", self);
     }
 
